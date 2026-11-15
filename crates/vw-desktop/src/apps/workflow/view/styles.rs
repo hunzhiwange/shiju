@@ -5,36 +5,12 @@ use super::*;
 /// 提供 floating panel style 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn floating_panel_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.background.base.color)),
-        border: Border { width: 1.0, color: palette.background.weak.color, radius: 12.0.into() },
-        shadow: Shadow {
-            color: Color::BLACK.scale_alpha(0.12),
-            offset: Vector::new(0.0, 10.0),
-            blur_radius: 22.0,
-        },
-        ..Default::default()
-    }
-}
+pub(super) use desktop_workflow_ui::view::styles::floating_panel_style;
 
 /// 提供 root style 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn root_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-
-    iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark_theme(theme) {
-            palette.background.base.color.scale_alpha(0.98)
-        } else {
-            Color::from_rgba8(244, 247, 252, 1.0)
-        })),
-        ..Default::default()
-    }
-}
+pub(super) use desktop_workflow_ui::view::styles::root_style;
 
 /// 提供 canvas panel style 功能。
 ///
@@ -122,9 +98,7 @@ pub(super) fn modal_backdrop_style(theme: &Theme) -> iced::widget::container::St
 /// 提供 modal card style 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn modal_card_style(theme: &Theme) -> iced::widget::container::Style {
-    settings_modal_card_style(theme)
-}
+pub(super) use desktop_workflow_ui::view::styles::modal_card_style;
 
 /// 节点编辑器作为覆盖画布的右侧抽屉展示，不使用模态圆角与遮罩。
 pub(super) fn node_editor_drawer_style(theme: &Theme) -> iced::widget::container::Style {

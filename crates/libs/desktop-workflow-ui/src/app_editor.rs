@@ -225,7 +225,7 @@ fn build_app_organize_field<Message: Clone + 'static>(
     )
 }
 
-fn workflow_text_input<'a, Message: Clone + 'static>(
+pub fn workflow_text_input<'a, Message: Clone + 'static>(
     placeholder: &'a str,
     value: &str,
     on_input: impl Fn(String) -> Message + 'static,

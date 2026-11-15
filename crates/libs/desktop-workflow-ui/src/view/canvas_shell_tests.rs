@@ -1,8 +1,8 @@
 //! 工作流画布外壳视图的测试，覆盖基础画布及各类浮动层组合。
 //! fixture 逐一打开快捷插入、状态、菜单和应用控制，核对根节点结构。
 use super::*;
-use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
-use crate::apps::workflow::state::{
+use desktop_workflow_model::{WorkflowAppMeta, WorkflowDocument};
+use desktop_workflow_state::state::{
     WorkflowAppEntry, WorkflowCanvasContextMenu, WorkflowHistorySnapshot,
 };
 use iced::{Point, Size, Vector};
@@ -18,8 +18,8 @@ fn workflow_node(id: &str, block_type: &str) -> WorkflowNode {
         size: Size::new(180.0, 120.0),
         parent_id: None,
         selected: false,
-        source_side: crate::apps::workflow::model::WorkflowHandleSide::Right,
-        target_side: crate::apps::workflow::model::WorkflowHandleSide::Left,
+        source_side: desktop_workflow_model::WorkflowHandleSide::Right,
+        target_side: desktop_workflow_model::WorkflowHandleSide::Left,
         source_handles: Vec::new(),
         target_handles: Vec::new(),
         z_index: 0.0,
@@ -100,7 +100,7 @@ fn build_status_chip_accepts_text() {
 fn build_canvas_area_handles_empty_state() {
     let state = WorkflowState::default();
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Fill, Length::Fill));
     assert_eq!(element.as_widget().children().len(), 1);
@@ -114,7 +114,7 @@ fn build_canvas_area_keeps_status_layer_without_open_apps() {
     };
 
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     assert_eq!(element.as_widget().children().len(), 2);
 }
@@ -124,7 +124,7 @@ fn build_canvas_area_includes_app_controls_without_optional_layers() {
     let state = workflow_state_with_document(WorkflowDocument::default());
 
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     assert_eq!(element.as_widget().children().len(), 5);
 }
@@ -141,7 +141,7 @@ fn build_canvas_area_includes_quick_insert_status_and_context_layers() {
     });
 
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     assert_eq!(element.as_widget().children().len(), 8);
 }
@@ -160,7 +160,7 @@ fn build_canvas_area_includes_all_floating_layers_when_open() {
     state.status_message = Some("已加载".to_string());
 
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     let _ = std::hint::black_box(element);
 }
@@ -172,7 +172,7 @@ fn build_canvas_area_wraps_action_menu_without_zoom_menu() {
     state.zoom_menu_open = false;
 
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     let _ = std::hint::black_box(element);
 }
@@ -184,7 +184,7 @@ fn build_canvas_area_wraps_zoom_menu_without_action_menu() {
     state.zoom_menu_open = true;
 
     let element =
-        build_canvas_area(crate::app::i18n::I18n::new(Default::default()), &state, canvas_base());
+        build_canvas_area(desktop_i18n::I18n::new(Default::default()), &state, canvas_base());
 
     let _ = std::hint::black_box(element);
 }
@@ -195,12 +195,12 @@ fn build_left_toolbar_overlay_handles_closed_and_open_quick_insert_panel() {
 
     {
         let closed =
-            build_left_toolbar_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+            build_left_toolbar_overlay(desktop_i18n::I18n::new(Default::default()), &state);
         assert_eq!(closed.as_widget().size(), Size::new(Length::Fill, Length::Fill));
     }
 
     state.quick_insert_panel_open = true;
-    let open = build_left_toolbar_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+    let open = build_left_toolbar_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(open.as_widget().size(), Size::new(Length::Fill, Length::Fill));
 }
@@ -210,7 +210,7 @@ fn build_canvas_context_menu_overlay_returns_empty_overlay_without_menu() {
     let state = WorkflowState::default();
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Shrink, Length::Shrink));
 }
@@ -225,7 +225,7 @@ fn build_canvas_context_menu_overlay_handles_canvas_target() {
     });
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     let _ = std::hint::black_box(element);
 }
@@ -243,7 +243,7 @@ fn build_canvas_context_menu_overlay_handles_edge_target() {
     });
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     let _ = std::hint::black_box(element);
 }
@@ -261,7 +261,7 @@ fn build_canvas_context_menu_overlay_handles_start_node_without_duplicate_action
     });
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     let _ = std::hint::black_box(element);
 }
@@ -279,7 +279,7 @@ fn build_canvas_context_menu_overlay_handles_non_start_node_with_duplicate_actio
     });
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     let _ = std::hint::black_box(element);
 }
@@ -294,7 +294,7 @@ fn build_canvas_context_menu_overlay_handles_missing_node_without_duplicate_acti
     });
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Fill, Length::Fill));
 }
@@ -312,7 +312,7 @@ fn build_canvas_context_menu_overlay_handles_node_insert_target() {
     });
 
     let element =
-        build_canvas_context_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_canvas_context_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state);
 
     let _ = std::hint::black_box(element);
 }
@@ -404,7 +404,7 @@ fn available_node_types_preserves_all_non_start_types() {
 fn build_quick_insert_panel_builds_available_buttons() {
     let state = WorkflowState::default();
 
-    let element = build_quick_insert_panel(crate::app::i18n::I18n::new(Default::default()), &state);
+    let element = build_quick_insert_panel(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size().width, Length::Fixed(438.0));
 }
@@ -416,7 +416,7 @@ fn build_quick_insert_panel_builds_when_start_node_already_exists() {
         ..WorkflowDocument::default()
     });
 
-    let element = build_quick_insert_panel(crate::app::i18n::I18n::new(Default::default()), &state);
+    let element = build_quick_insert_panel(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size().width, Length::Fixed(438.0));
 }
@@ -430,7 +430,7 @@ fn quick_insert_node_button_uses_node_type_message() {
         .expect("answer node type should exist");
 
     let element =
-        quick_insert_node_button(crate::app::i18n::I18n::new(Default::default()), node_type);
+        quick_insert_node_button(desktop_i18n::I18n::new(Default::default()), node_type);
 
     assert_eq!(element.as_widget().size().width, Length::Fixed(136.0));
 }
@@ -439,7 +439,7 @@ fn quick_insert_node_button_uses_node_type_message() {
 fn quick_insert_node_button_builds_for_all_supported_node_types() {
     for node_type in supported_node_types().iter().copied() {
         assert_eq!(
-            quick_insert_node_button(crate::app::i18n::I18n::new(Default::default()), node_type)
+            quick_insert_node_button(desktop_i18n::I18n::new(Default::default()), node_type)
                 .as_widget()
                 .size()
                 .width,

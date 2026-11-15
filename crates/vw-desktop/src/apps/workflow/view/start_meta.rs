@@ -40,15 +40,7 @@ pub(super) fn start_variable_badge(label: &'static str) -> Element<'static, Mess
 /// 提供 start variable value type label 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn start_variable_value_type_label(input_type: &str) -> &'static str {
-    match input_type {
-        "number" => "number",
-        "checkbox" => "boolean",
-        "file" => "file",
-        "file-list" => "array[file]",
-        _ => "string",
-    }
-}
+pub(super) use desktop_workflow_ui::view::start_meta::start_variable_value_type_label;
 
 /// 提供 start variable summary error 功能。
 ///

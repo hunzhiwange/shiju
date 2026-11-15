@@ -1,0 +1,182 @@
+//! HTTP 请求节点的安全可视化编辑面板。
+
+use super::*;
+use desktop_ui_controls::system_settings_common::{settings_group_card, settings_toggle};
+use iced::widget::{column, row};
+
+pub(crate) fn http_message(edit: WorkflowHttpRequestEdit) -> Message {
+    WorkflowMessage::NodeEditorHttpRequestEdit(edit)
+}
+
+pub(crate) fn headers_action(action: text_editor::Action) -> WorkflowMessage {
+    WorkflowMessage::NodeEditorHttpRequestEdit(WorkflowHttpRequestEdit::Headers(action))
+}
+pub(crate) fn params_action(action: text_editor::Action) -> WorkflowMessage {
+    WorkflowMessage::NodeEditorHttpRequestEdit(WorkflowHttpRequestEdit::Params(action))
+}
+pub(crate) fn body_action(action: text_editor::Action) -> WorkflowMessage {
+    WorkflowMessage::NodeEditorHttpRequestEdit(WorkflowHttpRequestEdit::Body(action))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn build_http_request_section<'a>(
+    i18n: desktop_i18n::I18n,
+    validation: &'a super::state::WorkflowNodeEditorValidation,
+    method: &'a str,
+    url: &'a str,
+    auth_type: &'a str,
+    auth_username: &'a str,
+    auth_password: &'a str,
+    auth_token: &'a str,
+    headers: &'a text_editor::Content,
+    params: &'a text_editor::Content,
+    body_type: &'a str,
+    body: &'a text_editor::Content,
+    timeout_connect: &'a str,
+    timeout_read: &'a str,
+    timeout_write: &'a str,
+    ssl_verify: bool,
+    retry: WorkflowNodeRetryDraft,
+    error_strategy: &'a str,
+) -> Element<'a, Message> {
+    let auth_fields: Element<'a, Message> = match auth_type {
+        "basic" => row![
+            workflow_text_input(i18n.__("用户名"), auth_username, |v| http_message(
+                WorkflowHttpRequestEdit::AuthUsername(v)
+            )),
+            workflow_text_input(i18n.__("密码"), auth_password, |v| http_message(
+                WorkflowHttpRequestEdit::AuthPassword(v)
+            )),
+        ]
+        .spacing(8)
+        .into(),
+        "bearer" | "api-key" => workflow_text_input(
+            i18n.__("凭据（不会出现在反馈消息中）"),
+            auth_token,
+            |v| http_message(WorkflowHttpRequestEdit::AuthToken(v)),
+        ),
+        _ => Space::new().height(Length::Shrink).into(),
+    };
+    column![
+        row![
+            build_editor_field(
+                i18n.__("方法"),
+                workflow_text_input("get", method, |v| http_message(
+                    WorkflowHttpRequestEdit::Method(v)
+                ))
+            ),
+            build_editor_field_validated(
+                "URL",
+                workflow_text_input("https://example.com/api", url, |v| http_message(
+                    WorkflowHttpRequestEdit::Url(v)
+                )),
+                validation.localized_error_for(i18n, "http.url")
+            ),
+        ]
+        .spacing(8),
+        settings_group_card(
+            column![
+                build_editor_field_validated(
+                    i18n.__("鉴权类型"),
+                    workflow_text_input("no-auth / basic / bearer / api-key", auth_type, |v| {
+                        http_message(WorkflowHttpRequestEdit::AuthType(v))
+                    }),
+                    validation.localized_error_for(i18n, "http.authorization")
+                ),
+                auth_fields,
+            ]
+            .spacing(10)
+        )
+        .padding(12),
+        settings_group_card(
+            column![
+                build_editor_field(
+                    i18n.__("请求头 YAML"),
+                    build_embedded_text_editor(
+                        headers,
+                        i18n.__("请求头 YAML"),
+                        headers_action,
+                        90.0
+                    )
+                ),
+                build_editor_field(
+                    i18n.__("查询参数 YAML"),
+                    build_embedded_text_editor(
+                        params,
+                        i18n.__("查询参数 YAML"),
+                        params_action,
+                        90.0
+                    )
+                ),
+                build_editor_field(
+                    i18n.__("请求体类型"),
+                    workflow_text_input("none / json / raw-text / form-data", body_type, |v| {
+                        http_message(WorkflowHttpRequestEdit::BodyType(v))
+                    })
+                ),
+                build_editor_field(
+                    i18n.__("请求体 YAML"),
+                    build_embedded_text_editor(body, "body.data YAML", body_action, 120.0)
+                ),
+            ]
+            .spacing(12)
+        )
+        .padding(12),
+        row![
+            build_editor_field_validated(
+                i18n.__("连接超时"),
+                workflow_text_input("10", timeout_connect, |v| http_message(
+                    WorkflowHttpRequestEdit::TimeoutConnect(v)
+                )),
+                validation.localized_error_for(i18n, "http.timeout.connect")
+            ),
+            build_editor_field_validated(
+                i18n.__("读取超时"),
+                workflow_text_input("60", timeout_read, |v| http_message(
+                    WorkflowHttpRequestEdit::TimeoutRead(v)
+                )),
+                validation.localized_error_for(i18n, "http.timeout.read")
+            ),
+            build_editor_field_validated(
+                i18n.__("写入超时"),
+                workflow_text_input("20", timeout_write, |v| http_message(
+                    WorkflowHttpRequestEdit::TimeoutWrite(v)
+                )),
+                validation.localized_error_for(i18n, "http.timeout.write")
+            ),
+        ]
+        .spacing(8),
+        row![
+            settings_toggle(ssl_verify)
+                .on_toggle(|v| http_message(WorkflowHttpRequestEdit::SslVerify(v))),
+            text(i18n.__("校验 TLS 证书")).size(12)
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+        row![
+            settings_toggle(retry.enabled)
+                .on_toggle(|v| http_message(WorkflowHttpRequestEdit::RetryEnabled(v))),
+            text(
+                i18n.format(
+                    "重试 %s 次 / %s ms",
+                    &[
+                        retry.max_retries.to_string().into(),
+                        retry.retry_interval.to_string().into()
+                    ]
+                )
+                .expect("valid workflow display template")
+            )
+            .size(12),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+        build_editor_field(
+            i18n.__("错误策略"),
+            workflow_text_input("none / fail-branch", error_strategy, |v| http_message(
+                WorkflowHttpRequestEdit::ErrorStrategy(v)
+            ))
+        ),
+    ]
+    .spacing(12)
+    .into()
+}

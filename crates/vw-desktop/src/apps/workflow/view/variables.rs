@@ -373,31 +373,12 @@ pub(super) fn variable_value_preview(
 /// 构建 editor field 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_editor_field<'a>(
-    label: &'a str,
-    control: Element<'a, Message>,
-) -> Element<'a, Message> {
-    build_editor_field_validated(label, control, None)
-}
+pub(super) use desktop_workflow_ui::view::variables::build_editor_field;
 
 /// 构建 editor field validated 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_editor_field_validated<'a>(
-    label: &'a str,
-    control: Element<'a, Message>,
-    error: Option<String>,
-) -> Element<'a, Message> {
-    let mut content = column![settings_field_label(label), control].spacing(6);
-
-    if let Some(error) = error {
-        content = content.push(text(error).size(12).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.extended_palette().danger.base.color) }
-        }));
-    }
-
-    content.into()
-}
+pub(super) use desktop_workflow_ui::view::variables::build_editor_field_validated;
 
 /// 构建 node validation summary 对应的界面元素。
 ///

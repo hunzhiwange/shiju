@@ -7,8 +7,8 @@ use iced::widget::{column, row};
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 #[allow(dead_code)]
-pub(super) fn build_header(
-    i18n: crate::app::i18n::I18n,
+pub(crate) fn build_header(
+    i18n: desktop_i18n::I18n,
     state: &WorkflowState,
 ) -> Element<'_, Message> {
     let reload_label = i18n.__("重新载入");
@@ -56,11 +56,11 @@ pub(super) fn build_header(
         button(text(i18n.__("新增应用")).size(12))
             .style(primary_action_btn_style)
             .padding([9, 14])
-            .on_press(Message::WorkflowTool(WorkflowMessage::OpenCreateAppEditor)),
+            .on_press(WorkflowMessage::OpenCreateAppEditor),
         button(text(i18n.__("导入 DSL")).size(12))
             .style(rounded_action_btn_style)
             .padding([9, 14])
-            .on_press(Message::WorkflowTool(WorkflowMessage::OpenFile)),
+            .on_press(WorkflowMessage::OpenFile),
         button(text(i18n.__("保存 yml")).size(12))
             .style(rounded_action_btn_style)
             .padding([9, 14])
@@ -68,7 +68,7 @@ pub(super) fn build_header(
                 state
                     .active_app_id
                     .as_ref()
-                    .map(|_| Message::WorkflowTool(WorkflowMessage::SaveActiveApp)),
+                    .map(|_| WorkflowMessage::SaveActiveApp),
             ),
         button(text(i18n.__("另存为")).size(12))
             .style(rounded_action_btn_style)
@@ -77,7 +77,7 @@ pub(super) fn build_header(
                 state
                     .active_app_id
                     .as_ref()
-                    .map(|_| Message::WorkflowTool(WorkflowMessage::SaveActiveAppAs)),
+                    .map(|_| WorkflowMessage::SaveActiveAppAs),
             ),
     ]
     .spacing(8)
@@ -89,7 +89,7 @@ pub(super) fn build_header(
             .padding([8, 12])
             .on_press_maybe(
                 (state.local_uuid.as_deref() == Some(state::video_edit::TEMPLATE_ID))
-                    .then_some(Message::WorkflowTool(WorkflowMessage::OpenVideoTemplate))
+                    .then_some(WorkflowMessage::OpenVideoTemplate)
             ),
         button(text(i18n.__("编辑应用")).size(12))
             .style(rounded_action_btn_style)
@@ -98,7 +98,7 @@ pub(super) fn build_header(
                 state
                     .active_app_id
                     .as_ref()
-                    .map(|_| Message::WorkflowTool(WorkflowMessage::OpenEditAppEditor(None))),
+                    .map(|_| WorkflowMessage::OpenEditAppEditor(None)),
             ),
         button(text(i18n.__("编辑节点")).size(12))
             .style(rounded_action_btn_style)
@@ -107,7 +107,7 @@ pub(super) fn build_header(
                 state
                     .selected_node_id
                     .as_ref()
-                    .map(|_| Message::WorkflowTool(WorkflowMessage::OpenEditNodeEditor(None))),
+                    .map(|_| WorkflowMessage::OpenEditNodeEditor(None)),
             ),
         button(text(reload_label).size(12))
             .style(rounded_action_btn_style)
@@ -116,22 +116,22 @@ pub(super) fn build_header(
                 state
                     .active_app_id
                     .as_ref()
-                    .map(|_| Message::WorkflowTool(WorkflowMessage::Reload)),
+                    .map(|_| WorkflowMessage::Reload),
             ),
         button(text(i18n.__("适配视图")).size(12))
             .style(rounded_action_btn_style)
             .padding([8, 12])
-            .on_press(Message::WorkflowTool(WorkflowMessage::ZoomFit)),
+            .on_press(WorkflowMessage::ZoomFit),
         if state.connection_draft.is_some() {
             button(text(i18n.__("取消连线")).size(12))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
-                .on_press(Message::WorkflowTool(WorkflowMessage::CancelConnection))
+                .on_press(WorkflowMessage::CancelConnection)
         } else if state.selected_node_id.is_some() {
             button(text(i18n.__("删除节点")).size(12))
                 .style(danger_action_btn_style)
                 .padding([8, 12])
-                .on_press(Message::WorkflowTool(WorkflowMessage::DeleteSelectedNode))
+                .on_press(WorkflowMessage::DeleteSelectedNode)
         } else {
             button(text(i18n.__("删除连线")).size(12))
                 .style(danger_action_btn_style)
@@ -140,18 +140,18 @@ pub(super) fn build_header(
                     state
                         .selected_edge_id
                         .as_ref()
-                        .map(|_| Message::WorkflowTool(WorkflowMessage::DeleteSelectedEdge)),
+                        .map(|_| WorkflowMessage::DeleteSelectedEdge),
                 )
         },
         button(text("−").size(13))
             .style(rounded_action_btn_style)
             .padding([8, 10])
-            .on_press(Message::WorkflowTool(WorkflowMessage::Zoom(1.0 / 1.1, None))),
+            .on_press(WorkflowMessage::Zoom(1.0 / 1.1, None)),
         settings_value_badge(format!("{:.0}%", state.zoom.max(0.1) * 100.0)),
         button(text("+").size(13))
             .style(rounded_action_btn_style)
             .padding([8, 10])
-            .on_press(Message::WorkflowTool(WorkflowMessage::Zoom(1.1, None))),
+            .on_press(WorkflowMessage::Zoom(1.1, None)),
     ]
     .spacing(8)
     .wrap();
@@ -186,8 +186,8 @@ pub(super) fn build_header(
 /// 构建 action bar 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_action_bar(
-    i18n: crate::app::i18n::I18n,
+pub(crate) fn build_action_bar(
+    i18n: desktop_i18n::I18n,
     state: &WorkflowState,
 ) -> Element<'static, Message> {
     let icon_button = |icon: Icon,
@@ -218,7 +218,7 @@ pub(super) fn build_action_bar(
         });
 
         let button: Element<'static, Message> = if let Some(message) = message {
-            button.on_press(Message::WorkflowTool(message)).into()
+            button.on_press(message).into()
         } else {
             button.into()
         };
@@ -267,7 +267,7 @@ pub(super) fn build_action_bar(
     .into()
 }
 
-fn action_bar_icon_style(theme: &Theme, enabled: bool, active: bool) -> iced::widget::svg::Style {
+pub(crate) fn action_bar_icon_style(theme: &Theme, enabled: bool, active: bool) -> iced::widget::svg::Style {
     let color = if !enabled {
         Color::from_rgba8(160, 160, 160, 1.0)
     } else if active {
@@ -278,7 +278,7 @@ fn action_bar_icon_style(theme: &Theme, enabled: bool, active: bool) -> iced::wi
     iced::widget::svg::Style { color: Some(color) }
 }
 
-fn action_bar_button_style(
+pub(crate) fn action_bar_button_style(
     theme: &Theme,
     status: iced::widget::button::Status,
     enabled: bool,
@@ -316,8 +316,8 @@ fn action_bar_button_style(
 /// 构建 action menu overlay 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_action_menu_overlay(
-    i18n: crate::app::i18n::I18n,
+pub(crate) fn build_action_menu_overlay(
+    i18n: desktop_i18n::I18n,
     state: &WorkflowState,
 ) -> Element<'static, Message> {
     let menu_item = |icon: Icon,
@@ -350,7 +350,7 @@ pub(super) fn build_action_menu_overlay(
         .width(Length::Fill);
 
         if let Some(message) = message {
-            button.on_press(Message::WorkflowTool(message)).into()
+            button.on_press(message).into()
         } else {
             button.into()
         }
@@ -406,12 +406,12 @@ pub(super) fn build_action_menu_overlay(
     .into()
 }
 
-fn action_menu_icon_style(theme: &Theme, enabled: bool) -> iced::widget::svg::Style {
+pub(crate) fn action_menu_icon_style(theme: &Theme, enabled: bool) -> iced::widget::svg::Style {
     let color = if enabled { theme.palette().text } else { theme.palette().text.scale_alpha(0.35) };
     iced::widget::svg::Style { color: Some(color) }
 }
 
-fn action_menu_button_style(
+pub(crate) fn action_menu_button_style(
     theme: &Theme,
     status: iced::widget::button::Status,
     enabled: bool,

@@ -88,16 +88,8 @@ pub(super) fn build_embedded_text_editor<'a, F>(
     height: f32,
 ) -> Element<'a, Message>
 where
-    F: Fn(text_editor::Action) -> WorkflowMessage + 'static + Copy,
-{
-    text_editor(content)
-        .placeholder(placeholder)
-        .on_action(move |action| Message::WorkflowTool(map_message(action)))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .height(Length::Fixed(height))
-        .style(editor_style)
-        .into()
+    F: Fn(text_editor::Action) -> WorkflowMessage + 'static + Copy, {
+    desktop_workflow_ui::view::node_editor::build_embedded_text_editor(content, placeholder, map_message, height).map(Message::WorkflowTool)
 }
 
 /// StartBuiltinVariableItem 数据结构承载该模块对外传递的 StartBuiltinVariableItem 状态。

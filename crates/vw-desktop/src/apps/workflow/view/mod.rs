@@ -39,7 +39,6 @@ mod app_editor;
 mod app_list;
 mod canvas_shell;
 mod data_nodes;
-mod header;
 mod http_request;
 mod if_else;
 mod menu;
@@ -68,7 +67,6 @@ use app_editor::*;
 use app_list::*;
 use canvas_shell::*;
 use data_nodes::*;
-use header::*;
 use http_request::*;
 use if_else::*;
 use menu::*;
@@ -96,28 +94,11 @@ const ZOOM_CONTROL_WIDTH: f32 = 156.0;
 const ZOOM_CONTROL_HEIGHT: f32 = 32.0;
 const ZOOM_MENU_GAP: f32 = 8.0;
 
-fn editor_style(theme: &Theme, status: text_editor::Status) -> text_editor::Style {
-    settings_text_editor_style(theme, status)
-}
+pub(super) use desktop_workflow_ui::view::editor_style;
 
-fn is_dark_theme(theme: &Theme) -> bool {
-    let background = theme.palette().background;
-    background.r + background.g + background.b < 1.5
-}
+pub(super) use desktop_workflow_ui::view::is_dark_theme;
 
-fn workflow_text_input<'a>(
-    placeholder: &'a str,
-    value: &str,
-    on_input: impl Fn(String) -> Message + 'static,
-) -> Element<'a, Message> {
-    text_input(placeholder, value)
-        .on_input(on_input)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
-        .width(Length::Fill)
-        .into()
-}
+pub(super) use desktop_workflow_ui::view::workflow_text_input;
 
 fn next_step_jump_card_style(
     theme: &Theme,
@@ -162,119 +143,17 @@ fn next_step_jump_card_style(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct WorkflowAppSwitchOption {
-    id: String,
-    label: String,
-    source: WorkflowAppSwitchSource,
-}
+use desktop_workflow_ui::view::{WorkflowAppSwitchOption, WorkflowAppSwitchSource};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum WorkflowAppSwitchSource {
-    SavedUuid(String),
-    OpenApp(String),
-}
+pub(super) use desktop_workflow_ui::view::workflow_app_display_name;
 
-impl std::fmt::Display for WorkflowAppSwitchOption {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.label)
-    }
-}
-
-fn workflow_app_display_name(i18n: crate::app::i18n::I18n, name: &str) -> String {
-    if name.trim().is_empty() { i18n.__("未命名应用").to_string() } else { name.to_string() }
-}
-
-fn workflow_app_switch_options(
-    i18n: crate::app::i18n::I18n,
-    state: &WorkflowState,
-) -> Vec<WorkflowAppSwitchOption> {
-    let mut options = state
-        .saved_apps
-        .iter()
-        .map(|app| {
-            let is_active = state.local_uuid.as_deref() == Some(app.uuid.as_str());
-            let dirty = is_active && state.active_is_dirty;
-            let label = if dirty {
-                format!("🤖 {} *", workflow_app_display_name(i18n, &app.name))
-            } else {
-                format!("🤖 {}", workflow_app_display_name(i18n, &app.name))
-            };
-
-            WorkflowAppSwitchOption {
-                id: app.uuid.clone(),
-                label,
-                source: WorkflowAppSwitchSource::SavedUuid(app.uuid.clone()),
-            }
-        })
-        .collect::<Vec<_>>();
-
-    for app in state.apps.iter().filter(|app| {
-        app.local_uuid
-            .as_deref()
-            .is_none_or(|uuid| !state.saved_apps.iter().any(|saved| saved.uuid == uuid))
-    }) {
-        let is_active = state.active_app_id.as_deref() == Some(app.id.as_str());
-        let name = if is_active {
-            workflow_app_display_name(i18n, &state.source_name)
-        } else {
-            workflow_app_display_name(i18n, &app.meta.name)
-        };
-        let dirty = if is_active { state.active_is_dirty } else { app.is_dirty };
-        let label = if dirty {
-            format!("{} {} *", app.meta.icon, name)
-        } else {
-            format!("{} {}", app.meta.icon, name)
-        };
-
-        options.push(WorkflowAppSwitchOption {
-            id: app.id.clone(),
-            label,
-            source: WorkflowAppSwitchSource::OpenApp(app.id.clone()),
-        });
-    }
-
-    options
-}
+pub(super) use desktop_workflow_ui::view::workflow_app_switch_options;
 
 fn build_app_switcher(
     i18n: crate::app::i18n::I18n,
     state: &WorkflowState,
 ) -> Element<'static, Message> {
-    let options = workflow_app_switch_options(i18n, state);
-    let selected = state
-        .local_uuid
-        .as_ref()
-        .and_then(|uuid| {
-            options.iter().find(|option| {
-                matches!(&option.source, WorkflowAppSwitchSource::SavedUuid(saved_uuid) if saved_uuid == uuid)
-            })
-        })
-        .or_else(|| {
-            state.active_app_id.as_ref().and_then(|active_id| {
-                options.iter().find(|option| {
-                    matches!(&option.source, WorkflowAppSwitchSource::OpenApp(app_id) if app_id == active_id)
-                })
-            })
-        })
-        .cloned();
-
-    if options.is_empty() {
-        container(Space::new().width(Length::Shrink).height(Length::Fixed(0.0)))
-            .width(Length::Fill)
-            .into()
-    } else {
-        settings_select(options, selected, |option| match option.source {
-            WorkflowAppSwitchSource::SavedUuid(uuid) => {
-                Message::WorkflowTool(WorkflowMessage::OpenSavedApp(uuid))
-            }
-            WorkflowAppSwitchSource::OpenApp(id) => {
-                Message::WorkflowTool(WorkflowMessage::SelectApp(id))
-            }
-        })
-        .width(Length::Fill)
-        .into()
-    }
+    desktop_workflow_ui::view::build_app_switcher(i18n, state).map(Message::WorkflowTool)
 }
 
 pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, Message> {
@@ -325,7 +204,7 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
         return stack(layers).width(Length::Fill).height(Length::Fill).into();
     }
 
-    let canvas_base: Element<'_, Message> = if !state.has_apps() || state.document.nodes.is_empty()
+    let canvas_base: Element<'_, WorkflowMessage> = if !state.has_apps() || state.document.nodes.is_empty()
     {
         container(Space::new().width(Length::Fill).height(Length::Fill))
             .width(Length::Fill)
@@ -345,7 +224,23 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
             })
             .width(Length::Fill)
             .height(Length::Fill).into();
-        container(canvas.map(super::canvas::map_message))
+        container(canvas.map(|message| match message {
+        desktop_workflow_canvas::CanvasMessage::StartConnection(endpoint, point) => {
+            WorkflowMessage::StartConnection(endpoint, point)
+        }
+        desktop_workflow_canvas::CanvasMessage::NodeDragStart(id) => WorkflowMessage::NodeDragStart(id),
+        desktop_workflow_canvas::CanvasMessage::SelectEdge(id) => WorkflowMessage::SelectEdge(id),
+        desktop_workflow_canvas::CanvasMessage::ClearSelection => WorkflowMessage::ClearSelection,
+        desktop_workflow_canvas::CanvasMessage::OpenCanvasContextMenu(target, anchor, world) => {
+            WorkflowMessage::OpenCanvasContextMenu(target, anchor, world)
+        }
+        desktop_workflow_canvas::CanvasMessage::FinishConnection(endpoint) => WorkflowMessage::FinishConnection(endpoint),
+        desktop_workflow_canvas::CanvasMessage::CancelConnection => WorkflowMessage::CancelConnection,
+        desktop_workflow_canvas::CanvasMessage::FinishNodeDrag => WorkflowMessage::FinishNodeDrag,
+        desktop_workflow_canvas::CanvasMessage::PanBy(delta) => WorkflowMessage::PanBy(delta),
+        desktop_workflow_canvas::CanvasMessage::NodeDragged(id, delta) => WorkflowMessage::NodeDragged(id, delta),
+        desktop_workflow_canvas::CanvasMessage::UpdateConnectionCursor(point) => WorkflowMessage::UpdateConnectionCursor(point),
+    }))
         .width(Length::Fill)
         .height(Length::Fill)
         .style(canvas_panel_style)

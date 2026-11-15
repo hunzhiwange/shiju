@@ -25,3 +25,11 @@ pub mod policy;
 pub mod source;
 
 pub mod marketplace;
+pub mod prompt;
+pub mod session_mounts;
+pub mod shiju;
+
+#[cfg(test)]
+mod session_state_tests;
+#[cfg(test)]
+mod session_mounts_tests;

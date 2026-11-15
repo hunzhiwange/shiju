@@ -2,8 +2,8 @@
 //! 紧凑提示只暴露定位信息，完整提示才注入工具、说明和绝对位置。
 
 use super::*;
-use crate::app::agent::config::SkillsPromptInjectionMode;
-use crate::app::agent::skills::types::{Skill, SkillTool};
+use config_skills::SkillsPromptInjectionMode;
+use crate::types::{Skill, SkillTool};
 use std::collections::HashMap;
 
 #[test]

@@ -1,7 +1,7 @@
 //! 验证会话技能状态的启用、调用记录与持久化转换。
 //! 预算不足的技能保留为未发送状态，压缩恢复后默认预载也只能发生一次。
 
-use super::{Skill, SkillListingSessionState};
+use crate::{types::Skill, session_state::SkillListingSessionState};
 
 fn skill(name: &str) -> Skill {
     Skill { name: name.to_string(), description: format!("{name} description"), ..Skill::default() }

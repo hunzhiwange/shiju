@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+acp-types = { path = "../acp-types", version = "0.6.0" }
+gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
+gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 async-trait = "0.1.89"
 thiserror = "2.0.18"
@@ -31,14 +34,15 @@ walkdir = "2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dialoguer = "0.11"
+libc = "0.2"
 
 base64 = "0.23"
 ring = "0.17.14"
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls", "query"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-reqwest = { version = "0.13", features = ["json", "stream"] }
+reqwest = { version = "0.13", features = ["json", "stream", "query"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

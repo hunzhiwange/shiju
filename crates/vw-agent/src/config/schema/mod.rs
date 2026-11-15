@@ -54,7 +54,7 @@ mod workspace_tests;
 pub use vw_config_types::agent;
 pub use config_gateway as gateway;
 pub use config_hooks as hooks;
-pub use vw_config_types::memory;
+pub use config_memory as memory;
 pub use config_observability as observability;
 pub use config_reliability as reliability;
 pub use config_routing as routing;

@@ -9,6 +9,7 @@ license = "MIT"
 
 [dependencies]
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }
+config-memory = { path = "../libs/config-memory", version = "0.6.0" }
 config-runtime = { path = "../libs/config-runtime", version = "0.6.0" }
 config-observability = { path = "../libs/config-observability", version = "0.6.0" }
 config-hooks = { path = "../libs/config-hooks", version = "0.6.0" }

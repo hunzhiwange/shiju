@@ -3,7 +3,7 @@
 use crate::app::config::update_memory_config_async;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::memory::{MemoryConfig, QdrantConfig};
+use config_memory::{MemoryConfig, QdrantConfig};
 
 use crate::app::state::MemorySettingsTab;
 

@@ -15,6 +15,7 @@ doctest = false
 permission-types = { path = "../libs/permission-types", version = "0.6.0" }
 vw-api-todo = { path = "../libs/api-todo", version = "0.6.0" }
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }
+config-memory = { path = "../libs/config-memory", version = "0.6.0" }
 snapshot-types = { path = "../libs/snapshot-types", version = "0.6.0" }
 config-runtime = { path = "../libs/config-runtime", version = "0.6.0" }
 vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.6.0" }

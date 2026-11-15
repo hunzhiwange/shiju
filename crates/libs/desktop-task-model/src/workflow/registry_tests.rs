@@ -8,8 +8,8 @@ use super::{
     runtime_task_lifecycle_cache_test_lock, task_workflow_by_id,
     update_runtime_task_lifecycle_cache,
 };
-use crate::app::task::models::TaskStatus;
-use crate::app::task::{TaskStateMachine, TaskTransitionIntent};
+use crate::models::TaskStatus;
+use crate::{TaskStateMachine, TaskTransitionIntent};
 use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto,
@@ -380,7 +380,7 @@ fn workflow_status_helpers_cover_disabled_cycles_and_role_flags() {
         target: disabled_a,
     }];
 
-    let resolved = crate::app::task::workflow::TaskWorkflow::from(workflow);
+    let resolved = crate::workflow::TaskWorkflow::from(workflow);
     assert_eq!(resolved.next_status(start), None);
     assert!(resolved.status_definition(start).expect("status").has_outgoing_transitions());
     assert!(resolved.role_is_scheduling_backlog(start));

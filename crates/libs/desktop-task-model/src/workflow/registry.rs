@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{LazyLock, RwLock};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 use std::sync::{Mutex, MutexGuard};
 
 use anyhow::{Result, anyhow, bail};
@@ -11,7 +11,7 @@ use vw_api_task_lifecycle::{
 };
 
 use super::{StatusRole, TaskStatusDefinition, TaskWorkflowDefinition, builtin_task_workflows};
-use crate::app::task::models::TaskStatus;
+use crate::models::TaskStatus;
 
 /// 状态完成后的分支结果 key。
 ///
@@ -434,7 +434,7 @@ fn lifecycle_status_key_for_target(
         .unwrap_or_else(|| target.to_string_key().to_string())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 fn lifecycle_dto_from_owned_workflow(workflow: OwnedTaskWorkflow) -> TaskLifecycleWorkflowDto {
     lifecycle_dto_from_task_workflow(TaskWorkflow::from(workflow), false)
 }
@@ -498,7 +498,7 @@ impl From<&OwnedTaskWorkflow> for TaskWorkflow {
 
 /// 运行时工作流注册表。默认总是包含内置工作流，自定义预设来自网关生命周期 cache。
 #[derive(Debug, Clone, Default)]
-pub(crate) struct TaskWorkflowRegistry {
+pub struct TaskWorkflowRegistry {
     custom_workflows: Vec<OwnedTaskWorkflow>,
 }
 
@@ -507,7 +507,7 @@ impl TaskWorkflowRegistry {
         Self { custom_workflows: Vec::new() }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn register(&mut self, workflow: OwnedTaskWorkflow) -> Result<()> {
         validate_owned_workflow(&workflow)?;
         if self.custom_workflows.iter().any(|existing| existing.id == workflow.id) {
@@ -607,20 +607,20 @@ pub fn update_runtime_task_lifecycle_cache(workflows: Vec<TaskLifecycleWorkflowD
     Ok(())
 }
 
-#[cfg(test)]
-pub(crate) fn reset_runtime_task_lifecycle_cache() -> Result<()> {
+#[cfg(any(test, feature = "test-support"))]
+pub fn reset_runtime_task_lifecycle_cache() -> Result<()> {
     update_runtime_task_lifecycle_cache(built_in_task_lifecycle_workflows())
 }
 
-#[cfg(test)]
-pub(crate) fn register_runtime_task_workflow(workflow: OwnedTaskWorkflow) -> Result<()> {
+#[cfg(any(test, feature = "test-support"))]
+pub fn register_runtime_task_workflow(workflow: OwnedTaskWorkflow) -> Result<()> {
     let mut workflows = runtime_task_lifecycle_cache_snapshot();
     workflows.push(lifecycle_dto_from_owned_workflow(workflow));
     update_runtime_task_lifecycle_cache(workflows)
 }
 
-#[cfg(test)]
-pub(crate) fn replace_runtime_task_lifecycle_workflows_for_tests(
+#[cfg(any(test, feature = "test-support"))]
+pub fn replace_runtime_task_lifecycle_workflows_for_tests(
     workflows: Vec<OwnedTaskWorkflow>,
 ) -> Result<()> {
     let mut lifecycle_workflows = built_in_task_lifecycle_workflows();
@@ -801,11 +801,11 @@ fn default_true() -> bool {
 static RUNTIME_TASK_LIFECYCLE_CACHE: LazyLock<RwLock<Vec<TaskLifecycleWorkflowDto>>> =
     LazyLock::new(|| RwLock::new(built_in_task_lifecycle_workflows()));
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 static RUNTIME_TASK_LIFECYCLE_CACHE_TEST_LOCK: LazyLock<Mutex<()>> =
     LazyLock::new(|| Mutex::new(()));
 
-#[cfg(test)]
-pub(crate) fn runtime_task_lifecycle_cache_test_lock() -> MutexGuard<'static, ()> {
+#[cfg(any(test, feature = "test-support"))]
+pub fn runtime_task_lifecycle_cache_test_lock() -> MutexGuard<'static, ()> {
     RUNTIME_TASK_LIFECYCLE_CACHE_TEST_LOCK.lock().unwrap_or_else(|poison| poison.into_inner())
 }

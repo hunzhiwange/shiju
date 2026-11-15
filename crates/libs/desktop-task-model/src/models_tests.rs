@@ -341,7 +341,7 @@ fn task_board_settings_new_and_default_keep_exact_runtime_defaults() {
     assert_eq!(settings.running_timeout_minutes, 20);
     assert!(!settings.recycle_worktree_on_task_finish);
     assert_eq!(settings.pr_submitted_stall_timeout_seconds, 30);
-    assert_eq!(settings.workflow_id, crate::app::task::DEFAULT_TASK_WORKFLOW_ID);
+    assert_eq!(settings.workflow_id, crate::DEFAULT_TASK_WORKFLOW_ID);
     assert_eq!(default_settings.workflow_id, settings.workflow_id);
 
     let zero_retry_attempts = super::TaskBoardSettings {
@@ -357,7 +357,7 @@ fn task_board_settings_sanitizes_workflow_id() {
     // 新建配置默认使用 dev_lifecycle。
     assert_eq!(
         super::TaskBoardSettings::new().workflow_id,
-        crate::app::task::DEFAULT_TASK_WORKFLOW_ID
+        crate::DEFAULT_TASK_WORKFLOW_ID
     );
 
     // 未知 workflow id 被 sanitize 回默认值。
@@ -366,14 +366,14 @@ fn task_board_settings_sanitizes_workflow_id() {
         ..super::TaskBoardSettings::new()
     }
     .sanitized();
-    assert_eq!(settings.workflow_id, crate::app::task::DEFAULT_TASK_WORKFLOW_ID);
+    assert_eq!(settings.workflow_id, crate::DEFAULT_TASK_WORKFLOW_ID);
 
     // 旧配置缺字段时反序列化落默认值。
     let legacy: super::TaskBoardSettings = serde_json::from_str(
         "{\"auto_execute\":true,\"max_concurrent\":3,\"default_priority\":999,\"auto_promote_pool_tasks\":true,\"auto_promote_delay_seconds\":30}",
     )
     .expect("legacy settings without workflow_id should decode");
-    assert_eq!(legacy.workflow_id, crate::app::task::DEFAULT_TASK_WORKFLOW_ID);
+    assert_eq!(legacy.workflow_id, crate::DEFAULT_TASK_WORKFLOW_ID);
     assert_eq!(
         legacy.agent_scheduler_dispatch_mode,
         vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local

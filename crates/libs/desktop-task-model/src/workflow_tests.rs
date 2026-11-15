@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::task::models::TaskStatus;
+use crate::models::TaskStatus;
 
 #[test]
 fn default_task_workflow_preserves_existing_status_contract() {

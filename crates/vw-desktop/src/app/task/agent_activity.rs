@@ -1,20 +1,14 @@
-//! 员工只是既有逻辑工位及智能体运行的展示投影，不分配执行资源。
-use super::{TASK_AGENT_MAIN, Task, WorktreeSlotSnapshot};
+//! 桌面设置和执行器快照到领域活动投影的映射。
+use super::{Task, WorktreeSlotSnapshot, WorktreeState};
 use crate::app::state::DelegateAgentSettingsEntry;
-
-#[derive(Debug)]
-pub(crate) struct AgentActivity {
-    pub key: Option<String>,
-    pub label: String,
-    pub available: bool,
-    pub task_id: Option<String>,
-    pub run_id: Option<String>,
-    pub current_task_count: usize,
-}
+pub(crate) use desktop_task_model::agent_activity::AgentActivity;
+use desktop_task_model::agent_activity::{AgentEntry, ActivitySlot};
 
 pub(crate) fn agent_available(key: &str, entries: &[DelegateAgentSettingsEntry]) -> bool {
-    !config_agent::is_retired_builtin_agent_key(key)
-        && (key == TASK_AGENT_MAIN || entries.iter().any(|e| e.key == key && e.enabled))
+    let entries = entries.iter().map(|e| AgentEntry {
+        key: &e.key, label: &e.label, enabled: e.enabled,
+    }).collect::<Vec<_>>();
+    desktop_task_model::agent_activity::agent_available(key, &entries)
 }
 
 pub(crate) fn project_activity(
@@ -22,37 +16,14 @@ pub(crate) fn project_activity(
     entries: &[DelegateAgentSettingsEntry],
     tasks: &[Task],
 ) -> Vec<AgentActivity> {
-    slots
-        .iter()
-        .map(|slot| {
-            let task = slot
-                .leased_task_id
-                .as_deref()
-                .and_then(|id| tasks.iter().find(|task| task.id == id));
-            // A recorded run keeps its original key even when its definition disappears.
-            let key = slot.agent_id.clone().or_else(|| task.and_then(|t| t.agent.clone()));
-            let available = key.as_deref().is_some_and(|key| agent_available(key, entries));
-            let label = match key.as_deref() {
-                Some(TASK_AGENT_MAIN) => "Main".to_string(),
-                Some(key) => entries
-                    .iter()
-                    .find(|e| e.key == key)
-                    .map(|e| e.label.clone())
-                    .unwrap_or_else(|| key.to_string()),
-                None => String::new(),
-            };
-            AgentActivity {
-                key,
-                label,
-                available,
-                task_id: slot.leased_task_id.clone(),
-                run_id: slot.run_id.clone(),
-                current_task_count: usize::from(
-                    slot.state == super::WorktreeState::Busy && slot.leased_task_id.is_some(),
-                ),
-            }
-        })
-        .collect()
+    let entries = entries.iter().map(|e| AgentEntry {
+        key: &e.key, label: &e.label, enabled: e.enabled,
+    }).collect::<Vec<_>>();
+    let slots = slots.iter().map(|s| ActivitySlot {
+        agent_id: s.agent_id.as_deref(), run_id: s.run_id.as_deref(),
+        leased_task_id: s.leased_task_id.as_deref(), busy: s.state == WorktreeState::Busy,
+    }).collect::<Vec<_>>();
+    desktop_task_model::agent_activity::project_activity(&slots, &entries, tasks)
 }
 
 #[cfg(test)]

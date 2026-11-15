@@ -5,7 +5,7 @@ use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 static CREATED: LazyLock<Notify> = LazyLock::new(Notify::new);
-pub(super) fn created() {
+pub fn created() {
     CREATED.notify_one();
 }
 

@@ -116,6 +116,7 @@ impl Fixture {
 }
 #[tokio::test]
 async fn worktree_cleanup_flow_waits_for_confirmation() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_waits_for_confirmation") {
         return;
     }
@@ -140,6 +141,7 @@ async fn worktree_cleanup_flow_waits_for_confirmation() {
 }
 #[tokio::test]
 async fn worktree_cleanup_flow_rechecks_newly_busy_checkout() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_rechecks_newly_busy_checkout") {
         return;
     }
@@ -177,6 +179,7 @@ async fn worktree_cleanup_flow_rechecks_newly_busy_checkout() {
 }
 #[tokio::test]
 async fn worktree_cleanup_flow_restore_is_visible() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_restore_is_visible") {
         return;
     }
@@ -212,6 +215,7 @@ async fn worktree_cleanup_flow_restore_is_visible() {
 }
 #[tokio::test]
 async fn worktree_cleanup_flow_automatic_partial_failure_is_recoverable() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_automatic_partial_failure_is_recoverable") {
         return;
     }
@@ -251,6 +255,7 @@ async fn worktree_cleanup_flow_automatic_partial_failure_is_recoverable() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_snapshot_failure_keeps_checkout_and_can_retry() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_snapshot_failure_keeps_checkout_and_can_retry") {
         return;
     }
@@ -276,6 +281,7 @@ async fn worktree_cleanup_flow_snapshot_failure_keeps_checkout_and_can_retry() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_rejects_settings_changes_and_stale_candidates() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_rejects_settings_changes_and_stale_candidates") {
         return;
     }
@@ -329,6 +335,7 @@ fn request(root: &Path) -> crate::session::processor::Request {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_runtime_and_detached_shell_hold_leases() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_runtime_and_detached_shell_hold_leases") {
         return;
     }
@@ -389,6 +396,7 @@ async fn worktree_cleanup_flow_runtime_and_detached_shell_hold_leases() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_session_creation_cannot_cross_removal() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_session_creation_cannot_cross_removal") {
         return;
     }
@@ -413,6 +421,7 @@ async fn worktree_cleanup_flow_session_creation_cannot_cross_removal() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_host_refreshes_deduplicates_and_stops() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_host_refreshes_deduplicates_and_stops") {
         return;
     }
@@ -450,6 +459,7 @@ async fn worktree_cleanup_flow_host_refreshes_deduplicates_and_stops() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_reconciles_interrupted_execution() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_reconciles_interrupted_execution") {
         return;
     }
@@ -470,6 +480,7 @@ async fn worktree_cleanup_flow_reconciles_interrupted_execution() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_cancelled_host_does_not_start_deletion() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_cancelled_host_does_not_start_deletion") {
         return;
     }
@@ -539,6 +550,7 @@ async fn legacy_turn(record: &registry::Record) -> anyhow::Result<String> {
 }
 #[tokio::test]
 async fn worktree_cleanup_flow_legacy_execution_cannot_cross_removal() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_legacy_execution_cannot_cross_removal") {
         return;
     }
@@ -554,6 +566,7 @@ async fn worktree_cleanup_flow_legacy_execution_cannot_cross_removal() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_binding_retains_lease_until_cleared() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_binding_retains_lease_until_cleared") {
         return;
     }
@@ -594,6 +607,7 @@ async fn worktree_cleanup_flow_binding_retains_lease_until_cleared() {
 
 #[tokio::test]
 async fn worktree_cleanup_flow_binding_rejects_removal_without_changing_context() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_binding_rejects_removal_without_changing_context") {
         return;
     }
@@ -617,6 +631,7 @@ async fn worktree_cleanup_flow_binding_rejects_removal_without_changing_context(
 
 #[tokio::test]
 async fn worktree_cleanup_flow_status_is_queryable_during_removal() {
+    super::initialize_host();
     if !isolated("worktree_cleanup_flow_status_is_queryable_during_removal") {
         return;
     }

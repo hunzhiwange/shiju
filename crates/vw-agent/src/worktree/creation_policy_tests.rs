@@ -44,6 +44,7 @@ fn commit(path: &Path) {
 }
 #[tokio::test]
 async fn worktree_creation_policy_uses_configured_root() {
+    super::initialize_host();
     let (temp, primary, info) = fixture();
     let root = temp.path().join("custom/nested");
     let settings = WorktreeSettings { root: root.to_string_lossy().into(), ..Default::default() };
@@ -53,6 +54,7 @@ async fn worktree_creation_policy_uses_configured_root() {
 }
 #[tokio::test]
 async fn worktree_creation_policy_fetches_only_when_enabled() {
+    super::initialize_host();
     let (temp, primary, info) = fixture();
     let remote = temp.path().join("remote.git");
     git(temp.path(), &["init", "--bare", remote.to_str().unwrap()]);
@@ -81,6 +83,7 @@ async fn worktree_creation_policy_fetches_only_when_enabled() {
 }
 #[tokio::test]
 async fn worktree_creation_policy_fetch_failure_does_not_create_checkout() {
+    super::initialize_host();
     let (temp, primary, info) = fixture();
     let root = temp.path().join("trees");
     let settings = WorktreeSettings {
@@ -103,6 +106,7 @@ async fn worktree_creation_policy_fetch_failure_does_not_create_checkout() {
 #[cfg(unix)]
 #[tokio::test]
 async fn worktree_creation_policy_rejects_symlinks() {
+    super::initialize_host();
     let (temp, primary, info) = fixture();
     let outside = temp.path().join("outside");
     std::fs::create_dir(&outside).unwrap();
@@ -125,6 +129,7 @@ async fn worktree_creation_policy_rejects_symlinks() {
 
 #[tokio::test]
 async fn worktree_creation_policy_normal_and_fork_share_tenant_settings() {
+    super::initialize_host();
     let (temp, primary, _) = fixture();
     let root = temp.path().join("selected");
     let tenant =

@@ -107,6 +107,7 @@ impl Fixture {
 }
 #[tokio::test]
 async fn worktree_management_e2e_create_chat_delete_restore() {
+    super::initialize_host();
     if !isolated("worktree_management_e2e_create_chat_delete_restore") {
         return;
     }
@@ -247,6 +248,7 @@ async fn worktree_management_e2e_create_chat_delete_restore() {
 #[tokio::test]
 #[ignore = "invoked by the parent with its persisted repository and tenant"]
 async fn worktree_management_e2e_restart_restore() {
+    super::initialize_host();
     let Ok(scope) = std::env::var("SHIJU_E2E_RESTORE_SCOPE") else {
         return;
     };

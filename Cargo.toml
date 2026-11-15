@@ -310,6 +310,7 @@ members = [
   "crates/libs/agent-hooks",
   "crates/libs/agent-commands",
   "crates/libs/agent-project",
+  "crates/libs/worktree-core",
   "crates/libs/agent-skills",
   "crates/libs/agent-security",
   "crates/libs/agent-util",

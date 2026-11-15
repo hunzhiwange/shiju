@@ -1,8 +1,8 @@
 use super::naming::random_name;
 use super::{Error, Info};
-use crate::app::agent::project;
-use crate::app::agent::project::instance;
-use crate::app::agent::shell::git_std_command;
+use crate::project;
+use crate::project::instance;
+use crate::shell::git_std_command;
 use directories::UserDirs;
 use std::path::{Path, PathBuf};
 
@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 /// 未配置时，普通 worktree 与任务池共用 `task-worktrees` 根目录；
 /// 普通/fork 创建的租户覆盖由 creation_policy 处理，任务池不读取该覆盖。
 /// 任务池只接管 `slot-*` 槽位，避免误重置手动或 fork worktree。
-pub(super) fn worktree_root(project: &project::Info) -> Result<PathBuf, Error> {
+pub fn worktree_root(project: &project::Info) -> Result<PathBuf, Error> {
     if project.worktree.trim().is_empty() {
         return Err(Error::MissingProject("missing project worktree root".to_string()));
     }
@@ -21,7 +21,7 @@ pub(super) fn worktree_root(project: &project::Info) -> Result<PathBuf, Error> {
 }
 
 /// 验证并获取当前 Git 项目信息
-pub(super) fn ensure_git_project() -> Result<project::Info, Error> {
+pub fn ensure_git_project() -> Result<project::Info, Error> {
     let Some(project) = instance::project() else {
         return Err(Error::MissingProject("missing project context".to_string()));
     };
@@ -35,16 +35,16 @@ pub(super) fn ensure_git_project() -> Result<project::Info, Error> {
 ///
 /// 用于解析 `git worktree list --porcelain` 的输出
 #[derive(Debug, Clone)]
-pub(super) struct WorktreeEntry {
+pub struct WorktreeEntry {
     /// Worktree 的文件系统路径
-    pub(super) path: String,
+    pub path: String,
 
     /// 关联的分支引用（如 `refs/heads/shiju/brave-eagle`）
-    pub(super) branch: Option<String>,
+    pub branch: Option<String>,
 }
 
 /// 解析 git worktree list 的 porcelain 格式输出
-pub(super) fn parse_worktree_list(input: &str) -> Vec<WorktreeEntry> {
+pub fn parse_worktree_list(input: &str) -> Vec<WorktreeEntry> {
     let mut out: Vec<WorktreeEntry> = Vec::new();
     for line in input.lines().map(|s| s.trim()).filter(|s| !s.is_empty()) {
         if let Some(rest) = line.strip_prefix("worktree ") {
@@ -61,7 +61,7 @@ pub(super) fn parse_worktree_list(input: &str) -> Vec<WorktreeEntry> {
 }
 
 /// 在 worktree 条目列表中查找指定路径的条目
-pub(super) async fn find_entry(entries: &[WorktreeEntry], target: &Path) -> Option<WorktreeEntry> {
+pub async fn find_entry(entries: &[WorktreeEntry], target: &Path) -> Option<WorktreeEntry> {
     let target = canonical(target).await;
     for entry in entries {
         let key = canonical(&entry.path).await;
@@ -73,12 +73,12 @@ pub(super) async fn find_entry(entries: &[WorktreeEntry], target: &Path) -> Opti
 }
 
 /// 检查路径是否存在
-pub(super) async fn path_exists(path: &Path) -> bool {
+pub async fn path_exists(path: &Path) -> bool {
     tokio::fs::metadata(path).await.is_ok()
 }
 
 /// 生成候选 worktree 信息
-pub(super) async fn candidate(root: &Path, base: Option<&str>) -> Result<Info, Error> {
+pub async fn candidate(root: &Path, base: Option<&str>) -> Result<Info, Error> {
     let primary = instance::worktree();
     for attempt in 0..26 {
         let name = if let Some(base) = base {
@@ -106,20 +106,20 @@ pub(super) async fn candidate(root: &Path, base: Option<&str>) -> Result<Info, E
 
 /// Git 命令执行结果
 #[derive(Debug, Clone)]
-pub(super) struct CmdResult {
+pub struct CmdResult {
     /// 命令是否成功执行（退出码为 0）
-    pub(super) success: bool,
+    pub success: bool,
 
     /// 标准输出内容
-    pub(super) stdout: String,
+    pub stdout: String,
 
     /// 标准错误内容
-    pub(super) stderr: String,
+    pub stderr: String,
 }
 
 impl CmdResult {
     /// 生成错误文本
-    pub(super) fn error_text(&self, fallback: &str) -> String {
+    pub fn error_text(&self, fallback: &str) -> String {
         let message = [self.stderr.trim(), self.stdout.trim()]
             .into_iter()
             .filter(|value| !value.is_empty())
@@ -130,11 +130,11 @@ impl CmdResult {
 }
 
 /// 执行 git 命令
-pub(super) async fn run_git(args: &[&str], cwd: &str) -> Result<CmdResult, Error> {
+pub async fn run_git(args: &[&str], cwd: &str) -> Result<CmdResult, Error> {
     run_git_guarded(args, cwd, None).await
 }
 
-pub(super) async fn run_git_guarded(
+pub async fn run_git_guarded(
     args: &[&str],
     cwd: &str,
     lifecycle: Option<std::fs::File>,
@@ -158,7 +158,7 @@ pub(super) async fn run_git_guarded(
 }
 
 /// 将路径转换为规范路径
-pub(super) async fn canonical(input: impl AsRef<Path>) -> PathBuf {
+pub async fn canonical(input: impl AsRef<Path>) -> PathBuf {
     let path = input.as_ref().to_path_buf();
     let fallback = path.clone();
     tokio::task::spawn_blocking(move || {
@@ -179,7 +179,7 @@ pub(super) async fn canonical(input: impl AsRef<Path>) -> PathBuf {
 }
 
 /// 运行 worktree 的启动脚本
-pub(super) async fn run_start_scripts(
+pub async fn run_start_scripts(
     worktree_dir: &str,
     project_id: &str,
     extra: &str,
@@ -190,13 +190,13 @@ pub(super) async fn run_start_scripts(
     super::environment::run_command(worktree_dir, extra, std::time::Duration::from_secs(120)).await
 }
 
-pub(super) async fn project_start(project_id: &str) -> Result<String, Error> {
+pub async fn project_start(project_id: &str) -> Result<String, Error> {
     // Retain the legacy extra-only helper for callers without a project identifier.
     if project_id.trim().is_empty() {
         return Ok(String::new());
     }
     let scope = vw_api_transport::ProjectScope::new(
-        crate::session::ui_store::current_tenant_scope(),
+        crate::host::current_tenant_scope()?,
         vw_api_transport::ProjectId::from(project_id),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -208,19 +208,19 @@ pub(super) async fn project_start(project_id: &str) -> Result<String, Error> {
 }
 
 /// 默认重置目标信息
-pub(super) struct DefaultTarget {
+pub struct DefaultTarget {
     /// 重置目标引用（分支名、标签或远程分支）
-    pub(super) target: String,
+    pub target: String,
 
     /// 远程名称（如果是远程分支）
-    pub(super) remote: Option<String>,
+    pub remote: Option<String>,
 
     /// 远程分支名称（如果是远程分支）
-    pub(super) remote_branch: Option<String>,
+    pub remote_branch: Option<String>,
 }
 
 /// 解析重置目标
-pub(super) async fn resolve_reset_target(
+pub async fn resolve_reset_target(
     primary: &Path,
     base_ref: Option<&str>,
 ) -> Result<DefaultTarget, Error> {

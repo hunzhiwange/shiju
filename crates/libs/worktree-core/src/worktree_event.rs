@@ -1,4 +1,4 @@
-use crate::app::agent::bus;
+use crate::bus;
 
 /// Worktree 已就绪事件
 ///

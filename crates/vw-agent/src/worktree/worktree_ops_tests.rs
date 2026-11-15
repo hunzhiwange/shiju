@@ -18,6 +18,7 @@ fn assert_missing_project_context(error: Error) {
 
 #[test]
 fn operation_inputs_deserialize_aliases_and_defaults() {
+    super::initialize_host();
     let create: CreateInput =
         serde_json::from_value(serde_json::json!({"name": "demo", "startCommand": "echo ok"}))
             .expect("create input");
@@ -35,6 +36,7 @@ fn operation_inputs_deserialize_aliases_and_defaults() {
 
 #[test]
 fn operation_inputs_serialize_camel_case_fields() {
+    super::initialize_host();
     let create = serde_json::to_value(CreateInput {
         name: Some("demo".to_string()),
         start_command: Some("npm test".to_string()),
@@ -56,6 +58,7 @@ fn operation_inputs_serialize_camel_case_fields() {
 
 #[tokio::test]
 async fn create_without_project_context_returns_missing_project_before_creating() {
+    super::initialize_host();
     let error = create(Some(CreateInput {
         name: Some("demo".to_string()),
         start_command: Some("should-not-run".to_string()),
@@ -68,6 +71,7 @@ async fn create_without_project_context_returns_missing_project_before_creating(
 
 #[tokio::test]
 async fn remove_without_project_context_preserves_requested_directory() {
+    super::initialize_host();
     let directory = tempfile::tempdir().expect("temp directory");
     let error = remove(RemoveInput {
         directory: directory.path().to_string_lossy().to_string(),
@@ -82,6 +86,7 @@ async fn remove_without_project_context_preserves_requested_directory() {
 
 #[tokio::test]
 async fn list_directories_without_project_context_returns_missing_project() {
+    super::initialize_host();
     let error = list_directories().await.expect_err("list should require project context");
 
     assert_missing_project_context(error);
@@ -89,6 +94,7 @@ async fn list_directories_without_project_context_returns_missing_project() {
 
 #[tokio::test]
 async fn reset_without_project_context_preserves_requested_directory() {
+    super::initialize_host();
     let directory = tempfile::tempdir().expect("temp directory");
     let error = reset(ResetInput {
         directory: directory.path().to_string_lossy().to_string(),
@@ -103,6 +109,7 @@ async fn reset_without_project_context_preserves_requested_directory() {
 
 #[tokio::test]
 async fn list_directories_returns_primary_and_linked_worktrees() {
+    super::initialize_host();
     let fixture = GitWorktreeFixture::new();
     let primary = fixture.primary.clone();
     let expected_primary = canonical_string(&fixture.primary);
@@ -118,6 +125,7 @@ async fn list_directories_returns_primary_and_linked_worktrees() {
 
 #[tokio::test]
 async fn reset_rejects_primary_workspace_without_modifying_it() {
+    super::initialize_host();
     let fixture = GitWorktreeFixture::new();
     let primary = fixture.primary.clone();
     let primary_input = fixture.primary.to_string_lossy().to_string();
@@ -141,6 +149,7 @@ async fn reset_rejects_primary_workspace_without_modifying_it() {
 
 #[tokio::test]
 async fn reset_restores_tracked_files_and_removes_untracked_files() {
+    super::initialize_host();
     let fixture = GitWorktreeFixture::new();
     std::fs::write(fixture.secondary.join("README.md"), "changed").expect("change tracked file");
     std::fs::write(fixture.secondary.join("untracked.txt"), "remove me")
@@ -165,6 +174,7 @@ async fn reset_restores_tracked_files_and_removes_untracked_files() {
 
 #[tokio::test]
 async fn remove_registered_worktree_deletes_directory_and_branch() {
+    super::initialize_host();
     let fixture = GitWorktreeFixture::new();
     let primary = fixture.primary.clone();
     let secondary = fixture.secondary.to_string_lossy().to_string();
@@ -241,6 +251,7 @@ fn run(command: &mut Command) {
 
 #[tokio::test]
 async fn worktree_registry_remove_rejects_unregistered_directory_and_primary() {
+    super::initialize_host();
     let fixture = GitWorktreeFixture::new();
     for path in [fixture.primary.clone(), fixture._root.path().join("external")] {
         std::fs::create_dir_all(&path).unwrap();
@@ -257,6 +268,7 @@ async fn worktree_registry_remove_rejects_unregistered_directory_and_primary() {
 
 #[tokio::test]
 async fn worktree_registry_fork_creation_registers_and_legacy_remove_checks_owner() {
+    super::initialize_host();
     let fixture = GitWorktreeFixture::new();
     in_project(&fixture.primary, || {
         Box::pin(async {

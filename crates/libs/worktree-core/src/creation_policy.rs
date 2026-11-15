@@ -7,7 +7,7 @@ use crate::{project, shell::git_tokio_command};
 use std::path::{Path, PathBuf};
 use config_worktree::WorktreeSettings;
 
-pub(super) async fn prepare(
+pub async fn prepare(
     project: &project::Info,
     primary: &str,
     settings: &WorktreeSettings,
@@ -33,7 +33,7 @@ pub(super) async fn prepare(
     Ok(tokio::fs::canonicalize(root).await?)
 }
 
-pub(super) async fn validate_parent(root: &Path, directory: &Path) -> Result<(), Error> {
+pub async fn validate_parent(root: &Path, directory: &Path) -> Result<(), Error> {
     let parent =
         directory.parent().ok_or_else(|| Error::Invalid("Missing worktree parent".into()))?;
     if tokio::fs::canonicalize(parent).await? != root

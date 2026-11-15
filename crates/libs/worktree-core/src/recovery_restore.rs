@@ -1,6 +1,6 @@
 //! Restore pinned snapshots without checking out through user filters or running setup.
 use super::{Manifest, Restored, invalid, registry};
-use crate::worktree::Error;
+use crate::Error;
 use git2::{Index, Oid, Repository};
 use std::fs::OpenOptions;
 use std::io::Write;

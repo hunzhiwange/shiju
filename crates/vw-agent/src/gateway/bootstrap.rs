@@ -319,6 +319,8 @@ async fn serve_gateway(
     #[cfg(target_os = "macos")]
     let app = api::handlers::app_routing::configure(app, routing).await;
     #[cfg(not(target_arch = "wasm32"))]
+    crate::worktree::initialize_host();
+    #[cfg(not(target_arch = "wasm32"))]
     let _worktree_cleanup = crate::worktree::cleanup_host::HostCleanup::start()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
     let periodic_backups = async {

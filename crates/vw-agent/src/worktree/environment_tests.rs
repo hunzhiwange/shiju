@@ -20,6 +20,7 @@ fn project(directory: &std::path::Path, start: &str) -> project::Info {
 
 #[tokio::test]
 async fn worktree_environment_runs_in_checkout_before_ready() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let dir = checkout.as_path();
     let info = project(dir, "echo setup > setup.txt");
@@ -36,6 +37,7 @@ async fn worktree_environment_runs_in_checkout_before_ready() {
 
 #[tokio::test]
 async fn worktree_environment_failure_prevents_ready() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let dir = checkout.as_path();
     let info = project(dir, "exit 23");
@@ -48,6 +50,7 @@ async fn worktree_environment_failure_prevents_ready() {
 
 #[tokio::test]
 async fn worktree_environment_retry_does_not_rerun_successful_setup() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let dir = checkout.as_path();
     let info = project(dir, "echo setup >> setup.txt");
@@ -97,6 +100,7 @@ fn fixture() -> (tempfile::TempDir, std::path::PathBuf) {
 
 #[tokio::test]
 async fn worktree_environment_timeout_kills_descendants() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let error = environment::run_command(
         checkout.to_str().unwrap(),
@@ -112,6 +116,7 @@ async fn worktree_environment_timeout_kills_descendants() {
 
 #[tokio::test]
 async fn worktree_environment_cancellation_records_failure_and_excludes_duplicates() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let info = project(&checkout, "echo started > started; sleep 1; echo leaked > late");
     let directory = checkout.to_string_lossy().to_string();
@@ -160,6 +165,7 @@ async fn worktree_environment_cancellation_records_failure_and_excludes_duplicat
 
 #[tokio::test]
 async fn worktree_environment_extra_failure_is_reported() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let info = project(&checkout, "");
     assert!(
@@ -175,6 +181,7 @@ async fn worktree_environment_extra_failure_is_reported() {
 
 #[tokio::test]
 async fn worktree_environment_creation_and_fork_publish_ready_after_setup() {
+    super::initialize_host();
     use crate::project::instance;
     use std::sync::{Arc, Mutex};
     let (root, _checkout) = fixture();
@@ -234,6 +241,7 @@ async fn worktree_environment_creation_and_fork_publish_ready_after_setup() {
 
 #[tokio::test]
 async fn worktree_environment_creation_failure_can_retry_without_resetting_checkout() {
+    super::initialize_host();
     use crate::project::instance;
     use std::sync::{Arc, Mutex};
     let (root, _checkout) = fixture();
@@ -299,6 +307,7 @@ async fn worktree_environment_creation_failure_can_retry_without_resetting_check
 
 #[tokio::test]
 async fn worktree_environment_pending_cannot_be_retried_or_opened() {
+    super::initialize_host();
     let (_root, checkout) = fixture();
     let info = project(&checkout, "echo unexpected > setup.txt");
     let directory = checkout.to_str().unwrap();

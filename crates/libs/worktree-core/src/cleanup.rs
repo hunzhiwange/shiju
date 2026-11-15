@@ -32,14 +32,14 @@ pub struct Proposal {
     pub remaining_excess: usize,
 }
 
-pub(super) struct Observation {
+pub struct Observation {
     pub record: Record,
     pub title: String,
     pub last_used_at_ms: u64,
     pub reasons: Vec<ProtectionReason>,
 }
 
-pub(super) fn plan(
+pub fn plan(
     scope: &ProjectScope,
     settings: &WorktreeSettings,
     mut entries: Vec<Observation>,
@@ -109,43 +109,17 @@ fn fingerprint(entry: &Observation, settings: &WorktreeSettings) -> String {
 }
 
 use super::{Error, environment, registry};
-use crate::session::{session::Info, status, ui_store};
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-};
+use session_info::Info;
+use std::path::Path;
 
-pub(super) struct ProtectionSnapshot {
-    pub sessions: Vec<Info>,
-    pub foreign_directories: Vec<String>,
-    pub pinned: HashMap<String, HashSet<String>>,
-    pub statuses: HashMap<String, status::Info>,
-}
+pub use crate::host::ProtectionSnapshot;
 
 fn invalid(error: impl std::fmt::Display) -> Error {
     Error::Invalid(error.to_string())
 }
 
-pub(super) fn read_snapshot(scope: &ProjectScope) -> Result<ProtectionSnapshot, Error> {
-    let (sessions, foreign_directories) =
-        ui_store::load_worktree_protection_sessions(scope.tenant_scope()).map_err(invalid)?;
-    let mut projects: HashSet<String> =
-        sessions.iter().map(|session| session.project_id.clone()).collect();
-    projects.insert(scope.project_id().as_ref().to_owned());
-    let pinned = projects
-        .into_iter()
-        .map(|project| {
-            let pins =
-                ui_store::load_pinned_threads(scope.tenant_scope(), &project).map_err(invalid)?;
-            Ok((project, pins))
-        })
-        .collect::<Result<_, Error>>()?;
-    Ok(ProtectionSnapshot {
-        sessions,
-        foreign_directories,
-        pinned,
-        statuses: status::cleanup_snapshot().map_err(invalid)?,
-    })
+pub fn read_snapshot(scope: &ProjectScope) -> Result<ProtectionSnapshot, Error> {
+    crate::host::read_snapshot(scope)
 }
 
 /// Only proposes candidates under the existing repository lock. Callers must re-plan
@@ -163,7 +137,7 @@ pub async fn propose(
     propose_locked(scope, primary, settings).await
 }
 
-pub(super) async fn propose_locked(
+pub async fn propose_locked(
     scope: &ProjectScope,
     primary: &Path,
     settings: &WorktreeSettings,
@@ -181,7 +155,7 @@ pub(super) async fn propose_locked(
     Ok(plan(scope, settings, entries))
 }
 
-pub(super) fn observe(
+pub fn observe(
     primary: &Path,
     record: Record,
     snapshot: Option<&ProtectionSnapshot>,
@@ -249,10 +223,7 @@ fn observe_protection(
             entry.reasons.push(ProtectionReason::Pinned);
         }
         if (session.is_first_response_pending()
-            || matches!(
-                snapshot.statuses.get(&session.id),
-                Some(status::Info::Busy | status::Info::Retry { .. })
-            ))
+            || snapshot.busy.contains(&session.id))
             && !entry.reasons.contains(&ProtectionReason::Busy)
         {
             entry.reasons.push(ProtectionReason::Busy);

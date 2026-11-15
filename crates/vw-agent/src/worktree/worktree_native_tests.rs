@@ -18,6 +18,7 @@ static WORKTREE_PROJECT_CONTEXT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mute
 
 #[test]
 fn parse_worktree_list_preserves_paths_and_branches() {
+    super::initialize_host();
     let entries =
         parse_worktree_list("worktree /repo\nbranch refs/heads/main\n\nworktree /repo-two\nbare\n");
 
@@ -29,6 +30,7 @@ fn parse_worktree_list_preserves_paths_and_branches() {
 
 #[test]
 fn parse_worktree_list_ignores_orphan_branches_and_unknown_records() {
+    super::initialize_host();
     let entries = parse_worktree_list(
         "branch refs/heads/orphan\nunknown value\nworktree /repo\nHEAD abc123\nbranch refs/heads/first\nbranch refs/heads/final\n",
     );
@@ -40,6 +42,7 @@ fn parse_worktree_list_ignores_orphan_branches_and_unknown_records() {
 
 #[test]
 fn cmd_result_prefers_stderr_then_stdout_for_error_text() {
+    super::initialize_host();
     let result = CmdResult { success: false, stdout: "out\n".into(), stderr: "err\n".into() };
     assert_eq!(result.error_text("fallback"), "err\nout");
 
@@ -49,6 +52,7 @@ fn cmd_result_prefers_stderr_then_stdout_for_error_text() {
 
 #[test]
 fn cmd_result_ignores_whitespace_only_streams_for_error_text() {
+    super::initialize_host();
     let stdout_only =
         CmdResult { success: false, stdout: " output \n".into(), stderr: " \n".into() };
     assert_eq!(stdout_only.error_text("fallback"), "output");
@@ -59,6 +63,7 @@ fn cmd_result_ignores_whitespace_only_streams_for_error_text() {
 
 #[tokio::test]
 async fn path_exists_reports_temp_directory() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("temp dir");
 
     assert!(path_exists(dir.path()).await);
@@ -67,6 +72,7 @@ async fn path_exists_reports_temp_directory() {
 
 #[tokio::test]
 async fn path_exists_reports_regular_file() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("temp dir");
     let file = dir.path().join("file.txt");
     std::fs::write(&file, "content").expect("write file");
@@ -76,6 +82,7 @@ async fn path_exists_reports_regular_file() {
 
 #[tokio::test]
 async fn canonical_absolutizes_missing_relative_paths() {
+    super::initialize_host();
     let path = canonical("definitely-missing-worktree-test-path").await;
 
     assert!(path.is_absolute());
@@ -84,6 +91,7 @@ async fn canonical_absolutizes_missing_relative_paths() {
 
 #[tokio::test]
 async fn canonical_resolves_existing_paths() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("temp dir");
     let nested = dir.path().join("nested");
     std::fs::create_dir(&nested).expect("create nested directory");
@@ -99,6 +107,7 @@ async fn canonical_resolves_existing_paths() {
 
 #[tokio::test]
 async fn find_entry_matches_canonical_target_path() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("temp dir");
     let entries = vec![super::native::WorktreeEntry {
         path: dir.path().to_string_lossy().to_string(),
@@ -112,6 +121,7 @@ async fn find_entry_matches_canonical_target_path() {
 
 #[tokio::test]
 async fn find_entry_returns_none_for_unlisted_path() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("temp dir");
     let entries = vec![super::native::WorktreeEntry {
         path: dir.path().to_string_lossy().to_string(),
@@ -123,6 +133,7 @@ async fn find_entry_returns_none_for_unlisted_path() {
 
 #[tokio::test]
 async fn run_git_and_resolve_reset_target_work_in_temp_repo() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
 
@@ -147,6 +158,7 @@ async fn run_git_and_resolve_reset_target_work_in_temp_repo() {
 
 #[tokio::test]
 async fn candidate_uses_requested_base_when_directory_and_branch_are_available() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     let root = tempfile::tempdir().expect("worktree root");
@@ -166,6 +178,7 @@ async fn candidate_uses_requested_base_when_directory_and_branch_are_available()
 
 #[tokio::test]
 async fn candidate_skips_existing_directory_for_requested_base() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     let root = tempfile::tempdir().expect("worktree root");
@@ -187,6 +200,7 @@ async fn candidate_skips_existing_directory_for_requested_base() {
 
 #[tokio::test]
 async fn candidate_skips_existing_branch_for_requested_base() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     run(Command::new("git").arg("-C").arg(repo.path()).args(["branch", "shiju/feature"]));
@@ -207,6 +221,7 @@ async fn candidate_skips_existing_branch_for_requested_base() {
 
 #[tokio::test]
 async fn candidate_generates_random_name_without_base() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     let root = tempfile::tempdir().expect("worktree root");
@@ -225,6 +240,7 @@ async fn candidate_generates_random_name_without_base() {
 
 #[tokio::test]
 async fn run_start_scripts_runs_extra_when_project_lookup_is_unavailable() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("worktree dir");
 
     run_start_scripts(&dir.path().to_string_lossy(), " \n ", "echo extra > extra.txt")
@@ -236,6 +252,7 @@ async fn run_start_scripts_runs_extra_when_project_lookup_is_unavailable() {
 
 #[tokio::test]
 async fn run_start_scripts_runs_project_start_before_extra_script() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("worktree dir");
     let mut project = project_info(&dir.path().to_string_lossy());
     project.id = unique_project_id("worktree-start-success");
@@ -257,6 +274,7 @@ async fn run_start_scripts_runs_project_start_before_extra_script() {
 
 #[tokio::test]
 async fn run_start_scripts_stops_when_project_start_fails() {
+    super::initialize_host();
     let dir = tempfile::tempdir().expect("worktree dir");
     let mut project = project_info(&dir.path().to_string_lossy());
     project.id = unique_project_id("worktree-start-failure");
@@ -273,6 +291,7 @@ async fn run_start_scripts_stops_when_project_start_fails() {
 
 #[tokio::test]
 async fn resolve_reset_target_parses_valid_slash_ref_as_remote_branch() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     run(Command::new("git").arg("-C").arg(repo.path()).arg("branch").arg("fork/topic"));
@@ -286,6 +305,7 @@ async fn resolve_reset_target_parses_valid_slash_ref_as_remote_branch() {
 
 #[tokio::test]
 async fn resolve_reset_target_uses_main_for_blank_base_ref() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
 
@@ -298,6 +318,7 @@ async fn resolve_reset_target_uses_main_for_blank_base_ref() {
 
 #[tokio::test]
 async fn resolve_reset_target_falls_back_to_master_without_remotes() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo_with_branch(repo.path(), "master");
 
@@ -310,6 +331,7 @@ async fn resolve_reset_target_falls_back_to_master_without_remotes() {
 
 #[tokio::test]
 async fn resolve_reset_target_prefers_origin_remote_head() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     add_remote_head(repo.path(), "origin", "trunk");
@@ -323,6 +345,7 @@ async fn resolve_reset_target_prefers_origin_remote_head() {
 
 #[tokio::test]
 async fn resolve_reset_target_uses_single_non_origin_remote_head() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     add_remote_head(repo.path(), "fork", "stable");
@@ -336,6 +359,7 @@ async fn resolve_reset_target_uses_single_non_origin_remote_head() {
 
 #[tokio::test]
 async fn resolve_reset_target_prefers_upstream_among_multiple_non_origin_remotes() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     add_remote(repo.path(), "mirror");
@@ -350,6 +374,7 @@ async fn resolve_reset_target_prefers_upstream_among_multiple_non_origin_remotes
 
 #[tokio::test]
 async fn resolve_reset_target_uses_local_main_when_multiple_remotes_have_no_preferred_name() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     add_remote(repo.path(), "fork");
@@ -364,6 +389,7 @@ async fn resolve_reset_target_uses_local_main_when_multiple_remotes_have_no_pref
 
 #[tokio::test]
 async fn resolve_reset_target_falls_back_to_local_main_when_remote_head_is_missing() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo(repo.path());
     add_remote(repo.path(), "origin");
@@ -377,6 +403,7 @@ async fn resolve_reset_target_falls_back_to_local_main_when_remote_head_is_missi
 
 #[tokio::test]
 async fn resolve_reset_target_rejects_repository_without_default_branch() {
+    super::initialize_host();
     let repo = tempfile::tempdir().expect("temp repo");
     init_repo_with_branch(repo.path(), "topic");
 
@@ -390,6 +417,7 @@ async fn resolve_reset_target_rejects_repository_without_default_branch() {
 
 #[tokio::test]
 async fn resolve_reset_target_reports_non_repository_error() {
+    super::initialize_host();
     let directory = tempfile::tempdir().expect("temp directory");
 
     let error = match resolve_reset_target(directory.path(), None).await {
@@ -402,6 +430,7 @@ async fn resolve_reset_target_reports_non_repository_error() {
 
 #[test]
 fn info_is_cloneable_for_native_callers() {
+    super::initialize_host();
     let info = Info { name: "n".into(), branch: "b".into(), directory: "d".into() };
 
     assert_eq!(info.clone().directory, "d");
@@ -409,6 +438,7 @@ fn info_is_cloneable_for_native_callers() {
 
 #[test]
 fn worktree_root_uses_shared_task_worktrees_directory() {
+    super::initialize_host();
     let project = project_info("/repo/main");
 
     let root = worktree_root(&project).expect("worktree root");
@@ -421,6 +451,7 @@ fn worktree_root_uses_shared_task_worktrees_directory() {
 
 #[test]
 fn worktree_root_rejects_blank_project_worktree() {
+    super::initialize_host();
     let error =
         worktree_root(&project_info(" \n ")).expect_err("blank worktree should be rejected");
 

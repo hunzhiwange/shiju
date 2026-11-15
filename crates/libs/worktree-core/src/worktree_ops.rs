@@ -10,11 +10,11 @@ use super::native::{
     resolve_reset_target, run_git, run_start_scripts,
 };
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::bus;
+use crate::bus;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::project;
+use crate::project;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::project::instance;
+use crate::project::instance;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
@@ -39,7 +39,7 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
         add_worktree(&project, input.as_ref().and_then(|input| input.name.as_deref())).await?;
 
     let scope = vw_api_transport::ProjectScope::new(
-        crate::session::ui_store::current_tenant_scope(),
+        crate::host::current_tenant_scope()?,
         vw_api_transport::ProjectId::from(project_id.as_str()),
     )
     .map_err(|e| Error::Invalid(e.to_string()))?;
@@ -64,7 +64,7 @@ async fn add_worktree(
         return Err(Error::MissingProject("missing instance worktree".to_string()));
     }
     let lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
-    let tenant = crate::session::ui_store::current_tenant_scope();
+    let tenant = crate::host::current_tenant_scope()?;
     let settings = crate::config::get_global_for_tenant(&tenant)
         .await
         .map_err(|error| Error::Invalid(error.to_string()))?
@@ -83,7 +83,7 @@ async fn add_worktree(
         return Err(Error::Invalid(created.error_text("Failed to create git worktree")));
     }
     let scope = vw_api_transport::ProjectScope::new(
-        crate::session::ui_store::current_tenant_scope(),
+        crate::host::current_tenant_scope()?,
         vw_api_transport::ProjectId::from(project.id.as_str()),
     )
     .map_err(|e| Error::Invalid(e.to_string()))?;
@@ -107,11 +107,11 @@ async fn add_worktree(
 
 /// Prepare a checked-out worktree before a fork can be published.
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Error> {
+pub async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Error> {
     let project = ensure_git_project()?;
     let (info, lifecycle) = add_worktree(&project, name).await?;
     let scope = vw_api_transport::ProjectScope::new(
-        crate::session::ui_store::current_tenant_scope(),
+        crate::host::current_tenant_scope()?,
         vw_api_transport::ProjectId::from(project.id.as_str()),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -122,8 +122,8 @@ pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Err
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn remove_fork_checkout(directory: String) -> Result<(), Error> {
-    let tenant = crate::session::ui_store::current_tenant_scope();
+pub async fn remove_fork_checkout(directory: String) -> Result<(), Error> {
+    let tenant = crate::host::current_tenant_scope()?;
     let project = ensure_git_project()?;
     let primary = instance::worktree();
     let scope = vw_api_transport::ProjectScope::new(tenant, project.id.into())
@@ -145,11 +145,11 @@ pub async fn remove(_input: RemoveInput) -> Result<bool, Error> {
 /// 删除 worktree（原生平台实现）
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn remove(input: RemoveInput) -> Result<bool, Error> {
-    remove_for_tenant(input, crate::session::ui_store::current_tenant_scope()).await
+    remove_for_tenant(input, crate::host::current_tenant_scope()?).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn remove_for_tenant(
+pub async fn remove_for_tenant(
     input: RemoveInput,
     tenant: vw_api_transport::TenantScope,
 ) -> Result<bool, Error> {
@@ -433,7 +433,7 @@ pub async fn retry_environment(directory: String) -> Result<(), Error> {
     let primary = instance::worktree();
     let _lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
     let scope = vw_api_transport::ProjectScope::new(
-        crate::session::ui_store::current_tenant_scope(),
+        crate::host::current_tenant_scope()?,
         vw_api_transport::ProjectId::from(project.id.as_str()),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;

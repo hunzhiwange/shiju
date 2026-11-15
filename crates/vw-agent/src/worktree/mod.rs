@@ -35,3 +35,6 @@ pub use worktree::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod host_adapter;

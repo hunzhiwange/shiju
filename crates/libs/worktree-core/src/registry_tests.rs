@@ -54,7 +54,7 @@ async fn worktree_registry_survives_restart() {
     let child = Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "worktree::worktree::registry_tests::worktree_registry_survives_restart",
+            "worktree::registry_tests::worktree_registry_survives_restart",
             "--nocapture",
         ])
         .env("SHIJU_REGISTRY_RESTART_PRIMARY", &primary)
@@ -141,7 +141,7 @@ fn worktree_registry_lifecycle_lock_excludes_another_process() {
     let lock = registry::lifecycle_lock(&primary).unwrap();
     assert!(registry::lifecycle_lock(&primary).is_err());
     let child = Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "worktree::worktree::registry_tests::worktree_registry_lifecycle_lock_excludes_another_process", "--nocapture"])
+        .args(["--exact", "worktree::registry_tests::worktree_registry_lifecycle_lock_excludes_another_process", "--nocapture"])
         .env("SHIJU_REGISTRY_LOCK_CHILD", &primary).output().unwrap();
     assert!(child.status.success(), "{}", String::from_utf8_lossy(&child.stderr));
     assert!(String::from_utf8_lossy(&child.stdout).contains("1 passed"));

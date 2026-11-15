@@ -216,7 +216,7 @@ pub async fn retry(scope: &ProjectScope, primary: &Path, id: &str) -> Result<(),
         worktree: primary.to_string_lossy().into_owned(),
         project,
     };
-    crate::session::ui_store::with_tenant_scope(
+    crate::host::with_tenant_scope(
         scope.tenant_scope().clone(),
         crate::project::instance::provide_context(
             context,

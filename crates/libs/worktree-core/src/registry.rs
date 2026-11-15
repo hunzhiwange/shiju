@@ -32,7 +32,7 @@ pub struct Record {
 fn invalid(error: impl std::fmt::Display) -> Error {
     Error::Invalid(error.to_string())
 }
-pub(super) fn key(scope: &ProjectScope) -> String {
+pub fn key(scope: &ProjectScope) -> String {
     let hex = |s: &str| s.as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>();
     format!(
         "{}-{}-{}",
@@ -56,7 +56,7 @@ pub fn lifecycle_lock(primary: &Path) -> Result<std::fs::File, Error> {
     Ok(file)
 }
 
-pub(super) fn identity(path: &Path) -> Result<String, Error> {
+pub fn identity(path: &Path) -> Result<String, Error> {
     let metadata = std::fs::symlink_metadata(path)?;
     if metadata.file_type().is_symlink() {
         return Err(invalid("Symlink checkout is not allowed"));
@@ -73,7 +73,7 @@ pub(super) fn identity(path: &Path) -> Result<String, Error> {
 }
 
 /// Verify both directions of Git's linked-worktree registration, without repository discovery.
-pub(crate) fn checkout(
+pub fn checkout(
     primary: &Path,
     directory: &Path,
 ) -> Result<(PathBuf, PathBuf, PathBuf, String), Error> {
@@ -128,7 +128,7 @@ fn scope_lock(scope: &ProjectScope) -> Result<std::fs::File, Error> {
     Ok(file)
 }
 
-pub(super) async fn records(scope: &ProjectScope) -> Result<Vec<Record>, Error> {
+pub async fn records(scope: &ProjectScope) -> Result<Vec<Record>, Error> {
     match storage::read(&["managed-worktrees", &key(scope)]).await {
         Ok(records) => Ok(records),
         Err(storage::Error::NotFound(_)) => Ok(vec![]),
@@ -140,7 +140,7 @@ async fn save(scope: &ProjectScope, records: &[Record]) -> Result<(), Error> {
 }
 
 /// Call while holding the common repository lifecycle lock.
-pub(crate) async fn register_locked(
+pub async fn register_locked(
     scope: &ProjectScope,
     primary: &Path,
     directory: &Path,
@@ -148,7 +148,7 @@ pub(crate) async fn register_locked(
     register_with_recovery(scope, primary, directory, None).await
 }
 
-pub(crate) async fn register_recovered_locked(
+pub async fn register_recovered_locked(
     scope: &ProjectScope,
     primary: &Path,
     directory: &Path,
@@ -157,7 +157,7 @@ pub(crate) async fn register_recovered_locked(
     register_with_recovery(scope, primary, directory, Some(recovery_id)).await
 }
 
-pub(crate) async fn was_restored(scope: &ProjectScope, recovery_id: &str) -> Result<bool, Error> {
+pub async fn was_restored(scope: &ProjectScope, recovery_id: &str) -> Result<bool, Error> {
     Ok(records(scope).await?.iter().any(|r| r.recovered_from.as_deref() == Some(recovery_id)))
 }
 
@@ -209,7 +209,7 @@ async fn register_with_recovery(
     Ok(record)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub async fn register(
     scope: &ProjectScope,
     primary: &Path,
@@ -218,7 +218,7 @@ pub async fn register(
     let _lock = lifecycle_lock(primary)?;
     register_locked(scope, primary, directory).await
 }
-pub(super) fn validate(record: &Record, scope: &ProjectScope, primary: &Path) -> Result<(), Error> {
+pub fn validate(record: &Record, scope: &ProjectScope, primary: &Path) -> Result<(), Error> {
     if &record.scope != scope || record.state != Lifecycle::Ready {
         return Err(invalid("Managed checkout ownership mismatch"));
     }
@@ -251,7 +251,7 @@ pub async fn authorize(scope: &ProjectScope, primary: &Path, id: &str) -> Result
     validate(&record, scope, primary)?;
     Ok(record)
 }
-pub(crate) async fn record_for_path(
+pub async fn record_for_path(
     scope: &ProjectScope,
     directory: &Path,
 ) -> Result<Option<Record>, Error> {
@@ -260,7 +260,7 @@ pub(crate) async fn record_for_path(
         .into_iter()
         .find(|r| r.directory == directory && r.state == Lifecycle::Ready))
 }
-pub(crate) async fn mark_deleted(scope: &ProjectScope, id: &str) -> Result<(), Error> {
+pub async fn mark_deleted(scope: &ProjectScope, id: &str) -> Result<(), Error> {
     let _scope_lock = scope_lock(scope)?;
     let mut records = records(scope).await?;
     let record = records
@@ -271,7 +271,7 @@ pub(crate) async fn mark_deleted(scope: &ProjectScope, id: &str) -> Result<(), E
     save(scope, &records).await
 }
 
-pub(crate) fn ownership(git_dir: &Path) -> Result<Option<Record>, Error> {
+pub fn ownership(git_dir: &Path) -> Result<Option<Record>, Error> {
     match std::fs::read(git_dir.join("shiju-managed.json")) {
         Ok(bytes) => serde_json::from_slice(&bytes).map(Some).map_err(invalid),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -293,7 +293,7 @@ pub async fn remove_managed(
 
 /// Persist actual session creation/entry/execution time, never directory mtime.
 /// Uses the same scope lock and atomic JSON publication as lifecycle mutations.
-pub(crate) fn record_use(
+pub fn record_use(
     scope: &ProjectScope,
     directory: &Path,
     used_at_ms: u64,
@@ -342,7 +342,7 @@ pub(crate) fn record_use(
 
 /// Acquire while holding the repository lifecycle lock. All new users must take
 /// that lock before opening the lease, so deletion can check once and retain it.
-pub(super) fn use_lease_locked(directory: &Path) -> Result<Option<std::fs::File>, Error> {
+pub fn use_lease_locked(directory: &Path) -> Result<Option<std::fs::File>, Error> {
     let directory = std::fs::canonicalize(directory)?;
     let repo = match git2::Repository::discover(&directory) {
         Ok(repo) => repo,
@@ -386,6 +386,6 @@ fn lease_file(record: &Record) -> Result<std::fs::File, Error> {
         .open(record.git_dir.join("shiju-use.lock"))?)
 }
 /// Call under the lifecycle lock, which excludes new lease acquisition.
-pub(super) fn ensure_not_in_use(record: &Record) -> Result<(), Error> {
+pub fn ensure_not_in_use(record: &Record) -> Result<(), Error> {
     lease_file(record)?.try_lock().map_err(|_| invalid("Worktree has active execution leases"))
 }

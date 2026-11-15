@@ -1,7 +1,7 @@
 //! Run only saved project commands, with durable progress in Git's checkout metadata.
 use super::Error;
 use crate::shell::tokio_system_command;
-use crate::tools::shell::processes::termination;
+use crate::host as termination;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -65,7 +65,7 @@ fn save(path: &Path, progress: &Progress) -> Result<(), Error> {
 }
 
 /// Called under the existing repository lifecycle lock, before the checkout is exposed.
-pub(super) fn pending(directory: &str) -> Result<(), Error> {
+pub fn pending(directory: &str) -> Result<(), Error> {
     save(&state_path(directory)?, &Progress::default())
 }
 
@@ -120,10 +120,10 @@ impl Drop for Attempt {
     }
 }
 
-pub(super) async fn prepare(directory: &str, project_id: &str, extra: &str) -> Result<(), Error> {
+pub async fn prepare(directory: &str, project_id: &str, extra: &str) -> Result<(), Error> {
     initialize(directory, project_id, extra, false).await
 }
-pub(super) async fn retry(directory: &str, project_id: &str) -> Result<(), Error> {
+pub async fn retry(directory: &str, project_id: &str) -> Result<(), Error> {
     initialize(directory, project_id, "", true).await
 }
 async fn initialize(
@@ -191,7 +191,7 @@ async fn initialize(
     result
 }
 
-pub(super) async fn run_command(
+pub async fn run_command(
     directory: &str,
     command: &str,
     timeout: Duration,

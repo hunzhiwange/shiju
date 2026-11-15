@@ -124,7 +124,7 @@ async fn worktree_recovery_snapshot_survives_gc() {
     let child = Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "worktree::worktree::recovery_tests::worktree_recovery_snapshot_survives_gc",
+            "worktree::recovery_tests::worktree_recovery_snapshot_survives_gc",
             "--nocapture",
         ])
         .env("SHIJU_RECOVERY_CHILD", &primary)

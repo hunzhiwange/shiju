@@ -31,7 +31,7 @@ pub struct PreparedSnapshot {
     pub manifest: Manifest,
     state: Captured,
     commit: Oid,
-    pub(super) _lifecycle: File,
+    pub _lifecycle: File,
 }
 
 impl PreparedSnapshot {
@@ -88,7 +88,7 @@ pub async fn prepare(
     prepare_locked(scope, primary, id, automatic, lifecycle).await
 }
 
-pub(super) async fn prepare_locked(
+pub async fn prepare_locked(
     scope: &ProjectScope,
     primary: &Path,
     id: &str,
@@ -379,7 +379,7 @@ mod restoration;
 pub use restoration::restore;
 
 /// Preflight uses the same content scan as recovery, without publishing a snapshot.
-pub(super) fn content_fingerprint(
+pub fn content_fingerprint(
     record: &registry::Record,
 ) -> Result<(String, bool, bool), Error> {
     use sha2::{Digest, Sha256};

@@ -38,6 +38,7 @@ fn settings(keep_count: u32) -> WorktreeSettings {
 }
 #[test]
 fn worktree_cleanup_keeps_pinned_busy_and_pool_worktrees() {
+    super::initialize_host();
     let p = plan(
         &scope("a"),
         &settings(1),
@@ -54,6 +55,7 @@ fn worktree_cleanup_keeps_pinned_busy_and_pool_worktrees() {
 }
 #[test]
 fn worktree_cleanup_orders_by_last_use() {
+    super::initialize_host();
     let mut other = entry("foreign-project", 0, vec![]);
     other.record.scope = scope("b");
     let mut tenant = entry("foreign-tenant", 0, vec![]);
@@ -95,6 +97,7 @@ fn worktree_cleanup_orders_by_last_use() {
 }
 #[test]
 fn worktree_cleanup_fails_closed_when_protection_is_unknown() {
+    super::initialize_host();
     let p = plan(
         &scope("a"),
         &settings(1),
@@ -159,7 +162,7 @@ impl Fixture {
             sessions: vec![],
             foreign_directories: vec![],
             pinned: HashMap::new(),
-            statuses: HashMap::new(),
+            busy: HashSet::new(),
         }
     }
 }
@@ -173,6 +176,7 @@ fn session(record: &Record, id: &str, title: &str, updated: u64) -> Info {
 }
 #[tokio::test]
 async fn worktree_cleanup_all_associated_sessions_protect_and_latest_title_wins() {
+    super::initialize_host();
     let f = Fixture::new();
     let mut first = f.checkout("first").await;
     let mut second = f.checkout("second").await;
@@ -197,20 +201,17 @@ async fn worktree_cleanup_all_associated_sessions_protect_and_latest_title_wins(
     );
     assert_eq!(p.candidates[0].id, second.id);
     snapshot.pinned.get_mut(&old.project_id).unwrap().clear();
-    snapshot.statuses.insert(old.id.clone(), status::Info::Busy);
+    snapshot.busy = super::super::host_adapter::busy_sessions(HashMap::from([(old.id.clone(), status::Info::Busy)]));
     assert_eq!(
         observe(&f.primary, first.clone(), Some(&snapshot)).reasons,
         [ProtectionReason::Busy]
     );
-    snapshot.statuses.insert(
-        old.id.clone(),
-        status::Info::Retry { attempt: 1, message: "retry".into(), next: 100 },
-    );
+    snapshot.busy = super::super::host_adapter::busy_sessions(HashMap::from([(old.id.clone(), status::Info::Retry { attempt: 1, message: "retry".into(), next: 100 })]));
     assert_eq!(
         observe(&f.primary, first.clone(), Some(&snapshot)).reasons,
         [ProtectionReason::Busy]
     );
-    snapshot.statuses.clear();
+    snapshot.busy.clear();
     snapshot.sessions[1].mark_first_response_pending();
     assert_eq!(
         observe(&f.primary, first.clone(), Some(&snapshot)).reasons,
@@ -230,6 +231,7 @@ async fn worktree_cleanup_all_associated_sessions_protect_and_latest_title_wins(
 
 #[tokio::test]
 async fn worktree_cleanup_initialization_pool_external_and_unknown_are_protected() {
+    super::initialize_host();
     let f = Fixture::new();
     let ready = f.checkout("ready").await;
     let pool = f.checkout("slot-test").await;
@@ -277,6 +279,7 @@ async fn worktree_cleanup_initialization_pool_external_and_unknown_are_protected
 
 #[tokio::test]
 async fn worktree_cleanup_shared_repository_fails_closed_across_tenants() {
+    super::initialize_host();
     let f = Fixture::new();
     let record = f.checkout("owned").await;
     let other = ProjectScope::new(
@@ -311,6 +314,7 @@ async fn worktree_cleanup_shared_repository_fails_closed_across_tenants() {
 
 #[tokio::test]
 async fn worktree_cleanup_session_store_preserves_pending_duplicates_and_errors() {
+    super::initialize_host();
     let f = Fixture::new();
     let record = f.checkout("owned").await;
     let db = crate::global_database::GlobalDatabase::new(f._temp.path().join("sessions.sqlite3"))
@@ -385,6 +389,7 @@ async fn worktree_cleanup_session_store_preserves_pending_duplicates_and_errors(
 
 #[tokio::test]
 async fn worktree_cleanup_record_use_is_monotonic_and_identity_checked() {
+    super::initialize_host();
     let f = Fixture::new();
     let record = f.checkout("owned").await;
     let used = record.last_used_at_ms + 100;

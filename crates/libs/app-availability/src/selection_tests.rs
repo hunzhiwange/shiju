@@ -1,11 +1,7 @@
 use super::{SelectionError, SelectionSnapshot, select};
-use crate::{
-    high_availability::circuit_breaker::{AttemptOutcome, CircuitBreaker},
-    providers::{
-        failover::{ProviderAuth, ProviderSnapshot},
-        live::commit::{AppState, Mode, ModeState},
-    },
-};
+use app_availability_core::circuit_breaker::{AttemptOutcome, CircuitBreaker};
+use app_provider_core::failover::{ProviderAuth, ProviderSnapshot};
+use app_auth::providers::live::commit::{AppState, Mode, ModeState};
 use std::time::{Duration, Instant};
 use vw_api_app_identity::AppId;
 use vw_api_app_failover::CircuitBreakerPolicy;

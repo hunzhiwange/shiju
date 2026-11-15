@@ -1,5 +1,5 @@
 use super::queue::{Queue, QueueError};
-use crate::providers::failover::{ProviderAuth, ProviderSnapshot};
+use app_provider_core::failover::{ProviderAuth, ProviderSnapshot};
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_identity::{AppId};
 

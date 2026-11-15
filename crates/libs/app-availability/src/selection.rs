@@ -1,12 +1,7 @@
 //! Candidate ordering from one authorized request's settled mode and queue.
-use crate::{
-    aggregation::failover_guard::{self, FailoverError},
-    providers::{
-        failover::{ProviderAuth, ProviderSnapshot},
-        live::commit::AppState,
-        mode_state::observe,
-    },
-};
+use app_aggregation::failover_guard::{self, FailoverError};
+use app_provider_core::failover::{ProviderAuth, ProviderSnapshot};
+use app_auth::providers::{live::commit::AppState, mode_state::observe};
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,

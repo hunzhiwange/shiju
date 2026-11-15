@@ -1,10 +1,8 @@
 //! Ordered queue mutations for one application and one authorized provider snapshot.
 use std::collections::HashSet;
 
-use crate::{
-    providers::failover::{ProviderAuth, ProviderSnapshot},
-    routing::supports_app,
-};
+use app_provider_core::failover::{ProviderAuth, ProviderSnapshot};
+use app_routing_policy::supports_app;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_identity::{AppId};
 

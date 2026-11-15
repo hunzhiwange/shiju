@@ -1,0 +1,18 @@
+[package]
+name = "app-availability"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-availability-core = { path = "../app-availability-core" }
+app-provider-core = { path = "../app-provider-core" }
+app-routing-policy = { path = "../app-routing-policy" }
+app-aggregation = { path = "../app-aggregation" }
+app-auth = { path = "../app-auth" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-transport = { path = "../api-transport" }
+
+[dev-dependencies]
+vw-api-app-failover = { path = "../api-app-failover" }

@@ -268,7 +268,7 @@ pub async fn run() -> Result<()> {
 
         /*
         Commands::Update { check, force } => {
-            update::self_update(force, check).await?;
+            app_self_update::self_update(force, check).await?;
             Ok(())
         }
         */

@@ -1,15 +1,13 @@
 //! 聊天面板轨迹模式的瞬时交互与原始载荷补载。
 
 use super::ChatMessage;
-use crate::app::components::chat_panel::trajectory::{
-    TrajectoryDetailsAction, trajectory_detail_values,
-};
+use desktop_chat_view::trajectory::update::{self as trajectory_update, Message as UiMessage};
 use crate::app::state::ChatPanelMode;
 use crate::app::state::SessionStepRawKey;
 use crate::app::{App, Message};
 use iced::Task;
 
-use desktop_session::message::chat::trajectory::{RawLoadState, MAX_RAW_LOAD_ATTEMPTS, retry_delay};
+use desktop_session::message::chat::trajectory::{RawLoadState, RawResultEffect, accepted_snapshot, missing_snapshot_steps};
 
 pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
@@ -24,87 +22,6 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             Task::none()
         }
-        ChatMessage::TrajectorySearchChanged(search) => {
-            sync_controls_session(app);
-            app.trajectory_search_text = search;
-            Task::none()
-        }
-        ChatMessage::TrajectoryDurationToggled => {
-            sync_controls_session(app);
-            app.trajectory_controls.toggle_duration_mode();
-            Task::none()
-        }
-        ChatMessage::TrajectoryTurnsToggled => {
-            sync_controls_session(app);
-            let projection = &app.active_session_view_state.trajectory_projection;
-            app.trajectory_controls.toggle_all_turns(projection);
-            Task::none()
-        }
-        ChatMessage::TrajectoryCallsToggled => {
-            sync_controls_session(app);
-            let projection = &app.active_session_view_state.trajectory_projection;
-            app.trajectory_controls.toggle_all_calls(projection);
-            Task::none()
-        }
-        ChatMessage::TrajectoryTurnToggled(turn_index) => {
-            sync_controls_session(app);
-            app.trajectory_controls.toggle_turn(turn_index);
-            Task::none()
-        }
-        ChatMessage::TrajectoryToolStepToggled(step_index) => {
-            sync_controls_session(app);
-            app.trajectory_controls.toggle_tool_step(step_index);
-            Task::none()
-        }
-        ChatMessage::TrajectoryRecordSelected(record_id) => {
-            sync_controls_session(app);
-            let projection = app.active_session_view_state.trajectory_projection.clone();
-            let changed = if let Some(record) = projection.record(&record_id) {
-                app.trajectory_controls.reveal_record(record);
-                app.trajectory_details.select_record(record)
-            } else {
-                app.trajectory_details.select(record_id)
-            };
-            if changed {
-                sync_details_values_from_projection(app, &projection);
-            }
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsTabSelected(tab) => {
-            if app.trajectory_details.apply(TrajectoryDetailsAction::SelectTab(tab)) {
-                sync_details_values(app);
-            }
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsClosed => {
-            app.trajectory_details.apply(TrajectoryDetailsAction::Close);
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsEditorAction(index, action) => {
-            app.trajectory_details.perform_editor_action(index, action);
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsContextMenuOpened { index, x, y } => {
-            app.trajectory_details.open_context_menu(index, x, y);
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsContextMenuClosed => {
-            app.trajectory_details.close_context_menu();
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsContextMenuCopy => {
-            let text = app.trajectory_details.context_menu_copy_text();
-            app.trajectory_details.close_context_menu();
-            text.map_or_else(Task::none, |text| Task::done(Message::CopyCode(text)))
-        }
-        ChatMessage::TrajectoryDetailsJsonToggled(path) => {
-            app.trajectory_details.toggle_json_path(path);
-            Task::none()
-        }
-        ChatMessage::TrajectoryDetailsJsonCopied(value) => {
-            let text = serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string());
-            Task::done(Message::CopyCode(text))
-        }
         ChatMessage::TrajectoryRawRetry { session_id, turn_id, step_index, attempt } => {
             retry_raw_load_task(app, session_id, turn_id, step_index, attempt)
         }
@@ -114,7 +31,31 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::TrajectorySnapshotLoaded { session_id, result } => {
             apply_snapshot_result(app, session_id, result)
         }
-        _ => Task::none(),
+        message => {
+            let message = match message {
+                ChatMessage::TrajectorySearchChanged(search) => UiMessage::TrajectorySearchChanged(search),
+                ChatMessage::TrajectoryDurationToggled => UiMessage::TrajectoryDurationToggled,
+                ChatMessage::TrajectoryTurnsToggled => UiMessage::TrajectoryTurnsToggled,
+                ChatMessage::TrajectoryCallsToggled => UiMessage::TrajectoryCallsToggled,
+                ChatMessage::TrajectoryTurnToggled(turn_index) => UiMessage::TrajectoryTurnToggled(turn_index),
+                ChatMessage::TrajectoryToolStepToggled(step_index) => UiMessage::TrajectoryToolStepToggled(step_index),
+                ChatMessage::TrajectoryRecordSelected(record_id) => UiMessage::TrajectoryRecordSelected(record_id),
+                ChatMessage::TrajectoryDetailsTabSelected(tab) => UiMessage::TrajectoryDetailsTabSelected(tab),
+                ChatMessage::TrajectoryDetailsClosed => UiMessage::TrajectoryDetailsClosed,
+                ChatMessage::TrajectoryDetailsEditorAction(index, action) => UiMessage::TrajectoryDetailsEditorAction(index, action),
+                ChatMessage::TrajectoryDetailsContextMenuOpened { index, x, y } => UiMessage::TrajectoryDetailsContextMenuOpened { index, x, y },
+                ChatMessage::TrajectoryDetailsContextMenuClosed => UiMessage::TrajectoryDetailsContextMenuClosed,
+                ChatMessage::TrajectoryDetailsContextMenuCopy => UiMessage::TrajectoryDetailsContextMenuCopy,
+                ChatMessage::TrajectoryDetailsJsonToggled(path) => UiMessage::TrajectoryDetailsJsonToggled(path),
+                ChatMessage::TrajectoryDetailsJsonCopied(value) => UiMessage::TrajectoryDetailsJsonCopied(value),
+                _ => return Task::none(),
+            };
+            trajectory_update::update(
+                &mut app.trajectory_controls, &mut app.trajectory_details,
+                &mut app.trajectory_search_text, app.active_session_id.as_deref(),
+                &app.active_session_view_state.trajectory_projection, message,
+            ).map_or_else(Task::none, |text| Task::done(Message::CopyCode(text)))
+        },
     }
 }
 
@@ -140,25 +81,12 @@ fn apply_snapshot_result(
     session_id: String,
     result: Result<Option<gateway_session::SessionUiLoadResult>, String>,
 ) -> Task<Message> {
-    if app.chat_panel_mode != ChatPanelMode::Trajectory
-        || app.active_session_id.as_deref() != Some(&session_id)
-    {
-        return Task::none();
-    }
-    let Ok(Some(loaded)) = result else {
-        return Task::none();
-    };
-    if loaded.session.id != session_id {
-        return Task::none();
-    }
-
-    for step in loaded.session.steps {
-        let already_present = app.active_session_view_state.steps.iter().any(|existing| {
-            existing.index == step.index && existing.turn_id.as_deref() == step.turn_id.as_deref()
-        });
-        if !already_present {
-            app.upsert_active_session_step(step);
-        }
+    let Some(loaded) = accepted_snapshot(
+        app.chat_panel_mode == ChatPanelMode::Trajectory, app.active_session_id.as_deref(),
+        &session_id, result,
+    ) else { return Task::none(); };
+    for step in missing_snapshot_steps(&app.active_session_view_state.steps, loaded.session.steps) {
+        app.upsert_active_session_step(step);
     }
     app.active_session_view_state.llm_raw_step_indices.extend(loaded.llm_raw_step_indices);
     app.insert_missing_active_session_step_llm_raw(loaded.step_llm_raw);
@@ -171,21 +99,9 @@ fn sync_controls_session(app: &mut App) {
 }
 
 fn sync_details_values(app: &mut App) {
-    let projection = app.active_session_view_state.trajectory_projection.clone();
-    sync_details_values_from_projection(app, &projection);
-}
-
-fn sync_details_values_from_projection(
-    app: &mut App,
-    projection: &crate::app::components::chat_panel::trajectory::TrajectoryProjection,
-) {
-    let values = app
-        .trajectory_details
-        .selected_record_id()
-        .and_then(|record_id| projection.record(record_id))
-        .map(|record| trajectory_detail_values(record, app.trajectory_details.active_tab()))
-        .unwrap_or_default();
-    app.trajectory_details.sync_values(values);
+    trajectory_update::sync_details_values(
+        &mut app.trajectory_details, &app.active_session_view_state.trajectory_projection,
+    );
 }
 
 pub(super) fn refresh_missing_raw_task(
@@ -215,19 +131,8 @@ fn retry_raw_load_task(
     attempt: u8,
 ) -> Task<Message> {
     let key = (session_id.clone(), turn_id.clone(), step_index);
-    if app.active_session_id.as_deref() != Some(&session_id) {
-        clear_raw_load_state(app, &key);
-        return Task::none();
-    }
-    if !(1..=MAX_RAW_LOAD_ATTEMPTS).contains(&attempt) {
-        clear_raw_load_state(app, &key);
-        return Task::none();
-    }
-    if app.trajectory_raw_attempts.get(&key).copied() != Some(attempt) {
-        return Task::none();
-    }
-    if !is_current_completed_missing_raw(app, &session_id, &turn_id, step_index) {
-        clear_raw_load_state(app, &key);
+    let active_session_id = app.active_session_id.clone();
+    if !raw_state(app).accepts(active_session_id.as_deref(), &key, attempt) {
         return Task::none();
     }
     let directory = app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
@@ -273,71 +178,23 @@ fn apply_raw_result(
     result: Result<Option<serde_json::Value>, String>,
 ) -> Task<Message> {
     let key = (session_id.clone(), turn_id.clone(), step_index);
-    if app.active_session_id.as_deref() != Some(&session_id) {
-        clear_raw_load_state(app, &key);
-        return Task::none();
-    }
-    if !(1..=MAX_RAW_LOAD_ATTEMPTS).contains(&attempt) {
-        clear_raw_load_state(app, &key);
-        return Task::none();
-    }
-    if app.trajectory_raw_attempts.get(&key).copied() != Some(attempt) {
-        return Task::none();
-    }
-    if !is_current_completed_missing_raw(app, &session_id, &turn_id, step_index) {
-        clear_raw_load_state(app, &key);
-        return Task::none();
-    }
-
-    match result {
-        Ok(Some(raw)) => {
+    let active_session_id = app.active_session_id.clone();
+    let effect = raw_state(app).apply_result(active_session_id.as_deref(), &key, attempt, result);
+    match effect {
+        RawResultEffect::Insert(raw) => {
             app.insert_active_session_step_llm_raw(key.clone(), raw);
-            clear_raw_load_state(app, &key);
+            raw_state(app).clear(&key);
             sync_details_values(app);
             Task::none()
         }
-        Ok(None) if attempt < MAX_RAW_LOAD_ATTEMPTS => schedule_raw_retry(app, key, attempt + 1),
-        Err(_) if attempt < MAX_RAW_LOAD_ATTEMPTS => schedule_raw_retry(app, key, attempt + 1),
-        Ok(None) => {
-            clear_raw_load_state(app, &key);
-            app.trajectory_raw_errors
-                .insert(key, "原始数据自动重试 3 次后仍未就绪，可稍后重试".to_string());
-            Task::none()
-        }
-        Err(error) => {
-            clear_raw_load_state(app, &key);
-            app.trajectory_raw_errors.insert(key, error);
-            Task::none()
-        }
+        RawResultEffect::Retry { attempt, delay } => crate::app::message::after(
+            delay,
+            Message::Chat(ChatMessage::TrajectoryRawRetry {
+                session_id: key.0, turn_id: key.1, step_index: key.2, attempt,
+            }),
+        ),
+        RawResultEffect::None => Task::none(),
     }
-}
-
-fn schedule_raw_retry(app: &mut App, key: SessionStepRawKey, attempt: u8) -> Task<Message> {
-    let Some(delay) = retry_delay(attempt) else { return Task::none(); };
-    app.trajectory_raw_loading.insert(key.clone());
-    app.trajectory_raw_attempts.insert(key.clone(), attempt);
-    app.trajectory_raw_errors.remove(&key);
-    crate::app::message::after(
-        delay,
-        Message::Chat(ChatMessage::TrajectoryRawRetry {
-            session_id: key.0,
-            turn_id: key.1,
-            step_index: key.2,
-            attempt,
-        }),
-    )
-}
-
-fn is_current_completed_missing_raw(app: &App, session_id: &str, turn_id: &str, step_index: u32) -> bool {
-    desktop_session::message::chat::trajectory::is_current_completed_missing_raw(
-        app.active_session_id.as_deref(), &app.active_session_view_state.steps,
-        &app.active_session_view_state.llm_raw_step_indices,
-        &app.active_session_view_state.step_llm_raw, session_id, turn_id, step_index,
-    )
-}
-
-fn clear_raw_load_state(app: &mut App, key: &SessionStepRawKey) {
-    raw_state(app).clear(key);
 }
 
 fn raw_state(app: &mut App) -> RawLoadState<'_> {

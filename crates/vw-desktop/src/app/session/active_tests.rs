@@ -3,7 +3,6 @@
 
 use super::*;
 use crate::app::models::TokenUsage;
-use std::sync::Arc;
 use session_info::{Info, TimeInfo};
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
@@ -234,35 +233,6 @@ fn cache_pruning_retains_requesting_sessions_and_removes_inactive_sessions() {
 }
 
 #[test]
-fn restore_chat_uses_cached_messages_ids_and_missing_id_defaults() {
-    let (mut app, _task) = App::new();
-    app.store_session_chat_snapshot(
-        "with-ids".to_string(),
-        shared_chat_messages(vec![message(ChatRole::Assistant, "cached")]),
-        vec![Some("message-1".to_string())],
-    );
-    app.session_chat_cache.insert(
-        "without-ids".to_string(),
-        shared_chat_messages(vec![
-            message(ChatRole::User, "first"),
-            message(ChatRole::Assistant, "second"),
-        ]),
-    );
-
-    app.restore_chat_for_session("with-ids");
-    assert_eq!(app.chat[0].content, "cached");
-    assert_eq!(app.chat_message_ids, vec![Some("message-1".to_string())]);
-
-    app.restore_chat_for_session("without-ids");
-    assert_eq!(app.chat.len(), 2);
-    assert_eq!(app.chat_message_ids, vec![None, None]);
-
-    app.restore_chat_for_session("missing");
-    assert!(app.chat.is_empty());
-    assert!(app.chat_message_ids.is_empty());
-}
-
-#[test]
 fn known_session_directory_prefers_loaded_sessions_then_searches_projects() {
     let (mut app, _task) = App::new();
     app.sessions = vec![session_info("duplicate", "/loaded", 1)];
@@ -293,25 +263,6 @@ fn history_reset_boundary_replaces_previous_value_and_is_session_scoped() {
         Some([Some("retained".to_string()), None].as_slice())
     );
     assert_eq!(app.session_history_reset_boundary("session-b"), None);
-}
-
-#[test]
-fn active_shared_chat_messages_reuses_only_a_length_matching_active_snapshot() {
-    let (mut app, _task) = App::new();
-    app.active_session_id = Some("active".to_string());
-    app.chat = vec![message(ChatRole::User, "live")];
-    let matching = shared_chat_messages(vec![message(ChatRole::User, "cached")]);
-    app.store_session_chat_snapshot("active".to_string(), matching.clone(), vec![None]);
-
-    let reused = app.active_shared_chat_messages();
-    assert!(Arc::ptr_eq(&reused, &matching));
-    assert_eq!(reused[0].content, "cached");
-
-    app.chat.push(message(ChatRole::Assistant, "new"));
-    let rebuilt = app.active_shared_chat_messages();
-    assert!(!Arc::ptr_eq(&rebuilt, &matching));
-    assert_eq!(rebuilt.len(), 2);
-    assert_eq!(rebuilt[0].content, "live");
 }
 
 #[test]

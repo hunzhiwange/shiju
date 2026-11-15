@@ -247,3 +247,20 @@ pub fn refresh_tail_message_meta(
         labels.push(label);
     }
 }
+
+/// 原始载荷增量不能覆盖已有的完整缓存；索引始终覆盖所有稳定键。
+pub fn insert_missing_raw(
+    stored: &mut HashMap<crate::message::chat::trajectory::SessionStepRawKey, serde_json::Value>,
+    indices: &mut std::collections::HashSet<crate::message::chat::trajectory::SessionStepRawKey>,
+    incoming: HashMap<crate::message::chat::trajectory::SessionStepRawKey, serde_json::Value>,
+) -> bool {
+    let mut changed = false;
+    for (key, value) in incoming {
+        indices.insert(key.clone());
+        if let std::collections::hash_map::Entry::Vacant(entry) = stored.entry(key) {
+            entry.insert(value);
+            changed = true;
+        }
+    }
+    changed
+}

@@ -11,6 +11,7 @@ use super::{ChatMessage, ChatRole};
 use crate::app::state::SessionStepRawKey;
 use serde_json::Value;
 
+use desktop_session::session::cache;
 use desktop_session::session::active::{normalize_step_turn_id, build_message_meta_labels, build_user_question_markers};
 
 impl App {
@@ -40,17 +41,10 @@ impl App {
         &mut self,
         raw: HashMap<SessionStepRawKey, Value>,
     ) {
-        let mut changed = false;
-        for (key, value) in raw {
-            self.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-            if let std::collections::hash_map::Entry::Vacant(entry) =
-                self.active_session_view_state.step_llm_raw.entry(key)
-            {
-                entry.insert(value);
-                changed = true;
-            }
-        }
-        if changed {
+        if desktop_session::session::active::insert_missing_raw(
+            &mut self.active_session_view_state.step_llm_raw,
+            &mut self.active_session_view_state.llm_raw_step_indices, raw,
+        ) {
             self.rebuild_active_session_trajectory_projection();
         }
     }
@@ -63,7 +57,7 @@ impl App {
 
         self.close_session_transient_ui();
         let has_cold_chat_fallback = self.session_chat_cache.contains_key(&session_id);
-        if self.get_session_runtime(&session_id).request_lifecycle.is_requesting && !has_cold_chat_fallback {
+        if cache::needs_cold_fallback(self.get_session_runtime(&session_id).request_lifecycle.is_requesting, has_cold_chat_fallback) {
             self.store_session_chat_snapshot(
                 session_id.clone(),
                 shared_chat_messages(self.chat.clone()),
@@ -259,15 +253,12 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn prune_inactive_session_chat_cache(&mut self) {
-        let active_session_ids: std::collections::HashSet<_> = self
-            .session_runtime_states
-            .iter()
-            .filter(|(_, s)| s.request_lifecycle.is_requesting)
-            .map(|(id, _)| id.clone())
-            .collect();
-        self.session_chat_cache.retain(|session_id, _| active_session_ids.contains(session_id));
-        self.session_chat_message_id_cache
-            .retain(|session_id, _| active_session_ids.contains(session_id));
+        cache::prune_snapshots(
+            self.session_runtime_states.iter()
+                .filter(|(_, state)| state.request_lifecycle.is_requesting)
+                .map(|(id, _)| id.as_str()),
+            &mut self.session_chat_cache, &mut self.session_chat_message_id_cache,
+        );
     }
 
     /// 执行 restore_chat_for_session 对应的领域操作。
@@ -275,8 +266,11 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn restore_chat_for_session(&mut self, session_id: &str) {
-        if let Some(cached) = self.session_chat_cache.get(session_id).cloned() {
-            self.chat = cached.iter().cloned().collect();
+        let hit = cache::restore_snapshot(
+            self.session_chat_cache.get(session_id), self.session_chat_message_id_cache.get(session_id),
+            &mut self.chat, &mut self.chat_message_ids,
+        );
+        if hit {
             tracing::info!(
                 target: "vw_desktop",
                 session_id,
@@ -289,13 +283,7 @@ impl App {
                 session_id,
                 "no cached chat found for session, clearing active chat"
             );
-            self.chat.clear();
         }
-        self.chat_message_ids = self
-            .session_chat_message_id_cache
-            .get(session_id)
-            .cloned()
-            .unwrap_or_else(|| vec![None; self.chat.len()]);
     }
 
     /// 执行 known_session_directory 对应的领域操作。
@@ -366,14 +354,8 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn active_shared_chat_messages(&self) -> SharedChatMessages {
-        if let Some(session_id) = self.active_session_id.as_deref()
-            && let Some(cached) = self.cached_chat_messages(session_id)
-            && cached.len() == self.chat.len()
-        {
-            return cached;
-        }
-
-        shared_chat_messages(self.chat.clone())
+        let cached = self.active_session_id.as_deref().and_then(|id| self.session_chat_cache.get(id));
+        cache::active_shared_messages(cached, &self.chat)
     }
 
     /// 执行 store_session_chat_snapshot 对应的领域操作。

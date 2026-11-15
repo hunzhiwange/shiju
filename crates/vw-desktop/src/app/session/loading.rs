@@ -15,7 +15,7 @@ use std::hash::{Hash, Hasher};
 use super::chat_timeline::{ChatEntryRevision, ChatTimelineEntry, TimelinePage};
 
 /// 为 SharedChatMessages 领域数据提供更清晰的类型名称。
-pub type SharedChatMessages = Arc<[ChatMessage]>;
+pub use desktop_session::session::cache::SharedChatMessages;
 
 /// 冷会话打开在后台完成后的完整提交单元。
 ///

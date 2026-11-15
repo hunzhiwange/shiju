@@ -91,3 +91,81 @@ fn trajectory_turn_id(step: &ChatSessionStep) -> String {
         .filter(|turn_id| !turn_id.trim().is_empty())
         .unwrap_or_else(|| format!("legacy-step-{}", step.index))
 }
+
+/// 网关结果应用只返回实际需要的载荷或延时重试效果。
+pub enum RawResultEffect {
+    None,
+    Insert(Value),
+    Retry { attempt: u8, delay: Duration },
+}
+
+impl RawLoadState<'_> {
+    pub fn accepts(&mut self, active_session_id: Option<&str>, key: &SessionStepRawKey, attempt: u8) -> bool {
+        if active_session_id != Some(key.0.as_str()) || !(1..=MAX_RAW_LOAD_ATTEMPTS).contains(&attempt) {
+            self.clear(key);
+            return false;
+        }
+        // 较早的回包不能清除较新一次重试的状态。
+        if self.attempts.get(key).copied() != Some(attempt) {
+            return false;
+        }
+        if !is_current_completed_missing_raw(active_session_id, self.steps, self.indices, self.raw, &key.0, &key.1, key.2) {
+            self.clear(key);
+            return false;
+        }
+        true
+    }
+
+    pub fn apply_result(&mut self, active_session_id: Option<&str>, key: &SessionStepRawKey, attempt: u8, result: Result<Option<Value>, String>) -> RawResultEffect {
+        if !self.accepts(active_session_id, key, attempt) {
+            return RawResultEffect::None;
+        }
+        match result {
+            Ok(Some(raw)) => RawResultEffect::Insert(raw),
+            Ok(None) | Err(_) if attempt < MAX_RAW_LOAD_ATTEMPTS => {
+                let next = attempt + 1;
+                let Some(delay) = retry_delay(next) else { return RawResultEffect::None; };
+                self.loading.insert(key.clone());
+                self.attempts.insert(key.clone(), next);
+                self.errors.remove(key);
+                RawResultEffect::Retry { attempt: next, delay }
+            }
+            result => {
+                self.clear(key);
+                let error = match result {
+                    Err(error) => error,
+                    _ => "原始数据自动重试 3 次后仍未就绪，可稍后重试".to_string(),
+                };
+                self.errors.insert(key.clone(), error);
+                RawResultEffect::None
+            }
+        }
+    }
+}
+
+pub fn accepted_snapshot(
+    trajectory_mode: bool,
+    active_session_id: Option<&str>,
+    session_id: &str,
+    result: Result<Option<gateway_session::SessionUiLoadResult>, String>,
+) -> Option<gateway_session::SessionUiLoadResult> {
+    if !trajectory_mode || active_session_id != Some(session_id) {
+        return None;
+    }
+    let loaded = result.ok()??;
+    (loaded.session.id == session_id).then_some(loaded)
+}
+
+/// 按快照原始稳定键去重；规范化仍由实际插入步骤执行。
+pub fn missing_snapshot_steps(existing: &[ChatSessionStep], incoming: Vec<ChatSessionStep>) -> Vec<ChatSessionStep> {
+    let mut known = existing.iter().map(|step| (step.index, step.turn_id.clone())).collect::<Vec<_>>();
+    let mut missing = Vec::new();
+    for step in incoming {
+        if !known.iter().any(|old| old.0 == step.index && old.1.as_deref() == step.turn_id.as_deref()) {
+            let turn_id = step.turn_id.clone().filter(|id| !id.trim().is_empty());
+            known.push((step.index, turn_id));
+            missing.push(step);
+        }
+    }
+    missing
+}

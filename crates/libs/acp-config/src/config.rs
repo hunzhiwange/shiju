@@ -20,9 +20,9 @@ use serde_json::{Map, Value, json};
 use tokio::fs;
 
 use crate::ParseMcpServersError;
-use crate::agent_registry::{AgentCommandSpec, DEFAULT_AGENT_NAME, normalize_agent_name};
+use acp_agent_registry::agent_registry::{AgentCommandSpec, DEFAULT_AGENT_NAME, normalize_agent_name};
 use crate::mcp_servers::{McpServerConfig, McpServerManagement, parse_mcp_server_configs};
-use crate::types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
+use acp_types::types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
 
 const DEFAULT_TIMEOUT_MS: Option<u64> = None;
 const DEFAULT_TTL_MS: u64 = 300_000;

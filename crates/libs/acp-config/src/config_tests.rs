@@ -12,8 +12,8 @@ use agent_client_protocol::McpServer;
 use serde_json::{Value, json};
 
 use super::*;
-use crate::agent_registry::{AgentCommandSpec, DEFAULT_AGENT_NAME};
-use crate::types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
+use acp_agent_registry::agent_registry::{AgentCommandSpec, DEFAULT_AGENT_NAME};
+use acp_types::types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
 
 struct TempDir {
     path: PathBuf,
@@ -52,7 +52,7 @@ struct EnvVarGuard {
 
 impl EnvVarGuard {
     fn new(keys: &[&'static str]) -> Self {
-        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.blocking_lock();
+        let lock = crate::TEST_HOME_ENV_LOCK.blocking_lock();
         let mut keys = keys.to_vec();
         if keys.contains(&"HOME") {
             for key in ["USERPROFILE", "HOMEDRIVE", "HOMEPATH"] {

@@ -13,6 +13,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+acp-config = { path = "../libs/acp-config", version = "0.6.0" }
 acp-agent-registry = { path = "../libs/acp-agent-registry", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }
 acp-host-io = { path = "../libs/acp-host-io", version = "0.6.0" }

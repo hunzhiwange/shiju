@@ -9,7 +9,7 @@ use super::installer::{
     version_is_newer,
 };
 use super::{ShijuPackageRelease, SkillDownloadUrl};
-use crate::app::account::SecretSkey;
+use desktop_account::SecretSkey;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -543,7 +543,7 @@ fn target_operations_reject_symlinks_and_deduplicate_paths() {
 
 #[test]
 fn desktop_gettext_area_14_installer_error_retains_context_for_language_switch() {
-    use crate::app::i18n::{I18n, format::Message};
+    use desktop_i18n::{I18n, format::Message};
     use config_ui::DesktopLocale;
     let home = tempfile::tempdir().unwrap();
     let error = install_shiju_archive_at_home(&home.path().join("missing-%s-%n.zip"), home.path())

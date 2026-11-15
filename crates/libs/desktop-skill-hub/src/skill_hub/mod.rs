@@ -14,3 +14,21 @@ mod models_tests;
 mod client_tests;
 #[cfg(test)]
 mod cache_sync_tests;
+
+pub mod installer;
+pub mod knowledge;
+pub mod native;
+pub mod package_version_cache;
+mod markdown;
+pub use installer::*;
+pub use native::*;
+pub use package_version_cache::*;
+pub use markdown::parse_public_markdown;
+#[cfg(test)]
+mod installer_tests;
+#[cfg(test)]
+mod package_version_cache_tests;
+#[cfg(test)]
+mod shiju_knowledge_state_tests;
+#[cfg(test)]
+mod markdown_tests;

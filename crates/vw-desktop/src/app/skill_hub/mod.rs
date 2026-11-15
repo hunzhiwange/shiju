@@ -54,8 +54,4 @@ pub(crate) use state::{
 };
 
 #[cfg(test)]
-mod installer_tests;
-#[cfg(test)]
-mod package_version_cache_tests;
-#[cfg(test)]
 mod state_tests;

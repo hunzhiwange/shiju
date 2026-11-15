@@ -293,9 +293,9 @@ fn close_current(app: &mut App) -> Task<Message> {
 #[cfg(not(target_arch = "wasm32"))]
 fn sync_lifecycle_result(app: &mut App) -> Result<bool, String> {
     let visible = work_browser_surface_visible(WorkBrowserSurface {
-        screen: app.screen,
-        workspace_mode: app.workspace_mode,
-        resource_mode: app.work_resource_mode,
+        project_screen: app.screen == crate::app::Screen::Project,
+        work_mode: app.workspace_mode == crate::app::state::WorkspaceMode::Work,
+        browser_resource: app.work_resource_mode == crate::app::state::WorkResourceMode::Browser,
         resources_visible: app.work_resources_visible && !app.terminal.is_fullscreen,
         system_settings_open: app.show_system_settings,
         chat_fullscreen: app.work_chat_fullscreen,

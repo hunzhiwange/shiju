@@ -7,8 +7,6 @@ use super::{
     BrowserProcess, WebviewBounds, WorkBrowserController, WorkBrowserEvent, WorkBrowserLayout,
     WorkBrowserSurface, parse_webview_event, work_browser_bounds, work_browser_surface_visible,
 };
-use crate::app::Screen;
-use crate::app::state::{WorkResourceMode, WorkspaceMode};
 
 #[derive(Default)]
 struct ProcessProbe {
@@ -188,9 +186,9 @@ fn work_browser_bounds_follow_main_window_and_work_split() {
 #[test]
 fn work_browser_hides_outside_work_browser_surface() {
     let visible = WorkBrowserSurface {
-        screen: Screen::Project,
-        workspace_mode: WorkspaceMode::Work,
-        resource_mode: WorkResourceMode::Browser,
+        project_screen: true,
+        work_mode: true,
+        browser_resource: true,
         resources_visible: true,
         system_settings_open: false,
         chat_fullscreen: false,
@@ -199,9 +197,9 @@ fn work_browser_hides_outside_work_browser_surface() {
     assert!(work_browser_surface_visible(visible));
 
     for hidden in [
-        WorkBrowserSurface { screen: Screen::Home, ..visible },
-        WorkBrowserSurface { workspace_mode: WorkspaceMode::Code, ..visible },
-        WorkBrowserSurface { resource_mode: WorkResourceMode::Overview, ..visible },
+        WorkBrowserSurface { project_screen: false, ..visible },
+        WorkBrowserSurface { work_mode: false, ..visible },
+        WorkBrowserSurface { browser_resource: false, ..visible },
         WorkBrowserSurface { resources_visible: false, ..visible },
         WorkBrowserSurface { system_settings_open: true, ..visible },
         WorkBrowserSurface { chat_fullscreen: true, ..visible },

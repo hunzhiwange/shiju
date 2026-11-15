@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-web-runtime = { path = "../libs/desktop-web-runtime", version = "0.6.0" }
 gateway-task-pool = { path = "../libs/gateway-task-pool", version = "0.6.0" }
 update-types = { path = "../libs/update-types", version = "0.6.0" }
 desktop-platform = { path = "../libs/desktop-platform", version = "0.6.0" }

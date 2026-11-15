@@ -1,0 +1,29 @@
+[package]
+name = "desktop-web-runtime"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+question-types = { path = "../question-types", version = "0.6.0" }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+anyhow = "1"
+base64 = "0.22"
+gateway-mcp = { path = "../gateway-mcp", version = "0.6.0" }
+rand = "0.10.3"
+reqwest = { version = "0.13", default-features = false, features = ["stream", "json", "rustls"] }
+rfd = { version = "0.17", features = ["file-handle-inner"] }
+tempfile = "3"
+tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time", "net"] }
+urlencoding = "2.1"
+vw-api-mcp-network = { path = "../api-mcp-network", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+tokio = { version = "1", features = ["rt-multi-thread", "io-util"] }

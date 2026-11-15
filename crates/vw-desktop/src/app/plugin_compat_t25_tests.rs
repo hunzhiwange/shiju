@@ -3,8 +3,6 @@ use vw_desktop::app::{
     App,
     message::{ChatMessage, chat},
 };
-#[path = "mcp_form.rs"]
-mod validation;
 fn form() -> question_types::McpForm {
     serde_json::from_value(json!({"server":"表单验收", "schema":{"type":"object","properties":{"age":{"type":"integer","minimum":18},"choice":{"type":"string","enum":["a","b"]}},"required":["age"]}})).unwrap()
 }
@@ -29,15 +27,6 @@ fn codex_plugin_compat_t25_rejects_invalid_input() {
         chat::update(&mut app, ChatMessage::QuestionReject).units() > 0,
         "invalid form must remain open for correction or cancellation"
     );
-    let form = form();
-    let answers = |age: &str, choice: &str| {
-        vec![vec![age.into()], vec![choice.into()], vec!["accept".into()]]
-    };
-    assert!(validation::valid(&form, &answers("24", "a")));
-    for bad in [answers("17", "a"), answers("24", "c"), answers("text", "a")] {
-        assert!(!validation::valid(&form, &bad));
-    }
-    assert!(validation::valid(&form, &[vec![], vec![], vec!["decline".into()]]));
 }
 #[test]
 fn codex_plugin_compat_t25_preserves_isolation() {

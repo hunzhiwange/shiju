@@ -23,21 +23,7 @@ impl Notification {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ToastKind {
-    Success,
-    Info,
-    Warning,
-    Error,
-}
-
-#[derive(Debug, Clone)]
-pub struct Toast {
-    pub id: usize,
-    pub kind: ToastKind,
-    pub message: String,
-    pub localized_message: Option<crate::app::i18n::format::Message>,
-}
+pub use desktop_ui_controls::toast::{Toast, ToastKind};
 
 #[derive(Debug)]
 pub(crate) struct WorkBrowserState {

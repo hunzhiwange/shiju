@@ -419,9 +419,6 @@ pub(crate) mod account_status;
 ///
 /// 提供按钮、输入框、下拉框等可复用的基础 UI 小部件。
 pub mod widgets;
-#[cfg(test)]
-#[path = "widgets_tests.rs"]
-mod widgets_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mcp_app_panel;

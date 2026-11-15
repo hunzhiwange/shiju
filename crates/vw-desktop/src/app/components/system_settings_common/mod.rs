@@ -18,8 +18,6 @@ mod utils;
 mod help_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(in crate::app) mod tab_appearance_tests;
-#[cfg(test)]
-mod tests;
 
 pub(crate) use help::settings_hover_help_label;
 pub use help::{
@@ -58,7 +56,3 @@ pub use utils::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, bool_support_label,
     format_context_limit, settings_field_label, settings_toggle, url_encode,
 };
-
-#[cfg(test)]
-#[path = "mod_ui_refresh_01_tests.rs"]
-mod ui_refresh_01_tests;

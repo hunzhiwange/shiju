@@ -15,3 +15,7 @@ pub mod text_editor_context_menu;
 pub mod text_editor_scroll_panel;
 pub mod right_click_area;
 #[cfg(test)] mod text_editor_context_menu_tests;
+
+pub mod toast;
+#[cfg(test)]
+mod right_click_area_tests;

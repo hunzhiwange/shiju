@@ -19,3 +19,4 @@ urlencoding = "2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+image = "0.25.9"

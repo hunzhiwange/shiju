@@ -1,9 +1,12 @@
 use super::*;
+
+#[derive(Debug, Clone)]
+enum Message { Selected(String) }
 use iced::advanced::{clipboard, renderer::Headless};
 use iced::{Font, Pixels, Point};
 
 fn selected(value: String) -> Message {
-    Message::Settings(SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(value)))
+    Message::Selected(value)
 }
 
 fn key_press(named: iced::keyboard::key::Named) -> Event {
@@ -60,7 +63,7 @@ async fn select_menu_keyboard_can_choose_last_option_or_cancel() {
         } else {
             assert_eq!(messages.len(), 1);
             assert!(
-                matches!(&messages[0], Message::Settings(SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(value))) if value == "39")
+                matches!(&messages[0], Message::Selected(value) if value == "39")
             );
         }
     }
@@ -266,7 +269,7 @@ async fn select_menu_click_selects_original_value_and_closes() {
     assert!(!tree.state.downcast_ref::<State<String>>().menu.open);
     assert_eq!(messages.len(), 1);
     assert!(
-        matches!(&messages[0], Message::Settings(SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(value))) if value == "English")
+        matches!(&messages[0], Message::Selected(value) if value == "English")
     );
 }
 

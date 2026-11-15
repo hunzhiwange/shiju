@@ -2,8 +2,11 @@ use super::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_select, settings_text_editor,
     settings_text_input, settings_text_input_style,
 };
-use crate::app::Message;
-use crate::app::message::{GeneralSettingsMessage, GitMessage, SettingsMessage};
+#[derive(Debug, Clone)]
+enum Message {
+    Selected(String),
+    EditorAction(text_editor::Action),
+}
 use iced::advanced::{
     Clipboard, Layout, Shell, Widget, clipboard, layout, mouse,
     renderer::{self, Headless},
@@ -14,7 +17,7 @@ use iced::widget::text_editor;
 use iced::{Event, Font, Length, Pixels, Point, Rectangle, Renderer, Size, Theme, Vector};
 
 fn selected(value: String) -> Message {
-    Message::Settings(SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(value)))
+    Message::Selected(value)
 }
 
 fn key(named: Named) -> Event {
@@ -192,7 +195,7 @@ impl Ui {
         assert!(
             matches!(
                 self.messages.as_slice(),
-                [Message::Settings(SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(value)))]
+                [Message::Selected(value)]
                     if value == expected
             ),
             "expected exactly one selection: {expected}"
@@ -219,7 +222,7 @@ async fn form_renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();
     FONTS.call_once(|| {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     });
@@ -268,7 +271,7 @@ async fn shared_form_controls_match_input_and_select_height() {
 }
 
 fn editor_action(action: text_editor::Action) -> Message {
-    Message::Git(GitMessage::CommitDescriptionEditorAction(action))
+    Message::EditorAction(action)
 }
 
 fn ime_commit(value: &str) -> Event {
@@ -319,9 +322,9 @@ async fn shared_form_controls_preserve_native_input_events() {
     ui.update(&mut editor, ime_commit("第一行\nSecond line"), mouse::Cursor::Unavailable);
     assert!(matches!(
         ui.messages.as_slice(),
-        [Message::Git(GitMessage::CommitDescriptionEditorAction(text_editor::Action::Edit(
+        [Message::EditorAction(text_editor::Action::Edit(
             text_editor::Edit::Paste(value)
-        )))] if value.as_str() == "第一行\nSecond line"
+        ))] if value.as_str() == "第一行\nSecond line"
     ));
 
     let mut disabled = settings_text_editor::<Message>(&content);

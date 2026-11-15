@@ -240,6 +240,7 @@ members = [
   "crates/libs/agent-auth",
   "crates/libs/agent-cli-types",
   "crates/libs/agent-config",
+  "crates/libs/agent-tunnel",
   "crates/libs/api-workflow",
   "crates/libs/api-knowledge",
   "crates/libs/auth-types",

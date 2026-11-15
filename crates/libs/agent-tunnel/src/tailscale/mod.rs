@@ -12,8 +12,8 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::tunnel::tailscale::TailscaleTunnel;
-//! use crate::app::agent::tunnel::Tunnel;
+//! use agent_tunnel::TailscaleTunnel;
+//! use agent_tunnel::Tunnel;
 //!
 //! // 创建 funnel 模式隧道（公网访问）
 //! let tunnel = TailscaleTunnel::new(true, Some("my-node".to_string()));
@@ -27,7 +27,7 @@
 //! ```
 
 use super::Tunnel;
-use crate::app::agent::shell::tokio_command;
+use shell_command::tokio_command;
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use std::sync::Arc;

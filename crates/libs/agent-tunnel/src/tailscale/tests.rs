@@ -537,7 +537,8 @@ async fn tailscale_status_json_reports_cli_failure_and_parse_errors() {
 
 #[cfg(unix)]
 fn tailscale_env_lock() -> std::sync::MutexGuard<'static, ()> {
-    crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[cfg(unix)]

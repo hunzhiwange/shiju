@@ -13,7 +13,7 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::tunnel::ngrok::NgrokTunnel;
+//! use agent_tunnel::NgrokTunnel;
 //!
 //! let tunnel = NgrokTunnel::new("your-auth-token".to_string(), Some("custom.domain".to_string()));
 //! let public_url = tunnel.start("localhost", 8080).await?;
@@ -22,7 +22,7 @@
 //! ```
 
 use super::{SharedProcess, Tunnel, TunnelProcess, kill_shared, new_shared_process};
-use crate::app::agent::shell::tokio_command;
+use shell_command::tokio_command;
 use anyhow::{Result, bail};
 use tokio::io::AsyncBufReadExt;
 

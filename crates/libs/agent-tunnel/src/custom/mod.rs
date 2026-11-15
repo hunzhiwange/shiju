@@ -13,7 +13,7 @@
 //! # 示例
 //!
 //! ```ignore
-//! use crate::app::agent::tunnel::custom::CustomTunnel;
+//! use agent_tunnel::CustomTunnel;
 //!
 //! // 创建一个使用 ngrok 的自定义隧道
 //! let tunnel = CustomTunnel::new(
@@ -240,7 +240,7 @@ impl Tunnel for CustomTunnel {
     async fn health_check(&self) -> bool {
         // 如果配置了健康检查 URL，通过 HTTP 请求验证
         if let Some(ref url) = self.health_url {
-            return crate::app::agent::config::build_runtime_proxy_client("tunnel.custom")
+            return agent_config::schema::build_runtime_proxy_client("tunnel.custom")
                 .get(url)
                 .timeout(std::time::Duration::from_secs(5))
                 .send()

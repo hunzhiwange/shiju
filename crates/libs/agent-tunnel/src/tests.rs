@@ -7,7 +7,7 @@
 //! - 健康检查行为
 
 use super::*;
-use crate::app::agent::config::{
+use config_gateway::{
     CloudflareTunnelConfig, CustomTunnelConfig, NgrokTunnelConfig, TunnelConfig,
 };
 use tokio::process::Command;

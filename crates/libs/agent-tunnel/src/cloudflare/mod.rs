@@ -14,7 +14,7 @@
 //! # 使用示例
 //!
 //! ```rust,no_run
-//! use vibe_agent::tunnel::cloudflare::CloudflareTunnel;
+//! use agent_tunnel::CloudflareTunnel;
 //!
 //! // 创建 Cloudflare 隧道实例
 //! let tunnel = CloudflareTunnel::new("your-cloudflare-token".to_string());
@@ -25,7 +25,7 @@
 //! ```
 
 use super::{SharedProcess, Tunnel, TunnelProcess, kill_shared, new_shared_process};
-use crate::app::agent::shell::tokio_command;
+use shell_command::tokio_command;
 use anyhow::{Result, bail};
 use tokio::io::AsyncBufReadExt;
 
@@ -60,7 +60,7 @@ impl CloudflareTunnel {
     /// # 示例
     ///
     /// ```rust
-    /// use vibe_agent::tunnel::cloudflare::CloudflareTunnel;
+    /// use agent_tunnel::CloudflareTunnel;
     ///
     /// let tunnel = CloudflareTunnel::new("eyJhIjoyfQ==".to_string());
     /// ```

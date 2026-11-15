@@ -7,13 +7,14 @@ use {
     vw_api_app_provider_terminal::dsh::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use gateway_endpoint::GatewayEndpoint;
+use gateway_app_provider::GatewayAppProviderClient;
 const TOKEN: &str = "fixture-dsh-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
     port: u16,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -48,11 +49,11 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
-        .unwrap();
+        .unwrap());
         Self { root, db, port, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -107,7 +108,7 @@ async fn cc04_dsh_binding_errors_and_denials_have_no_side_effects() {
     request.profile.declaration["apiKeyEnv"] = json!("ABSENT");
     let error = f.client.dsh_provider_save("one", &request, TOKEN).await.unwrap_err();
     match error {
-        vw_gateway_client::AgentAppsReadError::Http { status, body } => {
+        gateway_app_provider::AgentAppsReadError::Http { status, body } => {
             assert_eq!(status, 422);
             assert_eq!(body, json!({"code":"invalid_binding"}));
         }
@@ -131,7 +132,7 @@ async fn cc04_dsh_binding_errors_and_denials_have_no_side_effects() {
         .await
         .unwrap_err();
     match error {
-        vw_gateway_client::AgentAppsReadError::Http { status, body } => {
+        gateway_app_provider::AgentAppsReadError::Http { status, body } => {
             assert_eq!(status, 422);
             assert_eq!(body, json!({"code":"invalid_binding"}));
         }

@@ -284,3 +284,9 @@ mod kimi;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/kimi_tests.rs"]
 mod kimi_tests;
+
+#[path = "app_providers/dsh.rs"]
+mod dsh;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/dsh_tests.rs"]
+mod dsh_tests;

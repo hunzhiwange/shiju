@@ -29,11 +29,11 @@ use serde_json::Value;
 use config_runtime_paths::HOME_CONFIG_DIR_NAME;
 use {gateway_desktop_settings::DesktopSkillPathDto};
 
-use crate::app::agent::skills::marketplace::install::{
+use agent_skills::marketplace::install::{
     install_verified_market_artifact, install_verified_market_artifact_for_roots,
     install_verified_market_skill_set, validate_market_coordinate,
 };
-use crate::app::agent::skills::marketplace::provider::{
+use agent_skills::marketplace::provider::{
     SkillMarketProvider, SkillMarketProviderError, SkillMarketProviderRegistry,
     SkillMarketRegistryError,
 };

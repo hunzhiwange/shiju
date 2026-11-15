@@ -22,3 +22,5 @@ pub mod installer;
 pub mod loader;
 pub mod policy;
 pub mod source;
+
+pub mod marketplace;

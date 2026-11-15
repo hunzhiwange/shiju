@@ -33,7 +33,7 @@ use tower::ServiceExt;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-use crate::app::agent::skills::marketplace::provider::{
+use agent_skills::marketplace::provider::{
     SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider, SkillMarketProviderError,
     SkillMarketProviderRegistry, SkillMarketSkillSetArtifact, SkillMarketSkillSetMemberArtifact,
     SkillMarketSkillSetVerificationPolicy,

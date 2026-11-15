@@ -8,6 +8,11 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+async-trait = "0.1.89"
+thiserror = "2.0.18"
+futures-util = "0.3.32"
+url = "2"
+gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
 hex = "0.4"
 tracing = "0.1"
 shell-command = { path = "../shell-command", version = "0.6.0" }
@@ -25,3 +30,14 @@ walkdir = "2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dialoguer = "0.11"
+
+base64 = "0.23"
+ring = "0.17.14"
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+reqwest = { version = "0.13", features = ["json", "stream"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

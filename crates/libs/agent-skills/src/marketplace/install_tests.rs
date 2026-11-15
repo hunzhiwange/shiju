@@ -22,8 +22,8 @@ use super::provider::{
     SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketSkillSetArtifact,
     SkillMarketSkillSetMemberArtifact, SkillMarketSkillSetVerificationPolicy,
 };
-use crate::app::agent::skills::loader::load_skills_from_directory;
-use crate::app::agent::skills::types::SkillLoadMode;
+use crate::loader::load_skills_from_directory;
+use crate::types::SkillLoadMode;
 
 const TEST_SEED: [u8; 32] = [7; 32];
 

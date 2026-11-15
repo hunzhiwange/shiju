@@ -22,7 +22,7 @@ use super::provider::{
     SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketSkillSetArtifact,
     SkillMarketSkillSetVerificationPolicy,
 };
-use crate::app::agent::skills::audit;
+use crate::audit;
 
 const MAX_ARCHIVE_BYTES: usize = 32 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES: usize = 512;
@@ -32,7 +32,7 @@ const SKILL_MANIFEST: &str = "SKILL.md";
 const META_FILE: &str = "_meta.json";
 
 /// 验证、审计并原子安装一个不可变市场制品。
-pub(crate) fn install_verified_market_artifact(
+pub fn install_verified_market_artifact(
     skills_root: &Path,
     coordinate: &SkillMarketCoordinateDto,
     artifact: SkillMarketArtifact,
@@ -42,7 +42,7 @@ pub(crate) fn install_verified_market_artifact(
 }
 
 /// 将已验证制品安装到每个不同根目录；后续目标失败时回滚本次已完成目标。
-pub(crate) fn install_verified_market_artifact_for_roots(
+pub fn install_verified_market_artifact_for_roots(
     skills_roots: &[PathBuf],
     coordinate: &SkillMarketCoordinateDto,
     artifact: SkillMarketArtifact,
@@ -120,7 +120,7 @@ fn install_verified_market_artifact_ref(
 }
 
 /// 验证并暂存完整技能集，所有成员通过后才一次性提交。
-pub(crate) fn install_verified_market_skill_set(
+pub fn install_verified_market_skill_set(
     skills_root: &Path,
     artifact: SkillMarketSkillSetArtifact,
     security: &SkillSecurityConfig,
@@ -234,7 +234,7 @@ pub(crate) fn install_verified_market_skill_set(
 }
 
 /// 校验市场坐标的来源、标识、版本与内容摘要格式。
-pub(crate) fn validate_market_coordinate(coordinate: &SkillMarketCoordinateDto) -> Result<()> {
+pub fn validate_market_coordinate(coordinate: &SkillMarketCoordinateDto) -> Result<()> {
     target_directory_name(coordinate).map(|_| ())
 }
 

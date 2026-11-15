@@ -22,20 +22,20 @@ use thiserror::Error;
 
 /// 屏蔽原生与 WASM 平台线程安全差异的市场提供方边界。
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) trait SkillMarketProviderBounds: Send + Sync {}
+pub trait SkillMarketProviderBounds: Send + Sync {}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<T: Send + Sync> SkillMarketProviderBounds for T {}
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) trait SkillMarketProviderBounds {}
+pub trait SkillMarketProviderBounds {}
 
 #[cfg(target_arch = "wasm32")]
 impl<T> SkillMarketProviderBounds for T {}
 
 /// 具体市场来源适配器返回的稳定错误分类。
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub(crate) enum SkillMarketProviderError {
+pub enum SkillMarketProviderError {
     #[error("skill market provider timed out")]
     Timeout,
     #[error("skill market upstream request failed: {0}")]
@@ -47,27 +47,27 @@ pub(crate) enum SkillMarketProviderError {
 /// Immutable archive bytes and the source proof required by the shared installer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 单个技能的归档内容与坐标信息。
-pub(crate) struct SkillMarketArtifact {
-    pub(crate) archive: Vec<u8>,
-    pub(crate) proof: SkillMarketArtifactProof,
+pub struct SkillMarketArtifact {
+    pub archive: Vec<u8>,
+    pub proof: SkillMarketArtifactProof,
 }
 
 /// Raw proof fields verified by the shared installer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 用于验证市场制品来源与完整性的证明。
-pub(crate) struct SkillMarketArtifactProof {
-    pub(crate) signed: bool,
-    pub(crate) payload: String,
-    pub(crate) signature_b64: String,
-    pub(crate) content_hash: String,
-    pub(crate) key_id: String,
-    pub(crate) public_key_b64: String,
+pub struct SkillMarketArtifactProof {
+    pub signed: bool,
+    pub payload: String,
+    pub signature_b64: String,
+    pub content_hash: String,
+    pub key_id: String,
+    pub public_key_b64: String,
 }
 
 /// Verification policy explicitly selected for an unsigned skill-set transport.
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 技能集成员制品采用的验证策略。
-pub(crate) enum SkillMarketSkillSetVerificationPolicy {
+pub enum SkillMarketSkillSetVerificationPolicy {
     TransportAndAudit,
     Unsupported(String),
 }
@@ -75,27 +75,27 @@ pub(crate) enum SkillMarketSkillSetVerificationPolicy {
 /// One canonical member and its independently verified artifact.
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 技能集中的一个具名成员制品。
-pub(crate) struct SkillMarketSkillSetMemberArtifact {
-    pub(crate) coordinate: SkillMarketCoordinateDto,
-    pub(crate) artifact: SkillMarketArtifact,
+pub struct SkillMarketSkillSetMemberArtifact {
+    pub coordinate: SkillMarketCoordinateDto,
+    pub artifact: SkillMarketArtifact,
 }
 
 /// Canonical skill-set archive plus the members declared by its detail endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 包含清单、证明与全部成员归档的技能集制品。
-pub(crate) struct SkillMarketSkillSetArtifact {
-    pub(crate) source: String,
-    pub(crate) slug: String,
-    pub(crate) verification: SkillMarketSkillSetVerificationPolicy,
-    pub(crate) archive: Vec<u8>,
-    pub(crate) members: Vec<SkillMarketSkillSetMemberArtifact>,
+pub struct SkillMarketSkillSetArtifact {
+    pub source: String,
+    pub slug: String,
+    pub verification: SkillMarketSkillSetVerificationPolicy,
+    pub archive: Vec<u8>,
+    pub members: Vec<SkillMarketSkillSetMemberArtifact>,
 }
 
 /// Capabilities required by the current skill-market pages and single-skill install flow.
 /// 技能市场来源必须实现的查询、详情与制品下载契约。
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub(crate) trait SkillMarketProvider: SkillMarketProviderBounds {
+pub trait SkillMarketProvider: SkillMarketProviderBounds {
     fn source(&self) -> &SkillMarketSourceDto;
 
     async fn recommended(&self) -> Result<Vec<SkillMarketSkillDto>, SkillMarketProviderError>;
@@ -148,7 +148,7 @@ pub(crate) trait SkillMarketProvider: SkillMarketProviderBounds {
 /// Registration and lookup failures for source keys.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 /// 市场注册表解析来源时返回的错误。
-pub(crate) enum SkillMarketRegistryError {
+pub enum SkillMarketRegistryError {
     #[error("invalid skill market source key: {0}")]
     InvalidSourceKey(String),
     #[error("skill market source is already registered: {0}")]
@@ -160,18 +160,18 @@ pub(crate) enum SkillMarketRegistryError {
 /// Explicit registry of the concrete skill-market sources enabled by the gateway.
 #[derive(Default)]
 /// 按稳定来源键注册和解析市场提供方的注册表。
-pub(crate) struct SkillMarketProviderRegistry {
+pub struct SkillMarketProviderRegistry {
     providers: BTreeMap<String, Arc<dyn SkillMarketProvider>>,
 }
 
 impl SkillMarketProviderRegistry {
     /// 创建空注册表。
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
     /// 创建包含内置公共来源的注册表。
-    pub(crate) fn with_default_sources() -> Result<Self, SkillMarketProviderError> {
+    pub fn with_default_sources() -> Result<Self, SkillMarketProviderError> {
         let mut registry = Self::new();
         let provider = Arc::new(super::skillhub::SkillHubProvider::new()?);
         registry.register(provider).map_err(|_| {
@@ -183,7 +183,7 @@ impl SkillMarketProviderRegistry {
     }
 
     /// 注册来源；来源键必须稳定且不得重复。
-    pub(crate) fn register(
+    pub fn register(
         &mut self,
         provider: Arc<dyn SkillMarketProvider>,
     ) -> Result<(), SkillMarketRegistryError> {
@@ -199,7 +199,7 @@ impl SkillMarketProviderRegistry {
     }
 
     /// 按来源键解析提供方。
-    pub(crate) fn resolve(
+    pub fn resolve(
         &self,
         source: &str,
     ) -> Result<Arc<dyn SkillMarketProvider>, SkillMarketRegistryError> {
@@ -210,7 +210,7 @@ impl SkillMarketProviderRegistry {
     }
 
     /// 按键排序返回全部已注册来源元数据。
-    pub(crate) fn sources(&self) -> Vec<SkillMarketSourceDto> {
+    pub fn sources(&self) -> Vec<SkillMarketSourceDto> {
         self.providers.values().map(|provider| provider.source().clone()).collect()
     }
 }

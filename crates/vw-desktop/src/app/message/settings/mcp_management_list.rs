@@ -121,61 +121,8 @@ pub(crate) fn update(app: &mut App, message: CatalogMessage) -> Task<Message> {
         }
     }
 }
-pub(crate) fn rows(catalog: &McpCatalogResponse) -> Vec<String> {
-    let mut rows = Vec::new();
-    for record in &catalog.records {
-        rows.push(format!(
-            "{} · {:?} · 修订 {}",
-            record.name, record.transport, record.record.revision
-        ));
-        let mut bound = false;
-        for binding in
-            catalog.bindings.iter().filter(|binding| binding.record.id == record.record.id)
-        {
-            bound = true;
-            let status = match binding.native_status {
-                McpNativeStatus::Present => "存在",
-                McpNativeStatus::Missing => "缺失",
-                McpNativeStatus::Unreadable => "无法读取",
-                McpNativeStatus::NotVerified => "未验证",
-                McpNativeStatus::Unsupported => "不支持",
-            };
-            let desired = if binding.enabled { "期望启用" } else { "期望禁用" };
-            let revision = if binding.record.revision == record.record.revision {
-                "当前修订"
-            } else {
-                "旧修订"
-            };
-            rows.push(format!(
-                "原生应用 {:?} · {} · {} · {} · {}（上次观察）",
-                binding.target.app_id, binding.target.installation_id.0, desired, revision, status
-            ));
-        }
-        if !bound {
-            rows.push("原生应用：未绑定".into());
-        }
-        rows.push("识矩运行时：项目选择状态未提供；ACP：会话挂载状态未提供".into());
-    }
-    for capability in &catalog.capabilities {
-        if let Some(reason) = super::mcp_management_bindings::unsupported_reason(capability.app_id)
-        {
-            rows.push(format!("{:?}：{reason}", capability.app_id));
-        }
-        let label = |support| match support {
-            McpSupport::Supported => "支持",
-            McpSupport::Unsupported => "不支持",
-            McpSupport::NotVerified => "未验证",
-        };
-        rows.push(format!(
-            "原生应用 {:?} 能力 · stdio {} · HTTP {} · SSE {}",
-            capability.app_id,
-            label(capability.stdio),
-            label(capability.streamable_http),
-            label(capability.sse)
-        ));
-    }
-    rows
-}
+#[cfg(test)]
+pub(crate) use desktop_settings_mcp::catalog::rows;
 
 #[cfg(test)]
 #[path = "mcp_management_list_tests.rs"]

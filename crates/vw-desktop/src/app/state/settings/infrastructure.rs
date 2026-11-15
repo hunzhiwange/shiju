@@ -111,57 +111,7 @@ impl Default for AcpSettingsState {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct McpNewServerState {
-    pub(crate) name_input: String,
-    pub(crate) transport: McpNewServerTransport,
-    pub(crate) command_input: String,
-    pub(crate) args_input: String,
-    pub(crate) url_input: String,
-    pub(crate) timeout_input: String,
-    pub(crate) enabled: bool,
-    pub(crate) required: bool,
-}
-
-impl Default for McpNewServerState {
-    fn default() -> Self {
-        Self {
-            name_input: String::new(),
-            transport: McpNewServerTransport::Stdio,
-            command_input: String::new(),
-            args_input: String::new(),
-            url_input: String::new(),
-            timeout_input: "30".to_string(),
-            enabled: true,
-            required: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum McpNewServerTransport {
-    Stdio,
-    Http,
-    Sse,
-}
-
-impl McpNewServerTransport {
-    pub const ALL: [Self; 3] = [Self::Stdio, Self::Http, Self::Sse];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Stdio => "stdio",
-            Self::Http => "http",
-            Self::Sse => "sse",
-        }
-    }
-}
-
-impl std::fmt::Display for McpNewServerTransport {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.label())
-    }
-}
+pub use desktop_settings_mcp::state::{McpNewServerState, McpNewServerTransport, McpSettingsTab};
 
 #[derive(Debug, Clone)]
 pub(crate) struct McpSettingsState {
@@ -172,31 +122,7 @@ pub(crate) struct McpSettingsState {
     pub(crate) bindings: crate::app::message::settings::mcp_management_bindings::BindingsState,
     pub(crate) import: Option<crate::app::message::settings::mcp_management_import::ImportState>,
     pub(crate) connection_form: Option<crate::app::message::settings::mcp_management_form::Draft>,
-    pub(crate) active_tab: McpSettingsTab,
-    pub(crate) editor: text_editor::Content,
-    pub(crate) runtime_overrides: Vec<serde_json::Value>,
-    pub(crate) new_server_expanded: bool,
-    pub(crate) editing_server_index: Option<usize>,
-    pub(crate) expanded_previews: std::collections::BTreeSet<String>,
-    pub(crate) new_server: McpNewServerState,
-    pub(crate) loading: bool,
-    pub(crate) inspect_loading: bool,
-    pub(crate) saving: bool,
-    pub(crate) server_count: usize,
-    pub(crate) inspect: Option<vw_api_mcp_inspect::McpInspectResponse>,
-    pub(crate) inspect_error: Option<String>,
-    pub(crate) save_error: Option<String>,
-    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
-    pub(crate) status_message: Option<String>,
-    /// 待删除确认的 MCP 服务器索引。
-    pub(crate) delete_pending: Option<usize>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum McpSettingsTab {
-    Servers,
-    Runtime,
-    Json,
+    pub(crate) page: desktop_settings_mcp::state::State,
 }
 
 impl Default for McpSettingsState {
@@ -209,25 +135,18 @@ impl Default for McpSettingsState {
             resync: Default::default(),
             import: None,
             connection_form: None,
-            active_tab: McpSettingsTab::Servers,
-            editor: text_editor::Content::with_text("[]"),
-            runtime_overrides: Vec::new(),
-            new_server_expanded: false,
-            editing_server_index: None,
-            expanded_previews: std::collections::BTreeSet::new(),
-            new_server: McpNewServerState::default(),
-            loading: false,
-            inspect_loading: false,
-            saving: false,
-            server_count: 0,
-            inspect: None,
-            inspect_error: None,
-            save_error: None,
-            save_error_translation: None,
-            status_message: None,
-            delete_pending: None,
+            page: Default::default(),
         }
     }
+}
+
+// Preserve existing callers until the update slices migrate; state has one owner.
+impl std::ops::Deref for McpSettingsState {
+    type Target = desktop_settings_mcp::state::State;
+    fn deref(&self) -> &Self::Target { &self.page }
+}
+impl std::ops::DerefMut for McpSettingsState {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.page }
 }
 
 pub use desktop_settings_security::security_state::*;

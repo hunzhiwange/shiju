@@ -12,7 +12,6 @@ use {
     vw_api_transport::TaskId,
     vw_api_app_operations::AppActionExecutionResult,
     vw_api_app_identity::AppId,
-    vw_api_app_operations::AppOperationPhase,
     vw_api_mcp_management::*,
     vw_api_task::TaskStatus,
 };
@@ -70,35 +69,8 @@ pub(crate) enum Work {
 pub(crate) fn message(value: ResyncMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(McpMessage::Resync(value)))
 }
-pub(crate) fn terminal(status: &McpResyncOperationStatus) -> bool {
-    status.operation.phase == AppOperationPhase::Terminal
-}
-pub(crate) fn failed(target: &McpResyncTargetResult) -> bool {
-    target.code.is_some()
-        || target.distribution.as_ref().is_none_or(|d| {
-            matches!(d.outcome, McpBatchOutcome::Failed | McpBatchOutcome::PartiallySucceeded)
-                || d.items
-                    .iter()
-                    .any(|i| matches!(i.native_outcome, McpDistributionOutcome::Failed { .. }))
-        })
-}
-pub(crate) fn successful(status: &McpResyncOperationStatus) -> bool {
-    status.outcome == Some(McpBatchOutcome::Succeeded)
-        && status.targets.iter().all(|target| {
-            target.code.is_none()
-                && target.distribution.as_ref().is_some_and(|d| {
-                    d.outcome == McpBatchOutcome::Succeeded
-                        && d.items.iter().all(|item| {
-                            item.desired_committed
-                                && matches!(
-                                    item.native_outcome,
-                                    McpDistributionOutcome::Applied
-                                        | McpDistributionOutcome::Unchanged
-                                )
-                        })
-                })
-        })
-}
+pub(crate) use desktop_settings_mcp::distribution::{terminal, failed, successful};
+
 fn validate(
     status: &McpResyncOperationStatus,
     request: &McpResyncRequest,

@@ -1,0 +1,22 @@
+[package]
+name = "desktop-settings-mcp"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = { version = "0.14", features = ["advanced"] }
+serde_json = "1"
+config-ui = { path = "../config-ui", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }

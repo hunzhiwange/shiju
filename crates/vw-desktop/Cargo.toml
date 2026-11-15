@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-settings-mcp = { path = "../libs/desktop-settings-mcp", version = "0.6.0" }
 desktop-chat-view = { path = "../libs/desktop-chat-view", version = "0.6.0" }
 desktop-chat-tools = { path = "../libs/desktop-chat-tools", version = "0.6.0" }
 desktop-settings-providers = { path = "../libs/desktop-settings-providers", version = "0.6.0" }

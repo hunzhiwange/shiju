@@ -1,4 +1,5 @@
 use super::*;
+use axum::extract::Extension;
 use crate::worktree::registry;
 use axum::{
     body::{Body, to_bytes},

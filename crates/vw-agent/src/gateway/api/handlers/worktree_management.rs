@@ -1,158 +1,33 @@
-//! Tenant/project-scoped facade over the existing worktree lifecycle services.
+//! Host project/configuration adapters for the worktree routes.
 use super::project::{load_project, project_context_directory, project_scope};
-use crate::{
-    gateway::ApiError,
-    worktree::{management, recovery},
-};
-use axum::{
-    Json, Router,
-    extract::{Extension, Path},
-    routing::{get, post},
-};
+use gateway_types::ApiError;
+use gateway_worktree::{HostFuture, WorktreeHost};
 use std::path::PathBuf;
-use {
-    vw_api_transport::common::OperationAck,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-    vw_api_worktree::*,
-};
-pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
-    Router::new()
-        .route("/projects/{project_id}/managed-worktrees", get(list))
-        .route("/projects/{project_id}/managed-worktrees/{id}", axum::routing::delete(delete))
-        .route("/projects/{project_id}/managed-worktrees/{id}/deletion-preflight", post(preflight))
-        .route("/projects/{project_id}/managed-worktrees/{id}/retry-initialization", post(retry))
-        .route("/projects/{project_id}/managed-worktrees/{id}/record-use", post(record_use))
-        .route("/projects/{project_id}/worktree-snapshots", get(snapshots))
-        .route("/projects/{project_id}/worktree-snapshots/{id}/restore", post(restore))
-        .route("/projects/{project_id}/worktree-cleanup-proposal", get(proposal))
-        .route("/projects/{project_id}/worktree-cleanup-status", get(cleanup_status))
+use vw_api_transport::id::{ProjectScope, TenantScope};
+
+pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
+    crate::worktree::initialize_host();
+    gateway_worktree::router(WorktreeHost { context, settings })
 }
-fn error(error: impl std::fmt::Display) -> ApiError {
-    ApiError::bad_request(error.to_string())
+
+fn context(tenant: TenantScope, project: String) -> HostFuture<'static, (ProjectScope, PathBuf)> {
+    Box::pin(async move {
+        let scope = project_scope(tenant, project)?;
+        let info = load_project(&scope).await?;
+        Ok((scope, project_context_directory(&info)?.into()))
+    })
 }
-async fn context(
-    tenant: TenantScope,
-    project: String,
-) -> Result<(ProjectScope, PathBuf), ApiError> {
-    let scope = project_scope(tenant, project)?;
-    let info = load_project(&scope).await?;
-    Ok((scope, project_context_directory(&info)?.into()))
-}
-async fn settings(
-    scope: &ProjectScope,
-) -> Result<config_worktree::WorktreeSettings, ApiError> {
-    Ok(crate::config::get_global_for_tenant(scope.tenant_scope())
-        .await
-        .map_err(error)?
-        .worktree_settings)
-}
-async fn list(
-    Extension(tenant): Extension<TenantScope>,
-    Path(project): Path<String>,
-) -> Result<Json<ListManagedWorktreesResponse>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    Ok(Json(management::list(&scope, &primary).await.map_err(error)?))
-}
-async fn preflight(
-    Extension(tenant): Extension<TenantScope>,
-    Path((project, id)): Path<(String, String)>,
-) -> Result<Json<WorktreeDeletionPreflight>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    Ok(Json(
-        management::preflight(&scope, &primary, &id, &settings(&scope).await?)
+
+fn settings(scope: &ProjectScope) -> HostFuture<'_, config_worktree::WorktreeSettings> {
+    Box::pin(async move {
+        Ok(crate::config::get_global_for_tenant(scope.tenant_scope())
             .await
-            .map_err(error)?,
-    ))
+            .map_err(|error| ApiError::bad_request(error.to_string()))?
+            .worktree_settings)
+    })
 }
-async fn delete(
-    Extension(tenant): Extension<TenantScope>,
-    Path((project, id)): Path<(String, String)>,
-    Json(request): Json<DeleteManagedWorktreeRequest>,
-) -> Result<Json<DeleteManagedWorktreeResponse>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    Ok(Json(
-        management::delete(&scope, &primary, &id, &settings(&scope).await?, &request)
-            .await
-            .map_err(error)?,
-    ))
-}
-async fn snapshots(
-    Extension(tenant): Extension<TenantScope>,
-    Path(project): Path<String>,
-) -> Result<Json<ListWorktreeSnapshotsResponse>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    Ok(Json(ListWorktreeSnapshotsResponse {
-        items: recovery::list(&scope, &primary).await.map_err(error)?,
-    }))
-}
-async fn restore(
-    Extension(tenant): Extension<TenantScope>,
-    Path((project, id)): Path<(String, String)>,
-) -> Result<Json<RestoreWorktreeResponse>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    let restored = recovery::restore(&scope, &primary, &id).await.map_err(error)?;
-    let worktree = management::list(&scope, &primary)
-        .await
-        .map_err(error)?
-        .items
-        .into_iter()
-        .find(|w| w.worktree.id.as_ref() == restored.record.id)
-        .ok_or_else(|| ApiError::internal("Restored worktree missing from registry"))?;
-    Ok(Json(RestoreWorktreeResponse {
-        worktree,
-        original_worktree_id: restored.original_id,
-        branch_changed: restored.branch_changed,
-    }))
-}
-async fn retry(
-    Extension(tenant): Extension<TenantScope>,
-    Path((project, id)): Path<(String, String)>,
-) -> Result<Json<OperationAck>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    management::retry(&scope, &primary, &id).await.map_err(error)?;
-    Ok(Json(OperationAck { ok: true, message: None }))
-}
-async fn proposal(
-    Extension(tenant): Extension<TenantScope>,
-    Path(project): Path<String>,
-) -> Result<Json<WorktreeCleanupProposal>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    Ok(Json(management::proposal(&scope, &primary, &settings(&scope).await?).await.map_err(error)?))
-}
+
+// These integration tests exercise the host project router and persisted fixtures.
 #[cfg(test)]
 #[path = "worktree_management_tests.rs"]
 mod tests;
-
-async fn record_use(
-    Extension(tenant): Extension<TenantScope>,
-    Path((project, id)): Path<(String, String)>,
-) -> Result<Json<OperationAck>, ApiError> {
-    let (scope, primary) = context(tenant, project).await?;
-    let _lock = crate::worktree::registry::lifecycle_lock(&primary).map_err(error)?;
-    let record =
-        crate::worktree::registry::authorize(&scope, &primary, &id).await.map_err(error)?;
-    if record.state != crate::worktree::registry::Lifecycle::Ready {
-        return Err(ApiError::bad_request("Managed checkout is not ready"));
-    }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(error)?
-        .as_millis()
-        .min(u64::MAX as u128) as u64;
-    crate::worktree::registry::record_use(&scope, &record.directory, now).map_err(error)?;
-    Ok(Json(OperationAck { ok: true, message: None }))
-}
-
-async fn cleanup_status(
-    Extension(tenant): Extension<TenantScope>,
-    Path(project): Path<String>,
-) -> Result<Json<crate::worktree::cleanup::FlowStatus>, ApiError> {
-    let (scope, _primary) = context(tenant, project).await?;
-    let mut report = crate::worktree::cleanup::flow_status(&scope).await.map_err(error)?;
-    // Read the host's saved plan without competing with an in-flight removal.
-    if !settings(&scope).await?.auto_cleanup_enabled {
-        report.proposal = Default::default();
-    }
-    Ok(Json(report))
-}

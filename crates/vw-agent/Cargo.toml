@@ -351,6 +351,7 @@ model-protocol = { path = "../libs/model-protocol", version = "0.6.0" }
 model-transport = { path = "../libs/model-transport", version = "0.6.0" }
 app-routing-services = { path = "../libs/app-routing-services", version = "0.6.0" }
 gateway-types = { path = "../libs/gateway-types", version = "0.6.0" }
+gateway-worktree = { path = "../libs/gateway-worktree", version = "0.6.0" }
 gateway-app-providers = { path = "../libs/gateway-app-providers", version = "0.6.0" }
 gateway-agent-scheduler = { path = "../libs/gateway-agent-scheduler", version = "0.6.0" }
 gateway-auth = { path = "../libs/gateway-auth", version = "0.6.0" }

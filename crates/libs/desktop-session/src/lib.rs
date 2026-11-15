@@ -8,6 +8,7 @@ pub mod message {
         pub mod request;
         pub mod processing_timing;
         pub mod stream;
+        pub mod trajectory;
         #[cfg(test)]
         mod processing_timing_tests;
         pub mod input {
@@ -32,3 +33,4 @@ pub mod message {
     }
 }
 pub mod timeline_identity;
+pub mod session;

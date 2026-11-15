@@ -1,9 +1,9 @@
-use super::ChatRole;
+use session_ui_types::ChatRole;
 use super::chat_timeline::{
     ChatEntryKey, ChatEntryRevision, ChatTimelineEntry, PageMergeOutcome, PagedChatTimeline,
     TimelinePage,
 };
-use crate::app::models::ChatMessage;
+use session_ui_types::ChatMessage;
 
 fn message(content: &str) -> ChatMessage {
     ChatMessage {

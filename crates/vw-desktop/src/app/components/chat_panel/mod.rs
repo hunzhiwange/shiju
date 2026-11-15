@@ -329,45 +329,7 @@ fn push_projected_question_marker_position(
     }
 }
 
-pub(crate) fn user_question_preview(content: &str) -> String {
-    const PREVIEW_CHAR_LIMIT: usize = 100;
-
-    let mut preview = String::new();
-    let mut char_count = 0;
-    let mut pending_space = false;
-    let mut truncated = false;
-
-    for character in content.chars() {
-        if character.is_whitespace() {
-            pending_space = !preview.is_empty();
-            continue;
-        }
-
-        if char_count == PREVIEW_CHAR_LIMIT {
-            truncated = true;
-            break;
-        }
-        if pending_space {
-            preview.push(' ');
-            char_count += 1;
-            pending_space = false;
-            if char_count == PREVIEW_CHAR_LIMIT {
-                truncated = true;
-                break;
-            }
-        }
-        preview.push(character);
-        char_count += 1;
-    }
-
-    if preview.is_empty() {
-        return String::new();
-    }
-    if truncated {
-        preview.push('…');
-    }
-    preview
-}
+pub(crate) use desktop_session::session::active::user_question_preview;
 
 pub(crate) fn live_message_meta_fallback(
     i18n: crate::app::i18n::I18n,

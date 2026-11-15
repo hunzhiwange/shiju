@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+session-text = { path = "../session-text", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 todo-types = { path = "../todo-types", version = "0.6.0" }
 tracing = "0.1"

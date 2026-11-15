@@ -8,12 +8,8 @@ use crate::app::state::ChatPanelMode;
 use crate::app::state::SessionStepRawKey;
 use crate::app::{App, Message};
 use iced::Task;
-use std::collections::BTreeSet;
-use std::time::Duration;
 
-const MAX_RAW_LOAD_ATTEMPTS: u8 = 3;
-const SECOND_RAW_LOAD_DELAY: Duration = Duration::from_millis(300);
-const THIRD_RAW_LOAD_DELAY: Duration = Duration::from_millis(900);
+use desktop_session::message::chat::trajectory::{RawLoadState, MAX_RAW_LOAD_ATTEMPTS, retry_delay};
 
 pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
@@ -201,44 +197,11 @@ pub(super) fn refresh_missing_raw_task(
         return Task::none();
     }
 
-    app.trajectory_raw_loading
-        .retain(|(loading_session_id, _, _)| loading_session_id == session_id);
-    app.trajectory_raw_attempts
-        .retain(|(loading_session_id, _, _), _| loading_session_id == session_id);
-    app.trajectory_raw_errors.retain(|(error_session_id, _, _), _| error_session_id == session_id);
-
-    let mut candidate_keys = app
-        .active_session_view_state
-        .steps
-        .iter()
-        .filter(|step| step.finished_ms.is_some())
-        .filter(|step| only_step_index.is_none_or(|index| index == step.index))
-        .map(|step| (session_id.to_string(), trajectory_turn_id(step), step.index))
-        .collect::<BTreeSet<_>>();
-    candidate_keys.extend(
-        app.active_session_view_state
-            .llm_raw_step_indices
-            .iter()
-            .filter(|(stored_session_id, _, step_index)| {
-                stored_session_id == session_id
-                    && only_step_index.is_none_or(|index| index == *step_index)
-            })
-            .cloned(),
-    );
-    let missing = candidate_keys
-        .into_iter()
-        .filter(|key| {
-            !app.active_session_view_state.step_llm_raw.contains_key(key)
-                && !app.trajectory_raw_loading.contains(key)
-        })
-        .collect::<Vec<_>>();
+    let missing = raw_state(app).missing(session_id, only_step_index);
 
     let mut tasks = Vec::with_capacity(missing.len());
     let directory = app.known_session_directory(session_id).or_else(|| app.project_path.clone());
     for key in missing {
-        app.trajectory_raw_errors.remove(&key);
-        app.trajectory_raw_loading.insert(key.clone());
-        app.trajectory_raw_attempts.insert(key.clone(), 1);
         tasks.push(raw_load_task(key.0, key.1, key.2, directory.clone(), 1));
     }
     Task::batch(tasks)
@@ -350,11 +313,7 @@ fn apply_raw_result(
 }
 
 fn schedule_raw_retry(app: &mut App, key: SessionStepRawKey, attempt: u8) -> Task<Message> {
-    let delay = match attempt {
-        2 => SECOND_RAW_LOAD_DELAY,
-        3 => THIRD_RAW_LOAD_DELAY,
-        _ => return Task::none(),
-    };
+    let Some(delay) = retry_delay(attempt) else { return Task::none(); };
     app.trajectory_raw_loading.insert(key.clone());
     app.trajectory_raw_attempts.insert(key.clone(), attempt);
     app.trajectory_raw_errors.remove(&key);
@@ -369,32 +328,25 @@ fn schedule_raw_retry(app: &mut App, key: SessionStepRawKey, attempt: u8) -> Tas
     )
 }
 
-fn is_current_completed_missing_raw(
-    app: &App,
-    session_id: &str,
-    turn_id: &str,
-    step_index: u32,
-) -> bool {
-    let key = (session_id.to_string(), turn_id.to_string(), step_index);
-    app.active_session_id.as_deref() == Some(session_id)
-        && !app.active_session_view_state.step_llm_raw.contains_key(&key)
-        && (app.active_session_view_state.llm_raw_step_indices.contains(&key)
-            || app.active_session_view_state.steps.iter().any(|step| {
-                step.index == step_index
-                    && trajectory_turn_id(step) == turn_id
-                    && step.finished_ms.is_some()
-            }))
-}
-
-fn trajectory_turn_id(step: &crate::app::models::ChatSessionStep) -> String {
-    step.turn_id
-        .clone()
-        .filter(|turn_id| !turn_id.trim().is_empty())
-        .unwrap_or_else(|| format!("legacy-step-{}", step.index))
+fn is_current_completed_missing_raw(app: &App, session_id: &str, turn_id: &str, step_index: u32) -> bool {
+    desktop_session::message::chat::trajectory::is_current_completed_missing_raw(
+        app.active_session_id.as_deref(), &app.active_session_view_state.steps,
+        &app.active_session_view_state.llm_raw_step_indices,
+        &app.active_session_view_state.step_llm_raw, session_id, turn_id, step_index,
+    )
 }
 
 fn clear_raw_load_state(app: &mut App, key: &SessionStepRawKey) {
-    app.trajectory_raw_loading.remove(key);
-    app.trajectory_raw_attempts.remove(key);
-    app.trajectory_raw_errors.remove(key);
+    raw_state(app).clear(key);
+}
+
+fn raw_state(app: &mut App) -> RawLoadState<'_> {
+    RawLoadState {
+        steps: &app.active_session_view_state.steps,
+        indices: &app.active_session_view_state.llm_raw_step_indices,
+        raw: &app.active_session_view_state.step_llm_raw,
+        loading: &mut app.trajectory_raw_loading,
+        attempts: &mut app.trajectory_raw_attempts,
+        errors: &mut app.trajectory_raw_errors,
+    }
 }

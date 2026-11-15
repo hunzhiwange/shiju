@@ -5,104 +5,13 @@
 
 use super::loading::{SharedChatMessages, shared_chat_messages};
 use super::view_cache::{SessionViewCacheInsertResult, SessionViewSnapshot};
-use super::{App, ChatMessage, ChatRole, ChatSessionStep, HashMap, StepUiMeta};
-use crate::app::state::{SessionStepRawKey, UserQuestionMarker};
+use super::{App, ChatSessionStep, HashMap, StepUiMeta};
+#[cfg(test)]
+use super::{ChatMessage, ChatRole};
+use crate::app::state::SessionStepRawKey;
 use serde_json::Value;
 
-fn message_meta_text(
-    model: Option<&str>,
-    time_ms: Option<u64>,
-) -> Option<crate::app::i18n::chat::MessageMeta> {
-    let model = model?.trim();
-    if model.is_empty() {
-        return None;
-    }
-    Some(crate::app::i18n::chat::MessageMeta::Model { model: model.to_string(), time_ms })
-}
-
-fn normalize_step_turn_id(step: &mut ChatSessionStep) {
-    if step.turn_id.as_ref().is_some_and(|turn_id| turn_id.trim().is_empty()) {
-        step.turn_id = None;
-    }
-}
-
-fn build_message_meta_labels(
-    chat: &[ChatMessage],
-    step_index_map: &HashMap<u32, StepUiMeta>,
-) -> Vec<Option<crate::app::i18n::chat::MessageMeta>> {
-    let mut assistant_count = 0u32;
-    let mut labels = Vec::with_capacity(chat.len());
-
-    for message in chat {
-        let label = match message.role {
-            ChatRole::Assistant => {
-                assistant_count += 1;
-                let time_ms = step_index_map.get(&assistant_count).map(|step| step.display_time_ms);
-                message_meta_text(message.model.as_deref(), time_ms)
-            }
-            ChatRole::User => {
-                if session_text::parse_task_session_source_marker(
-                    &message.content,
-                )
-                .is_some()
-                {
-                    Some(crate::app::i18n::chat::MessageMeta::TaskSource)
-                } else {
-                    let step_index = assistant_count + 1;
-                    let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
-                    message_meta_text(message.model.as_deref(), time_ms)
-                }
-            }
-            ChatRole::System | ChatRole::Developer | ChatRole::Tool => None,
-        };
-        labels.push(label);
-    }
-
-    labels
-}
-
-fn build_message_meta_label(
-    message: &ChatMessage,
-    assistant_count: &mut u32,
-    step_index_map: &HashMap<u32, StepUiMeta>,
-) -> Option<crate::app::i18n::chat::MessageMeta> {
-    match message.role {
-        ChatRole::Assistant => {
-            *assistant_count += 1;
-            let time_ms = step_index_map.get(assistant_count).map(|step| step.display_time_ms);
-            message_meta_text(message.model.as_deref(), time_ms)
-        }
-        ChatRole::User => {
-            if session_text::parse_task_session_source_marker(&message.content)
-                .is_some()
-            {
-                Some(crate::app::i18n::chat::MessageMeta::TaskSource)
-            } else {
-                let step_index = *assistant_count + 1;
-                let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
-                message_meta_text(message.model.as_deref(), time_ms)
-            }
-        }
-        ChatRole::System | ChatRole::Developer | ChatRole::Tool => None,
-    }
-}
-
-fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMarker> {
-    chat.iter()
-        .enumerate()
-        .filter_map(|(message_idx, message)| {
-            (message.role == ChatRole::User).then(|| UserQuestionMarker {
-                message_idx,
-                preview: crate::app::components::chat_panel::user_question_preview(
-                    session_text::strip_task_session_source_marker(
-                        &message.content,
-                    )
-                    .as_ref(),
-                ),
-            })
-        })
-        .collect()
-}
+use desktop_session::session::active::{normalize_step_turn_id, build_message_meta_labels, build_user_question_markers};
 
 impl App {
     fn rebuild_active_session_trajectory_projection(&mut self) {
@@ -234,70 +143,20 @@ impl App {
 
     /// 将聊天尾部新增的消息增量纳入问题导航索引。
     pub(crate) fn sync_active_session_user_question_index(&mut self) {
-        let indexed_len = self.active_session_view_state.user_question_indexed_chat_len;
-        if indexed_len > self.chat.len() {
-            self.active_session_view_state
-                .user_question_markers
-                .retain(|marker| marker.message_idx < self.chat.len());
-            self.active_session_view_state.user_question_indexed_chat_len = self.chat.len();
-            return;
-        }
-
-        if indexed_len == self.chat.len() {
-            return;
-        }
-
-        self.active_session_view_state.user_question_markers.extend(
-            self.chat[indexed_len..].iter().enumerate().filter_map(|(offset, message)| {
-                (message.role == ChatRole::User).then(|| UserQuestionMarker {
-                    message_idx: indexed_len + offset,
-                    preview: crate::app::components::chat_panel::user_question_preview(
-                        session_text::strip_task_session_source_marker(
-                            &message.content,
-                        )
-                        .as_ref(),
-                    ),
-                })
-            }),
+        desktop_session::session::active::sync_user_question_index(
+            &self.chat, &mut self.active_session_view_state.user_question_markers,
+            &mut self.active_session_view_state.user_question_indexed_chat_len,
         );
-        self.active_session_view_state.user_question_indexed_chat_len = self.chat.len();
     }
 
     /// 只刷新流式增量影响的尾部消息元信息。
     pub(crate) fn refresh_active_session_tail_message_meta(&mut self, changed_idx: usize) {
         self.sync_active_session_user_question_index();
-        if changed_idx >= self.chat.len() {
-            self.active_session_view_state.message_meta_texts.truncate(self.chat.len());
-            return;
-        }
-
-        let meta_len = self.active_session_view_state.message_meta_texts.len();
-        if meta_len > self.chat.len() {
-            self.active_session_view_state.message_meta_texts.truncate(self.chat.len());
-        }
-
-        if meta_len < changed_idx
-            || self.active_session_view_state.message_meta_texts.len() + 1 < self.chat.len()
-        {
-            self.rebuild_active_session_message_meta();
-            return;
-        }
-
-        let mut assistant_count = self.chat[..changed_idx]
-            .iter()
-            .filter(|message| matches!(message.role, ChatRole::Assistant))
-            .count() as u32;
-        let label = build_message_meta_label(
-            &self.chat[changed_idx],
-            &mut assistant_count,
+        desktop_session::session::active::refresh_tail_message_meta(
+            &self.chat, &mut self.active_session_view_state.message_meta_texts,
             &self.active_session_view_state.step_index_map,
+            changed_idx,
         );
-
-        if changed_idx < self.active_session_view_state.message_meta_texts.len() {
-            self.active_session_view_state.message_meta_texts[changed_idx] = label;
-        } else {
-            self.active_session_view_state.message_meta_texts.push(label);
-        }
     }
 
     /// 执行 clear_active_session_steps 对应的领域操作。
@@ -358,22 +217,11 @@ impl App {
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-    pub(crate) fn upsert_active_session_step(&mut self, mut step: ChatSessionStep) {
-        normalize_step_turn_id(&mut step);
-        self.active_session_view_state.step_index_map.insert(step.index, StepUiMeta::from(&step));
-        if let Some(existing_step) =
-            self.active_session_view_state.steps.iter_mut().find(|existing| {
-                existing.index == step.index
-                    && existing.turn_id.as_deref() == step.turn_id.as_deref()
-            })
-        {
-            *existing_step = step;
-        } else {
-            self.active_session_view_state.steps.push(step);
-            self.active_session_view_state
-                .steps
-                .sort_by_key(|existing| (existing.started_ms, existing.index));
-        }
+    pub(crate) fn upsert_active_session_step(&mut self, step: ChatSessionStep) {
+        desktop_session::session::active::upsert_step(
+            &mut self.active_session_view_state.steps,
+            &mut self.active_session_view_state.step_index_map, step,
+        );
         self.rebuild_active_session_trajectory_projection();
     }
 

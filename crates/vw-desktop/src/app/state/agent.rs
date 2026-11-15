@@ -128,25 +128,7 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) acp_rebuild_required: bool,
 }
 
-#[derive(Debug, Clone, Default)]
-#[allow(dead_code)]
-pub(crate) struct StepUiMeta {
-    pub(crate) model: Option<String>,
-    pub(crate) started_ms: u64,
-    pub(crate) finished_ms: Option<u64>,
-    pub(crate) display_time_ms: u64,
-}
-
-impl From<&ChatSessionStep> for StepUiMeta {
-    fn from(step: &ChatSessionStep) -> Self {
-        Self {
-            model: step.model.clone(),
-            started_ms: step.started_ms,
-            finished_ms: step.finished_ms,
-            display_time_ms: step.finished_ms.unwrap_or(step.started_ms),
-        }
-    }
-}
+pub(crate) use desktop_session::session::active::{StepUiMeta, UserQuestionMarker};
 
 impl ActiveSessionViewState {
     pub(crate) fn estimated_bytes(&self) -> usize {
@@ -192,12 +174,6 @@ fn json_value_bytes(value: &Value) -> usize {
 pub(crate) use desktop_chat_tools::tools::explore_input::ExploreSummaryAnimationState;
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct UserQuestionMarker {
-    pub(crate) message_idx: usize,
-    pub(crate) preview: String,
-}
-
-#[derive(Debug, Clone, Default)]
 pub(crate) struct ActiveSessionViewState {
     pub(crate) updated_ms: u64,
     pub(crate) steps: Vec<ChatSessionStep>,
@@ -222,7 +198,7 @@ pub(crate) struct ActiveSessionViewState {
 }
 
 /// 会话原始 LLM 载荷的稳定读取键。
-pub(crate) type SessionStepRawKey = (String, String, u32);
+pub(crate) use desktop_session::message::chat::trajectory::SessionStepRawKey;
 
 pub(crate) use desktop_session::message::chat::input::tool_detail::ToolDetailDialog;
 

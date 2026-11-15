@@ -47,21 +47,8 @@ use self::chat_ui::{explore_summary_animation_key, prioritize_chat_ui_chunk_star
 
 const EMPTY_SESSION_ID: &str = "__empty__";
 
-#[allow(dead_code)] // Used only by the retained full-session compatibility loader.
-pub(crate) fn backfill_message_models_from_steps(
-    messages: &mut [ChatMessage],
-    steps: &[ChatSessionStep],
-) {
-    for step in steps {
-        if let Some(model) = step.model.as_deref() {
-            assign_message_model_to_step(messages, step.index, model, false);
-        }
-    }
-}
+pub(crate) use desktop_session::session::backfill_message_models_from_steps;
 
-#[cfg(test)]
-#[path = "session/chat_timeline_tests.rs"]
-mod chat_timeline_tests;
 #[cfg(test)]
 #[path = "session/stream_render_tests.rs"]
 mod stream_render_tests;

@@ -2529,3 +2529,12 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 新库直接依赖 app-catalog、app-providers、api-app-identity、base64、sha2；Unix 额外依赖 libc/tempfile；dev 依赖 app-versions/tempfile。原包这些依赖仍有其它调用，不删除。无门面回依赖、资源 include 路径或命令范围变更。
 - 静态审阅：系统 Python 缺少 tomllib，改为人工审阅清单语法并用 Python 标准库核对路径；迁移模块及独立测试注册、cfg、导出、调用者和无重复实现已检查，git diff --check 通过。
 - 未运行 Cargo、单元及实机测试，统一验收待授权；后续需覆盖发现库与直接调用者编译、迁移单测、归属校验及 macOS/Windows/Linux 行为。
+
+### 任务 33 静态迁移结果
+
+- app-lifecycle 接收 npm、native_primary、native_grok_mcode、native_hermes_agy、native_kimi_omp、update、process、wsl 及八个独立测试；coordinator/operations 保持 app-auth 所有权，新包仅重导出，原门面的两个行为测试随新包注册。
+- 原 apps::lifecycle 重导出新包；process::{command,run_command,WriteProcessEnvironment::{new,apply}} 与 native_hermes_agy::agy_managed_install 因留存 local/卸载的真实调用最小公开。
+- local.rs 的 Plan/Action 直接持有卸载 UninstallPlan，故 local、local_node、local_agy、local_omp 及四个独立测试整体留任务 34 app-uninstall 接收；该任务文件已明确接收要求。发现包 owns 实现保持唯一。
+- WSL 类型/解析直接依赖 app-catalog，NodeRequirement 直接依赖 app-versions；平台 cfg、命令、错误及测试主体保持，迁移文件无静态资源。
+- lib.rs 的 apps 导出沿用，无需修改。静态清单/路径/模块审阅完成；未运行 Cargo、单元及实机测试，统一验收待授权。
+- 清单读取环境调整：系统 Python 3.9 无 tomllib，使用现有 pip._vendor.tomli 等价只读解析；44 个传递生产路径依赖未发现旧门面回边。本任务差异空白检查通过，全仓既有 git_api.rs EOF 空行不属本任务。

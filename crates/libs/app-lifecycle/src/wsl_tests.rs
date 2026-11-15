@@ -2,7 +2,7 @@ use super::wsl;
 
 #[cfg(unix)]
 static EXECUTION: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-use crate::apps::discovery::wsl::parse_target;
+use app_catalog::wsl::parse_target;
 use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{
     AppId,
@@ -27,7 +27,7 @@ fn installation() -> AppInstallation {
         runtime_status: AppInstallationRuntimeStatus::Runnable,
     }
 }
-fn target(distro: &str) -> crate::apps::discovery::wsl::WslTarget {
+fn target(distro: &str) -> app_catalog::wsl::WslTarget {
     parse_target(&format!(r"\\wsl$\{distro}\home"), Some("fish"), None).unwrap()
 }
 #[test]
@@ -94,7 +94,7 @@ fn executable(path: &std::path::Path, script: &str) {
 #[tokio::test]
 async fn cc_apps_wsl_lifecycle_target_process_side_effects_and_revalidation() {
     let _execution = EXECUTION.lock().await;
-    use crate::apps::versions::node::NodeRequirement;
+    use app_versions::node::NodeRequirement;
     let temp = tempfile::tempdir().unwrap();
     let root = std::fs::canonicalize(temp.path()).unwrap().join("node '中文");
     let bin = root.join("bin");
@@ -176,7 +176,7 @@ async fn cc_apps_wsl_lifecycle_target_process_side_effects_and_revalidation() {
 #[tokio::test]
 async fn cc_apps_wsl_lifecycle_target_install_upgrade_and_fail_closed() {
     let _execution = EXECUTION.lock().await;
-    use crate::apps::versions::node::NodeRequirement;
+    use app_versions::node::NodeRequirement;
     let temp = tempfile::tempdir().unwrap();
     let root = std::fs::canonicalize(temp.path()).unwrap();
     let marker = root.join("argv");

@@ -1,5 +1,5 @@
 //! WSL lifecycle plans are derived on the authorized Windows host.
-use crate::apps::discovery::wsl::{WslShell, WslTarget};
+use app_catalog::wsl::{WslShell, WslTarget};
 use vw_api_app_identity::{
     AppId,
     AppInstallation,
@@ -100,7 +100,7 @@ pub fn uninstall(target: WslTarget, installation: &AppInstallation) -> Result<Ws
                 .strip_suffix("@latest")
                 .ok_or("unmanaged WSL package")?
         };
-        let binary = crate::apps::catalog::catalog()
+        let binary = app_catalog::catalog::catalog()
             .into_iter()
             .find(|a| a.metadata.id == installation.app_id)
             .and_then(|a| a.metadata.cli_command)
@@ -141,7 +141,7 @@ impl WslPlan {
         let WslShell::Explicit { shell, flag } = &self.target.shell else {
             return Err("resolve WSL shell before lifecycle execution".into());
         };
-        let checked = crate::apps::discovery::wsl::parse_target(
+        let checked = app_catalog::wsl::parse_target(
             &format!(r"\\wsl$\{}", self.target.distro),
             Some(shell),
             Some(flag),
@@ -176,7 +176,7 @@ pub async fn execute<R, G, P>(
 ) -> Result<(), String>
 where
     R: FnOnce() -> Result<WslPlan, String> + Send + 'static,
-    G: FnOnce() -> Result<crate::apps::versions::node::NodeRequirement, String> + Send + 'static,
+    G: FnOnce() -> Result<app_versions::node::NodeRequirement, String> + Send + 'static,
     P: FnOnce() -> Result<(), String> + Send + 'static,
 {
     if !cfg!(windows) {
@@ -203,7 +203,7 @@ pub(super) async fn execute_on<R, G, P>(
 ) -> Result<(), String>
 where
     R: FnOnce() -> Result<WslPlan, String> + Send + 'static,
-    G: FnOnce() -> Result<crate::apps::versions::node::NodeRequirement, String> + Send + 'static,
+    G: FnOnce() -> Result<app_versions::node::NodeRequirement, String> + Send + 'static,
     P: FnOnce() -> Result<(), String> + Send + 'static,
 {
     super::coordinator::ToolLifecycleCoordinator
@@ -215,7 +215,7 @@ where
             if current != preview {
                 return Err("WSL installation or shell changed since preview".into());
             }
-            if matches!(gate()?, crate::apps::versions::node::NodeRequirement::Gap { .. }) {
+            if matches!(gate()?, app_versions::node::NodeRequirement::Gap { .. }) {
                 return Err("Node upgrade required".into());
             }
             super::process::run_command(current.command(&executable)?)?;

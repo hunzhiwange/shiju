@@ -1,6 +1,6 @@
 //! Blocking process execution inside the host lifecycle write lock.
 use super::{coordinator::ToolLifecycleCoordinator, native_primary::InstallEnvironment, update};
-use crate::apps::versions::node::NodeRequirement;
+use app_versions::node::NodeRequirement;
 use std::io::Read;
 use std::process::{Command, Stdio};
 use vw_api_app_identity::{AppId, AppInstallationReport};
@@ -89,7 +89,7 @@ fn check_node(requirement: NodeRequirement) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn command(
+pub fn command(
     program: &str,
     args: &[String],
     env: &[(String, String)],
@@ -164,7 +164,7 @@ pub(super) fn execute(
     Ok(ProcessResult { exit_code, output, installations })
 }
 
-pub(crate) fn run_command(mut command: Command) -> Result<(Option<i32>, String), String> {
+pub fn run_command(mut command: Command) -> Result<(Option<i32>, String), String> {
     #[cfg(windows)]
     let _batch = {
         use std::io::Write;
@@ -298,7 +298,7 @@ pub struct WriteProcessEnvironment {
     tools: std::path::PathBuf,
 }
 impl WriteProcessEnvironment {
-    pub(crate) fn new(
+    pub fn new(
         home: std::path::PathBuf,
         prefix: std::path::PathBuf,
         tools: std::path::PathBuf,
@@ -307,7 +307,7 @@ impl WriteProcessEnvironment {
     }
 
     /// Keep the returned private empty npm configuration alive through child exit.
-    pub(crate) fn apply(
+    pub fn apply(
         &self,
         command: &mut std::process::Command,
     ) -> Result<tempfile::NamedTempFile, String> {

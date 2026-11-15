@@ -71,7 +71,7 @@ async fn cc_apps_lifecycle_process_result_rejects_node_before_write() {
         AppId::Dsh,
         super::native_primary::InstallEnvironment::Posix,
         || {
-            Ok(crate::apps::versions::node::NodeRequirement::Gap {
+            Ok(app_versions::node::NodeRequirement::Gap {
                 required: ">=24".into(),
                 current: "18.0.0".into(),
             })
@@ -137,7 +137,7 @@ async fn cc_apps_lifecycle_process_result_upgrade_runs_reviewed_argv() {
         plan,
         true,
         move || Ok((initial, companions)),
-        || Ok(crate::apps::versions::node::NodeRequirement::NotApplicable),
+        || Ok(app_versions::node::NodeRequirement::NotApplicable),
         move || {
             assert!(marker.exists());
             assert_eq!(std::fs::read_to_string(marker).unwrap(), "i\n-g\n@openai/codex@latest\n");

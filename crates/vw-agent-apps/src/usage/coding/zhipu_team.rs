@@ -6,8 +6,8 @@ use reqwest::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageQueryResult,
+    vw_api_apps_usage::apps_usage::UsageQueryErrorCode,
+    vw_api_apps_usage::apps_usage::UsageQueryResult,
 };
 
 use super::zhipu::{

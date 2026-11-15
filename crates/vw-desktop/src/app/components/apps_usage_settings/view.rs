@@ -23,7 +23,7 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
 
 pub(super) fn modal_view<'a>(
     phase: &'a Phase,
-    selection: &vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery,
+    selection: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if let Phase::Script(script) = phase {

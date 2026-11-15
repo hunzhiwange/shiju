@@ -12,9 +12,9 @@ use {
     vw_api_app_auth::AuthCredentialState,
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthService,
-    vw_gateway_client::vw_api_types::apps_usage::UsageQueryKind,
-    vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery,
-    vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotResponse,
+    vw_api_apps_usage::apps_usage::UsageQueryKind,
+    vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
+    vw_api_apps_usage::apps_usage::UsageSnapshotResponse,
     vw_api_transport::id::ProjectId,
 };
 

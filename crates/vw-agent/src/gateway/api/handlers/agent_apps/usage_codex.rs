@@ -6,9 +6,7 @@ use vw_agent_apps::{
     auth::{codex_device::managed_identity, credential_file::CredentialFileStore},
     usage::{binding::UsageAccount, cache::UsageCacheKey},
 };
-use vw_api_types::{
-    apps_usage::UsageQueryKind,
-};
+use vw_api_apps_usage::apps_usage::UsageQueryKind;
 use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 use crate::{

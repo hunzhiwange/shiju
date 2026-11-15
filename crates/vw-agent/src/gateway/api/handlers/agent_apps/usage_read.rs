@@ -14,8 +14,8 @@ use vw_agent_apps::providers::validate_identity;
 use {
     vw_api_app_auth::AuthError,
     vw_api_app_auth::AuthErrorCode,
-    vw_api_types::apps_usage::UsageSnapshotQuery,
-    vw_api_types::apps_usage::UsageSnapshotResponse,
+    vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
+    vw_api_apps_usage::apps_usage::UsageSnapshotResponse,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
@@ -116,7 +116,8 @@ fn account_snapshot(
     authorization: super::access::Authorization,
     explicit_policy: bool,
 ) -> Result<UsageSnapshotResponse, AuthErrorCode> {
-    use vw_api_types::{apps_usage::UsageQueryKind};
+
+    use vw_api_apps_usage::apps_usage::UsageQueryKind;
     use vw_api_app_identity::{AppId};
 
     let (host, auth_service) = usage_account_host(query.app_id, &authorization, explicit_policy)?;

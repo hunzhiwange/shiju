@@ -8,7 +8,7 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
-use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
 use super::{NetworkError, build_http_request};
 use crate::usage::scripts::config::{

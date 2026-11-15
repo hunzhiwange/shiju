@@ -1,7 +1,7 @@
 use super::credits::{CreditsUsdEstimate, credits_line, reset_credits_line};
 use super::tiers::QuotaTone;
 use chrono::DateTime;
-use vw_api_types::apps_usage::UsageNumber;
+use vw_api_apps_usage::apps_usage::UsageNumber;
 
 #[test]
 fn usage_presentation_credits_returns_expected_result() {

@@ -32,16 +32,16 @@ use vw_agent_apps::{
 use vw_api_transport::TimestampMs;
 use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_provider_base::AppProviderWrite;
-use vw_api_types::apps_usage::UsageCredentialState;
-use vw_api_types::apps_usage::UsageQueryData;
-use vw_api_types::apps_usage::UsageQueryError;
-use vw_api_types::apps_usage::UsageQueryErrorCode;
-use vw_api_types::apps_usage::UsageQueryKind;
-use vw_api_types::apps_usage::UsageQueryOutcome;
-use vw_api_types::apps_usage::UsageQueryResult;
-use vw_api_types::apps_usage::UsageSnapshot;
-use vw_api_types::apps_usage::UsageSnapshotResponse;
-use vw_api_types::apps_usage::UsageSource;
+use vw_api_apps_usage::apps_usage::UsageCredentialState;
+use vw_api_apps_usage::apps_usage::UsageQueryData;
+use vw_api_apps_usage::apps_usage::UsageQueryError;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryKind;
+use vw_api_apps_usage::apps_usage::UsageQueryOutcome;
+use vw_api_apps_usage::apps_usage::UsageQueryResult;
+use vw_api_apps_usage::apps_usage::UsageSnapshot;
+use vw_api_apps_usage::apps_usage::UsageSnapshotResponse;
+use vw_api_apps_usage::apps_usage::UsageSource;
 
 use super::{
     access::{UsageRefreshTarget, usage_refresh_targets, usage_targets},

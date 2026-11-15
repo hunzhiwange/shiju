@@ -4,7 +4,7 @@ use tokio::{
     net::TcpListener,
     task::JoinHandle,
 };
-use vw_api_types::apps_usage::{UsageQueryErrorCode, UsageWallet};
+use vw_api_apps_usage::apps_usage::{UsageQueryErrorCode, UsageWallet};
 
 const KEY: &str = "fixture-secret";
 const BALANCE: &str = r#"{

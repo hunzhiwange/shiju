@@ -8,16 +8,16 @@ use reqwest::{
 use serde_json::Value;
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::apps_usage::UsageCredentialState,
-    vw_api_types::apps_usage::UsageNumber,
-    vw_api_types::apps_usage::UsageQueryData,
-    vw_api_types::apps_usage::UsageQueryError,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageQueryKind,
-    vw_api_types::apps_usage::UsageQueryOutcome,
-    vw_api_types::apps_usage::UsageQueryResult,
-    vw_api_types::apps_usage::UsageQuotaWindow,
-    vw_api_types::apps_usage::UsageSource,
+    vw_api_apps_usage::apps_usage::UsageCredentialState,
+    vw_api_apps_usage::apps_usage::UsageNumber,
+    vw_api_apps_usage::apps_usage::UsageQueryData,
+    vw_api_apps_usage::apps_usage::UsageQueryError,
+    vw_api_apps_usage::apps_usage::UsageQueryErrorCode,
+    vw_api_apps_usage::apps_usage::UsageQueryKind,
+    vw_api_apps_usage::apps_usage::UsageQueryOutcome,
+    vw_api_apps_usage::apps_usage::UsageQueryResult,
+    vw_api_apps_usage::apps_usage::UsageQuotaWindow,
+    vw_api_apps_usage::apps_usage::UsageSource,
 };
 use provider_model_discovery::is_real_bearer;
 

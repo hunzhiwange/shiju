@@ -2,7 +2,7 @@ use iced::{
     Alignment, Element, Length,
     widget::{Space, button, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery;
+use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
 use super::{Editor, Event, Kind, Ready, SettingsEvent, apps_usage_settings, send};
 use crate::app::{

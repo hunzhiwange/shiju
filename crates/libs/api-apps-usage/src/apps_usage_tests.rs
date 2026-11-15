@@ -1,4 +1,4 @@
-use crate::TimestampMs;
+use vw_api_transport::TimestampMs;
 use crate::apps_usage::{
     NonFiniteUsageNumber, UsageCredentialState, UsageNumber, UsageQueryResult,
 };

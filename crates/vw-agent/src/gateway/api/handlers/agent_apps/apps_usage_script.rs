@@ -32,10 +32,10 @@ use vw_agent_apps::{
 };
 use {
     vw_api_app_auth::AuthErrorCode,
-    vw_api_types::apps_usage::UsageQueryError,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageSnapshotQuery,
-    vw_api_types::apps_usage::settings::UsageCodingPlan,
+    vw_api_apps_usage::apps_usage::UsageQueryError,
+    vw_api_apps_usage::apps_usage::UsageQueryErrorCode,
+    vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
+    vw_api_apps_usage::apps_usage::settings::UsageCodingPlan,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

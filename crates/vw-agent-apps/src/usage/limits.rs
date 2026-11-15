@@ -6,9 +6,8 @@ use std::{str::FromStr, time::Instant};
 use rusqlite::{Connection, params};
 use rust_decimal::Decimal;
 use serde::Serialize;
-use vw_api_types::{
-    apps_usage::{UsageCredentialState, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow},
-};
+
+use vw_api_apps_usage::apps_usage::{UsageCredentialState, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow};
 
 use super::{
     cache::{UsageCache, UsageCacheKey, UsageCacheResult},

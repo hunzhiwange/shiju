@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, fmt, net::IpAddr, time::Duration};
 use reqwest::{Client, Method, Request, StatusCode, Url, header::HeaderName, redirect::Policy};
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
 use super::{
     config::{PreparedUsageScript, UsageTemplate},

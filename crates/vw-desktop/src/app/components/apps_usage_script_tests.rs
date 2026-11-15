@@ -7,7 +7,9 @@ use std::{
 use iced::widget::text_editor::{Action, Edit};
 use serde_json::json;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AppsUsageTemplate, GatewayClient, vw_api_types::{agent_apps::AppId, apps_usage::UsageSnapshotQuery}}};
+    AppsUsageTemplate, GatewayClient, vw_api_types::{agent_apps::AppId}}};
+
+use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
 use super::{Draft, Editor, Event, Failure, Kind, run_trial};
 

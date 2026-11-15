@@ -17,7 +17,7 @@ use {
     crate::agent_apps::usage_settings::UsageSigningCredentialRefs,
     vw_api_app_identity::AppId,
     vw_api_app_diagnostics::DiagnosticScope,
-    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::ProjectId,
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionDefinition,
@@ -421,7 +421,7 @@ struct UsageRefreshPermit {
     provider_id: String,
     origin: String,
     account_id: Option<String>,
-    kind: Option<vw_api_types::apps_usage::UsageQueryKind>,
+    kind: Option<vw_api_apps_usage::apps_usage::UsageQueryKind>,
 }
 
 #[cfg(target_os = "macos")]
@@ -436,7 +436,7 @@ pub(super) struct UsageRefreshTarget {
     pub origin: reqwest::Url,
     pub batch: bool,
     pub codex: Option<ManagedCodexTarget>,
-    pub kind: vw_api_types::apps_usage::UsageQueryKind,
+    pub kind: vw_api_apps_usage::apps_usage::UsageQueryKind,
 }
 
 #[cfg(target_os = "macos")]
@@ -448,8 +448,8 @@ pub(super) struct ManagedCodexTarget {
 
 #[cfg(target_os = "macos")]
 impl UsageRefreshTarget {
-    pub(super) fn selector(&self) -> vw_api_types::apps_usage::UsageSnapshotQuery {
-        use vw_api_types::apps_usage::UsageSnapshotQuery;
+    pub(super) fn selector(&self) -> vw_api_apps_usage::apps_usage::UsageSnapshotQuery {
+        use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
         UsageSnapshotQuery {
             project_id: self.project.project_id().clone(),
             target_host_id: self.host.clone(),
@@ -468,7 +468,7 @@ pub(super) fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
     usage_targets(path, false)
         .unwrap_or_default()
         .into_iter()
-        .filter(|target| target.kind == vw_api_types::apps_usage::UsageQueryKind::CustomScript)
+        .filter(|target| target.kind == vw_api_apps_usage::apps_usage::UsageQueryKind::CustomScript)
         .collect()
 }
 
@@ -477,7 +477,7 @@ pub(super) fn usage_targets(
     path: &Path,
     batch: bool,
 ) -> Result<Vec<UsageRefreshTarget>, StatusCode> {
-    use vw_api_types::apps_usage::UsageQueryKind::*;
+    use vw_api_apps_usage::apps_usage::UsageQueryKind::*;
 
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let mut targets = Vec::new();
@@ -745,11 +745,11 @@ enum Capability<'a> {
     SkillInventory(&'a vw_api_transport::ProjectId),
     SkillInstall(&'a vw_api_transport::ProjectId),
     SkillRepos(&'a vw_api_transport::ProjectId, bool),
-    UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
+    UsageRead(&'a vw_api_apps_usage::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
     #[cfg(target_os = "macos")]
-    UsageCancel(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
+    UsageCancel(&'a vw_api_apps_usage::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageBatch(&'a vw_api_transport::ProjectId),
     Read,
@@ -825,7 +825,7 @@ pub(super) fn authorize_usage_read(
     path: Option<&Path>,
     headers: &HeaderMap,
     tenant: &TenantScope,
-    query: &vw_api_types::apps_usage::UsageSnapshotQuery,
+    query: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
 ) -> Result<Authorization, StatusCode> {
     authorize_scoped(
         path,
@@ -860,7 +860,7 @@ pub(super) fn authorize_usage_cancel(
     path: &Path,
     headers: &HeaderMap,
     tenant: &TenantScope,
-    query: &vw_api_types::apps_usage::UsageSnapshotQuery,
+    query: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
 ) -> Result<Authorization, StatusCode> {
     authorize_scoped(
         Some(path),
@@ -873,7 +873,7 @@ pub(super) fn authorize_usage_cancel(
 }
 
 impl UsageReadPermit {
-    fn matches(&self, query: &vw_api_types::apps_usage::UsageSnapshotQuery) -> bool {
+    fn matches(&self, query: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery) -> bool {
         self.project_id == query.project_id
             && self.app_id == query.app_id
             && self.provider_id == query.provider_id

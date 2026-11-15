@@ -21,9 +21,9 @@ use vw_agent_apps::usage::cache::UsageCacheResult;
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
-use vw_api_types::apps_usage::UsageQueryData;
-use vw_api_types::apps_usage::UsageQueryErrorCode;
-use vw_api_types::apps_usage::UsageQueryOutcome;
+use vw_api_apps_usage::apps_usage::UsageQueryData;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryOutcome;
 use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;
 

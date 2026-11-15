@@ -2,7 +2,7 @@
 
 use reqwest::{Client, header::ACCEPT};
 use serde_json::Value;
-use vw_api_types::apps_usage::{UsageNumber, UsageQueryErrorCode, UsageWallet};
+use vw_api_apps_usage::apps_usage::{UsageNumber, UsageQueryErrorCode, UsageWallet};
 
 use crate::usage::{
     coding::zhipu::{

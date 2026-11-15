@@ -77,8 +77,6 @@ pub mod workflow;
 pub mod worktree;
 
 #[cfg(test)]
-mod apps_usage_tests;
-#[cfg(test)]
 #[path = "project_tests.rs"]
 mod project_tests;
 #[cfg(test)]

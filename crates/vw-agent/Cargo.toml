@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }
 vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }
 gateway-app-skills = { path = "../libs/gateway-app-skills", version = "0.6.0" }
 vw-api-external-session = { path = "../libs/api-external-session", version = "0.6.0" }

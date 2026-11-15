@@ -1,1 +1,1 @@
-pub use vw_api_types::apps_usage::presentation::tiers::*;
+pub use vw_api_apps_usage::apps_usage::presentation::tiers::*;

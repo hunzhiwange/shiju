@@ -70,7 +70,8 @@ async fn usage_usage_settings_save_button_requires_team_project() {
         message::{SettingsMessage, app_providers::list::ListMessage},
     };
     use iced::{Event as IcedEvent, Length, mouse, widget::Space};
-    use vw_gateway_client::vw_api_types::{agent_apps::AppId, apps_usage::UsageSnapshotQuery};
+    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+    use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
     use super::{Event, Phase, view::modal_view};
 

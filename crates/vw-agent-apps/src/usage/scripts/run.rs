@@ -3,7 +3,7 @@
 use std::fmt;
 
 use reqwest::Url;
-use vw_api_types::apps_usage::UsageScriptPackage;
+use vw_api_apps_usage::apps_usage::UsageScriptPackage;
 
 use super::{config::PreparedUsageScript, extract::ExtractError, network::NetworkError};
 use crate::apps::lifecycle::operations::Operation;

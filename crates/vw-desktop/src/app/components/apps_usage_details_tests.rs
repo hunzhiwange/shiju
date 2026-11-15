@@ -6,7 +6,7 @@ use iced::{
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
 use serde_json::{Value, json};
-use vw_gateway_client::vw_api_types::apps_usage::UsageSnapshot;
+use vw_api_apps_usage::apps_usage::UsageSnapshot;
 
 use super::apps_usage_details::view;
 use crate::app::{Message, message::ViewMessage};

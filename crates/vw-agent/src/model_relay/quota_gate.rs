@@ -1,7 +1,7 @@
 //! Account-scoped official quota observations; never queries or refreshes credentials.
 use std::{collections::HashMap, sync::{Mutex, OnceLock}, time::{Duration, Instant}};
 use axum::http::{HeaderMap, StatusCode};
-use vw_api_types::apps_usage::{UsageCredentialState, UsageQueryData, UsageQueryOutcome, UsageQueryResult};
+use vw_api_apps_usage::apps_usage::{UsageCredentialState, UsageQueryData, UsageQueryOutcome, UsageQueryResult};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Account(pub vw_api_transport::TenantScope, pub String, pub String, pub String);

@@ -4,7 +4,7 @@ use tokio::{
     net::TcpListener,
     task::JoinHandle,
 };
-use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
 const KEY: &str = "fixture-novita-key";
 

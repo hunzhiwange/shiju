@@ -1,4 +1,4 @@
-use vw_api_types::apps_usage::UsageScriptPackage;
+use vw_api_apps_usage::apps_usage::UsageScriptPackage;
 
 use super::config::{
     PreparedUsage, PreparedUsageScript, ProviderDefaults, ScriptParameters, UsageTemplate,

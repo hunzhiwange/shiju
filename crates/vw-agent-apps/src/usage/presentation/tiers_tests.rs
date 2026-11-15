@@ -1,5 +1,5 @@
 use super::tiers::{QuotaDisplay, QuotaTone, tier_card_rows, tier_lines};
-use vw_api_types::apps_usage::UsageQuotaWindow;
+use vw_api_apps_usage::apps_usage::UsageQuotaWindow;
 
 fn window(name: &str, utilization: Option<f64>) -> UsageQuotaWindow {
     UsageQuotaWindow {

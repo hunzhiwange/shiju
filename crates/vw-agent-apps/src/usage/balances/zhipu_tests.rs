@@ -7,7 +7,7 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
-use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
 const KEY: &str = "fixture-zhipu-key";
 const PLAN: &str = "/api/monitor/usage/quota/limit";

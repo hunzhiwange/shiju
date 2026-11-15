@@ -4,9 +4,7 @@ use super::GatewayClient;
 use crate::http::apply_request_context;
 use reqwest::header::{CACHE_CONTROL, HeaderValue};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use vw_api_types::{
-    apps_usage::{UsageSnapshotQuery, UsageSnapshotResponse},
-};
+use vw_api_apps_usage::apps_usage::{UsageSnapshotQuery, UsageSnapshotResponse};
 use vw_api_app_auth::AuthError;
 
 /// Read failure with the HTTP status and the typed gateway error when available.
@@ -56,7 +54,7 @@ pub struct AppsUsageSettings {
     #[serde(default)]
     pub credentials: AppsUsageCredentialRefs,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub coding_plan: Option<vw_api_types::apps_usage::settings::UsageCodingPlan>,
+    pub coding_plan: Option<vw_api_apps_usage::apps_usage::settings::UsageCodingPlan>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]

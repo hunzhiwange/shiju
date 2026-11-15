@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, KeyInit, Mac};
 use reqwest::{Method, Request, Url, header};
 use sha2::{Digest, Sha256};
-use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
 use crate::providers::validation::header_value;
 

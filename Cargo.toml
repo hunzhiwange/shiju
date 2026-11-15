@@ -30,6 +30,7 @@ members = [
   "crates/libs/session-text",
   "crates/libs/desktop-config",
   "crates/libs/api-model-catalog",
+  "crates/libs/api-apps-usage",
   "crates/libs/api-app-operations",
   "crates/libs/session-ui-types",
   "crates/libs/api-app-auth",

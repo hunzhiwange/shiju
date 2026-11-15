@@ -18,11 +18,11 @@ use {
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthService,
-    vw_api_types::apps_usage::UsageCredentialState,
-    vw_api_types::apps_usage::UsageQueryData,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageQueryOutcome,
-    vw_api_types::apps_usage::UsageSource,
+    vw_api_apps_usage::apps_usage::UsageCredentialState,
+    vw_api_apps_usage::apps_usage::UsageQueryData,
+    vw_api_apps_usage::apps_usage::UsageQueryErrorCode,
+    vw_api_apps_usage::apps_usage::UsageQueryOutcome,
+    vw_api_apps_usage::apps_usage::UsageSource,
     vw_api_transport::id::TenantScope,
 };
 

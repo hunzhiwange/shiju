@@ -10,14 +10,14 @@ use tokio::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::apps_usage::UsageCredentialState,
-    vw_api_types::apps_usage::UsageQueryData,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageQueryKind,
-    vw_api_types::apps_usage::UsageQueryOutcome,
-    vw_api_types::apps_usage::UsageQueryResult,
-    vw_api_types::apps_usage::UsageQuotaWindow,
-    vw_api_types::apps_usage::UsageSource,
+    vw_api_apps_usage::apps_usage::UsageCredentialState,
+    vw_api_apps_usage::apps_usage::UsageQueryData,
+    vw_api_apps_usage::apps_usage::UsageQueryErrorCode,
+    vw_api_apps_usage::apps_usage::UsageQueryKind,
+    vw_api_apps_usage::apps_usage::UsageQueryOutcome,
+    vw_api_apps_usage::apps_usage::UsageQueryResult,
+    vw_api_apps_usage::apps_usage::UsageQuotaWindow,
+    vw_api_apps_usage::apps_usage::UsageSource,
 };
 
 const KEY: &str = "fixture-minimax-key";

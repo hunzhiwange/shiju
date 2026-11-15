@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use reqwest::{Method, header};
-use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
 use super::volcengine_sign::sign_volcengine_request;
 

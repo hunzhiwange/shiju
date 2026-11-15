@@ -5,7 +5,7 @@ use super::tiers::QuotaTone;
 use crate::usage::cache::UsageCacheResult;
 use std::sync::Arc;
 use vw_api_transport::TimestampMs;
-use vw_api_types::apps_usage::{
+use vw_api_apps_usage::apps_usage::{
     UsageCredentialState, UsageNumber, UsageQueryData, UsageQueryError, UsageQueryErrorCode,
     UsageQueryKind, UsageQueryOutcome, UsageQueryResult, UsageScriptPackage, UsageSource,
 };

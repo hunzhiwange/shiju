@@ -3,7 +3,7 @@
 use chrono::{DateTime, TimeZone, Utc};
 use iced::Element;
 use iced::widget::{Column, button, column, text};
-use vw_gateway_client::vw_api_types::apps_usage::{
+use vw_api_apps_usage::apps_usage::{
     UsageNumber, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow, UsageScriptPackage,
     UsageSnapshot, UsageSource, UsageSubscription, UsageWallet,
     presentation::{

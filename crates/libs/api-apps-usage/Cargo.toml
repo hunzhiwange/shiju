@@ -1,0 +1,16 @@
+[package]
+name = "vw-api-apps-usage"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+url = "2"
+uuid = "1.11"
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }

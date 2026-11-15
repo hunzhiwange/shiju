@@ -1,0 +1,16 @@
+[package]
+name = "gateway-scheduler"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
+
+[dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

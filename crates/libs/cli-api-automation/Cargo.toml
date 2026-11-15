@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+gateway-scheduler = { path = "../gateway-scheduler", version = "0.6.0" }
 gateway-workflow = { path = "../gateway-workflow", version = "0.6.0" }
 vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
 vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }

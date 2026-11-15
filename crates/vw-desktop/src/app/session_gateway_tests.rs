@@ -235,7 +235,7 @@ fn desktop_agent_scheduler_calls_use_resolved_active_scope() {
     assert_eq!(project_scope.tenant_scope(), endpoint.tenant_scope());
     assert_eq!(project_scope.project_id().as_ref(), "project-stable");
     assert_eq!(
-        vw_gateway_client::GatewayClient::agent_scheduler_events_stream_path(&scope, None),
+        gateway_scheduler::GatewaySchedulerClient::agent_scheduler_events_stream_path(&scope, None),
         "/v1/agent-scheduler/projects/project-stable/events/stream"
     );
 }

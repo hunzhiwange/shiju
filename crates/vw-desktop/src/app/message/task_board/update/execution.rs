@@ -49,7 +49,7 @@ fn wake_agent_scheduler_after_registering_pending(
             let client = crate::app::config::gateway_client()?;
             register_pending_agent_scheduler_tasks(&client, &scope, &pending_create_requests)
                 .await?;
-            let response = client
+            let response = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                 .agent_scheduler_wake(
                     &scope,
                     &vw_api_agent_scheduler::AgentSchedulerWakeRequest {

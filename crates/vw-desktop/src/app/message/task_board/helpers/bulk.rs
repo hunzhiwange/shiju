@@ -111,7 +111,7 @@ async fn submit_agent_scheduler_bulk_command(
     }
     let scope = resolve_task_board_scheduler_scope(project_path).await?;
     let client = crate::app::config::gateway_client()?;
-    let response = client
+    let response = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
         .agent_scheduler_bulk_command(
             &scope,
             &vw_api_agent_scheduler::AgentSchedulerBulkCommandRequest {

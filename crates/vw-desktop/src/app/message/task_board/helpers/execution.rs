@@ -312,7 +312,7 @@ pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<cr
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
             let client = crate::app::config::gateway_client()?;
-            client.agent_scheduler_status(&scope).await
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
@@ -334,7 +334,7 @@ async fn load_agent_scheduler_logs(
     let scope = crate::app::session_gateway::active_agent_scheduler_scope(project_id)?;
     let mut responses = Vec::with_capacity(task_ids.len());
     for task_id in task_ids {
-        responses.push(client.agent_scheduler_logs(&scope, &task_id).await?);
+        responses.push(gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_logs(&scope, &task_id).await?);
     }
     Ok(responses)
 }
@@ -690,7 +690,7 @@ pub(crate) fn sync_task_board_gateway_snapshot(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
             let client = crate::app::config::gateway_client()?;
-            client.agent_scheduler_status(&scope).await
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {
@@ -727,7 +727,7 @@ pub(crate) async fn create_task_via_agent_scheduler(
     let request = agent_scheduler_create_task_request(&task, &workflow_id);
     let scope = resolve_task_board_scheduler_scope(&project_path).await?;
     let client = crate::app::config::gateway_client()?;
-    client.agent_scheduler_create_task(&scope, &request).await?;
+    gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_create_task(&scope, &request).await?;
     Ok(task)
 }
 
@@ -737,7 +737,7 @@ pub(crate) async fn register_pending_agent_scheduler_tasks(
     requests: &[vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest],
 ) -> Result<(), String> {
     for request in requests {
-        client.agent_scheduler_create_task(scope, request).await?;
+        gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_create_task(scope, request).await?;
     }
     Ok(())
 }
@@ -780,14 +780,14 @@ pub(crate) fn send_agent_scheduler_command(
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
             let client = crate::app::config::gateway_client()?;
             let create_response =
-                client.agent_scheduler_create_task(&scope, &create_request).await?;
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_create_task(&scope, &create_request).await?;
             if !should_send_agent_scheduler_command_after_create(
                 command,
                 &create_response.task.status,
             ) {
-                return client.agent_scheduler_status(&scope).await;
+                return gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await;
             }
-            let command_result = client
+            let command_result = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                 .agent_scheduler_command(
                     &scope,
 	                    &vw_api_agent_scheduler::AgentSchedulerCommandRequest {
@@ -803,7 +803,7 @@ pub(crate) fn send_agent_scheduler_command(
             let response = match command_result {
                 Ok(response) => response,
                 Err(command_error) => {
-                    return client.agent_scheduler_status(&scope).await.map_err(
+                    return gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await.map_err(
                         |status_error| {
                             format!(
                                 "Agent Scheduler 命令失败: {command_error}; 状态同步失败: {status_error}"
@@ -815,7 +815,7 @@ pub(crate) fn send_agent_scheduler_command(
             if !response.accepted {
                 return Err(format!("agent scheduler command {:?} was rejected", command));
             }
-            client.agent_scheduler_status(&scope).await
+            gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone()).agent_scheduler_status(&scope).await
         },
         move |result| {
             crate::app::Message::TaskBoard(TaskBoardMessage::AgentSchedulerStatusLoaded {

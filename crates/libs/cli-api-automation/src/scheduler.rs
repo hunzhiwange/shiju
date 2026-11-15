@@ -150,7 +150,7 @@ pub async fn run(
     let response = match command {
         SchedulerCommands::Workflow { project_id } => {
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_workflow(&scope(context, project_id)?)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -158,7 +158,7 @@ pub async fn run(
         }
         SchedulerCommands::Tasks { project_id } => {
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_status(&scope(context, project_id)?)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -167,7 +167,7 @@ pub async fn run(
         SchedulerCommands::Create { project_id, input } => {
             let request = parse::<AgentSchedulerCreateTaskRequest>(&input, stdin, "create")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_create_task(&scope(context, project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -176,7 +176,7 @@ pub async fn run(
         SchedulerCommands::Command { project_id, input } => {
             let request = parse::<AgentSchedulerCommandRequest>(&input, stdin, "command")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_command(&scope(context, project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -185,7 +185,7 @@ pub async fn run(
         SchedulerCommands::Bulk { project_id, input } => {
             let request = parse::<AgentSchedulerBulkCommandRequest>(&input, stdin, "bulk command")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_bulk_command(&scope(context, project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -195,7 +195,7 @@ pub async fn run(
             let request =
                 parse::<AgentSchedulerTaskMetadataUpdateRequest>(&input, stdin, "metadata")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_update_task_metadata(
                         &scope(context, project_id)?,
                         &task_id,
@@ -209,7 +209,7 @@ pub async fn run(
             let request =
                 parse::<AgentSchedulerLegacyImportRequest>(&input, stdin, "legacy import")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_import_legacy_tasks(&scope(context, project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -217,7 +217,7 @@ pub async fn run(
         }
         SchedulerCommands::Logs { project_id, task_id } => {
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_logs(&scope(context, project_id)?, &task_id)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -225,7 +225,7 @@ pub async fn run(
         }
         SchedulerCommands::Artifacts { project_id, task_id } => {
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_artifacts(&scope(context, project_id)?, &task_id)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -233,7 +233,7 @@ pub async fn run(
         }
         SchedulerCommands::Events { project_id, after_cursor } => {
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_events(&scope(context, project_id)?, after_cursor)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -242,7 +242,7 @@ pub async fn run(
         SchedulerCommands::Wake { project_id, input } => {
             let request = parse::<AgentSchedulerWakeRequest>(&input, stdin, "wake")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_wake(&scope(context, project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -251,7 +251,7 @@ pub async fn run(
         SchedulerCommands::Drain { project_id, input } => {
             let request = parse::<AgentSchedulerOutboxDrainRequest>(&input, stdin, "outbox drain")?;
             json!(
-                client
+                gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone())
                     .agent_scheduler_drain_outbox(&scope(context, project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?

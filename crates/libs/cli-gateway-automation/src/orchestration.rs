@@ -59,7 +59,7 @@ pub async fn load_orchestration(
         runtime.client().cron_jobs_get(),
         async {
             match task_scope.as_ref() {
-                Some(scope) => runtime.client().agent_scheduler_status(scope).await,
+                Some(scope) => gateway_scheduler::GatewaySchedulerClient::new(runtime.client().transport().clone()).agent_scheduler_status(scope).await,
                 None => Err("project scope unavailable".to_string()),
             }
         },
@@ -216,7 +216,7 @@ pub fn control_owned_task_blocking(
         payload: AgentSchedulerCommandPayloadDto::default(),
     };
     block_on_gateway(async {
-        runtime.client().agent_scheduler_command(scope, &request).await.map(|_| ())
+        gateway_scheduler::GatewaySchedulerClient::new(runtime.client().transport().clone()).agent_scheduler_command(scope, &request).await.map(|_| ())
     })
 }
 
@@ -249,10 +249,11 @@ pub fn load_owned_task_detail_blocking(
         return Err("task detail snapshot does not match the resolved project scope".to_string());
     }
     let (graph, logs, artifacts) = block_on_gateway(async {
+        let scheduler = gateway_scheduler::GatewaySchedulerClient::new(runtime.client().transport().clone());
         Ok(tokio::join!(
-            runtime.client().agent_scheduler_task_graph(scope),
-            runtime.client().agent_scheduler_logs(scope, task_id),
-            runtime.client().agent_scheduler_artifacts(scope, task_id),
+            scheduler.agent_scheduler_task_graph(scope),
+            scheduler.agent_scheduler_logs(scope, task_id),
+            scheduler.agent_scheduler_artifacts(scope, task_id),
         ))
     })?;
     Ok(TaskDetailView {

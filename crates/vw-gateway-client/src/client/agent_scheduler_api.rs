@@ -21,9 +21,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerCreateTaskRequest,
     ) -> Result<AgentSchedulerCreateTaskResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        self.post_json(&format!("{}/tasks", agent_scheduler_project_path(scope)), &[], request)
-            .await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_create_task(scope, request).await
     }
 
     /// 发送 Agent Scheduler 桌面任务板命令。
@@ -32,9 +30,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerCommandRequest,
     ) -> Result<AgentSchedulerCommandResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_command_path(scope);
-        self.post_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_command(scope, request).await
     }
 
     /// 批量发送 Agent Scheduler 桌面任务板命令。
@@ -43,9 +39,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerBulkCommandRequest,
     ) -> Result<AgentSchedulerBulkCommandResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_bulk_command_path(scope);
-        self.post_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_bulk_command(scope, request).await
     }
 
     /// 拉取 Agent Scheduler 桌面任务板任务快照。
@@ -53,9 +47,7 @@ impl GatewayClient {
         &self,
         scope: &AgentSchedulerScopeDto,
     ) -> Result<AgentSchedulerTaskBoardStatusResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_tasks_path(scope);
-        self.get_json(&path, &[]).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_status(scope).await
     }
 
     /// 拉取 Agent Scheduler 项目任务图及实时就绪性快照。
@@ -63,9 +55,7 @@ impl GatewayClient {
         &self,
         scope: &AgentSchedulerScopeDto,
     ) -> Result<AgentSchedulerTaskGraphResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_task_graph_path(scope);
-        self.get_json(&path, &[]).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_task_graph(scope).await
     }
 
     /// 完整替换 Agent Scheduler 项目任务图。
@@ -74,9 +64,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerReplaceTaskGraphRequest,
     ) -> Result<AgentSchedulerTaskGraphResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_task_graph_path(scope);
-        self.put_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_replace_task_graph(scope, request).await
     }
 
     /// 拉取 Agent Scheduler 桌面任务板 workflow 快照。
@@ -84,9 +72,7 @@ impl GatewayClient {
         &self,
         scope: &AgentSchedulerScopeDto,
     ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_workflow_path(scope);
-        self.get_json(&path, &[]).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_workflow(scope).await
     }
 
     /// 更新 Agent Scheduler 任务板任务元数据投影。
@@ -96,9 +82,7 @@ impl GatewayClient {
         task_id: &str,
         request: &AgentSchedulerTaskMetadataUpdateRequest,
     ) -> Result<AgentSchedulerTaskMetadataUpdateResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_task_metadata_path(scope, task_id);
-        self.patch_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_update_task_metadata(scope, task_id, request).await
     }
 
     /// 导入旧桌面任务到 Agent Scheduler。
@@ -107,9 +91,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerLegacyImportRequest,
     ) -> Result<AgentSchedulerLegacyImportResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_legacy_import_path(scope);
-        self.post_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_import_legacy_tasks(scope, request).await
     }
 
     /// 拉取 Agent Scheduler 桌面任务板日志。
@@ -118,9 +100,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         task_id: &str,
     ) -> Result<AgentSchedulerTaskLogsResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_logs_path(scope, task_id);
-        self.get_json(&path, &[]).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_logs(scope, task_id).await
     }
 
     /// 拉取 Agent Scheduler 桌面任务板产物。
@@ -129,9 +109,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         task_id: &str,
     ) -> Result<AgentSchedulerTaskArtifactsResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_artifacts_path(scope, task_id);
-        self.get_json(&path, &[]).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_artifacts(scope, task_id).await
     }
 
     /// 按 cursor 拉取 Agent Scheduler 桌面任务板事件。
@@ -140,12 +118,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         after_cursor: Option<i64>,
     ) -> Result<AgentSchedulerTaskBoardEventsResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_events_path(scope);
-        let query = after_cursor
-            .map(|cursor| vec![("after_cursor".to_string(), cursor.to_string())])
-            .unwrap_or_default();
-        self.get_json(&path, &query).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_events(scope, after_cursor).await
     }
 
     /// 构造 Agent Scheduler 事件 SSE 相对路径，供 EventSource 客户端复用。
@@ -153,12 +126,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         after_cursor: Option<i64>,
     ) -> String {
-        let mut path = agent_scheduler_events_stream_path(scope);
-        if let Some(cursor) = after_cursor {
-            path.push_str("?after_cursor=");
-            path.push_str(&cursor.to_string());
-        }
-        path
+        gateway_scheduler::GatewaySchedulerClient::agent_scheduler_events_stream_path(scope, after_cursor)
     }
 
     /// 唤醒 Agent Scheduler 调度器。
@@ -167,9 +135,7 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerWakeRequest,
     ) -> Result<AgentSchedulerWakeResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_wake_path(scope);
-        self.post_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_wake(scope, request).await
     }
 
     /// 获取 Agent Scheduler outbox 待投递消息。
@@ -178,95 +144,6 @@ impl GatewayClient {
         scope: &AgentSchedulerScopeDto,
         request: &AgentSchedulerOutboxDrainRequest,
     ) -> Result<AgentSchedulerOutboxDrainResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_outbox_drain_path(scope);
-        self.post_json(&path, &[], request).await
+        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone()).agent_scheduler_drain_outbox(scope, request).await
     }
-
-    fn ensure_scheduler_tenant_scope(&self, scope: &AgentSchedulerScopeDto) -> Result<(), String> {
-        if scope.project_scope().tenant_scope() != self.endpoint().tenant_scope() {
-            return Err("tenant scope does not match gateway endpoint tenant scope".to_string());
-        }
-        Ok(())
-    }
-}
-
-fn agent_scheduler_project_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!(
-        "/v1/agent-scheduler/projects/{}",
-        encode_path_segment(scope.project_scope().project_id().as_ref())
-    )
-}
-
-fn agent_scheduler_command_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/commands", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_bulk_command_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/bulk", agent_scheduler_command_path(scope))
-}
-
-fn agent_scheduler_tasks_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/tasks", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_task_graph_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/task-graph", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_workflow_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/workflow", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_task_metadata_path(scope: &AgentSchedulerScopeDto, task_id: &str) -> String {
-    format!(
-        "{}/tasks/{}/metadata",
-        agent_scheduler_project_path(scope),
-        encode_path_segment(task_id)
-    )
-}
-
-fn agent_scheduler_legacy_import_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/legacy-import", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_logs_path(scope: &AgentSchedulerScopeDto, task_id: &str) -> String {
-    format!("{}/tasks/{}/logs", agent_scheduler_project_path(scope), encode_path_segment(task_id))
-}
-
-fn agent_scheduler_artifacts_path(scope: &AgentSchedulerScopeDto, task_id: &str) -> String {
-    format!(
-        "{}/tasks/{}/artifacts",
-        agent_scheduler_project_path(scope),
-        encode_path_segment(task_id)
-    )
-}
-
-fn agent_scheduler_events_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/events", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_events_stream_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/stream", agent_scheduler_events_path(scope))
-}
-
-fn agent_scheduler_wake_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/wake", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_outbox_drain_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/outbox/drain", agent_scheduler_project_path(scope))
-}
-
-fn encode_path_segment(value: &str) -> String {
-    let mut encoded = String::new();
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(char::from(byte));
-            }
-            _ => encoded.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    encoded
 }

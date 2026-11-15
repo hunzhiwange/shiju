@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-scheduler = { path = "../libs/gateway-scheduler", version = "0.6.0" }
 gateway-knowledge = { path = "../libs/gateway-knowledge", version = "0.6.0" }
 gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }
 gateway-voice = { path = "../libs/gateway-voice", version = "0.6.0" }

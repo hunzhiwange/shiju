@@ -86,3 +86,14 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
     };
     task
 }
+
+/// Visibility is coordinated by the host; the history domain owns poll cadence and identity.
+pub fn subscription(visible: bool, generation: u64) -> iced::Subscription<CronHistoryMessage> {
+    if visible {
+        iced::time::every(std::time::Duration::from_secs(3))
+            .with(generation)
+            .map(|(generation, _)| CronHistoryMessage::Tick(generation))
+    } else {
+        iced::Subscription::none()
+    }
+}

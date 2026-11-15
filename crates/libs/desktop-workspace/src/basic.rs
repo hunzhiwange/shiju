@@ -34,3 +34,35 @@ pub fn file_mention(root: &str, path: &str, line: usize, column: usize) -> Optio
     let relative = relative.to_string_lossy().replace('\\', "/");
     Some(format!("@{relative}:{line}:{column} "))
 }
+
+pub fn display_name_for_path(meta: &[crate::project_message::edit_meta::RecentProjectMeta], path: &str) -> String {
+    if let Some(item) = meta.iter().find(|item| item.path == path) {
+        return item.name.clone();
+    }
+
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|segment| segment.to_str())
+        .unwrap_or(path)
+        .to_string()
+}
+
+
+#[cfg(test)]
+#[path = "basic_init_tests.rs"]
+mod init_tests;
+
+pub fn search_panel_file_results(files: &[String], query: &str) -> Vec<String> {
+    files.iter().filter(|path| path.to_ascii_lowercase().contains(query)).take(8).cloned().collect()
+}
+
+/// Reuse the cached projection until its query, project or file index changes.
+pub fn refresh_search_panel_file_results(
+    files: &[String], query: &str, project: Option<&str>, revision: u64,
+    cached_query: &str, cached_project: Option<&str>, cached_revision: u64,
+) -> Option<Vec<String>> {
+    if cached_query == query && cached_project == project && cached_revision == revision {
+        return None;
+    }
+    Some(search_panel_file_results(files, query))
+}

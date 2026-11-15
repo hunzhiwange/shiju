@@ -25,3 +25,14 @@ pub fn open_local_directory(path: &str) -> std::io::Result<()> {
         Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "当前平台不支持打开本机终端"))
     }
 }
+
+pub fn subscription(term: &iced_term::Terminal) -> iced::Subscription<crate::message::TerminalMessage> {
+    // Tab numbers restart for each project; subscriptions must follow the PTY instance.
+    term.subscription()
+        .with(term.widget_id().clone())
+        .map(|(_, event)| crate::message::TerminalMessage::Event(event))
+}
+
+#[cfg(test)]
+#[path = "local_subscription_tests.rs"]
+mod subscription_tests;

@@ -282,3 +282,16 @@ impl Notification {
             .unwrap_or_else(|| self.message.clone())
     }
 }
+
+pub fn push_notification(notifications: &mut Vec<Notification>, next_id: &mut usize, message: String) {
+    let id = *next_id;
+    *next_id += 1;
+    notifications.push(Notification { localized_message: None, id, message, created_at: web_time::SystemTime::now() });
+}
+
+pub fn push_localized_notification(notifications: &mut Vec<Notification>, next_id: &mut usize, source: &str, arguments: Vec<desktop_i18n::format::Argument>) {
+    let message = desktop_i18n::format::Message::new(source, arguments);
+    let fallback = message.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)).expect("valid notification template");
+    push_notification(notifications, next_id, fallback);
+    notifications.last_mut().expect("notification was inserted").localized_message = Some(message);
+}

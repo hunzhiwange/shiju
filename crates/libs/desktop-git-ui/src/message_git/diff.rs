@@ -495,8 +495,24 @@ pub fn insert_diff_selection_comment(
 #[path = "diff_tests.rs"]
 mod tests;
 
+pub fn toggle_diff_file_expanded(
+    ordered: &mut Vec<String>, membership: &mut std::collections::HashSet<String>, path: String,
+) {
+    if membership.remove(&path) {
+        if let Some(pos) = ordered.iter().position(|item| item == &path) {
+            ordered.remove(pos);
+        }
+    } else {
+        membership.insert(path.clone());
+        ordered.push(path);
+    }
+}
 
-
-
+pub fn replace_expanded_files(
+    ordered: &mut Vec<String>, membership: &mut std::collections::HashSet<String>, files: Vec<String>,
+) {
+    *membership = files.iter().cloned().collect();
+    *ordered = files;
+}
 
 pub use super::diff_actions::{ExpandDirection, DiscardAction, is_diff_file_expanded, ensure_diff_file_expanded, clear_expanded_files, set_single_expanded_file, toggle_expand_file, expand_context, scroll_changed, toggle_fullscreen, discard};

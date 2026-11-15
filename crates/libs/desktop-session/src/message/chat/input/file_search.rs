@@ -225,3 +225,17 @@ pub fn replace_or_append_file_mention(text: &str, mention_with_at: &str) -> Stri
     new_text.push_str(&mention_with_space);
     new_text
 }
+pub fn normalize_file_search_query(query: &str) -> String {
+    query.trim().replace('\\', "/").to_ascii_lowercase()
+}
+
+/// Reuse the cached projection until its query, project or file index changes.
+pub fn refresh_file_search_entries(
+    files: &[String], query: &str, project: Option<&str>, revision: u64,
+    cached_query: &str, cached_project: Option<&str>, cached_revision: u64,
+) -> Option<Vec<FileSearchResult>> {
+    if cached_query == query && cached_project == project && cached_revision == revision {
+        return None;
+    }
+    Some(build_ranked_file_search_entries(files, query))
+}

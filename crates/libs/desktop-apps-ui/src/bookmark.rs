@@ -35,3 +35,76 @@ pub struct CookieConfig {
 #[cfg(test)]
 #[path = "bookmark_tests.rs"]
 mod bookmark_tests;
+
+pub fn load_web_bookmarks(cfg: &serde_json::Value) -> Vec<WebBookmark> {
+    cfg.get("web_bookmarks")
+        .and_then(|value: &serde_json::Value| value.as_array())
+        .map(|items: &Vec<serde_json::Value>| {
+            items
+                .iter()
+                .filter_map(|item: &serde_json::Value| {
+                    let title = item.get("title").and_then(|value| value.as_str())?;
+                    let url = item.get("url").and_then(|value| value.as_str())?;
+                    let width = item
+                        .get("width")
+                        .and_then(|value| value.as_i64())
+                        .map(|value| value as i32);
+                    let height = item
+                        .get("height")
+                        .and_then(|value| value.as_i64())
+                        .map(|value| value as i32);
+                    let cookie_configs = item
+                        .get("cookie_configs")
+                        .and_then(|value| value.as_array())
+                        .map(|configs: &Vec<serde_json::Value>| {
+                            configs
+                                .iter()
+                                .filter_map(|config_item: &serde_json::Value| {
+                                    let name =
+                                        config_item.get("name").and_then(|value| value.as_str())?;
+                                    let domain = config_item
+                                        .get("domain")
+                                        .and_then(|value| value.as_str())
+                                        .map(ToString::to_string);
+                                    let days =
+                                        config_item.get("days").and_then(|value| value.as_i64());
+                                    let url_filter = config_item
+                                        .get("url_filter")
+                                        .and_then(|value| value.as_str())
+                                        .map(ToString::to_string);
+
+                                    Some(CookieConfig {
+                                        name: name.to_string(),
+                                        domain,
+                                        days,
+                                        url_filter,
+                                    })
+                                })
+                                .collect()
+                        });
+
+                    Some(WebBookmark {
+                        title: title.to_string(),
+                        url: url.to_string(),
+                        width,
+                        height,
+                        cookie_configs,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            vec![WebBookmark {
+                title: "测试网站".to_string(),
+                url: "https://example.com/".to_string(),
+                width: None,
+                height: None,
+                cookie_configs: None,
+            }]
+        })
+}
+
+
+#[cfg(test)]
+#[path = "bookmark_init_tests.rs"]
+mod init_tests;

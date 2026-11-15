@@ -203,3 +203,9 @@ impl ExternalOpenApp {
         }
     }
 }
+
+impl WorkspaceMode {
+    pub fn chat_fullscreen(self, code: bool, work: bool) -> bool {
+        match self { Self::Code => code, Self::Work => work }
+    }
+}

@@ -175,3 +175,8 @@ fn chinese_file_query_replaces_active_mention() {
         "查看 @原始视频.mov "
     );
 }
+
+#[test]
+fn normalize_file_search_query_trims_slashes_and_case() {
+    assert_eq!(super::normalize_file_search_query("  Src\\Main.RS  "), "src/main.rs");
+}

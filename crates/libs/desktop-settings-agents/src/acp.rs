@@ -115,3 +115,20 @@ pub fn ordered_agents(catalog: &std::collections::BTreeMap<String, AcpAgentConfi
 
 #[cfg(test)]
 mod tests;
+
+pub fn sort_acp_agents(
+    acp_cfg: &std::collections::HashMap<String, config_aggregate::AcpAgentConfig>,
+) -> Vec<String> {
+    let mut acp_agents = acp_cfg.keys().cloned().collect::<Vec<_>>();
+    acp_agents.sort_by(|left, right| {
+        let left_key = (left != "codex", left.as_str());
+        let right_key = (right != "codex", right.as_str());
+        left_key.cmp(&right_key)
+    });
+    acp_agents
+}
+
+
+#[cfg(test)]
+#[path = "acp_init_tests.rs"]
+mod init_tests;

@@ -286,3 +286,16 @@ pub fn confirm_dialog<'a, Message: Clone + 'static>(
 #[cfg(test)]
 #[path = "toast_tests.rs"]
 mod tests;
+
+pub fn show_toast(active: &mut Option<Toast>, next_id: &mut usize, kind: ToastKind, message: String) -> usize {
+    let id = *next_id;
+    *next_id += 1;
+    *active = Some(Toast { localized_message: None, id, kind, message });
+    id
+}
+
+pub fn localized_toast_message(source: &str, arguments: Vec<desktop_i18n::format::Argument>) -> (String, desktop_i18n::format::Message) {
+    let message = desktop_i18n::format::Message::new(source, arguments);
+    let fallback = message.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)).expect("valid toast template");
+    (fallback, message)
+}

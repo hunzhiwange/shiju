@@ -7,25 +7,19 @@ use std::time::Duration;
 use super::state::ExternalOpenApp;
 use super::{App, Screen};
 use crate::app::message::NotificationMessage;
-use crate::app::state::{Toast, ToastKind, WorkspaceMode};
+use crate::app::state::ToastKind;
 
 impl App {
     pub(crate) fn is_chat_fullscreen(&self) -> bool {
-        match self.workspace_mode {
-            WorkspaceMode::Code => self.chat_panel_fullscreen,
-            WorkspaceMode::Work => self.work_chat_fullscreen,
-        }
+        self.workspace_mode.chat_fullscreen(self.chat_panel_fullscreen, self.work_chat_fullscreen)
     }
 
     pub(crate) fn is_chat_half_fullscreen(&self) -> bool {
-        match self.workspace_mode {
-            WorkspaceMode::Code => self.chat_panel_half_fullscreen,
-            WorkspaceMode::Work => self.work_chat_half_fullscreen,
-        }
+        self.workspace_mode.chat_fullscreen(self.chat_panel_half_fullscreen, self.work_chat_half_fullscreen)
     }
 
     fn normalize_file_search_query(query: &str) -> String {
-        query.trim().replace('\\', "/").to_ascii_lowercase()
+        desktop_session::message::chat::input::file_search::normalize_file_search_query(query)
     }
 
     /// 模块内可见函数，执行 is_diff_file_expanded 对应的应用流程。
@@ -38,14 +32,7 @@ impl App {
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     #[allow(dead_code)]
     pub(crate) fn toggle_diff_file_expanded(&mut self, path: String) {
-        if self.expanded_files_set.remove(&path) {
-            if let Some(pos) = self.expanded_files.iter().position(|item| item == &path) {
-                self.expanded_files.remove(pos);
-            }
-        } else {
-            self.expanded_files_set.insert(path.clone());
-            self.expanded_files.push(path);
-        }
+        desktop_git_ui::message_git::diff::toggle_diff_file_expanded(&mut self.expanded_files, &mut self.expanded_files_set, path)
     }
 
     /// 模块内可见函数，执行 ensure_diff_file_expanded 对应的应用流程。
@@ -58,8 +45,7 @@ impl App {
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     #[allow(dead_code)]
     pub(crate) fn replace_expanded_files(&mut self, files: Vec<String>) {
-        self.expanded_files_set = files.iter().cloned().collect();
-        self.expanded_files = files;
+        desktop_git_ui::message_git::diff::replace_expanded_files(&mut self.expanded_files, &mut self.expanded_files_set, files)
     }
 
     /// 模块内可见函数，执行 clear_expanded_files 对应的应用流程。
@@ -83,22 +69,13 @@ impl App {
     /// 模块内可见函数，执行 toggle_file_tree_dir_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn toggle_file_tree_dir_expanded(&mut self, path: String) {
-        if self.file_tree_expanded_set.remove(&path) {
-            if let Some(pos) = self.file_tree_expanded.iter().position(|item| item == &path) {
-                self.file_tree_expanded.remove(pos);
-            }
-        } else {
-            self.file_tree_expanded_set.insert(path.clone());
-            self.file_tree_expanded.push(path);
-        }
+        desktop_file_tree::state::toggle_file_tree_dir_expanded(&mut self.file_tree_expanded, &mut self.file_tree_expanded_set, path)
     }
 
     /// 模块内可见函数，执行 ensure_file_tree_dir_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn ensure_file_tree_dir_expanded(&mut self, path: String) {
-        if self.file_tree_expanded_set.insert(path.clone()) {
-            self.file_tree_expanded.push(path);
-        }
+        desktop_file_tree::state::ensure_file_tree_dir_expanded(&mut self.file_tree_expanded, &mut self.file_tree_expanded_set, path)
     }
 
     /// 公开函数，执行 title 对应的应用流程。
@@ -178,20 +155,10 @@ impl App {
         let query = Self::normalize_file_search_query(&self.search.search_text);
         let project_path = self.project_path.clone();
 
-        if self.search_panel_file_cache_query == query
-            && self.search_panel_file_cache_project_path == project_path
-            && self.search_panel_file_cache_revision == self.file_index_revision
-        {
-            return;
-        }
-
-        let results = self
-            .current_file_index()
-            .iter()
-            .filter(|path| path.to_ascii_lowercase().contains(&query))
-            .take(8)
-            .cloned()
-            .collect::<Vec<_>>();
+        let Some(results) = desktop_workspace::basic::refresh_search_panel_file_results(
+            self.current_file_index(), &query, project_path.as_deref(), self.file_index_revision,
+            &self.search_panel_file_cache_query, self.search_panel_file_cache_project_path.as_deref(), self.search_panel_file_cache_revision,
+        ) else { return; };
 
         self.search_panel_file_cache_query = query;
         self.search_panel_file_cache_project_path = project_path;
@@ -211,17 +178,10 @@ impl App {
         let query = Self::normalize_file_search_query(&self.file_search_query);
         let project_path = self.project_path.clone();
 
-        if self.file_search_cache_query == query
-            && self.file_search_cache_project_path == project_path
-            && self.file_search_cache_revision == self.file_index_revision
-        {
-            return;
-        }
-
-        let results = crate::app::message::chat::input::build_ranked_file_search_entries(
-            self.current_file_index(),
-            &query,
-        );
+        let Some(results) = desktop_session::message::chat::input::file_search::refresh_file_search_entries(
+            self.current_file_index(), &query, project_path.as_deref(), self.file_index_revision,
+            &self.file_search_cache_query, self.file_search_cache_project_path.as_deref(), self.file_search_cache_revision,
+        ) else { return; };
 
         self.file_search_cache_query = query;
         self.file_search_cache_project_path = project_path;
@@ -278,23 +238,9 @@ impl App {
     /// 公开函数，执行 push_notification 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn push_notification(&mut self, message: String) {
-        let id = self.next_notification_id;
-        self.next_notification_id += 1;
-        self.notifications.push(crate::app::state::Notification {
-            localized_message: None,
-            id,
-            message,
-            created_at: {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    std::time::SystemTime::now()
-                }
-                #[cfg(target_arch = "wasm32")]
-                {
-                    web_time::SystemTime::now()
-                }
-            },
-        });
+        desktop_navigation::components::notification::push_notification(
+            &mut self.notifications, &mut self.next_notification_id, message,
+        );
     }
 
     pub(crate) fn set_localized_input_error(
@@ -330,15 +276,9 @@ impl App {
         source: &str,
         arguments: Vec<crate::app::i18n::format::Argument>,
     ) {
-        let message = crate::app::i18n::format::Message::new(source, arguments);
-        let fallback = message
-            .render(crate::app::i18n::I18n::new(
-                config_ui::DesktopLocale::SimplifiedChinese,
-            ))
-            .expect("valid notification template");
-        self.push_notification(fallback);
-        self.notifications.last_mut().expect("notification was inserted").localized_message =
-            Some(message);
+        desktop_navigation::components::notification::push_localized_notification(
+            &mut self.notifications, &mut self.next_notification_id, source, arguments,
+        );
     }
 
     /// 公开函数，执行 show_toast 对应的应用流程。
@@ -348,10 +288,9 @@ impl App {
         kind: ToastKind,
         message: impl Into<String>,
     ) -> iced::Task<crate::app::Message> {
-        let id = self.next_toast_id;
-        self.next_toast_id += 1;
-        self.active_toast =
-            Some(Toast { localized_message: None, id, kind, message: message.into() });
+        let id = desktop_ui_controls::toast::show_toast(
+            &mut self.active_toast, &mut self.next_toast_id, kind, message.into(),
+        );
         crate::app::message::after(
             Duration::from_millis(2200),
             crate::app::Message::Notification(NotificationMessage::HideToast(id)),
@@ -366,16 +305,9 @@ impl App {
         source: &str,
         arguments: Vec<crate::app::i18n::format::Argument>,
     ) -> iced::Task<crate::app::Message> {
-        let message = crate::app::i18n::format::Message::new(source, arguments);
-        let fallback = message
-            .render(crate::app::i18n::I18n::new(
-                config_ui::DesktopLocale::SimplifiedChinese,
-            ))
-            .expect("valid toast template");
+        let (fallback, message) = desktop_ui_controls::toast::localized_toast_message(source, arguments);
         let task = self.show_toast(kind, fallback);
-        if let Some(toast) = &mut self.active_toast {
-            toast.localized_message = Some(message);
-        }
+        if let Some(toast) = &mut self.active_toast { toast.localized_message = Some(message); }
         task
     }
 

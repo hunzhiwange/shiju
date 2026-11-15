@@ -155,3 +155,63 @@ fn session_runtime_defaults_goal_mode_enabled() {
     assert!(with_model.goal_mode_enabled);
     assert!(!with_model.workflow_mode_enabled);
 }
+
+use std::sync::Arc;
+fn agent_request(id: u64, session: &str) -> Arc<crate::message::chat::request::AgentRequest> {
+    Arc::new(crate::message::chat::request::AgentRequest {
+        id,
+        session: session.to_string(),
+        query: "hello".to_string(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_model_source: Default::default(),
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        require_agent_tool: false,
+        acp_force_new_session: false,
+        acp_history_mode: AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: Some(false),
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+        goal_mode_enabled: false,
+        history: Vec::new(),
+    })
+}
+
+
+#[test]
+fn subscription_request_collection_reuses_shared_request_allocation() {
+    let active_session_id = Some("active".to_string());
+    let mut runtime_states = std::collections::HashMap::new();
+
+    let mut active_request = agent_request(1, "active");
+    Arc::make_mut(&mut active_request).history = (0..1_024)
+        .map(|index| session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::User,
+            content: format!("large history message {index}"),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect();
+    let mut active_runtime = SessionRuntimeState::new();
+    active_runtime.request_lifecycle.active_agent_request = Some(active_request);
+    runtime_states.insert("active".to_string(), active_runtime);
+
+    let mut background_runtime = SessionRuntimeState::new();
+    background_runtime.request_lifecycle.active_agent_request = Some(agent_request(2, "background"));
+    runtime_states.insert("background".to_string(), background_runtime);
+
+    let first = super::collect_agent_subscription_requests(&active_session_id, &runtime_states);
+    let second = super::collect_agent_subscription_requests(&active_session_id, &runtime_states);
+
+    assert_eq!(first.iter().map(|request| request.id).collect::<Vec<_>>(), vec![1, 2]);
+    assert_eq!(second.iter().map(|request| request.id).collect::<Vec<_>>(), vec![1, 2]);
+    assert!(Arc::ptr_eq(&first[0], &second[0]));
+    assert!(Arc::ptr_eq(&first[1], &second[1]));
+}

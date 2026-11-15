@@ -395,38 +395,6 @@ fn subscription_builds_agent_runtime_states() {
 }
 
 #[test]
-fn subscription_request_collection_reuses_shared_request_allocation() {
-    let mut app = test_app();
-    app.active_session_id = Some("active".to_string());
-
-    let mut active_request = agent_request(1, "active");
-    Arc::make_mut(&mut active_request).history = (0..1_024)
-        .map(|index| crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::User,
-            content: format!("large history message {index}"),
-            model: None,
-            think_timing: Vec::new(),
-            processing_timing: None,
-        })
-        .collect();
-    let mut active_runtime = SessionRuntimeState::new();
-    active_runtime.request_lifecycle.active_agent_request = Some(active_request);
-    app.session_runtime_states.insert("active".to_string(), active_runtime);
-
-    let mut background_runtime = SessionRuntimeState::new();
-    background_runtime.request_lifecycle.active_agent_request = Some(agent_request(2, "background"));
-    app.session_runtime_states.insert("background".to_string(), background_runtime);
-
-    let first = collect_agent_subscription_requests(&app);
-    let second = collect_agent_subscription_requests(&app);
-
-    assert_eq!(first.iter().map(|request| request.id).collect::<Vec<_>>(), vec![1, 2]);
-    assert_eq!(second.iter().map(|request| request.id).collect::<Vec<_>>(), vec![1, 2]);
-    assert!(Arc::ptr_eq(&first[0], &second[0]));
-    assert!(Arc::ptr_eq(&first[1], &second[1]));
-}
-
-#[test]
 fn workflow_run_subscription_is_active_only_while_running() {
     let mut app = test_app();
     assert!(workflow_run_subscription_request(&app).is_none());
@@ -553,37 +521,6 @@ fn file_tree_external_drop_native_event_is_observed_without_hover() {
             iced::window::Id::unique(),
         )
         .is_some()
-    );
-}
-
-#[cfg(unix)]
-#[tokio::test(flavor = "multi_thread")]
-async fn terminal_subscription_project_switch_distinguishes_reused_tab_ids() {
-    use iced::advanced::subscription::{Hasher, into_recipes};
-    use std::hash::Hasher as _;
-    let mut first = crate::app::TerminalState::default();
-    let mut second = crate::app::TerminalState::default();
-    first.tabs.clear();
-    second.tabs.clear();
-    let first_id = first
-        .add_terminal_with_command("first".into(), Some(std::env::temp_dir()), "exec cat".into())
-        .unwrap();
-    let second_id = second
-        .add_terminal_with_command("second".into(), Some(std::env::temp_dir()), "exec cat".into())
-        .unwrap();
-    assert_eq!(first_id, second_id);
-    let hash = |term: &iced_term::Terminal| {
-        let mut recipes = into_recipes(super::terminal_subscription(term));
-        assert_eq!(recipes.len(), 1);
-        let mut hasher = Hasher::default();
-        recipes.pop().unwrap().hash(&mut hasher);
-        hasher.finish()
-    };
-    assert_eq!(hash(&first.tabs[0].term), hash(&first.tabs[0].term));
-    assert_ne!(
-        hash(&first.tabs[0].term),
-        hash(&second.tabs[0].term),
-        "project switch must replace the PTY receiver instead of retaining the old recipe"
     );
 }
 

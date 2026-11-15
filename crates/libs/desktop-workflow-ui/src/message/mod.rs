@@ -308,3 +308,54 @@ pub mod run_inputs;
 pub mod video_edit;
 
 pub mod effects;
+
+
+#[cfg(not(target_arch = "wasm32"))]
+type WorkflowRunBoxStream<T> = iced::futures::stream::BoxStream<'static, T>;
+#[cfg(target_arch = "wasm32")]
+type WorkflowRunBoxStream<T> = iced::futures::stream::LocalBoxStream<'static, T>;
+
+pub fn workflow_run_stream(
+    req: &WorkflowRunSubscriptionRequest,
+    client: fn() -> Result<gateway_workflow::GatewayWorkflowClient, String>,
+) -> WorkflowRunBoxStream<WorkflowMessage> {
+    use iced::futures::SinkExt;
+    use gateway_workflow::{GatewayWorkflowResponseMode, GatewayWorkflowStreamRequest};
+
+
+    let req = req.clone();
+    Box::pin(iced::stream::channel(
+        100,
+        move |mut output: iced::futures::channel::mpsc::Sender<WorkflowMessage>| async move {
+            let result = match client() {
+                Ok(client) => {
+                    let body = GatewayWorkflowStreamRequest {
+                        query: req.query.clone(),
+                        inputs: req.inputs.clone(),
+                        response_mode: GatewayWorkflowResponseMode::Streaming,
+                        user: req.user.clone(),
+                        conversation_id: None,
+                    };
+                    client
+                        .stream_workflow_application(&req.uuid, &body, |event| {
+                            output
+                                .try_send(WorkflowMessage::SavedAppRunEvent {
+                                    uuid: req.uuid.clone(),
+                                    event,
+                                })
+                                .is_ok()
+                        })
+                        .await
+                }
+                Err(error) => Err(error),
+            };
+
+            let _ = output
+                .send(WorkflowMessage::SavedAppRunFinished {
+                    uuid: req.uuid,
+                    result,
+                })
+                .await;
+        },
+    ))
+}

@@ -209,3 +209,27 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
 
 #[cfg(test)]
 mod agent_tests;
+
+pub fn collect_agent_subscription_requests<RenderState>(
+    active_session_id: &Option<String>,
+    runtime_states: &std::collections::HashMap<String, SessionRuntimeState<RenderState>>,
+) -> Vec<std::sync::Arc<crate::message::chat::request::AgentRequest>> {
+    use std::sync::Arc;
+    let mut requests = Vec::new();
+    if let Some(active_id) = active_session_id
+        && let Some(request) = runtime_states
+            .get(active_id)
+            .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref().map(Arc::clone))
+    {
+        requests.push(request);
+    }
+    for (session_id, runtime) in runtime_states {
+        if active_session_id.as_ref() == Some(session_id) {
+            continue;
+        }
+        if let Some(request) = runtime.request_lifecycle.active_agent_request.as_ref().map(Arc::clone) {
+            requests.push(request);
+        }
+    }
+    requests
+}

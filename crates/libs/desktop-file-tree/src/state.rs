@@ -74,3 +74,20 @@ pub struct FindInFolderTab {
     /// 当前显示的结果页，从 0 开始
     pub results_page: usize,
 }
+
+pub fn toggle_file_tree_dir_expanded(ordered: &mut Vec<String>, membership: &mut std::collections::HashSet<String>, path: String) {
+        if (*membership).remove(&path) {
+            if let Some(pos) = (*ordered).iter().position(|item| item == &path) {
+                (*ordered).remove(pos);
+            }
+        } else {
+            (*membership).insert(path.clone());
+            (*ordered).push(path);
+        }
+}
+
+pub fn ensure_file_tree_dir_expanded(ordered: &mut Vec<String>, membership: &mut std::collections::HashSet<String>, path: String) {
+        if (*membership).insert(path.clone()) {
+            (*ordered).push(path);
+        }
+}

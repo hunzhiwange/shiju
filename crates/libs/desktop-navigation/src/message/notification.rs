@@ -52,27 +52,9 @@ pub fn update(app: State<'_>, message: NotificationMessage) -> Option<(usize, St
         NotificationMessage::Add(msg) => {
             // 获取当前通知 ID 并递增计数器
             let id = *app.next_notification_id;
-            *app.next_notification_id += 1;
-
-            // 创建并添加新通知到列表
-            app.notifications.push(Notification {
-                localized_message: None,
-                id,
-                message: msg.clone(),
-                // 根据目标平台获取当前系统时间
-                // 非 wasm32 平台使用标准库的 SystemTime
-                // wasm32 平台使用 web_time crate 以支持 Web 环境
-                created_at: {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        std::time::SystemTime::now()
-                    }
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        web_time::SystemTime::now()
-                    }
-                },
-            });
+            crate::components::notification::push_notification(
+                app.notifications, app.next_notification_id, msg.clone(),
+            );
             // 创建对应的编辑器内容，支持文本选择和复制
             app.notification_editors
                 .insert(id, iced::widget::text_editor::Content::with_text(&msg));

@@ -54,11 +54,6 @@ fn new_app() -> App {
 }
 
 #[test]
-fn normalize_file_search_query_trims_slashes_and_case() {
-    assert_eq!(App::normalize_file_search_query("  Src\\Main.RS  "), "src/main.rs");
-}
-
-#[test]
 fn diff_file_expansion_helpers_keep_order_and_set_in_sync() {
     let mut app = new_app();
 

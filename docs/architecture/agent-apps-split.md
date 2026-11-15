@@ -2384,3 +2384,22 @@ app-auth::apps 接收 lifecycle::operations/coordinator 与 launch::account/requ
 采用清单人工审阅与标准库路径/依赖环检查替代，未安装工具或改 Cargo.lock。
 未运行 Cargo、rustc、单元及实机测试，统一验收待授权，重点覆盖新库与门面目标、
 macOS/Linux/Windows/wasm 原有条件、迁移单测、故障注入与共享 usage 夹具。
+
+## 任务 23 静态迁移结果
+
+`app-provider-login` 唯一拥有 codex_login、codex_login_material、codex_login_policy
+及 codex_login_tests、codex_login_policy_tests、codex_login_transaction_tests 六个文件。
+覆盖上表任务 23 所有权；Claude LoginMaterial/LoginHost 和测试已由任务 22
+归 app-auth，此轮不重搬。原 providers::codex_login 重导出新包；aggregation
+使用的身份提取仍从 app-auth-codex 重导出，不公开分类内部接口。
+prepare/PreparedLogin/LoginInput/AuthTarget/STASH_FILENAME 保持原公开路径；
+AppWriteGuard、WholeFile、FileChange 直接来自 app-config-write，同一事务类型不变。
+测试注册和两个相邻 #[path] 保持，测试消费 app-auth test-support 的原事务钩子。
+全部实现及测试保持 macOS 条件，无静态资源迁移；拒绝条件和函数体不变。
+新包无门面回依赖，生产依赖仅认证身份规则、配置写入、API 身份及序列化依赖；
+app-auth 仅为测试依赖，现无回边。原包直接依赖仍有其它调用者，保留。
+
+静态证据：git diff --check、移动内容与原文件对照、调用者和导出检索、Python
+标准库 TOML 路径及依赖无环审阅。未运行 Cargo、单元及实机测试，统一验收待授权：
+新增库与直接调用方编译、迁移单测、macOS 事务恢复及拒绝路径、其它平台条件。
+本任务无留存编排符号交给后继。

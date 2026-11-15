@@ -4,6 +4,7 @@ members = [
   "crates/libs/app-self-update",
   "crates/libs/gateway-interaction",
   "crates/libs/app-auth",
+  "crates/libs/app-provider-login",
   "crates/libs/desktop-release",
   "crates/libs/gateway-cron",
   "crates/libs/app-auth-agy",

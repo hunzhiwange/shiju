@@ -3,7 +3,7 @@
 pub use super::codex_login_policy::AuthTarget;
 pub use super::codex_login_policy::STASH_FILENAME;
 use super::codex_login_policy::{AuthInput, LoginStash, plan};
-use super::live::{
+use app_config_write::{
     stage::{FileChange, WholeFile},
     write_guard::{AppWriteGuard, FilePrivacy, WriteError},
 };

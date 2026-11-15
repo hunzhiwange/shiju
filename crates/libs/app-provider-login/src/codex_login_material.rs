@@ -16,9 +16,7 @@ enum CodexResolvedAuthMode {
     Unrecognized,
 }
 
-pub(crate) use app_auth_codex::identity::{
-    extract_codex_auth_user_identity, parse_codex_jwt_claims,
-};
+use app_auth_codex::identity::extract_codex_auth_user_identity;
 pub(super) fn extract_codex_auth_api_key(auth: &Value) -> Option<String> {
     auth.get("OPENAI_API_KEY")
         .and_then(|value| value.as_str())

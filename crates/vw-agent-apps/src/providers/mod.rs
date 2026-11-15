@@ -58,13 +58,11 @@ pub use app_auth::providers::claude_login;
 pub use app_provider_projection::codex;
 
 #[cfg(target_os = "macos")]
-pub mod codex_login;
+pub use app_provider_login::codex_login;
 #[cfg(target_os = "macos")]
-pub(crate) mod codex_login_material;
-#[cfg(target_os = "macos")]
-mod codex_login_policy;
-#[cfg(all(test, target_os = "macos"))]
-mod codex_login_tests;
+pub(crate) mod codex_login_material {
+    pub(crate) use app_auth_codex::identity::extract_codex_auth_user_identity;
+}
 
 #[cfg(target_os = "macos")]
 pub mod codex_catalog;

@@ -26,7 +26,7 @@ use crate::gateway::GatewayConfig;
 use crate::gateway::TunnelConfig;
 use config_hooks::HooksConfig;
 use crate::memory::{MemoryConfig, StorageConfig};
-use crate::observability::ObservabilityConfig;
+use config_observability::ObservabilityConfig;
 use crate::plugins::PluginsConfig;
 use crate::proxy::ProxyConfig;
 use config_reliability::ReliabilityConfig;

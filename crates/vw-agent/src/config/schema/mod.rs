@@ -55,7 +55,7 @@ pub use vw_config_types::agent;
 pub use vw_config_types::gateway;
 pub use config_hooks as hooks;
 pub use vw_config_types::memory;
-pub use vw_config_types::observability;
+pub use config_observability as observability;
 pub use config_reliability as reliability;
 pub use config_routing as routing;
 pub use vw_config_types::runtime;

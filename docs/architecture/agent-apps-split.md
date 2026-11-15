@@ -2746,3 +2746,14 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 - 新包直接使用 app-auth 的事务与记录发布、app-config-write、app-config-paths、app-provider-validation、app-session-core、app-session-codex 及实际 API/序列化/SQLite/压缩依赖；全部置于 macOS target 段，保留 rusqlite bundled/hooks/limits 与 serde_json arbitrary_precision。原包这些依赖仍有其它调用者，保留。
 - 静态证据：五份源码与 HEAD 差异仅导入路径，source.rs 逐字一致；标准库路径审阅配合已有 pip._vendor.tomli 读取清单，46 个传递生产依赖清单均存在且无旧门面回依赖；workspace 和直接路径依赖已注册。maintenance 与网关 host 继续通过原公开符号调用，git diff --check 通过。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：新增包、基础 source 与维护/网关调用者编译、迁移恢复与授权路径定向测试及原平台行为。静态证据不代表行为通过；Cargo.lock 未修改，未执行数据迁移。
+
+
+### 任务 53：会话内容与存储（静态迁移完成）
+
+- `app-session-content/src` 唯一拥有 `cache.rs`、`content_file.rs`、`content_sqlite.rs`、`images.rs`、`markdown.rs`、`turns.rs` 六个实现。原 sessions/mod.rs 直接重导出这六个模块；lib.rs 的已有 `pub mod sessions` 足以传递公开路径，无需额外导出。
+- source.rs 已在任务 52 下沉 app-session-core；rollout.rs 已在任务 47 下沉 app-session-codex，本任务沿用原门面，不重复搬迁。新包在内部使用 core::source；文件读取显式调用 app-session-gemini::gemini 和 app-session-codex::rollout。SQLite 与文件读取的独立入口、只读约束、分页和授权检查不变。
+- 网关 content/images/messages/markdown/stream、会话删除及桌面读取器继续使用原 sessions 路径。safe_join/read_limited/extract_text 保持包内可见，无新增公开辅助 API；新包 source 重导出既有基础类型以连接内部模块。跨适配器分发与会话操作仍由任务 54 接收，无本任务未闭合叶子实现。
+- 直接依赖按实际使用声明；serde_json 保留 arbitrary_precision，rusqlite 保留 bundled/hooks/limits。门面 base64 已无源码调用，移除其直接依赖；其余依赖仍被其它领域使用，保留。Cargo.lock 未修改。
+- Python 3.12 标准库 tomllib 核实新包、workspace 和门面清单、直接路径及 7 个本地传递包，无旧门面回依赖。系统 Python 不含 tomllib，改用已安装的 Python 3.12；未安装工具。RustCodeGraph status 可用，explore 长时间无输出后终止，迁移后路径不在旧图中，改用源码及调用者检索。
+- 六文件与 HEAD 逐字对照，仅替换 Gemini/Codex 具体包调用路径；无独立测试注册、平台 cfg 或 include 资源需搬迁。源码检索确认旧实现已移除、关键调用保持门面接线；git diff --check 通过。
+- 未运行 Cargo、单元及实机测试，静态审阅不代表编译或行为通过。统一验收待授权：新库与直接调用者编译、内容读取/缓存/图片/Markdown/轮次投影定向行为及 macOS/Windows/Linux 平台行为。

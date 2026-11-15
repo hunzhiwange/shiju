@@ -48,13 +48,13 @@ pub fn resolve_content_ref(source: &ValidatedSource, content: &ContentRef) -> Re
             let path = safe_join(source.root(), rel_path)?;
             let bytes = read_limited(&path)?;
             let value: Value = if source.identity().provider == SessionProvider::Gemini {
-                super::providers::gemini::parse_session_document(std::str::from_utf8(&bytes).map_err(|_| NOT_TEXT)?).ok_or(STALE)?
+                app_session_gemini::gemini::parse_session_document(std::str::from_utf8(&bytes).map_err(|_| NOT_TEXT)?).ok_or(STALE)?
             } else { serde_json::from_slice(&bytes).map_err(|_| STALE)? };
             if path != source.path() {
                 validate_opencode_part(source, &path, &value)?;
             }
             if source.identity().provider == SessionProvider::Gemini && pointer.ends_with("/thoughts") {
-                super::providers::gemini::format_thoughts(value.pointer(pointer).ok_or(STALE)?).ok_or(NOT_TEXT)?.text
+                app_session_gemini::gemini::format_thoughts(value.pointer(pointer).ok_or(STALE)?).ok_or(NOT_TEXT)?.text
             } else { extract_text(&value, pointer)? }
         }
         ContentRef::Sidecar { rel_path } => {
@@ -111,7 +111,7 @@ fn read_jsonl_line(path: &Path, offset: u64, len: u32) -> Result<Vec<u8>, String
     let start = offset.saturating_sub(1);
     let mut reader: Box<dyn Read> = if path.extension().is_some_and(|s| s == "zstd") {
         Box::new(zstd::stream::read::Decoder::new(File::open(path).map_err(|_| STALE)?).map_err(|_| STALE)?)
-    } else { Box::new(super::rollout::open_reader(path).map_err(|_| STALE)?) };
+    } else { Box::new(app_session_codex::rollout::open_reader(path).map_err(|_| STALE)?) };
     if std::io::copy(&mut reader.by_ref().take(start), &mut std::io::sink()).map_err(|_| STALE)? != start { return Err(STALE.into()); }
     let mut buf = Vec::new();
     reader.take(end - start + 1).read_to_end(&mut buf).map_err(|_| STALE)?;

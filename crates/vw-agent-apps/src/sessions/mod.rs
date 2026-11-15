@@ -8,16 +8,16 @@ pub mod providers;
 
 pub mod source;
 
-pub mod content_file;
-pub mod content_sqlite;
+pub use app_session_content::content_file;
+pub use app_session_content::content_sqlite;
 
-pub mod images;
+pub use app_session_content::images;
 
-pub mod cache;
+pub use app_session_content::cache;
 
-pub mod turns;
+pub use app_session_content::turns;
 
-pub mod markdown;
+pub use app_session_content::markdown;
 
 pub mod catalog;
 

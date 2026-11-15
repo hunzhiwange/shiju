@@ -1,0 +1,20 @@
+[package]
+name = "app-session-content"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-session-core = { path = "../app-session-core" }
+app-session-codex = { path = "../app-session-codex" }
+app-session-gemini = { path = "../app-session-gemini" }
+vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+base64 = "0.23"
+zstd = "0.13"

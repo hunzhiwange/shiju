@@ -4,7 +4,12 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[lib]
+doctest = false
+
 [dependencies]
+anyhow = "1"
+session-info = { path = "../session-info", version = "0.6.0" }
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 vw-api-session = { path = "../api-session", version = "0.6.0" }
 todo-types = { path = "../todo-types", version = "0.6.0" }
@@ -15,6 +20,10 @@ vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+session-port = { path = "../session-port", version = "0.6.0" }
+session-store = { path = "../session-store", version = "0.6.0" }
 
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

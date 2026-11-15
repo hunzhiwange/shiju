@@ -13,7 +13,7 @@
 - 旧路径引用复核线索（不是迁移前置）：任务 1 的 `crate::project::instance::provide`；任务 6 的 `crate::storage::list_strict`；任务 18 的 `crate::provider::provider::invalidate_cache`；任务 38 的 `crate::worktree::environment::ensure_ready`；任务 63 的 `crate::session::agent_binding::save_scoped`；任务 65 的 `crate::agent::catalog::merged_agent_catalog`；任务 168 的 `crate::worktree`；任务 182 的 `crate::session::compaction_checkpoint::save`；任务 217 的 `crate::session::llm_raw::LlmRawArtifact`；任务 254 的 `crate::session::store::LlmRawStepKey`；任务 263 的 `crate::gateway::chat::invalidate_session_query_engine`；任务 269 的 `crate::session::ui_store::current_tenant_scope`；任务 278 的 `crate::gateway::instance::InstanceQuery`；任务 303 的 `crate::session::runtime::reserve_session`；任务 305 的 `crate::gateway`；任务 306 的 `crate::session::llm::recovery_test_support::RecoveryConfig::new`；任务 307 的 `crate::session::session::get`；任务 312 的 `crate::session`；任务 315 的 `crate::agent::get`。已有真实实现/窄适配可保持调用；只有必须消费未交付新接口时，记录符号证据后增加局部依赖。
 - 执行时滚动调度，编号仅提供可行线性顺序；只等待本卡明确列出的前置完成并集成。在途旧编号按任务编号对照认领，禁止重复执行。
 
-状态：未开始
+状态：已阻塞
 
 目的：迁移，将本任务职责归入 `gateway-session`。
 
@@ -71,3 +71,13 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+
+## 2026-11-16 部分实施记录（未完成）
+
+- 归档树验证与排序由 gateway-session/src/archived_delete.rs 持有，使用 session-info::Info；原 handler 薄重导出 delete_order。六个纯排序测试连同 fixture 迁往独立 archived_delete_tests.rs；原宿主文件保留全部 persistence 测试与断言。
+- 原 raw_commit.rs 全部登记/声明/确认逻辑和单一全局 registry 迁至 gateway-session/src/raw_commit.rs；raw_commit_tests.rs 原样迁入。宿主只重导出 register/claim/acknowledge。依赖真实 session_port::llm_raw::LlmRawArtifact 和 session_store::LlmRawStepKey，不复制键校验、不复制全局状态；版本检查、租户/项目键、锁中毒处理保持。
+- 目标新增 anyhow/session-info 与非 wasm session-port/session-store 依赖；未改公共清单/父模块/调用者，已有 gateway-session 依赖足够接线。
+- 剩余 acp_options、message_ops、session_ops、shared 及 archived_delete HTTP 处理器仍在宿主，未实现完毕。运行时 create_session/load_session/reserve_session、ui_store 租户 task-local 与持久化、session::llm ACP 控制、gateway::chat 缓存仍需按实际签名接窄端口或真实领域服务。此项是剩余工作，不声称完成或接口不存在；此前 LlmRawStepKey 缺失已随真实 session-store 交付解除。
+- 本轮保存部分产物，保留本卡；不删除或更改其它任务。
+- 静态验证：定向 git diff --check、目标包反向依赖搜索、TOML 解析；未运行Cargo、单元测试及实机测试，待统一验收。未来覆盖原 raw_commit_tests.rs、归档排序与原宿主 persistence 测试，非 wasm 网关平台组合。

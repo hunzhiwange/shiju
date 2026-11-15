@@ -16,3 +16,10 @@ impl GatewaySessionClient {
 
 #[cfg(test)]
 mod test_support;
+
+/// Archived tree validation shared by session handlers.
+pub mod archived_delete;
+
+/// Pending raw artifacts awaiting durable UI snapshot acknowledgement.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod raw_commit;

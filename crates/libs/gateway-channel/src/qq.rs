@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
 
 const PORTAL_BASE: &str = "https://q.qq.com";
 const CREATE_PATH: &str = "/lite/create_bind_task";

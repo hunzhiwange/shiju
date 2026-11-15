@@ -4,7 +4,7 @@ use reqwest::Url;
 use serde_json::{Map, Value};
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
 
 const WECOM_AUTH_ORIGIN: &str = "https://work.weixin.qq.com";
 const WECOM_SOURCE: &str = "vibewindow";

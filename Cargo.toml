@@ -152,6 +152,7 @@ members = [
   "crates/libs/gateway-shiju-account",
   "crates/libs/shiju-client",
   "crates/libs/gateway-channel-qr",
+  "crates/libs/gateway-channel",
   "crates/libs/gateway-system",
   "crates/libs/gateway-interaction",
   "crates/libs/app-auth",

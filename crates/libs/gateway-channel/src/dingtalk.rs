@@ -1,7 +1,7 @@
 use serde_json::{Map, Value, json};
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
 
 const DINGTALK_API_BASE: &str = "https://oapi.dingtalk.com";
 const DINGTALK_SOURCE: &str = "QWENPAW";

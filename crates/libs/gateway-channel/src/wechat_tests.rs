@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::app::agent::channels::wechat::protocol::APP_CLIENT_VERSION;
+use channel_wechat::protocol::APP_CLIENT_VERSION;
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;

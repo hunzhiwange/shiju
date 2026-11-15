@@ -1,5 +1,5 @@
 use super::{fetch_from_endpoint, poll_from_endpoint};
-use crate::app::agent::gateway::api::handlers::channel_qr::ChannelQrStatus;
+use crate::ChannelQrStatus;
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;

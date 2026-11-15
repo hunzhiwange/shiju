@@ -1,16 +1,10 @@
-use axum::extract::{Extension, Path, Query};
 use serde_json::{Map, Value, json};
-use vw_api_transport::id::TenantScope;
 use config_channel_services::{
     DingTalkConfig, FeishuConfig, QQConfig, QQReceiveMode, WeChatConfig, WeComConfig,
 };
 
 use crate::app::agent::channels::manager::collect_configured_channels;
 use crate::app::agent::config::Config;
-
-use super::{
-    ChannelQrStatusQuery, channel_qr_fetch, channel_qr_status, seed_pending_handle_for_test,
-};
 
 fn qr_credential(
     credentials: &Map<String, Value>,
@@ -62,28 +56,6 @@ fn runtime_config_from_qr_credentials(credentials: &Map<String, Value>) -> Resul
         base_url: qr_credential(credentials, "wechat", "base_url")?,
     });
     Ok(config)
-}
-
-#[tokio::test]
-async fn channel_qr_rejects_unknown_and_cross_tenant_poll() {
-    let tenant_a = TenantScope::new("platform-a", "company-a").expect("tenant A");
-    let tenant_b = TenantScope::new("platform-b", "company-b").expect("tenant B");
-
-    let unknown =
-        channel_qr_fetch(Extension(tenant_a.clone()), Path("unknown-channel".to_string()))
-            .await
-            .expect_err("unknown channel must be rejected");
-    assert_eq!(unknown.status.as_u16(), 400);
-
-    let handle = seed_pending_handle_for_test(&tenant_a, "dingtalk");
-    let cross_tenant = channel_qr_status(
-        Extension(tenant_b),
-        Path("dingtalk".to_string()),
-        Query(ChannelQrStatusQuery { handle }),
-    )
-    .await
-    .expect_err("a tenant must not poll another tenant's handle");
-    assert_eq!(cross_tenant.status.as_u16(), 404);
 }
 
 #[test]

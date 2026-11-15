@@ -5,7 +5,7 @@ use serde_json::json;
 use tokio::net::TcpListener;
 
 use super::{PollState, decrypt_secret, fetch_from, map_poll_response};
-use crate::app::agent::gateway::api::handlers::channel_qr::ChannelQrStatus;
+use crate::ChannelQrStatus;
 
 const KEY: [u8; 32] = [0x42; 32];
 const NONCE: [u8; 12] = [0x24; 12];

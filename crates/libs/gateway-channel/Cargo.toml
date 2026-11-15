@@ -1,0 +1,29 @@
+[package]
+name = "gateway-channel"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+channel-wechat = { path = "../channel-wechat", version = "0.6.0" }
+config-channel-services = { path = "../config-channel-services", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+base64 = "0.23"
+chrono = { version = "0.4", features = ["serde"] }
+image = "0.25.9"
+qrcode = "0.14"
+rand = "0.10.3"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+ring = "0.17.14"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+urlencoding = "2.1"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "time"] }

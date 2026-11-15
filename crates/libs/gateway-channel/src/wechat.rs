@@ -4,8 +4,8 @@ use serde_json::{Map, Value};
 use config_channel_services::DEFAULT_WECHAT_BASE_URL;
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
-use crate::app::agent::channels::wechat::protocol::{with_application_headers, with_json_headers};
-use crate::app::agent::gateway::ApiError;
+use channel_wechat::protocol::{with_application_headers, with_json_headers};
+use gateway_types::ApiError;
 
 pub(super) async fn fetch() -> Result<ProviderFetch, ApiError> {
     fetch_at(DEFAULT_WECHAT_BASE_URL).await

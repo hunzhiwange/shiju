@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
 
 const REGISTRATION_ENDPOINT: &str = "https://accounts.feishu.cn/oauth/v1/app/registration";
 

@@ -48,3 +48,13 @@ pub fn utc_now() -> Result<TimestampMs, AuthErrorCode> {
         .map(TimestampMs)
         .ok_or(AuthErrorCode::ExecutionHostUnavailable)
 }
+
+pub async fn send(
+    client: &reqwest::Client,
+    builder: reqwest::RequestBuilder,
+    route: &mut impl FnMut(&mut reqwest::Request),
+) -> Result<Response, AuthErrorCode> {
+    let mut request = builder.build().map_err(|_| AuthErrorCode::UpstreamFailure)?;
+    route(&mut request);
+    client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)
+}

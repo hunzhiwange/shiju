@@ -2,12 +2,16 @@
 
 use super::{
     codex_device::send,
-    copilot::{read_json_limited, utc_now},
     credential_file::XaiCredential,
     flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use app_auth_core::response::{read_json_limited, utc_now};
+pub(super) use app_auth_xai::protocol::{
+    CLIENT_ID, MAX_RESPONSE_BYTES, SCOPE, discover, oauth_client, valid_token,
+};
 use reqwest::{Client, Request, Url};
+use app_auth_xai::protocol::trusted_url;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -26,15 +30,10 @@ use {
     vw_api_app_auth::AuthStartResponse,
 };
 
-const ISSUER: &str = "https://auth.x.ai";
-const DISCOVERY_URL: &str = "https://auth.x.ai/.well-known/openid-configuration";
-pub(super) const CLIENT_ID: &str = "b1a00492-073a-47ea-816f-4c329264a828";
-pub(super) const SCOPE: &str = "openid profile email offline_access grok-cli:access api:access";
 const DEVICE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
 const POLL_SAFETY_MARGIN: u64 = 3;
 const MAX_POLL_INTERVAL: u64 = 60;
 const MAX_DEVICE_LIFETIME: u64 = 24 * 60 * 60;
-pub(super) const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
 pub struct XaiDeviceAuth {
     client: Client,
@@ -51,19 +50,6 @@ pub struct XaiDeviceStart {
 struct DeviceGrant {
     token_endpoint: Url,
     device_code: String,
-}
-
-#[derive(Deserialize)]
-pub(super) struct Discovery {
-    issuer: String,
-    token_endpoint: String,
-    device_authorization_endpoint: String,
-}
-
-impl Discovery {
-    pub(super) fn token_endpoint(&self) -> Result<Url, AuthErrorCode> {
-        trusted_url(&self.token_endpoint, &["auth.x.ai"])
-    }
 }
 
 #[derive(Deserialize)]
@@ -285,48 +271,6 @@ impl XaiDeviceAuth {
             None => Err(AuthErrorCode::UpstreamFailure),
         }
     }
-}
-
-pub(super) fn oauth_client() -> Result<Client, AuthErrorCode> {
-    Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(30))
-        .user_agent("cc-switch-xai-oauth")
-        .build()
-        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
-}
-
-pub(super) async fn discover(
-    client: &Client,
-    route: &mut impl FnMut(&mut Request),
-) -> Result<Discovery, AuthErrorCode> {
-    let response = send(client, client.get(DISCOVERY_URL), route).await?;
-    if !response.status().is_success() {
-        return Err(AuthErrorCode::UpstreamFailure);
-    }
-    let discovery: Discovery = read_json_limited(response, MAX_RESPONSE_BYTES).await?;
-    if discovery.issuer.trim_end_matches('/') != ISSUER {
-        return Err(AuthErrorCode::UpstreamFailure);
-    }
-    Ok(discovery)
-}
-
-fn trusted_url(value: &str, allowed_hosts: &[&str]) -> Result<Url, AuthErrorCode> {
-    let url = Url::parse(value).map_err(|_| AuthErrorCode::UpstreamFailure)?;
-    if url.scheme() != "https"
-        || !url.host_str().is_some_and(|host| allowed_hosts.contains(&host))
-        || url.port_or_known_default() != Some(443)
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-    {
-        return Err(AuthErrorCode::UpstreamFailure);
-    }
-    Ok(url)
-}
-
-pub(super) fn valid_token(token: &str) -> bool {
-    !token.is_empty() && token.bytes().all(|byte| byte.is_ascii_graphic())
 }
 
 fn claims(token: &str) -> Option<Claims> {

@@ -2231,3 +2231,28 @@ Copilot 会话的身份校验直接接入 app-provider-validation。lib.rs 经 a
 未运行 Cargo、单元及实机测试，统一验收待授权：新库和调用者编译、现有定向
 测试、三平台条件、域名及端点拒绝、授权轮询/缓存/代际一致性、锁文件一致性。
 本任务完成仅指已闭合规则下沉，完整运行时接收责任归任务 22。
+
+
+## 任务 17 静态迁移结果
+
+`app-auth-xai/src/protocol.rs` 唯一拥有 Discovery、discover、oauth_client、
+trusted_url、valid_token 与客户端/范围/响应大小常量；xai 原位置重导出真实共享
+入口，设备流程和刷新调用同一实现，Kimi 继续使用原 valid_token 路径。
+共用 send 从 codex_device 移至 app-auth-core::response，旧位置重导出；
+xAI 响应解析/时钟直接使用 core，刷新身份校验直接使用 app-provider-validation。
+新包直接依赖 core、reqwest rustls、serde derive、api-app-auth；全包保持非 wasm
+条件，无资源或 include 路径。原 lib.rs 经 auth 保持公开路径，无需增加别名。
+原包直接依赖仍有其它使用者，保留。
+
+覆盖基线所有权表的延期：前序任务后 CredentialFileStore、XaiCredential、
+credential_lease 仍属于门面并依赖 Claude 编排，故 xai.rs 剩余设备授权/账户生成、
+xai_refresh.rs 持久化和 XaiCredential 固有刷新实现留在原处。任务 22 必须在
+凭据存储闭环后将其归入 app-auth-xai，并收完 xai_tests.rs、xai_refresh_tests.rs
+及共享 copilot_tests::oauth_server 夹具。两个测试文件保持原 test/unix/非 wasm
+注册，不拆散、不复制或新增测试。当前完成仅指独立协议迁移。
+
+静态证据：迁移函数体与 HEAD 对照、真实调用者及单一实现检索、清单依赖和路径
+审阅（Python 无 tomllib，未执行 TOML 解析）、cfg 对照、git diff --check；
+新包无门面回依赖。未运行 Cargo、单元及
+实机测试，统一验收待授权：新增包与调用者编译、现有定向测试、三平台条件、
+发现端点拒绝/轮询/刷新代际行为和锁文件一致性。

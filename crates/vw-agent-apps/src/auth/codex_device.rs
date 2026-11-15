@@ -381,15 +381,7 @@ pub(super) async fn exchange_code(
     }
 }
 
-pub(super) async fn send(
-    client: &Client,
-    builder: reqwest::RequestBuilder,
-    route: &mut impl FnMut(&mut Request),
-) -> Result<Response, AuthErrorCode> {
-    let mut request = builder.build().map_err(|_| AuthErrorCode::UpstreamFailure)?;
-    route(&mut request);
-    client.execute(request).await.map_err(|_| AuthErrorCode::UpstreamFailure)
-}
+pub(super) use app_auth_core::response::send;
 
 async fn access_denied(response: Response) -> bool {
     read_json::<OAuthError>(response).await.is_ok_and(|error| error.error == "access_denied")

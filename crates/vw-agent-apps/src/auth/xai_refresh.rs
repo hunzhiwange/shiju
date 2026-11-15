@@ -2,13 +2,13 @@
 
 use super::{
     codex_device::send,
-    copilot::{read_body_limited, utc_now},
     credential_file::{AccountCredential, CredentialFileStore, XaiCredential},
     credential_lease::{refresh_publication_error, refresh_publication_lease},
     flow::AuthAccountScope,
     xai::{CLIENT_ID, MAX_RESPONSE_BYTES, SCOPE, discover, oauth_client, valid_token},
 };
-use crate::providers::validate_identity;
+use app_provider_validation::validate_identity;
+use app_auth_core::response::{read_body_limited, utc_now};
 use reqwest::{Client, Request, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;

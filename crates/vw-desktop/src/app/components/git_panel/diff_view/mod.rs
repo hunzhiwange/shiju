@@ -40,12 +40,6 @@ mod styles;
 mod text_diff;
 
 #[cfg(test)]
-#[path = "comment_editor_tests.rs"]
-mod comment_editor_tests;
-#[cfg(test)]
-#[path = "context_menu_tests.rs"]
-mod context_menu_tests;
-#[cfg(test)]
 #[path = "header_tests.rs"]
 mod header_tests;
 #[cfg(test)]
@@ -154,4 +148,22 @@ pub(super) enum DiffSplitPaneTone {
     Add,
     Delete,
     Empty,
+}
+
+fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::DiffMessage) -> crate::app::Message {
+    use desktop_git_ui::git_panel::diff_view::DiffMessage as Local;
+    use crate::app::{Message, message::GitMessage};
+    Message::Git(match event {
+        Local::DiffCommentCancel => GitMessage::DiffCommentCancel,
+        Local::DiffCommentSubmit => GitMessage::DiffCommentSubmit,
+        Local::OpenDiffCommentDraft => GitMessage::OpenDiffCommentDraft,
+        Local::SelectDiffContextStageLines => GitMessage::SelectDiffContextStageLines,
+        Local::ClearDiffContextStageLines => GitMessage::ClearDiffContextStageLines,
+        Local::DiscardDiffSelection => GitMessage::DiscardDiffSelection,
+        Local::CopyDiffSelection => GitMessage::CopyDiffSelection,
+        Local::InsertDiffSelectionToChat => GitMessage::InsertDiffSelectionToChat,
+        Local::CloseDiffContextMenu => GitMessage::CloseDiffContextMenu,
+        Local::DiffCommentEditorAction(action) => GitMessage::DiffCommentEditorAction(action),
+        Local::OpenDiffContextMenu {file, line, is_old, text, x, y} => GitMessage::OpenDiffContextMenu {file, line, is_old, text, x, y},
+    })
 }

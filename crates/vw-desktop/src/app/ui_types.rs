@@ -177,12 +177,7 @@ pub(crate) struct ChatMarkdownSelection {
     pub(crate) text: String,
 }
 
-/// 公开的 DiffTheme 枚举，描述该模块支持的一组离散状态或事件。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DiffTheme {
-    GitHub,
-    Monokai,
-}
+pub use desktop_git_ui::DiffTheme;
 
 /// 公开的 Screen 枚举，描述该模块支持的一组离散状态或事件。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

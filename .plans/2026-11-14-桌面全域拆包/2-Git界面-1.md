@@ -4,7 +4,7 @@
 
 批次：【批次 1】 依赖：首期及旧编号 1—40 已交付，核对提交与实际导出
 
-状态：未开始
+状态：已阻塞
 
 目的：完成Git界面的本片迁移与实际调用接线，缩小桌面 crate 的实现范围。
 
@@ -65,3 +65,13 @@ git diff --stat
 ```
 
 逐一审查搜索命中，不把 rg 零命中退出码 1 当作失败或编译通过。另查暂存差异，防止提交无关改动。所需证据：本片迁移映射、局部状态/消息边界、旧调用接线、测试注册、cfg/资源审阅及 diff 检查结果。新库不得反向依赖桌面；壳适配不得残留本片业务副本。明确报告未运行 Cargo、单元测试和实机验收。
+
+## 本次交付与剩余范围
+
+- 已建立 desktop-git-ui 并接入 workspace/桌面依赖。utils.rs 迁至 git_panel/utils.rs；桌面仅重导出，渲染函数按消息类型泛型化。DiffTheme 唯一所有者迁至库，桌面重导出。
+- code_review 视图与 patch 行着色迁至库；桌面保留 gateway_project_change_records 项目记录桥接、展开状态投影及 ReviewMessage 显式映射。
+- comment_editor/context_menu 迁至库；GitDiffLineRange、GitDiffContextMenuState、GitDiffCommentDraft 归库拥有。视图接收 locale/草稿/菜单状态，DiffMessage 映射回桌面 GitMessage；现有行内容经泛型 Outer 与纯消息转换函数组合，不捕获 App。
+- utils_tests 的纯领域断言迁至库，真实字体渲染测试仍在桌面（使用桌面字体资源）；code_review_tests 的 patch/着色断言迁至库，项目桥接/组合测试留桌面；comment_editor_tests/context_menu_tests 全部迁至库，独立模块注册，保留原断言。
+- 未完成：file_view/added_deleted.rs、added_deleted_tests.rs、body.rs 保持原位。本任务尚不能标为完成或删除。body 直接调用 gaps::render_gap/hunk_ops::render_hunk_ops，added_deleted 直接依赖 markers/selection/styles 与 DiffRenderCtx；这些相邻实现仍读取 App、发布全局 Message。需要继续梳理最小依赖闭包和领域渲染输入后迁移，不能直接搬文件、反向依赖桌面或用捕获 App 的回调集合伪装解耦。本次提交为部分成果，并非全部验收交付。
+- 静态审阅：新库无 crate::app/vw_desktop/vw-desktop 引用；复用 desktop-i18n 与 desktop-ui-controls 的 RightClickArea/PointBelowOverlay，未复制已有控件；无新增平台服务或资源路径。git diff --check 通过；Cargo.toml 仅静态读取，未改 Cargo.lock。
+- 按公共规则未运行任何 Cargo、单元测试、实际渲染或实机验收；这些结果均未知。执行目录为当前独立工作树 /Users/xiangmin/.codex/worktrees/a01b/shiju。RustCodeGraph 查询提示未初始化，未刷新索引，回退 rg/读取。

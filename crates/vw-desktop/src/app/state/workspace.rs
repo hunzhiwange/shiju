@@ -35,34 +35,12 @@ pub(crate) struct GitDiffSelectedLine {
 ///
 /// 表示在 Git 差异视图中选中的连续行范围，
 /// 用于批量操作或添加评论。
-#[derive(Debug, Clone)]
-pub(crate) struct GitDiffLineRange {
-    /// 文件路径
-    pub(crate) file: String,
-    /// 起始行号
-    pub(crate) start: usize,
-    /// 结束行号
-    pub(crate) end: usize,
-    /// 是否为旧版本
-    pub(crate) is_old: bool,
-}
+pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffLineRange;
 
 /// Git 差异右键菜单状态
 ///
 /// 记录当前打开的右键菜单所对应的行以及菜单锚点位置。
-#[derive(Debug, Clone)]
-pub(crate) struct GitDiffContextMenuState {
-    /// 文件路径
-    pub(crate) file: String,
-    /// 行号
-    pub(crate) line: usize,
-    /// 是否为旧版本
-    pub(crate) is_old: bool,
-    /// 菜单锚点 X 坐标
-    pub(crate) x: f32,
-    /// 菜单锚点 Y 坐标
-    pub(crate) y: f32,
-}
+pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffContextMenuState;
 
 /// Git 差异文件菜单状态
 ///
@@ -197,13 +175,7 @@ pub(crate) struct FindInFolderTab {
 ///
 /// 存储正在编辑的 Git 差异评论，
 /// 包括评论的行范围和编辑器内容。
-#[derive(Debug, Clone)]
-pub(crate) struct GitDiffCommentDraft {
-    /// 评论的行范围
-    pub(crate) range: GitDiffLineRange,
-    /// 评论编辑器内容
-    pub(crate) editor: text_editor::Content,
-}
+pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffCommentDraft;
 
 /// 聊天文本差异
 ///

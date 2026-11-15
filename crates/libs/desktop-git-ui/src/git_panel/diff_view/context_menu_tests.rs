@@ -4,15 +4,15 @@
 use super::context_menu::{
     diff_context_menu_matches, diff_selection_menu, diff_selection_menu_button_style,
     diff_selection_menu_container_style, is_dark_theme, open_diff_context_menu_message,
-    wrap_diff_row_with_context_menu,
+
 };
-use crate::app::state::GitDiffContextMenuState;
-use crate::app::{App, Message, message};
+use super::{GitDiffContextMenuState, DiffMessage as Message};
 use iced::widget::{button, text};
 use iced::{Background, Color, Point, Theme};
 
-fn app() -> App {
-    App::new().0
+fn app() -> Option<GitDiffContextMenuState> { None }
+fn wrap_diff_row_with_context_menu<'a>(menu: &Option<GitDiffContextMenuState>, file: &str, line: usize, is_old: bool, text: String, content: iced::Element<'a, Message>) -> iced::Element<'a, Message> {
+    super::context_menu::wrap_diff_row_with_context_menu(config_ui::DesktopLocale::SimplifiedChinese, menu.as_ref(), file, line, is_old, text, content, |event| event)
 }
 
 fn context_menu(file: &str, line: usize, is_old: bool) -> GitDiffContextMenuState {
@@ -128,14 +128,14 @@ fn open_context_menu_message_preserves_row_and_pointer_data() {
     );
 
     match message {
-        Message::Git(message::GitMessage::OpenDiffContextMenu {
+        Message::OpenDiffContextMenu {
             file,
             line,
             is_old,
             text,
             x,
             y,
-        }) => {
+        } => {
             assert_eq!(file, "src/lib.rs");
             assert_eq!(line, usize::MAX);
             assert!(is_old);
@@ -152,14 +152,14 @@ fn open_context_menu_message_preserves_empty_new_side_boundary_data() {
     let message = open_diff_context_menu_message("", 0, false, "", Point::ORIGIN);
 
     match message {
-        Message::Git(message::GitMessage::OpenDiffContextMenu {
+        Message::OpenDiffContextMenu {
             file,
             line,
             is_old,
             text,
             x,
             y,
-        }) => {
+        } => {
             assert!(file.is_empty());
             assert_eq!(line, 0);
             assert!(!is_old);
@@ -199,7 +199,7 @@ fn selection_menu_and_context_wrapper_build_for_absent_mismatched_and_matching_s
         context_menu("src/lib.rs", 3, false),
         context_menu("src/lib.rs", 2, true),
     ] {
-        app.git_diff_context_menu = Some(menu);
+        app = Some(menu);
         let _mismatched = wrap_diff_row_with_context_menu(
             &app,
             "src/lib.rs",
@@ -210,7 +210,7 @@ fn selection_menu_and_context_wrapper_build_for_absent_mismatched_and_matching_s
         );
     }
 
-    app.git_diff_context_menu = Some(context_menu("src/lib.rs", 2, false));
+    app = Some(context_menu("src/lib.rs", 2, false));
     let _matching = wrap_diff_row_with_context_menu(
         &app,
         "src/lib.rs",

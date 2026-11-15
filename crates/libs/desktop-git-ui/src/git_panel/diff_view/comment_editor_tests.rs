@@ -6,26 +6,22 @@ use super::comment_editor::{
     diff_comment_editor_card_style, diff_comment_file_label, diff_comment_range_label,
     diff_comment_submit_button_style,
 };
-use crate::app::state::{GitDiffCommentDraft, GitDiffLineRange};
-use crate::app::{App, Message, message};
+use super::{GitDiffCommentDraft, GitDiffLineRange, DiffMessage as Message};
 use iced::widget::{button, text_editor};
 use iced::{Background, Color, Theme, Vector};
 
-fn app() -> App {
-    App::new().0
-}
+fn app() -> Option<GitDiffCommentDraft> { None }
 
 #[test]
 fn comment_editor_is_absent_without_draft() {
     let app = app();
 
-    assert!(diff_comment_editor(&app).is_none());
+    assert!(diff_comment_editor(config_ui::DesktopLocale::SimplifiedChinese, app.as_ref()).is_none());
 }
 
 #[test]
 fn comment_editor_builds_for_empty_and_populated_drafts() {
-    let mut app = app();
-    app.git_diff_comment_draft = Some(GitDiffCommentDraft {
+    let mut app = Some(GitDiffCommentDraft {
         range: GitDiffLineRange {
             file: "src/very_long_file_name_for_comment_editor.rs".to_string(),
             start: 1,
@@ -34,13 +30,13 @@ fn comment_editor_builds_for_empty_and_populated_drafts() {
         },
         editor: text_editor::Content::with_text("Looks good"),
     });
-    assert!(diff_comment_editor(&app).is_some());
+    assert!(diff_comment_editor(config_ui::DesktopLocale::SimplifiedChinese, app.as_ref()).is_some());
 
-    app.git_diff_comment_draft = Some(GitDiffCommentDraft {
+    app = Some(GitDiffCommentDraft {
         range: GitDiffLineRange { file: "old.rs".to_string(), start: 4, end: 4, is_old: true },
         editor: text_editor::Content::new(),
     });
-    assert!(diff_comment_editor(&app).is_some());
+    assert!(diff_comment_editor(config_ui::DesktopLocale::SimplifiedChinese, app.as_ref()).is_some());
 }
 
 #[test]
@@ -81,7 +77,7 @@ fn comment_editor_action_wraps_the_original_text_edit() {
     let action = text_editor::Action::Edit(text_editor::Edit::Insert('好'));
     let message = diff_comment_editor_action(action.clone());
 
-    let Message::Git(message::GitMessage::DiffCommentEditorAction(wrapped)) = message else {
+    let Message::DiffCommentEditorAction(wrapped) = message else {
         panic!("expected diff comment editor action");
     };
     assert_eq!(wrapped, action);

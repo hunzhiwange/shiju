@@ -270,7 +270,7 @@ mod system_settings_skills_tests;
 
 /// Summarize only observed dependency facts, never infer runtime compatibility from counts.
 pub fn plugin_dependency_summary(
-    checks: &[vw_gateway_client::DesktopPluginDependencyDto],
+    checks: &[gateway_desktop_settings::DesktopPluginDependencyDto],
 ) -> &'static str {
     if checks.iter().any(|c| {
         !matches!(

@@ -268,7 +268,7 @@ fn selected_context_card_renders_each_manual_selection_shape() {
 async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
     use iced::advanced::{mouse, renderer};
     use iced::{Color, Rectangle};
-    use vw_gateway_client::DesktopSkillCatalogEntryDto;
+    use gateway_desktop_settings::DesktopSkillCatalogEntryDto;
 
     let mut app = crate::app::App::new().0;
     let id = "skillhub--skillset--fixture-suite";

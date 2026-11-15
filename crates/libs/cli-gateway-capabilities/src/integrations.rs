@@ -38,9 +38,10 @@ pub(crate) async fn load_integrations(runtime: &GatewayUiRuntime) -> LoadedInteg
     let directory = runtime.directory_value();
     let mcp_client = gateway_mcp::GatewayMcpClient::new(runtime.client().transport().clone());
     let interaction_client = gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone());
+    let desktop_client = gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone());
     let (skills, plugins, mcp, memory) = tokio::join!(
-        runtime.client().skills_get(directory.as_deref()),
-        runtime.client().plugins_get(),
+        desktop_client.skills_get(directory.as_deref()),
+        desktop_client.plugins_get(),
         mcp_client.mcp_inspect(),
         interaction_client.memory_query_get(None, None),
     );
@@ -173,13 +174,11 @@ pub fn set_integration_enabled_blocking(
     }
     block_on_gateway(async {
         match item.kind {
-            IntegrationKind::Skill => runtime
-                .client()
-                .skill_set_enabled(runtime.directory_value().as_deref(), item.id.as_str(), enabled)
+            IntegrationKind::Skill => gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).skill_set_enabled(runtime.directory_value().as_deref(), item.id.as_str(), enabled)
                 .await
                 .map(|_| ()),
             IntegrationKind::Plugin => {
-                runtime.client().plugin_set_enabled(item.id.as_str(), enabled).await.map(|_| ())
+                gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).plugin_set_enabled(item.id.as_str(), enabled).await.map(|_| ())
             }
             _ => Err("integration kind cannot be toggled".to_string()),
         }
@@ -196,13 +195,11 @@ pub fn delete_integration_blocking(
     }
     block_on_gateway(async {
         match item.kind {
-            IntegrationKind::Skill => runtime
-                .client()
-                .skill_delete(runtime.directory_value().as_deref(), item.id.as_str())
+            IntegrationKind::Skill => gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).skill_delete(runtime.directory_value().as_deref(), item.id.as_str())
                 .await
                 .map(|_| ()),
             IntegrationKind::Plugin => {
-                runtime.client().plugin_delete(item.id.as_str()).await.map(|_| ())
+                gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).plugin_delete(item.id.as_str()).await.map(|_| ())
             }
             _ => Err("integration kind cannot be deleted".to_string()),
         }

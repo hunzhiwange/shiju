@@ -28,8 +28,8 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
-fn catalog_entry(trusted: bool) -> vw_gateway_client::HookCatalogEntryDto {
-    vw_gateway_client::HookCatalogEntryDto {
+fn catalog_entry(trusted: bool) -> gateway_desktop_settings::HookCatalogEntryDto {
+    gateway_desktop_settings::HookCatalogEntryDto {
         plugin_id: "reviewed-plugin".to_string(),
         event: "before_tool_call".to_string(),
         command: "bin/review-hook".to_string(),
@@ -41,8 +41,8 @@ fn catalog_entry(trusted: bool) -> vw_gateway_client::HookCatalogEntryDto {
     }
 }
 
-fn audit_entry() -> vw_gateway_client::HookAuditEntryDto {
-    vw_gateway_client::HookAuditEntryDto {
+fn audit_entry() -> gateway_desktop_settings::HookAuditEntryDto {
+    gateway_desktop_settings::HookAuditEntryDto {
         timestamp: "2026-08-16T12:00:00Z".to_string(),
         tool_name: "read_file".to_string(),
         duration_ms: 8,
@@ -134,7 +134,7 @@ async fn hook_trust_result_refreshes_and_toasts() {
     let task = update(
         &mut app,
         SettingsMessage::Hooks(HooksMessage::MutationCompleted(Ok(
-            vw_gateway_client::HookMutationResponseDto {
+            gateway_desktop_settings::HookMutationResponseDto {
                 plugin_id: "reviewed-plugin".to_string(),
                 hook_hash: "sha256:reviewed".to_string(),
                 trusted: true,

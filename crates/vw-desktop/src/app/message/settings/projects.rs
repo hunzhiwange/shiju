@@ -110,7 +110,7 @@ pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -
     let value = if enabled { Value::Bool(true) } else { Value::Null };
     let patch = json!({ "project_worktree_enabled": { path: value } });
     app.project_worktree_save_queue.push_back(Task::perform(
-        async move { GatewayClient::new(endpoint)?.desktop_system_settings_patch(&patch).await },
+        async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(GatewayClient::new(endpoint)?.transport().clone()).desktop_system_settings_patch(&patch).await },
         |result| Message::Settings(SettingsMessage::ProjectWorktreeSaved(result)),
     ));
     start_worktree_save(app)

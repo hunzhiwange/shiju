@@ -3,7 +3,7 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, checkbox, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
-use vw_gateway_client::DesktopSkillCatalogEntryDto;
+use gateway_desktop_settings::DesktopSkillCatalogEntryDto;
 
 use super::public_skills::SCROLLBAR_WIDTH;
 use super::styles;

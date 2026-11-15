@@ -131,7 +131,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::perform(
                 async move {
                     let result =
-                        async { crate::app::config::gateway_client()?.acp_install(&agent).await }
+                        async { gateway_desktop_settings::GatewayDesktopSettingsClient::new(crate::app::config::gateway_client()?.transport().clone()).acp_install(&agent).await }
                             .await;
                     (agent, result)
                 },
@@ -194,7 +194,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         let result = async {
                             let client = crate::app::config::gateway_client()?;
                             let value = serde_json::to_value(config).map_err(|e| e.to_string())?;
-                            client.acp_diagnostic(&id, &value).await
+                            gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).acp_diagnostic(&id, &value).await
                         }
                         .await;
                         (id, result)
@@ -500,7 +500,7 @@ fn cancel_diagnostic(app: &mut App) -> Task<Message> {
             if let Ok(client) = crate::app::config::gateway_client() {
                 // Cancellation can overtake the start on a separate connection.
                 for _ in 0..40 {
-                    match client.acp_diagnostic_cancel(&id).await {
+                    match gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).acp_diagnostic_cancel(&id).await {
                         Ok(true) | Err(_) => break,
                         Ok(false) => tokio::time::sleep(Duration::from_millis(250)).await,
                     }

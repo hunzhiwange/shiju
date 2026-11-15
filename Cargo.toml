@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "crates/libs/app-discovery",
+  "crates/libs/gateway-desktop-settings",
   "crates/libs/app-versions",
   "crates/libs/tool-types",
   "crates/libs/gateway-skill-market",

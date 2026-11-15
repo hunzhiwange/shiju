@@ -101,7 +101,7 @@ impl ConfigPersistence {
 
         self.saving = true;
         Task::perform(
-            async move { GatewayClient::new(endpoint)?.desktop_system_settings_patch(&patch).await },
+            async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(GatewayClient::new(endpoint)?.transport().clone()).desktop_system_settings_patch(&patch).await },
             |result| Message::Editor(EditorMessage::ConfigSaved(result)),
         )
     }

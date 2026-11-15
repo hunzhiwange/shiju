@@ -13,7 +13,8 @@ use gateway_skill_market::{
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-use vw_gateway_client::{DesktopSkillCatalogEntryDto};
+use gateway_desktop_settings::{DesktopSkillCatalogEntryDto};
+
 
 use super::public_skill_detail::{
     detail_project_action_message, detail_scope_action_message, detail_target_action_message,

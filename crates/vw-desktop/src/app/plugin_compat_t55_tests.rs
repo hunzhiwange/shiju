@@ -1,6 +1,6 @@
 use vw_desktop::app::components::system_settings_skills::plugin_dependency_summary;
-fn checks(status: &str) -> Vec<vw_gateway_client::DesktopPluginDependencyDto> {
-    vec![vw_gateway_client::DesktopPluginDependencyDto {
+fn checks(status: &str) -> Vec<gateway_desktop_settings::DesktopPluginDependencyDto> {
+    vec![gateway_desktop_settings::DesktopPluginDependencyDto {
         component: "中文 MCP".into(),
         dependency: "node".into(),
         status: status.into(),

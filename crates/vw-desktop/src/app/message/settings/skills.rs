@@ -10,9 +10,8 @@ use crate::app::state::{
 };
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    DesktopPluginCatalogEntryDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto,
-};
+use gateway_desktop_settings::{DesktopPluginCatalogEntryDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto};
+
 
 use super::messages::SettingsMessage;
 

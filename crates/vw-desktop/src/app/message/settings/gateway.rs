@@ -196,7 +196,7 @@ fn service_command_task(command: String) -> Task<Message> {
     Task::perform(
         async move {
             let client = crate::app::config::gateway_client()?;
-            client.desktop_service_command(&request_command).await.map(|response| response.output)
+            gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_service_command(&request_command).await.map(|response| response.output)
         },
         move |result| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::ServiceCommandCompleted(

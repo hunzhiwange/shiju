@@ -6,13 +6,13 @@
 use std::collections::HashSet;
 
 use crate::app::config;
-use vw_gateway_client::DesktopPluginCatalogEntryDto;
-use vw_gateway_client::DesktopSkillCatalogEntryDto;
-use vw_gateway_client::DesktopSkillDetailDto;
-use vw_gateway_client::ExternalAppsStateDto;
-use vw_gateway_client::HookAuditEntryDto;
-use vw_gateway_client::HookCatalogEntryDto;
-use vw_gateway_client::HookMutationResponseDto;
+use gateway_desktop_settings::DesktopPluginCatalogEntryDto;
+use gateway_desktop_settings::DesktopSkillCatalogEntryDto;
+use gateway_desktop_settings::DesktopSkillDetailDto;
+use gateway_desktop_settings::ExternalAppsStateDto;
+use gateway_desktop_settings::HookAuditEntryDto;
+use gateway_desktop_settings::HookCatalogEntryDto;
+use gateway_desktop_settings::HookMutationResponseDto;
 use gateway_interaction::PendingPermissionReplyDto;
 use vw_gateway_client::PendingPermissionRequestDto;
 use vw_gateway_client::ProjectChangeRecordDto;
@@ -671,7 +671,7 @@ pub async fn gateway_save_agent_session_scoped_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_external_apps_async() -> Result<ExternalAppsStateDto, String> {
     let client = gateway_client()?;
-    client.desktop_external_apps_get().await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_external_apps_get().await
 }
 
 /// 执行 gateway_external_open_async 对应的领域操作。
@@ -680,7 +680,7 @@ pub async fn gateway_external_apps_async() -> Result<ExternalAppsStateDto, Strin
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_external_open_async(path: &str, target: &str) -> Result<(), String> {
     let client = gateway_client()?;
-    client.desktop_external_app_open(path, target).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_external_app_open(path, target).await
 }
 
 /// 执行 gateway_external_reveal_async 对应的领域操作。
@@ -689,7 +689,7 @@ pub async fn gateway_external_open_async(path: &str, target: &str) -> Result<(),
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_external_reveal_async(path: &str) -> Result<(), String> {
     let client = gateway_client()?;
-    client.desktop_external_path_reveal(path).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_external_path_reveal(path).await
 }
 
 /// 执行 gateway_skills_async 对应的领域操作。
@@ -700,7 +700,7 @@ pub async fn gateway_skills_async(
     project_path: Option<&str>,
 ) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
     let client = gateway_client()?;
-    client.skills_get(project_path).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).skills_get(project_path).await
 }
 
 /// 执行 gateway_skill_detail_async 对应的领域操作。
@@ -712,7 +712,7 @@ pub async fn gateway_skill_detail_async(
     skill_id: &str,
 ) -> Result<DesktopSkillDetailDto, String> {
     let client = gateway_client()?;
-    client.skill_detail_get(project_path, skill_id).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).skill_detail_get(project_path, skill_id).await
 }
 
 /// 执行 gateway_skill_create_async 对应的领域操作。
@@ -721,7 +721,7 @@ pub async fn gateway_skill_detail_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_skill_create_async(project_path: &str) -> Result<String, String> {
     let client = gateway_client()?;
-    client.skill_create(project_path).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).skill_create(project_path).await
 }
 
 /// 执行 gateway_skill_install_builtin_async 对应的领域操作。
@@ -733,7 +733,7 @@ pub async fn gateway_skill_install_builtin_async(
     skill_id: &str,
 ) -> Result<String, String> {
     let client = gateway_client()?;
-    client.skill_install_builtin(project_path, skill_id).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).skill_install_builtin(project_path, skill_id).await
 }
 
 /// 执行 gateway_skill_set_enabled_async 对应的领域操作。
@@ -746,7 +746,7 @@ pub async fn gateway_skill_set_enabled_async(
     enabled: bool,
 ) -> Result<String, String> {
     let client = gateway_client()?;
-    client.skill_set_enabled(project_path, skill_id, enabled).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).skill_set_enabled(project_path, skill_id, enabled).await
 }
 
 /// 执行 gateway_skill_delete_async 对应的领域操作。
@@ -758,7 +758,7 @@ pub async fn gateway_skill_delete_async(
     skill_id: &str,
 ) -> Result<String, String> {
     let client = gateway_client()?;
-    client.skill_delete(project_path, skill_id).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).skill_delete(project_path, skill_id).await
 }
 
 /// Lists the skill-market sources registered by the active gateway.
@@ -861,13 +861,13 @@ pub async fn gateway_skill_market_skill_set_install_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_plugins_async() -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
     let client = gateway_client()?;
-    client.plugins_status_get().await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugins_status_get().await
 }
 
 /// 读取当前已发现插件声明的 hook 清单。
 pub async fn gateway_hooks_async() -> Result<Vec<HookCatalogEntryDto>, String> {
     let client = gateway_client()?;
-    client.hooks_get().await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).hooks_get().await
 }
 
 /// 使用服务端重新解析后的稳定哈希信任当前 hook 声明。
@@ -876,7 +876,7 @@ pub async fn gateway_hook_trust_async(
     hook_hash: &str,
 ) -> Result<HookMutationResponseDto, String> {
     let client = gateway_client()?;
-    client.hook_trust(plugin_id, hook_hash).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).hook_trust(plugin_id, hook_hash).await
 }
 
 /// 使用服务端重新解析后的稳定哈希撤销当前 hook 声明。
@@ -885,13 +885,13 @@ pub async fn gateway_hook_revoke_async(
     hook_hash: &str,
 ) -> Result<HookMutationResponseDto, String> {
     let client = gateway_client()?;
-    client.hook_revoke(plugin_id, hook_hash).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).hook_revoke(plugin_id, hook_hash).await
 }
 
 /// 读取只包含时间、工具名、耗时和成功状态的有界审计记录。
 pub async fn gateway_hook_audit_async() -> Result<Vec<HookAuditEntryDto>, String> {
     let client = gateway_client()?;
-    client.hook_audit_get().await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).hook_audit_get().await
 }
 
 /// 执行 gateway_plugin_set_enabled_async 对应的领域操作。
@@ -903,7 +903,7 @@ pub async fn gateway_plugin_set_enabled_async(
     enabled: bool,
 ) -> Result<String, String> {
     let client = gateway_client()?;
-    client.plugin_set_enabled(plugin_id, enabled).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugin_set_enabled(plugin_id, enabled).await
 }
 
 /// 执行 gateway_plugin_delete_async 对应的领域操作。
@@ -912,7 +912,7 @@ pub async fn gateway_plugin_set_enabled_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_plugin_delete_async(plugin_id: &str) -> Result<String, String> {
     let client = gateway_client()?;
-    client.plugin_delete(plugin_id).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugin_delete(plugin_id).await
 }
 
 /// 执行 gateway_project_change_records_async 对应的领域操作。
@@ -1145,27 +1145,26 @@ mod session_gateway_tests;
 pub async fn gateway_plugin_prepare_async(
     source: String,
     update_id: Option<String>,
-) -> Result<vw_gateway_client::DesktopPluginPreviewDto, String> {
+) -> Result<gateway_desktop_settings::DesktopPluginPreviewDto, String> {
     let client = gateway_client()?;
     match update_id {
         Some(id) => {
-            client
-                .plugin_prepare_update(&id, (!source.trim().is_empty()).then_some(source.trim()))
+            gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugin_prepare_update(&id, (!source.trim().is_empty()).then_some(source.trim()))
                 .await
         }
-        None => client.plugin_prepare_install(source.trim()).await,
+        None => gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugin_prepare_install(source.trim()).await,
     }
 }
 pub async fn gateway_plugin_activate_async(token: String, update: bool) -> Result<String, String> {
     let client = gateway_client()?;
     if update {
-        client.plugin_update(&token, true).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugin_update(&token, true).await
     } else {
-        client.plugin_install(&token, true).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).plugin_install(&token, true).await
     }
 }
 pub async fn gateway_plugin_discard_async(token: String) -> Result<(), String> {
-    gateway_client()?.plugin_cancel(&token).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(gateway_client()?.transport().clone()).plugin_cancel(&token).await
 }
 
 /// Resolve the selected project without creating it; repository authorization remains server-side.

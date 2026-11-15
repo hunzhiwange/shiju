@@ -1,5 +1,5 @@
 //! Explicit UI operation state; receiving a preview never confirms an installation.
-use vw_gateway_client::DesktopPluginPreviewDto;
+use gateway_desktop_settings::DesktopPluginPreviewDto;
 #[derive(Debug, Clone)]
 pub enum PluginInstallPhase {
     Input,

@@ -798,7 +798,7 @@ async fn help_rollout_23_installed_skills_renders_contextual_help() {
     app.expert_hub.section = ExpertHubSection::Skills;
     let state = &mut app.expert_hub.public_market;
     state.installed_open = true;
-    state.installed = LoadState::Loaded(vec![vw_gateway_client::DesktopSkillCatalogEntryDto {
+    state.installed = LoadState::Loaded(vec![gateway_desktop_settings::DesktopSkillCatalogEntryDto {
         id: "fixture".into(),
         title: "Fixture Skill".into(),
         description: "Fixture skill description".into(),

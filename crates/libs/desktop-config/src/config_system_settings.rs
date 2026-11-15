@@ -143,13 +143,13 @@ impl crate::ConfigAccess {
 pub async fn fetch_desktop_system_settings_via_gateway(&self)
 -> Result<Option<AppSystemSettingsConfig>, String> {
     let client = self.gateway_client()?;
-    client.desktop_system_settings_get::<AppSystemSettingsConfig>().await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_system_settings_get::<AppSystemSettingsConfig>().await
 }
 pub async fn patch_desktop_system_settings_via_gateway(&self,
     patch: &impl serde::Serialize,
 ) -> Result<(), String> {
     let client = self.gateway_client()?;
-    client.desktop_system_settings_patch(patch).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_system_settings_patch(patch).await
 }
 /// 公开函数，执行 load_system_settings_config_async 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。

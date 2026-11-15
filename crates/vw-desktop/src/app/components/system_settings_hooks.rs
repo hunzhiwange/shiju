@@ -46,14 +46,14 @@ fn audit_refresh_requested() -> Message {
     Message::Settings(message::SettingsMessage::Hooks(HooksMessage::AuditRefresh))
 }
 
-fn trust_requested(entry: &vw_gateway_client::HookCatalogEntryDto) -> Message {
+fn trust_requested(entry: &gateway_desktop_settings::HookCatalogEntryDto) -> Message {
     Message::Settings(message::SettingsMessage::Hooks(HooksMessage::TrustRequested {
         plugin_id: entry.plugin_id.clone(),
         hook_hash: entry.hook_hash.clone(),
     }))
 }
 
-fn revoke_requested(entry: &vw_gateway_client::HookCatalogEntryDto) -> Message {
+fn revoke_requested(entry: &gateway_desktop_settings::HookCatalogEntryDto) -> Message {
     Message::Settings(message::SettingsMessage::Hooks(HooksMessage::RevokeRequested {
         plugin_id: entry.plugin_id.clone(),
         hook_hash: entry.hook_hash.clone(),
@@ -77,7 +77,7 @@ fn refresh_button<'a>(
 
 fn hook_catalog_card<'a>(
     locale: DesktopLocale,
-    entry: &'a vw_gateway_client::HookCatalogEntryDto,
+    entry: &'a gateway_desktop_settings::HookCatalogEntryDto,
     mutation_loading: bool,
 ) -> Element<'a, Message> {
     let status = if entry.trusted { tr(locale, "已信任") } else { tr(locale, "待审核") };

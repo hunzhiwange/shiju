@@ -590,7 +590,7 @@ mod rollout {
         app.system_settings_tab = SystemTab::Hooks;
         app.hooks_settings.command_logger = true;
         app.hooks_settings.catalog_error = Some("fixture catalog error".into());
-        app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {
+        app.hooks_settings.catalog = vec![gateway_desktop_settings::HookCatalogEntryDto {
             plugin_id: "fixture".into(),
             event: "before_tool_call".into(),
             command: "fixture-command".into(),

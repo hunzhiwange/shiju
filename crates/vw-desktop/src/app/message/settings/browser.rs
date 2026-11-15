@@ -147,7 +147,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             app.browser_settings.installing = true;
             return Task::perform(
-                async move { crate::app::config::gateway_client()?.browser_install(&backend).await },
+                async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(crate::app::config::gateway_client()?.transport().clone()).browser_install(&backend).await },
                 |result| {
                     Message::Settings(SettingsMessage::Browser(BrowserMessage::InstallCompleted(
                         result,

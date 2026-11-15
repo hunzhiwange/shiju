@@ -19,7 +19,8 @@ use gateway_skill_market::{
 };
 use crate::app::skill_hub::SkillHubError;
 use iced::Task;
-use vw_gateway_client::{DesktopSkillCatalogEntryDto};
+use gateway_desktop_settings::{DesktopSkillCatalogEntryDto};
+
 
 use crate::app::session_gateway::{
     gateway_skill_delete_async, gateway_skill_market_categories_async,

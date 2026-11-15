@@ -46,7 +46,7 @@ impl App {
         }
         let revision = state.revision;
         Task::perform(
-            async move { GatewayClient::new(endpoint)?.desktop_project_preferences_get(&path).await },
+            async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(GatewayClient::new(endpoint)?.transport().clone()).desktop_project_preferences_get(&path).await },
             move |result| Message::ProjectChatPreferencesLoaded(scope, revision, result),
         )
     }

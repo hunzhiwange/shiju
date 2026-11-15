@@ -857,7 +857,7 @@ pub enum SettingsMessage {
     PluginsInstallPrepare,
     PluginsInstallPrepared {
         request_id: u64,
-        result: Result<vw_gateway_client::DesktopPluginPreviewDto, String>,
+        result: Result<gateway_desktop_settings::DesktopPluginPreviewDto, String>,
     },
     PluginsInstallConfirm,
     PluginsInstallCompleted {
@@ -1194,7 +1194,7 @@ pub enum SettingsMessage {
     SkillsDetailRequested(String),
     SkillsDetailLoaded {
         skill_id: String,
-        result: Result<vw_gateway_client::DesktopSkillDetailDto, String>,
+        result: Result<gateway_desktop_settings::DesktopSkillDetailDto, String>,
     },
     SkillsQueryChanged(String),
     SkillsDirectoryScopeChanged(crate::app::state::SkillsDirectoryScope),

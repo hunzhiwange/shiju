@@ -142,7 +142,7 @@ pub fn update(app: &mut App, mut message: TerminalMessage) -> Task<Message> {
             };
             let client = crate::app::config::gateway_client();
             return Task::perform(
-                async move { client?.desktop_system_settings_patch(&patch).await },
+                async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(client?.transport().clone()).desktop_system_settings_patch(&patch).await },
                 |result| Message::Terminal(TerminalMessage::ConfigSaved(result)),
             );
         }

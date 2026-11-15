@@ -18,7 +18,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenChatPath(path) => Task::perform(
             async move {
                 let result = match crate::app::gateway_client() {
-                    Ok(client) => client.desktop_external_path_kind(&path).await,
+                    Ok(client) => gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_external_path_kind(&path).await,
                     Err(error) => Err(error),
                 };
                 ViewMessage::ChatPathKindResolved { path, result }

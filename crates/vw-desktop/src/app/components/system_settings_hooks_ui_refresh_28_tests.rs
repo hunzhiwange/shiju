@@ -473,14 +473,14 @@ async fn ui_refresh_28_preserves_values_and_disabled_states() {
     app.hooks_settings.audit_loading = false;
     app.hooks_settings.catalog_error = Some(FAILURE.into());
     app.hooks_settings.audit = (0..12)
-        .map(|index| vw_gateway_client::HookAuditEntryDto {
+        .map(|index| gateway_desktop_settings::HookAuditEntryDto {
             timestamp: format!("2026-01-01T00:00:{index:02}Z"),
             tool_name: "fixture-tool".into(),
             duration_ms: 8,
             success: false,
         })
         .collect();
-    app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {
+    app.hooks_settings.catalog = vec![gateway_desktop_settings::HookCatalogEntryDto {
         plugin_id: PLUGIN_ID.into(),
         event: "before_tool_call".into(),
         command: COMMAND.into(),
@@ -565,7 +565,7 @@ async fn help_rollout_20_renders_contextual_help() {
     let mut app = fixture();
     app.hooks_settings.enabled = true;
     app.hooks_settings.catalog_error = Some(FAILURE.into());
-    app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {
+    app.hooks_settings.catalog = vec![gateway_desktop_settings::HookCatalogEntryDto {
         plugin_id: PLUGIN_ID.into(),
         event: "before_tool_call".into(),
         command: COMMAND.into(),

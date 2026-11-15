@@ -433,7 +433,7 @@ fn hook_label(status: &str) -> &'static str {
 }
 fn dependency_panel(
     locale: DesktopLocale,
-    checks: &[vw_gateway_client::DesktopPluginDependencyDto],
+    checks: &[gateway_desktop_settings::DesktopPluginDependencyDto],
 ) -> Element<'static, Message> {
     let content = checks.iter().fold(column![].spacing(9), |column, check| {
         let label = match check.status.as_str() {

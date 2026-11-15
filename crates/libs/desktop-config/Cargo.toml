@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
 gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
 gateway-cron = { path = "../gateway-cron", version = "0.6.0" }
 gateway-mcp = { path = "../gateway-mcp", version = "0.6.0" }

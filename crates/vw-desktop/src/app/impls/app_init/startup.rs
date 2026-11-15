@@ -75,7 +75,7 @@ mod native {
     use std::collections::HashSet;
     use config_aggregate::Config;
     use vw_config_types::{gateway::GatewayConfig, ui::AppSystemSettingsConfig};
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{ExternalAppsStateDto, GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, gateway_desktop_settings::ExternalAppsStateDto, vw_gateway_client::GatewayClient};
 
     #[derive(Default, Clone, Copy)]
     struct Loaded {
@@ -266,7 +266,7 @@ mod native {
                 return None;
             }
             Some(match &client {
-                Ok(client) => client.desktop_preferences_get().await,
+                Ok(client) => gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_preferences_get().await,
                 Err(error) => Err(error.clone()),
             })
         };
@@ -343,7 +343,7 @@ mod native {
                 return None;
             }
             Some(match &client {
-                Ok(client) => client.desktop_external_apps_get().await,
+                Ok(client) => gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_external_apps_get().await,
                 Err(error) => Err(error.clone()),
             })
         };

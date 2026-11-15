@@ -34,17 +34,17 @@ pub type ModelsLoaded =
 /// `SkillsLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type SkillsLoaded = Result<Vec<vw_gateway_client::DesktopSkillCatalogEntryDto>, String>;
+pub type SkillsLoaded = Result<Vec<gateway_desktop_settings::DesktopSkillCatalogEntryDto>, String>;
 /// `PluginsLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type PluginsLoaded = Result<Vec<vw_gateway_client::DesktopPluginCatalogEntryDto>, String>;
+pub type PluginsLoaded = Result<Vec<gateway_desktop_settings::DesktopPluginCatalogEntryDto>, String>;
 /// `HookCatalogLoaded` 的加载结果类型。
-pub type HookCatalogLoaded = Result<Vec<vw_gateway_client::HookCatalogEntryDto>, String>;
+pub type HookCatalogLoaded = Result<Vec<gateway_desktop_settings::HookCatalogEntryDto>, String>;
 /// `HookAuditLoaded` 的加载结果类型。
-pub type HookAuditLoaded = Result<Vec<vw_gateway_client::HookAuditEntryDto>, String>;
+pub type HookAuditLoaded = Result<Vec<gateway_desktop_settings::HookAuditEntryDto>, String>;
 /// hook 信任或撤销操作的结果类型。
-pub type HookMutationCompleted = Result<vw_gateway_client::HookMutationResponseDto, String>;
+pub type HookMutationCompleted = Result<gateway_desktop_settings::HookMutationResponseDto, String>;
 /// `AgentsLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。

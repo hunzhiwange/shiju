@@ -12,13 +12,13 @@ pub(crate) struct HooksSettingsState {
     /// 是否允许加载已启用插件声明的 hooks
     pub(crate) plugins_enabled: bool,
     /// 最近一次成功加载的插件 hook 清单
-    pub(crate) catalog: Vec<vw_gateway_client::HookCatalogEntryDto>,
+    pub(crate) catalog: Vec<gateway_desktop_settings::HookCatalogEntryDto>,
     /// 插件 hook 清单是否正在加载
     pub(crate) catalog_loading: bool,
     /// 最近一次插件 hook 清单加载错误
     pub(crate) catalog_error: Option<String>,
     /// 最近一次成功加载的安全审计记录
-    pub(crate) audit: Vec<vw_gateway_client::HookAuditEntryDto>,
+    pub(crate) audit: Vec<gateway_desktop_settings::HookAuditEntryDto>,
     /// 审计记录是否正在加载
     pub(crate) audit_loading: bool,
     /// 最近一次审计记录加载错误
@@ -162,8 +162,8 @@ pub(crate) struct PluginCatalogItem {
     pub(crate) enabled: bool,
     pub(crate) component_count: usize,
     pub(crate) source_path: Option<String>,
-    pub(crate) dependency_checks: Vec<vw_gateway_client::DesktopPluginDependencyDto>,
-    pub(crate) origin: vw_gateway_client::DesktopPluginSourceDto,
+    pub(crate) dependency_checks: Vec<gateway_desktop_settings::DesktopPluginDependencyDto>,
+    pub(crate) origin: gateway_desktop_settings::DesktopPluginSourceDto,
     pub(crate) hook_review: String,
 }
 

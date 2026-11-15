@@ -68,8 +68,7 @@ impl ProjectChatPreferences {
         let path = scope.path.clone();
         Task::perform(
             async move {
-                GatewayClient::new(endpoint)?
-                    .desktop_project_preferences_put(
+                gateway_desktop_settings::GatewayDesktopSettingsClient::new(GatewayClient::new(endpoint)?.transport().clone()).desktop_project_preferences_put(
                         &path,
                         &model,
                         auto_model,

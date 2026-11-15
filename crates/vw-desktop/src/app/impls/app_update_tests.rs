@@ -524,7 +524,7 @@ fn update_handles_external_apps_and_session_preview_errors() {
     app.session_previews =
         std::collections::HashMap::from([("session".to_string(), "preview".to_string())]);
 
-    let _ = app.update(Message::ExternalAppsLoaded(Ok(vw_gateway_client::ExternalAppsStateDto {
+    let _ = app.update(Message::ExternalAppsLoaded(Ok(gateway_desktop_settings::ExternalAppsStateDto {
         platform: Some("windows".to_string()),
         apps: vec![("powershell".to_string(), true)],
     })));

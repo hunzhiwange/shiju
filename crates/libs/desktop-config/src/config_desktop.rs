@@ -126,14 +126,14 @@ impl DesktopPreferencesPersistence {
             async move {
                 let client = GatewayClient::new(patch.endpoint)?;
                 if let PatchTarget::System(_) = target {
-                    return client.desktop_system_settings_patch(&patch.fields).await;
+                    return gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_system_settings_patch(&patch.fields).await;
                 }
                 let mut fields = patch.fields;
                 let mut reasoning_result = Ok(());
                 if let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS) {
                     // PATCH replaces this entire object. Preserve all other sessions, including
                     // values this desktop cannot decode.
-                    match client.desktop_preferences_get().await {
+                    match gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_preferences_get().await {
                         Ok(mut current) => {
                             if let Some(Value::Object(mut saved)) =
                                 current.get_mut(REASONING_EFFORTS).map(Value::take)
@@ -149,7 +149,7 @@ impl DesktopPreferencesPersistence {
                     }
                 }
                 if !fields.is_empty() {
-                    client.desktop_preferences_patch(&Value::Object(fields)).await?;
+                    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_preferences_patch(&Value::Object(fields)).await?;
                 }
                 reasoning_result
             },
@@ -213,7 +213,7 @@ impl crate::ConfigAccess {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub async fn load_app_config_async(&self) -> Result<serde_json::Value, String> {
     let client = self.gateway_client()?;
-    let value = client.desktop_preferences_get().await?;
+    let value = gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_preferences_get().await?;
     Ok(if value.is_object() { value } else { serde_json::json!({}) })
 }
 /// 公开函数，执行 save_app_config_async 对应的应用流程。
@@ -221,7 +221,7 @@ pub async fn load_app_config_async(&self) -> Result<serde_json::Value, String> {
 pub async fn save_app_config_async(&self, v: serde_json::Value) -> Result<(), String> {
     let patch = if v.is_object() { v } else { serde_json::json!({}) };
     let client = self.gateway_client()?;
-    client.desktop_preferences_patch(&patch).await.map(|_| ())
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_preferences_patch(&patch).await.map(|_| ())
 }
 /// 公开函数，执行 update_agents_compat_registry_result_async 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -312,7 +312,7 @@ pub fn save_project_chat_preferences(&self,
 pub fn load_project_chat_preferences(&self, project_path: &str) -> Option<(String, bool, Option<String>)> {
     let result = run_gateway_call(async {
         let client = self.gateway_client()?;
-        client.desktop_project_preferences_get(project_path).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_project_preferences_get(project_path).await
     });
     match result {
         Ok(value) => value,
@@ -332,7 +332,7 @@ pub async fn load_project_chat_preferences_async(&self,
     project_path: &str,
 ) -> Result<Option<(String, bool, Option<String>)>, String> {
     let client = self.gateway_client()?;
-    client.desktop_project_preferences_get(project_path).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_project_preferences_get(project_path).await
 }
 /// 公开函数，执行 save_project_chat_preferences 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -345,7 +345,7 @@ pub fn save_project_chat_preferences(&self,
 ) {
     if let Err(err) = run_gateway_call(async {
         let client = self.gateway_client()?;
-        client.desktop_project_preferences_put(project_path, model, auto_model, acp_agent).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_project_preferences_put(project_path, model, auto_model, acp_agent).await
     }) {
         tracing::warn!(target: "vw_desktop", error = %err, project_path, "failed to save project chat preferences via gateway");
     }
@@ -359,7 +359,7 @@ pub async fn save_project_chat_preferences_async(&self,
     acp_agent: Option<&str>,
 ) -> Result<(), String> {
     let client = self.gateway_client()?;
-    client.desktop_project_preferences_put(project_path, model, auto_model, acp_agent).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_project_preferences_put(project_path, model, auto_model, acp_agent).await
 }
 /// 公开函数，执行 load_json_tool_content 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -446,7 +446,7 @@ pub async fn save_html_tool_content_async(&self, content: &str) -> Result<(), St
 pub fn load_tool_content(&self, tool_type: &str) -> String {
     let result = run_gateway_call(async {
         let client = self.gateway_client()?;
-        client.desktop_tool_content_get(tool_type).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_tool_content_get(tool_type).await
     });
     match result {
         Ok(content) => content,
@@ -464,14 +464,14 @@ pub fn load_tool_content(&self, tool_type: &str) -> String {
 pub fn save_tool_content(&self, tool_type: &str, content: &str) {
     if let Err(err) = run_gateway_call(async {
         let client = self.gateway_client()?;
-        client.desktop_tool_content_put(tool_type, content).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_tool_content_put(tool_type, content).await
     }) {
         tracing::warn!(target: "vw_desktop", error = %err, tool_type, "failed to save tool content via gateway");
     }
 }
 pub async fn save_tool_content_async(&self, tool_type: &str, content: &str) -> Result<(), String> {
     let client = self.gateway_client()?;
-    client.desktop_tool_content_put(tool_type, content).await
+    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client.transport().clone()).desktop_tool_content_put(tool_type, content).await
 }
 }
 

@@ -481,7 +481,7 @@ fn replay_stale_system_settings_update() {
                 let editor_patch = serde_json::json!({"editor_font_size": 24.0});
                 test_runtime()
                     .block_on(async {
-                        super::gateway_client()?.desktop_system_settings_patch(&editor_patch).await
+                        gateway_desktop_settings::GatewayDesktopSettingsClient::new(super::gateway_client()?.transport().clone()).desktop_system_settings_patch(&editor_patch).await
                     })
                     .expect("editor patch should succeed");
             })

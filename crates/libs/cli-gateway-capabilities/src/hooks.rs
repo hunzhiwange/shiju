@@ -1,6 +1,7 @@
 //! Gateway Hook 声明、信任 mutation 与安全审计边界。
 
-use vw_gateway_client::{HookAuditEntryDto, HookCatalogEntryDto, HookMutationResponseDto};
+use gateway_desktop_settings::{HookAuditEntryDto, HookCatalogEntryDto, HookMutationResponseDto};
+
 use vw_tui::V3SelectionItem;
 
 use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
@@ -135,9 +136,7 @@ pub fn load_hook_catalog_blocking(
     runtime: &GatewayUiRuntime,
 ) -> Result<HookCatalogView, String> {
     block_on_gateway(async {
-        runtime
-            .client()
-            .hooks_get()
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).hooks_get()
             .await
             .map(hook_catalog_view)
             .map_err(|error| sanitize_hook_text(error.as_str(), MAX_ERROR_CHARS))
@@ -148,9 +147,7 @@ pub fn load_hook_audit_blocking(
     runtime: &GatewayUiRuntime,
 ) -> Result<HookAuditView, String> {
     block_on_gateway(async {
-        runtime
-            .client()
-            .hook_audit_get()
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).hook_audit_get()
             .await
             .map(hook_audit_view)
             .map_err(|error| sanitize_hook_text(error.as_str(), MAX_ERROR_CHARS))
@@ -165,9 +162,9 @@ pub fn mutate_hook_and_refresh_blocking(
 ) -> Result<HookMutationRefresh, String> {
     let response = block_on_gateway(async {
         if trusted {
-            runtime.client().hook_trust(plugin_id, hook_hash).await
+            gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).hook_trust(plugin_id, hook_hash).await
         } else {
-            runtime.client().hook_revoke(plugin_id, hook_hash).await
+            gateway_desktop_settings::GatewayDesktopSettingsClient::new(runtime.client().transport().clone()).hook_revoke(plugin_id, hook_hash).await
         }
     })
     .map_err(|error| sanitize_hook_text(error.as_str(), MAX_ERROR_CHARS))?;

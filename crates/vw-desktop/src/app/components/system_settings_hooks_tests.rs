@@ -20,8 +20,8 @@ fn tree_node_count(tree: &Tree) -> usize {
     1 + tree.children.iter().map(tree_node_count).sum::<usize>()
 }
 
-fn catalog_entry(trusted: bool) -> vw_gateway_client::HookCatalogEntryDto {
-    vw_gateway_client::HookCatalogEntryDto {
+fn catalog_entry(trusted: bool) -> gateway_desktop_settings::HookCatalogEntryDto {
+    gateway_desktop_settings::HookCatalogEntryDto {
         plugin_id: "reviewed-plugin".to_string(),
         event: "before_tool_call".to_string(),
         command: "bin/review-hook".to_string(),
@@ -33,8 +33,8 @@ fn catalog_entry(trusted: bool) -> vw_gateway_client::HookCatalogEntryDto {
     }
 }
 
-fn audit_entry() -> vw_gateway_client::HookAuditEntryDto {
-    vw_gateway_client::HookAuditEntryDto {
+fn audit_entry() -> gateway_desktop_settings::HookAuditEntryDto {
+    gateway_desktop_settings::HookAuditEntryDto {
         timestamp: "2026-08-16T12:00:00Z".to_string(),
         tool_name: "read_file".to_string(),
         duration_ms: 8,

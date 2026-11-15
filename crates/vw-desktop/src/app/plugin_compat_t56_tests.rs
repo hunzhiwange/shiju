@@ -1,5 +1,6 @@
 use vw_desktop::app::state::{PluginInstallForm, PluginInstallPhase};
-use vw_gateway_client::{DesktopPluginCapabilitiesDto, DesktopPluginPreviewDto};
+use gateway_desktop_settings::{DesktopPluginCapabilitiesDto, DesktopPluginPreviewDto};
+
 fn preview(token: &str) -> DesktopPluginPreviewDto {
     DesktopPluginPreviewDto {
         token: token.into(),

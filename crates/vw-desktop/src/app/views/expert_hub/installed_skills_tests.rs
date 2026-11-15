@@ -4,7 +4,7 @@
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-use vw_gateway_client::DesktopSkillCatalogEntryDto;
+use gateway_desktop_settings::DesktopSkillCatalogEntryDto;
 
 use super::installed_skills::{view, with_delete_confirmation};
 use crate::app::skill_hub::{ExpertHubSection, LoadState};

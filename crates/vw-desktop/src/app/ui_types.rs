@@ -88,7 +88,7 @@ pub enum Message {
     BootstrapBrowserConfig(Result<config_tools::BrowserConfig, String>),
     BootstrapAcpAgentsLoaded(Result<Vec<String>, String>),
     BootstrapArchivedSessions(Result<std::collections::HashSet<String>, String>),
-    ExternalAppsLoaded(Result<vw_gateway_client::ExternalAppsStateDto, String>),
+    ExternalAppsLoaded(Result<gateway_desktop_settings::ExternalAppsStateDto, String>),
     SessionPreviewsLoaded(Result<Vec<crate::app::models::ChatSessionMeta>, String>),
     ProjectChatPreferencesLoaded(
         crate::app::config::ProjectPreferencesScope,

@@ -1,277 +1,38 @@
+//! 桌面设置兼容门面。
+use super::GatewayClient;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use vw_api_file::file::FileNodeKind;
-
-use super::GatewayClient;
-use crate::http::apply_request_context;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopSkillCatalogEntryDto {
-    pub id: String,
-    pub title: String,
-    pub description: String,
-    pub kind: String,
-    pub resource_count: usize,
-    pub installed: bool,
-    pub enabled: bool,
-    pub source: String,
-    pub source_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub origin: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub namespace: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub package_type: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source_pack: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopSkillDetailDto {
-    pub id: String,
-    pub title: String,
-    pub description: String,
-    pub kind: String,
-    pub installed: bool,
-    pub enabled: bool,
-    pub source: String,
-    pub source_path: Option<String>,
-    pub document_name: String,
-    pub document_content: String,
-    pub can_install: bool,
-    pub can_toggle: bool,
-    pub can_delete: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopSkillPathDto {
-    pub path: String,
-}
-
-/// A read-only dependency observation; presence does not imply successful execution.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginDependencyDto {
-    pub component: String,
-    pub dependency: String,
-    pub status: String,
-    pub detail: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginCatalogEntryDto {
-    pub id: String,
-    pub display_name: String,
-    pub version: String,
-    pub description: String,
-    pub enabled: bool,
-    pub component_count: usize,
-    pub source_path: Option<String>,
-    #[serde(default)]
-    pub dependency_checks: Vec<DesktopPluginDependencyDto>,
-    #[serde(default)]
-    pub origin: DesktopPluginSourceDto,
-    #[serde(default)]
-    pub hook_review: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginCapabilitiesDto {
-    pub skills: usize,
-    pub mcp_servers: usize,
-    pub hooks: usize,
-    pub interface: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginDetailDto {
-    pub id: String,
-    pub display_name: String,
-    pub version: String,
-    pub description: String,
-    pub enabled: bool,
-    pub source_path: Option<String>,
-    pub manifest_path: String,
-    pub capabilities: DesktopPluginCapabilitiesDto,
-    pub can_toggle: bool,
-    pub can_delete: bool,
-    #[serde(default)]
-    pub dependency_checks: Vec<DesktopPluginDependencyDto>,
-    #[serde(default)]
-    pub origin: DesktopPluginSourceDto,
-    #[serde(default)]
-    pub hook_review: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginPathDto {
-    pub path: String,
-}
-
-/// Locked package provenance without credentials or raw registry responses.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginSourceDto {
-    pub kind: String,
-    pub resolved_version: Option<String>,
-    pub revision: Option<String>,
-    pub sha256: Option<String>,
-    #[serde(default)]
-    pub marketplace: Option<String>,
-}
-
-/// Audited package preview awaiting explicit, single-use activation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopPluginPreviewDto {
-    pub token: String,
-    pub plugin_id: String,
-    pub source: String,
-    pub old_version: Option<String>,
-    pub version: Option<String>,
-    pub capabilities: DesktopPluginCapabilitiesDto,
-    pub audit_status: String,
-    pub dependency_status: String,
-    pub origin: DesktopPluginSourceDto,
-    #[serde(default)]
-    pub dependency_checks: Vec<DesktopPluginDependencyDto>,
-    #[serde(default)]
-    pub previous_capabilities: Option<DesktopPluginCapabilitiesDto>,
-}
-
-/// One statically audited hook declaration from an installed plugin.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct HookCatalogEntryDto {
-    pub plugin_id: String,
-    pub event: String,
-    pub command: String,
-    pub args: Vec<String>,
-    pub working_dir: String,
-    pub mode: String,
-    pub hook_hash: String,
-    pub trusted: bool,
-}
-
-/// Trust mutation request containing no executable declaration fields.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct HookMutationRequestDto {
-    pub plugin_id: String,
-    pub hook_hash: String,
-}
-
-/// Result of trusting or revoking one current hook declaration.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct HookMutationResponseDto {
-    pub plugin_id: String,
-    pub hook_hash: String,
-    pub trusted: bool,
-}
-
-/// Bounded command audit record without tool arguments, output, or error text.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct HookAuditEntryDto {
-    pub timestamp: String,
-    pub tool_name: String,
-    pub duration_ms: u64,
-    pub success: bool,
-}
-
-/// 外部应用探测结果的精简表示。
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ExternalAppsStateDto {
-    /// 当前桌面平台标识。
-    pub platform: Option<String>,
-    /// 外部应用 ID 与是否可用的状态列表。
-    pub apps: Vec<(String, bool)>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopServiceCommandResponseDto {
-    pub command: String,
-    pub output: String,
-}
-
-/// Gateway 宿主允许执行的封闭 service 生命周期命令。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DesktopServiceCommand {
-    Status,
-    Start,
-    Stop,
-    Restart,
-}
-
-impl DesktopServiceCommand {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Status => "status",
-            Self::Start => "start",
-            Self::Stop => "stop",
-            Self::Restart => "restart",
-        }
-    }
-}
-
-impl TryFrom<&str> for DesktopServiceCommand {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "status" => Ok(Self::Status),
-            "start" => Ok(Self::Start),
-            "stop" => Ok(Self::Stop),
-            "restart" => Ok(Self::Restart),
-            _ => Err(format!("unsupported desktop service command: {value}")),
-        }
-    }
-}
+pub use gateway_desktop_settings::*;
 
 impl GatewayClient {
     /// 在网关主机安装浏览器依赖，沿用认证上下文并允许下载时间。
     pub async fn browser_install(&self, backend: &str) -> Result<String, String> {
-        if !matches!(backend, "agent_browser" | "auto") {
-            return Err("该后端需要手工准备服务，请查看安装帮助".into());
-        }
-        let path = format!("/v1/desktop/browser-install/{backend}");
-        let request = self.transport.client()
-            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
-            .json(&serde_json::json!({}));
-        #[cfg(not(target_arch = "wasm32"))]
-        let request = request.timeout(std::time::Duration::from_secs(630));
-        let response = crate::http::apply_request_context(request, self.transport.endpoint())
-            .send()
-            .await
-            .map_err(|err| crate::http::transport_error("POST", self.transport.endpoint(), &path, err))?;
-        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .browser_install(backend).await
     }
 
     /// 安装可能需要下载较大的包，使用独立请求超时。
     pub async fn acp_install(&self, agent: &str) -> Result<String, String> {
-        if agent.is_empty() || !agent.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {
-            return Err("invalid ACP install name".into());
-        }
-        let path = format!("/v1/desktop/acp-install/{agent}");
-        let request = self.transport.client()
-            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
-            .json(&serde_json::json!({}));
-        #[cfg(not(target_arch = "wasm32"))]
-        let request = request.timeout(std::time::Duration::from_secs(310));
-        let response = crate::http::apply_request_context(request, self.transport.endpoint())
-            .send()
-            .await
-            .map_err(|err| crate::http::transport_error("POST", self.transport.endpoint(), &path, err))?;
-        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .acp_install(agent).await
     }
 
     pub async fn acp_diagnostic(&self, id: &str, config: &Value) -> Result<String, String> {
-        self.post_json(&format!("/v1/desktop/acp-diagnostic/{id}"), &[], config).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .acp_diagnostic(id, config).await
     }
+
     pub async fn acp_diagnostic_cancel(&self, id: &str) -> Result<bool, String> {
-        self.delete_json(&format!("/v1/desktop/acp-diagnostic/{id}"), &[], &serde_json::json!({}))
-            .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .acp_diagnostic_cancel(id).await
     }
 
     /// List statically audited plugin hook declarations in stable order.
     pub async fn hooks_get(&self) -> Result<Vec<HookCatalogEntryDto>, String> {
-        self.get_json("/v1/hooks", &[]).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .hooks_get().await
     }
 
     /// Trust one current hook declaration by server-verified hash.
@@ -280,15 +41,8 @@ impl GatewayClient {
         plugin_id: &str,
         hook_hash: &str,
     ) -> Result<HookMutationResponseDto, String> {
-        self.post_json(
-            "/v1/hooks/trust",
-            &[],
-            &HookMutationRequestDto {
-                plugin_id: plugin_id.to_string(),
-                hook_hash: hook_hash.to_string(),
-            },
-        )
-        .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .hook_trust(plugin_id, hook_hash).await
     }
 
     /// Revoke one current hook declaration by server-verified hash.
@@ -297,20 +51,14 @@ impl GatewayClient {
         plugin_id: &str,
         hook_hash: &str,
     ) -> Result<HookMutationResponseDto, String> {
-        self.post_json(
-            "/v1/hooks/revoke",
-            &[],
-            &HookMutationRequestDto {
-                plugin_id: plugin_id.to_string(),
-                hook_hash: hook_hash.to_string(),
-            },
-        )
-        .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .hook_revoke(plugin_id, hook_hash).await
     }
 
     /// Read bounded command audit records containing only safe fields.
     pub async fn hook_audit_get(&self) -> Result<Vec<HookAuditEntryDto>, String> {
-        self.get_json("/v1/hooks/audit", &[]).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .hook_audit_get().await
     }
 
     /// 读取 Skills 目录页可展示的技能列表。
@@ -318,11 +66,8 @@ impl GatewayClient {
         &self,
         project_path: Option<&str>,
     ) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
-        let mut query = Vec::new();
-        if let Some(project_path) = project_path.map(str::trim).filter(|value| !value.is_empty()) {
-            query.push(("project_path".to_string(), project_path.to_string()));
-        }
-        self.get_json("/v1/skills", &query).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .skills_get(project_path).await
     }
 
     /// 读取 desktop 专用技能目录。
@@ -330,11 +75,8 @@ impl GatewayClient {
         &self,
         project_path: Option<&str>,
     ) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
-        let mut query = Vec::new();
-        if let Some(project_path) = project_path.map(str::trim).filter(|value| !value.is_empty()) {
-            query.push(("project_path".to_string(), project_path.to_string()));
-        }
-        self.get_json("/v1/desktop/skills", &query).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_skills_get(project_path).await
     }
 
     /// 读取指定技能的文档与可执行操作。
@@ -343,11 +85,8 @@ impl GatewayClient {
         project_path: Option<&str>,
         skill_id: &str,
     ) -> Result<DesktopSkillDetailDto, String> {
-        let mut query = vec![("skill_id".to_string(), skill_id.to_string())];
-        if let Some(project_path) = project_path.map(str::trim).filter(|value| !value.is_empty()) {
-            query.push(("project_path".to_string(), project_path.to_string()));
-        }
-        self.get_json("/v1/skills/detail", &query).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .skill_detail_get(project_path, skill_id).await
     }
 
     /// 读取 desktop 专用技能详情。
@@ -356,37 +95,20 @@ impl GatewayClient {
         project_path: Option<&str>,
         skill_id: &str,
     ) -> Result<DesktopSkillDetailDto, String> {
-        let mut query = vec![("skill_id".to_string(), skill_id.to_string())];
-        if let Some(project_path) = project_path.map(str::trim).filter(|value| !value.is_empty()) {
-            query.push(("project_path".to_string(), project_path.to_string()));
-        }
-        self.get_json("/v1/desktop/skills/detail", &query).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_skill_detail_get(project_path, skill_id).await
     }
 
     /// 在当前项目下创建新的技能 scaffold。
     pub async fn skill_create(&self, project_path: &str) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/skills/create",
-                &[],
-                &serde_json::json!({
-                    "project_path": project_path,
-                }),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .skill_create(project_path).await
     }
 
     /// 创建 desktop 专用技能 scaffold。
     pub async fn desktop_skill_create(&self, project_path: &str) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/desktop/skills/create",
-                &[],
-                &serde_json::json!({"project_path": project_path}),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_skill_create(project_path).await
     }
 
     /// 将内置技能安装到当前项目 skills 目录。
@@ -395,17 +117,8 @@ impl GatewayClient {
         project_path: &str,
         skill_id: &str,
     ) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/skills/install-built-in",
-                &[],
-                &serde_json::json!({
-                    "project_path": project_path,
-                    "skill_id": skill_id,
-                }),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .skill_install_builtin(project_path, skill_id).await
     }
 
     /// 安装 desktop 专用内置技能。
@@ -414,14 +127,8 @@ impl GatewayClient {
         project_path: &str,
         skill_id: &str,
     ) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/desktop/skills/install-built-in",
-                &[],
-                &serde_json::json!({"project_path": project_path, "skill_id": skill_id}),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_skill_install_builtin(project_path, skill_id).await
     }
 
     /// 设置本地技能启用状态。
@@ -431,18 +138,8 @@ impl GatewayClient {
         skill_id: &str,
         enabled: bool,
     ) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/skills/set-enabled",
-                &[],
-                &serde_json::json!({
-                    "project_path": project_path,
-                    "skill_id": skill_id,
-                    "enabled": enabled,
-                }),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .skill_set_enabled(project_path, skill_id, enabled).await
     }
 
     /// 设置 desktop 专用技能启用状态。
@@ -452,14 +149,8 @@ impl GatewayClient {
         skill_id: &str,
         enabled: bool,
     ) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/desktop/skills/set-enabled",
-                &[],
-                &serde_json::json!({"project_path": project_path, "skill_id": skill_id, "enabled": enabled}),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_skill_set_enabled(project_path, skill_id, enabled).await
     }
 
     /// 删除本地技能目录。
@@ -468,17 +159,8 @@ impl GatewayClient {
         project_path: Option<&str>,
         skill_id: &str,
     ) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/skills/delete",
-                &[],
-                &serde_json::json!({
-                    "project_path": project_path,
-                    "skill_id": skill_id,
-                }),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .skill_delete(project_path, skill_id).await
     }
 
     /// 删除 desktop 专用技能目录。
@@ -487,24 +169,20 @@ impl GatewayClient {
         project_path: Option<&str>,
         skill_id: &str,
     ) -> Result<String, String> {
-        let response: DesktopSkillPathDto = self
-            .post_json(
-                "/v1/desktop/skills/delete",
-                &[],
-                &serde_json::json!({"project_path": project_path, "skill_id": skill_id}),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_skill_delete(project_path, skill_id).await
     }
 
     /// 读取已发现插件目录。
     pub async fn plugins_get(&self) -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
-        self.get_json("/v1/plugins", &[]).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugins_get().await
     }
 
     /// Read state-bound plugin diagnostics from the running authenticated gateway.
     pub async fn plugins_status_get(&self) -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
-        self.get_json("/v1/plugins/status", &[]).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugins_status_get().await
     }
 
     /// 读取指定插件详情。
@@ -512,8 +190,8 @@ impl GatewayClient {
         &self,
         plugin_id: &str,
     ) -> Result<DesktopPluginDetailDto, String> {
-        self.get_json("/v1/plugins/detail", &[("plugin_id".to_string(), plugin_id.to_string())])
-            .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_detail_get(plugin_id).await
     }
 
     /// Prepare and audit a source without publishing it to the plugin store.
@@ -521,47 +199,33 @@ impl GatewayClient {
         &self,
         source: &str,
     ) -> Result<DesktopPluginPreviewDto, String> {
-        self.post_json("/v1/plugins/prepare-install", &[], &serde_json::json!({"source":source}))
-            .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_prepare_install(source).await
     }
+
     pub async fn plugin_install(&self, token: &str, approved: bool) -> Result<String, String> {
-        let response: DesktopPluginPathDto = self
-            .post_json(
-                "/v1/plugins/install",
-                &[],
-                &serde_json::json!({"token":token,"approved":approved}),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_install(token, approved).await
     }
+
     pub async fn plugin_prepare_update(
         &self,
         plugin_id: &str,
         source: Option<&str>,
     ) -> Result<DesktopPluginPreviewDto, String> {
-        self.post_json(
-            "/v1/plugins/prepare-update",
-            &[],
-            &serde_json::json!({"plugin_id":plugin_id,"source":source}),
-        )
-        .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_prepare_update(plugin_id, source).await
     }
+
     pub async fn plugin_update(&self, token: &str, approved: bool) -> Result<String, String> {
-        let response: DesktopPluginPathDto = self
-            .post_json(
-                "/v1/plugins/update",
-                &[],
-                &serde_json::json!({"token":token,"approved":approved}),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_update(token, approved).await
     }
 
     /// Discard a pending preview and release its private staging files.
     pub async fn plugin_cancel(&self, token: &str) -> Result<(), String> {
-        let _: Value =
-            self.post_json("/v1/plugins/cancel", &[], &serde_json::json!({"token":token})).await?;
-        Ok(())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_cancel(token).await
     }
 
     /// 设置本地插件启用状态。
@@ -570,88 +234,38 @@ impl GatewayClient {
         plugin_id: &str,
         enabled: bool,
     ) -> Result<String, String> {
-        let response: DesktopPluginPathDto = self
-            .post_json(
-                "/v1/plugins/set-enabled",
-                &[],
-                &serde_json::json!({
-                    "plugin_id": plugin_id,
-                    "enabled": enabled,
-                }),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_set_enabled(plugin_id, enabled).await
     }
 
     /// 删除本地插件目录。
     pub async fn plugin_delete(&self, plugin_id: &str) -> Result<String, String> {
-        let response: DesktopPluginPathDto = self
-            .post_json(
-                "/v1/plugins/delete",
-                &[],
-                &serde_json::json!({
-                    "plugin_id": plugin_id,
-                }),
-            )
-            .await?;
-        Ok(response.path)
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .plugin_delete(plugin_id).await
     }
 
     /// 读取桌面端外部应用可用性状态。
     pub async fn desktop_external_apps_get(&self) -> Result<ExternalAppsStateDto, String> {
-        let value: Value = self.get_json("/v1/desktop/external-apps", &[]).await?;
-        let platform = value.get("platform").and_then(Value::as_str).map(ToString::to_string);
-        let apps = value
-            .get("apps")
-            .and_then(Value::as_array)
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(|item| {
-                        let id = item.get("id").and_then(Value::as_str)?;
-                        let available =
-                            item.get("available").and_then(Value::as_bool).unwrap_or(false);
-                        Some((id.to_string(), available))
-                    })
-                    .collect::<Vec<(String, bool)>>()
-            })
-            .unwrap_or_default();
-        Ok(ExternalAppsStateDto { platform, apps })
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_external_apps_get().await
     }
 
     /// 调用指定外部应用打开目标路径。
     pub async fn desktop_external_app_open(&self, path: &str, target: &str) -> Result<(), String> {
-        let _: Value = self
-            .post_json(
-                "/v1/desktop/external-apps/open",
-                &[],
-                &serde_json::json!({
-                    "path": path,
-                    "target": target,
-                }),
-            )
-            .await?;
-        Ok(())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_external_app_open(path, target).await
     }
 
     /// 判断网关主机上的绝对路径指向文件还是目录。
     pub async fn desktop_external_path_kind(&self, path: &str) -> Result<FileNodeKind, String> {
-        self.post_json("/v1/desktop/external-path/kind", &[], &serde_json::json!({ "path": path }))
-            .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_external_path_kind(path).await
     }
 
     /// 在系统文件管理器中定位并高亮指定路径。
     pub async fn desktop_external_path_reveal(&self, path: &str) -> Result<(), String> {
-        let _: Value = self
-            .post_json(
-                "/v1/desktop/external-path/reveal",
-                &[],
-                &serde_json::json!({
-                    "path": path,
-                }),
-            )
-            .await?;
-        Ok(())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_external_path_reveal(path).await
     }
 
     /// 通过 gateway 调用本机 CLI service 生命周期命令。
@@ -659,7 +273,8 @@ impl GatewayClient {
         &self,
         command: &str,
     ) -> Result<DesktopServiceCommandResponseDto, String> {
-        self.desktop_service_command_typed(DesktopServiceCommand::try_from(command)?).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_service_command(command).await
     }
 
     /// 执行经过类型约束的 service 生命周期命令。
@@ -667,12 +282,8 @@ impl GatewayClient {
         &self,
         command: DesktopServiceCommand,
     ) -> Result<DesktopServiceCommandResponseDto, String> {
-        self.post_json(
-            &format!("/v1/desktop/service/{}", command.as_str()),
-            &[],
-            &serde_json::json!({}),
-        )
-        .await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_service_command_typed(command).await
     }
 
     /// 从全局配置中读取桌面系统设置并反序列化。
@@ -680,10 +291,8 @@ impl GatewayClient {
     where
         T: DeserializeOwned,
     {
-        let Some(value) = self.global_config_get_path(&["app_ui", "system_settings"]).await? else {
-            return Ok(None);
-        };
-        serde_json::from_value(value).map(Some).map_err(|err| err.to_string())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_system_settings_get::<T>().await
     }
 
     /// 以补丁方式写入桌面系统设置。
@@ -691,46 +300,26 @@ impl GatewayClient {
     where
         T: Serialize,
     {
-        let value = serde_json::to_value(patch).map_err(|err| err.to_string())?;
-        if value.get("gateway_client").is_some() {
-            // A rejected connection snapshot may be echoed in the response.
-            // Keep both the payload and the server's error text out of logs and UI messages.
-            let request = self.transport.client()
-                .patch(format!("{}/v1/global/config", self.transport.endpoint().base_url()))
-                .json(&serde_json::json!({"app_ui": {"system_settings": value}}));
-            let response = apply_request_context(request, self.transport.endpoint())
-                .send()
-                .await
-                .map_err(|_| "gateway connection sync request failed".to_string())?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(format!("gateway connection sync failed: {status}"));
-            }
-            response
-                .json::<Value>()
-                .await
-                .map_err(|_| "invalid gateway connection sync response".to_string())?;
-            return Ok(());
-        }
-        self.global_config_patch_path(&["app_ui", "system_settings"], value).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_system_settings_patch::<T>(patch).await
     }
 
     /// 读取桌面偏好设置。
     pub async fn desktop_preferences_get(&self) -> Result<Value, String> {
-        self.get_json("/v1/desktop/preferences", &[]).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_preferences_get().await
     }
 
     /// 更新桌面偏好设置并返回最新值。
     pub async fn desktop_preferences_patch(&self, patch: &Value) -> Result<Value, String> {
-        self.patch_json("/v1/desktop/preferences", &[], patch).await
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_preferences_patch(patch).await
     }
 
     /// 读取某类桌面工具的持久化内容。
     pub async fn desktop_tool_content_get(&self, tool_type: &str) -> Result<String, String> {
-        let tool_type = desktop_tool_type_path(tool_type)?;
-        let value: Value =
-            self.get_json(&format!("/v1/desktop/tool-content/{tool_type}"), &[]).await?;
-        Ok(value.get("content").and_then(Value::as_str).unwrap_or_default().to_string())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_tool_content_get(tool_type).await
     }
 
     /// 写入某类桌面工具的持久化内容。
@@ -739,15 +328,8 @@ impl GatewayClient {
         tool_type: &str,
         content: &str,
     ) -> Result<(), String> {
-        let tool_type = desktop_tool_type_path(tool_type)?;
-        let _: Value = self
-            .put_json(
-                &format!("/v1/desktop/tool-content/{tool_type}"),
-                &[],
-                &serde_json::json!({ "content": content }),
-            )
-            .await?;
-        Ok(())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_tool_content_put(tool_type, content).await
     }
 
     /// 读取项目级桌面偏好设置。
@@ -755,16 +337,8 @@ impl GatewayClient {
         &self,
         project_path: &str,
     ) -> Result<Option<(String, bool, Option<String>)>, String> {
-        let query = vec![("project_path".to_string(), project_path.to_string())];
-        let Some(value) =
-            self.get_json_with_404::<Value>("/v1/desktop/project-preferences", &query).await?
-        else {
-            return Ok(None);
-        };
-        let model = value.get("model").and_then(Value::as_str).unwrap_or_default().to_string();
-        let auto_model = value.get("auto_model").and_then(Value::as_bool).unwrap_or(false);
-        let acp_agent = value.get("acp_agent").and_then(Value::as_str).map(ToString::to_string);
-        if model.trim().is_empty() { Ok(None) } else { Ok(Some((model, auto_model, acp_agent))) }
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_project_preferences_get(project_path).await
     }
 
     /// 写入项目级桌面偏好设置。
@@ -775,37 +349,11 @@ impl GatewayClient {
         auto_model: bool,
         acp_agent: Option<&str>,
     ) -> Result<(), String> {
-        let query = vec![("project_path".to_string(), project_path.to_string())];
-        let _: Value = self
-            .put_json(
-                "/v1/desktop/project-preferences",
-                &query,
-                &serde_json::json!({
-                    "model": model,
-                    "auto_model": auto_model,
-                    "acp_agent": acp_agent,
-                }),
-            )
-            .await?;
-        Ok(())
+        gateway_desktop_settings::GatewayDesktopSettingsClient::new(self.transport.clone())
+            .desktop_project_preferences_put(project_path, model, auto_model, acp_agent).await
     }
 }
 
-fn desktop_tool_type_path(tool_type: &str) -> Result<String, String> {
-    if tool_type.trim().is_empty() {
-        return Err("desktop tool type must not be empty".to_string());
-    }
-    let mut encoded = String::new();
-    for byte in tool_type.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
-            encoded.push(char::from(byte));
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    Ok(encoded)
-}
-
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "desktop_settings_api_tests.rs"]
 mod desktop_settings_api_tests;

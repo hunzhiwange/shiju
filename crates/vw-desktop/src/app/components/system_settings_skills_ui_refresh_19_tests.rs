@@ -12,9 +12,8 @@ use iced::advanced::{
 use iced::{Event, Font, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-use vw_gateway_client::{
-    DesktopPluginCapabilitiesDto, DesktopPluginDependencyDto, DesktopPluginPreviewDto,
-};
+use gateway_desktop_settings::{DesktopPluginCapabilitiesDto, DesktopPluginDependencyDto, DesktopPluginPreviewDto};
+
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_19_CHILD";

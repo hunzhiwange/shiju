@@ -26,65 +26,7 @@ impl Default for HttpRequestSettingsState {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct AcpSettingsState {
-    pub(crate) installed: std::collections::BTreeMap<String, bool>,
-    pub(crate) installing_agent: Option<String>,
-    pub(crate) diagnostic_id: Option<String>,
-    pub(crate) diagnostic_status: Option<AcpDiagnosticStatus>,
-    pub(crate) diagnostic_agent: Option<String>,
-    pub(crate) diagnostic_results: std::collections::BTreeMap<String, AcpDiagnosticStatus>,
-    pub(crate) catalog: std::collections::BTreeMap<String, config_aggregate::AcpAgentConfig>,
-    pub(crate) defaults:
-        std::collections::BTreeMap<String, config_aggregate::AcpAgentConfig>,
-    pub(crate) enabled: std::collections::BTreeSet<String>,
-    pub(crate) editing_agent: Option<String>,
-    pub(crate) editor_args: Vec<String>,
-    pub(crate) editor_env: Vec<(String, String)>,
-    pub(crate) new_agent_expanded: bool,
-    pub(crate) new_agent_name_input: String,
-    pub(crate) new_agent_command_input: String,
-    pub(crate) new_agent_args_input: String,
-    pub(crate) loading: bool,
-    pub(crate) adding_agent: bool,
-    pub(crate) saving_agent: Option<String>,
-    pub(crate) copied_agent: Option<String>,
-    pub(crate) save_error: Option<String>,
-    pub(crate) status_message: Option<String>,
-    pub(crate) status_translation: Option<crate::app::i18n::format::Message>,
-    pub(crate) error_translation: Option<crate::app::i18n::format::Message>,
-}
-
-impl Default for AcpSettingsState {
-    fn default() -> Self {
-        Self {
-            installed: Default::default(),
-            installing_agent: None,
-            diagnostic_id: None,
-            diagnostic_status: None,
-            diagnostic_agent: None,
-            diagnostic_results: std::collections::BTreeMap::new(),
-            catalog: std::collections::BTreeMap::new(),
-            defaults: std::collections::BTreeMap::new(),
-            enabled: std::collections::BTreeSet::new(),
-            editing_agent: None,
-            editor_args: Vec::new(),
-            editor_env: Vec::new(),
-            new_agent_expanded: false,
-            new_agent_name_input: String::new(),
-            new_agent_command_input: String::new(),
-            new_agent_args_input: String::new(),
-            loading: false,
-            adding_agent: false,
-            saving_agent: None,
-            copied_agent: None,
-            save_error: None,
-            status_message: None,
-            status_translation: None,
-            error_translation: None,
-        }
-    }
-}
+pub(crate) use desktop_settings_agents::acp_state::AcpSettingsState;
 
 pub use desktop_settings_mcp::state::{McpNewServerState, McpNewServerTransport, McpSettingsTab};
 

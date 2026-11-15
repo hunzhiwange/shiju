@@ -2,9 +2,11 @@ use super::*;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 
-pub(crate) const MAIN_AGENT_KEY: &str = "main";
+pub(crate) use desktop_settings_agents::state::{
+    MAIN_AGENT_KEY, AGENT_PROMPT_SYSTEM_TAB, WORKSPACE_IDENTITY_FILES,
+    WorkspaceIdentityFileState, AgentSettingsEntryKind,
+};
 
-pub(crate) const AGENT_PROMPT_SYSTEM_TAB: &str = "system_prompt";
 pub(crate) const AGENT_DETAIL_BASIC_TAB: &str = "basic";
 pub(crate) const AGENT_DETAIL_IDENTITY_TAB: &str = "identity";
 pub(crate) const AGENT_DETAIL_TOOLS_TAB: &str = "tools";
@@ -31,32 +33,6 @@ pub(crate) fn clear_pending_guide_handoff(request_id: u64) {
     let mut pending =
         GUIDE_HANDOFF_REQUEST_IDS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     pending.remove(&request_id);
-}
-
-pub(crate) const WORKSPACE_IDENTITY_FILES: [(&str, &str); 7] = [
-    ("AGENTS.md", "智能体 AGENTS"),
-    ("SOUL.md", "核心逻辑 SOUL"),
-    ("TOOLS.md", "工具集 TOOLS"),
-    ("IDENTITY.md", "身份机制 IDENTITY"),
-    ("USER.md", "用户系统 USER"),
-    ("HEARTBEAT.md", "心跳机制 HEARTBEAT"),
-    ("MEMORY.md", "记忆系统 MEMORY"),
-];
-
-#[derive(Debug, Clone)]
-pub(crate) struct WorkspaceIdentityFileState {
-    pub(crate) file_name: String,
-    pub(crate) label: String,
-    pub(crate) editor: text_editor::Content,
-    pub(crate) size_bytes: Option<u64>,
-    pub(crate) modified_at_ms: Option<u64>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AgentSettingsEntryKind {
-    Main,
-    BuiltinWorker,
-    Custom,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

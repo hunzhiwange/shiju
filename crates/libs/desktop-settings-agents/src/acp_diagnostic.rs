@@ -1,12 +1,13 @@
-//! ACP 卡片与配置弹窗共用的连接测试状态。
+use crate::message::Event;
+
+// ACP 卡片与配置弹窗共用的连接测试状态。
 
 use iced::widget::{column, container, row, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 
-use crate::app::Message;
-use crate::app::components::status_animation::spinner_frame;
-use crate::app::i18n::I18n;
-use crate::app::state::AcpDiagnosticStatus;
+use desktop_ui_controls::status_animation::spinner_frame;
+use desktop_i18n::I18n;
+use crate::acp_state::AcpDiagnosticStatus;
 use config_ui::DesktopLocale;
 
 fn status_color(theme: &Theme, status: AcpDiagnosticStatus) -> Color {
@@ -21,11 +22,11 @@ fn status_color(theme: &Theme, status: AcpDiagnosticStatus) -> Color {
     }
 }
 
-pub(super) fn diagnostic_status(
+pub fn diagnostic_status(
     status: AcpDiagnosticStatus,
     frame: usize,
     locale: DesktopLocale,
-) -> Element<'static, Message> {
+) -> Element<'static, Event> {
     let (icon, label) = match status {
         AcpDiagnosticStatus::Running => (spinner_frame(frame), "测试中"),
         AcpDiagnosticStatus::Connected => ("✓", "测试成功"),

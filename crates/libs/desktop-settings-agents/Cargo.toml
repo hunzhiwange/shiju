@@ -1,0 +1,24 @@
+[package]
+name = "desktop-settings-agents"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+config-ui = { path = "../config-ui", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+serde_json = "1"
+config-agent = { path = "../config-agent", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+config-acp-install = { path = "../config-acp-install", version = "0.6.0" }
+iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
+vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.6.0" }
+vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }

@@ -1,7 +1,7 @@
 //! 验证代理基础设置的注册、委派控件可见性与视图状态。
 //! 不同代理来源和能力组合用于确认仅在支持时暴露相应控制项。
 
-use super::basic::{shows_delegation_controls, shows_registration_controls, view};
+use super::basic::view;
 use crate::app::state::DelegateAgentSettingsEntry;
 use iced::advanced::widget::Tree;
 
@@ -37,42 +37,6 @@ fn basic_view_main_hides_availability_and_shows_common_runtime_controls() {
     let tree = view_tree(&app, main, vec!["openai".to_string(), main.provider.clone()]);
 
     assert_common_field_structure(&tree, false);
-}
-
-#[test]
-fn basic_agent_visibility_helpers_distinguish_main_from_workers() {
-    let (app, _) = crate::app::App::new();
-    let main = app
-        .agents_settings
-        .entries
-        .iter()
-        .find(|entry| entry.key == "main")
-        .expect("main agent exists");
-    let worker = app
-        .agents_settings
-        .entries
-        .iter()
-        .find(|entry| entry.key != "main")
-        .expect("worker agent exists");
-
-    assert!(!shows_registration_controls(main));
-    assert!(shows_registration_controls(worker));
-}
-
-#[test]
-fn builtin_agent_settings_show_chinese_description_and_fixed_role_controls() {
-    let (app, _) = crate::app::App::new();
-    let reviewer = app
-        .agents_settings
-        .entries
-        .iter()
-        .find(|entry| entry.key == "reviewer")
-        .expect("reviewer agent exists");
-
-    assert_eq!(reviewer.label, "代码审查");
-    assert_eq!(reviewer.description, "只读审查代码、测试与风险，给出有证据的缺陷报告。");
-    assert!(shows_registration_controls(reviewer));
-    assert!(!shows_delegation_controls(reviewer));
 }
 
 #[test]

@@ -7,3 +7,6 @@ pub mod help;
 pub mod headings;
 
 pub mod system_settings_themes;
+
+pub mod quick_messages_update;
+pub mod general_update;

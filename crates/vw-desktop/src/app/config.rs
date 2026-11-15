@@ -51,6 +51,7 @@ pub use gateway::{
 ///
 /// 调用方通过该入口使用配置或组件能力，无需依赖内部文件布局。
 pub use system_settings::*;
+pub(in crate::app) use system_settings::config_access;
 
 #[cfg(test)]
 #[path = "config_tests.rs"]

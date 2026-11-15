@@ -211,7 +211,7 @@ pub(crate) fn install_window_test_bootstrap(port: u16) {
     WINDOW_TEST_BOOTSTRAP.set(config).expect("install window test endpoint once");
 }
 
-fn config_access() -> desktop_config::ConfigAccess {
+pub(in crate::app) fn config_access() -> desktop_config::ConfigAccess {
     desktop_config::ConfigAccess::new(gateway_client_endpoint(), None)
         .with_bootstrap_config(load_gateway_client_bootstrap_config())
 }

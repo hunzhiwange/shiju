@@ -14,3 +14,16 @@ pub struct View<'a, Message> {
 }
 
 #[cfg(test)] mod gallery_tests;
+
+pub mod update;
+
+/// Mount the editor with the same modal padding and cancel message as the gallery.
+pub fn editor_overlay<'a, Message: Clone + 'static>(app: &View<'a, Message>, base: iced::Element<'a, Message>) -> iced::Element<'a, Message> {
+    desktop_ui_controls::system_settings_common::settings_modal_overlay(
+        Some(base), (app.map)(messages::ThemesMessage::CancelEdit),
+        iced::widget::container(editor::view(app)).padding(12),
+    )
+}
+
+#[cfg(test)]
+mod update_tests;

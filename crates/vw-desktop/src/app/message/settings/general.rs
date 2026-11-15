@@ -364,9 +364,7 @@ mod general_tests;
 
 fn save_locale(locale: config_ui::DesktopLocale) -> Task<Message> {
     Task::perform(
-        crate::app::config::update_system_settings_config_result_async(move |system| {
-            system.desktop_locale = locale;
-        }),
+        desktop_settings_appearance::general_update::save_locale(config_access(), locale),
         move |result| {
             Message::Settings(SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
                 locale, result,
@@ -377,13 +375,15 @@ fn save_locale(locale: config_ui::DesktopLocale) -> Task<Message> {
 
 fn save_task_completion_notification(enabled: bool) -> Task<Message> {
     Task::perform(
-        crate::app::config::update_system_settings_config_result_async(move |system| {
-            system.task_completion_notification = enabled;
-        }),
+        desktop_settings_appearance::general_update::save_task_completion_notification(config_access(), enabled),
         move |result| {
             Message::Settings(SettingsMessage::General(
                 GeneralSettingsMessage::TaskCompletionNotificationSaved(enabled, result),
             ))
         },
     )
+}
+
+pub(super) fn config_access() -> desktop_config::ConfigAccess {
+    crate::app::config::config_access()
 }

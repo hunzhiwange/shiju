@@ -10,7 +10,6 @@ use crate::app::state::{
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
 use config_security::{AutonomyLevel, ShellRedirectPolicy};
-use config_ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
     AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded,
@@ -253,19 +252,7 @@ pub enum AgentsMessage {
     MaxIterationsChanged(String, u32),
 }
 
-/// 聊天快捷消息设置消息。
-#[derive(Debug, Clone)]
-pub enum QuickMessagesMessage {
-    Add,
-    Remove(usize),
-    TextChanged(usize, String),
-    GroupChanged(usize, QuickMessageGroup),
-    KindChanged(usize, QuickMessageKind),
-    MoveUp(usize),
-    MoveDown(usize),
-    Save,
-    Saved(Result<(), String>),
-}
+pub use desktop_settings_appearance::quick_messages_update::QuickMessagesMessage;
 
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]

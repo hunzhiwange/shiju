@@ -19,3 +19,8 @@ pub use voice_api::VoiceApiError;
 mod voice_stream;
 #[cfg(not(target_arch = "wasm32"))]
 pub use voice_stream::VoiceStream;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice_requests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice_upload;

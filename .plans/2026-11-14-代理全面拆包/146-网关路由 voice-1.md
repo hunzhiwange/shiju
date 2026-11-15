@@ -13,7 +13,7 @@
 - 旧路径引用复核线索（不是迁移前置）：任务 1 的 `crate::project::from_directory`；任务 3 的 `crate::security::pairing::PairingGuard::from_skeys`；任务 133 的 `crate::gateway::api::handlers`；任务 159 的 `crate::provider::voice::realtime_handoff::HandoffCall`；任务 244 的 `crate::gateway::approval_state::approval_manager_for_current_instance`；任务 269 的 `crate::session::ui_store::load_session_scoped_for_tenant_fallible`；任务 278 的 `crate::gateway::instance::with_instance`；任务 305 的 `crate::gateway::ApiError`；任务 306 的 `crate::session::llm::recovery_test_support::RecoveryConfig::new`；任务 312 的 `crate::session`。已有真实实现/窄适配可保持调用；只有必须消费未交付新接口时，记录符号证据后增加局部依赖。
 - 执行时滚动调度，编号仅提供可行线性顺序；只等待本卡明确列出的前置完成并集成。在途旧编号按任务编号对照认领，禁止重复执行。
 
-状态：未开始
+状态：已阻塞
 
 目的：迁移，将本任务职责归入 `gateway-voice`。
 
@@ -70,3 +70,19 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+## 2026-11-16 静态实施记录
+
+- 已独立迁移 voice_requests.rs、voice_upload.rs 及各自独立测试源码到 gateway-voice/src 同名模块。旧生产路径只薄重导出，取消、去重、租户所有权与上传界限未改；无重复注册表。跨包调用所需项从父模块可见调整为公开。
+- 最小新增原生依赖：axum/multipart、tokio-util、vw-api-transport，tokio 增加 sync；原客户端和 wasm cfg 保留。目标 lib 禁用 doctest。
+- 公共窗口申请：crates/vw-agent/Cargo.toml 的非 wasm 依赖增加 gateway-voice 路径 ../libs/gateway-voice；根 workspace 已注册，无需修改；无需父模块接线（voice.rs 的原 path 模块消费薄导出）。等待串行窗口后由本会话完成。
+- 真实依赖阻塞：任务159来源 crates/vw-agent/src/provider/voice/{mod,realtime,realtime_handoff,transcription}.rs 仍定义 RealtimeSession、HandoffCall、TranscriptionProvider/TranscriptionError。agent-provider/src/lib.rs 和 provider 下没有 voice 模块导出。voice.rs 调用 TranscriptionProvider::from_config；voice_realtime.rs 调用 RealtimeSession::from_config；voice_settings.rs 调用 preview_from_config（当前 pub(crate)）；voice_handoff.rs 持有 HandoffCall。不能让 gateway-voice 依赖 vw-agent，亦不能复制这些类型或越界迁移159来源。需159交付真实类型及构造方法公开导出后继续其余10个来源文件。
+- 后续宿主动作：ui_store 的 load_agent_session_any_for_tenant_fallible/load_session_scoped_for_tenant_fallible/with_tenant_scope、gateway::instance::with_instance、approval_manager_for_current_instance 和 session::stream::collect_gateway_chat_stream_with_observer 需按原签名窄适配；本轮未臆造接口。
+- 测试仅迁源码，不运行；剩余宿主集成测试仍原地，待路由所有者迁移时接线。未运行 Cargo、单元测试及实机测试，待统一验收。
+
+## 最终窗口复核（本次仅保存独立迁移，未完成整卡）
+
+- 159 已实际交付 agent-provider::voice，包括公开 RealtimeSession::preview_from_config、TranscriptionProvider::from_config 和 HandoffCall；此前159依赖阻塞已解除。
+- 当前未完成：voice.rs/voice_realtime.rs/voice_settings.rs/voice_handoff.rs 的宿主窄适配及路由迁移。现存 ui_store::{with_tenant_scope,load_agent_session_any_for_tenant_fallible,load_session_scoped_for_tenant_fallible} 仍属 vw-agent；instance/approval_state 和 collect_gateway_chat_stream_with_observer 同样尚属宿主。需要定义并接线带显式租户与原异步取消语义的接口，不能直接将这些 crate 路径复制到新包。
+- 本提交仅保存已准备的独立四文件迁移与宿主 Cargo 依赖；其余来源保留原实现，无假路由或双状态。保留本卡继续执行，不能删卡或宣称整卡完成。
+- 静态逐字比对：两个生产文件仅可见性调整；两份测试源码逐字一致；diff --check 通过。通过指定 Python 3.12 静态 TOML 解析。未运行 Cargo/测试/启动/外部探测。

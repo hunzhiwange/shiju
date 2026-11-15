@@ -1,0 +1,19 @@
+[package]
+name = "app-usage-codex"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-auth = { path = "../app-auth" }
+app-session-codex = { path = "../app-session-codex" }
+app-usage-core = { path = "../app-usage-core" }
+app-usage-store = { path = "../app-usage-store" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-usage = { path = "../api-usage" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }

@@ -6,10 +6,10 @@ pub use app_usage_core::binding;
 pub use app_usage_store::cache;
 pub mod claude;
 pub mod claude_scan;
-pub mod codex_delta;
-pub mod codex_lineage;
-pub mod codex_rebuild;
-pub mod codex_timing;
+pub use app_usage_codex::codex_delta;
+pub use app_usage_codex::codex_lineage;
+pub use app_usage_codex::codex_rebuild;
+pub use app_usage_codex::codex_timing;
 pub use app_usage_core::cost;
 pub use app_usage_store::cursors;
 #[cfg(not(target_arch = "wasm32"))]

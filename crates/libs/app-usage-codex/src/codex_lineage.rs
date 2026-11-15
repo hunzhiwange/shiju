@@ -15,7 +15,7 @@ use chrono::{DateTime, FixedOffset};
 use serde_json::Value;
 
 use super::codex_delta::{CodexDeltaParser, CodexUsageDelta, Counters};
-use crate::sessions::rollout;
+use app_session_codex::rollout;
 
 type Timestamp = DateTime<FixedOffset>;
 

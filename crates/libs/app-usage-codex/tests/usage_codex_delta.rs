@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use vw_agent_apps::usage::codex_delta::{CodexDeltaParser, normalize_codex_model, parse_reader};
+use app_usage_codex::codex_delta::{CodexDeltaParser, normalize_codex_model, parse_reader};
 use vw_api_usage::{UsageInputSemantics, UsageReasoningSemantics};
 
 fn snapshot(input: u64, output: u64) -> Value {

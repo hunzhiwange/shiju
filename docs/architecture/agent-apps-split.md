@@ -2835,3 +2835,12 @@ app-usage-scripts 唯一拥有原 usage/scripts 全部11个文件（mod.rs 改�
 静态证据：逐文件与 HEAD 对照，仅替换四类 use 路径；模块及独立测试注册完整、原目录移除；标准库 TOML 核验成员、直接依赖路径和依赖闭包无循环及门面回依赖；git diff --check 通过。未运行 Cargo、单元及实机测试，未运行脚本、未修改 Cargo.lock。统一验收待授权：新包及直接调用者编译、迁移定向测试、macOS 脚本限制和其它平台模板行为、锁文件一致性。
 
 任务60导航补充：RustCodeGraph status 可读，但 explore 长时间无输出，已取消；未更新索引，调用者以源码检索核实，现有 vw-agent::agent_apps::usage_settings 继续通过门面使用 UsageTemplate。标准库 TOML 审阅使用本机 Python 3.13，共94份递归清单。
+
+
+### 任务61：Codex用量导入迁移结果
+
+- app-usage-codex/src 唯一拥有 codex_delta.rs、codex_lineage.rs、codex_rebuild.rs、codex_timing.rs；tests/usage_codex_delta.rs 随迁，七个既有测试仅改导入，未新增或执行。Counters、RequestTimer 等内部可见性保持不变。
+- usage/mod.rs 在原模块位置逐项重导出，lib.rs 的 pub mod usage 已提供原路径，无需额外出口。snapshot_scan::{codex_records,replay_codex} 继续使用原路径，跨适配器扫描编排由任务62接收；四个模块无叶子函数遗留。Operation 直接引用实际所有者 app-auth，rollout 引用 app-session-codex，账本与令牌类型分别引用 app-usage-store/core，无回依赖。
+- workspace 和门面注册直接路径依赖；新增包只声明实际使用的九项依赖，保留 chrono std、serde_json arbitrary_precision 及 rusqlite bundled/hooks/limits。原包依赖仍由其它模块使用，保留。macOS FileStamp cfg 保持原样，无关联静态资源。
+- 静态证据：逐文件与 HEAD 差异仅有依赖导入及统计修订函数路径；Python 3.13 标准库 tomllib 审阅65份递归清单，路径存在、无环、无旧门面依赖；七个测试逐字对照仅导入变化。反向依赖检索无匹配，git diff --check 通过。RustCodeGraph status 可读，explore 无输出后取消，未更新旧索引，以源码核实调用者。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：新增包及 snapshot_scan 等直接调用者目标编译、迁移测试、游标/去重/继承/事务回滚与三平台行为、清单及锁文件一致性。Cargo.lock 未修改；静态迁移完成不表示编译或行为通过。

@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-usage-codex = { path = "../libs/app-usage-codex" }
 app-usage-scripts = { path = "../libs/app-usage-scripts" }
 app-usage-coding = { path = "../libs/app-usage-coding" }
 app-usage-balances = { path = "../libs/app-usage-balances" }

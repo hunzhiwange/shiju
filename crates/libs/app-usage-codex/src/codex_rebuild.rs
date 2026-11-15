@@ -5,9 +5,10 @@ use {
     vw_api_usage::UsageSourceKind,
 };
 
-use crate::apps::lifecycle::operations::Operation;
-use super::{
-    codex_lineage::CodexLineage,
+use app_auth::apps::lifecycle::operations::Operation;
+use super::codex_lineage::CodexLineage;
+
+use app_usage_store::{
     cursors::UsageCursorKey,
     store::{StoredUsageRecord, UsageSaveOutcome, UsageSourceIdentity, save_usage_record_in_transaction},
 };
@@ -144,7 +145,7 @@ pub fn rebuild_codex_usage(
     let writer = CodexRebuildWriter { transaction: &tx, scope, host, operation };
     replay(&writer, lineage)?;
     check(operation)?;
-    super::source_settings::advance_statistics_revision(&tx, scope, host, "codex")
+    app_usage_store::source_settings::advance_statistics_revision(&tx, scope, host, "codex")
         .map_err(|_| CodexRebuildError::StorageUnavailable)?;
     tx.commit().map_err(storage)?;
     Ok(ids.len() as u64)

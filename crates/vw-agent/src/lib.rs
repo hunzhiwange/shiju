@@ -219,7 +219,7 @@ pub use agent_paths as global;
 pub mod global_database;
 
 // 健康检查
-pub(crate) mod health;
+pub(crate) use agent_health as health;
 
 // 心跳机制
 pub(crate) mod heartbeat;

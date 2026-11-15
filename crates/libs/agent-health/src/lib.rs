@@ -11,7 +11,7 @@
 //! ## 使用示例
 //!
 //! ```rust
-//! use vibe_window::app::agent::health::{mark_component_ok, mark_component_error, snapshot};
+//! use agent_health::{mark_component_ok, mark_component_error, snapshot};
 //!
 //! // 标记组件状态为正常
 //! mark_component_ok("database");
@@ -213,7 +213,7 @@ where
 /// # 示例
 ///
 /// ```rust
-/// use vibe_window::app::agent::health::mark_component_ok;
+/// use agent_health::mark_component_ok;
 ///
 /// mark_component_ok("database");
 /// mark_component_ok("cache");
@@ -239,7 +239,7 @@ pub fn mark_component_ok(component: &str) {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_window::app::agent::health::mark_component_error;
+/// use agent_health::mark_component_error;
 ///
 /// mark_component_error("database", "connection refused");
 /// mark_component_error("cache", String::from("timeout after 30s"));
@@ -264,7 +264,7 @@ pub fn mark_component_error(component: &str, error: impl ToString) {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_window::app::agent::health::bump_component_restart;
+/// use agent_health::bump_component_restart;
 ///
 /// bump_component_restart("worker");
 /// ```
@@ -291,7 +291,7 @@ pub fn bump_component_restart(component: &str) {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_window::app::agent::health::{snapshot, mark_component_ok};
+/// use agent_health::{snapshot, mark_component_ok};
 ///
 /// mark_component_ok("api");
 /// let health = snapshot();
@@ -327,7 +327,7 @@ pub fn snapshot() -> HealthSnapshot {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_window::app::agent::health::snapshot_json;
+/// use agent_health::snapshot_json;
 ///
 /// let json = snapshot_json();
 /// println!("{}", serde_json::to_string_pretty(&json).unwrap());

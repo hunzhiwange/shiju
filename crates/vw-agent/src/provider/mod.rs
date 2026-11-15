@@ -35,9 +35,7 @@ pub mod transform;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod voice;
 
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../../../libs/agent-provider/src/model_catalog_tests.rs"]
 mod model_catalog_tests;

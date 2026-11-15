@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+agent-provider = { path = "../libs/agent-provider", version = "0.6.0" }
 plugin-hooks = { path = "../libs/plugin-hooks", version = "0.6.0" }
 tool-web = { path = "../libs/tool-web", version = "0.6.0", default-features = false }
 network-policy = { path = "../libs/network-policy", version = "0.6.0" }
@@ -397,6 +398,7 @@ name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
 
 [dev-dependencies]
+agent-provider = { path = "../libs/agent-provider", version = "0.6.0", features = ["test-support"] }
 agent-project = { path = "../libs/agent-project", version = "0.6.0", features = ["test-support"] }
 agent-runtime = { path = "../libs/agent-runtime", version = "0.6.0", features = ["test-support"] }
 agent-config = { path = "../libs/agent-config", version = "0.6.0", features = ["test-support"] }

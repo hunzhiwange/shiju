@@ -143,7 +143,7 @@ fn logger_initializes_once_and_reuses_the_same_instance() {
 async fn instance_state_loads_builtins_and_reuses_project_state() {
     let temp = tempfile::TempDir::new().expect("temp dir");
     let (same_state, cache_is_empty, rustfmt_command, rustfmt_extensions) =
-        crate::app::agent::project::instance::provide(temp.path(), None, || {
+        crate::test_support::provide(temp.path(), None, || {
             Box::pin(async move {
                 let first = super::state::instance_state()().await;
                 let second = super::state::instance_state()().await;

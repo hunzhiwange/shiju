@@ -4,10 +4,10 @@
 //! 内置格式化器是否适用于当前工作区，并把结果缓存在实例状态中。
 
 use super::state::{EnabledCheck, FormatterInfo, State};
-use crate::app::agent::flag;
-use crate::app::agent::project::instance;
-use crate::app::agent::shell::tokio_command;
-use crate::app::agent::util::filesystem;
+use runtime_flags as flag;
+use crate::host as instance;
+use shell_command::tokio_command;
+use crate::host as filesystem;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::Arc;

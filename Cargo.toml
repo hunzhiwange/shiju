@@ -260,6 +260,7 @@ members = [
   "crates/libs/agent-async",
   "crates/libs/agent-bus",
   "crates/libs/agent-files",
+  "crates/libs/agent-format",
   "crates/libs/agent-context",
   "crates/libs/agent-env",
   "crates/libs/agent-approval",

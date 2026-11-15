@@ -3,9 +3,9 @@
 //! 该模块保存格式化器静态配置、启用探测缓存以及对外暴露的状态 DTO，
 //! 让探测和运行时逻辑共享同一份项目级状态。
 
-use crate::app::agent::config;
-use crate::app::agent::project::instance;
-use crate::app::agent::util::log;
+use agent_config::runtime as config;
+use crate::host as instance;
+use agent_log as log;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -64,17 +64,20 @@ pub struct State {
 }
 
 pub(super) fn instance_state()
--> impl Fn() -> crate::app::agent::project::BoxFuture<Arc<State>> + Send + Sync + 'static {
-    instance::state(
-        "format",
-        || async { load_state().await },
-        None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
-    )
+-> impl Fn() -> crate::host::BoxFuture<Arc<State>> + Send + Sync + 'static {
+    || instance::state()
 }
 
-async fn load_state() -> State {
+pub(crate) async fn load_state() -> State {
     let _cfg = config::get().await;
     let formatters = super::builtins::builtin_formatters();
 
     State { enabled: Mutex::new(HashMap::new()), formatters }
+}
+
+impl State {
+    /// 供宿主项目状态缓存惰性初始化使用。
+    pub async fn load() -> Self {
+        load_state().await
+    }
 }

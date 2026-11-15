@@ -5,10 +5,10 @@
 
 use super::detect::is_enabled;
 use super::state::{FormatterStatus, LOGGER, instance_state};
-use crate::app::agent::bus;
+use agent_bus as bus;
 use agent_files as file;
-use crate::app::agent::project::instance;
-use crate::app::agent::shell::tokio_command;
+use crate::host as instance;
+use shell_command::tokio_command;
 use serde_json::{Map, Value};
 use std::path::Path;
 use std::sync::LazyLock;

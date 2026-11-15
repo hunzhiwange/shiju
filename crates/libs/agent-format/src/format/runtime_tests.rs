@@ -16,12 +16,12 @@ fn init_ignores_edited_events_without_a_string_file() {
     super::runtime::init();
     super::runtime::init();
 
-    crate::app::agent::bus::publish_value(
+    agent_bus::publish_value(
         agent_files::event::EDITED,
         serde_json::Value::Null,
         None,
     );
-    crate::app::agent::bus::publish_value(
+    agent_bus::publish_value(
         agent_files::event::EDITED,
         serde_json::json!({ "file": 7 }),
         None,
@@ -73,9 +73,9 @@ fn write_executable(dir: &std::path::Path, name: &str, body: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 async fn in_project<T: Send + 'static>(
     dir: &std::path::Path,
-    f: impl FnOnce() -> crate::app::agent::project::BoxFuture<T> + Send + 'static,
+    f: impl FnOnce() -> crate::host::BoxFuture<T> + Send + 'static,
 ) -> T {
-    crate::app::agent::project::instance::provide(dir, None, f).await.expect("project context")
+    crate::test_support::provide(dir, None, f).await.expect("project context")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -90,7 +90,7 @@ async fn format_file_without_extension_returns_ok_without_instance_state() {
 #[tokio::test]
 async fn format_file_with_unknown_extension_returns_ok_in_project_instance() {
     let temp = tempfile::TempDir::new().expect("temp dir");
-    let result = crate::app::agent::project::instance::provide(temp.path(), None, || {
+    let result = crate::test_support::provide(temp.path(), None, || {
         Box::pin(async move { super::runtime::format_file("notes.unknown").await })
     })
     .await
@@ -334,7 +334,7 @@ async fn format_file_passes_shell_metacharacters_as_a_single_file_argument() {
 #[tokio::test]
 async fn status_returns_builtin_formatter_statuses_in_project_instance() {
     let temp = tempfile::TempDir::new().expect("temp dir");
-    let statuses = crate::app::agent::project::instance::provide(temp.path(), None, || {
+    let statuses = crate::test_support::provide(temp.path(), None, || {
         Box::pin(async move { super::runtime::status().await })
     })
     .await

@@ -5,7 +5,8 @@ use super::detect::{
     pint_enabled, prettier_enabled, rlang_air_enabled, ruff_enabled, uvformat_enabled, which,
 };
 use super::state::{EnabledCheck, FormatterInfo, State};
-use crate::app::agent::{flag, project::instance};
+use runtime_flags as flag;
+use crate::test_support as instance;
 use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;
@@ -56,7 +57,7 @@ fn write_executable(dir: &Path, name: &str, body: &str) {
 
 async fn in_project<T: Send + 'static>(
     dir: &Path,
-    f: impl FnOnce() -> crate::app::agent::project::BoxFuture<T> + Send + 'static,
+    f: impl FnOnce() -> crate::host::BoxFuture<T> + Send + 'static,
 ) -> T {
     instance::provide(dir, None, f).await.expect("project context")
 }

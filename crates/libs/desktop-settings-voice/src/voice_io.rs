@@ -1,6 +1,6 @@
 //! Local preferences are usable without a paired/reachable gateway.
 use super::*;
-use crate::app::voice::{
+use desktop_voice::{
     local,
     permissions::{Permission, PermissionBackend, PermissionStatus, SystemPermissions},
     preferences::VoiceEngine,
@@ -17,7 +17,7 @@ pub struct LocalResources {
     pub warning: Option<String>,
 }
 /// Queries only: neither authorization, model download nor gateway access.
-pub(crate) fn resources(language: Option<&str>) -> LocalResources {
+pub fn resources(language: Option<&str>) -> LocalResources {
     let mut result = LocalResources {
         microphone_permission: Some(SystemPermissions.query(Permission::Microphone)),
         speech_permission: Some(SystemPermissions.query(Permission::SpeechRecognition)),
@@ -53,8 +53,8 @@ pub(super) async fn cloud(endpoint: GatewayEndpoint) -> Result<VoiceConfig, Stri
     .await
     .map_err(|_| "读取云端语音设置超时，请检查网关连接。".to_owned())?
 }
-pub(super) async fn load(endpoint: GatewayEndpoint) -> Result<Loaded, String> {
-    load_at(endpoint, crate::app::voice::preferences::path()?).await
+pub(super) async fn load(endpoint: GatewayEndpoint, path: Result<std::path::PathBuf, String>) -> Result<Loaded, String> {
+    load_at(endpoint, path?).await
 }
 pub(super) async fn load_at(
     endpoint: GatewayEndpoint,

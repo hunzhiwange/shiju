@@ -1,12 +1,13 @@
 use super::*;
-use crate::app::voice::preferences::{Edit, Preferences};
+use desktop_voice::preferences::{Edit, Preferences};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
 };
 use iced::{Font, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::{ui::DesktopLocale, voice::VoiceConfig};
+use config_ui::DesktopLocale;
+use config_voice::VoiceConfig;
 
 #[tokio::test]
 async fn voice_task_13_modal_renders_chinese_with_both_themes() {
@@ -18,8 +19,8 @@ async fn voice_task_13_modal_renders_chinese_with_both_themes() {
     ));
     state.cloud_ready = true;
     for engine in [
-        crate::app::voice::preferences::VoiceEngine::Local,
-        crate::app::voice::preferences::VoiceEngine::Cloud,
+        desktop_voice::preferences::VoiceEngine::Local,
+        desktop_voice::preferences::VoiceEngine::Cloud,
     ] {
         state.edit.as_mut().unwrap().local.engine = engine;
         for theme in [Theme::Dark, Theme::Light] {
@@ -52,9 +53,9 @@ async fn voice_task_15_hotkey_modal_renders_chinese_with_both_themes() {
     let mut renderer = Renderer::new(Font::DEFAULT, 15.0.into(), Some("tiny-skia")).await.unwrap();
     let mut state = State::default();
     let mut preferences = Preferences::default();
-    preferences.hotkeys.dictation = Some(crate::app::voice::hotkeys::Shortcut {
+    preferences.hotkeys.dictation = Some(desktop_voice::hotkeys::Shortcut {
         key: 0,
-        modifiers: crate::app::voice::hotkeys::CONTROL | crate::app::voice::hotkeys::ALT,
+        modifiers: desktop_voice::hotkeys::CONTROL | desktop_voice::hotkeys::ALT,
     });
     state.edit = Some(Edit::new(VoiceConfig::default(), preferences));
     state.recording_hotkey = Some(true);

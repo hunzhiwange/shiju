@@ -1,6 +1,6 @@
 //! macOS controls query OS resources without requesting permissions during rendering.
 use super::*;
-use crate::app::voice::permissions::{Permission, PermissionStatus};
+use desktop_voice::permissions::{Permission, PermissionStatus};
 use iced::widget::column;
 
 pub(super) fn form<'a>(state: &'a State) -> Element<'a, Message> {

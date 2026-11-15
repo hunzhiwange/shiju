@@ -84,13 +84,6 @@ fn voice_task_19_voice_acceptance_end_closes_all_streams() {
     assert!(began.elapsed() < Duration::from_secs(2));
 }
 
-#[tokio::test]
-async fn voice_task_19_gateway_http_ws_roundtrip_releases_connection() {
-    let captions = super::acceptance_fixture::roundtrip().await.unwrap();
-    assert_eq!(captions[0].1, "中文动态字幕 🌱");
-    assert_eq!(captions[1].1, "English caption");
-}
-
 #[cfg(target_os = "macos")]
 #[test]
 fn voice_task_19_full_app_cancel_releases_local_preview_and_preserves_draft() {

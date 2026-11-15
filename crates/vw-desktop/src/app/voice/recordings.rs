@@ -11,7 +11,3 @@ pub(crate) fn path() -> Result<PathBuf, String> {
 pub(crate) fn local() -> Result<Store, String> {
     Store::open(&path()?)
 }
-
-#[cfg(test)]
-#[path = "recordings_tests.rs"]
-mod tests;

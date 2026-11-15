@@ -34,3 +34,11 @@ pub mod local_conversation;
 mod local_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod preview_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod recordings_playback;
+#[cfg(target_os = "macos")]
+mod screen_context_macos;
+
+#[cfg(all(test, feature = "acceptance-fixture", not(target_arch = "wasm32")))]
+mod acceptance_tests;

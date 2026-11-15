@@ -15,11 +15,11 @@ fn voice_task_14_recordings_replay_drop_silences_callback() {
     let marker = dropped.clone();
     let (tx, rx) = mpsc::channel();
     let audio =
-        crate::app::voice::capture::Recording { generation: 1, pcm: vec![2000; 24_000 * 3] }
+        crate::capture::Recording { generation: 1, pcm: vec![2000; 24_000 * 3] }
             .wav()
             .unwrap();
-    let replay = super::super::recordings_playback::Replay::start_output(audio, move || {
-        let (playback, output) = super::super::playback::fixture_stream(24_000, 1, Stream(marker));
+    let replay = super::Replay::start_output(audio, move || {
+        let (playback, output) = crate::playback::fixture_stream(24_000, 1, Stream(marker));
         tx.send(output).unwrap();
         Ok(playback)
     })

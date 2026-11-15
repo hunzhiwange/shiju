@@ -47,7 +47,12 @@ fn frame(app: &mut App) -> (crate::app::voice::screen_context::Ticket, screen::O
         .screen
         .begin(Target { pid: 42, window: 7, label: "中性窗口".into() }, true)
         .unwrap();
-    let png = screen_context::encode(2, 2, vec![128; 16]).unwrap();
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::RgbaImage::from_raw(2, 2, vec![128; 16])
+        .unwrap()
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let png = png.into_inner();
     (ticket, owner, png)
 }
 #[test]

@@ -12,6 +12,8 @@ acceptance-fixture = ["dep:tokio-tungstenite"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 audio-capture = { path = "../audio-capture", version = "0.6.0" }
+voice-recordings = { path = "../voice-recordings", version = "0.6.0" }
+image = "0.25.9"
 audio-playback = { path = "../audio-playback", version = "0.6.0" }
 voice-permissions = { path = "../voice-permissions", version = "0.6.0" }
 config-voice = { path = "../config-voice", version = "0.6.0" }

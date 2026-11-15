@@ -37,5 +37,6 @@ web-time = "1.1.0"
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
+question-types = { path = "../question-types", version = "0.6.0" }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt"] }

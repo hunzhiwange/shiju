@@ -1,7 +1,7 @@
 //! 验证问题视图渲染。
 //! 测试覆盖用户提问的文本、状态和交互入口。
 
-use super::tools::question_request_targets_message;
+use desktop_chat_tools::tools::question_view::question_request_targets_message;
 
 fn request_with_message_id(message_id: &str) -> question_types::Request {
     question_types::Request {

@@ -1,11 +1,11 @@
 //! 验证最新用户问题按钮行为。
 //! 测试确保按钮只在合适状态出现并指向正确消息。
 
-use super::{
+use crate::panel::{
     active_user_question_idx, is_chat_message_idx_visible, live_message_meta_fallback,
     user_question_indices,
 };
-use crate::app::models::ChatRole;
+use session_ui_types::ChatRole;
 
 #[test]
 fn chat_message_idx_visible_returns_true_inside_window() {
@@ -40,22 +40,22 @@ fn active_user_question_idx_returns_none_without_visible_question() {
 #[test]
 fn user_question_indices_preserve_question_order() {
     let chat = vec![
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::User,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::User,
             content: "问题一".to_string(),
             model: None,
             think_timing: Vec::new(),
             processing_timing: None,
         },
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::Assistant,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::Assistant,
             content: "回答一".to_string(),
             model: None,
             think_timing: Vec::new(),
             processing_timing: None,
         },
-        crate::app::models::ChatMessage {
-            role: crate::app::models::ChatRole::User,
+        session_ui_types::ChatMessage {
+            role: session_ui_types::ChatRole::User,
             content: "问题二".to_string(),
             model: None,
             think_timing: Vec::new(),
@@ -70,7 +70,7 @@ fn user_question_indices_preserve_question_order() {
 fn live_message_meta_fallback_applies_to_chat_roles() {
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::Assistant,
             true,
             true,
@@ -80,7 +80,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::Assistant,
             true,
             false,
@@ -90,7 +90,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::User,
             true,
             true,
@@ -100,7 +100,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::System,
             true,
             true,

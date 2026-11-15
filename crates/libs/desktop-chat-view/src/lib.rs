@@ -46,3 +46,14 @@ pub mod stream_render;
 #[cfg(test)]
 mod stream_render_tests;
 pub mod view_snapshot;
+
+pub mod panel;
+#[cfg(test)]
+#[path = "panel_tests.rs"]
+mod panel_tests;
+#[cfg(test)]
+mod latest_user_question_button_tests;
+#[cfg(test)]
+mod permission_view_tests;
+#[cfg(test)]
+mod question_view_tests;

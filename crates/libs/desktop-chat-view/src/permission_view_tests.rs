@@ -1,11 +1,12 @@
 //! 验证聊天面板权限视图。
 //! 测试确保权限请求、拒绝和错误状态都能以明确 UI 呈现。
 
-use super::tools::{
+use desktop_chat_tools::tools::tool_parse::tool_call_id_from_raw;
+use desktop_chat_tools::tools::tool_permission::{
     pending_permission_badge_label, pending_permission_request_badge_label,
     pending_permission_request_for_message, pending_permission_request_for_tool_call,
     pending_permission_targets_message, pending_permission_targets_tool_call,
-    tool_call_id_from_raw, tool_permission_target_summary,
+    tool_permission_target_summary,
 };
 
 #[test]
@@ -97,7 +98,7 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
 
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &requests,
             Some("perm-2")
         ),
@@ -105,7 +106,7 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
     );
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &requests,
             Some("missing")
         ),
@@ -113,7 +114,7 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
     );
     assert_eq!(
         pending_permission_request_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &requests,
             "perm-1"
         ),

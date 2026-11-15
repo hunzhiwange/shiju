@@ -12,8 +12,6 @@ mod ui;
 #[cfg(test)]
 #[path = "app_state_tests.rs"]
 mod app_state_tests;
-#[cfg(test)]
-mod tests;
 
 pub use app_state::{
     current_branch_label, current_project_path_label, get_session_title, is_recent_copy,

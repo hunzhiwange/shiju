@@ -16,3 +16,6 @@ mod path_tests;
 mod time_tests;
 #[cfg(test)]
 mod app_state_tests;
+
+#[cfg(test)]
+mod tests;

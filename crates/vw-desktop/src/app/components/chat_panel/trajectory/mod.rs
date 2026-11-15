@@ -34,151 +34,41 @@ pub(crate) use timeline::{
     TrajectoryTimeline, build_timeline, format_timeline_duration, trajectory_timeline,
 };
 
-use crate::app::message::chat::ChatMessage;
 use crate::app::{App, Message};
-use iced::widget::{Space, column, container, mouse_area, opaque, row, stack, text, text_input};
-use iced::{Element, Length, Theme};
-
-/// 组合概览、搜索账本和详情检查器，数据始终来自当前活跃会话快照。
-pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    let projection = &app.active_session_view_state.trajectory_projection;
-    let selected_record_id = app.trajectory_details.selected_record_id();
-    let select_record = |record_id| Message::Chat(ChatMessage::TrajectoryRecordSelected(record_id));
-    let trajectory_controls = app.trajectory_controls.for_session(app.active_session_id.as_deref());
-    let turns_collapsed = !projection.turns.is_empty()
-        && projection.turns.iter().all(|turn| trajectory_controls.is_turn_collapsed(turn.index));
-    let tool_steps = projection
-        .records
-        .iter()
-        .filter(|record| record.kind == TrajectoryRecordKind::Tool)
-        .map(|record| record.step_index)
-        .collect::<std::collections::HashSet<_>>();
-    let calls_collapsed = !tool_steps.is_empty()
-        && tool_steps.iter().all(|step| trajectory_controls.is_tool_step_collapsed(*step));
-
-    let timeline = trajectory_timeline(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        &projection,
-        trajectory_controls.duration_mode(),
-        turns_collapsed,
-        calls_collapsed,
-        selected_record_id,
-        |action| {
-            Message::Chat(match action {
-                TimelineToolbarAction::ToggleDuration => ChatMessage::TrajectoryDurationToggled,
-                TimelineToolbarAction::ToggleTurns => ChatMessage::TrajectoryTurnsToggled,
-                TimelineToolbarAction::ToggleCalls => ChatMessage::TrajectoryCallsToggled,
-            })
-        },
-        select_record,
-    );
-    let search = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索角色、工具、内容或 ID"),
-        &app.trajectory_search_text,
-    )
-    .on_input(|search| Message::Chat(ChatMessage::TrajectorySearchChanged(search)))
-    .padding([7, 9])
-    .size(12)
-    .style(styles::trajectory_search_input_style);
-    let ledger = trajectory_ledger(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        &projection,
-        &app.trajectory_search_text,
-        selected_record_id,
-        &trajectory_controls,
-        select_record,
-        |action| {
-            Message::Chat(match action {
-                LedgerFoldAction::Turn(turn_index) => {
-                    ChatMessage::TrajectoryTurnToggled(turn_index)
-                }
-                LedgerFoldAction::ToolStep(step_index) => {
-                    ChatMessage::TrajectoryToolStepToggled(step_index)
-                }
-            })
-        },
-    );
+use crate::app::message::chat::ChatMessage;
+pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
     let session_id = app.active_session_id.as_deref().unwrap_or_default();
-    let loading_count = app
-        .trajectory_raw_loading
-        .iter()
-        .filter(|(loading_session_id, _, _)| loading_session_id == session_id)
-        .count();
-    let error_count = app
-        .trajectory_raw_errors
-        .keys()
-        .filter(|(error_session_id, _, _)| error_session_id == session_id)
-        .count();
-    let status = raw_refresh_status(
+    let loading = app.trajectory_raw_loading.iter().filter(|(id, _, _)| id == session_id).count();
+    let errors = app.trajectory_raw_errors.keys().filter(|(id, _, _)| id == session_id).count();
+    desktop_chat_view::trajectory::view::view(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        loading_count,
-        error_count,
-    );
-
-    let body =
-        container(column![search, ledger].spacing(8)).width(Length::Fill).height(Length::Fill);
-    let base: Element<'_, Message> =
-        column![status, timeline, body].spacing(10).width(Length::Fill).height(Length::Fill).into();
-
-    let content = if let Some(record) =
-        selected_record_id.and_then(|record_id| projection.record(record_id))
-    {
-        let close = Message::Chat(ChatMessage::TrajectoryDetailsClosed);
-        let dismiss_layer = opaque(
-            mouse_area(
-                container(Space::new().width(Length::Fill).height(Length::Fill))
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-            )
-            .on_press(close),
-        );
-        let details = details::trajectory_details(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            record,
-            &app.trajectory_details,
-        );
-        let details_layer = row![
-            Space::new().width(Length::FillPortion(3)),
-            container(opaque(details)).width(Length::FillPortion(2)).height(Length::Fill),
-        ]
-        .spacing(10)
-        .width(Length::Fill)
-        .height(Length::Fill);
-
-        stack![base, dismiss_layer, details_layer].width(Length::Fill).height(Length::Fill).into()
-    } else {
-        base
-    };
-
-    container(content).padding([10, 12]).width(Length::Fill).height(Length::Fill).into()
-}
-
-fn raw_refresh_status<'a>(
-    i18n: crate::app::i18n::I18n,
-    loading_count: usize,
-    error_count: usize,
-) -> Element<'a, Message> {
-    if loading_count > 0 {
-        return text(
-            i18n.format("正在自动补载 %u 个步骤的原始数据（最多 3 次）…", &[loading_count.into()])
-                .expect("valid raw refresh template"),
-        )
-        .size(11)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().primary.base.color),
+        &app.active_session_view_state.trajectory_projection, &app.trajectory_details,
+        &app.trajectory_controls, app.active_session_id.as_deref(), &app.trajectory_search_text,
+        loading, errors,
+    ).map(|event| {
+        use desktop_chat_view::trajectory::view::Message as Event;
+        Message::Chat(match event {
+            Event::TrajectoryRecordSelected(id) => ChatMessage::TrajectoryRecordSelected(id),
+            Event::TrajectoryDurationToggled => ChatMessage::TrajectoryDurationToggled,
+            Event::TrajectoryTurnsToggled => ChatMessage::TrajectoryTurnsToggled,
+            Event::TrajectoryCallsToggled => ChatMessage::TrajectoryCallsToggled,
+            Event::TrajectorySearchChanged(text) => ChatMessage::TrajectorySearchChanged(text),
+            Event::TrajectoryTurnToggled(index) => ChatMessage::TrajectoryTurnToggled(index),
+            Event::TrajectoryToolStepToggled(index) => ChatMessage::TrajectoryToolStepToggled(index),
+            Event::TrajectoryDetailsClosed => ChatMessage::TrajectoryDetailsClosed,
+            Event::Details(event) => {
+                use desktop_chat_view::trajectory::details::Message as Detail;
+                match event {
+                    Detail::TrajectoryDetailsClosed => ChatMessage::TrajectoryDetailsClosed,
+                    Detail::TrajectoryDetailsTabSelected(tab) => ChatMessage::TrajectoryDetailsTabSelected(tab),
+                    Detail::TrajectoryDetailsJsonToggled(path) => ChatMessage::TrajectoryDetailsJsonToggled(path),
+                    Detail::TrajectoryDetailsJsonCopied(value) => ChatMessage::TrajectoryDetailsJsonCopied(value),
+                    Detail::TrajectoryDetailsEditorAction(idx, action) => ChatMessage::TrajectoryDetailsEditorAction(idx, action),
+                    Detail::TrajectoryDetailsContextMenuOpened { index, x, y } => ChatMessage::TrajectoryDetailsContextMenuOpened { index, x, y },
+                    Detail::TrajectoryDetailsContextMenuClosed => ChatMessage::TrajectoryDetailsContextMenuClosed,
+                    Detail::TrajectoryDetailsContextMenuCopy => ChatMessage::TrajectoryDetailsContextMenuCopy,
+                }
+            }
         })
-        .into();
-    }
-    if error_count > 0 {
-        return text(
-            i18n.format("%u 个步骤自动重试后仍未取得原始数据，可稍后重试", &[error_count.into()])
-                .expect("valid raw error template"),
-        )
-        .size(11)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().warning.base.color),
-        })
-        .into();
-    }
-    Space::new().height(Length::Fixed(0.0)).into()
+    })
 }

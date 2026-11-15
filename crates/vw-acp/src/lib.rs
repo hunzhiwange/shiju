@@ -42,7 +42,7 @@ mod output_json_formatter;
 use acp_metrics::{perf_metrics, perf_metrics_capture};
 mod permission_prompt;
 mod permissions;
-mod persisted_key_policy;
+use acp_storage::persisted_key_policy;
 mod queue_ipc;
 mod queue_ipc_health;
 mod queue_ipc_server;
@@ -59,10 +59,10 @@ mod queue_paths {
 }
 mod read_output_suppression;
 pub mod server;
-mod session_conversation_model;
-mod session_events;
+use acp_storage::session_conversation_model;
+use acp_storage::session_events;
 pub use session_mounts::*;
-mod session_persistence;
+use acp_storage::session_persistence;
 mod session_runtime;
 mod session_runtime_helpers;
 mod spawn_command_options;

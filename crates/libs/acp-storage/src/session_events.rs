@@ -13,9 +13,9 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
 use crate::acp_jsonrpc::is_acp_json_rpc_message;
-use crate::perf_metrics::{increment_perf_counter, measure_perf};
+use crate::{increment_perf_counter, measure_perf};
 use crate::queue_lease_store::{is_process_alive, wait_ms};
-use crate::queue_paths::default_home_dir;
+use acp_paths::queue_paths::default_home_dir;
 use crate::session_event_log::{
     DEFAULT_EVENT_MAX_SEGMENTS, DEFAULT_EVENT_SEGMENT_MAX_BYTES, session_base_dir,
     session_event_active_path, session_event_lock_path, session_event_segment_path,

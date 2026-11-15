@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/acp-storage",
   "crates/libs/api-chat-identity",
   "crates/libs/config-provider",
   "crates/libs/acp-lease",

@@ -9,7 +9,8 @@
 //! - `state`：从原始清单构造运行时状态的转换函数
 //! - `types`：对外暴露的提供商与模型协议类型
 
-pub mod models;
+/// Historical raw model catalog module path.
+pub use model_catalog_types as models;
 /// Historical protocol module path.
 pub use model_protocols as protocols;
 /// Historical reasoning module path.

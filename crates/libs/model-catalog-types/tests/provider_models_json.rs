@@ -1,6 +1,6 @@
 //! 模型 JSON 兼容性测试模块，验证 provider model 结构可接受对象形式的实验元数据。
 
-use vw_shared::provider::models::Provider;
+use model_catalog_types::Provider;
 
 #[test]
 fn provider_model_allows_object_experimental_metadata() {

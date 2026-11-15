@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
 sha2 = "0.10"
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }

@@ -9,3 +9,5 @@ pub mod model_routes_view;
 pub mod custom_model_modal;
 pub mod model_tasks;
 pub mod model_update;
+
+pub mod app_init;

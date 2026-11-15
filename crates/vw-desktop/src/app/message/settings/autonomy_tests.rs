@@ -104,7 +104,7 @@ fn update_tracks_risk_and_legacy_text_field_changes() {
 }
 
 fn list_snapshots(app: &App) -> [Vec<String>; 7] {
-    AutonomyListKind::ALL.map(|kind| app.autonomy_settings.list(kind).to_vec())
+    crate::app::state::AUTONOMY_LIST_KINDS.map(|kind| app.autonomy_settings.list(kind).to_vec())
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
 
     for (kind, input) in cases {
         let mut app = app();
-        for list_kind in AutonomyListKind::ALL {
+        for list_kind in crate::app::state::AUTONOMY_LIST_KINDS {
             app.autonomy_settings.list_mut(list_kind).clear();
         }
         let before = list_snapshots(&app);
@@ -131,7 +131,7 @@ fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
 
         let after_add = list_snapshots(&app);
         assert_eq!(app.autonomy_settings.list(kind), &[input.trim().to_string()]);
-        for other in AutonomyListKind::ALL {
+        for other in crate::app::state::AUTONOMY_LIST_KINDS {
             if other != kind {
                 assert_eq!(after_add[other.index()], before[other.index()]);
             }
@@ -201,7 +201,7 @@ fn structured_lists_are_cloned_directly_into_persisted_autonomy_config() {
 
     apply_autonomy_settings_to_config(&app.autonomy_settings, &mut config);
 
-    for kind in AutonomyListKind::ALL {
+    for kind in crate::app::state::AUTONOMY_LIST_KINDS {
         assert_eq!(config_list(&config, kind), app.autonomy_settings.list(kind));
     }
 }

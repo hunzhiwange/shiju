@@ -6,27 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 mod settings;
 
-fn build_multimodal_settings(
-    full_agent_cfg: &config_aggregate::Config,
-) -> super::state::MultimodalSettingsState {
-    let multimodal_cfg = &full_agent_cfg.multimodal;
-
-    super::state::MultimodalSettingsState {
-        max_images: multimodal_cfg.max_images.clamp(1, 16) as u32,
-        max_image_size_mb: multimodal_cfg.max_image_size_mb.clamp(1, 20) as u32,
-        allow_remote_fetch: multimodal_cfg.allow_remote_fetch,
-        ocr_enabled: multimodal_cfg.ocr.enabled,
-        model_supports_images: multimodal_cfg.ocr.model_supports_images,
-        ocr_model: multimodal_cfg
-            .ocr
-            .model
-            .as_deref()
-            .map(str::trim)
-            .unwrap_or_default()
-            .to_string(),
-        save_error: None,
-    }
-}
+use desktop_settings_runtime::app_init::settings::build_multimodal_settings;
 
 #[cfg(test)]
 #[path = "new/settings_tests.rs"]

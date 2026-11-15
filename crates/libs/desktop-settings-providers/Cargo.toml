@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
 serde_json = "1"
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }

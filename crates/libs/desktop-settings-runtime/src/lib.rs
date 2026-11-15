@@ -14,3 +14,5 @@ pub mod hooks;
 pub mod multimodal;
 pub mod observability;
 pub mod query_classification;
+
+pub mod app_init;

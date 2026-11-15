@@ -18,3 +18,5 @@ mod view_test_support;
 mod system_settings_memory_tests;
 #[cfg(test)]
 mod system_settings_storage_tests;
+
+pub mod app_init;

@@ -121,37 +121,7 @@ impl Default for SkillsSettingsState {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct WebSearchSettingsState {
-    pub(crate) enabled: bool,
-    pub(crate) provider: String,
-    pub(crate) api_key_input: String,
-    pub(crate) api_url_input: String,
-    pub(crate) brave_api_key_input: String,
-    pub(crate) max_results_input: String,
-    pub(crate) timeout_secs_input: String,
-    pub(crate) user_agent: String,
-    pub(crate) show_help_modal: bool,
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for WebSearchSettingsState {
-    fn default() -> Self {
-        let config = config_tools::WebSearchConfig::default();
-        Self {
-            enabled: config.enabled,
-            provider: config.provider,
-            api_key_input: String::new(),
-            api_url_input: String::new(),
-            brave_api_key_input: String::new(),
-            max_results_input: config.max_results.to_string(),
-            timeout_secs_input: config.timeout_secs.to_string(),
-            user_agent: config.user_agent,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
+pub(crate) use desktop_settings_network::app_init::state::{WebSearchSettingsState};
 
 pub(crate) use desktop_settings_network::state::{BrowserSettingsState, GatewaySettingsTab, GatewaySettingsState, GatewayClientServerDraft, GatewayClientSettingsState};
 

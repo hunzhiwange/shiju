@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced"] }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 gateway-device-sync = { path = "../gateway-device-sync", version = "0.6.0" }

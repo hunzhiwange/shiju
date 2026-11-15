@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced"] }
 serde_json = "1"
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }

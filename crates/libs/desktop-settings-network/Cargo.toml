@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-proxy = { path = "../config-proxy", version = "0.6.0" }
+config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced"] }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 config-ui = { path = "../config-ui", version = "0.6.0" }

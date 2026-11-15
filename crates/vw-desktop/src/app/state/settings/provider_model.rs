@@ -282,29 +282,7 @@ pub use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary,
 /// 嵌入路由草稿
 ///
 /// 表示系统设置界面中一条可编辑的嵌入路由输入。
-#[derive(Debug, Clone, Default)]
-pub(crate) struct EmbeddingRouteDraft {
-    /// 路由模式（映射到配置中的 hint）
-    pub(crate) pattern: String,
-    /// 提供商名称
-    pub(crate) provider: String,
-    /// 模型名称
-    pub(crate) model: String,
-    /// 维度输入文本
-    pub(crate) dimensions: String,
-    /// 可选 API Key 覆盖，优先于全局 api_key。
-    pub(crate) api_key_input: String,
-}
-
-/// 嵌入路由设置面板状态
-///
-/// 管理嵌入模型路由列表的新增、编辑和删除草稿状态。
-#[derive(Debug, Clone, Default)]
-pub(crate) struct EmbeddingRoutesSettingsState {
-    pub(crate) routes: Vec<EmbeddingRouteDraft>,
-    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
-    pub(crate) save_success: bool,
-}
+pub(crate) use desktop_settings_providers::app_init::state::{EmbeddingRouteDraft, EmbeddingRoutesSettingsState};
 
 pub use desktop_settings_providers::state::ModelRoute;
 
@@ -321,37 +299,7 @@ pub(crate) struct ModelRoutesSettingsState {
 /// 心跳设置面板状态
 ///
 /// 管理心跳功能的配置，包括定时消息发送设置。
-#[derive(Debug, Clone)]
-pub(crate) struct HeartbeatSettingsState {
-    /// 是否启用心跳
-    pub(crate) enabled: bool,
-    /// 心跳间隔（分钟）
-    pub(crate) interval_minutes: u32,
-    /// 心跳消息输入
-    pub(crate) message_input: String,
-    /// 目标输入
-    pub(crate) target_input: String,
-    /// 接收者输入
-    pub(crate) to_input: String,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for HeartbeatSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            interval_minutes: 30,
-            message_input: String::new(),
-            target_input: String::new(),
-            to_input: String::new(),
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
+pub(crate) use desktop_settings_cron::app_init::state::{HeartbeatSettingsState};
 
 pub(crate) use desktop_settings_cron::state::{
     CronSettingsTab, CronAddJobType, CronAddScheduleKind, CronJobDraft, CronListFilter,
@@ -361,31 +309,7 @@ pub(crate) use desktop_settings_cron::state::{
 /// 调度器设置面板状态
 ///
 /// 管理任务调度器的配置，包括并发限制等。
-#[derive(Debug, Clone)]
-pub(crate) struct SchedulerSettingsState {
-    /// 是否启用调度器
-    pub(crate) enabled: bool,
-    /// 最大任务数
-    pub(crate) max_tasks: u32,
-    /// 最大并发数
-    pub(crate) max_concurrent: u32,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for SchedulerSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            max_tasks: 64,
-            max_concurrent: 4,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
+pub(crate) use desktop_settings_cron::app_init::state::{SchedulerSettingsState};
 
 #[cfg(test)]
 #[path = "provider_model_tests.rs"]

@@ -24,3 +24,5 @@ pub struct SettingsTabDescriptor<T> {
 impl<T> SettingsTabDescriptor<T> {
     pub const fn new(tab: T, label: &'static str, keywords: &'static [&'static str]) -> Self { Self { tab, label, keywords } }
 }
+
+pub mod app_init;

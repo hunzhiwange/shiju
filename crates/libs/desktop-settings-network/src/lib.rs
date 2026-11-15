@@ -26,3 +26,5 @@ pub mod message {
     mod gateway_health_tests;
 }
 pub use message::gateway_health::check_servers;
+
+pub mod app_init;

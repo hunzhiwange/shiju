@@ -102,7 +102,15 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(autonomy.always_ask.is_empty());
     assert!(autonomy.allowed_roots.is_empty());
     assert!(autonomy.non_cli_excluded_tools.contains(&"shell".to_string()));
-    for kind in AutonomyListKind::ALL {
+    for kind in [
+        AutonomyListKind::AllowedCommands,
+        AutonomyListKind::ForbiddenPaths,
+        AutonomyListKind::ShellEnvPassthrough,
+        AutonomyListKind::AutoApprove,
+        AutonomyListKind::AlwaysAsk,
+        AutonomyListKind::AllowedRoots,
+        AutonomyListKind::NonCliExcludedTools,
+    ] {
         assert!(autonomy.list_editor.draft(kind).is_empty());
     }
     assert!(autonomy.non_cli_approval_approvers_input.is_empty());

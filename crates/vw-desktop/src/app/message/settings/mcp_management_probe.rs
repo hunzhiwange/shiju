@@ -26,8 +26,7 @@ pub(crate) fn cleanup(
     Task::perform(
         async move {
             let result = async {
-                let mut snapshot = transport
-                    .client
+                let mut snapshot = gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
                     .mcp_management_check_cancel(&context.query, &job.task_id, &transport.token)
                     .await
                     .map_err(|_| ())?;
@@ -45,9 +44,8 @@ pub(crate) fn cleanup(
                         return Ok(());
                     }
                     crate::app::message::sleep(std::time::Duration::from_millis(350)).await;
-                    snapshot = transport
-                        .client
-                        .mcp_management_check_status(&context.query, &job.task_id, &transport.token)
+                    snapshot = gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
+                    .mcp_management_check_status(&context.query, &job.task_id, &transport.token)
                         .await
                         .map_err(|_| ())?;
                 }

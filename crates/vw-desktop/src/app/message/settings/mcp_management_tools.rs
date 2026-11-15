@@ -114,8 +114,7 @@ fn poll(app: &mut App, cancel: bool) -> Task<Message> {
     Task::perform(
         async move {
             let result = if cancel {
-                transport
-                    .client
+                gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
                     .mcp_management_check_cancel(
                         &context.diagnostics.query,
                         &job.task_id,
@@ -124,8 +123,7 @@ fn poll(app: &mut App, cancel: bool) -> Task<Message> {
                     .await
             } else {
                 crate::app::message::sleep(std::time::Duration::from_millis(350)).await;
-                transport
-                    .client
+                gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
                     .mcp_management_check_status(
                         &context.diagnostics.query,
                         &job.task_id,
@@ -240,9 +238,8 @@ pub(crate) fn update(app: &mut App, event: ToolsMessage) -> Task<Message> {
             state.transport = Some(transport.clone());
             let task = Task::perform(
                 async move {
-                    let result = transport
-                        .client
-                        .mcp_management_tools(
+                    let result = gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
+                    .mcp_management_tools(
                             &context.diagnostics.query,
                             &request(&context, generation),
                             &transport.token,

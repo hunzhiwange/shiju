@@ -10,6 +10,7 @@ license = "MIT"
 [dependencies]
 gateway-mcp-read = { path = "../libs/gateway-mcp-read", version = "0.6.0" }
 gateway-mcp-write = { path = "../libs/gateway-mcp-write", version = "0.6.0" }
+gateway-mcp-probe = { path = "../libs/gateway-mcp-probe", version = "0.6.0" }
 gateway-mcp = { path = "../libs/gateway-mcp", version = "0.6.0" }
 gateway-aggregation-native = { path = "../libs/gateway-aggregation-native", version = "0.6.0" }
 gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex", version = "0.6.0" }

@@ -3,6 +3,7 @@ members = [
   "crates/libs/desktop-web-install",
   "crates/libs/gateway-mcp-read",
   "crates/libs/gateway-mcp-write",
+  "crates/libs/gateway-mcp-probe",
   "crates/libs/local-app-auth",
   "crates/libs/gateway-aggregation",
   "crates/libs/gateway-aggregation-omo",

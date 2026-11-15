@@ -79,16 +79,14 @@ fn poll(app: &mut App, context: Context, cancel: bool) -> Task<Message> {
         async move {
             let result = async {
                 if cancel {
-                    transport
-                        .client
-                        .mcp_management_check_cancel(&context.query, &job.task_id, &transport.token)
+                    gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
+                    .mcp_management_check_cancel(&context.query, &job.task_id, &transport.token)
                         .await
                         .map_err(safe_error)
                 } else {
                     crate::app::message::sleep(std::time::Duration::from_millis(350)).await;
-                    transport
-                        .client
-                        .mcp_management_check_status(&context.query, &job.task_id, &transport.token)
+                    gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
+                    .mcp_management_check_status(&context.query, &job.task_id, &transport.token)
                         .await
                         .map_err(safe_error)
                 }

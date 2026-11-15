@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：55，线性顺序 55；依赖：前一批次 54。符号依赖卡：无额外前置。不并行。
 
@@ -32,3 +32,11 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-mcp-probe crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 实施归属与静态审查
+
+- `mcp_management_probe.rs` 的四个公开方法与两个私有 helper 全部迁入 `gateway-mcp-probe/src/mcp_management_probe.rs`，领域类型 `GatewayMcpProbeClient` 显式复用 `GatewayTransport`；原文件仅保留四个公开转发。
+- `mcp_management_probe_tests.rs` 的全部 fixture/helper 与五个测试迁入新库独立文件，`test_support` 工厂返回领域类型；原包测试保留为门面兼容覆盖。
+- 桌面直接调用位于 `agent_apps_diagnostics.rs`、其 `mcp_state.rs`、设置的 `mcp_management_probe.rs` 和 `mcp_management_tools.rs`，已直达领域库。其它三个消费者未发现探测调用。
+- 已核实前置提交 `274f895b0` 和实际 `gateway-mcp-write` 实现。新库复用已落地 API DTO、设置错误与 HTTP 上下文；原生禁止重定向/重试连接池、wasm 拒绝路径及认证/租户处理保持原实现。
+- 静态差异检查完成；未运行 Cargo、测试及实机验证，未来另行统一验证。

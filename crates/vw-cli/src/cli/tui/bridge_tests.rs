@@ -16,10 +16,10 @@ use vw_tui::{V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3UserInputAns
 use super::app::V3GatewayApp;
 use super::bridge::{GatewayV3Bridge, structured_patch_diff};
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
-use super::model::permission::{
+use cli_interaction_model::permission::{
     PermissionDecision, PermissionPreviewKind, PermissionQueue, PermissionRequest,
 };
-use super::model::{
+use cli_interaction_model::{
     PermissionMode, UiMessage, UiOverlay, UiPermissionOverlay, UiQuestionOption, UiQuestionOverlay,
     UiQuestionPrompt, UiTurnTerminal,
 };

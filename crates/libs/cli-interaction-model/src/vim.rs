@@ -4,7 +4,7 @@
 
 /// Vim 兼容编辑的关闭、普通与插入状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum VimMode {
+pub enum VimMode {
     #[default]
     Disabled,
     Normal,

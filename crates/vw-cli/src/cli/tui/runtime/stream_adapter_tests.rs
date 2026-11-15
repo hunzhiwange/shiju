@@ -1,5 +1,5 @@
 use super::stream_adapter::{UiRuntimeEvent, adapt_gateway_stream_event};
-use crate::cli::tui::model::UiMessage;
+use cli_interaction_model::UiMessage;
 use serde_json::json;
 use vw_gateway_client::GatewayChatStreamEvent;
 

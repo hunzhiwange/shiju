@@ -18,6 +18,7 @@ name = "vibe-agent"
 path = "src/bin/vibe-agent.rs"
 
 [dependencies]
+cli-interaction-model = { path = "../libs/cli-interaction-model", version = "0.6.0" }
 cli-gateway-commands = { path = "../libs/cli-gateway-commands", version = "0.6.0" }
 cli-transcript = { path = "../libs/cli-transcript", version = "0.6.0" }
 cli-stdio = { path = "../libs/cli-stdio", version = "0.6.0" }

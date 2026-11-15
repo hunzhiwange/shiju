@@ -20,12 +20,12 @@ use super::app::{
 use super::commands::{
     SCHEDULE_SELECTION_SURFACE, TASK_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE,
 };
-use super::model::background_task::{
+use cli_interaction_model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskPanel, BackgroundTaskStatus,
     CanonicalTaskStatus,
 };
-use super::model::schedule_panel::{SchedulePanel, SchedulePanelItem};
-use super::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
+use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
+use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 use super::runtime::cron::CronJobSnapshot;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::state::TuiState;
@@ -397,15 +397,15 @@ fn runner_projects_workflow_stream_and_single_terminal() {
 
     let messages = &app.state().messages;
     assert!(messages.iter().any(|message| match message {
-        super::model::UiMessage::Progress(progress) => progress.label.contains("Prepare"),
+        cli_interaction_model::UiMessage::Progress(progress) => progress.label.contains("Prepare"),
         _ => false,
     }));
     assert!(messages.iter().any(|message| match message {
-        super::model::UiMessage::Assistant(message) => message.text.contains("deployed"),
+        cli_interaction_model::UiMessage::Assistant(message) => message.text.contains("deployed"),
         _ => false,
     }));
     assert!(messages.iter().any(|message| match message {
-        super::model::UiMessage::System(message) => message.text.contains("custom_progress"),
+        cli_interaction_model::UiMessage::System(message) => message.text.contains("custom_progress"),
         _ => false,
     }));
 
@@ -421,7 +421,7 @@ fn runner_projects_workflow_stream_and_single_terminal() {
         requests.recv_timeout(Duration::from_secs(3)).expect("record failing Workflow request");
     assert_eq!(second.path, "/v1/workflow/applications/wf%2Ferror/chat-messages");
     assert!(app.state().messages.iter().any(|message| match message {
-        super::model::UiMessage::Error(message) => message.message.contains("workflow exploded"),
+        cli_interaction_model::UiMessage::Error(message) => message.message.contains("workflow exploded"),
         _ => false,
     }));
     assert_eq!(runner.last_workflow_run().unwrap().terminal_events(), 1);

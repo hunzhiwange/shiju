@@ -16,10 +16,10 @@ use vw_tui::{
 
 use super::app::V3GatewayApp;
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
-use super::model::permission::{
+use cli_interaction_model::permission::{
     PermissionDecision, PermissionPreviewKind, PermissionQueue, PermissionRequest,
 };
-use super::model::{
+use cli_interaction_model::{
     PermissionMode, UiMessage, UiOverlay, UiPermissionOverlay, UiQuestionOption, UiQuestionOverlay,
     UiQuestionPrompt, UiTurnTerminal,
 };
@@ -43,9 +43,9 @@ const SCENARIOS: [&str; 10] = [
 #[test]
 fn tui_deepseek_request_preserves_auto_and_explicit_effort() {
     for (effort, expected) in [
-        (super::model::ReasoningEffort::Auto, None),
+        (cli_interaction_model::ReasoningEffort::Auto, None),
         (
-            super::model::ReasoningEffort::High,
+            cli_interaction_model::ReasoningEffort::High,
             Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),
         ),
     ] {

@@ -12,8 +12,8 @@ use vw_gateway_client::{
     GatewayWorkflowStreamRequest,
 };
 
-use crate::cli::tui::model::UiQuestionOverlay;
-use crate::cli::tui::model::overlay::workflow_action_label;
+use cli_interaction_model::UiQuestionOverlay;
+use cli_interaction_model::overlay::workflow_action_label;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use super::orchestration::OrchestrationSnapshot;

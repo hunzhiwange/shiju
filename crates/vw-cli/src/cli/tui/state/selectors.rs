@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
 
 use super::TuiState;
-use crate::cli::tui::model::{
+use cli_interaction_model::{
     UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiProgressMessage,
     UiSearchMatch, UiStep, UiSystemMessage, UiThinkingBlock, UiTokenUsage, UiToolCall,
     UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
@@ -1818,7 +1818,7 @@ fn estimate_transcript_item_height(
 fn transcript_item_line_texts(item: &TuiTranscriptItem<'_>, verbose: bool) -> Vec<String> {
     match item {
         TuiTranscriptItem::Standalone(UiMessage::System(message))
-            if message.level == crate::cli::tui::model::UiSystemMessageLevel::Info =>
+            if message.level == cli_interaction_model::UiSystemMessageLevel::Info =>
         {
             Vec::new()
         }

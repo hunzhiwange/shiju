@@ -46,16 +46,16 @@ use super::commands::{
     command_palette_items_with_integrations, help_text, session_resume_items,
 };
 use super::controller::{TuiController, TuiControllerCommand, TuiOverlayCommand};
-use super::model::background_task::{TaskControlAction, TaskDetailView};
-use super::model::integration::{IntegrationItem, IntegrationKind};
-use super::model::permission::{PermissionDecision, PermissionQueue, PermissionRequest};
-use super::model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
-use super::model::{
+use cli_interaction_model::background_task::{TaskControlAction, TaskDetailView};
+use cli_interaction_model::integration::{IntegrationItem, IntegrationKind};
+use cli_interaction_model::permission::{PermissionDecision, PermissionQueue, PermissionRequest};
+use cli_interaction_model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
+use cli_interaction_model::{
     PermissionMode, PromptSubmission, ReasoningEffort, UiAttachment, UiAttachmentKind,
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiMessageOrigin,
     UiOverlay, UiPermissionOverlay, UiStepState, UiTodoOverlay, UiTurnTerminal, UiUserMessage,
 };
-use super::model::paste::{PromptAttachment, PromptAttachmentKind};
+use cli_interaction_model::paste::{PromptAttachment, PromptAttachmentKind};
 use super::runtime::capabilities::load_session_capabilities_blocking;
 use super::runtime::cron::{
     CronDetailView, CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
@@ -2254,7 +2254,7 @@ impl V3GatewayApp {
 
     fn replace_workflow_pause_question(
         &mut self,
-        question: Option<super::model::UiQuestionOverlay>,
+        question: Option<cli_interaction_model::UiQuestionOverlay>,
     ) {
         reduce_tui_state(&mut self.state, TuiAction::WorkflowPauseQuestionReplaced(question));
         self.show_next_interaction();
@@ -2286,7 +2286,7 @@ impl V3GatewayApp {
                 snapshot
                     .questions
                     .iter()
-                    .map(super::model::UiQuestionOverlay::from_request)
+                    .map(cli_interaction_model::UiQuestionOverlay::from_request)
                     .collect::<Vec<_>>(),
             ),
         );
@@ -2422,7 +2422,7 @@ impl V3GatewayApp {
             fast: self.state.session_options.fast,
             theme: self.state.theme_name.clone(),
             permission_mode: self.state.session_options.permission_mode,
-            vim_mode: super::model::vim::VimMode::Disabled,
+            vim_mode: cli_interaction_model::vim::VimMode::Disabled,
         }
     }
 
@@ -3167,7 +3167,7 @@ impl V3GatewayApp {
         &self,
         kind: IntegrationKind,
         id: &str,
-    ) -> Result<&super::model::integration::IntegrationItem, String> {
+    ) -> Result<&cli_interaction_model::integration::IntegrationItem, String> {
         let id = id.trim();
         if id.is_empty() {
             return Err("integration operation requires a stable id".to_string());
@@ -3953,11 +3953,11 @@ fn display_event_from_message(message: &UiMessage) -> V3DisplayEvent {
         UiMessage::Attachment(message) => V3DisplayEvent::Attachment {
             attachment: V3Attachment {
                 kind: match message.kind {
-                    super::model::UiAttachmentKind::Image => V3AttachmentKind::Image,
-                    super::model::UiAttachmentKind::PastedText => V3AttachmentKind::PastedText,
-                    super::model::UiAttachmentKind::Resource
-                    | super::model::UiAttachmentKind::Link => V3AttachmentKind::Resource,
-                    super::model::UiAttachmentKind::File => V3AttachmentKind::File,
+                    cli_interaction_model::UiAttachmentKind::Image => V3AttachmentKind::Image,
+                    cli_interaction_model::UiAttachmentKind::PastedText => V3AttachmentKind::PastedText,
+                    cli_interaction_model::UiAttachmentKind::Resource
+                    | cli_interaction_model::UiAttachmentKind::Link => V3AttachmentKind::Resource,
+                    cli_interaction_model::UiAttachmentKind::File => V3AttachmentKind::File,
                 },
                 label: message.name.clone(),
                 path: (!message.uri.trim().is_empty()).then(|| message.uri.clone()),

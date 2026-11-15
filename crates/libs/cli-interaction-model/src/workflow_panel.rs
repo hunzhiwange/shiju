@@ -4,16 +4,16 @@
 
 /// 一条工作流的面板摘要。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct WorkflowPanelItem {
-    pub(crate) uuid: String,
-    pub(crate) name: String,
-    pub(crate) description: String,
+pub struct WorkflowPanelItem {
+    pub uuid: String,
+    pub name: String,
+    pub description: String,
 }
 
 /// 工作流面板的列表、选中位置和查询错误。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct WorkflowPanel {
-    pub(crate) items: Vec<WorkflowPanelItem>,
-    pub(crate) selected: usize,
-    pub(crate) error: Option<String>,
+pub struct WorkflowPanel {
+    pub items: Vec<WorkflowPanelItem>,
+    pub selected: usize,
+    pub error: Option<String>,
 }

@@ -13,13 +13,13 @@ use super::commands::{
     route_selection, route_slash_submission,
 };
 use super::controller::{TuiController, TuiControllerCommand};
-use super::model::background_task::{
+use cli_interaction_model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskPanel, BackgroundTaskStatus,
     CanonicalTaskStatus, TaskControlAction,
 };
-use super::model::schedule_panel::{SchedulePanel, SchedulePanelItem};
-use super::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
-use super::model::{UiConfirmIntent, UiOverlay};
+use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
+use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
+use cli_interaction_model::{UiConfirmIntent, UiOverlay};
 use super::runtime::cron::CronJobSnapshot;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::runtime::orchestration::OrchestrationSnapshot;

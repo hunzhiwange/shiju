@@ -15,7 +15,7 @@ use super::{
     TuiAction, TuiState, TuiTerminalUpdate, TuiToolCallUpdate, TuiToolResultUpdate,
     reduce_tui_state, split_reasoning_marker,
 };
-use crate::cli::tui::model::{
+use cli_interaction_model::{
     UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiSystemMessage, UiSystemMessageLevel,
     UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCallState,
     UiTurnTerminal,

@@ -5,7 +5,7 @@
 
 /// 集成面板当前展示的资源类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum IntegrationKind {
+pub enum IntegrationKind {
     Mcp,
     Skill,
     Plugin,
@@ -16,7 +16,7 @@ pub(crate) enum IntegrationKind {
 
 /// 集成列表的异步加载结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum IntegrationLoadState {
+pub enum IntegrationLoadState {
     Loading,
     Empty,
     Ready,
@@ -25,35 +25,35 @@ pub(crate) enum IntegrationLoadState {
 
 /// 某条集成可执行的界面操作及其可用性。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct IntegrationAction {
-    pub(crate) label: String,
-    pub(crate) enabled: bool,
-    pub(crate) disabled_reason: Option<String>,
+pub struct IntegrationAction {
+    pub label: String,
+    pub enabled: bool,
+    pub disabled_reason: Option<String>,
 }
 
 /// 一条集成资源的可显示快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct IntegrationItem {
-    pub(crate) kind: IntegrationKind,
-    pub(crate) id: String,
-    pub(crate) title: String,
-    pub(crate) detail: String,
-    pub(crate) source: String,
-    pub(crate) enabled: bool,
-    pub(crate) can_toggle: bool,
-    pub(crate) can_delete: bool,
-    pub(crate) prompt_prefix: Option<String>,
-    pub(crate) actions: Vec<IntegrationAction>,
+pub struct IntegrationItem {
+    pub kind: IntegrationKind,
+    pub id: String,
+    pub title: String,
+    pub detail: String,
+    pub source: String,
+    pub enabled: bool,
+    pub can_toggle: bool,
+    pub can_delete: bool,
+    pub prompt_prefix: Option<String>,
+    pub actions: Vec<IntegrationAction>,
 }
 
 impl IntegrationItem {
-    pub(crate) fn stable_key(&self) -> String {
+    pub fn stable_key(&self) -> String {
         format!("{}:{}", self.kind.command_name(), self.id)
     }
 }
 
 impl IntegrationKind {
-    pub(crate) fn command_name(self) -> &'static str {
+    pub fn command_name(self) -> &'static str {
         match self {
             Self::Mcp => "mcp",
             Self::Skill => "skill",
@@ -67,26 +67,26 @@ impl IntegrationKind {
 
 /// 集成页面的列表、选中位置与技能平台子选择器。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct IntegrationPanel {
-    pub(crate) kind: IntegrationKind,
-    pub(crate) state: IntegrationLoadState,
-    pub(crate) items: Vec<IntegrationItem>,
-    pub(crate) selected: usize,
-    pub(crate) skill_provider: SkillsDirectoryProvider,
-    pub(crate) can_toggle: bool,
-    pub(crate) skill_platform_focused: bool,
-    pub(crate) skill_provider_picker: Option<SkillProviderPicker>,
+pub struct IntegrationPanel {
+    pub kind: IntegrationKind,
+    pub state: IntegrationLoadState,
+    pub items: Vec<IntegrationItem>,
+    pub selected: usize,
+    pub skill_provider: SkillsDirectoryProvider,
+    pub can_toggle: bool,
+    pub skill_platform_focused: bool,
+    pub skill_provider_picker: Option<SkillProviderPicker>,
 }
 
 /// 技能目录平台选择器的临时状态。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SkillProviderPicker {
-    pub(crate) selected: usize,
+pub struct SkillProviderPicker {
+    pub selected: usize,
 }
 
 impl IntegrationPanel {
     /// 以指定类别创建面板，初始状态为正在加载。
-    pub(crate) fn new(kind: IntegrationKind) -> Self {
+    pub fn new(kind: IntegrationKind) -> Self {
         Self {
             kind,
             state: IntegrationLoadState::Loading,
@@ -126,7 +126,7 @@ impl IntegrationPanel {
     }
 
     /// 生成终端列表文本，所有条目详情在插值前会经过脱敏。
-    pub(crate) fn lines(&self) -> Vec<String> {
+    pub fn lines(&self) -> Vec<String> {
         let mut lines = vec![format!("{:?} · {:?}", self.kind, self.state)];
         if self.kind == IntegrationKind::Skill {
             lines.push(format!(
@@ -201,7 +201,7 @@ impl IntegrationPanel {
 }
 
 /// 折叠空白并遮蔽常见凭据形式，供集成详情与错误文本入界面前使用。
-pub(crate) fn sanitize_integration_text(text: &str) -> String {
+pub fn sanitize_integration_text(text: &str) -> String {
     text.split_whitespace()
         .map(|word| {
             let normalized = word.to_ascii_lowercase();

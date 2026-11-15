@@ -11,9 +11,9 @@ use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_tui::{V3Action, V3ApprovalDecision, V3UserInputAnswer};
 
 use super::app::{ActiveRunner, V3GatewayApp};
-use super::model::UiOverlay;
-use super::model::permission::PermissionRequest;
-use super::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
+use cli_interaction_model::UiOverlay;
+use cli_interaction_model::permission::PermissionRequest;
+use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::state::TuiState;
 

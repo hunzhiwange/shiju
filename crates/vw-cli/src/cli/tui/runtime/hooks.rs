@@ -4,7 +4,7 @@ use vw_gateway_client::{HookAuditEntryDto, HookCatalogEntryDto, HookMutationResp
 use vw_tui::V3SelectionItem;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use crate::cli::tui::model::integration::sanitize_integration_text;
+use cli_interaction_model::integration::sanitize_integration_text;
 
 const MAX_HOOK_ENTRIES: usize = 100;
 const MAX_PLUGIN_ID_CHARS: usize = 128;

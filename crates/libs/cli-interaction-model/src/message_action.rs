@@ -6,14 +6,14 @@ use super::UiMessageId;
 
 /// 消息操作面板的导航模式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum MessageActionKind {
+pub enum MessageActionKind {
     Browse,
     Rewind,
 }
 
 /// 用户针对某条消息确认的操作意图。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum MessageActionIntent {
+pub enum MessageActionIntent {
     Copy { message_id: UiMessageId, text: String },
     Edit { message_id: UiMessageId, text: String, cancel_active_turn: bool },
     Fork { message_id: UiMessageId },
@@ -24,12 +24,12 @@ pub(crate) enum MessageActionIntent {
 
 /// 消息操作模式的当前选择与进入前草稿。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MessageActionState {
-    pub(crate) active: bool,
-    pub(crate) selected_id: Option<UiMessageId>,
-    pub(crate) expanded: bool,
-    pub(crate) kind: MessageActionKind,
-    pub(crate) preserved_prompt_draft: String,
+pub struct MessageActionState {
+    pub active: bool,
+    pub selected_id: Option<UiMessageId>,
+    pub expanded: bool,
+    pub kind: MessageActionKind,
+    pub preserved_prompt_draft: String,
 }
 
 impl Default for MessageActionState {

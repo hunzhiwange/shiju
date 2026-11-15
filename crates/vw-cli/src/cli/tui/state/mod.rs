@@ -22,7 +22,7 @@ use vw_shared::session::ui_types::{
     self as session_ui, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep,
 };
 
-use super::model::{
+use cli_interaction_model::{
     MessageActionState, OverlayState, PromptState, TranscriptModeState, UiAssistantMessage,
     UiAttachment, UiAttachmentKind, UiCompactBoundary, UiMemoryEntry, UiMessage, UiMessageBase,
     UiMessageId, UiMessageOrigin, UiProgressMessage, UiQuestionOverlay, UiStep, UiStepState,
@@ -474,15 +474,15 @@ pub(crate) struct TuiState {
     pub(crate) model_catalog: Vec<TuiModelCatalogEntry>,
     pub(crate) transcript_mode: TranscriptModeState,
     pub(crate) message_actions: MessageActionState,
-    pub(crate) session_options: super::model::SessionOptions,
-    pub(crate) session_capabilities: super::model::SessionCapabilityMatrix,
+    pub(crate) session_options: cli_interaction_model::SessionOptions,
+    pub(crate) session_capabilities: cli_interaction_model::SessionCapabilityMatrix,
     pub(crate) settings_warnings: Vec<String>,
-    pub(crate) integration_catalog: Vec<super::model::integration::IntegrationItem>,
+    pub(crate) integration_catalog: Vec<cli_interaction_model::integration::IntegrationItem>,
     pub(crate) integration_warnings: Vec<String>,
     pub(crate) orchestration: super::runtime::orchestration::OrchestrationSnapshot,
     pub(crate) theme_name: String,
-    pub(crate) agent_view: super::model::agent_view::AgentViewState,
-    pub(crate) notifications: super::model::notification::NotificationStore,
+    pub(crate) agent_view: cli_interaction_model::agent_view::AgentViewState,
+    pub(crate) notifications: cli_interaction_model::notification::NotificationStore,
 }
 
 impl TuiState {

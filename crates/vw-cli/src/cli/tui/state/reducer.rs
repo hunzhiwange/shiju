@@ -15,7 +15,7 @@ use super::{
     is_persistable_chat_message, persisted_slot_index_for_message_index,
 };
 use crate::cli::session::GitWorkspaceStatus;
-use crate::cli::tui::model::{
+use cli_interaction_model::{
     PromptMode, PromptMotion, PromptSubmission, PromptSubmissionStatus, QueuedPromptCommand,
     UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiQuestionOverlay,
     UiSearchOverlay, UiStep, UiStepState, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming,

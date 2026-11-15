@@ -3,8 +3,8 @@
 use vw_gateway_client::{CronJobDto, CronRunDto, CronUpdateRequest};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use crate::cli::tui::model::integration::sanitize_integration_text;
-use crate::cli::tui::model::schedule_panel::{SchedulePanel, SchedulePanelItem};
+use cli_interaction_model::integration::sanitize_integration_text;
+use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 
 const MAX_ID_CHARS: usize = 160;
 const MAX_LABEL_CHARS: usize = 160;

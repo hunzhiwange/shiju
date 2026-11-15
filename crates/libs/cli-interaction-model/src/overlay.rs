@@ -23,7 +23,7 @@ use super::workflow_panel::WorkflowPanel;
 
 /// 当前焦点位于 prompt 还是 overlay。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum OverlayFocus {
+pub enum OverlayFocus {
     #[default]
     Prompt,
     Overlay,
@@ -33,20 +33,20 @@ pub(crate) enum OverlayFocus {
 ///
 /// 采用简单栈结构承接后续 phase 的 modal manager；当前不引入额外路由层。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct OverlayState {
-    pub(crate) stack: Vec<UiOverlay>,
-    pub(crate) focus: OverlayFocus,
+pub struct OverlayState {
+    pub stack: Vec<UiOverlay>,
+    pub focus: OverlayFocus,
 }
 
 impl OverlayState {
     /// 压入一个新的 overlay，并把焦点切到 overlay 区域。
-    pub(crate) fn push(&mut self, overlay: UiOverlay) {
+    pub fn push(&mut self, overlay: UiOverlay) {
         self.stack.push(overlay);
         self.focus = OverlayFocus::Overlay;
     }
 
     /// 弹出顶部 overlay；如果栈空则把焦点还给 prompt。
-    pub(crate) fn pop(&mut self) -> Option<UiOverlay> {
+    pub fn pop(&mut self) -> Option<UiOverlay> {
         let overlay = self.stack.pop();
         if self.stack.is_empty() {
             self.focus = OverlayFocus::Prompt;
@@ -55,12 +55,12 @@ impl OverlayState {
     }
 
     /// 返回当前活动 overlay。
-    pub(crate) fn active(&self) -> Option<&UiOverlay> {
+    pub fn active(&self) -> Option<&UiOverlay> {
         self.stack.last()
     }
 
     /// 清空所有 overlay，并恢复 prompt 焦点。
-    pub(crate) fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.stack.clear();
         self.focus = OverlayFocus::Prompt;
     }
@@ -68,7 +68,7 @@ impl OverlayState {
 
 /// overlay 的逻辑种类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UiOverlayKind {
+pub enum UiOverlayKind {
     Confirm,
     Search,
     Question,
@@ -90,7 +90,7 @@ pub(crate) enum UiOverlayKind {
 
 /// 顶层 overlay 枚举。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UiOverlay {
+pub enum UiOverlay {
     Confirm(UiConfirmOverlay),
     Search(UiSearchOverlay),
     Question(UiQuestionOverlay),
@@ -112,7 +112,7 @@ pub(crate) enum UiOverlay {
 
 impl UiOverlay {
     /// 返回 overlay 的逻辑分类。
-    pub(crate) fn kind(&self) -> UiOverlayKind {
+    pub fn kind(&self) -> UiOverlayKind {
         match self {
             Self::Confirm(_) => UiOverlayKind::Confirm,
             Self::Search(_) => UiOverlayKind::Search,
@@ -136,14 +136,14 @@ impl UiOverlay {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiPermissionOverlay {
-    pub(crate) queue: PermissionQueue,
-    pub(crate) notice: Option<String>,
+pub struct UiPermissionOverlay {
+    pub queue: PermissionQueue,
+    pub notice: Option<String>,
 }
 
 impl UiPermissionOverlay {
     /// 将当前队首权限转换为只读安全弹层；不会在渲染层制造授权结果。
-    pub(crate) fn current_request(&self) -> Option<V3ApprovalRequest> {
+    pub fn current_request(&self) -> Option<V3ApprovalRequest> {
         let request = self.queue.current()?;
         let kind = match request.preview {
             PermissionPreviewKind::Shell => V3ApprovalKind::Command,
@@ -182,7 +182,7 @@ impl UiPermissionOverlay {
 
 /// 确认框携带的类型化意图。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) enum UiConfirmIntent {
+pub enum UiConfirmIntent {
     #[default]
     Generic,
     ExitTui,
@@ -233,19 +233,19 @@ pub(crate) enum UiConfirmIntent {
 
 /// 确认对话框。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiConfirmOverlay {
-    pub(crate) request_id: String,
-    pub(crate) title: String,
-    pub(crate) body: String,
-    pub(crate) confirm_label: String,
-    pub(crate) cancel_label: String,
-    pub(crate) destructive: bool,
-    pub(crate) intent: UiConfirmIntent,
+pub struct UiConfirmOverlay {
+    pub request_id: String,
+    pub title: String,
+    pub body: String,
+    pub confirm_label: String,
+    pub cancel_label: String,
+    pub destructive: bool,
+    pub intent: UiConfirmIntent,
 }
 
 impl UiConfirmOverlay {
     /// 将内部类型化确认投影为 V3 的只读审批面；渲染层不能执行 intent。
-    pub(crate) fn to_v3_request(&self) -> V3ApprovalRequest {
+    pub fn to_v3_request(&self) -> V3ApprovalRequest {
         V3ApprovalRequest::new(
             self.request_id.clone(),
             V3ApprovalKind::Permissions,
@@ -269,50 +269,50 @@ impl UiConfirmOverlay {
 
 /// 搜索命中的一条结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiSearchMatch {
-    pub(crate) message_id: Option<UiMessageId>,
-    pub(crate) start: usize,
-    pub(crate) end: usize,
-    pub(crate) preview: String,
+pub struct UiSearchMatch {
+    pub message_id: Option<UiMessageId>,
+    pub start: usize,
+    pub end: usize,
+    pub preview: String,
 }
 
 /// 搜索弹层。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiSearchOverlay {
-    pub(crate) query: String,
-    pub(crate) matches: Vec<UiSearchMatch>,
-    pub(crate) selected_index: Option<usize>,
-    pub(crate) case_sensitive: bool,
+pub struct UiSearchOverlay {
+    pub query: String,
+    pub matches: Vec<UiSearchMatch>,
+    pub selected_index: Option<usize>,
+    pub case_sensitive: bool,
 }
 
 /// question 里的单个可选项。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiQuestionOption {
-    pub(crate) label: String,
-    pub(crate) description: String,
-    pub(crate) preview: Option<String>,
+pub struct UiQuestionOption {
+    pub label: String,
+    pub description: String,
+    pub preview: Option<String>,
 }
 
 /// question 里的单个问题定义。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiQuestionPrompt {
-    pub(crate) header: String,
-    pub(crate) question: String,
-    pub(crate) options: Vec<UiQuestionOption>,
-    pub(crate) multiple: bool,
-    pub(crate) allow_custom_input: bool,
+pub struct UiQuestionPrompt {
+    pub header: String,
+    pub question: String,
+    pub options: Vec<UiQuestionOption>,
+    pub multiple: bool,
+    pub allow_custom_input: bool,
 }
 
 /// question 对应的工具调用上下文。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiQuestionToolContext {
-    pub(crate) message_id: String,
-    pub(crate) call_id: String,
+pub struct UiQuestionToolContext {
+    pub message_id: String,
+    pub call_id: String,
 }
 
 /// question 在宿主里的展示表面类型。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UiQuestionSurfaceKind {
+pub enum UiQuestionSurfaceKind {
     Question,
     ToolFallback,
     PermissionRequest,
@@ -320,18 +320,18 @@ pub(crate) enum UiQuestionSurfaceKind {
 
 /// question 弹层。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiQuestionOverlay {
-    pub(crate) request_id: String,
-    pub(crate) session_id: String,
-    pub(crate) prompts: Vec<UiQuestionPrompt>,
-    pub(crate) answers: Vec<Vec<String>>,
-    pub(crate) tool: Option<UiQuestionToolContext>,
-    pub(crate) selected_index: usize,
+pub struct UiQuestionOverlay {
+    pub request_id: String,
+    pub session_id: String,
+    pub prompts: Vec<UiQuestionPrompt>,
+    pub answers: Vec<Vec<String>>,
+    pub tool: Option<UiQuestionToolContext>,
+    pub selected_index: usize,
 }
 
 impl UiQuestionOverlay {
     /// 将共享层 question 请求转为新 TUI 内部弹层结构。
-    pub(crate) fn from_request(request: &question::Request) -> Self {
+    pub fn from_request(request: &question::Request) -> Self {
         let prompts = request
             .questions
             .iter()
@@ -366,7 +366,7 @@ impl UiQuestionOverlay {
     }
 
     /// 将 Workflow human-input pause 映射为无 token 的 typed question。
-    pub(crate) fn from_workflow_pause(
+    pub fn from_workflow_pause(
         request_id: String,
         session_id: String,
         pause: &WorkflowPauseDto,
@@ -455,7 +455,7 @@ impl UiQuestionOverlay {
     }
 
     /// 转为渲染 crate 的只读提问结构，使用稳定索引保持回答顺序。
-    pub(crate) fn to_v3_request(&self) -> V3UserInputRequest {
+    pub fn to_v3_request(&self) -> V3UserInputRequest {
         let questions = self
             .prompts
             .iter()
@@ -589,7 +589,7 @@ fn workflow_field_string<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty())
 }
 
-pub(crate) fn workflow_action_label(label: &str, id: &str) -> String {
+pub fn workflow_action_label(label: &str, id: &str) -> String {
     format!("{} [{}]", label.trim(), id.trim())
 }
 
@@ -617,11 +617,11 @@ fn option_looks_like_permission(value: &str) -> bool {
 
 /// todo 条目的内部视图。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiTodoItem {
-    pub(crate) id: String,
-    pub(crate) content: String,
-    pub(crate) status: String,
-    pub(crate) priority: String,
+pub struct UiTodoItem {
+    pub id: String,
+    pub content: String,
+    pub status: String,
+    pub priority: String,
 }
 
 impl From<&Todo> for UiTodoItem {
@@ -637,16 +637,16 @@ impl From<&Todo> for UiTodoItem {
 
 /// todo 弹层。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiTodoOverlay {
-    pub(crate) session_id: Option<String>,
-    pub(crate) items: Vec<UiTodoItem>,
-    pub(crate) selected_index: usize,
-    pub(crate) dirty: bool,
+pub struct UiTodoOverlay {
+    pub session_id: Option<String>,
+    pub items: Vec<UiTodoItem>,
+    pub selected_index: usize,
+    pub dirty: bool,
 }
 
 impl UiTodoOverlay {
     /// 基于共享层 todo 列表创建内部弹层视图。
-    pub(crate) fn from_todos(session_id: Option<&str>, todos: &[Todo]) -> Self {
+    pub fn from_todos(session_id: Option<&str>, todos: &[Todo]) -> Self {
         Self {
             session_id: session_id.map(ToOwned::to_owned),
             items: todos.iter().map(UiTodoItem::from).collect(),
@@ -658,51 +658,51 @@ impl UiTodoOverlay {
 
 /// task 面板中的单条 step 摘要。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiTaskStepItem {
-    pub(crate) message_id: UiMessageId,
-    pub(crate) step_index: u32,
-    pub(crate) state: UiStepState,
-    pub(crate) started_ms: u64,
-    pub(crate) finished_ms: Option<u64>,
-    pub(crate) model: Option<String>,
-    pub(crate) finish_reason: Option<String>,
-    pub(crate) usage: UiTokenUsage,
+pub struct UiTaskStepItem {
+    pub message_id: UiMessageId,
+    pub step_index: u32,
+    pub state: UiStepState,
+    pub started_ms: u64,
+    pub finished_ms: Option<u64>,
+    pub model: Option<String>,
+    pub finish_reason: Option<String>,
+    pub usage: UiTokenUsage,
 }
 
 /// task / step 摘要面板。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiTaskOverlay {
-    pub(crate) session_id: Option<String>,
-    pub(crate) turn_terminal: UiTurnTerminal,
-    pub(crate) pending_questions: usize,
-    pub(crate) todo_count: usize,
-    pub(crate) sync_error: Option<String>,
-    pub(crate) steps: Vec<UiTaskStepItem>,
-    pub(crate) selected_index: usize,
+pub struct UiTaskOverlay {
+    pub session_id: Option<String>,
+    pub turn_terminal: UiTurnTerminal,
+    pub pending_questions: usize,
+    pub todo_count: usize,
+    pub sync_error: Option<String>,
+    pub steps: Vec<UiTaskStepItem>,
+    pub selected_index: usize,
 }
 
 /// palette 中的一条命令项。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiPaletteItem {
-    pub(crate) id: String,
-    pub(crate) label: String,
-    pub(crate) detail: Option<String>,
-    pub(crate) source: String,
-    pub(crate) argument_hint: Option<String>,
-    pub(crate) available: bool,
-    pub(crate) unavailable_reason: Option<String>,
-    pub(crate) replacement: String,
+pub struct UiPaletteItem {
+    pub id: String,
+    pub label: String,
+    pub detail: Option<String>,
+    pub source: String,
+    pub argument_hint: Option<String>,
+    pub available: bool,
+    pub unavailable_reason: Option<String>,
+    pub replacement: String,
 }
 
 /// 命令面板弹层。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiCommandPaletteOverlay {
-    pub(crate) query: String,
-    pub(crate) items: Vec<UiPaletteItem>,
-    pub(crate) selected_index: Option<usize>,
-    pub(crate) first_visible_index: usize,
-    pub(crate) visible_rows: usize,
-    pub(crate) notice: Option<String>,
+pub struct UiCommandPaletteOverlay {
+    pub query: String,
+    pub items: Vec<UiPaletteItem>,
+    pub selected_index: Option<usize>,
+    pub first_visible_index: usize,
+    pub visible_rows: usize,
+    pub notice: Option<String>,
 }
 
 impl Default for UiCommandPaletteOverlay {
@@ -720,24 +720,24 @@ impl Default for UiCommandPaletteOverlay {
 
 /// 只读命令报告弹层。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiReportOverlay {
-    pub(crate) title: String,
-    pub(crate) lines: Vec<String>,
-    pub(crate) capability_notice: Option<String>,
-    pub(crate) scroll_offset: usize,
+pub struct UiReportOverlay {
+    pub title: String,
+    pub lines: Vec<String>,
+    pub capability_notice: Option<String>,
+    pub scroll_offset: usize,
 }
 
 /// 错误弹层。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiErrorOverlay {
-    pub(crate) title: String,
-    pub(crate) message: String,
-    pub(crate) recoverable: bool,
+pub struct UiErrorOverlay {
+    pub title: String,
+    pub message: String,
+    pub recoverable: bool,
 }
 
 /// MCP 服务器的传输协议类型。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum McpServerTransport {
+pub enum McpServerTransport {
     Stdio,
     Sse,
     Http,
@@ -745,7 +745,7 @@ pub(crate) enum McpServerTransport {
 
 impl McpServerTransport {
     /// 返回传输协议的显示标签。
-    pub(crate) fn label(&self) -> &'static str {
+    pub fn label(&self) -> &'static str {
         match self {
             Self::Stdio => "stdio",
             Self::Sse => "sse",
@@ -756,40 +756,40 @@ impl McpServerTransport {
 
 /// MCP 服务器的 UI 视图。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiMcpServerInfo {
-    pub(crate) name: String,
-    pub(crate) transport: McpServerTransport,
+pub struct UiMcpServerInfo {
+    pub name: String,
+    pub transport: McpServerTransport,
     /// stdio 时为命令路径，sse/http 时为 URL。
-    pub(crate) address: String,
+    pub address: String,
 }
 
 /// MCP 服务器列表面板。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiMcpOverlay {
-    pub(crate) servers: Vec<UiMcpServerInfo>,
-    pub(crate) selected_index: usize,
+pub struct UiMcpOverlay {
+    pub servers: Vec<UiMcpServerInfo>,
+    pub selected_index: usize,
     /// 配置来源路径（project 或 global），用于显示。
-    pub(crate) config_source: String,
+    pub config_source: String,
 }
 
 /// 单个内存文件条目。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiMemoryEntry {
+pub struct UiMemoryEntry {
     /// 作用域标签："project" / "global"。
-    pub(crate) scope: String,
+    pub scope: String,
     /// 文件名（不含路径）。
-    pub(crate) filename: String,
+    pub filename: String,
     /// 完整文件路径，用于显示。
-    pub(crate) path: String,
+    pub path: String,
     /// 文件前 N 行预览内容。
-    pub(crate) preview_lines: Vec<String>,
+    pub preview_lines: Vec<String>,
     /// 文件总行数。
-    pub(crate) total_lines: usize,
+    pub total_lines: usize,
 }
 
 /// 内存文件列表面板。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct UiMemoryOverlay {
-    pub(crate) entries: Vec<UiMemoryEntry>,
-    pub(crate) selected_index: usize,
+pub struct UiMemoryOverlay {
+    pub entries: Vec<UiMemoryEntry>,
+    pub selected_index: usize,
 }

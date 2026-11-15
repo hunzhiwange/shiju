@@ -6,7 +6,7 @@ use super::{PermissionMode, UiMessage};
 
 /// 成员在 TUI 中展示的粗粒度运行状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AgentStatus {
+pub enum AgentStatus {
     Loading,
     Ready,
     Running,
@@ -17,23 +17,23 @@ pub(crate) enum AgentStatus {
 
 /// 一个可切换查看的智能体成员快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct AgentMember {
-    pub(crate) id: String,
-    pub(crate) session_id: String,
-    pub(crate) team_id: Option<String>,
-    pub(crate) name: String,
-    pub(crate) status: AgentStatus,
-    pub(crate) messages: Option<Vec<UiMessage>>,
-    pub(crate) permission_mode: PermissionMode,
-    pub(crate) queued_input: Vec<String>,
+pub struct AgentMember {
+    pub id: String,
+    pub session_id: String,
+    pub team_id: Option<String>,
+    pub name: String,
+    pub status: AgentStatus,
+    pub messages: Option<Vec<UiMessage>>,
+    pub permission_mode: PermissionMode,
+    pub queued_input: Vec<String>,
 }
 
 /// 成员面板状态；`viewed_agent_id` 为空时显示主智能体消息。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct AgentViewState {
-    pub(crate) members: Vec<AgentMember>,
-    pub(crate) viewed_agent_id: Option<String>,
-    pub(crate) error: Option<String>,
+pub struct AgentViewState {
+    pub members: Vec<AgentMember>,
+    pub viewed_agent_id: Option<String>,
+    pub error: Option<String>,
 }
 
 impl AgentViewState {

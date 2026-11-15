@@ -8,7 +8,7 @@ use super::vim::VimMode;
 
 /// 稳定标识一个设置行，用于选择、过滤与值渲染。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SettingKey {
+pub enum SettingKey {
     Model,
     DelegateAgent,
     AcpBackend,
@@ -26,27 +26,27 @@ pub(crate) enum SettingKey {
 
 /// 设置行的标签与不可用原因。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingRow {
-    pub(crate) key: SettingKey,
-    pub(crate) label: &'static str,
-    pub(crate) unavailable_reason: Option<String>,
+pub struct SettingRow {
+    pub key: SettingKey,
+    pub label: &'static str,
+    pub unavailable_reason: Option<String>,
 }
 
 /// 一份可编辑的会话设置快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingsValues {
-    pub(crate) model: Option<String>,
-    pub(crate) delegate_agent: Option<String>,
-    pub(crate) acp_backend: Option<String>,
-    pub(crate) full_access_enabled: bool,
-    pub(crate) subagent_mode_enabled: bool,
-    pub(crate) workflow_mode: WorkflowMode,
-    pub(crate) goal_mode: GoalMode,
-    pub(crate) effort: ReasoningEffort,
-    pub(crate) fast: bool,
-    pub(crate) theme: String,
-    pub(crate) permission_mode: PermissionMode,
-    pub(crate) vim_mode: VimMode,
+pub struct SettingsValues {
+    pub model: Option<String>,
+    pub delegate_agent: Option<String>,
+    pub acp_backend: Option<String>,
+    pub full_access_enabled: bool,
+    pub subagent_mode_enabled: bool,
+    pub workflow_mode: WorkflowMode,
+    pub goal_mode: GoalMode,
+    pub effort: ReasoningEffort,
+    pub fast: bool,
+    pub theme: String,
+    pub permission_mode: PermissionMode,
+    pub vim_mode: VimMode,
 }
 
 impl Default for SettingsValues {
@@ -70,41 +70,41 @@ impl Default for SettingsValues {
 
 /// 模型选择器的临时选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingsModelPicker {
-    pub(crate) selected: usize,
+pub struct SettingsModelPicker {
+    pub selected: usize,
 }
 
 /// 委托智能体选择器的临时选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingsDelegateAgentPicker {
-    pub(crate) selected: usize,
+pub struct SettingsDelegateAgentPicker {
+    pub selected: usize,
 }
 
 /// ACP 后端选择器的临时选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingsAcpBackendPicker {
-    pub(crate) selected: usize,
+pub struct SettingsAcpBackendPicker {
+    pub selected: usize,
 }
 
 /// 设置面板的行、过滤、原值、待提交值及可选能力。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingsPanel {
-    pub(crate) rows: Vec<SettingRow>,
-    pub(crate) query: String,
-    pub(crate) selected: usize,
-    pub(crate) original: Box<SettingsValues>,
-    pub(crate) pending: Box<SettingsValues>,
-    pub(crate) model_options: Vec<String>,
-    pub(crate) model_picker: Option<SettingsModelPicker>,
-    pub(crate) delegate_agent_options: Vec<super::session_mode::DelegateAgentOption>,
-    pub(crate) delegate_agent_picker: Option<SettingsDelegateAgentPicker>,
-    pub(crate) acp_backend_options: Vec<super::session_mode::AcpBackendOption>,
-    pub(crate) acp_backend_picker: Option<SettingsAcpBackendPicker>,
+pub struct SettingsPanel {
+    pub rows: Vec<SettingRow>,
+    pub query: String,
+    pub selected: usize,
+    pub original: Box<SettingsValues>,
+    pub pending: Box<SettingsValues>,
+    pub model_options: Vec<String>,
+    pub model_picker: Option<SettingsModelPicker>,
+    pub delegate_agent_options: Vec<super::session_mode::DelegateAgentOption>,
+    pub delegate_agent_picker: Option<SettingsDelegateAgentPicker>,
+    pub acp_backend_options: Vec<super::session_mode::AcpBackendOption>,
+    pub acp_backend_picker: Option<SettingsAcpBackendPicker>,
 }
 
 impl SettingsPanel {
     /// 从已保存值创建面板；目标模式固定开启，不向用户提供伪关闭入口。
-    pub(crate) fn new(mut values: SettingsValues) -> Self {
+    pub fn new(mut values: SettingsValues) -> Self {
         values.goal_mode = GoalMode::Enabled;
         Self {
             rows: vec![
@@ -167,7 +167,7 @@ impl SettingsPanel {
     }
 
     /// 结合当前会话能力创建面板，对不支持的行附加明确原因。
-    pub(crate) fn for_capabilities(
+    pub fn for_capabilities(
         values: SettingsValues,
         capabilities: &super::session_mode::SessionCapabilityMatrix,
     ) -> Self {
@@ -214,7 +214,7 @@ impl SettingsPanel {
     }
 
     /// 在存在可选模型时打开选择器，并对齐当前待提交值。
-    pub(crate) fn open_model_picker(&mut self) -> bool {
+    pub fn open_model_picker(&mut self) -> bool {
         if self.model_options.is_empty() {
             return false;
         }
@@ -362,7 +362,7 @@ impl SettingsPanel {
     }
 
     /// 将指定待提交值转为面板使用的简短标签。
-    pub(crate) fn value_label(&self, key: SettingKey) -> String {
+    pub fn value_label(&self, key: SettingKey) -> String {
         match key {
             SettingKey::Model => self.pending.model.clone().unwrap_or_else(|| "自动".to_string()),
             SettingKey::DelegateAgent => self
@@ -427,7 +427,7 @@ impl SettingsPanel {
     }
 
     /// 放弃所有未提交编辑，将待提交值恢复为打开面板时的快照。
-    pub(crate) fn cancel(&mut self) {
+    pub fn cancel(&mut self) {
         self.pending = self.original.clone();
     }
 }

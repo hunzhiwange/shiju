@@ -8,15 +8,15 @@ use vw_gateway_client::vw_api_types::agent_scheduler::{
 
 use super::cron::CronJobSnapshot;
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use crate::cli::tui::model::agent_view::AgentViewState;
-use crate::cli::tui::model::background_task::{
+use cli_interaction_model::agent_view::AgentViewState;
+use cli_interaction_model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskPanel, BackgroundTaskStatus,
     CanonicalTaskStatus, TaskArtifactSummary, TaskControlAction, TaskDetailView,
     TaskGraphNodeSummary, TaskLogSummary,
 };
-use crate::cli::tui::model::integration::sanitize_integration_text;
-use crate::cli::tui::model::schedule_panel::{SchedulePanel, SchedulePanelItem};
-use crate::cli::tui::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
+use cli_interaction_model::integration::sanitize_integration_text;
+use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
+use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 
 const MAX_TASK_ID_CHARS: usize = 160;
 const MAX_TASK_LABEL_CHARS: usize = 160;

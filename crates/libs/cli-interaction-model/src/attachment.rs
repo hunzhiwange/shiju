@@ -11,7 +11,7 @@ use super::UiMessageBase;
 const MAX_ATTACHMENT_BYTES: u64 = 5 * 1024 * 1024;
 
 /// 在请求边界内解析并读取附件；返回值不保留未校验路径。
-pub(crate) fn prepare_prompt_attachments(
+pub fn prepare_prompt_attachments(
     workspace_root: Option<&Path>,
     attachments: &[V3Attachment],
 ) -> Result<Vec<PromptAttachment>, String> {
@@ -198,7 +198,7 @@ fn file_uri(path: &Path) -> String {
 
 /// 终端中可见的附件类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UiAttachmentKind {
+pub enum UiAttachmentKind {
     Image,
     File,
     Link,
@@ -208,22 +208,22 @@ pub(crate) enum UiAttachmentKind {
 
 /// 一条独立附件消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiAttachment {
-    pub(crate) base: UiMessageBase,
-    pub(crate) kind: UiAttachmentKind,
-    pub(crate) name: String,
-    pub(crate) media_type: Option<String>,
-    pub(crate) uri: String,
-    pub(crate) alt_text: Option<String>,
-    pub(crate) width_px: Option<u32>,
-    pub(crate) height_px: Option<u32>,
-    pub(crate) size_bytes: Option<u64>,
-    pub(crate) source: Option<String>,
-    pub(crate) preview: Option<String>,
+pub struct UiAttachment {
+    pub base: UiMessageBase,
+    pub kind: UiAttachmentKind,
+    pub name: String,
+    pub media_type: Option<String>,
+    pub uri: String,
+    pub alt_text: Option<String>,
+    pub width_px: Option<u32>,
+    pub height_px: Option<u32>,
+    pub size_bytes: Option<u64>,
+    pub source: Option<String>,
+    pub preview: Option<String>,
 }
 
 impl UiAttachment {
-    pub(crate) fn new(
+    pub fn new(
         base: UiMessageBase,
         kind: UiAttachmentKind,
         name: impl Into<String>,
@@ -244,7 +244,7 @@ impl UiAttachment {
         }
     }
 
-    pub(crate) fn with_media_type(mut self, media_type: impl Into<String>) -> Self {
+    pub fn with_media_type(mut self, media_type: impl Into<String>) -> Self {
         self.media_type = Some(media_type.into());
         self
     }
@@ -255,7 +255,7 @@ impl UiAttachment {
         self
     }
 
-    pub(crate) fn with_size_bytes(mut self, size_bytes: u64) -> Self {
+    pub fn with_size_bytes(mut self, size_bytes: u64) -> Self {
         self.size_bytes = Some(size_bytes);
         self
     }
@@ -265,7 +265,7 @@ impl UiAttachment {
         self
     }
 
-    pub(crate) fn with_preview(mut self, preview: impl Into<String>) -> Self {
+    pub fn with_preview(mut self, preview: impl Into<String>) -> Self {
         self.preview = Some(preview.into());
         self
     }

@@ -5,7 +5,7 @@
 
 /// 搜索的数据范围与交互语义。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SearchMode {
+pub enum SearchMode {
     QuickOpen,
     Global,
     History,
@@ -14,29 +14,29 @@ pub(crate) enum SearchMode {
 
 /// 一条可选搜索结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SearchResult {
-    pub(crate) id: String,
-    pub(crate) label: String,
-    pub(crate) preview: String,
-    pub(crate) line: Option<usize>,
+pub struct SearchResult {
+    pub id: String,
+    pub label: String,
+    pub preview: String,
+    pub line: Option<usize>,
 }
 
 /// 搜索对话框的查询、代次、结果和原始焦点。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SearchState {
-    pub(crate) mode: SearchMode,
-    pub(crate) query: String,
-    pub(crate) generation: u64,
-    pub(crate) results: Vec<SearchResult>,
-    pub(crate) selected: usize,
-    pub(crate) active: bool,
-    pub(crate) original_focus: String,
-    pub(crate) error: Option<String>,
+pub struct SearchState {
+    pub mode: SearchMode,
+    pub query: String,
+    pub generation: u64,
+    pub results: Vec<SearchResult>,
+    pub selected: usize,
+    pub active: bool,
+    pub original_focus: String,
+    pub error: Option<String>,
 }
 
 impl SearchState {
     /// 打开指定模式的搜索，并记住取消时需恢复的焦点。
-    pub(crate) fn new(mode: SearchMode, original_focus: impl Into<String>) -> Self {
+    pub fn new(mode: SearchMode, original_focus: impl Into<String>) -> Self {
         Self {
             mode,
             query: String::new(),
@@ -77,7 +77,7 @@ impl SearchState {
     }
 
     /// 关闭搜索并返回打开前的焦点标识。
-    pub(crate) fn cancel(&mut self) -> String {
+    pub fn cancel(&mut self) -> String {
         self.active = false;
         self.original_focus.clone()
     }

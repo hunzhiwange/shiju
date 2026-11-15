@@ -7,38 +7,38 @@ use std::collections::BTreeMap;
 
 /// 表单引导中的一个可编辑字段。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ElicitationField {
-    pub(crate) name: String,
-    pub(crate) label: String,
-    pub(crate) required: bool,
-    pub(crate) value: String,
+pub struct ElicitationField {
+    pub name: String,
+    pub label: String,
+    pub required: bool,
+    pub value: String,
 }
 
 /// 引导请求的交互形式。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ElicitationKind {
+pub enum ElicitationKind {
     Form { fields: Vec<ElicitationField> },
     Url { url: String, confirmed: bool },
 }
 
 /// 一条待回复的服务器引导请求。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ElicitationRequest {
-    pub(crate) id: String,
-    pub(crate) server_id: String,
-    pub(crate) kind: ElicitationKind,
+pub struct ElicitationRequest {
+    pub id: String,
+    pub server_id: String,
+    pub kind: ElicitationKind,
 }
 
 /// 发送给引导服务器的用户决定。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ElicitationResponse {
+pub enum ElicitationResponse {
     Accept { values: BTreeMap<String, String> },
     Reject,
 }
 
 impl ElicitationRequest {
     /// 根据用户决定构造响应；接受路径会验证必填值与 URL 安全边界。
-    pub(crate) fn response(&self, accept: bool) -> Result<ElicitationResponse, String> {
+    pub fn response(&self, accept: bool) -> Result<ElicitationResponse, String> {
         if !accept {
             return Ok(ElicitationResponse::Reject);
         }

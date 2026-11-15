@@ -15,8 +15,8 @@ use super::commands::{
     SETTINGS_PERMISSION_SURFACE, SETTINGS_SUBAGENT_SURFACE,
 };
 use super::controller::build_prompt_submission;
-use super::model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
-use super::model::{
+use cli_interaction_model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
+use cli_interaction_model::{
     AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort,
     SessionCapabilityMatrix, UiOverlay,
 };

@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 
 use super::commands::CommandRoute;
-use super::model::{PermissionDecision, PromptSubmission, UiConfirmIntent, UiQuestionOverlay};
+use cli_interaction_model::{PermissionDecision, PromptSubmission, UiConfirmIntent, UiQuestionOverlay};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
 /// 控制器可接收的时钟或终端事件。

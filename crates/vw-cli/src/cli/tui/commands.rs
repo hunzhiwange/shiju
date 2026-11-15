@@ -5,9 +5,9 @@
 use vw_shared::session::ui_types::ChatSessionMeta;
 use vw_tui::V3SelectionItem;
 
-use super::model::background_task::TaskControlAction;
-use super::model::integration::{IntegrationItem, IntegrationKind};
-use super::model::{PermissionMode, ReasoningEffort};
+use cli_interaction_model::background_task::TaskControlAction;
+use cli_interaction_model::integration::{IntegrationItem, IntegrationKind};
+use cli_interaction_model::{PermissionMode, ReasoningEffort};
 use super::runtime::workspace_files::normalize_workspace_relative_path;
 
 pub(crate) const COMMAND_PALETTE_SURFACE: &str = "command_palette";

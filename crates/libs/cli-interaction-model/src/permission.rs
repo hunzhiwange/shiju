@@ -10,7 +10,7 @@ use vw_gateway_client::PendingPermissionRequestDto;
 
 /// 根据权限名与元数据选择的预览样式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PermissionPreviewKind {
+pub enum PermissionPreviewKind {
     Shell,
     File,
     Network,
@@ -21,20 +21,20 @@ pub(crate) enum PermissionPreviewKind {
 
 /// 一条待审批权限请求的界面快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PermissionRequest {
-    pub(crate) id: String,
-    pub(crate) session_id: String,
-    pub(crate) permission: String,
-    pub(crate) patterns: Vec<String>,
-    pub(crate) always_patterns: Vec<String>,
-    pub(crate) preview: PermissionPreviewKind,
-    pub(crate) explanation: Option<String>,
-    pub(crate) debug: Option<String>,
+pub struct PermissionRequest {
+    pub id: String,
+    pub session_id: String,
+    pub permission: String,
+    pub patterns: Vec<String>,
+    pub always_patterns: Vec<String>,
+    pub preview: PermissionPreviewKind,
+    pub explanation: Option<String>,
+    pub debug: Option<String>,
 }
 
 impl PermissionRequest {
     /// 将 Gateway DTO 转为视图模型，保留服务端给出的模式边界。
-    pub(crate) fn from_dto(dto: PendingPermissionRequestDto) -> Self {
+    pub fn from_dto(dto: PendingPermissionRequestDto) -> Self {
         let preview = preview_kind(&dto.permission, &dto.metadata);
         let explanation =
             dto.metadata.get("explanation").and_then(Value::as_str).map(str::to_string);
@@ -52,14 +52,14 @@ impl PermissionRequest {
     }
 
     /// 返回服务端是否提供可持久授权的模式。
-    pub(crate) fn always_available(&self) -> bool {
+    pub fn always_available(&self) -> bool {
         !self.always_patterns.is_empty()
     }
 }
 
 /// 用户对当前权限请求的决定。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum PermissionDecision {
+pub enum PermissionDecision {
     Once,
     Always,
     Reject { reason: Option<String> },
@@ -67,27 +67,27 @@ pub(crate) enum PermissionDecision {
 
 /// 按 Gateway 下发顺序展示的权限请求队列。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct PermissionQueue {
+pub struct PermissionQueue {
     requests: VecDeque<PermissionRequest>,
 }
 
 impl PermissionQueue {
     /// 用最新服务端快照整体替换本地队列。
-    pub(crate) fn replace(&mut self, requests: Vec<PermissionRequest>) {
+    pub fn replace(&mut self, requests: Vec<PermissionRequest>) {
         self.requests = requests.into();
     }
 
     /// 查看但不移除队首请求。
-    pub(crate) fn current(&self) -> Option<&PermissionRequest> {
+    pub fn current(&self) -> Option<&PermissionRequest> {
         self.requests.front()
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.requests.len()
     }
 
     /// 移除已处理的队首请求。
-    pub(crate) fn pop_current(&mut self) -> Option<PermissionRequest> {
+    pub fn pop_current(&mut self) -> Option<PermissionRequest> {
         self.requests.pop_front()
     }
 }

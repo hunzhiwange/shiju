@@ -11,7 +11,7 @@ use vw_gateway_client::{
     GatewayWorkflowStreamEvent, normalize_chat_stream_event, normalize_chat_tool_event,
 };
 
-use crate::cli::tui::model::{
+use cli_interaction_model::{
     UiAttachment, UiAttachmentKind, UiCompactBoundary, UiMessage, UiMessageBase, UiMessageId,
     UiMessageOrigin, UiProgressMessage, UiUnknownMessage,
 };

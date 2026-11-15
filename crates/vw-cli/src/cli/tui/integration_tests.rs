@@ -13,8 +13,8 @@ use super::commands::{
     CommandRoute, command_palette_items_with_integrations, route_slash_submission,
 };
 use super::controller::TuiControllerCommand;
-use super::model::integration::{IntegrationItem, IntegrationKind};
-use super::model::{UiConfirmIntent, UiOverlay};
+use cli_interaction_model::integration::{IntegrationItem, IntegrationKind};
+use cli_interaction_model::{UiConfirmIntent, UiOverlay};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::runtime::integrations::{delete_integration_blocking, load_integrations_blocking};
 use super::state::TuiState;
@@ -180,7 +180,7 @@ fn hook_catalog_failure_isolated_from_existing_integrations() {
 
     assert_eq!(app.state().integration_catalog, vec![existing]);
     assert!(app.state().messages.iter().any(|message| match message {
-        super::model::UiMessage::Error(error) => {
+        cli_interaction_model::UiMessage::Error(error) => {
             error.message.contains("failed to load Hook catalog")
                 && !error.message.contains("must-not-leak")
         }
@@ -328,7 +328,7 @@ fn hook_mutation_refreshes_only_after_gateway_success() {
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.hook_mutation_in_flight()
             && app.state().messages.iter().any(|message| match message {
-                super::model::UiMessage::Error(error) => {
+                cli_interaction_model::UiMessage::Error(error) => {
                     error.message.contains("failed to revoke Hook")
                         && !error.message.contains("must-not-leak")
                 }
@@ -454,7 +454,7 @@ fn memory_search_failure_preserves_existing_integrations() {
     let request = server.join().expect("join memory failure fixture");
     drain_until(&mut runner, &mut app, |_, app| {
         app.state().messages.iter().any(|message| match message {
-            super::model::UiMessage::Error(error) => {
+            cli_interaction_model::UiMessage::Error(error) => {
                 error.message.contains("failed to query memory")
             }
             _ => false,
@@ -464,7 +464,7 @@ fn memory_search_failure_preserves_existing_integrations() {
     assert!(request.starts_with("GET /v1/memory?query=unavailable "));
     assert_eq!(app.state().integration_catalog, original);
     assert!(app.state().messages.iter().all(|message| match message {
-        super::model::UiMessage::Error(error) => !error.message.contains("must-not-leak"),
+        cli_interaction_model::UiMessage::Error(error) => !error.message.contains("must-not-leak"),
         _ => true,
     }));
 }
@@ -622,7 +622,7 @@ fn memory_mutations_confirm_overwrite_and_delete() {
     assert!(requests[3].starts_with("DELETE /v1/memory/owned%2Fkey "));
     assert!(requests[4].starts_with("GET /v1/memory?query=owned "));
     assert!(app.state().messages.iter().all(|message| match message {
-        super::model::UiMessage::Error(error) => !error.message.contains(SECRET_CONTENT),
+        cli_interaction_model::UiMessage::Error(error) => !error.message.contains(SECRET_CONTENT),
         _ => true,
     }));
 }
@@ -670,7 +670,7 @@ fn memory_mutation_failure_preserves_snapshot_and_redacts_content() {
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.memory_mutation_in_flight()
             && app.state().messages.iter().any(|message| match message {
-                super::model::UiMessage::Error(error) => {
+                cli_interaction_model::UiMessage::Error(error) => {
                     error.message.contains("failed to store memory")
                 }
                 _ => false,
@@ -681,7 +681,7 @@ fn memory_mutation_failure_preserves_snapshot_and_redacts_content() {
     assert!(request.starts_with("POST /v1/memory "));
     assert_eq!(app.state().integration_catalog, original);
     assert!(app.state().messages.iter().all(|message| match message {
-        super::model::UiMessage::Error(error) => {
+        cli_interaction_model::UiMessage::Error(error) => {
             !error.message.contains(SECRET_CONTENT)
                 && !error.message.contains("server-secret-must-not-leak")
         }

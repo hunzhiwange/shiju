@@ -3,7 +3,7 @@
 use serde_json::Value;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use crate::cli::tui::model::integration::sanitize_integration_text;
+use cli_interaction_model::integration::sanitize_integration_text;
 
 const MAX_DIAGNOSTIC_RESULTS: usize = 50;
 const MAX_CATEGORY_CHARS: usize = 48;

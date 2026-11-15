@@ -12,66 +12,66 @@ use super::attachment::UiAttachment;
 /// 当前先统一用字符串承载，调用方可自行选择 `gateway:*` 或 `local:*` 命名空间，
 /// 避免在 Phase 2 过早引入额外 id 分配器。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct UiMessageId(String);
+pub struct UiMessageId(String);
 
 impl UiMessageId {
     /// 使用既有原始值创建内部消息 ID。
-    pub(crate) fn new(value: impl Into<String>) -> Self {
+    pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())
     }
 
     /// 为本地尚未持久化的消息创建 `local:*` 形式的 ID。
-    pub(crate) fn local(seed: impl Into<String>) -> Self {
+    pub fn local(seed: impl Into<String>) -> Self {
         Self(format!("local:{}", seed.into()))
     }
 
     /// 为 gateway 已分配消息创建 `gateway:*` 形式的 ID。
-    pub(crate) fn gateway(seed: impl Into<String>) -> Self {
+    pub fn gateway(seed: impl Into<String>) -> Self {
         Self(format!("gateway:{}", seed.into()))
     }
 
     /// 返回底层字符串值。
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 }
 
 /// 所有 UI 消息共享的元信息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiMessageBase {
-    pub(crate) id: UiMessageId,
-    pub(crate) parent_id: Option<UiMessageId>,
-    pub(crate) session_id: Option<String>,
-    pub(crate) created_ms: Option<u64>,
-    pub(crate) origin: Option<UiMessageOrigin>,
+pub struct UiMessageBase {
+    pub id: UiMessageId,
+    pub parent_id: Option<UiMessageId>,
+    pub session_id: Option<String>,
+    pub created_ms: Option<u64>,
+    pub origin: Option<UiMessageOrigin>,
 }
 
 impl UiMessageBase {
     /// 创建一条最小消息元信息。
-    pub(crate) fn new(id: UiMessageId) -> Self {
+    pub fn new(id: UiMessageId) -> Self {
         Self { id, parent_id: None, session_id: None, created_ms: None, origin: None }
     }
 
     /// 绑定父消息 ID。
-    pub(crate) fn with_parent_id(mut self, parent_id: UiMessageId) -> Self {
+    pub fn with_parent_id(mut self, parent_id: UiMessageId) -> Self {
         self.parent_id = Some(parent_id);
         self
     }
 
     /// 绑定会话 ID。
-    pub(crate) fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
         self.session_id = Some(session_id.into());
         self
     }
 
     /// 绑定创建时间戳。
-    pub(crate) fn with_created_ms(mut self, created_ms: u64) -> Self {
+    pub fn with_created_ms(mut self, created_ms: u64) -> Self {
         self.created_ms = Some(created_ms);
         self
     }
 
     /// 标记消息来自 gateway、命令或本地恢复流程。
-    pub(crate) fn with_origin(mut self, origin: UiMessageOrigin) -> Self {
+    pub fn with_origin(mut self, origin: UiMessageOrigin) -> Self {
         self.origin = Some(origin);
         self
     }
@@ -79,7 +79,7 @@ impl UiMessageBase {
 
 /// 消息进入 UI 管线的来源。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UiMessageOrigin {
+pub enum UiMessageOrigin {
     Gateway { event_type: String },
     Command { name: String },
     Local,
@@ -90,11 +90,11 @@ pub(crate) enum UiMessageOrigin {
 /// 这里刻意复制共享层字段，而不是直接把共享结构塞进 view model，避免后续 renderer
 /// 与 selector 被共享层序列化细节反向牵引。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct UiTokenUsage {
-    pub(crate) input_tokens: i64,
-    pub(crate) output_tokens: i64,
-    pub(crate) cached_tokens: i64,
-    pub(crate) reasoning_tokens: i64,
+pub struct UiTokenUsage {
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cached_tokens: i64,
+    pub reasoning_tokens: i64,
 }
 
 impl From<session_ui::TokenUsage> for UiTokenUsage {
@@ -121,10 +121,10 @@ impl From<&session_ui::TokenUsage> for UiTokenUsage {
 
 /// thinking 块的时间片视图。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiThinkingTiming {
-    pub(crate) start_ms: u64,
-    pub(crate) end_ms: Option<u64>,
-    pub(crate) last_update_ms: u64,
+pub struct UiThinkingTiming {
+    pub start_ms: u64,
+    pub end_ms: Option<u64>,
+    pub last_update_ms: u64,
 }
 
 impl From<session_ui::ThinkTiming> for UiThinkingTiming {
@@ -152,7 +152,7 @@ impl From<&session_ui::ThinkTiming> for UiThinkingTiming {
 /// 该枚举刻意与当前 legacy/gateway 对照桥的 done/cancelled/timeout/error 终态对齐，
 /// 方便后续 reducer 在不感知底层 transport 来源的情况下处理 turn 生命周期。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) enum UiTurnTerminal {
+pub enum UiTurnTerminal {
     #[default]
     Pending,
     Streaming,
@@ -172,7 +172,7 @@ pub(crate) enum UiTurnTerminal {
 
 /// 工具调用消息的执行状态。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) enum UiToolCallState {
+pub enum UiToolCallState {
     #[default]
     Queued,
     Running,
@@ -183,7 +183,7 @@ pub(crate) enum UiToolCallState {
 
 /// step 消息的执行状态。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) enum UiStepState {
+pub enum UiStepState {
     #[default]
     Pending,
     Running,
@@ -194,7 +194,7 @@ pub(crate) enum UiStepState {
 
 /// system 消息的展示级别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum UiSystemMessageLevel {
+pub enum UiSystemMessageLevel {
     #[default]
     Info,
     Warning,
@@ -203,47 +203,47 @@ pub(crate) enum UiSystemMessageLevel {
 
 /// 用户消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiUserMessage {
-    pub(crate) base: UiMessageBase,
-    pub(crate) text: String,
+pub struct UiUserMessage {
+    pub base: UiMessageBase,
+    pub text: String,
 }
 
 /// 助手文本消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiAssistantMessage {
-    pub(crate) base: UiMessageBase,
-    pub(crate) text: String,
-    pub(crate) usage: UiTokenUsage,
-    pub(crate) step_count: usize,
-    pub(crate) terminal: UiTurnTerminal,
-    pub(crate) model: Option<String>,
+pub struct UiAssistantMessage {
+    pub base: UiMessageBase,
+    pub text: String,
+    pub usage: UiTokenUsage,
+    pub step_count: usize,
+    pub terminal: UiTurnTerminal,
+    pub model: Option<String>,
 }
 
 /// 工具调用消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiToolCall {
-    pub(crate) base: UiMessageBase,
-    pub(crate) call_id: Option<String>,
-    pub(crate) tool_name: String,
-    pub(crate) summary: Option<String>,
-    pub(crate) arguments: Option<String>,
-    pub(crate) state: UiToolCallState,
+pub struct UiToolCall {
+    pub base: UiMessageBase,
+    pub call_id: Option<String>,
+    pub tool_name: String,
+    pub summary: Option<String>,
+    pub arguments: Option<String>,
+    pub state: UiToolCallState,
 }
 
 /// 工具结果消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiToolResult {
-    pub(crate) base: UiMessageBase,
-    pub(crate) call_id: Option<String>,
-    pub(crate) tool_name: String,
-    pub(crate) command: Option<String>,
-    pub(crate) content: String,
-    pub(crate) is_error: bool,
+pub struct UiToolResult {
+    pub base: UiMessageBase,
+    pub call_id: Option<String>,
+    pub tool_name: String,
+    pub command: Option<String>,
+    pub content: String,
+    pub is_error: bool,
 }
 
 /// thinking 内容块。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum UiThinkingPhase {
+pub enum UiThinkingPhase {
     #[default]
     Streaming,
     Closed,
@@ -253,73 +253,73 @@ pub(crate) enum UiThinkingPhase {
 
 /// thinking 内容块。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiThinkingBlock {
-    pub(crate) base: UiMessageBase,
-    pub(crate) summary: Option<String>,
-    pub(crate) content: String,
-    pub(crate) timing: Vec<UiThinkingTiming>,
-    pub(crate) collapsed: bool,
-    pub(crate) phase: UiThinkingPhase,
+pub struct UiThinkingBlock {
+    pub base: UiMessageBase,
+    pub summary: Option<String>,
+    pub content: String,
+    pub timing: Vec<UiThinkingTiming>,
+    pub collapsed: bool,
+    pub phase: UiThinkingPhase,
 }
 
 /// step 行为消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiStep {
-    pub(crate) base: UiMessageBase,
-    pub(crate) step_index: u32,
-    pub(crate) started_ms: u64,
-    pub(crate) finished_ms: Option<u64>,
-    pub(crate) usage: UiTokenUsage,
-    pub(crate) finish_reason: Option<String>,
-    pub(crate) model: Option<String>,
-    pub(crate) state: UiStepState,
+pub struct UiStep {
+    pub base: UiMessageBase,
+    pub step_index: u32,
+    pub started_ms: u64,
+    pub finished_ms: Option<u64>,
+    pub usage: UiTokenUsage,
+    pub finish_reason: Option<String>,
+    pub model: Option<String>,
+    pub state: UiStepState,
 }
 
 /// 系统提示消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiSystemMessage {
-    pub(crate) base: UiMessageBase,
-    pub(crate) text: String,
-    pub(crate) level: UiSystemMessageLevel,
+pub struct UiSystemMessage {
+    pub base: UiMessageBase,
+    pub text: String,
+    pub level: UiSystemMessageLevel,
 }
 
 /// 错误消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiErrorMessage {
-    pub(crate) base: UiMessageBase,
-    pub(crate) message: String,
-    pub(crate) recoverable: bool,
+pub struct UiErrorMessage {
+    pub base: UiMessageBase,
+    pub message: String,
+    pub recoverable: bool,
 }
 
 /// 可更新的后台进度消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiProgressMessage {
-    pub(crate) base: UiMessageBase,
-    pub(crate) label: String,
-    pub(crate) current: Option<u64>,
-    pub(crate) total: Option<u64>,
-    pub(crate) completed: bool,
+pub struct UiProgressMessage {
+    pub base: UiMessageBase,
+    pub label: String,
+    pub current: Option<u64>,
+    pub total: Option<u64>,
+    pub completed: bool,
 }
 
 /// 会话压缩前后之间的稳定 transcript 边界。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiCompactBoundary {
-    pub(crate) base: UiMessageBase,
-    pub(crate) summary: String,
-    pub(crate) compacted_messages: usize,
+pub struct UiCompactBoundary {
+    pub base: UiMessageBase,
+    pub summary: String,
+    pub compacted_messages: usize,
 }
 
 /// 未识别外部内容块的显式、安全降级。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UiUnknownMessage {
-    pub(crate) base: UiMessageBase,
-    pub(crate) external_kind: String,
-    pub(crate) summary: String,
+pub struct UiUnknownMessage {
+    pub base: UiMessageBase,
+    pub external_kind: String,
+    pub summary: String,
 }
 
 /// 新 TUI 的主消息枚举。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UiMessage {
+pub enum UiMessage {
     User(UiUserMessage),
     Assistant(UiAssistantMessage),
     ToolCall(UiToolCall),
@@ -336,7 +336,7 @@ pub(crate) enum UiMessage {
 
 /// `UiMessage` 的逻辑分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UiMessageKind {
+pub enum UiMessageKind {
     User,
     Assistant,
     ToolCall,
@@ -353,7 +353,7 @@ pub(crate) enum UiMessageKind {
 
 impl UiMessage {
     /// 返回消息的共享元信息。
-    pub(crate) fn base(&self) -> &UiMessageBase {
+    pub fn base(&self) -> &UiMessageBase {
         match self {
             Self::User(message) => &message.base,
             Self::Assistant(message) => &message.base,
@@ -371,7 +371,7 @@ impl UiMessage {
     }
 
     /// 返回消息逻辑分类。
-    pub(crate) fn kind(&self) -> UiMessageKind {
+    pub fn kind(&self) -> UiMessageKind {
         match self {
             Self::User(_) => UiMessageKind::User,
             Self::Assistant(_) => UiMessageKind::Assistant,
@@ -389,7 +389,7 @@ impl UiMessage {
     }
 
     /// 返回内部消息 ID。
-    pub(crate) fn id(&self) -> &UiMessageId {
+    pub fn id(&self) -> &UiMessageId {
         &self.base().id
     }
 }

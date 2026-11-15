@@ -10,7 +10,7 @@ use super::prompt::PromptState;
 
 /// prompt 光标移动方向。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PromptMotion {
+pub enum PromptMotion {
     Left,
     Right,
     Up,
@@ -21,14 +21,14 @@ pub(crate) enum PromptMotion {
 
 /// 用字素索引表示的选区，`anchor` 在扩展选择时保持不变。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct EditorSelection {
-    pub(crate) anchor: usize,
-    pub(crate) active: usize,
+pub struct EditorSelection {
+    pub anchor: usize,
+    pub active: usize,
 }
 
 impl EditorSelection {
     /// 按文本顺序返回选区的起止字素索引。
-    pub(crate) fn ordered(self) -> (usize, usize) {
+    pub fn ordered(self) -> (usize, usize) {
         (self.anchor.min(self.active), self.anchor.max(self.active))
     }
 }
@@ -50,14 +50,14 @@ pub(crate) enum EditorEditKind {
 
 /// 附着在 prompt 上的选区、撤销/重做、剪切缓冲和视口状态。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct EditorState {
-    pub(crate) selection: Option<EditorSelection>,
+pub struct EditorState {
+    pub selection: Option<EditorSelection>,
     undo: Vec<EditorSnapshot>,
     redo: Vec<EditorSnapshot>,
-    pub(crate) kill_buffer: String,
-    pub(crate) viewport_top_line: usize,
-    pub(crate) viewport_height: usize,
-    pub(crate) bracketed_paste: bool,
+    pub kill_buffer: String,
+    pub viewport_top_line: usize,
+    pub viewport_height: usize,
+    pub bracketed_paste: bool,
     last_edit: Option<EditorEditKind>,
 }
 
@@ -90,7 +90,7 @@ impl EditorState {
 
 /// 编辑器接受的语义命令，与具体终端按键解耦。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum EditorCommand {
+pub enum EditorCommand {
     Insert(String),
     Newline,
     Backspace,
@@ -110,11 +110,11 @@ pub(crate) enum EditorCommand {
 
 /// 按当前视口高度裁剪后的可见行与光标显示位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct EditorViewport {
-    pub(crate) top_line: usize,
-    pub(crate) cursor_row: usize,
-    pub(crate) cursor_column: usize,
-    pub(crate) visible_lines: Vec<String>,
+pub struct EditorViewport {
+    pub top_line: usize,
+    pub cursor_row: usize,
+    pub cursor_column: usize,
+    pub visible_lines: Vec<String>,
 }
 
 /// 将一条语义命令应用到 prompt；返回值表示可见编辑状态是否发生变化。

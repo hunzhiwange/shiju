@@ -15,8 +15,8 @@ use super::app::{ActiveRunner, V3GatewayApp};
 use super::commands::{
     CommandRoute, SCHEDULE_SELECTION_SURFACE, TASK_SELECTION_SURFACE, route_selection,
 };
-use super::model::UiOverlay;
-use super::model::background_task::{CanonicalTaskStatus, TaskControlAction};
+use cli_interaction_model::UiOverlay;
+use cli_interaction_model::background_task::{CanonicalTaskStatus, TaskControlAction};
 use super::runtime::cron::{
     CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
@@ -56,13 +56,13 @@ fn task_snapshot_with_status(
 ) -> super::runtime::orchestration::OrchestrationSnapshot {
     super::runtime::orchestration::OrchestrationSnapshot {
         scope,
-        tasks: super::model::background_task::BackgroundTaskPanel {
-            tasks: vec![super::model::background_task::BackgroundTask {
+        tasks: cli_interaction_model::background_task::BackgroundTaskPanel {
+            tasks: vec![cli_interaction_model::background_task::BackgroundTask {
                 id: "task/owned".to_string(),
                 session_id: "project-one".to_string(),
-                kind: super::model::background_task::BackgroundTaskKind::Agent,
+                kind: cli_interaction_model::background_task::BackgroundTaskKind::Agent,
                 title: "Owned task".to_string(),
-                status: super::model::background_task::BackgroundTaskStatus::Running,
+                status: cli_interaction_model::background_task::BackgroundTaskStatus::Running,
                 canonical_status,
                 detail: "running".to_string(),
                 log: Vec::new(),
@@ -138,13 +138,13 @@ fn orchestration_controls_require_owned_stable_ids() {
     let port = listener.local_addr().expect("address").port();
     let snapshot = super::runtime::orchestration::OrchestrationSnapshot {
         scope: Some(scope()),
-        tasks: super::model::background_task::BackgroundTaskPanel {
-            tasks: vec![super::model::background_task::BackgroundTask {
+        tasks: cli_interaction_model::background_task::BackgroundTaskPanel {
+            tasks: vec![cli_interaction_model::background_task::BackgroundTask {
                 id: "owned-task".to_string(),
                 session_id: "project-one".to_string(),
-                kind: super::model::background_task::BackgroundTaskKind::Agent,
+                kind: cli_interaction_model::background_task::BackgroundTaskKind::Agent,
                 title: "Owned".to_string(),
-                status: super::model::background_task::BackgroundTaskStatus::Running,
+                status: cli_interaction_model::background_task::BackgroundTaskStatus::Running,
                 canonical_status: CanonicalTaskStatus::Running,
                 detail: "running".to_string(),
                 log: Vec::new(),
@@ -559,14 +559,14 @@ fn workflow_detail_renders_safe_summary_and_isolates_errors() {
         requests
     });
     let snapshot = super::runtime::orchestration::OrchestrationSnapshot {
-        workflows: super::model::workflow_panel::WorkflowPanel {
+        workflows: cli_interaction_model::workflow_panel::WorkflowPanel {
             items: vec![
-                super::model::workflow_panel::WorkflowPanelItem {
+                cli_interaction_model::workflow_panel::WorkflowPanelItem {
                     uuid: "wf/current".to_string(),
                     name: "Deploy".to_string(),
                     description: "Ship safely".to_string(),
                 },
-                super::model::workflow_panel::WorkflowPanelItem {
+                cli_interaction_model::workflow_panel::WorkflowPanelItem {
                     uuid: "wf-fail".to_string(),
                     name: "Failing".to_string(),
                     description: "Still owned".to_string(),
@@ -574,7 +574,7 @@ fn workflow_detail_renders_safe_summary_and_isolates_errors() {
             ],
             ..Default::default()
         },
-        schedules: super::model::schedule_panel::SchedulePanel {
+        schedules: cli_interaction_model::schedule_panel::SchedulePanel {
             error: Some("existing schedule warning".to_string()),
             ..Default::default()
         },

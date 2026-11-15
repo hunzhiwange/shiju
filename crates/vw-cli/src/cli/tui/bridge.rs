@@ -20,9 +20,9 @@ use super::controller::{
     TuiController, TuiControllerCommand, TuiControllerEvent, TuiOverlayCommand,
     build_attachment_submission,
 };
-use super::model::attachment::prepare_prompt_attachments;
-use super::model::permission::PermissionDecision;
-use super::model::{PermissionMode, UiMessage, UiOverlay};
+use cli_interaction_model::attachment::prepare_prompt_attachments;
+use cli_interaction_model::permission::PermissionDecision;
+use cli_interaction_model::{PermissionMode, UiMessage, UiOverlay};
 use super::runtime::gateway::GatewayUiRuntime;
 use super::runtime::stream_adapter::{
     UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_gateway_stream_event,

@@ -4,7 +4,7 @@
 
 /// 通知的展示优先级，枚举顺序也是排序顺序。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum NotificationPriority {
+pub enum NotificationPriority {
     Info,
     Success,
     Warning,
@@ -13,18 +13,18 @@ pub(crate) enum NotificationPriority {
 
 /// 一条可过期或持久显示的 TUI 通知。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiNotification {
-    pub(crate) id: String,
-    pub(crate) message: String,
-    pub(crate) priority: NotificationPriority,
-    pub(crate) created_ms: u64,
-    pub(crate) expires_ms: Option<u64>,
-    pub(crate) persistent: bool,
+pub struct TuiNotification {
+    pub id: String,
+    pub message: String,
+    pub priority: NotificationPriority,
+    pub created_ms: u64,
+    pub expires_ms: Option<u64>,
+    pub persistent: bool,
 }
 
 /// 当前通知集合及被更高优先级对话框抑制的计数。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct NotificationStore {
-    pub(crate) items: Vec<TuiNotification>,
-    pub(crate) suppressed_dialogs: usize,
+pub struct NotificationStore {
+    pub items: Vec<TuiNotification>,
+    pub suppressed_dialogs: usize,
 }

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use crate::cli::tui::model::{
+use cli_interaction_model::{
     AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort, SessionCapabilityMatrix,
 };
 

@@ -6,7 +6,7 @@ thread_local! {
     static AUTHORIZATION_WINDOW: RefCell<Option<web_sys::Window>> = const { RefCell::new(None) };
 }
 
-pub(crate) fn prepare() -> bool {
+pub fn prepare() -> bool {
     close();
     let Some(window) = web_sys::window()
         .and_then(|window| window.open_with_url_and_target("about:blank", "_blank").ok().flatten())
@@ -24,7 +24,7 @@ pub(crate) fn prepare() -> bool {
     true
 }
 
-pub(crate) fn navigate(url: &str) -> bool {
+pub fn navigate(url: &str) -> bool {
     AUTHORIZATION_WINDOW.with(|slot| {
         // 进入跨站授权页后释放句柄；opener 已清除，浏览器不允许应用关闭该页。
         slot.borrow_mut().take().is_some_and(|window| {
@@ -34,7 +34,7 @@ pub(crate) fn navigate(url: &str) -> bool {
     })
 }
 
-pub(crate) fn close() {
+pub fn close() {
     AUTHORIZATION_WINDOW.with(|slot| {
         if let Some(window) = slot.borrow_mut().take() {
             let _ = window.close();

@@ -1,19 +1,38 @@
-//! 统一导出账号模型与各平台的账号仓储。
+//! 桌面账号装配：领域实现来自 desktop-account，配置目录由桌面决定。
 
-#[cfg(target_arch = "wasm32")]
-pub(crate) mod browser;
-mod models;
-mod store;
-
-// 对外只暴露经过校验且会脱敏敏感字段的账号领域类型。
-pub(crate) use models::{
+pub(crate) use desktop_account::{
     AccountIdentity, AccountPasswordDraft, AccountPasswordField, AccountPasswordInput,
-    AccountProfile, AccountProfileDraft, LoginChallenge, LoginPoll, ManualSkeyInput, SecretSkey,
-    VerifiedAccount,
+    AccountOrigin, AccountProfile, AccountProfileDraft, AccountRepository, LoginChallenge,
+    LoginPoll, ManualSkeyInput, SecretSkey, StoredAccount, VerifiedAccount,
 };
-// 持久化细节留在仓储模块，调用方通过仓储不变量操作账号集合。
-pub(crate) use store::{AccountOrigin, AccountRepository, StoredAccount};
+#[cfg(target_arch = "wasm32")]
+pub(crate) use desktop_account::account::browser;
 
-#[cfg(test)]
-#[path = "models_tests.rs"]
-mod models_tests;
+pub(crate) fn load_repository() -> Result<AccountRepository, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        AccountRepository::load_from(&store_path()?).map_err(|error| error.to_string())
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        AccountRepository::load().map_err(|error| error.to_string())
+    }
+}
+
+pub(crate) fn save_repository(repository: &AccountRepository) -> Result<(), String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        repository.save_to(&store_path()?).map_err(|error| error.to_string())
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        repository.save().map_err(|error| error.to_string())
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn store_path() -> Result<std::path::PathBuf, String> {
+    crate::app::project_dirs()
+        .map(|directories| directories.config_dir().join("shiju-accounts.json"))
+        .ok_or_else(|| "无法确定账户配置目录".to_string())
+}

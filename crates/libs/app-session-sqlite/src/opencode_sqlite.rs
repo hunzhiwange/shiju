@@ -5,7 +5,7 @@ use serde_json::Value;
 use vw_api_external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource};
 use super::opencode_blocks::{message_from_parts, PartLocator};
 
-pub(crate) fn open(data_root: &Path) -> Result<(Connection, PathBuf), String> {
+pub fn open(data_root: &Path) -> Result<(Connection, PathBuf), String> {
     if !data_root.is_absolute() { return Err("OpenCode data root must be absolute".into()); }
     let root = data_root.canonicalize().map_err(|_| "OpenCode data root unavailable")?;
     let path = root.join("opencode.db");

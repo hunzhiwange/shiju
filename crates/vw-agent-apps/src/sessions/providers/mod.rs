@@ -1,20 +1,18 @@
 //! Native application session adapters.
 pub mod claude;
 
-pub mod hermes;
+pub use app_session_sqlite::hermes;
 pub mod pi;
 
-pub mod opencode;
+pub use app_session_sqlite::opencode;
 
-pub(crate) mod opencode_blocks;
-
-pub mod opencode_sqlite;
+pub use app_session_sqlite::opencode_sqlite;
 
 pub mod codex;
 
 pub mod gemini;
 
-pub mod hermes_sqlite;
+pub use app_session_sqlite::hermes_sqlite;
 
 pub(crate) mod pi_blocks;
 pub(crate) mod pi_jsonl;

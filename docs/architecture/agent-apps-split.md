@@ -1064,17 +1064,17 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/providers/gemini.rs` | 431 | 47 → `crates/libs/app-session-gemini/src/gemini.rs` |
 | `sessions/providers/gemini_document.rs` | 93 | 47 → `crates/libs/app-session-gemini/src/gemini_document.rs` |
 | `sessions/providers/grokbuild.rs` | 175 | 50 |
-| `sessions/providers/hermes.rs` | 332 | 49 |
-| `sessions/providers/hermes_sqlite.rs` | 403 | 49 |
+| `sessions/providers/hermes.rs` | 332 | 49（已迁入 app-session-sqlite） |
+| `sessions/providers/hermes_sqlite.rs` | 403 | 49（已迁入 app-session-sqlite） |
 | `sessions/providers/kimi.rs` | 287 | 50 |
 | `sessions/providers/kimi_requests.rs` | 175 | 50 |
 | `sessions/providers/mcode.rs` | 144 | 50 |
 | `sessions/providers/mod.rs` | 39 | 50 |
 | `sessions/providers/omp.rs` | 129 | 50 |
 | `sessions/providers/openclaw.rs` | 271 | 50 |
-| `sessions/providers/opencode.rs` | 131 | 49 |
-| `sessions/providers/opencode_blocks.rs` | 433 | 49 |
-| `sessions/providers/opencode_sqlite.rs` | 267 | 49 |
+| `sessions/providers/opencode.rs` | 131 | 49（已迁入 app-session-sqlite） |
+| `sessions/providers/opencode_blocks.rs` | 433 | 49（已迁入 app-session-sqlite） |
+| `sessions/providers/opencode_sqlite.rs` | 267 | 49（已迁入 app-session-sqlite） |
 | `sessions/providers/pi.rs` | 235 | 48 |
 | `sessions/providers/pi_blocks.rs` | 495 | 48 |
 | `sessions/providers/pi_jsonl.rs` | 113 | 48 |
@@ -2712,3 +2712,11 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 新包直接依赖 app-session-core、vw-api-external-session、serde（derive）及 serde_json（arbitrary_precision）。原包这些依赖仍有其它使用者，保留。静态证据：三份迁移源码与 HEAD 基线逐字比较，仅导入/可见性差异及移除原有 EOF 空行；标准库 TOML 读取（系统 Python 无 tomllib 时使用已有 pip._vendor.tomli）确认 workspace 注册、直接路径存在，五个传递生产路径清单无旧门面回边；源码检索新包无 vw-agent-apps/vw_agent_apps。git diff --check 通过。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：覆盖 app-session-pi、Pi 删除、OpenClaw 和 OMP 调用者编译及原平台行为。静态审阅不代表编译或行为验收；Cargo.lock 未触碰。
+
+### 任务 49：SQLite 会话解析迁移结果
+
+- `sessions/providers/{hermes,hermes_sqlite,opencode,opencode_blocks,opencode_sqlite}.rs` 的实现已整体迁入 `crates/libs/app-session-sqlite/src`，原 providers 位置重导出四个公开适配器，块映射模块保持新包私有。原 lib.rs 已通过 sessions 模块提供同一路径，无需重复导出。
+- 新包只直接依赖 app-session-core、vw-api-external-session、chrono（std）、serde_json（arbitrary_precision）及 rusqlite（bundled/hooks/limits），清单以现有 pip._vendor.tomli 读取（当前 Python 无 tomllib），版本/特性人工审阅并以标准库核对路径存在。无旧门面或其它解析器依赖，无依赖环。原包这些通用依赖仍供其它模块使用，保留。
+- `hermes::parse_jsonl_session` 因原 delete/hermes 的真实调用、`opencode_sqlite::open` 因 usage/opencode 的真实调用最小公开；其它签名不变。OpenCode 时间解析继续来自 app-session-core，块映射在包内共享。网关和现有调用者继续经原门面使用扫描及消息加载。
+- 静态证据：五文件与 HEAD 逐字对照，仅有基础包导入和上述两处可见性变化；原文件均无测试注册、cfg 或 include 资源，无相邻独立解析测试。workspace 成员、原包路径依赖及模块导出已接线，无重复实现；新包无门面反向依赖，git diff --check 通过。
+- 跨适配器分发仍留上层，由任务 54 收口；内容、用量编排分别归任务 53、62，无未闭合叶子符号。未运行 Cargo、单元及实机测试，统一验收待授权：新增库和直接调用者编译、解析行为及 macOS/Windows/Linux 平台行为。Cargo.lock 未修改。

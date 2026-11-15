@@ -3,7 +3,7 @@ use std::{fs, io, path::{Component, Path, PathBuf}};
 use serde_json::Value;
 use vw_api_external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource};
 use super::opencode_blocks::{message_from_parts, PartLocator};
-use crate::sessions::utils::truncate_summary;
+use app_session_core::utils::truncate_summary;
 
 /// OpenCode history lives in XDG data, independently of its configuration directory.
 pub fn data_dir(execution_home: &Path, xdg_data_home: Option<&Path>) -> io::Result<PathBuf> {

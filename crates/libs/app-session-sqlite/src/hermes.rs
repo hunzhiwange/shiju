@@ -4,8 +4,8 @@ use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 use serde_json::Value;
 use vw_api_external_session::{ContentRef, ExternalSessionId, ExternalSessionIdentity, SessionBlock, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource, ToolStatus};
-use crate::sessions::blocks::{openai_tool_calls, tool_result_block};
-use crate::sessions::utils::{extract_text, truncate_summary};
+use app_session_core::blocks::{openai_tool_calls, tool_result_block};
+use app_session_core::utils::{extract_text, truncate_summary};
 const TITLE_MAX_CHARS: usize = 80;
 
 /// Roots are resolved by the trusted execution host, never from sourcePath display data.
@@ -55,7 +55,7 @@ fn jsonl_message(value: &Value) -> Option<(&str, String)> {
     Some((role, text))
 }
 
-pub(crate) fn parse_jsonl_session(path: &Path, identity: &ExternalSessionIdentity) -> Option<SessionMeta> {
+pub fn parse_jsonl_session(path: &Path, identity: &ExternalSessionIdentity) -> Option<SessionMeta> {
     // Read head (metadata + first user message) and tail (last timestamp + last message)
     let (head, tail) = read_head_tail_lines(path, 30, 10).ok()?;
 

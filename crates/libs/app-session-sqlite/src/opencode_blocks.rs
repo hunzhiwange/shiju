@@ -9,7 +9,7 @@ use vw_api_external_session::{
     SessionMessage, StepPhase, ToolStatus,
 };
 
-use crate::sessions::blocks::{
+use app_session_core::blocks::{
     count_diff_lines, estimate_base64_size, single_file_diff, str_field, thinking_block,
     title_path, tool_call_block, tool_result_block, ToolSource,
 };

@@ -15,7 +15,7 @@ use super::{
     from_sql_timestamp, parse_vcs, serialize_optional_json, serialize_vcs, to_sql_timestamp,
     validate_matching_info,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const PROJECTS_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS platform (

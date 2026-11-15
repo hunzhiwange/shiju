@@ -10,8 +10,8 @@ use config_runtime_paths::{global_database_path, home_config_dir};
 use project_types::{Info, TimeInfo};
 
 use super::{ensure_unique_project_id, migrate_project_registry};
-use crate::global_database::GlobalDatabase;
-use crate::project::store::ProjectStore;
+use agent_database::GlobalDatabase;
+use crate::store::ProjectStore;
 
 #[test]
 fn project_registry_migrates_json_into_local_tenant_once() -> Result<()> {

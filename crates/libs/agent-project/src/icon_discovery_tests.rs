@@ -1,7 +1,7 @@
 //! 验证项目图标发现的格式编码、候选优先级与文件系统边界。
 
 use super::*;
-use crate::app::agent::project::{Icon, TimeInfo};
+use crate::{Icon, TimeInfo};
 use base64::Engine as _;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -20,22 +20,22 @@ fn info(id: &str, worktree: &str) -> Info {
 }
 
 fn scope(id: &str) -> ProjectScope {
-    crate::app::agent::project::project_scope_for_default_tenant(id)
+    crate::project_scope_for_default_tenant(id)
         .expect("project scope should build")
 }
 
 fn store(info: &Info) {
-    crate::app::agent::project::store_local_test_project(info).expect("project should write");
+    crate::store_local_test_project(info).expect("project should write");
 }
 
 fn read(id: &str) -> Info {
-    crate::app::agent::project::read_local_test_project(id)
+    crate::read_local_test_project(id)
         .expect("project should read")
         .expect("project should exist")
 }
 
 fn remove(id: &str) {
-    crate::app::agent::project::remove_local_test_project(id).expect("cleanup should succeed");
+    crate::remove_local_test_project(id).expect("cleanup should succeed");
 }
 
 // 单图标夹具负责注册项目并回读持久化结果，统一验证完整发现链路。

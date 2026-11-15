@@ -8,9 +8,9 @@
 //! `/v1/git/command`、普通 worktree fetch/submodule、skill clone/pull、snapshot 等。
 
 use super::{Error, Info, LOGGER, TimeInfo, UpdateInput, Vcs, discover, event, extra};
-use crate::app::agent::bus;
-use crate::app::agent::flag;
-use crate::git_repository;
+use agent_bus as bus;
+use runtime_flags as flag;
+use git_discovery::git_repository;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -35,7 +35,7 @@ async fn run_storage_operation<T>(
 where
     T: Send + 'static,
 {
-    crate::global_database::run_isolated(operation).await.map_err(Error::from)?
+    agent_database::run_isolated(operation).await.map_err(Error::from)?
 }
 
 fn local_project_id_from_path(path: &Path) -> String {

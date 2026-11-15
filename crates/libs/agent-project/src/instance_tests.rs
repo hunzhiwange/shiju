@@ -1,7 +1,7 @@
 //! 验证项目实例上下文的访问、状态复用与分代释放。
 
 use super::*;
-use crate::app::agent::project::{Info, TimeInfo};
+use crate::{Info, TimeInfo};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::TempDir;

@@ -1,7 +1,7 @@
 //! 验证 Git 分支识别、仓库变化监听与锁中毒恢复。
 
 use super::*;
-use crate::app::agent::bus;
+use agent_bus as bus;
 use agent_files::watcher as file_watcher;
 use git2::Repository;
 use serde_json::json;

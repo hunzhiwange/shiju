@@ -242,8 +242,8 @@ async fn update_list_sandbox_and_initialized_round_trip() {
     std::fs::create_dir_all(&sandbox).expect("sandbox should create");
     let info = stored_project(&id, &sandbox);
 
-    crate::app::agent::project::store_local_test_project(&info).expect("project should write");
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    crate::store_local_test_project(&info).expect("project should write");
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let updated = update(
@@ -265,7 +265,7 @@ async fn update_list_sandbox_and_initialized_round_trip() {
     assert_eq!(updated.icon.as_ref().and_then(|i| i.override_icon.as_deref()), None);
     assert_eq!(updated.commands.as_ref().and_then(|c| c.start.as_deref()), Some("cargo run"));
 
-    let listed = list(&crate::app::agent::project::default_tenant_scope())
+    let listed = list(&crate::default_tenant_scope())
         .await
         .expect("projects should list");
     let listed_project = listed.iter().find(|p| p.id == id).expect("project should be listed");
@@ -286,7 +286,7 @@ async fn update_list_sandbox_and_initialized_round_trip() {
     assert!(!removed.sandboxes.iter().any(|p| p == &sandbox2_s));
 
     set_initialized(&scope).await.expect("project should initialize");
-    let initialized = crate::app::agent::project::read_local_test_project(&id)
+    let initialized = crate::read_local_test_project(&id)
         .expect("project should read")
         .expect("project should exist");
     assert!(initialized.time.initialized.is_some());
@@ -304,13 +304,13 @@ async fn update_list_sandbox_and_initialized_round_trip() {
     .expect("project should clear commands");
     assert!(cleared.commands.is_none());
 
-    crate::app::agent::project::remove_local_test_project(&id).expect("cleanup should succeed");
+    crate::remove_local_test_project(&id).expect("cleanup should succeed");
 }
 
 #[tokio::test]
 async fn sandboxes_returns_empty_for_missing_project() {
     let id = format!("missing-project-{}", Uuid::new_v4());
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id)
+    let scope = crate::project_scope_for_default_tenant(id)
         .expect("project scope should build");
     assert!(sandboxes(&scope).await.expect("missing project should be empty").is_empty());
 }
@@ -322,19 +322,19 @@ async fn get_filters_missing_sandbox_paths() {
     let sandbox = temp.path().join("sandbox");
     std::fs::create_dir(&sandbox).expect("sandbox should create");
     let info = stored_project(&id, &sandbox);
-    crate::app::agent::project::store_local_test_project(&info).expect("project should write");
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    crate::store_local_test_project(&info).expect("project should write");
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let loaded = get(&scope).await.expect("project should read").expect("project should exist");
     assert_eq!(loaded.sandboxes, vec![sandbox.to_string_lossy().to_string()]);
 
-    crate::app::agent::project::remove_local_test_project(&id).expect("cleanup should succeed");
+    crate::remove_local_test_project(&id).expect("cleanup should succeed");
 }
 
 #[tokio::test]
 async fn update_rejects_project_id_outside_scope() {
-    let scope = crate::app::agent::project::project_scope_for_default_tenant("scope-project")
+    let scope = crate::project_scope_for_default_tenant("scope-project")
         .expect("project scope should build");
 
     let error = update(
@@ -366,8 +366,8 @@ async fn update_preserves_omitted_nested_fields_and_clears_explicit_fields() {
         color: Some("#123456".to_string()),
     });
     info.commands = Some(Commands { start: Some("cargo run".to_string()) });
-    crate::app::agent::project::store_local_test_project(&info).expect("project should write");
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    crate::store_local_test_project(&info).expect("project should write");
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let updated = update(
@@ -393,13 +393,13 @@ async fn update_preserves_omitted_nested_fields_and_clears_explicit_fields() {
     );
     assert_eq!(updated.commands, Some(Commands { start: Some("cargo run".to_string()) }));
 
-    crate::app::agent::project::remove_local_test_project(&id).expect("cleanup should succeed");
+    crate::remove_local_test_project(&id).expect("cleanup should succeed");
 }
 
 #[tokio::test]
 async fn set_initialized_returns_not_found_for_missing_project() {
     let id = format!("missing-initialized-project-{}", Uuid::new_v4());
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let error =
@@ -410,7 +410,7 @@ async fn set_initialized_returns_not_found_for_missing_project() {
 #[tokio::test]
 async fn update_returns_not_found_for_missing_project() {
     let id = format!("missing-update-project-{}", Uuid::new_v4());
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let error = update(
@@ -425,7 +425,7 @@ async fn update_returns_not_found_for_missing_project() {
 #[tokio::test]
 async fn add_sandbox_returns_not_found_for_missing_project() {
     let id = format!("missing-add-sandbox-project-{}", Uuid::new_v4());
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let error = add_sandbox(&scope, "/missing/sandbox")
@@ -437,7 +437,7 @@ async fn add_sandbox_returns_not_found_for_missing_project() {
 #[tokio::test]
 async fn remove_sandbox_returns_not_found_for_missing_project() {
     let id = format!("missing-remove-sandbox-project-{}", Uuid::new_v4());
-    let scope = crate::app::agent::project::project_scope_for_default_tenant(id.as_str())
+    let scope = crate::project_scope_for_default_tenant(id.as_str())
         .expect("project scope should build");
 
     let error = remove_sandbox(&scope, "/missing/sandbox")
@@ -477,7 +477,7 @@ async fn git2_project_discovery_works_without_git_executable() {
     add_linked_worktree(&primary, "linked-discovery", &linked_path);
     drop(primary);
 
-    let tenant = crate::app::agent::project::default_tenant_scope();
+    let tenant = crate::default_tenant_scope();
     let _path = PathGuard::without_git();
 
     let (committed_info, _) =
@@ -497,7 +497,7 @@ async fn git2_project_discovery_works_without_git_executable() {
     assert_eq!(linked_info.vcs, Some(Vcs::Git));
     assert_eq!(linked_info.id, primary_root);
 
-    let _ = crate::app::agent::project::remove_local_test_project(&committed_info.id);
-    let _ = crate::app::agent::project::remove_local_test_project(&empty_first.id);
-    let _ = crate::app::agent::project::remove_local_test_project(&linked_info.id);
+    let _ = crate::remove_local_test_project(&committed_info.id);
+    let _ = crate::remove_local_test_project(&empty_first.id);
+    let _ = crate::remove_local_test_project(&linked_info.id);
 }

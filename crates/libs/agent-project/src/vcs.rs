@@ -6,10 +6,10 @@
 //! 分支读取走 git2，不启动系统 Git。仍依赖 Git CLI 的范围外能力：
 //! `/v1/git/command`、普通 worktree fetch/submodule、skill clone/pull、snapshot 等。
 
-use crate::app::agent::bus;
+use agent_bus as bus;
 use agent_files::watcher as file_watcher;
-use crate::app::agent::util::log;
-use crate::git_repository;
+use agent_log as log;
+use git_discovery::git_repository;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -25,7 +25,7 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
 pub mod event {
     //! VCS 子系统发布的事件定义。
 
-    use crate::app::agent::bus;
+    use agent_bus as bus;
 
     /// Git 分支发生变化时发布。
     pub const BRANCH_UPDATED: bus::Definition = bus::Definition { r#type: "vcs.branch.updated" };

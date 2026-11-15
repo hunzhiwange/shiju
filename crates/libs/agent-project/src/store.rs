@@ -15,8 +15,8 @@ use {
 };
 use project_types::{Info, TimeInfo, Vcs};
 
-use crate::global_database::GlobalDatabase;
-use crate::global_database::config::DatabaseProvider;
+use agent_database::GlobalDatabase;
+use agent_database::config::DatabaseProvider;
 
 mod postgres;
 

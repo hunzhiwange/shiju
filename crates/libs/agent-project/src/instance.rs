@@ -6,10 +6,10 @@
 
 use super::BoxFuture;
 use super::{Error, Info};
-use crate::app::agent::bus;
-use crate::app::agent::bus::event as bus_event;
-use crate::app::agent::project;
-use crate::app::agent::project::state;
+use agent_bus as bus;
+use agent_bus::event as bus_event;
+use crate as project;
+use crate::state;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -79,7 +79,7 @@ pub async fn provide<R>(
 }
 
 /// 在调用方已验证的注册项目快照中执行，不自动发现或创建项目。
-pub(crate) async fn provide_context<R>(
+pub async fn provide_context<R>(
     context: Context,
     future: impl std::future::Future<Output = R>,
 ) -> R {
@@ -87,7 +87,7 @@ pub(crate) async fn provide_context<R>(
 }
 
 /// 将已解析的项目上下文带入同步会话执行线程。
-pub(crate) fn provide_context_sync<R>(context: Context, operation: impl FnOnce() -> R) -> R {
+pub fn provide_context_sync<R>(context: Context, operation: impl FnOnce() -> R) -> R {
     CONTEXT.sync_scope(context, operation)
 }
 

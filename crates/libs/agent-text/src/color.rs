@@ -28,7 +28,7 @@
 /// # 示例
 ///
 /// ```
-/// use vibe_agent::util::color::is_valid_hex;
+/// use agent_text::color::is_valid_hex;
 ///
 /// assert!(is_valid_hex(Some("#FF5733")));
 /// assert!(is_valid_hex(Some("#ffffff")));
@@ -69,7 +69,7 @@ pub fn is_valid_hex(hex: Option<&str>) -> bool {
 /// # 示例
 ///
 /// ```
-/// use vibe_agent::util::color::hex_to_rgb;
+/// use agent_text::color::hex_to_rgb;
 ///
 /// assert_eq!(hex_to_rgb("#FF0000"), Some((255, 0, 0)));    // 纯红
 /// assert_eq!(hex_to_rgb("#00FF00"), Some((0, 255, 0)));    // 纯绿
@@ -114,7 +114,7 @@ pub fn hex_to_rgb(hex: &str) -> Option<(u8, u8, u8)> {
 /// # 示例
 ///
 /// ```
-/// use vibe_agent::util::color::hex_to_ansi_bold;
+/// use agent_text::color::hex_to_ansi_bold;
 ///
 /// let seq = hex_to_ansi_bold(Some("#FF5733"));
 /// assert!(seq.is_some());

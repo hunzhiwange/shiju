@@ -29,9 +29,10 @@
 //! - `token` - 令牌与计数工具
 //! - `wildcard` - 通配符匹配工具
 
+pub use agent_text::{color, keybind, token, wildcard};
+
 pub mod abort;
 pub mod archive;
-pub mod color;
 pub mod context;
 pub mod defer;
 pub mod eventloop;
@@ -39,7 +40,6 @@ pub mod filesystem;
 pub mod r#fn;
 pub mod format;
 pub mod iife;
-pub mod keybind;
 pub mod lazy;
 pub mod locale;
 pub mod lock;
@@ -51,8 +51,6 @@ pub mod scrap;
 pub mod signal;
 pub mod task_set;
 pub mod timeout;
-pub mod token;
-pub mod wildcard;
 
 #[cfg(test)]
 #[path = "abort_tests.rs"]
@@ -60,9 +58,6 @@ mod abort_tests;
 #[cfg(test)]
 #[path = "archive_tests.rs"]
 mod archive_tests;
-#[cfg(test)]
-#[path = "color_tests.rs"]
-mod color_tests;
 #[cfg(test)]
 #[path = "context_tests.rs"]
 mod context_tests;
@@ -81,9 +76,6 @@ mod fn_tests;
 #[cfg(test)]
 #[path = "iife_tests.rs"]
 mod iife_tests;
-#[cfg(test)]
-#[path = "keybind_tests.rs"]
-mod keybind_tests;
 #[cfg(test)]
 #[path = "lazy_tests.rs"]
 mod lazy_tests;
@@ -116,12 +108,6 @@ mod tests;
 #[cfg(test)]
 #[path = "timeout_tests.rs"]
 mod timeout_tests;
-#[cfg(test)]
-#[path = "token_tests.rs"]
-mod token_tests;
-#[cfg(test)]
-#[path = "wildcard_tests.rs"]
-mod wildcard_tests;
 
 use std::future::Future;
 

@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/agent-identity",
+  "crates/libs/agent-text",
   "crates/libs/app-routing-policy",
   "crates/libs/app-availability-core",
   "crates/libs/cli-terminal",

@@ -100,7 +100,6 @@ urlencoding = "2.1"
 web-time = "1.1.0"
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 voice-permissions = { path = "../libs/voice-permissions", version = "0.6.0" }
-vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.6.0" }
 vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
 vw-shared = { path = "../vw-shared", version = "0.6.0", features = ["shell-tokio"] }

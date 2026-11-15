@@ -1,45 +1,30 @@
-//! Provider 解析层。
+//! Provider 解析兼容门面。
 //!
-//! 本 crate 负责将多个来源的 provider 信息整理为统一的查询接口，主要包括：
-//! - 读取内置与缓存的模型元数据
-//! - 合并用户配置中的 provider 覆盖项
-//! - 解析认证信息与运行时环境变量
-//! - 对外提供 provider、model 与默认模型查询能力
-//! - 统一解析上游 provider 的错误响应
-//!
-//! # 主要模块
-//!
-//! - [`auth`]：读取本地认证信息
-//! - [`config`]：读取配置文件与网关端点信息
-//! - [`models`]：加载模型基线元数据
-//! - [`provider`]：组合多种数据源，输出最终 provider 视图
-//! - [`error`]：将上游错误规范化为统一结构
-//! - [`global`]：管理缓存目录与数据目录
+//! 运行时实现与共享状态由各职责库唯一持有；工作区内部消费者直接依赖职责库。
 
 /// Provider 认证信息读取。
-pub mod auth;
+pub use provider_auth_reader as auth;
 /// 进程内异步缓存。
-pub mod cache;
+pub use provider_state_cache as cache;
 /// Provider 相关配置读取。
-pub mod config;
+pub use provider_config_reader as config;
 /// Provider 调用错误解析。
-pub mod error;
+pub use provider_errors as error;
 /// 环境变量开关与标记。
-pub mod flag;
+pub use provider_request_identity::flag;
 /// 全局路径与缓存目录管理。
-pub mod global;
+pub use provider_runtime_paths as global;
 /// 安装信息与 User-Agent 生成。
-pub mod installation;
-/// 模型基线元数据加载。
-pub mod models;
+pub use provider_request_identity::installation;
+/// 模型目录、快照缓存与刷新。
+pub use provider_model_cache as models;
 /// Provider 与模型对外查询接口。
-pub mod provider;
-#[cfg(not(target_arch = "wasm32"))]
+pub use provider_resolution as provider;
 /// 已连接 provider 的 OpenAI 兼容模型发现。
-pub mod remote_models;
-
+#[cfg(not(target_arch = "wasm32"))]
+pub use provider_model_discovery as remote_models;
 /// 原生优先的部署协议路由选择。
-pub mod protocol_routes;
+pub use provider_protocol_routes as protocol_routes;
 
 #[cfg(test)]
 mod protocol_matrix_tests;

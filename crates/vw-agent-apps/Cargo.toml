@@ -47,7 +47,6 @@ vw-api-types = { path = "../vw-api-types" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 httparse = "1"
-vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.6.0" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 rquickjs = { version = "0.14", default-features = false, features = ["std"] }

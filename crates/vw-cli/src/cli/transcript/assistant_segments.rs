@@ -1,7 +1,7 @@
 //! 解析助手消息中的分段内容。
 //! 该模块把文本、工具块和结构化片段拆分为终端可渲染的稳定单元。
 
-use super::super::theme::{
+use cli_terminal::theme::{
     ACCENT_CYAN, PENDING_BADGE_BG, PENDING_BADGE_FG, TEXT_MUTED, TEXT_SUBTLE, WARNING,
 };
 use super::todocards::{

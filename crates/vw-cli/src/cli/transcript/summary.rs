@@ -17,7 +17,7 @@
 //! 它依赖于上游的解析器（`parse_assistant_segments`）和样式工具
 //!（`transcript_prefix_style`）来完成完整的内容渲染。
 
-use super::super::theme::TEXT_MUTED;
+use cli_terminal::theme::TEXT_MUTED;
 use super::{
     ThinkBlockMeta, TranscriptEntry, TranscriptRole, assistant_segments_to_lines_with_meta,
     default_empty_transcript_line, parse_assistant_segments, transcript_prefix_style,

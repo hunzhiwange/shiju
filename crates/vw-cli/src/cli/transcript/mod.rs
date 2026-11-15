@@ -65,7 +65,7 @@ pub(crate) use summary::transcript_to_lines;
 pub(crate) use toolcards::{render_tool_card, tool_summary_cli};
 pub(crate) use truncate::truncate_chars_cli;
 
-use super::theme::{ACCENT_CYAN, ACCENT_RED, SUCCESS, TEXT_SUBTLE, WARNING};
+use cli_terminal::theme::{ACCENT_CYAN, ACCENT_RED, SUCCESS, TEXT_SUBTLE, WARNING};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use std::collections::BTreeSet;

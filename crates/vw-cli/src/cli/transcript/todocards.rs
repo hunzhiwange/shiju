@@ -8,7 +8,7 @@
 //!
 //! 该模块与 `ratatui` 库集成，用于终端 UI 的样式渲染。
 
-use super::super::theme::{ACCENT_CYAN, SUCCESS, TEXT_SUBTLE, WARNING};
+use cli_terminal::theme::{ACCENT_CYAN, SUCCESS, TEXT_SUBTLE, WARNING};
 use ratatui::style::Color;
 
 /// 根据工具名称返回 CLI 显示用的徽章文本与颜色

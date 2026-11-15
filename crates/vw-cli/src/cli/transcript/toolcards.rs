@@ -1,7 +1,7 @@
 //! 构建 CLI 转录中的工具卡片文本。
 //! 模块负责把结构化工具状态压缩成人类可扫描的终端摘要。
 
-use super::super::theme::{TEXT_MUTED, TEXT_SUBTLE};
+use cli_terminal::theme::{TEXT_MUTED, TEXT_SUBTLE};
 use super::todocards::tool_badge_cli;
 use super::truncate::truncate_chars_cli;
 use ratatui::style::{Color, Modifier, Style};

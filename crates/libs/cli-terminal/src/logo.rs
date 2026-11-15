@@ -13,7 +13,7 @@
 //! # 示例
 //!
 //! ```ignore
-//! use crate::app::agent::agent::loop_::cli::logo::logo_text_lines;
+//! use super::logo::logo_text_lines;
 //!
 //! let logo_lines = logo_text_lines();
 //! // logo_lines 包含 4 行 Line<'static>，可直接用于 ratatui 渲染

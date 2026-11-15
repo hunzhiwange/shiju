@@ -1,0 +1,19 @@
+[package]
+name = "tool-assembly"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1.89"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tool-types = { path = "../tool-types", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+tool-web = { path = "../tool-web", version = "0.6.0" }

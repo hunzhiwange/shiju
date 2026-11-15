@@ -1,5 +1,5 @@
 use super::{ToolDiscoveryCatalog, ToolExposureState};
-use crate::tools::ToolSpec;
+use crate::ToolSpec;
 use serde_json::json;
 
 fn spec(id: &str, description: &str) -> ToolSpec {

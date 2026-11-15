@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+tool-assembly = { path = "../libs/tool-assembly", version = "0.6.0" }
 tool-mcp = { path = "../libs/tool-mcp", version = "0.6.0" }
 tool-shell = { path = "../libs/tool-shell", version = "0.6.0" }
 skill-forge = { path = "../libs/skill-forge", version = "0.6.0" }

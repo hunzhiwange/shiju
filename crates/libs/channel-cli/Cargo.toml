@@ -1,0 +1,23 @@
+[package]
+name = "channel-cli"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+channel-types = { path = "../channel-types", version = "0.6.0" }
+tokio = { version = "1", features = ["sync"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["io-std", "io-util"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+async-trait = "0.1.89"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }

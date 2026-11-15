@@ -1,5 +1,7 @@
 use super::*;
-use iced::widget::column;
+use iced::widget::{column, row};
+use desktop_ui_controls::system_settings_common::{settings_group_heading, settings_modal_card};
+use desktop_workflow_model::workflow_system_variables;
 use desktop_ui_controls::system_settings_common::settings_field_label;
 
 pub fn build_editor_field<'a, Message: Clone + 'static>(
@@ -33,3 +35,346 @@ pub fn build_inline_error(message: impl Into<String>) -> Element<'static, Messag
         })
         .into()
 }
+
+pub fn build_variable_panel_modal(
+    i18n: desktop_i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
+    let Some(panel) = state.variable_panel.as_ref() else {
+        return container(Space::new().width(1).height(1)).into();
+    };
+
+    let (title, subtitle, add_button, body): (
+        &str,
+        &str,
+        Option<Element<'_, Message>>,
+        Element<'_, Message>,
+    ) = match panel {
+        WorkflowVariablePanelKind::System => (
+            i18n.__("系统变量"),
+            i18n.__("这些变量由运行时自动注入，只读展示，方便和 Dify 的全局变量保持一致。"),
+            None,
+            build_system_variable_list(i18n, state),
+        ),
+        WorkflowVariablePanelKind::Environment => (
+            i18n.__("环境变量"),
+            i18n.__("环境变量会随 yml 一起保存，适合放 API Key、URL、开关等全局配置。"),
+            Some(
+                button(text(i18n.__("新增环境变量")))
+                    .style(primary_action_btn_style)
+                    .padding([9, 14])
+                    .on_press(WorkflowMessage::OpenCreateEnvironmentVariableEditor)
+                    .into(),
+            ),
+            build_environment_variable_list(i18n, state),
+        ),
+        WorkflowVariablePanelKind::Conversation => (
+            i18n.__("会话变量"),
+            i18n.__("会话变量会跟随调试会话流转，适合沉淀结构化上下文与中间状态。"),
+            Some(
+                button(text(i18n.__("新增会话变量")))
+                    .style(primary_action_btn_style)
+                    .padding([9, 14])
+                    .on_press(WorkflowMessage::OpenCreateConversationVariableEditor)
+                    .into(),
+            ),
+            build_conversation_variable_list(i18n, state),
+        ),
+    };
+
+    let mut actions = row![].spacing(8).align_y(Alignment::Center);
+    if let Some(add_button) = add_button {
+        actions = actions.push(add_button);
+    }
+    let close = WorkflowMessage::CloseVariablePanel;
+    let header = settings_modal_header(
+        settings_group_heading(title, subtitle),
+        actions.push(settings_close_button(close)),
+    );
+    let card =
+        settings_modal_card(column![header, body].spacing(14)).width(Length::Fill).max_width(780.0);
+
+    container(container(card).padding(12))
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .style(modal_backdrop_style)
+        .into()
+}
+
+pub fn build_variable_editor_modal(
+    i18n: desktop_i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
+    let Some(editor) = state.variable_editor.as_ref() else {
+        return container(Space::new().width(1).height(1)).into();
+    };
+
+    let (title, subtitle, type_hint) = match &editor.mode {
+        super::state::WorkflowVariableEditorMode::CreateEnvironment => (
+            i18n.__("新增环境变量"),
+            i18n.__("环境变量推荐使用 string / number / secret 三种类型。"),
+            "string / number / secret",
+        ),
+        super::state::WorkflowVariableEditorMode::EditEnvironment(_) => (
+            i18n.__("编辑环境变量"),
+            i18n.__("保留原始 raw 字段，只覆盖常用的 name / description / value_type / value。"),
+            "string / number / secret",
+        ),
+        super::state::WorkflowVariableEditorMode::CreateConversation => (
+            i18n.__("新增会话变量"),
+            i18n.__("会话变量类型可以更宽，支持 string / number / object / array[string] 等 Dify 风格值。"),
+            "string / number / object / array[string]",
+        ),
+        super::state::WorkflowVariableEditorMode::EditConversation(_) => (
+            i18n.__("编辑会话变量"),
+            i18n.__("会话变量 value 直接使用 YAML 编辑，方便录入对象或数组。"),
+            "string / number / object / array[string]",
+        ),
+    };
+
+    let close = WorkflowMessage::CloseVariableEditor;
+    let header = settings_modal_header(
+        settings_group_heading(title, subtitle),
+        settings_close_button(close.clone()),
+    );
+    let body = column![
+        build_editor_field(
+            i18n.__("变量名称"),
+            workflow_text_input(
+                i18n.__("例如：api_key / conversation_state"),
+                &editor.name,
+                |value| {
+                    WorkflowMessage::VariableEditorNameChanged(value)
+                }
+            ),
+        ),
+        build_editor_field(
+            i18n.__("变量类型"),
+            workflow_text_input(type_hint, &editor.value_type, |value| {
+                WorkflowMessage::VariableEditorTypeChanged(value)
+            }),
+        ),
+        build_editor_field(
+            i18n.__("变量描述"),
+            workflow_text_input(
+                i18n.__("描述这个变量在工作流中的用途"),
+                &editor.description,
+                |value| {
+                    WorkflowMessage::VariableEditorDescriptionChanged(value)
+                }
+            ),
+        ),
+        build_editor_field(
+            i18n.__("变量值 YAML"),
+            build_embedded_text_editor(
+                &editor.raw_value_editor,
+                i18n.__("输入变量值，支持字符串、数字、对象或数组 YAML"),
+                WorkflowMessage::VariableEditorValueAction,
+                220.0,
+            ),
+        ),
+    ]
+    .spacing(14);
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")))
+            .style(rounded_action_btn_style)
+            .padding([9, 14])
+            .on_press(close.clone()),
+        button(text(i18n.__("保存变量")))
+            .style(primary_action_btn_style)
+            .padding([9, 14])
+            .on_press(WorkflowMessage::SubmitVariableEditor),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, body, Some(actions.into()))
+        .width(Length::Fill)
+        .max_width(740.0)
+        .max_height(580.0);
+
+    settings_modal_overlay(None, close, container(card).padding(12))
+}
+
+pub fn build_system_variable_list(
+    i18n: desktop_i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
+    let items = state.active_meta().map(workflow_system_variables).unwrap_or_default();
+
+    if items.is_empty() {
+        return container(text(i18n.__("当前没有可显示的系统变量")).size(13))
+            .padding(12)
+            .style(value_card_style)
+            .into();
+    }
+
+    let mut list = column![].spacing(10);
+    for item in items {
+        list = list.push(variable_card(
+            i18n,
+            item.name.to_string(),
+            item.value_type.to_string(),
+            i18n.__(item.description).to_string(),
+            i18n.__("运行时注入").to_string(),
+            None,
+            None,
+        ));
+    }
+
+    scrollable(container(list).padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(420.0))
+        .into()
+}
+
+pub fn build_environment_variable_list(
+    i18n: desktop_i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
+    if state.environment_variables.is_empty() {
+        return container(text(i18n.__("还没有环境变量")).size(13))
+            .padding(12)
+            .style(value_card_style)
+            .into();
+    }
+
+    let mut list = column![].spacing(10);
+    for variable in &state.environment_variables {
+        let description = if variable.description.trim().is_empty() {
+            i18n.__("无描述").to_string()
+        } else {
+            variable.description.clone()
+        };
+        let preview = variable_value_preview(&variable.value, Some(&variable.value_type));
+        list = list.push(variable_card(
+            i18n,
+            variable.name.clone(),
+            variable.value_type.clone(),
+            description,
+            preview,
+            Some(WorkflowMessage::OpenEditEnvironmentVariableEditor(
+                variable.id.clone(),
+            )),
+            Some(WorkflowMessage::DeleteEnvironmentVariable(
+                variable.id.clone(),
+            )),
+        ));
+    }
+
+    scrollable(container(list).padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(420.0))
+        .into()
+}
+
+pub fn build_conversation_variable_list(
+    i18n: desktop_i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
+    if state.conversation_variables.is_empty() {
+        return container(text(i18n.__("还没有会话变量")).size(13))
+            .padding(12)
+            .style(value_card_style)
+            .into();
+    }
+
+    let mut list = column![].spacing(10);
+    for variable in &state.conversation_variables {
+        let description = if variable.description.trim().is_empty() {
+            i18n.__("无描述").to_string()
+        } else {
+            variable.description.clone()
+        };
+        let preview = variable_value_preview(&variable.value, None);
+        list = list.push(variable_card(
+            i18n,
+            variable.name.clone(),
+            variable.value_type.clone(),
+            description,
+            preview,
+            Some(WorkflowMessage::OpenEditConversationVariableEditor(
+                variable.id.clone(),
+            )),
+            Some(WorkflowMessage::DeleteConversationVariable(
+                variable.id.clone(),
+            )),
+        ));
+    }
+
+    scrollable(container(list).padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(420.0))
+        .into()
+}
+
+pub fn variable_card(
+    i18n: desktop_i18n::I18n,
+    name: String,
+    value_type: String,
+    description: String,
+    preview: String,
+    edit_message: Option<Message>,
+    delete_message: Option<Message>,
+) -> Element<'static, Message> {
+    let mut actions = row![Space::new().width(Length::Fill)].spacing(8).align_y(Alignment::Center);
+
+    if let Some(edit_message) = edit_message {
+        actions = actions.push(
+            button(text(i18n.__("编辑")).size(12))
+                .style(rounded_action_btn_style)
+                .padding([6, 10])
+                .on_press(edit_message),
+        );
+    }
+    if let Some(delete_message) = delete_message {
+        actions = actions.push(
+            button(text(i18n.__("删除")).size(12))
+                .style(danger_action_btn_style)
+                .padding([6, 10])
+                .on_press(delete_message),
+        );
+    }
+
+    container(
+        column![
+            row![
+                text(name).size(15),
+                Space::new().width(Length::Fill),
+                container(text(value_type).size(11)).padding([4, 8]).style(value_card_style),
+            ]
+            .align_y(Alignment::Center),
+            text(description).size(12).style(settings_muted_text_style),
+            container(text(preview).size(12)).padding([8, 10]).style(value_card_style),
+            actions,
+        ]
+        .spacing(8),
+    )
+    .padding(12)
+    .style(inspector_style)
+    .into()
+}
+
+pub fn variable_value_preview(
+    value: &serde_yaml::Value,
+    value_type: Option<&str>,
+) -> String {
+    if value_type.is_some_and(|kind| kind.eq_ignore_ascii_case("secret")) {
+        return "******".to_string();
+    }
+
+    let yaml = serde_yaml::to_string(value).unwrap_or_else(|_| "<invalid>".to_string());
+    let preview = yaml.trim().replace('\n', " ");
+    let preview_chars = preview.chars().collect::<Vec<_>>();
+    if preview_chars.len() > 120 {
+        format!("{}...", preview_chars.into_iter().take(120).collect::<String>())
+    } else if preview.is_empty() {
+        "<empty>".to_string()
+    } else {
+        preview
+    }
+}
+
+#[cfg(test)]
+#[path = "variables_tests.rs"]
+mod variables_tests;

@@ -1,8 +1,8 @@
 //! 开始节点面板的测试，覆盖变量列表、编辑弹窗、摘要与内置输入。
 //! 空白字段和多种模式 fixture 验证创建、编辑及隐藏状态的布局。
 use super::*;
-use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
-use crate::apps::workflow::state::{
+use desktop_workflow_model::{WorkflowAppMeta, WorkflowDocument};
+use desktop_workflow_state::state::{
     WorkflowAppEntry, WorkflowHistorySnapshot, WorkflowNodeEditorDraft, WorkflowNodeEditorMode,
     WorkflowNodeEditorTab, WorkflowNodeEditorValidation, WorkflowNodeValidationError,
     WorkflowNodeVisualDraft, WorkflowStartVariableDraft, WorkflowStartVariableEditorDraft,
@@ -115,7 +115,7 @@ fn build_start_visual_section_handles_empty_and_hovered_states() {
     let empty_state = WorkflowState::default();
     let empty_validation = WorkflowNodeEditorValidation::default();
     let empty_section = build_start_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &empty_state,
         &[],
         &empty_validation,
@@ -131,7 +131,7 @@ fn build_start_visual_section_handles_empty_and_hovered_states() {
     let populated_validation =
         &state.node_editor.as_ref().expect("node editor should exist").validation;
     let populated_section = build_start_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &variables,
         populated_validation,
@@ -145,8 +145,10 @@ fn build_start_visual_section_handles_empty_and_hovered_states() {
 fn build_start_variable_editor_modal_handles_hidden_create_and_edit_modes() {
     let hidden_state = WorkflowState::default();
     let hidden_modal = build_start_variable_editor_modal(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &hidden_state,
+        std::convert::identity,
+        WorkflowMessage::NodeEditorScrollCaptured,
     );
 
     let create_state = WorkflowState {
@@ -161,8 +163,10 @@ fn build_start_variable_editor_modal_handles_hidden_create_and_edit_modes() {
         ..WorkflowState::default()
     };
     let create_modal = build_start_variable_editor_modal(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &create_state,
+        std::convert::identity,
+        WorkflowMessage::NodeEditorScrollCaptured,
     );
 
     let edit_state = WorkflowState {
@@ -177,8 +181,10 @@ fn build_start_variable_editor_modal_handles_hidden_create_and_edit_modes() {
         ..WorkflowState::default()
     };
     let edit_modal = build_start_variable_editor_modal(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &edit_state,
+        std::convert::identity,
+        WorkflowMessage::NodeEditorScrollCaptured,
     );
 
     std::hint::black_box(hidden_modal);
@@ -198,7 +204,7 @@ fn build_start_variable_editor_modal_stays_hidden_without_nested_editor() {
     };
 
     let modal =
-        build_start_variable_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+        build_start_variable_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, std::convert::identity, WorkflowMessage::NodeEditorScrollCaptured);
 
     std::hint::black_box(modal);
 }
@@ -207,7 +213,7 @@ fn build_start_variable_editor_modal_stays_hidden_without_nested_editor() {
 fn build_start_variable_section_handles_empty_and_populated_inputs() {
     let empty_validation = WorkflowNodeEditorValidation::default();
     let empty_section = build_start_variable_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &[],
         None,
         &empty_validation,
@@ -215,7 +221,7 @@ fn build_start_variable_section_handles_empty_and_populated_inputs() {
     let variables = [start_variable("query", "问题", "text-input")];
     let populated_validation = WorkflowNodeEditorValidation::default();
     let populated_section = build_start_variable_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &variables,
         Some(0),
         &populated_validation,
@@ -230,7 +236,7 @@ fn build_start_variable_summary_item_handles_blank_names_labels_and_errors() {
     let fallback_variable = start_variable("", "", "text-input");
     let fallback_validation = WorkflowNodeEditorValidation::default();
     let fallback_summary = build_start_variable_summary_item(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         None,
         &fallback_variable,
@@ -245,7 +251,7 @@ fn build_start_variable_summary_item_handles_blank_names_labels_and_errors() {
     };
     let error_variable = start_variable("files", "附件", "file-list");
     let error_summary = build_start_variable_summary_item(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         1,
         Some(1),
         &error_variable,
@@ -261,12 +267,12 @@ fn build_start_variable_action_button_handles_normal_and_danger_variants() {
     let edit_button = build_start_variable_action_button(
         Icon::Pencil,
         false,
-        Message::WorkflowTool(WorkflowMessage::NodeEditorStartSelectVariable(0)),
+        WorkflowMessage::NodeEditorStartSelectVariable(0),
     );
     let remove_button = build_start_variable_action_button(
         Icon::Trash,
         true,
-        Message::WorkflowTool(WorkflowMessage::NodeEditorStartRemoveVariable(0)),
+        WorkflowMessage::NodeEditorStartRemoveVariable(0),
     );
 
     std::hint::black_box(edit_button);
@@ -278,15 +284,15 @@ fn build_start_builtin_variable_views_handle_chat_and_legacy_items() {
     let chat_state = WorkflowState::default();
     let legacy_state = active_state_with_mode("workflow");
     let chat_section = build_start_builtin_variables_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &chat_state,
     );
     let legacy_section = build_start_builtin_variables_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &legacy_state,
     );
     let modern_item = build_start_builtin_variable_item(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         StartBuiltinVariableItem {
             name: "userinput.query",
             value_type: "String",
@@ -295,7 +301,7 @@ fn build_start_builtin_variable_views_handle_chat_and_legacy_items() {
         },
     );
     let legacy_item = build_start_builtin_variable_item(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         StartBuiltinVariableItem {
             name: "userinput.files",
             value_type: "Array[File]",

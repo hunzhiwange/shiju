@@ -9,8 +9,8 @@ fn consume_element<'a>(element: Element<'a, Message>) {
     std::hint::black_box(element);
 }
 
-fn variable_with_type(input_type: &str) -> super::super::state::WorkflowStartVariableDraft {
-    super::super::state::WorkflowStartVariableDraft {
+fn variable_with_type(input_type: &str) -> desktop_workflow_state::state::WorkflowStartVariableDraft {
+    desktop_workflow_state::state::WorkflowStartVariableDraft {
         raw_variable: Value::Mapping(Default::default()),
         label: "新变量".to_string(),
         variable: "input".to_string(),
@@ -31,13 +31,13 @@ fn variable_with_type(input_type: &str) -> super::super::state::WorkflowStartVar
 }
 
 fn editor_with_variable(
-    variable: super::super::state::WorkflowStartVariableDraft,
-) -> super::super::state::WorkflowStartVariableEditorDraft {
+    variable: desktop_workflow_state::state::WorkflowStartVariableDraft,
+) -> desktop_workflow_state::state::WorkflowStartVariableEditorDraft {
     let default_value_editor = text_editor::Content::with_text(&variable.default_value);
     let default_file_url_input = variable.default_value.clone();
 
-    super::super::state::WorkflowStartVariableEditorDraft {
-        mode: super::super::state::WorkflowStartVariableEditorMode::Create,
+    desktop_workflow_state::state::WorkflowStartVariableEditorDraft {
+        mode: desktop_workflow_state::state::WorkflowStartVariableEditorMode::Create,
         variable,
         default_value_editor,
         default_file_url_input,
@@ -48,7 +48,7 @@ fn editor_with_variable(
 #[test]
 fn start_variable_file_type_options_returns_stable_options() {
     assert_eq!(
-        start_variable_file_type_options(crate::app::i18n::I18n::new(Default::default()),),
+        start_variable_file_type_options(desktop_i18n::I18n::new(Default::default()),),
         [
             ("document", "文档", "pdf, doc, docx, txt, md"),
             ("image", "图片", "png, jpg, jpeg, webp, gif"),
@@ -63,7 +63,7 @@ fn start_variable_file_type_options_returns_stable_options() {
 fn build_start_variable_option_editor_handles_empty_and_existing_options() {
     let empty_variable = variable_with_type("select");
     consume_element(build_start_variable_option_editor(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &empty_variable,
     ));
 
@@ -71,7 +71,7 @@ fn build_start_variable_option_editor_handles_empty_and_existing_options() {
     variable.options = vec!["alpha".to_string(), " beta ".to_string()];
 
     consume_element(build_start_variable_option_editor(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &variable,
     ));
 }
@@ -80,7 +80,7 @@ fn build_start_variable_option_editor_handles_empty_and_existing_options() {
 fn build_start_variable_select_default_field_handles_empty_matching_and_missing_defaults() {
     let empty_variable = variable_with_type("select");
     consume_element(build_start_variable_select_default_field(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &empty_variable,
     ));
 
@@ -88,14 +88,14 @@ fn build_start_variable_select_default_field_handles_empty_matching_and_missing_
     matching_variable.options = vec!["alpha".to_string(), " ".to_string(), "beta".to_string()];
     matching_variable.default_value = "beta".to_string();
     consume_element(build_start_variable_select_default_field(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &matching_variable,
     ));
 
     let mut missing_variable = matching_variable.clone();
     missing_variable.default_value = "gamma".to_string();
     consume_element(build_start_variable_select_default_field(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &missing_variable,
     ));
 }
@@ -125,7 +125,7 @@ fn build_start_variable_file_settings_handles_local_remote_custom_and_default_fi
     editor.default_file_url_input = "https://example.test/b.pdf".to_string();
 
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &editor,
     ));
 }
@@ -139,7 +139,7 @@ fn build_start_variable_file_settings_handles_file_list_and_upload_method_edges(
     file_list_variable.default_file_values = vec!["one.png".to_string(), "two.png".to_string()];
     let file_list_editor = editor_with_variable(file_list_variable);
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &file_list_editor,
     ));
 
@@ -147,13 +147,13 @@ fn build_start_variable_file_settings_handles_file_list_and_upload_method_edges(
     remote_only_variable.allowed_file_upload_methods = vec!["remote_url".to_string()];
     let remote_only_editor = editor_with_variable(remote_only_variable);
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &remote_only_editor,
     ));
 
     let no_upload_editor = editor_with_variable(variable_with_type("file"));
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &no_upload_editor,
     ));
 }
@@ -164,13 +164,13 @@ fn build_start_variable_file_default_value_handles_hidden_overlay_and_unsupporte
     file_variable.allowed_file_upload_methods = vec!["local_file".to_string()];
     let file_editor = editor_with_variable(file_variable);
     consume_element(build_start_variable_file_default_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &file_editor,
     ));
 
     let unsupported_editor = editor_with_variable(variable_with_type("text-input"));
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &unsupported_editor,
     ));
 }
@@ -183,7 +183,7 @@ fn build_start_variable_file_default_value_handles_remote_overlay_and_file_list_
     remote_only_editor.show_default_file_url_input = true;
     remote_only_editor.default_file_url_input = "https://example.test/remote.mov".to_string();
     consume_element(build_start_variable_file_default_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &remote_only_editor,
     ));
 
@@ -196,7 +196,7 @@ fn build_start_variable_file_default_value_handles_remote_overlay_and_file_list_
     ];
     let file_list_editor = editor_with_variable(file_list_variable);
     consume_element(build_start_variable_file_default_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &file_list_editor,
     ));
 }
@@ -211,7 +211,7 @@ fn build_start_variable_file_settings_handles_file_list_without_custom_type() {
 
     let editor = editor_with_variable(variable);
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &editor,
     ));
 }
@@ -226,7 +226,7 @@ fn build_start_variable_file_default_value_handles_both_upload_methods_at_max_co
     let editor = editor_with_variable(variable);
 
     consume_element(build_start_variable_file_default_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &editor,
     ));
 }
@@ -241,7 +241,7 @@ fn build_start_variable_file_settings_handles_file_list_without_upload_methods()
     let editor = editor_with_variable(variable);
 
     consume_element(build_start_variable_file_settings(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &editor,
     ));
 }
@@ -253,7 +253,7 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
     select_variable.default_value = "alpha".to_string();
     let select_editor = editor_with_variable(select_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &select_editor,
     ));
 
@@ -261,7 +261,7 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
     checked_variable.default_value = "true".to_string();
     let checked_editor = editor_with_variable(checked_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &checked_editor,
     ));
 
@@ -269,7 +269,7 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
     unchecked_variable.default_value = "false".to_string();
     let unchecked_editor = editor_with_variable(unchecked_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &unchecked_editor,
     ));
 
@@ -277,7 +277,7 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
     unknown_checkbox_variable.default_value = "maybe".to_string();
     let unknown_checkbox_editor = editor_with_variable(unknown_checkbox_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &unknown_checkbox_editor,
     ));
 
@@ -285,7 +285,7 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
     paragraph_variable.default_value = "line one\nline two".to_string();
     let paragraph_editor = editor_with_variable(paragraph_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &paragraph_editor,
     ));
 
@@ -293,19 +293,19 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
     number_variable.default_value = "not-a-number".to_string();
     let number_editor = editor_with_variable(number_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &number_editor,
     ));
 
     let text_input_editor = editor_with_variable(variable_with_type("text-input"));
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &text_input_editor,
     ));
 
     let file_editor = editor_with_variable(variable_with_type("file"));
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &file_editor,
     ));
 }
@@ -314,7 +314,7 @@ fn build_start_variable_card_handles_select_checkbox_text_paragraph_number_and_f
 fn build_start_variable_card_handles_empty_checkbox_default_and_file_list_type() {
     let checkbox_editor = editor_with_variable(variable_with_type("checkbox"));
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &checkbox_editor,
     ));
 
@@ -324,7 +324,7 @@ fn build_start_variable_card_handles_empty_checkbox_default_and_file_list_type()
     file_list_variable.default_file_values = vec!["cover.png".to_string()];
     let file_list_editor = editor_with_variable(file_list_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &file_list_editor,
     ));
 }
@@ -337,7 +337,7 @@ fn build_start_variable_card_normalizes_whitespace_and_case_in_checkbox_default(
     let editor = editor_with_variable(variable);
 
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &editor,
     ));
 }
@@ -348,7 +348,7 @@ fn build_start_variable_card_handles_valid_number_text_length_and_unknown_type()
     number_variable.default_value = "42".to_string();
     let number_editor = editor_with_variable(number_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &number_editor,
     ));
 
@@ -357,7 +357,7 @@ fn build_start_variable_card_handles_valid_number_text_length_and_unknown_type()
     text_variable.default_value = "short text".to_string();
     let text_editor = editor_with_variable(text_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &text_editor,
     ));
 
@@ -365,7 +365,7 @@ fn build_start_variable_card_handles_valid_number_text_length_and_unknown_type()
     unknown_variable.default_value = "legacy default".to_string();
     let unknown_editor = editor_with_variable(unknown_variable);
     consume_element(build_start_variable_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &unknown_editor,
     ));
 }

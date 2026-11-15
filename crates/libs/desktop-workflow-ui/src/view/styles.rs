@@ -59,3 +59,52 @@ pub fn value_card_style(theme: &Theme) -> iced::widget::container::Style {
         ..Default::default()
     }
 }
+
+use desktop_ui_controls::system_settings_common::settings_modal_backdrop_style;
+
+pub fn canvas_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            palette.background.base.color.scale_alpha(0.94)
+        } else {
+            Color::from_rgba8(251, 253, 255, 0.98)
+        })),
+        border: Border {
+            color: if is_dark {
+                palette.background.strong.color.scale_alpha(0.82)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.08)
+            },
+            width: 1.0,
+            radius: 24.0.into(),
+        },
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark { 0.10 } else { 0.05 }),
+            offset: Vector::new(0.0, 10.0),
+            blur_radius: 24.0,
+        },
+        ..Default::default()
+    }
+}
+
+pub fn inspector_style(theme: &Theme) -> iced::widget::container::Style {
+    let mut style = settings_panel_style(theme);
+    style.background = Some(Background::Color(if is_dark_theme(theme) {
+        theme.extended_palette().background.base.color.scale_alpha(0.88)
+    } else {
+        Color::from_rgba8(255, 255, 255, 0.92)
+    }));
+    style.border.radius = 20.0.into();
+    style
+}
+
+pub fn modal_backdrop_style(theme: &Theme) -> iced::widget::container::Style {
+    settings_modal_backdrop_style(theme)
+}
+
+#[cfg(test)]
+#[path = "styles_tests.rs"]
+mod styles_tests;

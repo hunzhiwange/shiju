@@ -1,0 +1,590 @@
+use super::*;
+use iced::widget::{column, row};
+use desktop_ui_controls::system_settings_common::{icon_svg, settings_checkbox_style, settings_group_card};
+use iced::widget::slider;
+
+pub fn start_variable_file_type_options(
+    i18n: desktop_i18n::I18n,
+) -> [(&'static str, &'static str, &'static str); 5] {
+    [
+        ("document", i18n.__("文档"), "pdf, doc, docx, txt, md"),
+        ("image", i18n.__("图片"), "png, jpg, jpeg, webp, gif"),
+        ("audio", i18n.__("音频"), "mp3, wav, m4a"),
+        ("video", i18n.__("视频"), "mp4, mov, avi"),
+        ("custom", i18n.__("自定义"), i18n.__("手动填写扩展名")),
+    ]
+}
+
+pub fn build_start_variable_option_editor<'a>(
+    i18n: desktop_i18n::I18n,
+    variable: &'a super::state::WorkflowStartVariableDraft,
+) -> Element<'a, Message> {
+    let mut option_list = column![].spacing(8);
+
+    if variable.options.is_empty() {
+        option_list = option_list.push(
+            container(
+                text(i18n.__("当前还没有选项，至少新增一个后才能保存。"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            )
+            .padding([10, 12])
+            .style(value_card_style),
+        );
+    } else {
+        for (index, option) in variable.options.iter().enumerate() {
+            option_list = option_list.push(
+                row![
+                    workflow_text_input(i18n.__("选项内容"), option, move |value| {
+                        WorkflowMessage::NodeEditorStartVariableEditorOptionChanged(
+                                index, value,
+                            )
+                    }),
+                    button(text(i18n.__("删除")).size(12))
+                        .style(danger_action_btn_style)
+                        .padding([8, 10])
+                        .on_press(WorkflowMessage::NodeEditorStartVariableEditorRemoveOption(index)),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            );
+        }
+    }
+
+    build_editor_field(
+        i18n.__("下拉选项"),
+        settings_group_card(
+            column![
+                option_list,
+                button(text(i18n.__("新增选项")).size(12))
+                    .style(rounded_action_btn_style)
+                    .padding([8, 12])
+                    .on_press(WorkflowMessage::NodeEditorStartVariableEditorAddOption),
+            ]
+            .spacing(8),
+        )
+        .padding(12)
+        .into(),
+    )
+}
+
+pub fn build_start_variable_select_default_field<'a>(
+    i18n: desktop_i18n::I18n,
+    variable: &'a super::state::WorkflowStartVariableDraft,
+) -> Element<'a, Message> {
+    let options = variable
+        .options
+        .iter()
+        .map(|option| option.trim())
+        .filter(|option| !option.is_empty())
+        .map(|option| option.to_string())
+        .collect::<Vec<_>>();
+
+    if options.is_empty() {
+        return build_editor_field(
+            i18n.__("默认值"),
+            container(
+                text(i18n.__("请先添加至少一个下拉选项。"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            )
+            .padding([10, 12])
+            .style(value_card_style)
+            .into(),
+        );
+    }
+
+    let selected =
+        options.iter().find(|option| option.as_str() == variable.default_value.trim()).cloned();
+    let select_default_picker: Element<'a, Message> =
+        settings_select(options, selected, move |value| {
+            WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(
+                value,
+            )
+        })
+        .width(Length::Fill)
+        .into();
+
+    build_editor_field(
+        i18n.__("默认值"),
+        row![
+            select_default_picker,
+            button(text(i18n.__("清空")).size(12))
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
+                .on_press(WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(String::new())),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into(),
+    )
+}
+
+pub fn build_start_variable_file_type_button(
+    value: &'static str,
+    label: &'static str,
+    description: &'static str,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(column![text(label).size(12), text(description).size(11)].spacing(4).width(Length::Fill))
+        .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
+        .padding([10, 12])
+        .width(Length::Fixed(116.0))
+        .on_press(WorkflowMessage::NodeEditorStartVariableEditorToggleFileType(value.to_string()))
+        .into()
+}
+
+pub fn build_start_variable_upload_method_button(
+    value: &'static str,
+    label: &'static str,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(label).size(12))
+        .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
+        .padding([10, 12])
+        .width(Length::Fill)
+        .on_press(WorkflowMessage::NodeEditorStartVariableEditorUploadMethodChanged(value.to_string()))
+        .into()
+}
+
+fn build_start_variable_default_file_button(
+    icon: Icon,
+    label: &'static str,
+    message: WorkflowMessage,
+) -> Element<'static, Message> {
+    button(
+        row![
+            icon_svg(icon, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
+                color: Some(theme.palette().text),
+            }),
+            text(label).size(13),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .style(rounded_action_btn_style)
+    .padding([10, 12])
+    .width(Length::Fill)
+    .on_press(message)
+    .into()
+}
+
+fn build_start_variable_file_default_value<'a>(
+    i18n: desktop_i18n::I18n,
+    start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
+) -> Element<'a, Message> {
+    let variable = &start_variable_editor.variable;
+    let selected_default_count = variable.default_file_values.len();
+    let max_default_count = if variable.input_type == "file-list" {
+        usize::from(desktop_workflow_state::start_variable_validation::normalized_start_variable_file_list_max_length(
+            &variable.max_length_input,
+        ))
+    } else {
+        1
+    };
+    let supports_local =
+        variable.allowed_file_upload_methods.iter().any(|item| item == "local_file");
+    let supports_url = variable.allowed_file_upload_methods.iter().any(|item| item == "remote_url");
+
+    let action_row: Element<'a, Message> = match (supports_local, supports_url) {
+        (true, true) => row![
+            build_start_variable_default_file_button(
+                Icon::CloudUpload,
+                i18n.__("从本地上传"),
+                WorkflowMessage::NodeEditorStartVariableEditorPickDefaultFile,
+            ),
+            build_start_variable_default_file_button(
+                Icon::Link,
+                i18n.__("粘贴文件链接"),
+                WorkflowMessage::NodeEditorStartVariableEditorOpenDefaultFileUrlInput,
+            ),
+        ]
+        .spacing(8)
+        .wrap()
+        .into(),
+        (true, false) => build_start_variable_default_file_button(
+            Icon::CloudUpload,
+            i18n.__("从本地上传"),
+            WorkflowMessage::NodeEditorStartVariableEditorPickDefaultFile,
+        ),
+        (false, true) => build_start_variable_default_file_button(
+            Icon::Link,
+            i18n.__("粘贴文件链接"),
+            WorkflowMessage::NodeEditorStartVariableEditorOpenDefaultFileUrlInput,
+        ),
+        (false, false) => container(
+            text(i18n.__("请先选择至少一种上传方式。")).size(12).style(settings_muted_text_style),
+        )
+        .padding([10, 12])
+        .style(value_card_style)
+        .into(),
+    };
+
+    let url_input_overlay: Element<'a, Message> =
+        if start_variable_editor.show_default_file_url_input {
+            container(
+                column![
+                    row![
+                        workflow_text_input(
+                            i18n.__("输入文件链接"),
+                            &start_variable_editor.default_file_url_input,
+                            |value| WorkflowMessage::NodeEditorStartVariableEditorDefaultFileUrlChanged(
+                                    value
+                                ),
+                        ),
+                        button(text(i18n.__("好的")).size(12))
+                            .style(primary_action_btn_style)
+                            .padding([10, 12])
+                            .on_press(WorkflowMessage::NodeEditorStartVariableEditorSubmitDefaultFileUrl),
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center),
+                    button(text(i18n.__("取消")).size(12))
+                        .style(rounded_action_btn_style)
+                        .padding([8, 10])
+                        .on_press(WorkflowMessage::NodeEditorStartVariableEditorCloseDefaultFileUrlInput),
+                ]
+                .spacing(10),
+            )
+            .padding([12, 14])
+            .width(Length::Fixed(330.0))
+            .style(floating_panel_style)
+            .into()
+        } else {
+            container(Space::new().width(1).height(1)).into()
+        };
+
+    let current_value_preview: Element<'a, Message> = if variable.default_file_values.is_empty() {
+        container(Space::new().width(1).height(1)).into()
+    } else {
+        container(
+            column![
+                text(if variable.input_type == "file-list" {
+                    i18n.format(
+                        "当前默认值 %s/%s",
+                        &[
+                            selected_default_count.to_string().into(),
+                            max_default_count.to_string().into(),
+                        ],
+                    )
+                    .expect("valid workflow display template")
+                } else {
+                    i18n.__("当前默认值").to_string()
+                })
+                .size(12)
+                .style(settings_muted_text_style),
+                column(
+                    variable
+                        .default_file_values
+                        .iter()
+                        .enumerate()
+                        .map(|(index, item)| {
+                            row![
+                                text(item.as_str())
+                                    .size(12)
+                                    .width(Length::Fill)
+                                    .wrapping(text::Wrapping::WordOrGlyph),
+                                button(icon_svg(Icon::Trash, 12.0).style(|theme: &Theme, _| {
+                                    iced::widget::svg::Style { color: Some(theme.palette().text) }
+                                }),)
+                                .padding(6)
+                                .style(round_icon_btn_style)
+                                .on_press(WorkflowMessage::NodeEditorStartVariableEditorRemoveDefaultFile(
+                                        index
+                                    )),
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center)
+                            .into()
+                        })
+                        .collect::<Vec<Element<'a, Message>>>(),
+                )
+                .spacing(8),
+            ]
+            .spacing(6),
+        )
+        .padding([10, 12])
+        .style(value_card_style)
+        .into()
+    };
+
+    column![action_row, url_input_overlay, current_value_preview].spacing(8).into()
+}
+
+pub fn build_start_variable_file_settings<'a>(
+    i18n: desktop_i18n::I18n,
+    start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
+) -> Element<'a, Message> {
+    let variable = &start_variable_editor.variable;
+    let mut file_type_buttons = row![].spacing(8);
+    for (value, label, description) in start_variable_file_type_options(i18n) {
+        let selected = variable.allowed_file_types.iter().any(|item| item == value);
+        file_type_buttons = file_type_buttons.push(build_start_variable_file_type_button(
+            value,
+            label,
+            description,
+            selected,
+        ));
+    }
+
+    let upload_mode =
+        if variable.allowed_file_upload_methods.iter().any(|item| item == "local_file")
+            && variable.allowed_file_upload_methods.iter().any(|item| item == "remote_url")
+        {
+            "all"
+        } else if variable.allowed_file_upload_methods.iter().any(|item| item == "local_file") {
+            "local_file"
+        } else if variable.allowed_file_upload_methods.iter().any(|item| item == "remote_url") {
+            "remote_url"
+        } else {
+            ""
+        };
+
+    let custom_extensions_field: Element<'a, Message> =
+        if variable.allowed_file_types.iter().any(|item| item == "custom") {
+            build_editor_field(
+                i18n.__("自定义扩展名"),
+                workflow_text_input(
+                    i18n.__("例如：.pdf, .csv"),
+                    &variable.allowed_file_extensions_input,
+                    |value| {
+                        WorkflowMessage::NodeEditorStartVariableEditorExtensionsChanged(value)
+                    },
+                ),
+            )
+        } else {
+            container(Space::new().width(1).height(1)).into()
+        };
+
+    let max_upload_count_field: Element<'a, Message> = if variable.input_type == "file-list" {
+        let current_value = desktop_workflow_state::start_variable_validation::normalized_start_variable_file_list_max_length(
+            &variable.max_length_input,
+        );
+        build_editor_field(
+            i18n.__("最大上传数"),
+            column![
+                text(i18n.__("文档 <15.00 MB, 图片 <10.00 MB, 音频 <50.00 MB, 视频 <100.00 MB"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                row![
+                    container(text(current_value.to_string()).size(16))
+                        .padding([10, 12])
+                        .width(Length::Fixed(52.0))
+                        .style(value_card_style),
+                    slider(1.0..=10.0, current_value as f32, |value: f32| {
+                        WorkflowMessage::NodeEditorStartVariableEditorMaxLengthChanged(
+                                (value.round() as u8).clamp(1, 10).to_string(),
+                            )
+                    })
+                    .step(1.0_f32)
+                    .width(Length::Fill),
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+            ]
+            .spacing(10)
+            .into(),
+        )
+    } else {
+        container(Space::new().width(1).height(1)).into()
+    };
+
+    let default_value_field: Element<'a, Message> =
+        if matches!(variable.input_type.as_str(), "file" | "file-list") {
+            build_editor_field(
+                i18n.__("默认值"),
+                build_start_variable_file_default_value(i18n, start_variable_editor),
+            )
+        } else {
+            container(
+                text(i18n.__("文件列表默认值暂未可视化，仍可在“高级 DSL”里直接编辑。"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            )
+            .padding([10, 12])
+            .style(value_card_style)
+            .into()
+        };
+
+    column![
+        build_editor_field(
+            i18n.__("支持文件类型"),
+            container(file_type_buttons.wrap()).width(Length::Fill).into(),
+        ),
+        custom_extensions_field,
+        build_editor_field(
+            i18n.__("上传方式"),
+            row![
+                build_start_variable_upload_method_button(
+                    "local_file",
+                    i18n.__("本地上传"),
+                    upload_mode == "local_file",
+                ),
+                build_start_variable_upload_method_button(
+                    "remote_url",
+                    "URL",
+                    upload_mode == "remote_url",
+                ),
+                build_start_variable_upload_method_button(
+                    "all",
+                    i18n.__("两者都支持"),
+                    upload_mode == "all"
+                ),
+            ]
+            .spacing(8)
+            .into(),
+        ),
+        max_upload_count_field,
+        default_value_field,
+    ]
+    .spacing(12)
+    .into()
+}
+
+pub fn build_start_variable_card<'a>(
+    i18n: desktop_i18n::I18n,
+    start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
+) -> Element<'a, Message> {
+    let variable = &start_variable_editor.variable;
+    let advanced_hint = start_variable_advanced_hint(&variable.input_type);
+    let default_value_error = start_variable_default_error(i18n, variable);
+    let advanced_hint_card: Element<'a, Message> = if let Some(hint) = advanced_hint {
+        text(hint).size(12).style(settings_muted_text_style).into()
+    } else {
+        container(Space::new().width(1).height(1)).into()
+    };
+    let type_specific_fields: Element<'a, Message> = if variable.input_type == "select" {
+        column![
+            build_start_variable_option_editor(i18n, variable),
+            build_start_variable_select_default_field(i18n, variable),
+        ]
+        .spacing(12)
+        .into()
+    } else if matches!(variable.input_type.as_str(), "file" | "file-list") {
+        build_start_variable_file_settings(i18n, start_variable_editor)
+    } else if variable.input_type == "checkbox" {
+        let options = [
+            CheckboxDefaultOption { value: "true", label: i18n.__("默认勾选") },
+            CheckboxDefaultOption { value: "false", label: i18n.__("不默认选中") },
+        ];
+        let current = variable.default_value.trim();
+        let selected = if current.is_empty() {
+            Some(options[1])
+        } else {
+            options.iter().copied().find(|option| option.value.eq_ignore_ascii_case(current))
+        };
+
+        build_editor_field(
+            i18n.__("默认值"),
+            settings_select(options, selected, |option| {
+                WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(
+                    option.value.to_string(),
+                )
+            })
+            .width(Length::Fill)
+            .into(),
+        )
+    } else {
+        let max_length_field: Element<'a, Message> =
+            if matches!(variable.input_type.as_str(), "text-input" | "paragraph") {
+                build_editor_field(
+                    i18n.__("最大长度"),
+                    workflow_text_input(i18n.__("请输入"), &variable.max_length_input, |value| {
+                        WorkflowMessage::NodeEditorStartVariableEditorMaxLengthChanged(value)
+                    }),
+                )
+            } else {
+                container(Space::new().width(1).height(1)).into()
+            };
+
+        let default_value_field: Element<'a, Message> = if variable.input_type == "paragraph" {
+            build_editor_field_validated(
+                i18n.__("默认值"),
+                build_embedded_text_editor(
+                    &start_variable_editor.default_value_editor,
+                    i18n.__("请输入"),
+                    WorkflowMessage::NodeEditorStartVariableEditorDefaultAction,
+                    112.0,
+                ),
+                default_value_error.map(str::to_owned),
+            )
+        } else {
+            build_editor_field_validated(
+                i18n.__("默认值"),
+                workflow_text_input(i18n.__("请输入"), &variable.default_value, |value| {
+                    WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(value)
+                }),
+                default_value_error.map(str::to_owned),
+            )
+        };
+
+        column![max_length_field, default_value_field,].spacing(12).into()
+    };
+
+    container(
+        column![
+            build_editor_field(
+                i18n.__("字段类型"),
+                build_start_variable_type_selector(i18n, &variable.input_type)
+            ),
+            build_editor_field(
+                i18n.__("变量名称"),
+                workflow_text_input(i18n.__("请输入"), &variable.variable, |value| {
+                    WorkflowMessage::NodeEditorStartVariableEditorNameChanged(value)
+                }),
+            ),
+            build_editor_field(
+                i18n.__("显示名称"),
+                workflow_text_input(i18n.__("请输入"), &variable.label, |value| {
+                    WorkflowMessage::NodeEditorStartVariableEditorLabelChanged(value)
+                }),
+            ),
+            type_specific_fields,
+            row![
+                row![
+                    checkbox(variable.required).style(settings_checkbox_style).label("").on_toggle(
+                        |value| {
+                            WorkflowMessage::NodeEditorStartVariableEditorRequiredChanged(
+                                    value,
+                                )
+                        }
+                    ),
+                    text(i18n.__("必填")).size(13),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+                row![
+                    checkbox(variable.hidden).style(settings_checkbox_style).label("").on_toggle(
+                        |value| {
+                            WorkflowMessage::NodeEditorStartVariableEditorHiddenChanged(value)
+                        }
+                    ),
+                    text(i18n.__("隐藏")).size(13),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            ]
+            .spacing(20)
+            .align_y(Alignment::Center),
+            advanced_hint_card,
+        ]
+        .spacing(12),
+    )
+    .into()
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct CheckboxDefaultOption {
+    value: &'static str,
+    label: &'static str,
+}
+
+impl std::fmt::Display for CheckboxDefaultOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label)
+    }
+}
+
+#[cfg(test)]
+#[path = "start_inputs_tests.rs"]
+mod start_inputs_tests;

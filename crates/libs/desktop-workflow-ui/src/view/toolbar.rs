@@ -1,4 +1,5 @@
 use super::*;
+use desktop_workflow_state::state::WorkflowAppEditorMode;
 use iced::widget::{column, row};
 
 pub fn mix_color(left: Color, right: Color, factor: f32) -> Color {
@@ -376,3 +377,7 @@ pub fn build_app_switcher_dock(
 ) -> Element<'static, Message> {
     container(build_app_switcher(i18n, state)).width(Length::Fixed(300.0)).into()
 }
+
+#[cfg(test)]
+#[path = "toolbar_tests.rs"]
+mod toolbar_tests;

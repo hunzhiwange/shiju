@@ -1,8 +1,8 @@
 //! 开始节点元数据辅助视图的测试，覆盖内置变量、类型标签和错误摘要。
 //! 活动模式与校验 fixture 用于固定聊天兼容规则及错误排序。
 use super::*;
-use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
-use crate::apps::workflow::state::{
+use desktop_workflow_model::{WorkflowAppMeta, WorkflowDocument};
+use desktop_workflow_state::state::{
     WorkflowAppEntry, WorkflowHistorySnapshot, WorkflowNodeValidationError,
     WorkflowStartVariableDraft,
 };
@@ -74,7 +74,7 @@ fn start_variable(input_type: &str, default_value: &str) -> WorkflowStartVariabl
 #[test]
 fn start_builtin_variables_defaults_to_chat_inputs_without_active_app() {
     let items = start_builtin_variables(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &WorkflowState::default(),
     );
 
@@ -92,7 +92,7 @@ fn start_builtin_variables_defaults_to_chat_inputs_without_active_app() {
 #[test]
 fn start_builtin_variables_marks_file_input_legacy_outside_chat_mode() {
     let state = active_state_with_mode("workflow");
-    let items = start_builtin_variables(crate::app::i18n::I18n::new(Default::default()), &state);
+    let items = start_builtin_variables(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].name, "userinput.files");
@@ -103,7 +103,7 @@ fn start_builtin_variables_marks_file_input_legacy_outside_chat_mode() {
 #[test]
 fn start_builtin_variables_treats_modes_containing_chat_as_chat() {
     let state = active_state_with_mode("advanced-chat");
-    let names = start_builtin_variables(crate::app::i18n::I18n::new(Default::default()), &state)
+    let names = start_builtin_variables(desktop_i18n::I18n::new(Default::default()), &state)
         .into_iter()
         .map(|item| item.name)
         .collect::<Vec<_>>();
@@ -149,7 +149,7 @@ fn start_variable_summary_error_collects_known_field_errors_in_order() {
     };
 
     let error = start_variable_summary_error(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &validation,
     );
@@ -168,7 +168,7 @@ fn start_variable_summary_error_returns_none_without_matching_errors() {
 
     assert_eq!(
         start_variable_summary_error(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             0,
             &validation
         ),
@@ -197,7 +197,7 @@ fn start_variable_summary_error_includes_advanced_constraint_errors_in_order() {
 
     assert_eq!(
         start_variable_summary_error(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             3,
             &validation
         )
@@ -210,28 +210,28 @@ fn start_variable_summary_error_includes_advanced_constraint_errors_in_order() {
 fn start_variable_default_error_only_rejects_invalid_number_defaults() {
     assert_eq!(
         start_variable_default_error(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &start_variable("number", "abc")
         ),
         Some("数字类型默认值必须是数字")
     );
     assert_eq!(
         start_variable_default_error(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &start_variable("number", "12.5")
         ),
         None
     );
     assert_eq!(
         start_variable_default_error(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &start_variable("number", "")
         ),
         None
     );
     assert_eq!(
         start_variable_default_error(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &start_variable("text-input", "abc")
         ),
         None
@@ -246,7 +246,7 @@ fn start_variable_advanced_hint_has_no_current_special_cases() {
 
 #[test]
 fn start_variable_type_options_are_stable_and_displayable() {
-    let options = start_variable_type_options(crate::app::i18n::I18n::new(Default::default()));
+    let options = start_variable_type_options(desktop_i18n::I18n::new(Default::default()));
 
     assert_eq!(options.len(), 7);
     assert_eq!(options[0].input_type, "text-input");
@@ -261,14 +261,14 @@ fn start_variable_type_options_are_stable_and_displayable() {
 #[test]
 fn selected_start_variable_type_option_matches_input_type() {
     let option = selected_start_variable_type_option(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         "checkbox",
     );
 
     assert_eq!(option.map(|item| item.label), Some("复选框"));
     assert_eq!(
         selected_start_variable_type_option(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "unsupported"
         ),
         None
@@ -278,7 +278,7 @@ fn selected_start_variable_type_option_matches_input_type() {
 #[test]
 fn start_variable_file_type_options_are_stable() {
     assert_eq!(
-        start_variable_file_type_options(crate::app::i18n::I18n::new(Default::default()),),
+        start_variable_file_type_options(desktop_i18n::I18n::new(Default::default()),),
         [
             ("document", "文档", "PDF, DOCX"),
             ("image", "图片", "PNG, JPG"),
@@ -293,11 +293,11 @@ fn start_variable_file_type_options_are_stable() {
 fn start_variable_ui_builders_return_elements() {
     let badge = start_variable_badge("string");
     let known_selector = build_start_variable_type_selector(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         "number",
     );
     let fallback_selector = build_start_variable_type_selector(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         "unknown",
     );
 

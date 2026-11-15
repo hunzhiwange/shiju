@@ -7,8 +7,8 @@ use iced::{
 };
 use serde_yaml::Value;
 
-use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
-use crate::apps::workflow::state::{
+use desktop_workflow_model::{WorkflowAppMeta, WorkflowDocument};
+use desktop_workflow_state::state::{
     WorkflowAppEditorDraft, WorkflowAppEntry, WorkflowHistorySnapshot, WorkflowNodeEditorDraft,
     WorkflowNodeEditorValidation, WorkflowSavedAppSummary,
 };
@@ -214,7 +214,7 @@ fn zoom_menu_button_style_covers_active_hovered_pressed_and_idle_paths() {
 #[test]
 fn build_center_toolbar_covers_disabled_create_and_edit_states() {
     let empty = build_center_toolbar(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &WorkflowState::default(),
     );
 
@@ -226,7 +226,7 @@ fn build_center_toolbar_covers_disabled_create_and_edit_states() {
         ..WorkflowState::default()
     };
     let create_mode =
-        build_center_toolbar(crate::app::i18n::I18n::new(Default::default()), &create_state);
+        build_center_toolbar(desktop_i18n::I18n::new(Default::default()), &create_state);
 
     create_state.quick_insert_panel_open = true;
     create_state.variable_panel = Some(WorkflowVariablePanelKind::System);
@@ -234,7 +234,7 @@ fn build_center_toolbar_covers_disabled_create_and_edit_states() {
         Some(node_editor(WorkflowNodeEditorMode::Edit("node_1".to_string())));
     create_state.app_editor = Some(app_editor(WorkflowAppEditorMode::Edit("app_1".to_string())));
     let edit_mode =
-        build_center_toolbar(crate::app::i18n::I18n::new(Default::default()), &create_state);
+        build_center_toolbar(desktop_i18n::I18n::new(Default::default()), &create_state);
 
     let _ = std::hint::black_box((empty, create_mode, edit_mode));
 }
@@ -254,12 +254,12 @@ fn build_zoom_menu_overlay_covers_active_preset_and_clamped_percent() {
     let clamped = WorkflowState { zoom: 200.0, ..WorkflowState::default() };
 
     let active_element = build_zoom_menu_overlay(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &active_preset,
         &[50, 123, 200],
     );
     let clamped_element = build_zoom_menu_overlay(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &clamped,
         &[10_000],
     );
@@ -272,7 +272,7 @@ fn build_zoom_menu_overlay_clamps_negative_zoom_to_zero() {
     let state = WorkflowState { zoom: -2.5, ..WorkflowState::default() };
 
     let element =
-        build_zoom_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state, &[0, 25]);
+        build_zoom_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state, &[0, 25]);
 
     let _ = std::hint::black_box(element);
 }
@@ -282,7 +282,7 @@ fn build_zoom_menu_overlay_handles_empty_presets_and_nan_zoom() {
     let state = WorkflowState { zoom: f32::NAN, ..WorkflowState::default() };
 
     let element =
-        build_zoom_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &state, &[]);
+        build_zoom_menu_overlay(desktop_i18n::I18n::new(Default::default()), &state, &[]);
 
     let _ = std::hint::black_box(element);
 }
@@ -292,7 +292,7 @@ fn build_center_toolbar_marks_each_variable_panel_kind_active() {
     for panel in [WorkflowVariablePanelKind::Environment, WorkflowVariablePanelKind::Conversation] {
         let state = WorkflowState { variable_panel: Some(panel), ..WorkflowState::default() };
 
-        let element = build_center_toolbar(crate::app::i18n::I18n::new(Default::default()), &state);
+        let element = build_center_toolbar(desktop_i18n::I18n::new(Default::default()), &state);
         let _ = std::hint::black_box(element);
     }
 }
@@ -300,7 +300,7 @@ fn build_center_toolbar_marks_each_variable_panel_kind_active() {
 #[test]
 fn build_app_switcher_dock_covers_empty_and_populated_options() {
     let empty = build_app_switcher_dock(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &WorkflowState::default(),
     );
 
@@ -314,7 +314,7 @@ fn build_app_switcher_dock_covers_empty_and_populated_options() {
         ..WorkflowState::default()
     };
     let populated =
-        build_app_switcher_dock(crate::app::i18n::I18n::new(Default::default()), &populated_state);
+        build_app_switcher_dock(desktop_i18n::I18n::new(Default::default()), &populated_state);
 
     let _ = std::hint::black_box((empty, populated));
 }

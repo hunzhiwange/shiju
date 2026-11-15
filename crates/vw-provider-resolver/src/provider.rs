@@ -10,7 +10,7 @@
 
 use provider_state_cache as cache;
 use crate::config;
-use provider_model_cache as models;
+use crate::models;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]

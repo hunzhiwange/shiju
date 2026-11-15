@@ -1,6 +1,6 @@
 //! Pure MCP Apps CSP, origin and internal navigation policy.
 use url::Url;
-use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use vw_api_mcp_network::McpAppNetworkPolicy;
 
 pub const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 pub const WRAPPER_URL: &str = "mcp-app://localhost/index.html";

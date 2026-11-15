@@ -12,7 +12,6 @@ autotests = false
 doctest = false
 
 [dependencies]
-provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 config-hooks = { path = "../libs/config-hooks", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }
 config-automation = { path = "../libs/config-automation", version = "0.6.0" }

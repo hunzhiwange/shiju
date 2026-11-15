@@ -257,7 +257,7 @@ pub fn merge_remote_models(
     api_base: &str,
     explicit_model_ids: &HashSet<String>,
     remote_ids: Vec<String>,
-    catalog: &HashMap<String, provider_model_catalog::Provider>,
+    catalog: &HashMap<String, crate::models::Provider>,
 ) -> usize {
     let mut changed = 0;
     for remote_id in remote_ids {
@@ -300,7 +300,7 @@ pub fn merge_remote_models(
         {
             // Only model metadata crosses providers. Routing, credentials, prices,
             // headers and provider-specific request options stay on Shiju.
-            let raw_provider = provider_model_catalog::Provider {
+            let raw_provider = crate::models::Provider {
                 protocols: None,
                 npm: None,
                 id: provider.id.clone(),
@@ -343,7 +343,7 @@ pub async fn discover_and_merge_provider(
         return Ok(0);
     };
     let remote_ids = discover_openai_compatible_models(&api_base, bearer).await?;
-    let catalog = provider_model_cache::get().await;
+    let catalog = crate::models::get().await;
     Ok(merge_remote_models(provider, &api_base, explicit_model_ids, remote_ids, &catalog))
 }
 

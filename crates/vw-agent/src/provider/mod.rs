@@ -24,7 +24,7 @@ pub mod error {
 }
 
 pub mod models {
-    pub use provider_model_cache::*;
+    pub use vw_provider_resolver::models::*;
 }
 
 pub(crate) mod model_catalog;

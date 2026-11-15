@@ -3,7 +3,7 @@ use std::{sync::{Arc, Mutex}, time::{Duration, SystemTime, UNIX_EPOCH}};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use vw_api_transport::id::ProjectScope;
-use provider_model_cache::{self as models, ModelsRefreshStatus};
+use vw_provider_resolver::models::{self, ModelsRefreshStatus};
 use super::{models_selection::{ModelsDevSelectionConfig, flatten_models, resolve_models_dev_selection, to_model_pricing}, pricing::{StoredModelPricing, get_model_pricing, initialize_pricing_store}};
 
 pub const SYNC_INTERVAL_MS: i64 = 6 * 60 * 60 * 1000;

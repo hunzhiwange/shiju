@@ -14,7 +14,7 @@ use {
     vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
     vw_api_types::model_catalog::ModelMetadataSource::Preset,
 };
-use provider_model_cache::ModelsSnapshot;
+use vw_provider_resolver::models::ModelsSnapshot;
 
 const RELAY: &str = "https://relay.example.test/v1";
 const VENDOR: &str = "https://api.vendor.example.test/v1";

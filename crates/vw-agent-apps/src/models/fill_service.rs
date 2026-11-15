@@ -18,7 +18,7 @@ use {
     vw_api_types::model_catalog::ModelMetadataField,
     vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
-use provider_model_cache::ModelsSnapshot;
+use vw_provider_resolver::models::ModelsSnapshot;
 
 /// Preview only the fields that would be filled. The caller must supply the
 /// authorized current deployment and its provider record, independently of the request.

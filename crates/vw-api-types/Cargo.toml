@@ -8,6 +8,7 @@ description = "API types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-mcp-network = { path = "../libs/api-mcp-network", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }
 vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
 vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }

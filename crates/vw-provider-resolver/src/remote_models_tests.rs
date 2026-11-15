@@ -366,7 +366,7 @@ fn shiju_discovery_prefers_own_catalog_and_does_not_enrich_unrelated_providers()
 
 #[test]
 fn model_protocol_010_discovery_requires_unambiguous_deployment() {
-    let raw: provider_model_catalog::Provider = serde_json::from_value(json!({
+    let raw: crate::models::Provider = serde_json::from_value(json!({
         "id":"fixture", "api":"https://one.example/v1", "models":{
             "one":{"id":"one"},"two":{"id":"two", "provider":{"api":"https://two.example/v1"}}
         }
@@ -389,7 +389,7 @@ async fn model_protocol_010_remote_discovery_preserves_explicit_protocols_and_st
         r#"{"data":[{"id":"m"},{"id":"new"}]}"#,
         Duration::ZERO,
     );
-    let raw: provider_model_catalog::Provider = serde_json::from_value(json!({
+    let raw: crate::models::Provider = serde_json::from_value(json!({
         "id":"fixture", "api":server.api_base, "npm":"@ai-sdk/openai-compatible",
         "models":{"m":{"id":"m","protocols":[]}}
     }))
@@ -419,7 +419,7 @@ async fn model_protocol_010_remote_discovery_preserves_explicit_protocols_and_st
 
 #[tokio::test]
 async fn model_protocol_010_dedicated_sdk_skips_bearer_discovery() {
-    let raw: provider_model_catalog::Provider = serde_json::from_value(json!({
+    let raw: crate::models::Provider = serde_json::from_value(json!({
         "id":"fixture", "npm":"@ai-sdk/amazon-bedrock",
         "api":"https://never-request.example", "models":{"m":{"id":"m"}}
     }))

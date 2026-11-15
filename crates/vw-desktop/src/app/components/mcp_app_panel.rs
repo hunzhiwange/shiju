@@ -11,7 +11,7 @@ use std::{
         atomic::{AtomicBool, AtomicU8, Ordering},
     },
 };
-use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use vw_api_mcp_network::McpAppNetworkPolicy;
 
 #[derive(Debug, Clone)]
 pub struct McpAppPanel(Arc<PanelLease>);

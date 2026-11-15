@@ -2,7 +2,7 @@
 use std::io::{self, BufRead, Write};
 use std::sync::Mutex;
 use serde_json::Value;
-use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use vw_api_mcp_network::McpAppNetworkPolicy;
 use webview_mcp_assets::{DOCUMENT_SCRIPT, render_wrapper};
 use webview_mcp_policy::{ENGINE_APP_URL, allowed_origins, app_csp, wrapper_csp};
 

@@ -1,8 +1,8 @@
 [workspace]
 members = [
+  "crates/libs/api-mcp-network",
   "crates/libs/config-hooks",
   "crates/libs/api-tools",
-  "crates/libs/provider-model-cache",
   "crates/libs/provider-model-catalog",
   "crates/libs/api-app-identity",
   "crates/libs/cli-api-automation",

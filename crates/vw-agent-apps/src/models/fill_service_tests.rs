@@ -26,7 +26,7 @@ use {
     vw_api_types::model_catalog::ModelMetadataSource,
     vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
-use provider_model_cache::ModelsSnapshot;
+use vw_provider_resolver::models::ModelsSnapshot;
 
 const ENDPOINT: &str = "https://api.baiduqianfan.ai/v2/tokenplan/team";
 const MODEL: &str = "glm-5.2";

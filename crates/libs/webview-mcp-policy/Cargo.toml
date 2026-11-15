@@ -11,7 +11,7 @@ doctest = false
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [dependencies]
-vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
+vw-api-mcp-network = { path = "../api-mcp-network", version = "0.6.0" }
 url = "2"
 
 [dev-dependencies]

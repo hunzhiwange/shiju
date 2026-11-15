@@ -10,7 +10,7 @@ use std::{
     },
     time::Duration,
 };
-use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use vw_api_mcp_network::McpAppNetworkPolicy;
 
 pub struct McpAppBridge {
     session: String,

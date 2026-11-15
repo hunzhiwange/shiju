@@ -1,7 +1,7 @@
 use super::{WRAPPER_CSP, app_csp, frame_origin_allowed};
 use serde_json::json;
 
-use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use vw_api_mcp_network::McpAppNetworkPolicy;
 
 #[test]
 fn mcp_app_network_declared_frame_sources_are_scoped() {
@@ -25,30 +25,6 @@ fn mcp_app_network_declared_frame_sources_are_scoped() {
     assert!(document.contains("media-src https://cdn.example.test;"));
     assert!(document.contains("base-uri https://base.example.test;"));
     assert!(!document.contains("links.example.test"));
-}
-
-#[test]
-fn mcp_app_network_rejects_invalid_declarations() {
-    for origin in [
-        "http://host.example.test",
-        "https://*.example.test",
-        "https://host.example.test:0",
-        "https://host.example.test:65536",
-        "https://host.example.test/+",
-        "https://host.example.test?token=test",
-        "https://host.example.test; frame-src https:",
-        "https://user@host.example.test",
-        "https://host..example.test",
-        "https://host.example.test:+443",
-        "https://127.1",
-    ] {
-        assert!(
-            McpAppNetworkPolicy::parse(Some(&json!({"connectDomains":[origin]}))).is_err(),
-            "{origin}"
-        );
-    }
-    assert!(McpAppNetworkPolicy::parse(Some(&json!({"unsupported":[]}))).is_err());
-    assert!(McpAppNetworkPolicy::parse(Some(&json!({"resourceDomains":"https:"}))).is_err());
 }
 
 #[test]

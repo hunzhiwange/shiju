@@ -8,7 +8,6 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
-provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 provider-model-catalog = { path = "../libs/provider-model-catalog", version = "0.6.0" }
 vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
 vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }

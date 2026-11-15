@@ -1,5 +1,5 @@
 use super::*;
-use crate::native::ModelsCache;
+use crate::models::native::ModelsCache;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};

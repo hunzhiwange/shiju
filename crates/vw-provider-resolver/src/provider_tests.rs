@@ -49,8 +49,8 @@ impl ProviderTestEnv {
             std::env::remove_var("VIBEWINDOW_PROVIDER_KEY");
         }
 
-        provider_model_cache::invalidate_cache();
-        for name in provider_model_cache::get().await.values().flat_map(|provider| provider.env.iter()) {
+        crate::models::invalidate_cache();
+        for name in crate::models::get().await.values().flat_map(|provider| provider.env.iter()) {
             if saved_env.iter().any(|(saved, _)| saved == name) {
                 continue;
             }

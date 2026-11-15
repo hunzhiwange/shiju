@@ -166,7 +166,7 @@ fn catalog_fill_openclaw_skips_unknown_metadata_and_zero_limits() {
 fn catalog_fill_openclaw_uses_resolved_price_only_for_the_matching_endpoint() {
     use super::metadata::resolve_model_metadata;
     use vw_api_app_identity::AppId;
-    use provider_model_cache::ModelsSnapshot;
+    use vw_provider_resolver::models::ModelsSnapshot;
 
     let snapshot = ModelsSnapshot {
         providers: serde_json::from_value(json!({

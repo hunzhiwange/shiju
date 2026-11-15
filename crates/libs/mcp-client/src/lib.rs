@@ -6,6 +6,11 @@ use serde_json::{Value, json};
 use std::{collections::HashMap, time::Duration};
 
 mod config;
+pub mod client;
+
+pub use client::{ClientHost, ConnectionCheckCleanup, NoopClient, ProbeChild, RunningMcpPeer, open_server_peer, unsupported_mcp_capabilities_json};
+#[cfg(not(target_arch = "wasm32"))]
+pub use client::open_connection_check_peer;
 
 pub mod protocol;
 pub mod notifications;

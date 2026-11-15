@@ -1,0 +1,394 @@
+//! Keep raw JSON and SSE tool results before the rmcp HTTP decoder narrows content types.
+use futures_util::StreamExt;
+use rmcp::{
+    model::{ClientJsonRpcMessage, ClientRequest, RequestId, ServerInfo},
+    transport::{
+        common::client_side_sse::BoxedSseResponse,
+        sse_client::{SseClient, SseTransportError},
+        streamable_http_client::{
+            AuthRequiredError, StreamableHttpClient, StreamableHttpError,
+            StreamableHttpPostResponse,
+        },
+    },
+};
+use serde_json::Value;
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
+use tokio::sync::Notify;
+use tokio_util::sync::CancellationToken;
+
+#[derive(Default)]
+struct HttpProtocol {
+    initialize_id: Option<RequestId>,
+    version: Option<String>,
+}
+
+impl HttpProtocol {
+    /// Track the negotiated version and signal a JSON-RPC error for initialize.
+    fn capture(&mut self, value: &Value) -> bool {
+        let id = value.get("id").and_then(|id| serde_json::from_value(id.clone()).ok());
+        if self.initialize_id.is_none() || self.initialize_id != id {
+            return false;
+        }
+        if value.get("error").is_some() {
+            return true;
+        }
+        let Some(result) = value.get("result") else { return false };
+        let Ok(info) = serde_json::from_value::<ServerInfo>(result.clone()) else { return false };
+        if crate::capabilities::validate_server_protocol(Some(&info)).is_ok() {
+            self.version = Some(info.protocol_version.to_string());
+        }
+        self.initialize_id = None;
+        false
+    }
+}
+
+/// Observe rmcp's detached Streamable HTTP session deletion for a bounded probe.
+#[derive(Clone, Default)]
+pub struct ConnectionCheckCleanup {
+    state: Arc<CleanupState>,
+    cancellation: CancellationToken,
+}
+
+#[derive(Default)]
+struct CleanupState {
+    session: AtomicBool,
+    done: Notify,
+}
+
+impl ConnectionCheckCleanup {
+    pub async fn wait(&self) {
+        if self.state.session.load(Ordering::Acquire) {
+            self.state.done.notified().await;
+        }
+    }
+
+    pub fn cancellation(&self) -> &CancellationToken {
+        &self.cancellation
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct HttpClient {
+    client: reqwest_012::Client,
+    responses: Arc<crate::RawMcpResponse>,
+    protocol: Arc<Mutex<HttpProtocol>>,
+    check_origin: Option<url::Origin>,
+    check_cancellation: Option<CancellationToken>,
+    check_cleanup: Option<ConnectionCheckCleanup>,
+}
+
+impl HttpClient {
+    pub(super) fn new(
+        client: reqwest_012::Client,
+        responses: Arc<crate::RawMcpResponse>,
+    ) -> Self {
+        Self {
+            client,
+            responses,
+            protocol: Default::default(),
+            check_origin: None,
+            check_cancellation: None,
+            check_cleanup: None,
+        }
+    }
+
+    pub(super) fn with_check_origin(mut self, origin: url::Origin) -> Self {
+        self.check_origin = Some(origin);
+        self
+    }
+
+    pub(super) fn with_check_cancellation(mut self, token: CancellationToken) -> Self {
+        self.check_cancellation = Some(token);
+        self
+    }
+
+    pub(super) fn with_check_cleanup(mut self, cleanup: Option<ConnectionCheckCleanup>) -> Self {
+        self.check_cleanup = cleanup;
+        self
+    }
+
+    async fn check_io<T>(
+        &self,
+        operation: impl Future<Output = Result<T, reqwest_012::Error>>,
+    ) -> Result<T, StreamableHttpError<reqwest_012::Error>> {
+        if let Some(cancel) = &self.check_cancellation {
+            tokio::select! {
+                biased;
+                () = cancel.cancelled() => Err(StreamableHttpError::TransportChannelClosed),
+                result = operation => Ok(result.map_err(reqwest_012::Error::without_url)?),
+            }
+        } else {
+            Ok(operation.await?)
+        }
+    }
+
+    async fn check_sse_io<T>(
+        &self,
+        operation: impl Future<Output = Result<T, SseTransportError<reqwest_012::Error>>>,
+    ) -> Result<T, SseTransportError<reqwest_012::Error>> {
+        if let Some(cancel) = &self.check_cancellation {
+            tokio::select! {
+                biased;
+                () = cancel.cancelled() => Err(std::io::Error::from(std::io::ErrorKind::Interrupted).into()),
+                result = operation => result.map_err(|error| match error {
+                    SseTransportError::Client(error) => SseTransportError::Client(error.without_url()),
+                    other => other,
+                }),
+            }
+        } else {
+            operation.await
+        }
+    }
+
+    fn check_stream(&self, stream: BoxedSseResponse) -> BoxedSseResponse {
+        match &self.check_cancellation {
+            Some(cancel) => stream.take_until(cancel.clone().cancelled_owned()).boxed(),
+            None => stream,
+        }
+    }
+
+    fn request(&self, request: reqwest_012::RequestBuilder) -> reqwest_012::RequestBuilder {
+        let protocol = self.protocol.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        match &protocol.version {
+            Some(version) => request.header("mcp-protocol-version", version),
+            None => request,
+        }
+    }
+}
+
+fn events(
+    stream: BoxedSseResponse,
+    responses: Arc<crate::RawMcpResponse>,
+    protocol: Arc<Mutex<HttpProtocol>>,
+    reject_initialize_error: bool,
+) -> BoxedSseResponse {
+    stream
+        .map(move |event| {
+            event.and_then(|mut event| {
+                if matches!(event.event.as_deref(), None | Some("") | Some("message")) {
+                    if let Some(data) = &event.data {
+                        if let Ok(mut value) = serde_json::from_str::<Value>(data) {
+                            let initialize_error = protocol
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                                .capture(&value);
+                            if initialize_error && reject_initialize_error {
+                                // The streamable HTTP worker otherwise skips error events
+                                // while waiting for the initialize result.
+                                return Err(sse_stream::Error::Body(
+                                    std::io::Error::other("MCP initialization rejected").into(),
+                                ));
+                            }
+                            responses.capture(&value);
+                            crate::wire_result::preserve_mcp_wire_result(&mut value);
+                            event.data = Some(value.to_string());
+                        }
+                    }
+                }
+                Ok(event)
+            })
+        })
+        .boxed()
+}
+
+impl StreamableHttpClient for HttpClient {
+    type Error = reqwest_012::Error;
+
+    async fn post_message(
+        &self,
+        uri: Arc<str>,
+        message: ClientJsonRpcMessage,
+        session: Option<Arc<str>>,
+        auth: Option<String>,
+    ) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
+        let mut initializing = false;
+        if let ClientJsonRpcMessage::Request(request) = &message {
+            if matches!(request.request, ClientRequest::InitializeRequest(_)) {
+                initializing = true;
+                let mut protocol =
+                    self.protocol.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                protocol.initialize_id = Some(request.id.clone());
+                protocol.version = None;
+            }
+        }
+        let mut request = self.request(
+            self.client.post(uri.as_ref()).header("accept", "text/event-stream, application/json"),
+        );
+        if let Some(session) = session {
+            request = request.header("mcp-session-id", session.as_ref());
+        }
+        if let Some(auth) = auth {
+            request = request.bearer_auth(auth);
+        }
+        let response = self.check_io(request.json(&message).send()).await?;
+        if response.status() == reqwest_012::StatusCode::UNAUTHORIZED {
+            if let Some(header) = response.headers().get("www-authenticate") {
+                let header = header.to_str().map_err(|_| {
+                    StreamableHttpError::UnexpectedServerResponse(
+                        "invalid www-authenticate header".into(),
+                    )
+                })?;
+                return Err(StreamableHttpError::AuthRequired(AuthRequiredError {
+                    www_authenticate_header: header.to_owned(),
+                }));
+            }
+        }
+        let status = response.status();
+        let response = response.error_for_status()?;
+        if matches!(status, reqwest_012::StatusCode::ACCEPTED | reqwest_012::StatusCode::NO_CONTENT)
+        {
+            return Ok(StreamableHttpPostResponse::Accepted);
+        }
+        let session = response
+            .headers()
+            .get("mcp-session-id")
+            .and_then(|value| value.to_str().ok())
+            .map(ToOwned::to_owned);
+        if initializing
+            && session.is_some()
+            && let Some(cleanup) = &self.check_cleanup
+        {
+            cleanup.state.session.store(true, Ordering::Release);
+        }
+        let kind = response
+            .headers()
+            .get("content-type")
+            .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
+        match kind.as_deref() {
+            Some(kind) if kind.starts_with("application/json") => {
+                let value = self.check_io(response.json::<Value>()).await?;
+                self.protocol
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .capture(&value);
+                let message = super::wire_stdio::decode(value, &self.responses)?;
+                Ok(StreamableHttpPostResponse::Json(message, session))
+            }
+            Some(kind) if kind.starts_with("text/event-stream") => {
+                let stream =
+                    sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
+                Ok(StreamableHttpPostResponse::Sse(
+                    events(
+                        self.check_stream(stream),
+                        self.responses.clone(),
+                        self.protocol.clone(),
+                        self.check_origin.is_some(),
+                    ),
+                    session,
+                ))
+            }
+            _ => Err(StreamableHttpError::UnexpectedContentType(kind)),
+        }
+    }
+
+    async fn delete_session(
+        &self,
+        uri: Arc<str>,
+        session: Arc<str>,
+        auth: Option<String>,
+    ) -> Result<(), StreamableHttpError<Self::Error>> {
+        let mut request = self
+            .request(self.client.delete(uri.as_ref()).header("mcp-session-id", session.as_ref()));
+        if let Some(auth) = auth {
+            request = request.bearer_auth(auth);
+        }
+        let delete = async {
+            let response = request.send().await?;
+            if response.status() != reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
+                response.error_for_status()?;
+            }
+            Ok::<_, reqwest_012::Error>(())
+        };
+        if let Some(cleanup) = &self.check_cleanup {
+            let result = tokio::select! {
+                biased;
+                () = cleanup.cancellation.cancelled() => Ok(()),
+                result = delete => result.map_err(reqwest_012::Error::without_url),
+            };
+            cleanup.state.done.notify_one();
+            return Ok(result?);
+        }
+        Ok(delete.await?)
+    }
+
+    async fn get_stream(
+        &self,
+        uri: Arc<str>,
+        session: Arc<str>,
+        last: Option<String>,
+        auth: Option<String>,
+    ) -> Result<BoxedSseResponse, StreamableHttpError<Self::Error>> {
+        let mut request = self.request(
+            self.client
+                .get(uri.as_ref())
+                .header("accept", "text/event-stream")
+                .header("mcp-session-id", session.as_ref()),
+        );
+        if let Some(last) = last {
+            request = request.header("last-event-id", last);
+        }
+        if let Some(auth) = auth {
+            request = request.bearer_auth(auth);
+        }
+        let response = self.check_io(request.send()).await?;
+        if response.status() == reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
+            return Err(StreamableHttpError::ServerDoesNotSupportSse);
+        }
+        let response = response.error_for_status()?;
+        let kind = response
+            .headers()
+            .get("content-type")
+            .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
+        if !kind.as_ref().is_some_and(|kind| kind.starts_with("text/event-stream")) {
+            return Err(StreamableHttpError::UnexpectedContentType(kind));
+        }
+        let stream = sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
+        Ok(events(self.check_stream(stream), self.responses.clone(), self.protocol.clone(), false))
+    }
+}
+
+impl SseClient for HttpClient {
+    type Error = reqwest_012::Error;
+
+    async fn post_message(
+        &self,
+        uri: axum::http::Uri,
+        message: ClientJsonRpcMessage,
+        auth: Option<String>,
+    ) -> Result<(), SseTransportError<Self::Error>> {
+        if let Some(origin) = &self.check_origin {
+            let allowed = reqwest_012::Url::parse(&uri.to_string()).is_ok_and(|url| {
+                url.origin() == *origin && url.username().is_empty() && url.password().is_none()
+            });
+            if !allowed {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "MCP SSE message endpoint must stay on the configured origin",
+                )
+                .into());
+            }
+        }
+        self.check_sse_io(SseClient::post_message(&self.client, uri, message, auth)).await
+    }
+
+    async fn get_stream(
+        &self,
+        uri: axum::http::Uri,
+        last: Option<String>,
+        auth: Option<String>,
+    ) -> Result<BoxedSseResponse, SseTransportError<Self::Error>> {
+        self.check_sse_io(SseClient::get_stream(&self.client, uri, last, auth)).await.map(
+            |stream| {
+                events(
+                    self.check_stream(stream),
+                    self.responses.clone(),
+                    self.protocol.clone(),
+                    false,
+                )
+            },
+        )
+    }
+}

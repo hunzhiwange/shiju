@@ -105,3 +105,58 @@
 静态证据：pip._vendor.tomli 解析根/宿主/目标三份 TOML 成功；两段迁移生产函数体及10项测试体与 HEAD 原文比对等价；限定 git diff --check 通过。未运行Cargo、单元测试及实机测试，待统一验收；未更新锁文件。
 
 状态仍为已阻塞，不删卡：尚需47先独立接线提交下层真实导出，再由24消费并继续完整客户端迁移。下一窗口继续核对目录状态/RunningMcpPeer闭环、交互及OAuth等宿主边界。此前“未提交”仅描述11月15日现场，本阶段使用独立索引限定提交，下层五模块和其它任务变更原样保留。
+
+## 2026-11-16 第二阶段：消费47真实类型，待公共接线/Git窗口
+
+已核对47提交 cb7d23bd1 的真实导出；本阶段不修改其 protocol/notifications/catalog/capabilities/wire_result 五模块或 plugin-mcp。
+
+### 当前独占领域产物
+
+- `tools/mcp_common` 的 NoopClient、unsupported capability policy、remote header/client、connect timeout、RunningMcpPeer 与完整握手实现迁至 `mcp-client/src/client/mod.rs`。
+- wire_check/http/stdio 完整迁至 `mcp-client/src/client/`；旧 wire_check 删除，旧 wire_http/stdio 仅重导出 ConnectionCheckCleanup/ProbeChild，保留现有探针调用路径。
+- 用真实 `mcp_client::{FormOwner, RawMcpResponse, McpCatalogs}`，协议/原始结果直接调用下层 capabilities 与 wire_result；没有复制状态、plugin-mcp 依赖或 Any/万能JSON上下文。
+- 仅为已有真实调用新增 `ClientHost` 三项强类型动作：stdio cwd、异步 HTTP scoped headers（含原OAuth调用）、异步 elicitation request。宿主 `AgentMcpHost` 委托原实际函数；owner 的租户/session、request cancellation、closed token、原始wire schema全部原样保留。
+- NoopClient持有注入host，不存在默认授权；Default仍无form owner/host，不声明交互能力。HTTP探针仍执行原header验证路径；stdio cwd、private process group、PATH增强、响应保留、协议拒绝后cancel、禁重试、取消顺序与清理等待维持原控制流。
+- 随实现迁移10项既有客户端测试与2个异步辅助函数至 client/tests.rs；宿主配置与真实连接集成测试保留。未运行或新增测试。
+- 宿主仍有 scoped配置加载、插件发现合并、managed runtime选择和session连接缓存适配；这些拥有宿主状态的真实动作维持原路径。完整迁移尚未最终静态闭环，不删卡。
+
+### 就绪申请公共接线/Git窗口（当前归50，本轮未写）
+
+1. `mcp-client/src/lib.rs` 仅新增 `pub mod client;`，不动47五模块。
+2. `mcp-client/Cargo.toml`：rmcp 在现有client上追加 transport-io、transport-child-process、transport-sse-client-reqwest、transport-streamable-http-client-reqwest；tokio追加rt/process/io-util；tokio-util启用codec。新增真实使用依赖 futures-util 0.3.32、reqwest_012 0.12（default-features=false/json/rustls-tls-webpki-roots/stream）、sse-stream 0.2.1、url 2、axum 0.8.8（default-features=false，仅http::Uri）、libc 0.2、shell-command路径../shell-command 0.6.0启用shell-tokio。拟清单已写 /tmp/shiju24-client-manifest.toml 并由pip._vendor.tomli静态解析通过，应用前重新核对最新清单。
+3. 宿主调用者/父模块无需新增修改：mcp_common函数签名维持原样；RunningMcpPeer转发新类型；探针cleanup及child走薄重导出。根、宿主清单已有路径依赖，无额外增量。
+4. 提交限定本卡来源、目标client子目录、lib模块声明和清单精确增量及24卡；不碰50独占session-port、child_agent/task_session、tools/mod/agent_hosts/toolset/thread_tool。
+
+### 本阶段静态证据
+
+三个wire文件与HEAD原文在必要crate路径/pub替换后完全一致；迁移的12个测试/辅助函数体逐项原文比对通过。git diff --check限定领域通过，新client目录没有crate::plugins/vw_agent/plugin_mcp反向依赖。尚未公共模块/清单接线，当前不是可交付完整目标；需窗口补齐接线并复核提交。未运行Cargo、单元测试及实机测试，待统一验收。未来验证需覆盖两地既有测试和原native/wasm支持组合、stdio进程组/HTTP探针清理、租户身份与OAuth/交互取消路径。
+
+## 2026-11-16 第二阶段独占 API/清单接线完成，申请 Git 租约
+
+获授 mcp-client 的 lib.rs/Cargo.toml 精确增量后已实施上节清单接线，未修改全局根或宿主清单、其他通用父模块、调用者或47来源。
+
+真实公开 API（已写源码可供47/56消费）：
+
+- 根导出 `mcp_client::{ClientHost, NoopClient, RunningMcpPeer, ConnectionCheckCleanup, ProbeChild, unsupported_mcp_capabilities_json, open_server_peer}`。
+- `open_server_peer(host: Arc<dyn ClientHost>, server: McpServer, timeout: Duration, closed: CancellationToken, form_owner: Option<FormOwner>) -> Result<RunningMcpPeer>`。
+- native 根导出 `open_connection_check_peer(host: Arc<dyn ClientHost>, server: McpServer, timeout: Duration, http_io: CancellationToken, child: Option<&mut Option<ProbeChild>>, cleanup: Option<ConnectionCheckCleanup>) -> Result<RunningMcpPeer>`。内部握手入口不公开；探针不接受form owner。
+- `ClientHost` 已在 `src/client/mod.rs` 给出实际签名：同步 stdio cwd；借用server/owner的异步 headers；持有 owner/server/request/cancelled/closed/wire_schema 的异步 elicitation。只有已有真实调用，没有默认授权或无调用抽象。
+- 宿主 `mcp_common::open_server_peer/open_connection_check_peer` 已直接转发上述根 API 并注入 AgentMcpHost；删除宿主多余 inner 包装，保留现有外层签名和探针导入路径。
+
+复核：47的5模块 git diff 均为空；其已有依赖除本次必要 rmcp/tokio/tokio-util 特性追加外全部保留；TOML解析通过；3个wire机械迁移等价；限定diff --check通过。未运行Cargo、任何测试及实机测试。源码已接线，Git租约尚归98，本轮不暂存/提交。
+
+请求下一 Git 提交窗口；范围为mcp-client/Cargo.toml、src/lib.rs、src/client/五文件、tools/mcp_common本卡来源五文件和24卡。继续限定独立索引提交，不纳入他人差异。24卡尚保留未闭环状态，提交前最终审查宿主配置/会话适配保留范围和调用者类型一致性；不因接口已公开就删卡。原 scoped config/project/tenant/plugin merge 与session缓存真实宿主适配暂留，需与相应领域所有者继续闭环。
+
+## 2026-11-16 第二阶段提交范围复核
+
+已获24的全局清单/Git租约；本阶段不需要全局根/宿主清单增量，仅将已完成领域产物以独立索引限定提交。现HEAD包含175的0eec5d253及后续桌面提交，均原样保留；当前工作区的桌面workflow暂存内容不纳入本次提交。47五模块仍无本卡修改。
+
+本卡来源责任复核：
+
+- 原wire_check生产实现已移走并删除旧文件；wire_http/stdio旧文件仅剩真实类型薄重导出，没有第二份wire实现。
+- NoopClient、协议能力拒绝、握手超时、transport初始化、HTTP协议/原始响应与stdio进程生命周期全部在新client模块；RunningMcpPeer唯一关联新NoopClient，插件47类型保持唯一所有者。
+- mcp_common剩余生产文件的必要性：工具入口解析当前tenant/project/tool context；组合全局配置、插件发现及managed runtime selection；从会话缓存取得连接；AgentMcpHost调用插件OAuth/headers、交互及cwd，并调用新库握手API。这些路径仍使用原真实宿主，不反向引入新库。
+- 尚未完全迁走的客户端配置编排：load_resolved_mcp_config/merge_runtime_mcp_servers中的配置合并顺序与native_mcp_selection过滤，仍与宿主上下文读取同处。后续需要在保留宿主范围/权限语义的前提下，将可独立编排下沉并留下窄组合入口；因此本阶段不假称整卡闭环，不删24卡，状态保留已阻塞。
+- with_server_peer/with_server_peer_timeout只转换Peer回调，with_server_client_timeout保持原会话缓存作用域/持久连接调用，未新建重复会话状态；runtime_stdio_cwd及AgentMcpHost属于必要真实宿主适配，后续领域接线消费当前公开ClientHost接口。
+
+提交正文记录本阶段映射、API、依赖/feature与待验路径；已有静态等价/TOML证据继续有效，本轮仅刷新限定差异与提交空白检查，不重复运行已通过检查。未运行Cargo、单元测试及实机测试，待统一验收。完成本阶段提交后归还Git租约。

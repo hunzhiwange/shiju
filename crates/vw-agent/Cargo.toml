@@ -6,13 +6,13 @@ repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
 description = "Runtime agent engine for VibeWindow"
 license = "MIT"
-config-plugins = { path = "../libs/config-plugins", version = "0.6.0" }
 autotests = false
 
 [lib]
 doctest = false
 
 [dependencies]
+config-plugins = { path = "../libs/config-plugins", version = "0.6.0" }
 gateway-app-read = { path = "../libs/gateway-app-read", version = "0.6.0" }
 runtime-time = { path = "../libs/runtime-time", version = "0.6.0" }
 vw-api-file = { path = "../libs/api-file", version = "0.6.0" }

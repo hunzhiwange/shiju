@@ -54,12 +54,10 @@ mod think_block_tests;
 #[cfg(test)]
 mod tool_summaries_tests;
 
-use iced::widget::svg::{self};
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, text as iced_text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
-use std::borrow::Cow;
+use iced::widget::{button, column, container, row, text as iced_text};
+use iced::{Alignment, Element, Length, Theme};
 use session_ui_types::ProcessingTiming;
+use std::borrow::Cow;
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::attachment::{
@@ -73,8 +71,7 @@ use self::assistant_body::render_assistant_body;
 use self::render_cache::resolve_visible_text_and_copy_hash;
 use self::styles::{
     ASSISTANT_HEADER_BODY_SPACING, MESSAGE_META_TEXT_SIZE, PROCESSING_DURATION_TEXT_SIZE,
-    is_dark_theme, message_action_button_style, message_action_icon_color, message_meta_text_color,
-    processing_duration_text_color,
+    message_meta_text_color, processing_duration_text_color,
 };
 use self::text::{
     message_text_body, session_control_selection_card, split_session_control_selection,
@@ -106,35 +103,6 @@ pub(crate) use self::styles::{
     compaction_status_card_style, compaction_status_text_color, message_surface_contract,
     message_surface_style,
 };
-pub(crate) const TODO_CONTINUATION_TEXT: &str = "TODO 尚未完成，正在继续推进";
-pub(crate) const COMPACTION_STARTED_TEXT: &str = "正在压缩会话";
-pub(crate) const COMPACTION_COMPLETED_TEXT: &str = "压缩完成";
-pub(crate) const COMPACTION_FAILED_TEXT: &str = "会话压缩失败";
-pub(crate) const COMPACTION_CANCELLED_TEXT: &str = "会话压缩已取消";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct CompactionStatusCardContract {
-    pub(crate) horizontal_alignment: iced::alignment::Horizontal,
-    pub(crate) vertical_alignment: iced::alignment::Vertical,
-    pub(crate) uses_default_font: bool,
-}
-
-pub(crate) fn compaction_status_card_contract(
-    content: &str,
-) -> Option<CompactionStatusCardContract> {
-    matches!(
-        content,
-        COMPACTION_STARTED_TEXT
-            | COMPACTION_COMPLETED_TEXT
-            | COMPACTION_FAILED_TEXT
-            | COMPACTION_CANCELLED_TEXT
-    )
-    .then_some(CompactionStatusCardContract {
-        horizontal_alignment: iced::alignment::Horizontal::Center,
-        vertical_alignment: iced::alignment::Vertical::Center,
-        uses_default_font: true,
-    })
-}
 pub(crate) use self::text::estimate_message_height_rough;
 #[cfg(test)]
 pub(crate) use self::text::should_prefer_plain_think_body;
@@ -148,6 +116,7 @@ pub(crate) use self::tool_summaries::explore_summary_text_blocks;
 pub(crate) use self::tool_summaries::summarize_explore_items;
 #[cfg(test)]
 pub(crate) use self::tool_summaries::tool_card_text_blocks;
+pub(crate) use desktop_chat_view::message_view::contracts::*;
 
 pub(crate) fn chat_message_action_text(
     app: &App,
@@ -195,37 +164,6 @@ fn open_chat_message_context_menu_action(
         session_id: session_id.to_string(),
         message_idx,
     })
-}
-
-pub(crate) fn message_footer_padding(is_user: bool) -> iced::Padding {
-    if is_user { [0, 6].into() } else { iced::Padding::ZERO }
-}
-
-fn processing_duration_label(
-    i18n: crate::app::i18n::I18n,
-    timing: Option<&ProcessingTiming>,
-    live_elapsed_ms: Option<u64>,
-) -> Option<String> {
-    let timing = timing?;
-    let elapsed_ms = if let Some(completed_ms) = timing.completed_ms {
-        timing
-            .processing_elapsed_ms
-            .unwrap_or_else(|| completed_ms.saturating_sub(timing.started_ms))
-    } else {
-        live_elapsed_ms?
-    };
-    let total_seconds = elapsed_ms / 1_000;
-    let hours = total_seconds / 3_600;
-    let minutes = total_seconds % 3_600 / 60;
-    let seconds = total_seconds % 60;
-    let duration = if hours > 0 {
-        format!("{hours}h {minutes}m {seconds}s")
-    } else if minutes > 0 {
-        format!("{minutes}m {seconds}s")
-    } else {
-        format!("{seconds}s")
-    };
-    Some(i18n.format("已处理 %s", &[duration.into()]).expect("valid duration template"))
 }
 
 /// 渲染消息视图（主入口函数）
@@ -396,94 +334,15 @@ pub(crate) fn message_view_with_runtime<'a>(
     };
     let can_branch_or_reset = is_user && app.active_session_id.is_some();
 
-    let icon_action_btn = |icon: Icon,
-                           label: &'static str,
-                           on_press: Message,
-                           highlighted: bool,
-                           compact_square: bool|
-     -> Element<'a, Message> {
-        // 紧凑动作图标（复制、分叉、重置）与相邻元信息文字同高，避免图标显得突兀偏大。
-        let icon_size = if compact_square { MESSAGE_META_TEXT_SIZE } else { 12.0 };
-        let compact_button_size = MESSAGE_META_TEXT_SIZE;
-        let btn = button(
-            icon_svg(icon).width(Length::Fixed(icon_size)).height(Length::Fixed(icon_size)).style(
-                move |theme: &Theme, status| svg::Style {
-                    color: Some(message_action_icon_color(
-                        theme,
-                        status,
-                        highlighted,
-                        compact_square,
-                        is_user,
-                    )),
-                },
-            ),
+    let icon_action_btn = |icon, label: &'static str, on_press, highlighted, compact_square| {
+        desktop_chat_view::message_view::layout::icon_action_button(
+            icon,
+            copy_tooltip_content(label),
+            on_press,
+            highlighted,
+            compact_square,
+            is_user,
         )
-        .width(if compact_square {
-            Length::Fixed(compact_button_size)
-        } else {
-            Length::Fixed(24.0)
-        })
-        .height(if compact_square {
-            Length::Fixed(compact_button_size)
-        } else {
-            Length::Fixed(22.0)
-        })
-        .padding(0)
-        .style(move |theme: &Theme, status| {
-            message_action_button_style(theme, status, compact_square)
-        })
-        .on_press(on_press);
-
-        Tooltip::new(btn, copy_tooltip_content(label), TooltipPosition::Top).gap(6).into()
-    };
-
-    let approval_badge_view = |label: String, on_press: Option<Message>| -> Element<'a, Message> {
-        let badge =
-            container(iced_text(label).size(11).font(chat_text_font()).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(if is_dark_theme(theme) {
-                        Color::from_rgba8(255, 235, 177, 0.96)
-                    } else {
-                        Color::from_rgba8(142, 103, 16, 1.0)
-                    }),
-                }
-            }))
-            .padding([2, 8])
-            .style(|theme: &Theme| {
-                let is_dark = is_dark_theme(theme);
-                iced::widget::container::Style {
-                    background: Some(Background::Color(if is_dark {
-                        Color::from_rgba8(79, 62, 21, 0.72)
-                    } else {
-                        Color::from_rgba8(255, 245, 213, 1.0)
-                    })),
-                    border: Border {
-                        width: 1.0,
-                        color: if is_dark {
-                            Color::from_rgba8(168, 132, 45, 0.72)
-                        } else {
-                            Color::from_rgba8(222, 187, 102, 0.92)
-                        },
-                        radius: 999.0.into(),
-                    },
-                    ..Default::default()
-                }
-            });
-
-        if let Some(on_press) = on_press {
-            button(badge)
-                .padding(0)
-                .style(|_theme: &Theme, _status| iced::widget::button::Style {
-                    background: None,
-                    border: Border::default(),
-                    shadow: iced::Shadow::default(),
-                    ..Default::default()
-                })
-                .on_press(on_press)
-                .into()
-        } else {
-            badge.into()
-        }
     };
 
     let session_id = app.active_session_id.as_deref().unwrap_or_default();
@@ -649,171 +508,43 @@ pub(crate) fn message_view_with_runtime<'a>(
     .preserve_on_right_click()
     .into();
 
-    let footer_element: Element<'a, Message> = {
-        let mut footer_col = column![].spacing(6);
-
-        let meta_row: Element<'a, Message> = if let Some(meta_text) = message_meta {
-            let meta_view = iced_text(meta_text)
-                .size(MESSAGE_META_TEXT_SIZE)
-                .font(chat_text_font())
-                .style(move |theme: &Theme| iced::widget::text::Style {
-                    color: Some(message_meta_text_color(theme, is_user)),
-                });
-            let approval_badge: Option<Element<'a, Message>> = permission_badge
-                .clone()
-                .map(|(label, on_press)| approval_badge_view(label, on_press));
-
-            if is_user {
-                let mut row = row![container(Space::new()).width(Length::Fill), meta_view]
-                    .spacing(8)
-                    .align_y(Alignment::Center);
-                if let Some(approval_badge) = approval_badge {
-                    row = row.push(approval_badge);
-                }
-                if can_branch_or_reset {
-                    row = row.push(icon_action_btn(
-                        Icon::GitBranch,
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
-                        fork_press.clone(),
-                        false,
-                        true,
-                    ));
-                    row = row.push(icon_action_btn(
-                        Icon::ArrowCounterClockwise,
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
-                        reset_press.clone(),
-                        false,
-                        true,
-                    ));
-                }
-                row.push(icon_action_btn(
-                    copy_icon,
-                    copy_tip,
-                    copy_message.clone(),
-                    recently_copied,
-                    true,
-                ))
-                .into()
-            } else {
-                let mut row = row![meta_view].spacing(8).align_y(Alignment::Center);
-                if let Some(approval_badge) = approval_badge {
-                    row = row.push(approval_badge);
-                }
-                if can_branch_or_reset {
-                    row = row.push(icon_action_btn(
-                        Icon::GitBranch,
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
-                        fork_press.clone(),
-                        false,
-                        true,
-                    ));
-                    row = row.push(icon_action_btn(
-                        Icon::ArrowCounterClockwise,
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
-                        reset_press.clone(),
-                        false,
-                        true,
-                    ));
-                }
-                row.push(icon_action_btn(
-                    copy_icon,
-                    copy_tip,
-                    copy_message.clone(),
-                    recently_copied,
-                    true,
-                ))
-                .into()
-            }
-        } else if is_user {
-            let mut row = row![container(Space::new()).width(Length::Fill)]
-                .spacing(8)
-                .align_y(Alignment::Center);
-            if let Some((label, on_press)) = permission_badge.clone() {
-                row = row.push(approval_badge_view(label, on_press));
-            }
-            if can_branch_or_reset {
-                row = row.push(icon_action_btn(
-                    Icon::GitBranch,
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
-                    fork_press.clone(),
-                    false,
-                    true,
-                ));
-                row = row.push(icon_action_btn(
-                    Icon::ArrowCounterClockwise,
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
-                    reset_press.clone(),
-                    false,
-                    true,
-                ));
-            }
-            row.push(icon_action_btn(
-                copy_icon,
-                copy_tip,
-                copy_message.clone(),
-                recently_copied,
-                true,
-            ))
+    let meta = message_meta.map(|meta_text| {
+        iced_text(meta_text)
+            .size(MESSAGE_META_TEXT_SIZE)
+            .font(chat_text_font())
+            .style(move |theme: &Theme| iced::widget::text::Style {
+                color: Some(message_meta_text_color(theme, is_user)),
+            })
             .into()
-        } else {
-            let mut row = row![].spacing(8).align_y(Alignment::Center);
-            if let Some((label, on_press)) = permission_badge.clone() {
-                row = row.push(approval_badge_view(label, on_press));
-            }
-            if can_branch_or_reset {
-                row = row.push(icon_action_btn(
-                    Icon::GitBranch,
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
-                    fork_press.clone(),
-                    false,
-                    true,
-                ));
-                row = row.push(icon_action_btn(
-                    Icon::ArrowCounterClockwise,
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
-                    reset_press.clone(),
-                    false,
-                    true,
-                ));
-            }
-            row.push(icon_action_btn(
-                copy_icon,
-                copy_tip,
-                copy_message.clone(),
-                recently_copied,
-                true,
-            ))
-            .into()
-        };
-
-        footer_col = footer_col.push(meta_row);
-        footer_col.into()
-    };
-
-    let footer_container = container(footer_element)
-        .padding(message_footer_padding(is_user))
-        .width(Length::Fill)
-        .align_x(if is_user {
-            iced::alignment::Horizontal::Right
-        } else {
-            iced::alignment::Horizontal::Left
-        });
-
-    if is_user {
-        column![
-            container(bubble_inner).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
-            row![footer_container].align_y(Alignment::Center)
-        ]
-        .spacing(4)
-        .into()
-    } else {
-        column![
-            container(bubble_inner).width(Length::Fill).align_x(iced::alignment::Horizontal::Left),
-            row![footer_container].align_y(Alignment::Center)
-        ]
-        .spacing(4)
-        .into()
+    });
+    let badge = permission_badge.map(|(label, on_press)| {
+        desktop_chat_view::message_view::layout::approval_badge_view(
+            label,
+            on_press,
+            chat_text_font(),
+        )
+    });
+    let mut actions = Vec::new();
+    if can_branch_or_reset {
+        actions.push(icon_action_btn(
+            Icon::GitBranch,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
+            fork_press,
+            false,
+            true,
+        ));
+        actions.push(icon_action_btn(
+            Icon::ArrowCounterClockwise,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
+            reset_press,
+            false,
+            true,
+        ));
     }
+    actions.push(icon_action_btn(copy_icon, copy_tip, copy_message, recently_copied, true));
+    let footer =
+        desktop_chat_view::message_view::layout::message_footer(meta, badge, actions, is_user);
+    desktop_chat_view::message_view::layout::message_layout(bubble_inner, footer, is_user)
 }
 
 pub(super) fn should_use_user_message_editor(
@@ -827,7 +558,9 @@ pub(super) fn should_use_user_message_editor(
         && app.chat_message_editors.get(idx).is_some_and(|editor| !editor.text().trim().is_empty())
 }
 
-pub(crate) fn model_recovery_text(event: &gateway_chat_stream::GatewayModelRecoveryEvent) -> String {
+pub(crate) fn model_recovery_text(
+    event: &gateway_chat_stream::GatewayModelRecoveryEvent,
+) -> String {
     use gateway_chat_stream::GatewayModelRecoveryPhase;
     match event.phase {
         GatewayModelRecoveryPhase::Waiting => format!(

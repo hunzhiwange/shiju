@@ -2,14 +2,13 @@
 //! 时间 fixture 区分进行中、已完成和暂停区间，防止历史耗时遗漏非模型活动。
 
 use super::{
-    copy_chat_message_action, message_footer_padding, message_view,
-    open_chat_message_context_menu_action, processing_duration_label,
+    copy_chat_message_action, message_view, open_chat_message_context_menu_action,
+    processing_duration_label,
 };
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
 use crate::app::{Message, message};
-use iced::Padding;
-use std::borrow::Cow;
 use session_ui_types::ProcessingTiming;
+use std::borrow::Cow;
 
 fn keep_message_view(element: iced::Element<'_, crate::app::Message>) {
     std::hint::black_box(element);
@@ -74,106 +73,6 @@ fn message_view_actions_carry_identity_without_message_text() {
 }
 
 #[test]
-fn user_message_footer_padding_has_right_offset() {
-    let padding = message_footer_padding(true);
-    assert_eq!(padding, Padding { top: 0.0, right: 6.0, bottom: 0.0, left: 6.0 });
-}
-
-#[test]
-fn non_user_message_footer_padding_is_zero() {
-    let padding = message_footer_padding(false);
-    assert_eq!(padding, Padding::ZERO);
-}
-
-#[test]
-fn processing_duration_formats_seconds_minutes_and_hours() {
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&ProcessingTiming {
-                started_ms: 1_000,
-                completed_ms: Some(60_000),
-                processing_elapsed_ms: None,
-                llm_elapsed_ms: None,
-            }),
-            None
-        )
-        .as_deref(),
-        Some("已处理 59s")
-    );
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&ProcessingTiming {
-                started_ms: 1_000,
-                completed_ms: Some(61_000),
-                processing_elapsed_ms: None,
-                llm_elapsed_ms: None,
-            }),
-            None
-        )
-        .as_deref(),
-        Some("已处理 1m 0s")
-    );
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&ProcessingTiming {
-                started_ms: 1_000,
-                completed_ms: Some(1_518_000),
-                processing_elapsed_ms: None,
-                llm_elapsed_ms: None,
-            }),
-            None
-        )
-        .as_deref(),
-        Some("已处理 25m 17s")
-    );
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&ProcessingTiming {
-                started_ms: 1_000,
-                completed_ms: Some(3_601_000),
-                processing_elapsed_ms: None,
-                llm_elapsed_ms: None,
-            }),
-            None
-        )
-        .as_deref(),
-        Some("已处理 1h 0m 0s")
-    );
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&ProcessingTiming {
-                started_ms: 1_000,
-                completed_ms: Some(3_724_000),
-                processing_elapsed_ms: None,
-                llm_elapsed_ms: None,
-            }),
-            None
-        )
-        .as_deref(),
-        Some("已处理 1h 2m 3s")
-    );
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&ProcessingTiming {
-                started_ms: 2_000,
-                completed_ms: Some(1_000),
-                processing_elapsed_ms: None,
-                llm_elapsed_ms: None,
-            }),
-            None
-        )
-        .as_deref(),
-        Some("已处理 0s")
-    );
-}
-
-#[test]
 fn message_view_builds_completed_processing_label() {
     let app = crate::app::App::new().0;
     let cache = ChatRenderCacheEntry::default();
@@ -230,46 +129,6 @@ fn message_view_hides_open_processing_label() {
     );
 
     keep_message_view(view);
-}
-
-#[test]
-fn processing_label_shows_zero_for_active_open_cycle() {
-    let timing = ProcessingTiming {
-        started_ms: 1_000,
-        completed_ms: None,
-        processing_elapsed_ms: Some(0),
-        llm_elapsed_ms: Some(0),
-    };
-
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&timing),
-            Some(0)
-        )
-        .as_deref(),
-        Some("已处理 0s")
-    );
-}
-
-#[test]
-fn historical_processing_label_includes_pauses_outside_llm_activity() {
-    let timing = ProcessingTiming {
-        started_ms: 1_000,
-        completed_ms: Some(61_000),
-        processing_elapsed_ms: Some(60_000),
-        llm_elapsed_ms: Some(2_750),
-    };
-
-    assert_eq!(
-        processing_duration_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            Some(&timing),
-            None
-        )
-        .as_deref(),
-        Some("已处理 1m 0s")
-    );
 }
 
 #[test]

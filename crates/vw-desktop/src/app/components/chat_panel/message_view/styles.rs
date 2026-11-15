@@ -3,7 +3,7 @@
 //! 该模块集中定义消息视图内部复用的尺寸常量、主题色计算和
 //! 通用文本展示逻辑，避免主入口文件混入过多样式细节。
 
-use iced::widget::{button, container, row, svg, text};
+use iced::widget::{container, row, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
 
 use crate::app::Message;
@@ -19,7 +19,8 @@ pub(super) const MESSAGE_META_TEXT_SIZE: f32 = 13.0;
 pub(super) const PROCESSING_DURATION_TEXT_SIZE: f32 = 14.0;
 pub(super) const THINK_STATUS_TEXT_SIZE: f32 = COMPACT_ACTIVITY_TEXT_SIZE;
 pub(super) const THINK_META_TEXT_SIZE: f32 = 12.0;
-pub(super) const COMPACT_ACTION_BUTTON_RADIUS: f32 = 5.0;
+#[cfg(test)]
+pub(super) use desktop_chat_view::message_view::layout::COMPACT_ACTION_BUTTON_RADIUS;
 pub(super) const ASSISTANT_BLOCK_SPACING: f32 = 12.0;
 pub(super) const ASSISTANT_HEADER_BODY_SPACING: f32 = 10.0;
 pub(super) const MARKDOWN_BLOCK_SPACING: f32 = 8.0;
@@ -115,62 +116,9 @@ pub(crate) fn message_surface_style(
     }
 }
 
-pub(super) fn message_action_icon_color(
-    theme: &Theme,
-    status: svg::Status,
-    highlighted: bool,
-    compact_square: bool,
-    is_user: bool,
-) -> Color {
-    if highlighted {
-        theme.extended_palette().success.base.color
-    } else if compact_square {
-        match status {
-            svg::Status::Idle => message_meta_text_color(theme, is_user),
-            svg::Status::Hovered => chat_secondary_text_color(theme),
-        }
-    } else {
-        chat_secondary_text_color(theme)
-    }
-}
+pub(super) use desktop_chat_view::message_view::layout::message_action_icon_color;
 
-pub(super) fn message_action_button_style(
-    theme: &Theme,
-    status: button::Status,
-    compact_square: bool,
-) -> button::Style {
-    let (background, show_background) = match status {
-        button::Status::Hovered => {
-            if is_dark_theme(theme) {
-                (Color::from_rgba8(31, 33, 38, 0.94), true)
-            } else {
-                (Color::from_rgb8(0xF1, 0xF3, 0xF6), true)
-            }
-        }
-        button::Status::Pressed => {
-            if is_dark_theme(theme) {
-                (Color::from_rgba8(36, 38, 44, 0.98), true)
-            } else {
-                (Color::from_rgb8(0xE8, 0xEC, 0xF1), true)
-            }
-        }
-        _ => (Color::TRANSPARENT, false),
-    };
-    button::Style {
-        background: show_background.then_some(Background::Color(background)),
-        border: Border {
-            width: if show_background { 1.0 } else { 0.0 },
-            color: if is_dark_theme(theme) {
-                Color::from_rgba8(52, 56, 63, 0.9)
-            } else {
-                Color::from_rgba8(218, 223, 230, 1.0)
-            },
-            radius: if compact_square { COMPACT_ACTION_BUTTON_RADIUS.into() } else { 8.0.into() },
-        },
-        text_color: super::super::utils::chat_secondary_muted_text_color(theme),
-        ..Default::default()
-    }
-}
+pub(super) use desktop_chat_view::message_view::layout::message_action_button_style;
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
@@ -208,13 +156,7 @@ pub(super) fn think_block_text_color(theme: &Theme) -> Color {
     chat_secondary_text_color(theme)
 }
 
-pub(super) fn subtle_card_shadow(theme: &Theme) -> iced::Shadow {
-    iced::Shadow {
-        color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.10 } else { 0.03 }),
-        offset: iced::Vector::new(0.0, 6.0),
-        blur_radius: 18.0,
-    }
-}
+pub(super) use desktop_chat_view::message_view::error_style::subtle_card_shadow;
 
 pub(super) fn thinking_status_text<'a>(
     label: &str,
@@ -256,17 +198,7 @@ pub(super) fn message_body_text_color(theme: &Theme, is_user: bool) -> Color {
     }
 }
 
-pub(super) fn message_meta_text_color(theme: &Theme, is_user: bool) -> Color {
-    if is_user {
-        if is_dark_theme(theme) {
-            theme.palette().text.scale_alpha(0.50)
-        } else {
-            theme.extended_palette().secondary.base.text.scale_alpha(0.72)
-        }
-    } else {
-        theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.46 } else { 0.48 })
-    }
-}
+pub(super) use desktop_chat_view::message_view::layout::message_meta_text_color;
 
 pub(super) fn processing_duration_text_color(theme: &Theme) -> Color {
     theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.58 } else { 0.52 })

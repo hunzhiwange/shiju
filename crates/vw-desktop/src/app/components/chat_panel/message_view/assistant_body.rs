@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use iced::widget::{Column, Space, button, column, container, row, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::Element;
+use iced::widget::{Column, column};
 
 use crate::app::models::{self, ParsedChatBlock};
 use crate::app::{App, Message};
@@ -14,14 +14,12 @@ use crate::app::{App, Message};
 use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::chat_text_font_name;
 use super::super::tools::{
-    CommandItem, ExploreItem, ToolTextTarget, is_command_tool, is_explore_tool,
-    pending_permission_badge_label, pending_permission_request_badge_label,
-    pending_permission_request_for_tool_call, pending_permission_targets_message,
-    pending_permission_targets_tool_call, render_shared_tool_view, tool_call_id_from_raw,
-    tool_command_summary_view, tool_explore_summary_view, tool_identity_from_raw,
-    tool_name_from_raw, tool_text_editor,
+    CommandItem, ExploreItem, ToolTextTarget, is_command_tool, pending_permission_badge_label,
+    pending_permission_request_badge_label, pending_permission_request_for_tool_call,
+    pending_permission_targets_message, pending_permission_targets_tool_call,
+    render_shared_tool_view, tool_call_id_from_raw, tool_command_summary_view,
+    tool_explore_summary_view, tool_text_editor,
 };
-use super::super::utils::{chat_secondary_text_color, is_dark_theme};
 use super::assistant_error::assistant_api_error_view;
 use super::styles::{ASSISTANT_BLOCK_SPACING, MESSAGE_TEXT_SIZE};
 use super::text::{message_editor_body, message_text_body, should_segment_text_block};
@@ -34,210 +32,49 @@ use super::tool_summaries::{
 
 pub(super) fn count_visible_non_explore_tool_cards(
     blocks: &[ParsedChatBlock],
-    tool_block_metadata: &[Option<models::ToolBlockRenderMetadata>],
-    tool_last: &HashMap<String, usize>,
+    metadata: &[Option<models::ToolBlockRenderMetadata>],
+    last: &HashMap<String, usize>,
 ) -> usize {
-    let mut count = 0usize;
-    let mut has_pending_explore_group = false;
-
-    for (block_idx, block) in blocks.iter().enumerate() {
-        match block {
-            ParsedChatBlock::Think { .. } => {
-                has_pending_explore_group = false;
+    use desktop_chat_view::message_view::assistant_body::{
+        BlockPresentation, count_visible_non_explore_tool_cards,
+    };
+    let presentation: Vec<_> = blocks
+        .iter()
+        .map(|block| {
+            let mut facts = BlockPresentation::default();
+            match block {
+                ParsedChatBlock::Text { content } => {
+                    facts.visible_text = normalized_visible_text(content).is_some()
+                }
+                ParsedChatBlock::Tool { raw } => {
+                    facts.hide_after_explore = should_hide_post_explore_tool_block(raw)
+                }
+                ParsedChatBlock::Think { .. } => {}
             }
-            ParsedChatBlock::Tool { raw } => {
-                let metadata = tool_block_metadata.get(block_idx).and_then(Option::as_ref);
-                let tool_name = metadata
-                    .and_then(|metadata| metadata.name.clone())
-                    .or_else(|| tool_name_from_raw(raw));
-                let Some(tool_name) = tool_name else {
-                    continue;
-                };
-
-                if is_explore_tool(&tool_name) {
-                    has_pending_explore_group = true;
-                    continue;
-                }
-
-                let identity = metadata
-                    .and_then(|metadata| metadata.identity.clone())
-                    .or_else(|| tool_identity_from_raw(raw));
-                if let Some(identity) = identity
-                    && tool_last.get(&identity).copied() != Some(block_idx)
-                {
-                    continue;
-                }
-
-                if has_pending_explore_group && should_hide_post_explore_tool_block(raw) {
-                    has_pending_explore_group = false;
-                    continue;
-                }
-
-                has_pending_explore_group = false;
-                count = count.saturating_add(1);
-            }
-            ParsedChatBlock::Text { content } => {
-                if normalized_visible_text(content).is_some() {
-                    has_pending_explore_group = false;
-                }
-            }
-        }
-    }
-
-    count
+            facts
+        })
+        .collect();
+    count_visible_non_explore_tool_cards(blocks, metadata, last, &presentation)
 }
 
-fn pending_permission_badge_style(theme: &Theme) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
-    iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            Color::from_rgba8(79, 62, 21, 0.72)
-        } else {
-            Color::from_rgba8(255, 245, 213, 1.0)
-        })),
-        border: Border {
-            width: 1.0,
-            color: if is_dark {
-                Color::from_rgba8(168, 132, 45, 0.72)
-            } else {
-                Color::from_rgba8(222, 187, 102, 0.92)
-            },
-            radius: 999.0.into(),
-        },
-        text_color: Some(chat_secondary_text_color(theme)),
-        ..Default::default()
-    }
-}
-
-fn pending_permission_tool_badge<'a>(
-    label: String,
-    on_press: Option<Message>,
-) -> Element<'a, Message> {
-    let label = text(label).size(11).style(|theme: &Theme| iced::widget::text::Style {
-        color: Some(if is_dark_theme(theme) {
-            Color::from_rgba8(255, 235, 177, 0.96)
-        } else {
-            Color::from_rgba8(142, 103, 16, 1.0)
-        }),
-    });
-
-    let content = container(label)
-        .padding([2, 8])
-        .style(|theme: &Theme| pending_permission_badge_style(theme));
-
-    if let Some(on_press) = on_press {
-        button(content)
-            .padding(0)
-            .style(|theme: &Theme, _status| iced::widget::button::Style {
-                background: None,
-                border: Border::default(),
-                text_color: pending_permission_badge_style(theme)
-                    .text_color
-                    .unwrap_or_else(|| chat_secondary_text_color(theme)),
-                ..Default::default()
-            })
-            .on_press(on_press)
-            .into()
-    } else {
-        content.into()
-    }
-}
-
+pub(crate) use desktop_chat_view::message_view::permission_card::should_highlight_pending_permission_tool;
 fn wrap_pending_permission_tool_card<'a>(
     content: Element<'a, Message>,
     label: String,
     request_id: Option<String>,
     is_active: bool,
 ) -> Element<'a, Message> {
-    let on_press = request_id.map(|request_id| {
-        Message::Chat(crate::app::message::chat::ChatMessage::PermissionSelectRequest(request_id))
+    let on_press = request_id.map(|id| {
+        Message::Chat(crate::app::message::chat::ChatMessage::PermissionSelectRequest(id))
     });
-
-    let card = column![
-        row![
-            container(Space::new()).width(Length::Fill),
-            pending_permission_tool_badge(label, on_press)
-        ]
-        .align_y(Alignment::Center),
-        content
-    ]
-    .spacing(6);
-
-    if is_active {
-        container(card)
-            .padding([6, 8])
-            .width(Length::Fill)
-            .style(|theme: &Theme| {
-                let is_dark = is_dark_theme(theme);
-                iced::widget::container::Style {
-                    background: Some(Background::Color(if is_dark {
-                        Color::from_rgba8(61, 49, 19, 0.24)
-                    } else {
-                        Color::from_rgba8(255, 248, 229, 0.92)
-                    })),
-                    border: Border {
-                        width: 1.0,
-                        color: if is_dark {
-                            Color::from_rgba8(168, 132, 45, 0.86)
-                        } else {
-                            Color::from_rgba8(214, 169, 68, 0.96)
-                        },
-                        radius: 14.0.into(),
-                    },
-                    ..Default::default()
-                }
-            })
-            .into()
-    } else {
-        card.into()
-    }
+    desktop_chat_view::message_view::permission_card::wrap_pending_permission_tool_card(
+        content, label, on_press, is_active,
+    )
 }
 
-pub(crate) fn should_highlight_pending_permission_tool(
-    matched_request_id: Option<&str>,
-    current_request_id: Option<&str>,
-    matches_permission_tool: bool,
-) -> bool {
-    matches_permission_tool
-        || matched_request_id.zip(current_request_id).is_some_and(
-            |(matched_request_id, current_request_id)| matched_request_id == current_request_id,
-        )
-}
-
-pub(crate) fn deduped_tool_last_indices(blocks: &[ParsedChatBlock]) -> HashMap<String, usize> {
-    deduped_tool_last_indices_with_metadata(blocks, &[])
-}
-
-pub(super) fn deduped_tool_last_indices_with_metadata(
-    blocks: &[ParsedChatBlock],
-    tool_block_metadata: &[Option<models::ToolBlockRenderMetadata>],
-) -> HashMap<String, usize> {
-    let mut tool_last: HashMap<String, usize> = HashMap::new();
-
-    for (block_idx, block) in blocks.iter().enumerate() {
-        let ParsedChatBlock::Tool { raw } = block else {
-            continue;
-        };
-
-        let metadata = tool_block_metadata.get(block_idx).and_then(Option::as_ref);
-        let name =
-            metadata.and_then(|metadata| metadata.name.clone()).or_else(|| tool_name_from_raw(raw));
-        if let Some(name) = name
-            && is_explore_tool(&name)
-        {
-            continue;
-        }
-
-        let identity = metadata
-            .and_then(|metadata| metadata.identity.clone())
-            .or_else(|| tool_identity_from_raw(raw));
-        if let Some(identity) = identity {
-            tool_last.insert(identity, block_idx);
-        }
-    }
-
-    tool_last
-}
+pub(crate) use desktop_chat_view::message_view::assistant_body::{
+    deduped_tool_last_indices, deduped_tool_last_indices_with_metadata,
+};
 
 fn push_explore_summary<'a>(
     mut body: Column<'a, Message>,
@@ -357,99 +194,119 @@ where
         let total_think_blocks =
             blocks.iter().filter(|block| matches!(block, ParsedChatBlock::Think { .. })).count();
 
-        let mut think_idx = 0usize;
-        let mut tool_idx = 0usize;
-        let mut text_block_idx = 0usize;
-        let mut explore_items: Vec<ExploreItem> = Vec::new();
-        let mut command_items: Vec<CommandItem> = Vec::new();
-        let mut explore_group_idx = 0usize;
-        let mut explore_group_force_running = false;
-
-        for (block_i, block) in blocks.iter().enumerate() {
-            match block {
-                ParsedChatBlock::Think { content, open } => {
-                    let timing = think_timing.get(think_idx);
-                    let think_running = think_block_is_running(*open, timing);
-                    let should_render = should_render_think_block(
-                        app.dialogue_flow_show_reasoning_summary,
-                        total_think_blocks,
-                        *open,
-                        timing,
-                    );
-
-                    if should_render {
-                        body = flush_command_summary(body, app, idx, &mut command_items);
-                        body = push_explore_summary(
-                            body,
-                            app,
-                            idx,
-                            explore_group_idx,
-                            &explore_items,
-                            explore_group_force_running,
-                            true,
-                        );
-                        explore_items.clear();
-                        explore_group_force_running = false;
-                        explore_group_idx = explore_group_idx.saturating_add(1);
-                        body = body.push(think_block_view_with_streaming(
-                            app,
-                            idx,
-                            think_idx,
-                            content.clone(),
+        use desktop_chat_view::message_view::assistant_body::{
+            BlockPresentation, BodyPart, assistant_body_sequence,
+        };
+        let mut think_idx = 0;
+        let mut text_idx = 0;
+        let presentation: Vec<_> = blocks
+            .iter()
+            .map(|block| {
+                let mut facts = BlockPresentation::default();
+                match block {
+                    ParsedChatBlock::Think { open, .. } => {
+                        let timing = think_timing.get(think_idx);
+                        facts.think_running = think_block_is_running(*open, timing);
+                        facts.show_think = should_render_think_block(
+                            app.dialogue_flow_show_reasoning_summary,
+                            total_think_blocks,
                             *open,
                             timing,
-                            is_streaming_assistant,
-                        ));
-                    } else if think_running {
-                        // 思考块隐藏时，让前一个探索组继续保持运行态，直到下一个可见的非探索块收口。
-                        explore_group_force_running = true;
+                        );
+                        think_idx += 1;
                     }
-                    think_idx += 1;
+                    ParsedChatBlock::Tool { raw } => {
+                        let raw_text = raw;
+                        let matched_permission_request = pending_permission_request_for_tool_call(
+                            &app.permission_modal_requests,
+                            message_id,
+                            &raw_text,
+                        );
+
+                        let matches_permission_tool = if is_permission_target_message {
+                            let raw_call_id = tool_call_id_from_raw(&raw_text);
+                            if pending_permission_targets_tool_call(
+                                app.permission_modal_request.as_ref(),
+                                message_id,
+                                &raw_text,
+                            ) {
+                                true
+                            } else if raw_call_id.is_none() {
+                                visible_non_explore_tool_count == 1
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
+                        facts.hide_after_explore = should_hide_post_explore_tool_block(raw);
+                        facts.group_command = is_command_tool(raw)
+                            && matched_permission_request.is_none()
+                            && !matches_permission_tool;
+                    }
+                    ParsedChatBlock::Text { content } => {
+                        facts.visible_text = normalized_visible_text(content).is_some();
+                        if facts.visible_text {
+                            if let Some(text) = special_text_blocks.get(text_idx) {
+                                facts.hide_after_explore = should_hide_explore_link_box(text);
+                                text_idx += 1;
+                            }
+                        }
+                    }
                 }
-                ParsedChatBlock::Tool { raw } => {
-                    let raw_text = raw.clone();
-                    let metadata = tool_block_metadata.get(block_i).and_then(Option::as_ref);
-                    let tool_name = metadata
-                        .and_then(|metadata| metadata.name.clone())
-                        .or_else(|| tool_name_from_raw(&raw_text));
-
-                    if !tool_name.as_deref().is_some_and(is_explore_tool)
-                        && let Some(identity) = metadata
-                            .and_then(|metadata| metadata.identity.clone())
-                            .or_else(|| tool_identity_from_raw(&raw_text))
-                        && tool_last.get(&identity).copied() != Some(block_i)
-                    {
-                        tool_idx += 1;
-                        continue;
-                    }
-
-                    if let Some(name) = tool_name
-                        && is_explore_tool(&name)
-                    {
-                        body = flush_command_summary(body, app, idx, &mut command_items);
-                        explore_items.push(ExploreItem { tool_idx, raw: raw_text.clone() });
-                        tool_idx += 1;
-                        continue;
-                    }
-
-                    let had_explore_items = !explore_items.is_empty();
+                facts
+            })
+            .collect();
+        for part in assistant_body_sequence(
+            blocks,
+            tool_block_metadata,
+            &presentation,
+            special_text_blocks.len(),
+        ) {
+            match part {
+                BodyPart::Think { block_idx, think_idx } => {
+                    let ParsedChatBlock::Think { content, open } = &blocks[block_idx] else {
+                        unreachable!()
+                    };
+                    body = body.push(think_block_view_with_streaming(
+                        app,
+                        idx,
+                        think_idx,
+                        content.clone(),
+                        *open,
+                        think_timing.get(think_idx),
+                        is_streaming_assistant,
+                    ));
+                }
+                BodyPart::Text { block_idx, text_idx } => {
+                    body = push_special_text_block(
+                        body,
+                        app,
+                        idx,
+                        text_idx,
+                        special_text_blocks[text_idx].clone(),
+                        !is_streaming_assistant || block_idx + 1 < blocks.len(),
+                    );
+                }
+                BodyPart::Commands(mut items) => {
+                    body = flush_command_summary(body, app, idx, &mut items);
+                }
+                BodyPart::Explore { group_idx, items, force_running, closed } => {
                     body = push_explore_summary(
                         body,
                         app,
                         idx,
-                        explore_group_idx,
-                        &explore_items,
-                        explore_group_force_running,
-                        true,
+                        group_idx,
+                        &items,
+                        force_running,
+                        closed,
                     );
-                    explore_items.clear();
-                    explore_group_force_running = false;
-                    explore_group_idx = explore_group_idx.saturating_add(1);
-                    if had_explore_items && should_hide_post_explore_tool_block(&raw_text) {
-                        tool_idx += 1;
-                        continue;
-                    }
-
+                }
+                BodyPart::Tool { block_idx, tool_idx } => {
+                    let ParsedChatBlock::Tool { raw: raw_text } = &blocks[block_idx] else {
+                        unreachable!()
+                    };
                     let matched_permission_request = pending_permission_request_for_tool_call(
                         &app.permission_modal_requests,
                         message_id,
@@ -472,17 +329,6 @@ where
                     } else {
                         false
                     };
-
-                    if is_command_tool(&raw_text)
-                        && matched_permission_request.is_none()
-                        && !matches_permission_tool
-                    {
-                        command_items.push(CommandItem { tool_idx, raw: raw_text });
-                        tool_idx += 1;
-                        continue;
-                    }
-
-                    body = flush_command_summary(body, app, idx, &mut command_items);
 
                     let rendered = render_shared_tool_view(app, idx, tool_idx, &raw_text);
 
@@ -528,61 +374,10 @@ where
                             body = body.push(message_text_body(text, false));
                         }
                     }
-                    tool_idx += 1;
-                }
-                ParsedChatBlock::Text { content } => {
-                    // Bug 2 fix: invisible text blocks (e.g. lone "\n") are skipped in
-                    // build_render_cache_entry, so skip them here too to avoid consuming
-                    // the wrong special_text_blocks slot.
-                    if normalized_visible_text(content).is_none() {
-                        continue;
-                    }
-                    body = flush_command_summary(body, app, idx, &mut command_items);
-                    let Some(text) = special_text_blocks.get(text_block_idx).cloned() else {
-                        continue;
-                    };
-                    let current_text_idx = text_block_idx;
-                    text_block_idx += 1;
-                    let had_explore_items = !explore_items.is_empty();
-
-                    body = push_explore_summary(
-                        body,
-                        app,
-                        idx,
-                        explore_group_idx,
-                        &explore_items,
-                        explore_group_force_running,
-                        true,
-                    );
-                    explore_items.clear();
-                    explore_group_force_running = false;
-                    explore_group_idx = explore_group_idx.saturating_add(1);
-                    if had_explore_items && should_hide_explore_link_box(&text) {
-                        continue;
-                    }
-
-                    body = push_special_text_block(
-                        body,
-                        app,
-                        idx,
-                        current_text_idx,
-                        text,
-                        !is_streaming_assistant || block_i + 1 < blocks.len(),
-                    );
                 }
             }
         }
-
-        body = flush_command_summary(body, app, idx, &mut command_items);
-        push_explore_summary(
-            body,
-            app,
-            idx,
-            explore_group_idx,
-            &explore_items,
-            explore_group_force_running,
-            false,
-        )
+        body
     } else {
         let text = display_text;
         let markdown_key = (idx as u64) << 32;

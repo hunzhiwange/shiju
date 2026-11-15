@@ -4,7 +4,7 @@ use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 /// 识矩应用页面的商店与已安装页签。
-pub(crate) enum ShijuAppsTab {
+pub enum ShijuAppsTab {
     Store,
     #[default]
     Mine,
@@ -12,7 +12,7 @@ pub(crate) enum ShijuAppsTab {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 /// 账号范围列表请求的加载状态；代次用于拒绝迟到响应。
-pub(crate) enum ShijuAppsLoadState<T> {
+pub enum ShijuAppsLoadState<T> {
     #[default]
     Idle,
     NeedsLogin,
@@ -25,14 +25,14 @@ pub(crate) enum ShijuAppsLoadState<T> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// 应用详情在商店或已安装列表中的稳定索引目标。
-pub(crate) enum ShijuAppDetailTarget {
+pub enum ShijuAppDetailTarget {
     Store(usize),
     Mine(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 /// 从密钥绑定检查到 WebView 启动完成的状态机。
-pub(crate) enum ShijuAppLaunchState {
+pub enum ShijuAppLaunchState {
     #[default]
     Idle,
     CheckingBinding {
@@ -88,19 +88,19 @@ impl ShijuAppLaunchState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 识矩应用页面的账号范围状态与独立请求代次。
-pub(crate) struct ShijuAppsState {
-    pub(crate) tab: ShijuAppsTab,
-    pub(crate) store: ShijuAppsLoadState<ShijuAppCatalogDto>,
-    pub(crate) mine: ShijuAppsLoadState<ShijuAppListDto>,
-    pub(crate) account_id: Option<String>,
-    pub(crate) generation: u64,
-    pub(crate) detail: Option<ShijuAppDetailTarget>,
-    pub(crate) launch: ShijuAppLaunchState,
-    pub(crate) launch_feedback: Option<(u64, String, crate::app::skill_hub::SkillHubError)>,
+pub struct ShijuAppsState {
+    pub tab: ShijuAppsTab,
+    pub store: ShijuAppsLoadState<ShijuAppCatalogDto>,
+    pub mine: ShijuAppsLoadState<ShijuAppListDto>,
+    pub account_id: Option<String>,
+    pub generation: u64,
+    pub detail: Option<ShijuAppDetailTarget>,
+    pub launch: ShijuAppLaunchState,
+    pub launch_feedback: Option<(u64, String, desktop_skill_hub::SkillHubError)>,
 }
 
 impl ShijuAppsState {
-    pub(crate) fn render_launch_error(&self, source: &str, i18n: crate::app::i18n::I18n) -> String {
+    pub fn render_launch_error(&self, source: &str, i18n: desktop_i18n::I18n) -> String {
         if let Some((generation, original, error)) = &self.launch_feedback {
             if original == source
                 && self.launch.request_identity().is_some_and(|(active, _)| active == *generation)
@@ -112,7 +112,7 @@ impl ShijuAppsState {
     }
 
     /// 切换账号时使全部在途结果失效并清空目录、详情和启动状态。
-    pub(crate) fn clear_for_account(&mut self, account_id: Option<String>) {
+    pub fn clear_for_account(&mut self, account_id: Option<String>) {
         self.generation = self.generation.wrapping_add(1);
         self.account_id = account_id;
         self.store = ShijuAppsLoadState::Idle;
@@ -122,18 +122,18 @@ impl ShijuAppsState {
         self.launch_feedback = None;
     }
 
-    pub(crate) fn next_generation(&mut self) -> u64 {
+    pub fn next_generation(&mut self) -> u64 {
         self.generation = self.generation.wrapping_add(1);
         self.generation
     }
 
     /// 仅当代次与账号同时匹配时接受列表响应。
-    pub(crate) fn response_is_current(&self, generation: u64, account_id: &str) -> bool {
+    pub fn response_is_current(&self, generation: u64, account_id: &str) -> bool {
         self.generation == generation && self.account_id.as_deref() == Some(account_id)
     }
 
     /// 仅当代次、账号与安装标识都匹配当前启动流程时接受响应。
-    pub(crate) fn launch_response_is_current(
+    pub fn launch_response_is_current(
         &self,
         generation: u64,
         account_id: &str,

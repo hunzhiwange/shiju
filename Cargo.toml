@@ -46,6 +46,7 @@ members = [
   "crates/libs/runtime-log",
   "crates/libs/pasted-text-cache",
   "crates/libs/desktop-skill-hub",
+  "crates/libs/desktop-app-launch",
   "crates/libs/api-app-provider-terminal",
   "crates/libs/task-file-store",
   "crates/libs/session-artifact-store",

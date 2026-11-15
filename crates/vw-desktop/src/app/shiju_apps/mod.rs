@@ -1,13 +1,15 @@
-//! 汇总识矩应用的桌面状态模型与安全启动能力。
+//! 识矩应用领域状态导出与桌面辅助程序路径适配。
+pub(crate) use desktop_app_launch::{
+    ShijuAppDetailTarget, ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsState, ShijuAppsTab,
+};
 
-mod launcher;
-mod state;
-
-// 启动器负责进程与 URL 安全边界，界面层不直接拼装启动命令。
-pub(crate) use launcher::*;
-// 页面与消息处理共享同一组账号范围状态模型。
-pub(crate) use state::*;
-
-#[cfg(test)]
-#[path = "launcher_tests.rs"]
-mod launcher_tests;
+pub(crate) fn launch_shiju_app(
+    target: &vw_gateway_client::ShijuAppLaunchDto,
+    expected_installation_id: &str,
+) -> Result<std::process::Child, crate::app::skill_hub::SkillHubError> {
+    desktop_app_launch::launch_shiju_app(
+        &crate::app::webview_runtime::webview_helper_candidates(),
+        target,
+        expected_installation_id,
+    )
+}

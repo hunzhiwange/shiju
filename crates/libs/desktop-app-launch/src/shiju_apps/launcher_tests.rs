@@ -22,7 +22,7 @@ impl LaunchProcess for MemoryProcess {
         &mut self,
         program: &Path,
         args: &[String],
-    ) -> Result<Self::Child, crate::app::skill_hub::SkillHubError> {
+    ) -> Result<Self::Child, desktop_skill_hub::SkillHubError> {
         self.argv =
             std::iter::once(program.display().to_string()).chain(args.iter().cloned()).collect();
         if let Some(error) = &self.spawn_error { Err(error.clone().into()) } else { Ok(()) }
@@ -32,7 +32,7 @@ impl LaunchProcess for MemoryProcess {
         &mut self,
         _child: &mut Self::Child,
         input: &[u8],
-    ) -> Result<(), crate::app::skill_hub::SkillHubError> {
+    ) -> Result<(), desktop_skill_hub::SkillHubError> {
         self.stdin.extend_from_slice(input);
         if let Some(error) = &self.write_error { Err(error.clone().into()) } else { Ok(()) }
     }

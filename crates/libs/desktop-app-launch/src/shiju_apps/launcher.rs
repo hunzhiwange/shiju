@@ -1,6 +1,6 @@
 //! 在受限进程边界内校验并启动识矩应用 WebView。
 
-use crate::app::skill_hub::SkillHubError;
+use desktop_skill_hub::SkillHubError;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -119,13 +119,14 @@ pub(super) fn launch_with<P: LaunchProcess>(
 }
 
 /// 使用系统进程实现启动识矩应用 WebView。
-pub(crate) fn launch_shiju_app(
+pub fn launch_shiju_app(
+    candidates: &[PathBuf],
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,
 ) -> Result<Child, SkillHubError> {
     launch_with(
         &mut SystemProcess,
-        &crate::app::webview_runtime::webview_helper_candidates(),
+        candidates,
         target,
         expected_installation_id,
     )

@@ -7,12 +7,13 @@ use {
     vw_api_types::app_providers::grok::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use gateway_endpoint::GatewayEndpoint;
+use gateway_app_provider::GatewayAppProviderClient;
 const TOKEN: &str = "fixture-grok-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -45,11 +46,11 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
-        .unwrap();
+        .unwrap());
         Self { root, db, client, server }
     }
     fn file(&self) -> PathBuf {

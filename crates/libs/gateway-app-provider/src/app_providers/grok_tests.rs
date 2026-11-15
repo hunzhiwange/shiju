@@ -1,8 +1,8 @@
-use super::*;
+use crate::test_support;
 use vw_api_types::app_providers::grok::*;
 #[tokio::test]
 async fn cc04_grok_sdk_rejects_path_identity_without_request() {
-    let client = GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();
+    let client = test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();
     let error = client
         .grok_provider_switch(
             "../escape",
@@ -16,7 +16,6 @@ async fn cc04_grok_sdk_rejects_path_identity_without_request() {
 
 #[tokio::test]
 async fn cc04_grok_sdk_sends_scoped_switch_and_discards_error_body() {
-    use super::super::test_support;
     let server = test_support::server_with_tenant_scope(
         vec![(403, serde_json::json!({"secret":"fake-response-secret"}))],
         vw_api_transport::TenantScope::new("p", "a").unwrap(),

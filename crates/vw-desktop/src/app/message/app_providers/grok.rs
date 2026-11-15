@@ -31,7 +31,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<GrokFormView, String> {
-    client
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .grok_form_read(id, &GrokTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
@@ -58,6 +58,7 @@ pub(crate) async fn save(
         api_key,
         apply: draft.apply,
     };
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let result = if matches!(form.mode, Mode::Create) {
         client.grok_form_create(&form.id, &request, &token).await
     } else {

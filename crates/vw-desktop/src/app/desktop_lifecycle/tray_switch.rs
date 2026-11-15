@@ -89,7 +89,7 @@ pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
                         .await
                 }
                 AppId::GrokBuild => {
-                    client
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                         .grok_provider_switch(
                             &worker_id,
                             &GrokTarget { target_host_id: host },

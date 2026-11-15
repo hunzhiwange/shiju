@@ -229,3 +229,9 @@ mod claude_desktop;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/claude_desktop_tests.rs"]
 mod claude_desktop_tests;
+
+#[path = "app_providers/grok.rs"]
+mod grok;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/grok_tests.rs"]
+mod grok_tests;

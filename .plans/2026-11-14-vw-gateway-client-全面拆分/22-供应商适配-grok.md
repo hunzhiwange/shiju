@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：22，线性顺序 22；依赖：前一批次 21。符号依赖卡：无额外前置。不并行。
 
@@ -32,3 +32,12 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-app-provider crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 本卡实现与静态证据
+
+- grok.rs 的六个公开入口及私有 grok_request 归属 gateway-app-provider/src/app_providers/grok.rs；原模块仅显式转发。
+- grok_tests.rs 两个既有行为测试迁至领域库独立文件，复用领域 test_support 工厂；请求捕获及安全断言保留。
+- 桌面表单、托盘切换及 vw-agent 的 Grok 测试夹具直达领域客户端；四包搜索未发现 CLI/TUI 调用。
+- 前置提交 bf488d917 及目标 GatewayAppProviderClient、GatewayTransport 已落地；workspace 和消费者依赖已齐备，无清单变更。
+- git diff --check 通过；已静态核对方法、路径、正文、敏感请求头、租户上下文、错误及 wasm 拒绝分支。领域库搜索中的 vw_gateway_client 仅为既有 tracing target 字符串，无反向依赖。
+- 按用户覆盖要求，未运行 Cargo、测试及实机验证；后续统一验证，当前不保留待回归。

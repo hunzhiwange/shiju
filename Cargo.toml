@@ -72,6 +72,7 @@ members = [
   "crates/libs/session-port",
   "crates/libs/app-operations",
   "crates/libs/channel-types",
+  "crates/libs/channel-support",
   "crates/libs/runtime-types",
   "crates/libs/desktop-voice",
   "crates/libs/app-discovery",

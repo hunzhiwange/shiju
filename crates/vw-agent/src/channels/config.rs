@@ -50,9 +50,7 @@ mod config_tests;
 /// // 配置值小于最小阈值，使用最小阈值
 /// assert_eq!(effective_channel_message_timeout_secs(5), MIN_CHANNEL_MESSAGE_TIMEOUT_SECS);
 /// ```
-pub(crate) fn effective_channel_message_timeout_secs(configured: u64) -> u64 {
-    configured.max(MIN_CHANNEL_MESSAGE_TIMEOUT_SECS)
-}
+pub(crate) use channel_support::config::effective_channel_message_timeout_secs;
 
 /// 计算通道消息的超时预算（秒）
 ///
@@ -82,43 +80,9 @@ pub(crate) fn effective_channel_message_timeout_secs(configured: u64) -> u64 {
 /// let budget = channel_message_timeout_budget_secs(30, 3);
 /// // budget = 30 * min(3, SCALE_CAP)
 /// ```
-pub(crate) fn channel_message_timeout_budget_secs(
-    message_timeout_secs: u64,
-    max_iterations: usize,
-) -> u64 {
-    // 确保迭代次数至少为 1，避免除零错误
-    let iterations = max_iterations.max(1) as u64;
-    // 限制缩放因子的最大值，防止预算过大
-    let scale = iterations.min(CHANNEL_MESSAGE_TIMEOUT_SCALE_CAP);
-    // 饱和乘法，防止整数溢出
-    message_timeout_secs.saturating_mul(scale)
-}
+pub(crate) use channel_support::config::channel_message_timeout_budget_secs;
 
-/// 获取运行时配置存储的全局单例
-///
-/// 提供一个全局的、线程安全的配置状态存储，用于缓存已加载的配置。
-/// 使用 `OnceLock` 确保存储只初始化一次。
-///
-/// # 返回值
-///
-/// 返回配置存储的静态引用，类型为 `Mutex<HashMap<PathBuf, RuntimeConfigState>>`
-///
-/// # 线程安全
-///
-/// - 使用 `OnceLock` 保证单例初始化的线程安全
-/// - 使用 `Mutex` 保护内部 HashMap 的并发访问
-///
-/// # 示例
-///
-/// ```ignore
-/// let store = runtime_config_store();
-/// let mut cache = store.lock().unwrap();
-/// cache.insert(path, state);
-/// ```
-pub(crate) fn runtime_config_store() -> &'static Mutex<HashMap<PathBuf, RuntimeConfigState>> {
-    static STORE: OnceLock<Mutex<HashMap<PathBuf, RuntimeConfigState>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(HashMap::new()))
-}
+pub(crate) use channel_support::config::runtime_config_store;
 
 /// 解析配置中的默认 Provider
 ///
@@ -136,12 +100,7 @@ pub(crate) fn runtime_config_store() -> &'static Mutex<HashMap<PathBuf, RuntimeC
 /// # 默认值
 ///
 /// 如果配置中未指定，默认使用 `"zhipuai-coding-plan"`
-pub(crate) fn resolved_default_provider(config: &Config) -> String {
-    main_agent_model_binding(config)
-        .map(|(provider, _)| provider.to_string())
-        .or_else(|| config.default_provider.clone())
-        .unwrap_or_else(|| "zhipuai-coding-plan".to_string())
-}
+pub(crate) use channel_support::config::resolved_default_provider;
 
 /// 解析配置中的默认 Model
 ///
@@ -159,86 +118,13 @@ pub(crate) fn resolved_default_provider(config: &Config) -> String {
 /// # 默认值
 ///
 /// 如果配置中未指定，默认使用 `"zhipuai-coding-plan/glm-5"`
-pub(crate) fn resolved_default_model(config: &Config) -> String {
-    main_agent_model_binding(config)
-        .map(|(provider, model)| format!("{provider}/{model}"))
-        .or_else(|| config.default_model.clone())
-        .unwrap_or_else(|| "zhipuai-coding-plan/glm-5".to_string())
-}
+pub(crate) use channel_support::config::resolved_default_model;
 
-fn main_agent_model_binding(config: &Config) -> Option<(&str, &str)> {
-    let main = config.agents.get("main")?;
-    let provider = main.provider.trim();
-    let model = main.model.trim();
-    if provider.is_empty() || model.is_empty() { None } else { Some((provider, model)) }
-}
 
-/// 从配置对象构建通道运行时默认值
-///
-/// 将配置文件中的参数提取并构建为运行时默认值结构体。
-///
-/// # 参数
-///
-/// - `config`: 配置对象的引用
-///
-/// # 返回值
-///
-/// 返回构建的 `ChannelRuntimeDefaults` 实例
-///
-/// # 提取的字段
-///
-/// - `default_provider`: 默认 Provider
-/// - `model`: 默认模型
-/// - `temperature`: 温度参数
-/// - `api_key`: API 密钥（可选）
-/// - `api_url`: API 地址（可选）
-/// - `reliability`: 可靠性配置
-pub(crate) fn runtime_defaults_from_config(config: &Config) -> ChannelRuntimeDefaults {
-    ChannelRuntimeDefaults {
-        default_provider: resolved_default_provider(config),
-        model: resolved_default_model(config),
-        temperature: config.default_temperature,
-        api_key: config.api_key.clone(),
-        api_url: config.api_url.clone(),
-        reliability: config.reliability.clone(),
-    }
-}
 
-/// 从配置对象构建运行时自主策略
-///
-/// 提取配置中的自主性策略参数，用于控制代理的自动批准和交互行为。
-///
-/// # 参数
-///
-/// - `config`: 配置对象的引用
-///
-/// # 返回值
-///
-/// 返回构建的 `RuntimeAutonomyPolicy` 实例
-///
-/// # 策略字段
-///
-/// - `auto_approve`: 自动批准的工具列表
-/// - `always_ask`: 总是询问的工具列表
-/// - `non_cli_excluded_tools`: 非 CLI 环境下排除的工具
-/// - `non_cli_approval_approvers`: 非 CLI 环境下的审批者配置
-/// - `non_cli_natural_language_approval_mode`: 自然语言审批模式
-/// - `non_cli_natural_language_approval_mode_by_channel`: 按通道的自然语言审批模式
-pub(crate) fn runtime_autonomy_policy_from_config(config: &Config) -> RuntimeAutonomyPolicy {
-    RuntimeAutonomyPolicy {
-        auto_approve: config.autonomy.auto_approve.clone(),
-        always_ask: config.autonomy.always_ask.clone(),
-        non_cli_excluded_tools: config.autonomy.non_cli_excluded_tools.clone(),
-        non_cli_approval_approvers: config.autonomy.non_cli_approval_approvers.clone(),
-        non_cli_natural_language_approval_mode: config
-            .autonomy
-            .non_cli_natural_language_approval_mode,
-        non_cli_natural_language_approval_mode_by_channel: config
-            .autonomy
-            .non_cli_natural_language_approval_mode_by_channel
-            .clone(),
-    }
-}
+pub(crate) use channel_support::config::runtime_defaults_from_config;
+
+pub(crate) use channel_support::config::runtime_autonomy_policy_from_config;
 
 /// 计算运行时配置文件的路径
 ///
@@ -321,163 +207,11 @@ pub(crate) fn snapshot_non_cli_excluded_tools(ctx: &ChannelRuntimeContext) -> Ve
     ctx.non_cli_excluded_tools.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
-/// 获取配置文件的时间戳信息
-///
-/// 读取文件的元数据以获取修改时间和大小，用于检测配置文件变化。
-///
-/// # 参数
-///
-/// - `path`: 配置文件路径的引用
-///
-/// # 返回值
-///
-/// - 成功：返回 `Some(ConfigFileStamp)`，包含修改时间和文件大小
-/// - 失败或 WASM 环境：返回 `None`
-///
-/// # 平台差异
-///
-/// - 在非 WASM 环境：使用 `tokio::fs` 异步读取文件元数据
-/// - 在 WASM 环境：直接返回 `None`（不支持文件系统访问）
-///
-/// # 错误处理
-///
-/// 文件访问或元数据读取失败时，静默返回 `None`
-pub(crate) async fn config_file_stamp(path: &Path) -> Option<ConfigFileStamp> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        // 异步读取文件元数据
-        let metadata = tokio::fs::metadata(path).await.ok()?;
-        // 获取文件修改时间
-        let modified = metadata.modified().ok()?;
-        Some(ConfigFileStamp { modified, len: metadata.len() })
-    }
-    #[cfg(target_arch = "wasm32")]
-    None
-}
+pub(crate) use channel_support::config::config_file_stamp;
 
-/// 为运行时重载解密可选的敏感字段
-///
-/// 检查并解密配置字段中的加密值，用于配置重新加载时的敏感信息处理。
-///
-/// # 参数
-///
-/// - `store`: 密钥存储的引用
-/// - `value`: 需要解密的字段值（可变引用）
-/// - `field_name`: 字段名称（用于错误消息）
-///
-/// # 返回值
-///
-/// - 成功：返回 `Ok(())`
-/// - 解密失败：返回带有上下文信息的错误
-///
-/// # 工作流程
-///
-/// 1. 克隆字段值进行检查
-/// 2. 判断值是否被加密（通过 `is_encrypted` 方法）
-/// 3. 如果加密，调用存储的 `decrypt` 方法解密
-/// 4. 更新原始字段值为解密后的明文
-pub(crate) fn decrypt_optional_secret_for_runtime_reload(
-    store: &crate::app::agent::security::SecretStore,
-    value: &mut Option<String>,
-    field_name: &str,
-) -> Result<()> {
-    // 检查字段是否有值
-    if let Some(raw) = value.clone() {
-        // 检查值是否被加密
-        if crate::app::agent::security::SecretStore::is_encrypted(&raw) {
-            // 解密并更新字段值
-            *value = Some(
-                store.decrypt(&raw).with_context(|| format!("Failed to decrypt {field_name}"))?,
-            );
-        }
-    }
-    Ok(())
-}
+pub(crate) use channel_support::config::decrypt_optional_secret_for_runtime_reload;
 
-/// 从配置文件加载运行时默认值和自主策略
-///
-/// 读取并解析配置文件，解密敏感信息，应用环境变量覆盖，
-/// 返回构建好的默认值和策略对象。
-///
-/// # 参数
-///
-/// - `path`: 配置文件路径的引用
-///
-/// # 返回值
-///
-/// - 成功：返回 `Ok((ChannelRuntimeDefaults, RuntimeAutonomyPolicy))`
-/// - 失败：返回错误（文件读取失败、解析失败、解密失败等）
-///
-/// # 平台支持
-///
-/// - **非 WASM**：正常执行配置加载
-/// - **WASM**：直接返回错误（不支持配置加载）
-///
-/// # 工作流程
-///
-/// 1. 异步读取文件内容
-/// 2. 解析 TOML 格式的配置
-/// 3. 设置配置路径
-/// 4. 初始化密钥存储并解密 API Key
-/// 5. 应用环境变量覆盖
-/// 6. 构建并返回默认值和策略
-///
-/// # 安全考虑
-///
-/// - API Key 支持加密存储
-/// - 使用专用的 SecretStore 处理解密
-/// - 解密失败会返回明确的错误信息
-pub(crate) async fn load_runtime_defaults_from_config_file(
-    path: &Path,
-) -> Result<(
-    ChannelRuntimeDefaults,
-    RuntimeAutonomyPolicy,
-    crate::app::agent::config::ChannelsConfig,
-)> {
-    // WASM 环境不支持配置加载
-    #[cfg(target_arch = "wasm32")]
-    anyhow::bail!("Config loading not supported in WASM");
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        // 异步读取配置文件内容
-        let contents = tokio::fs::read_to_string(path)
-            .await
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-
-        // 解析 TOML 格式的配置
-        let mut parsed: Config = toml::from_str(&contents)
-            .with_context(|| format!("Failed to parse {}", path.display()))?;
-
-        // 设置配置文件路径（用于后续的相对路径解析）
-        parsed.config_path = path.to_path_buf();
-
-        // 尝试解密配置中的敏感字段
-        if let Some(vibewindow_dir) = path.parent() {
-            // 初始化密钥存储
-            let store = crate::app::agent::security::SecretStore::new(
-                vibewindow_dir,
-                parsed.secrets.encrypt,
-            );
-            // 解密 API Key
-            decrypt_optional_secret_for_runtime_reload(
-                &store,
-                &mut parsed.api_key,
-                "config.api_key",
-            )?;
-        }
-
-        // 应用环境变量覆盖（优先级最高）
-        apply_env_overrides(&mut parsed);
-
-        // 构建并返回默认值和策略
-        Ok((
-            runtime_defaults_from_config(&parsed),
-            runtime_autonomy_policy_from_config(&parsed),
-            parsed.channels_config,
-        ))
-    }
-}
+pub(crate) use channel_support::config::load_runtime_defaults_from_config_file;
 
 /// 检测并应用运行时配置更新
 ///
@@ -551,7 +285,7 @@ pub(crate) async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContex
 
     // 创建新的 Provider 实例（带弹性策略）
     let next_default_provider =
-        crate::app::agent::providers::create_resilient_provider_with_options(
+        agent_providers::create_resilient_provider_with_options(
             &next_defaults.default_provider,
             next_defaults.api_key.as_deref(),
             next_defaults.api_url.as_deref(),

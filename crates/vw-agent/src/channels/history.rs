@@ -131,14 +131,13 @@ pub(crate) fn normalize_cached_channel_turns(turns: Vec<ChatMessage>) -> Vec<Cha
 /// clear_sender_history(&ctx, &sender_key);
 /// ```
 pub(crate) fn clear_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str) {
-    ctx.conversation_histories.lock().unwrap_or_else(|e| e.into_inner()).remove(sender_key);
+    channel_support::history::clear_sender_history(&ctx.conversation_histories, sender_key)
 }
 
 /// Append raw history without changing earlier message boundaries or contents.
 /// Model context is bounded by the session processor's checkpoints.
 pub(crate) fn append_sender_turn(ctx: &ChannelRuntimeContext, sender_key: &str, turn: ChatMessage) {
-    let mut histories = ctx.conversation_histories.lock().unwrap_or_else(|e| e.into_inner());
-    histories.entry(sender_key.to_string()).or_default().push(turn);
+    channel_support::history::append_sender_turn(&ctx.conversation_histories, sender_key, turn)
 }
 
 /// 回滚孤立的用户轮次
@@ -178,30 +177,8 @@ pub(crate) fn append_sender_turn(ctx: &ChannelRuntimeContext, sender_key: &str, 
 ///     println!("Successfully rolled back orphan user turn");
 /// }
 /// ```
-pub(crate) fn rollback_orphan_user_turn(
-    ctx: &ChannelRuntimeContext,
-    sender_key: &str,
-    expected_content: &str,
-) -> bool {
-    let mut histories = ctx.conversation_histories.lock().unwrap_or_else(|e| e.into_inner());
-    let Some(turns) = histories.get_mut(sender_key) else {
-        return false;
-    };
-
-    // 验证最后一条是否为匹配内容的用户消息
-    let should_pop =
-        turns.last().is_some_and(|turn| turn.role == "user" && turn.content == expected_content);
-    if !should_pop {
-        return false;
-    }
-
-    // 移除该轮次
-    turns.pop();
-    // 如果历史为空，移除整个发送者条目以释放内存
-    if turns.is_empty() {
-        histories.remove(sender_key);
-    }
-    true
+pub(crate) fn rollback_orphan_user_turn(ctx: &ChannelRuntimeContext, sender_key: &str, expected_content: &str) -> bool {
+    channel_support::history::rollback_orphan_user_turn(&ctx.conversation_histories, sender_key, expected_content)
 }
 
 #[cfg(test)]

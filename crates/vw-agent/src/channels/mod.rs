@@ -178,9 +178,6 @@ pub(crate) use session::*;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
-#[cfg(test)]
-#[path = "outbound_format_tests.rs"]
-mod outbound_format_tests;
 
 use crate::app::agent::agent::loop_::{
     build_shell_policy_instructions, build_tool_instructions_from_specs, scrub_credentials,
@@ -204,7 +201,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 
 // ============================================================================
@@ -249,20 +246,11 @@ const DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS: u64 = 2;
 /// 指数退避算法的上限，避免无限增长导致过长的等待。
 const DEFAULT_CHANNEL_MAX_BACKOFF_SECS: u64 = 60;
 
-/// 通道消息处理的最小超时时间（秒）。
-/// 即使配置了更小的值，也不会低于此下限。
-const MIN_CHANNEL_MESSAGE_TIMEOUT_SECS: u64 = 30;
-
 /// 处理单个通道消息的默认超时时间（秒）。
 ///
 /// 包含 LLM 调用和工具执行的完整周期。
 /// 当 `channels_config.message_timeout_secs` 未配置时作为回退值。
 const CHANNEL_MESSAGE_TIMEOUT_SECS: u64 = 300;
-
-/// 超时缩放上限系数。
-/// 防止过大的 `max_iterations` 配置导致无界等待。
-/// 实际超时 = 基础超时 × min(缩放系数, 此上限)
-const CHANNEL_MESSAGE_TIMEOUT_SCALE_CAP: u64 = 4;
 
 /// 每个通道的并行处理消息数。
 /// 单个通道实例可同时处理的消息上限。
@@ -398,71 +386,9 @@ struct ModelCacheEntry {
     pub(crate) models: Vec<String>,
 }
 
-/// 通道运行时默认配置。
-///
-/// 包含通道启动时所需的默认值，如默认提供者、模型、
-/// 温度参数以及可靠性配置。
-#[derive(Debug, Clone)]
-pub(crate) struct ChannelRuntimeDefaults {
-    /// 默认的服务提供者名称
-    pub(crate) default_provider: String,
-    /// 默认使用的模型标识符
-    pub(crate) model: String,
-    /// 生成温度参数（0.0-2.0）
-    pub(crate) temperature: f64,
-    /// 可选的 API 密钥
-    pub(crate) api_key: Option<String>,
-    /// 可选的 API 端点 URL
-    pub(crate) api_url: Option<String>,
-    /// 可靠性配置（重试、超时等）
-    pub(crate) reliability: crate::app::agent::config::ReliabilityConfig,
-}
-
-/// 配置文件时间戳。
-///
-/// 用于检测配置文件是否已更改，
-/// 通过修改时间和文件长度共同判断。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ConfigFileStamp {
-    /// 文件最后修改时间
-    pub(crate) modified: SystemTime,
-    /// 文件字节长度
-    pub(crate) len: u64,
-}
-
-/// 运行时配置状态。
-///
-/// 维护当前生效的配置及上次应用配置的时间戳，
-/// 用于热重载时比较配置是否需要更新。
-#[derive(Debug, Clone)]
-pub(crate) struct RuntimeConfigState {
-    /// 当前生效的运行时默认配置
-    pub(crate) defaults: ChannelRuntimeDefaults,
-    /// 上次应用配置时的文件时间戳
-    pub(crate) last_applied_stamp: Option<ConfigFileStamp>,
-}
-
-/// 运行时自治策略。
-///
-/// 定义非 CLI 通道（如 Telegram、Discord）的工具审批行为，
-/// 包括自动批准的工具列表、始终询问的工具列表，
-/// 以及自然语言审批模式配置。
-#[derive(Debug, Clone)]
-pub(crate) struct RuntimeAutonomyPolicy {
-    /// 自动批准的工具名称列表
-    pub(crate) auto_approve: Vec<String>,
-    /// 始终需要用户确认的工具名称列表
-    pub(crate) always_ask: Vec<String>,
-    /// 非 CLI 环境下排除的工具列表
-    pub(crate) non_cli_excluded_tools: Vec<String>,
-    /// 非 CLI 环境下有权审批的用户列表
-    pub(crate) non_cli_approval_approvers: Vec<String>,
-    /// 全局自然语言审批模式
-    pub(crate) non_cli_natural_language_approval_mode: NonCliNaturalLanguageApprovalMode,
-    /// 按通道细分的自然语言审批模式
-    pub(crate) non_cli_natural_language_approval_mode_by_channel:
-        HashMap<String, NonCliNaturalLanguageApprovalMode>,
-}
+pub(crate) use channel_support::config::{
+    ChannelRuntimeDefaults, ConfigFileStamp, RuntimeAutonomyPolicy, RuntimeConfigState,
+};
 
 /// 通道运行时上下文。
 ///

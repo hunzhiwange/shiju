@@ -1,4 +1,4 @@
-use super::outbound_format::{
+use super::{
     format_wecom_markdown_tables, normalize_chat_markdown, normalize_feishu_markdown,
 };
 

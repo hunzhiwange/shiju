@@ -285,6 +285,7 @@ members = [
   "crates/libs/api-transport",
   "crates/libs/api-chat-identity",
   "crates/libs/agent-database",
+  "crates/libs/agent-usage",
   "crates/libs/config-runtime-paths",
   "crates/libs/config-acp-install",
   "crates/libs/agent-async",

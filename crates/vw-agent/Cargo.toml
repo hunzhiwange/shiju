@@ -158,6 +158,7 @@ config-provider = { path = "../libs/config-provider", version = "0.6.0" }
 vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }
 config-acp-install = { path = "../libs/config-acp-install", version = "0.6.0" }
 agent-database = { path = "../libs/agent-database", version = "0.6.0" }
+agent-usage = { path = "../libs/agent-usage", version = "0.6.0" }
 provider-protocol-routes = { path = "../libs/provider-protocol-routes", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 provider-errors = { path = "../libs/provider-errors", version = "0.6.0" }

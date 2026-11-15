@@ -2593,3 +2593,14 @@ McpCatalogDraft、预设与校验的原公开路径保持；data_management::mcp
 静态证据：五文件逐字比对、独立测试注册、unix cfg 原样保留，无资源/include 路径；Python 只读 TOML 解析（现有 pip._vendor.tomli 回退）审阅八个传递生产包，路径存在、无环、无门面回边；workspace 与直接路径依赖注册、源码调用者检索、git diff --check 通过。RustCodeGraph 含前序搬迁前路径，调用关系参考索引并以现有源码核实，未更新索引。Cargo.lock 未修改。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：新库及直接调用者目标编译、迁移的四个预设和九个校验测试、unix 可执行检查及 macOS/Windows/Linux 条件、清单与锁文件一致性。静态审阅不表示行为验收通过。
+
+
+## 任务 40：MCP 原生适配与分发迁移结果
+
+`crates/libs/app-mcp/src/mcp` 唯一拥有原 mcp 的 30 个 Rust 文件，包括全部 12 个适配器、13 个独立测试文件、模块根、native_file、import 和 distribution；Codex fixture 同步迁至 app-mcp/tests/fixtures/mcp。此节覆盖历史所有权表任务 40 的原路径。原包 mcp/mod.rs 仅重导出 app_mcp::mcp，lib.rs 的模块接线无需变更。
+
+native_capability、adapters、native_file、import 与 distribution 的公开路径保持，vw-agent 的 MCP 执行器及网关 read_catalog 继续沿用门面。全部实现闭合依赖，原生分发直接连接既有 app-auth、app-provider-native 和 app-config-paths，无需留存后继符号。内部 providers 仅显式连接存储所有者，app-providers::grok 仅供迁移测试使用。
+
+静态证据：30 个 Rust 文件与 HEAD 原文件逐字一致；macOS cfg、独立测试注册、dsh/opencode 的包内 path、支持矩阵和 native_file 写入边界原样保留。Python 标准库路径检查通过，include_str fixture 有效；新包无旧门面回依赖；workspace 与旧包直接依赖已注册。当前 Python 无 tomllib，改为人工审阅 TOML 的依赖、平台和特性，并以标准库核实路径。旧包依赖仍有其它领域调用者，保留。
+
+未运行 Cargo、单元及实机测试，统一验收待授权；需覆盖 app-mcp 与直接调用者编译、迁移单测及三平台原生行为。Cargo.lock 未触碰。

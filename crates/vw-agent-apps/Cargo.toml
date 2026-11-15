@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-mcp = { path = "../libs/app-mcp" }
 app-mcp-catalog = { path = "../libs/app-mcp-catalog" }
 app-operations = { path = "../libs/app-operations" }
 app-launch = { path = "../libs/app-launch" }

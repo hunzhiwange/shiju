@@ -1,5 +1,6 @@
 use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
 
 #[test]
 fn trae_unreviewed_or_conflicting_launch_cannot_publish_credentials() {
@@ -10,7 +11,7 @@ fn trae_unreviewed_or_conflicting_launch_cannot_publish_credentials() {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: Default::default(),
             project: "project".into(),
             session: "trae-rejected".into(),
             provider: "provider".into(),

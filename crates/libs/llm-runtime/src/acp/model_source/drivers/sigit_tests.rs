@@ -1,5 +1,6 @@
 use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
 
 fn profile(args: &[&str]) -> AcpLaunchProfile {
     let mut launch = AcpLaunchProfile::new(
@@ -9,7 +10,7 @@ fn profile(args: &[&str]) -> AcpLaunchProfile {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: Default::default(),
             project: "sigit-fixture".into(),
             session: "isolated".into(),
             provider: "fixture".into(),
@@ -42,7 +43,7 @@ fn acp_onboarding_sigit_model_binding_is_private_and_conflicts_fail_closed() {
     let mut launch = profile(&["--acp"]);
     assert!(configure(&mut launch, "https://example.test").is_err());
     let mut config = profile(&["--acp"]).config().clone();
-    config.env.remove(crate::session::llm::acp::model_source::profile::REFERENCE_ENV);
+    config.env.remove(super::super::super::profile::REFERENCE_ENV);
     config.env.insert("SIGIT_MODEL".into(), "other".into());
     let identity = profile(&["--acp"]).binding.identity().clone();
     let mut launch = AcpLaunchProfile::new(&config, identity).unwrap();

@@ -1,5 +1,6 @@
 use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
 
 fn profile() -> AcpLaunchProfile {
     AcpLaunchProfile::new(
@@ -14,7 +15,7 @@ fn profile() -> AcpLaunchProfile {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: Default::default(),
             project: "qwen-test".into(),
             session: "isolated".into(),
             provider: "fixture".into(),

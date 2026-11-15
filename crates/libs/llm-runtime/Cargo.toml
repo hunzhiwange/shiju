@@ -48,6 +48,11 @@ tempfile = "3"
 libc = "0.2"
 toml = "0.9"
 url = "2"
+getrandom = "0.4"
+shell-command = { path = "../shell-command", version = "0.6.0" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }

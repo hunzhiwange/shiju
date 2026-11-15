@@ -1,11 +1,12 @@
 use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
 
 fn profile() -> AcpLaunchProfile {
     let mut profile = AcpLaunchProfile::new(
         &AcpAgentConfig { command: "vibe-acp".into(), ..Default::default() },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: Default::default(),
             project: "project".into(),
             session: "session".into(),
             provider: "provider".into(),
@@ -14,7 +15,7 @@ fn profile() -> AcpLaunchProfile {
         },
     )
     .unwrap();
-    profile.model_api = Some(crate::provider::provider::ApiInfo {
+    profile.model_api = Some(model_types::ApiInfo {
         protocols: None,
         id: "selected".into(),
         url: "https://example.invalid/v1".into(),

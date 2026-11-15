@@ -1,5 +1,6 @@
 use super::*;
-use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
+use agent_config::schema::AcpAgentConfig;
+use model_transport::RelayIdentity;
 
 #[test]
 fn qoder_unreviewed_command_cannot_write_launch_material() {
@@ -10,7 +11,7 @@ fn qoder_unreviewed_command_cannot_write_launch_material() {
             ..Default::default()
         },
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: Default::default(),
             project: "project".into(),
             session: "qoder-rejected".into(),
             provider: "provider".into(),

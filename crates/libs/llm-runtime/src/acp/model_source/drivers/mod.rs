@@ -17,6 +17,15 @@ pub mod iflow;
 pub mod kilocode;
 pub mod kimi;
 pub mod kiro;
+pub mod openclaw;
+pub mod opencode;
+pub mod pi;
+pub mod qoder;
+pub mod qwen;
+pub mod sigit;
+pub mod snow;
+pub mod trae;
+pub mod vibe;
 
 /// This advertises reviewed CLI binding support, not availability for every model.
 /// Each selected model must pass launch_route before private configuration is written.

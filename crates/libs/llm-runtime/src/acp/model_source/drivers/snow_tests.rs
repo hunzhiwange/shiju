@@ -1,10 +1,10 @@
 use super::*;
-use crate::model_relay::RelayIdentity;
-fn profile(config: &crate::config::schema::AcpAgentConfig) -> AcpLaunchProfile {
+use model_transport::RelayIdentity;
+fn profile(config: &agent_config::schema::AcpAgentConfig) -> AcpLaunchProfile {
     let mut profile = AcpLaunchProfile::new(
         config,
         RelayIdentity {
-            tenant: crate::session::ui_store::current_tenant_scope(),
+            tenant: Default::default(),
             project: "project".into(),
             session: "session".into(),
             provider: "provider".into(),
@@ -13,7 +13,7 @@ fn profile(config: &crate::config::schema::AcpAgentConfig) -> AcpLaunchProfile {
         },
     )
     .unwrap();
-    profile.model_api = Some(crate::provider::provider::ApiInfo {
+    profile.model_api = Some(model_types::ApiInfo {
         protocols: None,
         id: "selected-model".into(),
         url: "https://example.invalid/v1".into(),
@@ -24,7 +24,7 @@ fn profile(config: &crate::config::schema::AcpAgentConfig) -> AcpLaunchProfile {
 
 #[test]
 fn acp_model_source_snow_private_config_and_revocation() {
-    let config = crate::config::schema::AcpAgentConfig {
+    let config = agent_config::schema::AcpAgentConfig {
         command: "snow".into(),
         args: vec!["--acp".into()],
         ..Default::default()

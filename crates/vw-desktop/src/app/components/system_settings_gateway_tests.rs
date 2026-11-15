@@ -270,7 +270,7 @@ fn view_builds_empty_and_populated_gateway_states() {
     populated.gateway_settings.auth_enabled = true;
     populated.gateway_settings.allow_public_bind = true;
     populated.gateway_settings.trust_forwarded_headers = true;
-    populated.gateway_settings.skeys = vec![vw_config_types::gateway::GatewaySkey {
+    populated.gateway_settings.skeys = vec![config_gateway::GatewaySkey {
         enabled: true,
         skey: None,
         skey_hash: "a".repeat(64),
@@ -303,7 +303,7 @@ fn view_handles_skeys_tab_with_empty_skeys() {
 fn view_handles_skey_with_empty_name_and_hash_fallback_display() {
     let mut app = test_app();
     app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
-    app.gateway_settings.skeys = vec![vw_config_types::gateway::GatewaySkey {
+    app.gateway_settings.skeys = vec![config_gateway::GatewaySkey {
         enabled: true,
         skey: None,
         skey_hash: "abcdef1234567890abcdef1234567890".to_string(),
@@ -318,7 +318,7 @@ fn view_handles_skey_with_empty_name_and_hash_fallback_display() {
 fn view_handles_skey_with_expires_at() {
     let mut app = test_app();
     app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
-    app.gateway_settings.skeys = vec![vw_config_types::gateway::GatewaySkey {
+    app.gateway_settings.skeys = vec![config_gateway::GatewaySkey {
         enabled: false,
         skey: None,
         skey_hash: "b".repeat(64),
@@ -334,7 +334,7 @@ fn view_handles_multiple_skeys_with_scrollable_list() {
     let mut app = test_app();
     app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
     app.gateway_settings.skeys = (0..15)
-        .map(|i| vw_config_types::gateway::GatewaySkey {
+        .map(|i| config_gateway::GatewaySkey {
             enabled: i % 2 == 0,
             skey: None,
             skey_hash: format!("skey-hash-{i}"),

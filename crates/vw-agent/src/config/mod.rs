@@ -87,7 +87,7 @@ fn hydrate_gateway_skeys_from_store(
 
 pub(crate) async fn load_gateway_skeys_for_tenant(
     tenant: &TenantScope,
-) -> Result<Vec<vw_config_types::gateway::GatewaySkey>, Error> {
+) -> Result<Vec<config_gateway::GatewaySkey>, Error> {
     let tenant = tenant.clone();
     let load = move || {
         gateway_skey_store()?.load(&tenant).map_err(|error| Error::Invalid(error.to_string()))
@@ -101,7 +101,7 @@ pub(crate) async fn load_gateway_skeys_for_tenant(
 
 pub(crate) async fn replace_gateway_skeys_for_tenant(
     tenant: &TenantScope,
-    skeys: &[vw_config_types::gateway::GatewaySkey],
+    skeys: &[config_gateway::GatewaySkey],
 ) -> Result<(), Error> {
     let tenant = tenant.clone();
     let skeys = skeys.to_vec();
@@ -116,14 +116,14 @@ pub(crate) async fn replace_gateway_skeys_for_tenant(
 
 fn take_gateway_skeys_from_patch(
     patch: &mut Value,
-) -> Result<Option<Vec<vw_config_types::gateway::GatewaySkey>>, Error> {
+) -> Result<Option<Vec<config_gateway::GatewaySkey>>, Error> {
     let Some(gateway) = patch.get_mut("gateway").and_then(Value::as_object_mut) else {
         return Ok(None);
     };
     let Some(skeys_value) = gateway.remove("skeys") else {
         return Ok(None);
     };
-    let skeys = serde_json::from_value::<Vec<vw_config_types::gateway::GatewaySkey>>(skeys_value)
+    let skeys = serde_json::from_value::<Vec<config_gateway::GatewaySkey>>(skeys_value)
         .map_err(Error::Json)?;
     Ok(Some(skeys))
 }

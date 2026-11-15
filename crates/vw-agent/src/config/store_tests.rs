@@ -111,7 +111,7 @@ fn system_config_store_conditional_write_preserves_winner_and_rolls_back_skeys()
         let tenant = TenantScope::new("platform", "company")?;
         let other = TenantScope::new("platform", "other")?;
         let skey_store = GatewaySkeyStore::new(database.clone())?;
-        let skey = serde_json::from_value::<vw_config_types::gateway::GatewaySkey>(
+        let skey = serde_json::from_value::<config_gateway::GatewaySkey>(
             serde_json::json!({"skey_hash": "a".repeat(64)}),
         )?;
         let initial = GatewaySkeyReplacement::new(std::slice::from_ref(&skey))?;

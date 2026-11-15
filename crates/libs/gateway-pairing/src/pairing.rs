@@ -25,7 +25,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 use std::time::Instant;
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 /// 配对尝试失败的最大次数阈值
 ///

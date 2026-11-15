@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 use vw_api_transport::id::TenantScope;
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 #[test]
 fn plugin_name_normalizes_versions_and_file_urls() {

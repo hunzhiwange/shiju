@@ -1,5 +1,5 @@
 use crate::security::{self, pairing};
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 #[tokio::test]
 async fn gateway_pairing_production_boundary() {

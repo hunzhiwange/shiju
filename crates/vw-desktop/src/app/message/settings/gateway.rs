@@ -8,7 +8,7 @@ use chrono::{Datelike, NaiveDate, Utc};
 use iced::Task;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 use super::messages::{GatewayMessage, SettingsMessage};
 

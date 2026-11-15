@@ -556,7 +556,7 @@ async fn ui_refresh_23_scrolls_skeys_and_keeps_row_indices() {
     s.active_tab = GatewaySettingsTab::Skeys;
     s.last_created_skey = Some(format!("fixture-{}", "A".repeat(76)));
     s.skeys = (0..15)
-        .map(|index| vw_config_types::gateway::GatewaySkey {
+        .map(|index| config_gateway::GatewaySkey {
             enabled: true,
             skey: None,
             skey_hash: format!("fictional-hash-{index:02}"),

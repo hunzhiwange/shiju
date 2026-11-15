@@ -260,7 +260,7 @@ async fn global_config_api_projects_shared_skeys_and_ignores_conflicting_legacy_
     store
         .replace_all(
             &TenantScope::default(),
-            &[vw_config_types::gateway::GatewaySkey {
+            &[config_gateway::GatewaySkey {
                 enabled: true,
                 skey: None,
                 skey_hash: "a".repeat(64),

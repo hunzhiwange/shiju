@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
 parking_lot = "0.12"
@@ -15,7 +16,6 @@ rand = "0.10.3"
 sha2 = "0.11"
 tracing = "0.1"
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }

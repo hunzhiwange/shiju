@@ -67,7 +67,7 @@ impl Default for GatewayClientBootstrapConfig {
     fn default() -> Self {
         Self {
             host: "127.0.0.1".to_string(),
-            port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
+            port: config_gateway::DEFAULT_GATEWAY_PORT,
             skey: None,
             platform_id: "10000".to_string(),
             company_id: "100000000".to_string(),

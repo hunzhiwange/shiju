@@ -169,6 +169,6 @@ fn gateway_runtime_for_workspace_uses_current_directory_seed() {
     assert_eq!(runtime.directory(), current_dir.as_path());
     assert_eq!(
         runtime.endpoint().describe(),
-        format!("127.0.0.1:{}", vw_config_types::gateway::DEFAULT_GATEWAY_PORT)
+        format!("127.0.0.1:{}", config_gateway::DEFAULT_GATEWAY_PORT)
     );
 }

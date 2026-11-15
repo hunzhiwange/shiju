@@ -7,7 +7,7 @@ use super::*;
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_embedding_routes_settings(
     full_agent_cfg: &vw_config_types::config::Config,
-    gateway_cfg_result: &Result<vw_config_types::gateway::GatewayConfig, String>,
+    gateway_cfg_result: &Result<config_gateway::GatewayConfig, String>,
 ) -> crate::app::state::EmbeddingRoutesSettingsState {
     crate::app::state::EmbeddingRoutesSettingsState {
         routes: full_agent_cfg
@@ -372,7 +372,7 @@ pub(super) fn build_http_request_settings(
 /// 模块内可见函数，执行 build_gateway_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_gateway_settings(
-    gateway_cfg_result: &Result<vw_config_types::gateway::GatewayConfig, String>,
+    gateway_cfg_result: &Result<config_gateway::GatewayConfig, String>,
 ) -> crate::app::state::GatewaySettingsState {
     let gateway_cfg = gateway_cfg_result.clone().unwrap_or_default();
 
@@ -749,7 +749,7 @@ pub(super) fn build_tunnel_settings(
 pub(super) fn apply_bootstrap_agent_config(
     app: &mut App,
     full_agent_cfg: &vw_config_types::config::Config,
-    gateway: &vw_config_types::gateway::GatewayConfig,
+    gateway: &config_gateway::GatewayConfig,
 ) {
     // Control state is read through its authenticated API, never inferred from config.
     #[cfg(not(target_arch = "wasm32"))]

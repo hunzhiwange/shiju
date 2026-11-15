@@ -3,7 +3,7 @@
 use crate::app::state::TunnelSettingsState;
 use crate::app::{App, Message, update_tunnel_config_async};
 use iced::Task;
-use vw_config_types::gateway::{
+use config_gateway::{
     CloudflareTunnelConfig, CustomTunnelConfig, NgrokTunnelConfig, TailscaleTunnelConfig,
     TunnelConfig,
 };

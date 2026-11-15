@@ -258,7 +258,7 @@ fn gateway_preflight_outcome_reports_started_flag() {
 fn bootstrap_config_defaults_and_json_mapping_are_stable() {
     let mut config = GatewayClientBootstrapConfig::default();
     assert_eq!(config.host, "127.0.0.1");
-    assert_eq!(config.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
+    assert_eq!(config.port, config_gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.platform_id, "10000");
     assert_eq!(config.company_id, "100000000");
     assert!(config.endpoint().auth.is_none());
@@ -376,7 +376,7 @@ fn bootstrap_json_mapping_ignores_invalid_ports_and_prefers_skey_over_bearer_tok
     }));
 
     assert_eq!(config.host, "gateway.example");
-    assert_eq!(config.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
+    assert_eq!(config.port, config_gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.skey.as_deref(), Some("primary"));
 
     config.apply_json_root(&serde_json::json!({
@@ -387,7 +387,7 @@ fn bootstrap_json_mapping_ignores_invalid_ports_and_prefers_skey_over_bearer_tok
         }
     }));
 
-    assert_eq!(config.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
+    assert_eq!(config.port, config_gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.skey.as_deref(), Some("bearer"));
 }
 

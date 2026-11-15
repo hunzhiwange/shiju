@@ -341,7 +341,7 @@ fn default_gateway_client_host() -> String {
 }
 
 fn default_gateway_client_port() -> u16 {
-    crate::gateway::DEFAULT_GATEWAY_PORT
+    config_gateway::DEFAULT_GATEWAY_PORT
 }
 
 fn default_platform_id() -> String {

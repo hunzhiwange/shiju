@@ -50,7 +50,7 @@ impl App {
     pub(crate) fn apply_startup_agent_config(
         &mut self,
         config: &vw_config_types::config::Config,
-        gateway: &vw_config_types::gateway::GatewayConfig,
+        gateway: &config_gateway::GatewayConfig,
     ) {
         settings::apply_bootstrap_agent_config(self, config, gateway);
     }

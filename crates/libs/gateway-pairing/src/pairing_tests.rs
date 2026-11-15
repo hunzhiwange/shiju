@@ -1,7 +1,7 @@
 //! 验证配对码、令牌哈希、失败锁定与网关密钥认证。
 
 use super::*;
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 #[test]
 // 认证比较使用恒定时间路径，避免由提前返回泄露匹配前缀。

@@ -1017,7 +1017,7 @@ async fn dashboard_config_skeys_are_isolated_by_tenant_scope() {
 
     for (tenant, name, hash_byte) in [(&first, "first-skey", 'a'), (&second, "second-skey", 'b')] {
         let mut incoming = state.config.lock().clone();
-        incoming.gateway.skeys = vec![vw_config_types::gateway::GatewaySkey {
+        incoming.gateway.skeys = vec![config_gateway::GatewaySkey {
             enabled: true,
             skey: None,
             skey_hash: hash_byte.to_string().repeat(64),

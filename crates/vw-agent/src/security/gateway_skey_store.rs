@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use rusqlite::{TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 use vw_api_transport::id::TenantScope;
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 use crate::app::agent::security::pairing::masked_skey_name;
 use crate::global_database::GlobalDatabase;

@@ -193,7 +193,7 @@ fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
 
     let gateway = GatewaySettingsState::default();
     assert_eq!(gateway.active_tab, GatewaySettingsTab::Config);
-    assert_eq!(gateway.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
+    assert_eq!(gateway.port, config_gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(gateway.host_input, "127.0.0.1");
     assert!(!gateway.auth_enabled);
     assert!(!gateway.allow_public_bind);
@@ -307,7 +307,7 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert_eq!(client.name_input, client.servers[0].name);
     assert!(client.health.is_empty());
     assert_eq!(client.host_input, "127.0.0.1");
-    assert_eq!(client.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
+    assert_eq!(client.port, config_gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(client.platform_id_input, "10000");
     assert_eq!(client.company_id_input, "100000000");
     assert!(client.skey_input.is_empty());

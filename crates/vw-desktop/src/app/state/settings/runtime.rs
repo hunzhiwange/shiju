@@ -364,7 +364,7 @@ pub(crate) struct GatewaySettingsState {
     pub(crate) port: u16,
     pub(crate) host_input: String,
     pub(crate) auth_enabled: bool,
-    pub(crate) skeys: Vec<vw_config_types::gateway::GatewaySkey>,
+    pub(crate) skeys: Vec<config_gateway::GatewaySkey>,
     pub(crate) new_skey_name_input: String,
     pub(crate) new_skey_expires_at_input: String,
     pub(crate) new_skey_calendar_month: String,
@@ -392,7 +392,7 @@ impl Default for GatewaySettingsState {
     fn default() -> Self {
         Self {
             active_tab: GatewaySettingsTab::Config,
-            port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
+            port: config_gateway::DEFAULT_GATEWAY_PORT,
             host_input: "127.0.0.1".to_string(),
             auth_enabled: false,
             skeys: Vec::new(),
@@ -490,7 +490,7 @@ impl Default for GatewayClientSettingsState {
             selected_server_id: server.id.clone(),
             name_input: server.name.clone(),
             host_input: "127.0.0.1".to_string(),
-            port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
+            port: config_gateway::DEFAULT_GATEWAY_PORT,
             platform_id_input: server.platform_id.clone(),
             company_id_input: server.company_id.clone(),
             servers: vec![server],

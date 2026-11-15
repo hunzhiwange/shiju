@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
 gateway-project = { path = "../gateway-project", version = "0.6.0" }
 gateway-config = { path = "../gateway-config", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }

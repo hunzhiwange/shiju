@@ -17,7 +17,7 @@ use std::time::Duration;
 #[cfg(all(not(target_arch = "wasm32"), any(not(windows), test)))]
 use std::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_config_types::gateway::DEFAULT_GATEWAY_PORT;
+use config_gateway::DEFAULT_GATEWAY_PORT;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 #[cfg(not(target_arch = "wasm32"))]

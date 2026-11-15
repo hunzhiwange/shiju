@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result, bail};
 use vw_api_transport::id::TenantScope;
-use vw_config_types::gateway::GatewaySkey;
+use config_gateway::GatewaySkey;
 
 use super::GatewaySkeyReplacement;
 use crate::global_database::GlobalDatabase;

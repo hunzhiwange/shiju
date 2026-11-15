@@ -38,7 +38,7 @@ pub trait ChannelHost: crate::command_host::CommandHost + Send + Sync {
 
     async fn in_tenant_scope(&self, snapshot: &ChannelMessageSnapshot, operation: ScopedFuture<'_>);
     async fn in_scope(&self, snapshot: &ChannelMessageSnapshot, operation: ScopedFuture<'_>);
-    async fn runtime_command(&self, ctx: &ChannelRuntimeContext, msg: &ChannelMessage, channel: Option<&Arc<dyn Channel>>) -> bool;
+    // 命令业务由运行库直接执行；这里只保留会话原始操作。
     async fn session_id(&self, snapshot: &ChannelMessageSnapshot, msg: &ChannelMessage, route: Option<ChannelRouteSelection>) -> Result<String>;
     async fn collect_response(&self, input: ChannelExecutionInput, delta: Option<tokio::sync::mpsc::Sender<String>>) -> Result<ChannelProcessorResponse>;
     fn reap_shell(&self, snapshot: &ChannelMessageSnapshot, session: &str) -> Result<()>;

@@ -21,9 +21,7 @@ impl ChannelHost for RuntimeHost {
         let context = crate::project::instance::Context { directory: snapshot.directory.to_string_lossy().into_owned(), worktree: snapshot.project.worktree.clone(), project: snapshot.project.clone() };
         crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), crate::project::instance::provide_context(context, operation)).await;
     }
-    async fn runtime_command(&self, ctx: &ChannelRuntimeContext, msg: &traits::ChannelMessage, channel: Option<&Arc<dyn Channel>>) -> bool {
-        handle_runtime_command_if_needed(ctx, msg, channel).await
-    }
+    // 命令业务由运行库直接执行；这里只保留会话原始操作。
     async fn session_id(&self, snapshot: &ChannelMessageSnapshot, msg: &traits::ChannelMessage, route: Option<ChannelRouteSelection>) -> Result<String> {
         resolve_or_create_sender_session_id(snapshot, msg, route).await
     }

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use super::launcher::{LaunchProcess, launch_with};
-use vw_gateway_client::ShijuAppLaunchDto;
+use gateway_shiju_app::ShijuAppLaunchDto;
 
 #[derive(Default)]
 struct MemoryProcess {

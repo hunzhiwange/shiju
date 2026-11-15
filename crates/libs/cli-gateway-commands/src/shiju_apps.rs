@@ -6,7 +6,8 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde::Deserialize;
 use serde_json::json;
-use vw_gateway_client::{ShijuAppApiKeyBindingSaveRequest, ShijuCredential, ShijuLoginPollDto};
+use vw_gateway_client::{ShijuCredential, ShijuLoginPollDto};
+use gateway_shiju_app::ShijuAppApiKeyBindingSaveRequest;
 
 use super::context::ApiContext;
 use super::input::read_json_input;
@@ -82,6 +83,7 @@ pub(super) async fn run(
     writer: &mut impl Write,
 ) -> Result<()> {
     let client = context.client();
+    let app_client = gateway_shiju_app::GatewayShijuAppClient::new(client.transport().clone());
     let response = match command {
         ShijuAppsCommands::Login => {
             let challenge = client.shiju_account_login().await.map_err(anyhow::Error::msg)?;
@@ -104,11 +106,11 @@ pub(super) async fn run(
         }
         ShijuAppsCommands::Catalog { input } => {
             let credential = credential(&input, stdin)?;
-            json!(client.shiju_app_catalog(&credential).await.map_err(anyhow::Error::msg)?)
+            json!(app_client.shiju_app_catalog(&credential).await.map_err(anyhow::Error::msg)?)
         }
         ShijuAppsCommands::List { input } => {
             let credential = credential(&input, stdin)?;
-            let apps = client.shiju_apps(&credential).await.map_err(anyhow::Error::msg)?;
+            let apps = app_client.shiju_apps(&credential).await.map_err(anyhow::Error::msg)?;
             json!({"apps":apps.apps.into_iter().map(|app| json!({
                 "installation_id":app.installation_id,"app_id":app.app_id,"name":app.name,
                 "description":app.description,"version":app.version,"source":app.source,
@@ -118,12 +120,12 @@ pub(super) async fn run(
         }
         ShijuAppsCommands::ApiKeys { input } => {
             let credential = credential(&input, stdin)?;
-            json!(client.shiju_app_api_keys(&credential).await.map_err(anyhow::Error::msg)?)
+            json!(app_client.shiju_app_api_keys(&credential).await.map_err(anyhow::Error::msg)?)
         }
         ShijuAppsCommands::BindingGet { installation_id, input } => {
             let credential = credential(&input, stdin)?;
             json!(
-                client
+                app_client
                     .shiju_app_api_key_binding(&credential, &installation_id)
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -131,7 +133,7 @@ pub(super) async fn run(
         }
         ShijuAppsCommands::BindingPut { installation_id, input } => {
             let input = parse::<BindingInput>(&input, stdin, "API key binding")?;
-            client
+            app_client
                 .shiju_app_save_api_key_binding(
                     &input.credential,
                     &installation_id,
@@ -143,7 +145,7 @@ pub(super) async fn run(
         }
         ShijuAppsCommands::Launch { installation_id, input } => {
             let credential = credential(&input, stdin)?;
-            let launch = client
+            let launch = app_client
                 .shiju_app_prepare_launch(&credential, &installation_id)
                 .await
                 .map_err(anyhow::Error::msg)?;

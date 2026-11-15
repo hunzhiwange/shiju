@@ -2,7 +2,7 @@
 //! 启动结果仅在代次、账户及安装标识全部匹配时才能写回当前状态。
 
 use super::*;
-use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto};
+use gateway_shiju_app::{ShijuAppCatalogDto, ShijuAppListDto};
 
 #[test]
 fn shiju_apps_state_defaults_to_mine_without_reusing_skill_load_state() {

@@ -7,11 +7,7 @@ use crate::app::account::{
 use crate::app::message::ShijuAppsMessage;
 use crate::app::shiju_apps::{ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsTab};
 use crate::app::{App, Message, Screen};
-use vw_gateway_client::{
-    ShijuAppApiKeyBindingDto, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
-    ShijuAppPersonalApiKeyBindingDto, ShijuIamApiKeyDto, ShijuIamApiKeyListDto,
-    ShijuInstalledAppDto,
-};
+use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuAppPersonalApiKeyBindingDto, ShijuIamApiKeyDto, ShijuIamApiKeyListDto, ShijuInstalledAppDto};
 
 fn repository(secret: &str, company_id: &str) -> AccountRepository {
     let mut repository = AccountRepository::default();

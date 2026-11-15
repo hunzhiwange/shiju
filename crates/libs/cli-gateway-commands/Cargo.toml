@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
 cli-api-automation = { path = "../cli-api-automation", version = "0.6.0" }
 cli-api-session = { path = "../cli-api-session", version = "0.6.0" }
 cli-api-workspace = { path = "../cli-api-workspace", version = "0.6.0" }

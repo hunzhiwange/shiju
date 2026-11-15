@@ -4,10 +4,7 @@
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-use vw_gateway_client::{
-    ShijuAppCatalogDto, ShijuAppListDto, ShijuCatalogAppDto, ShijuIamApiKeyDto,
-    ShijuInstalledAppDto,
-};
+use gateway_shiju_app::{ShijuAppCatalogDto, ShijuAppListDto, ShijuCatalogAppDto, ShijuIamApiKeyDto, ShijuInstalledAppDto};
 
 use super::shiju_apps;
 use crate::app::message::ShijuAppsMessage;

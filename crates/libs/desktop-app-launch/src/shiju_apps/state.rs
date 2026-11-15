@@ -1,6 +1,6 @@
 //! 定义识矩应用目录、已安装列表、密钥绑定与启动过程的状态模型。
 
-use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};
+use gateway_shiju_app::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 /// 识矩应用页面的商店与已安装页签。

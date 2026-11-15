@@ -4,7 +4,7 @@ pub(crate) use desktop_app_launch::{
 };
 
 pub(crate) fn launch_shiju_app(
-    target: &vw_gateway_client::ShijuAppLaunchDto,
+    target: &gateway_shiju_app::ShijuAppLaunchDto,
     expected_installation_id: &str,
 ) -> Result<std::process::Child, crate::app::skill_hub::SkillHubError> {
     desktop_app_launch::launch_shiju_app(

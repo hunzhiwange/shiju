@@ -2,7 +2,7 @@ use std::fmt;
 
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Font, Length};
-use vw_gateway_client::ShijuIamApiKeyDto;
+use gateway_shiju_app::ShijuIamApiKeyDto;
 
 use super::styles;
 use crate::app::components::system_settings_common::{

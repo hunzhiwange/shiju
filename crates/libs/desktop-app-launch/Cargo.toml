@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
 desktop-skill-hub = { path = "../desktop-skill-hub", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }

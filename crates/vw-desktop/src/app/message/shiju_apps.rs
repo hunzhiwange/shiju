@@ -1,10 +1,7 @@
 //! 驱动识矩应用目录、已安装列表、密钥绑定与启动流程的消息生命周期。
 
 use iced::Task;
-use vw_gateway_client::{
-    ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto,
-    ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto,
-};
+use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto};
 
 use crate::app::session_gateway::{
     gateway_shiju_app_api_key_binding_async, gateway_shiju_app_api_keys_async,

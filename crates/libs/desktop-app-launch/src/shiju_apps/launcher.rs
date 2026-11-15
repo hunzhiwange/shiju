@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
 use reqwest::Url;
-use vw_gateway_client::ShijuAppLaunchDto;
+use gateway_shiju_app::ShijuAppLaunchDto;
 
 const RUNTIME_HOST: &str = "app.shiju.cloud";
 

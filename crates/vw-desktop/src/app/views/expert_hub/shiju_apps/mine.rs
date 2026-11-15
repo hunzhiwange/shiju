@@ -3,7 +3,7 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
-use vw_gateway_client::{ShijuAppListDto, ShijuInstalledAppDto};
+use gateway_shiju_app::{ShijuAppListDto, ShijuInstalledAppDto};
 
 use super::{app_title, card_grid, styles};
 use crate::app::Message;

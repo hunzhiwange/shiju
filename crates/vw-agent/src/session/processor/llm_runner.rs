@@ -80,18 +80,11 @@ fn is_acp_request(options: &Value) -> bool {
             .is_some_and(|value| !value.trim().is_empty())
 }
 
-pub(super) fn is_acp_retryable_error(error: &str) -> bool {
-    let normalized = error.to_ascii_lowercase();
-    normalized.contains("模型响应超时")
-        || normalized.contains("timed out")
-        || normalized.contains("timeout")
-        || normalized.contains("acp session changed:")
-        || normalized.contains("acp agent disconnected during request")
-        || normalized.contains("queue owner disconnected before prompt completion")
-        || normalized.contains("error decoding response body")
-        || normalized.contains("eof while parsing a value")
-}
+#[cfg(test)]
+pub(super) use session_engine::recovery::is_acp_retryable_error;
 
+#[cfg(test)]
+use session_engine::request_overflow::llm_error_message;
 pub(crate) use session_engine::request_overflow::{
     is_prompt_too_long_error, input_length_range_max, is_request_too_long_error,
 };
@@ -701,12 +694,8 @@ pub(crate) fn run_llm_step_with_budget(
     })
 }
 
-const MAX_PROVIDER_RETRY_BACKOFF_MS: u64 = 5_000;
-
-pub(crate) fn provider_retry_backoff_ms(initial_backoff_ms: u64, retry_index: u32) -> u64 {
-    let multiplier = 1u64.checked_shl(retry_index).unwrap_or(u64::MAX);
-    initial_backoff_ms.saturating_mul(multiplier).min(MAX_PROVIDER_RETRY_BACKOFF_MS)
-}
+#[cfg(test)]
+pub(crate) use session_engine::recovery::provider_retry_backoff_ms;
 #[cfg(test)]
 #[path = "llm_runner_tests.rs"]
 mod llm_runner_tests;

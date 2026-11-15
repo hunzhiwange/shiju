@@ -1,6 +1,7 @@
 //! 通用归档、路径、时间和 RPC 工具。
 
 pub mod archive;
+pub mod credentials;
 pub mod filesystem;
 pub mod format;
 pub mod locale;

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-util = { path = "../agent-util", version = "0.6.0" }
 model-state = { path = "../model-state", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
 session-instructions = { path = "../session-instructions", version = "0.6.0" }
@@ -31,6 +32,9 @@ agent-storage = { path = "../agent-storage", version = "0.6.0" }
 agent-project = { path = "../agent-project", version = "0.6.0" }
 message-types = { path = "../message-types", version = "0.6.0" }
 session-info = { path = "../session-info", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 
 [dev-dependencies]
 uuid = { version = "1.11", features = ["v4", "js"] }

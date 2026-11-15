@@ -2,7 +2,8 @@
 use serde_json::Value;
 use message_types::AssistantError;
 
-fn llm_error_message(error: &str) -> String {
+#[doc(hidden)]
+pub fn llm_error_message(error: &str) -> String {
     serde_json::from_str::<Value>(error)
         .ok()
         .and_then(|value| value.get("message").and_then(Value::as_str).map(str::to_string))

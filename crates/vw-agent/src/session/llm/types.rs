@@ -125,21 +125,7 @@ pub enum PromptStreamEvent {
     Error(String),
 }
 
-/// 工具调用结构
-///
-/// 该结构体表示 LLM 请求执行的工具调用，包含工具调用的所有必要信息。
-/// 在函数调用场景中，LLM 会返回此类结构以请求执行特定工具。
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ToolCall {
-    pub kind: ToolCallKind,
-    pub namespace: Option<String>,
-    /// 工具调用的唯一标识符，用于关联调用和结果
-    pub id: String,
-    /// 要调用的工具名称
-    pub name: String,
-    /// 工具参数的 JSON 字符串表示
-    pub arguments: String,
-}
+pub use session_engine::processor_events::ToolCall;
 
 /// LLM 错误类型枚举
 ///
@@ -188,22 +174,4 @@ pub(crate) fn catalog_error_string(error: provider::CatalogError) -> String {
         .expect("assistant error serializes")
 }
 
-/// 标记无法安全重放的响应，让上层压缩与 ACP 恢复也遵守同一边界。
-pub(crate) fn prevent_error_replay(error: &mut message::AssistantError) {
-    if let message::AssistantError::Unknown { message }
-    | message::AssistantError::ContextOverflowError { message, .. } = error
-    {
-        *error = message::AssistantError::APIError {
-            message: message.clone(),
-            status_code: None,
-            is_retryable: false,
-            response_headers: None,
-            response_body: None,
-            metadata: None,
-        };
-    }
-    if let message::AssistantError::APIError { is_retryable, metadata, .. } = error {
-        *is_retryable = false;
-        metadata.get_or_insert_with(HashMap::new).insert("replay_safe".into(), "false".into());
-    }
-}
+pub(crate) use session_engine::replay_safety::prevent_error_replay;

@@ -7,6 +7,12 @@ pub mod context_injection;
 pub mod compaction_budget;
 pub mod invoked_skill_context;
 pub mod request_overflow;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native_history;
+pub mod processor_events;
+pub mod recovery;
+pub mod retry_delay;
+pub mod replay_safety;
 pub mod fork_execution;
 pub mod binding_store;
 pub mod admission;

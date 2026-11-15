@@ -1,7 +1,7 @@
 //! Cache expensive session projections across geometry-only UI events.
 //! Unknown messages invalidate conservatively, including nested batches.
-use std::cell::RefCell;
 use std::collections::HashSet;
+#[cfg(test)]
 use std::sync::Arc;
 
 use super::AgentChildSession;
@@ -9,18 +9,8 @@ use crate::app::message::{ChatMessage, ProjectMessage, ViewMessage};
 use crate::app::{App, Message};
 use iced::Task;
 
-#[derive(Default)]
-pub(crate) struct SessionUiProjection {
-    pub(crate) hover_details:
-        std::collections::HashMap<String, super::hover_details::SessionHoverDetails>,
-    pub(crate) hover_details_loading: HashSet<String>,
-    pub(crate) agent_sessions: RefCell<Option<Arc<Vec<AgentChildSession>>>>,
-    pub(crate) agent_session_key: RefCell<(Option<String>, usize)>,
-    pub(crate) sidebar: RefCell<Option<Arc<crate::app::views::project::WorkSidebarModel>>>,
-    pub(crate) pinned: HashSet<(String, String)>,
-    pending_pins: HashSet<(String, String)>,
-    pins_generation: u64,
-}
+pub(crate) type SessionUiProjection = desktop_session::session::ui_projection::SessionUiProjection<AgentChildSession, crate::app::views::project::WorkSidebarModel>;
+use desktop_session::session::ui_projection::{write_pin, load_pins};
 
 fn preserves_projection(message: &Message) -> bool {
     match message {
@@ -120,15 +110,7 @@ impl App {
         Task::perform(
             async move {
                 crate::app::message::spawn_blocking_opt(move || {
-                    Some((|| {
-                        let data_dir = pins_data_dir()?;
-                        let scope = pins_scope(&project_id);
-                        session_artifact_store::set_thread_pinned(
-                            &data_dir, &scope, &id, pinned,
-                        )
-                        .map_err(|error| error.to_string())?;
-                        Ok(pinned)
-                    })())
+                    Some(write_pin(&project_id, &id, pinned))
                 })
                 .await
                 .unwrap_or_else(|| Err("pin write task failed".to_owned()))
@@ -145,12 +127,7 @@ impl App {
         self.session_ui_projection.pending_pins.remove(&key);
         match result {
             Ok(pinned) => {
-                if pinned {
-                    self.session_ui_projection.pinned.insert(key);
-                } else {
-                    self.session_ui_projection.pinned.remove(&key);
-                }
-                self.session_ui_projection.sidebar.get_mut().take();
+                self.session_ui_projection.apply_pin(key, pinned);
                 self.refresh_session_pins_task()
             }
             Err(error) => self.show_localized_toast(
@@ -232,45 +209,8 @@ impl App {
         generation: u64,
         result: Result<HashSet<(String, String)>, String>,
     ) {
-        if generation != self.session_ui_projection.pins_generation {
-            return;
-        }
-        match result {
-            Ok(pinned) => {
-                if pinned != self.session_ui_projection.pinned {
-                    self.session_ui_projection.pinned = pinned;
-                    self.session_ui_projection.sidebar.get_mut().take();
-                }
-            }
-            Err(error) => tracing::warn!(%error, "Failed to refresh pinned sessions"),
-        }
+        self.session_ui_projection.apply_pins(generation, result);
     }
-}
-
-fn pins_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = directories::BaseDirs::new().ok_or_else(|| "无法定位置顶会话目录".to_string())?;
-    Ok(config_runtime_paths::home_config_dir(home.home_dir()))
-}
-
-fn pins_scope(project: &str) -> String {
-    let tenant = vw_api_transport::TenantScope::default();
-    session_artifact_store::pinned_threads_scope(
-        tenant.platform_id().as_ref(),
-        tenant.company_id().as_ref(),
-        project,
-    )
-}
-
-fn load_pins(projects: HashSet<String>) -> Result<HashSet<(String, String)>, String> {
-    let data_dir = pins_data_dir()?;
-    let mut pinned = HashSet::new();
-    for project in projects {
-        let scope = pins_scope(&project);
-        let ids = session_artifact_store::load_pinned_threads(&data_dir, &scope)
-            .map_err(|error| error.to_string())?;
-        pinned.extend(ids.into_iter().map(|id| (project.clone(), id)));
-    }
-    Ok(pinned)
 }
 
 #[cfg(test)]

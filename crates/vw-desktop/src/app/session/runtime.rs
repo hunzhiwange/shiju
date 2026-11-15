@@ -5,61 +5,25 @@
 
 use super::{App, EMPTY_SESSION_ID};
 use crate::app::state::{
-    MAIN_AGENT_KEY, SessionRuntimeState, SessionToolInventory, merge_builtin_required_tools,
+    MAIN_AGENT_KEY, SessionRuntimeState, SessionToolInventory,
 };
 
-fn sorted_unique_tools(mut tools: Vec<String>) -> Vec<String> {
-    tools = tools
-        .into_iter()
-        .filter_map(|tool| {
-            let trimmed = tool.trim();
-            (!trimmed.is_empty()).then(|| trimmed.to_string())
-        })
-        .collect();
-    tools.sort();
-    tools.dedup();
-    tools
-}
-
-fn intersect_tools(left: &[String], right: &[String]) -> Vec<String> {
-    left.iter().filter(|tool| right.iter().any(|candidate| candidate == *tool)).cloned().collect()
-}
-
-pub(crate) fn request_allowed_tools_from_inventory(
-    runtime: &SessionRuntimeState,
-    inventory: &SessionToolInventory,
-) -> Option<Vec<String>> {
-    if !inventory.restricts_tools && !runtime.tool_selector.has_tool_filter() {
-        return None;
-    }
-
-    let allowed_tools =
-        sorted_unique_tools(runtime.tool_selector.filter_tools(&inventory.base_tools));
-    (!allowed_tools.is_empty()).then_some(allowed_tools)
-}
-
+use desktop_session::session::runtime::sorted_unique_tools;
 impl App {
     fn new_session_full_access(&self, session_id: &str) -> bool {
         // Loading an existing session must not apply newly edited profile defaults.
         let restored = self.sessions.iter().any(|session| session.id == session_id)
             || self.project_sessions.values().flatten().any(|session| session.id == session_id);
-        !restored
-            && self.last_llm_full_access.unwrap_or_else(|| {
-                self.agents_settings
-                    .entries
-                    .iter()
-                    .find(|entry| entry.key == MAIN_AGENT_KEY)
-                    .is_some_and(|entry| entry.defaults.full_access)
-            })
+        desktop_session::session::runtime::new_session_full_access(restored, self.last_llm_full_access,
+            self.agents_settings.entries.iter().find(|entry| entry.key == MAIN_AGENT_KEY).is_some_and(|entry| entry.defaults.full_access))
     }
 
     fn session_full_access(&self, session_id: &str, runtime: Option<&SessionRuntimeState>) -> bool {
-        if self.agents_settings.config_ready
-            && runtime.is_none_or(|r| !r.full_access_initialized && !r.full_access_overridden)
-        {
-            return self.new_session_full_access(session_id);
-        }
-        runtime.is_some_and(|r| r.full_access_enabled)
+        desktop_session::session::runtime::session_full_access(
+            self.agents_settings.config_ready,
+            runtime.map(|r| (r.full_access_initialized, r.full_access_overridden, r.full_access_enabled)),
+            self.new_session_full_access(session_id),
+        )
     }
 
     pub(crate) fn current_session_full_access(&self) -> bool {
@@ -89,7 +53,7 @@ impl App {
         let client = crate::app::gateway_client();
         iced::Task::perform(
             async move {
-                gateway_session::GatewaySessionClient::new(client.ok()?.transport().clone()).session_ui_summary(&target, Some(&directory)).await.ok()?.full_access
+                desktop_session::session::runtime::load_full_access(client.ok(), &target, &directory).await
             },
             move |result| {
                 result.map_or(crate::app::Message::None, |full_access| {
@@ -226,23 +190,13 @@ impl App {
 
     pub(crate) fn current_session_has_started(&self) -> bool {
         let runtime = self.current_session_runtime_ref();
-        // Capability refreshes carry IDs and can be discarded on agent changes.
-        // Other option reads retain the lock even after their modal closes.
-        let busy = runtime.is_some_and(|runtime| {
-            runtime.request_lifecycle.is_requesting
-                || runtime.request_lifecycle.active_agent_request.is_some()
-                || !runtime.request_lifecycle.queue.is_empty()
-                || (runtime.acp_options_state.pending && runtime.acp_options_state.source_request_id.is_none())
-                || runtime.acp_options_state.source_pending.is_some()
-                || runtime.fork_request_submitted
-        });
-        busy || match runtime.and_then(|runtime| runtime.fork_execution_started) {
-            Some(started) => started,
-            None => {
-                (self.active_session_id.is_some()
-                    && runtime.is_none_or(|runtime| runtime.draft.is_none()))
-                    || !self.chat.is_empty()
-            }
+        match runtime {
+            Some(runtime) => desktop_session::session::runtime::session_has_started(
+                &runtime.request_lifecycle, &runtime.acp_options_state,
+                runtime.fork_request_submitted, runtime.fork_execution_started,
+                self.active_session_id.is_some(), runtime.draft.is_some(), !self.chat.is_empty(),
+            ),
+            None => self.active_session_id.is_some() || !self.chat.is_empty(),
         }
     }
 
@@ -263,28 +217,11 @@ impl App {
         &self,
         runtime: &SessionRuntimeState,
     ) -> SessionToolInventory {
-        let available_tools = sorted_unique_tools(self.agents_settings.available_tools.clone());
-        let registered_tools = self
-            .agents_settings
-            .registered_tools
-            .clone()
-            .map(sorted_unique_tools)
-            .unwrap_or_else(|| available_tools.clone());
-        let static_tools = self.selected_static_allowed_tools(runtime);
-        let restricts_tools = static_tools.is_some();
-        let base_tools = if let Some(static_tools) = static_tools {
-            if registered_tools.is_empty() {
-                static_tools
-            } else {
-                let effective_tools =
-                    merge_builtin_required_tools(&static_tools, &registered_tools);
-                intersect_tools(&registered_tools, &effective_tools)
-            }
-        } else {
-            registered_tools
-        };
-
-        SessionToolInventory { base_tools, restricts_tools }
+        desktop_session::session::runtime::session_tool_inventory(
+            &self.agents_settings.available_tools,
+            self.agents_settings.registered_tools.as_deref(),
+            self.selected_static_allowed_tools(runtime),
+        )
     }
 
     pub(crate) fn session_allowed_tools_for_request(
@@ -292,25 +229,10 @@ impl App {
         runtime: &SessionRuntimeState,
     ) -> Option<Vec<String>> {
         let inventory = self.session_tool_inventory(runtime);
-        let mut allowed_tools = request_allowed_tools_from_inventory(runtime, &inventory);
-        let registered_tools = self
-            .agents_settings
-            .registered_tools
-            .as_ref()
-            .unwrap_or(&self.agents_settings.available_tools);
-        if let Some(allowed_tools) = &mut allowed_tools {
-            if registered_tools.iter().any(|tool| tool.eq_ignore_ascii_case("AgentTool"))
-                && !allowed_tools.iter().any(|tool| tool.eq_ignore_ascii_case("AgentTool"))
-            {
-                allowed_tools.push("AgentTool".to_string());
-                allowed_tools.sort_unstable();
-            }
-        } else if inventory.restricts_tools
-            && registered_tools.iter().any(|tool| tool.eq_ignore_ascii_case("AgentTool"))
-        {
-            allowed_tools = Some(vec!["AgentTool".to_string()]);
-        }
-        allowed_tools
+        desktop_session::session::runtime::allowed_tools_for_request(
+            &runtime.tool_selector, &inventory,
+            self.agents_settings.registered_tools.as_ref().unwrap_or(&self.agents_settings.available_tools),
+        )
     }
 
     /// 执行 mark_active_session_viewed 对应的领域操作。
@@ -352,13 +274,10 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn has_active_explore_summary_animation(&self) -> bool {
-        let now_ms = crate::app::time::now_ms();
-        self.chat_explore_summary_animations.values().any(|state| {
-            state.changed_at_ms.is_some_and(|changed_at_ms| {
-                now_ms.saturating_sub(changed_at_ms)
-                    < crate::app::components::status_animation::EXPLORE_SUMMARY_FLIP_DURATION_MS
-            })
-        })
+        desktop_chat_view::stream_render::has_active_explore_summary_animation(
+            &self.chat_explore_summary_animations, crate::app::time::now_ms(),
+            crate::app::components::status_animation::EXPLORE_SUMMARY_FLIP_DURATION_MS,
+        )
     }
 
     /// 执行 advance_status_animation_frame 对应的领域操作。
@@ -368,16 +287,10 @@ impl App {
     pub fn advance_status_animation_frame(&mut self) {
         self.status_animation_frame = self.status_animation_frame.wrapping_add(1);
 
-        let now_ms = crate::app::time::now_ms();
-        for state in self.chat_explore_summary_animations.values_mut() {
-            if let Some(changed_at_ms) = state.changed_at_ms
-                && now_ms.saturating_sub(changed_at_ms)
-                    >= crate::app::components::status_animation::EXPLORE_SUMMARY_FLIP_DURATION_MS
-            {
-                state.previous_summary_text = state.current_summary_text.clone();
-                state.changed_at_ms = None;
-            }
-        }
+        desktop_chat_view::stream_render::advance_explore_summary_animation(
+            &mut self.chat_explore_summary_animations, crate::app::time::now_ms(),
+            crate::app::components::status_animation::EXPLORE_SUMMARY_FLIP_DURATION_MS,
+        );
     }
 
     /// 执行 find_session_by_request_id 对应的领域操作。
@@ -427,14 +340,7 @@ impl App {
         session_id: &str,
         steps: &[crate::app::models::ChatSessionStep],
     ) -> bool {
-        let Some(model) = steps
-            .iter()
-            .filter_map(|step| {
-                let model = step.model.as_deref()?.trim();
-                (!model.is_empty()).then_some((step.index, model))
-            })
-            .max_by_key(|(index, _)| *index)
-            .map(|(_, model)| model.to_string())
+        let Some(model) = desktop_session::session::runtime::latest_history_model(steps)
         else {
             return false;
         };

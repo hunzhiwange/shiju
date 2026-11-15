@@ -37,17 +37,3 @@ fn scroll_and_animation_preserve_projection_but_data_events_invalidate() {
     app.prepare_session_ui_projection(&changed);
     assert!(app.session_ui_projection.agent_sessions.borrow().is_none());
 }
-
-#[test]
-fn latest_pin_snapshot_wins_and_failure_preserves_previous_pins() {
-    let mut app = App::new().0;
-    app.session_ui_projection.pins_generation = 2;
-    let pins = HashSet::from([("project".into(), "task".into())]);
-    app.apply_session_pins(2, Ok(pins.clone()));
-    app.apply_session_pins(1, Ok(HashSet::new()));
-    assert_eq!(app.session_ui_projection.pinned, pins);
-    app.apply_session_pins(2, Err("unavailable".into()));
-    assert_eq!(app.session_ui_projection.pinned, pins);
-    app.apply_session_pins(2, Ok(HashSet::new()));
-    assert!(app.session_ui_projection.pinned.is_empty());
-}

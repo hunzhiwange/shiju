@@ -49,9 +49,6 @@ const EMPTY_SESSION_ID: &str = "__empty__";
 pub(crate) use desktop_session::session::backfill_message_models_from_steps;
 
 #[cfg(test)]
-#[path = "session/stream_render_tests.rs"]
-mod stream_render_tests;
-#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod view_cache_tests;

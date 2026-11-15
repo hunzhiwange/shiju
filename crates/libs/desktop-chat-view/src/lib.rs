@@ -41,3 +41,8 @@ mod selectable_text_tests;
 pub mod chat_ui;
 
 pub mod utils;
+
+pub mod stream_render;
+#[cfg(test)]
+mod stream_render_tests;
+pub mod view_snapshot;

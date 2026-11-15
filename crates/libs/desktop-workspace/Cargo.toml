@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+file-index = { path = "../file-index", version = "0.6.0" }
 config-ui = { path = "../config-ui", version = "0.6.0" }
 display-format = { path = "../display-format", version = "0.6.0" }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }

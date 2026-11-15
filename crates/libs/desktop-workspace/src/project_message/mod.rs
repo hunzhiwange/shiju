@@ -13,3 +13,5 @@ mod edit_save;
 pub mod session;
 pub mod session_open;
 pub mod session_worktree;
+
+pub mod message;

@@ -1,55 +1,41 @@
-//! 工具相关 API 处理器。
-//!
-//! 本模块提供网关工具列表和系统诊断接口。
+//! Tool routes assembled with the existing host authentication and diagnostics.
 
-use crate::app::agent::gateway::AppState;
-use axum::{Json, extract::State, http::HeaderMap, response::IntoResponse};
-use vw_api_tools::ListToolSpecsResponse;
+use crate::app::agent::{config::Config, doctor, gateway::AppState};
+use axum::{
+    Json, extract::State, http::{HeaderMap, StatusCode}, response::IntoResponse,
+};
 
-/// 处理网关工具列表 API 请求。
-///
-/// 返回当前网关已注册的工具规格，供客户端枚举可调用工具。
-pub async fn handle_api_tools(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    if let Err(e) = super::super::auth::require_auth(&state, &headers) {
-        return e.into_response();
+struct ToolsHost;
+
+impl<S, C, H> gateway_tools::ToolsHost<S, C, H> for ToolsHost {
+    type Diagnostic = doctor::DiagResult;
+
+    fn require_auth(
+        state: &gateway_types::AppState<S, C, H>,
+        headers: &HeaderMap,
+    ) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+        super::super::auth::require_auth(state, headers)
     }
 
-    let tools = state.tools_registry.iter().map(|tool| tool.to_dto()).collect();
+    fn diagnose(config: &Config) -> Vec<Self::Diagnostic> {
+        doctor::diagnose(config)
+    }
 
-    Json(ListToolSpecsResponse { items: tools }).into_response()
+    fn severity(result: &Self::Diagnostic) -> gateway_tools::Severity {
+        match result.severity {
+            doctor::Severity::Ok => gateway_tools::Severity::Ok,
+            doctor::Severity::Warn => gateway_tools::Severity::Warn,
+            doctor::Severity::Error => gateway_tools::Severity::Error,
+        }
+    }
 }
 
-/// 处理系统诊断 API 请求。
-pub async fn handle_api_doctor(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    if let Err(e) = super::super::auth::require_auth(&state, &headers) {
-        return e.into_response();
-    }
+pub async fn handle_api_tools(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    gateway_tools::handle_api_tools::<_, _, _, ToolsHost>(state, headers).await
+}
 
-    let config = state.config.lock().clone();
-    let results = crate::app::agent::doctor::diagnose(&config);
-
-    let ok_count =
-        results.iter().filter(|r| r.severity == crate::app::agent::doctor::Severity::Ok).count();
-    let warn_count =
-        results.iter().filter(|r| r.severity == crate::app::agent::doctor::Severity::Warn).count();
-    let error_count =
-        results.iter().filter(|r| r.severity == crate::app::agent::doctor::Severity::Error).count();
-
-    Json(serde_json::json!({
-        "results": results,
-        "summary": {
-            "ok": ok_count,
-            "warnings": warn_count,
-            "errors": error_count,
-        }
-    }))
-    .into_response()
+pub async fn handle_api_doctor(state: State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    gateway_tools::handle_api_doctor::<_, _, _, ToolsHost>(state, headers).await
 }
 
 #[cfg(test)]

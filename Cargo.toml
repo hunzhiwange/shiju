@@ -535,6 +535,7 @@ members = [
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-types",
+  "crates/libs/gateway-tools",
   "crates/libs/gateway-status",
   "crates/libs/gateway-resumable-stream",
   "crates/libs/gateway-task",

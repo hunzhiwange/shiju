@@ -9,17 +9,17 @@ use super::pane_drag::{TabDrag, TabTitleHit, drop_target};
 use super::{
     TAB_HEADER_HEIGHT, fullscreen_button, hide_button, pane_view, split_menu, toolbar_icon_button,
 };
-use crate::app::assets::Icon;
-use crate::app::message::TerminalMessage;
-use crate::app::terminal::panes::{PANE_SPACING, TerminalPanes};
-use crate::app::{App, FocusArea, Message};
+use desktop_assets::assets::Icon;
+use crate::message::TerminalMessage;
+use crate::panes::{PANE_SPACING, TerminalPanes};
+use crate::{ViewInput, message::Message};
 
 const DIVIDER_HIT_WIDTH: f32 = 9.0;
 const DRAG_THRESHOLD: f32 = 5.0;
 
-pub(super) fn view(app: &App) -> Element<'_, Message> {
+pub(super) fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
     responsive(move |size| {
-        let panes = &app.terminal.panes;
+        let panes = app.panes;
         let grid = &panes.grid;
         let mut spacing = PANE_SPACING;
         let mut regions = grid.layout().pane_regions(spacing, 0.0, size);
@@ -38,7 +38,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             let tabs = state
                 .tabs
                 .iter()
-                .filter_map(|id| app.terminal.tabs.iter().find(|tab| tab.id == *id))
+                .filter_map(|id| app.tabs.iter().find(|tab| tab.id == *id))
                 .collect();
             let mut controls = row![toolbar_icon_button(
                 Icon::Plus,
@@ -74,12 +74,12 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             });
         }
 
-        let shortcut_focus = (app.focus_area == FocusArea::Terminal)
+        let shortcut_focus = app.focused
             .then(|| {
-                app.terminal
+                app
                     .tabs
                     .iter()
-                    .find(|tab| Some(tab.id) == app.terminal.active_id && tab.edit_title.is_none())
+                    .find(|tab| Some(tab.id) == app.active_id && tab.edit_title.is_none())
             })
             .flatten()
             .map(|tab| tab.term.widget_id());

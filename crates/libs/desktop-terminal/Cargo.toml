@@ -1,0 +1,18 @@
+[package]
+name = "desktop-terminal"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = { version = "0.14", features = ["advanced", "canvas", "svg"] }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+config-ui = { path = "../config-ui", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+iced_term = { path = "../../../vendor/iced_term" }

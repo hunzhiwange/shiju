@@ -41,17 +41,7 @@ impl std::fmt::Display for TerminalTheme {
     }
 }
 
-/// 单个终端标签及其原生终端实例和重命名草稿。
-pub struct TerminalTab {
-    pub id: u64,
-    pub title: String,
-    pub default_title: bool,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub term: iced_term::Terminal,
-    #[cfg(target_arch = "wasm32")]
-    pub term: (),
-    pub edit_title: Option<String>,
-}
+pub use desktop_terminal::TerminalTab;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn color_channel_to_u8(value: f32) -> u8 {

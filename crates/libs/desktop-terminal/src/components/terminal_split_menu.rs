@@ -4,11 +4,11 @@ use iced::widget::{button, column, container, row, svg, text};
 use iced::{Border, Element, Length, Point, Shadow, Theme, Vector};
 
 use super::{TAB_HEADER_HEIGHT, toolbar_icon_button};
-use crate::app::assets::{self, Icon};
-use crate::app::components::overlays::point_below::PointBelowOverlay;
-use crate::app::i18n::I18n;
-use crate::app::message::TerminalMessage;
-use crate::app::{App, Message};
+use desktop_assets::assets::{self, Icon};
+use desktop_ui_controls::overlays::point_below::PointBelowOverlay;
+use desktop_i18n::I18n;
+use crate::message::TerminalMessage;
+use crate::{ViewInput, message::Message};
 
 const MACOS: bool = cfg!(target_os = "macos");
 const DIRECTIONS: [(Direction, key::Named, Icon, &str, &str); 4] = [
@@ -44,7 +44,7 @@ pub(super) fn shortcut(event: &Event) -> Option<Direction> {
 }
 
 pub(super) fn split_items(
-    app: &App,
+    app: ViewInput<'_>,
     on_split: impl Fn(Direction) -> TerminalMessage,
 ) -> [Element<'static, Message>; 4] {
     let i18n = I18n::new(app.desktop_locale);
@@ -93,9 +93,9 @@ pub(super) fn split_items(
     })
 }
 
-pub(super) fn split_button(app: &App, pane: Pane) -> Element<'static, Message> {
+pub(super) fn split_button(app: ViewInput<'_>, pane: Pane) -> Element<'static, Message> {
     let items = column![].extend(split_items(app, |direction| {
-        TerminalMessage::Split(app.terminal.panes.instance.clone(), pane, direction)
+        TerminalMessage::Split(app.panes.instance.clone(), pane, direction)
     }));
     let menu =
         container(items).width(if MACOS { 200 } else { 240 }).padding(4).style(|theme: &Theme| {
@@ -121,7 +121,7 @@ pub(super) fn split_button(app: &App, pane: Pane) -> Element<'static, Message> {
         ),
         menu,
     )
-    .show(app.terminal.panes.split_menu == Some(pane))
+    .show(app.panes.split_menu == Some(pane))
     .anchor(Point::new(-14.0, TAB_HEADER_HEIGHT))
     .gap(2.0)
     .capture_keyboard()

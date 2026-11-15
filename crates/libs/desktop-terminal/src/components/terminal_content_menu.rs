@@ -2,15 +2,15 @@ use iced::widget::{Space, button, column, container, row, rule, scrollable, text
 use iced::{Border, Element, Length, Theme};
 
 use super::split_menu::split_items;
-use crate::app::components::overlays::point_below::PointBelowOverlay;
-use crate::app::components::widgets::RightClickArea;
-use crate::app::i18n::I18n;
-use crate::app::message::TerminalMessage;
-use crate::app::message::terminal::ContentAction;
-use crate::app::terminal::TerminalTab;
-use crate::app::{App, Message};
+use desktop_ui_controls::overlays::point_below::PointBelowOverlay;
+use desktop_ui_controls::right_click_area::RightClickArea;
+use desktop_i18n::I18n;
+use crate::message::TerminalMessage;
+use crate::message::ContentAction;
+use crate::TerminalTab;
+use crate::{ViewInput, message::Message};
 
-pub(super) fn terminal_surface<'a>(app: &App, tab: &'a TerminalTab) -> Element<'a, Message> {
+pub(super) fn terminal_surface<'a>(app: ViewInput<'a>, tab: &'a TerminalTab) -> Element<'a, Message> {
     let id = tab.id;
     let terminal = container(
         iced_term::TerminalView::show(&tab.term)
@@ -24,7 +24,7 @@ pub(super) fn terminal_surface<'a>(app: &App, tab: &'a TerminalTab) -> Element<'
         Box::new(move |position| Message::Terminal(TerminalMessage::ContentMenuOpen(id, position))),
     )
     .preserve_on_right_click();
-    let position = app.terminal.content_menu.filter(|(menu_id, _)| *menu_id == id);
+    let position = app.content_menu.filter(|(menu_id, _)| *menu_id == id);
     let menu = if position.is_some() { menu(app, tab) } else { Space::new().into() };
 
     PointBelowOverlay::new(surface, menu)
@@ -37,7 +37,7 @@ pub(super) fn terminal_surface<'a>(app: &App, tab: &'a TerminalTab) -> Element<'
         .into()
 }
 
-fn menu(app: &App, tab: &TerminalTab) -> Element<'static, Message> {
+fn menu(app: ViewInput<'_>, tab: &TerminalTab) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let selected = tab.term.has_selection();
     let id = tab.id;

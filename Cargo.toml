@@ -6,6 +6,7 @@ members = [
   "crates/libs/app-sync-core",
   "crates/libs/app-usage",
   "crates/libs/app-usage-import",
+  "crates/libs/desktop-terminal",
   "crates/libs/app-usage-codex",
   "crates/libs/app-usage-scripts",
   "crates/libs/app-usage-subscriptions",

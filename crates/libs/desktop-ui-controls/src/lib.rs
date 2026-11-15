@@ -19,3 +19,5 @@ pub mod right_click_area;
 pub mod toast;
 #[cfg(test)]
 mod right_click_area_tests;
+
+pub mod tooltip;

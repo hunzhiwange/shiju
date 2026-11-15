@@ -7,19 +7,7 @@ use crate::app::{App, FocusArea, Message};
 
 use super::TerminalMessage;
 
-#[derive(Debug, Clone, Copy)]
-pub enum ContentAction {
-    NewTerminal,
-    Split(Direction),
-    Copy,
-    Paste,
-    PasteText,
-    SelectAll,
-    Clear,
-    AskInChat,
-    InsertInChat,
-    CloseTab,
-}
+pub use desktop_terminal::message::ContentAction;
 
 pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     match message {

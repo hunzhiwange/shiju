@@ -354,6 +354,7 @@ model-protocol = { path = "../libs/model-protocol", version = "0.6.0" }
 model-transport = { path = "../libs/model-transport", version = "0.6.0" }
 app-routing-services = { path = "../libs/app-routing-services", version = "0.6.0" }
 gateway-types = { path = "../libs/gateway-types", version = "0.6.0" }
+gateway-global = { path = "../libs/gateway-global", version = "0.6.0" }
 gateway-git = { path = "../libs/gateway-git", version = "0.6.0" }
 gateway-hooks = { path = "../libs/gateway-hooks", version = "0.6.0" }
 gateway-instance = { path = "../libs/gateway-instance", version = "0.6.0" }

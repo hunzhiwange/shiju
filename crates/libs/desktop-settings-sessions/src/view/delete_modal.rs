@@ -1,6 +1,6 @@
 //! Confirmation layout and its initially focused, keyboard-safe cancel action.
 use super::*;
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     danger_action_btn_style, settings_close_button, settings_modal_card,
     settings_modal_overlay_with_escape,
 };
@@ -11,14 +11,14 @@ use iced::advanced::{
 use iced::widget::column;
 use iced::{Rectangle, Renderer, Size, Theme, mouse};
 
-pub(super) fn overlay<'a>(
+pub fn overlay<'a>(
     base: Element<'a, Message>,
     state: &'a ArchivedChatsState,
     i18n: I18n,
 ) -> Element<'a, Message> {
     let project = matches!(
         state.delete_confirmation,
-        Some(crate::app::state::ArchivedChatsDeleteConfirmation::Project(_))
+        Some(crate::state::ArchivedChatsDeleteConfirmation::Project(_))
     );
     if state.delete_confirmation.is_none() || (!project && state.delete_target.is_none()) {
         return base;
@@ -65,7 +65,7 @@ pub(super) fn overlay<'a>(
                 }))
                 .size(20)
                 .width(Length::Fill),
-                settings_close_button(if pending { Message::None } else { close.clone() })
+                settings_close_button(if pending { Message::Noop } else { close.clone() })
             ]
             .spacing(8)
             .align_y(Alignment::Center),

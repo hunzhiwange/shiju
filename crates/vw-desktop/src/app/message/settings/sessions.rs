@@ -3,7 +3,6 @@
 use crate::app::{App, Message};
 use iced::Task;
 use message_types as message;
-use session_info as info;
 
 use super::messages::SettingsMessage;
 
@@ -72,8 +71,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::batch(vec![
                 Task::perform(
                     async move {
-                        let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
-                        gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete(&id, None).await
+                        desktop_settings_sessions::sessions::delete(crate::app::config::gateway_client(), id).await
                     },
                     |_| Message::None,
                 ),
@@ -82,8 +80,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::SessionCopy(id) => Task::perform(
             async move {
-                let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).session_fork::<info::Info>(&id, None, &None).await.map_err(|e| e.to_string())
+                desktop_settings_sessions::sessions::copy(crate::app::config::gateway_client(), id).await
             },
             |res| match res {
                 Ok(info) => {

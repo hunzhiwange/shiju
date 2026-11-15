@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/desktop-settings-sessions",
   "crates/libs/desktop-settings-apps",
   "crates/libs/desktop-settings-workspace",
   "crates/libs/desktop-settings-mcp",

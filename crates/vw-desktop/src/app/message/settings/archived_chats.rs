@@ -1,233 +1,24 @@
-//! Archived metadata browsing events.
+#[cfg(test)]
+use crate::app::state::ArchivedChatsState;
+// Archived metadata browsing events.
 
 use super::SettingsMessage;
-use crate::app::state::{ArchivedChatsSort, ArchivedChatsState};
+
 use crate::app::{App, Message};
 use iced::Task;
 
 mod delete;
 mod project_delete;
 use delete::{
-    accept_delete, delete_candidates, delete_task, sync_deleted_sessions, valid_delete_target,
+    delete_candidates, sync_deleted_sessions,
 };
 use session_info::Info;
 
-pub(crate) use crate::app::state::ArchivedChatsIdentity as Identity;
-
-#[derive(Debug, Clone)]
-pub enum ArchivedChatsMessage {
-    ProjectActionsToggled(String),
-    ProjectDeleteRequested(String),
-    ProjectDeleteRetry,
-    ProjectDeleted {
-        identity: Identity,
-        generation: u64,
-        id: String,
-        result: Result<Option<Vec<String>>, String>,
-    },
-    DeleteRequested(String),
-    DeleteCancelled,
-    DeleteConfirmed,
-    Deleted {
-        identity: Identity,
-        generation: u64,
-        id: String,
-        result: Result<Vec<String>, String>,
-    },
-    Refresh,
-    Loaded {
-        identity: Identity,
-        generation: u64,
-        result: Result<Vec<Info>, String>,
-    },
-    SearchChanged(String),
-    ProjectSelected(Option<String>),
-    SortSelected(ArchivedChatsSort),
-    Restore(String),
-    Restored {
-        identity: Identity,
-        generation: u64,
-        id: String,
-        result: Result<Info, String>,
-    },
-    ProjectRefreshed {
-        identity: Identity,
-        generation: u64,
-        result: Result<(String, Vec<Info>), String>,
-    },
-}
-
-pub(crate) fn apply(
-    state: &mut ArchivedChatsState,
-    message: ArchivedChatsMessage,
-    current: &Identity,
-) {
-    if project_delete::apply(state, &message, current) {
-        return;
-    }
-    match message {
-        ArchivedChatsMessage::ProjectActionsToggled(_)
-        | ArchivedChatsMessage::ProjectDeleteRequested(_)
-        | ArchivedChatsMessage::ProjectDeleteRetry
-        | ArchivedChatsMessage::ProjectDeleted { .. } => unreachable!(),
-        ArchivedChatsMessage::DeleteRequested(id) => {
-            if state.identity.as_ref() != Some(current)
-                || state.loading
-                || !state.operating_ids.is_empty()
-                || state.delete_confirmation.is_some()
-            {
-                return;
-            }
-            if let Some(row) = state
-                .sessions
-                .iter()
-                .find(|row| row.id == id && row.time.archived.is_some() && row.is_user_navigable())
-            {
-                state.delete_target = Some(crate::app::state::ArchivedChatDeleteTarget {
-                    identity: current.clone(),
-                    row: row.clone(),
-                });
-                state.delete_confirmation =
-                    Some(crate::app::state::ArchivedChatsDeleteConfirmation::Chat(id));
-            }
-        }
-        ArchivedChatsMessage::DeleteCancelled => {
-            if state.delete_generation.is_none() {
-                state.delete_confirmation = None;
-                state.delete_target = None;
-                state.project_delete = None;
-            }
-        }
-        ArchivedChatsMessage::DeleteConfirmed => {
-            if state.delete_generation.is_some() {
-                return;
-            }
-            if !valid_delete_target(state, current) {
-                state.delete_confirmation = None;
-                state.delete_target = None;
-                return;
-            }
-            let id = state.delete_target.as_ref().unwrap().row.id.clone();
-            state.request_generation += 1;
-            state.delete_generation = Some(state.request_generation);
-            state.operating_ids.insert(id);
-        }
-        ArchivedChatsMessage::Deleted { identity, generation, id, result } => {
-            if !accept_delete(state, current, &identity, generation, &id) {
-                return;
-            }
-            state.delete_generation = None;
-            state.operating_ids.remove(&id);
-            if let Ok(ids) = result {
-                state.error = None;
-                state.sessions.retain(|row| !ids.contains(&row.id));
-                state.delete_confirmation = None;
-                state.delete_target = None;
-                state.request_generation += 1;
-                if state.selected_project_id.as_ref().is_some_and(|selected| {
-                    !state.project_options().iter().any(|project| &project.id == selected)
-                }) {
-                    state.selected_project_id = None;
-                }
-            }
-        }
-        ArchivedChatsMessage::Restore(id) => {
-            let Some(row) = state.sessions.iter().find(|row| row.id == id) else {
-                return;
-            };
-            let conflicting_delete = match &state.delete_confirmation {
-                Some(crate::app::state::ArchivedChatsDeleteConfirmation::Chat(target)) => {
-                    target == &id
-                }
-                Some(crate::app::state::ArchivedChatsDeleteConfirmation::Project(project)) => {
-                    project == &row.project_id
-                }
-                None => false,
-            };
-            if state.identity.as_ref() != Some(current)
-                || state.loading
-                || row.time.archived.is_none()
-                || !row.is_user_navigable()
-                || state.delete_generation.is_some()
-                || conflicting_delete
-                || !state.operating_ids.insert(id.clone())
-            {
-                return;
-            }
-            state.request_generation += 1;
-            state.restore_requests.insert(id, state.request_generation);
-        }
-        ArchivedChatsMessage::Restored { identity, generation, id, result } => {
-            if !accept_restore(state, current, &identity, generation, &id) {
-                return;
-            }
-            state.operating_ids.remove(&id);
-            state.restore_requests.remove(&id);
-            if result.is_ok_and(|info| info.id == id && info.time.archived.is_none()) {
-                // A project snapshot taken before this commit must not re-archive the row.
-                state.request_generation += 1;
-                state.sessions.retain(|row| row.id != id);
-                if state.selected_project_id.as_ref().is_some_and(|selected| {
-                    !state.project_options().iter().any(|project| &project.id == selected)
-                }) {
-                    state.selected_project_id = None;
-                }
-            }
-        }
-        ArchivedChatsMessage::ProjectRefreshed { .. } => {}
-        ArchivedChatsMessage::Refresh => {
-            if !state.operating_ids.is_empty() {
-                return;
-            }
-            if state.identity.as_ref().is_some_and(|identity| identity != current) {
-                reset(state);
-            }
-            state.identity = Some(current.clone());
-            state.request_generation += 1;
-            state.loading = true;
-            state.project_action_menu = None;
-            state.error = None;
-        }
-        ArchivedChatsMessage::Loaded { identity, generation, result } => {
-            if &identity != current || generation != state.request_generation || !state.loading {
-                return;
-            }
-            state.loading = false;
-            match result {
-                Ok(sessions) => {
-                    state.sessions = sessions;
-                    state.error = None;
-                    if state.delete_target.is_some() && !valid_delete_target(state, current) {
-                        state.delete_confirmation = None;
-                        state.delete_target = None;
-                    }
-                    if state.selected_project_id.as_ref().is_some_and(|selected| {
-                        !state.project_options().iter().any(|project| &project.id == selected)
-                    }) {
-                        state.selected_project_id = None;
-                    }
-                }
-                Err(error) => state.error = Some(error),
-            }
-        }
-        ArchivedChatsMessage::SearchChanged(search) => {
-            state.search = search;
-            state.project_action_menu = None;
-        }
-        ArchivedChatsMessage::ProjectSelected(project) => {
-            state.selected_project_id = project;
-            state.project_action_menu = None;
-        }
-        ArchivedChatsMessage::SortSelected(sort) => {
-            state.sort = sort;
-        }
-    }
-}
-
-pub(crate) fn reset(state: &mut ArchivedChatsState) {
-    let generation = state.request_generation + 1;
-    *state = ArchivedChatsState { request_generation: generation, ..Default::default() };
-}
+pub use desktop_settings_sessions::archived_chats::{ArchivedChatsMessage, Identity, apply, reset, accept_restore};
+use desktop_settings_sessions::archived_chats::{accept_delete, delete_task};
+fn event(message: ArchivedChatsMessage) -> Message { Message::Settings(SettingsMessage::ArchivedChats(message)) }
+pub(crate) fn load_task(client: Result<vw_gateway_client::GatewayClient, String>, identity: Identity, generation: u64) -> Task<Message> { desktop_settings_sessions::archived_chats::load_task(client, identity, generation).map(event) }
+pub(crate) fn restore_task(client: Result<vw_gateway_client::GatewayClient, String>, identity: Identity, generation: u64, row: Info) -> Task<Message> { desktop_settings_sessions::archived_chats::restore_task(client, identity, generation, row).map(event) }
 
 pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Message> {
     let current = Identity::from_endpoint(&crate::app::gateway_client_endpoint());
@@ -247,7 +38,7 @@ pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Messa
             };
             let target = app.archived_chats.delete_target.as_ref().unwrap().row.clone();
             app.archived_chats.delete_reconcile_ids = delete_candidates(app, &target.id);
-            return delete_task(crate::app::config::gateway_client(), current, generation, target);
+            return delete_task(crate::app::config::gateway_client(), current, generation, target).map(event);
         }
         ArchivedChatsMessage::Deleted { identity, generation, id, result } => {
             if !accept_delete(&app.archived_chats, &current, &identity, generation, &id) {
@@ -391,19 +182,6 @@ pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Messa
     Task::none()
 }
 
-fn accept_restore(
-    state: &ArchivedChatsState,
-    current: &Identity,
-    identity: &Identity,
-    generation: u64,
-    id: &str,
-) -> bool {
-    identity == current
-        && state.identity.as_ref() == Some(identity)
-        && state.operating_ids.contains(id)
-        && state.restore_requests.get(id) == Some(&generation)
-}
-
 fn sync_restored_session(app: &mut App, info: &Info) {
     for row in app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()) {
         if row.id == info.id {
@@ -411,39 +189,6 @@ fn sync_restored_session(app: &mut App, info: &Info) {
         }
     }
     app.archived_session_ids.remove(&info.id);
-}
-
-pub(crate) fn restore_task(
-    client: Result<vw_gateway_client::GatewayClient, String>,
-    identity: Identity,
-    generation: u64,
-    row: Info,
-) -> Task<Message> {
-    let id = row.id.clone();
-    Task::perform(
-        async move {
-            gateway_session::GatewaySessionClient::new(client?.transport().clone())
-                .session_update::<Info>(
-                    &row.id,
-                    Some(&row.directory),
-                    &vw_api_session::GatewaySessionPatchBody {
-                        title: None,
-                        time: Some(vw_api_session::GatewaySessionPatchTime {
-                            archived: Some(0),
-                        }),
-                    },
-                )
-                .await
-        },
-        move |result| {
-            Message::Settings(SettingsMessage::ArchivedChats(ArchivedChatsMessage::Restored {
-                identity: identity.clone(),
-                generation,
-                id: id.clone(),
-                result,
-            }))
-        },
-    )
 }
 
 fn refresh_project_task(
@@ -472,26 +217,6 @@ fn refresh_project_task(
                     result,
                 },
             ))
-        },
-    )
-}
-
-pub(crate) fn load_task(
-    client: Result<vw_gateway_client::GatewayClient, String>,
-    identity: Identity,
-    generation: u64,
-) -> Task<Message> {
-    Task::perform(
-        async move {
-            let client = client?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list::<Vec<Info>>(None).await.map_err(|error| error.to_string())
-        },
-        move |result| {
-            Message::Settings(SettingsMessage::ArchivedChats(ArchivedChatsMessage::Loaded {
-                identity: identity.clone(),
-                generation,
-                result,
-            }))
         },
     )
 }

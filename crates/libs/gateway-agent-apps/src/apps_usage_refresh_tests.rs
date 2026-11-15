@@ -18,7 +18,7 @@ use super::{
     usage_refresh::{NativeTransport, UsageRefresh},
     usage_refresh_tests::Fixture,
 };
-use crate::gateway::middleware::tenant_scope_middleware;
+use gateway_types::tenant_scope::tenant_scope_middleware;
 
 const TOKEN: &str = "test-usage-refresh-owner-token-with-valid-length";
 const OTHER_TOKEN: &str = "test-usage-refresh-other-token-with-valid-length";
@@ -248,10 +248,8 @@ async fn usage_usage_refresh_rechecks_read_permission_before_event_delivery() {
 fn managed_codex_fixture(fixture: &mut Fixture) -> impl Fn(&str) + use<> {
     use std::os::unix::fs::DirBuilderExt;
 
-    use crate::{
-        agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-        app_providers::AppProviderStore,
-    };
+    use agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore};
+    use app_provider_services::AppProviderStore;
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use vw_agent_apps::{
         auth::credential_file::{AccountCredential, CredentialFileStore},
@@ -479,5 +477,5 @@ const FIXTURE_KEY: &str = concat!(
     "Ow2K4OnZ",
 );
 
-#[path = "../apps_usage_acceptance_tests.rs"]
+#[path = "apps_usage_acceptance_tests.rs"]
 mod acceptance;

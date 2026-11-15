@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 use super::{apps_usage_script, usage_refresh::UsageRefresh, usage_refresh_tests::Fixture};
-use crate::gateway::middleware::tenant_scope_middleware;
+use gateway_types::tenant_scope::tenant_scope_middleware;
 
 const TOKEN: &str = "test-usage-script-owner-token-with-valid-length";
 const SELECTOR: &str = "projectId=project-a&targetHostId=local&appId=codex&providerId=ok";
@@ -237,7 +237,7 @@ async fn usage_usage_script_revokes_in_flight_trial_without_revoking_settings_re
 }
 
 async fn set_native_provider(fixture: &Fixture, base_url: &str) {
-    let providers = crate::gateway::api::handlers::app_providers::router()
+    let providers = gateway_app_providers::router()
         .layer(Extension(fixture.database.clone()))
         .layer(middleware::from_fn(tenant_scope_middleware));
     let request = Request::builder()

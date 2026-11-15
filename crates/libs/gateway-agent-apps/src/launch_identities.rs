@@ -1,10 +1,9 @@
-use vw_api_app_identity::{AppId, LaunchIdentity, LaunchIdentityKind};
 //! Identity projections from formal tenant owners, authorized for the selected execution host.
+use vw_api_app_identity::{AppId, LaunchIdentity, LaunchIdentityKind};
 use super::launch::Context;
-use crate::{
-    agent_apps::auth_accounts::AuthAccountStore, app_providers::AppProviderStore,
-    global_database::GlobalDatabase,
-};
+use agent_app_services::auth_accounts::AuthAccountStore;
+use app_provider_services::AppProviderStore;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json,
     extract::Query,
@@ -38,7 +37,7 @@ pub(super) async fn list(
         let host = &authorization.host;
         let database = match database {
             Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         let mut identities: Vec<_> = AppProviderStore::new(database.clone())

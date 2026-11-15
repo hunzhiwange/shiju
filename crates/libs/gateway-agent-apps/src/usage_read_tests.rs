@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 use super::{usage_read, usage_refresh::UsageRefresh, usage_refresh_tests::Fixture};
-use crate::gateway::middleware::tenant_scope_middleware;
+use gateway_types::tenant_scope::tenant_scope_middleware;
 
 const TOKEN: &str = "test-usage-reader-token-of-valid-length";
 const SELECTOR: &str = "projectId=project-a&targetHostId=local&appId=codex&providerId=ok";
@@ -122,10 +122,8 @@ async fn usage_usage_read_requires_current_scoped_provider_binding() {
     vw_api_transport::id::TenantScope,
 };
 
-    use crate::{
-        agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},
-        app_providers::AppProviderStore,
-    };
+    use agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore};
+    use app_provider_services::AppProviderStore;
 
     let mut fixture = Fixture::new().await;
     let refresh = UsageRefresh::new(fixture.database.clone()).unwrap();

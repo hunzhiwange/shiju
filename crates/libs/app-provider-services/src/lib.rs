@@ -817,3 +817,5 @@ pub trait RecordPublication: Send + Sync {
     fn failure(&self) -> Option<axum::http::StatusCode>;
     fn record_failure(&self, status: axum::http::StatusCode);
 }
+
+pub mod account_access;

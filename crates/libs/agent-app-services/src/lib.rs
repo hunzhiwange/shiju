@@ -5,6 +5,7 @@ pub mod data_import;
 
 pub mod mcp;
 
+pub mod auth_host;
 pub mod usage_settings;
 pub mod store;
 mod sqlite;

@@ -11,3 +11,6 @@ pub use limits::*;
 pub use options::ServeOptions;
 pub use state::{AppState, GatewayChannels};
 pub use types::{AgentBody, WebhookBody};
+
+pub mod app_operations;
+pub mod tenant_scope;

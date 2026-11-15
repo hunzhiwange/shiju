@@ -9,3 +9,42 @@ doctest = false
 
 [dependencies]
 app-access-service = { path = "../app-access-service", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+model-transport = { path = "../model-transport", version = "0.6.0" }
+agent-usage = { path = "../agent-usage", version = "0.6.0" }
+vw-api-apps-usage = { path = "../api-apps-usage", version = "0.6.0" }
+futures-util = "0.3.32"
+parking_lot = "0.12"
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+sha2 = "0.11"
+chrono = "0.4"
+tracing = "0.1"
+
+[dev-dependencies]
+gateway-app-providers = { path = "../gateway-app-providers", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+base64 = "0.23"
+hex = "0.4"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util"] }

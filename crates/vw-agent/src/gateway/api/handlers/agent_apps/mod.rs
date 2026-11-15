@@ -200,15 +200,7 @@ pub(super) use access::AccountTermination;
 #[cfg(target_os = "macos")]
 pub(crate) use access::{AuthorizedMcpProbe, McpProbeAccess};
 
-pub(super) struct AuthAccountHost {
-    pub id: String,
-    pub home: std::path::PathBuf,
-    pub credential_root: std::path::PathBuf,
-    pub principal: String,
-    pub owns_native_slot: bool,
-    pub can_set_default: bool,
-    pub can_revoke: bool,
-}
+pub(super) use app_access_service::account_host::AuthAccountHost;
 
 pub(super) fn authorize_auth_account_read(
     path: Option<&std::path::Path>,
@@ -300,25 +292,7 @@ pub(super) fn authorize_auth_account_termination(
     account_host(&authorized, owns_native_slot)
 }
 
-fn account_host(
-    authorized: &access::Authorization,
-    owns_native_slot: bool,
-) -> Result<AuthAccountHost, axum::http::StatusCode> {
-    use axum::http::StatusCode;
-    Ok(AuthAccountHost {
-        id: authorized.host.id.clone(),
-        home: authorized.host.home.clone(),
-        credential_root: authorized
-            .host
-            .credential_root
-            .clone()
-            .ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
-        principal: authorized.principal.clone(),
-        owns_native_slot,
-        can_set_default: authorized.can_set_default,
-        can_revoke: authorized.can_revoke,
-    })
-}
+use app_access_service::account_host::account_host;
 
 pub(super) struct AuthStartHost {
     pub id: String,
@@ -373,8 +347,8 @@ mod preferences_tests;
 
 mod launch;
 
-mod launch_identities;
-mod launch_sessions;
+
+
 
 #[cfg(all(test, unix))]
 mod remote_tests_tests;
@@ -553,16 +527,13 @@ pub(crate) use usage_refresh::{init as init_usage_refresh, run as run_usage_refr
 
 mod usage_read;
 
-#[cfg(all(test, target_os = "macos"))]
-mod usage_refresh_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod usage_read_tests;
+
+
 
 #[cfg(target_os = "macos")]
 mod apps_usage_refresh;
-#[cfg(all(test, target_os = "macos"))]
-mod apps_usage_refresh_tests;
+
 #[cfg(target_os = "macos")]
 mod usage_codex;
 #[cfg(target_os = "macos")]
@@ -570,8 +541,7 @@ mod usage_native;
 
 #[cfg(target_os = "macos")]
 mod apps_usage_script;
-#[cfg(all(test, target_os = "macos"))]
-mod apps_usage_script_tests;
+
 
 /// Read the MCP catalog under the existing tenant and host membership grant.
 pub(super) fn authorize_mcp_catalog_read(

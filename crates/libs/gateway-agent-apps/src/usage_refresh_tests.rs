@@ -28,11 +28,9 @@ use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;
 
 use super::usage_refresh::{RefreshError, UsageRefresh};
-use crate::{
-    agent_apps::usage_settings::{UsageSettingsScope, UsageSettingsStore},
-    global_database::GlobalDatabase,
-    project::{Info, TimeInfo, store::ProjectStore},
-};
+use agent_app_services::usage_settings::{UsageSettingsScope, UsageSettingsStore};
+use agent_database::GlobalDatabase;
+use agent_project::{Info, TimeInfo, store::ProjectStore};
 
 pub(super) struct Fixture {
     _home: tempfile::TempDir,
@@ -104,9 +102,9 @@ impl Fixture {
             ),
         );
         let upstream = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-        let providers = crate::gateway::api::handlers::app_providers::router()
+        let providers = gateway_app_providers::router()
             .layer(Extension(database.clone()))
-            .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+            .layer(axum::middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware));
         for provider in ["ok", "limited", "ungranted"] {
             let profile = AppProviderWrite {
                 name: provider.into(),

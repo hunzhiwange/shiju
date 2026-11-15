@@ -3633,7 +3633,7 @@ fn permission_mode_id(mode: PermissionMode) -> &'static str {
 
 /// 作为 CLI 交互入口启动 Gateway、初始化会话并运行终端循环。
 pub(crate) fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
-    let runtime = GatewayUiRuntime::for_workspace(config).map_err(|error| anyhow!(error))?;
+    let runtime = crate::cli::setup::setup_gateway_runtime(config).map_err(|error| anyhow!(error))?;
     runtime.ensure_local_gateway_ready_blocking().map_err(|error| anyhow!(error))?;
 
     let mut state = initial_tui_state(&runtime);

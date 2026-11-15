@@ -15,7 +15,6 @@
 use super::stream_adapter::terminal_from_error_message;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::stream_adapter::adapt_gateway_stream_event;
-use crate::app::agent::config::Config;
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::future::Future;
@@ -101,10 +100,10 @@ impl GatewayClientBootstrapConfig {
     ///
     /// 读取失败时会回退到默认值，而不是让 legacy CLI 因配置缺失直接中断。
     /// 这样可以保证 S1-1 先把依赖边界与 runtime 骨架接好，后续再继续补齐真实切换路径。
-    pub(crate) fn load(config: &Config) -> Self {
+    pub(crate) fn load(config_path: &Path) -> Self {
         let mut bootstrap = Self::default();
 
-        let Some(config_dir) = config.config_path.parent() else {
+        let Some(config_dir) = config_path.parent() else {
             return bootstrap;
         };
         let bootstrap_path = config_dir.join("gateway-client-bootstrap.json");
@@ -266,22 +265,13 @@ impl GatewayUiRuntime {
         Self { client, session }
     }
 
-    /// 基于 CLI 配置与给定会话种子直接创建 runtime。
-    ///
-    /// 这是 S1-1 的主要接线点：CLI 现在可以直接读取自身配置并构造 `GatewayClient`，
-    /// 不必经过 legacy processor 或桌面端模块。
-    pub(crate) fn from_config(
-        config: &Config,
+    /// 基于已解析的网关地址与会话种子创建 runtime。
+    pub(crate) fn from_endpoint(
+        endpoint: GatewayEndpoint,
         session: GatewaySessionSeed,
     ) -> Result<Self, String> {
-        let client = gateway_client(config)?;
+        let client = GatewayClient::new(endpoint)?;
         Ok(Self::new(client, session))
-    }
-
-    /// 以当前 shell 的请求目录作为默认请求目录创建 runtime。
-    pub(crate) fn for_workspace(config: &Config) -> Result<Self, String> {
-        let request_root = std::env::current_dir().unwrap_or_else(|_| config.workspace_dir.clone());
-        Self::from_config(config, GatewaySessionSeed::new(request_root))
     }
 
     /// 返回统一的 gateway client 引用。
@@ -620,16 +610,6 @@ where
             runtime.block_on(future)
         }
     }
-}
-
-/// 根据 CLI 运行时配置构造 gateway endpoint。
-pub(crate) fn gateway_client_endpoint(config: &Config) -> GatewayEndpoint {
-    GatewayClientBootstrapConfig::load(config).endpoint()
-}
-
-/// 根据 CLI 运行时配置直接构造 `GatewayClient`。
-pub(crate) fn gateway_client(config: &Config) -> Result<GatewayClient, String> {
-    GatewayClient::new(gateway_client_endpoint(config))
 }
 
 pub(crate) fn annotate_gateway_transport_error(

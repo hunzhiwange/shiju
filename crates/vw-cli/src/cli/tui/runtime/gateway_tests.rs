@@ -379,8 +379,8 @@ fn bootstrap_config_load_reads_cache_and_falls_back_for_missing_or_invalid_confi
     )
     .expect("write gateway config");
 
-    let config = Config { config_path: config_dir.join("vibewindow.json"), ..Config::default() };
-    let bootstrap = GatewayClientBootstrapConfig::load(&config);
+    let config_path = config_dir.join("vibewindow.json");
+    let bootstrap = GatewayClientBootstrapConfig::load(&config_path);
     fs::remove_file(&bootstrap_path).expect("remove gateway config");
 
     assert_eq!(bootstrap.host, "gateway.local");
@@ -388,14 +388,14 @@ fn bootstrap_config_load_reads_cache_and_falls_back_for_missing_or_invalid_confi
     assert_eq!(bootstrap.skey.as_deref(), Some("bearer"));
 
     assert_eq!(
-        GatewayClientBootstrapConfig::load(&config),
+        GatewayClientBootstrapConfig::load(&config_path),
         GatewayClientBootstrapConfig::default()
     );
 
     let invalid_path = config_dir.join("gateway-client-bootstrap.json");
     fs::write(&invalid_path, "{not-json").expect("write invalid gateway config");
     assert_eq!(
-        GatewayClientBootstrapConfig::load(&config),
+        GatewayClientBootstrapConfig::load(&config_path),
         GatewayClientBootstrapConfig::default()
     );
     fs::remove_file(invalid_path).expect("remove invalid gateway config");
@@ -498,7 +498,7 @@ fn gateway_runtime_accessors_binding_resolution_and_directory_value_are_stable()
 }
 
 #[test]
-fn gateway_runtime_from_config_uses_loaded_endpoint_and_preserves_session_seed() {
+fn gateway_runtime_from_endpoint_uses_loaded_endpoint_and_preserves_session_seed() {
     let config_dir = unique_temp_config_path("runtime");
     fs::create_dir(&config_dir).expect("create runtime config dir");
     let bootstrap_path = config_dir.join("gateway-client-bootstrap.json");
@@ -508,12 +508,16 @@ fn gateway_runtime_from_config_uses_loaded_endpoint_and_preserves_session_seed()
     )
     .expect("write runtime config");
 
-    let config = Config { config_path: config_dir.join("vibewindow.json"), ..Config::default() };
+    let config_path = config_dir.join("vibewindow.json");
     let session = GatewaySessionSeed::new(PathBuf::from("/tmp/runtime-work"))
         .with_id(Some(" runtime-session ".to_string()))
         .with_scope(Some(" workspace-write ".to_string()))
         .with_title(Some(" Runtime Title ".to_string()));
-    let runtime = GatewayUiRuntime::from_config(&config, session).expect("runtime should build");
+    let runtime = GatewayUiRuntime::from_endpoint(
+        GatewayClientBootstrapConfig::load(&config_path).endpoint(),
+        session,
+    )
+    .expect("runtime should build");
     fs::remove_file(bootstrap_path).expect("remove runtime config");
     fs::remove_dir(config_dir).expect("remove runtime config dir");
 
@@ -528,23 +532,6 @@ fn gateway_runtime_from_config_uses_loaded_endpoint_and_preserves_session_seed()
     assert_eq!(runtime.directory(), PathBuf::from("/tmp/runtime-work").as_path());
     assert_eq!(runtime.session().directory(), PathBuf::from("/tmp/runtime-work").as_path());
     assert!(runtime.client().endpoint().auth.is_some());
-}
-
-#[test]
-fn gateway_runtime_for_workspace_uses_current_directory_seed() {
-    let config_dir = unique_temp_config_path("workspace");
-    fs::create_dir(&config_dir).expect("create workspace config dir");
-    let config = Config { config_path: config_dir.join("vibewindow.json"), ..Config::default() };
-
-    let runtime = GatewayUiRuntime::for_workspace(&config).expect("runtime should build");
-    let current_dir = std::env::current_dir().expect("read current directory");
-    fs::remove_dir(config_dir).expect("remove workspace config dir");
-
-    assert_eq!(runtime.directory(), current_dir.as_path());
-    assert_eq!(
-        runtime.endpoint().describe(),
-        format!("127.0.0.1:{}", vw_config_types::gateway::DEFAULT_GATEWAY_PORT)
-    );
 }
 
 #[test]

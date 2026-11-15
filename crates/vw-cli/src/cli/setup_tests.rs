@@ -145,3 +145,30 @@ fn interactive_setup_allows_missing_default_provider() {
     assert_eq!(setup.provider_name, "token-plan");
     assert!(super::setup::setup_cli(&config, false, None, None).is_err());
 }
+
+#[test]
+fn gateway_runtime_for_workspace_uses_current_directory_seed() {
+    let config_dir = std::env::temp_dir().join(format!(
+        "vw-cli-setup-workspace-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time after unix epoch")
+            .as_nanos(),
+    ));
+    std::fs::create_dir(&config_dir).expect("create workspace config dir");
+    let config = crate::app::agent::config::Config {
+        config_path: config_dir.join("vibewindow.json"),
+        ..crate::app::agent::config::Config::default()
+    };
+
+    let runtime = super::setup::setup_gateway_runtime(&config).expect("runtime should build");
+    let current_dir = std::env::current_dir().expect("read current directory");
+    std::fs::remove_dir(config_dir).expect("remove workspace config dir");
+
+    assert_eq!(runtime.directory(), current_dir.as_path());
+    assert_eq!(
+        runtime.endpoint().describe(),
+        format!("127.0.0.1:{}", vw_config_types::gateway::DEFAULT_GATEWAY_PORT)
+    );
+}

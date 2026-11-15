@@ -4,14 +4,14 @@ use super::list::Scope;
 use std::sync::Arc;
 use {
     vw_api_transport::id::ModelId,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogPreset,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogReadResponse,
-    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryFailure,
-    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryMethod,
-    vw_gateway_client::vw_api_types::model_catalog::ScopedModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogFillPreviewResponse,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogPreset,
+    vw_api_model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelCatalogReadResponse,
+    vw_api_model_catalog::ModelDiscoveryFailure,
+    vw_api_model_catalog::ModelDiscoveryMethod,
+    vw_api_model_catalog::ScopedModelCatalogIdentity,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

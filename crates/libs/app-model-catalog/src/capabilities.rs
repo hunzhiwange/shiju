@@ -1,7 +1,7 @@
 //! Resolve capability evidence for one model in an already selected deployment.
 
 use serde_json::Value;
-use vw_api_types::model_catalog::{ModelCapabilityState, ModelMetadataDto};
+use vw_api_model_catalog::{ModelCapabilityState, ModelMetadataDto};
 
 pub struct ModelCapabilities<'a> {
     pub image_input: ModelCapabilityState,

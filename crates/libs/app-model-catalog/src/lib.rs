@@ -1,5 +1,5 @@
 //! Model presets, capability evidence and catalog projection without discovery or I/O.
-use vw_api_types::model_catalog::*;
+use vw_api_model_catalog::*;
 
 pub mod capabilities;
 pub mod codex_template;

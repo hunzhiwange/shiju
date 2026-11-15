@@ -4,9 +4,9 @@ use {
     vw_api_app_identity::AppId,
     vw_api_transport::common::PaginationRequest,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogProject,
-    vw_api_types::model_catalog::ModelCatalogQuery,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelCatalogQuery,
 };
 
 const TOKEN: &str = "model-catalog-test-token";

@@ -1,9 +1,9 @@
 use super::{AgentAppsReadError as Error, GatewayClient};
 use {
     vw_api_transport::id::TaskId,
-    vw_api_types::model_catalog::ModelCatalogProject,
-    vw_api_types::model_catalog::ModelDiscoveryRequest,
-    vw_api_types::model_catalog::ModelDiscoveryStatus,
+    vw_api_model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelDiscoveryRequest,
+    vw_api_model_catalog::ModelDiscoveryStatus,
 };
 
 impl GatewayClient {

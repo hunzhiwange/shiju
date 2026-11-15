@@ -18,7 +18,7 @@ use iced::{
     Element, Theme,
     widget::{button, checkbox, column, container, row, text, text::Wrapping},
 };
-use vw_gateway_client::vw_api_types::model_catalog::{ModelDiscoveryFailure, ModelDiscoveryMethod};
+use vw_api_model_catalog::{ModelDiscoveryFailure, ModelDiscoveryMethod};
 
 fn message(event: Event) -> Message {
     catalog_api::message(CatalogEvent::Discovery(event))

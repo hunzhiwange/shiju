@@ -12,7 +12,7 @@ use {
     vw_api_app_identity::AppId,
     vw_api_types::app_providers::codex_catalog::CodexProfile,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::*,
+    vw_api_model_catalog::*,
 };
 pub const CATALOG_FILENAME: &str = "shiju-model-catalog.json";
 pub fn settings(profile: &CodexProfile) -> Value {

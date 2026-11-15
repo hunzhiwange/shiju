@@ -5,14 +5,14 @@ use tempfile::TempDir;
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCapabilityState,
-    vw_api_types::model_catalog::ModelCatalogEdit,
-    vw_api_types::model_catalog::ModelCatalogEditRequest,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogReadResponse,
-    vw_api_types::model_catalog::ModelCatalogWriteResponse,
-    vw_api_types::model_catalog::ModelMetadataDto,
-    vw_api_types::model_catalog::ModelTokenCost,
+    vw_api_model_catalog::ModelCapabilityState,
+    vw_api_model_catalog::ModelCatalogEdit,
+    vw_api_model_catalog::ModelCatalogEditRequest,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogReadResponse,
+    vw_api_model_catalog::ModelCatalogWriteResponse,
+    vw_api_model_catalog::ModelMetadataDto,
+    vw_api_model_catalog::ModelTokenCost,
 };
 
 struct Fixture {

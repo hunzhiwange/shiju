@@ -1,10 +1,10 @@
+use vw_api_model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance};
 //! Read-only metadata fill for OpenCode-shaped model drafts.
 
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 use vw_api_types::{
     agent_apps::AppId,
-    model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance},
 };
 
 use vw_api_app_identity::{AppId};
@@ -28,7 +28,7 @@ pub fn fill_opencode_model(
     use ModelMetadataField::{
         ContextWindow, InputModalities, MaxOutputTokens, OutputModalities, Reasoning,
     };
-    use vw_api_types::model_catalog::ModelCapabilityState::Supported;
+    use vw_api_model_catalog::ModelCapabilityState::Supported;
 
     if !matches!(app, AppId::OpenCode | AppId::Mcode | AppId::Dsh) {
         return Err("unsupported OpenCode-shaped model");

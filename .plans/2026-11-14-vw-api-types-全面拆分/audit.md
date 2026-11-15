@@ -2703,3 +2703,7 @@
 14 个应用认证类型及两项既有 DTO 测试迁入 `api-app-auth`，保留凭证状态、validate_for、serde 与脱敏 Debug。新库仅生产依赖 api-transport 的 TimestampMs 和 serde，serde_json 为测试依赖；旧模块明确重导出同一类型。实际消费者 vw-agent、vw-agent-apps、vw-desktop、vw-gateway-client 及已拆出的 gateway-app-auth 均直接依赖新库并迁移导入；门面 MCP 与 Kimi 字段也使用同源类型。SDK 测试中原有重复门面前缀的 TenantScope 导入修正为 transport 的真实路径。
 
 已静态核对清单、单向依赖、测试注册及源码迁移差异，git diff --check 通过。未运行 Cargo、测试及实机验证；未来验收仍需编译新库和消费者，并运行 auth6_dto_commits_expected_scoped_result、auth6_dto_rejects_invalid_or_stale_input 及直接消费者的授权边界测试。
+
+## 任务23静态迁移记录
+
+模型目录定义与7个既有测试迁入 `crates/libs/api-model-catalog`；旧模块保留同一类型重导出。依赖 api-app-identity、api-chat-identity、api-transport；serde_json 仅用于测试。已同步 agent、agent-apps、desktop、gateway-client 及实际新增消费者 app-model-catalog、gateway-model-catalog 的导入与清单。未运行 Cargo、测试及实机验证。

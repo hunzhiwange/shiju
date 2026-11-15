@@ -6,13 +6,13 @@ use {
     vw_api_transport::common::PaginatedResponse,
     vw_api_transport::common::PaginationRequest,
     vw_api_transport::id::ModelId,
-    vw_api_types::model_catalog::ModelCatalogCapabilities,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogPreset,
-    vw_api_types::model_catalog::ModelCatalogProject,
-    vw_api_types::model_catalog::ModelCatalogQuery,
-    vw_api_types::model_catalog::ModelCatalogReadResponse,
-    vw_api_types::model_catalog::ModelCatalogTemplates,
+    vw_api_model_catalog::ModelCatalogCapabilities,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogPreset,
+    vw_api_model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelCatalogQuery,
+    vw_api_model_catalog::ModelCatalogReadResponse,
+    vw_api_model_catalog::ModelCatalogTemplates,
 };
 
 impl GatewayClient {

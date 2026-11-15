@@ -16,7 +16,7 @@ use {
     vw_api_types::app_providers::opencode::OpenCodeProfile,
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::*,
+    vw_api_model_catalog::*,
 };
 use {gateway_endpoint::{GatewayEndpoint}, gateway_model_catalog::{AgentAppsReadError}};
 

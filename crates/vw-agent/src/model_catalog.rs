@@ -3,7 +3,7 @@ use crate::{gateway::settings_store::GatewaySettingsStore, global_database::Glob
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::*,
+    vw_api_model_catalog::*,
 };
 const NAMESPACE: &str = "model_catalog.saved";
 pub(crate) struct ModelCatalogStore(GatewaySettingsStore);

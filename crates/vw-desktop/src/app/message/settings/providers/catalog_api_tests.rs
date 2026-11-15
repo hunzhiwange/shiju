@@ -8,8 +8,8 @@ use crate::app::state::{
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogPreset,
-    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelCatalogPreset,
+    vw_api_model_catalog::ModelCatalogProject,
 };
 
 fn form() -> CatalogForm {

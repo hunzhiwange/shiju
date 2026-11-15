@@ -105,7 +105,7 @@ pub fn detach_codex(
     tx: &ProviderTransactions,
     input: Restore<'_>,
     login: LoginInput<'_>,
-    catalog: Option<&vw_api_types::model_catalog::SavedCodexCatalog>,
+    catalog: Option<&vw_api_model_catalog::SavedCodexCatalog>,
     unchanged: impl Fn() -> bool,
     cancelled: impl Fn() -> bool,
 ) -> Result<(), LifecycleError> {

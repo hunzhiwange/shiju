@@ -945,7 +945,7 @@ async fn settings_help_gap_16_catalog_alias_endpoint_and_discovery() {
     use crate::app::state::app_providers::model_catalog::{
         CatalogContext, CatalogForm, DiscoveryPhase,
     };
-    use vw_gateway_client::vw_api_types::model_catalog::{
+    use vw_api_model_catalog::{
         ModelCatalogEntry, ModelCatalogProject, ModelCatalogReadResponse,
         ScopedModelCatalogIdentity,
     };

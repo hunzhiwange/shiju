@@ -1,7 +1,7 @@
 use serde_json::json;
 use toml_edit::{DocumentMut, Item};
 use vw_api_chat_identity::ReasoningEffortDto::{High, Low};
-use vw_api_types::model_catalog::SavedCodexCatalog;
+use vw_api_model_catalog::SavedCodexCatalog;
 
 use super::plan_codex_subagent;
 use crate::aggregation::codex_catalog::{

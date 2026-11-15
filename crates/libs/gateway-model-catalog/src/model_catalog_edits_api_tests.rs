@@ -3,7 +3,7 @@ use serde_json::json;
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::*,
+    vw_api_model_catalog::*,
 };
 
 const TOKEN: &str = "test-editor-token";

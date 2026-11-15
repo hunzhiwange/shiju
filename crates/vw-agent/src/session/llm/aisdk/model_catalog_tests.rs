@@ -11,12 +11,12 @@ use serde_json::{Value, json};
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCapabilityState::Supported,
-    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
-    vw_api_types::model_catalog::ModelCatalogEntry,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelMetadataDto,
-    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
+    vw_api_model_catalog::ModelCapabilityState::Supported,
+    vw_api_model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_model_catalog::ModelCatalogEntry,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelMetadataDto,
+    vw_api_model_catalog::ScopedModelCatalogIdentity,
 };
 
 use crate::{

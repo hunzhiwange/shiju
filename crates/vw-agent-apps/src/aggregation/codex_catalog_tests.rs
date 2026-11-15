@@ -1,7 +1,7 @@
 use super::codex_catalog::*;
 use serde_json::{Map, Value, json};
 use toml_edit::DocumentMut;
-use vw_api_types::model_catalog::{CodexNativeModel, SavedCodexCatalog};
+use vw_api_model_catalog::{CodexNativeModel, SavedCodexCatalog};
 
 fn native_rows() -> Vec<Map<String, Value>> {
     serde_json::from_value(json!([

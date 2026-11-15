@@ -15,7 +15,7 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
     vw_api_transport::id::ModelId,
     vw_api_transport::id::ProviderId,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogIdentity,
 };
 
 use super::{DiagnosticJobOwner, GlobalDatabase};

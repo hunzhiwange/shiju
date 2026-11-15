@@ -7,7 +7,7 @@ use crate::app::{
 };
 use iced::Task;
 use gateway_model_catalog::{AgentAppsReadError, GatewayModelCatalogClient};
-use vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
         ModelCatalogFillCommitRequest, ModelCatalogFillPreviewRequest,
         ModelCatalogFillPreviewResponse, ModelCatalogReadResponse, ModelMetadataDto,
         ScopedModelCatalogIdentity,

@@ -1,3 +1,4 @@
+use vw_api_model_catalog::{CodexNativeModel, SavedCodexCatalog};
 //! Editable Codex supplier fields. Opaque TOML and credentials stay on the executor.
 use super::{identity, settings};
 use crate::providers::{basic, projection, validate_identity, validation};
@@ -6,7 +7,6 @@ use toml_edit::{DocumentMut, Item, Table, TableLike, value};
 use vw_api_types::{
     agent_apps::AppId,
     app_providers::{codex_catalog::*, create::ProviderSecretWrite},
-    model_catalog::{CodexNativeModel, SavedCodexCatalog},
 };
 
 use vw_api_app_auth::AuthErrorCode;

@@ -8,15 +8,15 @@ use std::collections::HashMap;
 use {
     vw_api_transport::id::ModelId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogDefaultChange,
-    vw_api_types::model_catalog::ModelCatalogEdit,
-    vw_api_types::model_catalog::ModelCatalogEditRequest,
-    vw_api_types::model_catalog::ModelCatalogEntry,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogReadResponse,
-    vw_api_types::model_catalog::ModelCatalogWriteResponse,
-    vw_api_types::model_catalog::ModelMetadataDto,
-    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogDefaultChange,
+    vw_api_model_catalog::ModelCatalogEdit,
+    vw_api_model_catalog::ModelCatalogEditRequest,
+    vw_api_model_catalog::ModelCatalogEntry,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogReadResponse,
+    vw_api_model_catalog::ModelCatalogWriteResponse,
+    vw_api_model_catalog::ModelMetadataDto,
+    vw_api_model_catalog::ScopedModelCatalogIdentity,
 };
 
 const CATALOGS: &str = "deploymentModelCatalogs";

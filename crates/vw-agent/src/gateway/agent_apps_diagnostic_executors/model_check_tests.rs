@@ -29,11 +29,11 @@ use {
     vw_api_types::app_providers::claude::ClaudeProfile,
     vw_api_types::app_providers::codex_catalog::CodexProfile,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::model_catalog::CodexNativeModel,
-    vw_api_types::model_catalog::ModelCatalogEdit,
-    vw_api_types::model_catalog::ModelCatalogEditRequest,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::SavedCodexCatalog,
+    vw_api_model_catalog::CodexNativeModel,
+    vw_api_model_catalog::ModelCatalogEdit,
+    vw_api_model_catalog::ModelCatalogEditRequest,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::SavedCodexCatalog,
 };
 
 use super::{ModelPrepareError, ModelProbe};

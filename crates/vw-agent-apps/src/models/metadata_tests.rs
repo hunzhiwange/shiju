@@ -8,14 +8,14 @@ use std::time::{Duration, UNIX_EPOCH};
 use {
     vw_api_app_identity::AppId::*,
     vw_api_transport::common::TimestampMs,
-    vw_api_types::model_catalog::ModelCapabilityState::Supported,
-    vw_api_types::model_catalog::ModelCapabilityState::Unknown,
-    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
-    vw_api_types::model_catalog::ModelMetadataField::*,
-    vw_api_types::model_catalog::ModelMetadataProvenance,
-    vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
-    vw_api_types::model_catalog::ModelMetadataSource::Preset,
-    vw_api_types::model_catalog::ModelTokenCost,
+    vw_api_model_catalog::ModelCapabilityState::Supported,
+    vw_api_model_catalog::ModelCapabilityState::Unknown,
+    vw_api_model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_model_catalog::ModelMetadataField::*,
+    vw_api_model_catalog::ModelMetadataProvenance,
+    vw_api_model_catalog::ModelMetadataSource::ModelsDev,
+    vw_api_model_catalog::ModelMetadataSource::Preset,
+    vw_api_model_catalog::ModelTokenCost,
 };
 use provider_model_cache::ModelsSnapshot;
 

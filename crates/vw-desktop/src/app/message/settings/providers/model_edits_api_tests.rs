@@ -18,7 +18,8 @@ use std::{
     sync::mpsc::{Receiver, Sender},
     time::Duration,
 };
-use vw_gateway_client::vw_api_types::{agent_apps::AppId, model_catalog::ModelCatalogProject};
+use vw_api_model_catalog::ModelCatalogProject;
+use vw_gateway_client::vw_api_types::{agent_apps::AppId, };
 
 const ENDPOINT: &str = "https://fixture.example/v1";
 const MODEL: &str = "Vendor/Manual[1m]";

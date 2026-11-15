@@ -10,7 +10,7 @@ use {
     vw_api_types::agent_apps::aggregation::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::SavedCodexCatalog,
+    vw_api_model_catalog::SavedCodexCatalog,
 };
 
 #[derive(Serialize)]

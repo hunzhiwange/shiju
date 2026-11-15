@@ -13,7 +13,7 @@ use iced::{
     Element, Length,
     widget::{Column, button, checkbox, column, row, text, text::Wrapping},
 };
-use vw_gateway_client::vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     ModelCapabilityState, ModelCatalogCacheStatus, ModelMetadataDto, ModelMetadataField,
     ModelMetadataSource,
 };

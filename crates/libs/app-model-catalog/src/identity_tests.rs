@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ScopedModelCatalogIdentity,
 };
 
 fn identity(endpoint: &str) -> ScopedModelCatalogIdentity {

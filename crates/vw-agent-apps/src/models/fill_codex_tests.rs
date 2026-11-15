@@ -1,13 +1,13 @@
 use super::fill_codex::{CodexModelFill, fill_codex_catalog_model};
 use {
     vw_api_transport::common::TimestampMs,
-    vw_api_types::model_catalog::CodexNativeModel,
-    vw_api_types::model_catalog::ModelCapabilityState::Supported,
-    vw_api_types::model_catalog::ModelMetadataDto,
-    vw_api_types::model_catalog::ModelMetadataField::*,
-    vw_api_types::model_catalog::ModelMetadataProvenance,
-    vw_api_types::model_catalog::ModelMetadataSource::*,
-    vw_api_types::model_catalog::ModelTokenCost,
+    vw_api_model_catalog::CodexNativeModel,
+    vw_api_model_catalog::ModelCapabilityState::Supported,
+    vw_api_model_catalog::ModelMetadataDto,
+    vw_api_model_catalog::ModelMetadataField::*,
+    vw_api_model_catalog::ModelMetadataProvenance,
+    vw_api_model_catalog::ModelMetadataSource::*,
+    vw_api_model_catalog::ModelTokenCost,
 };
 
 fn native_row(context_window: Option<u64>) -> CodexNativeModel {

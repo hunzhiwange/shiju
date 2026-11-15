@@ -15,12 +15,12 @@ use std::{collections::BTreeMap, time::UNIX_EPOCH};
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::common::TimestampMs,
-    vw_api_types::model_catalog::ModelCapabilityState,
-    vw_api_types::model_catalog::ModelMetadataDto,
-    vw_api_types::model_catalog::ModelMetadataField,
-    vw_api_types::model_catalog::ModelMetadataProvenance,
-    vw_api_types::model_catalog::ModelMetadataSource,
-    vw_api_types::model_catalog::ModelTokenCost,
+    vw_api_model_catalog::ModelCapabilityState,
+    vw_api_model_catalog::ModelMetadataDto,
+    vw_api_model_catalog::ModelMetadataField,
+    vw_api_model_catalog::ModelMetadataProvenance,
+    vw_api_model_catalog::ModelMetadataSource,
+    vw_api_model_catalog::ModelTokenCost,
 };
 use provider_model_catalog::Model;
 use model_reasoning::ReasoningOption;

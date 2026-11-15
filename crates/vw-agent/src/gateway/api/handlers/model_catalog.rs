@@ -26,9 +26,9 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogCapabilities,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogTemplates,
+    vw_api_model_catalog::ModelCatalogCapabilities,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogTemplates,
 };
 
 #[path = "model_catalog/presets.rs"]

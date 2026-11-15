@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
-use vw_api_types::model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance};
+use vw_api_model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance};
 
 /// Hermes model keys to merge into the draft, with sources for the changed fields.
 #[derive(Debug, Default, PartialEq, Eq)]

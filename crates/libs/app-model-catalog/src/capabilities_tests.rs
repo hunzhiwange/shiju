@@ -1,6 +1,6 @@
 use super::capabilities::resolve_model_capabilities;
 use serde_json::json;
-use vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     ModelCapabilityState::{Supported, Unknown, Unsupported},
     ModelMetadataDto,
 };

@@ -124,7 +124,7 @@ impl PublishedProvider {
 
     /// Read only this published deployment, never the direct provider or a global list.
     pub(super) fn discovery(&self) -> Result<Value, StatusCode> {
-        use vw_api_types::model_catalog::ModelCatalogIdentity;
+        use vw_api_model_catalog::ModelCatalogIdentity;
         let invalid = || StatusCode::UNPROCESSABLE_ENTITY;
         let deployment = if self.scope.app_id == AppId::Codex {
             let profile = vw_agent_apps::providers::codex_catalog::form::editable_profile(

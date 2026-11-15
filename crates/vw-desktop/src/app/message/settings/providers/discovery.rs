@@ -18,11 +18,11 @@ use {
     gateway_model_catalog::AgentAppsReadError,
     gateway_model_catalog::GatewayModelCatalogClient,
     vw_api_transport::id::TaskId,
-    vw_api_types::model_catalog::ModelCatalogProject,
-    vw_api_types::model_catalog::ModelDiscoveryMethod,
-    vw_api_types::model_catalog::ModelDiscoveryRequest,
-    vw_api_types::model_catalog::ModelDiscoveryState,
-    vw_api_types::model_catalog::ModelDiscoveryStatus,
+    vw_api_model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelDiscoveryMethod,
+    vw_api_model_catalog::ModelDiscoveryRequest,
+    vw_api_model_catalog::ModelDiscoveryState,
+    vw_api_model_catalog::ModelDiscoveryStatus,
 };
 
 #[derive(Clone)]

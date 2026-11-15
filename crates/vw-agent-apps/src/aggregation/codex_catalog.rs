@@ -5,7 +5,8 @@ use std::collections::HashSet;
 use super::model_ids::{self, Decoded};
 use serde_json::{Map, Value, json};
 use toml_edit::DocumentMut;
-use vw_api_types::{model_catalog::CodexNativeModel, model_catalog::SavedCodexCatalog};
+use vw_api_model_catalog::CodexNativeModel;
+use vw_api_model_catalog::SavedCodexCatalog;
 use vw_api_app_identity::{AppId};
 
 #[derive(Debug, PartialEq, Eq)]

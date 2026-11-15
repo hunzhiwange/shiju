@@ -217,7 +217,7 @@ pub fn restore_codex(
     tx: &ProviderTransactions,
     input: Restore<'_>,
     login: LoginInput<'_>,
-    catalog: Option<&vw_api_types::model_catalog::SavedCodexCatalog>,
+    catalog: Option<&vw_api_model_catalog::SavedCodexCatalog>,
     unchanged: impl Fn() -> bool,
 ) -> Result<(), RestoreError> {
     restore_codex_with_intent(files, tx, input, login, catalog, false, unchanged)
@@ -228,7 +228,7 @@ pub(crate) fn restore_codex_with_intent(
     tx: &ProviderTransactions,
     input: Restore<'_>,
     login: LoginInput<'_>,
-    catalog: Option<&vw_api_types::model_catalog::SavedCodexCatalog>,
+    catalog: Option<&vw_api_model_catalog::SavedCodexCatalog>,
     keep_intent: bool,
     unchanged: impl Fn() -> bool,
 ) -> Result<(), RestoreError> {

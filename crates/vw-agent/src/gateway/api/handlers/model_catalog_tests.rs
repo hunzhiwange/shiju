@@ -13,7 +13,7 @@ use {
     vw_api_types::app_providers::ProviderProtocol,
     vw_api_transport::common::PaginationRequest,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::*,
+    vw_api_model_catalog::*,
 };
 use {gateway_endpoint::{GatewayEndpoint}, gateway_model_catalog::{AgentAppsReadError}};
 

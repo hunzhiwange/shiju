@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
-use vw_api_types::model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance};
+use vw_api_model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance};
 
 /// OpenClaw model keys to merge into the draft, with sources for the changed fields.
 #[derive(Debug, Default, PartialEq)]
@@ -17,7 +17,7 @@ pub fn fill_openclaw_model(
     model: &Map<String, Value>,
     resolved: &ModelMetadataDto,
 ) -> OpenClawModelFill {
-    use vw_api_types::model_catalog::{
+    use vw_api_model_catalog::{
         ModelCapabilityState::{Supported, Unsupported},
         ModelMetadataField::{ContextWindow, Cost, InputModalities, MaxOutputTokens, Reasoning},
     };

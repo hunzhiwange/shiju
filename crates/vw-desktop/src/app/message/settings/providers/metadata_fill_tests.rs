@@ -7,7 +7,7 @@ use super::{
 };
 use crate::app::state::app_providers::model_catalog::FillState;
 use serde_json::{Value, json};
-use vw_gateway_client::vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     ModelCatalogCacheStatus, ModelMetadataField, ModelMetadataSource,
 };
 

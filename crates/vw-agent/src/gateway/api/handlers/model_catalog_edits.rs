@@ -20,14 +20,14 @@ use std::path::PathBuf;
 use vw_agent_apps::providers;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogDefaultRequest,
-    vw_api_types::model_catalog::ModelCatalogEditRequest,
-    vw_api_types::model_catalog::ModelCatalogFillCommitRequest,
-    vw_api_types::model_catalog::ModelCatalogFillPreviewRequest,
-    vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogProject,
-    vw_api_types::model_catalog::ModelCatalogWriteResponse,
+    vw_api_model_catalog::ModelCatalogDefaultRequest,
+    vw_api_model_catalog::ModelCatalogEditRequest,
+    vw_api_model_catalog::ModelCatalogFillCommitRequest,
+    vw_api_model_catalog::ModelCatalogFillPreviewRequest,
+    vw_api_model_catalog::ModelCatalogFillPreviewResponse,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogProject,
+    vw_api_model_catalog::ModelCatalogWriteResponse,
 };
 use provider_model_cache::{self as models, ModelsSnapshot};
 

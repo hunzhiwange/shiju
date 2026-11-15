@@ -7,8 +7,8 @@ use {
     vw_api_types::app_providers::claude::ClaudeActivation,
     vw_api_types::app_providers::codex_catalog::*,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::CodexNativeModel,
-    vw_api_types::model_catalog::SavedCodexCatalog,
+    vw_api_model_catalog::CodexNativeModel,
+    vw_api_model_catalog::SavedCodexCatalog,
 };
 use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-codex-token-with-at-least-32-chars";
@@ -172,7 +172,7 @@ async fn cc04_codex_catalog_sdk_api_denial_and_profile_failure_keep_native_files
 #[test]
 fn cc04_codex_catalog_saved_revisions_are_deployment_and_tenant_scoped() {
     use crate::model_catalog::ModelCatalogStore;
-    use vw_api_types::model_catalog::ModelCatalogIdentity;
+    use vw_api_model_catalog::ModelCatalogIdentity;
     let root = tempfile::tempdir().unwrap();
     let store = ModelCatalogStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();

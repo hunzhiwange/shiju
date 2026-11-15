@@ -1,7 +1,7 @@
 //! Read-only Codex model metadata fill suggestions.
 
 use std::collections::BTreeMap;
-use vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     CodexNativeModel, ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance,
 };
 

@@ -9,11 +9,11 @@ use {
     vw_api_types::app_providers::pi::PiActivation,
     vw_api_types::app_providers::pi::PiProfile,
     vw_api_transport::common::TimestampMs,
-    vw_api_types::model_catalog::ModelCapabilityState,
-    vw_api_types::model_catalog::ModelMetadataDto,
-    vw_api_types::model_catalog::ModelMetadataField::ReasoningEfforts,
-    vw_api_types::model_catalog::ModelMetadataProvenance,
-    vw_api_types::model_catalog::ModelMetadataSource,
+    vw_api_model_catalog::ModelCapabilityState,
+    vw_api_model_catalog::ModelMetadataDto,
+    vw_api_model_catalog::ModelMetadataField::ReasoningEfforts,
+    vw_api_model_catalog::ModelMetadataProvenance,
+    vw_api_model_catalog::ModelMetadataSource,
 };
 
 const MOONSHOT: &str = "https://api.moonshot.cn/v1";

@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
-use vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     ModelCapabilityState, ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance,
 };
 

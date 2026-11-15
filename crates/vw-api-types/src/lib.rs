@@ -104,8 +104,6 @@ pub mod app_providers;
 mod app_providers_tests;
 
 pub mod model_catalog;
-#[cfg(test)]
-mod model_catalog_tests;
 
 #[cfg(test)]
 mod computer_control_tests;

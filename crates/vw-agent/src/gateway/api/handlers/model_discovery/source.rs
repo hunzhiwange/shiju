@@ -24,12 +24,12 @@ use {
     vw_api_types::app_providers::gemini::GeminiProfile,
     vw_api_transport::id::ModelId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogEntry,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelDiscoveryFailure as Failure,
-    vw_api_types::model_catalog::ModelDiscoveryMethod,
-    vw_api_types::model_catalog::ModelDiscoveryRequest,
-    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogEntry,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelDiscoveryFailure as Failure,
+    vw_api_model_catalog::ModelDiscoveryMethod,
+    vw_api_model_catalog::ModelDiscoveryRequest,
+    vw_api_model_catalog::ScopedModelCatalogIdentity,
 };
 
 pub(super) enum Work {

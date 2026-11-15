@@ -1,3 +1,6 @@
+use vw_api_model_catalog::{
+        ModelCapabilityState, ModelMetadataField, ModelMetadataProvenance, ModelMetadataSource,
+    };
 //! Read-only projection of Pi thinking settings into a native model draft.
 
 use super::{
@@ -13,9 +16,6 @@ use std::collections::BTreeMap;
 use vw_api_types::{
     agent_apps::AppId,
     app_providers::pi::PiProfile,
-    model_catalog::{
-        ModelCapabilityState, ModelMetadataField, ModelMetadataProvenance, ModelMetadataSource,
-    },
 };
 use vw_api_app_identity::{AppId};
 

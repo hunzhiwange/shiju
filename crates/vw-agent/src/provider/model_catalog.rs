@@ -6,7 +6,7 @@ use super::provider::{
 };
 use crate::config::{Config, Error};
 use std::collections::{BTreeMap, HashMap};
-use vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     ModelCapabilityState, ModelCatalogEntry, ModelCatalogReadResponse,
 };
 use model_reasoning::ReasoningOption;
@@ -28,7 +28,7 @@ pub(super) async fn read(config: &Config) -> Result<DeploymentCatalogs, Error> {
         session::ui_store::current_tenant_scope,
     };
     use serde_json::Value;
-    use vw_api_types::model_catalog::ModelCatalogIdentity;
+    use vw_api_model_catalog::ModelCatalogIdentity;
 
     let mut bindings = Vec::new();
     for (provider_id, provider) in &config.providers {

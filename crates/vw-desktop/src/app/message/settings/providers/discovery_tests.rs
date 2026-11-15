@@ -13,7 +13,7 @@ use crate::app::{
 use iced::{Task, futures::StreamExt};
 use serde_json::{Value, json};
 use std::{sync::mpsc, time::Duration};
-use vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryMethod;
+use vw_api_model_catalog::ModelDiscoveryMethod;
 
 const ID: &str = "fixture-task";
 const GET: &str = "GET /v1/model-catalog/discoveries/fixture-task?";

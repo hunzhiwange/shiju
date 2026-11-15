@@ -4,7 +4,7 @@ use vw_agent_apps::aggregation::codex_catalog::{
     CodexCatalogDefault, CodexCatalogMember, CodexCatalogRow, plan_codex_stack_catalog,
 };
 use vw_api_chat_identity::ReasoningEffortDto;
-use vw_api_types::model_catalog::{CodexNativeModel, CodexReasoningLevel, SavedCodexCatalog};
+use vw_api_model_catalog::{CodexNativeModel, CodexReasoningLevel, SavedCodexCatalog};
 
 pub(super) fn catalog() -> Value {
     let primary = "model='primary'".parse().unwrap();

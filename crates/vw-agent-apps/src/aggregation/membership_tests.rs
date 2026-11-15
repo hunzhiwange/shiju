@@ -21,9 +21,9 @@ use {
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogEdit,
-    vw_api_types::model_catalog::ModelCatalogEditRequest,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogEdit,
+    vw_api_model_catalog::ModelCatalogEditRequest,
+    vw_api_model_catalog::ModelCatalogIdentity,
 };
 
 struct Fixture {

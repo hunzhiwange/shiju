@@ -1,7 +1,7 @@
 //! Edit saved deployments through the authenticated model catalog API.
 
 use super::{AgentAppsReadError as Error, GatewayClient};
-use vw_api_types::model_catalog::{
+use vw_api_model_catalog::{
     ModelCatalogDefaultRequest, ModelCatalogEditRequest, ModelCatalogFillCommitRequest,
     ModelCatalogFillPreviewRequest, ModelCatalogFillPreviewResponse, ModelCatalogProject,
     ModelCatalogWriteResponse,

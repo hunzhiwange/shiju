@@ -6,16 +6,16 @@ use tempfile::NamedTempFile;
 use {
     vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::model_catalog::ModelCatalogDefaultChange::self,
-    vw_api_types::model_catalog::ModelCatalogDefaultChange::Clear,
-    vw_api_types::model_catalog::ModelCatalogDefaultChange::Set,
-    vw_api_types::model_catalog::ModelCatalogEdit::self,
-    vw_api_types::model_catalog::ModelCatalogEdit::Remove,
-    vw_api_types::model_catalog::ModelCatalogEdit::Upsert,
-    vw_api_types::model_catalog::ModelCatalogEditRequest,
-    vw_api_types::model_catalog::ModelCatalogIdentity,
-    vw_api_types::model_catalog::ModelCatalogReadResponse,
-    vw_api_types::model_catalog::ModelCatalogWriteResponse,
+    vw_api_model_catalog::ModelCatalogDefaultChange::self,
+    vw_api_model_catalog::ModelCatalogDefaultChange::Clear,
+    vw_api_model_catalog::ModelCatalogDefaultChange::Set,
+    vw_api_model_catalog::ModelCatalogEdit::self,
+    vw_api_model_catalog::ModelCatalogEdit::Remove,
+    vw_api_model_catalog::ModelCatalogEdit::Upsert,
+    vw_api_model_catalog::ModelCatalogEditRequest,
+    vw_api_model_catalog::ModelCatalogIdentity,
+    vw_api_model_catalog::ModelCatalogReadResponse,
+    vw_api_model_catalog::ModelCatalogWriteResponse,
 };
 
 const MODEL: &str = "Vendor/Model:free";

@@ -1,0 +1,13 @@
+[package]
+name = "app-mcp-catalog"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+reqwest = { version = "0.13", default-features = false }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -2582,3 +2582,14 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 直接依赖 app-provider-native（OpenClawFiles、live 事务与补丁/错误导出）、app-openclaw-config-rules、vw-api-transport、serde、serde_json arbitrary_precision；tempfile 仅供测试。全部依赖与实现保持 macOS cfg；无资源引用、跨包 path 或门面回依赖。真实消费者 vw-agent 的 openclaw_settings handler 及相邻测试仍由原门面取得同一类型和函数。原门面其它直接依赖仍有消费者，未删除。
 
 静态审阅涵盖模块/测试注册、路径清单、单一实现、授权回调与事务锁调用不变；没有留存编排或待移交符号。未运行 Cargo、单元及实机测试，统一验收待授权：新库与调用者编译、14 个迁移测试、macOS 文件权限/锁/冲突行为及其它平台条件编译。Cargo.lock 未修改。
+
+
+### 任务 39 静态迁移结果
+
+app-mcp-catalog/src 唯一拥有 catalog.rs、presets.rs、validation.rs 和两个独立测试文件，五文件与迁移前逐字一致；此节覆盖历史所有权表中任务 39 的原路径。mcp/mod.rs 重导出三个模块，lib.rs 的 pub mod mcp 继续接线，不必修改。native_capability 支持矩阵及原生编排仍归任务 40。
+
+McpCatalogDraft、预设与校验的原公开路径保持；data_management::mcp、vw-agent 的 catalog_create、网关预设读取及原生 adapters 继续使用门面。新包直接依赖仅 api-mcp-management、reqwest（关闭默认特性，仅 URL/header）、serde_json arbitrary_precision，tempfile 仅测试使用。原门面这些依赖仍有其它真实调用者，保留。
+
+静态证据：五文件逐字比对、独立测试注册、unix cfg 原样保留，无资源/include 路径；Python 只读 TOML 解析（现有 pip._vendor.tomli 回退）审阅八个传递生产包，路径存在、无环、无门面回边；workspace 与直接路径依赖注册、源码调用者检索、git diff --check 通过。RustCodeGraph 含前序搬迁前路径，调用关系参考索引并以现有源码核实，未更新索引。Cargo.lock 未修改。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：新库及直接调用者目标编译、迁移的四个预设和九个校验测试、unix 可执行检查及 macOS/Windows/Linux 条件、清单与锁文件一致性。静态审阅不表示行为验收通过。

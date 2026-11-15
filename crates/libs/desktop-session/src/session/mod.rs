@@ -23,3 +23,6 @@ mod active_tests;
 pub mod cache;
 #[cfg(test)]
 mod cache_tests;
+
+pub mod loading;
+pub mod hover_details;

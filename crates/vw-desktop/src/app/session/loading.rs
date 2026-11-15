@@ -1,251 +1,25 @@
-//! 维护聊天会话的加载、运行态和 UI 分块派生逻辑。
-//!
-//! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
-//! 不改变任何运行时行为。
-
-use super::{
-    App, Arc, ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, PreparedChatUiChunk,
-    PreparedChatUiPhase, TokenUsage,
-};
-use crate::app::state::SessionStepRawKey;
-use serde_json::Value;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-
-use super::chat_timeline::{ChatEntryRevision, ChatTimelineEntry, TimelinePage};
-
-/// 为 SharedChatMessages 领域数据提供更清晰的类型名称。
-pub use desktop_session::session::cache::SharedChatMessages;
-
-/// 冷会话打开在后台完成后的完整提交单元。
-///
-/// 消息与其首屏派生状态由同一个后台任务产生，主线程只负责校验目标会话并移动安装。
-#[derive(Debug, Clone)]
-pub struct PreparedSessionOpen {
-    pub session_id: String,
-    pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
-    pub full_access: Option<bool>,
-    pub messages: Vec<ChatMessage>,
-    pub message_ids: Vec<Option<String>>,
-    pub usage: TokenUsage,
-    pub steps: Vec<ChatSessionStep>,
-    pub calls: Vec<Value>,
-    pub step_llm_raw: HashMap<SessionStepRawKey, Value>,
-    pub llm_raw_step_indices: Vec<SessionStepRawKey>,
-    pub updated_ms: u64,
-    pub content_signature: u64,
-    pub session_model: Option<String>,
-    pub base_ui_chunk: Option<PreparedChatUiChunk>,
-    pub timeline_page: Option<TimelinePage>,
-}
-
-/// 计算会话可见内容与消息标识的稳定进程内签名。
-pub fn session_content_signature(chat: &[ChatMessage], message_ids: &[Option<String>]) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    chat.len().hash(&mut hasher);
-    for (index, message) in chat.iter().enumerate() {
-        index.hash(&mut hasher);
-        message.hash(&mut hasher);
-        message_ids.get(index).hash(&mut hasher);
-    }
-    hasher.finish()
-}
-
-/// 在后台将已转换的历史和首个 UI 分块封装为一次冷打开提交。
-pub fn prepare_session_open(
-    session_id: String,
-    messages: Vec<ChatMessage>,
-    mut message_ids: Vec<Option<String>>,
-    usage: TokenUsage,
-    steps: Vec<ChatSessionStep>,
-    calls: Vec<Value>,
-    updated_ms: u64,
-    session_model: Option<String>,
-    show_reasoning_summary: bool,
-) -> PreparedSessionOpen {
+//! 会话加载的桌面状态重置与消息映射。
+use super::{App, ChatMessage, ChatSession, ChatSessionStep, PreparedChatUiChunk, PreparedChatUiPhase, TokenUsage};
+pub use desktop_session::session::loading::{SharedChatMessages, shared_chat_messages, build_session_previews, session_content_signature, session_usage, prepare_timeline_page};
+pub type PreparedSessionOpen = desktop_session::session::loading::PreparedSessionOpen<PreparedChatUiChunk>;
+fn prepare_base(messages: &[ChatMessage], show_reasoning_summary: bool) -> PreparedChatUiChunk {
     #[cfg(test)]
-    crate::app::components::chat_panel::performance::record_initial_load(
-        messages.len(),
-        messages.iter().map(|message| message.content.len()).sum(),
-    );
-    if message_ids.len() != messages.len() {
-        message_ids = vec![None; messages.len()];
-    }
-    let content_signature = session_content_signature(&messages, &message_ids);
-    let base_ui_chunk = (!messages.is_empty()).then(|| {
-        let (_, chunk_end_idx) = super::chat_ui_chunk_bounds(messages.len(), 0);
-        let PreparedChatUiPhase::Base(chunk) = super::prepare_chat_ui_chunk_phase(
-            &messages[..chunk_end_idx],
-            0,
-            true,
-            show_reasoning_summary,
-        ) else {
-            unreachable!("base session preparation must return a base UI chunk");
-        };
-        chunk
-    });
-
-    PreparedSessionOpen {
-        session_id,
-        agent_binding: None,
-        full_access: None,
-        messages,
-        message_ids,
-        usage,
-        steps,
-        calls,
-        step_llm_raw: HashMap::new(),
-        llm_raw_step_indices: Vec::new(),
-        updated_ms,
-        content_signature,
-        session_model,
-        base_ui_chunk,
-        timeline_page: None,
-    }
+    desktop_chat_view::performance::record_initial_load(messages.len(), messages.iter().map(|m| m.content.len()).sum());
+    let (_, end) = super::chat_ui_chunk_bounds(messages.len(), 0);
+    let PreparedChatUiPhase::Base(chunk) = super::prepare_chat_ui_chunk_phase(&messages[..end], 0, true, show_reasoning_summary) else {
+        unreachable!("base session preparation must return a base UI chunk");
+    };
+    chunk
 }
-
-/// 把 Gateway 的最近消息页转换为首屏提交，不读取步骤、调用或完整历史。
-pub fn prepare_bounded_session_open(
-    summary: vw_api_session::GatewaySessionUiSummary,
-    page: vw_api_session::GatewaySessionMessagePage<
-        session_ui_types::SessionMessageRecord,
-    >,
-    show_reasoning_summary: bool,
-) -> PreparedSessionOpen {
-    let entries = page
-        .items
-        .into_iter()
-        .map(|record| {
-            ChatTimelineEntry::persisted(
-                &summary.id,
-                record.seq_no,
-                record.message_id,
-                ChatEntryRevision::INITIAL,
-                record.message,
-            )
-        })
-        .collect::<Vec<_>>();
-    let messages = entries.iter().map(|entry| entry.message.clone()).collect::<Vec<_>>();
-    let message_ids = entries
-        .iter()
-        .map(|entry| match &entry.key {
-            super::chat_timeline::ChatEntryKey::PersistedId(id) => Some(id.clone()),
-            _ => None,
-        })
-        .collect();
-    let mut prepared = prepare_session_open(
-        summary.id,
-        messages,
-        message_ids,
-        TokenUsage::default(),
-        Vec::new(),
-        Vec::new(),
-        summary.updated_ms,
-        None,
-        show_reasoning_summary,
-    );
-    prepared.agent_binding = summary.agent_binding;
-    prepared.full_access = summary.full_access;
-    prepared.timeline_page = Some(TimelinePage {
-        entries,
-        before_cursor: page.next_cursor,
-        after_cursor: page.previous_cursor,
-        total_count: page.total_count,
-    });
-    prepared
+pub fn prepare_session_open(session_id: String, messages: Vec<ChatMessage>, message_ids: Vec<Option<String>>, usage: TokenUsage, steps: Vec<ChatSessionStep>, calls: Vec<serde_json::Value>, updated_ms: u64, session_model: Option<String>, show_reasoning_summary: bool) -> PreparedSessionOpen {
+    desktop_session::session::loading::prepare_session_open(session_id, messages, message_ids, usage, steps, calls, updated_ms, session_model, |messages| prepare_base(messages, show_reasoning_summary))
 }
-
-pub fn prepare_timeline_page(
-    session_id: &str,
-    page: vw_api_session::GatewaySessionMessagePage<
-        session_ui_types::SessionMessageRecord,
-    >,
-) -> TimelinePage {
-    TimelinePage {
-        entries: page
-            .items
-            .into_iter()
-            .map(|record| {
-                ChatTimelineEntry::persisted(
-                    session_id,
-                    record.seq_no,
-                    record.message_id,
-                    ChatEntryRevision::INITIAL,
-                    record.message,
-                )
-            })
-            .collect(),
-        before_cursor: page.next_cursor,
-        after_cursor: page.previous_cursor,
-        total_count: page.total_count,
-    }
+pub fn prepare_bounded_session_open(summary: vw_api_session::GatewaySessionUiSummary, page: vw_api_session::GatewaySessionMessagePage<session_ui_types::SessionMessageRecord>, show_reasoning_summary: bool) -> PreparedSessionOpen {
+    desktop_session::session::loading::prepare_bounded_session_open(summary, page, |messages| prepare_base(messages, show_reasoning_summary))
 }
-
-/// 在后台将 UI Store 会话移动为统一的冷打开提交。
-pub fn prepare_session_open_from_ui_store(
-    session: ChatSession,
-    show_reasoning_summary: bool,
-) -> PreparedSessionOpen {
-    let ChatSession { id, messages, message_ids, calls, steps, updated_ms, .. } = session;
-    let usage = session_usage_from_steps(&steps);
-    let session_model = steps.iter().rev().find_map(|step| step.model.clone());
-    prepare_session_open(
-        id,
-        messages,
-        message_ids,
-        usage,
-        steps,
-        calls,
-        updated_ms,
-        session_model,
-        show_reasoning_summary,
-    )
+pub fn prepare_session_open_from_ui_store(session: ChatSession, show_reasoning_summary: bool) -> PreparedSessionOpen {
+    desktop_session::session::loading::prepare_session_open_from_ui_store(session, |messages| prepare_base(messages, show_reasoning_summary))
 }
-
-fn session_usage_from_steps(steps: &[ChatSessionStep]) -> TokenUsage {
-    let mut usage = TokenUsage::default();
-    for step in steps {
-        usage.input_tokens += step.usage.input_tokens;
-        usage.output_tokens += step.usage.output_tokens;
-        usage.cached_tokens += step.usage.cached_tokens;
-        usage.reasoning_tokens += step.usage.reasoning_tokens;
-    }
-    usage
-}
-
-/// 执行 shared_chat_messages 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn shared_chat_messages(chat: Vec<ChatMessage>) -> SharedChatMessages {
-    Arc::from(chat)
-}
-
-/// 执行 build_session_previews 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn build_session_previews(
-    previews: Vec<ChatSessionMeta>,
-) -> std::collections::HashMap<String, String> {
-    previews
-        .into_iter()
-        .filter_map(|meta| {
-            let content = meta.last_content?;
-            let line = session_text::initial_title_from_content(&content)?;
-            Some((meta.id, crate::app::views::project::utils::truncate_display_width(line, 120)))
-        })
-        .collect()
-}
-
-/// 执行 session_usage 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn session_usage(session: &ChatSession) -> TokenUsage {
-    session_usage_from_steps(&session.steps)
-}
-
 impl App {
     /// 执行 reload_sessions_for_project 对应的领域操作。
     ///
@@ -276,58 +50,8 @@ impl App {
 
         iced::Task::perform(
             async move {
-                use crate::app::views::project::utils::truncate_display_width;
 
-                // Scope reads and writes belong to the endpoint selected when this load began.
-                let client =
-                    vw_gateway_client::GatewayClient::new(endpoint).map_err(anyhow::Error::msg)?;
-                let scope_id = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                    .session_scope_get(path_clone.as_deref(), project_id.as_deref())
-                    .await
-                    .map_err(anyhow::Error::msg)?;
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_put(scope_id.as_deref()).await.map_err(anyhow::Error::msg)?;
-
-                let previews = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                    .session_ui_previews(scope_id.as_deref())
-                    .await
-                    .map_err(anyhow::Error::msg)?;
-                let archived_session_ids = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                    .session_archived_get(scope_id.as_deref())
-                    .await
-                    .map_err(anyhow::Error::msg)?
-                    .into_iter()
-                    .collect();
-
-                let preview_map = previews
-                    .into_iter()
-                    .filter_map(|meta| {
-                        let content = meta.last_content?;
-                        let trimmed = content.trim();
-                        if trimmed.is_empty() {
-                            None
-                        } else {
-                            Some((
-                                meta.id,
-                                truncate_display_width(&trimmed.replace('\n', " "), 120),
-                            ))
-                        }
-                    })
-                    .collect::<std::collections::HashMap<_, _>>();
-
-                let sessions = if let Some(p) = path_clone {
-                    crate::app::message::project::helpers::list_gateway_project_sessions(
-                        &client, &p,
-                    )
-                    .await
-                    .map_err(anyhow::Error::msg)?
-                } else {
-                    gateway_session::GatewaySessionClient::new(client.transport().clone())
-                        .session_list::<Vec<session_info::Info>>(None)
-                        .await
-                        .map_err(anyhow::Error::msg)?
-                };
-
-                Ok((sessions, preview_map, archived_session_ids))
+                desktop_session::session::loading::load_project_sessions(endpoint, path_clone, project_id).await
             },
             move |res: Result<
                 (

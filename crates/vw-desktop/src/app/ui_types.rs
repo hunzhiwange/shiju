@@ -108,12 +108,7 @@ pub enum Message {
     Batch(Vec<Message>),
 }
 
-pub(crate) struct ChatMarkdownSelection {
-    pub(crate) session_id: String,
-    pub(crate) message_idx: usize,
-    pub(crate) text_idx: usize,
-    pub(crate) text: String,
-}
+pub(crate) use desktop_chat_view::chat_ui::ChatMarkdownSelection;
 
 pub use desktop_git_ui::DiffTheme;
 

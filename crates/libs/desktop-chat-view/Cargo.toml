@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+runtime-time = { path = "../runtime-time", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "svg", "advanced"] }
 serde_json = "1"
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }

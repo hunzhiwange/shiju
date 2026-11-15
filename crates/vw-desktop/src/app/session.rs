@@ -6,12 +6,11 @@
 use super::App;
 pub(crate) use desktop_session::message::chat::stream::{bind_message_model_to_step, assign_message_model_to_step};
 use super::models::{
-    ChatMessage, ChatRenderCacheEntry, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep,
+    ChatMessage, ChatRenderCacheEntry, ChatRole, ChatSession, ChatSessionStep,
     TokenUsage,
 };
 use super::state::StepUiMeta;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 mod active;
 mod agent_children;
@@ -43,7 +42,7 @@ pub use self::loading::{
 pub(crate) use self::view_cache::SessionViewCache;
 
 #[cfg(test)]
-use self::chat_ui::{explore_summary_animation_key, prioritize_chat_ui_chunk_starts};
+use self::chat_ui::explore_summary_animation_key;
 
 const EMPTY_SESSION_ID: &str = "__empty__";
 

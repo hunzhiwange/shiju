@@ -8,6 +8,11 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+tokio = { version = "1", features = ["macros"] }
+gateway-project = { path = "../gateway-project", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+desktop-workspace = { path = "../desktop-workspace", version = "0.6.0" }
+anyhow = "1"
 session-text = { path = "../session-text", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 todo-types = { path = "../todo-types", version = "0.6.0" }

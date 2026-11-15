@@ -7,33 +7,6 @@ use super::*;
 use iced::widget::text_editor;
 
 #[test]
-fn prioritize_chat_ui_chunk_starts_keeps_base_first_on_initial_plan() {
-    let (chunk_starts, anchor_chunk_start) =
-        prioritize_chat_ui_chunk_starts(160, 64, 96, true, None, 32);
-
-    assert_eq!(anchor_chunk_start, Some(64));
-    assert_eq!(chunk_starts, vec![32, 64, 96]);
-}
-
-#[test]
-fn prioritize_chat_ui_chunk_starts_prefers_forward_chunks_when_scrolling_down() {
-    let (chunk_starts, anchor_chunk_start) =
-        prioritize_chat_ui_chunk_starts(192, 72, 104, true, Some(32), 32);
-
-    assert_eq!(anchor_chunk_start, Some(64));
-    assert_eq!(chunk_starts, vec![96, 64, 128, 32]);
-}
-
-#[test]
-fn prioritize_chat_ui_chunk_starts_prefers_backward_chunks_when_scrolling_up() {
-    let (chunk_starts, anchor_chunk_start) =
-        prioritize_chat_ui_chunk_starts(192, 40, 72, true, Some(96), 32);
-
-    assert_eq!(anchor_chunk_start, Some(32));
-    assert_eq!(chunk_starts, vec![32, 64, 0, 96]);
-}
-
-#[test]
 fn chunk_scheduler_retains_anchor_and_expanded_text() {
     let (mut app, _task) = App::new();
     app.active_session_id = Some("active".to_string());

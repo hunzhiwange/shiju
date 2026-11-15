@@ -37,3 +37,5 @@ pub mod performance;
 pub mod selectable_text;
 #[cfg(test)]
 mod selectable_text_tests;
+
+pub mod chat_ui;

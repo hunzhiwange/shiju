@@ -13,7 +13,6 @@
 //! - `setup` - 初始化设置，配置 CLI 环境
 //! - `single_message` - 单消息模式，处理一次性输入输出
 //! - `stats` - 统计信息收集和展示
-//! - `stdio` - 标准输入输出处理
 //! - `transcript` - 对话记录，保存和加载会话历史
 //! - `tui` - 默认交互入口使用的 gateway-first TUI 与 Gateway 适配边界
 //!
@@ -47,10 +46,6 @@ pub(crate) mod stats;
 #[cfg(test)]
 #[path = "stats_tests.rs"]
 mod stats_tests;
-pub(crate) mod stdio;
-#[cfg(test)]
-#[path = "stdio_tests.rs"]
-mod stdio_tests;
 pub(crate) mod transcript;
 pub(crate) mod tui;
 

@@ -18,6 +18,7 @@ name = "vibe-agent"
 path = "src/bin/vibe-agent.rs"
 
 [dependencies]
+cli-stdio = { path = "../libs/cli-stdio", version = "0.6.0" }
 cli-terminal = { path = "../libs/cli-terminal", version = "0.6.0" }
 anyhow = "1"
 base64 = "0.23"

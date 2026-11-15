@@ -13,7 +13,7 @@
 //!
 //! ```ignore
 //! use std::path::Path;
-//! use crate::app::agent::agent::loop_::cli::stdio::StdIoRedirectGuard;
+//! use cli_stdio::StdIoRedirectGuard;
 //!
 //! {
 //!     // 在此作用域内，stdout 和 stderr 将被重定向到日志文件
@@ -64,7 +64,7 @@ use std::path::Path;
 /// 该结构体的操作影响进程级别的文件描述符，因此不适用于多线程并发场景。
 /// 建议在单线程环境中使用，或确保在使用期间没有其他线程依赖 stdout/stderr。
 #[cfg(unix)]
-pub(crate) struct StdIoRedirectGuard {
+pub struct StdIoRedirectGuard {
     /// 保存的原始 stdout 文件描述符
     ///
     /// 在创建 guard 时通过 `libc::dup` 复制原始的 STDOUT_FILENO，
@@ -83,7 +83,7 @@ pub(crate) struct StdIoRedirectGuard {
 /// 在非 Unix 平台上，该结构体为空，所有重定向操作为无操作。
 /// 这确保了代码可以在所有平台上编译，但只在 Unix 系统上实际执行重定向。
 #[cfg(not(unix))]
-pub(crate) struct StdIoRedirectGuard;
+pub struct StdIoRedirectGuard;
 
 impl StdIoRedirectGuard {
     /// 将 stdout 和 stderr 重定向到指定文件
@@ -133,7 +133,7 @@ impl StdIoRedirectGuard {
     /// - 建议在程序初始化阶段调用，避免在运行时频繁切换
     /// - 日志文件以追加模式打开，多次运行会累积内容
     #[cfg(unix)]
-    pub(crate) fn redirect_to_file(log_path: &Path) -> Result<Self> {
+    pub fn redirect_to_file(log_path: &Path) -> Result<Self> {
         // 确保日志文件的父目录存在
         // 如果路径没有父目录（如当前目录下的文件），则跳过创建
         if let Some(parent) = log_path.parent() {
@@ -203,7 +203,7 @@ impl StdIoRedirectGuard {
     ///
     /// 始终返回 `Ok(StdIoRedirectGuard)`，其中 guard 为空结构体。
     #[cfg(not(unix))]
-    pub(crate) fn redirect_to_file(_log_path: &Path) -> Result<Self> {
+    pub fn redirect_to_file(_log_path: &Path) -> Result<Self> {
         Ok(Self)
     }
 }
@@ -245,3 +245,7 @@ impl Drop for StdIoRedirectGuard {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "stdio_tests.rs"]
+mod stdio_tests;

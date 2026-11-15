@@ -1,0 +1,14 @@
+[package]
+name = "cli-stdio"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

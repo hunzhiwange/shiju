@@ -24,3 +24,4 @@ mod virtualizer_tests;
 #[cfg(test)]
 mod message_measure_tests;
 pub mod scroll_update;
+pub mod chat;

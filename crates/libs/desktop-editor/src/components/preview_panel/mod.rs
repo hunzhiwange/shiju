@@ -7,3 +7,5 @@ pub mod tabs;
 pub mod widgets;
 pub mod view;
 #[cfg(test)] mod widgets_tests;
+#[cfg(test)]
+mod lsp_tests;

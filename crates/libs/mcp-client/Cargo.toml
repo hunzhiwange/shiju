@@ -1,0 +1,16 @@
+[package]
+name = "mcp-client"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+acp-config = { path = "../acp-config", version = "0.6.0" }
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
+anyhow = "1"
+rmcp = { version = "0.8.0", default-features = false, features = ["client"] }
+serde_json = "1"
+tracing = "0.1"

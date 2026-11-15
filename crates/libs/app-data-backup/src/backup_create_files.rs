@@ -30,7 +30,7 @@ pub(super) fn open_root(root: &Path) -> Result<File, Error> {
     if !root.is_absolute() {
         return Err(Error::UnsafeStorage);
     }
-    let file = crate::providers::paths::open_beneath(Path::new("/"), root, true)
+    let file = app_config_paths::open_beneath(Path::new("/"), root, true)
         .map_err(|_| Error::UnsafeStorage)?;
     private(&file, true)?;
     Ok(file)

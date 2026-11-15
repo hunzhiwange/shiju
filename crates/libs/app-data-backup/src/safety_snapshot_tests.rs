@@ -1,5 +1,5 @@
 use super::safety_snapshot::*;
-use crate::usage::source_settings::{
+use app_usage_store::source_settings::{
     UsageSourceSettings, initialize_source_settings, load_source_settings, save_source_settings,
 };
 use rusqlite::Connection;

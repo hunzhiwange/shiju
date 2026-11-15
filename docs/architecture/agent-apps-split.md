@@ -620,26 +620,26 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `daily_memory_search_tests.rs` | 77 | 37（已迁入 app-workspace-memory） |
 | `data_management/apply.rs` | 70 | 69 |
 | `data_management/apply_tests.rs` | 109 | 69 |
-| `data_management/backup_api.rs` | 130 | 69 |
-| `data_management/backup_create.rs` | 201 | 67 |
-| `data_management/backup_create_files.rs` | 253 | 67 |
-| `data_management/backup_create_tests.rs` | 175 | 67 |
-| `data_management/backup_delete.rs` | 77 | 67 |
-| `data_management/backup_delete_tests.rs` | 86 | 67 |
-| `data_management/backup_list.rs` | 78 | 67 |
-| `data_management/backup_list_tests.rs` | 118 | 67 |
-| `data_management/backup_rename.rs` | 30 | 67 |
-| `data_management/backup_rename_tests.rs` | 161 | 67 |
+| `data_management/backup_api.rs` → `app-data-backup/src/backup_api.rs` | 130 | 69 |
+| `data_management/backup_create.rs` → `app-data-backup/src/backup_create.rs` | 201 | 67 |
+| `data_management/backup_create_files.rs` → `app-data-backup/src/backup_create_files.rs` | 253 | 67 |
+| `data_management/backup_create_tests.rs` → `app-data-backup/src/backup_create_tests.rs` | 175 | 67 |
+| `data_management/backup_delete.rs` → `app-data-backup/src/backup_delete.rs` | 77 | 67 |
+| `data_management/backup_delete_tests.rs` → `app-data-backup/src/backup_delete_tests.rs` | 86 | 67 |
+| `data_management/backup_list.rs` → `app-data-backup/src/backup_list.rs` | 78 | 67 |
+| `data_management/backup_list_tests.rs` → `app-data-backup/src/backup_list_tests.rs` | 118 | 67 |
+| `data_management/backup_rename.rs` → `app-data-backup/src/backup_rename.rs` | 30 | 67 |
+| `data_management/backup_rename_tests.rs` → `app-data-backup/src/backup_rename_tests.rs` | 161 | 67 |
 | `data_management/backup_restore.rs` | 68 | 69 |
 | `data_management/backup_restore_tests.rs` | 73 | 69 |
-| `data_management/export.rs` | 137 | 67 |
-| `data_management/export_files.rs` | 47 | 67 |
-| `data_management/export_tests.rs` | 46 | 67 |
+| `data_management/export.rs` → `app-data-backup/src/export.rs` | 137 | 67 |
+| `data_management/export_files.rs` → `app-data-backup/src/export_files.rs` | 47 | 67 |
+| `data_management/export_tests.rs` → `app-data-backup/src/export_tests.rs` | 46 | 67 |
 | `data_management/fixtures/schema_18.sql` | 72 | 66 |
-| `data_management/location_delete.rs` | 202 | 67 |
-| `data_management/location_delete_tests.rs` | 97 | 67 |
-| `data_management/locations.rs` | 279 | 67 |
-| `data_management/locations_tests.rs` | 88 | 67 |
+| `data_management/location_delete.rs` → `app-data-backup/src/location_delete.rs` | 202 | 67 |
+| `data_management/location_delete_tests.rs` → `app-data-backup/src/location_delete_tests.rs` | 97 | 67 |
+| `data_management/locations.rs` → `app-data-backup/src/locations.rs` | 279 | 67 |
+| `data_management/locations_tests.rs` → `app-data-backup/src/locations_tests.rs` | 88 | 67 |
 | `data_management/mcp.rs` | 154 | 68 |
 | `data_management/mcp_tests.rs` | 55 | 68 |
 | `data_management/mod.rs` | 139 | 69 |
@@ -661,13 +661,13 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/providers_tests.rs` | 54 | 68 |
 | `data_management/recovery.rs` | 69 | 69 |
 | `data_management/recovery_tests.rs` | 79 | 69 |
-| `data_management/retention.rs` | 68 | 67 |
-| `data_management/retention_tests.rs` | 101 | 67 |
+| `data_management/retention.rs` → `app-data-backup/src/retention.rs` | 68 | 67 |
+| `data_management/retention_tests.rs` → `app-data-backup/src/retention_tests.rs` | 101 | 67 |
 | `data_management/rollback.rs` | 94 | 69 |
 | `data_management/rollback_tests.rs` | 71 | 69 |
-| `data_management/safety_snapshot.rs` | 249 | 67 |
-| `data_management/safety_snapshot_files.rs` | 134 | 67 |
-| `data_management/safety_snapshot_tests.rs` | 232 | 67 |
+| `data_management/safety_snapshot.rs` → `app-data-backup/src/safety_snapshot.rs` | 249 | 67 |
+| `data_management/safety_snapshot_files.rs` → `app-data-backup/src/safety_snapshot_files.rs` | 134 | 67 |
+| `data_management/safety_snapshot_tests.rs` → `app-data-backup/src/safety_snapshot_tests.rs` | 232 | 67 |
 | `data_management/shared_snapshot.rs` → `app-data-format/src/shared_snapshot.rs` | 75 | 66 |
 | `data_management/skills.rs` | 479 | 68 |
 | `data_management/skills_tests.rs` | 163 | 68 |
@@ -1485,19 +1485,19 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `daily_memory_files.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
 | `daily_memory_list.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
 | `data_management/apply_tests.rs` | `crate::usage::store::initialize_usage_store` |
-| `data_management/backup_create_files.rs` | `crate::providers::paths::open_beneath` |
-| `data_management/backup_create_tests.rs` | `crate::usage::source_settings::{     UsageSourceSettings, initialize_source_settings, load_source_settings, save_source_settings, }` |
-| `data_management/backup_delete_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
-| `data_management/backup_list_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
-| `data_management/backup_rename_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
+| `data_management/backup_create_files.rs` → `app-data-backup/src/backup_create_files.rs` | `crate::providers::paths::open_beneath` |
+| `data_management/backup_create_tests.rs` → `app-data-backup/src/backup_create_tests.rs` | `crate::usage::source_settings::{     UsageSourceSettings, initialize_source_settings, load_source_settings, save_source_settings, }` |
+| `data_management/backup_delete_tests.rs` → `app-data-backup/src/backup_delete_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
+| `data_management/backup_list_tests.rs` → `app-data-backup/src/backup_list_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
+| `data_management/backup_rename_tests.rs` → `app-data-backup/src/backup_rename_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
 | `data_management/backup_restore_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings, save_source_settings, UsageSourceSettings}` |
 | `data_management/mcp.rs` | `crate::mcp::{catalog::McpCatalogDraft, validation::parse_native}` |
 | `data_management/operations.rs` | `crate::apps::lifecycle::operations::Operation` |
 | `data_management/preferences.rs` | `crate::apps::preferences::{HostPlatform, default_user_preferences, normalize_preferences}` |
 | `data_management/prompts.rs` | `crate::prompts::listing::PromptEntry`<br>`crate::providers::validate_identity` |
 | `data_management/providers.rs` | `crate::providers::claude::import`<br>`crate::providers::claude::settings`<br>`crate::providers::codex_catalog::import`<br>`crate::providers::codex_catalog::settings`<br>`crate::providers::endpoints::update`<br>`crate::providers::gemini::settings`<br>`crate::providers::icons::read`<br>`crate::providers::presentation::read`<br>`crate::providers::presentation::update`<br>`crate::providers::validate_identity`<br>`crate::providers::validation::endpoint` |
-| `data_management/retention_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
-| `data_management/safety_snapshot_tests.rs` | `crate::usage::source_settings::{     UsageSourceSettings, initialize_source_settings, load_source_settings, save_source_settings, }` |
+| `data_management/retention_tests.rs` → `app-data-backup/src/retention_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
+| `data_management/safety_snapshot_tests.rs` → `app-data-backup/src/safety_snapshot_tests.rs` | `crate::usage::source_settings::{     UsageSourceSettings, initialize_source_settings, load_source_settings, save_source_settings, }` |
 | `data_management/skills.rs` | `crate::providers::paths::open_beneath`<br>`crate::skills::archive::MAX_ARCHIVE_ENTRIES`<br>`crate::skills::archive::MAX_ARCHIVE_TOTAL_BYTES`<br>`crate::skills::repos::validate_repo_ref`<br>`crate::skills::{     bulk_sync::SkillSyncTarget,     copy_deploy::{CopyBinding, CopyDeploy, binding_fingerprint}` |
 | `data_management/usage.rs` | `crate::usage::import_store::load_imported_usage`<br>`crate::usage::import_store::replace_imported_usage_in_transaction`<br>`crate::usage::store::{self, StoredUsageRecord, UsageSourceIdentity}` |
 | `data_management/usage_tests.rs` | `crate::usage::store::initialize_usage_store` |
@@ -2913,3 +2913,11 @@ data_management/mod.rs 原位置重导出五个公开模块，lib.rs 既有 pub 
 新包直接依赖 reqwest（仅 URL，关闭默认特性）、rusqlite bundled/hooks/limits、serde derive、serde_json arbitrary_precision、sha2、tempfile、uuid 和三个 API 类型包；libc 仅 unix 声明。旧包依赖均仍有直接调用而保留。网关 agent_apps/prompt_data_migration、mcp/data_migration、shared_snapshot 及原 data_management 调用者继续使用门面类型。
 
 静态证据：迁移文件与 HEAD 对照、测试及资源注册审阅、Python 标准库 TOML 路径和依赖闭包无环审阅、成员及直接依赖检索、无 vw-agent-apps 反向依赖、git diff --check。RustCodeGraph status/explore 可读，但索引仍有前序迁移旧位置，调用者以源码核实。未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、迁移测试及领域夹具、三平台 no-follow 行为、SQL 限制及格式升级、清单锁文件一致性。Cargo.lock 未修改。
+
+### 任务67：数据备份文件迁移结果
+
+app-data-backup 唯一拥有任务清单的21个实现/独立测试文件，并接收 backup_api 的文件元数据、目录锁、标签及删除叶子操作，合计22个文件。backup_api 没有跨适配器分发，与文件层私有 decode、set_name 和文件描述符操作一起下沉，避免扩大私有 API。所有模块沿用 macOS cfg，独立测试注册和错误语义保留。open_beneath 直接连接 app-config-paths；测试直接使用 app-usage-store，不依赖旧门面。
+
+data_management 原位置重导出十个公开模块，lib.rs 的 pub mod data_management 保留。恢复和导入编排由任务69接收，领域适配由任务68接收，本任务无未闭合叶子符号。父包移除已无调用者的 zip 直接依赖，其余依赖仍有使用。无资源/include 路径变化。
+
+静态验收：迁移源与目标仅两个依赖路径替换；清单路径、模块与独立测试注册、真实调用者及无反向依赖经过源码和 Python 标准库 TOML 审阅，git diff --check 通过。未运行 Cargo、单元及实机测试，统一验收待授权；需验证新包及直接调用者编译、迁移单测和 macOS 文件锁/路径/备份完整性与保留策略。Cargo.lock 未修改。

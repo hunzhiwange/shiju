@@ -1,0 +1,25 @@
+[package]
+name = "app-data-backup"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-config-paths = { path = "../app-config-paths" }
+app-data-format = { path = "../app-data-format" }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+sha2 = "0.11"
+tempfile = "3"
+uuid = { version = "1.11", features = ["v4", "js"] }
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+app-usage-store = { path = "../app-usage-store" }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }

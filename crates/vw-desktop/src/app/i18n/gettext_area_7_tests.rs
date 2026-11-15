@@ -208,7 +208,7 @@ async fn desktop_gettext_area_7_history_rebuilds_on_locale_selection_without_tra
     use crate::app::message::settings::{GeneralSettingsMessage, SettingsMessage};
     let (mut app, _) = crate::app::App::new();
     let raw = "原始输出/%s/%n";
-    app.cron_settings.runs_modal = vec![vw_gateway_client::CronRunDto {
+    app.cron_settings.runs_modal = vec![gateway_cron::CronRunDto {
         id: 1,
         job_id: "job".into(),
         started_at: "start".into(),

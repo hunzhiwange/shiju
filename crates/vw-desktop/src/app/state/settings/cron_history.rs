@@ -1,5 +1,5 @@
 //! 当前工作区运行记录的筛选和请求生命周期。
-use vw_gateway_client::{CronHistoryResponse, CronHistoryRunDto, CronJobDto};
+use gateway_cron::{CronHistoryResponse, CronHistoryRunDto, CronJobDto};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CronHistoryStatus {

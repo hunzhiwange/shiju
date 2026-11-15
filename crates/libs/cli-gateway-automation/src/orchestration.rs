@@ -54,9 +54,10 @@ pub async fn load_orchestration(
 ) -> OrchestrationSnapshot {
     let task_scope = scope.clone();
     let workflow_client = gateway_workflow::GatewayWorkflowClient::new(runtime.client().transport().clone());
+    let cron_client = gateway_cron::GatewayCronClient::new(runtime.client().transport().clone());
     let (workflows, schedules, tasks) = tokio::join!(
         workflow_client.workflow_applications_list(),
-        runtime.client().cron_jobs_get(),
+        cron_client.cron_jobs_get(),
         async {
             match task_scope.as_ref() {
                 Some(scope) => gateway_scheduler::GatewaySchedulerClient::new(runtime.client().transport().clone()).agent_scheduler_status(scope).await,

@@ -309,7 +309,7 @@ async fn ui_refresh_27_layout_and_interaction() {
     let mut app = gap_10_fixture(true);
     app.desktop_locale = DesktopLocale::TraditionalChinese;
     app.cron_settings.edit_draft.project_path = PROJECT.into();
-    app.cron_settings.edit_draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {
+    app.cron_settings.edit_draft.preview = Some(Ok(gateway_cron::CronPreviewResponse {
         normalized: Default::default(),
         timezone: "UTC".into(),
         candidates: vec!["2099-01-01T00:00:00Z".into()],

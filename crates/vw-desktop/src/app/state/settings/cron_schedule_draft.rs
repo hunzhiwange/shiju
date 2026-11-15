@@ -1,6 +1,6 @@
 //! 强类型时间草稿；时区换算及下一次执行由网关负责。
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Timelike};
-use vw_gateway_client::{CronJobDto, CronPreviewRequest};
+use gateway_cron::{CronJobDto, CronPreviewRequest};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntervalUnit {

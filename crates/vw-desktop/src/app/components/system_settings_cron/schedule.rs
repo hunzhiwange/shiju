@@ -16,7 +16,7 @@ fn changed(editing: bool, draft: CronScheduleDraft) -> Message {
 
 fn schedule(draft: &CronJobDraft) -> CronScheduleDraft {
     draft.schedule_draft.clone().unwrap_or_else(|| {
-        let request = vw_gateway_client::CronPreviewRequest {
+        let request = gateway_cron::CronPreviewRequest {
             schedule_kind: draft.schedule_kind.as_api_value().into(),
             schedule: Some(draft.schedule.clone()),
             at: Some(draft.at.clone()),

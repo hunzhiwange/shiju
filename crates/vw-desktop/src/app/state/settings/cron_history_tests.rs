@@ -1,5 +1,5 @@
 use super::*;
-use vw_gateway_client::CronHistoryRunDto;
+use gateway_cron::CronHistoryRunDto;
 
 fn run(id: &str, name: Option<&str>, status: &str) -> CronHistoryRunDto {
     CronHistoryRunDto {
@@ -98,7 +98,7 @@ fn cron_history_refresh_prunes_deleted_selection_and_preserves_filters() {
     state.location_filter = CronHistoryLocation::Local;
     state.selected_job_id = Some("deleted".into());
     state.apply_response(
-        vw_gateway_client::CronHistoryResponse {
+        gateway_cron::CronHistoryResponse {
             runs: vec![run("a", Some("search"), "error")],
             finished_limit: 200,
             truncated: true,
@@ -114,7 +114,7 @@ fn cron_history_refresh_prunes_deleted_selection_and_preserves_filters() {
 
 #[test]
 fn cron_history_candidates_search_all_jobs() {
-    let job: vw_gateway_client::CronJobDto = serde_json::from_value(serde_json::json!({
+    let job: gateway_cron::CronJobDto = serde_json::from_value(serde_json::json!({
         "id": "unrun", "name": " DAILY ", "job_type": "shell", "schedule_kind": "cron",
         "expression": "* * * * *", "command": "echo", "next_run": "later", "enabled": true
     }))

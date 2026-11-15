@@ -1,13 +1,13 @@
 //! Desktop endpoint resolution for cron configuration.
 
-use vw_gateway_client::{CronJobDto, CronRunDto};
+use gateway_cron::{CronJobDto, CronRunDto};
 
 pub async fn load_cron_jobs_async() -> Result<Vec<CronJobDto>, String> {
     desktop_config::config_cron_jobs::load_cron_jobs_async(super::gateway::gateway_client()).await
 }
 
 pub async fn load_cron_history_async()
--> Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String> {
+-> Result<(gateway_cron::CronHistoryResponse, Vec<CronJobDto>), String> {
     desktop_config::config_cron_jobs::load_cron_history_async(super::gateway::gateway_client()).await
 }
 
@@ -38,7 +38,7 @@ pub async fn add_cron_job_async(
     delivery_to: String,
     delivery_best_effort: bool,
     delete_after_run: bool,
-    time_rule: Option<vw_gateway_client::CronPreviewRequest>,
+    time_rule: Option<gateway_cron::CronPreviewRequest>,
 ) -> Result<(), String> {
     desktop_config::config_cron_jobs::add_cron_job_async(super::gateway::gateway_client(), name, job_type, schedule_kind, schedule, at, every_ms, command, prompt, session_target, agent, acp_agent, project_path, wake, model, fallbacks, full_access, task_pool, delivery_enabled, delivery_channel, delivery_to, delivery_best_effort, delete_after_run, time_rule).await
 }
@@ -67,7 +67,7 @@ pub async fn update_cron_job_async(
     delivery_to: String,
     delivery_best_effort: bool,
     delete_after_run: bool,
-    time_rule: Option<vw_gateway_client::CronPreviewRequest>,
+    time_rule: Option<gateway_cron::CronPreviewRequest>,
 ) -> Result<(), String> {
     desktop_config::config_cron_jobs::update_cron_job_async(super::gateway::gateway_client(), job_id, name, job_type, schedule_kind, schedule, at, every_ms, command, prompt, session_target, agent, acp_agent, project_path, wake, model, fallbacks, full_access, task_pool, delivery_enabled, delivery_channel, delivery_to, delivery_best_effort, delete_after_run, time_rule).await
 }
@@ -92,8 +92,8 @@ pub async fn delete_cron_jobs_async(job_ids: Vec<String>) -> Result<(), String> 
 }
 
 pub async fn preview_cron_schedule_async(
-    rule: vw_gateway_client::CronPreviewRequest,
-) -> Result<vw_gateway_client::CronPreviewResponse, String> {
+    rule: gateway_cron::CronPreviewRequest,
+) -> Result<gateway_cron::CronPreviewResponse, String> {
     desktop_config::config_cron_jobs::preview_cron_schedule_async(super::gateway::gateway_client(), rule).await
 }
 

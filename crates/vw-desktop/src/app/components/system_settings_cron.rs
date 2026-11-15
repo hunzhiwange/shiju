@@ -23,7 +23,7 @@ use crate::app::{App, Message, message};
 use chrono::{DateTime, Local};
 use iced::widget::{button, checkbox, column, container, row, slider, text, text_editor};
 use iced::{Alignment, Background, Element, Length, Theme};
-use vw_gateway_client::CronJobDto;
+use gateway_cron::CronJobDto;
 
 pub(crate) mod date_time;
 mod delivery;

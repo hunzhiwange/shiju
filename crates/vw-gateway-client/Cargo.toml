@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+gateway-cron = { path = "../libs/gateway-cron", version = "0.6.0" }
 gateway-task-pool = { path = "../libs/gateway-task-pool", version = "0.6.0" }
 gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle", version = "0.6.0" }
 gateway-scheduler = { path = "../libs/gateway-scheduler", version = "0.6.0" }

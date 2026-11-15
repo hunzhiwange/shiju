@@ -1,6 +1,6 @@
 //! 交互层共享的编排快照与安全 Cron 投影。
 
-use vw_gateway_client::{CronJobDto, CronRunDto};
+use gateway_cron::{CronJobDto, CronRunDto};
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use crate::{
     agent_view::AgentViewState, background_task::BackgroundTaskPanel,

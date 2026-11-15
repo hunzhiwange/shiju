@@ -619,7 +619,7 @@ pub(crate) struct CronJobDraft {
     pub(crate) schedule_revision: u64,
     pub(crate) schedule_error: Option<String>,
     pub(crate) preview_loading: bool,
-    pub(crate) preview: Option<Result<vw_gateway_client::CronPreviewResponse, String>>,
+    pub(crate) preview: Option<Result<gateway_cron::CronPreviewResponse, String>>,
     pub(crate) submitting: bool,
     pub(crate) name: String,
     pub(crate) job_type: CronAddJobType,
@@ -700,7 +700,7 @@ pub enum CronListFilter {
 }
 
 impl CronListFilter {
-    pub(crate) fn matches(self, job: &vw_gateway_client::CronJobDto) -> bool {
+    pub(crate) fn matches(self, job: &gateway_cron::CronJobDto) -> bool {
         match self {
             Self::All => true,
             Self::Enabled => job.enabled,
@@ -725,7 +725,7 @@ pub(crate) struct CronSettingsState {
     /// 当前任务列表加载状态。
     pub(crate) jobs_loading: bool,
     /// 当前任务列表。
-    pub(crate) jobs: Vec<vw_gateway_client::CronJobDto>,
+    pub(crate) jobs: Vec<gateway_cron::CronJobDto>,
     /// 当前列表分组。
     pub(crate) list_filter: CronListFilter,
     /// 是否显示批量管理控件。
@@ -747,7 +747,7 @@ pub(crate) struct CronSettingsState {
     /// 历史记录加载错误。
     pub(crate) runs_modal_error: Option<String>,
     /// 当前弹窗展示的历史记录。
-    pub(crate) runs_modal: Vec<vw_gateway_client::CronRunDto>,
+    pub(crate) runs_modal: Vec<gateway_cron::CronRunDto>,
     /// 当前弹窗中用于选择复制的完整历史文本。
     pub(crate) runs_modal_editor: text_editor::Content,
     /// 是否显示帮助对话框
@@ -760,7 +760,7 @@ pub(crate) struct CronSettingsState {
 }
 
 impl CronSettingsState {
-    pub(crate) fn visible_jobs(&self) -> impl Iterator<Item = &vw_gateway_client::CronJobDto> {
+    pub(crate) fn visible_jobs(&self) -> impl Iterator<Item = &gateway_cron::CronJobDto> {
         self.jobs.iter().filter(|job| self.list_filter.matches(job))
     }
 

@@ -5,7 +5,7 @@ use super::*;
 use crate::app::App;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronListFilter, CronSettingsTab};
 use std::sync::Arc;
-use vw_gateway_client::{CronJobDto, CronRunDto};
+use gateway_cron::{CronJobDto, CronRunDto};
 
 fn app() -> App {
     App::new().0
@@ -1198,7 +1198,7 @@ fn wb_schedule_modal_no_future_trigger_rejects_save() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
     app.cron_settings.add_draft.prompt = "检查项目".into();
-    app.cron_settings.add_draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {
+    app.cron_settings.add_draft.preview = Some(Ok(gateway_cron::CronPreviewResponse {
         normalized: Default::default(),
         timezone: "UTC".into(),
         candidates: Vec::new(),
@@ -1353,7 +1353,7 @@ fn history_app() -> App {
 fn history_loaded(
     app: &mut App,
     generation: u64,
-    result: Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String>,
+    result: Result<(gateway_cron::CronHistoryResponse, Vec<CronJobDto>), String>,
 ) {
     let _ = super::super::cron_history::update(
         app,
@@ -1361,9 +1361,9 @@ fn history_loaded(
     );
 }
 
-fn history_response() -> vw_gateway_client::CronHistoryResponse {
-    vw_gateway_client::CronHistoryResponse {
-        runs: vec![vw_gateway_client::CronHistoryRunDto {
+fn history_response() -> gateway_cron::CronHistoryResponse {
+    gateway_cron::CronHistoryResponse {
+        runs: vec![gateway_cron::CronHistoryRunDto {
             id: Some(1),
             execution_id: None,
             job_id: "a".into(),
@@ -1724,7 +1724,7 @@ fn cron_template_flow_edited_values_are_submitted() {
         SettingsMessage::CronSchedulePreviewLoaded {
             editing: false,
             revision,
-            result: Ok(vw_gateway_client::CronPreviewResponse {
+            result: Ok(gateway_cron::CronPreviewResponse {
                 normalized: Default::default(),
                 timezone: "UTC".into(),
                 candidates: vec!["2099-01-01T11:00:00Z".into()],

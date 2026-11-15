@@ -1,7 +1,7 @@
 //! 在桌面配置层规范化定时任务调度参数并调用网关接口。
 
 
-use vw_gateway_client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
+use gateway_cron::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 
 fn normalize_schedule_kind(
     value: &str,
@@ -70,7 +70,7 @@ fn requires_extended_cron_api(
 }
 
 async fn ensure_extended_cron_api_if_needed(
-    client: &vw_gateway_client::GatewayClient,
+    client: &gateway_cron::GatewayCronClient,
     job_type: &str,
     schedule_kind: &str,
     agent: Option<&String>,
@@ -102,14 +102,14 @@ async fn ensure_extended_cron_api_if_needed(
 
 /// 通过当前网关加载全部定时任务。
 pub async fn load_cron_jobs_async(client: Result<vw_gateway_client::GatewayClient, String>) -> Result<Vec<CronJobDto>, String> {
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     client.cron_jobs_get().await
 }
 
 /// 汇总历史与完整任务候选使用同一个带认证的客户端，不回退旧 last_run。
 pub async fn load_cron_history_async(client: Result<vw_gateway_client::GatewayClient, String>)
--> Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String> {
-    let client = client?;
+-> Result<(gateway_cron::CronHistoryResponse, Vec<CronJobDto>), String> {
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     let history = async { client.cron_history_get().await.map_err(cron_history_error) };
     iced::futures::try_join!(history, client.cron_jobs_get())
 }
@@ -127,7 +127,7 @@ fn cron_history_error(error: String) -> String {
 
 /// 加载指定定时任务的历史运行记录。
 pub async fn load_cron_job_runs_async(client: Result<vw_gateway_client::GatewayClient, String>, job_id: String) -> Result<Vec<CronRunDto>, String> {
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     match client.cron_job_runs_get(&job_id).await {
         Ok(runs) => Ok(runs),
         Err(err) if err.contains("不支持定时任务历史接口") => {
@@ -177,7 +177,7 @@ pub async fn add_cron_job_async(
     delivery_to: String,
     delivery_best_effort: bool,
     delete_after_run: bool,
-    time_rule: Option<vw_gateway_client::CronPreviewRequest>,
+    time_rule: Option<gateway_cron::CronPreviewRequest>,
 ) -> Result<(), String> {
     let (schedule_kind, schedule, at, every_ms) = match &time_rule {
         Some(rule) => (
@@ -249,7 +249,7 @@ pub async fn add_cron_job_async(
         return Err("投递目标不能为空".to_string());
     }
 
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     ensure_extended_cron_api_if_needed(
         &client,
         &job_type,
@@ -334,7 +334,7 @@ pub async fn update_cron_job_async(
     delivery_to: String,
     delivery_best_effort: bool,
     delete_after_run: bool,
-    time_rule: Option<vw_gateway_client::CronPreviewRequest>,
+    time_rule: Option<gateway_cron::CronPreviewRequest>,
 ) -> Result<(), String> {
     let (schedule_kind, schedule, at, every_ms) = match &time_rule {
         Some(rule) => (
@@ -406,7 +406,7 @@ pub async fn update_cron_job_async(
         return Err("投递目标不能为空".to_string());
     }
 
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     ensure_extended_cron_api_if_needed(
         &client,
         &job_type,
@@ -452,7 +452,7 @@ pub async fn update_cron_job_async(
 }
 
 pub async fn set_cron_job_enabled_async(client: Result<vw_gateway_client::GatewayClient, String>, job_id: String, enabled: bool) -> Result<(), String> {
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     let request = CronUpdateRequest { enabled: Some(enabled), ..CronUpdateRequest::default() };
     client.cron_job_update(&job_id, &request).await.map(|_| ())
 }
@@ -463,7 +463,7 @@ pub async fn set_cron_jobs_enabled_async(
     job_ids: Vec<String>,
     enabled: bool,
 ) -> Result<(), String> {
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     let request = CronUpdateRequest { enabled: Some(enabled), ..CronUpdateRequest::default() };
     for job_id in job_ids {
         client.cron_job_update(&job_id, &request).await?;
@@ -472,13 +472,13 @@ pub async fn set_cron_jobs_enabled_async(
 }
 
 pub async fn delete_cron_job_async(client: Result<vw_gateway_client::GatewayClient, String>, job_id: String) -> Result<(), String> {
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     client.cron_job_delete(&job_id).await
 }
 
 /// 逐个删除所给任务，保留网关返回的首个失败原因。
 pub async fn delete_cron_jobs_async(client: Result<vw_gateway_client::GatewayClient, String>, job_ids: Vec<String>) -> Result<(), String> {
-    let client = client?;
+    let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
     for job_id in job_ids {
         client.cron_job_delete(&job_id).await?;
     }
@@ -492,12 +492,12 @@ mod config_cron_jobs_tests;
 /// 预览和保存使用同一份已经验证的规则参数。
 pub async fn preview_cron_schedule_async(
     client: Result<vw_gateway_client::GatewayClient, String>,
-    rule: vw_gateway_client::CronPreviewRequest,
-) -> Result<vw_gateway_client::CronPreviewResponse, String> {
-    client?.cron_schedule_preview(&rule).await
+    rule: gateway_cron::CronPreviewRequest,
+) -> Result<gateway_cron::CronPreviewResponse, String> {
+    gateway_cron::GatewayCronClient::new(client?.transport().clone()).cron_schedule_preview(&rule).await
 }
 
-fn apply_add_schedule(request: &mut CronAddRequest, rule: vw_gateway_client::CronPreviewRequest) {
+fn apply_add_schedule(request: &mut CronAddRequest, rule: gateway_cron::CronPreviewRequest) {
     request.schedule_kind = rule.schedule_kind;
     request.schedule = rule.schedule.unwrap_or_default();
     request.at = rule.at;
@@ -516,7 +516,7 @@ fn apply_add_schedule(request: &mut CronAddRequest, rule: vw_gateway_client::Cro
 
 fn apply_update_schedule(
     request: &mut CronUpdateRequest,
-    rule: vw_gateway_client::CronPreviewRequest,
+    rule: gateway_cron::CronPreviewRequest,
 ) {
     request.schedule_kind = Some(rule.schedule_kind);
     request.schedule = rule.schedule;

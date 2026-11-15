@@ -1,5 +1,5 @@
 use super::*;
-use vw_gateway_client::CronHistoryRunDto;
+use gateway_cron::CronHistoryRunDto;
 fn run(status: &str, id: i64) -> CronHistoryRunDto {
     CronHistoryRunDto {
         id: Some(id),

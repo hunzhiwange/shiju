@@ -259,3 +259,5 @@ pub use client::{UsageReadScope, UsageReadError, UsageSummary};
 pub use gateway_task_lifecycle::GatewayTaskLifecycleClient;
 
 pub use gateway_task_pool::GatewayTaskPoolClient;
+
+pub use gateway_cron::GatewayCronClient;

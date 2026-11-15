@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
-use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
+use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use gateway_cron::{CronJobDto};
 use vw_tui::{V3Action, V3ApprovalDecision};
 
 use super::app::{ActiveRunner, V3GatewayApp};

@@ -672,7 +672,7 @@ async fn delete_cron_jobs_async_deletes_each_job() {
 
 #[test]
 fn wb_schedule_draft_submission_matches_preview_parameters() {
-    let rule = vw_gateway_client::CronPreviewRequest {
+    let rule = gateway_cron::CronPreviewRequest {
         start_date: Some(None),
         end_date: Some(Some("2028-12-31".into())),
         ..Default::default()
@@ -694,7 +694,7 @@ fn wb_schedule_draft_submission_matches_preview_parameters() {
 async fn wb_schedule_draft_typed_rule_clears_stale_legacy_inputs_before_validation() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(1).await;
-    let rule = vw_gateway_client::CronPreviewRequest {
+    let rule = gateway_cron::CronPreviewRequest {
         schedule_kind: "cron".into(),
         schedule: Some("30 9 * * *".into()),
         ..Default::default()

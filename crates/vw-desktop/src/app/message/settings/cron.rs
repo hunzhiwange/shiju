@@ -15,7 +15,7 @@ use super::messages::SettingsMessage;
 
 fn schedule_request(
     draft: &crate::app::state::CronJobDraft,
-) -> Result<vw_gateway_client::CronPreviewRequest, String> {
+) -> Result<gateway_cron::CronPreviewRequest, String> {
     if let Some(err) = &draft.schedule_error {
         return Err(err.clone());
     }
@@ -23,7 +23,7 @@ fn schedule_request(
         rule.timezone.parse::<chrono_tz::Tz>().map_err(|_| "请选择有效的 IANA 时区")?;
         return rule.request();
     }
-    Ok(vw_gateway_client::CronPreviewRequest {
+    Ok(gateway_cron::CronPreviewRequest {
         schedule_kind: draft.schedule_kind.as_api_value().into(),
         schedule: (draft.schedule_kind == CronAddScheduleKind::Cron)
             .then(|| draft.schedule.clone()),
@@ -129,7 +129,7 @@ fn cron_editor_save_task(
 
 fn format_run_history_text(
     locale: config_ui::DesktopLocale,
-    runs: &[vw_gateway_client::CronRunDto],
+    runs: &[gateway_cron::CronRunDto],
 ) -> String {
     let mut text = String::new();
 
@@ -203,7 +203,7 @@ fn schedule_kind_from_api(
     }
 }
 
-fn job_type_from_api(job: &vw_gateway_client::CronJobDto) -> CronAddJobType {
+fn job_type_from_api(job: &gateway_cron::CronJobDto) -> CronAddJobType {
     if job.job_type.trim().eq_ignore_ascii_case("agent") {
         return CronAddJobType::Agent;
     }

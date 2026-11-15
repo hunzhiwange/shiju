@@ -3,7 +3,7 @@ use super::SettingsMessage;
 use crate::app::state::{CronHistoryLocation, CronHistoryStatus, CronSettingsTab};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{CronHistoryResponse, CronJobDto};
+use gateway_cron::{CronHistoryResponse, CronJobDto};
 
 #[derive(Debug, Clone)]
 pub enum CronHistoryMessage {

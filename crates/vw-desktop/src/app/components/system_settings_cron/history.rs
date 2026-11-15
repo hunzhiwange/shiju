@@ -4,7 +4,7 @@ use crate::app::message::settings::cron_history::CronHistoryMessage as Event;
 use crate::app::state::{CronHistoryLocation, CronHistoryState, CronHistoryStatus};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{column, responsive, scrollable};
-use vw_gateway_client::CronHistoryRunDto;
+use gateway_cron::CronHistoryRunDto;
 
 const TYPE_OPTIONS: [CronHistoryLocation; 2] =
     [CronHistoryLocation::All, CronHistoryLocation::Local];

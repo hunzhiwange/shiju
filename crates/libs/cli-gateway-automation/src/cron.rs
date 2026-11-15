@@ -1,6 +1,6 @@
 //! Cron 快照详情与受限运行历史投影。
 
-use vw_gateway_client::{CronJobDto, CronUpdateRequest};
+use gateway_cron::{CronJobDto, CronUpdateRequest};
 use cli_interaction_model::snapshots::{
     CronJobSnapshot, CronDetailView, CronRunSummary, bounded_text,
     MAX_DETAIL_CHARS, MAX_HISTORY_RUNS,
@@ -56,7 +56,7 @@ pub fn load_owned_cron_detail_blocking(
         snapshot.iter().find(|job| job.owns_id(job_id)).cloned().ok_or_else(|| {
             "Cron detail requires an ID from the current Cron snapshot".to_string()
         })?;
-    let runs = block_on_gateway(async { runtime.client().cron_job_runs_get(job_id).await })
+    let runs = block_on_gateway(async { gateway_cron::GatewayCronClient::new(runtime.client().transport().clone()).cron_job_runs_get(job_id).await })
         .map_err(|error| {
             format!(
                 "failed to load Cron run history: {}",
@@ -88,10 +88,10 @@ pub fn mutate_owned_cron_and_refresh_blocking(
             CronMutation::SetEnabled(enabled) => {
                 let request =
                     CronUpdateRequest { enabled: Some(enabled), ..CronUpdateRequest::default() };
-                runtime.client().cron_job_update(job_id, &request).await.map(|_| ())?;
+                gateway_cron::GatewayCronClient::new(runtime.client().transport().clone()).cron_job_update(job_id, &request).await.map(|_| ())?;
             }
-            CronMutation::Delete => runtime.client().cron_job_delete(job_id).await?,
+            CronMutation::Delete => gateway_cron::GatewayCronClient::new(runtime.client().transport().clone()).cron_job_delete(job_id).await?,
         }
-        runtime.client().cron_jobs_get().await.map(CronSourceRefresh::from_jobs)
+        gateway_cron::GatewayCronClient::new(runtime.client().transport().clone()).cron_jobs_get().await.map(CronSourceRefresh::from_jobs)
     })
 }

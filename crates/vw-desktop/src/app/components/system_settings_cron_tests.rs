@@ -6,7 +6,7 @@ use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message};
 use iced::Element;
 use iced::widget::text;
-use vw_gateway_client::CronRunDto;
+use gateway_cron::CronRunDto;
 
 // 设置页 fixture 从统一默认应用出发，各用例只覆写当前页面关心的字段。
 fn test_app() -> App {
@@ -593,7 +593,7 @@ mod modal_render {
                         draft.prompt = "检查项目并生成中文报告\n".repeat(40);
                         draft.prompt_editor =
                             iced::widget::text_editor::Content::with_text(&draft.prompt);
-                        draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {
+                        draft.preview = Some(Ok(gateway_cron::CronPreviewResponse {
                             normalized: Default::default(),
                             timezone: "Asia/Shanghai".into(),
                             candidates: (2..=if index == 0 { 2 } else { 6 })

@@ -1,6 +1,8 @@
 //! # API 处理器模块
 //!
-//! 本模块提供网关层的 HTTP API 请求处理器集合，作为 `gateway/api` 子系统的核心入口。
+//! 本模块保留在网关宿主中，仅组合各领域处理器模块并重导出路由注册所需入口。
+//! 业务实现由各领域模块及其下层库持有；本模块不持有共享状态或执行处理逻辑。
+//! 将该入口单独建库会引入跨领域处理器依赖，因此保留宿主组装职责。
 //!
 //! ## 模块职责
 //!
@@ -22,7 +24,7 @@
 //! ## 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::gateway::api::handlers::{
+//! use vw_agent::gateway::api::handlers::{
 //!     handle_api_health,
 //!     handle_api_config_get,
 //!     handle_api_cron_list,

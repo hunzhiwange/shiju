@@ -19,7 +19,7 @@ use crate::session_events::{
     SessionEventAppendOptions, SessionEventWriter, SessionEventWriterOptions,
 };
 use crate::session_persistence::{absolute_path, iso_now, resolve_session_record};
-use crate::session_runtime::connect_load::{
+use acp_session_connect::{
     ConnectAndLoadClient, ConnectAndLoadSessionOptions, connect_and_load_session,
 };
 use crate::session_runtime::lifecycle::apply_lifecycle_snapshot_to_record;

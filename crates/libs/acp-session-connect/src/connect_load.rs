@@ -13,25 +13,25 @@ use agent_client_protocol::{
 };
 use async_trait::async_trait;
 
-use crate::acp_error_shapes::is_acp_resource_not_found_error;
-use crate::error::AcpError;
-use crate::errors::{
+use acp_types::acp_error_shapes::is_acp_resource_not_found_error;
+use acp_types::error::AcpError;
+use acp_types::errors::{
     AcpxErrorOptions, SessionModeReplayError, SessionModelReplayError, SessionResumeRequiredError,
 };
-use crate::perf_metrics::increment_perf_counter;
-use crate::queue_lease_store::is_process_alive;
-use crate::queue_owner_turn_controller::QueueOwnerActiveSessionController;
-use crate::session_mode_preference::{
+use acp_metrics::perf_metrics::increment_perf_counter;
+use acp_lease::queue_lease_store::is_process_alive;
+use acp_queue::queue_owner_turn_controller::QueueOwnerActiveSessionController;
+use acp_access_policy::session_mode_preference::{
     get_desired_config_options, get_desired_mode_id, get_desired_model_id, resolve_config_value,
     resolve_model_config_value, set_current_model_id, sync_advertised_model_state,
     sync_config_options,
 };
-use crate::session_runtime::lifecycle::{
+use acp_lifecycle::{
     AgentLifecycleSnapshot, apply_lifecycle_snapshot_to_record, reconcile_agent_session_id,
     session_has_agent_messages,
 };
 use acp_async_control::TimeoutError;
-use crate::types::{SessionInfo, SessionRecord, SessionResumePolicy};
+use acp_types::types::{SessionInfo, SessionRecord, SessionResumePolicy};
 
 type OnClientAvailable = Arc<dyn Fn(Arc<dyn QueueOwnerActiveSessionController>) + Send + Sync>;
 type OnConnectedRecord = Arc<dyn Fn(&SessionRecord) + Send + Sync>;
@@ -82,14 +82,14 @@ pub trait ConnectAndLoadClient: Send + Sync {
 }
 
 #[async_trait(?Send)]
-impl ConnectAndLoadClient for crate::AcpClient {
+impl ConnectAndLoadClient for acp_client::AcpClient {
     async fn start(&self) -> Result<(), AcpError> {
-        crate::AcpClient::start(self).await
+        acp_client::AcpClient::start(self).await
     }
 
     async fn create_session(&self, cwd: &Path) -> Result<ConnectAndLoadClientSession, AcpError> {
         let SessionInfo { session_id, models, config_options } =
-            crate::AcpClient::create_session(self, cwd).await?;
+            acp_client::AcpClient::create_session(self, cwd).await?;
         Ok(ConnectAndLoadClientSession {
             session_id,
             agent_session_id: None,
@@ -104,7 +104,7 @@ impl ConnectAndLoadClient for crate::AcpClient {
         cwd: &Path,
     ) -> Result<ConnectAndLoadClientSession, AcpError> {
         let SessionInfo { session_id, models, config_options } =
-            crate::AcpClient::load_session(self, session_id, cwd).await?;
+            acp_client::AcpClient::load_session(self, session_id, cwd).await?;
         Ok(ConnectAndLoadClientSession {
             session_id,
             agent_session_id: None,
@@ -119,7 +119,7 @@ impl ConnectAndLoadClient for crate::AcpClient {
         cwd: &Path,
         mode_id: &str,
     ) -> Result<(), AcpError> {
-        crate::AcpClient::set_session_mode(self, session_id, cwd, mode_id).await
+        acp_client::AcpClient::set_session_mode(self, session_id, cwd, mode_id).await
     }
 
     async fn set_session_model(
@@ -128,7 +128,7 @@ impl ConnectAndLoadClient for crate::AcpClient {
         cwd: &Path,
         model_id: &str,
     ) -> Result<(), AcpError> {
-        crate::AcpClient::set_session_model(self, session_id, cwd, model_id).await
+        acp_client::AcpClient::set_session_model(self, session_id, cwd, model_id).await
     }
 
     async fn set_session_config_option(
@@ -138,11 +138,11 @@ impl ConnectAndLoadClient for crate::AcpClient {
         config_id: &str,
         value: &str,
     ) -> Result<SetSessionConfigOptionResponse, AcpError> {
-        crate::AcpClient::set_session_config_option(self, session_id, cwd, config_id, value).await
+        acp_client::AcpClient::set_session_config_option(self, session_id, cwd, config_id, value).await
     }
 
     fn has_reusable_session(&self, _session_id: &str) -> bool {
-        crate::AcpClient::has_reusable_session(self, _session_id)
+        acp_client::AcpClient::has_reusable_session(self, _session_id)
     }
 
     fn supports_load_session(&self) -> bool {
@@ -150,7 +150,7 @@ impl ConnectAndLoadClient for crate::AcpClient {
     }
 
     fn get_agent_lifecycle_snapshot(&self) -> AgentLifecycleSnapshot {
-        crate::AcpClient::get_agent_lifecycle_snapshot(self)
+        acp_client::AcpClient::get_agent_lifecycle_snapshot(self)
     }
 }
 

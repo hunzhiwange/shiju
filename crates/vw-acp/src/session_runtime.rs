@@ -5,7 +5,7 @@
 //!
 //! 上层调用通常只需要依赖这里导出的公共函数与类型，而无需感知内部拆分细节。
 
-pub mod connect_load;
+pub use acp_session_connect::connect_load;
 pub mod lifecycle;
 pub mod prompt_runner;
 pub mod queue_owner_process;
@@ -43,8 +43,6 @@ pub use runtime::{
     ensure_session, run_once, send_session, send_session_direct,
 };
 
-#[cfg(test)]
-mod connect_load_tests;
 #[cfg(test)]
 mod queue_owner_process_tests;
 // #[cfg(test)]

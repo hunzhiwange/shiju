@@ -30,7 +30,7 @@ use crate::session_mode_preference::{
 use crate::session_persistence::{
     absolute_path, iso_now, resolve_session_record, write_session_record,
 };
-use crate::session_runtime::connect_load::ConnectAndLoadClient;
+use acp_session_connect::ConnectAndLoadClient;
 use crate::session_runtime::lifecycle::apply_lifecycle_snapshot_to_record;
 use acp_async_control::{
     InterruptedError, TimeoutError, WithInterruptError, with_interrupt, with_timeout,
@@ -77,7 +77,7 @@ pub enum PromptRunnerError {
     #[error(transparent)]
     QueueConnection(#[from] QueueConnectionError),
     #[error(transparent)]
-    ConnectAndLoad(#[from] crate::session_runtime::connect_load::ConnectAndLoadSessionError),
+    ConnectAndLoad(#[from] acp_session_connect::ConnectAndLoadSessionError),
     #[error(transparent)]
     Acp(#[from] AcpError),
     #[error(transparent)]

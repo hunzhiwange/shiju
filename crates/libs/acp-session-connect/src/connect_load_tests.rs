@@ -18,11 +18,12 @@ use super::connect_load::{
     ConnectAndLoadClient, ConnectAndLoadClientSession, ConnectAndLoadSessionError,
     ConnectAndLoadSessionOptions, connect_and_load_session,
 };
-use super::lifecycle::{AgentLifecycleExit, AgentLifecycleSnapshot};
-use crate::error::AcpError;
-use crate::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerActiveSessionController};
-use crate::{
-    AcpAgentConfig, AcpClient, SESSION_RECORD_SCHEMA, SessionAcpxState, SessionEventLog,
+use acp_lifecycle::{AgentLifecycleExit, AgentLifecycleSnapshot};
+use acp_types::error::AcpError;
+use acp_queue::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerActiveSessionController};
+use acp_client::AcpClient;
+use acp_types::{
+    AcpAgentConfig, SESSION_RECORD_SCHEMA, SessionAcpxState, SessionEventLog,
     SessionRecord, SessionResumePolicy, SessionStateOptions, SessionTokenUsage,
 };
 
@@ -359,7 +360,7 @@ async fn session_reasoning_effort_validates_and_replays_after_model() {
     assert!(state.set_model_calls.is_empty(), "model config must precede legacy set_model");
     drop(state);
 
-    let available_error = crate::session_mode_preference::resolve_config_value(
+    let available_error = acp_access_policy::session_mode_preference::resolve_config_value(
         record.vwacp.as_ref().and_then(|state| state.config_options.as_deref()),
         "reasoning_effort",
         "xhigh",
@@ -1125,8 +1126,8 @@ async fn connect_and_load_session_falls_back_for_internal_error_without_agent_me
 #[tokio::test]
 async fn connect_and_load_session_does_not_fallback_for_internal_error_after_agent_messages() {
     let mut record = sample_record();
-    record.messages.push(crate::SessionMessage::Agent(crate::SessionAgentMessage {
-        content: vec![crate::SessionAgentContent::Text("answer".to_string())],
+    record.messages.push(acp_types::SessionMessage::Agent(acp_types::SessionAgentMessage {
+        content: vec![acp_types::SessionAgentContent::Text("answer".to_string())],
         tool_results: HashMap::new(),
         reasoning_details: None,
     }));

@@ -80,6 +80,7 @@ members = [
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
   "crates/libs/acp-client",
+  "crates/libs/acp-session-connect",
   "crates/libs/acp-lifecycle",
   "crates/libs/acp-async-control",
   "crates/libs/acp-agent-registry",

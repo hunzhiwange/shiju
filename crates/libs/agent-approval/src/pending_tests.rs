@@ -4,7 +4,7 @@
 use chrono::{Duration, Utc};
 use std::collections::HashMap;
 
-use crate::app::agent::config::AutonomyConfig;
+use config_security::AutonomyConfig;
 
 use super::{
     ApprovalManager, ApprovalResponse, PendingApprovalError, PendingNonCliApprovalRequest,

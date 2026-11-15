@@ -2,8 +2,8 @@ use super::{
     ApprovalLogEntry, ApprovalManager, ApprovalRequest, ApprovalResponse, prompt_cli_interactive,
     summarize_args,
 };
-use crate::app::agent::config::{AutonomyConfig, NonCliNaturalLanguageApprovalMode};
-use crate::app::agent::security::AutonomyLevel;
+use config_security::{AutonomyConfig, NonCliNaturalLanguageApprovalMode};
+use config_security::AutonomyLevel;
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
 

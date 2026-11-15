@@ -3,8 +3,8 @@
 
 use std::collections::HashMap;
 
-use crate::app::agent::config::{AutonomyConfig, NonCliNaturalLanguageApprovalMode};
-use crate::app::agent::security::AutonomyLevel;
+use config_security::{AutonomyConfig, NonCliNaturalLanguageApprovalMode};
+use config_security::AutonomyLevel;
 
 use super::{ApprovalManager, ApprovalResponse};
 

@@ -103,7 +103,7 @@ impl ApprovalManager {
         )
     }
 
-    pub(crate) fn reply_to_non_cli_pending_once(
+    pub fn reply_to_non_cli_pending_once(
         &self,
         request: &PendingNonCliApprovalRequest,
         approved: bool,

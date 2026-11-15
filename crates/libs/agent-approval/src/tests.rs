@@ -30,9 +30,9 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::AutonomyConfig;
-    use crate::app::agent::config::NonCliNaturalLanguageApprovalMode;
-    use crate::app::agent::security::AutonomyLevel;
+    use config_security::AutonomyConfig;
+    use config_security::NonCliNaturalLanguageApprovalMode;
+    use config_security::AutonomyLevel;
     use chrono::{Duration, Utc};
     use std::collections::HashMap;
 

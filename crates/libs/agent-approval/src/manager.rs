@@ -1,6 +1,6 @@
 use super::{ApprovalLogEntry, ApprovalResponse, PendingNonCliApprovalRequest};
-use crate::app::agent::config::NonCliNaturalLanguageApprovalMode;
-use crate::app::agent::security::AutonomyLevel;
+use config_security::NonCliNaturalLanguageApprovalMode;
+use config_security::AutonomyLevel;
 use parking_lot::{Mutex, RwLock};
 use std::collections::{HashMap, HashSet};
 

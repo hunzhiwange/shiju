@@ -5,26 +5,29 @@ use iced::widget::{Space, button, column, container, mouse_area, row, text};
 use iced::{Alignment, Border, Color, Element, Length, Theme, mouse};
 use std::collections::HashMap;
 
-use crate::app::assets::Icon;
-use crate::app::components::chat_panel::utils::{
-    bold_font, icon_svg, relative_to_project_root, resolve_path,
+use desktop_assets::assets::Icon;
+use crate::card_style::{
+    bold_font, icon_svg,
 };
-use crate::app::{App, Message, message};
+use crate::path::resolve_path;
+use crate::tools::files_input::FilesInput;
+use crate::card_input::Message;
 
 use super::super::diff_utils::file_preview;
 use super::super::file_link::{file_name_link, file_name_only};
-use super::super::git_diff_view::render_git_diff_content;
+
 use super::super::tool_parse::tool_input_path;
 use super::super::types::ChangeFile;
 
 const EDIT_TOGGLE_SLOT_WIDTH: f32 = 18.0;
 
-pub(crate) fn build_file_list_column<'a>(
-    app: &'a App,
+pub(super) fn build_file_list_column<'a, Host: Clone + 'a>(
+    app: &FilesInput<'a>,
     render_state: &super::FileListState,
     view_ctx: &super::FilesViewContext<'a>,
     changes_by_path: &HashMap<String, ChangeFile>,
-) -> iced::widget::Column<'a, Message> {
+    render_diff: &impl Fn(String, Option<String>, String, String) -> Element<'a, Host>,
+) -> iced::widget::Column<'a, Message<Host>> {
     let mut column_view = column![].spacing(2);
 
     for (index, (display, abs)) in render_state.items_for_display.iter().enumerate() {
@@ -38,7 +41,7 @@ pub(crate) fn build_file_list_column<'a>(
             );
         }
 
-        let open_content: Element<'a, Message> = if render_state.is_search {
+        let open_content: Element<'a, Message<Host>> = if render_state.is_search {
             file_name_link(display, abs)
         } else {
             let file_name = file_row_label(app, view_ctx, display, abs);
@@ -55,7 +58,7 @@ pub(crate) fn build_file_list_column<'a>(
 
         if view_ctx.is_edit_like
             && !render_state.is_search
-            && let Some(rel) = relative_to_project_root(app, abs)
+            && let Some(rel) = relative_to_project_root(app.project_path, abs)
         {
             if let Some(change) = changes_by_path.get(rel.as_str()) {
                 let title = format!("{}  +{}-{}", rel, change.additions, change.deletions);
@@ -71,6 +74,7 @@ pub(crate) fn build_file_list_column<'a>(
                     title,
                     change.before.clone(),
                     change.after.clone(),
+                    render_diff,
                 ));
                 continue;
             }
@@ -90,6 +94,7 @@ pub(crate) fn build_file_list_column<'a>(
                 title,
                 String::new(),
                 after,
+                render_diff,
             ));
             continue;
         }
@@ -101,7 +106,7 @@ pub(crate) fn build_file_list_column<'a>(
         column_view = column_view.push(
             container(
                 text(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
+                    app.i18n
                         .format("… 省略%u条", &[render_state.tail_omitted.into()])
                         .expect("valid omitted item template"),
                 )
@@ -118,7 +123,7 @@ pub(crate) fn build_file_list_column<'a>(
     if !render_state.filter_query.is_empty() && render_state.is_empty_filtered {
         column_view = column_view.push(
             container(
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的文件"))
+                text(app.i18n.__("没有匹配的文件"))
                     .size(14)
                     .style(|theme: &Theme| iced::widget::text::Style {
                         color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.65)),
@@ -131,9 +136,9 @@ pub(crate) fn build_file_list_column<'a>(
         column_view = column_view.push(
             container(
                 text(if render_state.is_search {
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("未返回可定位的文件结果")
+                    app.i18n.__("未返回可定位的文件结果")
                 } else {
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("没有可展示的文件")
+                    app.i18n.__("没有可展示的文件")
                 })
                 .size(14)
                 .style(|theme: &Theme| iced::widget::text::Style {
@@ -149,7 +154,7 @@ pub(crate) fn build_file_list_column<'a>(
 }
 
 pub(super) fn file_row_label(
-    _app: &App,
+    _app: &FilesInput<'_>,
     _view_ctx: &super::FilesViewContext<'_>,
     display: &str,
     _abs: &str,
@@ -158,7 +163,7 @@ pub(super) fn file_row_label(
 }
 
 pub(super) fn fallback_edit_diff_payload(
-    app: &App,
+    app: &FilesInput<'_>,
     view_ctx: &super::FilesViewContext<'_>,
     display: &str,
     abs: &str,
@@ -167,7 +172,7 @@ pub(super) fn fallback_edit_diff_payload(
         return None;
     }
 
-    let input_path = tool_input_path(&view_ctx.input).and_then(|path| resolve_path(app, &path))?;
+    let input_path = tool_input_path(&view_ctx.input).and_then(|path| resolve_path(app.project_path, &path))?;
     if input_path != abs {
         return None;
     }
@@ -178,8 +183,8 @@ pub(super) fn fallback_edit_diff_payload(
         return None;
     }
 
-    let file = relative_to_project_root(app, abs).unwrap_or_else(|| display.to_string());
-    let title = crate::app::i18n::I18n::new(app.desktop_locale)
+    let file = relative_to_project_root(app.project_path, abs).unwrap_or_else(|| display.to_string());
+    let title = app.i18n
         .format("%s  写入内容", &[file.as_str().into()])
         .expect("valid file preview template");
     Some((title, file, after))
@@ -189,8 +194,8 @@ pub(super) fn edit_file_expand_key(msg_idx: usize, tool_idx: usize, path: &str) 
     format!("{msg_idx}:{tool_idx}:{path}")
 }
 
-pub(super) fn edit_file_change_block<'a>(
-    app: &'a App,
+pub(super) fn edit_file_change_block<'a, Host: Clone + 'a>(
+    app: &FilesInput<'a>,
     msg_idx: usize,
     tool_idx: usize,
     abs: &str,
@@ -201,24 +206,25 @@ pub(super) fn edit_file_change_block<'a>(
     title: String,
     before: String,
     after: String,
-) -> Element<'a, Message> {
+    render_diff: &impl Fn(String, Option<String>, String, String) -> Element<'a, Host>,
+) -> Element<'a, Message<Host>> {
     let expand_key = edit_file_expand_key(msg_idx, tool_idx, &file);
-    let file_expanded = app.chat_tool_file_expanded.contains(&expand_key);
+    let file_expanded = app.file_expanded.contains(&expand_key);
     let hover_key = tool_file_hover_key(msg_idx, tool_idx, abs);
-    let is_hovered = app.chat_tool_file_hovered.as_deref() == Some(hover_key.as_str());
-    let open_diff_message = Message::Git(message::GitMessage::OpenChatTextDiff {
+    let is_hovered = app.file_hovered == Some(hover_key.as_str());
+    let open_diff_message = Message::OpenChatTextDiff {
         title: title.clone(),
         file: file.clone(),
         before: before.clone(),
         after: after.clone(),
-    });
+    };
     let toggle_message =
-        Message::Chat(message::ChatMessage::ToggleToolFile(msg_idx, tool_idx, file.clone()));
+        Message::ToggleToolFile(msg_idx, tool_idx, file.clone());
 
     let mut header = row![
-        edit_verb_text(crate::app::i18n::I18n::new(app.desktop_locale).__(verb)),
+        edit_verb_text(app.i18n.__(verb)),
         edit_file_name_link(abs, file_name),
-        external_diff_button(crate::app::i18n::I18n::new(app.desktop_locale), open_diff_message),
+        external_diff_button(app.i18n, open_diff_message),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -238,8 +244,8 @@ pub(super) fn edit_file_change_block<'a>(
         .on_press(toggle_message)
         .interaction(mouse::Interaction::Pointer);
 
-    let block: Element<'a, Message> = if file_expanded {
-        let diff_body = container(render_git_diff_content(app, title, Some(file), before, after))
+    let block: Element<'a, Message<Host>> = if file_expanded {
+        let diff_body = container(render_diff(title, Some(file), before, after).map(Message::Diff))
             .width(Length::Fill)
             .clip(true);
         column![header, diff_body].spacing(0).into()
@@ -248,16 +254,16 @@ pub(super) fn edit_file_change_block<'a>(
     };
 
     mouse_area(container(block).width(Length::Fill))
-        .on_enter(Message::Chat(message::ChatMessage::ToolFileHover(hover_key)))
-        .on_exit(Message::Chat(message::ChatMessage::ToolFileHoverLeave))
+        .on_enter(Message::ToolFileHover(hover_key))
+        .on_exit(Message::ToolFileHoverLeave)
         .into()
 }
 
-pub(super) fn edit_file_name_link<'a>(abs: &str, file_name: String) -> Element<'a, Message> {
+pub(super) fn edit_file_name_link<'a, Host: Clone + 'a>(abs: &str, file_name: String) -> Element<'a, Message<Host>> {
     file_name_link(&file_name, abs)
 }
 
-pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
+pub(super) fn edit_verb_text<'a, Host: Clone + 'a>(verb: &'static str) -> Element<'a, Message<Host>> {
     text(verb)
         .size(14)
         .style(move |theme: &Theme| {
@@ -276,10 +282,10 @@ pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
         .into()
 }
 
-pub(super) fn external_diff_button<'a>(
-    i18n: crate::app::i18n::I18n,
-    on_press: Message,
-) -> Element<'a, Message> {
+pub(super) fn external_diff_button<'a, Host: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
+    on_press: Message<Host>,
+) -> Element<'a, Message<Host>> {
     button(view_changes_pill(i18n))
         .padding([0, 2])
         .style(edit_file_change_button_style)
@@ -287,10 +293,10 @@ pub(super) fn external_diff_button<'a>(
         .into()
 }
 
-pub(super) fn view_changes_toggle_button<'a>(
+pub(super) fn view_changes_toggle_button<'a, Host: Clone + 'a>(
     expanded: bool,
-    on_press: Message,
-) -> Element<'a, Message> {
+    on_press: Message<Host>,
+) -> Element<'a, Message<Host>> {
     button(
         icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
             .width(Length::Fixed(10.0))
@@ -305,7 +311,7 @@ pub(super) fn view_changes_toggle_button<'a>(
     .into()
 }
 
-pub(super) fn view_changes_pill<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
+pub(super) fn view_changes_pill<'a, Host: Clone + 'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message<Host>> {
     text(i18n.__("查看变更")).size(14).into()
 }
 
@@ -343,12 +349,12 @@ pub(super) fn tool_file_hover_key(msg_idx: usize, tool_idx: usize, abs: &str) ->
     format!("{msg_idx}:{tool_idx}:{abs}")
 }
 
-pub(super) fn tool_file_left<'a>(
+pub(super) fn tool_file_left<'a, Host: Clone + 'a>(
     verb: &'static str,
-    file_name: Element<'a, Message>,
+    file_name: Element<'a, Message<Host>>,
     light: bool,
     read_range: Option<String>,
-) -> Element<'a, Message> {
+) -> Element<'a, Message<Host>> {
     let verb_text = text(verb).size(14).style(move |theme: &Theme| {
         let is_dark = theme.palette().background.r
             + theme.palette().background.g
@@ -408,7 +414,7 @@ pub(super) fn edit_result_label(tool_name: &str, is_running: bool, is_error: boo
     }
 }
 
-pub(super) fn edit_change_counts<'a>(adds: usize, dels: usize) -> Element<'a, Message> {
+pub(super) fn edit_change_counts<'a, Host: Clone + 'a>(adds: usize, dels: usize) -> Element<'a, Message<Host>> {
     row![
         text(format!("+{}", adds)).size(14).font(bold_font()).style(|theme: &Theme| {
             iced::widget::text::Style { color: Some(theme.extended_palette().success.base.color) }
@@ -420,4 +426,9 @@ pub(super) fn edit_change_counts<'a>(adds: usize, dels: usize) -> Element<'a, Me
     .spacing(4)
     .align_y(Alignment::Center)
     .into()
+}
+
+fn relative_to_project_root(root: Option<&str>, abs: &str) -> Option<String> {
+ let rel = std::path::Path::new(abs).strip_prefix(std::path::Path::new(root?)).ok()?;
+ Some(rel.to_string_lossy().trim_start_matches('/').to_string())
 }

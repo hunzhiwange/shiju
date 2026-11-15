@@ -379,6 +379,7 @@ where
 }
 
 /// Borrowed editor storage and the active session's markdown selection.
+#[derive(Clone)]
 pub struct ToolTextState<'a> {
     pub chat_message_editors: &'a [text_editor::Content],
     pub chat_special_text_editors: &'a HashMap<u64, text_editor::Content>,

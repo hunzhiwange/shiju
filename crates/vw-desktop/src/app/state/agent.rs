@@ -411,12 +411,7 @@ fn json_value_bytes(value: &Value) -> usize {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct ExploreSummaryAnimationState {
-    pub(crate) previous_summary_text: String,
-    pub(crate) current_summary_text: String,
-    pub(crate) changed_at_ms: Option<u64>,
-}
+pub(crate) use desktop_chat_tools::tools::explore_input::ExploreSummaryAnimationState;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct UserQuestionMarker {

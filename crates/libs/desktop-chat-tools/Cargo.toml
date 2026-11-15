@@ -11,7 +11,7 @@ doctest = false
 diff-text = { path = "../diff-text", version = "0.6.0" }
 serde_json = "1"
 
-iced = { version = "0.14", features = ["image", "svg", "advanced", "highlighter"] }
+iced = { version = "0.14", features = ["image", "svg", "advanced", "highlighter", "canvas"] }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
@@ -26,3 +26,6 @@ serde = { version = "1", features = ["derive"] }
 patch = { path = "../patch", version = "0.6.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

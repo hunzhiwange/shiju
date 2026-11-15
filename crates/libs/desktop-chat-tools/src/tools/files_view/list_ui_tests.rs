@@ -10,8 +10,9 @@ use super::list_ui::{
     view_changes_toggle_button,
 };
 use super::{FileListState, FilesViewContext};
-use crate::app::components::chat_panel::tools::file_link::file_name_link;
-use crate::app::{App, Message};
+use crate::tools::file_link::file_name_link;
+use super::super::view_fixture::TestApp as App;
+type Message = crate::card_input::Message<()>;
 use std::collections::HashMap;
 
 fn test_app() -> App {
@@ -37,7 +38,7 @@ fn state(items: Vec<(String, String)>, is_search: bool) -> FileListState {
 
 fn ctx<'a>(app: &'a App, tool_name: &str, input: &str, output: &str) -> FilesViewContext<'a> {
     FilesViewContext {
-        app,
+        app: app.files(),
         msg_idx: 1,
         tool_idx: 2,
         visible: format!("tool {tool_name}\n{{}}"),
@@ -77,7 +78,7 @@ fn file_row_label_uses_file_name_for_edit_tools() {
     let view_ctx = ctx(&app, "write", r#"{"path":"src/main.rs"}"#, "");
 
     assert_eq!(
-        file_row_label(&app, &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs"),
+        file_row_label(&app.files(), &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs"),
         "main.rs"
     );
 }
@@ -89,10 +90,10 @@ fn file_row_label_uses_file_name_for_non_edit_tools() {
     view_ctx.is_edit_like = false;
 
     assert_eq!(
-        file_row_label(&app, &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs"),
+        file_row_label(&app.files(), &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs"),
         "main.rs"
     );
-    assert_eq!(file_row_label(&app, &view_ctx, "README", "/tmp/vibe-window/README"), "README");
+    assert_eq!(file_row_label(&app.files(), &view_ctx, "README", "/tmp/vibe-window/README"), "README");
 }
 
 #[test]
@@ -102,13 +103,13 @@ fn file_row_label_falls_back_when_file_name_is_unavailable() {
     let view_ctx = ctx(&app, "write", r#"{"path":"src/main.rs"}"#, "");
 
     assert_eq!(
-        file_row_label(&app, &view_ctx, "display.rs", "/tmp/vibe-window/src/main.rs"),
+        file_row_label(&app.files(), &view_ctx, "display.rs", "/tmp/vibe-window/src/main.rs"),
         "display.rs"
     );
 
     let mut read_ctx = ctx(&app, "read", "{}", "");
     read_ctx.is_edit_like = false;
-    assert_eq!(file_row_label(&app, &read_ctx, "/", "/"), "/");
+    assert_eq!(file_row_label(&app.files(), &read_ctx, "/", "/"), "/");
 }
 
 #[test]
@@ -117,14 +118,14 @@ fn fallback_edit_diff_payload_requires_edit_tool_matching_input_and_preview() {
     let view_ctx = ctx(&app, "write", r#"{"path":"src/main.rs","content":"fn main() {}"}"#, "");
 
     let payload =
-        fallback_edit_diff_payload(&app, &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs")
+        fallback_edit_diff_payload(&app.files(), &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs")
             .expect("write preview payload");
 
     assert_eq!(payload.0, "src/main.rs  写入内容");
     assert_eq!(payload.1, "src/main.rs");
     assert!(payload.2.contains("fn main"));
     assert!(
-        fallback_edit_diff_payload(&app, &view_ctx, "src/lib.rs", "/tmp/vibe-window/src/lib.rs")
+        fallback_edit_diff_payload(&app.files(), &view_ctx, "src/lib.rs", "/tmp/vibe-window/src/lib.rs")
             .is_none()
     );
 }
@@ -137,7 +138,7 @@ fn fallback_edit_diff_payload_rejects_non_edit_mismatch_and_blank_preview() {
     non_edit_ctx.is_edit_like = false;
     assert!(
         fallback_edit_diff_payload(
-            &app,
+            &app.files(),
             &non_edit_ctx,
             "src/main.rs",
             "/tmp/vibe-window/src/main.rs"
@@ -148,7 +149,7 @@ fn fallback_edit_diff_payload_rejects_non_edit_mismatch_and_blank_preview() {
     let mismatch_ctx = ctx(&app, "write", r#"{"path":"src/lib.rs","content":"fn main() {}"}"#, "");
     assert!(
         fallback_edit_diff_payload(
-            &app,
+            &app.files(),
             &mismatch_ctx,
             "src/main.rs",
             "/tmp/vibe-window/src/main.rs"
@@ -159,7 +160,7 @@ fn fallback_edit_diff_payload_rejects_non_edit_mismatch_and_blank_preview() {
     let blank_ctx =
         ctx(&app, "write", r#"{"path":"src/main.rs","content":"<omitted 42 chars>"}"#, "");
     assert!(
-        fallback_edit_diff_payload(&app, &blank_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs")
+        fallback_edit_diff_payload(&app.files(), &blank_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs")
             .is_none()
     );
 
@@ -172,7 +173,7 @@ fn fallback_edit_diff_payload_rejects_non_edit_mismatch_and_blank_preview() {
         "",
     );
     let payload = fallback_edit_diff_payload(
-        &no_project_app,
+        &no_project_app.files(),
         &absolute_ctx,
         "shown.rs",
         "/tmp/vibe-window/src/main.rs",
@@ -190,7 +191,7 @@ fn fallback_edit_diff_payload_rejects_missing_input_path() {
     let view_ctx = ctx(&app, "write", r#"{"content":"after"}"#, "");
 
     assert!(
-        fallback_edit_diff_payload(&app, &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs")
+        fallback_edit_diff_payload(&app.files(), &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs")
             .is_none()
     );
 }
@@ -213,12 +214,12 @@ fn edit_file_expand_key_includes_indices_and_path() {
 #[test]
 fn edit_row_helpers_build_hovered_and_idle_elements() {
     keep_element(external_diff_button(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        Message::None,
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        Message::ToolHoverLeave,
     ));
-    keep_element(view_changes_toggle_button(false, Message::None));
-    keep_element(view_changes_toggle_button(true, Message::None));
-    keep_element(view_changes_pill(crate::app::i18n::I18n::new(
+    keep_element(view_changes_toggle_button(false, Message::ToolHoverLeave));
+    keep_element(view_changes_toggle_button(true, Message::ToolHoverLeave));
+    keep_element(view_changes_pill(desktop_i18n::I18n::new(
         config_ui::DesktopLocale::SimplifiedChinese,
     )));
     keep_element(edit_verb_text("读取"));
@@ -239,7 +240,7 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
 
     let app = test_app();
     keep_element(edit_file_change_block(
-        &app,
+        &app.files(),
         1,
         2,
         "/tmp/vibe-window/src/main.rs",
@@ -249,15 +250,14 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
         Some((2, 1)),
         "src/main.rs  +2-1".to_string(),
         "before".to_string(),
-        "after".to_string(),
-    ));
+        "after".to_string(), &super::super::view_fixture::diff));
 
     let mut expanded = test_app();
     expanded.chat_tool_file_expanded.insert(edit_file_expand_key(1, 2, "src/main.rs"));
     expanded.chat_tool_file_hovered =
         Some(tool_file_hover_key(1, 2, "/tmp/vibe-window/src/main.rs"));
     keep_element(edit_file_change_block(
-        &expanded,
+        &expanded.files(),
         1,
         2,
         "/tmp/vibe-window/src/main.rs",
@@ -267,8 +267,7 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
         Some((2, 1)),
         "src/main.rs  +2-1".to_string(),
         "before".to_string(),
-        "after".to_string(),
-    ));
+        "after".to_string(), &super::super::view_fixture::diff));
 
     let dark_hovered =
         edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Hovered);
@@ -289,14 +288,14 @@ fn build_file_list_column_handles_empty_search_and_plain_empty_states() {
     search_state.filter_query = "missing".to_string();
     search_state.is_empty_filtered = true;
 
-    keep_column(build_file_list_column(&app, &search_state, &view_ctx, &HashMap::new()));
+    keep_column(build_file_list_column(&app.files(), &search_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff));
 
     let plain_state = state(Vec::new(), false);
-    keep_column(build_file_list_column(&app, &plain_state, &view_ctx, &HashMap::new()));
+    keep_column(build_file_list_column(&app.files(), &plain_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff));
 
     let mut search_empty = state(Vec::new(), true);
     search_empty.total_items = 0;
-    keep_column(build_file_list_column(&app, &search_empty, &view_ctx, &HashMap::new()));
+    keep_column(build_file_list_column(&app.files(), &search_empty, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff));
 }
 
 #[test]
@@ -309,11 +308,11 @@ fn build_file_list_column_reports_expected_child_counts_for_empty_states() {
     let plain = state(Vec::new(), false);
 
     assert_eq!(
-        column_child_count(build_file_list_column(&app, &filtered, &view_ctx, &HashMap::new())),
+        column_child_count(build_file_list_column(&app.files(), &filtered, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff)),
         1
     );
     assert_eq!(
-        column_child_count(build_file_list_column(&app, &plain, &view_ctx, &HashMap::new())),
+        column_child_count(build_file_list_column(&app.files(), &plain, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff)),
         1
     );
 }
@@ -333,9 +332,9 @@ fn build_file_list_column_handles_tail_and_middle_omissions() {
     render_state.max_items = 2;
     render_state.tail_omitted = 3;
 
-    keep_column(build_file_list_column(&app, &render_state, &view_ctx, &HashMap::new()));
+    keep_column(build_file_list_column(&app.files(), &render_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff));
     assert_eq!(
-        column_child_count(build_file_list_column(&app, &render_state, &view_ctx, &HashMap::new())),
+        column_child_count(build_file_list_column(&app.files(), &render_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff)),
         4
     );
 }
@@ -352,7 +351,7 @@ fn build_file_list_column_handles_search_items_and_truncated_labels() {
         true,
     );
 
-    keep_column(build_file_list_column(&app, &render_state, &view_ctx, &HashMap::new()));
+    keep_column(build_file_list_column(&app.files(), &render_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff));
 }
 
 #[test]
@@ -376,11 +375,10 @@ fn build_file_list_column_expands_inline_diff_for_edit_rows() {
 
     assert_eq!(
         column_child_count(build_file_list_column(
-            &app,
+            &app.files(),
             &render_state,
             &view_ctx,
-            &changes_by_path
-        )),
+            &changes_by_path, &super::super::view_fixture::diff)),
         1
     );
 }
@@ -405,11 +403,10 @@ fn build_file_list_column_uses_unhovered_change_payload_for_edit_rows() {
 
     assert_eq!(
         column_child_count(build_file_list_column(
-            &app,
+            &app.files(),
             &render_state,
             &view_ctx,
-            &changes_by_path
-        )),
+            &changes_by_path, &super::super::view_fixture::diff)),
         1
     );
 }
@@ -421,7 +418,7 @@ fn build_file_list_column_uses_fallback_diff_payload_for_edit_rows() {
     let view_ctx = ctx(&app, "write", r#"{"path":"src/main.rs","content":"after"}"#, "");
     let render_state = state(vec![("src/main.rs".to_string(), abs.to_string())], false);
 
-    keep_column(build_file_list_column(&app, &render_state, &view_ctx, &HashMap::new()));
+    keep_column(build_file_list_column(&app.files(), &render_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff));
 }
 
 #[test]
@@ -435,7 +432,7 @@ fn build_file_list_column_uses_hovered_fallback_diff_payload_without_project_rel
     let render_state = state(vec![("shown.rs".to_string(), abs.to_string())], false);
 
     assert_eq!(
-        column_child_count(build_file_list_column(&app, &render_state, &view_ctx, &HashMap::new())),
+        column_child_count(build_file_list_column(&app.files(), &render_state, &view_ctx, &HashMap::new(), &super::super::view_fixture::diff)),
         1
     );
 }

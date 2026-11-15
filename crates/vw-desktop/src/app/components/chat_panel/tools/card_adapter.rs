@@ -7,6 +7,10 @@ pub(super) fn input(app: &App) -> CardInput<'_> {
 }
 pub(super) fn map(local: Local<Message>) -> Message { match local {
  Local::Diff(value) => value,
+ Local::ToolFilesFilterChanged(v) => Message::Chat(message::ChatMessage::ToolFilesFilterChanged(v)),
+ Local::ToolFileHover(v) => Message::Chat(message::ChatMessage::ToolFileHover(v)),
+ Local::ToolFileHoverLeave => Message::Chat(message::ChatMessage::ToolFileHoverLeave),
+ Local::ToggleExploreSummary(m,t) => Message::Chat(message::ChatMessage::ToggleExploreSummary(m,t)),
  Local::OpenToolDetail(m,t,v) => Message::Chat(message::ChatMessage::OpenToolDetail(m,t,v)),
  Local::ToolHover(m,t) => Message::Chat(message::ChatMessage::ToolHover(m,t)),
  Local::ToolHoverLeave => Message::Chat(message::ChatMessage::ToolHoverLeave),
@@ -19,6 +23,10 @@ pub(super) fn map(local: Local<Message>) -> Message { match local {
 } }
 pub(super) fn map_card(local: Local) -> Message { match local {
  Local::Diff(never) => match never {},
+ Local::ToolFilesFilterChanged(v) => Message::Chat(message::ChatMessage::ToolFilesFilterChanged(v)),
+ Local::ToolFileHover(v) => Message::Chat(message::ChatMessage::ToolFileHover(v)),
+ Local::ToolFileHoverLeave => Message::Chat(message::ChatMessage::ToolFileHoverLeave),
+ Local::ToggleExploreSummary(m,t) => Message::Chat(message::ChatMessage::ToggleExploreSummary(m,t)),
  Local::OpenToolDetail(m,t,v) => map(Local::OpenToolDetail(m,t,v)),
  Local::ToolHover(m,t) => map(Local::ToolHover(m,t)),
  Local::ToolHoverLeave => map(Local::ToolHoverLeave),

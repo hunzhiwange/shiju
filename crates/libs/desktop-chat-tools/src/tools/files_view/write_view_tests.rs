@@ -3,13 +3,14 @@
 
 use iced::{Length, Point, Theme};
 
-use super::super::ToolPermissionState;
+use super::super::tool_permission::ToolPermissionState;
 use super::write_view::{
     build_write_tool_view, write_tool_context_menu_message, write_tool_detail_color,
     write_tool_detail_text, write_tool_summary, write_tool_title,
 };
 use super::{FileListState, FilesViewContext};
-use crate::app::{App, Message, message};
+use super::super::view_fixture::TestApp as App;
+type Message = crate::card_input::Message<()>;
 
 fn file_list_state(items: Vec<(String, String)>) -> FileListState {
     FileListState {
@@ -34,7 +35,7 @@ fn view_context<'a>(
     is_running: bool,
 ) -> FilesViewContext<'a> {
     FilesViewContext {
-        app,
+        app: app.files(),
         msg_idx: 1,
         tool_idx: 2,
         visible: visible.to_string(),
@@ -50,7 +51,7 @@ fn view_context<'a>(
     }
 }
 
-fn assert_closed_view(element: iced::Element<'_, crate::app::Message>) {
+fn assert_closed_view(element: iced::Element<'_, Message>) {
     assert_eq!(element.as_widget().children().len(), 1);
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }
@@ -64,7 +65,7 @@ fn write_tool_summary_uses_first_file_name_and_total_count() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("main.rs 等 2 个文件".to_string())
@@ -77,7 +78,7 @@ fn write_tool_summary_uses_single_file_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("main.rs".to_string())
@@ -90,7 +91,7 @@ fn write_tool_summary_falls_back_to_file_count_for_blank_names() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("1 个文件".to_string())
@@ -101,7 +102,7 @@ fn write_tool_summary_falls_back_to_file_count_for_blank_names() {
 fn write_tool_summary_returns_none_for_empty_state() {
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &file_list_state(Vec::new())
         ),
         None
@@ -115,7 +116,7 @@ fn write_tool_summary_trims_the_first_file_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("main.rs".to_string())
@@ -129,7 +130,7 @@ fn write_tool_summary_uses_minimum_count_for_whitespace_only_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("1 个文件".to_string())
@@ -142,7 +143,7 @@ fn write_tool_summary_preserves_root_path_without_file_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("/".to_string())
@@ -153,7 +154,7 @@ fn write_tool_summary_preserves_root_path_without_file_name() {
 fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             true,
             Some(ToolPermissionState::Rejected),
@@ -163,7 +164,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some(ToolPermissionState::ApprovalRequired),
@@ -173,7 +174,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some(ToolPermissionState::Rejected),
@@ -183,7 +184,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             None,
@@ -193,7 +194,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             None,
@@ -207,7 +208,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
 fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             true,
             Some("disk full"),
@@ -217,7 +218,7 @@ fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     );
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some("  disk full  "),
@@ -227,7 +228,7 @@ fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     );
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some("   "),
@@ -237,7 +238,7 @@ fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     );
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             None,
@@ -260,10 +261,10 @@ fn write_tool_detail_color_uses_danger_for_errors_and_muted_color_otherwise() {
 #[test]
 fn write_tool_context_menu_message_preserves_target_point_and_text() {
     let result =
-        write_tool_context_menu_message(42, Point::new(12.5, 26.25), "src/main.rs".to_string());
+        write_tool_context_menu_message::<()>(42, Point::new(12.5, 26.25), "src/main.rs".to_string());
 
     match result {
-        Message::Chat(message::ChatMessage::OpenMessageContextMenu { target, x, y, text }) => {
+        Message::OpenMessageContextMenu { target, x, y, text } => {
             assert_eq!(target, 42);
             assert_eq!(x, 12.5);
             assert_eq!(y, 26.25);
@@ -280,7 +281,7 @@ fn build_write_tool_view_handles_non_empty_file_list() {
     let render_state =
         file_list_state(vec![("src/main.rs".to_string(), "/tmp/src/main.rs".to_string())]);
 
-    assert_closed_view(build_write_tool_view(&view_ctx, &render_state, iced::widget::column![]));
+    assert_closed_view(build_write_tool_view::<()>(&view_ctx, &render_state, iced::widget::column![]));
 }
 
 #[test]
@@ -296,7 +297,7 @@ fn build_write_tool_view_handles_empty_running_error_permission_and_fallback_sta
         false,
         true,
     );
-    assert_closed_view(build_write_tool_view(&running, &empty_state, iced::widget::column![]));
+    assert_closed_view(build_write_tool_view::<()>(&running, &empty_state, iced::widget::column![]));
 
     let error = view_context(
         &app,
@@ -306,7 +307,7 @@ fn build_write_tool_view_handles_empty_running_error_permission_and_fallback_sta
         true,
         false,
     );
-    assert_closed_view(build_write_tool_view(&error, &empty_state, iced::widget::column![]));
+    assert_closed_view(build_write_tool_view::<()>(&error, &empty_state, iced::widget::column![]));
 
     let denied = view_context(
         &app,
@@ -316,10 +317,10 @@ fn build_write_tool_view_handles_empty_running_error_permission_and_fallback_sta
         true,
         false,
     );
-    assert_closed_view(build_write_tool_view(&denied, &empty_state, iced::widget::column![]));
+    assert_closed_view(build_write_tool_view::<()>(&denied, &empty_state, iced::widget::column![]));
 
     let fallback = view_context(&app, "tool write\nnot-json", Some("   "), false, false);
-    assert_closed_view(build_write_tool_view(&fallback, &empty_state, iced::widget::column![]));
+    assert_closed_view(build_write_tool_view::<()>(&fallback, &empty_state, iced::widget::column![]));
 }
 
 #[test]
@@ -327,7 +328,7 @@ fn build_write_tool_view_keeps_the_same_tree_when_context_menu_opens() {
     let mut app = App::new().0;
     let closed_child_count = {
         let closed_view_ctx = view_context(&app, "tool write\n{}", None, false, false);
-        let closed_element = build_write_tool_view(
+        let closed_element = build_write_tool_view::<()>(
             &closed_view_ctx,
             &file_list_state(Vec::new()),
             iced::widget::column![],
@@ -336,12 +337,12 @@ fn build_write_tool_view_keeps_the_same_tree_when_context_menu_opens() {
     };
 
     app.chat_context_menu.target =
-        Some(crate::app::components::chat_panel::utils::chat_context_target_key(1, Some(2)));
+        Some(crate::card_style::chat_context_target_key(1, Some(2)));
     app.chat_context_menu.position = Some((24.0, 32.0));
     let view_ctx = view_context(&app, "tool write\n{}", None, false, false);
 
     let element =
-        build_write_tool_view(&view_ctx, &file_list_state(Vec::new()), iced::widget::column![]);
+        build_write_tool_view::<()>(&view_ctx, &file_list_state(Vec::new()), iced::widget::column![]);
 
     assert_eq!(element.as_widget().children().len(), closed_child_count);
     assert_eq!(element.as_widget().size().width, Length::Fill);

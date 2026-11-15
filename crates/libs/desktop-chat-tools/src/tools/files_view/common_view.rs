@@ -3,24 +3,24 @@
 use iced::widget::{Space, button, container, mouse_area, scrollable, text, text_input};
 use iced::{Background, Border, Color, Element, Length, Padding, Theme};
 
-use crate::app::assets::Icon;
-use crate::app::components::chat_panel::utils::{
+use desktop_assets::assets::Icon;
+use crate::card_style::{
     chat_context_target_key, chat_scroll_direction, eye_icon_button_style, eye_icon_svg_style,
     icon_svg, simplified_block_style, simplified_code_block_style, truncate_chars,
     truncate_lines_middle,
 };
-use crate::app::components::widgets::RightClickArea;
-use crate::app::{Message, message};
+use desktop_ui_controls::right_click_area::RightClickArea;
+use crate::card_input::Message;
 
 use super::super::tool_meta::{tool_activity_header, tool_visual_state};
-use super::super::{
-    ToolPermissionState, ToolTextTarget, tool_header_label, tool_permission_error_text,
-    tool_permission_state, tool_status, tool_summary_text, tool_text_editor,
-};
+use super::super::tool_permission::{ToolPermissionState, tool_permission_error_text, tool_permission_state};
+use super::super::tool_meta::tool_header_label;
+use super::super::tool_parse::{tool_status, tool_summary_text};
+use crate::tool_text_support::{ToolTextTarget, tool_text_editor};
 use super::{FileListState, FilesViewContext};
 
 pub(super) fn common_tool_meta_text(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     render_state: &FileListState,
 ) -> String {
     if !render_state.filter_query.is_empty() {
@@ -50,7 +50,7 @@ pub(super) fn common_tool_meta_text(
 }
 
 pub(super) fn common_tool_title(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     tool_name: &str,
     verb: &str,
     is_running: bool,
@@ -60,7 +60,7 @@ pub(super) fn common_tool_title(
     if is_running {
         i18n.format("%s中", &[i18n.__(verb).into()]).expect("valid file activity template")
     } else if let Some(permission_state) = permission_state {
-        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+        crate::tools::localized_tool_permission_title(
             i18n,
             tool_header_label(tool_name).as_str(),
             permission_state,
@@ -114,30 +114,30 @@ pub(super) fn common_tool_show_list_view(
     is_running || total_items > 0 || !has_fallback_body
 }
 
-pub(super) fn common_tool_context_menu_message(
+pub(super) fn common_tool_context_menu_message<Host: Clone>(
     target: u64,
     point: iced::Point,
     text: String,
-) -> Message {
-    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
+) -> Message<Host> {
+    Message::OpenMessageContextMenu {
         target,
         x: point.x,
         y: point.y,
         text,
-    })
+    }
 }
 
-pub(crate) fn build_common_tool_view<'a>(
+pub(super) fn build_common_tool_view<'a, Host: Clone + 'a>(
     view_ctx: &FilesViewContext<'a>,
     render_state: &FileListState,
-    list_column: iced::widget::Column<'a, Message>,
-) -> Element<'a, Message> {
+    list_column: iced::widget::Column<'a, Message<Host>>,
+) -> Element<'a, Message<Host>> {
     let context_key = chat_context_target_key(view_ctx.msg_idx, Some(view_ctx.tool_idx));
     let selected_context_text =
-        super::super::selected_chat_text_for_target(view_ctx.app, context_key);
+        crate::tool_text_support::selected_chat_text_for_target(&view_ctx.app.text, context_key);
 
     let meta = common_tool_meta_text(
-        crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+        view_ctx.app.i18n,
         render_state,
     );
 
@@ -154,15 +154,15 @@ pub(crate) fn build_common_tool_view<'a>(
     let mut summary =
         tool_value.as_ref().and_then(|value| tool_summary_text(value)).unwrap_or_default();
     if summary.is_empty() {
-        summary = crate::app::components::chat_panel::tools::localized_tool_inline_summary(
-            crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+        summary = crate::tools::localized_tool_inline_summary(
+            view_ctx.app.i18n,
             &view_ctx.tool_name,
             &view_ctx.input,
         )
         .unwrap_or_default();
     }
     let title = common_tool_title(
-        crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+        view_ctx.app.i18n,
         &view_ctx.tool_name,
         view_ctx.verb,
         view_ctx.is_running,
@@ -178,14 +178,14 @@ pub(crate) fn build_common_tool_view<'a>(
     )
     .padding([2, 4])
     .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
-    .on_press(Message::Chat(message::ChatMessage::OpenToolDetail(
+    .on_press(Message::OpenToolDetail(
         view_ctx.msg_idx,
         view_ctx.tool_idx,
         view_ctx.visible.to_string(),
-    )));
+    ));
 
     let key = ((view_ctx.msg_idx as u64) << 32) | view_ctx.tool_idx as u64;
-    let detail_slot: Element<'a, Message> = if view_ctx.app.chat_tool_hovered_idx == Some(key) {
+    let detail_slot: Element<'a, Message<Host>> = if view_ctx.app.hovered == Some(key) {
         detail_btn.into()
     } else {
         Space::new().width(Length::Fixed(22.0)).into()
@@ -195,12 +195,12 @@ pub(crate) fn build_common_tool_view<'a>(
     let head =
         tool_activity_header(&view_ctx.tool_name, title, header_summary, visual, detail_slot);
 
-    let filter_row: Element<'a, Message> = if render_state.is_search {
+    let filter_row: Element<'a, Message<Host>> = if render_state.is_search {
         let filter_input = text_input(
-            crate::app::i18n::I18n::new(view_ctx.app.desktop_locale).__("筛选文件..."),
-            &view_ctx.app.tool_files_filter,
+            view_ctx.app.i18n.__("筛选文件..."),
+            &view_ctx.app.filter,
         )
-        .on_input(|value| Message::Chat(message::ChatMessage::ToolFilesFilterChanged(value)))
+        .on_input(|value| Message::ToolFilesFilterChanged(value))
         .size(12)
         .padding([6, 10])
         .style(|theme: &Theme, status| {
@@ -225,13 +225,13 @@ pub(crate) fn build_common_tool_view<'a>(
         Space::new().into()
     };
 
-    let list_view: Element<'a, Message> = if view_ctx.is_running {
+    let list_view: Element<'a, Message<Host>> = if view_ctx.is_running {
         container(
             text(
-                crate::app::i18n::I18n::new(view_ctx.app.desktop_locale)
+                view_ctx.app.i18n
                     .format(
                         "%s中…",
-                        &[crate::app::i18n::I18n::new(view_ctx.app.desktop_locale)
+                        &[view_ctx.app.i18n
                             .__(view_ctx.verb)
                             .into()],
                     )
@@ -248,7 +248,7 @@ pub(crate) fn build_common_tool_view<'a>(
         let scroll_height =
             common_tool_scroll_height(render_state.display_count, render_state.max_items);
 
-        let list_view: Element<'a, Message> = scrollable(
+        let list_view: Element<'a, Message<Host>> = scrollable(
             container(list_column).width(Length::Fill).padding([6, 8]).style(|theme: &Theme| {
                 let ext = theme.extended_palette();
                 let is_dark = theme.palette().background.r
@@ -306,8 +306,8 @@ pub(crate) fn build_common_tool_view<'a>(
 
     let fallback_body = fallback_text.as_ref().map(|body_text| {
         if view_ctx.is_error {
-            let body: Element<'a, Message> = tool_text_editor(
-                view_ctx.app,
+            let body: Element<'a, Message<Host>> = tool_text_editor(
+                &view_ctx.app.text,
                 ToolTextTarget::ToolCardText {
                     msg_idx: view_ctx.msg_idx,
                     tool_idx: view_ctx.tool_idx,
@@ -318,6 +318,7 @@ pub(crate) fn build_common_tool_view<'a>(
                 false,
                 true,
             )
+            .map(|e| e.map(Message::Text))
             .unwrap_or_else(|| {
                 container(text(truncate_chars(body_text, 200)).size(14).style(|theme: &Theme| {
                     iced::widget::text::Style {
@@ -350,7 +351,7 @@ pub(crate) fn build_common_tool_view<'a>(
             scrollable(
                 container(
                     tool_text_editor(
-                        view_ctx.app,
+                        &view_ctx.app.text,
                         ToolTextTarget::ToolCardText {
                             msg_idx: view_ctx.msg_idx,
                             tool_idx: view_ctx.tool_idx,
@@ -361,6 +362,7 @@ pub(crate) fn build_common_tool_view<'a>(
                         false,
                         false,
                     )
+                    .map(|e| e.map(Message::Text))
                     .unwrap_or_else(|| {
                         text(preview).size(14).font(iced::Font::with_name("JetBrains Mono")).into()
                     }),
@@ -383,7 +385,7 @@ pub(crate) fn build_common_tool_view<'a>(
 
     let mut content = iced::widget::column![head, filter_row].spacing(8);
     if let Some(fallback_body) = fallback_body {
-        let wrapped: Element<'a, Message> = RightClickArea::new(
+        let wrapped: Element<'a, Message<Host>> = RightClickArea::new(
             fallback_body,
             Box::new({
                 let context_text = selected_context_text
@@ -409,7 +411,7 @@ pub(crate) fn build_common_tool_view<'a>(
             .width(Length::Fill)
             .style(simplified_block_style),
     )
-    .on_enter(Message::Chat(message::ChatMessage::ToolHover(view_ctx.msg_idx, view_ctx.tool_idx)))
-    .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+    .on_enter(Message::ToolHover(view_ctx.msg_idx, view_ctx.tool_idx))
+    .on_exit(Message::ToolHoverLeave)
     .into()
 }

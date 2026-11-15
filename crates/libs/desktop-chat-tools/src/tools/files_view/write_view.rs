@@ -5,20 +5,18 @@ use std::path::Path;
 use iced::widget::{column, container, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 
-use crate::app::components::chat_panel::utils::{
+use crate::card_style::{
     chat_context_target_key, chat_secondary_muted_text_color,
 };
-use crate::app::components::widgets::RightClickArea;
-use crate::app::{Message, message};
+use desktop_ui_controls::right_click_area::RightClickArea;
+use crate::card_input::Message;
 
-use super::super::{
-    ToolPermissionState, selected_chat_text_for_target, tool_permission_state,
-    tool_permission_target_summary,
-};
+use super::super::tool_permission::{ToolPermissionState, tool_permission_state, tool_permission_target_summary};
+use crate::tool_text_support::selected_chat_text_for_target;
 use super::{FileListState, FilesViewContext};
 
 pub(super) fn write_tool_summary(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     render_state: &FileListState,
 ) -> Option<String> {
     let (display, _) = render_state.items_for_display.first()?;
@@ -46,7 +44,7 @@ pub(super) fn write_tool_summary(
 }
 
 pub(super) fn write_tool_title(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     verb: &str,
     is_running: bool,
     permission_state: Option<ToolPermissionState>,
@@ -55,7 +53,7 @@ pub(super) fn write_tool_title(
     if is_running {
         i18n.format("%s中", &[i18n.__(verb).into()]).expect("valid file activity template")
     } else if let Some(permission_state) = permission_state {
-        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+        crate::tools::localized_tool_permission_title(
             i18n,
             verb,
             permission_state,
@@ -68,7 +66,7 @@ pub(super) fn write_tool_title(
 }
 
 pub(super) fn write_tool_detail_text(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     verb: &str,
     is_running: bool,
     error_text: Option<&str>,
@@ -91,26 +89,26 @@ pub(super) fn write_tool_detail_color(theme: &Theme, is_error: bool) -> Color {
     }
 }
 
-pub(super) fn write_tool_context_menu_message(
+pub(super) fn write_tool_context_menu_message<Host: Clone>(
     target: u64,
     point: iced::Point,
     text: String,
-) -> Message {
-    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
+) -> Message<Host> {
+    Message::OpenMessageContextMenu {
         target,
         x: point.x,
         y: point.y,
         text,
-    })
+    }
 }
 
-pub(crate) fn build_write_tool_view<'a>(
+pub(super) fn build_write_tool_view<'a, Host: Clone + 'a>(
     view_ctx: &FilesViewContext<'a>,
     render_state: &FileListState,
-    list_column: iced::widget::Column<'a, Message>,
-) -> Element<'a, Message> {
+    list_column: iced::widget::Column<'a, Message<Host>>,
+) -> Element<'a, Message<Host>> {
     let context_key = chat_context_target_key(view_ctx.msg_idx, Some(view_ctx.tool_idx));
-    let selected_context_text = selected_chat_text_for_target(view_ctx.app, context_key);
+    let selected_context_text = selected_chat_text_for_target(&view_ctx.app.text, context_key);
 
     let tool_value = view_ctx
         .visible
@@ -122,7 +120,7 @@ pub(crate) fn build_write_tool_view<'a>(
         .as_ref()
         .and_then(|value| tool_permission_target_summary(&view_ctx.tool_name, value));
     let title = write_tool_title(
-        crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+        view_ctx.app.i18n,
         view_ctx.verb,
         view_ctx.is_running,
         permission_state,
@@ -131,14 +129,14 @@ pub(crate) fn build_write_tool_view<'a>(
     let is_error = view_ctx.is_error;
 
     let summary = permission_target.clone().or_else(|| {
-        write_tool_summary(crate::app::i18n::I18n::new(view_ctx.app.desktop_locale), render_state)
+        write_tool_summary(view_ctx.app.i18n, render_state)
     });
     let fallback_summary = summary.clone().unwrap_or_else(|| title.clone());
-    let body: Element<'a, Message> = if render_state.total_items > 0 {
+    let body: Element<'a, Message<Host>> = if render_state.total_items > 0 {
         container(list_column).width(Length::Fill).into()
     } else {
         let detail_text = write_tool_detail_text(
-            crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+            view_ctx.app.i18n,
             view_ctx.verb,
             view_ctx.is_running,
             view_ctx.error_text.as_deref(),
@@ -157,7 +155,7 @@ pub(crate) fn build_write_tool_view<'a>(
     };
 
     let fallback_context_text = selected_context_text.clone().unwrap_or(fallback_summary);
-    let content: Element<'a, Message> = RightClickArea::new(
+    let content: Element<'a, Message<Host>> = RightClickArea::new(
         body,
         Box::new(move |point| {
             write_tool_context_menu_message(context_key, point, fallback_context_text.clone())

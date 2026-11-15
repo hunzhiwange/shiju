@@ -7,9 +7,10 @@ use super::explore_summary_view::{
     split_summary_segments, summary_animation_key, tool_explore_summary_view,
 };
 use super::types::{EXPLORE_GROUP_TOOL_IDX, ExploreItem};
-use crate::app::components::chat_panel::tool_text_support::tool_text_key;
-use crate::app::state::ExploreSummaryAnimationState;
-use crate::app::{App, Message};
+use crate::tool_text_support::tool_text_key;
+use super::explore_input::ExploreSummaryAnimationState;
+use super::view_fixture::TestApp as App;
+type Message = crate::card_input::Message;
 use iced::widget::text_editor;
 use std::collections::HashSet;
 
@@ -101,7 +102,7 @@ fn latest_explore_items_keeps_last_item_for_same_dedupe_key() {
 fn tool_explore_summary_view_returns_none_for_empty_items() {
     let app = test_app();
 
-    assert!(tool_explore_summary_view(&app, 0, 0, &[], false, false).is_none());
+    assert!(tool_explore_summary_view(&app.explore(), 0, 0, &[], false, false).is_none());
 }
 
 #[test]
@@ -129,7 +130,7 @@ fn tool_explore_summary_view_builds_collapsed_summary_without_expanded_content()
     ];
 
     let collapsed =
-        tool_explore_summary_view(&app, 1, 0, &items, false, false).expect("collapsed summary");
+        tool_explore_summary_view(&app.explore(), 1, 0, &items, false, false).expect("collapsed summary");
     keep_element(collapsed);
 }
 
@@ -158,7 +159,7 @@ fn tool_explore_summary_view_builds_expanded_content_with_top_gap() {
     app.chat_explore_expanded.insert(key);
     app.chat_tool_hovered_idx = Some(key);
     let expanded =
-        tool_explore_summary_view(&app, 1, 0, &items, false, false).expect("expanded summary");
+        tool_explore_summary_view(&app.explore(), 1, 0, &items, false, false).expect("expanded summary");
     keep_element(expanded);
 }
 
@@ -291,7 +292,7 @@ fn tool_explore_summary_view_with_only_read_items() {
 {"call_id":"call-r","input":"{}","status":"completed"}"#
             .to_string(),
     }];
-    let view = tool_explore_summary_view(&app, 0, 0, &items, false, false);
+    let view = tool_explore_summary_view(&app.explore(), 0, 0, &items, false, false);
     assert!(view.is_some());
     keep_element(view.unwrap());
 }
@@ -305,7 +306,7 @@ fn tool_explore_summary_view_with_no_explore_tool_kind() {
 {"call_id":"call-u","input":"{}","status":"completed"}"#
             .to_string(),
     }];
-    let view = tool_explore_summary_view(&app, 0, 0, &items, false, false);
+    let view = tool_explore_summary_view(&app.explore(), 0, 0, &items, false, false);
     assert!(view.is_some());
     keep_element(view.unwrap());
 }
@@ -329,7 +330,7 @@ async fn tool_explore_summary_spinner_centers_on_the_running_title() {
             .to_string(),
     }];
     let mut view =
-        tool_explore_summary_view(&app, 0, 0, &items, true, false).expect("forced running summary");
+        tool_explore_summary_view(&app.explore(), 0, 0, &items, true, false).expect("forced running summary");
     let viewport = Rectangle::with_size(Size::new(320.0, 40.0));
     let limits = layout::Limits::new(Size::ZERO, viewport.size());
     let mut tree = Tree::new(view.as_widget());
@@ -395,7 +396,7 @@ fn tool_explore_summary_view_uses_active_number_animation() {
     ];
 
     keep_element(
-        tool_explore_summary_view(&app, msg_idx, group_idx, &items, false, false)
+        tool_explore_summary_view(&app.explore(), msg_idx, group_idx, &items, false, false)
             .expect("animated summary"),
     );
 }
@@ -414,7 +415,7 @@ fn tool_explore_summary_view_uses_matching_cached_summary_editor() {
     }];
 
     keep_element(
-        tool_explore_summary_view(&app, 0, 0, &items, false, false).expect("cached summary"),
+        tool_explore_summary_view(&app.explore(), 0, 0, &items, false, false).expect("cached summary"),
     );
 }
 
@@ -452,7 +453,7 @@ fn tool_explore_summary_view_falls_back_when_animation_state_cannot_animate() {
         app.chat_explore_summary_animations.insert(summary_animation_key(0, 0), state);
 
         keep_element(
-            tool_explore_summary_view(&app, 0, 0, &items, false, false).expect("fallback summary"),
+            tool_explore_summary_view(&app.explore(), 0, 0, &items, false, false).expect("fallback summary"),
         );
     }
 }
@@ -469,7 +470,7 @@ fn expanded_summary_skips_malformed_compact_items() {
     ];
 
     keep_element(
-        tool_explore_summary_view(&app, 0, 0, &items, false, false)
+        tool_explore_summary_view(&app.explore(), 0, 0, &items, false, false)
             .expect("summary with malformed detail rows"),
     );
 }

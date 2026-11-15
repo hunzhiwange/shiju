@@ -1,16 +1,17 @@
 //! 验证文件工具通用视图的标题优先级、元信息、回退文本与滚动限制。
 //! 运行、权限、错误和成功状态按明确优先级组合，空列表也必须保留必要反馈。
 
-use super::super::ToolPermissionState;
+use super::super::tool_permission::ToolPermissionState;
 use super::common_view::{
     build_common_tool_view, common_tool_context_menu_message, common_tool_fallback_text,
     common_tool_meta_text, common_tool_scroll_height, common_tool_show_list_view,
     common_tool_title,
 };
 use super::{FileListState, FilesViewContext};
-use crate::app::components::chat_panel::tool_text_support::tool_text_key;
-use crate::app::components::chat_panel::utils::chat_context_target_key;
-use crate::app::{App, Message, message};
+use crate::tool_text_support::tool_text_key;
+use crate::card_style::chat_context_target_key;
+use super::super::view_fixture::TestApp as App;
+type Message = crate::card_input::Message<()>;
 use iced::widget::text_editor;
 use iced::{Length, Point};
 
@@ -35,7 +36,7 @@ fn state(total_items: usize, is_search: bool) -> FileListState {
 
 fn ctx<'a>(app: &'a App, tool_name: &str, status: &str, output: &str) -> FilesViewContext<'a> {
     FilesViewContext {
-        app,
+        app: app.files(),
         msg_idx: 0,
         tool_idx: 1,
         visible: format!(
@@ -74,7 +75,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
 
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "5/12 项"
@@ -84,7 +85,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
     render_state.max_items = 8;
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "12项 (省略4项)"
@@ -93,7 +94,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
     render_state.truncated_middle = false;
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "12项 (省略3项)"
@@ -102,7 +103,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
     render_state.tail_omitted = 0;
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "12项"
@@ -113,7 +114,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
 fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             true,
@@ -124,7 +125,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -135,7 +136,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -146,7 +147,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -157,7 +158,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -211,10 +212,10 @@ fn common_tool_show_list_view_keeps_running_items_or_missing_fallback_visible() 
 #[test]
 fn common_tool_context_menu_message_preserves_target_point_and_text() {
     let result =
-        common_tool_context_menu_message(42, Point::new(12.5, 26.25), "plain output".to_string());
+        common_tool_context_menu_message::<()>(42, Point::new(12.5, 26.25), "plain output".to_string());
 
     match result {
-        Message::Chat(message::ChatMessage::OpenMessageContextMenu { target, x, y, text }) => {
+        Message::OpenMessageContextMenu { target, x, y, text } => {
             assert_eq!(target, 42);
             assert_eq!(x, 12.5);
             assert_eq!(y, 26.25);
@@ -230,7 +231,7 @@ fn build_common_tool_view_handles_running_and_empty_list() {
     let view_ctx = ctx(&app, "read", "running", "");
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &state(0, false), list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(0, false), list_column));
 }
 
 #[test]
@@ -239,7 +240,7 @@ fn build_common_tool_view_handles_error_fallback_text() {
     let view_ctx = ctx(&app, "read", "error", "permission denied");
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &state(0, false), list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(0, false), list_column));
 }
 
 #[test]
@@ -252,7 +253,7 @@ fn build_common_tool_view_handles_search_filter_meta_and_tail_omission() {
     render_state.tail_omitted = 7;
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &render_state, list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &render_state, list_column));
 }
 
 #[test]
@@ -261,7 +262,7 @@ fn build_common_tool_view_handles_non_error_output_fallback() {
     let view_ctx = ctx(&app, "bash", "completed", "plain output\nsecond line");
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &state(0, false), list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(0, false), list_column));
 }
 
 #[test]
@@ -274,7 +275,7 @@ fn build_common_tool_view_handles_truncated_middle_meta() {
     render_state.display_count = 90;
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &render_state, list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &render_state, list_column));
 }
 
 #[test]
@@ -299,7 +300,7 @@ fn build_common_tool_view_handles_permission_state() {
     };
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &state(0, false), list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(0, false), list_column));
 }
 
 #[test]
@@ -324,7 +325,7 @@ fn build_common_tool_view_handles_summary_from_json() {
     };
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &state(1, false), list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(1, false), list_column));
 }
 
 #[test]
@@ -335,7 +336,7 @@ fn build_common_tool_view_handles_no_fallback_from_empty_output() {
     let view_ctx = ctx(&app, "read", "completed", "");
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &state(0, false), list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(0, false), list_column));
 }
 
 #[test]
@@ -347,7 +348,7 @@ fn build_common_tool_view_handles_estimated_height_cap() {
     render_state.display_count = 10;
     let list_column = iced::widget::column![];
 
-    keep_element(build_common_tool_view(&view_ctx, &render_state, list_column));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &render_state, list_column));
 }
 
 #[test]
@@ -358,7 +359,7 @@ fn build_common_tool_view_handles_tail_omission_without_filter() {
     render_state.display_count = 15;
     render_state.tail_omitted = 5;
 
-    keep_element(build_common_tool_view(&view_ctx, &render_state, iced::widget::column![]));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &render_state, iced::widget::column![]));
 }
 
 #[test]
@@ -368,10 +369,10 @@ fn build_common_tool_view_uses_error_and_output_text_editors() {
         .insert(tool_text_key(0, 1, 0), text_editor::Content::with_text("cached body"));
 
     let error_ctx = ctx(&app, "read", "error", "permission denied");
-    keep_element(build_common_tool_view(&error_ctx, &state(0, false), iced::widget::column![]));
+    keep_element(build_common_tool_view::<()>(&error_ctx, &state(0, false), iced::widget::column![]));
 
     let output_ctx = ctx(&app, "bash", "completed", "plain output");
-    keep_element(build_common_tool_view(&output_ctx, &state(0, false), iced::widget::column![]));
+    keep_element(build_common_tool_view::<()>(&output_ctx, &state(0, false), iced::widget::column![]));
 }
 
 #[test]
@@ -381,5 +382,5 @@ fn build_common_tool_view_wraps_open_context_menu() {
     app.chat_context_menu.position = Some((24.0, 36.0));
     let view_ctx = ctx(&app, "read", "completed", "result");
 
-    keep_element(build_common_tool_view(&view_ctx, &state(1, false), iced::widget::column![]));
+    keep_element(build_common_tool_view::<()>(&view_ctx, &state(1, false), iced::widget::column![]));
 }

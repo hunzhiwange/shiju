@@ -12,8 +12,8 @@ fn file_name_only_removes_parent_directories() {
 
 #[test]
 fn file_link_views_accept_full_paths_and_non_ascii_names() {
-    let link = file_name_link("src/界面.rs", "/tmp/project/src/界面.rs");
-    let tooltip = file_path_tooltip("/tmp/project/src/界面.rs".to_string());
+    let link = file_name_link::<()>("src/界面.rs", "/tmp/project/src/界面.rs");
+    let tooltip = file_path_tooltip::<()>("/tmp/project/src/界面.rs".to_string());
 
     std::hint::black_box(link);
     std::hint::black_box(tooltip);

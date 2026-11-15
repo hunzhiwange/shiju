@@ -278,3 +278,9 @@ mod mcode;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/mcode_tests.rs"]
 mod mcode_tests;
+
+#[path = "app_providers/kimi.rs"]
+mod kimi;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/kimi_tests.rs"]
+mod kimi_tests;

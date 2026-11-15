@@ -7,13 +7,13 @@ use {
     vw_api_app_provider_terminal::kimi::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-kimi-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
     port: u16,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -48,11 +48,10 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
-        )
-        .unwrap();
+        ).unwrap());
         Self { root, db, port, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -166,11 +165,10 @@ async fn cc04_kimi_permission_tenant_and_host_denials_leave_no_changes() {
     let mut bad = f.request(KimiActivation::Add);
     bad.target_host_id = "foreign".into();
     assert!(f.client.kimi_provider_save("one", &bad, TOKEN).await.is_err());
-    let foreign = GatewayClient::new(
+    let foreign = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", f.port)
             .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
-    )
-    .unwrap();
+    ).unwrap());
     assert!(
         foreign.kimi_provider_save("one", &f.request(KimiActivation::Add), TOKEN).await.is_err()
     );
@@ -316,7 +314,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
     let record = f.record("one");
     assert!(matches!(
         f.client.kimi_form_update("one", &body, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 409, .. })
     ));
     assert_eq!(f.bytes(), before);
     assert_eq!(f.record("one"), record);
@@ -347,7 +345,7 @@ use vw_api_app_provider_base::create::ProviderSecretWrite;
     body.declaration = "[provider".into();
     assert!(matches!(
         f.client.kimi_form_update("one", &body, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 422, .. })
     ));
     body.declaration = config
         .declaration

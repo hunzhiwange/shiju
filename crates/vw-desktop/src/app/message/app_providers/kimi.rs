@@ -7,7 +7,7 @@ use crate::app::{
     },
 };
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_app_provider::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
@@ -34,7 +34,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<KimiFormView, String> {
-    client
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .kimi_form_read(id, &KimiTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
@@ -68,6 +68,7 @@ pub(crate) async fn save(
         activation,
         revision: draft.revision,
     };
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let result = if create {
         client.kimi_form_create(&form.id, &request, &token).await
     } else {
@@ -135,6 +136,7 @@ pub(crate) fn change_membership(app: &mut App, id: String, add: bool) -> Task<Me
     let target = KimiTarget { target_host_id: scope.host.clone() };
     Task::perform(
         async move {
+            let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
             if add {
                 client.kimi_provider_add(&id, &target, &token).await
             } else {

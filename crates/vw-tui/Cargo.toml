@@ -16,6 +16,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+tui-bottom-pane = { path = "../libs/tui-bottom-pane", version = "0.6.0" }
 tui-popups = { path = "../libs/tui-popups", version = "0.6.0" }
 tui-user-input = { path = "../libs/tui-user-input", version = "0.6.0" }
 tui-approval = { path = "../libs/tui-approval", version = "0.6.0" }

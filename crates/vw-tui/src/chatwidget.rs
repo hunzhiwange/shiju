@@ -11,8 +11,8 @@
 
 use std::cell::Cell;
 
-use crate::bottom_pane::approval_overlay::ApprovalOverlay;
-use crate::bottom_pane::request_user_input::RequestUserInputOverlay;
+use tui_approval::ApprovalOverlay;
+use tui_user_input::RequestUserInputOverlay;
 use crate::bottom_pane::{BottomPane, BottomPaneView};
 use crate::history_cell::HistoryCell;
 use crate::render::renderable::Renderable;

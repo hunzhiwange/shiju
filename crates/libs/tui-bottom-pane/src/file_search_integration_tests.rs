@@ -1,5 +1,5 @@
 use super::{BottomPane, BottomPaneParams};
-use crate::vibe::action::{V3Action, V3FileSearchMatch, V3FooterData, V3SelectionItem};
+use tui_contracts::action::{V3Action, V3FileSearchMatch, V3FooterData, V3SelectionItem};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 fn key(code: KeyCode) -> KeyEvent {

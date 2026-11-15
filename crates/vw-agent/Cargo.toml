@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+tool-mcp = { path = "../libs/tool-mcp", version = "0.6.0" }
 tool-shell = { path = "../libs/tool-shell", version = "0.6.0" }
 skill-forge = { path = "../libs/skill-forge", version = "0.6.0" }
 skill-core = { path = "../libs/skill-core", version = "0.6.0" }
@@ -433,6 +434,7 @@ name = "gateway_legacy_handlers"
 path = "tests/gateway_legacy_handlers.rs"
 
 [dev-dependencies]
+tool-mcp = { path = "../libs/tool-mcp", version = "0.6.0", features = ["test-support"] }
 tool-shell = { path = "../libs/tool-shell", version = "0.6.0", features = ["test-support"] }
 shiju-client = { path = "../libs/shiju-client", version = "0.6.0", features = ["test-support"] }
 worktree-core = { path = "../libs/worktree-core", version = "0.6.0", features = ["test-support"] }

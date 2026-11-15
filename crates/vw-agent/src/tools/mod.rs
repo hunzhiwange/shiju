@@ -277,6 +277,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[cfg(test)]
+#[path = "../../../libs/tool-mcp/src/mcp_tool_tests.rs"]
 mod mcp_tool_tests;
 
 #[cfg(test)]

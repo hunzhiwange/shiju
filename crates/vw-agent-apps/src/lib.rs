@@ -8,7 +8,7 @@ pub use app_icons as icons;
 
 pub mod device_sync;
 
-pub mod apps;
+pub use app_operations as apps;
 
 // Provider modes and publication are owned by app-providers.
 pub mod providers;

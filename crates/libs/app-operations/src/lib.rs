@@ -1,4 +1,4 @@
-//! Application catalog rules, independent of execution and installation state.
+//! Application operations composed from their owning domain libraries.
 pub use app_catalog::{acp_projection, catalog};
 pub mod discovery;
 

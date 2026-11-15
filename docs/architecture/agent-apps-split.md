@@ -2555,3 +2555,12 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 接收任务 24 的 agy、agy_files、agy_tests；prepare/prepare_checked 与 ProviderLaunch 私有 Lease 同包闭合。account/request 及测试继续归 app-auth，由新包重导出。
 - 原 apps::launch 与 providers::agy 薄导出保持 vw-agent 与 sessions 调用路径。WSL 类型引用 app-catalog；验证引用 app-provider-validation；Agy 事务引用 app-auth，路径引用 app-config-paths；无门面回依赖。
 - 静态审阅包括 TOML 路径、传递依赖无环、测试注册与文件迁移；无 include 资源。本任务差异空白检查通过；全局 diff --check 有其它任务的 recordings.rs 既有尾部空行。未运行 Cargo、单元及实机测试，统一验收待授权，覆盖新库及调用者编译和 macOS/Windows/WSL/POSIX 行为。
+
+
+## 任务 36：应用操作门面静态迁移结果
+
+- app-operations 接收 apps/mod.rs 为 src/lib.rs，以及 discovery、lifecycle、uninstall、versions、launch 五个子模块的 mod.rs。五个子模块逐字保持；根模块仅更新说明。原包 lib.rs 直接以 app_operations as apps 重导出，旧 apps 目录已移除，无重复实现或目录外隐藏实现。
+- 门面显式组合 app-catalog、app-discovery、app-lifecycle、app-uninstall、app-versions、app-launch；lifecycle::local 仍来自 app-uninstall，uninstall 只导出 execute/native/packages，保持原公开边界。gateway 的发现、启动、操作状态及偏好调用路径不变，无未闭合符号或后继移交项。
+- 删除旧门面仅供 apps 使用的五个直接依赖；app-launch 因 providers::agy 的真实调用保留。没有业务函数、测试、cfg 或资源路径变更；测试继续在各所有者库注册。本次未新增或运行测试。
+- 静态证据：Python 只读 TOML 解析（系统无 tomllib，复用现有 pip._vendor.tomli）审阅 70 个传递生产依赖清单，路径存在、无环且无 vw-agent-apps 回边；workspace 注册和直接路径依赖存在。模块移动逐字比较、真实调用者检索及本任务 git diff --check 通过。现有 RustCodeGraph 索引仍含前序搬迁前路径，实际位置以文件和源码检索为准，未更新索引。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：app-operations 与直接调用者目标编译、各所有者迁移单测、macOS/Windows/Linux/WSL 平台行为、清单与锁文件一致性。Cargo.lock 未修改。

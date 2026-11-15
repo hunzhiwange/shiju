@@ -1,0 +1,16 @@
+[package]
+name = "app-operations"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-catalog = { path = "../app-catalog" }
+app-discovery = { path = "../app-discovery" }
+app-lifecycle = { path = "../app-lifecycle" }
+app-uninstall = { path = "../app-uninstall" }
+app-versions = { path = "../app-versions" }
+app-launch = { path = "../app-launch" }

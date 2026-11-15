@@ -99,7 +99,7 @@ mod create_tests;
 
 mod update;
 #[cfg(test)]
-#[path = "app_providers/update_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/update_tests.rs"]
 mod update_tests;
 
 mod delete;
@@ -116,7 +116,7 @@ mod duplicate_tests;
 #[path = "app_providers/presentation.rs"]
 mod presentation;
 #[cfg(test)]
-#[path = "app_providers/presentation_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/presentation_tests.rs"]
 mod presentation_tests;
 
 #[path = "app_providers/endpoints.rs"]
@@ -133,12 +133,12 @@ mod icons_tests;
 
 mod universal;
 #[cfg(test)]
-#[path = "app_providers/universal_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/universal_tests.rs"]
 mod universal_tests;
 
 mod universal_sync;
 #[cfg(test)]
-#[path = "app_providers/universal_sync_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/universal_sync_tests.rs"]
 mod universal_sync_tests;
 
 #[path = "app_providers/paths.rs"]
@@ -149,11 +149,11 @@ mod paths_tests;
 
 mod preview;
 #[cfg(test)]
-#[path = "app_providers/preview_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/preview_tests.rs"]
 mod preview_tests;
 
 #[cfg(test)]
-#[path = "app_providers/validation_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/validation_tests.rs"]
 mod validation_tests;
 
 mod editor_merge;
@@ -164,7 +164,7 @@ mod editor_merge_tests;
 #[path = "app_providers/snippets.rs"]
 mod snippets;
 #[cfg(all(test, target_os = "macos"))]
-#[path = "app_providers/snippets_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/snippets_tests.rs"]
 mod snippets_tests;
 
 pub(super) mod claude;
@@ -215,6 +215,7 @@ mod opencode_tests;
 mod aggregation_pi_tests;
 mod pi;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/pi_tests.rs"]
 mod pi_tests;
 
 pub(super) mod omp;
@@ -283,6 +284,7 @@ mod basic_tests;
 
 mod request_options;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/request_options_tests.rs"]
 mod request_options_tests;
 
 #[derive(Default)]

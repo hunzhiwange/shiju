@@ -1,6 +1,24 @@
 //! Shape projections of the shared authorization owner; no policy is duplicated.
 use vw_api_transport::id::TenantScope;
 use app_access_service::access;
+
+pub(crate) fn provider_preview_context(
+    path: Option<&std::path::Path>, headers: &axum::http::HeaderMap,
+    tenant: &TenantScope, target: &str,
+) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>), axum::http::StatusCode> {
+    access::authorize_provider_config(path, headers, tenant, target)
+        .map(|host| (host.home, host.credential_root))
+}
+pub(crate) fn authorize_provider_config_access(
+    path: Option<&std::path::Path>, headers: &axum::http::HeaderMap,
+    tenant: &TenantScope, target: &str, write: bool,
+) -> Result<(), axum::http::StatusCode> {
+    if write {
+        access::authorize_provider_write(path, headers, tenant, target).map(|_| ())
+    } else {
+        access::authorize_provider_config(path, headers, tenant, target).map(|_| ())
+    }
+}
 #[cfg(target_os = "macos")]
 pub(crate) use access::authorize_provider_login;
 pub(crate) fn provider_config_home(

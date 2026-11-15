@@ -39,6 +39,14 @@ pub mod openclaw;
 pub mod opencode;
 pub mod operations;
 pub mod path_routes;
+pub mod pi;
+pub mod presentation;
+pub mod preview;
+pub mod request_options;
+pub mod snippets;
+pub mod universal;
+pub mod universal_sync;
+pub mod update;
 pub fn error(message: &str) -> Response {
     let (status, safe) = match message {
         "application provider is referenced" => {

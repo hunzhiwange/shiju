@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-channel-qr = { path = "../libs/gateway-channel-qr", version = "0.6.0" }
 gateway-system = { path = "../libs/gateway-system", version = "0.6.0" }
 gateway-computer-control = { path = "../libs/gateway-computer-control", version = "0.6.0" }
 patch = { path = "../libs/patch", version = "0.6.0" }

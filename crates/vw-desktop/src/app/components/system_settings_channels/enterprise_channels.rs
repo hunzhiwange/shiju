@@ -52,27 +52,27 @@ pub(super) fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Eleme
             );
         }
         let status = match flow.status {
-            Some(vw_gateway_client::ChannelQrStatusDto::Pending) => {
+            Some(gateway_channel_qr::ChannelQrStatusDto::Pending) => {
                 tr(app.desktop_locale, "等待扫码")
             }
-            Some(vw_gateway_client::ChannelQrStatusDto::Scanned) => {
+            Some(gateway_channel_qr::ChannelQrStatusDto::Scanned) => {
                 tr(app.desktop_locale, "已扫码，等待确认")
             }
-            Some(vw_gateway_client::ChannelQrStatusDto::Authorized) => {
+            Some(gateway_channel_qr::ChannelQrStatusDto::Authorized) => {
                 tr(app.desktop_locale, "授权成功，尚未保存")
             }
-            Some(vw_gateway_client::ChannelQrStatusDto::Expired) => {
+            Some(gateway_channel_qr::ChannelQrStatusDto::Expired) => {
                 tr(app.desktop_locale, "二维码已过期")
             }
-            Some(vw_gateway_client::ChannelQrStatusDto::Failed) => {
+            Some(gateway_channel_qr::ChannelQrStatusDto::Failed) => {
                 tr(app.desktop_locale, "授权失败")
             }
             None => tr(app.desktop_locale, "正在获取二维码"),
         };
         content = content.push(match flow.status {
             Some(
-                vw_gateway_client::ChannelQrStatusDto::Failed
-                | vw_gateway_client::ChannelQrStatusDto::Expired,
+                gateway_channel_qr::ChannelQrStatusDto::Failed
+                | gateway_channel_qr::ChannelQrStatusDto::Expired,
             ) => settings_error_banner(status),
             _ => text(status).size(13).style(settings_muted_text_style).into(),
         });

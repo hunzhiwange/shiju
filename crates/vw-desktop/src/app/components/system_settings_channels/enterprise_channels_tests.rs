@@ -124,7 +124,7 @@ fn channel_qr_panels_build_real_image_path_with_non_ascii_labels() {
     .expect("valid PNG fixture");
     app.channels_settings.qr_flow.qrcode_image =
         Some(iced::widget::image::Handle::from_bytes(bytes));
-    app.channels_settings.qr_flow.status = Some(vw_gateway_client::ChannelQrStatusDto::Scanned);
+    app.channels_settings.qr_flow.status = Some(gateway_channel_qr::ChannelQrStatusDto::Scanned);
     app.channels_settings.qr_flow.expires_at = Some("2026-10-20T12:00:00Z".to_string());
     app.channels_settings.qr_flow.credentials_ready = true;
 

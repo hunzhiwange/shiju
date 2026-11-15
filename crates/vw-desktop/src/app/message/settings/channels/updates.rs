@@ -7,7 +7,7 @@ use iced::widget::text_editor;
 use serde_json::{Map, Value};
 use std::time::Duration;
 use config_channel_services::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
-use vw_gateway_client::{ChannelQrStatusDto, GatewayClient};
+use gateway_channel_qr::{ChannelQrStatusDto, GatewayChannelQrClient};
 
 use super::super::messages::{ChannelsMessage, SettingsMessage};
 use super::changes::{
@@ -18,8 +18,9 @@ use super::toggles::{add_channel_instance, remove_channel_instance, toggle_enabl
 
 const MAX_QR_PNG_BYTES: usize = 1024 * 1024;
 
-fn qr_client() -> Result<GatewayClient, String> {
+fn qr_client() -> Result<GatewayChannelQrClient, String> {
     crate::app::config::gateway_client()
+        .map(|client| GatewayChannelQrClient::new(client.transport().clone()))
 }
 
 fn qr_fetch_task(channel: String, generation: u64) -> Task<Message> {

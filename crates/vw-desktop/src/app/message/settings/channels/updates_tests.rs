@@ -5,7 +5,7 @@ use super::*;
 use crate::app::App;
 use std::sync::Arc;
 use config_channel_services::LarkReceiveMode;
-use vw_gateway_client::{
+use gateway_channel_qr::{
     ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
 };
 

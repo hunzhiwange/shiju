@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-channel-qr",
   "crates/libs/gateway-system",
   "crates/libs/app-self-update",
   "crates/libs/gateway-interaction",

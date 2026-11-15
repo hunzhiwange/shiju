@@ -37,7 +37,7 @@ pub(crate) struct ChannelQrFlowState {
     pub(crate) qrcode_image: Option<iced::widget::image::Handle>,
     pub(crate) handle: Option<String>,
     pub(crate) expires_at: Option<String>,
-    pub(crate) status: Option<vw_gateway_client::ChannelQrStatusDto>,
+    pub(crate) status: Option<gateway_channel_qr::ChannelQrStatusDto>,
     pub(crate) poll_in_flight: bool,
     pub(crate) scan_observed: bool,
     pub(crate) generation: u64,

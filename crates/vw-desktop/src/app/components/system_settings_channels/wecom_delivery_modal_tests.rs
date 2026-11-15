@@ -74,22 +74,22 @@ async fn wecom_delivery_modal_renders_narrow_chinese_and_qr_states() {
             assert!(app.channels_settings.wecom_delivery.is_some(), "entry must open modal");
             for (status, label) in [
                 (None, "loading"),
-                (Some(vw_gateway_client::ChannelQrStatusDto::Pending), "pending"),
-                (Some(vw_gateway_client::ChannelQrStatusDto::Scanned), "scanned"),
-                (Some(vw_gateway_client::ChannelQrStatusDto::Authorized), "authorized"),
-                (Some(vw_gateway_client::ChannelQrStatusDto::Expired), "expired"),
-                (Some(vw_gateway_client::ChannelQrStatusDto::Failed), "failed"),
+                (Some(gateway_channel_qr::ChannelQrStatusDto::Pending), "pending"),
+                (Some(gateway_channel_qr::ChannelQrStatusDto::Scanned), "scanned"),
+                (Some(gateway_channel_qr::ChannelQrStatusDto::Authorized), "authorized"),
+                (Some(gateway_channel_qr::ChannelQrStatusDto::Expired), "expired"),
+                (Some(gateway_channel_qr::ChannelQrStatusDto::Failed), "failed"),
             ] {
                 app.channels_settings.qr_flow.status = status;
                 app.channels_settings.qr_flow.credentials_ready =
-                    status == Some(vw_gateway_client::ChannelQrStatusDto::Authorized);
+                    status == Some(gateway_channel_qr::ChannelQrStatusDto::Authorized);
                 app.channels_settings.qr_flow.qrcode_image = if mode == WeComDeliveryMode::Qr
                     && matches!(
                         status,
                         Some(
-                            vw_gateway_client::ChannelQrStatusDto::Pending
-                                | vw_gateway_client::ChannelQrStatusDto::Scanned
-                                | vw_gateway_client::ChannelQrStatusDto::Authorized
+                            gateway_channel_qr::ChannelQrStatusDto::Pending
+                                | gateway_channel_qr::ChannelQrStatusDto::Scanned
+                                | gateway_channel_qr::ChannelQrStatusDto::Authorized
                         )
                     ) {
                     Some(iced::widget::image::Handle::from_rgba(16, 16, vec![255u8; 16 * 16 * 4]))

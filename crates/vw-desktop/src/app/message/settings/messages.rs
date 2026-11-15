@@ -319,7 +319,7 @@ pub enum ChannelsMessage {
     QrFetched {
         channel: String,
         generation: u64,
-        result: Result<vw_gateway_client::ChannelQrFetchResponseDto, String>,
+        result: Result<gateway_channel_qr::ChannelQrFetchResponseDto, String>,
     },
     QrPollTick {
         channel: String,
@@ -328,7 +328,7 @@ pub enum ChannelsMessage {
     QrPolled {
         channel: String,
         generation: u64,
-        result: Result<vw_gateway_client::ChannelQrStatusResponseDto, String>,
+        result: Result<gateway_channel_qr::ChannelQrStatusResponseDto, String>,
     },
     QrClosed,
     QrSaveConfirmed,

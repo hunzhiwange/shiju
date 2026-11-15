@@ -715,7 +715,7 @@ async fn ui_refresh_17_preserves_project_binding_and_qr_actions() {
     if !isolated("ui_refresh_17_preserves_project_binding_and_qr_actions") {
         return;
     }
-    use vw_gateway_client::ChannelQrStatusDto;
+    use gateway_channel_qr::ChannelQrStatusDto;
     let mut renderer = renderer().await;
     let mut app = fixture();
     let size = Size::new(420, 400);

@@ -16,11 +16,11 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::auth::copilot::CopilotAuth;
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource;
-use vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode;
-use vw_api_types::agent_apps_diagnostics::DiagnosticOutcome;
-use vw_api_types::agent_apps_diagnostics::DiagnosticResult;
-use vw_api_types::agent_apps_diagnostics::DiagnosticScope;
+use vw_api_app_diagnostics::DiagnosticEvidenceSource;
+use vw_api_app_diagnostics::DiagnosticFailureCode;
+use vw_api_app_diagnostics::DiagnosticOutcome;
+use vw_api_app_diagnostics::DiagnosticResult;
+use vw_api_app_diagnostics::DiagnosticScope;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
 use vw_api_transport::id::ProjectScope;
@@ -264,7 +264,7 @@ async fn diagnostic_stream_check_cancellation_closes_four_protocol_connections()
 #[tokio::test]
 async fn diagnostic_stream_check_classifies_first_event_and_idle_timeouts() {
     use crate::model_relay::generation::GenerationProtocol;
-    use vw_api_types::agent_apps_diagnostics::DiagnosticPhase;
+    use vw_api_app_diagnostics::DiagnosticPhase;
     let (_, _, valid) = samples().remove(0);
     for (wire, expected_phase) in [
         (": heartbeat\n\n".to_owned(), DiagnosticPhase::FirstEvent),

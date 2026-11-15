@@ -1,7 +1,7 @@
 //! Pending endpoint choice and host-owned diagnostic evidence; no provider configuration copy.
 use super::model_state::ModelContext;
 use crate::app::state::app_providers::edit::{EditForm, Mode};
-use vw_gateway_client::{GatewayClient, vw_api_types::agent_apps_diagnostics::*};
+use vw_gateway_client::{GatewayClient, vw_api_app_diagnostics::*};
 #[derive(Clone)]
 pub(crate) struct Transport {
     pub client: GatewayClient,

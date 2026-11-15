@@ -15,12 +15,12 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticFailureCode,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticOutcome,
+    vw_api_app_diagnostics::DiagnosticProbeKind,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_app_routing::RoutingEgressMode,
     vw_api_app_routing::RoutingEgressUpdate,
     vw_api_transport::id::ProjectId,
@@ -171,7 +171,7 @@ async fn cc_route_029_outbound_probe_expected_behavior() {
     let response = start(json!({})).await.unwrap();
     assert_eq!(response.status(), 202);
     assert_eq!(response.headers()["cache-control"], "no-store");
-    let job: vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity =
+    let job: vw_api_app_diagnostics::DiagnosticJobIdentity =
         response.json().await.unwrap();
     assert_eq!(job.kind, DiagnosticProbeKind::OutboundProxy);
     let mut socket = accept_connect(&proxy).await;

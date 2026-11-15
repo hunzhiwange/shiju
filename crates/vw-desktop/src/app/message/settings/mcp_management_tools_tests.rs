@@ -60,7 +60,7 @@ use crate::app::message::agent_apps_diagnostics as probe;
 use vw_api_tools::*;
 use {
     vw_gateway_client::vw_api_types::agent_apps::*,
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+    vw_api_app_diagnostics::*,
     vw_api_mcp_management::*,
 };
 fn setup() -> App {

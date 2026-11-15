@@ -6,7 +6,7 @@ use reqwest::{Client, Url, header};
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::{diagnostics::endpoints::EndpointCandidate, providers::validation};
-use vw_api_types::agent_apps_diagnostics::{
+use vw_api_app_diagnostics::{
     DiagnosticEndpointId, DiagnosticEvidenceSource, DiagnosticFailure, DiagnosticFailureCode,
     DiagnosticJobIdentity, DiagnosticOutcome, DiagnosticPhase, DiagnosticProbeKind,
     DiagnosticReport, DiagnosticResult, DiagnosticTiming, SpeedEvidence,

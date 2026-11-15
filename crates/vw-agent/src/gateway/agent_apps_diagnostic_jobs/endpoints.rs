@@ -5,8 +5,8 @@ use super::{
 use tokio::time::Instant;
 use vw_agent_apps::diagnostics::endpoints::EndpointCandidate;
 use {
-    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidate,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointId,
+    vw_api_app_diagnostics::DiagnosticEndpointCandidate,
+    vw_api_app_diagnostics::DiagnosticEndpointId,
     vw_api_transport::id::ProviderId,
 };
 #[derive(Default)]

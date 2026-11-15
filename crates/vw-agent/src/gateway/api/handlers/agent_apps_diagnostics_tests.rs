@@ -21,8 +21,8 @@ use std::{
 };
 use tower::ServiceExt;
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity;
-use vw_api_types::agent_apps_diagnostics::DiagnosticJobState;
+use vw_api_app_diagnostics::DiagnosticJobIdentity;
+use vw_api_app_diagnostics::DiagnosticJobState;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::id::TenantScope;
@@ -262,7 +262,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
     let before_capacity = count.load(Ordering::SeqCst);
     // Saturate the same production registry; queued work must not bypass host capacity.
     let owner = DiagnosticJobOwner {
-        scope: vw_api_types::agent_apps_diagnostics::DiagnosticScope {
+        scope: vw_api_app_diagnostics::DiagnosticScope {
             project: vw_api_transport::ProjectScope::new(
                 TenantScope::new("platform", "company")?,
                 "project".into(),
@@ -276,7 +276,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
     for _ in 0..128 {
         let registry = jobs.clone();
         let owner = owner.clone();
-        held.push(tokio::task::spawn_blocking(move || registry.start(owner, vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind::Reachability,
+        held.push(tokio::task::spawn_blocking(move || registry.start(owner, vw_api_app_diagnostics::DiagnosticProbeKind::Reachability,
             vec![|cancel: tokio_util::sync::CancellationToken| async move {
                 cancel.cancelled().await;
                 Err(crate::gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError::Cancelled)
@@ -399,7 +399,7 @@ async fn diagnostic_api_start_authorizes_before_execution_gateway() -> anyhow::R
 #[tokio::test]
 async fn diagnostic_api_read_and_cancel_are_scope_bound() -> anyhow::Result<()> {
     use crate::gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError;
-    use vw_api_types::agent_apps_diagnostics::*;
+    use vw_api_app_diagnostics::*;
     let root = tempfile::tempdir()?;
     let policy = root.path().join("access.json");
     let other_token = "fixture-other-diagnostic-member-token-00002";

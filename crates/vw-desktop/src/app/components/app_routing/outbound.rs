@@ -11,10 +11,10 @@ use std::sync::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticOutcome,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_app_routing::RoutingEgressMode,
     vw_api_app_routing::RoutingEgressStatus,
     vw_api_app_routing::RoutingEgressUpdate,

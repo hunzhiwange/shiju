@@ -2,8 +2,8 @@
 
 use serde_json::{Value, json};
 use {
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol,
+    vw_api_app_diagnostics::DiagnosticFailureCode,
+    vw_api_app_diagnostics::DiagnosticModelProtocol,
     vw_api_transport::id::ModelId,
 };
 

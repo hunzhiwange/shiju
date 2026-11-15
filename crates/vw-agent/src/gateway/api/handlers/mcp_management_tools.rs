@@ -15,9 +15,9 @@ use axum::{
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticScope,
+    vw_api_app_diagnostics::DiagnosticScopeQuery,
     vw_api_mcp_management::McpToolDetailsRequest,
 };
 

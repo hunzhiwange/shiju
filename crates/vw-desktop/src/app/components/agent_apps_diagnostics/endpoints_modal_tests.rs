@@ -2,7 +2,7 @@ use crate::app::{
     App,
     message::agent_apps_diagnostics::endpoints::{self, Event},
 };
-use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;
+use vw_api_app_diagnostics::*;
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_base::claude::ClaudeFormKind;

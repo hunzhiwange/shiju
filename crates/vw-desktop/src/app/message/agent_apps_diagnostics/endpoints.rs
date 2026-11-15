@@ -6,7 +6,7 @@ use crate::app::{
     message::app_providers::list::{self, ListMessage},
 };
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;
+use vw_api_app_diagnostics::*;
 #[derive(Clone, Debug)]
 pub struct Reply {
     pub(crate) context: ModelContext,

@@ -16,12 +16,12 @@ use vw_api_transport::TimestampMs;
 use vw_api_app_identity::AppId;
 use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_auth::AuthService;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource;
-use vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode;
-use vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol;
-use vw_api_types::agent_apps_diagnostics::DiagnosticOutcome;
-use vw_api_types::agent_apps_diagnostics::DiagnosticResult;
-use vw_api_types::agent_apps_diagnostics::DiagnosticScope;
+use vw_api_app_diagnostics::DiagnosticEvidenceSource;
+use vw_api_app_diagnostics::DiagnosticFailureCode;
+use vw_api_app_diagnostics::DiagnosticModelProtocol;
+use vw_api_app_diagnostics::DiagnosticOutcome;
+use vw_api_app_diagnostics::DiagnosticResult;
+use vw_api_app_diagnostics::DiagnosticScope;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_base::claude::ClaudeConfig;
@@ -508,7 +508,7 @@ fn model_protocol_019_requires_successful_terminal_content() {
 
 #[test]
 fn model_protocol_019_rejects_unregistered_endpoint_candidates() {
-    use vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest;
+    use vw_api_app_diagnostics::DiagnosticStartRequest;
     let valid =
         json!({"kind":"model","providerId":"saved","modelId":"fixture","protocol":"messages"});
     assert!(serde_json::from_value::<DiagnosticStartRequest>(valid.clone()).is_ok());

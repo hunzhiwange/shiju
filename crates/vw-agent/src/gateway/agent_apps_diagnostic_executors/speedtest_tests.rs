@@ -7,11 +7,11 @@ use tokio::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
-    vw_api_types::agent_apps_diagnostics::SpeedEvidence,
+    vw_api_app_diagnostics::DiagnosticEndpointSource,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticScope,
+    vw_api_app_diagnostics::SpeedEvidence,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TaskId,
 };

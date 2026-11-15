@@ -3,9 +3,9 @@ use super::{AgentAppsSettingsError, GatewayClient};
 use serde::Serialize;
 use {
     vw_api_transport::TaskId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticScopeQuery,
     vw_api_mcp_management::McpRecordId,
 };
 

@@ -3,12 +3,12 @@ use super::{AgentAppsSettingsError, GatewayAppDiagnosticsClient};
 use serde::{Serialize, de::DeserializeOwned};
 use {
     vw_api_transport::TaskId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidatesQuery,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidatesResponse,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
-    vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest,
+    vw_api_app_diagnostics::DiagnosticEndpointCandidatesQuery,
+    vw_api_app_diagnostics::DiagnosticEndpointCandidatesResponse,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticScopeQuery,
+    vw_api_app_diagnostics::DiagnosticStartRequest,
 };
 
 impl GatewayAppDiagnosticsClient {

@@ -16,7 +16,7 @@ use {
     crate::agent_apps::usage_settings::UsageCredentialId,
     crate::agent_apps::usage_settings::UsageSigningCredentialRefs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_app_diagnostics::DiagnosticScope,
     vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::ProjectId,
     vw_api_mcp_management::McpCatalogScope,
@@ -1808,9 +1808,9 @@ pub(in super::super) fn authorize_diagnostic_probe(
     path: Option<&Path>,
     headers: &HeaderMap,
     scope: &DiagnosticScope,
-    request: &vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest,
+    request: &vw_api_app_diagnostics::DiagnosticStartRequest,
 ) -> Result<(Option<PathBuf>, String), StatusCode> {
-    if let vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest::Mcp { server_ids } =
+    if let vw_api_app_diagnostics::DiagnosticStartRequest::Mcp { server_ids } =
         request
     {
         if server_ids.is_empty()

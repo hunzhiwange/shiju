@@ -6,7 +6,7 @@ use super::{
 use crate::app::{App, Message, message::agent_apps_diagnostics as diagnostics};
 use iced::Task;
 use {
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+    vw_api_app_diagnostics::*,
     vw_api_mcp_management::*,
 };
 

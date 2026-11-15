@@ -7,15 +7,15 @@ use tokio::time::{Instant, timeout};
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::auth::copilot::CopilotAuth;
 use {
-    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
-    vw_api_types::agent_apps_diagnostics::DiagnosticReport,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
-    vw_api_types::agent_apps_diagnostics::DiagnosticTiming,
-    vw_api_types::agent_apps_diagnostics::StreamingEvidence,
+    vw_api_app_diagnostics::DiagnosticEvidenceSource,
+    vw_api_app_diagnostics::DiagnosticFailure,
+    vw_api_app_diagnostics::DiagnosticFailureCode,
+    vw_api_app_diagnostics::DiagnosticOutcome,
+    vw_api_app_diagnostics::DiagnosticPhase,
+    vw_api_app_diagnostics::DiagnosticReport,
+    vw_api_app_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticTiming,
+    vw_api_app_diagnostics::StreamingEvidence,
     vw_api_transport::id::ModelId,
     vw_api_transport::id::ProviderId,
 };

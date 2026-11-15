@@ -14,7 +14,7 @@ use axum::{
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use {
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_mcp_management::*,
 };
 
@@ -155,7 +155,7 @@ fn cc_mcp_t50_discovery_rechecks_revocation_and_cancel_releases_the_owned_job() 
             let job=start();tokio::time::timeout(std::time::Duration::from_secs(10),started.notified()).await?;
             fixture.jobs.cancel(&fixture.owner,&job.task_id).unwrap();
             let snapshot=fixture.finish(&job).await?;
-            assert_eq!(snapshot.state,vw_api_types::agent_apps_diagnostics::DiagnosticJobState::Cancelled {});
+            assert_eq!(snapshot.state,vw_api_app_diagnostics::DiagnosticJobState::Cancelled {});
             assert_eq!(snapshot.results.iter().flatten().count(),0);
             server.abort();let _=server.await;Ok(())
         })

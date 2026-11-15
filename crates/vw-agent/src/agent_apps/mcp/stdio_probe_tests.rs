@@ -9,10 +9,10 @@ use std::time::Duration;
 use tokio::time::timeout;
 use {
     vw_api_types::agent_apps::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticFailureCode,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticOutcome,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_mcp_management::McpConfigValue,
     vw_api_mcp_management::McpConnectionDefinition,
 };

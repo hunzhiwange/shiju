@@ -3,11 +3,11 @@ use crate::test_support;
 use serde_json::{Value, json};
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticOutcome,
+    vw_api_app_diagnostics::DiagnosticProbeKind,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };

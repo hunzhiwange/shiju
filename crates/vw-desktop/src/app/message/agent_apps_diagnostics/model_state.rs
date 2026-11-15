@@ -1,6 +1,6 @@
 //! Desktop view state retains host-issued jobs while a panel is closed.
 use crate::app::state::app_providers::list::Scope;
-use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;
+use vw_api_app_diagnostics::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ModelContext {

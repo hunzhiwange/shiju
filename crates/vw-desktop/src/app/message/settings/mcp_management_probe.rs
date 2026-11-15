@@ -6,7 +6,7 @@ use crate::app::{
     },
 };
 use iced::Task;
-use vw_gateway_client::{GatewayClient, vw_api_types::agent_apps_diagnostics::*};
+use vw_gateway_client::{GatewayClient, vw_api_app_diagnostics::*};
 
 #[derive(Clone)]
 pub struct ProbeTransport {

@@ -5,9 +5,10 @@ use crate::{
 };
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item};
+use vw_api_app_diagnostics::DiagnosticEndpointSource::{self, Custom, Draft, Preset, SavedConfig};
 use vw_api_types::{
     agent_apps::AppId,
-    agent_apps_diagnostics::DiagnosticEndpointSource::{self, Custom, Draft, Preset, SavedConfig},
+
 };
 
 #[derive(Debug, PartialEq, Eq)]

@@ -4,7 +4,7 @@ use {
     vw_api_transport::TaskId,
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::*,
+    vw_api_app_diagnostics::*,
     vw_api_transport::id::ProjectScope,
 };
 

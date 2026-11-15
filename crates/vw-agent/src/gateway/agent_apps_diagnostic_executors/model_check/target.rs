@@ -12,7 +12,7 @@ use {
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthService,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_app_diagnostics::DiagnosticFailureCode,
     vw_api_transport::id::ModelId,
     vw_api_transport::id::ProviderId,
     vw_api_model_catalog::ModelCatalogIdentity,

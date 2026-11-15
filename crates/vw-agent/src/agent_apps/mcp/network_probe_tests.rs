@@ -21,14 +21,14 @@ use tokio::{
 use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_app_diagnostics::DiagnosticEvidenceSource,
+    vw_api_app_diagnostics::DiagnosticFailureCode,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticOutcome,
+    vw_api_app_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticScope,
     vw_api_transport::id::ProjectScope,
     vw_api_mcp_management::McpCatalogRecord,
     vw_api_mcp_management::McpCatalogScope,
@@ -266,8 +266,8 @@ async fn sse_post(State(server): State<Server>, Json(request): Json<Value>) -> S
 
 fn report(
     snapshot: &DiagnosticJobSnapshot,
-) -> &vw_api_types::agent_apps_diagnostics::DiagnosticReport<
-    vw_api_types::agent_apps_diagnostics::McpHandshakeEvidence,
+) -> &vw_api_app_diagnostics::DiagnosticReport<
+    vw_api_app_diagnostics::McpHandshakeEvidence,
 > {
     let [DiagnosticResult::Mcp { report, .. }] = snapshot.results.as_deref().unwrap() else {
         panic!("expected one handshake result");

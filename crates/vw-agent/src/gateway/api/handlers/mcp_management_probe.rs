@@ -10,7 +10,7 @@ use axum::{
 use serde::Deserialize;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_app_diagnostics::DiagnosticScopeQuery,
     vw_api_mcp_management::McpRecordId,
 };
 

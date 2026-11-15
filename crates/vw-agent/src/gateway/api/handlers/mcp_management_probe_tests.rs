@@ -25,10 +25,10 @@ use tower::ServiceExt;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticJobState,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionDefinition,
     vw_api_mcp_management::McpConnectionOutcome,
@@ -314,7 +314,7 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
             assert_eq!(server_id.0, "fast");
             assert!(matches!(
                 report.outcome,
-                vw_api_types::agent_apps_diagnostics::DiagnosticOutcome::Succeeded { .. }
+                vw_api_app_diagnostics::DiagnosticOutcome::Succeeded { .. }
             ));
             break;
         }

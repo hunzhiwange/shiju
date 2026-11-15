@@ -3,7 +3,7 @@ use crate::GatewayAuth;
 use serde_json::{Value, json};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_app_diagnostics::DiagnosticScopeQuery,
 };
 
 fn scope() -> DiagnosticScopeQuery {
@@ -59,7 +59,7 @@ fn snapshot(status: &str) -> Value {
 
 #[tokio::test]
 async fn cc_mcp_t43_poll_and_cancel_preserve_states_revision_and_original_job() {
-    use vw_api_types::agent_apps_diagnostics::{DiagnosticJobState, DiagnosticResult};
+    use vw_api_app_diagnostics::{DiagnosticJobState, DiagnosticResult};
     let states = ["queued", "running", "cancelling", "cancelled", "succeeded", "interrupted"];
     let server = test_support::server(states.iter().map(|state| (200, snapshot(state))).collect());
     for state in states {
@@ -225,7 +225,7 @@ async fn cc_mcp_t43_redirect_does_not_forward_application_credentials() {
 
 #[tokio::test]
 async fn cc_mcp_t43_failed_job_and_per_service_failure_remain_distinct() {
-    use vw_api_types::agent_apps_diagnostics::{DiagnosticJobState, DiagnosticResult};
+    use vw_api_app_diagnostics::{DiagnosticJobState, DiagnosticResult};
     use vw_api_mcp_management::{McpConnectionOutcome, McpFailureCode};
     let mut body = snapshot("failed");
     body["state"]["error"] = json!({"phase":"handshake","code":"timeout"});

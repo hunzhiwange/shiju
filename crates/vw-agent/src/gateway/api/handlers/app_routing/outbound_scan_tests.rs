@@ -13,11 +13,12 @@ use tokio::{
     time::{Instant, sleep, timeout},
 };
 use tokio_util::sync::CancellationToken;
+use vw_api_app_diagnostics::{
+        DiagnosticFailureCode, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
+    };
 use vw_api_types::{
     agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticFailureCode, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
-    },
+
 };
 use vw_api_app_identity::{AppId};
 
@@ -79,7 +80,7 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     let response = start(json!({})).await.unwrap();
     assert_eq!(response.status(), 202);
     assert_eq!(response.headers()["cache-control"], "no-store");
-    let job: vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity =
+    let job: vw_api_app_diagnostics::DiagnosticJobIdentity =
         response.json().await.unwrap();
     assert_error(
         gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, MANAGER)

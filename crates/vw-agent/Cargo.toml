@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+vw-api-app-diagnostics = { path = "../libs/api-app-diagnostics", version = "0.6.0" }
 vw-api-mcp-management = { path = "../libs/api-mcp-management", version = "0.6.0" }
 vw-api-mcp-inspect = { path = "../libs/api-mcp-inspect", version = "0.6.0" }
 vw-api-app-routing = { path = "../libs/api-app-routing", version = "0.6.0" }

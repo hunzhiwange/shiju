@@ -31,7 +31,7 @@ use vw_agent_apps::{
     mcp::catalog::McpCatalogDraft,
 };
 use vw_api_app_identity::AppId;
-use vw_api_types::agent_apps_diagnostics::*;
+use vw_api_app_diagnostics::*;
 use vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;

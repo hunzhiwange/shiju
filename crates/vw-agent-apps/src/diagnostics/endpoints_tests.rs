@@ -2,11 +2,11 @@ use super::endpoints::{EndpointCandidate, collect};
 use crate::providers::endpoints;
 use serde_json::json;
 use vw_api_types::agent_apps::AppId;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource::self;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource::Custom;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource::Draft;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource::Preset;
-use vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource::SavedConfig;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::self;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::Custom;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::Draft;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::Preset;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::SavedConfig;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange::Add;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
 

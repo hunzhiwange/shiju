@@ -5,10 +5,10 @@ use std::{collections::HashSet, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::mcp::validation::validate_new_name;
 use {
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_app_diagnostics::DiagnosticJobIdentity,
+    vw_api_app_diagnostics::DiagnosticJobSnapshot,
+    vw_api_app_diagnostics::DiagnosticProbeKind,
+    vw_api_app_diagnostics::DiagnosticResult,
     vw_api_transport::id::TaskId,
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionCheckItem,

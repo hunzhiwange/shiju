@@ -3,7 +3,7 @@ use crate::app::message::agent_apps_diagnostics::{mcp_results, *};
 use serde_json::json;
 use {
     vw_gateway_client::vw_api_types::agent_apps::AppId,
-    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+    vw_api_app_diagnostics::*,
     vw_api_mcp_management::*,
 };
 fn context() -> Context {

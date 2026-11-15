@@ -10,7 +10,7 @@ use iced::{
     Element, Length,
     widget::{button, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;
+use vw_api_app_diagnostics::*;
 fn action(
     label: &'static str,
     event: Event,

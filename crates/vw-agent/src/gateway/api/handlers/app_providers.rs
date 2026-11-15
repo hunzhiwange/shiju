@@ -60,55 +60,10 @@ pub(crate) fn router() -> Router {
                 .layer(DefaultBodyLimit::max(16 * 1024)),
         )
 }
-fn error(message: &str) -> Response {
-    let (status, safe) = match message {
-        "application provider is referenced" => {
-            (StatusCode::CONFLICT, "Application provider is still referenced")
-        }
-        "application provider references unavailable" => {
-            (StatusCode::CONFLICT, "Application provider references cannot be verified")
-        }
-        "application provider changed during update" => {
-            (StatusCode::CONFLICT, "Application provider changed during update; retry")
-        }
-        "application provider already exists" => {
-            (StatusCode::CONFLICT, "Application provider already exists")
-        }
-        "custom icon not found" => (StatusCode::NOT_FOUND, "Custom icon not found"),
-        "application provider not found" => {
-            (StatusCode::NOT_FOUND, "Application provider not found")
-        }
-        "application provider storage unavailable"
-        | "invalid stored application provider profile" => {
-            (StatusCode::SERVICE_UNAVAILABLE, "Application provider storage unavailable")
-        }
-        _ => (
-            StatusCode::BAD_REQUEST,
-            "Invalid application provider input or unsupported projection",
-        ),
-    };
-    (status, Json(serde_json::json!({"message":safe}))).into_response()
-}
-fn store(database: Option<Extension<GlobalDatabase>>) -> Result<AppProviderStore, String> {
-    let database = match database {
-        Some(Extension(database)) => database,
-        None => GlobalDatabase::for_home(&crate::global::paths().home)
-            .map_err(|_| "application provider storage unavailable")?,
-    };
-    AppProviderStore::new(database)
-}
-async fn read(
-    Extension(tenant): Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
-    Path((app, id)): Path<(AppId, String)>,
-) -> Response {
-    match tokio::task::spawn_blocking(move || store(database)?.get_summary(&tenant, app, &id)).await
-    {
-        Ok(Ok(summary)) => Json(summary).into_response(),
-        Ok(Err(message)) => error(&message),
-        Err(_) => error("application provider storage unavailable"),
-    }
-}
+use gateway_app_providers::{error, store};
+
+use gateway_app_providers::read;
+
 #[allow(clippy::too_many_arguments)]
 async fn save(
     Extension(tenant): Extension<TenantScope>,
@@ -125,39 +80,10 @@ async fn save(
         JsonRejection,
     >,
 ) -> Response {
-    let Ok(Json(profile)) = body else {
-        return error("invalid input");
-    };
-    let profile = match profile {
-        vw_api_app_provider_base::claude::ClaudeOr::Claude(request) => {
-            if app != AppId::Claude {
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-            return claude::write(
-                tenant,
-                database,
-                headers,
-                policy,
-                id,
-                request,
-                claude::WriteKind::Save,
-                PublicationInput {
-                    query,
-                    #[cfg(target_os = "macos")]
-                    routing: control.map(|Extension(c)| c),
-                },
-            )
-            .await;
-        }
-        vw_api_app_provider_base::claude::ClaudeOr::Legacy(profile) => profile,
-    };
-    match tokio::task::spawn_blocking(move || store(database)?.save(&tenant, app, &id, &profile))
-        .await
-    {
-        Ok(Ok(summary)) => Json(summary).into_response(),
-        Ok(Err(message)) => error(&message),
-        Err(_) => error("application provider storage unavailable"),
-    }
+    gateway_app_providers::save(Extension(tenant), database, Path((app, id)), policy,
+        headers, axum::extract::Query(query),
+        #[cfg(target_os = "macos")]
+        Some(Extension(publication_host::control(control.map(|Extension(c)| c)))), body).await
 }
 
 #[cfg(test)]
@@ -350,11 +276,8 @@ struct PublicationInput {
 #[cfg(target_os = "macos")]
 impl PublicationInput {
     fn headers(&self, headers: axum::http::HeaderMap) -> Result<axum::http::HeaderMap, StatusCode> {
-        if self.query.project_id.is_some() || self.query.expected_revision.is_some() {
-            super::aggregation_resync::provider_headers(headers)
-        } else {
-            Ok(headers)
-        }
+        gateway_app_providers::PublicationInput { query: self.query.clone(),
+            routing: Some(publication_host::control(self.routing.clone())) }.headers(headers)
     }
 }
 #[cfg(target_os = "macos")]
@@ -367,18 +290,8 @@ fn publication_store(
     app: AppId,
     input: PublicationInput,
 ) -> Result<AppProviderStore, StatusCode> {
-    let database = store.database();
-    super::aggregation_resync::configure(
-        store,
-        &database,
-        policy,
-        headers,
-        tenant,
-        host,
-        app,
-        input.query,
-        input.routing,
-    )
+    gateway_app_providers::publication_store(store, policy, headers, tenant, host, app,
+        publication_host::input(input))
 }
 
 /// Reapply saved current selections through the existing owner authorization and
@@ -394,3 +307,6 @@ pub(super) async fn sync_saved_provider(database: GlobalDatabase, policy: Option
         _ => Err(()),
     }
 }
+
+#[cfg(target_os = "macos")]
+mod publication_host;

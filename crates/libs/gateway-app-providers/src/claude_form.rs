@@ -1,7 +1,7 @@
 //! Claude Code form routes: authorization precedes record or native file access.
 use super::*;
 
-pub(super) async fn read(
+pub async fn read(
     Extension(policy): Extension<Policy>,
     Extension(tenant): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
@@ -15,7 +15,7 @@ pub(super) async fn read(
     let result = tokio::task::spawn_blocking(move || -> Result<ClaudeFormView, StatusCode> {
         #[cfg(target_os = "macos")]
         {
-            super::super::super::agent_apps::provider_editor_context(
+            crate::authorization::provider_editor_context(
                 policy.0.as_deref(),
                 &headers,
                 &tenant,
@@ -47,7 +47,7 @@ pub(super) async fn read(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) async fn write(
+pub async fn write(
     Extension(policy): Extension<Policy>,
     Extension(tenant): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
@@ -56,7 +56,7 @@ pub(super) async fn write(
         vw_api_app_aggregation::AggregationWriteQuery,
     >,
     #[cfg(target_os = "macos")] control: Option<
-        Extension<super::super::super::app_routing::RoutingControl>,
+        Extension<crate::PublicationControl>,
     >,
     Path(id): Path<String>,
     method: axum::http::Method,

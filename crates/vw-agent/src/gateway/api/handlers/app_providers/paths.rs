@@ -129,43 +129,8 @@ fn directory_sync(
 }
 
 #[cfg(target_os = "macos")]
-use vw_agent_apps::providers::live::{
-    claude_directory::ClaudeDirectory,
-    commit::{ExecutionHostId, ProviderTransactions},
-    write_guard::WriteError,
-};
+pub(super) use gateway_app_providers::paths::{directory_error, transactions, saved_claude_directory};
 
-#[cfg(target_os = "macos")]
-pub(super) fn directory_error(error: WriteError) -> StatusCode {
-    match error {
-        WriteError::Conflict => StatusCode::CONFLICT,
-        WriteError::InvalidResource => StatusCode::UNPROCESSABLE_ENTITY,
-        _ => StatusCode::SERVICE_UNAVAILABLE,
-    }
-}
-
-#[cfg(target_os = "macos")]
-pub(super) fn transactions(
-    root: &std::path::Path,
-    host: &str,
-) -> Result<ProviderTransactions, StatusCode> {
-    let host = ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?;
-    ProviderTransactions::new(root, host).map_err(directory_error)
-}
-
-#[cfg(target_os = "macos")]
-pub(super) fn saved_claude_directory(
-    root: Option<&std::path::Path>,
-    host: &str,
-    tenant: &TenantScope,
-) -> Result<Option<ClaudeDirectory>, StatusCode> {
-    let Some(root) = root else { return Ok(None) };
-    let host = ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?;
-    ProviderTransactions::open_existing(root, host)
-        .and_then(|tx| tx.map(|tx| tx.claude_directory(tenant)).transpose())
-        .map(Option::flatten)
-        .map_err(directory_error)
-}
 async fn read(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,

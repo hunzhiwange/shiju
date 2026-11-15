@@ -1,0 +1,30 @@
+[package]
+name = "gateway-app-providers"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+axum = { version = "0.8.8", features = ["json"] }
+tokio = { version = "1", features = ["rt"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+app-access-service = { path = "../app-access-service", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
+model-catalog = { path = "../model-catalog", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }

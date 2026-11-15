@@ -302,6 +302,7 @@ members = [
   "crates/libs/gateway-model",
   "crates/libs/gateway-app-read",
   "crates/libs/gateway-app-provider",
+  "crates/libs/gateway-app-providers",
   "crates/libs/gateway-app-lifecycle",
   "crates/libs/gateway-app-auth",
   "crates/libs/gateway-app-settings",

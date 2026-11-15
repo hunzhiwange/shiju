@@ -1,9 +1,7 @@
 //! Bound native login orchestration for the existing Claude transaction.
 use super::*;
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-    app_providers::{claude_binding_matches, managed_claude_binding},
-};
+use agent_app_services::auth_accounts::{AuthAccountScope, AuthAccountStore};
+use app_provider_services::{claude_binding_matches, managed_claude_binding};
 use vw_agent_apps::{
     auth::claude_keychain::ClaudeKeychain,
     providers::{
@@ -14,7 +12,7 @@ use vw_agent_apps::{
 use vw_api_app_auth::AuthService;
 impl super::Host {
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn apply(
+    pub fn apply(
         mut self,
         store: &AppProviderStore,
         tenant: &TenantScope,

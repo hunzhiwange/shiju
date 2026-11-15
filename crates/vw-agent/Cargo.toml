@@ -49,6 +49,7 @@ channel-imessage = { path = "../libs/channel-imessage", version = "0.6.0" }
 channel-clawdtalk = { path = "../libs/channel-clawdtalk", version = "0.6.0" }
 channel-cli = { path = "../libs/channel-cli", version = "0.6.0" }
 channel-support = { path = "../libs/channel-support", version = "0.6.0" }
+channel-qq = { path = "../libs/channel-qq", version = "0.6.0" }
 channel-nextcloud-talk = { path = "../libs/channel-nextcloud-talk", version = "0.6.0" }
 channel-lark = { path = "../libs/channel-lark", version = "0.6.0", optional = true }
 channel-wechat = { path = "../libs/channel-wechat", version = "0.6.0" }
@@ -461,6 +462,7 @@ name = "gateway_legacy_handlers"
 path = "tests/gateway_legacy_handlers.rs"
 
 [dev-dependencies]
+channel-qq = { path = "../libs/channel-qq", version = "0.6.0", features = ["test-support"] }
 agent-loop = { path = "../libs/agent-loop", version = "0.6.0", features = ["test-support"] }
 tool-mcp = { path = "../libs/tool-mcp", version = "0.6.0", features = ["test-support"] }
 tool-shell = { path = "../libs/tool-shell", version = "0.6.0", features = ["test-support"] }

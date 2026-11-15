@@ -99,6 +99,7 @@ members = [
   "crates/libs/channel-clawdtalk",
   "crates/libs/channel-cli",
   "crates/libs/channel-support",
+  "crates/libs/channel-qq",
   "crates/libs/channel-whatsapp-web",
   "crates/libs/channel-lark",
   "crates/libs/channel-wechat",

@@ -24,7 +24,7 @@ impl QQChannel {
         if !resp.status().is_success() {
             let status = resp.status();
             let err = resp.text().await.unwrap_or_default();
-            let sanitized = crate::app::agent::providers::sanitize_api_error(&err);
+            let sanitized = agent_providers::sanitize_api_error(&err);
             anyhow::bail!("QQ token request failed ({status}): {sanitized}");
         }
 
@@ -86,7 +86,7 @@ impl QQChannel {
         if !resp.status().is_success() {
             let status = resp.status();
             let err = resp.text().await.unwrap_or_default();
-            let sanitized = crate::app::agent::providers::sanitize_api_error(&err);
+            let sanitized = agent_providers::sanitize_api_error(&err);
             anyhow::bail!("QQ gateway request failed ({status}): {sanitized}");
         }
 

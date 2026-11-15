@@ -146,11 +146,11 @@ mod tests {
     app_secret = "secret_abc"
     allowed_users = ["user1"]
     "#;
-        let config: crate::app::agent::config::schema::QQConfig = toml::from_str(toml_str).unwrap();
+        let config: config_channel_services::QQConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.app_id, "12345");
         assert_eq!(config.app_secret, "secret_abc");
         assert_eq!(config.allowed_users, vec!["user1"]);
-        assert_eq!(config.receive_mode, crate::app::agent::config::schema::QQReceiveMode::Webhook);
+        assert_eq!(config.receive_mode, config_channel_services::QQReceiveMode::Webhook);
     }
 
     /// 测试 Webhook 验证响应的构建。

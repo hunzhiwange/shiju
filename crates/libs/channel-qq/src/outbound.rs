@@ -1,4 +1,4 @@
-use super::super::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 use super::QQChannel;
 use super::auth::ensure_https;
 use super::content::{
@@ -190,7 +190,7 @@ async fn send_message_with_client(
     let passive_msg_id =
         message.thread_ts.as_deref().map(str::trim).filter(|value| !value.is_empty());
     let (text_content, image_urls) = parse_outgoing_content(&message.content);
-    let text_chunks = super::super::markdown_chunk::split_markdown(&text_content, TEXT_BUDGET)
+    let text_chunks = channel_support::markdown_chunk::split_markdown(&text_content, TEXT_BUDGET)
         .map_err(|_| {
             delivery_error(
                 0,
@@ -307,7 +307,7 @@ impl QQChannel {
         &self,
         message: &channel_types::SendMessage,
     ) -> anyhow::Result<()> {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         if let Some(recorder) = &self.outbound_recorder {
             recorder.lock().await.push(message.clone());
             return Ok(());

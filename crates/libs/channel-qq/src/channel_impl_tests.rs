@@ -2,9 +2,14 @@
 
 use super::*;
 use channel_types::{Channel, SendMessage};
-use crate::app::agent::config::{
+use agent_config::{
     ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config,
 };
+
+fn runtime_proxy_lock() -> &'static std::sync::Mutex<()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    &LOCK
+}
 
 struct RuntimeProxyConfigGuard {
     _lock: std::sync::MutexGuard<'static, ()>,
@@ -13,7 +18,7 @@ struct RuntimeProxyConfigGuard {
 
 impl RuntimeProxyConfigGuard {
     fn install_failing_channel_proxy() -> Self {
-        let lock = crate::test_support::global_runtime_proxy_lock()
+        let lock = runtime_proxy_lock()
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let previous = runtime_proxy_config();
@@ -74,17 +79,4 @@ async fn qq_channel_trait_health_check_returns_false_when_auth_request_fails() {
     let as_trait: &dyn Channel = &channel;
 
     assert!(!as_trait.health_check().await);
-}
-
-impl QQChannel {
-    // 替换外部 WebSocket 读取边界，保留与 listen_gateway 相同的事件解析和权限检查。
-    pub(crate) async fn command_flow_websocket_frame(
-        &self,
-        frame: &serde_json::Value,
-    ) -> Option<channel_types::ChannelMessage> {
-        if frame.get("op").and_then(serde_json::Value::as_u64) != Some(0) {
-            return None;
-        }
-        self.parse_dispatch_message_event(frame.get("t")?.as_str()?, frame.get("d")?).await
-    }
 }

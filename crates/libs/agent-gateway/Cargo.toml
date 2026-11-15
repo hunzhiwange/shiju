@@ -37,6 +37,38 @@ version = "0.1"
 [lib]
 doctest = false
 
+[dependencies.agent-multimodal]
+path = "../agent-multimodal"
+version = "0.6.0"
+
+[dependencies.agent-util]
+path = "../agent-util"
+version = "0.6.0"
+
+[dependencies.session-info]
+path = "../session-info"
+version = "0.6.0"
+
+[dependencies.session-ui-types]
+path = "../session-ui-types"
+version = "0.6.0"
+
+[dependencies.session-engine]
+path = "../session-engine"
+version = "0.6.0"
+
+[dependencies.agent-loop]
+path = "../agent-loop"
+version = "0.6.0"
+
+[dependencies.gateway-pairing]
+path = "../gateway-pairing"
+version = "0.6.0"
+
+[dependencies.async-trait]
+version = "0.1"
+
+
 [dependencies.channel-linq]
 path = "../channel-linq"
 version = "0.6.0"

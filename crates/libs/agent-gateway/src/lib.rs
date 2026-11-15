@@ -1,5 +1,11 @@
 //! Gateway application services.
 #[cfg(not(target_arch = "wasm32"))]
+pub mod chat;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod chat_host;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod bootstrap;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod route_catalog;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod channel_reload;

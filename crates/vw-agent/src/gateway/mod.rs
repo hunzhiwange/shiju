@@ -180,4 +180,5 @@ pub(crate) fn wecom_acceptance_router(
 }
 
 #[cfg(test)]
+#[path = "../../../libs/agent-gateway/src/deepagents_window_tests.rs"]
 mod deepagents_window_tests;

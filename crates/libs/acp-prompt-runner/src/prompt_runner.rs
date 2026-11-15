@@ -16,26 +16,26 @@ use agent_client_protocol::{McpServer, SetSessionConfigOptionResponse};
 use parking_lot::Mutex;
 use tokio::sync::Mutex as AsyncMutex;
 
-use crate::error::AcpError;
-use crate::errors::{AcpxErrorOptions, QueueConnectionError};
-use crate::queue_ipc::{
+use acp_types::error::AcpError;
+use acp_types::errors::{AcpxErrorOptions, QueueConnectionError};
+use acp_queue::queue_ipc::{
     try_set_config_option_on_running_owner, try_set_mode_on_running_owner,
     try_set_model_on_running_owner,
 };
-use crate::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerActiveSessionController};
-use crate::session_mode_preference::{
+use acp_queue::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerActiveSessionController};
+use acp_access_policy::session_mode_preference::{
     resolve_config_value, resolve_model_config_value, set_current_model_id,
     set_desired_config_option, set_desired_mode_id, set_desired_model_id, sync_config_options,
 };
-use crate::session_persistence::{
+use acp_storage::session_persistence::{
     absolute_path, iso_now, resolve_session_record, write_session_record,
 };
 use acp_session_connect::ConnectAndLoadClient;
-use crate::session_runtime::lifecycle::apply_lifecycle_snapshot_to_record;
+use acp_lifecycle::apply_lifecycle_snapshot_to_record;
 use acp_async_control::{
     InterruptedError, TimeoutError, WithInterruptError, with_interrupt, with_timeout,
 };
-use crate::types::{
+use acp_types::{
     AcpAgentConfig, AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode,
     SessionRecord, SessionSetConfigOptionResult, SessionSetModeResult, SessionSetModelResult,
     SessionStateOptions,
@@ -73,7 +73,7 @@ struct WithConnectedSessionResult<T> {
 #[derive(Debug, thiserror::Error)]
 pub enum PromptRunnerError {
     #[error(transparent)]
-    SessionRepository(#[from] crate::session_persistence::SessionRepositoryError),
+    SessionRepository(#[from] acp_storage::session_persistence::SessionRepositoryError),
     #[error(transparent)]
     QueueConnection(#[from] QueueConnectionError),
     #[error(transparent)]
@@ -88,15 +88,15 @@ pub enum PromptRunnerError {
     SignalHandler(#[source] std::io::Error),
 }
 
-pub(super) struct PromptRunnerActiveSessionController {
-    client: Arc<crate::AcpClient>,
+pub struct PromptRunnerActiveSessionController {
+    client: Arc<acp_client::AcpClient>,
     cwd: PathBuf,
     session_id: Arc<Mutex<String>>,
 }
 
 impl PromptRunnerActiveSessionController {
-    pub(super) fn new(
-        client: Arc<crate::AcpClient>,
+    pub fn new(
+        client: Arc<acp_client::AcpClient>,
         cwd: PathBuf,
         session_id: Arc<Mutex<String>>,
     ) -> Self {
@@ -544,7 +544,7 @@ async fn with_connected_session<T, Run>(
     run: Run,
 ) -> Result<WithConnectedSessionResult<T>, PromptRunnerError>
 where
-    Run: for<'a> FnOnce(Arc<crate::AcpClient>, String, &'a mut SessionRecord) -> BoxFuture<'a, T>,
+    Run: for<'a> FnOnce(Arc<acp_client::AcpClient>, String, &'a mut SessionRecord) -> BoxFuture<'a, T>,
 {
     let record =
         Arc::new(AsyncMutex::new(resolve_session_record(&options.session_record_id).await?));
@@ -595,7 +595,7 @@ where
                 record_guard.closed_at = None;
                 apply_lifecycle_snapshot_to_record(
                     &mut record_guard,
-                    &<crate::AcpClient as ConnectAndLoadClient>::get_agent_lifecycle_snapshot(
+                    &<acp_client::AcpClient as ConnectAndLoadClient>::get_agent_lifecycle_snapshot(
                         client.as_ref(),
                     ),
                 );
@@ -622,7 +622,7 @@ where
                     let mut record_guard = record.lock().await;
                     apply_lifecycle_snapshot_to_record(
                         &mut record_guard,
-                        &<crate::AcpClient as ConnectAndLoadClient>::get_agent_lifecycle_snapshot(
+                        &<acp_client::AcpClient as ConnectAndLoadClient>::get_agent_lifecycle_snapshot(
                             client.as_ref(),
                         ),
                     );
@@ -643,7 +643,7 @@ where
     let mut record_guard = record.lock().await;
     apply_lifecycle_snapshot_to_record(
         &mut record_guard,
-        &<crate::AcpClient as ConnectAndLoadClient>::get_agent_lifecycle_snapshot(client.as_ref()),
+        &<acp_client::AcpClient as ConnectAndLoadClient>::get_agent_lifecycle_snapshot(client.as_ref()),
     );
     let _ = write_session_record(&record_guard).await;
 
@@ -670,7 +670,7 @@ fn queue_connection_error(error: AcpError) -> QueueConnectionError {
 }
 
 #[allow(clippy::result_large_err)]
-pub(super) fn queue_control_task<T, F, Fut>(run: F) -> QueueControlFuture<T>
+pub fn queue_control_task<T, F, Fut>(run: F) -> QueueControlFuture<T>
 where
     T: Send + 'static,
     F: FnOnce() -> Fut + Send + 'static,
@@ -708,9 +708,9 @@ where
     })
 }
 
-fn build_client(record: &SessionRecord, options: &WithConnectedSessionOptions) -> crate::AcpClient {
+fn build_client(record: &SessionRecord, options: &WithConnectedSessionOptions) -> acp_client::AcpClient {
     let agent_config = parse_agent_command(&record.agent_command);
-    let mut client = crate::AcpClient::new(record.agent_command.clone(), agent_config)
+    let mut client = acp_client::AcpClient::new(record.agent_command.clone(), agent_config)
         .with_mcp_servers(options.mcp_servers.clone().unwrap_or_default())
         .with_permission_mode(options.permission_mode.unwrap_or(PermissionMode::ApproveAll))
         .with_non_interactive_permissions(options.non_interactive_permissions)
@@ -765,7 +765,7 @@ pub(crate) fn non_empty_trimmed(value: Option<&str>) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
-pub(crate) fn parse_agent_command(agent_command: &str) -> AcpAgentConfig {
+pub fn parse_agent_command(agent_command: &str) -> AcpAgentConfig {
     let mut parts = split_command_line(agent_command);
     let command = parts.first().cloned().unwrap_or_else(|| agent_command.trim().to_string());
     if !parts.is_empty() {

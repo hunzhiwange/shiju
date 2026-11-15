@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::errors::{AcpxErrorOptions, QueueConnectionError};
 use crate::queue_owner_turn_controller::QueueOwnerTurnControllerOptions;
-use crate::session_runtime::prompt_runner::{
+use acp_prompt_runner::{
     PromptRunnerError, RunSessionSetConfigOptionDirectOptions, RunSessionSetModeDirectOptions,
     RunSessionSetModelDirectOptions, queue_control_task, run_session_set_config_option_direct,
     run_session_set_mode_direct, run_session_set_model_direct,

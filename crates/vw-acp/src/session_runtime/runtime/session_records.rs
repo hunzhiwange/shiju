@@ -11,7 +11,7 @@ use crate::session_persistence::{
     FindSessionByDirectoryWalkOptions, absolute_path, find_git_repository_root,
     find_session_by_directory_walk, iso_now, list_sessions, normalize_name, write_session_record,
 };
-use crate::session_runtime::prompt_runner::SessionSetModelOptions;
+use acp_prompt_runner::SessionSetModelOptions;
 use crate::types::{AuthPolicy, SESSION_RECORD_SCHEMA, SessionEnsureResult, SessionRecord};
 use crate::{AcpClient, set_session_model, sync_advertised_model_state as sync_model_state};
 

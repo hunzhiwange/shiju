@@ -7,7 +7,7 @@
 
 pub use acp_session_connect::connect_load;
 pub mod lifecycle;
-pub mod prompt_runner;
+pub use acp_prompt_runner::prompt_runner;
 pub use acp_owner_process::queue_owner_process;
 pub mod runtime;
 

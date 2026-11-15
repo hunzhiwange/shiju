@@ -14,11 +14,11 @@ use super::{
     map_with_interrupt_error, non_empty_trimmed, parse_agent_command, queue_connection_error,
     queue_control_task, session_options_from_record, split_command_line, with_connected_session,
 };
-use crate::error::AcpError;
-use crate::errors::{AcpxErrorOptions, QueueConnectionError};
-use crate::queue_paths::TEST_HOME_ENV_LOCK;
+use acp_types::error::AcpError;
+use acp_types::errors::{AcpxErrorOptions, QueueConnectionError};
+static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 use acp_async_control::{InterruptedError, TimeoutError, WithInterruptError};
-use crate::types::{
+use acp_types::{
     SessionAcpxState, SessionEventLog, SessionRecord, SessionStateOptions, SessionTokenUsage,
 };
 
@@ -71,7 +71,7 @@ impl Drop for HomeEnvGuard {
 
 fn test_record() -> SessionRecord {
     SessionRecord {
-        schema: crate::SESSION_RECORD_SCHEMA.to_string(),
+        schema: acp_types::SESSION_RECORD_SCHEMA.to_string(),
         vwacp_record_id: "record-1".to_string(),
         acp_session_id: "acp-1".to_string(),
         agent_session_id: None,
@@ -356,7 +356,7 @@ async fn with_connected_session_updates_record_and_runs_callbacks() {
     let mut record = test_record();
     record.closed = Some(true);
     record.closed_at = Some("2026-01-02T00:00:00Z".to_string());
-    crate::write_session_record(&record).await.expect("write initial record");
+    acp_storage::write_session_record(&record).await.expect("write initial record");
     let events = Arc::new(Mutex::new(Vec::new()));
 
     let result = with_connected_session(
@@ -411,7 +411,7 @@ async fn with_connected_session_updates_record_and_runs_callbacks() {
         vec!["available", "run", "closed"]
     );
 
-    let persisted = crate::resolve_session_record("record-1").await.expect("resolve persisted");
+    let persisted = acp_storage::resolve_session_record("record-1").await.expect("resolve persisted");
     assert_eq!(persisted.title.as_deref(), Some("updated title"));
     assert_eq!(persisted.closed, Some(false));
     assert_eq!(persisted.closed_at, None);

@@ -23,9 +23,9 @@ use acp_session_connect::{
     ConnectAndLoadClient, ConnectAndLoadSessionOptions, connect_and_load_session,
 };
 use crate::session_runtime::lifecycle::apply_lifecycle_snapshot_to_record;
-use crate::session_runtime::prompt_runner::PromptRunnerActiveSessionController;
-use crate::session_runtime::prompt_runner::{
-    ClientAvailableCallback, ClientClosedCallback, parse_agent_command,
+use acp_prompt_runner::{
+    ClientAvailableCallback, ClientClosedCallback, PromptRunnerActiveSessionController,
+    parse_agent_command,
 };
 use acp_async_control::with_timeout;
 use crate::types::{

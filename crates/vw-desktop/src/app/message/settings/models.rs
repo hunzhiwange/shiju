@@ -9,8 +9,8 @@ use crate::app::{
 };
 use iced::Task;
 use serde_json::{Map, Value};
-use vw_shared::provider::types as provider_types;
-use vw_shared::provider::types::Info;
+use model_types as provider_types;
+use model_types::Info;
 
 use super::messages::SettingsMessage;
 use super::types::ModelStatusChange;

@@ -17,8 +17,8 @@ use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::UNIX_EPOCH;
 use config_agent::builtin_agent_spec;
-use vw_shared::provider::types as provider_types;
-use vw_shared::provider::types::Info;
+use model_types as provider_types;
+use model_types::Info;
 
 use super::util::{is_provider_connected, load_gateway_providers};
 

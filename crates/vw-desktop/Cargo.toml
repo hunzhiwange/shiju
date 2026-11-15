@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+model-types = { path = "../libs/model-types", version = "0.6.0" }
 config-worktree = { path = "../libs/config-worktree", version = "0.6.0" }
 vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle", version = "0.6.0" }
 model-catalog-types = { path = "../libs/model-catalog-types", version = "0.6.0" }

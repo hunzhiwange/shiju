@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+model-types = { path = "../model-types", version = "0.6.0" }
 model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
 gateway-model-provider = { path = "../gateway-model-provider", version = "0.6.0" }
 cli-gateway-transport = { path = "../cli-gateway-transport", version = "0.6.0" }

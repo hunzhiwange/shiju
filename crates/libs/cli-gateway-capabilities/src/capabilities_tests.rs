@@ -28,7 +28,7 @@ fn model_efforts_follow_each_models_protocol_and_declared_options() {
     ] {
         let io =
             json!({"text": true, "audio": false, "image": false, "video": false, "pdf": false});
-        let mut model: vw_shared::provider::types::Model = serde_json::from_value(json!({
+        let mut model: model_types::Model = serde_json::from_value(json!({
             "id": id, "providerID": provider, "name": id,
             "api": {"id": id, "adapter": "openai-compatible", "url": "https://example.com/v1"},
             "capabilities": {"temperature": true, "reasoning": true, "attachment": false,

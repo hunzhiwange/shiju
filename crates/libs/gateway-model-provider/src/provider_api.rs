@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use vw_shared::provider::types::Info;
+use model_types::Info;
 
 use super::GatewayModelProviderClient;
 use gateway_http::directory_query;

@@ -1,5 +1,5 @@
 use std::{collections::HashMap, io::{Read, Write}, net::TcpListener, sync::mpsc::{self, Receiver}, thread::JoinHandle, time::Duration};
-use vw_shared::provider::types::{ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost, ModelCostCache, ModelLimit, ProviderSource};
+use model_types::{ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost, ModelCostCache, ModelLimit, ProviderSource};
 
 // 单次请求服务器既返回受控响应，也把原始请求交给测试线程核对认证头和路径。
 pub(crate) struct TestServer {

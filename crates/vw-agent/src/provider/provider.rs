@@ -44,12 +44,12 @@ pub use vw_shared::provider::state::{
     State, as_string_map, builtin_model_limit, default_model_capabilities, from_models_dev_model,
     from_models_dev_provider, normalize_adapter, resolve_model_capabilities, resolve_model_limit,
 };
-pub use vw_shared::provider::types::{
+pub use model_types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelCostOver200k, ModelLimit, ModelNotFoundError, ParsedModelRef,
     ProviderSource, default_adapter,
 };
-pub use vw_shared::provider::types::{parse_model, sort};
+pub use model_types::{parse_model, sort};
 
 /// Provider 模块的日志记录器
 ///

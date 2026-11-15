@@ -1,6 +1,6 @@
 //! 定义系统设置异步加载结果类型别名，统一各设置模块的任务返回值。
 
-use vw_shared::provider::types as model_provider;
+use model_types as model_provider;
 
 use crate::app::state::{ModelCatalogEntry, ProviderModelsSummary, ProviderSummary};
 

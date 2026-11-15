@@ -11,7 +11,7 @@ use vw_api_types::model_catalog::{
 };
 use model_reasoning::ReasoningOption;
 use vw_shared::provider::state::{DEFAULT_MODEL_CONTEXT_LIMIT, DEFAULT_MODEL_OUTPUT_LIMIT};
-use vw_shared::provider::types::CatalogExecutionCapabilities;
+use model_types::CatalogExecutionCapabilities;
 
 pub(super) struct DeploymentCatalog {
     adapter: String,

@@ -2,7 +2,7 @@
 use aisdk::core::language_model::ReasoningEffort;
 use serde_json::{Map, Value, json};
 use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
-use vw_shared::provider::types::Model;
+use model_types::Model;
 
 fn parse_effort(options: &Map<String, Value>) -> aisdk::Result<Option<ReasoningEffort>> {
     options

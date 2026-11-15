@@ -18,7 +18,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use config_agent::DelegateCapabilityPolicy;
-use vw_shared::provider::types::{
+use model_types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
 };

@@ -5,7 +5,7 @@ use crate::app::message::settings::util::is_provider_connected;
 use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use std::collections::BTreeMap;
 use model_catalog_types as raw_model_provider;
-use vw_shared::provider::types as model_provider;
+use model_types as model_provider;
 
 /// 处理 `summarize_providers` 对应的用户输入、异步结果或状态转换。
 ///

@@ -6,7 +6,7 @@ use crate::app::App;
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use vw_shared::provider::types::{
+use model_types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
 };

@@ -267,7 +267,7 @@ pub(super) async fn handle_models(current: &ChannelRouteSelection) -> String {
     )
 }
 
-pub(super) fn effort_levels(model: &vw_shared::provider::types::Model) -> Vec<String> {
+pub(super) fn effort_levels(model: &model_types::Model) -> Vec<String> {
     if !model.capabilities.reasoning {
         return Vec::new();
     }

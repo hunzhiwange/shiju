@@ -2,7 +2,7 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use vw_shared::provider::types::{Info, ProviderSource};
+use model_types::{Info, ProviderSource};
 
 fn provider(source: ProviderSource, key: Option<&str>) -> Info {
     Info {

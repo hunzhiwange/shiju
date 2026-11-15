@@ -1,7 +1,7 @@
 //! 远端模型与静态目录的合并。
 
 use std::collections::{BTreeSet, HashMap, HashSet};
-use vw_shared::provider::types::{ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost, ModelCostCache, ModelLimit, default_adapter};
+use model_types::{ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost, ModelCostCache, ModelLimit, default_adapter};
 use crate::{DiscoveryError, discover_openai_compatible_models, is_real_bearer};
 
 /// 选择配置 API 基址；未配置时仅接受唯一明确的兼容模型部署。

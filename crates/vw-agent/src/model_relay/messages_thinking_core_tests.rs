@@ -130,7 +130,7 @@ fn model_protocol_015_missing_thinking_and_foreign_tool_results_are_diagnostic_e
 
 #[test]
 fn model_protocol_015_model_modes_preserve_budgets_or_explicitly_reject_them() {
-    use vw_shared::provider::types::{ApiInfo, Model, ModelCost, ModelCostCache, ModelLimit};
+    use model_types::{ApiInfo, Model, ModelCost, ModelCostCache, ModelLimit};
     let mut model = Model {
         id: "selected".into(),
         provider_id: "custom".into(),

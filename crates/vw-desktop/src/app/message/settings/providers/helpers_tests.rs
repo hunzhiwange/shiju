@@ -3,7 +3,7 @@
 
 use super::*;
 use std::collections::HashMap;
-use vw_shared::provider::types::{
+use model_types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
 };

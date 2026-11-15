@@ -10,13 +10,13 @@ pub mod provider {
         default_model, get_model, get_provider, invalidate_cache, list, list_for_settings,
     };
     /// 对外暴露当前模块需要复用的能力。
-    pub use vw_shared::provider::types::{
+    pub use model_types::{
         ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
         ModelCostCache, ModelCostOver200k, ModelLimit, ModelNotFoundError, ParsedModelRef,
         ProviderSource, default_adapter,
     };
     /// 对外暴露当前模块需要复用的能力。
-    pub use vw_shared::provider::types::{parse_model, sort};
+    pub use model_types::{parse_model, sort};
 }
 
 /// provider_models 子模块，拆分当前领域的局部职责。

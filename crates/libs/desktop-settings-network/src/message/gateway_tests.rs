@@ -2,10 +2,10 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
+type App = GatewaySettingsState;
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
@@ -25,84 +25,84 @@ fn gateway_helpers_normalize_and_clamp() {
 #[test]
 fn gateway_update_generates_skeys_and_handles_help() {
     let mut app = app();
-    app.gateway_settings.skeys.clear();
-    app.gateway_settings.save_error = Some(("old".to_string()).into());
-    app.gateway_settings.new_skey_calendar_open = true;
+    app.skeys.clear();
+    app.save_error = Some(("old".to_string()).into());
+    app.new_skey_calendar_open = true;
 
-    assert_eq!(app.gateway_settings.active_tab, crate::app::state::GatewaySettingsTab::Config);
+    assert_eq!(app.active_tab, crate::state::GatewaySettingsTab::Config);
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::TabSelected(
-            crate::app::state::GatewaySettingsTab::Skeys,
+            crate::state::GatewaySettingsTab::Skeys,
         )),
     );
-    assert_eq!(app.gateway_settings.active_tab, crate::app::state::GatewaySettingsTab::Skeys);
-    assert!(!app.gateway_settings.new_skey_calendar_open);
+    assert_eq!(app.active_tab, crate::state::GatewaySettingsTab::Skeys);
+    assert!(!app.new_skey_calendar_open);
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::Refresh));
-    assert!(app.gateway_settings.save_error.is_none());
+    assert!(app.save_error.is_none());
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::NewSkeyNameChanged(" laptop ".to_string())),
     );
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::NewSkeyCalendarToggled));
-    assert!(app.gateway_settings.new_skey_calendar_open);
+    assert!(app.new_skey_calendar_open);
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::NewSkeyCalendarClosed));
-    assert!(!app.gateway_settings.new_skey_calendar_open);
+    assert!(!app.new_skey_calendar_open);
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::NewSkeyCalendarToggled));
-    assert!(app.gateway_settings.new_skey_calendar_open);
+    assert!(app.new_skey_calendar_open);
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresDateSelected(
             "2026-12-31".to_string(),
         )),
     );
-    assert!(!app.gateway_settings.new_skey_calendar_open);
+    assert!(!app.new_skey_calendar_open);
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::AddSkey));
-    assert_eq!(app.gateway_settings.skeys.len(), 1);
-    assert!(app.gateway_settings.skeys[0].enabled);
-    assert_eq!(app.gateway_settings.skeys[0].name, "laptop");
-    assert_eq!(app.gateway_settings.skeys[0].expires_at.as_deref(), Some("2026-12-31T23:59:59Z"));
-    assert!(app.gateway_settings.skeys[0].skey.is_none());
-    assert!(app.gateway_settings.new_skey_name_input.is_empty());
-    let generated = app.gateway_settings.last_created_skey.clone().unwrap();
+    assert_eq!(app.skeys.len(), 1);
+    assert!(app.skeys[0].enabled);
+    assert_eq!(app.skeys[0].name, "laptop");
+    assert_eq!(app.skeys[0].expires_at.as_deref(), Some("2026-12-31T23:59:59Z"));
+    assert!(app.skeys[0].skey.is_none());
+    assert!(app.new_skey_name_input.is_empty());
+    let generated = app.last_created_skey.clone().unwrap();
     assert!(generated.starts_with("sk-"));
-    assert_eq!(app.gateway_settings.skeys[0].skey_hash, hash_skey(&generated));
-    assert_eq!(app.gateway_settings.skeys[0].masked_skey, mask_skey_for_display(&generated));
+    assert_eq!(app.skeys[0].skey_hash, hash_skey(&generated));
+    assert_eq!(app.skeys[0].masked_skey, mask_skey_for_display(&generated));
 
     let _ =
         update(&mut app, SettingsMessage::Gateway(GatewayMessage::SkeyEnabledToggled(0, false)));
-    assert!(!app.gateway_settings.skeys[0].enabled);
+    assert!(!app.skeys[0].enabled);
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::CopyLastCreatedSkey));
-    assert!(app.gateway_settings.last_created_skey_copied);
+    assert!(app.last_created_skey_copied);
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::ClearLastCreatedSkeyCopied));
-    assert!(!app.gateway_settings.last_created_skey_copied);
+    assert!(!app.last_created_skey_copied);
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::NewSkeyNameChanged(" ".to_string())),
     );
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::AddSkey));
-    assert!(app.gateway_settings.save_error.as_deref().unwrap_or("").contains("不能为空"));
+    assert!(app.save_error.as_deref().unwrap_or("").contains("不能为空"));
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::HostChanged("".to_string())));
     let _ =
         update(&mut app, SettingsMessage::Gateway(GatewayMessage::IdempotencyTtlSecsChanged(0)));
-    assert_eq!(app.gateway_settings.host_input, "127.0.0.1");
-    assert_eq!(app.gateway_settings.idempotency_ttl_secs, 1);
+    assert_eq!(app.host_input, "127.0.0.1");
+    assert_eq!(app.idempotency_ttl_secs, 1);
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::HelpOpen));
-    assert!(app.gateway_settings.show_help_modal);
+    assert!(app.show_help_modal);
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::HelpClose));
-    assert!(!app.gateway_settings.show_help_modal);
+    assert!(!app.show_help_modal);
 }
 
 #[test]
 fn gateway_service_command_completion_updates_status_fields() {
     let mut app = app();
-    app.gateway_settings.service_action_running = Some("status".to_string());
+    app.service_action_running = Some("status".to_string());
 
     let _ = update(
         &mut app,
@@ -111,11 +111,11 @@ fn gateway_service_command_completion_updates_status_fields() {
             Ok("Service: running".to_string()),
         )),
     );
-    assert!(app.gateway_settings.service_action_running.is_none());
-    assert_eq!(app.gateway_settings.service_action_output.as_deref(), Some("Service: running"));
-    assert!(app.gateway_settings.save_error.is_none());
+    assert!(app.service_action_running.is_none());
+    assert_eq!(app.service_action_output.as_deref(), Some("Service: running"));
+    assert!(app.save_error.is_none());
 
-    app.gateway_settings.service_action_running = Some("start".to_string());
+    app.service_action_running = Some("start".to_string());
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ServiceCommandCompleted(
@@ -123,10 +123,10 @@ fn gateway_service_command_completion_updates_status_fields() {
             Err("not installed".to_string()),
         )),
     );
-    assert!(app.gateway_settings.service_action_running.is_none());
-    assert!(app.gateway_settings.service_action_output.is_none());
+    assert!(app.service_action_running.is_none());
+    assert!(app.service_action_output.is_none());
     assert!(
-        app.gateway_settings.save_error.as_deref().unwrap_or_default().contains("not installed")
+        app.save_error.as_deref().unwrap_or_default().contains("not installed")
     );
 }
 
@@ -141,7 +141,7 @@ fn gateway_service_command_copy_state_clears_after_matching_command() {
         )),
     );
     assert_eq!(
-        app.gateway_settings.copied_service_command.as_deref(),
+        app.copied_service_command.as_deref(),
         Some("shiju server restart")
     );
 
@@ -152,7 +152,7 @@ fn gateway_service_command_copy_state_clears_after_matching_command() {
         )),
     );
     assert_eq!(
-        app.gateway_settings.copied_service_command.as_deref(),
+        app.copied_service_command.as_deref(),
         Some("shiju server restart")
     );
 
@@ -162,7 +162,7 @@ fn gateway_service_command_copy_state_clears_after_matching_command() {
             "shiju server restart".to_string(),
         )),
     );
-    assert!(app.gateway_settings.copied_service_command.is_none());
+    assert!(app.copied_service_command.is_none());
 }
 
 // 行为契约：使用代表性场景固定该分支的可观察结果。
@@ -175,22 +175,22 @@ fn gateway_danger_service_commands_require_confirmation() {
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ServiceCommandRequested("stop".to_string())),
     );
-    assert_eq!(app.gateway_settings.pending_service_command_confirmation.as_deref(), Some("stop"));
-    assert!(app.gateway_settings.service_action_running.is_none());
+    assert_eq!(app.pending_service_command_confirmation.as_deref(), Some("stop"));
+    assert!(app.service_action_running.is_none());
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::CancelDangerServiceCommand));
-    assert!(app.gateway_settings.pending_service_command_confirmation.is_none());
+    assert!(app.pending_service_command_confirmation.is_none());
 
-    app.gateway_settings.pending_service_command_confirmation = Some("uninstall".to_string());
+    app.pending_service_command_confirmation = Some("uninstall".to_string());
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ConfirmDangerServiceCommand("stop".to_string())),
     );
     assert_eq!(
-        app.gateway_settings.pending_service_command_confirmation.as_deref(),
+        app.pending_service_command_confirmation.as_deref(),
         Some("uninstall")
     );
-    assert!(app.gateway_settings.service_action_running.is_none());
+    assert!(app.service_action_running.is_none());
 
     let _ = update(
         &mut app,
@@ -198,8 +198,8 @@ fn gateway_danger_service_commands_require_confirmation() {
             "uninstall".to_string(),
         )),
     );
-    assert!(app.gateway_settings.pending_service_command_confirmation.is_none());
-    assert_eq!(app.gateway_settings.service_action_running.as_deref(), Some("uninstall"));
+    assert!(app.pending_service_command_confirmation.is_none());
+    assert_eq!(app.service_action_running.as_deref(), Some("uninstall"));
 }
 
 #[test]
@@ -243,8 +243,8 @@ fn gateway_calendar_helpers_parse_rfc3339_and_shift_across_years() {
 #[test]
 fn current_calendar_month_falls_back_to_expiration_before_today() {
     let mut app = app();
-    app.gateway_settings.new_skey_calendar_month = "invalid".to_string();
-    app.gateway_settings.new_skey_expires_at_input = "2031-07-19T08:30:00+08:00".to_string();
+    app.new_skey_calendar_month = "invalid".to_string();
+    app.new_skey_expires_at_input = "2031-07-19T08:30:00+08:00".to_string();
 
     assert_eq!(current_calendar_month(&app), NaiveDate::from_ymd_opt(2031, 7, 1).unwrap());
 }
@@ -254,12 +254,12 @@ fn current_calendar_month_falls_back_to_expiration_before_today() {
 #[test]
 fn gateway_expiration_messages_keep_calendar_and_input_consistent() {
     let mut app = app();
-    app.gateway_settings.new_skey_calendar_month = "2026-12".to_string();
-    app.gateway_settings.new_skey_calendar_open = true;
+    app.new_skey_calendar_month = "2026-12".to_string();
+    app.new_skey_calendar_open = true;
 
     let _ =
         update(&mut app, SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresMonthChanged(1)));
-    assert_eq!(app.gateway_settings.new_skey_calendar_month, "2027-01");
+    assert_eq!(app.new_skey_calendar_month, "2027-01");
 
     let _ = update(
         &mut app,
@@ -267,25 +267,25 @@ fn gateway_expiration_messages_keep_calendar_and_input_consistent() {
             "2028-03-14T10:00:00Z".to_string(),
         )),
     );
-    assert_eq!(app.gateway_settings.new_skey_calendar_month, "2028-03");
-    assert_eq!(app.gateway_settings.new_skey_expires_at_input, "2028-03-14T10:00:00Z");
+    assert_eq!(app.new_skey_calendar_month, "2028-03");
+    assert_eq!(app.new_skey_expires_at_input, "2028-03-14T10:00:00Z");
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresAtChanged("not-a-date".to_string())),
     );
-    assert_eq!(app.gateway_settings.new_skey_calendar_month, "2028-03");
-    assert_eq!(app.gateway_settings.new_skey_expires_at_input, "not-a-date");
+    assert_eq!(app.new_skey_calendar_month, "2028-03");
+    assert_eq!(app.new_skey_expires_at_input, "not-a-date");
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::NewSkeyExpiresAtCleared));
-    assert!(app.gateway_settings.new_skey_expires_at_input.is_empty());
-    assert!(!app.gateway_settings.new_skey_calendar_open);
+    assert!(app.new_skey_expires_at_input.is_empty());
+    assert!(!app.new_skey_calendar_open);
 }
 
 #[test]
 fn gateway_config_messages_clamp_values_and_preserve_ignored_pair_limit() {
     let mut app = app();
-    app.gateway_settings.save_error = Some(("stale".to_string()).into());
+    app.save_error = Some(("stale".to_string()).into());
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::PortChanged(0)));
     let _ = update(
@@ -301,18 +301,18 @@ fn gateway_config_messages_clamp_values_and_preserve_ignored_pair_limit() {
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::IdempotencyMaxKeysChanged(u32::MAX)),
     );
-    let previous_webhook_limit = app.gateway_settings.webhook_rate_limit_per_minute;
+    let previous_webhook_limit = app.webhook_rate_limit_per_minute;
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::PairRateLimitPerMinuteChanged(7)),
     );
 
-    assert_eq!(app.gateway_settings.port, 1);
-    assert_eq!(app.gateway_settings.webhook_rate_limit_per_minute, previous_webhook_limit);
-    assert_eq!(app.gateway_settings.rate_limit_max_keys, 1);
-    assert_eq!(app.gateway_settings.idempotency_ttl_secs, 86_400);
-    assert_eq!(app.gateway_settings.idempotency_max_keys, 100_000);
-    assert!(app.gateway_settings.save_error.is_none());
+    assert_eq!(app.port, 1);
+    assert_eq!(app.webhook_rate_limit_per_minute, previous_webhook_limit);
+    assert_eq!(app.rate_limit_max_keys, 1);
+    assert_eq!(app.idempotency_ttl_secs, 86_400);
+    assert_eq!(app.idempotency_max_keys, 100_000);
+    assert!(app.save_error.is_none());
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::RequirePairingToggled(true)));
     let _ =
@@ -336,41 +336,41 @@ fn gateway_config_messages_clamp_values_and_preserve_ignored_pair_limit() {
         )),
     );
 
-    assert!(app.gateway_settings.auth_enabled);
-    assert!(app.gateway_settings.allow_public_bind);
-    assert!(app.gateway_settings.trust_forwarded_headers);
-    assert!(app.gateway_settings.node_control_enabled);
-    assert_eq!(app.gateway_settings.node_control_auth_token_input, " token ");
-    assert_eq!(app.gateway_settings.node_control_allowed_node_ids_input, "node-a, node-b");
+    assert!(app.auth_enabled);
+    assert!(app.allow_public_bind);
+    assert!(app.trust_forwarded_headers);
+    assert!(app.node_control_enabled);
+    assert_eq!(app.node_control_auth_token_input, " token ");
+    assert_eq!(app.node_control_allowed_node_ids_input, "node-a, node-b");
 }
 
 #[test]
 fn gateway_alias_and_index_messages_handle_missing_and_existing_skeys() {
     let mut app = app();
-    app.gateway_settings.skeys.clear();
+    app.skeys.clear();
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::NewPairedTokenChanged(" legacy ".to_string())),
     );
-    assert_eq!(app.gateway_settings.new_skey_name_input, " legacy ");
+    assert_eq!(app.new_skey_name_input, " legacy ");
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::NewSkeyChanged(" alias ".to_string())),
     );
-    assert_eq!(app.gateway_settings.new_skey_name_input, " alias ");
+    assert_eq!(app.new_skey_name_input, " alias ");
 
     let _ =
         update(&mut app, SettingsMessage::Gateway(GatewayMessage::SkeyEnabledToggled(4, false)));
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::RemovePairedToken(4)));
-    assert!(app.gateway_settings.skeys.is_empty());
+    assert!(app.skeys.is_empty());
 
-    app.gateway_settings.new_skey_name_input = "legacy token".to_string();
+    app.new_skey_name_input = "legacy token".to_string();
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::AddPairedToken));
-    assert_eq!(app.gateway_settings.skeys.len(), 1);
+    assert_eq!(app.skeys.len(), 1);
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::RemoveSkey(0)));
-    assert!(app.gateway_settings.skeys.is_empty());
+    assert!(app.skeys.is_empty());
 }
 
 #[test]
@@ -381,8 +381,8 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ServiceCommandRequested(" ReStArT ".to_string())),
     );
-    assert_eq!(app.gateway_settings.service_action_running.as_deref(), Some("restart"));
-    assert!(app.gateway_settings.pending_service_command_confirmation.is_none());
+    assert_eq!(app.service_action_running.as_deref(), Some("restart"));
+    assert!(app.pending_service_command_confirmation.is_none());
 
     let _ = update(
         &mut app,
@@ -392,7 +392,7 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
         )),
     );
     assert_eq!(
-        app.gateway_settings.service_action_output.as_deref(),
+        app.service_action_output.as_deref(),
         Some("service status 执行完成")
     );
 
@@ -404,7 +404,7 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
         )),
     );
     assert_eq!(
-        app.gateway_settings.service_action_output.as_deref(),
+        app.service_action_output.as_deref(),
         Some("service start 执行完成")
     );
 
@@ -416,12 +416,12 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
         )),
     );
     assert_eq!(
-        app.gateway_settings.service_action_output.as_deref(),
+        app.service_action_output.as_deref(),
         Some("service start 执行完成\n本机 gateway 已恢复并刷新连接状态。")
     );
-    assert!(app.gateway_settings.save_error.is_none());
+    assert!(app.save_error.is_none());
 
-    app.gateway_settings.service_action_output = None;
+    app.service_action_output = None;
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ServiceRecoveryCompleted(
@@ -430,7 +430,7 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
         )),
     );
     assert_eq!(
-        app.gateway_settings.service_action_output.as_deref(),
+        app.service_action_output.as_deref(),
         Some("本机 gateway 已恢复并刷新连接状态。")
     );
 
@@ -442,7 +442,7 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
         )),
     );
     assert!(
-        app.gateway_settings
+        app
             .save_error
             .as_deref()
             .unwrap_or_default()
@@ -455,19 +455,19 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
 #[test]
 fn gateway_update_ignores_non_gateway_messages_and_copy_without_a_skey() {
     let mut app = app();
-    app.gateway_settings.save_error = Some(("keep".to_string()).into());
+    app.save_error = Some(("keep".to_string()).into());
 
-    let _ = update(&mut app, SettingsMessage::ProvidersRefresh);
-    assert_eq!(app.gateway_settings.save_error.as_deref(), Some("keep"));
+    let _ = update(&mut app, SettingsMessage::None);
+    assert_eq!(app.save_error.as_deref(), Some("keep"));
 
-    app.gateway_settings.last_created_skey = None;
-    app.gateway_settings.last_created_skey_copied = false;
+    app.last_created_skey = None;
+    app.last_created_skey_copied = false;
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::CopyLastCreatedSkey));
-    assert!(!app.gateway_settings.last_created_skey_copied);
+    assert!(!app.last_created_skey_copied);
 
-    app.gateway_settings.new_skey_name_input = "invalid expiration".to_string();
-    app.gateway_settings.new_skey_expires_at_input = "2026-02-30".to_string();
+    app.new_skey_name_input = "invalid expiration".to_string();
+    app.new_skey_expires_at_input = "2026-02-30".to_string();
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::AddSkey));
-    assert!(app.gateway_settings.skeys.is_empty());
-    assert!(app.gateway_settings.save_error.as_deref().unwrap_or_default().contains("过期日期"));
+    assert!(app.skeys.is_empty());
+    assert!(app.save_error.as_deref().unwrap_or_default().contains("过期日期"));
 }

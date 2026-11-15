@@ -2,10 +2,10 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::state::TunnelSettingsState;
+use crate::state::TunnelSettingsState;
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
@@ -127,13 +127,13 @@ fn build_tunnel_config_trims_populated_sections_even_when_provider_is_none() {
 #[test]
 fn update_rejects_non_tunnel_messages_without_changing_state() {
     let mut app = app();
-    app.tunnel_settings.provider = "custom".to_string();
-    app.tunnel_settings.save_error = Some("keep me".to_string());
+    app.provider = "custom".to_string();
+    app.save_error = Some("keep me".to_string());
 
-    let _ = update(&mut app, SettingsMessage::SystemHelpClose);
+    let _ = update(&mut app, SettingsMessage::None);
 
-    assert_eq!(app.tunnel_settings.provider, "custom");
-    assert_eq!(app.tunnel_settings.save_error.as_deref(), Some("keep me"));
+    assert_eq!(app.provider, "custom");
+    assert_eq!(app.save_error.as_deref(), Some("keep me"));
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -141,7 +141,7 @@ fn update_rejects_non_tunnel_messages_without_changing_state() {
 #[test]
 fn update_applies_every_tunnel_field_and_clears_save_error() {
     let mut app = app();
-    app.tunnel_settings.save_error = Some("old error".to_string());
+    app.save_error = Some("old error".to_string());
 
     let messages = [
         TunnelMessage::ProviderChanged(" NGROK ".to_string()),
@@ -159,14 +159,14 @@ fn update_applies_every_tunnel_field_and_clears_save_error() {
         let _ = update(&mut app, SettingsMessage::Tunnel(message));
     }
 
-    assert_eq!(app.tunnel_settings.provider, "ngrok");
-    assert_eq!(app.tunnel_settings.cloudflare_token, " cf-token ");
-    assert!(app.tunnel_settings.tailscale_funnel);
-    assert_eq!(app.tunnel_settings.tailscale_hostname, "node.tailnet.ts.net");
-    assert_eq!(app.tunnel_settings.ngrok_auth_token, "ngrok-token");
-    assert_eq!(app.tunnel_settings.ngrok_domain, "demo.ngrok.app");
-    assert_eq!(app.tunnel_settings.custom_start_command, "bore local {port}");
-    assert_eq!(app.tunnel_settings.custom_health_url, "http://127.0.0.1:4040/health");
-    assert_eq!(app.tunnel_settings.custom_url_pattern, "https://[^ ]+");
-    assert!(app.tunnel_settings.save_error.is_none());
+    assert_eq!(app.provider, "ngrok");
+    assert_eq!(app.cloudflare_token, " cf-token ");
+    assert!(app.tailscale_funnel);
+    assert_eq!(app.tailscale_hostname, "node.tailnet.ts.net");
+    assert_eq!(app.ngrok_auth_token, "ngrok-token");
+    assert_eq!(app.ngrok_domain, "demo.ngrok.app");
+    assert_eq!(app.custom_start_command, "bore local {port}");
+    assert_eq!(app.custom_health_url, "http://127.0.0.1:4040/health");
+    assert_eq!(app.custom_url_pattern, "https://[^ ]+");
+    assert!(app.save_error.is_none());
 }

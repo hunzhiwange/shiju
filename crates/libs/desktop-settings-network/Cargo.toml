@@ -8,6 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+sha2 = "0.11"
+hex = "0.4"
+rand = "0.10.3"
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 pinyin = "0.11"
 config-proxy = { path = "../config-proxy", version = "0.6.0" }
 config-aggregate = { path = "../config-aggregate", version = "0.6.0" }

@@ -2,10 +2,10 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
+type App = WebSearchSettingsState;
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
@@ -57,8 +57,8 @@ fn parse_timeout_secs_applies_default_and_rejects_invalid_values() {
 #[test]
 fn persistence_validation_reports_max_results_before_timeout() {
     let mut app = app();
-    app.web_search_settings.max_results_input = "invalid max".to_string();
-    app.web_search_settings.timeout_secs_input = "invalid timeout".to_string();
+    app.max_results_input = "invalid max".to_string();
+    app.timeout_secs_input = "invalid timeout".to_string();
 
     let error = match persist_web_search_settings(&mut app) {
         Ok(_) => panic!("invalid max_results should reject persistence"),
@@ -71,21 +71,21 @@ fn persistence_validation_reports_max_results_before_timeout() {
 #[test]
 fn update_ignores_unrelated_messages_and_handles_refresh_and_help() {
     let mut app = app();
-    app.web_search_settings.save_error = Some("old error".to_string());
+    app.save_error = Some("old error".to_string());
 
-    let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("old error"));
+    let _ = update(&mut app, SettingsMessage::None);
+    assert_eq!(app.save_error.as_deref(), Some("old error"));
 
     let _ = update(&mut app, SettingsMessage::WebSearch(WebSearchMessage::HelpOpen));
-    assert!(app.web_search_settings.show_help_modal);
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("old error"));
+    assert!(app.show_help_modal);
+    assert_eq!(app.save_error.as_deref(), Some("old error"));
 
     let _ = update(&mut app, SettingsMessage::WebSearch(WebSearchMessage::HelpClose));
-    assert!(!app.web_search_settings.show_help_modal);
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("old error"));
+    assert!(!app.show_help_modal);
+    assert_eq!(app.save_error.as_deref(), Some("old error"));
 
     let _ = update(&mut app, SettingsMessage::WebSearch(WebSearchMessage::Refresh));
-    assert!(app.web_search_settings.save_error.is_none());
+    assert!(app.save_error.is_none());
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -93,7 +93,7 @@ fn update_ignores_unrelated_messages_and_handles_refresh_and_help() {
 #[test]
 fn update_applies_each_edit_and_clears_stale_error() {
     let mut app = app();
-    app.web_search_settings.save_error = Some("old error".to_string());
+    app.save_error = Some("old error".to_string());
 
     let _ = update(&mut app, SettingsMessage::WebSearch(WebSearchMessage::EnabledToggled(true)));
     let _ = update(
@@ -127,15 +127,15 @@ fn update_applies_each_edit_and_clears_stale_error() {
         SettingsMessage::WebSearch(WebSearchMessage::UserAgentChanged(" Test Agent ".to_string())),
     );
 
-    assert!(app.web_search_settings.enabled);
-    assert_eq!(app.web_search_settings.provider, "brave");
-    assert_eq!(app.web_search_settings.api_key_input, " api key ");
-    assert_eq!(app.web_search_settings.api_url_input, " https://search.example ");
-    assert_eq!(app.web_search_settings.brave_api_key_input, " brave key ");
-    assert_eq!(app.web_search_settings.max_results_input, "10");
-    assert_eq!(app.web_search_settings.timeout_secs_input, "45");
-    assert_eq!(app.web_search_settings.user_agent, " Test Agent ");
-    assert!(app.web_search_settings.save_error.is_none());
+    assert!(app.enabled);
+    assert_eq!(app.provider, "brave");
+    assert_eq!(app.api_key_input, " api key ");
+    assert_eq!(app.api_url_input, " https://search.example ");
+    assert_eq!(app.brave_api_key_input, " brave key ");
+    assert_eq!(app.max_results_input, "10");
+    assert_eq!(app.timeout_secs_input, "45");
+    assert_eq!(app.user_agent, " Test Agent ");
+    assert!(app.save_error.is_none());
 }
 
 #[test]
@@ -146,19 +146,19 @@ fn update_reports_max_results_validation_errors_and_recovers() {
         &mut app,
         SettingsMessage::WebSearch(WebSearchMessage::MaxResultsChanged("0".to_string())),
     );
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("max_results 必须大于 0"));
+    assert_eq!(app.save_error.as_deref(), Some("max_results 必须大于 0"));
 
     let _ = update(
         &mut app,
         SettingsMessage::WebSearch(WebSearchMessage::MaxResultsChanged("invalid".to_string())),
     );
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("max_results 必须是整数"));
+    assert_eq!(app.save_error.as_deref(), Some("max_results 必须是整数"));
 
     let _ = update(
         &mut app,
         SettingsMessage::WebSearch(WebSearchMessage::MaxResultsChanged("5".to_string())),
     );
-    assert!(app.web_search_settings.save_error.is_none());
+    assert!(app.save_error.is_none());
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -171,17 +171,17 @@ fn update_reports_timeout_validation_errors_and_recovers() {
         &mut app,
         SettingsMessage::WebSearch(WebSearchMessage::TimeoutSecsChanged("0".to_string())),
     );
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("timeout_secs 必须大于 0"));
+    assert_eq!(app.save_error.as_deref(), Some("timeout_secs 必须大于 0"));
 
     let _ = update(
         &mut app,
         SettingsMessage::WebSearch(WebSearchMessage::TimeoutSecsChanged("invalid".to_string())),
     );
-    assert_eq!(app.web_search_settings.save_error.as_deref(), Some("timeout_secs 必须是整数秒"));
+    assert_eq!(app.save_error.as_deref(), Some("timeout_secs 必须是整数秒"));
 
     let _ = update(
         &mut app,
         SettingsMessage::WebSearch(WebSearchMessage::TimeoutSecsChanged("15".to_string())),
     );
-    assert!(app.web_search_settings.save_error.is_none());
+    assert!(app.save_error.is_none());
 }

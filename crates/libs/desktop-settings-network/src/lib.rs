@@ -35,6 +35,15 @@ mod health;
 pub use health::server_health_key;
 
 pub mod message {
+    pub mod gateway;
+    pub mod gateway_client;
+    pub mod http_request;
+    pub mod proxy;
+    pub mod tunnel;
+    pub mod web_search;
+    fn parse_comma_or_newline_list(input: &str) -> Vec<String> {
+        input.split([',', '\n']).map(str::trim).filter(|value| !value.is_empty()).map(ToString::to_string).collect()
+    }
     pub mod browser;
     pub mod gateway_health;
     #[cfg(test)]

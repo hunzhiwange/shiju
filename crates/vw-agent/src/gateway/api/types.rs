@@ -17,7 +17,7 @@
 //! 3. 在 API 路由处理器与业务逻辑层之间传递数据
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+// Integration credential request types are owned by gateway-integrations.
 
 /// 内存查询请求参数
 ///
@@ -82,43 +82,7 @@ pub struct MemoryStoreBody {
 
 pub use gateway_cron::requests::{CronAddBody, CronUpdateBody};
 
-/// 集成凭据更新请求体
-///
-/// 用于更新特定集成（如第三方服务）的凭据字段，支持乐观并发控制。
-///
-/// # 并发控制
-///
-/// 使用 `revision` 字段实现乐观并发控制，确保在多个并发更新时
-/// 不会意外覆盖其他客户端的修改。
-///
-/// # 示例
-///
-/// ```json
-/// {
-///     "revision": "v3",
-///     "fields": {
-///         "api_key": "sk-xxxx",
-///         "endpoint": "https://api.example.com"
-///     }
-/// }
-/// ```
-#[derive(Deserialize)]
-pub struct IntegrationCredentialsUpdateBody {
-    /// 当前配置的修订版本标识
-    ///
-    /// 可选参数，用于乐观并发控制。
-    /// 如果服务器上的当前版本与此不匹配，更新可能会被拒绝。
-    pub revision: Option<String>,
-
-    /// 要更新的凭据字段键值对
-    ///
-    /// 键为字段名称，值为新的凭据值。
-    /// 使用 `BTreeMap` 确保字段的序列化顺序稳定。
-    /// 默认为空 map，可通过 `#[serde(default)]` 处理缺失字段。
-    #[serde(default)]
-    pub fields: BTreeMap<String, String>,
-}
-
+pub use gateway_integrations::IntegrationCredentialsUpdateBody;
 /// 集成凭据字段的元数据
 ///
 /// 描述单个凭据字段的完整信息，包括如何显示、验证和编辑该字段。

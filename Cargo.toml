@@ -531,6 +531,7 @@ members = [
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-types",
+  "crates/libs/gateway-integrations",
   "crates/libs/gateway-global",
   "crates/libs/gateway-instance",
   "crates/libs/gateway-desktop",

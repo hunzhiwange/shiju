@@ -25,7 +25,6 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
-config-agent = { path = "../libs/config-agent", version = "0.6.0" }
 model-reasoning = { path = "../libs/model-reasoning", version = "0.6.0" }
 gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.6.0" }
 config-agent-profile = { path = "../libs/config-agent-profile", version = "0.6.0" }

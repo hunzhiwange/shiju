@@ -21,9 +21,7 @@ pub use runner::{
     resume_workflow, run_workflow, run_workflow_with_events,
 };
 
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
+// 运行器集成测试随实现归 workflow-engine。
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod video_edit;

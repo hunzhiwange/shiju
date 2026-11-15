@@ -43,7 +43,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<OpenCodeFormView, String> {
-    client
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .opencode_form_read(id, &OpenCodeTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
@@ -55,6 +55,7 @@ pub(crate) async fn save(
     form: EditForm,
     token: String,
 ) -> Result<OpenCodeLiveResult, String> {
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let draft = form.opencode.ok_or("此档案的 OpenCode 节点不可编辑。")?;
     let api_key = if form.clear_key {
         ProviderSecretWrite::Clear
@@ -143,6 +144,7 @@ pub(crate) fn change_membership(app: &mut App, id: String, add: bool) -> Task<Me
     state.generation = state.generation.wrapping_add(1);
     let generation = state.generation;
     let token = app.apps_catalog.token.clone();
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let target = OpenCodeTarget { target_host_id: scope.host.clone() };
     Task::perform(
         async move {

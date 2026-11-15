@@ -7,13 +7,13 @@ use {
     vw_api_types::app_providers::opencode::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-opencode-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
     port: u16,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -46,11 +46,11 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
-        .unwrap();
+        .unwrap());
         Self { root, db, port, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -163,11 +163,11 @@ async fn cc04_opencode_permission_tenant_and_host_denials_leave_no_changes() {
     let mut bad = f.request(OpenCodeActivation::Add);
     bad.target_host_id = "foreign".into();
     assert!(f.client.opencode_provider_save("one", &bad, TOKEN).await.is_err());
-    let foreign = GatewayClient::new(
+    let foreign = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", f.port)
             .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
     )
-    .unwrap();
+    .unwrap());
     assert!(
         foreign
             .opencode_provider_save("one", &f.request(OpenCodeActivation::Add), TOKEN)
@@ -249,7 +249,7 @@ async fn cc04_ui_opencode_form_updates_native_node_and_preserves_protected_value
     redirected.revision = Some(config.revision.clone());
     assert!(matches!(
         f.client.opencode_form_update("one", &redirected, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+        gateway_app_provider::AgentAppsReadError::Http { status: 422, .. }
     ));
     assert_eq!(f.bytes(), initial);
     let mut edit =
@@ -274,7 +274,7 @@ async fn cc04_ui_opencode_form_updates_native_node_and_preserves_protected_value
     );
     assert!(matches!(
         f.client.opencode_form_update("one", &edit, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }
+        gateway_app_provider::AgentAppsReadError::Http { status: 409, .. }
     ));
     assert_eq!(f.bytes(), bytes);
     assert_eq!(f.record("one"), Some(row));
@@ -300,7 +300,7 @@ async fn cc04_ui_opencode_form_rejects_invalid_node_and_write_permission_without
     let bad = form(r#"{"models":{"one":false}}"#, OpenCodeActivation::Add);
     assert!(matches!(
         f.client.opencode_form_create("one", &bad, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+        gateway_app_provider::AgentAppsReadError::Http { status: 422, .. }
     ));
     let path = f.root.path().join("access.json");
     let mut policy: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -310,7 +310,7 @@ async fn cc04_ui_opencode_form_rejects_invalid_node_and_write_permission_without
         form(r#"{"npm":"@ai-sdk/openai-compatible","models":{"one":{}}}"#, OpenCodeActivation::Add);
     assert!(matches!(
         f.client.opencode_form_create("one", &valid, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+        gateway_app_provider::AgentAppsReadError::Http { status: 403, .. }
     ));
     assert_eq!(f.bytes(), before);
     assert!(f.record("one").is_none());

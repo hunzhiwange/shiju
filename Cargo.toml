@@ -32,6 +32,7 @@ members = [
   "crates/libs/acp-types",
   "crates/libs/permission-engine",
   "crates/libs/security-audit",
+  "crates/libs/syscall-anomaly",
   "crates/libs/goal-engine",
   "crates/libs/runtime-flags",
   "crates/libs/observer-types",

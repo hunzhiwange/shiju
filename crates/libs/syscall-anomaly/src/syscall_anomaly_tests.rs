@@ -1,7 +1,7 @@
 //! 验证系统调用异常解析、告警去重限流与审计日志写入。
 
 use super::*;
-use crate::app::agent::config::{AuditConfig, SyscallAnomalyConfig};
+use vw_config_types::security::{AuditConfig, SyscallAnomalyConfig};
 use std::collections::VecDeque;
 use std::path::Path;
 use std::time::{Duration, Instant};

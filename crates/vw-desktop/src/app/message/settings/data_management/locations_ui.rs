@@ -1,5 +1,5 @@
 //! Category presentation and client-local reveal boundary.
-use vw_gateway_client::{DataBackupLocation, DataBackupLocationDeletion};
+use gateway_app_data::{DataBackupLocation, DataBackupLocationDeletion};
 
 pub(crate) fn can_cleanup(location: &DataBackupLocation) -> bool {
     location.id != "database" && location.deletable

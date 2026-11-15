@@ -76,8 +76,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             return Task::perform(async move {
                 let result = async {
-                    let transfer = client.data_migration_export(&request, Some(&token)).await.map_err(|e| e.to_string())?;
-                    client.data_migration_download(&request.target, &transfer.transfer_id, Some(&token)).await.map_err(|e| e.to_string())
+                    let transfer = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_export(&request, Some(&token)).await.map_err(|e| e.to_string())?;
+                    gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_download(&request.target, &transfer.transfer_id, Some(&token)).await.map_err(|e| e.to_string())
                 }.await;
                 message(Event::Downloaded(current, generation, result))
             }, |message| message);

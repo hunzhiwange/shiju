@@ -2,7 +2,7 @@
 use super::export_ui::{identity, Identity};
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
-use vw_gateway_client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress};
+use gateway_app_data::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress};
 use {
     vw_api_transport::ProjectScope,
     vw_gateway_client::vw_api_app_operations::data_management::*,
@@ -76,22 +76,22 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let task = match event {
         Event::Diagnose if !state.submitted => {
             state.preview = None; state.diagnosis = None;
-            Task::perform(async move { message(Event::Diagnosed(current, generation, client.data_backup_diagnose(&ListDataBackupsRequest { target }, Some(&token)).await.map_err(|_| ()))) }, |m| m)
+            Task::perform(async move { message(Event::Diagnosed(current, generation, gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_diagnose(&ListDataBackupsRequest { target }, Some(&token)).await.map_err(|_| ()))) }, |m| m)
         }
         Event::Preview(id) if !state.submitted && state.diagnosis.as_ref().is_some_and(|d| d.target_health != DataTargetHealth::VersionUnsupported && d.backups.iter().any(|b| b.id == id && b.restore_status == DataBackupRestoreStatus::RequiresOwnerValidation)) => {
             state.preview = None;
-            Task::perform(async move { message(Event::Previewed(current, generation, client.data_backup_restore_preview(&PreviewDataBackupRequest { target, backup_id: DataBackupId(id) }, Some(&token)).await.map_err(|_| ()))) }, |m| m)
+            Task::perform(async move { message(Event::Previewed(current, generation, gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_restore_preview(&PreviewDataBackupRequest { target, backup_id: DataBackupId(id) }, Some(&token)).await.map_err(|_| ()))) }, |m| m)
         }
         Event::Confirm if !state.submitted && state.preview.as_ref().is_some_and(|p| p.backup.target == target) => {
             let preview = state.preview.as_ref().unwrap();
             let request = RestoreDataBackupRequest { target, backup_id: preview.backup.backup_id.clone(), expected_revision: preview.backup.revision.clone(), categories: preview.backup.categories.clone(), confirmed: true,
                 idempotency_key: format!("desktop-recovery-{}-{generation}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()) };
             state.submitted = true;
-            Task::perform(async move { message(Event::Restored(current, generation, client.data_backup_restore(&request, Some(&token)).await.map_err(|_| ()))) }, |m| m)
+            Task::perform(async move { message(Event::Restored(current, generation, gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_restore(&request, Some(&token)).await.map_err(|_| ()))) }, |m| m)
         }
         Event::Refresh if state.progress.is_some() => {
             let request = GetDataOperationRequest { target, operation_id: state.progress.as_ref().unwrap().operation_id.clone().into() };
-            Task::perform(async move { message(Event::Restored(current, generation, client.data_backup_restore_operation(&request, Some(&token)).await.map_err(|_| ()))) }, |m| m)
+            Task::perform(async move { message(Event::Restored(current, generation, gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_restore_operation(&request, Some(&token)).await.map_err(|_| ()))) }, |m| m)
         }
         _ => return Task::none(),
     };

@@ -63,10 +63,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         let transfer_id = DataTransferId(state.source.trim().to_owned());
         return Task::perform(async move {
             let result = async {
-                let source = client.data_migration_identify(&IdentifyDataSourceRequest {
+                let source = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_identify(&IdentifyDataSourceRequest {
                     target: target.clone(), transfer_id,
                 }, Some(&token)).await.map_err(|_| ())?;
-                let preview = client.data_migration_preview(&PreviewDataImportRequest {
+                let preview = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_preview(&PreviewDataImportRequest {
                     target: target.clone(), transfer_id: source.transfer_id.clone(),
                     // Current API explicitly supports only the providers category.
                     selections: vec![DataSelection { category: DataCategory::Providers, entries: DataEntrySelection::All }],

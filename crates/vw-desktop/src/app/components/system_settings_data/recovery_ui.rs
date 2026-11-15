@@ -2,7 +2,7 @@ use crate::app::{App, Message};
 use crate::app::components::system_settings_common::*;
 use crate::app::message::settings::data_management::recovery_ui::{self, Event, message};
 use iced::{Element, widget::{button, column, row, text}};
-use vw_gateway_client::DataTargetHealth;
+use gateway_app_data::DataTargetHealth;
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     button(text("恢复与损坏诊断")).padding([8, 14]).style(rounded_action_btn_style)
@@ -32,7 +32,7 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         for backup in &diagnosis.backups {
             body = body.push(text(format!("备份：{} · 格式 {} · {} 字节 · {:?}", backup.id, backup.format_version, backup.size_bytes, backup.restore_status)))
                 .push(button(text("预览此备份")).padding([8, 14]).style(rounded_action_btn_style)
-                    .on_press_maybe((!state.busy && !state.submitted && diagnosis.target_health != DataTargetHealth::VersionUnsupported && backup.restore_status == vw_gateway_client::DataBackupRestoreStatus::RequiresOwnerValidation).then_some(message(Event::Preview(backup.id.clone())))));
+                    .on_press_maybe((!state.busy && !state.submitted && diagnosis.target_health != DataTargetHealth::VersionUnsupported && backup.restore_status == gateway_app_data::DataBackupRestoreStatus::RequiresOwnerValidation).then_some(message(Event::Preview(backup.id.clone())))));
         }
     }
     if let Some(preview) = &state.preview {

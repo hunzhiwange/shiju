@@ -61,7 +61,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             };
             Task::perform(async move {
-                let result = client.data_backup_inventory(&project, &current.host).await.map_err(|error| {
+                let result = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_inventory(&project, &current.host).await.map_err(|error| {
                     match error { vw_gateway_client::AgentAppsReadError::Http { status, .. } => Some(status), _ => None }
                 });
                 message(Event::Loaded(current, generation, result))

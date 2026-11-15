@@ -77,7 +77,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let request = state.request.clone().expect("request prepared");
             state.busy = true; state.context = Some(context); state.generation = state.generation.wrapping_add(1);
             let generation = state.generation;
-            Task::perform(async move { client.data_migration_execute(&request, Some(&token)).await.map_err(|_| ()) }, move |r| message(Event::Loaded(generation, r)))
+            Task::perform(async move { gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_execute(&request, Some(&token)).await.map_err(|_| ()) }, move |r| message(Event::Loaded(generation, r)))
         }
         action @ (Event::Refresh | Event::Cancel | Event::Retry) => {
             let Some(progress) = &state.progress else { return Task::none(); };
@@ -86,9 +86,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let generation = state.generation;
             Task::perform(async move {
                 match action {
-                    Event::Cancel => client.data_migration_cancel(&CancelDataOperationRequest { target: input.target, operation_id: input.operation_id }, Some(&token)).await,
-                    Event::Retry => client.data_migration_retry_projections(&input, Some(&token)).await,
-                    _ => client.data_migration_operation(&input, Some(&token)).await,
+                    Event::Cancel => gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_cancel(&CancelDataOperationRequest { target: input.target, operation_id: input.operation_id }, Some(&token)).await,
+                    Event::Retry => gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_retry_projections(&input, Some(&token)).await,
+                    _ => gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_migration_operation(&input, Some(&token)).await,
                 }.map_err(|_| ())
             }, move |r| message(Event::Loaded(generation, r)))
         }

@@ -3,7 +3,7 @@ use crate::app::{App, Message};
 use crate::app::message::SettingsMessage;
 use super::export_ui::{identity, Identity};
 use iced::Task;
-use vw_gateway_client::{DataBackupPolicy, DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
+use gateway_app_data::{DataBackupPolicy, DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
 use {
     vw_api_transport::ProjectScope,
     vw_gateway_client::vw_api_app_operations::data_management::*,
@@ -85,7 +85,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let generation = state.generation;
             let token = app.apps_catalog.token.clone();
             return Task::perform(async move {
-                let result = client.data_backup_location_path(&target, &id, Some(&token)).await.map_err(|e| e.to_string());
+                let result = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_location_path(&target, &id, Some(&token)).await.map_err(|e| e.to_string());
                 message(Event::Revealed(current, generation, result))
             }, |message| message);
         }
@@ -164,7 +164,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             return Task::perform(async move {
                 if matches!(action, Event::Confirm) {
                     if let Some(Pending::Cleanup(id)) = &pending {
-                        let result = client.data_backup_delete_location(&DeleteDataBackupLocationRequest {
+                        let result = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_delete_location(&DeleteDataBackupLocationRequest {
                             target, category_id: id.clone(), confirmed: true,
                         }, Some(&token)).await.map_err(|e| e.to_string());
                         return message(Event::Cleaned(current, generation, result));
@@ -173,9 +173,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 if matches!(action, Event::Refresh) {
                     let result = async {
                         let request = ListDataBackupsRequest { target: target.clone() };
-                        let rows = client.data_backup_list(&request, Some(&token)).await.map_err(|e| e.to_string())?;
-                        let policy = client.data_backup_policy(&target, Some(&token)).await.map_err(|e| e.to_string())?;
-                        let locations = client.data_backup_locations(&request, Some(&token)).await.map_err(|e| e.to_string())?;
+                        let rows = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_list(&request, Some(&token)).await.map_err(|e| e.to_string())?;
+                        let policy = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_policy(&target, Some(&token)).await.map_err(|e| e.to_string())?;
+                        let locations = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_locations(&request, Some(&token)).await.map_err(|e| e.to_string())?;
                         Ok(Snapshot { rows, policy, locations })
                     }.await;
                     return message(Event::Loaded(current, generation, result));
@@ -186,15 +186,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                             let request = CreateDataBackupRequest { target, name, kind: DataArtifactKind::LocalRollback,
                                 categories: vec![DataCategory::Providers, DataCategory::Mcp, DataCategory::Skills, DataCategory::Rules, DataCategory::Profiles, DataCategory::Preferences, DataCategory::Usage],
                                 idempotency_key: format!("desktop-backup-{}-{generation}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()) };
-                            if client.data_backup_create(&request, Some(&token)).await.map_err(|e| e.to_string())?.is_none() { return Err("未创建备份；请刷新列表核对".into()); }
+                            if gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_create(&request, Some(&token)).await.map_err(|e| e.to_string())?.is_none() { return Err("未创建备份；请刷新列表核对".into()); }
                         }
                         Event::Confirm => match pending {
-                            Some(Pending::Rename(row)) => { client.data_backup_rename(&RenameDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, name }, Some(&token)).await.map_err(|e| e.to_string())?; }
-                            Some(Pending::Delete(row)) => { client.data_backup_delete(&DeleteDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, confirmed: true }, Some(&token)).await.map_err(|e| format!("删除失败（可能存在保护或版本冲突）；请刷新后核对：{e}"))?; }
+                            Some(Pending::Rename(row)) => { gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_rename(&RenameDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, name }, Some(&token)).await.map_err(|e| e.to_string())?; }
+                            Some(Pending::Delete(row)) => { gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_delete(&DeleteDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, confirmed: true }, Some(&token)).await.map_err(|e| format!("删除失败（可能存在保护或版本冲突）；请刷新后核对：{e}"))?; }
                             Some(Pending::Cleanup(_)) => return Err("分类清理必须走独立确认路径".into()),
                             None => return Err("没有待确认操作".into()),
                         },
-                        Event::SavePolicy => { client.data_backup_set_policy(&target, &policy.expect("validated policy"), Some(&token)).await.map_err(|e| e.to_string())?; }
+                        Event::SavePolicy => { gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_set_policy(&target, &policy.expect("validated policy"), Some(&token)).await.map_err(|e| e.to_string())?; }
                         _ => return Err("不支持的备份操作".into()),
                     }
                     Ok(())

@@ -1,4 +1,4 @@
-use super::super::{test_support, DataMigrationError};
+use crate::{test_support, DataMigrationError};
 use {
     vw_api_app_operations::data_management::*,
     vw_api_transport::id::ProjectScope,

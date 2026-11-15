@@ -1,19 +1,19 @@
 //! Budget only the summary request copy. Stored history and checkpoint sources stay intact.
 
-use crate::provider::provider::ModelLimit;
+use model_types::ModelLimit;
 use serde_json::Value;
 
 const TRUNCATED: &str =
     "\n[Content omitted to fit the summary request; original remains in chat history]\n";
 const MIN_CONTENT_BYTES: usize = 256;
 
-pub(super) fn input_budget(limit: &ModelLimit) -> u64 {
-    let window = crate::session::processor::context_governance::compaction_input_window(limit);
+pub fn input_budget(limit: &ModelLimit) -> u64 {
+    let window = crate::compaction_budget::compaction_input_window(limit);
     // Leave room for estimation/protocol overhead as well as the model's output allocation.
     (u128::from(window) * 95 / 100) as u64
 }
 
-pub(super) fn estimated_tokens(messages: &[Value]) -> u64 {
+pub fn estimated_tokens(messages: &[Value]) -> u64 {
     messages.iter().fold(0_u64, |total, message| {
         let bytes = message.to_string().len() as u64;
         total.saturating_add(bytes.saturating_add(3) / 4)

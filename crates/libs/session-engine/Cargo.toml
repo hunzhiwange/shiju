@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+tool-types = { path = "../tool-types", version = "0.6.0" }
 agent-util = { path = "../agent-util", version = "0.6.0" }
 model-state = { path = "../model-state", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }

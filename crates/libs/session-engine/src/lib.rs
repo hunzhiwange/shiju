@@ -11,6 +11,8 @@ pub mod request_overflow;
 pub mod native_history;
 pub mod processor_events;
 pub mod recovery;
+pub mod llm_step;
+pub mod compaction_summary;
 pub mod retry_delay;
 pub mod replay_safety;
 pub mod fork_execution;

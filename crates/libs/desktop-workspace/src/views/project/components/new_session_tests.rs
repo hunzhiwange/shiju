@@ -9,11 +9,9 @@ fn test_module_is_wired() {
 }
 
 use super::*;
-use crate::app::message::ProjectMessage;
 
-fn test_app() -> crate::app::App {
-    crate::app::App::new().0
-}
+
+fn test_app() -> Input { Input::default() }
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
@@ -173,7 +171,7 @@ fn project_display_title_prefers_non_empty_edit_name() {
 #[test]
 fn create_session_message_targets_project_path() {
     match create_session_message("/repo/app") {
-        Message::Project(ProjectMessage::ProjectCreateSession(path)) => {
+        Message::ProjectCreateSession(path) => {
             assert_eq!(path, "/repo/app")
         }
         other => panic!("unexpected message: {other:?}"),
@@ -183,10 +181,10 @@ fn create_session_message_targets_project_path() {
 #[test]
 fn pick_session_message_carries_project_and_directory() {
     match pick_session_message("/repo/app", "/repo/app-wt") {
-        Message::Project(ProjectMessage::ProjectCreateSessionPicked {
+        Message::ProjectCreateSessionPicked {
             project_path,
             directory,
-        }) => {
+        } => {
             assert_eq!(project_path, "/repo/app");
             assert_eq!(directory, "/repo/app-wt");
         }
@@ -197,25 +195,25 @@ fn pick_session_message_carries_project_and_directory() {
 #[test]
 fn worktree_messages_carry_expected_payloads() {
     match create_worktree_message("/repo/app") {
-        Message::Project(ProjectMessage::ProjectCreateSessionWorktree(path)) => {
+        Message::ProjectCreateSessionWorktree(path) => {
             assert_eq!(path, "/repo/app");
         }
         other => panic!("unexpected message: {other:?}"),
     }
     match worktree_name_changed_message("feature".to_owned()) {
-        Message::Project(ProjectMessage::ProjectCreateSessionWorktreeNameChanged(name)) => {
+        Message::ProjectCreateSessionWorktreeNameChanged(name) => {
             assert_eq!(name, "feature");
         }
         other => panic!("unexpected message: {other:?}"),
     }
     match delete_worktree_message("/repo/app-wt") {
-        Message::Project(ProjectMessage::ProjectCreateSessionDeleteWorktree(directory)) => {
+        Message::ProjectCreateSessionDeleteWorktree(directory) => {
             assert_eq!(directory, "/repo/app-wt");
         }
         other => panic!("unexpected message: {other:?}"),
     }
     match reset_worktree_message("/repo/app-wt") {
-        Message::Project(ProjectMessage::ProjectCreateSessionResetWorktree(directory)) => {
+        Message::ProjectCreateSessionResetWorktree(directory) => {
             assert_eq!(directory, "/repo/app-wt");
         }
         other => panic!("unexpected message: {other:?}"),

@@ -41,10 +41,7 @@ fn elevated_shadow(theme: &Theme, dark_alpha: f32, light_alpha: f32) -> iced::Sh
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn is_dark_theme(theme: &Theme) -> bool {
-    let palette = theme.palette();
-    palette.background.r + palette.background.g + palette.background.b < 1.5
-}
+pub use desktop_workspace::views::project::badge_styles::is_dark_theme;
 
 /// 生成主题相关样式。
 ///
@@ -88,24 +85,7 @@ pub(super) fn work_surface_style(theme: &Theme) -> ContainerStyle {
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn content_panel_style(theme: &Theme) -> ContainerStyle {
-    let palette = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-    let background =
-        crate::app::theme_catalog::panel_surface_color(theme, if is_dark { 0.98 } else { 0.985 });
-    let border_color = if is_dark {
-        palette.background.strong.color.scale_alpha(0.70)
-    } else {
-        palette.background.strong.color.scale_alpha(0.55)
-    };
-
-    ContainerStyle {
-        background: Some(Background::Color(background)),
-        border: Border { color: border_color, width: 1.0, radius: 18.0.into() },
-        shadow: elevated_shadow(theme, 0.14, 0.04),
-        ..Default::default()
-    }
-}
+pub use desktop_workspace::views::project::badge_styles::content_panel_style;
 
 /// 生成主题相关样式。
 ///
@@ -269,65 +249,7 @@ pub fn tooltip_bubble<'a>(tip: String) -> iced::widget::Container<'a, Message> {
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn project_item_button_style(
-    theme: &Theme,
-    selected: bool,
-    accent: Color,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-    let is_hovered = matches!(status, iced::widget::button::Status::Hovered);
-    let is_pressed = matches!(status, iced::widget::button::Status::Pressed);
-    let is_active = selected || is_hovered || is_pressed;
-
-    let background = if is_pressed {
-        blend_color(palette.background.base.color, accent, if is_dark { 0.26 } else { 0.18 })
-    } else if is_hovered {
-        blend_color(palette.background.base.color, accent, if is_dark { 0.16 } else { 0.11 })
-    } else if selected {
-        blend_color(palette.background.base.color, accent, if is_dark { 0.11 } else { 0.07 })
-    } else {
-        Color::TRANSPARENT
-    };
-    let border_color = if is_pressed {
-        blend_color(accent, palette.background.base.color, 0.18)
-    } else if is_hovered {
-        blend_color(accent, palette.background.base.color, 0.28)
-    } else if selected {
-        blend_color(accent, palette.background.base.color, 0.36)
-    } else {
-        Color::TRANSPARENT
-    };
-
-    iced::widget::button::Style {
-        background: Some(Background::Color(background)),
-        text_color: theme.palette().text,
-        border: iced::Border {
-            radius: 18.0.into(),
-            width: if is_active { 1.0 } else { 0.0 },
-            color: border_color,
-        },
-        shadow: if is_active {
-            iced::Shadow {
-                color: accent.scale_alpha(if is_pressed {
-                    if is_dark { 0.18 } else { 0.10 }
-                } else if is_hovered {
-                    if is_dark { 0.14 } else { 0.07 }
-                } else if is_dark {
-                    0.10
-                } else {
-                    0.05
-                }),
-                offset: iced::Vector::new(0.0, if is_pressed { 4.0 } else { 8.0 }),
-                blur_radius: if is_pressed { 10.0 } else { 18.0 },
-            }
-        } else {
-            iced::Shadow::default()
-        },
-        ..Default::default()
-    }
-}
+pub use desktop_workspace::views::project::badge_styles::project_item_button_style;
 
 #[cfg(test)]
 #[path = "styles_tests.rs"]

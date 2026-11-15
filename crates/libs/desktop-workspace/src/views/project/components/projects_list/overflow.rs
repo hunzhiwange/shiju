@@ -3,13 +3,13 @@
 use iced::widget::{Space, column, container, mouse_area, row, scrollable, svg, text};
 use iced::{Element, Length, Radians, Theme};
 
-use crate::app::assets::{Icon, get_icon};
-use crate::app::components::overlays::SideOverlay;
-use crate::app::i18n::I18n;
-use crate::app::message::ProjectMessage;
-use crate::app::{App, Message};
+use desktop_assets::assets::{Icon, get_icon};
+use desktop_ui_controls::overlays::SideOverlay;
+use desktop_i18n::I18n;
 
-use super::super::super::styles::content_panel_style;
+use super::{Input, Message};
+
+use super::super::super::badge_styles::content_panel_style;
 use super::{
     PROJECT_SCROLLBAR_GUTTER, TooltipPosition, navigation_badge, project_badge_button,
     project_scroll_direction, recent_project_badge, title_tooltip,
@@ -17,9 +17,9 @@ use super::{
 
 const PROJECTS_PER_ROW: usize = 4;
 
-pub(super) fn view(app: &App, open: bool) -> Element<'static, Message> {
+pub(super) fn view(app: &Input<'_>, open: bool) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let open_menu = Message::Project(ProjectMessage::CodeProjectsMenuChanged(true));
+    let open_menu = Message::CodeProjectsMenuChanged(true);
     let icon = svg(get_icon(Icon::DotsThreeVertical))
         .width(20)
         .height(20)
@@ -61,7 +61,7 @@ pub(super) fn view(app: &App, open: bool) -> Element<'static, Message> {
     .padding([12, 6])
     .style(content_panel_style);
 
-    let close_menu = Message::Project(ProjectMessage::CodeProjectsMenuChanged(false));
+    let close_menu = Message::CodeProjectsMenuChanged(false);
     SideOverlay::new(trigger, panel)
         .show(true)
         .gap(10.0)

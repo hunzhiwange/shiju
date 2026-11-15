@@ -26,17 +26,6 @@ fn git_worktree_option_displays_label() {
 
 #[test]
 fn workspace_structs_keep_selected_git_and_find_state() {
-    let selected = GitDiffSelectedLine {
-        file: "src/lib.rs".to_string(),
-        line: 12,
-        is_old: false,
-        text: "let value = 1;".to_string(),
-    };
-    assert_eq!(selected.file, "src/lib.rs");
-    assert_eq!(selected.line, 12);
-    assert!(!selected.is_old);
-    assert_eq!(selected.text, "let value = 1;");
-
     let range =
         GitDiffLineRange { file: "src/lib.rs".to_string(), start: 10, end: 12, is_old: true };
     assert_eq!(range.file, "src/lib.rs");
@@ -55,9 +44,6 @@ fn workspace_structs_keep_selected_git_and_find_state() {
     assert_eq!(context.line, 11);
     assert_eq!(context.x, 4.0);
     assert_eq!(context.y, 8.0);
-
-    let menu = GitDiffFileMenuState { file: "src/lib.rs".to_string() };
-    assert_eq!(menu.file, "src/lib.rs");
 
     let clipboard = FileTreeClipboard {
         mode: FileTreeClipboardMode::Copy,

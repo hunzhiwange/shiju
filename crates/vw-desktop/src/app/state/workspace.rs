@@ -1,22 +1,10 @@
-use super::*;
-
 pub use desktop_git_ui::git_panel::types::GitWorktreeOption;
 
 /// Git 差异选中的行信息
 ///
 /// 表示在 Git 差异视图中被选中的单行信息，
 /// 包含文件路径、行号、是否为旧版本以及行内容。
-#[derive(Debug, Clone)]
-pub(crate) struct GitDiffSelectedLine {
-    /// 文件路径
-    pub(crate) file: String,
-    /// 行号（1-based）
-    pub(crate) line: usize,
-    /// 是否为旧版本（false 表示新版本）
-    pub(crate) is_old: bool,
-    /// 行的文本内容
-    pub(crate) text: String,
-}
+pub use desktop_workspace::workspace_state::GitDiffSelectedLine;
 
 /// Git 差异行范围
 ///
@@ -32,11 +20,7 @@ pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffContextMenuState;
 /// Git 差异文件菜单状态
 ///
 /// 记录当前打开文件级操作菜单的文件路径。
-#[derive(Debug, Clone)]
-pub(crate) struct GitDiffFileMenuState {
-    /// 文件路径
-    pub(crate) file: String,
-}
+pub use desktop_workspace::workspace_state::GitDiffFileMenuState;
 
 pub use desktop_workspace::interaction::{FileTreeClipboardMode, FileTreeClipboard};
 
@@ -56,17 +40,7 @@ pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffCommentDraft;
 ///
 /// 表示在聊天界面中显示的代码差异，
 /// 用于展示文件修改的前后对比。
-#[derive(Debug, Clone)]
-pub(crate) struct ChatTextDiff {
-    /// 差异标题
-    pub(crate) title: String,
-    /// 文件路径
-    pub(crate) file: String,
-    /// 修改前的内容
-    pub(crate) before: String,
-    /// 修改后的内容
-    pub(crate) after: String,
-}
+pub use desktop_workspace::workspace_state::ChatTextDiff;
 
 /// 使用量步骤原始 LLM 载荷弹窗状态
 ///

@@ -18,8 +18,6 @@
 //! - `utils`：工具函数
 
 use iced::Element;
-use iced::Length;
-use iced::widget::{container, stack};
 
 use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message};
@@ -80,11 +78,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 设置面板宽度：检查是否为有限值，如果是则限制在 200-800 像素范围内
     // 如果是无限值（如初始状态），则使用默认值 370.0 像素
-    let settings_panel_width = if app.settings_panel_width.is_finite() {
-        app.settings_panel_width.clamp(200.0, 800.0)
-    } else {
-        370.0
-    };
+    let settings_panel_width = desktop_workspace::views::project::composition::settings_panel_width(app.settings_panel_width);
 
     // 构建基础布局：包含左侧导航栏、会话面板和设置面板的主布局结构
     let work_layout = uses_work_layout(app);
@@ -119,11 +113,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 使用容器和堆栈将所有层组合在一起
     // 堆栈顺序：base_layout（底层） -> drag_badge_layer -> session_picker_layer（顶层）
-    let base = container(stack![base_layout, drag_badge_layer, session_picker_layer])
-        .width(Length::Fill) // 容器宽度填满可用空间
-        .height(Length::Fill) // 容器高度填满可用空间
-        .style(if work_layout { work_surface_style } else { workspace_background_style })
-        .into();
+    let base = desktop_workspace::views::project::composition::view(
+        base_layout, drag_badge_layer, session_picker_layer,
+        if work_layout { work_surface_style } else { workspace_background_style },
+    );
     crate::app::components::input_panel::acp_options::with_modal(app, base)
 }
 

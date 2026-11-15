@@ -8,6 +8,7 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+config-channels = { path = "../libs/config-channels", version = "0.6.0" }
 config-channel-services = { path = "../libs/config-channel-services", version = "0.6.0" }
 config-channel-types = { path = "../libs/config-channel-types", version = "0.6.0" }
 config-security = { path = "../libs/config-security", version = "0.6.0" }

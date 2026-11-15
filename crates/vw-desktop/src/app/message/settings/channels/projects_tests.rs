@@ -27,7 +27,7 @@ fn channel_execution_binding_is_removed_with_channel_instance() {
     let mut app = App::new().0;
     app.channels_settings.instance_execution.insert(
         "wechat:default".into(),
-        vw_config_types::channels::ChannelExecutionConfig {
+        config_channels::ChannelExecutionConfig {
             agent: Some("acp-codex".into()),
             model: None,
         },

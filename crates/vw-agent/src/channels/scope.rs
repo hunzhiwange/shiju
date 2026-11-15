@@ -58,7 +58,7 @@ pub(crate) struct ChannelMessageSnapshot {
     pub(crate) directory: PathBuf,
     pub(crate) project: crate::project::Info,
     pub(crate) source: ChannelProjectSource,
-    pub(crate) execution: Option<vw_config_types::channels::ChannelExecutionConfig>,
+    pub(crate) execution: Option<config_channels::ChannelExecutionConfig>,
 }
 
 #[derive(Default, Clone)]

@@ -1,4 +1,6 @@
 use super::*;
+use config_channel_services::{DingTalkConfig, DingTalkInstanceConfig, QQConfig};
+use config_channel_services::other::QQReceiveMode;
 
 fn configured() -> ChannelsConfig {
     let mut config = ChannelsConfig {

@@ -2,7 +2,7 @@
 use super::*;
 use config_agent_profile::{AgentDefault, AgentRuntime};
 use config_agent::AgentDefinitionConfig;
-use vw_config_types::channels::ChannelExecutionConfig;
+use config_channels::ChannelExecutionConfig;
 
 pub(super) fn execution_route(
     execution: &ChannelExecutionConfig,

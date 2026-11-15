@@ -204,7 +204,7 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) execution_generation: u64,
     pub(crate) execution_error: std::collections::BTreeMap<String, String>,
     pub(crate) instance_execution:
-        std::collections::BTreeMap<String, vw_config_types::channels::ChannelExecutionConfig>,
+        std::collections::BTreeMap<String, config_channels::ChannelExecutionConfig>,
     pub(crate) instance_default_projects: std::collections::BTreeMap<String, String>,
     pub(crate) project_choices: Vec<(String, String)>,
     pub(crate) project_choices_error: Option<String>,

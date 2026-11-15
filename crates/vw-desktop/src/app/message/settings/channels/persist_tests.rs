@@ -50,7 +50,7 @@ fn channel_execution_settings_preserve_agent_and_model() {
         bot_token: "token".into(),
         base_url: "https://example.test".into(),
     });
-    let binding = vw_config_types::channels::ChannelExecutionConfig {
+    let binding = config_channels::ChannelExecutionConfig {
         agent: Some("acp-codex".into()),
         model: Some(config_agent_profile::AgentModelReference {
             provider: "provider".into(),

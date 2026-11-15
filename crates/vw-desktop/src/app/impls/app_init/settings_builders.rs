@@ -4,7 +4,7 @@
 /// 模块内可见函数，执行 build_channels_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_channels_settings(
-    channels_cfg: &vw_config_types::channels::ChannelsConfig,
+    channels_cfg: &config_channels::ChannelsConfig,
 ) -> super::state::ChannelsSettingsState {
     let mut channels_settings = super::state::ChannelsSettingsState {
         project_dir_input: channels_cfg

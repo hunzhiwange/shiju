@@ -1,0 +1,15 @@
+[package]
+name = "config-channels"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+config-channel-services = { path = "../config-channel-services", version = "0.6.0" }
+config-channel-types = { path = "../config-channel-types", version = "0.6.0" }
+schemars = "1.2"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

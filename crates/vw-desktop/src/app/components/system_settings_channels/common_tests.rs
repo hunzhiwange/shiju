@@ -240,7 +240,7 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
         .insert("qq:default".into(), "project-one".into());
     app.channels_settings.instance_execution.insert(
         "qq:default".into(),
-        vw_config_types::channels::ChannelExecutionConfig {
+        config_channels::ChannelExecutionConfig {
             agent: Some("acp-research".into()),
             model: Some(config_agent_profile::AgentModelReference {
                 provider: "provider".into(),

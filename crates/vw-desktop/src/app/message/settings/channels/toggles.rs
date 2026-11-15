@@ -13,7 +13,7 @@ use config_channel_services::{
     LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig,
     WatiConfig, WeChatConfig, WeComConfig, WhatsAppConfig,
 };
-use vw_config_types::channels::DEFAULT_CHANNEL_INSTANCE_ID;
+use config_channels::DEFAULT_CHANNEL_INSTANCE_ID;
 
 use super::helpers::{default_dingtalk_config, default_feishu_config};
 

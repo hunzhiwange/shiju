@@ -3,7 +3,7 @@
 use crate::app::config::update_channels_config_async;
 use crate::app::{App, Message, state::ChannelsSettingsState};
 use iced::Task;
-use vw_config_types::channels::ChannelsConfig;
+use config_channels::ChannelsConfig;
 
 fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     let mut channels = Vec::new();

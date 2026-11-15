@@ -6,6 +6,7 @@ members = [
   "crates/libs/api-agent-scheduler",
   "crates/libs/config-channel-types",
   "crates/libs/config-channel-services",
+  "crates/libs/config-channels",
   "crates/libs/auth-types",
   "crates/libs/model-state",
   "crates/libs/api-task",

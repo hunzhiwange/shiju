@@ -1,6 +1,6 @@
 #[test]
 fn wecom_delivery_webhook_defaults_and_round_trips_without_receiving_profile() {
-    use crate::channels::ChannelsConfig;
+    use crate::ChannelsConfig;
     let defaults = serde_json::to_value(ChannelsConfig::default()).unwrap();
     assert!(defaults["wecom_webhook"].is_null());
     let channels: ChannelsConfig = serde_json::from_value(serde_json::json!({

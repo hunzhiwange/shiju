@@ -4,7 +4,7 @@
 //! 枚举能力：把每个可配置通道包装为统一的 `ConfigHandle`，供 UI 或配置扫描逻辑
 //! 展示名称、描述和启用状态。
 
-pub use vw_config_types::channels::chat::{ChannelsConfig, default_channel_message_timeout_secs};
+pub use config_channels::{ChannelsConfig, default_channel_message_timeout_secs};
 
 use crate::app::agent::config::traits::ChannelConfig;
 use crate::app::agent::config::traits::ConfigHandle;

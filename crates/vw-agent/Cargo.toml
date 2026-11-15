@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+config-channels = { path = "../libs/config-channels", version = "0.6.0" }
 vw-api-knowledge = { path = "../libs/api-knowledge", version = "0.6.0" }
 config-channel-services = { path = "../libs/config-channel-services", version = "0.6.0" }
 auth-file-store = { path = "../libs/auth-file-store", version = "0.6.0" }

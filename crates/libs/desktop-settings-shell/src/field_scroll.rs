@@ -1,11 +1,10 @@
 //! 定位设置行，并在当前内容区滚动到对应控件。
 
 use super::SETTINGS_CONTENT_SCROLL;
-use crate::app::Message;
 use iced::advanced::widget::{Id, Operation, operate, operation};
 use iced::{Rectangle, Task, Vector};
 
-pub(crate) fn reveal_field(id: &'static str) -> Task<Message> {
+pub fn reveal_field<Message: Send + 'static>(id: &'static str) -> Task<Message> {
     operate(RevealField {
         target: id.into(),
         scroll_id: SETTINGS_CONTENT_SCROLL.into(),

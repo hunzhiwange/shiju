@@ -3,16 +3,7 @@
 //! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
 //! 不改变任何运行时行为。
 
-/// 常规配置页内的一级标签。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum GeneralSettingsTab {
-    #[default]
-    Interface,
-    Terminal,
-    Editor,
-    Themes,
-    Companion,
-}
+pub use desktop_settings_shell::GeneralSettingsTab;
 
 /// 对外暴露当前模块需要复用的能力。
 pub(super) use super::*;

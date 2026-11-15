@@ -30,6 +30,7 @@ desktop-settings-providers = { path = "../libs/desktop-settings-providers", vers
 desktop-terminal = { path = "../libs/desktop-terminal", version = "0.6.0" }
 desktop-file-tree = { path = "../libs/desktop-file-tree", version = "0.6.0" }
 desktop-editor = { path = "../libs/desktop-editor", version = "0.6.0" }
+desktop-settings-shell = { path = "../libs/desktop-settings-shell", version = "0.6.0" }
 desktop-ui-controls = { path = "../libs/desktop-ui-controls", version = "0.6.0" }
 desktop-settings-security = { path = "../libs/desktop-settings-security", version = "0.6.0" }
 vw-api-types = { path = "../vw-api-types", version = "0.6.0" }

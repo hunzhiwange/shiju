@@ -1,0 +1,15 @@
+[package]
+name = "desktop-settings-shell"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = { version = "0.14", features = ["svg", "advanced"] }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-editor = { path = "../desktop-editor", version = "0.6.0" }

@@ -2,7 +2,7 @@
 use super::{Identity, identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, Length, widget::{button, column, row, text, container, scrollable}};
-use vw_gateway_client::{UsageLogResult, UsageLogDetail, UsageReadScope};
+use gateway_usage_read::{UsageLogResult, UsageLogDetail, UsageReadScope};
 use vw_api_usage::*;
 
 #[derive(Default)]
@@ -68,7 +68,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let ticket = state.detail_ticket;
             state.detail_open = true;
             state.detail = None;
-            let client = crate::app::config::gateway_client();
+            let client = crate::app::config::gateway_client().map(|client| gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone()));
             return Task::perform(async move {
                 let result = match client {
                     Ok(client) => client.usage_log_detail(&read_scope(&scope), &query, &id).await.map_err(|e| e.to_string()),
@@ -103,7 +103,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             page_query.cursor = state.cursor.clone();
             page_query.limit = Some(20);
             state.loading = true;
-            let client = crate::app::config::gateway_client();
+            let client = crate::app::config::gateway_client().map(|client| gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone()));
             return Task::perform(async move {
                 let result = match client {
                     Ok(client) => client.usage_logs(&read_scope(&scope), &page_query).await.map_err(|e| e.to_string()),

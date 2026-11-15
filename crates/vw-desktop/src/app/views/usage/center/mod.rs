@@ -10,7 +10,7 @@ pub mod groups;
 pub mod overview;
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_gateway_client::{UsageReadScope, UsageSummary};
+use gateway_usage_read::{UsageReadScope, UsageSummary};
 use vw_api_usage::UsageRange;
 use crate::app::state::agent_apps_auth::Scope;
 
@@ -95,7 +95,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             };
             let charts_task = charts::load(ticket, scope.clone(), query.clone());
             let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
-            let client = crate::app::config::gateway_client();
+            let client = crate::app::config::gateway_client().map(|client| gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone()));
             return Task::batch([display::update(app, display::Event::AutoLoad), scan::activity(app, true), logs_task, groups_task, charts_task, Task::perform(async move {
                 let result = async {
                     let client = client?;

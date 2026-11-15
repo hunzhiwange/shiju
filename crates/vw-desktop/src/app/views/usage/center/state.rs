@@ -1,4 +1,4 @@
-use vw_gateway_client::UsageSummary;
+use gateway_usage_read::UsageSummary;
 
 pub struct State {
     pub display: super::display::State,

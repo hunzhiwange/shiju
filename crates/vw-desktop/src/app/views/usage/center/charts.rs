@@ -2,7 +2,7 @@
 use super::{identity, Event as CenterEvent, Identity};
 use crate::app::{message::ViewMessage, App, Message};
 use iced::{widget::{column, container, row, scrollable, text, tooltip, Space}, Element, Length, Task};
-use vw_gateway_client::client::{UsageReadScope, UsageSeries, UsageSeriesBucket};
+use gateway_usage_read::{UsageReadScope, UsageSeries, UsageSeriesBucket};
 use vw_api_usage::UsageQuery;
 
 #[derive(Default)]
@@ -17,7 +17,7 @@ pub enum Event {
 }
 
 pub fn load(ticket: u64, scope: Identity, query: UsageQuery) -> Task<Message> {
-    let client = crate::app::config::gateway_client();
+    let client = crate::app::config::gateway_client().map(|client| gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone()));
     Task::perform(async move {
         let result = async {
             let client = client?;

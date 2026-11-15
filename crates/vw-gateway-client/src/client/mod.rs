@@ -418,10 +418,8 @@ pub use gateway_device_sync::{DeviceSyncOperationsError, DeviceSyncSelection, De
 #[cfg(not(target_arch = "wasm32"))]
 mod device_sync_config_api;
 
-mod usage_read_types;
-pub use usage_read_types::*;
+pub use gateway_usage_read::*;
 mod usage_read_api;
-pub use usage_read_api::{UsageReadScope, UsageReadError};
 
 mod usage_scan_api;
 pub use usage_scan_api::*;

@@ -2,7 +2,7 @@
 use super::{Identity, identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, Length, widget::{column, row, text, checkbox, scrollable, container}};
-use vw_gateway_client::client::{ProviderStats, ModelStats, GroupStats, MetricSamples, UsageReadScope};
+use gateway_usage_read::{ProviderStats, ModelStats, GroupStats, MetricSamples, UsageReadScope};
 use vw_api_usage::{UsageProvider, UsageQuery};
 
 #[derive(Default)]
@@ -27,7 +27,7 @@ fn message(event: Event) -> Message {
 }
 
 pub fn load(ticket: u64, scope: Identity, query: UsageQuery, time_zone: String) -> Task<Message> {
-    let client = crate::app::config::gateway_client();
+    let client = crate::app::config::gateway_client().map(|client| gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone()));
     Task::perform(async move {
         let result = async {
             let client = client?;

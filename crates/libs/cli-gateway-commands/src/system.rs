@@ -5,8 +5,8 @@ use std::io::Write;
 use anyhow::Result;
 use clap::Subcommand;
 
-use super::context::ApiContext;
-use super::output;
+use cli_api_core::context::ApiContext;
+use cli_api_core::output;
 
 /// Gateway 系统状态与发现操作。
 #[derive(Subcommand, Debug)]

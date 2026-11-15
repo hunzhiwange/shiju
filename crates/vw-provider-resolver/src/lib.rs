@@ -44,6 +44,9 @@ mod remote_models_tests;
 
 /// 原生优先的部署协议路由选择。
 pub mod protocol_routes;
+#[cfg(test)]
+#[path = "protocol_routes_tests.rs"]
+mod protocol_routes_tests;
 
 #[cfg(test)]
 mod protocol_matrix_tests;

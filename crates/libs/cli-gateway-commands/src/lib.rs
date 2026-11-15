@@ -1,13 +1,14 @@
 //! 远程 Gateway API CLI 的共享边界。
 
 use std::io::{Read, Write};
-use std::path::PathBuf;
 
-use anyhow::{Result, bail};
-use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand, ValueEnum};
+use anyhow::Result;
+use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand};
 
 use self::config::ConfigCommands;
-use self::context::ApiContext;
+use cli_api_core::context::ApiContext;
+pub use cli_api_core::ApiOptions;
+use cli_api_core::{ApiOutputFormat, ensure_confirmed};
 use self::control::{ControlCommands, ProviderCommands};
 use self::desktop::DesktopCommands;
 use self::extensions::ExtensionCommands;
@@ -27,15 +28,12 @@ use self::workflow::WorkflowCommands;
 use self::workspace::WorkspaceCommands;
 
 mod config;
-mod context;
 mod control;
 mod desktop;
 mod extensions;
-mod input;
 mod interactive;
 mod knowledge;
 mod operations;
-mod output;
 mod project;
 mod realtime;
 mod scheduler;
@@ -51,89 +49,16 @@ mod workspace;
 
 use self::system::SystemCommands;
 
-// Gateway API 命令共用的连接、认证和输出参数。
-#[derive(Args, Debug)]
-pub struct ApiOptions {
-    /// Gateway 主机名或 IP。
-    #[arg(long, global = true, default_value = "127.0.0.1")]
-    host: String,
-
-    /// Gateway 端口。
-    #[arg(
-        long,
-        global = true,
-        default_value_t = vw_config_types::gateway::DEFAULT_GATEWAY_PORT
-    )]
-    port: u16,
-
-    /// 请求的平台租户 ID。
-    #[arg(
-        long,
-        global = true,
-        default_value = "local",
-        value_parser = parse_required_scope_id
-    )]
-    platform: String,
-
-    /// 请求的公司租户 ID。
-    #[arg(
-        long,
-        global = true,
-        default_value = "local",
-        value_parser = parse_required_scope_id
-    )]
-    company: String,
-
-    /// 从指定环境变量读取 Gateway skey。
-    #[arg(long, global = true, conflicts_with = "skey_file")]
-    skey_env: Option<String>,
-
-    /// 从指定文件读取 Gateway skey。
-    #[arg(long, global = true, conflicts_with = "skey_env")]
-    skey_file: Option<PathBuf>,
-
-    /// Gateway 请求使用的项目目录上下文。
-    #[arg(long, global = true)]
-    directory: Option<String>,
-
-    /// 结构化输出格式。
-    #[arg(long, global = true, value_enum, default_value_t = ApiOutputFormat::Json)]
-    output: ApiOutputFormat,
-
-    /// 确认危险或有宿主副作用的操作。
-    #[arg(long, global = true)]
-    yes: bool,
-}
-
 /// 一次根级 Gateway API 命令调用的完整参数。
 #[derive(Debug)]
 pub struct ApiArgs {
-    host: String,
-    port: u16,
-    platform: String,
-    company: String,
-    skey_env: Option<String>,
-    skey_file: Option<PathBuf>,
-    directory: Option<String>,
-    output: ApiOutputFormat,
-    yes: bool,
+    options: ApiOptions,
     command: ApiCommands,
 }
 
 impl ApiArgs {
     fn new(options: ApiOptions, command: ApiCommands) -> Self {
-        Self {
-            host: options.host,
-            port: options.port,
-            platform: options.platform,
-            company: options.company,
-            skey_env: options.skey_env,
-            skey_file: options.skey_file,
-            directory: options.directory,
-            output: options.output,
-            yes: options.yes,
-            command,
-        }
+        Self { options, command }
     }
 }
 
@@ -387,15 +312,6 @@ impl ApiCommands {
     }
 }
 
-/// API 结构化输出格式。
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-enum ApiOutputFormat {
-    /// 单个格式化 JSON 文档。
-    Json,
-    /// 每行一个紧凑 JSON 值。
-    Jsonl,
-}
-
 /// 执行远程 Gateway API 命令。
 pub async fn run(args: ApiArgs) -> Result<()> {
     let mut stdin = std::io::stdin().lock();
@@ -413,18 +329,18 @@ async fn run_with_io<R: Read, W: Write>(
     stdin: &mut R,
     writer: &mut W,
 ) -> Result<()> {
-    let yes = args.yes;
+    let yes = args.options.yes();
     if let Some(operation) = args.command.dangerous_operation(
-        args.directory.as_deref(),
-        &args.platform,
-        &args.company,
-        &args.host,
-        args.port,
+        args.options.directory(),
+        args.options.platform(),
+        args.options.company(),
+        args.options.host(),
+        args.options.port(),
     ) {
-        ensure_confirmed(args.yes, &operation)?;
+        ensure_confirmed(args.options.yes(), &operation)?;
     }
 
-    let context = ApiContext::from_args(&args)?;
+    let context = ApiContext::from_options(&args.options)?;
     match args.command {
         ApiCommands::Config { command } => config::run(command, &context, stdin, writer).await,
         ApiCommands::Provider { command } => {
@@ -469,20 +385,6 @@ async fn run_with_io<R: Read, W: Write>(
             workspace::run(command, &context, yes, stdin, writer).await
         }
     }
-}
-
-fn parse_required_scope_id(value: &str) -> Result<String, String> {
-    if value.trim().is_empty() {
-        return Err("tenant scope id must not be empty".to_string());
-    }
-    Ok(value.to_string())
-}
-
-fn ensure_confirmed(yes: bool, operation: &str) -> Result<()> {
-    if !yes {
-        bail!("refusing dangerous operation '{operation}' without --yes");
-    }
-    Ok(())
 }
 
 #[cfg(test)]

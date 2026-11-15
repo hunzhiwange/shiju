@@ -6,9 +6,9 @@ use anyhow::{Result, bail};
 use clap::Subcommand;
 use serde_json::{Value, json};
 
-use super::context::ApiContext;
-use super::input::read_json_input;
-use super::output;
+use cli_api_core::context::ApiContext;
+use cli_api_core::input::read_json_input;
+use cli_api_core::output;
 
 /// Provider 查询与 OAuth 操作。
 #[derive(Subcommand, Debug)]

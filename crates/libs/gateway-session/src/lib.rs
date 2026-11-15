@@ -23,3 +23,8 @@ pub mod archived_delete;
 /// Pending raw artifacts awaiting durable UI snapshot acknowledgement.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod raw_commit;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod message_host;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod message_ops;

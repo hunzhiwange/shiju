@@ -81,3 +81,11 @@
 - 剩余 acp_options、message_ops、session_ops、shared 及 archived_delete HTTP 处理器仍在宿主，未实现完毕。运行时 create_session/load_session/reserve_session、ui_store 租户 task-local 与持久化、session::llm ACP 控制、gateway::chat 缓存仍需按实际签名接窄端口或真实领域服务。此项是剩余工作，不声称完成或接口不存在；此前 LlmRawStepKey 缺失已随真实 session-store 交付解除。
 - 本轮保存部分产物，保留本卡；不删除或更改其它任务。
 - 静态验证：定向 git diff --check、目标包反向依赖搜索、TOML 解析；未运行Cargo、单元测试及实机测试，待统一验收。未来覆盖原 raw_commit_tests.rs、归档排序与原宿主 persistence 测试，非 wasm 网关平台组合。
+
+### 后续增量
+
+- message_ops 四个消息/part处理器已迁入 gateway-session/src/message_ops.rs，调用真实 session_engine::message；宿主仅保留签名转发和 MessageHost 的三个实例/租户装配操作。原 shared::with_tenant_instance 保持 tenant task-local、project::from_directory 与 bootstrap 顺序；锁来自唯一 session-engine 状态。路径/body不一致拒绝仍在任何目录绑定前执行。
+- message_ops_tests.rs 使用宿主真实 project 初始化、tenant 与适配，因此原路径/断言保留，未复制测试或真实状态。
+- 未完成来源仍包括 acp_options/session_ops/shared 和 archived_delete HTTP 部分，未删除任务卡，不声称外部接口永远无法替代。
+- 精确共享范围请求：若后续需要直接调用生命周期而非新增网关专用回调，需要 session-engine 公共导出 `create_session(CreateSessionInput) -> Result<SessionSnapshot,LifecycleError>`、`load_session(SessionScope,&str) -> Result<SessionSnapshot,LifecycleError>`、`reserve_session(CreateSessionInput) -> Result<SessionSnapshot,LifecycleError>`；当前宿主 runtime/wiring.rs:18/26/31 为真实实现。此公共lib.rs不归本卡，未抢写。
+- fork_before_turn 当前依赖宿主 session::session 的 pub(crate) TurnFork（由 turn_fork 子模块重导出），不是现 session-port 已交付契约；在持有 prepare 的锁和快照直到 persist 的整个过程中不能重造 JSON 上下文或重复锁。后续须审阅该真实类型定义及所有者后决定窄接口，不猜签名。

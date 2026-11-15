@@ -22,6 +22,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+gateway-instance = { path = "../gateway-instance", version = "0.6.0" }
+session-engine = { path = "../session-engine", version = "0.6.0" }
+axum = "0.8"
 session-port = { path = "../session-port", version = "0.6.0" }
 session-store = { path = "../session-store", version = "0.6.0" }
 

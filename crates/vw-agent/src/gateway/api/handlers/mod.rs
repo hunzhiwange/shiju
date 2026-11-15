@@ -229,8 +229,7 @@ mod dynamic_tools_tests;
 pub(crate) mod dynamic_tools;
 
 pub mod agent_apps_error;
-#[cfg(test)]
-mod agent_apps_error_tests;
+// Icon error tests live with gateway-agent-apps.
 
 #[cfg(test)]
 mod agent_apps_read_tests;

@@ -1,5 +1,5 @@
 //! Full preference values captured in one SQLite owner read transaction.
-use crate::global_database::{GlobalDatabase, config::DatabaseProvider};
+use agent_database::{GlobalDatabase, config::DatabaseProvider};
 use axum::http::StatusCode;
 use rusqlite::{OptionalExtension, params};
 use sha2::{Digest, Sha256};

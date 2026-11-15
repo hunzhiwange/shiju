@@ -1,6 +1,6 @@
 //! HTTP fixtures only; never use ambient home or user configuration.
 use super::backup_crud_api;
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use {app_settings_store::settings_store::GatewaySettingsStore, agent_database::GlobalDatabase};
 use axum::Extension;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};

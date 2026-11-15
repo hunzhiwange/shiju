@@ -1,6 +1,6 @@
 //! macOS acceptance prerequisites using anonymous copies and the real provider owner.
 //! These do not claim seven-category or SDK/Iced acceptance.
-use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+use {app_provider_services::AppProviderStore, agent_database::GlobalDatabase};
 use serde_json::json;
 use std::{cell::Cell, fs, os::unix::fs::PermissionsExt};
 use vw_agent_apps::data_management::{

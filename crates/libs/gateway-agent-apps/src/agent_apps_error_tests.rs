@@ -55,7 +55,7 @@ async fn cc_base_icon_error_redacts_real_constraint_and_request() -> anyhow::Res
     let capture = Capture::default();
     let _guard = tracing::subscriber::set_default(capture.clone());
     let home = tempfile::Builder::new().prefix("SENTINEL_PATH").tempdir()?;
-    let db = crate::global_database::GlobalDatabase::for_home(home.path())?;
+    let db = agent_database::GlobalDatabase::for_home(home.path())?;
     let connection = db.connect_sqlite()?;
     connection.execute_batch("CREATE TABLE secret(value TEXT CHECK(value != 'SENTINEL_DATA'));")?;
     let error = connection.execute("INSERT INTO secret VALUES ('SENTINEL_DATA')", []).unwrap_err();

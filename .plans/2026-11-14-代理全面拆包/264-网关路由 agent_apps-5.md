@@ -13,7 +13,7 @@
 - 旧路径引用复核线索（不是迁移前置）：任务 27 的 `crate::model_relay::stream_observer::tests::samples`；任务 187 的 `crate::gateway::agent_apps_diagnostic_jobs::DiagnosticProbeError::Cancelled`；任务 197 的 `crate::agent_apps::mcp::McpCatalogStore::new`；任务 287 的 `crate::gateway::router::handler_router`；任务 305 的 `crate::gateway::settings_store::GatewaySettingsStore::new`。已有真实实现/窄适配可保持调用；只有必须消费未交付新接口时，记录符号证据后增加局部依赖。
 - 执行时滚动调度，编号仅提供可行线性顺序；只等待本卡明确列出的前置完成并集成。在途旧编号按任务编号对照认领，禁止重复执行。
 
-状态：未开始
+状态：已阻塞
 
 目的：迁移，将本任务职责归入 `gateway-agent-apps`。
 
@@ -78,3 +78,12 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+## 本轮静态交付与剩余阻塞
+
+- agent_apps_data 全部14文件（含6个既有测试文件）迁入 gateway-agent-apps/src/agent_apps_data，旧mod仅重导出；State/Cache/Staged/HeldPreview和下载缓存只有新包所有者。backup_capture/restore/periodic及写API的macOS cfg原样保留。
+- agent_apps_error及原测试迁至同包，旧错误入口仅重导出，父模块停止声明已迁测试。授权直接消费app-access-service；provider config授权保留原读/写选择的局部强类型函数。数据库、路径和设置直连真实服务，无新状态/资源。
+- 直接调用者agent_apps/mod.rs（四个数据路由）、gateway/bootstrap.rs（periodic）沿用旧薄重导出，返回/权限/取消语义不变。未引入agent-gateway依赖。
+- 剩余诊断生产文件agent_apps_diagnostics.rs依赖agent-gateway::agent_apps_diagnostic_jobs::{DiagnosticJobs,DiagnosticJobOwner,DiagnosticJobError}及agent_apps_diagnostic_executors::{model_check,stream_check,reachability,speedtest}；当前真实所有者仍为agent-gateway，不能以反向依赖迁入handler包。需先给作业注册表与执行器确立独立领域服务所有者或明确授权迁移这些清单外文件；本轮未抢写这些源码。诊断三组测试和endpoint_drafts_tests随生产所有者保留原处，原断言未改。
+- agent_apps_delete_tests.rs实测组合handler_router，agent_apps_ha_acceptance_tests.rs依赖app_routing/lifecycle_api_tests与完整网关组合，属于真实宿主组合验收，保留在原宿主，不能把router/bootstrap引入路由库。
+- 静态验证：迁移逐文件限定替换对照，diff --check；清单由限定提交入口tomllib校验。未运行Cargo、单元测试及实机测试。后续需验收gateway-agent-apps macOS数据/错误原测试、非macOS读路由与unsupported路径、完整网关集成与诊断服务解环。

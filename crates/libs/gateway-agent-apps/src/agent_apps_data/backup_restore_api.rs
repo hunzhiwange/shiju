@@ -1,8 +1,8 @@
 //! Authorized local preference restoration. Every owner write and terminal result
 //! share one SQLite transaction; unsupported owner bundles fail before capture.
-use crate::{
-    gateway::settings_store::GatewaySettingsStore,
-    global_database::{GlobalDatabase, config::DatabaseProvider},
+use {
+    app_settings_store::settings_store::GatewaySettingsStore,
+    agent_database::{GlobalDatabase, config::DatabaseProvider},
 };
 use axum::{
     Extension, Json, Router,
@@ -46,7 +46,7 @@ struct Record {
     result: Option<Value>,
     receipt: Option<SafetySnapshotReceipt>,
 }
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
@@ -88,7 +88,7 @@ fn authorize(
     if target.scope.tenant_scope() != tenant {
         return Err(StatusCode::FORBIDDEN);
     }
-    super::super::agent_apps::authorize_data_backups(policy.0.as_deref(), headers, target)
+    crate::access::authorize_data_backups(policy.0.as_deref(), headers, target)
 }
 fn scope(t: &DataManagementTarget) -> SafetySnapshotScope {
     SafetySnapshotScope {

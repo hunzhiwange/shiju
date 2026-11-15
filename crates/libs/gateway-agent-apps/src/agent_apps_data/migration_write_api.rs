@@ -1,13 +1,13 @@
 //! Authorized provider migration. Task outcome and catalog commit are atomic.
 //! Unsupported native refresh stays an explicit partial result, never success.
-use super::super::agent_apps::{
+use crate::access::{
     authenticate_data_migration, authorize_data_backups, authorize_data_migration,
-    authorize_provider_config_access,
 };
+use crate::data_access::authorize_provider_config_access;
 use super::migration_read_api::{State, source_scope};
-use crate::{
-    app_providers::AppProviderStore, gateway::settings_store::GatewaySettingsStore,
-    global_database::GlobalDatabase,
+use {
+    app_provider_services::AppProviderStore, app_settings_store::settings_store::GatewaySettingsStore,
+    agent_database::GlobalDatabase,
 };
 use axum::{Extension, Json, Router, extract::Request, http::StatusCode, routing::post};
 use rusqlite::{OptionalExtension, TransactionBehavior, params};

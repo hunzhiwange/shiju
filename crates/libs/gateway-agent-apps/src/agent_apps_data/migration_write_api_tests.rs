@@ -1,6 +1,6 @@
 //! Anonymous HTTP fixtures; no ambient home, source data or credentials.
 use super::migration_read_api;
-use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+use {app_provider_services::AppProviderStore, agent_database::GlobalDatabase};
 use axum::Extension;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};

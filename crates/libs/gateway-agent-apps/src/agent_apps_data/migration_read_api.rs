@@ -1,6 +1,6 @@
 //! Read-only migration from administrator-selected executor sources. No client paths.
-use super::super::agent_apps::{authenticate_data_migration, authorize_data_migration};
-use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+use crate::access::{authenticate_data_migration, authorize_data_migration};
+use {app_provider_services::AppProviderStore, agent_database::GlobalDatabase};
 use axum::{
     Extension, Json, Router,
     extract::Request,
@@ -60,7 +60,7 @@ impl Cache {
             .retain(|_, p| p.created.elapsed() < TTL && self.sources.contains_key(&p._transfer));
     }
 }
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
@@ -176,7 +176,7 @@ async fn preview(
         if !matches!(input.selections[0].entries, DataEntrySelection::All) {
             return Err(StatusCode::BAD_REQUEST);
         }
-        super::super::agent_apps::authorize_provider_config_access(
+        crate::data_access::authorize_provider_config_access(
             state.policy.as_deref(),
             &headers,
             &tenant,
@@ -202,7 +202,7 @@ async fn preview(
         let scope = source_scope(&input.target)?;
         let db = match database {
             Some(Extension(db)) => db,
-            None => GlobalDatabase::for_home(&crate::global::paths().home)
+            None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         let store =

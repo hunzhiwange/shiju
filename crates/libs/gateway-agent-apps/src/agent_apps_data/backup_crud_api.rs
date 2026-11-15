@@ -1,5 +1,5 @@
 //! Scope-authorized maintenance of executor-owned local backups.
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json, Router,
     extract::DefaultBodyLimit,
@@ -13,7 +13,7 @@ use {
 };
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
-pub(crate) fn router() -> Router {
+pub fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
@@ -76,7 +76,7 @@ async fn execute(
         if target.scope.tenant_scope() != &tenant {
             return Err(StatusCode::FORBIDDEN);
         }
-        let root = super::super::agent_apps::authorize_data_backups(
+        let root = crate::access::authorize_data_backups(
             policy.0.as_deref(),
             &headers,
             &target,

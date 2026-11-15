@@ -3,7 +3,7 @@ use axum::{Extension, Json, Router, http::{HeaderMap, StatusCode, header}, routi
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Instant, Duration}};
-use crate::{global_database::GlobalDatabase, gateway::settings_store::GatewaySettingsStore};
+use {agent_database::GlobalDatabase, app_settings_store::settings_store::GatewaySettingsStore};
 use {
     vw_api_app_operations::data_management::*,
     vw_api_app_identity::AppUserPreferences,
@@ -25,7 +25,7 @@ pub(super) fn load_settings(db: &GlobalDatabase, target: &DataManagementTarget) 
     GatewaySettingsStore::read_existing(db, target.scope.tenant_scope(), "data_backup_policy", &key)
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.map(|s| serde_json::from_str(&s).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)).transpose()
 }
-pub(crate) fn router() -> Router { router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from)) }
+pub fn router() -> Router { router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from)) }
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     Router::new().route("/agent-apps/data/export", post(create))
         .route("/agent-apps/data/export/download", post(download))
@@ -39,14 +39,14 @@ pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
 }
 fn authorize(state: &State, tenant: &TenantScope, headers: &HeaderMap, target: &DataManagementTarget) -> Result<PathBuf, StatusCode> {
     if target.scope.tenant_scope() != tenant { return Err(StatusCode::FORBIDDEN); }
-    super::super::agent_apps::authorize_data_backups(state.policy.as_deref(), headers, target)
+    crate::access::authorize_data_backups(state.policy.as_deref(), headers, target)
 }
 fn scope(target: &DataManagementTarget) -> SafetySnapshotScope { SafetySnapshotScope { project: target.scope.clone(), host_id: target.target_host_id.clone(), principal_id: target.principal_id.clone() } }
-fn database(db: Option<Extension<GlobalDatabase>>) -> Result<GlobalDatabase, StatusCode> { db.map(|Extension(db)| db).map(Ok).unwrap_or_else(|| GlobalDatabase::for_home(&crate::global::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)) }
+fn database(db: Option<Extension<GlobalDatabase>>) -> Result<GlobalDatabase, StatusCode> { db.map(|Extension(db)| db).map(Ok).unwrap_or_else(|| GlobalDatabase::for_home(&agent_paths::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)) }
 async fn create(Extension(state): Extension<State>, Extension(tenant): Extension<TenantScope>, db: Option<Extension<GlobalDatabase>>, headers: HeaderMap, Json(input): Json<ExportDataRequest>) -> Result<Json<Value>, StatusCode> {
     tokio::task::spawn_blocking(move || {
         authorize(&state, &tenant, &headers, &input.target)?;
-        super::super::agent_apps::authorize_data_export(state.policy.as_deref(),&headers,&input.target)?;
+        crate::access::authorize_data_export(state.policy.as_deref(),&headers,&input.target)?;
         if input.format != DataArchiveFormat::NativePackage || input.selections.len()!=1 || input.selections[0].category!=DataCategory::Preferences { return Err(StatusCode::NOT_IMPLEMENTED); }
         if !matches!(input.selections[0].entries, DataEntrySelection::All) || input.idempotency_key.is_empty() || input.idempotency_key.len()>256 { return Err(StatusCode::BAD_REQUEST); }
         let mut cache = state.downloads.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -70,7 +70,7 @@ async fn create(Extension(state): Extension<State>, Extension(tenant): Extension
 }
 async fn download(Extension(state): Extension<State>, Extension(tenant): Extension<TenantScope>, headers: HeaderMap, Json(input): Json<Input>) -> Result<Response, StatusCode> {
     authorize(&state,&tenant,&headers,&input.target)?;
-    super::super::agent_apps::authorize_data_export(state.policy.as_deref(),&headers,&input.target)?;
+    crate::access::authorize_data_export(state.policy.as_deref(),&headers,&input.target)?;
     let mut cache=state.downloads.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     cache.retain(|_,d| d.created.elapsed()<Duration::from_secs(300));
     let d=cache.get(input.transfer_id.as_deref().ok_or(StatusCode::BAD_REQUEST)?).filter(|d|d.target==input.target).ok_or(StatusCode::NOT_FOUND)?;
@@ -94,7 +94,7 @@ async fn category(state:State, tenant:TenantScope, headers:HeaderMap, input:Inpu
     tokio::task::spawn_blocking(move || {
         let root=authorize(&state,&tenant,&headers,&input.target)?;
         // Category roots must be explicitly registered by the administrator.
-        let (app,device,environment)=super::super::agent_apps::data_location_roots(state.policy.as_deref(),&headers,&input.target)?;
+        let (app,device,environment)=crate::access::data_location_roots(state.policy.as_deref(),&headers,&input.target)?;
         let scope=scope(&input.target);
         let roots=vw_agent_apps::data_management::locations::BackupLocationRoots { scope:&scope,local_backups:&root,app:&app,device:&device,environment:&environment };
         if delete {
@@ -108,7 +108,7 @@ async fn category(state:State, tenant:TenantScope, headers:HeaderMap, input:Inpu
 async fn resolve(Extension(state): Extension<State>, Extension(tenant): Extension<TenantScope>, headers: HeaderMap, Json(input): Json<Input>) -> Result<Json<Value>, StatusCode> {
     tokio::task::spawn_blocking(move || {
         let root = authorize(&state, &tenant, &headers, &input.target)?;
-        let (app, device, environment) = super::super::agent_apps::data_location_roots(state.policy.as_deref(), &headers, &input.target)?;
+        let (app, device, environment) = crate::access::data_location_roots(state.policy.as_deref(), &headers, &input.target)?;
         let scope = scope(&input.target);
         let roots = vw_agent_apps::data_management::locations::BackupLocationRoots { scope: &scope, local_backups: &root, app: &app, device: &device, environment: &environment };
         let path = vw_agent_apps::data_management::locations::location_path(&roots, &scope, input.category_id.as_deref().ok_or(StatusCode::BAD_REQUEST)?)

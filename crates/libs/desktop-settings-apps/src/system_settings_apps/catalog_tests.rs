@@ -1,0 +1,188 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppDesktopObservation,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationProbeFailure,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppReadResponse,
+    AppRuntimeKind,
+};
+use super::catalog::*;
+use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
+
+fn row() -> CatalogRow {
+    CatalogRow {
+        entry: AppCatalogEntry {
+            id: AppId::Codex,
+            name: "中文应用".into(),
+            cli_command: Some("codex".into()),
+            runtime_kinds: vec![AppRuntimeKind::NativeCli, AppRuntimeKind::AcpAdapter],
+        },
+        observation: Ok(AppReadResponse { installations: vec![], desktop: None }),
+    }
+}
+
+#[test]
+fn cc_apps_desktop_catalog_state_empty_and_independent_runtimes() {
+    let item = row();
+    assert_eq!(runtime_status(&item, AppRuntimeKind::NativeCli), "未安装");
+    assert_eq!(runtime_status(&item, AppRuntimeKind::AcpAdapter), "未验证（请在 ACP 页管理）");
+}
+
+#[test]
+fn cc_apps_desktop_catalog_state_explicit_failures_and_desktop_presence() {
+    let mut item = row();
+    item.observation = Err(AgentAppsReadError::Http { status: 503, body: serde_json::json!({}) });
+    assert!(runtime_status(&item, AppRuntimeKind::NativeCli).contains("远端离线"));
+    item.observation = Err(AgentAppsReadError::Http { status: 501, body: serde_json::json!({}) });
+    assert_eq!(runtime_status(&item, AppRuntimeKind::NativeCli), "不支持");
+    item.observation = Ok(AppReadResponse {
+        installations: vec![],
+        desktop: Some(AppDesktopObservation {
+            supported: true,
+            app_bundles: Some(vec!["/应用/Claude.app".into()]),
+            config_directories: vec![],
+        }),
+    });
+    assert_eq!(runtime_status(&item, AppRuntimeKind::DesktopApp), "已发现，运行未验证");
+}
+
+#[test]
+fn cc_apps_desktop_catalog_state_damaged_runnable_unverified() {
+    let mut item = row();
+    let mut installation = AppInstallation {
+        id: AppInstallationId("opaque".into()),
+        app_id: AppId::Codex,
+        target_host_id: "remote".into(),
+        environment: AppInstallationEnvironment::Wsl { distribution: "中文发行版".into() },
+        path: "/远端/codex".into(),
+        real_path: None,
+        source: AppInstallationSource::Unknown,
+        is_path_default: true,
+        version: None,
+        runtime_status: AppInstallationRuntimeStatus::ProbeFailed {
+            reason: AppInstallationProbeFailure::DamagedInstallation,
+        },
+    };
+    for (status, expected) in [
+        (installation.runtime_status.clone(), "损坏"),
+        (AppInstallationRuntimeStatus::Runnable, "可运行"),
+        (
+            AppInstallationRuntimeStatus::ProbeFailed {
+                reason: AppInstallationProbeFailure::InvalidVersionOutput,
+            },
+            "探测失败，未验证",
+        ),
+        (AppInstallationRuntimeStatus::ExitedWithError { exit_code: 2 }, "运行失败"),
+    ] {
+        installation.runtime_status = status;
+        item.observation =
+            Ok(AppReadResponse { installations: vec![installation.clone()], desktop: None });
+        assert_eq!(runtime_status(&item, AppRuntimeKind::NativeCli), expected);
+        assert_eq!(runtime_status(&item, AppRuntimeKind::AcpAdapter), "未验证（请在 ACP 页管理）");
+    }
+}
+
+#[tokio::test]
+async fn cc_apps_desktop_catalog_state_sdk_fourteen_concurrent_ordered_and_partial_failure() {
+    use std::io::{Read, Write};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let ids = [
+        "claude",
+        "claude-desktop",
+        "codex",
+        "gemini",
+        "grokbuild",
+        "opencode",
+        "openclaw",
+        "hermes",
+        "pi",
+        "mcode",
+        "kimi",
+        "dsh",
+        "agy",
+        "omp",
+    ];
+    let server = std::thread::spawn(move || {
+        let apps = ids.iter().map(|id| serde_json::json!({"id":id,"name":format!("中文应用 {id}"),"cliCommand":null,"runtimeKinds":[if *id == "claude-desktop" {"desktop_app"} else {"native_cli"}]})).collect::<Vec<_>>();
+        listener.set_nonblocking(true).unwrap();
+        let mut pending = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for index in 0..15 {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(
+                            std::time::Instant::now() < deadline,
+                            "expected concurrent requests"
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("accept failed: {error}"),
+                }
+            };
+            stream.set_nonblocking(false).unwrap();
+            stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                stream.read_exact(&mut byte).unwrap();
+                request.push(byte[0]);
+            }
+            let request = String::from_utf8(request).unwrap();
+            assert!(request.contains("x-agent-apps-token: fixture-application-grant"));
+            assert!(request.contains("targetHostId=remote"));
+            if index > 0 {
+                let id = ids
+                    .iter()
+                    .find(|id| {
+                        request.contains(&format!("appId={id} "))
+                            || request.contains(&format!("appId={id}&"))
+                    })
+                    .unwrap();
+                assert!(seen.insert(*id));
+            }
+            let (status, body) = if index == 0 {
+                (200, serde_json::json!({"apps": apps}).to_string())
+            } else if request.contains("appId=codex") {
+                (503, "{}".into())
+            } else {
+                (200, r#"{"installations":[]}"#.into())
+            };
+            pending.push((stream, status, body));
+            // Hold the first wave until all six requests arrive, then reply backwards.
+            if (1..6).contains(&index) {
+                continue;
+            }
+            if index == 6 {
+                assert!(
+                    matches!(listener.accept(), Err(e) if e.kind() == std::io::ErrorKind::WouldBlock)
+                );
+            }
+            for (mut stream, status, body) in pending.drain(..).rev() {
+                write!(stream, "HTTP/1.1 {status} Result\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+        }
+        assert_eq!(seen.len(), 14);
+    });
+    let rows = load(
+        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap(),
+        "remote".into(),
+        "fixture-application-grant".into(),
+    )
+    .await
+    .unwrap();
+    server.join().unwrap();
+    assert_eq!(rows.len(), 14);
+    assert_eq!(rows[2].entry.id, AppId::Codex);
+    assert!(runtime_status(&rows[2], AppRuntimeKind::NativeCli).contains("远端离线"));
+    assert_eq!(runtime_status(&rows[3], AppRuntimeKind::NativeCli), "未安装");
+}

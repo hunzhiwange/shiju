@@ -13,9 +13,6 @@ mod lifecycle_tests;
 mod list;
 pub(crate) mod local;
 mod presentation;
-#[cfg(test)]
-mod presentation_tests;
-mod styles;
 pub(crate) mod uninstall;
 
 use super::system_settings_common::*;
@@ -115,3 +112,36 @@ pub(crate) mod preferences_tests;
 pub(crate) mod launch;
 #[cfg(test)]
 mod launch_tests;
+
+pub(super) fn view_state(state: &AppsCatalogState) -> desktop_settings_apps::system_settings_apps::ViewState<'_> {
+    desktop_settings_apps::system_settings_apps::ViewState {
+        rows: &state.rows, preferences: &state.preferences, lifecycle: &state.lifecycle, drag: &state.drag,
+        query: &state.query, host: &state.host, loading: state.loading, error: &state.error,
+        expanded: state.expanded, hovered: state.hovered,
+    }
+}
+
+pub(super) fn domain_event(action: desktop_settings_apps::system_settings_apps::Action) -> Message {
+    use desktop_settings_apps::system_settings_apps::Action;
+    use crate::app::message::settings::apps_lifecycle::LifecycleMessage;
+    let value = match action {
+        Action::Refresh => AppsCatalogMessage::Refresh,
+        Action::QueryInput(value) => AppsCatalogMessage::QueryInput(value),
+        Action::ConnectionOpen => AppsCatalogMessage::ConnectionOpen,
+        Action::LocalConnect => AppsCatalogMessage::LocalConnect,
+        Action::ToggleDetails(id) => AppsCatalogMessage::ToggleDetails(id),
+        Action::RefreshObservation(id) => AppsCatalogMessage::RefreshObservation(id),
+        Action::PreferencesOpen => AppsCatalogMessage::Preferences(preferences::PreferencesMessage::Open),
+        Action::LaunchOpen(id, installation) => AppsCatalogMessage::Launch(launch::LaunchMessage::Open(id, installation)),
+        Action::Preview(request) => AppsCatalogMessage::Lifecycle(LifecycleMessage::Preview(request)),
+        Action::LifecycleClose => AppsCatalogMessage::Lifecycle(LifecycleMessage::Close),
+        Action::LifecycleConfirm => AppsCatalogMessage::Lifecycle(LifecycleMessage::Confirm),
+        Action::LifecycleRefresh => AppsCatalogMessage::Lifecycle(LifecycleMessage::Refresh),
+        Action::LifecycleCancel => AppsCatalogMessage::Lifecycle(LifecycleMessage::Cancel),
+        Action::Drag(value) => AppsCatalogMessage::Drag(value),
+        Action::Providers(id) => return crate::app::message::app_providers::list::message(crate::app::message::app_providers::list::ListMessage::Open(id)),
+        Action::Prompts(id) => AppsCatalogMessage::Prompts(crate::app::message::settings::prompts::Event::Open(id)),
+        Action::Download => return Message::View(crate::app::message::ViewMessage::OpenUrlExternal("https://claude.com/download".into())),
+    };
+    message(value)
+}

@@ -1,4 +1,4 @@
-use crate::app::components::system_settings_common::settings_panel_style;
+use desktop_ui_controls::system_settings_common::settings_panel_style;
 use iced::{Border, Color, Theme, widget::container};
 
 #[derive(Clone, Copy)]

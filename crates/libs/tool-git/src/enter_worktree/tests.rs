@@ -3,7 +3,7 @@
 //! 测试会创建临时 Git 仓库，确保工具使用真实 worktree 绑定，而不是仅更新内存状态。
 
 use super::EnterWorktreeTool;
-use crate::app::agent::project::instance;
+use agent_project::instance;
 use crate::app::agent::tools::Tool;
 use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};
 use serde_json::json;

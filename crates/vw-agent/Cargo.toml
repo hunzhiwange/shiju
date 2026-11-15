@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+tool-git = { path = "../libs/tool-git", version = "0.6.0" }
 tool-files = { path = "../libs/tool-files", version = "0.6.0" }
 channel-runtime = { path = "../libs/channel-runtime", version = "0.6.0" }
 task-plan-runner = { path = "../libs/task-plan-runner", version = "0.6.0" }
@@ -524,6 +525,7 @@ channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = 
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
+tool-git = { path = "../libs/tool-git", version = "0.6.0", features = ["test-support"] }
 tool-assembly = { path = "../libs/tool-assembly", version = "0.6.0", features = ["test-support"] }
 channel-qq = { path = "../libs/channel-qq", version = "0.6.0", features = ["test-support"] }
 agent-loop = { path = "../libs/agent-loop", version = "0.6.0", features = ["test-support"] }

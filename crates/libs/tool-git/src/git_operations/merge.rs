@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl GitOperationsTool {
+impl<H: ContextHost> GitOperationsTool<H> {
     pub(super) async fn git_merge(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
         let result = (|| -> anyhow::Result<serde_json::Value> {
             let source = args

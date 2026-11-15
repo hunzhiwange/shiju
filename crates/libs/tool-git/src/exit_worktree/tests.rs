@@ -3,7 +3,7 @@
 //! 覆盖工具元数据、上下文错误、工作树阻断、移除失败，以及真实 Git worktree 的退出路径。
 
 use super::ExitWorktreeTool;
-use crate::app::agent::project::instance;
+use agent_project::instance;
 use crate::app::agent::tools::context::{
     ToolUseContext, WorktreeBindingState, scope_tool_use_context,
 };
@@ -57,7 +57,7 @@ fn create_worktree(repo: &Repository, dir: &TempDir, name: &str) -> (PathBuf, St
 fn exit_worktree_production_status_check_does_not_spawn_system_git() {
     let source = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/tools/exit_worktree/mod.rs"
+        "/../libs/tool-git/src/exit_worktree/mod.rs"
     ))
     .expect("exit worktree source should read");
 

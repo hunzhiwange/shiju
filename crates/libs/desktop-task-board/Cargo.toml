@@ -23,6 +23,10 @@ vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 serde_json = "1"
 
+desktop-task-executor = { path = "../desktop-task-executor", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+runtime-time = { path = "../runtime-time", version = "0.6.0" }
+
 [dev-dependencies]
 desktop-task-model = { path = "../desktop-task-model", version = "0.6.0", features = ["test-support"] }
 vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.6.0" }

@@ -1,7 +1,7 @@
 // 验证评审输出元数据拆分与合并前置条件校验。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
-use crate::app::task::Task;
+use desktop_task_model::Task;
 
 fn merge_task(source: Option<&str>, target: Option<&str>, worktree: Option<&str>) -> Task {
     let mut task = Task::new(1);

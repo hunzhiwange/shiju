@@ -6,3 +6,4 @@ pub mod task_pet;
 pub mod model_selector;
 pub mod bulk;
 pub mod selector_styles;
+pub mod helpers;

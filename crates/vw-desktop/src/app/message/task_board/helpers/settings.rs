@@ -48,40 +48,34 @@ pub(crate) fn save_settings(app: &mut crate::app::App) {
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn now_ms() -> u64 {
-    crate::app::time::now_ms()
-}
+pub(crate) use desktop_task_board::helpers::settings::now_ms;
 
 /// 执行 next_deadline_ms 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn next_deadline_ms(interval_secs: u64) -> u64 {
-    now_ms().saturating_add(interval_secs.saturating_mul(1000))
-}
+pub(crate) use desktop_task_board::helpers::settings::next_deadline_ms;
 
 /// 执行 task_board_refresh_interval_secs 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn task_board_refresh_interval_secs(app: &crate::app::App) -> u64 {
-    app.task_board_settings.refresh_interval_seconds.clamp(1, 3600)
+    desktop_task_board::helpers::settings::task_board_refresh_interval_secs(&app.task_board_settings)
 }
 
 /// 执行 sanitized_task_board_settings 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn sanitized_task_board_settings(settings: TaskBoardSettings) -> TaskBoardSettings {
-    settings.sanitized()
-}
+pub(crate) use desktop_task_board::helpers::settings::sanitized_task_board_settings;
 
 /// 执行 scheduler_tick_interval_secs 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn scheduler_tick_interval_secs(app: &crate::app::App) -> u64 {
-    app.task_board_settings.scheduler_tick_interval_seconds.clamp(1, 60)
+    desktop_task_board::helpers::settings::scheduler_tick_interval_secs(&app.task_board_settings)
 }
 
 /// 执行 auto_promote_tick_interval_secs 对应的领域操作。
@@ -89,7 +83,7 @@ pub(crate) fn scheduler_tick_interval_secs(app: &crate::app::App) -> u64 {
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn auto_promote_tick_interval_secs(app: &crate::app::App) -> u64 {
-    app.task_board_settings.auto_promote_tick_interval_seconds.clamp(1, 3600)
+    desktop_task_board::helpers::settings::auto_promote_tick_interval_secs(&app.task_board_settings)
 }
 
 /// 执行 pr_submitted_stall_timeout_secs 对应的领域操作。
@@ -98,7 +92,7 @@ pub(crate) fn auto_promote_tick_interval_secs(app: &crate::app::App) -> u64 {
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 #[allow(dead_code)]
 pub(crate) fn pr_submitted_stall_timeout_secs(app: &crate::app::App) -> u64 {
-    app.task_board_settings.pr_submitted_stall_timeout_seconds.clamp(300, 3600) as u64
+    desktop_task_board::helpers::settings::pr_submitted_stall_timeout_secs(&app.task_board_settings)
 }
 
 /// 执行 schedule_scheduler_tick 对应的领域操作。

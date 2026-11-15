@@ -2,14 +2,14 @@
 
 use super::prompt::skill_prompt_content;
 use super::{base_dir_url, skill_location};
-use crate::app::agent::skills;
-use crate::app::agent::tools::traits::{
+use agent_skills as skills;
+use tool_types::{
     ToolCallResult, ToolCallTelemetry, ToolContextUpdate, ToolExtraMessage,
 };
 use serde_json::{Value, json};
 use std::path::Path;
 
-pub(super) fn build_invocation_result(
+pub fn build_invocation_result(
     skill: &skills::Skill,
     workspace_dir: &Path,
     args: Option<&str>,

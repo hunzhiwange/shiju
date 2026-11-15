@@ -11,6 +11,7 @@ pub mod remote_trigger;
 pub mod schedule;
 pub mod scheduler;
 pub mod sleep;
+pub mod skill;
 pub mod todo;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod screenshot;

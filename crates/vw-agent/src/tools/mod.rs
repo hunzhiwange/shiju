@@ -192,6 +192,39 @@ pub use shell::ShellTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use shell::session_tools::{BashCancelTool, BashWaitTool};
 pub use skill::SkillTool;
+
+impl tool_services::skill::SkillHost for context::AgentContextHost {
+    fn load_session_skills(workspace: &std::path::Path, config: &crate::config::Config, sources: &Self::SessionSkillSources, full: bool) -> anyhow::Result<Vec<crate::skills::Skill>> {
+        crate::skills::load_session_skills(workspace, config, sources, full)
+    }
+    fn load_skills_with_config(workspace: &std::path::Path, config: &crate::config::Config) -> Vec<crate::skills::Skill> {
+        crate::skills::load_skills_with_config(workspace, config)
+    }
+    async fn default_agent() -> Result<String, String> { crate::agent::default_agent().await }
+    async fn permission_rules(name: &str) -> Option<crate::permission::next::Ruleset> {
+        crate::agent::permission_rules(name).await
+    }
+    async fn ask(input: crate::question::AskInput) -> Result<Vec<crate::question::Answer>, String> {
+        crate::question::ask(input).await.map_err(|error| error.to_string())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn inherit_scope<F: std::future::Future + Send>(future: F) -> impl std::future::Future<Output = F::Output> + Send
+    where F::Output: Send {
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        let project = crate::project::instance::project().map(|project| crate::project::instance::Context {
+            directory: crate::project::instance::directory(),
+            worktree: crate::project::instance::worktree(),
+            project,
+        });
+        crate::session::ui_store::with_tenant_scope(tenant, async move {
+            match project {
+                Some(project) => crate::project::instance::provide_context(project, future).await,
+                None => future.await,
+            }
+        })
+    }
+}
+
 pub use sleep::SleepTool;
 pub use thread_tool::CreateThreadTool;
 pub use todo::{Todo, TodoReadTool, TodoWriteTool};

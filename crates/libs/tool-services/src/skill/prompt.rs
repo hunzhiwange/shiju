@@ -1,10 +1,13 @@
 //! `SkillTool` 对模型暴露的提示文本。
 
-use super::{accessible_skills, file_url, skill_file_id, skill_location, xml_escape};
-use crate::app::agent::{config, skills};
+use super::{file_url, skill_file_id, skill_location, xml_escape};
+#[cfg(not(target_arch = "wasm32"))]
+use super::accessible_skills;
+use agent_config::runtime as config;
+use agent_skills as skills;
 use std::path::Path;
 
-pub(super) const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
+pub const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
 严格执行要求：
 1. 除非用户明确要求跳过、修改或重排某个具体步骤，否则必须按本技能规定的顺序完整执行全部工作流。
 2. 不得静默跳过、合并、替代或虚构任何步骤；不得因为已有部分信息而省略技能要求的验证步骤。
@@ -14,13 +17,13 @@ pub(super) const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
 </skill_execution_policy>"#;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn build_description_text(workspace_dir: &Path, root_config: &config::Config) -> String {
+pub fn build_description_text<H: super::SkillHost>(workspace_dir: &Path, root_config: &config::Config) -> String {
     let skills =
-        accessible_skills(skills::load_skills_with_config(workspace_dir, root_config), None);
+        accessible_skills::<H>(H::load_skills_with_config(workspace_dir, root_config), None);
     build_description_text_for_skills(workspace_dir, skills)
 }
 
-pub(super) fn build_description_text_for_skills(
+pub fn build_description_text_for_skills(
     workspace_dir: &Path,
     skills: Vec<skills::Skill>,
 ) -> String {
@@ -57,14 +60,14 @@ pub(super) fn build_description_text_for_skills(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub(super) fn build_description_text(
+pub fn build_description_text<H: super::SkillHost>(
     _workspace_dir: &Path,
     _root_config: &config::Config,
 ) -> String {
     "Load a specialized skill with domain-specific instructions and workflow context.".to_string()
 }
 
-pub(super) fn skill_prompt_content(skill: &skills::Skill, args: Option<&str>) -> String {
+pub fn skill_prompt_content(skill: &skills::Skill, args: Option<&str>) -> String {
     let content = skill
         .prompts
         .iter()

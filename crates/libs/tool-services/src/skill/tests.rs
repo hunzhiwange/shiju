@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 fn tool_with_security(security: SecurityPolicy) -> SkillTool {
     SkillTool {
+        _host: std::marker::PhantomData,
         security: Arc::new(security),
         session_id: "skill-test-session".to_string(),
         force_prompt_on_allow: false,

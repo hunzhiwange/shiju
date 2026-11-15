@@ -1,0 +1,22 @@
+[package]
+name = "task-worktree-pool"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+# Existing host scheduler tests construct pools with an isolated root.
+test-support = []
+
+[dependencies]
+anyhow = "1"
+project-types = { path = "../project-types", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

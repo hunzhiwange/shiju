@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+task-worktree-pool = { path = "../libs/task-worktree-pool", version = "0.6.0" }
 workflow-core = { path = "../libs/workflow-core", version = "0.6.0" }
 workflow-template-contract = { path = "../libs/workflow-template-contract", version = "0.6.0" }
 task-scheduler-core = { path = "../libs/task-scheduler-core", version = "0.6.0" }

@@ -15,13 +15,13 @@
 //! 每个测试使用独立的临时目录和临时数据库，确保测试之间相互隔离，
 //! 不会产生副作用或依赖关系。
 
-use crate::app::agent::config::Config;
-use crate::app::agent::cron::store::{
+use agent_config::runtime::Config;
+use crate::store::{
     MAX_CRON_OUTPUT_BYTES, TRUNCATED_OUTPUT_MARKER, add_job, add_shell_job, due_jobs, get_job,
     list_jobs, list_runs, record_run, remove_job, reschedule_after_run, update_job,
     with_connection,
 };
-use crate::app::agent::cron::{CronJobPatch, JobType, Schedule};
+use crate::{CronJobPatch, JobType, Schedule};
 use anyhow::Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use rusqlite::params;

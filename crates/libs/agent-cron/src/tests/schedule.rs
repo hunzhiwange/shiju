@@ -10,8 +10,8 @@
 //! - `At` 模式：指定时间点一次性调度
 //! - `Cron` 模式：cron 表达式调度（支持时区）
 
-use crate::app::agent::cron::Schedule;
-use crate::app::agent::cron::schedule::{
+use crate::Schedule;
+use crate::schedule::{
     next_run_for_schedule, normalize_expression, validate_schedule,
 };
 use chrono::{TimeZone, Utc};
@@ -76,8 +76,8 @@ fn next_run_for_schedule_supports_timezone() {
 /// Exercise the shared preview calculator and real SQLite lifecycle together.
 #[test]
 fn wb_schedule_acceptance_roundtrips_window_and_timezone() {
-    use crate::app::agent::config::Config;
-    use crate::app::agent::cron::{CronJobPatch, store};
+    use agent_config::runtime::Config;
+    use crate::{CronJobPatch, store};
     let tmp = tempfile::tempdir().unwrap();
     let config = Config {
         workspace_dir: tmp.path().join("workspace"),

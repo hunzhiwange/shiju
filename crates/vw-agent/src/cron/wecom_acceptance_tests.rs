@@ -1,5 +1,6 @@
 //! Cross-module acceptance with real persistence and HTTP protocol boundaries.
 use super::*;
+use agent_config::runtime::Config;
 use crate::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::memory::NoneMemory;
 use model_types::Provider;

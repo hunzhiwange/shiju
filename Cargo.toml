@@ -346,6 +346,7 @@ members = [
   "crates/libs/agent-files",
   "crates/libs/agent-format",
   "crates/libs/agent-health",
+  "crates/libs/agent-cron",
   "crates/libs/agent-context",
   "crates/libs/agent-env",
   "crates/libs/agent-approval",

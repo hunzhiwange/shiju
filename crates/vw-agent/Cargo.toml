@@ -37,6 +37,7 @@ agent-observability = { path = "../libs/agent-observability", version = "0.6.0" 
 agent-integrations = { path = "../libs/agent-integrations", version = "0.6.0" }
 agent-installation = { path = "../libs/agent-installation", version = "0.6.0" }
 agent-health = { path = "../libs/agent-health", version = "0.6.0" }
+agent-cron = { path = "../libs/agent-cron", version = "0.6.0" }
 agent-format = { path = "../libs/agent-format", version = "0.6.0" }
 agent-config = { path = "../libs/agent-config", version = "0.6.0" }
 agent-cli-types = { path = "../libs/agent-cli-types", version = "0.6.0" }

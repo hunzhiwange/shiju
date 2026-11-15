@@ -15,7 +15,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::cron::{JobType, Schedule, SessionTarget};
+    use crate::{JobType, Schedule, SessionTarget};
     use tempfile::TempDir;
 
     /// 创建用于测试的配置实例

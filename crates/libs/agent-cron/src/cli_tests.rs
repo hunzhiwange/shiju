@@ -10,6 +10,7 @@
 //! 所有测试使用临时目录隔离，确保测试之间的独立性和可重复性。
 
 use super::*;
+use crate::*;
 
 #[allow(dead_code)]
 mod tests {

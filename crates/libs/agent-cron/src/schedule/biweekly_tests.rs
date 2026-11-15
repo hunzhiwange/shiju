@@ -1,5 +1,5 @@
 use super::{next_run_for_schedule, schedule_cron_expression, validate_schedule};
-use crate::app::agent::cron::Schedule;
+use crate::Schedule;
 use chrono::{DateTime, NaiveDate, Utc};
 
 fn utc(value: &str) -> DateTime<Utc> {
@@ -87,10 +87,8 @@ fn wb_schedule_biweekly_has_no_cron_expression() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn wb_schedule_biweekly_round_trips_sqlite() {
-    use crate::app::agent::{
-        config::Config,
-        cron::{add_shell_job, get_job},
-    };
+    use crate::{add_shell_job, get_job};
+    use agent_config::runtime::Config;
     let tmp = tempfile::TempDir::new().unwrap();
     let config = Config {
         workspace_dir: tmp.path().join("workspace"),

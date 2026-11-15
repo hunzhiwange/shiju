@@ -4,7 +4,7 @@ use super::store::{
     add_agent_job, add_job, get_job, list_jobs, remove_job, update_job, with_connection,
 };
 use super::{CronJobPatch, DeliveryConfig, JobType, Schedule, SessionTarget};
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use chrono::{Duration as ChronoDuration, Utc};
 use rusqlite::params;
 use tempfile::TempDir;

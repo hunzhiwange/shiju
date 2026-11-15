@@ -27,14 +27,14 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Child;
 use tokio::sync::{Notify, mpsc, oneshot};
 
-use crate::errors::{
+use acp_types::errors::{
     AcpxErrorOptions, ErrorSource, PermissionDeniedError, PermissionPromptUnavailableError,
 };
 use crate::permission_prompt::{
     PermissionPromptOptions, can_prompt_for_permission, prompt_for_permission,
 };
 use crate::spawn_command_options::build_spawn_command;
-use crate::types::{
+use acp_types::types::{
     ClientOperation, ClientOperationMethod, ClientOperationStatus, NonInteractivePermissionPolicy,
     OutputErrorCode, OutputErrorOrigin, PermissionMode,
 };
@@ -119,7 +119,7 @@ impl TerminalManager {
         }
     }
 
-    pub(crate) fn with_workspace_auto_execute(mut self, enabled: bool) -> Self {
+    pub fn with_workspace_auto_execute(mut self, enabled: bool) -> Self {
         self.workspace_auto_execute = enabled;
         self
     }

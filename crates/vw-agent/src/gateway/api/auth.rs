@@ -6,21 +6,11 @@
 
 use super::super::AppState;
 use axum::{
-    http::{HeaderMap, StatusCode, header},
+    http::{HeaderMap, StatusCode},
     response::Json,
 };
 
-/// 从 `Authorization` 头提取非空 Bearer skey。
-pub fn extract_auth_skey(headers: &HeaderMap) -> Option<&str> {
-    headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .map(str::trim)
-        .and_then(|auth| auth.strip_prefix("Bearer "))
-        .map(str::trim)
-        .filter(|skey| !skey.is_empty())
-}
-
+pub use gateway_types::auth::extract_auth_skey;
 #[cfg(test)]
 fn extract_bearer_token(headers: &HeaderMap) -> Option<&str> {
     extract_auth_skey(headers)

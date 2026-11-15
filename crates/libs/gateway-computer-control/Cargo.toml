@@ -20,3 +20,24 @@ serde_json = "1"
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[lib]
+doctest = false
+
+[target.'cfg(unix)'.dependencies]
+axum = { version = "0.8.8", features = ["json"] }
+serde_json = "1"
+sha2 = "0.11"
+hex = "0.4"
+libc = "0.2"
+tokio = { version = "1", features = ["sync"] }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+computer-control = { path = "../computer-control", version = "0.6.0" }
+config-computer-control = { path = "../config-computer-control", version = "0.6.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+tool-computer = { path = "../tool-computer", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+[target.'cfg(unix)'.dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

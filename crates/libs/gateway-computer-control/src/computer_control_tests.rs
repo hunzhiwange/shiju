@@ -1,5 +1,5 @@
-use super::computer_control::{feature, scope, setting};
-use crate::computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
+use super::{feature, scope, setting};
+use computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
 use vw_api_computer_control::*;
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
@@ -41,7 +41,7 @@ macro_rules! unauthenticated_route {
         async fn $name() {
             use axum::{body::Body, http::{Request, StatusCode}, Extension};
             use tower::ServiceExt;
-            let response = super::computer_control::router()
+            let response = super::router()
                 .layer(Extension(vw_api_transport::TenantScope::default()))
                 .oneshot(Request::builder().method($method).uri($path)
                     .header("content-type", "application/json")

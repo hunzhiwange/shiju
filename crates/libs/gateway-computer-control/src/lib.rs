@@ -18,3 +18,8 @@ pub use computer_control_api::ComputerControlApiError;
 mod computer_control_api_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod test_support;
+
+#[cfg(unix)]
+mod handlers;
+#[cfg(unix)]
+pub use handlers::router;

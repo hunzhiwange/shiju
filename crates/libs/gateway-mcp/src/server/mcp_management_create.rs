@@ -1,19 +1,18 @@
-//! Update only the desired MCP definition using the caller's expected revision.
+//! Create a definition in the authorized managed MCP catalog.
 
 use axum::{
     Extension, Json,
-    extract::{Path, rejection::JsonRejection},
+    extract::rejection::JsonRejection,
     http::{HeaderMap, StatusCode},
 };
+use vw_agent_apps::mcp::catalog::McpCatalogDraft;
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_mcp_management::McpCatalogRecord,
     vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCreateRequest,
     vw_api_mcp_management::McpFailureCode,
-    vw_api_mcp_management::McpRecordId,
-    vw_api_mcp_management::McpRecordRef,
-    vw_api_mcp_management::McpUpdateRequest,
 };
 
 use super::{
@@ -22,16 +21,15 @@ use super::{
         McpHttpError, PolicyFile, access_error, failure, open_database, unavailable,
     },
 };
-use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
+use {agent_app_services::mcp::McpCatalogStore, agent_database::GlobalDatabase};
 
-pub(super) async fn update_catalog_record(
+pub(super) async fn create_catalog_record(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
-    Path(id): Path<String>,
     database: Option<Extension<GlobalDatabase>>,
-    request: Result<Json<McpUpdateRequest>, JsonRejection>,
-) -> Result<Json<McpCatalogRecord>, McpHttpError> {
+    request: Result<Json<McpCreateRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<McpCatalogRecord>), McpHttpError> {
     let Json(request) = request.map_err(|error| {
         let status = match error.status() {
             StatusCode::PAYLOAD_TOO_LARGE => StatusCode::PAYLOAD_TOO_LARGE,
@@ -40,7 +38,18 @@ pub(super) async fn update_catalog_record(
         failure(status, McpFailureCode::InvalidDefinition)
     })?;
     tokio::task::spawn_blocking(move || {
-        let scope = match request.project_id {
+        let McpCreateRequest {
+            target_host_id,
+            project_id,
+            id,
+            name,
+            description,
+            homepage,
+            documentation,
+            tags,
+            connection,
+        } = request;
+        let scope = match project_id {
             Some(project_id) => McpCatalogScope::Project {
                 scope: ProjectScope::new(tenant, project_id)
                     .map_err(|_| access_error(StatusCode::BAD_REQUEST))?,
@@ -51,21 +60,32 @@ pub(super) async fn update_catalog_record(
             policy.0.as_deref(),
             &headers,
             &scope,
-            &request.target_host_id,
+            &target_host_id,
         )
         .map_err(access_error)?;
         let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
-        let expected = McpRecordRef { id: McpRecordId(id), revision: request.expected_revision };
-        // Saving the desired definition makes no claim about native distribution or connectivity.
-        store.update_connection(&scope, &expected, request.connection).map(Json).map_err(|code| {
-            let status = match code {
-                McpFailureCode::InvalidDefinition => StatusCode::BAD_REQUEST,
-                McpFailureCode::StaleRevision | McpFailureCode::Conflict => StatusCode::CONFLICT,
-                McpFailureCode::NotFound => StatusCode::NOT_FOUND,
-                _ => StatusCode::SERVICE_UNAVAILABLE,
-            };
-            failure(status, code)
-        })
+        let record = store
+            .create(
+                &scope,
+                McpCatalogDraft {
+                    id,
+                    name,
+                    description,
+                    homepage,
+                    documentation,
+                    tags,
+                    connection,
+                },
+            )
+            .map_err(|code| {
+                let status = match code {
+                    McpFailureCode::InvalidDefinition => StatusCode::BAD_REQUEST,
+                    McpFailureCode::Conflict => StatusCode::CONFLICT,
+                    _ => StatusCode::SERVICE_UNAVAILABLE,
+                };
+                failure(status, code)
+            })?;
+        Ok((StatusCode::CREATED, Json(record)))
     })
     .await
     .map_err(unavailable)?

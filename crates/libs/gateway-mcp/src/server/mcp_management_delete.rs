@@ -6,7 +6,7 @@ use super::{
         McpHttpError, PolicyFile, access_error, failure, open_database, unavailable,
     },
 };
-use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
+use {agent_app_services::mcp::McpCatalogStore, agent_database::GlobalDatabase};
 use axum::{
     Extension, Json,
     extract::{Path, rejection::JsonRejection},
@@ -124,7 +124,7 @@ fn cleanup(
     expected: &McpRecordRef,
     target: &vw_api_mcp_management::McpAppTarget,
 ) -> Result<(), McpFailureCode> {
-    use crate::agent_apps::mcp::McpBindingTarget;
+    use agent_app_services::mcp::McpBindingTarget;
     use vw_agent_apps::{
         apps::discovery::read,
         mcp::import::NativeMcpSource,

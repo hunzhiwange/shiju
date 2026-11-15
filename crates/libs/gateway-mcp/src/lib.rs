@@ -16,3 +16,6 @@ mod mcp_api;
 mod test_support;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod mcp_api_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod server;

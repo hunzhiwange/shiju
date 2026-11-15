@@ -5,7 +5,7 @@ use super::{
         McpHttpError, PolicyFile, access_error, failure, open_database, unavailable,
     },
 };
-use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
+use {agent_app_services::mcp::McpCatalogStore, agent_database::GlobalDatabase};
 use axum::{
     Extension, Json,
     extract::{Path, rejection::JsonRejection},
@@ -102,7 +102,7 @@ async fn execute(
     }
     #[cfg(target_os = "macos")]
     {
-        use crate::agent_apps::{
+        use agent_app_services::{
             auth_accounts::{AuthAccountScope, AuthAccountStore},
             mcp::McpBindingTarget,
         };

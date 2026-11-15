@@ -113,6 +113,7 @@ pub mod memory;
 
 /// MCP 检查处理器模块
 pub mod mcp;
+mod mcp_host;
 
 /// 杂项元数据路由处理器模块
 pub mod misc;
@@ -319,18 +320,19 @@ mod model_discovery;
 #[cfg(all(test, target_os = "macos"))]
 mod model_discovery_tests;
 
-mod mcp_management_create;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs"]
 mod mcp_management_create_tests;
-mod mcp_management_delete;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_delete_tests.rs"]
 mod mcp_management_delete_tests;
 mod mcp_management_read;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_read_tests.rs"]
 mod mcp_management_read_tests;
 
-mod mcp_management_update;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs"]
 mod mcp_management_update_tests;
 
 mod aggregation_members;
@@ -370,9 +372,9 @@ pub(crate) mod aggregation_resync;
 mod aggregation_codex_settings;
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs"]
 mod mcp_management_bindings_tests;
 
-mod mcp_management_bindings;
 
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_resync_tests;
@@ -389,8 +391,8 @@ mod agent_apps_diagnostics_acceptance_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_diagnostics_tests;
 
-mod mcp_management_import;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs"]
 mod mcp_management_import_tests;
 
 mod voice_settings;
@@ -401,11 +403,13 @@ mod aggregation_publish_tests;
 mod aggregation_publish;
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs"]
 mod mcp_management_resync_tests;
 
 mod mcp_management_resync;
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs"]
 mod mcp_management_probe_tests;
 
 #[cfg(all(test, target_os = "macos"))]
@@ -427,6 +431,7 @@ mod aggregation_exit;
 mod mcp_management_tools;
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs"]
 mod mcp_management_tools_tests;
 
 pub(crate) mod agent_apps_skills;

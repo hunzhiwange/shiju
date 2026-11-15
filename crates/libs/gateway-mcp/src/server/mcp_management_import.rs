@@ -6,11 +6,10 @@ use super::{
     mcp_management_read::{McpHttpError, PolicyFile, access_error, unavailable},
 };
 #[cfg(target_os = "macos")]
-use crate::agent_apps::mcp::{McpCatalogStore, McpImportSource};
-use crate::{
-    agent_apps::mcp::{McpImportOutcome, McpImportReport},
-    global_database::GlobalDatabase,
-};
+use agent_app_services::mcp::{McpCatalogStore, McpImportSource};
+#[cfg(target_os = "macos")]
+use agent_app_services::mcp::{McpImportOutcome, McpImportReport};
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json,
     extract::rejection::JsonRejection,
@@ -65,6 +64,7 @@ enum EntryOutcome {
     Unchanged { record: McpRecordRef },
     Failed { code: McpFailureCode },
 }
+#[cfg(target_os = "macos")]
 impl From<McpImportReport> for SourceResult {
     fn from(report: McpImportReport) -> Self {
         match report.entries {
@@ -176,7 +176,7 @@ fn import_source(
     store: &McpCatalogStore,
     source: ImportSource,
 ) -> Result<McpImportReport, McpFailureCode> {
-    use crate::agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore};
+    use agent_app_services::auth_accounts::{AuthAccountScope, AuthAccountStore};
     use vw_agent_apps::{
         apps::discovery::read::resolve_cli_installation, mcp::import::NativeMcpSource,
     };

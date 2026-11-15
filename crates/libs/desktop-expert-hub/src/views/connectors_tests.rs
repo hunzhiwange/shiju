@@ -10,7 +10,7 @@ async fn connector_grid_has_three_equal_columns_and_scrollbar_gutter() {
     let state = desktop_skill_hub::skill_hub::ExpertHubState::default();
     let app = super::ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &Theme::Dark };
     let connectors = (1..=5).map(connector).collect::<Vec<_>>();
-    let mut element = super::connectors::card_grid(&app, &connectors);
+    let mut element = super::connectors::card_grid(&app, &connectors, super::Message::Connectors);
     let renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await

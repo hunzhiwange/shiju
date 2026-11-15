@@ -1,11 +1,15 @@
 //! 三列连接器卡片与统一配置弹窗；授权等待只属于对应卡片。
 use super::styles;
-use super::{ViewInput, Message};
+use super::ViewInput;
 use desktop_ui_controls::system_settings_common::*;
 use desktop_i18n::I18n;
 use crate::message::connectors::ConnectorMessage;
 use desktop_skill_hub::skill_hub::{ExpertHubSection, LoadState, connectors::{ConnectorForm, ConnectorWork}};
-fn message(value: ConnectorMessage) -> Message { Message::Connectors(value) }
+/// 宿主提供原有可选择帮助文本及其选择/复制消息。
+pub type HelpRenderer<M> = for<'a> fn(&'a str, std::borrow::Cow<'a, str>, Option<iced::Color>, I18n) -> Element<'a, M>;
+fn help_label<'a, M: Clone + 'a>(render: HelpRenderer<M>, i18n: I18n, theme: &Theme, title: &'a str, label: iced::widget::Text<'a>, description: impl Into<std::borrow::Cow<'a, str>>) -> iced::widget::Row<'a, M> {
+    desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, render(title, description.into(), Some(theme.palette().text), i18n))
+}
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
@@ -19,12 +23,13 @@ const SCROLLABLE_SIDE_PADDING: u16 = 8;
 fn scrollbar() -> Direction {
     Direction::Vertical(Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH))
 }
-pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
+pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, message: fn(ConnectorMessage) -> M) -> Element<'a, M> {
     let i18n = I18n::new(app.desktop_locale);
     let state = &app.expert_hub.connectors;
     let title = i18n.__("连接器账号");
     let header = row![
-        settings_hover_help_label(
+        help_label(
+            help,
             i18n,
             &app.app_theme,
             title,
@@ -47,7 +52,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     ]
     .align_y(Alignment::Center)
     .spacing(12);
-    let body: Element<'_, Message> = match &state.list {
+    let body: Element<'_, M> = match &state.list {
         LoadState::Idle | LoadState::Loading { .. } => {
             status(desktop_i18n::I18n::new(app.desktop_locale).__("正在加载连接器账号…"))
         }
@@ -73,7 +78,7 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
         LoadState::Loaded(connectors) if connectors.is_empty() => {
             status(desktop_i18n::I18n::new(app.desktop_locale).__("暂无可绑定连接器"))
         }
-        LoadState::Loaded(connectors) => scrollable(card_grid(app, connectors))
+        LoadState::Loaded(connectors) => scrollable(card_grid(app, connectors, message))
             .direction(scrollbar())
             .width(Length::Fill)
             .height(Length::Fill)
@@ -82,15 +87,16 @@ pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     column![header, body].spacing(18).width(Length::Fill).height(Length::Fill).into()
 }
 // 始终三列；末行补空位，内容两侧留出 4px 滚动条及间距。
-pub fn card_grid<'a>(
+pub fn card_grid<'a, M: Clone + 'a>(
     app: &ViewInput<'a>,
     connectors: &'a [ShijuConnector],
-) -> Element<'a, Message> {
+    message: fn(ConnectorMessage) -> M,
+) -> Element<'a, M> {
     let mut grid = column![].spacing(CARD_GAP).width(Length::Fill);
     for chunk in connectors.chunks(GRID_COLUMNS) {
         let mut cards = row![].spacing(CARD_GAP).width(Length::Fill);
         for connector in chunk {
-            cards = cards.push(connector_card(app, connector));
+            cards = cards.push(connector_card(app, connector, message));
         }
         for _ in chunk.len()..GRID_COLUMNS {
             cards = cards.push(Space::new().width(Length::FillPortion(1)));
@@ -99,7 +105,7 @@ pub fn card_grid<'a>(
     }
     container(grid).padding([4, SCROLLABLE_SIDE_PADDING]).width(Length::Fill).into()
 }
-fn connector_card<'a>(app: &ViewInput<'a>, connector: &'a ShijuConnector) -> Element<'a, Message> {
+fn connector_card<'a, M: Clone + 'a>(app: &ViewInput<'a>, connector: &'a ShijuConnector, message: fn(ConnectorMessage) -> M) -> Element<'a, M> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let id = connector.company_platform_id;
     let operation = app.expert_hub.connectors.work.get(&id);
@@ -182,11 +188,11 @@ fn connector_card<'a>(app: &ViewInput<'a>, connector: &'a ShijuConnector) -> Ele
     }
     container(content).padding(16).width(Length::FillPortion(1)).style(styles::card_style).into()
 }
-fn status(label: &str) -> Element<'_, Message> {
+fn status<'a, M: Clone + 'a>(label: &'a str) -> Element<'a, M> {
     container(text(label).size(16)).center_x(Length::Fill).center_y(Length::Fill).into()
 }
 
-pub fn binding_modal<'a>(app: &ViewInput<'a>) -> Option<(Message, Element<'a, Message>)> {
+pub fn binding_modal<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, message: fn(ConnectorMessage) -> M) -> Option<(M, Element<'a, M>)> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     if app.expert_hub.section != ExpertHubSection::Connectors {
         return None;
@@ -229,7 +235,7 @@ pub fn binding_modal<'a>(app: &ViewInput<'a>) -> Option<(Message, Element<'a, Me
     .align_y(Alignment::Center);
     let card = settings_modal_layout(
         header,
-        binding_form(i18n, &app.app_theme, form, !saving),
+        binding_form(i18n, app.app_theme, form, !saving, help, message),
         Some(footer.into()),
     )
     .width(Length::Fixed(720.0))
@@ -237,24 +243,27 @@ pub fn binding_modal<'a>(app: &ViewInput<'a>) -> Option<(Message, Element<'a, Me
     Some((close, container(card).padding(12).into()))
 }
 
-fn field<'a>(
-    label: impl Into<Element<'a, Message>>,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
+fn field<'a, M: Clone + 'a>(
+    label: impl Into<Element<'a, M>>,
+    control: impl Into<Element<'a, M>>,
+) -> Element<'a, M> {
     column![label.into(), control.into()].spacing(6).padding([12, 0]).width(Length::Fill).into()
 }
 
-fn binding_form<'a>(
+fn binding_form<'a, M: Clone + 'a>(
     i18n: I18n,
     theme: &Theme,
     form: &'a ConnectorForm,
     editable: bool,
-) -> Element<'a, Message> {
+    help: HelpRenderer<M>,
+    message: fn(ConnectorMessage) -> M,
+) -> Element<'a, M> {
     let account_id = i18n.__("第三方账号 ID");
     let account_name = i18n.__("第三方账号名称");
     let account_fields = column![
         field(
-            settings_hover_help_label(
+            help_label(
+                help,
                 i18n,
                 theme,
                 account_id,
@@ -268,12 +277,13 @@ fn binding_form<'a>(
                 .style(settings_text_input_style)
                 .width(Length::Fill)
                 .on_input_maybe(
-                    editable.then_some(|value| message(ConnectorMessage::AccountId(value)))
+                    editable.then_some(move |value| message(ConnectorMessage::AccountId(value)))
                 )
         ),
         settings_divider(),
         field(
-            settings_hover_help_label(
+            help_label(
+                help,
                 i18n,
                 theme,
                 account_name,
@@ -287,17 +297,12 @@ fn binding_form<'a>(
                 .style(settings_text_input_style)
                 .width(Length::Fill)
                 .on_input_maybe(
-                    editable.then_some(|value| message(ConnectorMessage::AccountName(value)))
+                    editable.then_some(move |value| message(ConnectorMessage::AccountName(value)))
                 )
         ),
     ];
     let mut sections = column![
-        settings_group_heading_with_help(
-            i18n,
-            theme,
-            i18n.__("账号信息"),
-            i18n.__("填写需要绑定的第三方账号"),
-        ),
+        help_label(help, i18n, theme, i18n.__("账号信息"), text(i18n.__("账号信息")).size(17), i18n.__("填写需要绑定的第三方账号")).wrap(),
         settings_group_card(account_fields)
     ]
     .spacing(12);
@@ -342,7 +347,8 @@ fn binding_form<'a>(
                 )
             } else {
                 field(
-                    settings_hover_help_label(
+                    help_label(
+                        help,
                         i18n,
                         theme,
                         binding_title,

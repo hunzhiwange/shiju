@@ -39,7 +39,7 @@ use tracing::info;
 
 use channel_types::ChannelMessage;
 use model_types::{ChatMessage, ChatResponse};
-use crate::app::agent::tools::traits::ToolResult;
+use tool_types::ToolResult;
 
 use super::traits::{HookHandler, HookResult};
 
@@ -63,6 +63,7 @@ use super::traits::{HookHandler, HookResult};
 pub struct HookRunner {
     /// 已注册的钩子处理器列表，按优先级降序排列
     handlers: Vec<Box<dyn HookHandler>>,
+    cleanup: Option<std::sync::Arc<dyn crate::HookCleanup>>,
 }
 
 tokio::task_local! { static PERMISSION_HOOK_ACTIVE: (); }
@@ -110,7 +111,12 @@ impl HookRunner {
     /// let runner = HookRunner::new();
     /// ```
     pub fn new() -> Self {
-        Self { handlers: Vec::new() }
+        Self { handlers: Vec::new(), cleanup: None }
+    }
+
+    /// Attach host resource cleanup, awaited before lifecycle handlers.
+    pub fn set_cleanup(&mut self, cleanup: std::sync::Arc<dyn crate::HookCleanup>) {
+        self.cleanup = Some(cleanup);
     }
 
     /// 注册一个钩子处理器并重新排序
@@ -156,29 +162,26 @@ impl HookRunner {
     ///
     /// 并行通知所有处理器网关已停止。
     pub async fn fire_gateway_stop(&self) {
-        #[cfg(unix)]
-        if let Some(runtime) = crate::tools::computer_control::NativeControlRuntime::shared() {
-            runtime.stop_all().await;
-        }
+        if let Some(cleanup) = &self.cleanup { cleanup.gateway_stop().await; }
         let futs: Vec<_> = self.handlers.iter().map(|h| h.on_gateway_stop()).collect();
         join_all(futs).await;
     }
 
-    pub(crate) async fn compact(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+    pub async fn compact(&self, input: &serde_json::Value) -> anyhow::Result<()> {
         for handler in &self.handlers {
             handler.compact(input).await?;
         }
         Ok(())
     }
 
-    pub(crate) async fn model_request(&self, input: &serde_json::Value) {
+    pub async fn model_request(&self, input: &serde_json::Value) {
         for handler in &self.handlers {
             handler.model_request(input).await;
         }
     }
 
     /// Dispatch the current prompt once; refusal stops model execution.
-    pub(crate) async fn user_prompt_submit(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+    pub async fn user_prompt_submit(&self, input: &serde_json::Value) -> anyhow::Result<()> {
         for handler in &self.handlers {
             handler.user_prompt_submit(input).await?;
         }
@@ -186,11 +189,11 @@ impl HookRunner {
     }
 
     /// Apply host-owned completion or interruption hooks in declaration order.
-    pub(crate) async fn turn_end(
+    pub async fn turn_end(
         &self,
         input: &serde_json::Value,
-    ) -> anyhow::Result<crate::plugins::hook_stop::Outcome> {
-        let mut outcome = crate::plugins::hook_stop::Outcome::default();
+    ) -> anyhow::Result<crate::TurnEndOutcome> {
+        let mut outcome = crate::TurnEndOutcome::default();
         for handler in &self.handlers {
             outcome.merge(handler.turn_end(input).await?);
         }
@@ -205,7 +208,7 @@ impl HookRunner {
     ///
     /// - `session_id`：会话的唯一标识符
     /// - `channel`：会话所属的通道名称
-    pub(crate) async fn subagent(&self, input: &serde_json::Value) -> anyhow::Result<Vec<String>> {
+    pub async fn subagent(&self, input: &serde_json::Value) -> anyhow::Result<Vec<String>> {
         let mut contexts = Vec::new();
         for handler in &self.handlers {
             contexts.extend(handler.subagent(input).await?);
@@ -213,7 +216,7 @@ impl HookRunner {
         Ok(contexts)
     }
 
-    pub(crate) async fn start_session(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+    pub async fn start_session(&self, input: &serde_json::Value) -> anyhow::Result<()> {
         for handler in &self.handlers {
             handler.start_session(input).await?;
         }
@@ -235,13 +238,7 @@ impl HookRunner {
     /// - `session_id`：会话的唯一标识符
     /// - `channel`：会话所属的通道名称
     pub async fn fire_session_end(&self, session_id: &str, channel: &str) {
-        #[cfg(unix)]
-        if let Some(context) = crate::tools::current_tool_use_context()
-            && context.session() == session_id
-            && let Some(runtime) = crate::tools::computer_control::NativeControlRuntime::shared()
-        {
-            runtime.stop_context(&context).await;
-        }
+        if let Some(cleanup) = &self.cleanup { cleanup.session_end(session_id).await; }
         let futs: Vec<_> =
             self.handlers.iter().map(|h| h.on_session_end(session_id, channel)).collect();
         join_all(futs).await;

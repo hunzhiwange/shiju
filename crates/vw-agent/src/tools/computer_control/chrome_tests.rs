@@ -17,7 +17,7 @@ impl crate::hooks::HookHandler for Approvals {
 }
 fn approval_context() -> (Arc<ToolUseContext>, ApprovalLog) {
     let seen = Arc::new(parking_lot::Mutex::new(Vec::new()));
-    let mut hooks = crate::hooks::HookRunner::new();
+    let mut hooks = crate::hooks::new_hook_runner();
     hooks.register(Box::new(Approvals(seen.clone())));
     (Arc::new(ToolUseContext::new("cc10", None).with_hook_runner(Arc::new(hooks))), seen)
 }

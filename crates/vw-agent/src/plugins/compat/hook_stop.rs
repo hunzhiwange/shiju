@@ -4,20 +4,8 @@ use anyhow::{Result, ensure};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
-#[derive(Default, Debug)]
-pub struct Outcome {
-    pub stop: bool,
-    pub contexts: Vec<String>,
-}
-impl Outcome {
-    pub fn merge(&mut self, other: Self) {
-        self.stop |= other.stop;
-        self.contexts.extend(other.contexts);
-        if self.stop {
-            self.contexts.clear();
-        }
-    }
-}
+pub use agent_hooks::TurnEndOutcome as Outcome;
+
 pub(crate) fn validate(input: &Value) -> Result<()> {
     ensure!(
         ["session_id", "turn_id", "model", "permission_mode"]

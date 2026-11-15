@@ -1,5 +1,5 @@
 use super::hook_model::{emit, validate};
-use crate::{hooks::HookRunner, tools::ToolUseContext};
+use crate::tools::ToolUseContext;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ pub(crate) fn fixture(
     trust.trust_codex_hooks("fixture", root, &manifest).unwrap();
     let handlers = codex_handlers("fixture", root, &manifest, &trust)
         .expect("model events must be executable");
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     for handler in handlers {
         runner.register(handler);
     }

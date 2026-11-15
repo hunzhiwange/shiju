@@ -51,7 +51,7 @@ async fn codex_plugin_compat_t36_blocks_tool_before_side_effect() {
         let mut trust =
             PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
         trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-        let mut runner = crate::hooks::HookRunner::new();
+        let mut runner = crate::hooks::new_hook_runner();
         for handler in codex_handlers("fixture", root.path(), &manifest, &trust).unwrap() {
             runner.register(handler);
         }

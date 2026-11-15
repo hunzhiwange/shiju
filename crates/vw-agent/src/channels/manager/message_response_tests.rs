@@ -3,7 +3,7 @@
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
-use crate::app::agent::hooks::{HookHandler, HookResult, HookRunner};
+use crate::app::agent::hooks::{HookHandler, HookResult};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
 use model_types::Provider;
@@ -221,7 +221,7 @@ fn context(max_iterations: usize) -> ChannelRuntimeContext {
 }
 
 fn context_with_sending_hook(mode: SendingHookMode) -> ChannelRuntimeContext {
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(SendingHook { mode }));
 
     let mut ctx = context(3);

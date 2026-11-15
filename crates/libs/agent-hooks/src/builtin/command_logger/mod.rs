@@ -24,8 +24,8 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::app::agent::hooks::traits::HookHandler;
-use crate::app::agent::tools::traits::ToolResult;
+use crate::traits::HookHandler;
+use tool_types::ToolResult;
 
 /// 默认保留的命令审计条目数。
 pub const DEFAULT_COMMAND_AUDIT_CAPACITY: usize = 256;
@@ -85,8 +85,8 @@ impl Default for CommandAuditStore {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::hooks::builtin::CommandLoggerHook;
-/// use crate::app::agent::hooks::traits::HookHandler;
+/// use crate::builtin::CommandLoggerHook;
+/// use crate::traits::HookHandler;
 ///
 /// let hook = CommandLoggerHook::new();
 /// assert_eq!(hook.name(), "command-logger");

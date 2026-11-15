@@ -17,7 +17,7 @@
 //! ## 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::hooks::builtin::CommandLoggerHook;
+//! use crate::builtin::CommandLoggerHook;
 //!
 //! let logger = CommandLoggerHook::new();
 //! ```

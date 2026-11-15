@@ -171,7 +171,7 @@ async fn trusted_plugin_before_tool_call_can_cancel() {
     assert_eq!(discovered_enabled_names(&config), vec!["trusted-plugin"]);
     trust_plugin_hook(&config_dir, &plugin_root, &workspace_dir, "trusted-plugin");
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     let registered = register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks");
     let result = runner
         .run_before_tool_call(
@@ -220,7 +220,7 @@ async fn trusted_plugin_after_tool_call_receives_json_payload() {
     let config = test_config(workspace_dir.clone(), config_dir.clone());
     trust_plugin_hook(&config_dir, &plugin_root, &workspace_dir, "trusted-plugin");
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     let registered = register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks");
     let tool_result =
         ToolResult { success: true, output: "lookup complete".to_string(), error: None };
@@ -261,7 +261,7 @@ async fn trusted_plugin_before_tool_call_reports_spawn_failure() {
     let config = test_config(workspace_dir.clone(), config_dir.clone());
     trust_plugin_hook(&config_dir, &plugin_root, &workspace_dir, "spawn-plugin");
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     assert_eq!(register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks"), 1);
     let result = runner.run_before_tool_call("shell".to_string(), json!({})).await;
 
@@ -295,7 +295,7 @@ async fn trusted_plugin_before_tool_call_reports_timeout() {
     let config = test_config(workspace_dir.clone(), config_dir.clone());
     trust_plugin_hook(&config_dir, &plugin_root, &workspace_dir, "timeout-plugin");
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     assert_eq!(register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks"), 1);
     let result = runner.run_before_tool_call("shell".to_string(), json!({})).await;
 
@@ -333,7 +333,7 @@ async fn trusted_plugin_before_tool_call_redacts_and_truncates_stdout_diagnostic
     let config = test_config(workspace_dir.clone(), config_dir.clone());
     trust_plugin_hook(&config_dir, &plugin_root, &workspace_dir, "stdout-plugin");
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     assert_eq!(register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks"), 1);
     let result = runner.run_before_tool_call("shell".to_string(), json!({})).await;
 
@@ -372,7 +372,7 @@ async fn trusted_plugin_untrusted_hook_is_not_registered() {
     );
     let config = test_config(workspace_dir, config_dir);
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     let registered = register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks");
     let result = runner.run_before_tool_call("shell".to_string(), json!({})).await;
 
@@ -392,7 +392,7 @@ fn plugin_hook_manifest_load_failure_reports_plugin_and_path_context() {
     fs::create_dir_all(plugin_root.join("hooks")).expect("hooks dir");
     fs::write(plugin_root.join("hooks/hooks.json"), "{not json").expect("broken hooks");
     let config = test_config(workspace_dir, config_dir);
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
 
     let error = register_trusted_plugin_hooks(&mut runner, &config)
         .expect_err("broken hooks should fail registration")
@@ -424,7 +424,7 @@ async fn untrusted_plugin_hook_skip_does_not_warn() {
     let config = test_config(workspace_dir, config_dir);
     let subscriber = RecordingSubscriber::default();
 
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     let registered = tracing::subscriber::with_default(subscriber.clone(), || {
         register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks")
     });
@@ -441,7 +441,7 @@ fn disabled_plugin_hooks_skip_discovery() {
     let dir = tempfile::tempdir().expect("temp dir");
     let mut config = test_config(dir.path().join("missing-workspace"), dir.path().join("config"));
     config.hooks.plugins.enabled = false;
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
 
     let registered =
         register_trusted_plugin_hooks(&mut runner, &config).expect("disabled hooks skip cleanly");
@@ -470,7 +470,7 @@ fn trusted_unsupported_plugin_hook_is_not_registered() {
     let config = test_config(workspace_dir.clone(), config_dir.clone());
     trust_plugin_hook(&config_dir, &plugin_root, &workspace_dir, "trusted-plugin");
     let subscriber = RecordingSubscriber::default();
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
 
     let registered = tracing::subscriber::with_default(subscriber.clone(), || {
         register_trusted_plugin_hooks(&mut runner, &config).expect("register hooks")

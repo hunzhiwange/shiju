@@ -1899,7 +1899,7 @@ fn dynamic_tools_processor_catalog_preserves_approval_and_hook_denials() {
         |event| matches!(event, StreamEvent::Tool(tool) if tool.status == ToolCallStatus::Denied)
     ));
     let calls = Arc::new(AtomicUsize::new(0));
-    let mut hooks = crate::hooks::HookRunner::new();
+    let mut hooks = crate::hooks::new_hook_runner();
     hooks.register(Box::new(DenyHook(calls.clone())));
     let ctx = ctx.clone().with_tool_use_context(
         ctx.tool_use_context().as_ref().clone().with_hook_runner(Arc::new(hooks)),
@@ -1960,7 +1960,7 @@ fn native_tool_search_desktop_executor_requires_real_success_and_preserves_hooks
         use crate::tools::Tool;
         specs.push(crate::tools::tool_search::ToolSearchTool::new(&catalog).spec());
         let discovery = Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(specs));
-        let mut hooks = crate::hooks::HookRunner::new();
+        let mut hooks = crate::hooks::new_hook_runner();
         hooks.register(Box::new(SearchHook(deny)));
         let ctx = ctx_with_root(&session_id, dir.path())
             .with_test_config(crate::config::Config::default());

@@ -1,5 +1,5 @@
 use super::hook_prompt::{submit, validate};
-use crate::{hooks::HookRunner, tools::ToolUseContext};
+use crate::tools::ToolUseContext;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ fn fixture(root: &std::path::Path, state: &std::path::Path, command: &str) -> Ar
     trust.trust_codex_hooks("fixture", root, &manifest).unwrap();
     let handlers = codex_handlers("fixture", root, &manifest, &trust);
     assert!(handlers.is_ok(), "UserPromptSubmit must be registered: {:?}", handlers.as_ref().err());
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     for handler in handlers.unwrap() {
         runner.register(handler);
     }

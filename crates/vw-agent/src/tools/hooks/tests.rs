@@ -32,7 +32,7 @@ async fn pre_tool_hook_without_runner_preserves_tool_call() {
 
 #[tokio::test]
 async fn pre_tool_hook_maps_cancellation_to_denied_error() {
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(CancellingHook));
 
     let error = PreToolHook::run(Some(&runner), "shell".to_string(), json!({"command": "pwd"}))

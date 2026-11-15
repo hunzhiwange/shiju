@@ -37,7 +37,7 @@ async fn codex_plugin_compat_t37_runs_real_command_in_own_turn() {
         let mut trust =
             PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
         trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-        let mut runner = crate::hooks::HookRunner::new();
+        let mut runner = crate::hooks::new_hook_runner();
         for handler in codex_handlers("fixture", root.path(), &manifest, &trust).unwrap() {
             runner.register(handler);
         }
@@ -81,7 +81,7 @@ async fn codex_plugin_compat_t37_denial_wins_and_recursion_fails_closed() {
             Ok(Some(self.0))
         }
     }
-    let mut runner = crate::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(Verdict(true)));
     runner.register(Box::new(Verdict(false)));
     assert_eq!(runner.run_permission_request("marker", &json!({})).await.unwrap(), Some(false));
@@ -96,10 +96,10 @@ async fn codex_plugin_compat_t37_denial_wins_and_recursion_fails_closed() {
             name: &str,
             input: &serde_json::Value,
         ) -> anyhow::Result<Option<bool>> {
-            crate::hooks::HookRunner::new().run_permission_request(name, input).await
+            crate::hooks::new_hook_runner().run_permission_request(name, input).await
         }
     }
-    let mut runner = crate::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(Recursive));
     assert!(
         runner
@@ -122,7 +122,7 @@ async fn codex_plugin_compat_t37_real_command_timeout_fails_closed() {
     let mut trust =
         PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
     trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-    let mut runner = crate::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     for handler in codex_handlers("fixture", root.path(), &manifest, &trust).unwrap() {
         runner.register(handler);
     }

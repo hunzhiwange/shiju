@@ -303,7 +303,7 @@ async fn video_edit_cloud_transport_native_approval_denial_prevents_process() {
     }
     let (_dir, ctx, skill) = fixture("ok");
     let observed = Arc::new(AtomicUsize::new(0));
-    let mut runner = crate::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(Deny(observed.clone())));
     let config = AutonomyConfig {
         level: crate::app::agent::security::AutonomyLevel::Supervised,
@@ -358,7 +358,7 @@ async fn video_edit_cloud_transport_native_hooks_never_receive_private_payloads(
     }
     let (_dir, ctx, skill) = fixture("ok");
     let events = Arc::new(Mutex::new(vec![]));
-    let mut runner = crate::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(Audit(events.clone())));
     let native = ctx.tool_use_context().as_ref().clone().with_hook_runner(Arc::new(runner));
     let provider =

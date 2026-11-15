@@ -1,5 +1,4 @@
 use crate::{
-    hooks::HookRunner,
     session::compaction::{self, CompactionOutcome, ProcessInput},
     tools::ToolUseContext,
 };
@@ -32,7 +31,7 @@ fn fixture_output(
     .unwrap();
     let mut trust = PluginHookTrustStore::load_or_default(&state.join("trust.json")).unwrap();
     trust.trust_codex_hooks("fixture", root, &manifest).unwrap();
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     for handler in codex_handlers("fixture", root, &manifest, &trust).unwrap() {
         runner.register(handler);
     }

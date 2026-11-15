@@ -55,7 +55,7 @@ pub(crate) async fn execute(
             Box::new(McpTool::from_session_server(selected, tool, spec, pool, Some(duration)));
         let input = expand(&Value::Object(input.clone()), event)?;
         let isolated = Arc::new(
-            context.as_ref().clone().with_hook_runner(Arc::new(crate::hooks::HookRunner::new())),
+            context.as_ref().clone().with_hook_runner(Arc::new(crate::hooks::new_hook_runner())),
         );
         let result =
             crate::tools::execute_tool_from_registry(&[bound], &id, input, isolated).await?;

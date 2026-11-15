@@ -2,7 +2,7 @@
 //! 脚本化供应商、OCR 与钩子夹具记录实际输入，以验证降级路径而非仅验证返回文本。
 
 use super::*;
-use crate::hooks::{HookHandler, HookRunner};
+use crate::hooks::HookHandler;
 use crate::multimodal::ocr::ImageTextExtractor;
 use crate::observability::traits::ObserverMetric;
 use model_types::{ChatResponse, ProviderCapabilities, TokenUsage};
@@ -291,7 +291,7 @@ async fn run_llm_round_fires_llm_input_hook() {
     let history = vec![ChatMessage::user("hello hook")];
     let hook_calls = Arc::new(AtomicUsize::new(0));
     let hook_models = Arc::new(Mutex::new(Vec::new()));
-    let mut hooks = HookRunner::new();
+    let mut hooks = crate::hooks::new_hook_runner();
     hooks.register(Box::new(RecordingLlmInputHook {
         calls: Arc::clone(&hook_calls),
         models: Arc::clone(&hook_models),

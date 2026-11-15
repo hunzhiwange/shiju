@@ -265,7 +265,7 @@ async fn apply_inbound_hooks_returns_original_message_without_hooks() {
 
 #[tokio::test]
 async fn apply_inbound_hooks_applies_modified_message() {
-    let mut runner = crate::app::agent::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(MutatingHook));
     let ctx = test_context(Arc::new(RecordingMemory::default()), Some(Arc::new(runner)));
 
@@ -276,7 +276,7 @@ async fn apply_inbound_hooks_applies_modified_message() {
 
 #[tokio::test]
 async fn apply_inbound_hooks_returns_none_when_hook_cancels() {
-    let mut runner = crate::app::agent::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(CancelHook));
     let ctx = test_context(Arc::new(RecordingMemory::default()), Some(Arc::new(runner)));
 

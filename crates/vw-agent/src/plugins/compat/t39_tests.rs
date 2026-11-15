@@ -1,5 +1,5 @@
 use super::hook_session::{close, start, validate};
-use crate::{hooks::HookRunner, tools::ToolUseContext};
+use crate::tools::ToolUseContext;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ async fn fixture_with_exit(
     let mut trust =
         PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
     trust.trust_codex_hooks("fixture", root, &manifest).unwrap();
-    let mut runner = HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     for handler in codex_handlers("fixture", root, &manifest, &trust).unwrap() {
         runner.register(handler);
     }

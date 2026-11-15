@@ -218,7 +218,7 @@ async fn process_channel_message_returns_immediately_when_cancelled() {
 
 #[tokio::test]
 async fn process_channel_message_stops_when_hook_cancels_message() {
-    let mut runner = crate::app::agent::hooks::HookRunner::new();
+    let mut runner = crate::hooks::new_hook_runner();
     runner.register(Box::new(CancelHook));
     let ctx = Arc::new(context(HashMap::new(), Some(Arc::new(runner))));
 

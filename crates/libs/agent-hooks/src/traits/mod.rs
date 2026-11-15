@@ -14,7 +14,7 @@
 //! ## 使用示例
 //!
 //! ```rust
-//! use crate::app::agent::hooks::traits::{HookHandler, HookResult};
+//! use crate::traits::{HookHandler, HookResult};
 //!
 //! struct LoggingHook;
 //!
@@ -36,7 +36,7 @@ use std::time::Duration;
 
 use channel_types::ChannelMessage;
 use model_types::{ChatMessage, ChatResponse};
-use crate::app::agent::tools::traits::ToolResult;
+use tool_types::ToolResult;
 
 /// 修改型钩子的执行结果
 ///
@@ -55,7 +55,7 @@ use crate::app::agent::tools::traits::ToolResult;
 /// # 示例
 ///
 /// ```rust
-/// use crate::app::agent::hooks::traits::HookResult;
+/// use crate::traits::HookResult;
 ///
 /// let result: HookResult<String> = HookResult::Continue("processed".to_string());
 /// assert!(!result.is_cancel());
@@ -81,7 +81,7 @@ impl<T> HookResult<T> {
     /// # 示例
     ///
     /// ```rust
-    /// use crate::app::agent::hooks::traits::HookResult;
+    /// use crate::traits::HookResult;
     ///
     /// let result = HookResult::<i32>::Cancel("error".to_string());
     /// assert!(result.is_cancel());
@@ -146,7 +146,7 @@ impl<T> HookHandlerBounds for T {}
 /// # 示例
 ///
 /// ```rust
-/// use crate::app::agent::hooks::traits::{HookHandler, HookResult};
+/// use crate::traits::{HookHandler, HookResult};
 /// use async_trait::async_trait;
 ///
 /// struct SecurityHook;
@@ -240,7 +240,7 @@ pub trait HookHandler: HookHandlerBounds {
     async fn turn_end(
         &self,
         _input: &serde_json::Value,
-    ) -> anyhow::Result<crate::plugins::hook_stop::Outcome> {
+    ) -> anyhow::Result<crate::TurnEndOutcome> {
         Ok(Default::default())
     }
 

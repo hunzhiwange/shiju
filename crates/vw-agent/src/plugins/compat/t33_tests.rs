@@ -49,7 +49,7 @@ async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
         let groups = after.hooks.remove(&E::PreToolUse).unwrap();
         after.hooks.insert(E::PostToolUse, groups);
         trust.trust_codex_hooks("fixture", root.path(), &after).unwrap();
-        let mut runner = crate::app::agent::hooks::HookRunner::new();
+        let mut runner = crate::hooks::new_hook_runner();
         for handler in codex_handlers("fixture", root.path(), &after, &trust).unwrap() {
             runner.register(handler);
         }

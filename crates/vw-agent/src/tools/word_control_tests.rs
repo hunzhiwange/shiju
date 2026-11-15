@@ -387,7 +387,7 @@ async fn cc_control_16_document_approval_is_scoped_and_explicit_deny_is_preserve
         .set_grant(&local_user(), GrantScope::WordDocument("book".into()), None)
         .unwrap();
     let seen = Arc::new(parking_lot::Mutex::new(Vec::new()));
-    let mut hooks = crate::hooks::HookRunner::new();
+    let mut hooks = crate::hooks::new_hook_runner();
     hooks.register(Box::new(DocumentApproval(seen.clone())));
     let context = Arc::new(f.context.as_ref().clone().with_hook_runner(Arc::new(hooks)));
     super::scope_tool_use_context(context.clone(), f.tools[0].check_permissions(&request))

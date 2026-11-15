@@ -32,3 +32,8 @@ mod header_tests;
 mod header_session;
 
 pub mod permission_anchor;
+
+pub mod performance;
+pub mod selectable_text;
+#[cfg(test)]
+mod selectable_text_tests;

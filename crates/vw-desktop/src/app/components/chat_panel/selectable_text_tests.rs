@@ -1,25 +1,11 @@
 use super::selectable_text::{
     SelectableTextPolicy, read_only_editor_content, selectable_text_policy,
-    visible_editor_text_for_message,
 };
 use super::tool_text_support::{selected_chat_text_for_message, tool_text_key};
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::session::prepare_chat_ui_chunk_phase;
 use iced::widget::text_editor;
-
-#[test]
-fn selectable_text_policy_prefers_editor_for_safe_text() {
-    assert_eq!(
-        selectable_text_policy("safe text\nsecond line", false),
-        SelectableTextPolicy::SelectableEditor
-    );
-    assert_eq!(
-        selectable_text_policy(&"line\n".repeat(120), true),
-        SelectableTextPolicy::SegmentedSelectableEditor
-    );
-    assert!(read_only_editor_content("safe text").is_some());
-}
 
 #[test]
 fn selectable_text_policy_uses_preview_for_unsafe_text() {
@@ -95,39 +81,4 @@ fn selectable_text_reads_markdown_block_editor_selection() {
         .expect("markdown block editor")
         .perform(text_editor::Action::SelectAll);
     assert_eq!(selected_chat_text_for_message(&app, 0).as_deref(), Some("markdown 块文本"));
-}
-
-#[test]
-fn visible_editor_text_uses_role_specific_source_and_strips_session_control() {
-    assert_eq!(
-        visible_editor_text_for_message(
-            ChatRole::Assistant,
-            "stored assistant text",
-            "visible assistant text",
-            "tool text",
-        ),
-        "visible assistant text"
-    );
-    assert_eq!(
-        visible_editor_text_for_message(ChatRole::Tool, "stored tool text", "assistant", "shown"),
-        "shown"
-    );
-    assert_eq!(
-        visible_editor_text_for_message(
-            ChatRole::User,
-            "keep<session_control_selection>hidden</session_control_selection>tail",
-            "assistant",
-            "tool",
-        ),
-        "keeptail"
-    );
-    assert_eq!(
-        visible_editor_text_for_message(
-            ChatRole::System,
-            "unclosed <session_control_selection>context",
-            "assistant",
-            "tool",
-        ),
-        "unclosed <session_control_selection>context"
-    );
 }

@@ -192,10 +192,6 @@ mod projection_tests;
 mod ledger_tests;
 
 #[cfg(test)]
-#[path = "details_tests.rs"]
-mod details_tests;
-
-#[cfg(test)]
 #[path = "json_tree_tests.rs"]
 mod json_tree_tests;
 

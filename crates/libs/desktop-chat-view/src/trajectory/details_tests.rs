@@ -13,7 +13,7 @@ use super::details::{
     trajectory_detail_values, trajectory_details,
 };
 use super::details_content::{TrajectoryDetailContent, build_details_content};
-use super::{
+use super::model::{
     MetricAvailability, TrajectoryDetailsAction, TrajectoryDetailsState, TrajectoryDetailsTab,
     TrajectoryMetrics, TrajectoryRecord, TrajectoryRecordDetail, TrajectoryRecordKind,
     TrajectoryToolDefinition, TrajectoryUsage,
@@ -121,7 +121,7 @@ fn trajectory_details_trims_input_and_builds_single_line_tooltip_view() {
 
     let state = details_state(&user, TrajectoryDetailsTab::Preview);
     let element = trajectory_details(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &user,
         &state,
     );
@@ -166,7 +166,7 @@ fn trajectory_details_tab_and_close_actions_are_observable() {
     let assistant = record(TrajectoryRecordKind::Assistant);
     let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
     let element = trajectory_details(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &assistant,
         &state,
     );
@@ -191,7 +191,7 @@ fn trajectory_details_wraps_payloads_and_uses_safe_fonts() {
     assistant.detail.output = Some("x".repeat(20_000));
     let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
     let element = trajectory_details(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &assistant,
         &state,
     );
@@ -217,22 +217,22 @@ fn trajectory_details_values_are_selectable_and_copyable_from_context_menu() {
 fn trajectory_controls_use_rounded_search_and_close_styles() {
     for theme in [iced::Theme::Dark, iced::Theme::Light] {
         let search =
-            super::styles::trajectory_search_input_style(&theme, text_input::Status::Active);
+            super::details_styles::trajectory_search_input_style(&theme, text_input::Status::Active);
         assert_eq!(search.border.radius, 12.0.into());
 
         for status in [button::Status::Active, button::Status::Hovered, button::Status::Pressed] {
-            let close = super::styles::details_close_button_style(&theme, status);
+            let close = super::details_styles::details_close_button_style(&theme, status);
             assert_eq!(close.border.radius, 999.0.into());
         }
 
-        let panel = super::styles::details_panel_style(&theme);
+        let panel = super::details_styles::details_panel_style(&theme);
         assert_eq!(panel.shadow.blur_radius, 18.0);
 
-        let tool = super::styles::tool_definition_style(&theme);
+        let tool = super::details_styles::tool_definition_style(&theme);
         assert!(tool.background.is_some());
         assert_eq!(tool.border.width, 1.0);
         assert!(
-            super::styles::tool_definition_header_style(&theme, button::Status::Hovered)
+            super::details_styles::tool_definition_header_style(&theme, button::Status::Hovered)
                 .background
                 .is_some()
         );
@@ -261,7 +261,7 @@ fn details_render_exact_reference_tabs_by_kind() {
         assert!(
             !Tree::new(
                 trajectory_details(
-                    crate::app::i18n::I18n::new(
+                    desktop_i18n::I18n::new(
                         config_ui::DesktopLocale::SimplifiedChinese
                     ),
                     &record,
@@ -275,8 +275,8 @@ fn details_render_exact_reference_tabs_by_kind() {
     }
 
     for theme in [iced::Theme::Dark, iced::Theme::Light] {
-        assert!(super::styles::details_tab_underline_style(&theme, true).background.is_some());
-        assert!(super::styles::details_tab_underline_style(&theme, false).background.is_none());
+        assert!(super::details_styles::details_tab_underline_style(&theme, true).background.is_some());
+        assert!(super::details_styles::details_tab_underline_style(&theme, false).background.is_none());
     }
 }
 
@@ -305,7 +305,7 @@ fn details_render_system_prompt_and_tools() {
     assert!(
         !Tree::new(
             trajectory_details(
-                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &system,
                 &state
             )

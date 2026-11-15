@@ -55,3 +55,7 @@ mod cache_tools;
 mod render_cache_tests;
 #[cfg(test)]
 mod tool_summaries_tests;
+
+pub mod think_block;
+#[cfg(test)]
+mod think_block_tests;

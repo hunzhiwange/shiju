@@ -1,0 +1,32 @@
+[package]
+name = "desktop-usage"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+[lib]
+doctest = false
+[dependencies]
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-settings-account = { path = "../desktop-settings-account", version = "0.6.0" }
+gateway-app-auth = { path = "../gateway-app-auth", version = "0.6.0" }
+gateway-app-usage = { path = "../gateway-app-usage", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+gateway-usage-price = { path = "../gateway-usage-price", version = "0.6.0" }
+gateway-usage-scan = { path = "../gateway-usage-scan", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-apps-usage = { path = "../api-apps-usage", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+chrono = { version = "0.4", features = ["serde"] }
+time = { version = "0.3", features = ["formatting"] }
+serde_json = "1"
+iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
+tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time"] }
+[dev-dependencies]
+iced_runtime = "0.14"
+config-ui = { path = "../config-ui", version = "0.6.0" }

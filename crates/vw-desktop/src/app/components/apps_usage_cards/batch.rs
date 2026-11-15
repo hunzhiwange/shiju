@@ -1,46 +1,8 @@
-use super::{Cards, Event, Scope, linked_scope, message_event, read_linked_providers, scope};
+use super::{Event, linked_scope, message_event, read_linked_providers, scope};
 use crate::app::message::settings::apps_usage_events::refresh_batch;
 use crate::app::{App, Message, components::system_settings::SystemTab};
 use iced::Task;
 use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
-
-impl Cards {
-    pub(crate) fn batch_pending(&self, scope: &Scope) -> bool {
-        self.scope.as_ref() == Some(scope) && self.batch_pending.is_some()
-    }
-
-    pub(crate) fn batch_lines(&self, scope: &Scope) -> Vec<String> {
-        if self.scope.as_ref() != Some(scope) {
-            return Vec::new();
-        }
-        match self.batch_result.as_ref() {
-            None => Vec::new(),
-            Some(Err(error)) => vec![error.label().into()],
-            Some(Ok(items)) => {
-                let succeeded = items.iter().filter(|item| item.refresh_failure.is_none()).count();
-                let mut lines = vec![format!(
-                    "额度刷新 · {succeeded} 项成功，{} 项未完成",
-                    items.len() - succeeded
-                )];
-                for item in items {
-                    if let Some(error) =
-                        item.refresh_failure.or_else(|| item.snapshot.as_ref().err().copied())
-                    {
-                        let selection = &item.selection;
-                        let account = selection.account_id.as_deref().unwrap_or("供应商凭据");
-                        lines.push(format!(
-                            "{:?} / {} / {account} · {}",
-                            selection.app_id,
-                            selection.provider_id,
-                            error.label()
-                        ));
-                    }
-                }
-                lines
-            }
-        }
-    }
-}
 
 pub(super) fn update(app: &mut App, event: Event, endpoint: GatewayEndpoint) -> Task<Message> {
     let Some(scope) = scope(app, &endpoint, true) else { return Task::none() };

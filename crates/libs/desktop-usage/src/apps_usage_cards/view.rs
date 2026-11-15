@@ -12,13 +12,13 @@ use vw_api_types::{
 };
 use vw_api_app_auth::AuthService;
 
-use super::{Cards, Event, Failure, ListMessage, Message, Scope, Target, message};
-use crate::app::components::{
-    apps_usage_details,
-    system_settings_common::{rounded_action_btn_style, settings_muted_text_style},
-};
+use super::{Cards, Event, Failure, Scope, Target};
+#[derive(Clone)]
+pub enum Message { Event(Event), OpenSettings(AppId, String), OpenUrl(String) }
+use crate::apps_usage_details;
+use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
 
-pub(crate) fn provider_view<'a>(
+pub fn provider_view<'a>(
     scope: Option<&Scope>,
     cards: &'a Cards,
     app_id: AppId,
@@ -27,7 +27,7 @@ pub(crate) fn provider_view<'a>(
     view(scope, cards, Target::Provider(app_id, id.into()))
 }
 
-pub(crate) fn account_view<'a>(
+pub fn account_view<'a>(
     scope: Option<&Scope>,
     cards: &'a Cards,
     service: AuthService,
@@ -45,7 +45,7 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
         button(text(label).size(13))
             .padding([6, 10])
             .style(rounded_action_btn_style)
-            .on_press_maybe(enabled.then_some(message(ListMessage::Usage(event))))
+            .on_press_maybe(enabled.then_some(Message::Event(event)))
     };
     let mut header =
         row![text("额度").size(13), request("读取额度", Event::Read(target.clone()), !busy)]
@@ -61,9 +61,7 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(scope.is_some().then(|| {
-                    message(ListMessage::UsageSettings(
-                        crate::app::components::apps_usage_settings::Event::Open(*app, id.clone()),
-                    ))
+                    Message::OpenSettings(*app, id.clone())
                 })),
         );
     }
@@ -107,11 +105,15 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
                         snapshot,
                         &now,
                         card.expanded.contains(entry.provider()),
-                        message(ListMessage::Usage(Event::ToggleDetails(
-                            target.clone(),
-                            entry.provider().to_owned(),
-                        ))),
-                    ));
+                        apps_usage_details::Message::Toggle,
+                    ).map({
+                        let target = target.clone();
+                        let provider = entry.provider().to_owned();
+                        move |event| match event {
+                            apps_usage_details::Message::Toggle => Message::Event(Event::ToggleDetails(target.clone(), provider.clone())),
+                            apps_usage_details::Message::OpenUrl(url) => Message::OpenUrl(url),
+                        }
+                    }));
                 }
             }
         }

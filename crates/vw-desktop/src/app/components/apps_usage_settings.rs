@@ -338,7 +338,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             editor.sequence = editor.sequence.wrapping_add(1);
             let ticket = editor.sequence;
             modal.phase = Phase::Script(apps_usage_script::Editor::Loading(ticket));
-            return apps_usage_script::Editor::load(client, modal.selection.clone(), token, ticket);
+            return apps_usage_script::Editor::load(client, modal.selection.clone(), token, ticket).map(apps_usage_script::map);
         }
         Event::Script(event) => {
             if let Phase::Script(script) = &mut modal.phase {
@@ -349,7 +349,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     &app.apps_catalog.token,
                     &mut editor.sequence,
                 ) {
-                    Ok(task) => task,
+                    Ok(task) => task.map(apps_usage_script::map),
                     Err(hint) => app.show_error_toast(hint),
                 };
             }

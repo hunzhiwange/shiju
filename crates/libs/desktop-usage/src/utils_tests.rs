@@ -1,7 +1,7 @@
 //! 用量页共享工具的测试，覆盖主题样式、控件结构和时间金额格式化。
 //! 用例包含溢出时间戳、负金额与不同交互状态，固定展示边界。
-use crate::app::Message;
-use crate::app::assets::Icon;
+type Message = ();
+use desktop_assets::assets::Icon;
 use iced::widget::button;
 use iced::{Background, Color, Element, Length, Theme};
 
@@ -84,7 +84,7 @@ fn section_title_kv_icon_svg_and_icon_button_build_expected_structure() {
     let title = super::section_title("用量");
     let kv = super::kv("总 token", "42".to_string());
     let icon: Element<'_, Message> = super::icon_svg(Icon::Copy).into();
-    let button = super::icon_btn(Icon::FolderOpen, "打开", Message::None);
+    let button = super::icon_btn(Icon::FolderOpen, "打开", ());
 
     assert_size(&title, Length::Shrink, Length::Shrink);
     assert_eq!(kv.as_widget().children().len(), 3);
@@ -97,28 +97,28 @@ fn section_title_kv_icon_svg_and_icon_button_build_expected_structure() {
 fn fmt_ms_formats_epoch_minutes_truncates_subseconds_and_rejects_overflow() {
     assert_eq!(
         super::fmt_ms(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             0
         ),
         "1970-01-01 00:00"
     );
     assert_eq!(
         super::fmt_ms(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             1_234
         ),
         "1970-01-01 00:00"
     );
     assert_eq!(
         super::fmt_ms(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             65_000
         ),
         "1970-01-01 00:01"
     );
     assert_eq!(
         super::fmt_ms(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             u64::MAX
         ),
         "暂无"

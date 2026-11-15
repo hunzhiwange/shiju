@@ -91,7 +91,7 @@ async fn usage_usage_script_returns_expected_result() {
     assert_eq!(f64::from(result[0].remaining.unwrap()), 0.0);
     server.join().unwrap();
 
-    use crate::app::components::apps_usage_details_tests::{Scene, renderer};
+    use crate::apps_usage_details_tests::{Scene, renderer};
     use iced::{Length, widget::Space};
     let editor = Editor::Ready(Box::new(super::Ready { draft, pending: None, packages: result }));
     let base = Space::new().width(Length::Fill).height(Length::Fill).into();

@@ -14,12 +14,7 @@ use gateway_usage_read::{UsageReadScope, UsageSummary};
 use vw_api_usage::UsageRange;
 use crate::app::state::agent_apps_auth::Scope;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Identity {
-    endpoint: Scope,
-    project: String,
-    host: String,
-}
+pub use desktop_usage::Identity;
 
 fn identity(app: &App) -> Option<Identity> {
     let project = app.project_id.as_ref().filter(|p| !p.trim().is_empty())?.clone();

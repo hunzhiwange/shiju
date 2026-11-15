@@ -4,18 +4,20 @@ use iced::{
 };
 use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
-use super::{Editor, Event, Kind, Ready, SettingsEvent, apps_usage_settings, send};
-use crate::app::{
-    Message,
-    components::{apps_usage_details::script_package_line, system_settings_common::*},
-};
+use super::{Editor, Event, Kind, Ready, send};
+use super::Message;
+use desktop_ui_controls::system_settings_common::*;
+use crate::apps_usage_details;
 
-pub(in crate::app::components) fn modal_view<'a>(
+pub fn modal_view<'a>(
     editor: &'a Editor,
     selection: &UsageSnapshotQuery,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let close = apps_usage_settings::send(SettingsEvent::Close);
+    modal_view_with_base(editor, selection, base, |event| event)
+}
+pub fn modal_view_with_base<'a, M: Clone + 'a>(editor: &'a Editor, selection: &UsageSnapshotQuery, base: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+    let close = Message::Close;
     let header = settings_modal_header(
         settings_page_heading("查询脚本试运行", "在当前执行主机试运行草稿。结果仅在此弹窗显示。"),
         settings_close_button(close.clone()),
@@ -28,7 +30,7 @@ pub(in crate::app::components) fn modal_view<'a>(
                 button(text("重试"))
                     .padding([8, 14])
                     .style(rounded_action_btn_style)
-                    .on_press(apps_usage_settings::send(SettingsEvent::OpenScript)),
+                    .on_press(Message::OpenScript),
             ]
             .spacing(10)
             .into(),
@@ -54,7 +56,7 @@ pub(in crate::app::components) fn modal_view<'a>(
         .width(Length::Fill)
         .max_width(680)
         .height(570);
-    settings_modal_overlay_with_escape(base, close, container(card).padding(12))
+    settings_modal_overlay_with_escape(base, map(close), container(iced::Element::from(card).map(map)).padding(12))
 }
 
 fn fields<'a>(
@@ -114,7 +116,7 @@ fn fields<'a>(
     if !ready.packages.is_empty() {
         body = body.push(settings_field_label("试运行结果"));
         for package in &ready.packages {
-            body = body.push(script_package_line(package));
+            body = body.push(apps_usage_details::script_package_line(package).map(|_| unreachable!("package lines have no actions")));
         }
     }
     (body.into(), run, running)

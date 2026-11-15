@@ -6,12 +6,8 @@ use iced::{
     widget::{checkbox, column, text},
 };
 use vw_api_project_profiles::{ProjectProfile, ProjectProfileScope};
-use vw_gateway_client::{
-    DeviceSyncSelection,
-    vw_api_types::{
-        agent_apps::AppId,
-    },
-};
+use gateway_device_sync::DeviceSyncSelection;
+use vw_api_app_identity::AppId;
 
 #[derive(Clone)]
 enum Choice {

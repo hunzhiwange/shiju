@@ -7,7 +7,7 @@ use {
     vw_api_app_operations::DataManagementTarget,
     vw_api_device_sync::device_sync_task::*,
 };
-use vw_gateway_client::GatewayClient;
+use gateway_device_sync::GatewayDeviceSyncClient;
 
 const POLL_LIMIT: u16 = 120;
 
@@ -47,7 +47,7 @@ impl TaskPanelState {
     pub fn update(
         &mut self,
         message: TaskPanelMessage,
-        client: GatewayClient,
+        client: GatewayDeviceSyncClient,
         target: DataManagementTarget,
         token: String,
     ) -> (Task<TaskPanelMessage>, Option<String>) {

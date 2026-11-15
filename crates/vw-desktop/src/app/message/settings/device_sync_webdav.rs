@@ -7,7 +7,7 @@ use crate::app::components::system_settings_device_sync::task_panel::{
 use crate::app::{App, Message};
 use iced::Task;
 use {
-    vw_gateway_client::DeviceSyncSelection,
+    gateway_device_sync::DeviceSyncSelection,
     vw_api_transport::ProjectScope,
     vw_api_app_operations::DataManagementTarget,
     vw_api_device_sync::device_sync_config::*,
@@ -97,6 +97,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none() };
+    let client = gateway_device_sync::GatewayDeviceSyncClient::new(client.transport().clone());
     let token = app.apps_catalog.token.clone();
     let s = &mut app.apps_catalog.device_sync_webdav;
     if s.identity.as_ref() != Some(&identity) {

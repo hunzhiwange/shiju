@@ -2,9 +2,9 @@
 use iced::Task;
 use vw_api_device_sync::{device_sync_config::{DeviceSyncLocalPreview, DeviceSyncRemoteCompatibility, DeviceSyncRemoteResponse, DeviceSyncTransport}, device_sync_task::{SyncDirection, SyncExpectedRemote, SyncTaskStatus}};
 use vw_api_app_operations::{DataManagementTarget};
-use vw_gateway_client::{
+use gateway_device_sync::{
     DeviceSyncDownloadRequest, DeviceSyncOperationsError, DeviceSyncSelection,
-    DeviceSyncUploadRequest, GatewayClient,
+    DeviceSyncUploadRequest, GatewayDeviceSyncClient,
 };
 
 #[derive(Clone, Debug)]
@@ -40,7 +40,7 @@ impl PreviewState {
     pub fn update(
         &mut self,
         event: PreviewMessage,
-        client: GatewayClient,
+        client: GatewayDeviceSyncClient,
         target: DataManagementTarget,
         token: String,
         transport: DeviceSyncTransport,

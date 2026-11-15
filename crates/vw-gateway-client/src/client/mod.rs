@@ -410,10 +410,10 @@ mod external_sessions;
 pub use external_sessions::ExternalSessionStream;
 
 mod device_sync_tasks_api;
-pub use self::device_sync_tasks_api::DeviceSyncTasksError;
+pub use gateway_device_sync::DeviceSyncTasksError;
 
 mod device_sync_operations_api;
-pub use device_sync_operations_api::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};
+pub use gateway_device_sync::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod device_sync_config_api;

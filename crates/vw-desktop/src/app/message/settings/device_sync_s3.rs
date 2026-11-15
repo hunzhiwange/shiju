@@ -12,7 +12,7 @@ use {
     vw_api_app_operations::DataManagementTarget,
     vw_api_device_sync::device_sync_config::*,
 };
-use vw_gateway_client::{DeviceSyncOperationsError, DeviceSyncSelection};
+use gateway_device_sync::{DeviceSyncOperationsError, DeviceSyncSelection};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum S3Preset {
@@ -169,6 +169,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else {
         return Task::none();
     };
+    let client = gateway_device_sync::GatewayDeviceSyncClient::new(client.transport().clone());
     let token = app.apps_catalog.token.clone();
     let state = &mut app.apps_catalog.device_sync_s3;
     if matches!(event, Event::Open) || state.identity.as_ref() != Some(&current) {

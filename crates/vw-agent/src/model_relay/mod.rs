@@ -5,8 +5,7 @@ pub(crate) mod upstream;
 pub use binding::{RelayBinding, RelayIdentity};
 pub use server::{RelayBackend, RelayRequest, RelayServer};
 pub use upstream::upstream_http_client;
-#[cfg(test)]
-mod binding_tests;
+// Binding unit tests live in model-transport.
 #[cfg(test)]
 mod server_tests;
 
@@ -178,8 +177,7 @@ mod tool_media_request;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod copilot_transport;
-#[cfg(all(test, target_os = "macos"))]
-mod copilot_transport_tests;
+// Copilot transport tests live in model-transport.
 
 pub(crate) mod codex_oauth_transport;
 

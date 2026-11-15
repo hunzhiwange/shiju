@@ -1,6 +1,6 @@
 use gateway_app_read::AgentAppsReadError as Error;
 use super::{GatewayAppProviderClient, provider_collection_path};
-use vw_api_types::{app_providers::editor_merge::*};
+use vw_api_app_provider_edit::editor_merge::*;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn app_provider_editor_open(

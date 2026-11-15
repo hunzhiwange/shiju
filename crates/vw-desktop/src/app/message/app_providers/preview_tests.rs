@@ -1,7 +1,9 @@
 use crate::app::state::app_providers::preview::{Confirmation, Conflict, SaveOutcome};
-use vw_gateway_client::vw_api_types::app_providers::editor_merge::{
-    EditorChoice, EditorEdit, EditorResult, EditorValue, EditorView,
-};
+use vw_api_app_provider_edit::editor_merge::EditorChoice;
+use vw_api_app_provider_edit::editor_merge::EditorEdit;
+use vw_api_app_provider_edit::editor_merge::EditorResult;
+use vw_api_app_provider_edit::editor_merge::EditorValue;
+use vw_api_app_provider_edit::editor_merge::EditorView;
 
 fn draft() -> Vec<EditorEdit> {
     vec![EditorEdit { path: vec!["显示选项".into()], value: EditorValue::Remove }]

@@ -1,4 +1,4 @@
-use vw_api_types::{app_providers::import::*};
+use vw_api_app_provider_edit::import::*;
 use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_import_sdk_scopes_trigger_and_discards_sensitive_error() {

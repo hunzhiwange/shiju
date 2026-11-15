@@ -1,5 +1,5 @@
 //! Pure catalog metadata projection; never reads or writes native application configuration.
-use vw_api_types::app_providers::presentation::AppProviderPresentation;
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 pub fn read(stored: &serde_json::Value) -> Result<AppProviderPresentation, String> {
     if !stored.is_object() {
         return Err("invalid stored application provider profile".into());

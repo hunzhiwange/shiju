@@ -44,8 +44,8 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-        request: &vw_api_types::app_providers::icons::AppProviderIconChange,
-    ) -> Result<vw_api_types::app_providers::icons::AppProviderIcon, String> {
+        request: &vw_api_app_provider_edit::icons::AppProviderIconChange,
+    ) -> Result<vw_api_app_provider_edit::icons::AppProviderIcon, String> {
         let key = Self::key(app, id)?;
         let before = self
             .settings
@@ -55,13 +55,13 @@ impl AppProviderStore {
         let stored = serde_json::from_str(&before)
             .map_err(|_| "invalid stored application provider profile")?;
         let icons = match request {
-            vw_api_types::app_providers::icons::AppProviderIconChange::Select { .. } => {
+            vw_api_app_provider_edit::icons::AppProviderIconChange::Select { .. } => {
                 crate::agent_apps::store::IconLibraryStore::new(self.database.clone())
                     .map_err(|_| "application provider storage unavailable")?
                     .read_icons(tenant)
                     .map_err(|_| "application provider storage unavailable")?
             }
-            vw_api_types::app_providers::icons::AppProviderIconChange::Clear => Vec::new(),
+            vw_api_app_provider_edit::icons::AppProviderIconChange::Clear => Vec::new(),
         };
         let updated = vw_agent_apps::providers::icons::update(&stored, request, &icons)?;
         let after = serde_json::to_string(&updated)
@@ -80,7 +80,7 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-    ) -> Result<vw_api_types::app_providers::icons::AppProviderIcon, String> {
+    ) -> Result<vw_api_app_provider_edit::icons::AppProviderIcon, String> {
         let raw = self
             .settings
             .get(tenant, NAMESPACE, &Self::key(app, id)?)
@@ -159,7 +159,7 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-        request: &vw_api_types::app_providers::duplicate::AppProviderDuplicate,
+        request: &vw_api_app_provider_edit::duplicate::AppProviderDuplicate,
     ) -> Result<AppProviderSummary, String> {
         let key = Self::key(app, id)?;
         let target = Self::key(app, &request.new_id)?;
@@ -213,8 +213,8 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-        request: &vw_api_types::app_providers::endpoints::AppProviderEndpointChange,
-    ) -> Result<Vec<vw_api_types::app_providers::endpoints::AppProviderEndpoint>, String> {
+        request: &vw_api_app_provider_edit::endpoints::AppProviderEndpointChange,
+    ) -> Result<Vec<vw_api_app_provider_edit::endpoints::AppProviderEndpoint>, String> {
         let key = Self::key(app, id)?;
         let before = self
             .settings
@@ -247,7 +247,7 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-    ) -> Result<Vec<vw_api_types::app_providers::endpoints::AppProviderEndpoint>, String> {
+    ) -> Result<Vec<vw_api_app_provider_edit::endpoints::AppProviderEndpoint>, String> {
         let value = self
             .settings
             .get(tenant, NAMESPACE, &Self::key(app, id)?)
@@ -263,8 +263,8 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-        request: &vw_api_types::app_providers::presentation::AppProviderPresentation,
-    ) -> Result<vw_api_types::app_providers::presentation::AppProviderPresentation, String> {
+        request: &vw_api_app_provider_edit::presentation::AppProviderPresentation,
+    ) -> Result<vw_api_app_provider_edit::presentation::AppProviderPresentation, String> {
         let key = Self::key(app, id)?;
         let before = self
             .settings
@@ -290,9 +290,9 @@ impl AppProviderStore {
         &self,
         tenant: &TenantScope,
         app: AppId,
-    ) -> Result<Vec<vw_api_types::app_providers::presentation::AppProviderPresentationEntry>, String>
+    ) -> Result<Vec<vw_api_app_provider_edit::presentation::AppProviderPresentationEntry>, String>
     {
-        use vw_api_types::app_providers::presentation::AppProviderPresentationEntry;
+        use vw_api_app_provider_edit::presentation::AppProviderPresentationEntry;
         let prefix = format!("{}:", serde_json::to_string(&app).expect("AppId serialization"));
         let mut rows = Vec::new();
         for entry in self

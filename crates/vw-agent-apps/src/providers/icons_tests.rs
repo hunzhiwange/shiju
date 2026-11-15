@@ -1,6 +1,6 @@
 use super::icons::{read, update};
 use base64::Engine;
-use vw_api_types::app_providers::icons::AppProviderIconChange as Change;
+use vw_api_app_provider_edit::icons::AppProviderIconChange as Change;
 fn image(w: u32, h: u32) -> String {
     let mut bytes = Vec::new();
     {

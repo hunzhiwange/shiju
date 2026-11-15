@@ -507,8 +507,8 @@ impl KimiFiles {
 
 pub fn selection(
     pre: Option<&[u8]>,
-) -> Result<vw_api_types::app_providers::catalog::ProviderSelection, WriteError> {
-    use vw_api_types::app_providers::catalog::ProviderSelection;
+) -> Result<vw_api_app_provider_edit::catalog::ProviderSelection, WriteError> {
+    use vw_api_app_provider_edit::catalog::ProviderSelection;
     let d = document(pre)?;
     match d.get("default_model").and_then(Value::as_str).filter(|s| !s.is_empty()) {
         Some(alias) => Ok(ProviderSelection::Selected {

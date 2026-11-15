@@ -8,13 +8,11 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::AddCustomIconRequest,
-    vw_api_app_identity::AppId,
-    vw_api_app_identity::RenameCustomIconRequest,
-    vw_api_types::app_providers::icons::AppProviderIconChange as Change,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AddCustomIconRequest;
+use vw_api_app_identity::AppId;
+use vw_api_app_identity::RenameCustomIconRequest;
+use vw_api_app_provider_edit::icons::AppProviderIconChange as Change;
+use vw_api_transport::id::TenantScope;
 const IMAGE: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 #[tokio::test]
 async fn cc04_icons_api_denial_and_safe_read() {

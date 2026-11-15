@@ -1,9 +1,7 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::universal_sync::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::universal_sync::*;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_universal_sync_sdk_wire_and_redaction() {
     let server = test_support::server_with_tenant_scope(

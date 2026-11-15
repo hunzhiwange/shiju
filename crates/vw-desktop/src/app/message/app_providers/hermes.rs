@@ -9,7 +9,7 @@ use crate::app::{
 use iced::{Task, widget::text_editor};
 use vw_gateway_client::GatewayClient;
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
-use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
+use vw_api_app_provider_edit::catalog::ProviderMembership;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_extended::hermes::*;
 use gateway_app_provider::AgentAppsReadError;

@@ -1,9 +1,7 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::preview::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::preview::*;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_codex_sdk_uses_readonly_projection_and_conceals_errors() {
     let server = test_support::server_with_tenant_scope(

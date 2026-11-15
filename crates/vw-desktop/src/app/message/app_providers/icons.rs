@@ -11,13 +11,13 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Read;
-use vw_gateway_client::{
-    GatewayClient,
-    vw_api_types::{
-        agent_apps::{AddCustomIconRequest, AppId, CustomIconEntry, RenameCustomIconRequest},
-        app_providers::icons::{AppProviderIcon, AppProviderIconChange as Change},
-    },
-};
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AddCustomIconRequest;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry;
+use vw_gateway_client::vw_api_types::agent_apps::RenameCustomIconRequest;
+use vw_api_app_provider_edit::icons::AppProviderIcon;
+use vw_api_app_provider_edit::icons::AppProviderIconChange as Change;
 
 pub(crate) const PNG_PREFIX: &str = "data:image/png;base64,";
 pub(crate) const MAX_ICON_BYTES: usize = 64 * 1024;

@@ -7,7 +7,7 @@ use reqwest::{
     header::{AUTHORIZATION, HeaderMap, HeaderName, USER_AGENT},
 };
 use vw_api_app_provider_base::ProviderProtocol;
-use vw_api_types::app_providers::endpoints::AppProviderEndpointKind;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
 pub use provider_model_discovery::DiscoveredModel;
 use provider_model_discovery::{discover_catalog_models, is_real_bearer};
 

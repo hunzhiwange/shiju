@@ -7,13 +7,11 @@ use axum::{
     routing::post,
 };
 use std::path::PathBuf;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::preview::ProviderPreviewRequest,
-    vw_api_types::app_providers::preview::SavedProviderPreview,
-    vw_api_types::app_providers::preview::SavedProviderPreviewRequest,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
+use vw_api_app_provider_edit::preview::SavedProviderPreview;
+use vw_api_app_provider_edit::preview::SavedProviderPreviewRequest;
+use vw_api_transport::id::TenantScope;
 #[derive(Clone)]
 struct PolicyFile(Option<PathBuf>);
 pub(super) fn router() -> Router {
@@ -170,7 +168,7 @@ fn owner(
         live::commit::{ExecutionHostId, ProviderTransactions},
         preview::PreviewOwner,
     };
-    use vw_api_types::app_providers::preview::PreviewUnavailable;
+    use vw_api_app_provider_edit::preview::PreviewUnavailable;
     let mut result = PreviewOwner::default();
     let Some(root) = root else {
         return Ok(result);

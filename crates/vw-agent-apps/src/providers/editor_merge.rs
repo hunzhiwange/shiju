@@ -1,7 +1,7 @@
 //! Claude editor changes. Baselines are executor-only; shared projection owns field classification.
 use super::live::patch_json::JsonPatch;
 use serde_json::Value;
-use vw_api_types::app_providers::editor_merge::*;
+use vw_api_app_provider_edit::editor_merge::*;
 #[derive(Debug, PartialEq, Eq)]
 pub enum MergeError {
     Invalid,

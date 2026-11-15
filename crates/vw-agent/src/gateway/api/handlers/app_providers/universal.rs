@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::universal::UniversalProviderWrite;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 pub(super) fn router() -> Router {
     Router::new().route("/universal-providers", get(list)).route(
         "/universal-providers/{id}",

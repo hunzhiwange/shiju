@@ -1,10 +1,8 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::import::ImportTrigger,
-    vw_api_types::app_providers::operations::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::import::ImportTrigger;
+use vw_api_types::app_providers::operations::*;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_operations_sdk_scopes_requests_and_redacts_denial() {
     let server = test_support::server_with_tenant_scope(

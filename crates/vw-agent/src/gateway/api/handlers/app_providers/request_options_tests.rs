@@ -9,7 +9,7 @@ use std::os::unix::fs::PermissionsExt;
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::claude::*;
 use vw_api_app_provider_profiles::codex_catalog::*;
-use vw_api_types::app_providers::request_options::*;
+use vw_api_app_provider_edit::request_options::*;
 use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-options-token-with-at-least-32-characters";
@@ -212,9 +212,8 @@ async fn cc04_ui_endpoints_options_permissions_validation_and_explicit_clear() {
 
 #[tokio::test]
 async fn cc04_ui_endpoints_native_address_book_persists_full_url_and_server_time() {
-    use vw_api_types::app_providers::endpoints::{
-        AppProviderEndpointChange as Change, AppProviderEndpointKind as Kind,
-    };
+    use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange as Change;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind as Kind;
     let f = Fixture::new().await;
     let url = "https://fixture.test/v1/messages/".to_string();
     let rows = f

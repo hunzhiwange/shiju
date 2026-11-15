@@ -8,11 +8,9 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::universal_sync::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::universal_sync::*;
+use vw_api_transport::id::TenantScope;
 fn parent() -> String {
     serde_json::json!({"config":{"name":"Shared","providerType":"custom","apps":{"claude":true,"codex":true,"gemini":true},"baseUrl":"https://example.com","models":{"claude":{"model":"claude-main"},"codex":{"model":"codex-main"}}},"apiKey":"fixture-key"}).to_string()
 }

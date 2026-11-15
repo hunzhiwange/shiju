@@ -1,7 +1,7 @@
 //! Address-book operations on the existing provider record; no network or live writes.
-use vw_api_types::app_providers::endpoints::{
-    AppProviderEndpoint, AppProviderEndpointChange, AppProviderEndpointKind,
-};
+use vw_api_app_provider_edit::endpoints::AppProviderEndpoint;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
 
 fn normalize(raw: &str, kind: AppProviderEndpointKind) -> Result<String, String> {
     let value = raw.trim();

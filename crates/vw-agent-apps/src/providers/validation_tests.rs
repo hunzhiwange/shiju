@@ -48,7 +48,7 @@ fn cc04_validation_keeps_app_specific_fields() {
 
 #[test]
 fn cc04_validation_preview_rejects_options_and_source_metadata_without_files() {
-    use vw_api_types::app_providers::preview::ProviderPreviewRequest;
+    use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
     let root = tempfile::tempdir().unwrap();
     let mut request:ProviderPreviewRequest=serde_json::from_value(json!({"targetHostId":"fixture","settings":{"env":{}},"requestOptions":{"localProxyRequestOverrides":{"body":{"stream":true}}}})).unwrap();
     assert!(
@@ -97,7 +97,7 @@ use vw_api_app_provider_base::AppProviderWrite;
 
 #[test]
 fn cc04_validation_previews_reject_native_endpoints_and_headers() {
-    use vw_api_types::app_providers::preview::ProviderPreviewRequest;
+    use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
     for (app, settings) in [
         (AppId::Claude, json!({"env":{"ANTHROPIC_BASE_URL":"https://user:secret@fixture.test"}})),
         (AppId::Gemini, json!({"env":{"GOOGLE_GEMINI_BASE_URL":"http://fixture.test"}})),

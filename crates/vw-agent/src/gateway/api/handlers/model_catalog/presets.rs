@@ -8,7 +8,7 @@ use vw_agent_apps::models::{
     preset_search::{PresetMatch, PresetSearchEntry, search_presets},
 };
 use vw_api_model_catalog::ModelCatalogPreset;
-use vw_api_types::{app_providers::universal::ClaudeModels, };
+use vw_api_app_provider_edit::universal::ClaudeModels;
 use vw_api_app_identity::{AppId};
 
 struct PresetFields<'a> {

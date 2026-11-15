@@ -8,12 +8,10 @@ use axum::{
     routing::delete,
 };
 use std::path::PathBuf;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::delete::AppProviderDelete,
-    vw_api_types::app_providers::delete::AppProviderDeleted,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::delete::AppProviderDelete;
+use vw_api_app_provider_edit::delete::AppProviderDeleted;
+use vw_api_transport::id::TenantScope;
 #[derive(Clone)]
 struct PolicyFile(Option<PathBuf>);
 pub(super) fn router() -> Router {

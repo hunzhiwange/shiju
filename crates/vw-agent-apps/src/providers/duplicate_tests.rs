@@ -1,5 +1,5 @@
 use super::duplicate::duplicate;
-use vw_api_types::{app_providers::duplicate::AppProviderDuplicate};
+use vw_api_app_provider_edit::duplicate::AppProviderDuplicate;
 use vw_api_app_identity::{AppId};
 fn source() -> serde_json::Value {
     serde_json::json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-secret","baseUrl":"https://fixture.example.test","model":"fixture-model","websiteUrl":"https://fixture.example.test","category":"custom","icon":"fixture-icon","iconColor":"#ffffff","notes":"description","meta":{"notes":"nested description","authBinding":{"accountId":"fixture-account"},"githubAccountId":"fixture-account","liveConfigManaged":true,"unknownFutureField":"deny"},"createdAt":123,"sortIndex":4,"inFailoverQueue":true,"current":true,"login":{"token":"fixture-login"},"unknown":"deny"})

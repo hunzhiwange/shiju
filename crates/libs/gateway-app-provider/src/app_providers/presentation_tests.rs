@@ -1,9 +1,7 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::presentation::AppProviderPresentation,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_presentation_sdk_wire_and_error_redaction() {
     let value = serde_json::json!({"sortIndex":2,"category":"group","notes":"note"});

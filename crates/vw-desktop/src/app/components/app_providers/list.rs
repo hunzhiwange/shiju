@@ -13,10 +13,9 @@ use iced::{
     Alignment, Element, Length, Theme,
     widget::{button, column, container, row, text, text_input},
 };
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::catalog::{ProviderMembership, ProviderSelection},
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::catalog::ProviderMembership;
+use vw_api_app_provider_edit::catalog::ProviderSelection;
 #[derive(Clone, Copy)]
 pub(crate) struct Help<'a> {
     i18n: I18n,

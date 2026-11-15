@@ -1,7 +1,8 @@
 //! Universal records use the existing tenant settings backend, one atomic row per identity.
 use super::*;
 use vw_agent_apps::providers::universal;
-use vw_api_types::app_providers::universal::{UniversalProviderSummary, UniversalProviderWrite};
+use vw_api_app_provider_edit::universal::UniversalProviderSummary;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 const UNIVERSAL: &str = "app_providers.universal";
 impl AppProviderStore {
     pub fn universal_save(

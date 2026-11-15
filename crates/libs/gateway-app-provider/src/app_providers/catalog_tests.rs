@@ -18,7 +18,8 @@ async fn cc04_catalog_sdk_lists_without_secret_body() {
 }
 #[tokio::test]
 async fn cc04_catalog_sdk_encodes_host_and_preserves_permission_errors() {
-    use vw_api_types::app_providers::catalog::{ProviderCatalog, ProviderSelection};
+    use vw_api_app_provider_edit::catalog::ProviderCatalog;
+use vw_api_app_provider_edit::catalog::ProviderSelection;
     let value = serde_json::json!({"appId":"opencode", "rows":[], "direct":{"status":"not_applicable"}, "inUse":{"status":"not_applicable"}, "nativeRead":null});
     let server = test_support::server_with_tenant_scope(
         vec![(200, value), (403, serde_json::json!({"secret":"must-not-surface"}))],

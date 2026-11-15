@@ -1,6 +1,7 @@
 //! Pure native projection owner, shared with future application adapters. No filesystem or credentials lookup.
 use serde_json::Value;
-use vw_api_types::app_providers::preview::{PreviewParseError, PreviewUnavailable};
+use vw_api_app_provider_edit::preview::PreviewParseError;
+use vw_api_app_provider_edit::preview::PreviewUnavailable;
 mod codex;
 pub(super) mod codex_route;
 pub(crate) mod fields;

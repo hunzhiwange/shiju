@@ -6,11 +6,9 @@ use std::os::unix::fs::PermissionsExt;
 use vw_agent_apps::providers::live::commit::{
     AppState, ExecutionHostId, ProviderTransactions, ScopedProvider,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::editor_merge::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::editor_merge::*;
+use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-editor-token-with-at-least-32-chars";
 struct Fixture {
@@ -285,10 +283,8 @@ async fn cc04_editor_merge_registered_route_requires_gateway_authentication() {
     assert_eq!(response.status(), 401);
 }
 
-use vw_api_types::{
-    app_providers::{operations::*, preview::SavedProviderPreviewRequest},
-
-};
+use vw_api_types::app_providers::operations::*;
+use vw_api_app_provider_edit::preview::SavedProviderPreviewRequest;
 use vw_api_task::TaskStatus;
 
 async fn wait_for_progress(

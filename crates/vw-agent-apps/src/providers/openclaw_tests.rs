@@ -183,7 +183,7 @@ fn cc04_openclaw_new_model_seed_and_nested_comments_survive() {
 
 #[test]
 fn cc04_openclaw_catalog_reads_members_without_unique_current_or_secrets() {
-    use vw_api_types::{app_providers::catalog::*};
+    use vw_api_app_provider_edit::catalog::*;
     use vw_api_app_identity::{AppId};
     let home = tempfile::tempdir().unwrap();
     let missing = super::catalog::read(home.path(), AppId::OpenClaw, vec![]);

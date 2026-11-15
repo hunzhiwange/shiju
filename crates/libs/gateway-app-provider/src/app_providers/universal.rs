@@ -1,5 +1,6 @@
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::universal::{UniversalProviderSummary, UniversalProviderWrite};
+use vw_api_app_provider_edit::universal::UniversalProviderSummary;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 pub(super) fn path(id: &str) -> Result<String, String> {
     if id.is_empty()
         || id.len() > 128

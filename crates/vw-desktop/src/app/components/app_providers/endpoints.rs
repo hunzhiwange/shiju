@@ -8,9 +8,8 @@ use iced::{
     Element, Length,
     widget::{button, checkbox, column, container, row, scrollable, text, text_input},
 };
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId, app_providers::endpoints::AppProviderEndpointKind,
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
 fn action(label: &str, event: Event, enabled: bool) -> Element<'_, Message> {
     button(text(label))
         .padding([8, 14])

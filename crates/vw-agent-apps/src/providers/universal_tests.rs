@@ -1,5 +1,5 @@
 use super::universal::{save, summary};
-use vw_api_types::app_providers::universal::UniversalProviderWrite;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 fn request() -> UniversalProviderWrite {
     serde_json::from_value(serde_json::json!({"config":{"name":"共享","providerType":"custom","apps":{"claude":true,"codex":true,"gemini":true},"baseUrl":"https://example.com/prefix","models":{"claude":{"model":"c","haikuModel":"h","sonnetModel":"s","opusModel":"o"},"codex":{"model":"x","reasoningEffort":"high"},"gemini":{"model":"g"}},"notes":"备注"},"apiKey":{"action":"replace","value":"fixture-secret"}})).unwrap()
 }

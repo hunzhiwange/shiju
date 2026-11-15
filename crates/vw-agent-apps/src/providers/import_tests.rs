@@ -1,5 +1,5 @@
 use super::import::*;
-use vw_api_types::{app_providers::import::ImportTrigger::*};
+use vw_api_app_provider_edit::import::ImportTrigger::*;
 use vw_api_app_identity::{AppId};
 #[test]
 fn cc04_import_existing_catalog_is_unchanged() {

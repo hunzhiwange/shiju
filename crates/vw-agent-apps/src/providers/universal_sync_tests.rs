@@ -1,6 +1,6 @@
 use super::universal_sync::*;
 use serde_json::json;
-use vw_api_types::{app_providers::universal_sync::*};
+use vw_api_app_provider_edit::universal_sync::*;
 use vw_api_app_identity::{AppId};
 fn parent() -> serde_json::Value {
     json!({"config":{"name":"Shared","providerType":"custom","apps":{"claude":true,"codex":true,"gemini":true},"baseUrl":"https://example.com","models":{"claude":{"model":"claude-main","haikuModel":"haiku"},"codex":{"model":"codex-main","reasoningEffort":"low"},"gemini":{"model":"gemini-main"}}},"apiKey":"fixture-key"})

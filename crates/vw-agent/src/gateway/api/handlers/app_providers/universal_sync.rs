@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::universal_sync::UniversalSyncRequest;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncRequest;
 pub(super) fn router() -> Router {
     Router::new().route(
         "/universal-providers/{id}/sync",

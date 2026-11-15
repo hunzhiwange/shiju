@@ -4,13 +4,13 @@ use crate::app::state::{
     app_providers::{list::Scope, universal::Form},
 };
 use std::io::{BufRead, BufReader, Read, Write};
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    GatewayClient, vw_api_types::{
-        agent_apps::AppId,
-        app_providers::universal_sync::{
-            UniversalCatalogResult, UniversalLiveResult, UniversalSyncError, UniversalSyncResult,
-        },
-    }}};
+use gateway_endpoint::GatewayEndpoint;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::universal_sync::UniversalCatalogResult;
+use vw_api_app_provider_edit::universal_sync::UniversalLiveResult;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncError;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncResult;
 
 fn scope(client: &GatewayClient) -> Scope {
     Scope {

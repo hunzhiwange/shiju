@@ -4,9 +4,9 @@ use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_api_types::app_providers::universal::UniversalConfig;
-use vw_api_types::app_providers::universal::UniversalProviderSummary;
-use vw_api_types::app_providers::universal::UniversalProviderWrite;
+use vw_api_app_provider_edit::universal::UniversalConfig;
+use vw_api_app_provider_edit::universal::UniversalProviderSummary;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 use vw_api_app_identity::{AppId};
 const CORRUPT: &str = "invalid stored universal provider";
 fn validate(config: &UniversalConfig, secret: &str) -> Result<(), String> {

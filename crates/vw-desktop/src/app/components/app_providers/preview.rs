@@ -9,9 +9,9 @@ use iced::{
     Element, Length,
     widget::{button, column, row, text, text_editor},
 };
-use vw_gateway_client::vw_api_types::app_providers::{
-    editor_merge::EditorChoice, operations::ProviderOperationPhase, preview::PreviewChangeKind,
-};
+use vw_api_app_provider_edit::editor_merge::EditorChoice;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationPhase;
+use vw_api_app_provider_edit::preview::PreviewChangeKind;
 
 fn action(
     label: &'static str,

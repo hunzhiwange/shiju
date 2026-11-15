@@ -123,7 +123,7 @@ async fn submit(
         ProviderOperationAction::Project { id, apps } => {
             vw_agent_apps::providers::validate_identity(id).map_err(|_| StatusCode::BAD_REQUEST)?;
             vw_agent_apps::providers::universal_sync::validate_request(
-                &vw_api_types::app_providers::universal_sync::UniversalSyncRequest {
+                &vw_api_app_provider_edit::universal_sync::UniversalSyncRequest {
                     apps: apps.clone(),
                 },
             )
@@ -214,9 +214,8 @@ async fn submit(
                     if succeeded { Ok(()) } else { Err("editor save rejected".into()) }
                 }
                 ProviderOperationAction::Project { id, apps } => {
-                    use vw_api_types::app_providers::universal_sync::{
-                        UniversalCatalogResult, UniversalSyncRequest,
-                    };
+                    use vw_api_app_provider_edit::universal_sync::UniversalCatalogResult;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncRequest;
                     let results = store(database)?.universal_sync(
                         &scoped,
                         &id,

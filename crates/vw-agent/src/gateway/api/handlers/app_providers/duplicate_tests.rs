@@ -8,11 +8,9 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::duplicate::AppProviderDuplicate,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::duplicate::AppProviderDuplicate;
+use vw_api_transport::id::TenantScope;
 fn seed(db: &GlobalDatabase) {
     let settings = GatewaySettingsStore::new(db.clone()).unwrap();
     settings.upsert(&TenantScope::new("p","a").unwrap(),"app_providers.records","\"claude\":source",&serde_json::json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-secret","baseUrl":"https://fixture.example.test","model":"fixture-model","notes":"description","meta":{"notes":"keep","authBinding":{"accountId":"fixture-account"},"liveConfigManaged":true},"current":true,"createdAt":123}).to_string()).unwrap();

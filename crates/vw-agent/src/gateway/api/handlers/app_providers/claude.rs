@@ -504,14 +504,14 @@ async fn sync(
                 .universal_sync(
                     &tenant,
                     &id,
-                    &vw_api_types::app_providers::universal_sync::UniversalSyncRequest {
+                    &vw_api_app_provider_edit::universal_sync::UniversalSyncRequest {
                         apps: vec![AppId::Claude],
                     },
                 )
                 .map_err(|_| StatusCode::CONFLICT)?;
             if !matches!(
                 results[0].catalog,
-                vw_api_types::app_providers::universal_sync::UniversalCatalogResult::Updated
+                vw_api_app_provider_edit::universal_sync::UniversalCatalogResult::Updated
             ) {
                 return Err(StatusCode::CONFLICT);
             }

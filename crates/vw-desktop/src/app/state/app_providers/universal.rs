@@ -1,7 +1,6 @@
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{universal::UniversalProviderSummary, universal_sync::UniversalSyncResult},
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::universal::UniversalProviderSummary;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncResult;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Form {

@@ -1,9 +1,7 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::snippets::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::snippets::*;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_snippets_sdk_uses_routes_and_conceals_error_payloads() {
     let server = test_support::server_with_tenant_scope(

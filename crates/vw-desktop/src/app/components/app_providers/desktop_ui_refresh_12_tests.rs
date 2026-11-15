@@ -31,10 +31,10 @@ use config_ui::DesktopLocale;
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_base::basic::ProviderBasic;
-use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderCatalog;
-use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderCatalogRow;
-use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
-use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
+use vw_api_app_provider_edit::catalog::ProviderCatalog;
+use vw_api_app_provider_edit::catalog::ProviderCatalogRow;
+use vw_api_app_provider_edit::catalog::ProviderMembership;
+use vw_api_app_provider_edit::catalog::ProviderSelection;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
 
 async fn renderer() -> Renderer {

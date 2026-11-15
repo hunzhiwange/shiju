@@ -1,6 +1,7 @@
 //! Unified imports reuse the application decoders and existing scoped CAS saves.
 use super::*;
-use vw_api_types::app_providers::import::{ImportTrigger, ProviderImportResult};
+use vw_api_app_provider_edit::import::ImportTrigger;
+use vw_api_app_provider_edit::import::ProviderImportResult;
 impl AppProviderStore {
     #[cfg(target_os = "macos")]
     pub(crate) fn import_native(

@@ -105,7 +105,7 @@ pub fn prepare(scope: &SourceScope, source: &SourceSnapshot, existing: &[Provide
             .map_err(|_| PreviewError::InvalidCandidate)?;
         let id = string(f, "provider_id")?;
         let row = rows.iter_mut().find(|r| r.app == app && r.id == id).ok_or(PreviewError::InvalidCandidate)?;
-        use vw_api_types::app_providers::endpoints::*;
+        use vw_api_app_provider_edit::endpoints::*;
         let url = string(f, "url")?.to_owned();
         let timestamp = f.get("added_at").and_then(Value::as_u64).ok_or(PreviewError::InvalidCandidate)?;
         row.value = crate::providers::endpoints::update(&row.value,

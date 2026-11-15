@@ -290,7 +290,7 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
             &tenant(),
             AppId::Claude,
             "beta",
-            &vw_api_types::app_providers::presentation::AppProviderPresentation {
+            &vw_api_app_provider_edit::presentation::AppProviderPresentation {
                 sort_index: Some(0),
                 ..Default::default()
             },

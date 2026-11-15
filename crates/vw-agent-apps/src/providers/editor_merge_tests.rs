@@ -1,6 +1,6 @@
 use super::editor_merge::*;
 use serde_json::json;
-use vw_api_types::app_providers::editor_merge::*;
+use vw_api_app_provider_edit::editor_merge::*;
 fn edit() -> EditorEdit {
     EditorEdit { path: vec!["x".into()], value: EditorValue::Set { value: json!(2) } }
 }

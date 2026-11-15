@@ -2,7 +2,7 @@
 use super::{update::profile, validate_identity, validate_profile};
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
-use vw_api_types::app_providers::duplicate::AppProviderDuplicate;
+use vw_api_app_provider_edit::duplicate::AppProviderDuplicate;
 use vw_api_app_identity::{AppId};
 /// Copy established API configuration and descriptive metadata only. Unknown fields,
 /// account bindings, live membership, ordering and timestamps never inherit authority.

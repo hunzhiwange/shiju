@@ -1,5 +1,5 @@
 use super::presentation::{read, update};
-use vw_api_types::app_providers::presentation::AppProviderPresentation;
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 fn request() -> AppProviderPresentation {
     AppProviderPresentation {
         sort_index: Some(2),

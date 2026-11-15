@@ -1,6 +1,6 @@
 use crate::app::state::app_providers::list::{Scope, Snapshot};
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::app_providers::presentation::AppProviderPresentation;
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 pub(crate) async fn load(
     client: GatewayClient,
     scope: Scope,

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-app-provider-edit",
   "crates/libs/api-app-provider-extended",
   "crates/libs/runtime-log",
   "crates/libs/pasted-text-cache",

@@ -1,12 +1,13 @@
 use iced::{task, widget::text_editor::Content};
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        editor_merge::{EditorChoice, EditorEdit, EditorResult, EditorSave, EditorView},
-        operations::{ProviderOperationProgress, ProviderOperationRequest},
-        preview::ProviderPreview,
-    },
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::editor_merge::EditorChoice;
+use vw_api_app_provider_edit::editor_merge::EditorEdit;
+use vw_api_app_provider_edit::editor_merge::EditorResult;
+use vw_api_app_provider_edit::editor_merge::EditorSave;
+use vw_api_app_provider_edit::editor_merge::EditorView;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationProgress;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationRequest;
+use vw_api_app_provider_edit::preview::ProviderPreview;
 
 pub(crate) const SCROLL_ID: &str = "provider-preview";
 

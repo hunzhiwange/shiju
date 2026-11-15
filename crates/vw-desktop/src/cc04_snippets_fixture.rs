@@ -1,7 +1,8 @@
 use serde_json::{Value, json};
-use vw_gateway_client::vw_api_types::app_providers::snippets::{
-    ConfigSnippet, SnippetExtract, SnippetSource, SnippetWrite,
-};
+use vw_api_app_provider_edit::snippets::ConfigSnippet;
+use vw_api_app_provider_edit::snippets::SnippetExtract;
+use vw_api_app_provider_edit::snippets::SnippetSource;
+use vw_api_app_provider_edit::snippets::SnippetWrite;
 
 pub(crate) struct Fixture {
     saved: ConfigSnippet,

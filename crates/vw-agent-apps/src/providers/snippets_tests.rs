@@ -1,7 +1,7 @@
 use super::snippets::{extract, normalize};
 use serde_json::{Value, json};
 use vw_api_app_identity::{AppId};
-fn parsed(snippet: vw_api_types::app_providers::snippets::ConfigSnippet) -> Value {
+fn parsed(snippet: vw_api_app_provider_edit::snippets::ConfigSnippet) -> Value {
     serde_json::from_str(&snippet.content.unwrap()).unwrap()
 }
 #[test]
@@ -21,7 +21,7 @@ fn cc04_snippets_extract_excludes_provider_keys() {
 #[test]
 fn cc04_snippets_apply_preserves_live_user_fields() {
     use super::preview::{self, PreviewOwner};
-    use vw_api_types::app_providers::preview::ProviderPreviewRequest;
+    use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join(".claude")).unwrap();
     let file = root.path().join(".claude/settings.json");
@@ -77,7 +77,9 @@ fn cc04_snippets_normalization_bounds_shapes_and_nested_credentials() {
 }
 #[test]
 fn cc04_snippets_explicit_edits_do_not_restore_an_unchanged_snapshot() {
-    use vw_api_types::app_providers::editor_merge::{EditorChoice, EditorEdit, EditorValue};
+    use vw_api_app_provider_edit::editor_merge::EditorChoice;
+use vw_api_app_provider_edit::editor_merge::EditorEdit;
+use vw_api_app_provider_edit::editor_merge::EditorValue;
     let old =
         parsed(normalize(AppId::Claude, r#"{"theme":"old","hooks":{"keep":false}}"#).unwrap());
     let current = br#"{"theme":"current","hooks":{"keep":true},"external":true}"#;

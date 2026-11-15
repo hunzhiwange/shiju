@@ -3,7 +3,7 @@ use serde_json::Value;
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_api_types::app_providers::presentation::AppProviderPresentation;
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 use vw_api_app_provider_base::update::AppProviderUpdate;
 };
 pub fn read(stored: &Value) -> Result<ProviderBasic, String> {

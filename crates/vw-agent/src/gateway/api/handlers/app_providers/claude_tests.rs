@@ -320,7 +320,7 @@ async fn cc04_claude_denied_and_invalid_requests_leave_database_and_files_untouc
 #[tokio::test]
 async fn cc04_claude_sync_projects_existing_universal_owner_and_applies_current_child() {
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-    use vw_api_types::app_providers::universal::*;
+    use vw_api_app_provider_edit::universal::*;
     let f = Fixture::new().await;
     let store = crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();

@@ -2,7 +2,7 @@
 use super::*;
 use axum::{extract::Query, http::HeaderMap};
 use std::path::PathBuf;
-use vw_api_types::app_providers::snippets::*;
+use vw_api_app_provider_edit::snippets::*;
 #[derive(Clone)]
 struct SnippetPolicy(Option<PathBuf>);
 pub(super) fn router() -> Router {

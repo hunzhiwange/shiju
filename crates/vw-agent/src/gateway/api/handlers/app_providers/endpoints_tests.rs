@@ -8,12 +8,10 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::endpoints::AppProviderEndpointChange as Change,
-    vw_api_types::app_providers::endpoints::AppProviderEndpointKind as Kind,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange as Change;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind as Kind;
+use vw_api_transport::id::TenantScope;
 fn seed(db: &GlobalDatabase) {
     let settings = GatewaySettingsStore::new(db.clone()).unwrap();
     for (platform, company, app, id) in [

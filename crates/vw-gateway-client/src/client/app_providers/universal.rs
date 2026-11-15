@@ -1,5 +1,6 @@
 use super::GatewayClient;
-use vw_api_types::app_providers::universal::{UniversalProviderSummary, UniversalProviderWrite};
+use vw_api_app_provider_edit::universal::UniversalProviderSummary;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 impl GatewayClient {
 
     pub async fn universal_provider_save(

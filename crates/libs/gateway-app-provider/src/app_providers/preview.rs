@@ -1,6 +1,6 @@
 use gateway_app_read::AgentAppsReadError as Error;
 use super::{GatewayAppProviderClient, provider_collection_path};
-use vw_api_types::{app_providers::preview::*};
+use vw_api_app_provider_edit::preview::*;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     /// Native transport only; token authorizes the selected execution host independently.

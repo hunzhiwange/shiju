@@ -9,7 +9,7 @@ use iced::{
     Alignment, Element, Length,
     widget::{button, column, container, image, row, scrollable, text, text_input},
 };
-use vw_gateway_client::vw_api_types::app_providers::icons::AppProviderIconChange as Change;
+use vw_api_app_provider_edit::icons::AppProviderIconChange as Change;
 
 fn action(label: &str, event: Event, enabled: bool, primary: bool) -> Element<'_, Message> {
     button(text(label))

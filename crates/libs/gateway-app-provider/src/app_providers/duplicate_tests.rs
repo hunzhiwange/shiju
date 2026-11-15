@@ -1,9 +1,7 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::duplicate::AppProviderDuplicate,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::duplicate::AppProviderDuplicate;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_duplicate_sdk_sends_scoped_copy_and_redacts_errors() {
     let server = test_support::server_with_tenant_scope(

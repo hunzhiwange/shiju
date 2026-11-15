@@ -1,8 +1,6 @@
 use super::{GatewayAppProviderClient, provider_path};
-use vw_api_types::{
-    app_providers::endpoints::AppProviderEndpoint,
-    app_providers::endpoints::AppProviderEndpointChange,
-};
+use vw_api_app_provider_edit::endpoints::AppProviderEndpoint;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn app_provider_endpoint_change(

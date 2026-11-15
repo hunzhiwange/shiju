@@ -1,6 +1,6 @@
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::{app_providers::snippets::*};
+use vw_api_app_provider_edit::snippets::*;
 use vw_api_app_identity::{AppId};
 impl GatewayClient {
     pub async fn app_provider_snippet_get(

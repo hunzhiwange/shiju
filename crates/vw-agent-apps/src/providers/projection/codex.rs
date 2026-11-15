@@ -4,7 +4,7 @@ use super::{Error, Projected, fields, patch, toml, value};
 use crate::providers::live::patch_toml::TomlPatch;
 use serde_json::{Map, Value};
 use toml_edit::{DocumentMut, Item};
-use vw_api_types::app_providers::preview::PreviewUnavailable;
+use vw_api_app_provider_edit::preview::PreviewUnavailable;
 fn path(parts: &[&str]) -> Vec<String> {
     parts.iter().map(|s| (*s).into()).collect()
 }

@@ -1,7 +1,7 @@
 //! Read-only observations of tenant records and explicitly authorized host configuration.
 use std::{collections::BTreeMap, path::Path};
 use vw_api_app_provider_base::AppProviderSummary;
-use vw_api_types::app_providers::catalog::*;
+use vw_api_app_provider_edit::catalog::*;
 use vw_api_app_identity::{AppId};
 
 /// `home` is the administrator-authorized execution home, never a client path.

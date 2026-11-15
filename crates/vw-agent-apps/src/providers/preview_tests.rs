@@ -8,7 +8,7 @@ fn read(
 }
 
 use serde_json::json;
-use vw_api_types::{app_providers::preview::*};
+use vw_api_app_provider_edit::preview::*;
 use vw_api_app_identity::{AppId};
 fn request(settings: serde_json::Value) -> ProviderPreviewRequest {
     ProviderPreviewRequest {

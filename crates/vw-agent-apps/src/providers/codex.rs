@@ -78,7 +78,7 @@ fn validate_key(key: &str) -> Result<(), ProjectionError> {
 
 fn map_error(error: super::projection::Error) -> ProjectionError {
     use super::projection::Error;
-    use vw_api_types::app_providers::preview::PreviewUnavailable;
+    use vw_api_app_provider_edit::preview::PreviewUnavailable;
     match error {
         Error::Keyless => ProjectionError::MissingCredential,
         Error::Unavailable(PreviewUnavailable::Ownership) => ProjectionError::ProfileOverride,

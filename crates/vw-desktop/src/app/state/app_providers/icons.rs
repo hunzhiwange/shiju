@@ -1,7 +1,6 @@
-use vw_gateway_client::vw_api_types::{
-    agent_apps::CustomIconEntry,
-    app_providers::icons::{AppProviderIcon, AppProviderIconChange},
-};
+use vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry;
+use vw_api_app_provider_edit::icons::AppProviderIcon;
+use vw_api_app_provider_edit::icons::AppProviderIconChange;
 
 #[derive(Clone)]
 pub(crate) enum Draft {

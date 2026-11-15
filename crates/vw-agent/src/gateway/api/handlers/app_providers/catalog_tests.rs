@@ -49,7 +49,7 @@ mod host_reads {
 use vw_api_types::agent_apps::AppId;
     use vw_api_app_provider_base::AppProviderWrite;
     use vw_api_app_provider_base::ProviderProtocol;
-    use vw_api_types::app_providers::catalog::*;
+    use vw_api_app_provider_edit::catalog::*;
     const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
     use vw_api_app_identity::{AppId};
     fn policy(root: &Path) -> std::path::PathBuf {

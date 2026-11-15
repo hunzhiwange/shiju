@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::icons::AppProviderIconChange;
+use vw_api_app_provider_edit::icons::AppProviderIconChange;
 pub(super) fn router() -> Router {
     Router::new().route(
         "/app-providers/{app}/{id}/icon",

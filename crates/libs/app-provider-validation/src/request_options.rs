@@ -3,7 +3,7 @@ use super::validation::custom_user_agent;
 use reqwest::header::USER_AGENT;
 use serde_json::Value;
 use vw_api_types::agent_apps::AppId;
-use vw_api_types::app_providers::request_options::*;
+use vw_api_app_provider_edit::request_options::*;
 use vw_api_app_provider_base::validation::ProviderRequestOptions;
 use vw_api_app_identity::{AppId};
 pub fn read(app: AppId, row: &Value) -> Result<ProviderRequestOptions, String> {

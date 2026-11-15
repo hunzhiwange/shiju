@@ -18,7 +18,7 @@ use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_profiles::agy::AgyProfile;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
-use vw_api_types::app_providers::endpoints::AppProviderEndpointKind;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
 use vw_api_app_provider_profiles::gemini::GeminiConfig;
 use vw_api_app_provider_profiles::gemini::GeminiProfile;
 use vw_api_transport::id::ModelId;

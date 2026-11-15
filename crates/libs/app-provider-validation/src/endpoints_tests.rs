@@ -1,7 +1,6 @@
 use super::endpoints::{read, update};
-use vw_api_types::app_providers::endpoints::{
-    AppProviderEndpointChange as Change, AppProviderEndpointKind as Kind,
-};
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange as Change;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind as Kind;
 #[test]
 fn cc04_endpoints_add_remove_and_last_used() {
     let root = tempfile::tempdir().unwrap();

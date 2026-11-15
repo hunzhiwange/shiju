@@ -1,7 +1,7 @@
 //! Persistence adapter for the single application projection dispatcher.
 use super::*;
 use vw_agent_apps::providers::{universal, universal_sync};
-use vw_api_types::app_providers::universal_sync::*;
+use vw_api_app_provider_edit::universal_sync::*;
 impl AppProviderStore {
     pub fn universal_sync(
         &self,

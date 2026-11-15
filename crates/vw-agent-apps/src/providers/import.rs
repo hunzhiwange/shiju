@@ -1,5 +1,5 @@
 //! Dispatch policy is separate from application-specific native decoding.
-use vw_api_types::{app_providers::import::ImportTrigger};
+use vw_api_app_provider_edit::import::ImportTrigger;
 use vw_api_app_identity::{AppId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImportStrategy {

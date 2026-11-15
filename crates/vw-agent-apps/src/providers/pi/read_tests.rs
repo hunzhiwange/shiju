@@ -1,8 +1,7 @@
 use super::read_native_directory;
 use std::{ffi::OsStr, fs, os::unix::fs::symlink, path::Path};
-use vw_api_types::app_providers::catalog::ProviderReadUnavailable::{
-    InvalidConfiguration, Unreadable,
-};
+use vw_api_app_provider_edit::catalog::ProviderReadUnavailable::InvalidConfiguration;
+use vw_api_app_provider_edit::catalog::ProviderReadUnavailable::Unreadable;
 
 #[test]
 fn aggregation_t35_pi_read_preserves_contract() {

@@ -282,8 +282,8 @@ fn file_error(error: vw_agent_apps::providers::live::write_guard::WriteError) ->
     }
 }
 #[cfg(target_os = "macos")]
-fn read_error(error: vw_api_types::app_providers::catalog::ProviderReadUnavailable) -> Error {
-    use vw_api_types::app_providers::catalog::ProviderReadUnavailable;
+fn read_error(error: vw_api_app_provider_edit::catalog::ProviderReadUnavailable) -> Error {
+    use vw_api_app_provider_edit::catalog::ProviderReadUnavailable;
     match error {
         ProviderReadUnavailable::Unreadable => {
             (StatusCode::SERVICE_UNAVAILABLE, "target_unavailable")

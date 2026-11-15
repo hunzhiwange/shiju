@@ -15,7 +15,7 @@ impl GatewayAppProviderClient {
         host: &str,
         token: &str,
     ) -> Result<
-        vw_api_types::app_providers::catalog::ProviderCatalog,
+        vw_api_app_provider_edit::catalog::ProviderCatalog,
         gateway_app_read::AgentAppsReadError,
     > {
         use gateway_app_read::AgentAppsReadError as Error;

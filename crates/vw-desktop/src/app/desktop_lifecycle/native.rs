@@ -80,7 +80,7 @@ pub(crate) fn refresh_tray_state(
 
 /// Reflect only the SDK-backed snapshot; plain items do not toggle optimistically.
 pub(crate) fn refresh_tray_providers(app: &crate::app::App) {
-    use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
+    use vw_api_app_provider_edit::catalog::ProviderSelection;
     TRAY.with(|slot| {
         let mut slot = slot.borrow_mut();
         let Some(tray) = slot.as_mut() else { return };

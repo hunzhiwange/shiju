@@ -9,13 +9,11 @@ use std::{
     path::Path,
     sync::{Arc, Mutex},
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::operations::*,
-    vw_api_types::app_providers::preview::ProviderPreviewRequest,
-    vw_api_transport::id::TenantScope,
-    vw_api_task::TaskStatus,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::app_providers::operations::*;
+use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
+use vw_api_transport::id::TenantScope;
+use vw_api_task::TaskStatus;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-security-authorized-token-over-32-chars";
 const KEY: &str = "fixture-security-nested-key-753";
@@ -327,7 +325,7 @@ async fn cc04_api_security_reads_errors_and_progress_are_safe() {
         request_id: "security-import".into(),
         action: ProviderOperationAction::Import {
             app: AppId::Pi,
-            trigger: vw_api_types::app_providers::import::ImportTrigger::Manual,
+            trigger: vw_api_app_provider_edit::import::ImportTrigger::Manual,
         },
     };
     let first = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&request, TOKEN).await.unwrap();

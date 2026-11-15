@@ -1,7 +1,7 @@
 //! Native import returns counts only; errors discard upstream payloads.
 use gateway_app_read::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::import::*;
+use vw_api_app_provider_edit::import::*;
 impl GatewayAppProviderClient {
     pub async fn provider_import(
         &self,

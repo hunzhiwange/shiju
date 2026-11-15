@@ -168,7 +168,7 @@ fn cc04_hermes_missing_removal_and_invalid_layouts_are_safe() {
 }
 #[test]
 fn cc04_hermes_catalog_and_symlink_reads_do_not_expose_credentials() {
-    use vw_api_types::{app_providers::catalog::*};
+    use vw_api_app_provider_edit::catalog::*;
     use vw_api_app_identity::{AppId};
     let home = tempfile::tempdir().unwrap();
     assert!(read(home.path()).unwrap().is_none());

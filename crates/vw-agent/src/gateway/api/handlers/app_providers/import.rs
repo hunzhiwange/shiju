@@ -2,7 +2,7 @@
 use super::*;
 use axum::{http::HeaderMap, routing::post};
 use std::path::PathBuf;
-use vw_api_types::app_providers::import::*;
+use vw_api_app_provider_edit::import::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(super) fn router() -> Router {

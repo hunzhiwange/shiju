@@ -1,5 +1,6 @@
 use iced::widget::text_editor::Content;
-use vw_gateway_client::vw_api_types::{agent_apps::AppId, app_providers::snippets::ConfigSnippet};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::snippets::ConfigSnippet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Operation {

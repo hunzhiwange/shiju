@@ -7,21 +7,19 @@ use crate::app::{
     },
 };
 use iced::{Task, widget::text_editor::Action};
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{
-            editor_merge::{EditorChoice, EditorEdit, EditorOpen, EditorView},
-            operations::{
-                ProviderEditorOutcome, ProviderOperationAction, ProviderOperationProgress,
-                ProviderOperationRequest,
-            },
-            preview::{ProviderPreviewRequest, SavedProviderPreviewRequest},
-        },
-
-    },
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::editor_merge::EditorChoice;
+use vw_api_app_provider_edit::editor_merge::EditorEdit;
+use vw_api_app_provider_edit::editor_merge::EditorOpen;
+use vw_api_app_provider_edit::editor_merge::EditorView;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderEditorOutcome;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationAction;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationProgress;
+use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationRequest;
+use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
+use vw_api_app_provider_edit::preview::SavedProviderPreviewRequest;
 use vw_api_task::TaskStatus;
 
 #[derive(Clone)]
@@ -345,7 +343,7 @@ async fn load(client: GatewayClient, scope: Scope, id: String, token: String) ->
             format!("无法解析客户端配置（第 {} 行，第 {} 列）。", error.line, error.column)
         }),
         Ok(value) if value.unavailable.is_some() => value.unavailable.as_ref().map(|reason| {
-            use vw_gateway_client::vw_api_types::app_providers::preview::PreviewUnavailable::*;
+            use vw_api_app_provider_edit::preview::PreviewUnavailable::*;
             match reason {
                 UnsupportedApplication => "此应用不支持配置投影。",
                 OfficialLogin => "官方登录配置无法预览。",

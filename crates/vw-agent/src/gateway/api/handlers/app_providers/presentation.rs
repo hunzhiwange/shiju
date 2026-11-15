@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::presentation::AppProviderPresentation;
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 pub(super) fn router() -> Router {
     Router::new().route("/app-providers/{app}/presentation/entries", get(list)).route(
         "/app-providers/{app}/{id}/presentation",

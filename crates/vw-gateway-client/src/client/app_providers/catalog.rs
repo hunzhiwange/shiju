@@ -16,7 +16,7 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<
-        vw_api_types::app_providers::catalog::ProviderCatalog,
+        vw_api_app_provider_edit::catalog::ProviderCatalog,
         super::super::agent_apps_read_api::AgentAppsReadError,
     > {
         gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())

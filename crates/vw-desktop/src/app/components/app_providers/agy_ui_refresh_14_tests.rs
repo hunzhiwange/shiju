@@ -641,10 +641,9 @@ async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
         AgentAppsContext,
         app_providers::list::{ListState, Scope, Snapshot},
     };
-    use vw_gateway_client::vw_api_types::{
-        agent_apps::AppId,
-        app_providers::catalog::{ProviderCatalog, ProviderSelection},
-    };
+    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::catalog::ProviderCatalog;
+use vw_api_app_provider_edit::catalog::ProviderSelection;
 
     struct VisibleText<'a> {
         expected: &'a str,

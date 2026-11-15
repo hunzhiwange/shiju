@@ -10,12 +10,13 @@ use iced::{
     Task,
     widget::text_editor::{Action, Content},
 };
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::app_providers::snippets::{
-        ConfigSnippet, SnippetExtract, SnippetRead, SnippetSource, SnippetWrite,
-    },
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_provider_edit::snippets::ConfigSnippet;
+use vw_api_app_provider_edit::snippets::SnippetExtract;
+use vw_api_app_provider_edit::snippets::SnippetRead;
+use vw_api_app_provider_edit::snippets::SnippetSource;
+use vw_api_app_provider_edit::snippets::SnippetWrite;
 
 #[derive(Clone)]
 pub enum Event {

@@ -3,11 +3,9 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::import::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_edit::import::*;
+use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";
 fn write(home: &Path, name: &str, bytes: &[u8]) {

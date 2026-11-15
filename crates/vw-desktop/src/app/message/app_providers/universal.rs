@@ -4,16 +4,12 @@ use crate::app::{
     state::app_providers::{list::Scope, universal::Form},
 };
 use iced::Task;
-use vw_gateway_client::{
-    GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{
-            universal::UniversalProviderSummary,
-            universal_sync::{UniversalCatalogResult, UniversalSyncRequest, UniversalSyncResult},
-        },
-    },
-};
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_edit::universal::UniversalProviderSummary;
+use vw_api_app_provider_edit::universal_sync::UniversalCatalogResult;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncRequest;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncResult;
 
 pub(crate) async fn project(
     client: GatewayClient,

@@ -1,8 +1,6 @@
 use super::{GatewayAppProviderClient, provider_path};
-use vw_api_types::{
-    app_providers::delete::AppProviderDelete,
-    app_providers::delete::AppProviderDeleted,
-};
+use vw_api_app_provider_edit::delete::AppProviderDelete;
+use vw_api_app_provider_edit::delete::AppProviderDeleted;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     /// Deletes the catalog row only; requires independent host configuration read authorization.

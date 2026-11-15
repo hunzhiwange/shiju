@@ -112,7 +112,7 @@ fn cc04_ui_list_scope_and_generation_reject_late_failures() {
 
 #[test]
 fn cc04_ui_list_current_and_membership_remain_service_observations() {
-    use vw_gateway_client::vw_api_types::app_providers::catalog::*;
+    use vw_api_app_provider_edit::catalog::*;
     let mut state = ListState::default();
     let requested = scope();
     let generation = state.begin(requested.clone());

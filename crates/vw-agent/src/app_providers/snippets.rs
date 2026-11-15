@@ -1,7 +1,7 @@
 //! A single per-application snippet row in the existing tenant settings store.
 use super::*;
 use vw_agent_apps::providers::snippets;
-use vw_api_types::app_providers::snippets::ConfigSnippet;
+use vw_api_app_provider_edit::snippets::ConfigSnippet;
 const SNIPPETS: &str = "app_providers.snippets";
 impl AppProviderStore {
     pub fn snippet_get(&self, tenant: &TenantScope, app: AppId) -> Result<ConfigSnippet, String> {

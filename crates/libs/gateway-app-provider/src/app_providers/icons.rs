@@ -1,8 +1,6 @@
 use super::{GatewayAppProviderClient, provider_path};
-use vw_api_types::{
-    app_providers::icons::AppProviderIcon,
-    app_providers::icons::AppProviderIconChange,
-};
+use vw_api_app_provider_edit::icons::AppProviderIcon;
+use vw_api_app_provider_edit::icons::AppProviderIconChange;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn app_provider_icon(&self, app: AppId, id: &str) -> Result<AppProviderIcon, String> {

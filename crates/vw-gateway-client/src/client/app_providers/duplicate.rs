@@ -1,7 +1,7 @@
 use super::GatewayClient;
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
-use vw_api_types::app_providers::duplicate::AppProviderDuplicate;
+use vw_api_app_provider_edit::duplicate::AppProviderDuplicate;
 use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Copy a catalog record within its current tenant/application, without activation.

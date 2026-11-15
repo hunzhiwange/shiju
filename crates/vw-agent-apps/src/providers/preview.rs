@@ -5,7 +5,8 @@ use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
-use vw_api_types::{app_providers::paths::ConfigPathState, app_providers::preview::*};
+use vw_api_types::app_providers::paths::ConfigPathState;
+use vw_api_app_provider_edit::preview::*;
 use vw_api_app_identity::{AppId};
 /// Resolved from the executor's transaction state and tenant store, never from the request.
 #[derive(Default)]

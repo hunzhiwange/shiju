@@ -1,6 +1,6 @@
 //! Native reference guard for catalog deletion; never removes native members.
 use std::path::Path;
-use vw_api_types::{app_providers::catalog::ProviderSelection};
+use vw_api_app_provider_edit::catalog::ProviderSelection;
 use vw_api_app_identity::{AppId};
 
 pub fn ensure_unreferenced(home: &Path, app: AppId, id: &str) -> Result<(), String> {

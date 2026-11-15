@@ -1,8 +1,6 @@
 use super::{GatewayAppProviderClient, provider_collection_path, provider_path};
-use vw_api_types::{
-    app_providers::presentation::AppProviderPresentation,
-    app_providers::presentation::AppProviderPresentationEntry,
-};
+use vw_api_app_provider_edit::presentation::AppProviderPresentation;
+use vw_api_app_provider_edit::presentation::AppProviderPresentationEntry;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     /// Read persisted presentation and apply its category/index/identity ordering.
@@ -12,7 +10,7 @@ impl GatewayAppProviderClient {
         app: AppId,
         host: &str,
         token: &str,
-    ) -> Result<(vw_api_types::app_providers::catalog::ProviderCatalog, Vec<AppProviderPresentationEntry>), String> {
+    ) -> Result<(vw_api_app_provider_edit::catalog::ProviderCatalog, Vec<AppProviderPresentationEntry>), String> {
         let mut catalog = self.app_provider_catalog(app, host, token).await?;
         let presentation = self.app_provider_presentation_list(app).await?;
         catalog.rows.sort_by_key(|row| {

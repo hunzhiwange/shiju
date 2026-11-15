@@ -1677,7 +1677,7 @@ pub(super) fn import_provider_policy(
     path: &Path,
     database: &crate::global_database::GlobalDatabase,
 ) -> Result<(), ()> {
-    use vw_api_types::{app_providers::import::ImportTrigger};
+    use vw_api_app_provider_edit::import::ImportTrigger;
     use vw_api_app_identity::{AppId};
     let policy = load(path)?;
     for principal in &policy.principals {

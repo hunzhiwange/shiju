@@ -1,4 +1,4 @@
-use vw_gateway_client::vw_api_types::app_providers::endpoints::*;
+use vw_api_app_provider_edit::endpoints::*;
 #[derive(Clone)]
 pub(crate) struct Form {
     pub id: String,
@@ -8,7 +8,7 @@ pub(crate) struct Form {
     pub overrides: String,
     pub user_agent: Option<String>,
     pub options:
-        Option<vw_gateway_client::vw_api_types::app_providers::request_options::RequestOptionsView>,
+        Option<vw_api_app_provider_edit::request_options::RequestOptionsView>,
     pub rows: Vec<AppProviderEndpoint>,
     pub busy: bool,
     pub notice: Option<String>,

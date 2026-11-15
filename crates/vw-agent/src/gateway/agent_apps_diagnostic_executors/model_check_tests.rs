@@ -360,7 +360,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
                 tenant,
                 app,
                 id,
-                &vw_api_types::app_providers::presentation::AppProviderPresentation {
+                &vw_api_app_provider_edit::presentation::AppProviderPresentation {
                     notes: Some("configuration changed after preparation".into()),
                     ..Default::default()
                 },

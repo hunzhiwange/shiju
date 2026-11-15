@@ -1,9 +1,8 @@
 //! Provider consumption of the shared icon library; no second library or storage owner.
 use crate::icons::validation::is_valid_custom_icon;
-use vw_api_types::{
-    agent_apps::CustomIconEntry,
-    app_providers::icons::{AppProviderIcon, AppProviderIconChange},
-};
+use vw_api_types::agent_apps::CustomIconEntry;
+use vw_api_app_provider_edit::icons::AppProviderIcon;
+use vw_api_app_provider_edit::icons::AppProviderIconChange;
 use vw_api_app_identity::{CustomIconEntry};
 /// Return only a validated inline custom image, never an imported path or URL.
 pub fn read(stored: &serde_json::Value) -> Result<AppProviderIcon, String> {

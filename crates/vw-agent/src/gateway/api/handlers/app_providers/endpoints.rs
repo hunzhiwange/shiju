@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::endpoints::AppProviderEndpointChange;
+use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange;
 pub(super) fn router() -> Router {
     Router::new().route(
         "/app-providers/{app}/{id}/endpoints",

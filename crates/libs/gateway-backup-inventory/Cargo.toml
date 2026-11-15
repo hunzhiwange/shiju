@@ -1,0 +1,18 @@
+[package]
+name = "gateway-backup-inventory"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+axum = { version = "0.8.8", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tokio = { version = "1", features = ["rt"] }
+app-data-backup = { path = "../app-data-backup", version = "0.6.0" }

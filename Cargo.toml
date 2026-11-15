@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-backup-inventory",
   "crates/libs/task-worktree-pool",
   "crates/libs/workflow-core",
   "crates/libs/workflow-template-contract",

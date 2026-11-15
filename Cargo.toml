@@ -389,6 +389,7 @@ members = [
   "crates/libs/agent-app-services",
   "crates/libs/app-provider-services",
   "crates/libs/agent-knowledge",
+  "crates/libs/gateway-error",
   "crates/libs/agent-hooks",
   "crates/libs/agent-commands",
   "crates/libs/agent-project",

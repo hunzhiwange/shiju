@@ -3,9 +3,7 @@
 //! 该模块承载 SQLite 主实现，并把 PostgreSQL 路径委托给对应后端模块。
 
 use super::chunker::{chunk_text, chunk_text_with_limits};
-use super::fusion::{
-    FusedCandidate, RetrievalSource, RetrievedCandidate, deduplicate_by_score, fuse_with_rrf,
-};
+use super::fusion::{RetrievalSource, RetrievedCandidate};
 use crate::app::agent::gateway::ApiError;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;
@@ -14,12 +12,12 @@ use crate::memory::vector;
 use crate::workflow::{
     WorkflowKnowledgeChunk, WorkflowKnowledgeProvider, WorkflowKnowledgeRequest,
 };
-use base64::Engine as _;
+
 use rusqlite::{
     Connection, OptionalExtension, Transaction, TransactionBehavior, params, params_from_iter,
 };
-use serde_json::{Map, Value, json};
-use sha2::{Digest, Sha256};
+use serde_json::{Value, json};
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -27,7 +25,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
 use vw_api_knowledge::{
-    KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
+    KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
     KnowledgeDatasetCreateRequest, KnowledgeDatasetDto, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse, KnowledgeDocumentImportRequest,
     KnowledgeDocumentListQuery, KnowledgeDocumentPatchRequest, KnowledgeDocumentStatus,
@@ -36,9 +34,8 @@ use vw_api_knowledge::{
     KnowledgeRetrieveRequest, KnowledgeRetrieveResponse, KnowledgeRuntimeStatus,
 };
 
-mod postgres;
-
-use postgres::PostgresKnowledgeStore;
+use agent_knowledge::store::*;
+use agent_knowledge::store::postgres::PostgresKnowledgeStore;
 
 const KNOWLEDGE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS knowledge_datasets (
@@ -174,13 +171,7 @@ CREATE TABLE IF NOT EXISTS knowledge_embedding_cache (
 );
 "#;
 
-const MAX_TOP_K: usize = 50;
-const MAX_CANDIDATES: usize = 250;
-const MIN_OVERLAP_CHARS: usize = 12;
-const DEFAULT_CONTEXT_SEARCH_SPAN: usize = 400;
 const KNOWLEDGE_EMBEDDING_REQUEST_INTERVAL: Duration = Duration::from_millis(1_200);
-const INDEX_JOB_MAX_ATTEMPTS: i64 = 3;
-const INDEX_JOB_LEASE_TIMEOUT_MS: u64 = 15 * 60 * 1_000;
 
 /// 绑定全局数据库提供方与租户作用域的知识库服务。
 ///
@@ -196,58 +187,6 @@ pub struct SqliteKnowledgeStore {
     embedding_cache_size: usize,
     embedding_request_interval: Duration,
     last_embedding_request_at: Arc<Mutex<Option<Instant>>>,
-}
-
-#[derive(Debug, Clone)]
-struct PreparedKnowledgeChunk {
-    ordinal: usize,
-    title: String,
-    content: String,
-    index_content: String,
-    metadata: Value,
-    chunk_type: KnowledgeChunkType,
-    start_at: usize,
-    end_at: usize,
-    parent_position: Option<usize>,
-    context_header: String,
-    indexed: bool,
-    embedding: Option<Vec<u8>>,
-}
-
-#[derive(Debug, Clone)]
-struct StoredKnowledgeDocument {
-    id: String,
-    dataset_id: String,
-    body: KnowledgeDocumentCreateRequest,
-}
-
-#[derive(Debug, Clone)]
-struct ReindexKnowledgeDocument {
-    document: StoredKnowledgeDocument,
-    dataset: KnowledgeDatasetDto,
-}
-
-#[derive(Debug, Clone)]
-struct ClaimedIndexJob {
-    id: String,
-    dataset_id: String,
-    document_id: String,
-    payload_kind: String,
-    payload_json: String,
-    attempt_count: i64,
-}
-
-#[derive(Debug, Clone)]
-struct KeywordRetrievalDataset {
-    id: String,
-    keyword_count: usize,
-}
-
-#[derive(Debug, Clone)]
-struct RetrievalScope {
-    keyword_datasets: Vec<KeywordRetrievalDataset>,
-    vector_dataset_ids: Vec<String>,
-    rerank_dataset_ids: Vec<String>,
 }
 
 impl SqliteKnowledgeStore {
@@ -1796,18 +1735,6 @@ fn mark_index_job_failed_tx(
     Ok(())
 }
 
-fn index_job_retry_delay_ms(attempt_count: i64) -> u64 {
-    match attempt_count {
-        i64::MIN..=1 => 2_000,
-        2 => 5_000,
-        _ => 10_000,
-    }
-}
-
-fn index_job_timed_out_message() -> String {
-    format!("knowledge index job timed out after {INDEX_JOB_MAX_ATTEMPTS} attempts")
-}
-
 fn load_document_for_reindex_blocking(
     database: GlobalDatabase,
     tenant: &TenantScope,
@@ -2129,29 +2056,6 @@ fn replace_document_chunks_tx(
         }
     }
     Ok(())
-}
-
-fn previous_link<'a>(
-    chunk_ids: &'a [String],
-    positions: &[usize],
-    index: usize,
-) -> Option<&'a str> {
-    positions
-        .iter()
-        .position(|position| *position == index)
-        .and_then(|position| position.checked_sub(1))
-        .and_then(|previous| positions.get(previous))
-        .and_then(|chunk_index| chunk_ids.get(*chunk_index))
-        .map(String::as_str)
-}
-
-fn next_link<'a>(chunk_ids: &'a [String], positions: &[usize], index: usize) -> Option<&'a str> {
-    positions
-        .iter()
-        .position(|position| *position == index)
-        .and_then(|position| positions.get(position + 1))
-        .and_then(|chunk_index| chunk_ids.get(*chunk_index))
-        .map(String::as_str)
 }
 
 fn delete_document_blocking(
@@ -2565,78 +2469,6 @@ fn retrieve_vector_candidates(
     Ok(scored)
 }
 
-fn merge_retrieval_scores(
-    vector_results: &[RetrievedCandidate],
-    keyword_results: &[RetrievedCandidate],
-    vector_weight: f32,
-    keyword_weight: f32,
-    limit: usize,
-) -> Vec<FusedCandidate> {
-    if !vector_results.is_empty() && !keyword_results.is_empty() {
-        return fuse_with_rrf(
-            vector_results,
-            keyword_results,
-            60,
-            vector_weight,
-            keyword_weight,
-            limit,
-        );
-    }
-    let source = if vector_results.is_empty() { keyword_results } else { vector_results };
-    deduplicate_by_score(source, limit)
-}
-
-fn keyword_limit(keyword_count: usize) -> usize {
-    keyword_count.clamp(1, MAX_CANDIDATES)
-}
-
-fn rerank_chunks(query: &str, rerank_dataset_ids: &[String], chunks: &mut [KnowledgeChunkDto]) {
-    chunks.sort_by(|left, right| {
-        let left_score = rerank_score(query, rerank_dataset_ids, left);
-        let right_score = rerank_score(query, rerank_dataset_ids, right);
-        right_score.partial_cmp(&left_score).unwrap_or(std::cmp::Ordering::Equal)
-    });
-    for chunk in chunks {
-        if rerank_dataset_ids.iter().any(|dataset_id| dataset_id == &chunk.dataset_id) {
-            chunk.score = Some(rerank_score(query, rerank_dataset_ids, chunk));
-        }
-    }
-}
-
-fn rerank_score(query: &str, rerank_dataset_ids: &[String], chunk: &KnowledgeChunkDto) -> f64 {
-    let base = chunk.score.unwrap_or_default();
-    if !rerank_dataset_ids.iter().any(|dataset_id| dataset_id == &chunk.dataset_id) {
-        return base;
-    }
-    let lexical = lexical_match_score(query, chunk);
-    (base * 0.70 + lexical * 0.30).clamp(0.0, 1.0)
-}
-
-fn lexical_match_score(query: &str, chunk: &KnowledgeChunkDto) -> f64 {
-    let query = query.trim().to_lowercase();
-    if query.is_empty() {
-        return 0.0;
-    }
-    let mut haystack = format!("{}\n{}", chunk.title, chunk.content).to_lowercase();
-    if let Some(child_content) = chunk.metadata.get("child_content").and_then(Value::as_str) {
-        haystack.push('\n');
-        haystack.push_str(&child_content.to_lowercase());
-    }
-    if let Some(question) = chunk.metadata.get("question").and_then(Value::as_str) {
-        haystack.push('\n');
-        haystack.push_str(&question.to_lowercase());
-    }
-    if haystack.contains(&query) {
-        return 1.0;
-    }
-    let terms = query.split_whitespace().filter(|term| !term.is_empty()).collect::<Vec<_>>();
-    if terms.is_empty() {
-        return 0.0;
-    }
-    let matched = terms.iter().filter(|term| haystack.contains(**term)).count();
-    matched as f64 / terms.len() as f64
-}
-
 fn query_dataset(
     conn: &Connection,
     tenant: &TenantScope,
@@ -2758,100 +2590,6 @@ fn nearby_text_context(
         }
     }
     Ok(non_empty_context(merge_text_chunks(&linked_chunks, "\n")))
-}
-
-fn merge_text_chunks(chunks: &[KnowledgeChunkDto], gap_sep: &str) -> String {
-    let mut sorted = chunks.iter().collect::<Vec<_>>();
-    sorted.sort_by(|left, right| {
-        left.start_at
-            .cmp(&right.start_at)
-            .then_with(|| left.ordinal.cmp(&right.ordinal))
-            .then_with(|| left.id.cmp(&right.id))
-    });
-
-    let mut merged = String::new();
-    let mut merged_end = None;
-    for chunk in sorted {
-        if chunk.content.is_empty() {
-            continue;
-        }
-        if merged.is_empty() {
-            merged.push_str(&chunk.content);
-            if chunk.end_at > 0 {
-                merged_end = Some(chunk.end_at);
-            }
-            continue;
-        }
-
-        let Some(last_end) = merged_end else {
-            append_gap_and_text(&mut merged, gap_sep, &chunk.content);
-            if chunk.end_at > 0 {
-                merged_end = Some(chunk.end_at);
-            }
-            continue;
-        };
-        if chunk.end_at == 0 || chunk.start_at > last_end {
-            append_gap_and_text(&mut merged, gap_sep, &chunk.content);
-            if chunk.end_at > 0 {
-                merged_end = Some(chunk.end_at);
-            }
-            continue;
-        }
-        if chunk.end_at > last_end {
-            merged = append_with_overlap(
-                &merged,
-                &chunk.content,
-                last_end.saturating_sub(chunk.start_at),
-            );
-            merged_end = Some(chunk.end_at);
-        }
-    }
-    merged
-}
-
-fn append_gap_and_text(target: &mut String, gap_sep: &str, text: &str) {
-    if !gap_sep.is_empty() {
-        target.push_str(gap_sep);
-    }
-    target.push_str(text);
-}
-
-fn append_with_overlap(acc: &str, next: &str, position_overlap: usize) -> String {
-    if acc.is_empty() {
-        return next.to_string();
-    }
-    if next.is_empty() {
-        return acc.to_string();
-    }
-
-    let acc_chars = acc.chars().collect::<Vec<_>>();
-    let next_chars = next.chars().collect::<Vec<_>>();
-    let mut max_overlap = acc_chars.len().min(next_chars.len());
-    max_overlap =
-        max_overlap.min((position_overlap.saturating_mul(3)).max(DEFAULT_CONTEXT_SEARCH_SPAN));
-    let head_slack = (position_overlap.saturating_mul(2)).max(320);
-
-    for overlap in (MIN_OVERLAP_CHARS..=max_overlap).rev() {
-        let needle = &acc_chars[acc_chars.len() - overlap..];
-        if let Some(position) = index_chars(&next_chars, needle, head_slack) {
-            let suffix = next_chars[position + overlap..].iter().collect::<String>();
-            return format!("{acc}{suffix}");
-        }
-    }
-
-    format!("{acc}{next}")
-}
-
-fn index_chars(haystack: &[char], needle: &[char], max_start: usize) -> Option<usize> {
-    if needle.is_empty() || needle.len() > haystack.len() {
-        return None;
-    }
-    let limit = haystack.len().saturating_sub(needle.len()).min(max_start);
-    (0..=limit).find(|position| &haystack[*position..*position + needle.len()] == needle)
-}
-
-fn non_empty_context(context: String) -> Option<String> {
-    (!context.is_empty()).then_some(context)
 }
 
 fn dataset_from_row(
@@ -3319,12 +3057,6 @@ fn validate_retrieve_request(request: &KnowledgeRetrieveRequest) -> Result<(), A
     Ok(())
 }
 
-fn validate_id(value: &str, label: &str) -> Result<(), ApiError> {
-    Uuid::parse_str(value)
-        .map(|_| ())
-        .map_err(|_| ApiError::bad_request(format!("knowledge {label} is invalid")))
-}
-
 fn migrate_schema(conn: &Connection, tenant: &TenantScope) -> Result<(), ApiError> {
     add_column_if_missing(
         conn,
@@ -3525,79 +3257,6 @@ fn reject_unscoped_knowledge_schema(conn: &Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn metadata_or_object(value: Value) -> Value {
-    match value {
-        Value::Null => Value::Object(Map::new()),
-        other => other,
-    }
-}
-
-fn clean_import_filename(filename: &str) -> Result<String, ApiError> {
-    let normalized = filename.trim().replace('\\', "/");
-    let name = normalized.rsplit('/').find(|part| !part.trim().is_empty()).unwrap_or("").trim();
-    if name.is_empty() {
-        return Err(ApiError::bad_request("knowledge import filename is required"));
-    }
-    Ok(name.to_string())
-}
-
-fn normalize_import_mime(mime_type: Option<&str>) -> Option<String> {
-    mime_type
-        .and_then(|value| value.split(';').next())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_ascii_lowercase())
-}
-
-fn import_source_bytes(content_base64: &str) -> Result<u64, ApiError> {
-    let encoded = content_base64.trim();
-    let max_encoded = ((super::import::MAX_IMPORT_FILE_BYTES + 2) / 3) * 4;
-    if encoded.len() > max_encoded {
-        return Err(ApiError::bad_request(format!(
-            "knowledge import file is too large: max {} bytes",
-            super::import::MAX_IMPORT_FILE_BYTES
-        )));
-    }
-    let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|error| {
-        ApiError::bad_request(format!("knowledge import content_base64 is invalid: {error}"))
-    })?;
-    if bytes.len() > super::import::MAX_IMPORT_FILE_BYTES {
-        return Err(ApiError::bad_request(format!(
-            "knowledge import file is too large: max {} bytes",
-            super::import::MAX_IMPORT_FILE_BYTES
-        )));
-    }
-    Ok(u64::try_from(bytes.len()).unwrap_or(u64::MAX))
-}
-
-fn chunk_metadata(
-    metadata: &Value,
-    document_name: &str,
-    ordinal: usize,
-    chunk_metadata: &Value,
-) -> Value {
-    let mut object = match metadata {
-        Value::Object(map) => map.clone(),
-        _ => Map::new(),
-    };
-    if let Value::Object(map) = chunk_metadata {
-        object.extend(map.clone());
-    }
-    object.insert("document_name".to_string(), Value::String(document_name.to_string()));
-    object.insert("chunk_index".to_string(), json!(ordinal));
-    Value::Object(object)
-}
-
-fn metadata_matches(metadata: &Value, filter: &Option<Value>) -> bool {
-    let Some(filter) = filter.as_ref().filter(|value| !value.is_null()) else {
-        return true;
-    };
-    let (Value::Object(metadata), Value::Object(filter)) = (metadata, filter) else {
-        return metadata == filter;
-    };
-    filter.iter().all(|(key, value)| metadata.get(key) == Some(value))
-}
-
 fn dataset_filter_sql(alias: &str, dataset_count: usize) -> String {
     if dataset_count == 0 {
         return String::new();
@@ -3618,34 +3277,6 @@ fn fts_query_from_text(query: &str) -> String {
 fn quote_fts_term(term: &str) -> String {
     let escaped = term.trim().replace('"', "\"\"");
     if escaped.is_empty() { String::new() } else { format!("\"{escaped}\"") }
-}
-
-fn like_pattern(query: &str) -> String {
-    let mut escaped = String::from("%");
-    for ch in query.chars() {
-        match ch {
-            '%' | '_' | '\\' => {
-                escaped.push('\\');
-                escaped.push(ch);
-            }
-            other => escaped.push(other),
-        }
-    }
-    escaped.push('%');
-    escaped
-}
-
-fn like_score(chunk: &KnowledgeChunkDto, query: &str) -> f32 {
-    let query = query.to_lowercase();
-    let title = chunk.title.to_lowercase();
-    let content = chunk.content.to_lowercase();
-    if title.contains(&query) {
-        0.65
-    } else if content.contains(&query) {
-        0.55
-    } else {
-        0.1
-    }
 }
 
 fn fts_score(rank: f64) -> f32 {
@@ -3733,12 +3364,6 @@ fn write_embedding_cache_blocking(
     Ok(())
 }
 
-fn content_hash(text: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(text.as_bytes());
-    hex::encode(hasher.finalize())
-}
-
 fn unicode_char_count(text: &str) -> u64 {
     u64::try_from(text.chars().count()).unwrap_or(u64::MAX)
 }
@@ -3747,144 +3372,9 @@ fn bool_to_i64(value: bool) -> i64 {
     if value { 1 } else { 0 }
 }
 
-fn dataset_capabilities(
-    indexing_mode: &KnowledgeIndexingMode,
-    retrieval_mode: &KnowledgeRetrievalMode,
-    rerank_enabled: bool,
-) -> KnowledgeCapabilitiesDto {
-    let vector = matches!(indexing_mode, KnowledgeIndexingMode::HighQuality)
-        || matches!(
-            retrieval_mode,
-            KnowledgeRetrievalMode::Vector | KnowledgeRetrievalMode::Hybrid
-        );
-    KnowledgeCapabilitiesDto { full_text: true, vector, hybrid: vector, rerank: rerank_enabled }
-}
-
 fn dataset_needs_embedding(dataset: &KnowledgeDatasetDto) -> bool {
     dataset.indexing_mode == KnowledgeIndexingMode::HighQuality
         || dataset.retrieval_mode != KnowledgeRetrievalMode::FullText
-}
-
-fn final_document_status(enabled: bool) -> &'static str {
-    if enabled {
-        document_status_as_str(&KnowledgeDocumentStatus::Completed)
-    } else {
-        document_status_as_str(&KnowledgeDocumentStatus::Disabled)
-    }
-}
-
-fn document_status_as_str(status: &KnowledgeDocumentStatus) -> &'static str {
-    match status {
-        KnowledgeDocumentStatus::Pending => "pending",
-        KnowledgeDocumentStatus::Processing => "processing",
-        KnowledgeDocumentStatus::Completed => "completed",
-        KnowledgeDocumentStatus::Failed => "failed",
-        KnowledgeDocumentStatus::Disabled => "disabled",
-        KnowledgeDocumentStatus::Archived => "archived",
-    }
-}
-
-fn index_job_status_as_str(status: &KnowledgeIndexJobStatus) -> &'static str {
-    match status {
-        KnowledgeIndexJobStatus::Queued => "queued",
-        KnowledgeIndexJobStatus::Processing => "processing",
-        KnowledgeIndexJobStatus::Completed => "completed",
-        KnowledgeIndexJobStatus::Failed => "failed",
-    }
-}
-
-fn parse_document_status(value: &str, enabled: bool) -> KnowledgeDocumentStatus {
-    if !enabled {
-        return KnowledgeDocumentStatus::Disabled;
-    }
-    match value {
-        "pending" => KnowledgeDocumentStatus::Pending,
-        "processing" => KnowledgeDocumentStatus::Processing,
-        "failed" => KnowledgeDocumentStatus::Failed,
-        "disabled" => KnowledgeDocumentStatus::Disabled,
-        "archived" => KnowledgeDocumentStatus::Archived,
-        _ => KnowledgeDocumentStatus::Completed,
-    }
-}
-
-fn parse_index_job_status(value: &str) -> KnowledgeIndexJobStatus {
-    match value {
-        "processing" => KnowledgeIndexJobStatus::Processing,
-        "completed" => KnowledgeIndexJobStatus::Completed,
-        "failed" => KnowledgeIndexJobStatus::Failed,
-        _ => KnowledgeIndexJobStatus::Queued,
-    }
-}
-
-fn chunk_type_as_str(chunk_type: &KnowledgeChunkType) -> &'static str {
-    match chunk_type {
-        KnowledgeChunkType::Text => "text",
-        KnowledgeChunkType::ParentText => "parent_text",
-        KnowledgeChunkType::Qa => "qa",
-    }
-}
-
-fn parse_chunk_type(value: &str) -> KnowledgeChunkType {
-    match value {
-        "parent_text" => KnowledgeChunkType::ParentText,
-        "qa" => KnowledgeChunkType::Qa,
-        _ => KnowledgeChunkType::Text,
-    }
-}
-
-fn matched_content_from_metadata(metadata: &Value) -> Option<String> {
-    metadata
-        .get("child_content")
-        .or_else(|| metadata.get("question"))
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(ToString::to_string)
-}
-
-fn chunking_mode_as_str(mode: &KnowledgeChunkingMode) -> &'static str {
-    match mode {
-        KnowledgeChunkingMode::General => "general",
-        KnowledgeChunkingMode::ParentChild => "parent_child",
-        KnowledgeChunkingMode::Qa => "qa",
-    }
-}
-
-fn indexing_mode_as_str(mode: &KnowledgeIndexingMode) -> &'static str {
-    match mode {
-        KnowledgeIndexingMode::Economy => "economy",
-        KnowledgeIndexingMode::HighQuality => "high_quality",
-    }
-}
-
-fn retrieval_mode_as_str(mode: &KnowledgeRetrievalMode) -> &'static str {
-    match mode {
-        KnowledgeRetrievalMode::FullText => "full_text",
-        KnowledgeRetrievalMode::Vector => "vector",
-        KnowledgeRetrievalMode::Hybrid => "hybrid",
-    }
-}
-
-fn parse_chunking_mode(value: &str) -> KnowledgeChunkingMode {
-    match value {
-        "parent_child" => KnowledgeChunkingMode::ParentChild,
-        "qa" => KnowledgeChunkingMode::Qa,
-        _ => KnowledgeChunkingMode::General,
-    }
-}
-
-fn parse_indexing_mode(value: &str) -> KnowledgeIndexingMode {
-    match value {
-        "high_quality" => KnowledgeIndexingMode::HighQuality,
-        _ => KnowledgeIndexingMode::Economy,
-    }
-}
-
-fn parse_retrieval_mode(value: &str) -> KnowledgeRetrievalMode {
-    match value {
-        "vector" => KnowledgeRetrievalMode::Vector,
-        "hybrid" => KnowledgeRetrievalMode::Hybrid,
-        _ => KnowledgeRetrievalMode::FullText,
-    }
 }
 
 fn read_u64(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
@@ -3902,21 +3392,8 @@ fn read_optional_u64(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<
     Ok(value.map(|value| u64::try_from(value).unwrap_or_default()))
 }
 
-fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-        .try_into()
-        .unwrap_or(u64::MAX)
-}
-
 fn sql_error(error: rusqlite::Error) -> ApiError {
     ApiError::internal(format!("knowledge sqlite error: {error}"))
-}
-
-fn database_error(error: anyhow::Error) -> ApiError {
-    ApiError::internal(format!("knowledge database error: {error}"))
 }
 
 #[cfg(test)]

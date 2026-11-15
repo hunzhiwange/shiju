@@ -9,7 +9,7 @@ use vw_api_knowledge::{
 };
 
 use super::{PostgresKnowledgeStore, i64_from_u64, u64_from_i64, usize_from_i64};
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 fn dataset_request(name: &str, top_k: usize) -> KnowledgeDatasetCreateRequest {
     KnowledgeDatasetCreateRequest {
@@ -40,7 +40,7 @@ fn dataset_integer_conversions_saturate_or_default_at_boundaries() {
 
 #[test]
 fn dataset_lifecycle_trims_fields_clamps_top_k_and_isolates_tenants() -> Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     let store = PostgresKnowledgeStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("dataset-platform", "dataset-primary")?;
     let other = TenantScope::new("dataset-platform", "dataset-other")?;

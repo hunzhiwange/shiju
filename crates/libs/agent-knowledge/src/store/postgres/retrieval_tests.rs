@@ -2,8 +2,8 @@
 
 // 检索模式与数据集作用域先解析，非法 ID 不应触发任何数据库访问。
 use super::*;
-use crate::global_database::GlobalDatabase;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::GlobalDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 fn sqlite_backed_store() -> PostgresKnowledgeStore {
     let path = tempfile::tempdir().expect("temporary directory").keep().join("knowledge.sqlite");
@@ -23,7 +23,7 @@ fn resolve_retrieval_scope_rejects_invalid_dataset_id_before_database_access() {
 
 #[test]
 fn resolve_retrieval_scope_classifies_modes_and_rejects_missing_dataset() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
     let store = PostgresKnowledgeStore::new(database.clone()).expect("PostgreSQL knowledge store");
     let tenant = TenantScope::new("platform-retrieval", "company-retrieval").expect("tenant");

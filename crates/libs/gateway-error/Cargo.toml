@@ -1,0 +1,12 @@
+[package]
+name = "gateway-error"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+axum = { version = "0.8.8", features = ["json"] }
+serde_json = "1"

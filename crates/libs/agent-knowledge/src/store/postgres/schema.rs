@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const KNOWLEDGE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS knowledge_datasets (

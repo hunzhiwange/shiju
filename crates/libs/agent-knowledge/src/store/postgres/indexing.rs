@@ -23,7 +23,7 @@ use super::datasets::{i64_from_u64, u64_from_i64};
 
 impl PostgresKnowledgeStore {
     /// 校验导入元数据并创建排队中的文档与索引任务。
-    pub(in crate::knowledge::store) fn enqueue_import(
+    pub fn enqueue_import(
         &self,
         tenant: &TenantScope,
         dataset_id: &str,
@@ -104,7 +104,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 按租户读取索引任务。
-    pub(in crate::knowledge::store) fn get_index_job(
+    pub fn get_index_job(
         &self,
         tenant: &TenantScope,
         job_id: &str,
@@ -114,7 +114,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 在事务内回收过期租约并领取下一个可执行任务。
-    pub(in crate::knowledge::store) fn claim_next_index_job(
+    pub fn claim_next_index_job(
         &self,
         tenant: &TenantScope,
     ) -> Result<Option<ClaimedIndexJob>> {
@@ -204,7 +204,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 原子提交导入解析结果、文档分块和任务成功状态。
-    pub(in crate::knowledge::store) fn complete_index_job(
+    pub fn complete_index_job(
         &self,
         tenant: &TenantScope,
         job: ClaimedIndexJob,
@@ -277,7 +277,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 根据尝试次数安排退避重试，超过上限时把任务和文档标记为失败。
-    pub(in crate::knowledge::store) fn retry_or_fail_index_job(
+    pub fn retry_or_fail_index_job(
         &self,
         tenant: &TenantScope,
         job_id: &str,

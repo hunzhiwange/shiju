@@ -26,7 +26,7 @@ const DOCUMENT_SELECT: &str =
 
 impl PostgresKnowledgeStore {
     /// 按数据集和查询条件列出当前租户文档。
-    pub(in crate::knowledge::store) fn list_documents(
+    pub fn list_documents(
         &self,
         tenant: &TenantScope,
         dataset_id: &str,
@@ -67,7 +67,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 按标识读取单个租户文档。
-    pub(in crate::knowledge::store) fn get_document(
+    pub fn get_document(
         &self,
         tenant: &TenantScope,
         document_id: &str,
@@ -77,7 +77,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 创建尚未分块的文档记录，并初始化内容摘要与状态。
-    pub(in crate::knowledge::store) fn create_document(
+    pub fn create_document(
         &self,
         tenant: &TenantScope,
         dataset_id: &str,
@@ -128,7 +128,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 在允许的状态转换范围内更新文档属性。
-    pub(in crate::knowledge::store) fn update_document(
+    pub fn update_document(
         &self,
         tenant: &TenantScope,
         document_id: &str,
@@ -169,7 +169,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 删除文档并返回删除前的投影。
-    pub(in crate::knowledge::store) fn delete_document(
+    pub fn delete_document(
         &self,
         tenant: &TenantScope,
         document_id: &str,

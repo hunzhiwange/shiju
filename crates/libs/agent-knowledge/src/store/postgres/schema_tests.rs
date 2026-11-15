@@ -2,11 +2,11 @@
 
 // 检测到缺少公司作用域的旧表时初始化必须拒绝，且不能半途修改模式。
 use super::*;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn initialize_schema_rejects_table_missing_company_scope_without_mutation() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
     database
         .connect_postgres()

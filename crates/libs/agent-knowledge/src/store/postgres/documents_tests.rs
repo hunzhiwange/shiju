@@ -11,7 +11,7 @@ use vw_api_knowledge::{
 };
 
 use super::{PostgresKnowledgeStore, content_hash, metadata_or_object};
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 fn dataset_request() -> KnowledgeDatasetCreateRequest {
     KnowledgeDatasetCreateRequest {
@@ -43,7 +43,7 @@ fn document_metadata_and_content_hash_are_normalized_deterministically() {
 
 #[test]
 fn document_lifecycle_filters_updates_and_deletes_with_tenant_isolation() -> Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     let store = PostgresKnowledgeStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("document-platform", "document-primary")?;
     let other = TenantScope::new("document-platform", "document-other")?;
@@ -107,7 +107,7 @@ fn document_lifecycle_filters_updates_and_deletes_with_tenant_isolation() -> Res
 
 #[test]
 fn document_create_rejects_missing_dataset_without_side_effects() -> Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     let store = PostgresKnowledgeStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("document-platform", "missing-dataset")?;
 

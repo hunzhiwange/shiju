@@ -26,7 +26,7 @@ const DATASET_SELECT: &str =
 
 impl PostgresKnowledgeStore {
     /// 列出当前租户数据集，并附带文档与分块计数。
-    pub(in crate::knowledge::store) fn list_datasets(
+    pub fn list_datasets(
         &self,
         tenant: &TenantScope,
     ) -> Result<Vec<KnowledgeDatasetDto>> {
@@ -47,7 +47,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 按租户和数据集标识读取单个数据集。
-    pub(in crate::knowledge::store) fn get_dataset(
+    pub fn get_dataset(
         &self,
         tenant: &TenantScope,
         dataset_id: &str,
@@ -57,7 +57,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 写入已由上层校验的数据集配置。
-    pub(in crate::knowledge::store) fn create_dataset(
+    pub fn create_dataset(
         &self,
         tenant: &TenantScope,
         body: KnowledgeDatasetCreateRequest,
@@ -103,7 +103,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 删除数据集并返回删除前的完整投影。
-    pub(in crate::knowledge::store) fn delete_dataset(
+    pub fn delete_dataset(
         &self,
         tenant: &TenantScope,
         dataset_id: &str,

@@ -17,13 +17,13 @@ use super::super::{
     parse_retrieval_mode, rerank_chunks, validate_id,
 };
 use super::PostgresKnowledgeStore;
-use crate::app::agent::gateway::ApiError;
-use crate::knowledge::fusion::{RetrievalSource, RetrievedCandidate};
-use crate::memory::vector;
+use gateway_error::ApiError;
+use crate::fusion::{RetrievalSource, RetrievedCandidate};
+use memory_algorithms::vector;
 
 impl PostgresKnowledgeStore {
     /// 校验请求数据集并按各自检索模式构建全文、向量与重排作用域。
-    pub(in crate::knowledge::store) fn resolve_retrieval_scope(
+    pub fn resolve_retrieval_scope(
         &self,
         tenant: &TenantScope,
         dataset_ids: &[String],
@@ -101,7 +101,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 执行 PostgreSQL 候选召回、分数融合、上下文扩展和召回计数更新。
-    pub(in crate::knowledge::store) fn retrieve(
+    pub fn retrieve(
         &self,
         tenant: &TenantScope,
         request: KnowledgeRetrieveRequest,

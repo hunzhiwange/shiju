@@ -20,7 +20,7 @@ use super::datasets::i64_from_u64;
 
 impl PostgresKnowledgeStore {
     /// 列出指定文档的有序分块；文档不存在时返回 `None`。
-    pub(in crate::knowledge::store) fn list_chunks(
+    pub fn list_chunks(
         &self,
         tenant: &TenantScope,
         document_id: &str,
@@ -44,7 +44,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 在同一事务内创建文档并写入预先生成的全部分块。
-    pub(in crate::knowledge::store) fn create_document_with_chunks(
+    pub fn create_document_with_chunks(
         &self,
         tenant: &TenantScope,
         dataset_id: &str,
@@ -116,7 +116,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 加载重新索引所需的文档正文与数据集配置。
-    pub(in crate::knowledge::store) fn load_document_for_reindex(
+    pub fn load_document_for_reindex(
         &self,
         tenant: &TenantScope,
         document_id: &str,
@@ -149,7 +149,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 原子替换文档分块，并将文档切换到最终可用状态。
-    pub(in crate::knowledge::store) fn reindex_document(
+    pub fn reindex_document(
         &self,
         tenant: &TenantScope,
         document_id: &str,
@@ -195,7 +195,7 @@ impl PostgresKnowledgeStore {
     }
 
     /// 记录文档索引失败原因，供状态查询与后续重试展示。
-    pub(in crate::knowledge::store) fn mark_document_failed(
+    pub fn mark_document_failed(
         &self,
         tenant: &TenantScope,
         document_id: &str,

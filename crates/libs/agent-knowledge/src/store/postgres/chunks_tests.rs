@@ -10,7 +10,7 @@ use vw_api_knowledge::{
 };
 
 use super::{PostgresKnowledgeStore, PreparedKnowledgeChunk, metadata_or_object};
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 fn dataset_request() -> KnowledgeDatasetCreateRequest {
     KnowledgeDatasetCreateRequest {
@@ -60,7 +60,7 @@ fn chunk_metadata_null_is_normalized_without_changing_non_null_values() {
 
 #[test]
 fn document_chunks_round_trip_parent_and_sibling_links() -> Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     let store = PostgresKnowledgeStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("chunk-platform", "chunk-company")?;
     let dataset = store.create_dataset(&tenant, dataset_request())?;
@@ -99,7 +99,7 @@ fn document_chunks_round_trip_parent_and_sibling_links() -> Result<()> {
 
 #[test]
 fn chunked_document_create_rejects_missing_dataset() -> Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     let store = PostgresKnowledgeStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("chunk-platform", "missing-dataset")?;
 

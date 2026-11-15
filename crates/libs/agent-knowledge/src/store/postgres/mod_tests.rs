@@ -2,12 +2,12 @@
 
 // 构造器只接受 PostgreSQL 全局数据库，SQLite 后端必须在事务前失败。
 use super::*;
-use crate::global_database::config::DatabaseProvider;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::config::DatabaseProvider;
+use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn new_initializes_store_with_supplied_postgres_database() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
 
     let store = PostgresKnowledgeStore::new(database).expect("PostgreSQL knowledge store");

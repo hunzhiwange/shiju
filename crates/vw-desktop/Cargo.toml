@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-aggregation = { path = "../libs/gateway-aggregation", version = "0.6.0" }
 gateway-device-sync = { path = "../libs/gateway-device-sync", version = "0.6.0" }
 gateway-usage-read = { path = "../libs/gateway-usage-read", version = "0.6.0" }
 gateway-usage-scan = { path = "../libs/gateway-usage-scan", version = "0.6.0" }

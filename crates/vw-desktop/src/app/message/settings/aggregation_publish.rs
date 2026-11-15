@@ -3,7 +3,7 @@ use super::{Selection, current, message as list_message};
 use crate::app::{App, Message};
 use iced::Task;
 use gateway_endpoint::GatewayAuth;
-use vw_gateway_client::AggregationApiError;
+use gateway_aggregation::{AggregationApiError, GatewayAggregationClient};
 use vw_gateway_client::GatewayClient;
 use vw_api_app_aggregation::*;
 use vw_api_app_aggregation::operations::ProviderOperationProgress;
@@ -166,7 +166,8 @@ pub(crate) async fn execute(
     default: Option<String>,
 ) -> Result<Reply, AggregationApiError> {
     let endpoint = client.endpoint().clone().with_auth(GatewayAuth { skey: Some(token) });
-    let client = GatewayClient::new(endpoint).map_err(AggregationApiError::Transport)?;
+    let transport = gateway_http::GatewayTransport::new(endpoint).map_err(AggregationApiError::Transport)?;
+    let client = GatewayAggregationClient::new(transport.clone());
     let query =
         AggregationQuery { target_host_id: selection.scope.host, project_id: selection.project };
     match action {
@@ -225,9 +226,9 @@ pub(crate) async fn execute(
                 .as_ref()
                 .ok_or_else(|| AggregationApiError::Transport("missing operation".into()))?;
             let result = if matches!(action, Action::Poll) {
-                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_get(&operation.operation_id.0, &query).await
+                gateway_app_provider::GatewayAppProviderClient::new(transport.clone()).provider_aggregation_operation_get(&operation.operation_id.0, &query).await
             } else {
-                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_cancel(&operation.operation_id.0, &query)
+                gateway_app_provider::GatewayAppProviderClient::new(transport.clone()).provider_aggregation_operation_cancel(&operation.operation_id.0, &query)
                     .await
             };
             result.map(Reply::Operation).map_err(|e| match e {

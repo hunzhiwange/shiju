@@ -1,5 +1,5 @@
 use super::test_support;
-use crate::{AggregationApiError, GatewayClient};
+use crate::{AggregationApiError, GatewayAggregationClient};
 use serde_json::{Value, json};
 use vw_api_app_aggregation::*;
 use vw_api_app_identity::{AppId};
@@ -32,10 +32,10 @@ async fn aggregation_t50_aggregation_members_api_preserves_contract() {
     ]);
     let endpoint = server
         .client()
-        .endpoint()
+        .transport.endpoint()
         .clone()
-        .with_auth(crate::GatewayAuth { skey: Some("test-aggregation-grant".into()) });
-    let client = GatewayClient::new(endpoint).unwrap();
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some("test-aggregation-grant".into()) });
+    let client = GatewayAggregationClient::new(gateway_http::GatewayTransport::new(endpoint).unwrap());
     assert_eq!(
         serde_json::to_value(client.aggregation_state(AppId::Claude, &scope()).await.unwrap())
             .unwrap(),
@@ -106,11 +106,11 @@ async fn aggregation_t50_aggregation_members_api_preserves_contract() {
         assert_eq!(recorded.header("authorization"), Some("Bearer test-aggregation-grant"));
         assert_eq!(
             recorded.header("x-platform-id"),
-            Some(client.endpoint().tenant_scope().platform_id().as_ref())
+            Some(client.transport.endpoint().tenant_scope().platform_id().as_ref())
         );
         assert_eq!(
             recorded.header("x-company-id"),
-            Some(client.endpoint().tenant_scope().company_id().as_ref())
+            Some(client.transport.endpoint().tenant_scope().company_id().as_ref())
         );
     }
     server.join();
@@ -231,7 +231,7 @@ async fn aggregation_t50_ambiguous_writes_and_redirects_never_replay() {
             }
             count
         });
-        let client = GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        let client = GatewayAggregationClient::new(gateway_http::GatewayTransport::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap());
         let result = client.aggregation_member_set(AppId::Claude, "p", &member()).await;
         if redirect {
             assert_eq!(

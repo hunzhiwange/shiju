@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-aggregation",
   "crates/libs/gateway-device-sync",
   "crates/libs/gateway-usage-read",
   "crates/libs/gateway-usage-scan",

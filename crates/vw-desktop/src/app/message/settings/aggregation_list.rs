@@ -5,7 +5,7 @@ use crate::app::{
     state::app_providers::list::Scope,
 };
 use iced::Task;
-use vw_gateway_client::AggregationApiError;
+use gateway_aggregation::{AggregationApiError, GatewayAggregationClient};
 use vw_gateway_client::GatewayClient;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::*;
@@ -229,7 +229,7 @@ pub(crate) async fn load(
         .clone()
         .with_auth(gateway_endpoint::GatewayAuth { skey: Some(token.clone()) });
     let aggregation_client =
-        GatewayClient::new(endpoint).map_err(AggregationApiError::Transport)?;
+        GatewayAggregationClient::new(gateway_http::GatewayTransport::new(endpoint).map_err(AggregationApiError::Transport)?);
     let state = aggregation_client
         .aggregation_state(
             selection.scope.app,
@@ -335,8 +335,8 @@ pub(crate) async fn mutate(
         .endpoint()
         .clone()
         .with_auth(gateway_endpoint::GatewayAuth { skey: Some(token.clone()) });
-    let writer = match GatewayClient::new(endpoint) {
-        Ok(writer) => writer,
+    let writer = match gateway_http::GatewayTransport::new(endpoint) {
+        Ok(transport) => GatewayAggregationClient::new(transport),
         Err(error) => {
             return MutationOutcome {
                 result: Err(AggregationApiError::Transport(error)),

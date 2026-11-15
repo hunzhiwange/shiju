@@ -1,5 +1,5 @@
 use super::test_support;
-use crate::{AggregationApiError, GatewayClient};
+use crate::{AggregationApiError, GatewayAggregationClient};
 use serde_json::{Value, json};
 use vw_api_app_aggregation::*;
 use vw_api_app_identity::{AppId};
@@ -52,14 +52,13 @@ async fn aggregation_t51_aggregation_publish_api_preserves_contract() {
         (200, initial.clone()),
         (200, failed.clone()),
     ]);
-    let client = GatewayClient::new(
+    let client = GatewayAggregationClient::new(gateway_http::GatewayTransport::new(
         server
             .client()
-            .endpoint()
+            .transport.endpoint()
             .clone()
-            .with_auth(crate::GatewayAuth { skey: Some("t51-bearer".into()) }),
-    )
-    .unwrap();
+            .with_auth(gateway_endpoint::GatewayAuth { skey: Some("t51-bearer".into()) }),
+    ).unwrap());
     assert_eq!(
         serde_json::to_value(client.aggregation_publish(AppId::Codex, &publish()).await.unwrap())
             .unwrap(),
@@ -72,14 +71,14 @@ async fn aggregation_t51_aggregation_publish_api_preserves_contract() {
     );
     assert_eq!(
         serde_json::to_value(
-            client.provider_aggregation_operation_get("operation-51", &scope()).await.unwrap()
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport.clone()).provider_aggregation_operation_get("operation-51", &scope()).await.unwrap()
         )
         .unwrap(),
         initial
     );
     assert_eq!(
         serde_json::to_value(
-            client.provider_aggregation_operation_cancel("operation-51", &scope()).await.unwrap()
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport.clone()).provider_aggregation_operation_cancel("operation-51", &scope()).await.unwrap()
         )
         .unwrap(),
         failed
@@ -113,7 +112,7 @@ async fn aggregation_t51_aggregation_publish_api_preserves_contract() {
         assert_eq!(r.header("authorization"), Some("Bearer t51-bearer"));
         assert_eq!(
             r.header("x-company-id"),
-            Some(client.endpoint().tenant_scope().company_id().as_ref())
+            Some(client.transport.endpoint().tenant_scope().company_id().as_ref())
         );
     }
     server.join();
@@ -206,7 +205,7 @@ async fn aggregation_t51_ambiguous_writes_and_redirects_never_replay() {
             }
             count
         });
-        let client = GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        let client = GatewayAggregationClient::new(gateway_http::GatewayTransport::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap());
         let result = if exit_action {
             client.aggregation_exit(AppId::Claude, &exit()).await
         } else {
@@ -251,14 +250,14 @@ async fn aggregation_t51_cancel_and_success_keep_authoritative_outcomes() {
     );
     assert_eq!(
         serde_json::to_value(
-            client.provider_aggregation_operation_cancel("operation-51", &scope()).await.unwrap()
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport.clone()).provider_aggregation_operation_cancel("operation-51", &scope()).await.unwrap()
         )
         .unwrap(),
         publishing
     );
     assert_eq!(
         serde_json::to_value(
-            client.provider_aggregation_operation_get("operation-51", &scope()).await.unwrap()
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport.clone()).provider_aggregation_operation_get("operation-51", &scope()).await.unwrap()
         )
         .unwrap(),
         cancelled

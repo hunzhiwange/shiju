@@ -332,9 +332,7 @@ mod voice_api;
 pub use voice_api::VoiceApiError;
 
 mod aggregation_members_api;
-pub use aggregation_members_api::AggregationApiError;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod aggregation_members_api_tests;
+pub use gateway_aggregation::AggregationApiError;
 
 mod aggregation_omo_api;
 pub use aggregation_omo_api::AggregationOmoError;
@@ -355,8 +353,6 @@ mod agent_apps_diagnostics_api;
 mod agent_apps_diagnostics_api_tests;
 
 mod aggregation_publish_api;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod aggregation_publish_api_tests;
 
 mod aggregation_codex_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -426,3 +422,6 @@ pub use gateway_usage_scan::*;
 
 pub use gateway_usage_price::*;
 mod usage_price_api;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod aggregation_facade_tests;

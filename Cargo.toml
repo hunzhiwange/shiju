@@ -28,6 +28,7 @@ members = [
   "crates/libs/command-arity",
   "crates/libs/canary-guard",
   "crates/libs/content-guard",
+  "crates/libs/office-control-sessions",
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
   "crates/libs/permission-engine",

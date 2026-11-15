@@ -267,3 +267,6 @@ impl OfficeSessions {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod sessions_tests;

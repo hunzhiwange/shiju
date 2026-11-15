@@ -46,6 +46,7 @@ console = { version = "0.16" }
 command-arity = { path = "../libs/command-arity", version = "0.6.0" }
 canary-guard = { path = "../libs/canary-guard", version = "0.6.0" }
 content-guard = { path = "../libs/content-guard", version = "0.6.0" }
+office-control-sessions = { path = "../libs/office-control-sessions", version = "0.6.0" }
 security-audit = { path = "../libs/security-audit", version = "0.6.0" }
 syscall-anomaly = { path = "../libs/syscall-anomaly", version = "0.6.0" }
 permission-engine = { path = "../libs/permission-engine", version = "0.6.0" }

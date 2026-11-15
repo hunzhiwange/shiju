@@ -3,7 +3,7 @@
 //! 本模块把运行时事件映射为 Prometheus counter、gauge 和 histogram，并提供文本编码入口。
 //! 指标只记录聚合标签和值，不保存原始请求内容或敏感载荷。
 
-use super::traits::{Observer, ObserverEvent, ObserverMetric};
+use observer_types::{Observer, ObserverEvent, ObserverMetric};
 use prometheus::{
     Encoder, GaugeVec, Histogram, HistogramOpts, HistogramVec, IntCounterVec, Registry, TextEncoder,
 };

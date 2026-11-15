@@ -49,7 +49,7 @@ pub use observer_backends::multi;
 pub use observer_backends::noop;
 #[cfg(feature = "observability-otel")]
 pub mod otel;
-pub mod prometheus;
+pub use observer_prometheus as prometheus;
 pub mod runtime_trace;
 pub mod traits;
 pub use observer_backends::verbose;

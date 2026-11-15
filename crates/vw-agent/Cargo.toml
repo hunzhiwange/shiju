@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+observer-prometheus = { path = "../libs/observer-prometheus", version = "0.6.0" }
 observer-backends = { path = "../libs/observer-backends", version = "0.6.0" }
 observer-types = { path = "../libs/observer-types", version = "0.6.0" }
 agent-context = { path = "../libs/agent-context", version = "0.6.0" }
@@ -62,7 +63,6 @@ parking_lot = "0.12"
 pdf-extract = "0.12.0"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 pulldown-cmark = "0.13"
-prometheus = "0.14"
 rand = "0.10.3"
 r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"

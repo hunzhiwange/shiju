@@ -4,10 +4,12 @@
 //! 每种渠道都覆盖关闭、展开和已配置状态，避免共享表单隐藏必需字段。
 
 use crate::app::{App, Message};
+use config_channel_types::{
+    DiscordConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig,
+    SlackConfig, TelegramConfig, WebhookConfig,
+};
 use vw_config_types::channels::{
-    DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, FeishuConfig, FeishuInstanceConfig,
-    GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig, SignalConfig, SlackConfig,
-    TelegramConfig, WebhookConfig,
+    DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig, SignalConfig,
 };
 
 // 渠道测试从无启用项的应用状态开始，确保每个面板自行声明所需配置。

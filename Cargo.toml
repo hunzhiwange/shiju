@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/config-channel-types",
   "crates/libs/auth-types",
   "crates/libs/model-state",
   "crates/libs/api-task",

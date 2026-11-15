@@ -4,7 +4,7 @@
 use super::*;
 use crate::app::{App, Message};
 use iced::advanced::widget::Tree;
-use vw_config_types::channels::{TelegramConfig, WebhookConfig};
+use config_channel_types::{TelegramConfig, WebhookConfig};
 
 // 总览 fixture 不预启用任何渠道，便于精确验证摘要从配置推导。
 fn test_app() -> App {

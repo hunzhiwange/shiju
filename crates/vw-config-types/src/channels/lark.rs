@@ -4,7 +4,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::types::{
+use config_channel_types::{
     GroupReplyConfig, GroupReplyMode, clone_group_reply_allowed_sender_ids,
     resolve_group_reply_mode,
 };

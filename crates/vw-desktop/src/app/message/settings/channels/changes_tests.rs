@@ -6,9 +6,10 @@
 use super::*;
 use crate::app::App;
 use crate::app::message::settings::channels::toggles;
+use config_channel_types::GroupReplyMode;
 use vw_config_types::channels::{
-    DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig, GroupReplyMode,
-    LarkReceiveMode, QQReceiveMode,
+    DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig, LarkReceiveMode,
+    QQReceiveMode,
 };
 
 fn app() -> App {

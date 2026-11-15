@@ -17,7 +17,8 @@ use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
 use std::borrow::Cow;
-use vw_config_types::channels::{GroupReplyConfig, LarkReceiveMode, QQReceiveMode};
+use config_channel_types::GroupReplyConfig;
+use vw_config_types::channels::{LarkReceiveMode, QQReceiveMode};
 use vw_config_types::ui::DesktopLocale;
 
 const MULTILINE_EDITOR_HEIGHT: f32 = 92.0;
@@ -86,7 +87,7 @@ fn named_instance_field<'a>(key: &'a str, prefix: &str) -> Option<&'a str> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn group_reply_mode_value(group_reply: &Option<GroupReplyConfig>) -> &'static str {
     match group_reply.as_ref().and_then(|cfg| cfg.mode) {
-        Some(vw_config_types::channels::GroupReplyMode::MentionOnly) => "mention_only",
+        Some(config_channel_types::GroupReplyMode::MentionOnly) => "mention_only",
         _ => "all_messages",
     }
 }

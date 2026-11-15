@@ -12,12 +12,14 @@ use super::common::{
 };
 use crate::app::{App, Message};
 use iced::widget::text;
+use config_channel_types::{
+    DiscordConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig,
+    SlackConfig, TelegramConfig, WebhookConfig,
+};
 use vw_config_types::channels::{
-    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, FeishuConfig,
-    FeishuInstanceConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
-    LarkReceiveMode, LinqConfig, MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
-    QQReceiveMode, SignalConfig, SlackConfig, TelegramConfig, WatiConfig, WebhookConfig,
-    WhatsAppConfig,
+    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
+    IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig, NextcloudTalkConfig, NostrConfig,
+    QQConfig, QQReceiveMode, SignalConfig, WatiConfig, WhatsAppConfig,
 };
 
 fn test_app() -> App {

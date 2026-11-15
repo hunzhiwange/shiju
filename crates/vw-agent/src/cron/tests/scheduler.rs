@@ -35,7 +35,7 @@ use tokio::{
 };
 use config_agent::DelegateAgentConfig;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_config_types::channels::MattermostConfig;
+use config_channel_types::MattermostConfig;
 
 /// 获取测试环境全局锁
 ///

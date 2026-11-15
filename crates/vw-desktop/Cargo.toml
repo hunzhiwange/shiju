@@ -26,6 +26,7 @@ path = "src/main.rs"
 
 [dependencies]
 config-channel-types = { path = "../libs/config-channel-types", version = "0.6.0" }
+config-channel-types = { path = "../libs/config-channel-types", version = "0.6.0" }
 auth-types = { path = "../libs/auth-types", version = "0.6.0" }
 gateway-app-provider = { path = "../libs/gateway-app-provider", version = "0.6.0" }
 config-security = { path = "../libs/config-security", version = "0.6.0" }

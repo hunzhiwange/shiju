@@ -1,3 +1,6 @@
+use config_channel_types::{
+    DiscordConfig, IMessageConfig, MattermostConfig, SlackConfig, TelegramConfig, WebhookConfig,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,9 +17,6 @@ use super::{
     other::{
         DingTalkConfig, DingTalkInstanceConfig, IrcConfig, LinqConfig, NextcloudTalkConfig,
         NostrConfig, QQConfig, SignalConfig, WatiConfig, WhatsAppConfig,
-    },
-    types::{
-        DiscordConfig, IMessageConfig, MattermostConfig, SlackConfig, TelegramConfig, WebhookConfig,
     },
 };
 

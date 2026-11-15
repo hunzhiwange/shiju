@@ -16,8 +16,8 @@ fn values(prefix: &str) -> Vec<String> {
 }
 
 #[allow(dead_code)]
-fn group(prefix: &str) -> vw_config_types::channels::GroupReplyConfig {
-    vw_config_types::channels::GroupReplyConfig { mode: None, allowed_sender_ids: values(prefix) }
+fn group(prefix: &str) -> config_channel_types::GroupReplyConfig {
+    config_channel_types::GroupReplyConfig { mode: None, allowed_sender_ids: values(prefix) }
 }
 
 #[test]
@@ -49,10 +49,10 @@ fn project_dir_trims_blank_input_and_preserves_non_blank_path() {
 #[test]
 fn refresh_text_inputs_inserts_empty_group_reply_when_config_omits_group_reply() {
     let mut state = ChannelsSettingsState {
-        telegram: Some(vw_config_types::channels::TelegramConfig {
+        telegram: Some(config_channel_types::TelegramConfig {
             bot_token: "token".to_string(),
             allowed_users: Vec::new(),
-            stream_mode: vw_config_types::channels::StreamMode::Off,
+            stream_mode: config_channel_types::StreamMode::Off,
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -72,7 +72,7 @@ fn refresh_text_inputs_inserts_empty_group_reply_when_config_omits_group_reply()
 #[test]
 fn refresh_text_inputs_inserts_empty_group_reply_for_other_optional_group_configs() {
     let mut state = ChannelsSettingsState {
-        discord: Some(vw_config_types::channels::DiscordConfig {
+        discord: Some(config_channel_types::DiscordConfig {
             bot_token: "token".to_string(),
             guild_id: None,
             allowed_users: Vec::new(),
@@ -80,14 +80,14 @@ fn refresh_text_inputs_inserts_empty_group_reply_for_other_optional_group_config
             mention_only: false,
             group_reply: None,
         }),
-        slack: Some(vw_config_types::channels::SlackConfig {
+        slack: Some(config_channel_types::SlackConfig {
             bot_token: "token".to_string(),
             app_token: None,
             channel_id: None,
             allowed_users: Vec::new(),
             group_reply: None,
         }),
-        mattermost: Some(vw_config_types::channels::MattermostConfig {
+        mattermost: Some(config_channel_types::MattermostConfig {
             url: "https://mattermost.example".to_string(),
             bot_token: "token".to_string(),
             channel_id: None,

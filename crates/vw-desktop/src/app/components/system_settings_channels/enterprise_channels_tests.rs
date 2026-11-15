@@ -2,10 +2,10 @@
 //! 飞书和钉钉的仅实例配置用于确认名称回退且不臆造缺失凭据。
 
 use crate::app::{App, Message};
+use config_channel_types::{GroupReplyConfig, GroupReplyMode};
 use vw_config_types::channels::{
     ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
-    GroupReplyConfig, GroupReplyMode, LarkConfig, LarkReceiveMode, NostrConfig, QQConfig,
-    QQReceiveMode, WeChatConfig, WeComConfig,
+    LarkConfig, LarkReceiveMode, NostrConfig, QQConfig, QQReceiveMode, WeChatConfig, WeComConfig,
 };
 
 // 企业渠道实例由用例显式注入，避免其他渠道配置污染标题回退。

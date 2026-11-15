@@ -2,7 +2,8 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use vw_config_types::channels::{GroupReplyConfig, GroupReplyMode, LarkReceiveMode, QQReceiveMode};
+use config_channel_types::{GroupReplyConfig, GroupReplyMode};
+use vw_config_types::channels::{LarkReceiveMode, QQReceiveMode};
 
 #[test]
 fn default_feishu_config_uses_websocket_and_draft_defaults() {

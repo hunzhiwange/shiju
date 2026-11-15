@@ -3,7 +3,7 @@
 //! 这里重新导出共享配置类型，并为 Telegram、Discord、Slack 等常用渠道实现
 //! `ChannelConfig`。该层不保存渠道密钥，也不修改字段语义，只提供注册和展示所需的元数据。
 
-pub use vw_config_types::channels::types::*;
+pub use config_channel_types::*;
 
 use crate::app::agent::config::traits::ChannelConfig;
 

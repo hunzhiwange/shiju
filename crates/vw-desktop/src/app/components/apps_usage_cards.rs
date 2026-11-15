@@ -341,7 +341,7 @@ async fn read(
         let mut refresh_failure = None;
         if refresh == Some(selection.provider_id.as_str()) {
             if selection.kind.is_none()
-                && let Ok(initial) = client.apps_usage_snapshot(&selection, &context.token).await
+                && let Ok(initial) = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&selection, &context.token).await
                 && let [kind] = initial.capabilities.as_slice()
             {
                 selection.kind = Some(*kind);

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-app-usage",
   "crates/libs/api-openclaw-settings",
   "crates/libs/gateway-openclaw-settings",
   "crates/libs/api-hermes-memory",

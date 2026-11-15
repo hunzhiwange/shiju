@@ -1,5 +1,5 @@
 use serde_json::json;
-use vw_gateway_client::{AppsUsageDisplay, AppsUsageSettings};
+use gateway_app_usage::{AppsUsageDisplay, AppsUsageSettings};
 
 use super::{Draft, Field, Kind};
 

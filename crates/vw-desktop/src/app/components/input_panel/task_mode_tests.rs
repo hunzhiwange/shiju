@@ -2,7 +2,7 @@
 //! 执行器缺失、编辑器不足和单子任务用例用于约束降级与移动按钮状态。
 
 use super::task_mode::{
-    TaskModeReasoningEffortOption, task_mode_form, task_mode_reasoning_effort_options,
+    task_mode_form,
 };
 use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message};
@@ -168,78 +168,4 @@ fn enabled_task_mode_falls_back_when_runtime_has_fewer_editors_than_subtasks() {
     );
 
     assert_eq!(element.as_widget().size().width, Length::Fill);
-}
-
-#[test]
-fn task_mode_reasoning_effort_option_displays_every_shared_label() {
-    let cases = [
-        (None, "默认"),
-        (Some(ReasoningEffortDto::None), "None"),
-        (Some(ReasoningEffortDto::Low), "Low"),
-        (Some(ReasoningEffortDto::Medium), "Medium"),
-        (Some(ReasoningEffortDto::High), "High"),
-        (Some(ReasoningEffortDto::Xhigh), "Xhigh"),
-        (Some(ReasoningEffortDto::Max), "Max"),
-    ];
-
-    for (effort, expected) in cases {
-        assert_eq!(
-            TaskModeReasoningEffortOption(
-                effort,
-                super::reasoning_selector::reasoning_effort_label(effort)
-            )
-            .to_string(),
-            expected
-        );
-    }
-}
-
-#[test]
-fn task_mode_reasoning_effort_handles_missing_and_claude_agents() {
-    assert_eq!(
-        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", None),
-        vec![None]
-    );
-    assert_eq!(
-        task_mode_reasoning_effort_options(
-            &crate::app::App::new().0,
-            "auto",
-            Some(" CLAUDE-CODE ")
-        ),
-        vec![None, Some(ReasoningEffortDto::High), Some(ReasoningEffortDto::Max),]
-    );
-}
-
-#[test]
-fn task_mode_reasoning_effort_uses_shared_agent_fallback_options() {
-    assert_eq!(
-        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", Some("codex")),
-        vec![
-            None,
-            Some(ReasoningEffortDto::None),
-            Some(ReasoningEffortDto::Low),
-            Some(ReasoningEffortDto::Medium),
-            Some(ReasoningEffortDto::High),
-            Some(ReasoningEffortDto::Xhigh),
-        ]
-    );
-    assert_eq!(
-        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", Some("unknown")),
-        vec![None]
-    );
-}
-
-#[test]
-fn task_mode_reasoning_effort_accepts_codex_cli_alias() {
-    assert_eq!(
-        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", Some(" CoDeX CLI ")),
-        vec![
-            None,
-            Some(ReasoningEffortDto::None),
-            Some(ReasoningEffortDto::Low),
-            Some(ReasoningEffortDto::Medium),
-            Some(ReasoningEffortDto::High),
-            Some(ReasoningEffortDto::Xhigh),
-        ]
-    );
 }

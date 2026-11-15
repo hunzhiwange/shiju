@@ -33,8 +33,12 @@ desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
 desktop-theme = { path = "../desktop-theme", version = "0.6.0" }
 desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
 
+todo-types = { path = "../todo-types", version = "0.6.0" }
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 desktop-skill-hub = { path = "../desktop-skill-hub", version = "0.6.0" }
+
+desktop-voice-ui = { path = "../desktop-voice-ui", version = "0.6.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

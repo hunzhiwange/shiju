@@ -51,3 +51,24 @@ pub mod surface_styles;
 mod send_controls_tests;
 #[cfg(test)]
 mod surface_styles_tests;
+
+pub mod task_mode;
+#[cfg(test)]
+mod task_mode_tests;
+
+pub mod todo_panel;
+#[cfg(test)]
+mod todo_panel_tests;
+
+pub mod usage;
+#[cfg(test)]
+mod usage_tests;
+
+pub mod usage_button;
+#[cfg(test)]
+mod usage_button_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice_controls;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod voice_controls_tests;

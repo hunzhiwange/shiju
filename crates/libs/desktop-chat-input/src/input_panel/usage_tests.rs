@@ -1,0 +1,233 @@
+//! 验证令牌用量、上下文占比与模型计价明细的计算边界。
+//! 计算以最后一步输入窗口为准，并显式覆盖缺失价格和零上下文额度。
+
+use super::usage::{UsageRing, get_usage_details, get_usage_rate_percent};
+
+use session_ui_types::{ChatSessionStep, TokenUsage};
+use super::usage::Model as UsageModelInfo;
+use iced::advanced::renderer::Headless;
+use iced::widget::canvas::Program;
+use iced::{Font, Pixels, Rectangle, Size, Theme};
+
+#[derive(Default)]
+struct Fixture { usage_model_info: Option<UsageModelInfo>, steps: Vec<ChatSessionStep>, usage: TokenUsage }
+impl Fixture { fn input(&self) -> super::usage::Input<'_> { super::usage::Input { model: self.usage_model_info, steps: &self.steps, usage: &self.usage } } }
+fn test_app() -> Fixture { Fixture::default() }
+
+fn model_info(context_limit: u64) -> UsageModelInfo {
+    UsageModelInfo {
+
+        context_limit,
+        input_limit: context_limit,
+
+        limit_is_default: false,
+        cost_input_per_million: 2.0,
+        cost_output_per_million: 6.0,
+
+    }
+}
+
+#[test]
+fn usage_rate_uses_the_same_effective_input_window_as_agent_defaults() {
+    let mut app = test_app();
+    app.usage_model_info = Some(UsageModelInfo {
+        context_limit: 32_768,
+        input_limit: 28_672,
+        limit_is_default: true,
+        ..model_info(32_768)
+    });
+    app.steps.push(step(25_805));
+
+    assert!(get_usage_rate_percent(app.input()) >= 90.0);
+}
+
+fn step(input_tokens: i64) -> ChatSessionStep {
+    ChatSessionStep {
+        index: 1,
+        turn_id: None,
+        started_ms: 1,
+        finished_ms: Some(2),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: TokenUsage {
+            input_tokens,
+            output_tokens: 20,
+            cached_tokens: 3,
+            reasoning_tokens: 4,
+        },
+        cost_usd: None,
+        finish_reason: None,
+        model: Some("gpt-test".to_string()),
+        tool_timings: Vec::new(),
+    }
+}
+
+#[test]
+fn task_742_test_module_is_wired() {
+    let path = std::path::Path::new(file!());
+    assert!(path.ends_with("usage_tests.rs"));
+}
+
+#[test]
+fn usage_rate_is_zero_without_model_info_or_with_zero_context_limit() {
+    let mut app = test_app();
+    app.steps.push(step(500));
+
+    assert_eq!(get_usage_rate_percent(app.input()), 0.0);
+
+    app.usage_model_info = Some(model_info(0));
+    assert_eq!(get_usage_rate_percent(app.input()), 0.0);
+}
+
+#[test]
+fn usage_rate_uses_last_step_input_tokens() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(2_000));
+    app.steps.push(step(250));
+    app.steps.push(step(500));
+
+    assert_eq!(get_usage_rate_percent(app.input()), 25.0);
+}
+
+#[test]
+fn usage_rate_is_zero_with_model_info_but_without_steps() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(2_000));
+
+    assert_eq!(get_usage_rate_percent(app.input()), 0.0);
+}
+
+#[test]
+fn usage_rate_reports_raw_ratio_above_context_limit() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(1_000));
+    app.steps.push(step(1_500));
+
+    assert_eq!(get_usage_rate_percent(app.input()), 150.0);
+}
+
+#[test]
+fn usage_rate_preserves_fractional_percent_precision() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(3));
+    app.steps.push(step(1));
+
+    assert!((get_usage_rate_percent(app.input()) - (100.0 / 3.0)).abs() < f32::EPSILON);
+}
+
+#[test]
+fn usage_details_report_last_step_context_cost_and_total_tokens() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(4_000));
+    app.steps.push(step(777));
+    app.usage.input_tokens = 100;
+    app.usage.output_tokens = 200;
+    app.usage.cached_tokens = 30;
+    app.usage.reasoning_tokens = 70;
+
+    let (last_input, context_limit, estimated_cost, total_tokens) = get_usage_details(app.input());
+
+    assert_eq!(last_input, 777);
+    assert_eq!(context_limit, 4_000);
+    assert_eq!(total_tokens, 400);
+    assert!((estimated_cost - 0.0016).abs() < 1e-12);
+}
+
+#[test]
+fn usage_details_default_to_zero_when_model_and_steps_are_missing() {
+    let app = test_app();
+
+    assert_eq!(get_usage_details(app.input()), (0, 0, 0.0, 0));
+}
+
+#[test]
+fn usage_details_keep_step_and_totals_without_model_pricing() {
+    let mut app = test_app();
+    app.steps.push(step(321));
+    app.usage.input_tokens = 10;
+    app.usage.output_tokens = 20;
+    app.usage.cached_tokens = 3;
+    app.usage.reasoning_tokens = 4;
+
+    assert_eq!(get_usage_details(app.input()), (321, 0, 0.0, 37));
+}
+
+#[test]
+fn usage_details_apply_model_pricing_without_session_steps() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(8_000));
+    app.usage.input_tokens = 400_000;
+    app.usage.output_tokens = 300_000;
+    app.usage.cached_tokens = 200_000;
+    app.usage.reasoning_tokens = 100_000;
+
+    let (last_input, context_limit, estimated_cost, total_tokens) = get_usage_details(app.input());
+
+    assert_eq!(last_input, 0);
+    assert_eq!(context_limit, 8_000);
+    assert_eq!(total_tokens, 1_000_000);
+    assert!((estimated_cost - 4.0).abs() < 1e-12);
+}
+
+#[test]
+fn usage_ring_is_copyable_and_preserves_percent_input() {
+    let low = UsageRing { percent: -10.0 };
+    let mid = UsageRing { percent: 75.0 };
+    let high = UsageRing { percent: 150.0 };
+
+    assert_eq!(low.percent, -10.0);
+    assert_eq!(mid.percent, 75.0);
+    assert_eq!(high.percent, 150.0);
+    assert_eq!(format!("{mid:?}"), "UsageRing { percent: 75.0 }");
+}
+
+#[tokio::test]
+async fn usage_ring_draws_empty_bounds_and_all_percent_color_ranges() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+
+    let empty = UsageRing { percent: 50.0 }.draw(
+        &(),
+        &renderer,
+        &Theme::Dark,
+        Rectangle::with_size(Size::new(0.0, 24.0)),
+        iced::mouse::Cursor::Unavailable,
+    );
+    assert_eq!(empty.len(), 1);
+
+    for percent in [-10.0, 0.0, 50.0, 70.0, 89.9, 90.0, 120.0] {
+        let geometries = UsageRing { percent }.draw(
+            &(),
+            &renderer,
+            &Theme::Light,
+            Rectangle::with_size(Size::new(40.0, 32.0)),
+            iced::mouse::Cursor::Unavailable,
+        );
+
+        assert_eq!(geometries.len(), 1, "percent {percent} should draw one geometry");
+    }
+}
+
+#[test]
+fn usage_preserves_latest_report_until_new_usage_arrives() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(1_000));
+    app.steps.push(step(300));
+    let mut pending = step(0);
+    pending.finished_ms = None;
+    pending.usage = TokenUsage::default();
+    app.steps.push(pending);
+    assert_eq!(get_usage_rate_percent(app.input()), 30.0);
+    assert_eq!(get_usage_details(app.input()).0, 300);
+
+    let latest = app.steps.last_mut().unwrap();
+    latest.usage.input_tokens = 350;
+    assert_eq!(get_usage_rate_percent(app.input()), 35.0);
+
+    app.steps.push(step(150));
+    assert_eq!(get_usage_rate_percent(app.input()), 15.0);
+    app.steps.clear();
+    assert_eq!(get_usage_rate_percent(app.input()), 0.0);
+}

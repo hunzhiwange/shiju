@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Instant;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeChunkDto, KnowledgeDatasetCreateRequest, KnowledgeDatasetDto,
     KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse,
     KnowledgeDocumentImportRequest, KnowledgeDocumentImportResponse, KnowledgeDocumentListQuery,

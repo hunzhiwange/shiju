@@ -7,7 +7,7 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::{Map, Value, json};
 use std::path::Path;
-use vw_api_types::knowledge::{KnowledgeDocumentCreateRequest, KnowledgeDocumentImportRequest};
+use vw_api_knowledge::{KnowledgeDocumentCreateRequest, KnowledgeDocumentImportRequest};
 
 /// 单个导入源允许接收的最大编码前文件大小。
 pub(crate) const MAX_IMPORT_FILE_BYTES: usize = 20 * 1024 * 1024;

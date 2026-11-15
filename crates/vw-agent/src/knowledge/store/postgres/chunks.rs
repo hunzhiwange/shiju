@@ -5,7 +5,7 @@ use postgres::{GenericClient, Row};
 use serde_json::Value;
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeChunkDto, KnowledgeChunkType, KnowledgeDocumentCreateRequest, KnowledgeDocumentDto,
     KnowledgeDocumentStatus, KnowledgeMatchType,
 };

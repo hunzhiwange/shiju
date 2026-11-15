@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
 use serde_json::json;
-use vw_gateway_client::vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest, KnowledgeDocumentImportRequest,
     KnowledgeDocumentListQuery, KnowledgeDocumentPatchRequest, KnowledgeDocumentReindexRequest,
     KnowledgeDocumentStatus, KnowledgeDocumentsBatchActionRequest, KnowledgeEmbeddingTestRequest,

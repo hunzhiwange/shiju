@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::COMPANY_ID_HEADER,
     vw_api_transport::id::PLATFORM_ID_HEADER,
 };
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeCapabilitiesDto, KnowledgeChunkingMode, KnowledgeDatasetCreateRequest,
     KnowledgeDocumentCreateRequest, KnowledgeDocumentImportRequest, KnowledgeDocumentListQuery,
     KnowledgeDocumentPatchRequest, KnowledgeDocumentReindexRequest, KnowledgeDocumentStatus,

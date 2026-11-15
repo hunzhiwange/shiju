@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use postgres::{GenericClient, Row};
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{KnowledgeDatasetCreateRequest, KnowledgeDatasetDto};
+use vw_api_knowledge::{KnowledgeDatasetCreateRequest, KnowledgeDatasetDto};
 
 use super::super::{
     MAX_TOP_K, chunking_mode_as_str, dataset_capabilities, indexing_mode_as_str, now_ms,

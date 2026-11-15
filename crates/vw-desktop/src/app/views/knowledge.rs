@@ -29,7 +29,7 @@ use iced::{
     Alignment, Background, Border, Color, Element, Length, Point, Shadow, Size, Theme, Vector,
 };
 use std::fmt;
-use vw_gateway_client::vw_api_types::knowledge::KnowledgeDocumentsBatchAction;
+use vw_api_knowledge::KnowledgeDocumentsBatchAction;
 use vw_gateway_client::{
     KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode, KnowledgeDatasetDto,
     KnowledgeDocumentDto, KnowledgeDocumentStatus, KnowledgeEmbeddingPresetDto,

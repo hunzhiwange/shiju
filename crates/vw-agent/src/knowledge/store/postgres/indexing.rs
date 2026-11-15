@@ -4,7 +4,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use postgres::{GenericClient, Row};
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeDocumentCreateRequest, KnowledgeDocumentImportQueuedResponse,
     KnowledgeDocumentImportRequest, KnowledgeDocumentStatus, KnowledgeIndexJobDto,
     KnowledgeIndexJobStatus,

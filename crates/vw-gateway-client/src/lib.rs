@@ -174,7 +174,7 @@ pub use vw_api_types::agent_apps_auth::{
     AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod, AuthPasteRequest, AuthRegion,
     AuthService, AuthStartRequest, AuthStartResponse,
 };
-pub use vw_api_types::knowledge::{
+pub use vw_api_knowledge::{
     KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
     KnowledgeDatasetCreateRequest, KnowledgeDatasetDto, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentDto, KnowledgeDocumentImportLimitsDto, KnowledgeDocumentImportQueuedResponse,

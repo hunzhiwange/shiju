@@ -3,7 +3,7 @@
 // 数值边界会被饱和或回退，用户字段先裁剪再进入租户隔离的生命周期操作。
 use anyhow::Result;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeIndexingMode,
     KnowledgeRetrievalMode,
 };

@@ -6,7 +6,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeDocumentListQuery,
     KnowledgeDocumentStatus,
 };

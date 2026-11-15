@@ -79,9 +79,6 @@ pub mod worktree;
 #[cfg(test)]
 mod apps_usage_tests;
 #[cfg(test)]
-#[path = "knowledge_tests.rs"]
-mod knowledge_tests;
-#[cfg(test)]
 #[path = "question_tests.rs"]
 mod question_tests;
 

@@ -17,7 +17,7 @@ use crate::app::{
 use iced::widget::text_editor;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_gateway_client::vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeDocumentPatchRequest, KnowledgeDocumentStatus, KnowledgeDocumentsBatchAction,
     KnowledgeDocumentsBatchActionRequest,
 };

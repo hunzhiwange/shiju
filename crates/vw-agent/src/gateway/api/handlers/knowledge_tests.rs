@@ -12,8 +12,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tower::ServiceExt;
-use vw_api_types::knowledge::KnowledgeEmbeddingTestRequest;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::KnowledgeEmbeddingTestRequest;
+use vw_api_knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentImportRequest, KnowledgeDocumentListQuery, KnowledgeDocumentPatchRequest,
     KnowledgeDocumentReindexRequest, KnowledgeDocumentStatus, KnowledgeDocumentsBatchAction,
@@ -805,7 +805,7 @@ async fn knowledge_documents_list_filters_by_status() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let documents: Vec<vw_api_types::knowledge::KnowledgeDocumentDto> =
+    let documents: Vec<vw_api_knowledge::KnowledgeDocumentDto> =
         serde_json::from_value(response_json(response).await).expect("documents json");
     assert_eq!(documents.len(), 1);
     assert_eq!(documents[0].id, archived.id);
@@ -859,7 +859,7 @@ async fn knowledge_document_update_and_batch_routes_apply_store_changes() {
         .await
         .expect("patch request should succeed");
     assert_eq!(patch_response.status(), StatusCode::OK);
-    let patched: vw_api_types::knowledge::KnowledgeDocumentDto =
+    let patched: vw_api_knowledge::KnowledgeDocumentDto =
         serde_json::from_value(response_json(patch_response).await).expect("patched json");
     assert_eq!(patched.name, "renamed");
     assert_eq!(patched.status, KnowledgeDocumentStatus::Disabled);
@@ -877,7 +877,7 @@ async fn knowledge_document_update_and_batch_routes_apply_store_changes() {
         .await
         .expect("batch request should succeed");
     assert_eq!(batch_response.status(), StatusCode::OK);
-    let batch: Vec<vw_api_types::knowledge::KnowledgeDocumentDto> =
+    let batch: Vec<vw_api_knowledge::KnowledgeDocumentDto> =
         serde_json::from_value(response_json(batch_response).await).expect("batch json");
     assert_eq!(batch.len(), 1);
     assert_eq!(batch[0].id, document.id);

@@ -4,7 +4,7 @@
 use anyhow::Result;
 use serde_json::{Value, json};
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentListQuery, KnowledgeDocumentStatus, KnowledgeIndexingMode,
     KnowledgeRetrievalMode,

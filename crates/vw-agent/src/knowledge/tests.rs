@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest,
     KnowledgeIndexingMode, KnowledgeRetrievalMode, KnowledgeRetrieveRequest,
 };

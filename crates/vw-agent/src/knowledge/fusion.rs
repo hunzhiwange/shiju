@@ -4,7 +4,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use vw_api_types::knowledge::KnowledgeMatchType;
+use vw_api_knowledge::KnowledgeMatchType;
 
 const DEFAULT_RRF_K: usize = 60;
 const DEFAULT_VECTOR_WEIGHT: f32 = 0.7;

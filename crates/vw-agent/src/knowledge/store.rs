@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
-use vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
     KnowledgeDatasetCreateRequest, KnowledgeDatasetDto, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse, KnowledgeDocumentImportRequest,

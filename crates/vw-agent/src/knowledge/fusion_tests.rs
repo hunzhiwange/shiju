@@ -2,7 +2,7 @@
 
 // 融合排序使用稳定默认参数，单一检索源则退回按分数去重。
 use super::{RetrievalSource, RetrievedCandidate, deduplicate_by_score, fuse_with_rrf};
-use vw_api_types::knowledge::KnowledgeMatchType;
+use vw_api_knowledge::KnowledgeMatchType;
 
 fn candidate(id: &str, score: f32, source: RetrievalSource) -> RetrievedCandidate {
     RetrievedCandidate { id: id.to_string(), score, source }

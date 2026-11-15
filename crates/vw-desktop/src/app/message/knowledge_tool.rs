@@ -12,7 +12,7 @@ use iced::widget::text_editor;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::time::Duration;
-use vw_gateway_client::vw_api_types::knowledge::{
+use vw_api_knowledge::{
     KnowledgeDocumentPatchRequest, KnowledgeDocumentsBatchAction,
     KnowledgeDocumentsBatchActionRequest,
 };

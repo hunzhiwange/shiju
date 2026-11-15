@@ -2,6 +2,7 @@
 members = [
   "crates/libs/auth-file-store",
   "crates/libs/api-workflow",
+  "crates/libs/api-knowledge",
   "crates/libs/api-agent-scheduler",
   "crates/libs/config-channel-types",
   "crates/libs/config-channel-services",

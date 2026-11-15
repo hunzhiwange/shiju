@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-workspace-memory",
   "crates/libs/session-port",
   "crates/libs/app-operations",
   "crates/libs/channel-types",

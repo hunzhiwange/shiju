@@ -40,19 +40,13 @@ pub mod prompts;
 pub mod sessions;
 
 #[cfg(target_os = "macos")]
-pub mod workspace_files;
-#[cfg(all(test, target_os = "macos"))]
-mod workspace_files_tests;
+pub use app_workspace_memory::workspace_files;
 
 #[cfg(target_os = "macos")]
-pub mod hermes_memory;
-#[cfg(all(test, target_os = "macos"))]
-mod hermes_memory_tests;
+pub use app_workspace_memory::hermes_memory;
 
 #[cfg(target_os = "macos")]
-pub mod daily_memory_files;
-#[cfg(all(test, target_os = "macos"))]
-mod daily_memory_files_tests;
+pub use app_workspace_memory::daily_memory_files;
 
 #[cfg(target_os = "macos")]
 pub mod openclaw_model;
@@ -81,22 +75,16 @@ pub mod openclaw_health;
 mod openclaw_health_tests;
 
 #[cfg(target_os = "macos")]
-pub mod hermes_dashboard;
+pub use app_workspace_memory::hermes_dashboard;
 
 #[cfg(target_os = "macos")]
-pub mod daily_memory_list;
-#[cfg(all(test, target_os = "macos"))]
-mod daily_memory_list_tests;
+pub use app_workspace_memory::daily_memory_list;
 
 #[cfg(target_os = "macos")]
-pub mod hermes_memory_limits;
-#[cfg(all(test, target_os = "macos"))]
-mod hermes_memory_limits_tests;
+pub use app_workspace_memory::hermes_memory_limits;
 
 #[cfg(target_os = "macos")]
-pub mod daily_memory_search;
-#[cfg(all(test, target_os = "macos"))]
-mod daily_memory_search_tests;
+pub use app_workspace_memory::daily_memory_search;
 
 pub mod project_profiles;
 

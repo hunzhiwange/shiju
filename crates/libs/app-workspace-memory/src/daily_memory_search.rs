@@ -1,7 +1,7 @@
 //! Content search on the authorized executor; no persistent content index.
 use std::{io::Read, path::Path, time::UNIX_EPOCH};
 
-use crate::apps::lifecycle::operations::Operation;
+use app_lifecycle::operations::Operation;
 use app_workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
 use vw_api_workspace_memory::{DailyMemoryFilename, DailyMemorySearchResult};
 

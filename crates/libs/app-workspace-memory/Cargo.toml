@@ -1,0 +1,22 @@
+[package]
+name = "app-workspace-memory"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-workspace-paths = { path = "../app-workspace-paths" }
+app-lifecycle = { path = "../app-lifecycle" }
+app-provider-native = { path = "../app-provider-native" }
+app-auth = { path = "../app-auth" }
+app-config-patch = { path = "../app-config-patch" }
+app-config-write = { path = "../app-config-write" }
+vw-api-workspace-memory = { path = "../api-workspace-memory" }
+vw-api-hermes-memory = { path = "../api-hermes-memory" }
+vw-api-transport = { path = "../api-transport" }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+serde_yaml = "0.9"
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "io-util", "net", "time"] }

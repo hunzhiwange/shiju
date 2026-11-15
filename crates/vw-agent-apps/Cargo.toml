@@ -88,6 +88,7 @@ zip = { version = "8.6", default-features = false, features = ["deflate-flate2-z
 vw-api-types = { path = "../vw-api-types" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+app-workspace-memory = { path = "../libs/app-workspace-memory" }
 app-workspace-paths = { path = "../libs/app-workspace-paths" }
 rquickjs = { version = "0.14", default-features = false, features = ["std"] }
 security-framework = "3.7"

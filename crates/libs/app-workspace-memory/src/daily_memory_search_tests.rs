@@ -1,5 +1,5 @@
+use app_lifecycle::operations::Operation;
 use super::{
-    apps::lifecycle::operations::Operation,
     daily_memory_search::{SearchError, search_daily_memory_files},
     workspace_paths::PathError,
 };

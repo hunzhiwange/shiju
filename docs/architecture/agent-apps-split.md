@@ -530,12 +530,12 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `auth/xai_refresh.rs` | 161 | 17 |
 | `auth/xai_refresh_tests.rs` | 252 | 17 |
 | `auth/xai_tests.rs` | 349 | 17 |
-| `daily_memory_files.rs` | 76 | 37 |
-| `daily_memory_files_tests.rs` | 143 | 37 |
-| `daily_memory_list.rs` | 49 | 37 |
-| `daily_memory_list_tests.rs` | 67 | 37 |
-| `daily_memory_search.rs` | 139 | 37 |
-| `daily_memory_search_tests.rs` | 77 | 37 |
+| `daily_memory_files.rs` | 76 | 37（已迁入 app-workspace-memory） |
+| `daily_memory_files_tests.rs` | 143 | 37（已迁入 app-workspace-memory） |
+| `daily_memory_list.rs` | 49 | 37（已迁入 app-workspace-memory） |
+| `daily_memory_list_tests.rs` | 67 | 37（已迁入 app-workspace-memory） |
+| `daily_memory_search.rs` | 139 | 37（已迁入 app-workspace-memory） |
+| `daily_memory_search_tests.rs` | 77 | 37（已迁入 app-workspace-memory） |
 | `data_management/apply.rs` | 70 | 69 |
 | `data_management/apply_tests.rs` | 109 | 69 |
 | `data_management/backup_api.rs` | 130 | 69 |
@@ -619,12 +619,12 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `diagnostics/endpoints.rs` | 135 | 71 |
 | `diagnostics/endpoints_tests.rs` | 95 | 71 |
 | `diagnostics/mod.rs` | 5 | 71 |
-| `hermes_dashboard.rs` | 86 | 37 |
-| `hermes_dashboard_tests.rs` | 63 | 37 |
-| `hermes_memory.rs` | 63 | 37 |
-| `hermes_memory_limits.rs` | 63 | 37 |
-| `hermes_memory_limits_tests.rs` | 47 | 37 |
-| `hermes_memory_tests.rs` | 54 | 37 |
+| `hermes_dashboard.rs` | 86 | 37（已迁入 app-workspace-memory） |
+| `hermes_dashboard_tests.rs` | 63 | 37（已迁入 app-workspace-memory） |
+| `hermes_memory.rs` | 63 | 37（已迁入 app-workspace-memory） |
+| `hermes_memory_limits.rs` | 63 | 37（已迁入 app-workspace-memory） |
+| `hermes_memory_limits_tests.rs` | 47 | 37（已迁入 app-workspace-memory） |
+| `hermes_memory_tests.rs` | 54 | 37（已迁入 app-workspace-memory） |
 | `high_availability/circuit_breaker.rs` | 304 | 7 |
 | `high_availability/circuit_breaker_tests.rs` | 144 | 7 |
 | `high_availability/health.rs` | 128 | 7 |
@@ -1216,8 +1216,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/subscriptions/mod.rs` | 30 | 59 |
 | `usage/summary.rs` | 321 | 56 |
 | `usage/tokens.rs` | 193 | 55 |
-| `workspace_files.rs` | 52 | 37 |
-| `workspace_files_tests.rs` | 105 | 37 |
+| `workspace_files.rs` | 52 | 37（已迁入 app-workspace-memory） |
+| `workspace_files_tests.rs` | 105 | 37（已迁入 app-workspace-memory） |
 | `workspace_paths.rs` | 267 | 73（已迁入 app-workspace-paths，原路径仅重导出） |
 | `workspace_paths_tests.rs` | 117 | 73（已迁入 app-workspace-paths/src/tests.rs） |
 
@@ -2564,3 +2564,13 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 删除旧门面仅供 apps 使用的五个直接依赖；app-launch 因 providers::agy 的真实调用保留。没有业务函数、测试、cfg 或资源路径变更；测试继续在各所有者库注册。本次未新增或运行测试。
 - 静态证据：Python 只读 TOML 解析（系统无 tomllib，复用现有 pip._vendor.tomli）审阅 70 个传递生产依赖清单，路径存在、无环且无 vw-agent-apps 回边；workspace 注册和直接路径依赖存在。模块移动逐字比较、真实调用者检索及本任务 git diff --check 通过。现有 RustCodeGraph 索引仍含前序搬迁前路径，实际位置以文件和源码检索为准，未更新索引。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：app-operations 与直接调用者目标编译、各所有者迁移单测、macOS/Windows/Linux/WSL 平台行为、清单与锁文件一致性。Cargo.lock 未修改。
+
+
+## 任务 37：工作区与记忆文件静态迁移结果
+
+- 七个实现 daily_memory_files/list/search、hermes_dashboard、hermes_memory/limits、workspace_files 及各自七个独立测试迁至 app-workspace-memory/src；原模块位置通过 lib.rs 重导出，不保留重复实现。workspace_paths 继续归任务 73，不重复迁移。
+- 所有生产模块与测试保持 macOS cfg；dashboard 测试仍为内部独立文件以访问私有探针。其余测试注册在新根模块，测试路径类型复用 app-workspace-paths。没有 include 或资源路径变化。
+- 搜索 Operation 直接引用 app-lifecycle；HermesFiles 引用 app-provider-native，事务类型引用 app-auth，YAML 补丁和写入错误分别引用 app-config-patch、app-config-write；均为门面原重导出的同一类型。授权、取消检查、物理目录锁、搜索/写入范围和错误语义保持原样，无未闭合符号。
+- 真实调用者 vw-agent workspace_memory/hermes_memory handler 保持原门面路径，包括文件读写删除、列表搜索、配置开关；新库无门面回依赖。原包相关通用依赖仍有其它模块使用，保留。
+- 静态证据：14 个文件移动对照、导出与测试注册、cfg 与调用者检索、git diff --check。系统 Python 无 tomllib，使用现有 pip._vendor.tomli 只读解析清单并遍历传递生产路径，确认路径存在、无环及无门面回边；未安装工具。根 workspace 与直接路径依赖已注册，Cargo.lock 未修改。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：新库及直接调用者目标编译、迁移定向单测、三平台条件、原授权与事务行为。静态审阅不表示行为验收通过。

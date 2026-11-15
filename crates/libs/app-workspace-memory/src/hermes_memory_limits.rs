@@ -1,13 +1,9 @@
 //! Hermes memory budgets and switches. Callers authorize configuration access
 //! and the executor before reading or acquiring the provider's shared write lock.
-use crate::providers::{
-    hermes::HermesFiles,
-    live::{
-        commit::{AppState, ProviderTransactions},
-        patch_yaml::patch_hermes_memory_enabled,
-        write_guard::WriteError,
-    },
-};
+use app_provider_native::providers::hermes::HermesFiles;
+use app_auth::providers::live::commit::{AppState, ProviderTransactions};
+use app_config_patch::patch_yaml::patch_hermes_memory_enabled;
+use app_config_write::write_guard::WriteError;
 use serde_yaml::Value;
 use {
     vw_api_hermes_memory::HermesMemoryKind,

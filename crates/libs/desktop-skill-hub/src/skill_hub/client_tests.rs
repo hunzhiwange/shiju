@@ -2,9 +2,9 @@
 //! 客户端构造保持在测试端点内，避免测试依赖真实服务或账户环境。
 
 use super::*;
-use crate::app::account::SecretSkey;
-use crate::app::skill_hub::client::SKILL_HUB_BASE_URL;
-use crate::app::skill_hub::models::ShijuPackageId;
+use desktop_account::SecretSkey;
+use crate::skill_hub::client::SKILL_HUB_BASE_URL;
+use crate::skill_hub::models::ShijuPackageId;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
@@ -95,7 +95,7 @@ async fn latest_shiju_package_errors_remain_redacted() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_14_client_error_keeps_template_in_load_state() {
-    use crate::app::i18n::I18n;
+    use desktop_i18n::I18n;
     use config_ui::DesktopLocale;
     let (base_url, request) =
         fixture("503 Service Unavailable", serde_json::json!({"error":"raw secret %n"}));

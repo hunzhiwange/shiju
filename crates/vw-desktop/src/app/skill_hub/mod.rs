@@ -54,13 +54,7 @@ pub(crate) use state::{
 };
 
 #[cfg(test)]
-mod cache_sync_tests;
-#[cfg(test)]
-mod client_tests;
-#[cfg(test)]
 mod installer_tests;
-#[cfg(test)]
-mod models_tests;
 #[cfg(test)]
 mod package_version_cache_tests;
 #[cfg(test)]

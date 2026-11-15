@@ -1408,18 +1408,7 @@ impl ShijuPackageStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-/// 通用异步资源加载状态，加载分支携带请求代次。
-pub(crate) enum LoadState<T> {
-    #[default]
-    Idle,
-    NeedsLogin,
-    Loading {
-        generation: u64,
-    },
-    Loaded(T),
-    Error(super::SkillHubError),
-}
+pub(crate) use desktop_skill_hub::LoadState;
 use std::collections::{BTreeMap, BTreeSet};
 use vw_gateway_client::{
     DesktopSkillCatalogEntryDto, SkillMarketCategoryDto, SkillMarketSkillDetailDto,

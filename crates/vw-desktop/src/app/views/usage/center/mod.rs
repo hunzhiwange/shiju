@@ -9,9 +9,7 @@ pub mod logs;
 pub mod groups;
 pub mod overview;
 use crate::app::{App, Message, message::ViewMessage};
-use iced::{Element, Task, widget::{button, column, row, text}};
-use gateway_usage_read::{UsageReadScope, UsageSummary};
-use vw_api_usage::UsageRange;
+use iced::{Element, Task};
 use crate::app::state::agent_apps_auth::Scope;
 
 pub use desktop_usage::Identity;
@@ -23,22 +21,7 @@ fn identity(app: &App) -> Option<Identity> {
     Some(Identity { endpoint: Scope::from(&crate::app::config::gateway_client_endpoint()), project, host })
 }
 
-#[derive(Clone, Debug)]
-pub enum Event {
-    Load(bool),
-    Refresh,
-    Display(display::Event),
-    Pricing(pricing::Event),
-    Models(models::Event),
-    Charts(charts::Event),
-    Scan(scan::Event),
-    Logs(logs::Event),
-    Groups(groups::Event),
-    Tick,
-    Filter(overview::Change),
-    Close,
-    Loaded(u64, Identity, Result<UsageSummary, String>),
-}
+pub use desktop_usage::center::event::Event;
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
@@ -50,7 +33,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::Logs(event) => return logs::update(app, event),
         Event::Groups(event) => return groups::update(app, event),
         Event::Filter(change) => {
-            overview::apply(&mut app.usage_center.query, change);
+            app.usage_center.filter(change);
             return update(app, Event::Refresh);
         }
         Event::Tick => {
@@ -60,19 +43,15 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::Close => {
             app.usage_center.close();
-            app.usage_center.scan.open = false;
             return scan::activity(app, false);
         },
         Event::Loaded(ticket, scope, result) => {
-            if app.usage_center.open && app.usage_center.loading
-                && app.usage_center.sequence == ticket && identity(app).as_ref() == Some(&scope)
-                && app.screen == crate::app::Screen::Usage {
-                app.usage_center.loading = false;
-                app.usage_center.result = Some(result);
-            }
+            let current = identity(app);
+            let visible = app.screen == crate::app::Screen::Usage;
+            app.usage_center.accept(current.as_ref(), visible, ticket, &scope, result);
         }
         Event::Load(all) => {
-            app.usage_center.query.range = if all { UsageRange::All } else { UsageRange::Rolling { seconds: 86400 } };
+            app.usage_center.range(all);
             return update(app, Event::Refresh);
         }
         Event::Refresh => {
@@ -80,57 +59,22 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let ticket = app.usage_center.begin();
             let logs_task = logs::reset(app, query.clone());
             let Some(scope) = identity(app) else {
-                app.usage_center.charts.loading = false;
-                app.usage_center.charts.result = Some(Err("请选择项目与执行主机".into()));
-                app.usage_center.groups.loading = false;
-                app.usage_center.groups.result = Some(Err("请选择项目与执行主机".into()));
-                app.usage_center.loading = false;
-                app.usage_center.result = Some(Err("请选择项目与执行主机".into()));
+                app.usage_center.missing_scope();
                 return logs_task;
             };
             let charts_task = charts::load(ticket, scope.clone(), query.clone());
             let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
-            let client = crate::app::config::gateway_client().map(|client| gateway_usage_read::GatewayUsageReadClient::new(client.transport().clone()));
-            return Task::batch([display::update(app, display::Event::AutoLoad), scan::activity(app, true), logs_task, groups_task, charts_task, Task::perform(async move {
-                let result = async {
-                    let client = client?;
-                    client.usage_summary(&UsageReadScope {
-                        project_id: scope.project.clone().into(), target_host: scope.host.clone(),
-                        time_zone: "UTC".into(),
-                    }, &query).await.map_err(|e| e.to_string())
-                }.await;
-                (scope, result)
-            }, move |(scope, result)| Message::View(ViewMessage::UsageCenter(Event::Loaded(ticket, scope, result))))]);
+            return Task::batch([display::update(app, display::Event::AutoLoad), scan::activity(app, true), logs_task, groups_task, charts_task, desktop_usage::center::event::load(crate::app::config::gateway_client(), ticket, scope, query)
+                .map(|event| Message::View(ViewMessage::UsageCenter(event)))]);
         }
     }
     Task::none()
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
-    use crate::app::components::system_settings_common::rounded_action_btn_style;
-    let action = |label: &'static str, event| button(text(label).size(13)).padding([6, 10])
-        .style(rounded_action_btn_style).on_press(Message::View(ViewMessage::UsageCenter(event)));
-    let mut content = column![row![
-        action("刷新用量", Event::Refresh),
-        action("扫描与修复", Event::Scan(scan::Event::Open)),
-        action("模型同步选择", Event::Models(models::Event::Open)),
-        action("币种与显示", Event::Display(display::Event::Open)),
-        action("模型定价", Event::Pricing(pricing::Event::Open)),
-        action("最近24小时（UTC）", Event::Load(false)),
-        action("关闭用量中心", Event::Close),
-    ].spacing(8)].spacing(8);
-    if app.usage_center.open {
-        content = content.push(overview::view(&app.usage_center.query));
-        let label = if app.usage_center.loading { "正在加载用量…".into() } else {
-            match &app.usage_center.result {
-                Some(Ok(summary)) if summary.counts.total_requests == 0 => "暂无用量".into(),
-                Some(Ok(summary)) => format!("请求 {} · 计费请求 {} · 成功 {} · 失败 {} · 已知费用 {} · 未知费用请求 {}",
-                    summary.counts.total_requests, summary.counts.billable_requests, summary.succeeded_requests, summary.failed_requests, display::amount(app, &summary.known_cost_usd), summary.counts.unknown_cost_requests),
-                Some(Err(error)) => format!("用量加载失败：{error}"),
-                None => "请选择用量范围".into(),
-            }
-        };
-        content = content.push(text(display::status(app)).size(13)).push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
-    }
-    display::overlay(app, models::overlay(app, pricing::overlay(app, scan::overlay(app, content.into()))))
+    let known_cost = app.usage_center.result.as_ref().and_then(|result| result.as_ref().ok())
+        .map(|summary| display::amount(app, &summary.known_cost_usd));
+    let content = desktop_usage::center::view::view(&app.usage_center, display::status(app), known_cost)
+        .map(|event| Message::View(ViewMessage::UsageCenter(event)));
+    display::overlay(app, models::overlay(app, pricing::overlay(app, scan::overlay(app, content))))
 }

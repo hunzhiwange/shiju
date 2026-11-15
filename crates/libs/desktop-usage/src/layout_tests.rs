@@ -1,8 +1,8 @@
 //! 用量页布局的测试，覆盖摘要、图表、明细和响应式组合。
 //! 用例验证空数据与窄窗口下仍能构建可滚动的完整页面。
-use crate::app::App;
-use crate::app::models::ChatSession;
-use crate::app::state::UsageModelInfo;
+use crate::view_test_fixture::Fixture as App;
+use session_ui_types::ChatSession;
+use crate::view_types::UsageModelInfo;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
@@ -59,7 +59,7 @@ fn build_usage_view_constructs_with_default_auto_model_runtime() {
         "messages": [{"role": "user", "content": "hello"}]
     })])));
 
-    let element = super::build_usage_view(&app, &usage);
+    let element = super::build_usage_view(&app.input(), &usage);
 
     std::hint::black_box(element);
 }
@@ -71,7 +71,7 @@ fn build_usage_view_constructs_with_manual_runtime_and_missing_session() {
     app.model = "manual-model".to_string();
 
     let usage = usage_data_with_session(None);
-    let element = super::build_usage_view(&app, &usage);
+    let element = super::build_usage_view(&app.input(), &usage);
 
     std::hint::black_box(element);
 }
@@ -103,10 +103,10 @@ fn build_usage_view_constructs_with_usage_model_info_for_zero_and_nonzero_contex
         "kind": "llm",
         "output": {"text": "done"}
     })])));
-    let zero_context = super::build_usage_view(&app, &usage);
+    let zero_context = super::build_usage_view(&app.input(), &usage);
 
     app.usage_model_info.as_mut().expect("usage model info").context_limit = 200;
-    let nonzero_context = super::build_usage_view(&app, &usage);
+    let nonzero_context = super::build_usage_view(&app.input(), &usage);
 
     std::hint::black_box((zero_context, nonzero_context));
 }
@@ -139,7 +139,7 @@ fn build_usage_view_constructs_with_zero_breakdown_and_negative_cumulative_token
     usage.last_step_reasoning_tokens = 0;
     usage.last_step_total_tokens = 0;
 
-    let element = super::build_usage_view(&app, &usage);
+    let element = super::build_usage_view(&app.input(), &usage);
 
     std::hint::black_box(element);
 }
@@ -153,7 +153,7 @@ async fn build_usage_view_draws_dark_theme_styles() {
     let (mut app, _task) = App::new();
     app.active_session_id = Some("session-usage".to_string());
     let usage = usage_data_with_session(Some(session_with_calls(vec![json!({ "seq": 1 })])));
-    let mut element = super::build_usage_view(&app, &usage);
+    let mut element = super::build_usage_view(&app.input(), &usage);
     let bounds = Size::new(1_000.0, 800.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(element.as_widget());

@@ -18,16 +18,11 @@ use iced::Element;
 use crate::app::{App, Message};
 
 pub mod center;
-mod components;
 mod data;
 mod layout;
 mod raw_modal;
-mod session_menu;
-mod steps;
-mod styles;
 #[cfg(test)]
 mod tests;
-mod utils;
 
 /// 构建使用统计视图
 ///
@@ -66,32 +61,48 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 }
 
-/// Reuse the settings owners so host selection, authorization and stale-result guards apply.
 fn external_usage_entry() -> Element<'static, Message> {
-    use iced::widget::{button, column, container, row, text};
-    use crate::app::components::system_settings::SystemTab;
-    use crate::app::components::system_settings_common::{
-        rounded_action_btn_style, settings_muted_text_style,
-    };
-    use crate::app::message::ViewMessage;
+    desktop_usage::entry::external_usage_entry().map(|navigation| {
+        use crate::app::components::system_settings::SystemTab;
+        let tab = match navigation {
+            desktop_usage::entry::Navigation::Auth => SystemTab::Auth,
+            desktop_usage::entry::Navigation::Apps => SystemTab::Apps,
+        };
+        Message::View(crate::app::message::ViewMessage::OpenSystemSettingsTab(tab))
+    })
+}
 
-    let open = |label: &'static str, tab| {
-        button(text(label).size(13))
-            .padding([6, 10])
-            .style(rounded_action_btn_style)
-            .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(tab)))
-    };
-    container(column![
-        text("应用额度与套餐").size(16),
-        text("连接执行主机后，在授权账号中读取额度；供应商用量位于应用的供应商卡片中。查询结果与当前会话统计分别展示。")
-            .size(13)
-            .style(settings_muted_text_style),
-        row![
-            open("授权账号额度", SystemTab::Auth),
-            open("供应商用量", SystemTab::Apps),
-        ].spacing(8),
-    ].spacing(8))
-    .padding([12, 18])
-    .width(iced::Length::Fill)
-    .into()
+fn view_input(app: &App) -> desktop_usage::view_types::ViewInput<'_> {
+    let runtime = app.current_session_runtime();
+    desktop_usage::view_types::ViewInput {
+        desktop_locale: app.desktop_locale, usage: &app.usage,
+        usage_model_info: app.usage_model_info.as_ref(),
+        auto_model: runtime.auto_model, model: runtime.model,
+        active_session_id: app.active_session_id.as_ref(),
+        session_menu_id: app.session_menu_id.as_ref(), session_menu_anchor: app.session_menu_anchor,
+        usage_step_expanded: &app.usage_step_expanded,
+        usage_step_raw_loading: &app.usage_step_raw_loading,
+        usage_step_raw_payloads: &app.usage_step_raw_payloads,
+        step_llm_raw: &app.active_session_view_state.step_llm_raw,
+        usage_step_raw_modal: app.usage_step_raw_modal.as_ref(),
+        last_copied_code_hash: app.last_copied_code_hash,
+    }
+}
+fn map_message(event: desktop_usage::view_types::Message) -> Message {
+    use desktop_usage::view_types::Message as E;
+    use crate::app::message::{ProjectMessage as P, ViewMessage as V};
+    match event {
+        E::SessionRightClicked(id, x, y) => Message::Project(P::SessionRightClicked(id, x, y)),
+        E::SessionRenamePressed(id) => Message::Project(P::SessionRenamePressed(id)),
+        E::SessionCopyPressed(id) => Message::Project(P::SessionCopyPressed(id)),
+        E::SessionArchivePressed(id) => Message::Project(P::SessionArchivePressed(id)),
+        E::SessionDeletePressed(id) => Message::Project(P::SessionDeletePressed(id)),
+        E::SessionMenuClose => Message::Project(P::SessionMenuClose),
+        E::CopyCode(value) => Message::CopyCode(value),
+        E::UsageTurnStepRawOpen(turn, index) => Message::View(V::UsageTurnStepRawOpen(turn, index)),
+        E::UsageTurnStepToggled(turn, index) => Message::View(V::UsageTurnStepToggled(turn, index)),
+        E::ReplaySessionFromSnapshot(path) => Message::View(V::ReplaySessionFromSnapshot(path)),
+        E::OpenPathInFinder(path) => Message::View(V::OpenPathInFinder(path)),
+        E::UsageStepRawClose => Message::View(V::UsageStepRawClose),
+    }
 }

@@ -4,9 +4,9 @@ use iced::widget::svg;
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Background, Border, Color, Element, Length, Point, Theme};
 
-use crate::app::assets::Icon;
-use crate::app::components::overlays::PointBelowOverlay;
-use crate::app::{App, Message};
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::overlays::PointBelowOverlay;
+use crate::view_types::{ViewInput, Message};
 
 use super::components::RightClickArea;
 use super::utils::icon_svg;
@@ -75,11 +75,11 @@ fn session_value_style(theme: &Theme) -> iced::widget::text::Style {
 }
 
 fn session_right_click_message(id: &str, pos: Point) -> Message {
-    Message::Project(crate::app::message::ProjectMessage::SessionRightClicked(
+    Message::SessionRightClicked(
         id.to_string(),
         pos.x,
         pos.y,
-    ))
+    )
 }
 
 fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message> {
@@ -91,7 +91,7 @@ fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message> {
         .into()
 }
 
-fn build_session_menu<'a>(i18n: crate::app::i18n::I18n, id: String) -> Element<'a, Message> {
+fn build_session_menu<'a>(i18n: desktop_i18n::I18n, id: String) -> Element<'a, Message> {
     let separator = || -> Element<'a, Message> {
         container(iced::widget::Space::new())
             .width(Length::Fill)
@@ -103,22 +103,22 @@ fn build_session_menu<'a>(i18n: crate::app::i18n::I18n, id: String) -> Element<'
     let content = column![
         session_menu_button(
             i18n.__("重命名"),
-            Message::Project(crate::app::message::ProjectMessage::SessionRenamePressed(id.clone()))
+            Message::SessionRenamePressed(id.clone())
         ),
         session_menu_button(
             i18n.__("复制对话"),
-            Message::Project(crate::app::message::ProjectMessage::SessionCopyPressed(id.clone()))
+            Message::SessionCopyPressed(id.clone())
         ),
         separator(),
         session_menu_button(
             i18n.__("归档"),
-            Message::Project(crate::app::message::ProjectMessage::SessionArchivePressed(
+            Message::SessionArchivePressed(
                 id.clone()
-            ))
+            )
         ),
         session_menu_button(
             i18n.__("删除"),
-            Message::Project(crate::app::message::ProjectMessage::SessionDeletePressed(id.clone()))
+            Message::SessionDeletePressed(id.clone())
         ),
     ]
     .spacing(4);
@@ -134,7 +134,7 @@ fn build_session_menu<'a>(i18n: crate::app::i18n::I18n, id: String) -> Element<'
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
 pub fn kv_with_menu<'a>(
-    app: &App,
+    app: &ViewInput<'_>,
     label: &'a str,
     value: String,
     session_id: Option<String>,
@@ -161,15 +161,15 @@ pub fn kv_with_menu<'a>(
             Box::new(move |pos: iced::Point| session_right_click_message(&id_for_click, pos)),
         ));
 
-        if app.session_menu_id.as_ref() == Some(&id) {
+        if app.session_menu_id == Some(&id) {
             Element::from(
                 PointBelowOverlay::new(
                     right_click,
-                    build_session_menu(crate::app::i18n::I18n::new(app.desktop_locale), id),
+                    build_session_menu(desktop_i18n::I18n::new(app.desktop_locale), id),
                 )
                 .show(true)
                 .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
-                .on_close(Message::Project(crate::app::message::ProjectMessage::SessionMenuClose)),
+                .on_close(Message::SessionMenuClose),
             )
         } else {
             right_click

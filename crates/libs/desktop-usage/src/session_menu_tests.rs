@@ -5,8 +5,9 @@ use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::widget::button;
 use iced::{Background, Color, Font, Pixels, Point, Rectangle, Size, Theme};
 
-use crate::app::message::ProjectMessage;
-use crate::app::{App, Message};
+
+use crate::view_test_fixture::Fixture as App;
+use crate::view_types::Message;
 
 fn background_color(background: Option<Background>) -> Color {
     match background {
@@ -75,7 +76,7 @@ fn session_right_click_message_preserves_id_and_coordinates() {
     let message = super::session_right_click_message("session-42", Point::new(12.5, -3.0));
 
     match message {
-        Message::Project(ProjectMessage::SessionRightClicked(id, x, y)) => {
+        Message::SessionRightClicked(id, x, y) => {
             assert_eq!(id, "session-42");
             assert_eq!(x, 12.5);
             assert_eq!(y, -3.0);
@@ -86,9 +87,9 @@ fn session_right_click_message_preserves_id_and_coordinates() {
 
 #[test]
 fn session_menu_button_and_menu_can_be_constructed() {
-    let _button = super::session_menu_button("重命名", Message::None);
+    let _button = super::session_menu_button("重命名", Message::SessionMenuClose);
     let _menu = super::build_session_menu(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "session-1".to_string(),
     );
 }
@@ -97,7 +98,7 @@ fn session_menu_button_and_menu_can_be_constructed() {
 fn kv_with_menu_uses_spacer_when_session_id_is_missing() {
     let (app, _task) = App::new();
 
-    let _row = super::kv_with_menu(&app, "会话", "暂无".to_string(), None);
+    let _row = super::kv_with_menu(&app.input(), "会话", "暂无".to_string(), None);
 }
 
 #[test]
@@ -105,7 +106,7 @@ fn kv_with_menu_builds_right_click_area_for_closed_menu() {
     let (app, _task) = App::new();
 
     let _row =
-        super::kv_with_menu(&app, "会话", "Session".to_string(), Some("session-1".to_string()));
+        super::kv_with_menu(&app.input(), "会话", "Session".to_string(), Some("session-1".to_string()));
 }
 
 #[test]
@@ -115,7 +116,7 @@ fn kv_with_menu_wraps_button_in_overlay_when_menu_is_open() {
     app.session_menu_anchor = Some(Point::new(10.0, 20.0));
 
     let _row =
-        super::kv_with_menu(&app, "会话", "Session".to_string(), Some("session-1".to_string()));
+        super::kv_with_menu(&app.input(), "会话", "Session".to_string(), Some("session-1".to_string()));
 }
 
 #[test]
@@ -125,7 +126,7 @@ fn kv_with_menu_uses_origin_when_open_menu_anchor_is_missing() {
     app.session_menu_anchor = None;
 
     let _row =
-        super::kv_with_menu(&app, "会话", "Session".to_string(), Some("session-1".to_string()));
+        super::kv_with_menu(&app.input(), "会话", "Session".to_string(), Some("session-1".to_string()));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -136,7 +137,7 @@ async fn kv_with_menu_draws_icon_and_text_styles_in_dark_theme() {
             .expect("tiny-skia headless renderer should be available");
     let (app, _task) = App::new();
     let mut element =
-        super::kv_with_menu(&app, "会话", "Session".to_string(), Some("session-1".to_string()));
+        super::kv_with_menu(&app.input(), "会话", "Session".to_string(), Some("session-1".to_string()));
     let bounds = Size::new(480.0, 80.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(element.as_widget());

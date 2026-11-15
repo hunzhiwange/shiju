@@ -4,8 +4,8 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
-use crate::app::App;
-use crate::app::models::{ChatSession, ChatSessionStep, TokenUsage};
+use crate::view_test_fixture::Fixture as App;
+use session_ui_types::{ChatSession, ChatSessionStep, TokenUsage};
 
 fn usage_data_with_steps(steps: Vec<ChatSessionStep>) -> super::UsageData {
     super::UsageData {
@@ -105,7 +105,7 @@ fn build_steps_panel_handles_empty_steps() {
     let (app, _task) = App::new();
     let data = usage_data_with_steps(Vec::new());
 
-    let _panel = super::build_steps_panel(&app, &data);
+    let _panel = super::build_steps_panel(&app.input(), &data);
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn build_steps_panel_handles_missing_session() {
     let mut data = usage_data_with_steps(Vec::new());
     data.session = None;
 
-    let _panel = super::build_steps_panel(&app, &data);
+    let _panel = super::build_steps_panel(&app.input(), &data);
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn build_steps_panel_handles_collapsed_and_expanded_steps() {
     app.usage_step_expanded.insert(1);
     let data = usage_data_with_steps(vec![step(1, Some(1_700_000_002_000)), step(2, None)]);
 
-    let _panel = super::build_steps_panel(&app, &data);
+    let _panel = super::build_steps_panel(&app.input(), &data);
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn build_steps_panel_handles_expanded_step_without_optional_fields() {
     s.usage = TokenUsage::default();
     let data = usage_data_with_steps(vec![s]);
 
-    let _panel = super::build_steps_panel(&app, &data);
+    let _panel = super::build_steps_panel(&app.input(), &data);
 }
 
 #[test]
@@ -158,10 +158,10 @@ fn raw_payload_status_reports_loaded_loading_error_and_missing_states() {
     );
     app.usage_step_raw_loading.insert(("session-1".to_string(), String::new(), 3));
 
-    assert!(super::raw_payload_status(&app, "session-1", 1).contains("历史消息 1 条"));
-    assert!(super::raw_payload_status(&app, "session-1", 2).contains("加载失败"));
-    assert!(super::raw_payload_status(&app, "session-1", 3).contains("加载中"));
-    assert!(super::raw_payload_status(&app, "session-1", 4).contains("点击后按需加载"));
+    assert!(super::raw_payload_status_for_turn(&app.input(), "session-1", "", 1).contains("历史消息 1 条"));
+    assert!(super::raw_payload_status_for_turn(&app.input(), "session-1", "", 2).contains("加载失败"));
+    assert!(super::raw_payload_status_for_turn(&app.input(), "session-1", "", 3).contains("加载中"));
+    assert!(super::raw_payload_status_for_turn(&app.input(), "session-1", "", 4).contains("点击后按需加载"));
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn raw_payload_status_reports_absent_record_state() {
     let (mut app, _task) = App::new();
     app.usage_step_raw_payloads.insert(("session-1".to_string(), String::new(), 5), Ok(None));
 
-    assert!(super::raw_payload_status(&app, "session-1", 5).contains("暂无记录"));
+    assert!(super::raw_payload_status_for_turn(&app.input(), "session-1", "", 5).contains("暂无记录"));
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn raw_payload_status_prefers_loading_state_over_cached_payload() {
         .insert(key.clone(), Ok(Some(serde_json::json!({"messages": [{"role": "user"}]}))));
     app.usage_step_raw_loading.insert(key);
 
-    assert_eq!(super::raw_payload_status(&app, "session-1", 6), "原始记录：加载中...");
+    assert_eq!(super::raw_payload_status_for_turn(&app.input(), "session-1", "", 6), "原始记录：加载中...");
 }
 
 #[test]
@@ -193,14 +193,14 @@ fn raw_payload_summary_counts_missing_and_present_fields() {
 
     assert_eq!(
         super::raw_payload_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &empty
         ),
         "历史消息 0 条 · 工具调用 0 条"
     );
     assert_eq!(
         super::raw_payload_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &populated
         ),
         "历史消息 2 条 · 工具调用 2 条"
@@ -218,8 +218,8 @@ fn raw_payload_panel_builds_for_loaded_and_missing_payload() {
         }))),
     );
 
-    let _loaded = super::raw_payload_panel(&app, "session-1", 1);
-    let _missing = super::raw_payload_panel(&app, "session-1", 2);
+    let _loaded = super::raw_payload_panel_for_turn(&app.input(), "session-1", "", 1);
+    let _missing = super::raw_payload_panel_for_turn(&app.input(), "session-1", "", 2);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -231,7 +231,7 @@ async fn expanded_steps_panel_draws_dark_theme_styles() {
     let (mut app, _task) = App::new();
     app.usage_step_expanded.insert(1);
     let data = usage_data_with_steps(vec![step(1, Some(1_700_000_002_000))]);
-    let mut element = super::build_steps_panel(&app, &data);
+    let mut element = super::build_steps_panel(&app.input(), &data);
     let bounds = Size::new(800.0, 520.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(element.as_widget());

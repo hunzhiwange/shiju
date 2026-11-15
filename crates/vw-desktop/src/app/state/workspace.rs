@@ -77,45 +77,7 @@ pub(crate) struct ChatTextDiff {
 /// 使用量步骤原始 LLM 载荷弹窗状态
 ///
 /// 在步骤展开后点击“查看原始记录”时展示完整可复制内容。
-#[derive(Debug, Clone)]
-pub struct UsageStepRawModal {
-    /// 对应的步骤索引
-    pub step_index: u32,
-    /// 完整原始记录文本
-    pub content: String,
-}
-
-/// 使用量模型信息
-///
-/// 包含模型的详细使用信息和定价配置，
-/// 用于显示和计算 token 使用量和成本。
-#[derive(Debug, Clone)]
-pub struct UsageModelInfo {
-    /// 提供者标识符
-    pub provider_id: String,
-    /// 提供者显示名称
-    pub provider_name: String,
-    /// 模型标识符
-    pub model_id: String,
-    /// 模型显示名称
-    pub model_name: String,
-    /// 上下文长度限制（token 数）
-    pub context_limit: u64,
-    /// 当前请求可用的输入窗口（token 数）
-    pub input_limit: u64,
-    /// 输出长度限制（token 数）
-    pub output_limit: u64,
-    /// 是否使用未知模型的保守默认限制
-    pub limit_is_default: bool,
-    /// 输入 token 每百万的成本（美元）
-    pub cost_input_per_million: f64,
-    /// 输出 token 每百万的成本（美元）
-    pub cost_output_per_million: f64,
-    /// 缓存读取 token 每百万的成本（美元）
-    pub cost_cache_read_per_million: f64,
-    /// 缓存写入 token 每百万的成本（美元）
-    pub cost_cache_write_per_million: f64,
-}
+pub use desktop_usage::view_types::{UsageStepRawModal, UsageModelInfo};
 
 #[cfg(test)]
 #[path = "workspace_tests.rs"]

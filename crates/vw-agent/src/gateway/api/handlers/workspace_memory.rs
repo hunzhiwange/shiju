@@ -8,7 +8,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::workspace_memory::*,
+    vw_api_workspace_memory::*,
 };
 
 #[derive(Clone, Default)]

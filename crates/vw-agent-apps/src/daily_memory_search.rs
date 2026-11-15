@@ -5,7 +5,7 @@ use crate::{
     apps::lifecycle::operations::Operation,
     workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory},
 };
-use vw_api_types::workspace_memory::{DailyMemoryFilename, DailyMemorySearchResult};
+use vw_api_workspace_memory::{DailyMemoryFilename, DailyMemorySearchResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchError {

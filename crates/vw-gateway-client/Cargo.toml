@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-workspace-memory = { path = "../libs/api-workspace-memory", version = "0.6.0" }
 vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.6.0" }
 gateway-external-session = { path = "../libs/gateway-external-session", version = "0.6.0" }
 gateway-workspace-memory = { path = "../libs/gateway-workspace-memory", version = "0.6.0" }

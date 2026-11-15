@@ -1,5 +1,5 @@
 use super::{GatewayClient, WorkspaceMemoryScope, WorkspaceMemoryError, WorkspaceSearch, WorkspaceSearchResponse};
-use vw_api_types::workspace_memory::*;
+use vw_api_workspace_memory::*;
 
 impl GatewayClient {
     pub async fn read_workspace_file(&self, scope: &WorkspaceMemoryScope, filename: WorkspaceFilename, token: &str) -> Result<WorkspaceFileContent, WorkspaceMemoryError> {

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use {
     vw_api_app_operations::AppOperationStatus,
     vw_api_transport::id::ProjectId,
-    vw_api_types::workspace_memory::*,
+    vw_api_workspace_memory::*,
 };
 
 #[derive(Debug, Clone, Serialize)]

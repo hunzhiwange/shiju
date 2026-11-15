@@ -1,6 +1,6 @@
 //! The gateway opens Finder on its authorized execution host.
 use super::{GatewayClient, WorkspaceMemoryError, WorkspaceMemoryScope};
-use vw_api_types::workspace_memory::{WorkspaceDirectory};
+use vw_api_workspace_memory::{WorkspaceDirectory};
 
 impl GatewayClient {
     /// Create/open a fixed directory on the target executor. Dropping this future

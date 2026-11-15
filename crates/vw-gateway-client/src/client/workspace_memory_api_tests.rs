@@ -3,7 +3,7 @@ use serde_json::json;
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::workspace_memory::WorkspaceFilename,
+    vw_api_workspace_memory::WorkspaceFilename,
 };
 
 fn scope() -> WorkspaceMemoryScope {

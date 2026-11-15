@@ -6,7 +6,7 @@ use iced::{
     widget::{button, column, container, row, text, text_editor},
 };
 use gateway_workspace_memory::{GatewayWorkspaceMemoryClient, WorkspaceMemoryScope};
-use vw_api_types::workspace_memory::*;
+use vw_api_workspace_memory::*;
 
 pub(super) const FILES: [WorkspaceFilename; 9] = [
     WorkspaceFilename::Agents,

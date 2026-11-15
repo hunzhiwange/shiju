@@ -7,8 +7,8 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::workspace_memory::WorkspaceDirectory,
-    vw_api_types::workspace_memory::WorkspaceOpenDirectoryRequest,
+    vw_api_workspace_memory::WorkspaceDirectory,
+    vw_api_workspace_memory::WorkspaceOpenDirectoryRequest,
 };
 
 #[derive(Deserialize)]

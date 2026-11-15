@@ -4,7 +4,7 @@ use std::{
     fs,
     os::unix::fs::{PermissionsExt, symlink},
 };
-use vw_api_types::workspace_memory::DailyMemoryFilename;
+use vw_api_workspace_memory::DailyMemoryFilename;
 
 #[test]
 fn daily_roundtrip_valid_dates_preserve_unicode_empty_and_missing() {

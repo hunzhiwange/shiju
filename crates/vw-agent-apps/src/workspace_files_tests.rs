@@ -1,7 +1,7 @@
 use super::workspace_files::{read_workspace_file, write_workspace_file};
 use super::workspace_paths::PathError;
 use std::{fs, io::Read, os::unix::fs::symlink};
-use vw_api_types::workspace_memory::WorkspaceFilename;
+use vw_api_workspace_memory::WorkspaceFilename;
 
 #[test]
 fn files_roundtrip_whitelist_all_nine_preserve_unicode_and_empty() {

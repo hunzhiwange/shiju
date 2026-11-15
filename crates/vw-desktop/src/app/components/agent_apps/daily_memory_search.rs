@@ -9,7 +9,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 use gateway_workspace_memory::{GatewayWorkspaceMemoryClient, WorkspaceMemoryScope};
-use vw_api_types::workspace_memory::DailyMemorySearchResult;
+use vw_api_workspace_memory::DailyMemorySearchResult;
 use vw_api_task::TaskStatus;
 
 #[derive(Clone, Default)]

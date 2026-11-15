@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
-use vw_api_types::workspace_memory::DailyMemoryFilename;
+use vw_api_workspace_memory::DailyMemoryFilename;
 
 /// Missing directories/files return None without creating anything. Invalid
 /// dates cannot reach IO: DailyMemoryFilename validates the Gregorian calendar.

@@ -106,8 +106,6 @@ pub mod agent_apps_skills;
 mod hermes_memory_tests;
 
 pub mod workspace_memory;
-#[cfg(test)]
-mod workspace_memory_tests;
 
 pub mod hermes_dashboard;
 

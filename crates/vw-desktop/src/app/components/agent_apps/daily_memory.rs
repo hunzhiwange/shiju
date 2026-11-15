@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Length, Task, widget::{button, column, container, row, text, text_editor}};
 use gateway_workspace_memory::{GatewayWorkspaceMemoryClient, WorkspaceMemoryScope};
-use vw_api_types::workspace_memory::*;
+use vw_api_workspace_memory::*;
 
 #[derive(Clone, Default)]
 pub(crate) struct State {

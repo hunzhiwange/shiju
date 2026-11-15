@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
-use vw_api_types::workspace_memory::WorkspaceFilename;
+use vw_api_workspace_memory::WorkspaceFilename;
 
 /// Missing directories/files return None; empty files remain Some("").
 pub fn read_workspace_file(

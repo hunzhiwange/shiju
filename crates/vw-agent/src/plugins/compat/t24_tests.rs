@@ -8,7 +8,7 @@ async fn roundtrip(session: &str, answer: Option<Vec<Vec<String>>>) -> Value {
         session: session.into(),
         tenant: crate::session::ui_store::current_tenant_scope(),
     };
-    let pool = Arc::new(McpSessionConnections::for_form_owner(owner));
+    let pool = Arc::new(McpSessionConnections::for_form_owner(crate::plugins::compat::mcp_connections::host(), owner));
     let server: agent_client_protocol::McpServer = serde_json::from_value(json!({
         "name":"form-fixture", "command":"python3", "args":[format!("{}/testdata/plugin_compat/t24/server.py", env!("CARGO_MANIFEST_DIR"))], "env":[]
     })).unwrap();
@@ -175,7 +175,7 @@ async fn codex_plugin_compat_t24_desktop_roundtrip() {
         crate::gateway::start(crate::gateway::ServeOptions { port: 43124, ..Default::default() })
             .await
             .unwrap();
-    let pool = McpSessionConnections::for_form_owner(FormOwner {
+    let pool = McpSessionConnections::for_form_owner(crate::plugins::compat::mcp_connections::host(), FormOwner {
         session: "t24-desktop".into(),
         tenant: crate::session::ui_store::current_tenant_scope(),
     });

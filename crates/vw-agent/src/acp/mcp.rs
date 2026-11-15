@@ -47,7 +47,7 @@ pub(crate) async fn prepare_session_tools(
 ) -> Result<SessionToolset, BackendError> {
     validate_server_names(servers)?;
     let connections =
-        Arc::new(crate::plugins::McpSessionConnections::default().with_acp_mounts(managed));
+        Arc::new(crate::plugins::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()).with_acp_mounts(crate::plugins::compat::mcp_connections::mount_leases(managed)));
     let lease = SessionToolset::default().with_mcp_connections(connections.clone());
     connections
         .synchronize(servers)

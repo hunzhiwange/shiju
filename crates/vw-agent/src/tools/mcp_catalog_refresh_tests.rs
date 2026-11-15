@@ -112,7 +112,7 @@ impl Fixture {
             format!("{}/testdata/plugin_compat/t20/bridge.py", env!("CARGO_MANIFEST_DIR")),
             port.to_string(),
         ]));
-        let pool = Arc::new(McpSessionConnections::default());
+        let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
         pool.synchronize(std::slice::from_ref(&server)).unwrap();
         let weak = Arc::downgrade(&pool);
         let observed_server = server.clone();

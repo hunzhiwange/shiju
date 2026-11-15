@@ -70,3 +70,24 @@
 ## 2026-11-16 由47先行迁出下层契约（授权精确范围）
 
 47公共窗口中：mcp_notifications.rs 的 Catalog/Listed/McpCatalogs/ToolCatalogBinding 完整迁入 mcp-client/src/notifications.rs，原文件薄重导出；resources/templates/prompts 仅接收缓存能力布尔值与原list_entries抓取闭包，取消/关闭/revision/刷新互斥原样保留。mcp_resources.rs 仅迁 RawResponse 到 mcp-client/src/protocol.rs 并调整三处目录调用签名；资源/提示词业务执行、校验和其余文件未迁。173仍未完成，后续不要复制上述共享类型或恢复旧状态。47卡与同次提交正文保存完整接线和验证范围。
+
+
+### 47第二阶段授权资源协议范围（待窗口提交）
+
+在下层RunningMcpPeer已公开后，47继续迁出mcp_resources::request/validate_contents/list_entries及其meta/string/uri共享校验到plugin-mcp；原路径重导出，call/validate_prompt/visible宿主业务保留。mcp_apps资源读取与校验随后整体迁入plugin-mcp。mcp_legacy、mcp_public_auth、mcp_oauth_discovery也由47本次授权迁入；后续173不要重复移动或恢复原实现。具体依赖与未完成连接宿主动作见47卡最新记录；173未完成。
+
+
+### 47第四阶段授权范围更新（待Git窗口）
+
+mcp_oauth_tokens与mcp_oauth_flow完整实现已迁plugin-mcp，原文件仅SourceHost注入与薄重导出；LOCKS/TOKENS唯一目标持有。原SecretStore/config目录直接复用其下层所有者，未绕过安全存储。47的连接/App绑定/认证业务现均迁出，具体强类型宿主动作与调用者接线见47卡最新记录。173未列入此次授权的portable/overlay/runtime/stdIO等仍保留，不能宣称173完成。
+
+
+## 47最终集成边界（2026-11-16，替代此前阶段性待窗口描述）
+
+实际已覆盖173的6个来源：mcp_legacy.rs、mcp_notifications.rs、mcp_oauth_discovery.rs、mcp_oauth_flow.rs、mcp_oauth_tokens.rs、mcp_public_auth.rs。其中notifications目录状态唯一归mcp-client，另五者实现归plugin-mcp；原来源为薄重导出或SourceHost适配。47未接管本卡剩余3个来源：mcp_environment.rs（resolve_servers/runtime_cwd）、mcp_portable.rs（便携协议与环境名称）、mcp_portable_overlay.rs（环境覆盖与来源重验）；仍需本卡执行者迁出这些具体职责并接其真实调用者。
+
+实际调整的既有测试仅构造注入、不增删断言：compat/{t18,t19,t20,t22,t23,t24,t27_flow,t28,t29,t30,t61,t62,t64}_tests.rs与tools/mcp_catalog_refresh_tests.rs。均保留宿主路径，包含portable、stdio、session权限等其它职责，不整体迁走。
+
+额外授权的mcp_resources.rs仅RawResponse/协议request/list_entries/validate_contents及meta/string/uri共享校验已迁；余下call、validate_prompt、visible为尚未迁资源/提示业务，来源路径明确保留，不能因此误删其它覆盖该文件的任务。47自身11来源均已迁或有精确宿主适配，47卡在本次提交删除，173保留这3个未迁来源及后续测试所有权安排。159 provider/transport环由其本卡负责，不能据此阻塞或扩大本次范围。
+
+复核当前HEAD：24客户端153a33a77、153应用服务c6a2b4129、97工具目录ea6f3a415提供实际依赖；workspace/host注册、TOML及path解析与16个构造roots核对通过；未运行Cargo/测试/启动/探测，静态完成不代表编译或行为验收通过。

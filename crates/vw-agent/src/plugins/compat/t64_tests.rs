@@ -51,7 +51,7 @@ async fn codex_plugin_compat_t64_uses_platform_command_and_unicode_paths() {
     crate::plugins::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     assert_eq!(servers.len(), 1);
     let server = servers.remove(0);
-    let pool = Arc::new(super::mcp_connections::McpSessionConnections::default());
+    let pool = Arc::new(super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let specs = pool
         .with_peer(&server, None, |peer| {
             Box::pin(async move { discover_mcp_tool_specs(peer, "writer", None, &[]).await })

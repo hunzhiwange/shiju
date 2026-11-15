@@ -21,7 +21,7 @@ fn codex_plugin_compat_t30_session_binding_uses_real_mcp_and_revokes() {
         agent_client_protocol::McpServerStdio::new("weather", "python3")
             .args(vec![root.path().join("server.py").display().to_string()]),
     );
-    let pool = super::mcp_connections::McpSessionConnections::default();
+    let pool = super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let id = crate::tools::mcp_tool::mcp_tool_id("weather", "forecast").unwrap();
     let tool = crate::tools::mcp_tool::McpTool::from_session_server(
         server,

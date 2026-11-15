@@ -213,7 +213,7 @@ async fn bound(pool: &Arc<McpSessionConnections>, server: &McpServer) -> McpTool
 #[tokio::test]
 async fn codex_plugin_compat_t20_invalidates_catalog_after_notification() {
     let fixture = Fixture::start().await;
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let first = tools(&pool, &fixture.server).await;
     let before = fixture.service.lists.load(Ordering::SeqCst);
     assert_eq!(tools(&pool, &fixture.server).await, first);
@@ -231,7 +231,7 @@ async fn codex_plugin_compat_t20_invalidates_catalog_after_notification() {
 #[tokio::test]
 async fn codex_plugin_compat_t20_rejects_invalid_input() {
     let fixture = Fixture::start().await;
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let old = bound(&pool, &fixture.server).await;
     fixture.changed(true).await;
     let error = old
@@ -247,8 +247,8 @@ async fn codex_plugin_compat_t20_rejects_invalid_input() {
 async fn codex_plugin_compat_t20_preserves_isolation() {
     let first = Fixture::start().await;
     let second = Fixture::start().await;
-    let a = Arc::new(McpSessionConnections::default());
-    let b = Arc::new(McpSessionConnections::default());
+    let a = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
+    let b = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let old_a = bound(&a, &first.server).await;
     let old_b = bound(&b, &second.server).await;
     first.changed(false).await;
@@ -319,7 +319,7 @@ async fn codex_plugin_compat_t20_retries_notification_during_initial_listing_wit
     let service = Service::default();
     service.changes_during_listing.store(1, Ordering::SeqCst);
     let fixture = Fixture::with_service(service).await;
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let result = tools(&pool, &fixture.server).await;
     assert_eq!(result[0].description.as_deref(), Some("generation 1"));
     assert_eq!(fixture.service.lists.load(Ordering::SeqCst), 2);
@@ -331,7 +331,7 @@ async fn codex_plugin_compat_t20_rejects_persistent_notification_churn() {
     let service = Service::default();
     service.changes_during_listing.store(2, Ordering::SeqCst);
     let fixture = Fixture::with_service(service).await;
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let error = pool.list_tools(&fixture.server, None).await.unwrap_err();
     assert!(format!("{error:#}").contains("changed during pagination"), "{error:#}");
     assert_eq!(fixture.service.lists.load(Ordering::SeqCst), 2);
@@ -342,7 +342,7 @@ async fn codex_plugin_compat_t20_rejects_persistent_notification_churn() {
 #[tokio::test]
 async fn codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_current_binding() {
     let fixture = Fixture::start().await;
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let old = bound(&pool, &fixture.server).await;
     pool.with_peer(&fixture.server, None, |_| {
         Box::pin(async { Err::<(), _>(anyhow::anyhow!("fixture connection failure")) })
@@ -362,7 +362,7 @@ async fn codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_c
 #[tokio::test]
 async fn codex_plugin_compat_t20_notification_does_not_revoke_an_already_admitted_call() {
     let fixture = Fixture::start().await;
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let tool = bound(&pool, &fixture.server).await;
     let running = tool.clone();
     let call = tokio::spawn(async move { running.call(serde_json::json!({"wait":true})).await });
@@ -384,7 +384,7 @@ async fn codex_plugin_compat_t20_notification_does_not_revoke_an_already_admitte
 async fn codex_plugin_compat_t20_equal_notification_preserves_bindings_and_shutdown_closes_catalogs()
  {
     let fixture = Fixture::start().await;
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let tool = bound(&pool, &fixture.server).await;
     fixture.peer.lock().await.clone().unwrap().notify_tool_list_changed().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(30)).await;
@@ -409,7 +409,7 @@ async fn codex_plugin_compat_t20_unadvertised_changes_do_not_enable_persistent_c
     let service = Service::default();
     service.unadvertised.store(1, Ordering::SeqCst);
     let fixture = Fixture::with_service(service).await;
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let first = tools(&pool, &fixture.server).await;
     let before = fixture.service.lists.load(Ordering::SeqCst);
     assert_eq!(tools(&pool, &fixture.server).await, first);
@@ -441,7 +441,7 @@ async fn codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cyc
         let service = Service::default();
         service.invalid.store(mode, Ordering::SeqCst);
         let fixture = Fixture::with_service(service).await;
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let error = pool
             .with_client(&fixture.server, None, move |client| {
                 Box::pin(async move {
@@ -473,7 +473,7 @@ async fn codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh() {
     let service = Service::default();
     service.invalid.store(5, Ordering::SeqCst);
     let fixture = Fixture::with_service(service).await;
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let active = pool.clone();
     let server = fixture.server.clone();
     let refresh = tokio::spawn(async move {
@@ -500,7 +500,7 @@ async fn codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh() {
 #[tokio::test]
 async fn dynamic_tools_mcp_refresh_notification_marks_only_connection_revision() {
     let fixture = Fixture::start().await;
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let _ = bound(&pool, &fixture.server).await;
     let before = pool.tool_revision(&fixture.server).unwrap();
     fixture.peer.lock().await.as_ref().unwrap().notify_tool_list_changed().await.unwrap();

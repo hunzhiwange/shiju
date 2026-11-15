@@ -224,7 +224,7 @@ async fn codex_plugin_compat_t28_public_oauth_refresh() -> anyhow::Result<()> {
         tenant: crate::session::ui_store::current_tenant_scope(),
     };
     super::mcp_oauth_tokens::save(server, &owner, &grant)?;
-    let pool = super::mcp_connections::McpSessionConnections::for_form_owner(owner.clone());
+    let pool = super::mcp_connections::McpSessionConnections::for_form_owner(crate::plugins::compat::mcp_connections::host(), owner.clone());
     let tools = pool.list_tools(&servers[0], Some(std::time::Duration::from_secs(30))).await;
     // Always clear the real host grant before propagating a network/transport error.
     super::mcp_oauth_tokens::logout(server, owner.session, owner.tenant).await?;

@@ -30,7 +30,7 @@ async fn probe(pool: &McpSessionConnections, server: &McpServer) -> anyhow::Resu
 #[tokio::test]
 async fn codex_plugin_compat_t23_advertises_only_implemented_capabilities() {
     let root = tempfile::tempdir().unwrap();
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let result = probe(&pool, &server(root.path(), "2025-06-18")).await.unwrap();
     assert_eq!(result["initialize"]["capabilities"], json!({}));
     assert_eq!(
@@ -43,7 +43,7 @@ async fn codex_plugin_compat_t23_advertises_only_implemented_capabilities() {
 #[tokio::test]
 async fn codex_plugin_compat_t23_rejects_invalid_input() {
     let root = tempfile::tempdir().unwrap();
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let result = probe(&pool, &server(root.path(), "2099-01-01")).await;
     assert!(result.is_err(), "an unsupported negotiated protocol must not reach tools/call");
     assert!(format!("{:#}", result.unwrap_err()).contains("unsupported protocol version"));
@@ -53,8 +53,8 @@ async fn codex_plugin_compat_t23_rejects_invalid_input() {
 #[tokio::test]
 async fn codex_plugin_compat_t23_preserves_isolation() {
     let root = tempfile::tempdir().unwrap();
-    let accepted = McpSessionConnections::default();
-    let rejected = McpSessionConnections::default();
+    let accepted = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
+    let rejected = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let first_server = server(root.path(), "2025-03-26");
     let first = probe(&accepted, &first_server).await.unwrap();
     assert_eq!(first["initialize"]["capabilities"], json!({}));
@@ -73,7 +73,7 @@ async fn codex_plugin_compat_t23_preserves_isolation() {
 async fn codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots() {
     for version in ["2024-11-05", "2025-03-26", "2025-06-18"] {
         let root = tempfile::tempdir().unwrap();
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let server = server(root.path(), version);
         let result = probe(&pool, &server).await.unwrap();
         assert_eq!(result["initialize"]["protocolVersion"], "2025-06-18");
@@ -97,7 +97,7 @@ async fn codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roo
 async fn codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads() {
     for version in ["", "remote-secret-sentinel", "2025-11-25", "2026-07-28"] {
         let root = tempfile::tempdir().unwrap();
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let error = probe(&pool, &server(root.path(), version)).await.unwrap_err();
         let message = format!("{error:#}");
         assert!(message.contains("unsupported protocol version"));
@@ -145,7 +145,7 @@ async fn codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request()
         })
         .await
         .unwrap();
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let server = McpServer::Http(McpServerHttp::new(
             "codex_apps",
             format!("http://127.0.0.1:{port}/mcp"),

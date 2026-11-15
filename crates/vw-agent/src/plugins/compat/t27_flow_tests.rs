@@ -300,7 +300,7 @@ async fn codex_plugin_compat_t27_source_change_never_exchanges_token() {
 #[tokio::test]
 async fn codex_plugin_compat_t27_url_stdio_completes_exact_request() {
     use super::mcp_connections::McpSessionConnections;
-    let pool = std::sync::Arc::new(McpSessionConnections::for_form_owner(FormOwner {
+    let pool = std::sync::Arc::new(McpSessionConnections::for_form_owner(crate::plugins::compat::mcp_connections::host(), FormOwner {
         session: "t27-stdio-url".into(),
         tenant: crate::session::ui_store::current_tenant_scope(),
     }));

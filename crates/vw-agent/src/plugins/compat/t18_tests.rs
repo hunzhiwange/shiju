@@ -29,7 +29,7 @@ async fn pid(pool: &McpSessionConnections, server: &McpServer) -> anyhow::Result
 async fn codex_plugin_compat_t18_reuses_connection_until_session_ends() {
     let root = tempfile::tempdir().unwrap();
     let server = server(root.path(), "local");
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let first = pid(&pool, &server).await.unwrap();
     let second = pid(&pool, &server).await.unwrap();
     assert_eq!(first, second, "same session must reuse the actual server process");
@@ -59,8 +59,8 @@ fn codex_plugin_compat_t18_rejects_invalid_input() {
 async fn codex_plugin_compat_t18_preserves_isolation() {
     let root = tempfile::tempdir().unwrap();
     let server = server(root.path(), "local");
-    let first = McpSessionConnections::default();
-    let second = McpSessionConnections::default();
+    let first = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
+    let second = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let a = pid(&first, &server).await.unwrap();
     let b = pid(&second, &server).await.unwrap();
     assert_ne!(a, b, "legacy connections stay private to each session");
@@ -107,7 +107,7 @@ async fn codex_plugin_compat_t18_serializes_startup_and_survives_bridge_runtime_
     use std::sync::Arc;
     let root = tempfile::tempdir().unwrap();
     let server = server(root.path(), "local");
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let other = pool.clone();
     let configured = server.clone();
     let first = std::thread::spawn(move || {
@@ -137,7 +137,7 @@ async fn codex_plugin_compat_t18_times_out_initialization_and_catalog_without_or
         let McpServer::Stdio(stdio) = &mut server else { unreachable!() };
         stdio.args.push(mode.into());
         settings(&mut server, 200, 1000);
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let error = pid(&pool, &server).await.unwrap_err();
         assert!(format!("{error:#}").contains("timed out"), "{error:#}");
         let started = fs::read_to_string(root.path().join("starts")).unwrap();
@@ -155,7 +155,7 @@ async fn codex_plugin_compat_t18_closes_timed_out_and_cancelled_calls() {
         let root = tempfile::tempdir().unwrap();
         let mut server = server(root.path(), "local");
         settings(&mut server, 2000, 150);
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let first = pid(&pool, &server).await.unwrap();
         let call = pool.with_peer(&server, None, |peer| {
             Box::pin(async move {
@@ -187,7 +187,7 @@ async fn codex_plugin_compat_t18_cancels_startup_and_leaves_other_sessions_alive
     let mut server = server(root.path(), "local");
     let McpServer::Stdio(stdio) = &mut server else { unreachable!() };
     stdio.args.push("startup-hang".into());
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let token = tokio_util::sync::CancellationToken::new();
     let context = Arc::new(ToolUseContext::new("cancel", None).with_abort_token(token.clone()));
     let cancel = async {
@@ -206,7 +206,7 @@ async fn codex_plugin_compat_t18_cancels_startup_and_leaves_other_sessions_alive
 async fn codex_plugin_compat_t18_retires_changed_disabled_and_exited_servers() {
     let root = tempfile::tempdir().unwrap();
     let server = server(root.path(), "local");
-    let pool = McpSessionConnections::default();
+    let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     pool.synchronize(std::slice::from_ref(&server)).unwrap();
     let first = pid(&pool, &server).await.unwrap();
     #[cfg(unix)]
@@ -280,7 +280,7 @@ async fn codex_plugin_compat_t18_reuses_streamable_http_and_legacy_sse_sessions(
         } else {
             McpServer::Sse(agent_client_protocol::McpServerSse::new("sse", &fixture.url))
         };
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let first = pid(&pool, &server).await.unwrap();
         assert_eq!(pid(&pool, &server).await.unwrap(), first);
         assert_eq!(fs::read_to_string(root.path().join("starts")).unwrap().lines().count(), 1);
@@ -294,7 +294,7 @@ async fn codex_plugin_compat_t18_keeps_tool_bindings_but_releases_session_lease(
     use std::sync::Arc;
     let root = tempfile::tempdir().unwrap();
     let server = server(root.path(), "local");
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let tool: Arc<dyn Tool> = Arc::new(McpTool::from_session_server(
         server.clone(),
         "pid",
@@ -420,7 +420,7 @@ async fn codex_plugin_compat_t18_applies_host_call_timeout_to_actual_dynamic_too
     let root = tempfile::tempdir().unwrap();
     let mut server = server(root.path(), "local");
     settings(&mut server, 2000, 10000);
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let first = pid(&pool, &server).await.unwrap();
     let tool = McpTool::from_session_server(
         server,

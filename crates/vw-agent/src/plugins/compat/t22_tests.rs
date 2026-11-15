@@ -51,7 +51,7 @@ fn fixture(
     .unwrap();
     let names =
         servers.iter().map(|s| crate::tools::mcp_common::server_name(s).to_owned()).collect();
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     pool.synchronize(&servers).unwrap();
     (McpResourceTool::new(config(servers), pool.clone()), pool, names)
 }
@@ -241,7 +241,7 @@ async fn codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse() {
                 "http",
                 format!("http://127.0.0.1:{}/mcp", port.trim()),
             ));
-        let pool = Arc::new(McpSessionConnections::default());
+        let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
         let tool = McpResourceTool::new(config(vec![server]), pool.clone());
         for input in [
             json!({"server":"http","action":"list_resources"}),
@@ -322,7 +322,7 @@ async fn codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remo
         management.enabled = mode != "disabled";
         management.timeout_ms = Some(250);
         config.mcp_server_management.push(management);
-        let pool = Arc::new(McpSessionConnections::default());
+        let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
         let tool = McpResourceTool::new(config, pool.clone());
         if mode == "normal" {
             let error = tool

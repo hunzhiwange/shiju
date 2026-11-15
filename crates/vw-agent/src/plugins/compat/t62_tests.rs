@@ -45,7 +45,7 @@ async fn codex_plugin_compat_t62_calls_actual_public_readonly_service() {
     crate::plugins::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     assert_eq!(servers.len(), 1);
     let server = servers.remove(0);
-    let pool = Arc::new(super::mcp_connections::McpSessionConnections::default());
+    let pool = Arc::new(super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let specs = pool
         .with_peer(&server, None, |peer| {
             Box::pin(async move { discover_mcp_tool_specs(peer, "context7", None, &[]).await })
@@ -80,7 +80,7 @@ async fn codex_plugin_compat_t62_calls_actual_public_readonly_service() {
 #[tokio::test]
 async fn codex_plugin_compat_t62_rejects_invalid_input() {
     use agent_client_protocol::{McpServer, McpServerHttp};
-    let pool = super::mcp_connections::McpSessionConnections::default();
+    let pool = super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let server = McpServer::Http(McpServerHttp::new("unavailable", "http://127.0.0.1:0/mcp"));
     let result = pool.with_peer(&server, None, |_peer| Box::pin(async { Ok(()) })).await;
     assert!(result.is_err(), "unreachable endpoint must fail visibly");

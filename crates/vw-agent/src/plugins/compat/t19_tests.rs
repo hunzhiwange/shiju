@@ -36,7 +36,7 @@ fn server(mode: &str) -> McpServer {
 }
 #[tokio::test]
 async fn codex_plugin_compat_t19_paged_names_route_to_original_wire_names() {
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let server = server("normal");
     let specs = pool
         .with_peer(&server, None, |peer| {
@@ -58,7 +58,7 @@ async fn codex_plugin_compat_t19_rejects_loop_and_oversized_cursor() {
     for (mode, expected) in
         [("repeat", "repeated"), ("large", "65536"), ("pages", "100 pages"), ("items", "2048")]
     {
-        let pool = McpSessionConnections::default();
+        let pool = McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
         let error = pool
             .with_peer(&server(mode), None, |peer| Box::pin(mcp_catalog::list_tools(peer)))
             .await
@@ -108,7 +108,7 @@ fn codex_plugin_compat_t19_retains_same_named_servers_from_different_packages() 
 
 #[tokio::test]
 async fn codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter() {
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let mut server = server("normal");
     super::mcp_connection_settings::bind(
         &mut server,
@@ -151,7 +151,7 @@ async fn codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process(
         PluginDiscoveryOptions::new(workspace, root.path().join("config"), Default::default());
     let mut servers = vec![];
     merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
-    let pool = Arc::new(McpSessionConnections::default());
+    let pool = Arc::new(McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let mut ids = vec![];
     for (server, expected) in servers.into_iter().zip(["alpha", "beta"]) {
         let label = crate::tools::mcp_common::server_name(&server).to_owned();

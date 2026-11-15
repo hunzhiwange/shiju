@@ -80,7 +80,7 @@ async fn codex_plugin_compat_t29_reads_resource_over_real_stdio() {
     let server = McpServer::Stdio(
         McpServerStdio::new("weather", "python3").args(vec![script.display().to_string()]),
     );
-    let pool = super::mcp_connections::McpSessionConnections::default();
+    let pool = super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let result = pool
         .with_client(&server, Some(std::time::Duration::from_secs(5)), |client| {
             Box::pin(async move {
@@ -107,7 +107,7 @@ async fn codex_plugin_compat_t29_reads_resource_over_real_stdio() {
 async fn codex_plugin_compat_t29_public_chess_resource() {
     use agent_client_protocol::{McpServer, McpServerHttp};
     let server = McpServer::Http(McpServerHttp::new("chess", "https://mcp.chess.niklas.sh/mcp"));
-    let pool = super::mcp_connections::McpSessionConnections::default();
+    let pool = super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host());
     let result = pool
         .with_client(&server, Some(std::time::Duration::from_secs(45)), |client| {
             Box::pin(async move {

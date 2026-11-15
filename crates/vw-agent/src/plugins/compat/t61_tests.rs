@@ -102,7 +102,7 @@ async fn codex_plugin_compat_t61_runs_installed_mcp_side_effect() {
     crate::plugins::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     assert_eq!(servers.len(), 1);
     let server = servers.remove(0);
-    let pool = Arc::new(super::mcp_connections::McpSessionConnections::default());
+    let pool = Arc::new(super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let specs = pool
         .with_peer(&server, None, |peer| {
             Box::pin(async move { discover_mcp_tool_specs(peer, "writer", None, &[]).await })
@@ -228,7 +228,7 @@ async fn codex_plugin_compat_t61_public_stdio_original() {
         data.join("node_modules"),
     )
     .unwrap();
-    let pool = Arc::new(super::mcp_connections::McpSessionConnections::default());
+    let pool = Arc::new(super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let specs = pool
         .with_peer(&server, None, |peer| {
             Box::pin(async move { discover_mcp_tool_specs(peer, "everything", None, &[]).await })
@@ -359,7 +359,7 @@ async fn codex_plugin_compat_t61_public_http_original() {
     crate::plugins::merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap();
     assert_eq!(servers.len(), 1);
     let server = servers.remove(0);
-    let pool = Arc::new(super::mcp_connections::McpSessionConnections::default());
+    let pool = Arc::new(super::mcp_connections::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()));
     let specs = pool
         .with_peer(&server, None, |peer| {
             Box::pin(async move { discover_mcp_tool_specs(peer, "context7", None, &[]).await })

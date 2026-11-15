@@ -219,7 +219,7 @@ pub(crate) async fn with_server_client_timeout<T>(
     match connections {
         Some(connections) => connections.with_client(server, timeout, f).await,
         None => {
-            crate::plugins::McpSessionConnections::default().with_client(server, timeout, f).await
+            crate::plugins::McpSessionConnections::new(crate::plugins::compat::mcp_connections::host()).with_client(server, timeout, f).await
         }
     }
 }

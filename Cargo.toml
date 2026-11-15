@@ -441,6 +441,8 @@ members = [
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-types",
+  "crates/libs/gateway-agent-apps",
+  "crates/libs/app-access-service",
   "crates/libs/gateway-endpoint",
   "crates/libs/gateway-chat-stream",
   "crates/libs/gateway-http",

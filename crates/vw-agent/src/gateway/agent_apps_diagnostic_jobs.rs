@@ -36,7 +36,7 @@ use {
 mod endpoints;
 
 const MAX_JOBS: usize = 128;
-pub(crate) const MAX_PROBES_PER_JOB: usize = 32;
+pub(crate) use gateway_agent_apps::MAX_PROBES_PER_JOB;
 const MAX_CONCURRENT_PROBES: usize = 3;
 const MAX_TIMINGS_PER_RESULT: usize = 8;
 const MAX_ID_BYTES: usize = 1024;

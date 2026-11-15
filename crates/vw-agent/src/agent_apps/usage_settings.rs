@@ -34,12 +34,7 @@ pub enum UsageDisplay {
     Used,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct UsageSigningCredentialRefs {
-    pub access_key_id_ref: UsageCredentialId,
-    pub secret_access_key_ref: UsageCredentialId,
-}
+pub use gateway_agent_apps::UsageSigningCredentialRefs;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

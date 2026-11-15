@@ -1,0 +1,11 @@
+[package]
+name = "gateway-agent-apps"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-access-service = { path = "../app-access-service", version = "0.6.0" }

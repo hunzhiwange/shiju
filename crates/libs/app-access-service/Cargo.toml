@@ -1,0 +1,38 @@
+[package]
+name = "app-access-service"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
+local-app-auth = { path = "../local-app-auth", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-app-skills = { path = "../api-app-skills", version = "0.6.0" }
+vw-api-apps-usage = { path = "../api-apps-usage", version = "0.6.0" }
+vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+axum = { version = "0.8.8", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+hex = "0.4"
+tracing = "0.1"
+reqwest = { version = "0.13", default-features = false }
+reqwest_012 = { package = "reqwest", version = "0.12", default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

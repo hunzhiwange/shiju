@@ -5,16 +5,11 @@ use crate::{
         mcp::network_probe::{self, McpHandshakeStartError},
     },
     app_providers::AppProviderStore,
-    gateway::{
-        agent_apps_diagnostic_executors::{
-            model_check::{ModelPrepareError, ModelProbe},
-            reachability::{ReachabilityPrepareError, ReachabilityProbe},
-            speedtest,
-            stream_check::StreamProbe,
-        },
-        agent_apps_diagnostic_jobs::{DiagnosticJobError, DiagnosticJobOwner, DiagnosticJobs},
-    },
     global_database::GlobalDatabase,
+};
+use agent_gateway::{
+    agent_apps_diagnostic_executors::{model_check::{ModelPrepareError, ModelProbe}, stream_check::StreamProbe, reachability::{ReachabilityPrepareError, ReachabilityProbe}, speedtest},
+    agent_apps_diagnostic_jobs::{DiagnosticJobError, DiagnosticJobOwner, DiagnosticJobs},
 };
 use axum::{
     Extension, Json, Router,
@@ -303,7 +298,7 @@ pub(super) async fn submit_request(
             DiagnosticStartRequest::Speed { provider_id, endpoint_ids } => {
                 if endpoint_ids.is_empty()
                     || endpoint_ids.len()
-                        > crate::gateway::agent_apps_diagnostic_jobs::MAX_PROBES_PER_JOB
+                        > agent_gateway::agent_apps_diagnostic_jobs::MAX_PROBES_PER_JOB
                 {
                     return Err(StatusCode::BAD_REQUEST);
                 }

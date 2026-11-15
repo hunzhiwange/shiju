@@ -7,9 +7,9 @@ use {
     vw_api_transport::id::ModelId,
 };
 
-use crate::model_relay::generation::GenerationProtocol;
+use model_protocol::generation::GenerationProtocol;
 
-pub(in crate::gateway::agent_apps_diagnostic_executors) trait GenerationEvidence {
+pub(in crate::agent_apps_diagnostic_executors) trait GenerationEvidence {
     fn prompt(self, model: &str) -> Value;
     fn actual_model(self, response: &Value) -> Result<ModelId, DiagnosticFailureCode>;
 }
@@ -122,7 +122,7 @@ pub(super) fn request(
         return Ok(input);
     }
     input["model"] = model.into();
-    let mut body = crate::model_relay::generation::text_probe_request(source, target, &input)
+    let mut body = model_protocol::generation::text_probe_request(source, target, &input)
         .map_err(|_| DiagnosticFailureCode::Unsupported)?;
     if target != GenerationProtocol::Gemini {
         body["model"] = model.into();
@@ -140,7 +140,7 @@ pub(super) fn actual_model(
         return Ok(actual);
     }
     let converted =
-        crate::model_relay::generation::text_probe_response(source, target, body, actual.as_ref())
+        model_protocol::generation::text_probe_response(source, target, body, actual.as_ref())
             .map_err(|_| DiagnosticFailureCode::InvalidResponse)?;
     source.actual_model(&converted)
 }

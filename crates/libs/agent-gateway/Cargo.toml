@@ -1,0 +1,131 @@
+[package]
+name = "agent-gateway"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+app-project-profiles = { path = "../app-project-profiles", version = "0.6.0" }
+app-operations = { path = "../app-operations", version = "0.6.0" }
+app-data-format = { path = "../app-data-format", version = "0.6.0" }
+app-data-projection = { path = "../app-data-projection", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-skills = { path = "../app-skills", version = "0.6.0" }
+
+[dependencies.vw-agent-apps]
+path = "../../vw-agent-apps"
+version = "0.6.0"
+
+[dependencies.vw-api-app-diagnostics]
+path = "../api-app-diagnostics"
+version = "0.6.0"
+
+[dependencies.vw-api-app-identity]
+path = "../api-app-identity"
+version = "0.6.0"
+
+[dependencies.futures-util]
+version = "0.3"
+
+[dependencies.parking_lot]
+version = "0.12"
+
+[dependencies.tokio-util]
+version = "0.7"
+features = ["rt"]
+
+[dependencies.tracing]
+version = "0.1"
+
+[target.'cfg(unix)'.dependencies.libc]
+version = "0.2"
+
+[dev-dependencies]
+axum = "0.8"
+tempfile = "3"
+tokio = { version = "1", features = ["full", "test-util"] }
+
+[dependencies.axum]
+version = "0.8"
+
+[dependencies.gateway-types]
+path = "../gateway-types"
+version = "0.6.0"
+
+[dependencies.memory-types]
+path = "../memory-types"
+version = "0.6.0"
+
+[dependencies.observer-types]
+path = "../observer-types"
+version = "0.6.0"
+
+[dependencies.tool-types]
+path = "../tool-types"
+version = "0.6.0"
+
+[dependencies.agent-providers]
+path = "../agent-providers"
+version = "0.6.0"
+
+[dependencies.agent-app-services]
+path = "../agent-app-services"
+version = "0.6.0"
+[dependencies.app-provider-services]
+path = "../app-provider-services"
+version = "0.6.0"
+[dependencies.model-transport]
+path = "../model-transport"
+version = "0.6.0"
+[dependencies.vw-api-app-auth]
+path = "../api-app-auth"
+version = "0.6.0"
+[dev-dependencies.vw-api-app-provider-base]
+path = "../api-app-provider-base"
+version = "0.6.0"
+[dev-dependencies.vw-api-app-failover]
+path = "../api-app-failover"
+version = "0.6.0"
+[dependencies.reqwest]
+version = "0.13"
+default-features = false
+features = ["json", "rustls", "stream"]
+
+[dependencies.model-types]
+path = "../model-types"
+version = "0.6.0"
+[dependencies.model-protocol]
+path = "../model-protocol"
+version = "0.6.0"
+[dependencies.model-protocols]
+path = "../model-protocols"
+version = "0.6.0"
+[dependencies.model-catalog]
+path = "../model-catalog"
+version = "0.6.0"
+[dependencies.provider-protocol-routes]
+path = "../provider-protocol-routes"
+version = "0.6.0"
+[dependencies.vw-api-model-catalog]
+path = "../api-model-catalog"
+version = "0.6.0"
+[dependencies.sha2]
+version = "0.11"
+[dev-dependencies.vw-api-app-provider-profiles]
+path = "../api-app-provider-profiles"
+version = "0.6.0"

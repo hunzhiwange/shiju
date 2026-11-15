@@ -1,11 +1,11 @@
 use std::{os::unix::fs::DirBuilderExt, time::Duration};
 
 use super::StreamProbe;
-use crate::{
-    agent_apps::auth_accounts::AuthAccountStore,
-    app_providers::AppProviderStore,
-    gateway::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError},
-    global_database::GlobalDatabase,
+use {
+    agent_app_services::auth_accounts::AuthAccountStore,
+    app_provider_services::AppProviderStore,
+    crate::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError},
+    agent_database::GlobalDatabase,
 };
 use serde_json::{Value, json};
 use tokio::{
@@ -25,7 +25,7 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
 use vw_api_transport::id::ProjectScope;
 
-use crate::model_relay::stream_observer::tests::samples;
+use crate::diagnostic_stream_fixtures::samples;
 
 #[tokio::test]
 async fn diagnostic_stream_check_requires_valid_completion() {
@@ -263,7 +263,7 @@ async fn diagnostic_stream_check_cancellation_closes_four_protocol_connections()
 
 #[tokio::test]
 async fn diagnostic_stream_check_classifies_first_event_and_idle_timeouts() {
-    use crate::model_relay::generation::GenerationProtocol;
+    use model_protocol::generation::GenerationProtocol;
     use vw_api_app_diagnostics::DiagnosticPhase;
     let (_, _, valid) = samples().remove(0);
     for (wire, expected_phase) in [
@@ -301,7 +301,7 @@ async fn diagnostic_stream_check_classifies_first_event_and_idle_timeouts() {
         server.await.unwrap();
     }
     // Buffered bytes cannot turn an already elapsed first-event deadline into success.
-    let mut response = crate::model_relay::stream_observer::tests::source(valid).await;
+    let mut response = crate::diagnostic_stream_fixtures::source(valid).await;
     let mut phase = DiagnosticPhase::FirstEvent;
     let started = tokio::time::Instant::now() - Duration::from_secs(11);
     let result =

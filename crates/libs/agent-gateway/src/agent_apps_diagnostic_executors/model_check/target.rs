@@ -19,12 +19,12 @@ use {
 };
 
 use super::{DiagnosticJobOwner, GlobalDatabase};
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountStore},
-    app_providers::AppProviderStore,
-    global_database::run_sync_database,
+use {
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountStore},
+    app_provider_services::AppProviderStore,
+    agent_database::run_sync_database,
     model_catalog::ModelCatalogStore,
-    model_relay::generation::{GenerationProtocol, GenerationTransport},
+    model_protocol::generation::{GenerationProtocol, GenerationTransport},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,13 +37,13 @@ pub enum ModelPrepareError {
 
 type Result<T> = std::result::Result<T, ModelPrepareError>;
 
-pub(in crate::gateway::agent_apps_diagnostic_executors) struct ModelTarget {
+pub(in crate::agent_apps_diagnostic_executors) struct ModelTarget {
     database: GlobalDatabase,
     owner: DiagnosticJobOwner,
     revision: [u8; 32],
-    pub(in crate::gateway::agent_apps_diagnostic_executors) provider_id: ProviderId,
-    pub(in crate::gateway::agent_apps_diagnostic_executors) model_id: ModelId,
-    pub(in crate::gateway::agent_apps_diagnostic_executors) protocol: GenerationProtocol,
+    pub(in crate::agent_apps_diagnostic_executors) provider_id: ProviderId,
+    pub(in crate::agent_apps_diagnostic_executors) model_id: ModelId,
+    pub(in crate::agent_apps_diagnostic_executors) protocol: GenerationProtocol,
     destination: Destination,
 }
 
@@ -59,7 +59,7 @@ struct CopilotBinding {
 }
 
 impl ModelTarget {
-    pub(in crate::gateway::agent_apps_diagnostic_executors) fn prepare(
+    pub(in crate::agent_apps_diagnostic_executors) fn prepare(
         database: &GlobalDatabase,
         accounts: &AuthAccountStore,
         owner: DiagnosticJobOwner,
@@ -104,7 +104,7 @@ impl ModelTarget {
                 }));
                 (endpoint, None, protocol, destination)
             } else {
-                let profile = crate::app_providers::generation_target::SavedProfile::read_for_host(
+                let profile = app_provider_services::generation_target::SavedProfile::read_for_host(
                     app,
                     &owner.scope.target_host_id,
                     &provider_id,
@@ -173,7 +173,7 @@ impl ModelTarget {
     /// The saved exact destination is the only registered candidate. Reuse the
     /// production selector; a client protocol never authorizes another URL.
     pub(super) fn select_protocol(&self, source: GenerationProtocol) -> Result<()> {
-        use crate::model_relay::routing;
+        use model_transport::routing_selection as routing;
         use provider_protocol_routes::RouteCapability;
         use model_protocols::{
             ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence, ProtocolEvidenceKind,
@@ -206,7 +206,7 @@ impl ModelTarget {
                 .into(),
             }
         };
-        let api = crate::provider::provider::ApiInfo {
+        let api = model_types::ApiInfo {
             id: self.model_id.as_ref().to_owned(),
             url: url.to_string(),
             adapter: String::new(),
@@ -237,7 +237,7 @@ impl ModelTarget {
         Ok(())
     }
 
-    pub(in crate::gateway::agent_apps_diagnostic_executors) fn check_current(
+    pub(in crate::agent_apps_diagnostic_executors) fn check_current(
         &self,
         accounts: &AuthAccountStore,
     ) -> std::result::Result<(), DiagnosticFailureCode> {
@@ -264,7 +264,7 @@ impl ModelTarget {
         Ok(true)
     }
 
-    pub(in crate::gateway::agent_apps_diagnostic_executors) async fn destination(
+    pub(in crate::agent_apps_diagnostic_executors) async fn destination(
         &self,
         accounts: &AuthAccountStore,
         copilot: &CopilotAuth,

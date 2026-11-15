@@ -31,13 +31,12 @@ use vw_api_app_provider_base::claude::ClaudeProfile;
 use vw_api_transport::id::ProjectScope;
 
 use super::{DiagnosticProbeError, Endpoint, ReachabilityPrepareError, ReachabilityProbe, probe};
-use crate::{
-    agent_apps::auth_accounts::AuthAccountStore,
-    app_providers::AppProviderStore,
-    gateway::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticJobs},
-    global_database::GlobalDatabase,
-    model_relay::upstream::upstream_http_client_builder,
-};
+use agent_app_services::auth_accounts::AuthAccountStore;
+use app_provider_services::AppProviderStore;
+use agent_database::GlobalDatabase;
+use model_transport::upstream::upstream_http_client_builder;
+use crate::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticJobs};
+
 
 async fn request_line(socket: &mut TcpStream) -> String {
     let mut request = Vec::new();

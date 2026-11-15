@@ -18,7 +18,7 @@ struct Batch {
     rows: Vec<DiagnosticEndpointCandidate>,
 }
 impl DiagnosticJobs {
-    pub(crate) fn remember_endpoint_candidates(
+    pub fn remember_endpoint_candidates(
         &self,
         owner: DiagnosticJobOwner,
         provider: ProviderId,
@@ -37,7 +37,7 @@ impl DiagnosticJobs {
         cache.0.push(Batch { owner, provider, rows, expires: Instant::now() + RETENTION });
         Ok(())
     }
-    pub(crate) fn resolve_endpoint_candidates(
+    pub fn resolve_endpoint_candidates(
         &self,
         owner: &DiagnosticJobOwner,
         provider: &ProviderId,

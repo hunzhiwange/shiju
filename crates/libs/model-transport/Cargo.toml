@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+model-protocols = { path = "../model-protocols", version = "0.6.0" }
+provider-protocol-routes = { path = "../provider-protocol-routes", version = "0.6.0" }
+serde_json = "1"
 model-relay-state = { path = "../model-relay-state", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
 auth-types = { path = "../auth-types", version = "0.6.0" }

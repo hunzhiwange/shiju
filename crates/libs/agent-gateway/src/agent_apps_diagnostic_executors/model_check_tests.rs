@@ -35,17 +35,17 @@ use vw_api_model_catalog::ModelCatalogIdentity;
 use vw_api_model_catalog::SavedCodexCatalog;
 
 use super::{ModelPrepareError, ModelProbe};
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountStore},
-    app_providers::AppProviderStore,
-    gateway::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError},
-    global_database::GlobalDatabase,
+use {
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountStore},
+    app_provider_services::AppProviderStore,
+    crate::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError},
+    agent_database::GlobalDatabase,
     model_catalog::ModelCatalogStore,
 };
 
 #[tokio::test]
 async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
-    use crate::model_relay::generation::{GenerationProtocol, GenerationTransport};
+    use model_protocol::generation::{GenerationProtocol, GenerationTransport};
 
     for (model, endpoint, expected) in [
         (
@@ -479,7 +479,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
 #[test]
 fn model_protocol_019_requires_successful_terminal_content() {
     use super::response::GenerationEvidence;
-    use crate::model_relay::generation::GenerationProtocol as P;
+    use model_protocol::generation::GenerationProtocol as P;
     for (protocol, value) in [
         (
             P::Chat,

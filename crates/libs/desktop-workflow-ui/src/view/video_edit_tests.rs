@@ -14,7 +14,7 @@ async fn video_edit_ui_chinese_modal_renders_light_and_dark() {
         "app:\n  name: 通用云端视频剪辑\nworkflow:\n  video_edit: {max_parallel: 5}",
     ));
     for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
-        let mut element = video_edit::modal(&state);
+        let mut element = modal(&state);
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await

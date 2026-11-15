@@ -94,6 +94,7 @@ pub mod styles;
 use styles::*;
 pub mod toolbar;
 use toolbar::*;
+pub mod video_edit;
 pub mod variables;
 use variables::*;
 

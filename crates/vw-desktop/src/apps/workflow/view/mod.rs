@@ -56,8 +56,6 @@ mod styles;
 mod toolbar;
 mod variables;
 mod video_edit;
-#[cfg(test)]
-mod video_edit_tests;
 
 use app_editor::*;
 use app_list::*;

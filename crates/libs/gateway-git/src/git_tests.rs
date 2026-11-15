@@ -352,13 +352,13 @@ fn gateway_git2_core_flow_works_without_git_executable() {
 
     // 项目发现 / 分支元数据：无系统 Git 时仍可解析。
     let discovered =
-        crate::git_repository::discover(repo.path()).expect("discover without git CLI");
+        git_discovery::git_repository::discover(repo.path()).expect("discover without git CLI");
     assert_eq!(
         discovered.workdir,
         repo.path().canonicalize().unwrap_or_else(|_| repo.path().to_path_buf())
     );
     let branch =
-        crate::git_repository::current_branch(repo.path()).expect("branch without git CLI");
+        git_discovery::git_repository::current_branch(repo.path()).expect("branch without git CLI");
     assert_eq!(branch, "main");
 
     // Commit via gateway git2 path.
@@ -403,7 +403,7 @@ async fn git_commit_v1_rejects_blank_message_before_project_lookup() {
     let mut request = empty_commit_request();
     request.message = " \n\t ".to_string();
 
-    let error = git_commit_v1(Json(request)).await.expect_err("blank commit message");
+    let error = git_commit_v1(Extension(crate::test_support::host()), Json(request)).await.expect_err("blank commit message");
 
     assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(error.message, "commit message is required");
@@ -425,7 +425,7 @@ async fn git_commit_v1_trims_message_and_commits_registered_project() {
         selected_old_lines: Vec::new(),
     };
 
-    let Json(response) = git_commit_v1(Json(request)).await.expect("commit response");
+    let Json(response) = git_commit_v1(Extension(crate::test_support::host()), Json(request)).await.expect("commit response");
 
     assert!(response.ok);
     assert!(response.created);
@@ -444,7 +444,7 @@ async fn git_merge_v1_rejects_head_source_before_project_lookup() {
         target_branch: " main ".to_string(),
     };
 
-    let error = git_merge_v1(Json(request)).await.expect_err("invalid source branch");
+    let error = git_merge_v1(Extension(crate::test_support::host()), Json(request)).await.expect_err("invalid source branch");
 
     assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(error.message, "source branch is required");
@@ -469,7 +469,7 @@ async fn git_merge_v1_merges_registered_project_branches() {
         target_branch: " main ".to_string(),
     };
 
-    let Json(response) = git_merge_v1(Json(request)).await.expect("merge response");
+    let Json(response) = git_merge_v1(Extension(crate::test_support::host()), Json(request)).await.expect("merge response");
 
     assert!(response.ok);
     assert!(!response.already_merged);
@@ -487,7 +487,7 @@ async fn worktree_list_for_non_git_project_is_empty_without_instance_access() {
     let info = test_project_info("/not/accessed", vec!["/also/not/accessed"], None);
 
     assert_eq!(
-        worktree_list_for_project(&info).await.expect("non-git worktrees"),
+        worktree_list_for_project(&crate::test_support::host(), &info).await.expect("non-git worktrees"),
         Vec::<String>::new()
     );
 }
@@ -505,11 +505,11 @@ async fn resolve_git_directory_accepts_primary_worktree_and_rejects_unknown_work
     let worktree_id = vw_api_transport::WorktreeId(encoded_repo);
 
     assert_eq!(
-        resolve_git_directory(&project_id, None).await.expect("primary directory"),
+        resolve_git_directory(&crate::test_support::host(), &project_id, None).await.expect("primary directory"),
         repo.path_str()
     );
     assert_eq!(
-        resolve_git_directory(&project_id, Some(&worktree_id)).await.expect("worktree directory"),
+        resolve_git_directory(&crate::test_support::host(), &project_id, Some(&worktree_id)).await.expect("worktree directory"),
         repo.path_str()
     );
 
@@ -519,7 +519,7 @@ async fn resolve_git_directory_accepts_primary_worktree_and_rejects_unknown_work
             .encode(unknown.path().to_string_lossy().as_bytes()),
     );
     let error =
-        resolve_git_directory(&project_id, Some(&unknown_id)).await.expect_err("unknown worktree");
+        resolve_git_directory(&crate::test_support::host(), &project_id, Some(&unknown_id)).await.expect_err("unknown worktree");
     assert_eq!(error.status, axum::http::StatusCode::NOT_FOUND);
     assert_eq!(error.message, "worktree not found");
 }
@@ -1473,7 +1473,7 @@ struct StoredProjectCleanup(String);
 
 impl Drop for StoredProjectCleanup {
     fn drop(&mut self) {
-        crate::app::agent::project::remove_local_test_project(&self.0)
+        agent_project::remove_local_test_project(&self.0)
             .expect("project should clean up");
     }
 }
@@ -1482,7 +1482,7 @@ fn store_git_test_project(repo: &TestRepo) -> (String, StoredProjectCleanup) {
     let project_id = format!("gateway-git-{}", Uuid::new_v4());
     let info = test_project_info(repo.path_str(), Vec::new(), Some(project::Vcs::Git));
     let info = project::Info { id: project_id.clone(), ..info };
-    crate::app::agent::project::store_local_test_project(&info).expect("project should write");
+    agent_project::store_local_test_project(&info).expect("project should write");
     (project_id.clone(), StoredProjectCleanup(project_id))
 }
 

@@ -99,7 +99,7 @@ fn gateway_remote_publish_fetch_pull_and_divergence_use_git2_only() {
 #[tokio::test]
 async fn gateway_repository_validates_requests_and_project_scope() {
     let _router = router::<()>();
-    let invalid = repository(Json(GitRepositoryRequest {
+    let invalid = repository(Extension(crate::test_support::host()), Json(GitRepositoryRequest {
         project_id: vw_api_transport::ProjectId("missing".into()),
         worktree_id: None,
         limit: 0,
@@ -107,7 +107,7 @@ async fn gateway_repository_validates_requests_and_project_scope() {
     .await
     .unwrap_err();
     assert_eq!(invalid.status, axum::http::StatusCode::BAD_REQUEST);
-    let missing = repository(Json(GitRepositoryRequest {
+    let missing = repository(Extension(crate::test_support::host()), Json(GitRepositoryRequest {
         project_id: vw_api_transport::ProjectId("missing".into()),
         worktree_id: None,
         limit: 100,
@@ -115,7 +115,7 @@ async fn gateway_repository_validates_requests_and_project_scope() {
     .await
     .unwrap_err();
     assert_eq!(missing.status, axum::http::StatusCode::NOT_FOUND);
-    let invalid = detail(Json(GitHistoryDetailRequest {
+    let invalid = detail(Extension(crate::test_support::host()), Json(GitHistoryDetailRequest {
         project_id: vw_api_transport::ProjectId("missing".into()),
         worktree_id: None,
         sha: "HEAD;invalid".into(),
@@ -127,7 +127,7 @@ async fn gateway_repository_validates_requests_and_project_scope() {
 
 #[tokio::test]
 async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_worktrees() {
-    use crate::app::agent::project;
+    use agent_project as project;
     use base64::Engine;
     let temp = tempfile::tempdir().unwrap();
     let repo = Repository::init(temp.path()).unwrap();
@@ -152,7 +152,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
     })
     .unwrap();
     let project_id = vw_api_transport::ProjectId(id);
-    let Json(result) = repository(Json(GitRepositoryRequest {
+    let Json(result) = repository(Extension(crate::test_support::host()), Json(GitRepositoryRequest {
         project_id: project_id.clone(),
         worktree_id: None,
         limit: 100,
@@ -160,7 +160,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
     .await
     .unwrap();
     assert_eq!(result.commits[0].sha, sha.to_string());
-    let Json(result) = detail(Json(GitHistoryDetailRequest {
+    let Json(result) = detail(Extension(crate::test_support::host()), Json(GitHistoryDetailRequest {
         project_id: project_id.clone(),
         worktree_id: None,
         sha: sha.to_string(),
@@ -178,7 +178,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
         base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(linked_path.canonicalize().unwrap().to_str().unwrap()),
     );
-    let Json(linked) = repository(Json(GitRepositoryRequest {
+    let Json(linked) = repository(Extension(crate::test_support::host()), Json(GitRepositoryRequest {
         project_id: project_id.clone(),
         worktree_id: Some(linked_id),
         limit: 100,
@@ -189,7 +189,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
     let foreign = vw_api_transport::WorktreeId(
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(other.path().to_str().unwrap()),
     );
-    let error = repository(Json(GitRepositoryRequest {
+    let error = repository(Extension(crate::test_support::host()), Json(GitRepositoryRequest {
         project_id,
         worktree_id: Some(foreign),
         limit: 100,

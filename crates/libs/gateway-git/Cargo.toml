@@ -1,0 +1,29 @@
+[package]
+name = "gateway-git"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+shell-command = { path = "../shell-command", version = "0.6.0" }
+vw-api-git = { path = "../api-git", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+base64 = "0.23"
+git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+similar = "2"
+tokio = { version = "1", features = ["rt"] }
+tracing = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+worktree-core = { path = "../worktree-core", version = "0.6.0" }
+git-discovery = { path = "../git-discovery", version = "0.6.0" }
+tempfile = "3"
+uuid = { version = "1.11", features = ["v4", "js"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

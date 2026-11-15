@@ -1,5 +1,7 @@
 //! 项目和 worktree 范围内的 Git 历史及远端 API。
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
+use axum::Extension;
+use crate::WorktreeHost;
 use axum::{Json, Router, routing::post};
 use vw_api_git::{
     GitHistoryDetailDto, GitHistoryDetailRequest, GitRemoteRequest, GitRemoteResponse,
@@ -19,13 +21,14 @@ pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 
 async fn repository(
+    Extension(host): Extension<WorktreeHost>,
     Json(body): Json<GitRepositoryRequest>,
 ) -> Result<Json<GitRepositoryDto>, ApiError> {
     if body.limit == 0 || body.limit > 10_000 {
         return Err(ApiError::bad_request("history limit must be between 1 and 10000"));
     }
     let directory =
-        super::resolve_git_directory(&body.project_id.0, body.worktree_id.as_ref()).await?;
+        super::resolve_git_directory(&host, &body.project_id.0, body.worktree_id.as_ref()).await?;
     let result = tokio::task::spawn_blocking(move || history::snapshot(&directory, body.limit))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?
@@ -34,11 +37,12 @@ async fn repository(
 }
 
 async fn detail(
+    Extension(host): Extension<WorktreeHost>,
     Json(body): Json<GitHistoryDetailRequest>,
 ) -> Result<Json<GitHistoryDetailDto>, ApiError> {
     git2::Oid::from_str(&body.sha).map_err(|_| ApiError::bad_request("invalid commit SHA"))?;
     let directory =
-        super::resolve_git_directory(&body.project_id.0, body.worktree_id.as_ref()).await?;
+        super::resolve_git_directory(&host, &body.project_id.0, body.worktree_id.as_ref()).await?;
     let result = tokio::task::spawn_blocking(move || history::detail(&directory, &body.sha))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?
@@ -47,10 +51,11 @@ async fn detail(
 }
 
 async fn sync_remote(
+    Extension(host): Extension<WorktreeHost>,
     Json(body): Json<GitRemoteRequest>,
 ) -> Result<Json<GitRemoteResponse>, ApiError> {
     let directory =
-        super::resolve_git_directory(&body.project_id.0, body.worktree_id.as_ref()).await?;
+        super::resolve_git_directory(&host, &body.project_id.0, body.worktree_id.as_ref()).await?;
     // 等待真实操作结束；不能在 spawn_blocking 外超时后继续修改仓库。
     tokio::task::spawn_blocking(move || remote::sync(&directory, body.action))
         .await

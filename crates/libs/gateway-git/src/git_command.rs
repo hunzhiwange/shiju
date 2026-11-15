@@ -10,8 +10,8 @@ use axum::Router;
 use axum::routing::post;
 use vw_api_git::{GitCommandRequest, GitCommandResponse};
 
-use crate::app::agent::gateway::ApiError;
-use crate::app::agent::shell::git_std_command;
+use gateway_types::ApiError;
+use shell_command::git_std_command;
 
 pub(crate) fn router<S>() -> Router<S>
 where

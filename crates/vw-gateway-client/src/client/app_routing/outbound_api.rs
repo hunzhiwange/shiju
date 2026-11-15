@@ -1,7 +1,6 @@
 //! Typed management requests for execution-host egress.
 use super::AppRoutingError;
 use crate::GatewayClient;
-use reqwest::Method;
 use vw_api_types::app_routing::{RoutingEgressStatus, RoutingEgressUpdate};
 
 impl GatewayClient {
@@ -10,7 +9,8 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<RoutingEgressStatus, AppRoutingError> {
-        self.app_routing_request(Method::GET, &[host, "egress"], token, None::<&()>).await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_egress(host, token).await
     }
 
     pub async fn app_routing_set_egress(
@@ -19,6 +19,7 @@ impl GatewayClient {
         token: &str,
         update: &RoutingEgressUpdate,
     ) -> Result<RoutingEgressStatus, AppRoutingError> {
-        self.app_routing_request(Method::PUT, &[host, "egress"], token, Some(update)).await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_set_egress(host, token, update).await
     }
 }

@@ -1,5 +1,5 @@
 use super::AppRoutingError;
-use crate::client::test_support;
+use crate::test_support;
 use serde_json::{Value, json};
 use vw_api_types::app_routing::{RoutingEgressMode, RoutingEgressUpdate};
 

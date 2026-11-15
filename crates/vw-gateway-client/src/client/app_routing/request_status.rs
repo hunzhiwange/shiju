@@ -13,14 +13,7 @@ impl GatewayClient {
         app: AppId,
         token: &str,
     ) -> Result<RoutingRequestsStatus, AppRoutingError> {
-        let app = serde_json::to_value(app).map_err(|_| AppRoutingError::InvalidRequest)?;
-        let app = app.as_str().ok_or(AppRoutingError::InvalidRequest)?;
-        self.app_routing_request(
-            reqwest::Method::GET,
-            &[host, "projects", project.as_str(), "apps", app, "requests"],
-            token,
-            None::<&()>,
-        )
-        .await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_requests(host, project, app, token).await
     }
 }

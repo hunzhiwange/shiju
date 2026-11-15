@@ -83,6 +83,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else {
         return app.show_error_toast("无法连接网关");
     };
+    let client = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone());
     state.serial = state.serial.wrapping_add(1);
     let serial = state.serial;
     state.busy = true;

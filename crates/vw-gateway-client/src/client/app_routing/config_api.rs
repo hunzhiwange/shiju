@@ -1,7 +1,6 @@
 //! Typed reads and replacements of execution-host routing settings.
 use super::AppRoutingError;
 use crate::GatewayClient;
-use reqwest::Method;
 use {
     vw_api_app_identity::AppId,
     vw_api_types::app_routing::AppRoutingConfig,
@@ -15,7 +14,8 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<RoutingConfig, AppRoutingError> {
-        self.app_routing_request(Method::GET, &[host, "config"], token, None::<&()>).await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_config(host, token).await
     }
 
     pub async fn app_routing_set_config(
@@ -24,7 +24,8 @@ impl GatewayClient {
         token: &str,
         config: &RoutingConfig,
     ) -> Result<RoutingConfig, AppRoutingError> {
-        self.app_routing_request(Method::PUT, &[host, "config"], token, Some(config)).await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_set_config(host, token, config).await
     }
 
     pub async fn app_routing_app_config(
@@ -34,7 +35,8 @@ impl GatewayClient {
         app: AppId,
         token: &str,
     ) -> Result<AppRoutingConfig, AppRoutingError> {
-        self.app_routing_app_config_request(Method::GET, host, project, app, token, None).await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_app_config(host, project, app, token).await
     }
 
     pub async fn app_routing_set_app_config(
@@ -45,27 +47,7 @@ impl GatewayClient {
         token: &str,
         config: &AppRoutingConfig,
     ) -> Result<AppRoutingConfig, AppRoutingError> {
-        self.app_routing_app_config_request(Method::PUT, host, project, app, token, Some(config))
-            .await
-    }
-
-    async fn app_routing_app_config_request(
-        &self,
-        method: Method,
-        host: &str,
-        project: &ProjectId,
-        app: AppId,
-        token: &str,
-        config: Option<&AppRoutingConfig>,
-    ) -> Result<AppRoutingConfig, AppRoutingError> {
-        let app = serde_json::to_value(app).map_err(|_| AppRoutingError::InvalidRequest)?;
-        let app = app.as_str().ok_or(AppRoutingError::InvalidRequest)?;
-        self.app_routing_request(
-            method,
-            &[host, "projects", project.as_ref(), "apps", app, "config"],
-            token,
-            config,
-        )
-        .await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .app_routing_set_app_config(host, project, app, token, config).await
     }
 }

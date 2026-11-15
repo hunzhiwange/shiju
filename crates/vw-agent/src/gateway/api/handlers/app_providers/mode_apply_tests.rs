@@ -603,7 +603,7 @@ async fn cc_route_109_authorized_preparation_uses_gateway_listener_and_preserves
     use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
     let f = ProductionFixture::new(4_000_000_000_000).await;
     let proxy = json!({"kind":"proxy","providerId":"route"});
-    let binding = f.client.app_routing_start(HOST, MANAGER).await.unwrap();
+    let binding = gateway_app_routing::GatewayAppRoutingClient::new(f.client.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     let port = binding.bound_port.unwrap();
     let prepared = f.mode(Some("allowed"), proxy.clone()).await;
     assert_eq!(prepared.status(), 503);
@@ -626,7 +626,7 @@ async fn cc_route_109_authorized_preparation_uses_gateway_listener_and_preserves
             "route_publication_unavailable"
         );
         assert_eq!(
-            f.client.app_routing_status(HOST, MANAGER).await.unwrap().bound_port,
+            gateway_app_routing::GatewayAppRoutingClient::new(f.client.transport().clone()).app_routing_status(HOST, MANAGER).await.unwrap().bound_port,
             Some(port)
         );
     }
@@ -640,7 +640,7 @@ async fn cc_route_109_authorized_preparation_uses_gateway_listener_and_preserves
     assert_eq!(data.status(), 401);
     assert_eq!(std::fs::read(f.configuration()).unwrap(), before);
     assert_eq!(std::fs::read(&f.state).unwrap(), state);
-    f.client.app_routing_stop(HOST, MANAGER).await.unwrap();
+    gateway_app_routing::GatewayAppRoutingClient::new(f.client.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap();
     let stopped = f.mode(Some("allowed"), proxy).await;
     assert_eq!(stopped.status(), 503);
     assert!(stopped.json::<Value>().await.is_err());
@@ -651,7 +651,7 @@ async fn cc_route_109_missing_project_or_stale_account_generation_never_writes()
     use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
     let f = ProductionFixture::new(1_700_000_000_000).await;
     let state = std::fs::read(&f.state).unwrap();
-    f.client.app_routing_start(HOST, MANAGER).await.unwrap();
+    gateway_app_routing::GatewayAppRoutingClient::new(f.client.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     for (project, status) in [(None, 403), (Some("denied"), 403), (Some("allowed"), 409)] {
         let response = f.mode(project, json!({"kind":"proxy","providerId":"route"})).await;
         assert_eq!(response.status(), status, "project {project:?}");
@@ -710,7 +710,7 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
     let proxy = |id| json!({"kind":"proxy","providerId":id});
     assert_eq!(f.mode(None, proxy("third-party")).await.status(), 403);
     assert_eq!(f.mode(Some("denied"), proxy("third-party")).await.status(), 403);
-    let binding = f.client.app_routing_start(HOST, MANAGER).await.unwrap();
+    let binding = gateway_app_routing::GatewayAppRoutingClient::new(f.client.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     let route_url = format!("http://127.0.0.1:{}/v1/messages", binding.bound_port.unwrap());
     assert_eq!(f.mode(Some("allowed"), proxy("third-party")).await.status(), 200);
     let read_token = || {
@@ -746,7 +746,7 @@ use vw_api_app_provider_base::claude::ClaudeConfig;
     assert_eq!(f.mode(Some("allowed"), json!({"kind":"direct"})).await.status(), 200);
     assert_eq!(request(&token).send().await.unwrap().status(), 401);
     assert_eq!(requests.load(Ordering::SeqCst), 3);
-    f.client.app_routing_stop(HOST, MANAGER).await.unwrap();
+    gateway_app_routing::GatewayAppRoutingClient::new(f.client.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap();
     server.abort();
     let _ = server.await;
 }

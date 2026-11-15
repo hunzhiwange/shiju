@@ -183,6 +183,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else {
         return app.show_error_toast("无法连接网关");
     };
+    let client = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone());
     state.busy = true;
     state.error = None;
     state.serial = state.serial.wrapping_add(1);
@@ -196,19 +197,16 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     (None, None) => {
                         client.app_routing_config(&context.host, &token).await.map(Value::Listener)
                     }
-                    (None, Some(Value::Listener(c))) => client
-                        .app_routing_set_config(&context.host, &token, &c)
+                    (None, Some(Value::Listener(c))) => client.app_routing_set_config(&context.host, &token, &c)
                         .await
                         .map(Value::Listener),
                     (Some(id), value) => {
                         let project: ProjectId = project.clone().unwrap_or_default().into();
                         match value {
-                            None => client
-                                .app_routing_app_config(&context.host, &project, id, &token)
+                            None => client.app_routing_app_config(&context.host, &project, id, &token)
                                 .await
                                 .map(Value::App),
-                            Some(Value::App(c)) => client
-                                .app_routing_set_app_config(&context.host, &project, id, &token, &c)
+                            Some(Value::App(c)) => client.app_routing_set_app_config(&context.host, &project, id, &token, &c)
                                 .await
                                 .map(Value::App),
                             _ => return Err("配置类型不匹配".into()),

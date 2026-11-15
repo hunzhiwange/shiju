@@ -1,3 +1,4 @@
+use gateway_app_routing::AppRoutingError;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
@@ -12,7 +13,7 @@ use {
     vw_api_types::app_routing::RoutingState,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppRoutingError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";
 const GATEWAY_LINE: &str = "VibeWindow Gateway listening on http://127.0.0.1:";
@@ -180,11 +181,11 @@ async fn cc_route_011_lifecycle_reads_the_persisted_listener_config() -> anyhow:
 
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
     let client = client(port, "owner");
-    assert_eq!(client.app_routing_status(HOST, READER).await?.state, RoutingState::Stopped);
-    let started = client.app_routing_start(HOST, MANAGER).await?;
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone()).app_routing_status(HOST, READER).await?.state, RoutingState::Stopped);
+    let started = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone()).app_routing_start(HOST, MANAGER).await?;
     assert_eq!(started.state, RoutingState::Running);
     assert!(started.bound_port.is_some_and(|port| port != 0 && port != fallback.port()));
-    client.app_routing_stop(HOST, MANAGER).await?;
+    gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone()).app_routing_stop(HOST, MANAGER).await?;
     Ok(())
 }
 
@@ -225,15 +226,15 @@ async fn cc_route_010_lifecycle_api_expected_behavior() {
     let owner = client(port, "owner");
     let other = client(port, "other");
     for (host, token) in [(HOST, MEMBER), (HOST, READER), ("other-mac", MANAGER)] {
-        assert_error(owner.app_routing_start(host, token).await.unwrap_err(), 403, "forbidden");
+        assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(host, token).await.unwrap_err(), 403, "forbidden");
     }
-    assert_error(other.app_routing_start(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
-    assert_error(owner.app_routing_health(HOST, MEMBER).await.unwrap_err(), 403, "forbidden");
-    assert_error(owner.app_routing_health(HOST, READER).await.unwrap_err(), 503, "not_ready");
-    assert_eq!(owner.app_routing_status(HOST, READER).await.unwrap().state, RoutingState::Stopped);
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(other.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_health(HOST, MEMBER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_health(HOST, READER).await.unwrap_err(), 503, "not_ready");
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap().state, RoutingState::Stopped);
 
-    assert_error(owner.app_routing_start(HOST, MANAGER).await.unwrap_err(), 409, "address_in_use");
-    assert_eq!(owner.app_routing_status(HOST, READER).await.unwrap().state, RoutingState::Failed);
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap_err(), 409, "address_in_use");
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap().state, RoutingState::Failed);
     drop(occupied);
 
     let invalid = raw
@@ -248,13 +249,13 @@ async fn cc_route_010_lifecycle_api_expected_behavior() {
     assert_eq!(invalid.status(), 400);
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
 
-    let running = owner.app_routing_start(HOST, MANAGER).await.unwrap();
+    let running = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     assert_eq!(running.state, RoutingState::Running);
     assert_eq!(running.bound_address, Some(address.ip()));
     assert_eq!(running.bound_port, Some(address.port()));
     assert!(running.started_at.is_some());
-    assert_eq!(owner.app_routing_start(HOST, MANAGER).await.unwrap(), running);
-    assert_eq!(owner.app_routing_status(HOST, READER).await.unwrap(), running);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap(), running);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
     let health = raw
         .get(format!("{base}/health"))
         .header("x-platform-id", "p")
@@ -267,16 +268,16 @@ async fn cc_route_010_lifecycle_api_expected_behavior() {
     assert_eq!(health.headers()["cache-control"], "no-store");
     assert_eq!(health.json::<Value>().await.unwrap(), json!({"ready":true}));
 
-    assert_error(other.app_routing_stop(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
-    assert_error(owner.app_routing_stop(HOST, READER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(other.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, READER).await.unwrap_err(), 403, "forbidden");
     assert!(tokio::net::TcpStream::connect(address).await.is_ok());
-    let stopped = owner.app_routing_stop(HOST, MANAGER).await.unwrap();
+    let stopped = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap();
     assert_eq!(stopped.state, RoutingState::Stopped);
     assert_eq!(
         (stopped.bound_address, stopped.bound_port, stopped.started_at.as_deref()),
         (None, None, None)
     );
-    assert_eq!(owner.app_routing_stop(HOST, MANAGER).await.unwrap(), stopped);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap(), stopped);
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
 }
 
@@ -311,17 +312,17 @@ async fn cc_route_010_lifecycle_stop_preserves_attached_apps() {
     write_policy(&policy, home.path(), 0);
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
     let owner = client(port, "owner");
-    let running = owner.app_routing_start(HOST, MANAGER).await.unwrap();
+    let running = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     let address = (running.bound_address.unwrap(), running.bound_port.unwrap());
 
     let (host_state, attached) = write_attached_app(home.path());
 
-    assert_error(owner.app_routing_stop(HOST, MANAGER).await.unwrap_err(), 409, "apps_attached");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap_err(), 409, "apps_attached");
     assert_eq!(fs::read_to_string(&host_state).unwrap(), attached);
-    assert_eq!(owner.app_routing_status(HOST, READER).await.unwrap(), running);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
     assert!(tokio::net::TcpStream::connect(address).await.is_ok());
     fs::remove_file(host_state).unwrap();
-    assert_eq!(owner.app_routing_stop(HOST, MANAGER).await.unwrap().state, RoutingState::Stopped);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap().state, RoutingState::Stopped);
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
 }
 
@@ -333,18 +334,18 @@ async fn cc_route_010_lifecycle_policy_reload_cannot_move_a_running_listener() {
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
     let owner = client(port, "owner");
     let other = client(port, "other");
-    let running = owner.app_routing_start(HOST, MANAGER).await.unwrap();
+    let running = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start(HOST, MANAGER).await.unwrap();
     let address = (running.bound_address.unwrap(), running.bound_port.unwrap());
 
     let original = fs::read_to_string(&policy).unwrap();
     let mut edited: Value = serde_json::from_str(&original).unwrap();
     edited["principals"][0]["grants"][0]["company_id"] = json!("other");
     fs::write(&policy, edited.to_string()).unwrap();
-    assert_error(owner.app_routing_stop(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
-    assert_error(other.app_routing_stop(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
-    assert_error(other.app_routing_status(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(other.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(other.transport().clone()).app_routing_status(HOST, MANAGER).await.unwrap_err(), 403, "forbidden");
     assert!(tokio::net::TcpStream::connect(address).await.is_ok());
 
     fs::write(&policy, original).unwrap();
-    assert_eq!(owner.app_routing_stop(HOST, MANAGER).await.unwrap().state, RoutingState::Stopped);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_stop(HOST, MANAGER).await.unwrap().state, RoutingState::Stopped);
 }

@@ -8,7 +8,6 @@ use {
 };
 
 impl GatewayClient {
-    /// Apply proxy, direct or detach through the authorized native transaction.
     pub async fn apply_app_routing_mode(
         &self,
         host: &str,
@@ -17,14 +16,7 @@ impl GatewayClient {
         token: &str,
         request: &RoutingModeRequest,
     ) -> Result<RoutingModeResult, AppRoutingError> {
-        let app = serde_json::to_value(app).map_err(|_| AppRoutingError::InvalidRequest)?;
-        let app = app.as_str().ok_or(AppRoutingError::InvalidRequest)?;
-        self.app_routing_request(
-            reqwest::Method::POST,
-            &[host, "projects", project.as_str(), "apps", app, "mode"],
-            token,
-            Some(request),
-        )
-        .await
+        gateway_app_routing::GatewayAppRoutingClient::new(self.transport.clone())
+            .apply_app_routing_mode(host, project, app, token, request).await
     }
 }

@@ -1,0 +1,121 @@
+//! Typed application routing requests over the existing authenticated gateway transport.
+use crate::GatewayAppRoutingClient;
+use {
+    vw_api_types::app_routing::RoutingHealth,
+    vw_api_types::app_routing::RoutingStatus,
+    vw_api_transport::error::ApiErrorBody,
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AppRoutingError {
+    Transport,
+    InvalidRequest,
+    Decode,
+    Http { status: u16, body: Option<ApiErrorBody> },
+}
+
+impl std::fmt::Display for AppRoutingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transport => f.write_str("application routing transport failed"),
+            Self::InvalidRequest => f.write_str("invalid application routing request"),
+            Self::Decode => f.write_str("malformed application routing response"),
+            Self::Http { status, .. } => write!(f, "application routing HTTP {status}"),
+        }
+    }
+}
+
+impl std::error::Error for AppRoutingError {}
+
+impl GatewayAppRoutingClient {
+    pub async fn app_routing_status(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<RoutingStatus, AppRoutingError> {
+        self.app_routing_request(reqwest::Method::GET, &[host, "status"], token, None::<&()>).await
+    }
+
+    pub async fn app_routing_health(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<RoutingHealth, AppRoutingError> {
+        self.app_routing_request(reqwest::Method::GET, &[host, "health"], token, None::<&()>).await
+    }
+
+    pub async fn app_routing_start(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<RoutingStatus, AppRoutingError> {
+        self.app_routing_request(
+            reqwest::Method::POST,
+            &[host, "start"],
+            token,
+            Some(&vw_api_types::app_routing::RoutingLifecycleRequest {}),
+        )
+        .await
+    }
+
+    pub async fn app_routing_stop(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<RoutingStatus, AppRoutingError> {
+        self.app_routing_request(
+            reqwest::Method::POST,
+            &[host, "stop"],
+            token,
+            Some(&vw_api_types::app_routing::RoutingLifecycleRequest {}),
+        )
+        .await
+    }
+
+    pub(super) async fn app_routing_request<T: serde::de::DeserializeOwned>(
+        &self,
+        method: reqwest::Method,
+        path: &[&str],
+        token: &str,
+        body: Option<&impl serde::Serialize>,
+    ) -> Result<T, AppRoutingError> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = (method, path, token, body);
+            Err(AppRoutingError::Transport)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if path.iter().any(|segment| matches!(*segment, "" | "." | "..")) {
+                return Err(AppRoutingError::InvalidRequest);
+            }
+            let mut url = reqwest::Url::parse(self.transport.endpoint().base_url())
+                .map_err(|_| AppRoutingError::InvalidRequest)?;
+            url.path_segments_mut()
+                .map_err(|_| AppRoutingError::InvalidRequest)?
+                .pop_if_empty()
+                .extend(["v1", "app-routing", "hosts"])
+                .extend(path);
+            let mut token = reqwest::header::HeaderValue::from_str(token)
+                .map_err(|_| AppRoutingError::InvalidRequest)?;
+            token.set_sensitive(true);
+            let mut request =
+                self.transport.dynamic_host_client().request(method, url).header("x-agent-apps-token", token);
+            if let Some(body) = body {
+                request = request.json(body);
+            }
+            let response = gateway_http::apply_request_context(request, self.transport.endpoint())
+                .send()
+                .await
+                .map_err(|_| AppRoutingError::Transport)?;
+            let status = response.status();
+            if !status.is_success() {
+                let body = response.json::<ApiErrorBody>().await.ok();
+                return Err(AppRoutingError::Http { status: status.as_u16(), body });
+            }
+            response.json().await.map_err(|error| {
+                if error.is_decode() { AppRoutingError::Decode } else { AppRoutingError::Transport }
+            })
+        }
+    }
+}

@@ -1,5 +1,5 @@
 use super::AppRoutingError;
-use crate::{GatewayAuth, GatewayClient, client::test_support};
+use crate::{GatewayAppRoutingClient, test_support};
 use serde_json::{Value, json};
 use vw_api_types::app_routing::RoutingState;
 
@@ -20,14 +20,13 @@ async fn cc_route_010_sdk_round_trip_preserves_status_and_business_errors() {
         (409, json!({"error":{"code":"apps_attached","message":"Applications are attached"}})),
         (200, stopped),
     ]);
-    let client = GatewayClient::new(
+    let client = GatewayAppRoutingClient::new(gateway_http::GatewayTransport::new(
         server
             .client()
             .endpoint()
             .clone()
-            .with_auth(GatewayAuth { skey: Some("gateway-fixture".into()) }),
-    )
-    .unwrap();
+            .with_auth(gateway_endpoint::GatewayAuth { skey: Some("gateway-fixture".into()) }),
+    ).unwrap());
     let host = "mac /one?#";
     let token = "fixture-application-management-token";
     assert_eq!(client.app_routing_status(host, token).await.unwrap().state, RoutingState::Stopped);

@@ -47,24 +47,24 @@ async fn cc_route_028_outbound_api_expected_behavior() {
         "configuredMode":"custom", "effectiveMode":"custom", "scheme":"http", "hasCredentials":true
     });
     assert_eq!(response.json::<Value>().await.unwrap(), redacted);
-    let saved = owner.app_routing_egress(HOST, READER).await.unwrap();
+    let saved = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress(HOST, READER).await.unwrap();
     assert_eq!(serde_json::to_value(&saved).unwrap(), redacted);
 
     let unauthorized = request(port, Method::PUT, None, Some(custom.clone())).await;
     assert_eq!(unauthorized.status(), 401);
-    assert_error(owner.app_routing_egress(HOST, MEMBER).await.unwrap_err(), 403, "forbidden");
+    assert_error(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress(HOST, MEMBER).await.unwrap_err(), 403, "forbidden");
     assert_error(
-        owner.app_routing_egress("other-mac", READER).await.unwrap_err(),
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress("other-mac", READER).await.unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        client(port, "other").app_routing_egress(HOST, READER).await.unwrap_err(),
+        gateway_app_routing::GatewayAppRoutingClient::new(client(port, "other").transport().clone()).app_routing_egress(HOST, READER).await.unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        owner.app_routing_set_egress(HOST, READER, &direct).await.unwrap_err(),
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_egress(HOST, READER, &direct).await.unwrap_err(),
         403,
         "forbidden",
     );
@@ -82,7 +82,7 @@ async fn cc_route_028_outbound_api_expected_behavior() {
         assert!(!text.contains(secret));
         assert_eq!(serde_json::from_str::<Value>(&text).unwrap()["error"]["code"], "invalid_input");
     }
-    assert_eq!(owner.app_routing_egress(HOST, READER).await.unwrap(), saved);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress(HOST, READER).await.unwrap(), saved);
 
     let db = GlobalDatabase::for_home(home.path()).unwrap().connect_sqlite().unwrap();
     let payload: String = db.query_row(
@@ -98,27 +98,27 @@ async fn cc_route_028_outbound_api_expected_behavior() {
     )
     .unwrap();
     assert_error(
-        owner.app_routing_set_egress(HOST, MANAGER, &direct).await.unwrap_err(),
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_egress(HOST, MANAGER, &direct).await.unwrap_err(),
         409,
         "egress_not_applied",
     );
-    assert_eq!(owner.app_routing_egress(HOST, READER).await.unwrap(), saved);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress(HOST, READER).await.unwrap(), saved);
     db.execute_batch("DROP TRIGGER reject_egress;").unwrap();
     drop(db);
     drop(gateway);
 
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
     let owner = client(port, "owner");
-    assert_eq!(owner.app_routing_egress(HOST, READER).await.unwrap(), saved);
-    let status = owner.app_routing_set_egress(HOST, MANAGER, &direct).await.unwrap();
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress(HOST, READER).await.unwrap(), saved);
+    let status = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_egress(HOST, MANAGER, &direct).await.unwrap();
     assert_eq!(status.configured_mode, RoutingEgressMode::Direct);
     assert_eq!(status.effective_mode, RoutingEgressMode::Direct);
     assert_eq!(status.scheme, None);
     assert!(!status.has_credentials);
 
     let system = RoutingEgressUpdate { mode: RoutingEgressMode::System, proxy_url: None };
-    let status = owner.app_routing_set_egress(HOST, MANAGER, &system).await.unwrap();
+    let status = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_set_egress(HOST, MANAGER, &system).await.unwrap();
     assert_eq!(status.configured_mode, RoutingEgressMode::System);
     assert_eq!(status.scheme.is_some(), status.effective_mode == RoutingEgressMode::System);
-    assert_eq!(owner.app_routing_egress(HOST, READER).await.unwrap(), status);
+    assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_egress(HOST, READER).await.unwrap(), status);
 }

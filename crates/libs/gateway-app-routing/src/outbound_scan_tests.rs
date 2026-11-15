@@ -1,5 +1,5 @@
 use super::AppRoutingError;
-use crate::client::test_support;
+use crate::test_support;
 use serde_json::{Value, json};
 use {
     vw_api_app_identity::AppId,
@@ -21,12 +21,12 @@ fn identity() -> Value {
             "targetHostId": "mac /",
             "appId": "claude-desktop"
         },
-        "kind": "outbound_proxy"
+        "kind": "outbound_scan"
     })
 }
 
 #[test]
-fn cc_route_029_sdk_decodes_outbound_probe_identity() {
+fn cc_route_030_sdk_decodes_outbound_scan_identity() {
     let wire = identity();
     let job: DiagnosticJobIdentity =
         serde_json::from_value(wire.clone()).expect("SDK must decode the proxy job kind");
@@ -34,24 +34,24 @@ fn cc_route_029_sdk_decodes_outbound_probe_identity() {
 }
 
 #[tokio::test]
-async fn cc_route_029_sdk_starts_reads_and_cancels_with_typed_evidence() {
+async fn cc_route_030_sdk_starts_reads_and_cancels_with_typed_evidence() {
     let snapshot = json!({
         "job": identity(),
         "state": {"status":"succeeded"},
-        "progress": {"completed":1,"total":1},
+        "progress": {"completed":1,"total":8},
         "results": [{
-            "kind":"outbound_proxy",
+            "kind":"outbound_scan",
             "report":{
                 "source":"real_service",
-                "timings":[{"phase":"response_headers","elapsedMs":17}],
-                "outcome":{"status":"succeeded","evidence":{"httpStatus":200}}
+                "timings":[{"phase":"connect","elapsedMs":17}],
+                "outcome":{"status":"succeeded","evidence":{"port":7890,"tcpOpen":true,"protocolCandidates":["http","socks5"]}}
             }
         }]
     });
     let cancelling = json!({
         "job": identity(),
         "state": {"status":"cancelling"},
-        "progress": {"completed":0,"total":1}
+        "progress": {"completed":0,"total":8}
     });
     let missing = json!({"error":{"code":"not_found","message":"Diagnostic task not found"}});
     let server = test_support::server(vec![
@@ -65,32 +65,32 @@ async fn cc_route_029_sdk_starts_reads_and_cancels_with_typed_evidence() {
     let project = ProjectId::from("fixture ?");
     let app = AppId::ClaudeDesktop;
     let token = "fixture-proxy-token";
-    let job = client.app_routing_start_outbound_probe(host, &project, app, token).await.unwrap();
-    assert_eq!(job.kind, DiagnosticProbeKind::OutboundProxy);
+    let job = client.app_routing_start_outbound_scan(host, &project, app, token).await.unwrap();
+    assert_eq!(job.kind, DiagnosticProbeKind::OutboundScan);
     assert_eq!(job.task_id, TaskId::from("fixture/job"));
     let snapshot = client
-        .app_routing_outbound_probe_status(host, &project, app, &job.task_id, token)
+        .app_routing_outbound_scan_status(host, &project, app, &job.task_id, token)
         .await
         .unwrap();
-    let [DiagnosticResult::OutboundProxy { report }] = snapshot.results.as_deref().unwrap() else {
+    let [DiagnosticResult::OutboundScan { report }] = snapshot.results.as_deref().unwrap() else {
         panic!("expected one typed proxy report");
     };
     assert_eq!(report.timings[0].elapsed_ms, 17);
     assert!(
-        matches!(report.outcome, DiagnosticOutcome::Succeeded { evidence } if evidence.http_status == 200)
+        matches!(&report.outcome, DiagnosticOutcome::Succeeded { evidence } if evidence.port == 7890 && evidence.tcp_open && evidence.protocol_candidates == ["http", "socks5"])
     );
     let snapshot = client
-        .app_routing_cancel_outbound_probe(host, &project, app, &job.task_id, token)
+        .app_routing_cancel_outbound_scan(host, &project, app, &job.task_id, token)
         .await
         .unwrap();
     assert_eq!(snapshot.state, DiagnosticJobState::Cancelling {});
     assert!(matches!(
-        client.app_routing_outbound_probe_status(host, &project, app, &job.task_id, token).await,
+        client.app_routing_outbound_scan_status(host, &project, app, &job.task_id, token).await,
         Err(AppRoutingError::Http { status: 404, body: Some(body) })
             if body.error.code == "not_found"
     ));
     let base =
-        "/v1/app-routing/hosts/mac%20%2F/projects/fixture%20%3F/apps/claude-desktop/egress/probes";
+        "/v1/app-routing/hosts/mac%20%2F/projects/fixture%20%3F/apps/claude-desktop/egress/scans";
     for (method, suffix, body) in [
         ("POST", "", json!({})),
         ("GET", "/fixture%2Fjob", Value::Null),

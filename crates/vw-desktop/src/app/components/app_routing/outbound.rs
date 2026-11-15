@@ -228,6 +228,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else {
         return app.show_error_toast("无法连接网关");
     };
+    let client = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone());
     let token = app.apps_catalog.token.clone();
     state.busy = true;
     state.error = None;
@@ -258,8 +259,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 let run = async {
                     let job = bounded(async {
                         if scan {
-                            client
-                                .app_routing_start_outbound_scan(
+                            client.app_routing_start_outbound_scan(
                                     &context.host,
                                     &project,
                                     id,
@@ -267,8 +267,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                                 )
                                 .await
                         } else {
-                            client
-                                .app_routing_start_outbound_probe(
+                            client.app_routing_start_outbound_probe(
                                     &context.host,
                                     &project,
                                     id,
@@ -286,8 +285,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                                 if cancel.load(Ordering::Relaxed) || cancelling {
                                     cancelling = true;
                                     if scan {
-                                        client
-                                            .app_routing_cancel_outbound_scan(
+                                        client.app_routing_cancel_outbound_scan(
                                                 &context.host,
                                                 &project,
                                                 id,
@@ -296,8 +294,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                                             )
                                             .await
                                     } else {
-                                        client
-                                            .app_routing_cancel_outbound_probe(
+                                        client.app_routing_cancel_outbound_probe(
                                                 &context.host,
                                                 &project,
                                                 id,
@@ -307,8 +304,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                                             .await
                                     }
                                 } else if scan {
-                                    client
-                                        .app_routing_outbound_scan_status(
+                                    client.app_routing_outbound_scan_status(
                                             &context.host,
                                             &project,
                                             id,
@@ -317,8 +313,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                                         )
                                         .await
                                 } else {
-                                    client
-                                        .app_routing_outbound_probe_status(
+                                    client.app_routing_outbound_probe_status(
                                             &context.host,
                                             &project,
                                             id,
@@ -484,7 +479,7 @@ pub(crate) fn overlay<'a>(
 }
 
 async fn bounded<T>(
-    request: impl std::future::Future<Output = Result<T, vw_gateway_client::AppRoutingError>>,
+    request: impl std::future::Future<Output = Result<T, gateway_app_routing::AppRoutingError>>,
 ) -> Result<T, String> {
     #[cfg(not(target_arch = "wasm32"))]
     {

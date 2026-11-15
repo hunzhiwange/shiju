@@ -48,24 +48,21 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     let owner = client(port, "owner");
     let project = "fixture".into();
     assert_error(
-        owner
-            .app_routing_start_outbound_scan(HOST, &project, AppId::Codex, READER)
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, READER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        client(port, "other")
-            .app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER)
+        gateway_app_routing::GatewayAppRoutingClient::new(client(port, "other").transport().clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER)
             .await
             .unwrap_err(),
         403,
         "forbidden",
     );
     assert_error(
-        owner
-            .app_routing_start_outbound_scan("other-mac", &project, AppId::Codex, MANAGER)
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_scan("other-mac", &project, AppId::Codex, MANAGER)
             .await
             .unwrap_err(),
         403,
@@ -85,8 +82,7 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     let job: vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity =
         response.json().await.unwrap();
     assert_error(
-        owner
-            .app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_outbound_probe_status(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
             .await
             .unwrap_err(),
         404,
@@ -94,8 +90,7 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     );
     let snapshot = timeout(Duration::from_secs(5), async {
         loop {
-            let snapshot = owner
-                .app_routing_outbound_scan_status(
+            let snapshot = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_outbound_scan_status(
                     HOST,
                     &project,
                     AppId::Codex,
@@ -131,9 +126,8 @@ async fn cc_route_030_outbound_scan_expected_behavior() {
     assert_eq!(ports, [1080, 3128, 7890, 7891, 8080, 8888, 10808, 10809]);
     // Cancellation remains safe even if the short scan already finished.
     let job =
-        owner.app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER).await.unwrap();
-    let cancelled = owner
-        .app_routing_cancel_outbound_scan(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
+        gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_start_outbound_scan(HOST, &project, AppId::Codex, MANAGER).await.unwrap();
+    let cancelled = gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_cancel_outbound_scan(HOST, &project, AppId::Codex, &job.task_id, MANAGER)
         .await
         .unwrap();
     assert!(matches!(

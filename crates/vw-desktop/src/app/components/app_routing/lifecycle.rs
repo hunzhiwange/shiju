@@ -1,4 +1,5 @@
 //! Host-owned routing: the desktop only sends explicit SDK commands.
+use gateway_app_routing::AppRoutingError;
 use crate::app::{
     App, Message,
     components::system_settings_common::*,
@@ -10,7 +11,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 use vw_gateway_client::vw_api_types::app_routing::{RoutingHealth, RoutingState, RoutingStatus};
-use vw_gateway_client::{AppRoutingError, GatewayClient};
+use vw_gateway_client::{GatewayClient};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Context {
@@ -152,6 +153,7 @@ async fn request(
     token: String,
     operation: Operation,
 ) -> Result<(RoutingStatus, RoutingHealth), String> {
+    let client = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone());
     // A bound encompasses both status and health, including the command response.
     #[cfg(not(target_arch = "wasm32"))]
     {

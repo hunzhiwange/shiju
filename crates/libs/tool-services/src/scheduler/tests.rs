@@ -4,7 +4,7 @@
 //! 避免调度器扩大未声明的并发能力。
 
 use super::*;
-use crate::tools::ToolResult;
+use tool_types::ToolResult;
 use async_trait::async_trait;
 
 struct FakeTool {

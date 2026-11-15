@@ -8,6 +8,10 @@ pub mod delegated_tools;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod question;
 pub mod remote_trigger;
+pub mod schedule;
+pub mod scheduler;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod screenshot;
 
 /// Reuses the host's existing Arc adapter without replacing tool instances.
 pub trait BatchHost: tool_context::host::ContextHost {

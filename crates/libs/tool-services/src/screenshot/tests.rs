@@ -9,9 +9,9 @@
 //!
 //! 这些测试确保截图工具在各种边界情况下都能安全可靠地运行。
 
-use super::super::*;
+use super::*;
 use super::{CaptureRectangle, CaptureRequest};
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use agent_security::{AutonomyLevel, SecurityPolicy};
 use base64::Engine;
 use serde_json::json;
 use std::path::Path;

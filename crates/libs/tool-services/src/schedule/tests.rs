@@ -19,9 +19,9 @@
 //! | 错误处理 | `unknown_action_returns_failure`, `mutating_actions_fail_when_cron_disabled` |
 //! | 命令安全 | `create_blocks_disallowed_command`, `medium_risk_create_requires_approval` |
 
-use super::super::*;
-use crate::Config;
-use crate::app::agent::security::AutonomyLevel;
+use super::*;
+use agent_config::Config;
+use agent_security::AutonomyLevel;
 use serde_json::json;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -195,7 +195,7 @@ async fn readonly_blocks_mutating_actions() {
     let config = Config {
         workspace_dir,
         config_path,
-        autonomy: crate::app::agent::config::AutonomyConfig {
+        autonomy: agent_config::AutonomyConfig {
             level: AutonomyLevel::ReadOnly,
             ..Default::default()
         },
@@ -238,7 +238,7 @@ async fn rate_limit_blocks_create_action() {
     let config = Config {
         workspace_dir,
         config_path,
-        autonomy: crate::app::agent::config::AutonomyConfig {
+        autonomy: agent_config::AutonomyConfig {
             level: AutonomyLevel::Full,
             max_actions_per_hour: 0,
             ..Default::default()
@@ -287,7 +287,7 @@ async fn rate_limit_blocks_cancel_and_keeps_job() {
     let config = Config {
         workspace_dir,
         config_path,
-        autonomy: crate::app::agent::config::AutonomyConfig {
+        autonomy: agent_config::AutonomyConfig {
             level: AutonomyLevel::Full,
             max_actions_per_hour: 1,
             ..Default::default()

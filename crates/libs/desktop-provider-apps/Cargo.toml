@@ -14,7 +14,7 @@ vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["sync", "time"] }
 iced = { version = "0.14", features = ["advanced", "image"] }
 vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
@@ -30,6 +30,9 @@ gateway-http = { path = "../gateway-http", version = "0.6.0" }
 base64 = "0.22"
 image = "0.25.9"
 
+local-app-auth = { path = "../local-app-auth", version = "0.6.0" }
+rand = "0.10.3"
+hex = "0.4"
 serde_json = "1"
 gateway-app-provider = { path = "../gateway-app-provider", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }

@@ -1,10 +1,11 @@
-use super::openclaw;
-use crate::app::state::{
+use super::edit_test_state::ListState;
+use super::omp;
+use crate::{
     AgentAppsContext,
-    app_providers::{
+    state::{
         edit::{EditForm, Mode},
-        list::{ListState, Scope},
-        openclaw::Draft,
+        list::Scope,
+        omp::Draft,
     },
 };
 use iced::widget::text_editor::Content;
@@ -17,9 +18,9 @@ use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
-use vw_api_app_provider_extended::openclaw::OpenClawLiveResult;
+use vw_api_app_provider_terminal::omp::OmpLiveResult;
 
-const INVALID: &str = r#"{"models":[{"id":"","name":"中文模型"}]}"#;
+const INVALID: &str = "models:\n  - id: \"\"\n    name: 中文模型";
 
 fn client_scope(port: u16) -> (GatewayClient, Scope) {
     let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap();
@@ -30,7 +31,7 @@ fn client_scope(port: u16) -> (GatewayClient, Scope) {
             project: None,
         },
         host: "fixture-host".into(),
-        app: AppId::OpenClaw,
+        app: AppId::Omp,
     };
     (client, scope)
 }
@@ -44,13 +45,13 @@ fn draft() -> EditForm {
         },
         None,
     );
-    form.openclaw = Some(Draft { declaration: Content::with_text(INVALID), ..Draft::new() });
+    form.omp = Some(Draft { declaration: Content::with_text(INVALID), ..Draft::new() });
     form.saving = true;
     form
 }
 
 #[tokio::test]
-async fn cc04_ui_openclaw_validation_failure_preserves_draft() {
+async fn cc04_ui_omp_validation_failure_preserves_draft() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let (client, scope) = client_scope(listener.local_addr().unwrap().port());
     let mut state = ListState::default();
@@ -76,7 +77,7 @@ async fn cc04_ui_openclaw_validation_failure_preserves_draft() {
         let mut reader = BufReader::new(&mut stream);
         let mut line = String::new();
         reader.read_line(&mut line).unwrap();
-        assert!(line.starts_with("POST /v1/app-providers/openclaw/fixture/form "));
+        assert!(line.starts_with("POST /v1/app-providers/omp/fixture/form "));
         let mut length = 0;
         let mut authorized = false;
         loop {
@@ -101,18 +102,18 @@ async fn cc04_ui_openclaw_validation_failure_preserves_draft() {
         stream.write_all(b"HTTP/1.1 422 Unprocessable Entity\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
         true
     });
-    let result = openclaw::save(client, scope.clone(), form, "fake-host-token".into()).await;
-    assert!(server.join().unwrap(), "OpenClaw 草稿必须通过 SDK 交给执行端校验");
+    let result = omp::save(client, scope.clone(), form, "fake-host-token".into()).await;
+    assert!(server.join().unwrap(), "OMP 草稿必须通过 SDK 交给执行端校验");
     assert!(result.as_ref().unwrap_err().contains("执行端未接受"));
-    assert!(openclaw::finish(&mut state, &scope, generation, &result));
+    assert!(omp::finish(&mut state.borrowed(), &scope, generation, &result));
     let form = state.form.unwrap();
     assert!(!form.saving);
     assert_eq!(form.fields.name, "中文草稿");
-    assert_eq!(form.openclaw.unwrap().declaration.text().trim_end(), INVALID);
+    assert_eq!(form.omp.unwrap().declaration.text().trim_end(), INVALID);
 }
 
 #[test]
-fn cc04_ui_openclaw_stale_response_is_ignored() {
+fn cc04_ui_omp_stale_response_is_ignored() {
     let (_, scope) = client_scope(1);
     let mut state = ListState::default();
     let old = state.begin(scope.clone());
@@ -121,12 +122,12 @@ fn cc04_ui_openclaw_stale_response_is_ignored() {
     form.fields.name = "当前草稿".into();
     state.form = Some(form);
 
-    assert!(!openclaw::finish(&mut state, &scope, old, &Ok(OpenClawLiveResult::Applied)));
+    assert!(!omp::finish(&mut state.borrowed(), &scope, old, &Ok(OmpLiveResult::Applied)));
     let mut old_scope = scope.clone();
     old_scope.host = "old-host".into();
-    assert!(!openclaw::finish(&mut state, &old_scope, current, &Err("过期错误".into())));
+    assert!(!omp::finish(&mut state.borrowed(), &old_scope, current, &Err("过期错误".into())));
     assert_eq!(state.form.as_ref().unwrap().fields.name, "当前草稿");
     assert!(state.form.as_ref().unwrap().saving);
-    assert!(openclaw::finish(&mut state, &scope, current, &Ok(OpenClawLiveResult::Applied)));
+    assert!(omp::finish(&mut state.borrowed(), &scope, current, &Ok(OmpLiveResult::Applied)));
     assert!(state.form.is_none());
 }

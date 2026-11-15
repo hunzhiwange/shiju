@@ -7,15 +7,18 @@ use vw_gateway_client::GatewayClient;
 fn mapped(effect: Effect) -> Message {
     Message::Settings(SettingsMessage::AppProviderEffect(effect))
 }
-fn run(app: &mut App, update: impl FnOnce(&mut State, &str, Option<&desktop_provider_apps::state::list::Snapshot>) -> Task<Effect>) -> Task<Message> {
+pub(super) fn run(app: &mut App, update: impl FnOnce(&mut State, &str, Option<&desktop_provider_apps::state::list::Snapshot>) -> Task<Effect>) -> Task<Message> {
     let list = &mut app.app_providers;
+    let other_modal_open = list.preview.is_some() || list.snippets.is_some() || list.universal.is_some();
     let mut state = State {
+        mode:list.mode.take(),paths:list.paths.take(),preview:list.preview.take(),snippets:list.snippets.take(),universal:list.universal.take(),
         scope: list.scope.clone(), generation: list.generation, loading: list.loading,
         editor:list.editor.take(),icons:list.icons.take(),env:list.env.take(),endpoints:list.endpoints.take(),
-        other_modal_open:list.preview.is_some() || list.snippets.is_some() || list.universal.is_some(),
+        other_modal_open,
         form: list.form.take(), desktop: list.desktop.take(), new_draft: list.new_draft.take(),
     };
     let task = update(&mut state, &app.apps_catalog.token, list.snapshot.as_ref());
+    list.mode=state.mode;list.paths=state.paths;list.preview=state.preview;list.snippets=state.snippets;list.universal=state.universal;
     list.editor=state.editor; list.icons=state.icons; list.env=state.env; list.endpoints=state.endpoints;
     list.generation = state.generation;
     list.loading = state.loading;
@@ -40,6 +43,17 @@ pub fn membership_changed(app: &mut App, current: Option<(GatewayClient, Scope)>
 pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
     match effect {
         Effect::List(event) => list(app,event),
+        Effect::McodeMemberChanged {scope,generation,add,result} => super::mcode::membership_changed(app,scope,generation,add,result),
+        Effect::OmpMemberChanged {scope,generation,add,result} => super::omp::membership_changed(app,scope,generation,add,result),
+        Effect::OpenClawMemberChanged {scope,generation,add,result} => super::openclaw::membership_changed(app,scope,generation,add,result),
+        Effect::OpenCodeMemberChanged {scope,generation,add,result} => super::opencode::membership_changed(app,scope,generation,add,result),
+        Effect::PiMemberChanged {scope,generation,add,result} => super::pi::membership_changed(app,scope,generation,add,result),
+        Effect::Mode(event) => super::mode::update(app,event),
+        Effect::Paths(event) => super::paths::update(app,event),
+        Effect::Preview(event) => super::preview::update(app,event),
+        Effect::Snippets(event) => super::snippets::update(app,event),
+        Effect::PickFolder {client,scope,token,generation,catalog_generation} => super::paths::pick(client,scope,token,generation,catalog_generation),
+        Effect::OpenFolder {client,scope,token,path} => super::paths::open(client,scope,token,path),
         Effect::None => Task::none(),
         Effect::OpenList(id) => super::list::update(app,super::list::ListMessage::Open(id)),
         Effect::Endpoints(event) => super::endpoints::update(app,event),

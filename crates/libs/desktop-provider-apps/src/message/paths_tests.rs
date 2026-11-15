@@ -1,4 +1,4 @@
-use crate::app::state::app_providers::paths::Form;
+use crate::state::paths::Form;
 use {gateway_http::AgentAppsReadError, vw_api_types::{agent_apps::AppId}};
 use vw_api_app_provider_environment::paths::ProviderDirectoryStatus;
 use vw_api_app_provider_environment::paths::ProviderPaths;

@@ -1,9 +1,10 @@
+use super::edit_test_state::ListState;
 use super::pi;
-use crate::app::state::{
+use crate::{
     AgentAppsContext,
-    app_providers::{
+    state::{
         edit::{EditForm, Mode},
-        list::{ListState, Scope},
+        list::Scope,
         pi::Draft,
     },
 };
@@ -104,7 +105,7 @@ async fn cc04_ui_pi_validation_failure_preserves_draft() {
     let result = pi::save(client, scope.clone(), form, "fake-host-token".into()).await;
     assert!(server.join().unwrap(), "Pi 草稿必须通过 SDK 交给执行端校验");
     assert!(result.as_ref().unwrap_err().contains("执行端未接受"));
-    assert!(pi::finish(&mut state, &scope, generation, &result));
+    assert!(pi::finish(&mut state.borrowed(), &scope, generation, &result));
     let form = state.form.unwrap();
     assert!(!form.saving);
     assert_eq!(form.fields.name, "中文草稿");
@@ -121,12 +122,12 @@ fn cc04_ui_pi_stale_response_is_ignored() {
     form.fields.name = "当前草稿".into();
     state.form = Some(form);
 
-    assert!(!pi::finish(&mut state, &scope, old, &Ok(PiLiveResult::Applied)));
+    assert!(!pi::finish(&mut state.borrowed(), &scope, old, &Ok(PiLiveResult::Applied)));
     let mut old_scope = scope.clone();
     old_scope.host = "old-host".into();
-    assert!(!pi::finish(&mut state, &old_scope, current, &Err("过期错误".into())));
+    assert!(!pi::finish(&mut state.borrowed(), &old_scope, current, &Err("过期错误".into())));
     assert_eq!(state.form.as_ref().unwrap().fields.name, "当前草稿");
     assert!(state.form.as_ref().unwrap().saving);
-    assert!(pi::finish(&mut state, &scope, current, &Ok(PiLiveResult::Applied)));
+    assert!(pi::finish(&mut state.borrowed(), &scope, current, &Ok(PiLiveResult::Applied)));
     assert!(state.form.is_none());
 }

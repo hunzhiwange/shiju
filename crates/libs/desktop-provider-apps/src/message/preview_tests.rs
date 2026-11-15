@@ -1,4 +1,4 @@
-use crate::app::state::app_providers::preview::{Confirmation, Conflict, SaveOutcome};
+use crate::state::preview::{Confirmation, Conflict, SaveOutcome};
 use vw_api_app_provider_edit::editor_merge::EditorChoice;
 use vw_api_app_provider_edit::editor_merge::EditorEdit;
 use vw_api_app_provider_edit::editor_merge::EditorResult;

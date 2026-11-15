@@ -64,3 +64,35 @@ mod icons_tests;
 pub mod list;
 
 pub mod leave;
+
+pub mod mode;
+
+pub mod paths;
+
+pub mod preview;
+
+pub mod snippets;
+
+#[cfg(test)]
+mod mcode_tests;
+
+#[cfg(test)]
+mod omp_tests;
+
+#[cfg(test)]
+mod openclaw_tests;
+
+#[cfg(test)]
+mod opencode_tests;
+
+#[cfg(test)]
+mod pi_tests;
+
+#[cfg(test)]
+mod mode_tests;
+
+#[cfg(test)]
+mod paths_tests;
+
+#[cfg(test)]
+mod snippets_tests;

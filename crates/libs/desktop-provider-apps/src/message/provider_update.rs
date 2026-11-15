@@ -6,12 +6,23 @@ pub struct State {
  pub form: Option<EditForm>, pub desktop: Option<Form>,
  pub editor: Option<crate::state::list::Editor>,
  pub icons: Option<crate::state::icons::Form>, pub env: Option<crate::state::env::Form>, pub endpoints: Option<crate::state::endpoints::Form>,
+ pub mode: Option<crate::state::mode::Form>, pub paths: Option<crate::state::paths::Form>,
+ pub preview: Option<crate::state::preview::Form>, pub snippets: Option<crate::state::snippets::Form>,
+ pub universal: Option<crate::state::universal::Form>,
  pub other_modal_open: bool,
  pub new_draft: Option<vw_api_app_provider_base::create::AppProviderCreate>,
 }
 #[derive(Clone)]
 pub enum Effect {
+ McodeMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_terminal::mcode::McodeLiveResult,String>},
+ OmpMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_terminal::omp::OmpLiveResult,String>},
+ OpenClawMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_extended::openclaw::OpenClawLiveResult,String>},
+ OpenCodeMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_extended::opencode::OpenCodeLiveResult,String>},
+ PiMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_terminal::pi::PiLiveResult,String>},
  DshMemberChanged { scope: Scope, generation: u64, add: bool, result: Result<vw_api_app_provider_terminal::dsh::DshLiveResult,String> },
+ Mode(super::mode::Event), Paths(super::paths::Event), Preview(super::preview::Event), Snippets(super::snippets::Event),
+ PickFolder {client:GatewayClient,scope:Scope,token:String,generation:u64,catalog_generation:u64},
+ OpenFolder {client:GatewayClient,scope:Scope,token:String,path:String},
  Desktop(super::desktop::Event),
  Endpoints(super::endpoints::Event), Env(super::env::Event), Icons(super::icons::Event),
  List(super::list::Event),

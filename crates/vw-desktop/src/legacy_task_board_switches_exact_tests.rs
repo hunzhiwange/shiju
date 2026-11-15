@@ -42,7 +42,7 @@ fn legacy_task_board_switches_are_ignored_after_capability_cutover() {
     assert!(!modal_source.contains("field_row(\"任务拆分\""));
 
     let project_refresh_source =
-        include_str!("app/impls/app_view_modals/project_edit/refresh_tab.rs");
+        include_str!("../../libs/desktop-workspace/src/project_edit_view/refresh_tab.rs");
     assert!(!project_refresh_source.contains("自动拉起任务池"));
     assert!(!project_refresh_source.contains("执行代码审查"));
     assert!(!project_refresh_source.contains("ProjectEditAutoPromotePoolTasksToggled"));

@@ -65,7 +65,7 @@ fn desktop_gettext_area_14_public_helpers_have_catalog_entries() {
     for source in [
         include_str!("../views/expert_hub/public_skills.rs"),
         include_str!("../views/expert_hub/list.rs"),
-        include_str!("../views/expert_hub/shiju_apps/store.rs"),
+        include_str!("../../../../libs/desktop-expert-hub/src/views/shiju_apps/store.rs"),
         include_str!("../views/expert_hub/shiju_apps/mine.rs"),
     ] {
         for captures in calls.captures_iter(source) {

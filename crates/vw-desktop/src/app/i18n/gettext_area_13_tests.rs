@@ -40,10 +40,10 @@ fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
     }
     for source in [
         include_str!("../views/workflow_manager/mod.rs"),
-        include_str!("../../apps/workflow/canvas/handles.rs"),
+        include_str!("../../../../libs/desktop-workflow-canvas/src/canvas/handles.rs"),
         include_str!("../../apps/workflow/canvas/mod.rs"),
-        include_str!("../../apps/workflow/canvas/render.rs"),
-        include_str!("../../apps/workflow/canvas/utils.rs"),
+        include_str!("../../../../libs/desktop-workflow-canvas/src/canvas/render.rs"),
+        include_str!("../../../../libs/desktop-workflow-canvas/src/canvas/utils.rs"),
         include_str!("../../apps/workflow/message/app.rs"),
         include_str!("../../apps/workflow/message/canvas.rs"),
         include_str!("../../apps/workflow/message/document.rs"),
@@ -82,7 +82,7 @@ fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
         include_str!("../../apps/workflow/view/app_list.rs"),
         include_str!("../../apps/workflow/view/canvas_shell.rs"),
         include_str!("../../apps/workflow/view/data_nodes.rs"),
-        include_str!("../../apps/workflow/view/header.rs"),
+        include_str!("../../../../libs/desktop-workflow-ui/src/view/header.rs"),
         include_str!("../../apps/workflow/view/http_request.rs"),
         include_str!("../../apps/workflow/view/if_else.rs"),
         include_str!("../../apps/workflow/view/menu.rs"),

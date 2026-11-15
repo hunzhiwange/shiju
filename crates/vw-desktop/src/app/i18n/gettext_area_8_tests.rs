@@ -29,7 +29,7 @@ fn desktop_gettext_area_8_migrated_display_keys_have_both_translations() {
         include_str!("../components/chat_panel/tools/command_summary_view.rs"),
         include_str!("../components/chat_panel/tools/config_view.rs"),
         include_str!("../components/chat_panel/tools/explore_summary_view.rs"),
-        include_str!("../components/chat_panel/tools/files_view/list_ui.rs"),
+        include_str!("../../../../libs/desktop-chat-tools/src/tools/files_view/list_ui.rs"),
         include_str!("../components/chat_panel/tools/git_diff_view.rs"),
         include_str!("../components/chat_panel/tools/lsp_view.rs"),
         include_str!("../components/chat_panel/tools/mcp_view.rs"),

@@ -11,7 +11,7 @@ fn desktop_gettext_area_7_general_editor_sources_have_catalog_entries() {
         include_str!("../components/system_settings_acp.rs"),
         include_str!("../components/system_settings_browser.rs"),
         include_str!("../components/system_settings_cron.rs"),
-        include_str!("../components/system_settings_cron/schedule.rs"),
+        include_str!("../../../../libs/desktop-settings-cron/src/system_settings_cron/schedule.rs"),
         include_str!("../components/system_settings_themes/editor.rs"),
         include_str!("../components/system_settings_themes/gallery.rs"),
         include_str!("../components/system_settings_themes/preview.rs"),

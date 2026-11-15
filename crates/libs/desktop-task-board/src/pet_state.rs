@@ -46,3 +46,35 @@ pub struct TaskPetItem {
     pub status: TaskPetStatus,
     pub last_click_at: Option<web_time::Instant>,
 }
+
+/// Validate and apply the persisted companion scale without changing invalid input.
+pub fn set_task_pet_scale(current: &mut f32, scale: f32) -> Result<(), &'static str> {
+    if !scale.is_finite() {
+        return Err("伙伴大小必须是有限数值");
+    }
+    *current = scale.clamp(0.5, 2.0);
+    Ok(())
+}
+
+/// Apply only recognized companion preferences, preserving absent fields.
+pub fn apply_task_pet_preferences(
+    cfg: &serde_json::Value,
+    avatar: &mut TaskPetAvatarKind,
+    scale: &mut f32,
+    visible: &mut bool,
+) {
+    let Some(preferences) = cfg.get("mini_companion").and_then(serde_json::Value::as_object) else {
+        return;
+    };
+    if let Some(value) = preferences.get("avatar")
+        && let Ok(value) = serde_json::from_value(value.clone())
+    {
+        *avatar = value;
+    }
+    if let Some(value) = preferences.get("scale").and_then(serde_json::Value::as_f64) {
+        let _ = set_task_pet_scale(scale, value.clamp(0.5, 2.0) as f32);
+    }
+    if let Some(value) = preferences.get("visible").and_then(serde_json::Value::as_bool) {
+        *visible = value;
+    }
+}

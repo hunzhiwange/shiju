@@ -891,7 +891,7 @@ const CREATE_TASK_PLANS_SKILL_SOURCE: &str =
     "crates/vw-agent/assets/runtime-skills/create-task-plans-runtime/SKILL.md";
 #[cfg(not(target_arch = "wasm32"))]
 const CREATE_TASK_PLANS_SKILL: &str = include_str!(
-    "../../../../../vw-agent/assets/runtime-skills/create-task-plans-runtime/SKILL.md"
+    "../../../../vw-agent/assets/runtime-skills/create-task-plans-runtime/SKILL.md"
 );
 
 /// 框架运行时 do-task-plans 执行规范的来源。
@@ -903,7 +903,7 @@ const DO_TASK_PLANS_SKILL_SOURCE: &str =
     "crates/vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md";
 #[cfg(not(target_arch = "wasm32"))]
 const DO_TASK_PLANS_SKILL: &str =
-    include_str!("../../../../../vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md");
+    include_str!("../../../../vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md");
 
 /// 任务拆分使用的确定性计划目录名。
 ///

@@ -11,6 +11,7 @@ doctest = false
 browser-native = ["dep:fantoccini", "dep:base64"]
 
 [dependencies]
+network-policy = { path = "../network-policy", version = "0.6.0" }
 anyhow = "1"
 async-trait = "0.1.89"
 serde = { version = "1", features = ["derive"] }

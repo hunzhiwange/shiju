@@ -26,6 +26,7 @@
 //! - `tool`: 工具 trait 实现
 //! - `native_backend`: Rust 原生浏览器后端（可选特性）
 
+pub mod browser_open;
 mod actions;
 mod agent_browser;
 mod backend;

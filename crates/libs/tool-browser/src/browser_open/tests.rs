@@ -13,11 +13,11 @@
 //! - **URL 验证拒绝测试**：`validate_rejects_*` 系列测试
 //! - **执行阶段限制测试**：`execute_*` 系列测试
 
-use super::super::*;
+use super::*;
 use super::{display_browser_name, open_in_browser};
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::url_validation::normalize_allowed_domains;
-use crate::app::agent::tools::url_validation::normalize_domain;
+use agent_security::{AutonomyLevel, SecurityPolicy};
+use network_policy::normalize_allowed_domains;
+use network_policy::normalize_domain;
 use serde_json::json;
 
 /// 创建用于测试的 BrowserOpenTool 实例

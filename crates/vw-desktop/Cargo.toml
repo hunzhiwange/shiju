@@ -84,6 +84,7 @@ shell-command = { path = "../libs/shell-command", version = "0.6.0", features = 
 gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle", version = "0.6.0" }
 gateway-scheduler = { path = "../libs/gateway-scheduler", version = "0.6.0" }
 gateway-knowledge = { path = "../libs/gateway-knowledge", version = "0.6.0" }
+desktop-expert-hub = { path = "../libs/desktop-expert-hub", version = "0.6.0" }
 gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }
 gateway-voice = { path = "../libs/gateway-voice", version = "0.6.0" }
 gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution", version = "0.6.0" }

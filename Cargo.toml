@@ -112,6 +112,7 @@ members = [
   "crates/libs/shell-command",
   "crates/libs/gateway-scheduler",
   "crates/libs/gateway-knowledge",
+  "crates/libs/desktop-expert-hub",
   "crates/libs/app-auth-claude",
   "crates/libs/gateway-workflow",
   "crates/libs/app-auth-codex",

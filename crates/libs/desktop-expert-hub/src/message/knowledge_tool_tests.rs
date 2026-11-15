@@ -5,15 +5,9 @@ use super::{
     document_status_from_index_job, import_batch_success_message, import_request_from_file,
     import_success_message, looks_sensitive_token, mime_type_for_filename, parse_score_threshold,
     parse_usize_input, sanitize_document_page_size, sanitize_sensitive_display_text,
-    selected_dataset_embedding_model, trim_to_option, update,
+    trim_to_option,
 };
-use crate::app::{
-    App,
-    state::{
-        KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab,
-        KnowledgeDocumentInputTab,
-    },
-};
+use crate::state::{KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab, KnowledgeDocumentInputTab};
 use iced::widget::text_editor;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -23,8 +17,38 @@ use vw_api_knowledge::{
 };
 use {vw_api_knowledge::KnowledgeCapabilitiesDto, vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkType, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentImportQueuedResponse, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobDto, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeMatchType, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRetrieveResponse, vw_api_knowledge::KnowledgeRuntimeStatus};
 
-fn test_app() -> App {
-    App::new().0
+#[derive(Default)]
+struct DragBuffers {
+    pending_drop_file_paths: Vec<String>,
+    dragging_file_paths: Vec<String>,
+    pending_drop_file_position: Option<(i32, i32)>,
+}
+struct Toast { message: String }
+#[derive(Default)]
+struct TestApp {
+    knowledge: crate::state::KnowledgeUiState,
+    file_tree_interaction: DragBuffers,
+    active_toast: Option<Toast>,
+}
+fn test_app() -> TestApp { TestApp::default() }
+fn gateway() -> Result<gateway_http::GatewayTransport, String> { Err("test gateway unavailable".into()) }
+fn update(app: &mut TestApp, message: KnowledgeToolMessage) -> iced::Task<crate::Event> {
+    let dropped_paths = if matches!(message, KnowledgeToolMessage::ImportDroppedFiles) {
+        app.file_tree_interaction.pending_drop_file_position = None;
+        let dragging = std::mem::take(&mut app.file_tree_interaction.dragging_file_paths);
+        let pending = std::mem::take(&mut app.file_tree_interaction.pending_drop_file_paths);
+        if dragging.is_empty() { pending } else { dragging }
+    } else { Vec::new() };
+    let mut session = crate::KnowledgeUpdate { knowledge: &mut app.knowledge, gateway, dropped_paths, feedback: None };
+    let task = super::update(&mut session, message);
+    if let Some((_, message, _)) = session.feedback { app.active_toast = Some(Toast { message }); }
+    task
+}
+fn ensure_loaded(app: &mut TestApp) -> iced::Task<crate::Event> {
+    super::ensure_loaded(&mut crate::KnowledgeUpdate { knowledge: &mut app.knowledge, gateway, dropped_paths: Vec::new(), feedback: None })
+}
+fn selected_dataset_embedding_model(app: &TestApp) -> Option<String> {
+    super::selected_dataset_embedding_model(&app.knowledge)
 }
 
 fn dataset(id: &str, top_k: usize, threshold_enabled: bool, threshold: f64) -> KnowledgeDatasetDto {
@@ -129,7 +153,7 @@ fn knowledge_file_import_state_tracks_selection_success_and_failure() {
     let mut app = test_app();
     app.knowledge.selected_dataset_id = Some("ds".to_string());
 
-    let selected = crate::app::state::KnowledgeFileImportDraft {
+    let selected = crate::state::KnowledgeFileImportDraft {
         filename: "guide.md".to_string(),
         mime_type: Some("text/markdown".to_string()),
         byte_len: 12,
@@ -183,13 +207,13 @@ fn knowledge_file_import_enqueues_jobs_and_tracks_polling_state() {
     app.knowledge.selected_dataset_id = Some("ds".to_string());
 
     let files = vec![
-        crate::app::state::KnowledgeFileImportDraft {
+        crate::state::KnowledgeFileImportDraft {
             filename: "guide.md".to_string(),
             mime_type: Some("text/markdown".to_string()),
             byte_len: 12,
             content_base64: "IyBoZWxsbyB2aWJl".to_string(),
         },
-        crate::app::state::KnowledgeFileImportDraft {
+        crate::state::KnowledgeFileImportDraft {
             filename: "notes.md".to_string(),
             mime_type: Some("text/markdown".to_string()),
             byte_len: 8,
@@ -904,7 +928,7 @@ fn import_filename_mime_detection_accepts_supported_extensions_case_insensitivel
 
 #[test]
 fn import_request_preserves_file_fields_and_adds_non_sensitive_source_metadata() {
-    let request = import_request_from_file(crate::app::state::KnowledgeFileImportDraft {
+    let request = import_request_from_file(crate::state::KnowledgeFileImportDraft {
         filename: "guide.md".to_string(),
         mime_type: Some("text/markdown".to_string()),
         byte_len: 27,
@@ -971,7 +995,7 @@ fn sensitive_display_text_redacts_supported_token_shapes_and_preserves_punctuati
 fn ensure_loaded_only_schedules_missing_knowledge_resources() {
     let mut app = test_app();
 
-    let task = super::ensure_loaded(&mut app);
+    let task = ensure_loaded(&mut app);
 
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
     assert!(app.knowledge.loading_status);
@@ -979,7 +1003,7 @@ fn ensure_loaded_only_schedules_missing_knowledge_resources() {
     assert!(app.knowledge.loading_embedding_presets);
     assert!(app.knowledge.loading_datasets);
 
-    let second = super::ensure_loaded(&mut app);
+    let second = ensure_loaded(&mut app);
     assert_eq!(second.units(), 0);
 
     app.knowledge.loading_status = false;
@@ -1015,7 +1039,7 @@ fn ensure_loaded_only_schedules_missing_knowledge_resources() {
     }];
     app.knowledge.loading_datasets = false;
 
-    let datasets_task = super::ensure_loaded(&mut app);
+    let datasets_task = ensure_loaded(&mut app);
     assert!(iced_runtime::task::into_stream(datasets_task.collect()).is_some());
     assert!(app.knowledge.loading_datasets);
     assert!(!app.knowledge.loading_status);
@@ -1065,7 +1089,7 @@ fn import_empty_error_clear_busy_and_polling_edges_are_local_only() {
     assert_eq!(app.knowledge.notification.as_deref(), Some("取消或读取失败"));
     assert!(app.knowledge.notification_is_error);
 
-    app.knowledge.file_imports = vec![crate::app::state::KnowledgeFileImportDraft {
+    app.knowledge.file_imports = vec![crate::state::KnowledgeFileImportDraft {
         filename: "guide.md".to_string(),
         mime_type: Some("text/markdown".to_string()),
         byte_len: 12,

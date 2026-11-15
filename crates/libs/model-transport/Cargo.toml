@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+agent-auth = { path = "../agent-auth", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
 model-protocols = { path = "../model-protocols", version = "0.6.0" }
 provider-protocol-routes = { path = "../provider-protocol-routes", version = "0.6.0" }
 serde_json = "1"
@@ -22,7 +25,7 @@ futures-util = "0.3.32"
 model-protocol = { path = "../model-protocol", version = "0.6.0" }
 getrandom = "0.4"
 hex = "0.4"
-reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "socks", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
 ring = "0.17.14"
 tokio = { version = "1", features = ["macros", "time"] }
 tokio-util = "0.7.18"

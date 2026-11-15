@@ -68,3 +68,9 @@ pub mod tool_media;
 pub mod tool_media_request;
 pub mod tool_namespace;
 pub mod xai_responses;
+
+pub mod messages_thinking;
+pub mod messages_thinking_config;
+pub mod protocol_bridge_stream;
+#[cfg(test)]
+mod messages_thinking_core_tests;

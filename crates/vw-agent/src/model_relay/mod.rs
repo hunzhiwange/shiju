@@ -32,8 +32,7 @@ pub(crate) mod messages_stream;
 mod messages_tests;
 pub(crate) mod messages_thinking;
 mod messages_thinking_config;
-#[cfg(test)]
-mod messages_thinking_core_tests;
+// Pure thinking receipt tests live in model-protocol.
 #[cfg(test)]
 mod messages_thinking_http_tests;
 #[cfg(test)]

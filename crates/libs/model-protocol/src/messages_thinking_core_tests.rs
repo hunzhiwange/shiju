@@ -9,8 +9,9 @@ fn model_protocol_015_enabled_thinking_is_not_silently_disabled() {
     assert_eq!(messages::to_chat(&body), Err(StatusCode::UNPROCESSABLE_ENTITY));
 }
 
-use super::{RelayIdentity, messages_thinking::Context};
-use crate::app_routing::reference_scope::{ReferenceScope, References};
+use model_relay_state::RelayIdentity;
+use super::messages_thinking::Context;
+use model_relay_state::reference_scope::{ReferenceScope, References};
 use axum::http::StatusCode;
 use serde_json::Value;
 use std::sync::Arc;

@@ -20,3 +20,6 @@ pub mod gemini_oauth_transport;
 pub mod credential;
 
 pub mod routing_selection;
+
+pub mod execution;
+pub mod provider_transport;

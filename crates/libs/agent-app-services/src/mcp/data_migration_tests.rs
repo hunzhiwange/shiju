@@ -1,5 +1,5 @@
 use super::McpCatalogStore;
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use serde_json::json;
 use vw_agent_apps::data_management::{
     preview::Decision,

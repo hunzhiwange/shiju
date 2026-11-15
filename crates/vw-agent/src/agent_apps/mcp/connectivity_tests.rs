@@ -55,7 +55,8 @@ fn cc_mcp_t30_stdio_discovers_tools_using_args_env_and_cwd() -> anyhow::Result<(
         stale.revision += 1;
         assert_eq!(
             runtime.block_on(catalog.check_connection(
-                &scope,
+                &super::connectivity::NativeConnectionCheckRuntime,
+&scope,
                 &stale,
                 "local-fixture",
                 workspace.path(),
@@ -66,7 +67,8 @@ fn cc_mcp_t30_stdio_discovers_tools_using_args_env_and_cwd() -> anyhow::Result<(
         );
         assert!(!workdir.join("started").exists());
         let result = runtime.block_on(catalog.check_connection(
-            &scope,
+            &super::connectivity::NativeConnectionCheckRuntime,
+&scope,
             &saved.record,
             "local-fixture",
             workspace.path(),
@@ -250,7 +252,8 @@ fn check_remote(mode: RemoteMode, expected: McpConnectionOutcome) -> anyhow::Res
 
             let denied = catalog
                 .check_connection(
-                    &scope,
+                    &super::connectivity::NativeConnectionCheckRuntime,
+&scope,
                     &saved.record,
                     owner.host,
                     workspace.path(),
@@ -265,7 +268,8 @@ fn check_remote(mode: RemoteMode, expected: McpConnectionOutcome) -> anyhow::Res
             assert_eq!(hits.load(Ordering::Relaxed), 0);
             let outcome = catalog
                 .check_connection(
-                    &scope,
+                    &super::connectivity::NativeConnectionCheckRuntime,
+&scope,
                     &saved.record,
                     owner.host,
                     workspace.path(),

@@ -25,7 +25,7 @@ use super::{
     McpBindingTarget, McpCatalogStore, McpImportOutcome, McpImportSource,
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::agent_apps::auth_accounts::AuthAccountStore;
+use crate::auth_accounts::AuthAccountStore;
 
 pub(super) fn private_root() -> std::io::Result<tempfile::TempDir> {
     let root = tempfile::tempdir()?;
@@ -238,10 +238,8 @@ fn cc_mcp_t24_binding_requires_credential_permission_before_sse_projection() -> 
     use vw_api_transport::TimestampMs;
 
     use super::catalog_create::catalog_location;
-    use crate::{
-        agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope},
-        gateway::settings_store::GatewaySettingsStore,
-    };
+    use crate::auth_accounts::{AuthAccountMetadata, AuthAccountScope};
+    use app_settings_store::settings_store::GatewaySettingsStore;
 
     const ACCESS: &str = "fixture-access-value";
     const REFRESH: &str = "fixture-refresh-value";

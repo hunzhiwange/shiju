@@ -8,6 +8,14 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+anyhow = "1"
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
+acp-types = { path = "../acp-types", version = "0.6.0" }
+acp-server = { path = "../acp-server", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" }
+reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
 agent-database = { path = "../agent-database", version = "0.6.0" }
 app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
@@ -18,12 +26,18 @@ vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+mcp-client = { path = "../mcp-client", version = "0.6.0" }
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+tokio-util = { version = "0.7.18", features = ["rt"] }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
+
 [target.'cfg(target_os = "macos")'.dependencies]
-anyhow = "1"
+uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"
-tokio = { version = "1", features = ["rt", "time", "net"] }
+tokio = { version = "1", features = ["rt", "time", "net", "io-util", "sync", "macros"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
 vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }

@@ -13,7 +13,7 @@ use super::{
     catalog_create::catalog_location,
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::gateway::settings_store::GatewaySettingsStore;
+use app_settings_store::settings_store::GatewaySettingsStore;
 
 #[test]
 fn cc_mcp_t09_masked_edit_preserves_same_field_reference() -> anyhow::Result<()> {
@@ -136,7 +136,7 @@ fn cc_mcp_t09_raw_auth_fields_are_rejected_before_persisting() -> anyhow::Result
 #[cfg(unix)]
 #[test]
 fn cc_mcp_t09_scoped_material_reaches_only_execution_transports() -> anyhow::Result<()> {
-    use crate::agent_apps::auth_accounts::{
+    use crate::auth_accounts::{
         AuthAccountMetadata, AuthAccountScope, AuthAccountStore,
     };
     use reqwest_012::header::AUTHORIZATION;

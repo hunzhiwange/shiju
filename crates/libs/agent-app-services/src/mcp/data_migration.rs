@@ -3,7 +3,7 @@ use super::{
     McpCatalogStore, StoredCatalogRecord, catalog_create::catalog_location,
     credentials::validate_catalog_connection,
 };
-use crate::gateway::settings_store::GatewaySetting;
+use app_settings_store::settings_store::GatewaySetting;
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, path::Path};
 use uuid::Uuid;

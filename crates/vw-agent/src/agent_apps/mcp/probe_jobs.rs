@@ -6,10 +6,8 @@ use tokio_util::sync::CancellationToken;
 use vw_agent_apps::mcp::validation::validate_new_name;
 use {
     vw_api_app_diagnostics::DiagnosticJobIdentity,
-    vw_api_app_diagnostics::DiagnosticJobSnapshot,
     vw_api_app_diagnostics::DiagnosticProbeKind,
     vw_api_app_diagnostics::DiagnosticResult,
-    vw_api_transport::id::TaskId,
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionCheckItem,
     vw_api_mcp_management::McpConnectionDefinition,
@@ -95,7 +93,8 @@ pub fn start_connection_checks(
                 };
                 let outcome = catalog
                     .check_connection_inner(
-                        host,
+                        &super::connectivity::NativeConnectionCheckRuntime,
+host,
                         &target.id,
                         CheckRevision::Connection(target.connection_revision),
                         Some(&cancel),
@@ -118,42 +117,4 @@ pub fn start_connection_checks(
         })
         .collect();
     jobs.start(owner, DiagnosticProbeKind::Mcp, probes)
-}
-
-impl McpCatalogStore {
-    /// Select results for the request currently shown by the caller, from an owner-authorized
-    /// diagnostic snapshot. An edit invalidates old connection revisions, including completed jobs.
-    pub fn current_connection_check_items(
-        &self,
-        scope: &McpCatalogScope,
-        snapshot: &DiagnosticJobSnapshot,
-        operation_id: &TaskId,
-        generation: u64,
-    ) -> Result<Vec<McpConnectionCheckItem>, McpFailureCode> {
-        if snapshot.job.task_id != *operation_id || snapshot.job.kind != DiagnosticProbeKind::Mcp {
-            return Ok(Vec::new());
-        }
-        let mut current = Vec::new();
-        for result in snapshot.results.iter().flatten() {
-            let DiagnosticResult::McpConnectionCheck {
-                scope: result_scope,
-                generation: result_generation,
-                item,
-            } = result
-            else {
-                continue;
-            };
-            if result_scope != scope || *result_generation != generation {
-                continue;
-            }
-            match self.current_connection_revision(scope, &item.id) {
-                Ok(revision) if revision == item.connection_revision => {
-                    current.push(item.clone());
-                }
-                Ok(_) | Err(McpFailureCode::NotFound) => {}
-                Err(code) => return Err(code),
-            }
-        }
-        Ok(current)
-    }
 }

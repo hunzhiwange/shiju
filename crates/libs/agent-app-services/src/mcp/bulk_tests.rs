@@ -21,7 +21,7 @@ use super::{
     binding_tests::{installed, private_root},
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::agent_apps::auth_accounts::AuthAccountStore;
+use crate::auth_accounts::AuthAccountStore;
 
 #[test]
 fn cc_mcp_t25_bulk_keeps_siblings_and_reports_conflicts_in_order() -> anyhow::Result<()> {

@@ -18,7 +18,7 @@ use super::{
     catalog_create::catalog_location,
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::gateway::settings_store::GatewaySettingsStore;
+use app_settings_store::settings_store::GatewaySettingsStore;
 
 #[test]
 fn cc_mcp_t07_update_preserves_metadata_and_credential_and_rejects_stale_edit() -> anyhow::Result<()>

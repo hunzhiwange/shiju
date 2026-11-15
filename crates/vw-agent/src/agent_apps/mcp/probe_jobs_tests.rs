@@ -53,7 +53,8 @@ fn cc_mcp_t31_in_flight_connection_edit_discards_old_success() -> anyhow::Result
                     .unwrap();
 
             let check = catalog.check_connection(
-                &scope,
+                &super::connectivity::NativeConnectionCheckRuntime,
+&scope,
                 &saved.record,
                 "local-fixture",
                 workspace.path(),
@@ -247,7 +248,8 @@ fn diagnostic_mcp_stdio_cancellation_reaps_process_tree() -> anyhow::Result<()> 
         let record = fixture.stdio("standalone-deadline", "handshake");
         fixture.runtime()?.block_on(async {
             let check = fixture.catalog.check_connection(
-                &fixture.scope,
+                &super::connectivity::NativeConnectionCheckRuntime,
+&fixture.scope,
                 &record.record,
                 "local-fixture",
                 fixture.workspace.path(),

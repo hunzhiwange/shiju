@@ -8,7 +8,7 @@ use vw_api_mcp_management::{
 };
 
 use super::{McpBindingTarget, McpCatalogStore};
-use crate::agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore};
+use crate::auth_accounts::{AuthAccountScope, AuthAccountStore};
 
 impl McpCatalogStore {
     /// Apply requested revisions in order, preserving independent failures and commits.

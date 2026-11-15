@@ -31,10 +31,8 @@ use super::{
     McpCatalogStore, McpExecutionConnection, McpRevocation, StoredCatalogEntry,
     catalog_create::catalog_location,
 };
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-    global_database::run_sync_database,
-};
+use crate::auth_accounts::{AuthAccountScope, AuthAccountStore};
+use agent_database::run_sync_database;
 
 /// Executor input assembled after authorizing the catalog, installation and execution
 /// host. The installation and native paths must come from host discovery and policy.

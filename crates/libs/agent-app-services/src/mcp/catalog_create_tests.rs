@@ -13,10 +13,8 @@ use {
 };
 
 use super::{McpCatalogStore, catalog_create::catalog_location};
-use crate::{
-    gateway::settings_store::GatewaySettingsStore,
-    global_database::{GlobalDatabase, test_support::PostgresTestDatabase},
-};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 
 pub(super) fn with_database(
     test: impl FnOnce(GlobalDatabase) -> anyhow::Result<()>,

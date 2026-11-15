@@ -16,7 +16,7 @@ use super::{
     catalog_create::catalog_location,
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::gateway::settings_store::GatewaySettingsStore;
+use app_settings_store::settings_store::GatewaySettingsStore;
 
 #[test]
 fn cc_mcp_t08_deleted_record_is_hidden_and_retains_existing_bindings() -> anyhow::Result<()> {

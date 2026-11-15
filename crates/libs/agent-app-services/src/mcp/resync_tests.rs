@@ -23,7 +23,7 @@ use super::{
     catalog_create_tests::{http_draft, with_database},
     resync_targets,
 };
-use crate::agent_apps::auth_accounts::AuthAccountStore;
+use crate::auth_accounts::AuthAccountStore;
 
 #[test]
 fn cc_mcp_t26_resync_restores_deleted_managed_entry() -> anyhow::Result<()> {

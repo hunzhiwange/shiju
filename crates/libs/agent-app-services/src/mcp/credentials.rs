@@ -35,7 +35,7 @@ impl McpCatalogStore {
             .collect())
     }
 
-    pub(super) fn connection_for_revision(
+    pub fn connection_for_revision(
         &self,
         authorized_scope: &McpCatalogScope,
         expected: &McpRecordRef,
@@ -47,7 +47,7 @@ impl McpCatalogStore {
         Ok(stored.connection)
     }
 
-    pub(super) fn active_record(
+    pub fn active_record(
         &self,
         scope: &McpCatalogScope,
         id: &McpRecordId,
@@ -128,10 +128,8 @@ pub use execution::McpExecutionConnection;
 #[cfg(not(target_arch = "wasm32"))]
 mod execution {
     use super::*;
-    use crate::{
-        agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-        global_database::run_sync_database,
-    };
+    use crate::auth_accounts::{AuthAccountScope, AuthAccountStore};
+    use agent_database::run_sync_database;
     use reqwest_012::header::{AUTHORIZATION, HeaderMap, HeaderName, HeaderValue};
     use vw_agent_apps::auth::{codex_refresh::CodexRefresh, xai_refresh::XaiRefresh};
     use {
@@ -188,7 +186,7 @@ mod execution {
             Ok(connection)
         }
 
-        pub(in crate::agent_apps::mcp) async fn resolve_execution_connection<'a>(
+        pub async fn resolve_execution_connection<'a>(
             &self,
             authorized_scope: &McpCatalogScope,
             id: &McpRecordId,
@@ -224,7 +222,7 @@ mod execution {
             Ok((execution_connection(connection, fields)?, revision))
         }
 
-        pub(in crate::agent_apps::mcp) fn resolve_for_native_runtime(
+        pub fn resolve_for_native_runtime(
             &self,
             scope: &McpCatalogScope,
             expected: &McpRecordRef,

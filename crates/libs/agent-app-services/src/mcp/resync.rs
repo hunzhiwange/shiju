@@ -20,10 +20,8 @@ use super::{
     McpBindingTarget, McpCatalogStore, StoredCatalogEntry, binding::native_definition,
     catalog_create::catalog_location,
 };
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-    global_database::run_sync_database,
-};
+use crate::auth_accounts::{AuthAccountScope, AuthAccountStore};
+use agent_database::run_sync_database;
 
 #[derive(Debug)]
 pub struct McpResyncResult {

@@ -19,14 +19,12 @@ use {
 };
 
 use super::{McpBindingTarget, McpCatalogStore};
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-    global_database::run_sync_database,
-};
+use crate::auth_accounts::{AuthAccountScope, AuthAccountStore};
+use agent_database::run_sync_database;
 
 /// Trusted execution context, assembled after project/host/installation and
 /// catalog write authorization. No field supplied by a request grants access.
-pub(crate) struct ProjectProfileMcpSlot<'a> {
+pub struct ProjectProfileMcpSlot<'a> {
     pub scope: SnapshotScope<'a>,
     pub catalog: &'a McpCatalogScope,
     pub target: &'a McpBindingTarget<'a>,
@@ -37,7 +35,7 @@ impl McpCatalogStore {
     /// Call on the authorized execution host under the outer composition
     /// operation boundary. Do not pre-acquire the catalog/native write guards.
     /// Each toggle keeps the existing credential policy and revision checks.
-    pub(crate) async fn apply_project_profile_mcp<'a>(
+    pub async fn apply_project_profile_mcp<'a>(
         &self,
         payload: &ProjectProfilePayload,
         slot: &ProjectProfileMcpSlot<'_>,

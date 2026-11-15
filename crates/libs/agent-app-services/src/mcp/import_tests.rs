@@ -17,7 +17,7 @@ use super::{
     catalog_create::catalog_location,
     catalog_create_tests::{http_draft, with_database},
 };
-use crate::gateway::settings_store::GatewaySettingsStore;
+use app_settings_store::settings_store::GatewaySettingsStore;
 
 fn source(app_id: AppId, home: &Path) -> McpImportSource<'_> {
     McpImportSource {

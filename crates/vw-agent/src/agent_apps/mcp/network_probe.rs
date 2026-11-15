@@ -283,7 +283,8 @@ impl McpHandshakeProbe {
                 self.context
                     .catalog
                     .check_connection_inner(
-                        ConnectionCheckHost {
+                        &super::connectivity::NativeConnectionCheckRuntime,
+ConnectionCheckHost {
                             scope: &scope,
                             execution_host: host,
                             workspace,

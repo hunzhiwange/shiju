@@ -1,205 +1,28 @@
-//! Explicit connection checks on the authorized execution host.
-
-use std::{future::pending, path::Path, time::Duration};
-
-use tokio::time::{Instant, timeout, timeout_at};
-use tokio_util::sync::CancellationToken;
-
-use vw_api_mcp_management::{
-    McpCatalogScope, McpConnectionDefinition, McpConnectionOutcome, McpCredentialRef,
-    McpFailureCode, McpRecordId, McpRecordRef,
-};
-
-use super::{McpCatalogStore, McpExecutionConnection, runtime::runtime_server};
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-    global_database::run_sync_database,
-    plugins::list_mcp_catalog_tools,
-    tools::mcp_common::open_connection_check_peer,
-};
-
-const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
-const CLOSE_TIMEOUT: Duration = Duration::from_secs(4);
-
-pub(super) struct ConnectionCheckHost<'a> {
-    pub scope: &'a McpCatalogScope,
-    pub execution_host: &'a str,
-    pub workspace: &'a Path,
-    pub accounts: Option<&'a AuthAccountStore>,
-    /// Revalidate caller-owned grants before transport I/O and result publication.
-    pub authorize: &'a (dyn Fn() -> Result<(), McpFailureCode> + Send + Sync),
-}
-
-pub(super) enum CheckRevision {
-    Record(u64),
-    Connection(u64),
-}
-
-impl McpCatalogStore {
-    /// Check an exact revision on the caller-authorized local host and workspace.
-    /// Authorization, task scheduling and result publication belong to the host caller.
-    pub async fn check_connection<'a>(
-        &self,
-        scope: &McpCatalogScope,
-        expected: &McpRecordRef,
-        execution_host: &str,
-        workspace: &Path,
-        accounts: &AuthAccountStore,
-        authorize_credential_use: impl Fn(
-            &McpConnectionDefinition,
-            &McpCredentialRef,
-        ) -> Option<AuthAccountScope<'a>>
-        + Send
-        + Sync,
-    ) -> McpConnectionOutcome {
-        self.check_connection_inner(
-            ConnectionCheckHost {
-                scope,
-                execution_host,
-                workspace,
-                accounts: Some(accounts),
-                authorize: &|| Ok(()),
-            },
-            &expected.id,
-            CheckRevision::Record(expected.revision),
-            None,
-            authorize_credential_use,
-        )
-        .await
+//! Native transport adapter; catalog policy and revision checks belong to the domain.
+pub use agent_app_services::mcp::connectivity::*;
+use agent_app_services::mcp::connection_runtime::{CheckPeer, ConnectionCheckRuntime};
+use crate::tools::mcp_common::{RunningMcpPeer, open_connection_check_peer};
+use mcp_client::ProbeChild;
+pub(crate) struct NativeConnectionCheckRuntime;
+pub(crate) struct NativeCheckPeer(RunningMcpPeer);
+impl CheckPeer for NativeCheckPeer {
+    fn has_tools(&self) -> bool {
+        self.0.peer_info().is_some_and(|info| info.capabilities.tools.is_some())
     }
-
-    pub(super) async fn check_connection_inner<'a>(
-        &self,
-        host: ConnectionCheckHost<'_>,
-        id: &McpRecordId,
-        expected: CheckRevision,
-        cancellation: Option<&CancellationToken>,
-        authorize_credential_use: impl Fn(
-            &McpConnectionDefinition,
-            &McpCredentialRef,
-        ) -> Option<AuthAccountScope<'a>>
-        + Send
-        + Sync,
-    ) -> McpConnectionOutcome {
-        let deadline = Instant::now() + CHECK_TIMEOUT;
-        let mut running = None;
-        let mut child = None;
-        let http_io = CancellationToken::new();
-        let _cancel_http_io = http_io.clone().drop_guard();
-        let check = async {
-            (host.authorize)()?;
-            let (mut connection, revision) = self
-                .resolve_execution_connection(
-                    host.scope,
-                    id,
-                    |record| match expected {
-                        CheckRevision::Record(revision) => record.record.revision == revision,
-                        CheckRevision::Connection(revision) => {
-                            record.connection_revision == revision
-                        }
-                    },
-                    host.execution_host,
-                    host.accounts,
-                    authorize_credential_use,
-                )
-                .await?;
-            (host.authorize)()?;
-            if let McpExecutionConnection::Stdio { cwd, .. } = &mut connection {
-                // Relative and omitted working directories resolve on the trusted local host.
-                if !host.workspace.is_absolute() {
-                    return Err(McpFailureCode::TargetUnavailable);
-                }
-                cwd.get_or_insert_with(|| ".".to_owned());
-            }
-            let server = runtime_server(id.0.clone(), connection, host.workspace)
-                .map_err(|_| McpFailureCode::InvalidDefinition)?;
-            if Instant::now() >= deadline {
-                return Err(McpFailureCode::TimedOut);
-            }
-            let client = running.insert(
-                open_connection_check_peer(
-                    server,
-                    deadline.saturating_duration_since(Instant::now()),
-                    http_io.clone(),
-                    Some(&mut child),
-                    None,
-                )
-                .await
-                .map_err(|_| McpFailureCode::ConnectionFailed)?,
-            );
-            let tool_count =
-                if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {
-                    let tools = list_mcp_catalog_tools(client.peer())
-                        .await
-                        .map_err(|_| McpFailureCode::ToolDiscoveryFailed)?;
-                    // The shared catalog loader bounds the count to 2048.
-                    tools.len() as u32
-                } else {
-                    0
-                };
-            (host.authorize)()?;
-            Ok((tool_count, revision))
-        };
-        let cancelled = async {
-            match cancellation {
-                Some(token) => token.cancelled().await,
-                None => pending().await,
-            }
-        };
-        let result = tokio::select! {
-            biased;
-            () = cancelled => Err(McpConnectionOutcome::Cancelled),
-            result = timeout_at(deadline, check) => match result {
-                Ok(Ok(result)) if Instant::now() < deadline => Ok(result),
-                Ok(Err(code)) if Instant::now() < deadline => {
-                    Err(McpConnectionOutcome::Failed { code })
-                }
-                _ => Err(McpConnectionOutcome::Failed { code: McpFailureCode::TimedOut }),
-            },
-        };
-        // rmcp can still be awaiting a Streamable HTTP response during initialization.
-        http_io.cancel();
-        if result.is_err() {
-            if let Some(child) = child.take() {
-                child.kill_and_reap().await;
-            }
-        }
-        if let Some(client) = running {
-            let _ = timeout(CLOSE_TIMEOUT, client.cancel()).await;
-        }
-        // Successful checks first allow the server to observe EOF. A launcher may
-        // exit while leaving descendants behind, so retire the private group too.
-        if let Some(child) = child {
-            child.close_and_reap().await;
-        }
-        if cancellation.is_some_and(CancellationToken::is_cancelled) {
-            return McpConnectionOutcome::Cancelled;
-        }
-        if let Err(code) = (host.authorize)() {
-            return McpConnectionOutcome::Failed { code };
-        }
-        match result {
-            Ok((tool_count, revision)) => match self.current_connection_revision(host.scope, id) {
-                Ok(current) if current == revision => {
-                    McpConnectionOutcome::Connected { tool_count: Some(tool_count) }
-                }
-                Ok(_) | Err(McpFailureCode::NotFound) => {
-                    McpConnectionOutcome::Failed { code: McpFailureCode::StaleRevision }
-                }
-                Err(code) => McpConnectionOutcome::Failed { code },
-            },
-            Err(outcome) => outcome,
-        }
+    async fn tool_count(&self) -> anyhow::Result<u32> {
+        Ok(crate::plugins::list_mcp_catalog_tools(self.0.peer()).await?.len() as u32)
     }
-
-    pub(super) fn current_connection_revision(
+    async fn cancel(self) { let _ = RunningMcpPeer::cancel(self.0).await; }
+}
+impl ConnectionCheckRuntime for NativeConnectionCheckRuntime {
+    type Peer = NativeCheckPeer;
+    async fn open(
         &self,
-        scope: &McpCatalogScope,
-        id: &McpRecordId,
-    ) -> Result<u64, McpFailureCode> {
-        run_sync_database(|| {
-            Ok(self.active_record(scope, id).map(|stored| stored.record.connection_revision))
-        })
-        .map_err(|_| McpFailureCode::StorageUnavailable)?
+        server: agent_client_protocol::McpServer,
+        timeout: std::time::Duration,
+        http_io: tokio_util::sync::CancellationToken,
+        child: Option<&mut Option<ProbeChild>>,
+    ) -> anyhow::Result<NativeCheckPeer> {
+        open_connection_check_peer(server, timeout, http_io, child, None).await.map(NativeCheckPeer)
     }
 }

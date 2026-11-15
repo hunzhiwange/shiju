@@ -23,8 +23,8 @@ use crate::app::components::text_editor_context_menu::{
 use crate::app::state::{TaskBoardDetailTab, TaskBoardSettingsModalTab};
 use crate::app::task::executor::TaskLogStream;
 use crate::app::task::{
-    SubTask, Task, TaskBoardSettings, TaskDraft, TaskImportPromptFormat, TaskLogEntry,
-    TaskSplitMode, TaskStatus, normalize_task_acp_agent_input, normalize_task_model_input,
+    Task, TaskBoardSettings, TaskDraft, TaskImportPromptFormat, TaskLogEntry,
+    TaskSplitMode, TaskStatus, normalize_task_model_input,
 };
 
 mod helpers;

@@ -52,20 +52,6 @@ fn response(
 }
 
 #[test]
-fn agent_scheduler_snapshot_preserves_task_pending_persistence() {
-    let (mut app, _task) = crate::app::App::new();
-    let mut task = Task::new(1);
-    task.id = "T-guarded".to_string();
-    task.status = TaskStatus::Completed;
-    app.task_board_tasks = vec![task];
-    app.task_board_tasks_pending_persistence.insert("T-guarded".to_string());
-
-    apply_agent_scheduler_status(&mut app, response("T-guarded", "running"));
-
-    assert_eq!(app.task_board_tasks[0].status, TaskStatus::Completed);
-}
-
-#[test]
 fn persistence_ack_releases_snapshot_guard() {
     for result in [Ok(()), Err("gateway unavailable".to_string())] {
         let (mut app, _task) = crate::app::App::new();

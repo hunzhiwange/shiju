@@ -8,3 +8,4 @@ pub mod bulk;
 pub mod selector_styles;
 pub mod helpers;
 pub mod message;
+pub mod update;

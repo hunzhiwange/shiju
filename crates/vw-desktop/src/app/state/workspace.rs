@@ -40,13 +40,7 @@ pub(crate) struct GitDiffFileMenuState {
 
 pub use desktop_workspace::interaction::{FileTreeClipboardMode, FileTreeClipboard};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProjectEditTab {
-    General,
-    Launch,
-    Refresh,
-    Scheduling,
-}
+pub use desktop_workspace::project_message::edit::ProjectEditTab;
 
 pub use desktop_task_board::message::{TaskBoardDetailTab, TaskBoardSettingsModalTab};
 

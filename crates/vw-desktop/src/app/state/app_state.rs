@@ -524,54 +524,7 @@ pub struct App {
     pub(crate) session_rename_id: Option<String>,
     /// 会话重命名输入值
     pub(crate) session_rename_value: String,
-    /// 正在编辑的项目路径
-    pub(crate) project_edit_path: Option<String>,
-    /// 项目设置当前选中的标签页
-    pub(crate) project_edit_tab: ProjectEditTab,
-    /// 项目编辑名称输入
-    pub(crate) project_edit_name: String,
-    /// 项目图标标识符
-    pub(crate) project_edit_icon: String,
-    /// 项目图标是否被悬停
-    pub(crate) project_edit_icon_hovered: bool,
-    /// 项目图标颜色（十六进制）
-    pub(crate) project_edit_icon_color: String,
-    /// 项目图标颜色选择器是否打开
-    pub(crate) project_edit_icon_color_picker_open: bool,
-    /// 项目图标颜色格式
-    pub(crate) project_edit_icon_color_format: ColorFormat,
-    /// 项目启动脚本
-    pub(crate) project_edit_start_script: String,
-    /// 项目启动脚本编辑器内容
-    pub(crate) project_edit_start_script_editor: text_editor::Content,
-    /// 项目是否启用 worktree
-    pub(crate) project_edit_worktree_enabled: bool,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) project_edit_worktree_dirty: bool,
-    /// 项目任务看板设置
-    pub(crate) project_edit_task_board_settings: crate::app::task::TaskBoardSettings,
-    /// 项目最大并发数输入
-    pub(crate) project_edit_max_concurrent_input: String,
-    /// 项目任务看板自动刷新开关
-    pub(crate) project_edit_task_board_auto_refresh: bool,
-    /// 项目会话自动刷新开关
-    pub(crate) project_edit_session_auto_refresh: bool,
-    /// 项目会话自动刷新间隔秒数输入
-    pub(crate) project_edit_session_refresh_interval_seconds_input: String,
-    /// 项目任务看板自动刷新间隔秒数输入
-    pub(crate) project_edit_task_board_refresh_interval_seconds_input: String,
-    /// 项目任务调度 tick 间隔秒数输入
-    pub(crate) project_edit_task_board_scheduler_tick_interval_seconds_input: String,
-    /// 项目任务池自动执行 tick 间隔秒数输入
-    pub(crate) project_edit_task_board_auto_promote_tick_interval_seconds_input: String,
-    /// 项目失败重试分钟数输入
-    pub(crate) project_edit_failed_retry_minutes_input: String,
-    /// 项目失败最大重试次数输入
-    pub(crate) project_edit_failed_retry_max_attempts_input: String,
-    /// 项目运行超时分钟数输入
-    pub(crate) project_edit_running_timeout_minutes_input: String,
-    /// 项目 PR 提交停滞超时秒数输入
-    pub(crate) project_edit_pr_submitted_stall_timeout_seconds_input: String,
+    pub(crate) project_editor: desktop_workspace::project_message::edit::Editor,
     /// 是否显示差异视图
     pub(crate) show_diff: bool,
     /// 是否显示 Git 差异摘要

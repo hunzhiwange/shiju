@@ -37,7 +37,7 @@ pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
             i18n.__("在创建工作区后执行，可填写多行命令。"),
         )
         .wrap(),
-        text_editor(&app.project_edit_start_script_editor)
+        text_editor(&app.project_editor.project_edit_start_script_editor)
             .placeholder(i18n.__("例如：\nbun install\nbun dev"))
             .on_action(start_script_editor_action)
             .height(Length::Fixed(96.0))
@@ -49,7 +49,7 @@ pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
 
     let worktree_toggle = row![
         settings_field_label(i18n.__("启用 Worktree")).width(Length::Fill),
-        settings_toggle(app.project_edit_worktree_enabled).on_toggle(worktree_toggled)
+        settings_toggle(app.project_editor.project_edit_worktree_enabled).on_toggle(worktree_toggled)
     ]
     .align_y(iced::Alignment::Center);
 

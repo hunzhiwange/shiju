@@ -95,14 +95,14 @@ fn scheduling_tab_builds_with_default_settings() {
 #[test]
 fn scheduling_tab_clamps_low_values_for_stepper_controls() {
     let mut app = test_app();
-    app.project_edit_task_board_settings.max_concurrent = 0;
-    app.project_edit_task_board_settings.scheduler_tick_interval_seconds = 0;
-    app.project_edit_task_board_settings.auto_promote_tick_interval_seconds = 0;
-    app.project_edit_task_board_settings.failed_retry_minutes = 0;
-    app.project_edit_task_board_settings.failed_retry_max_attempts = 0;
-    app.project_edit_task_board_settings.running_timeout_minutes = 0;
-    app.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 0;
-    app.project_edit_task_board_settings.recycle_worktree_on_task_finish = true;
+    app.project_editor.project_edit_task_board_settings.max_concurrent = 0;
+    app.project_editor.project_edit_task_board_settings.scheduler_tick_interval_seconds = 0;
+    app.project_editor.project_edit_task_board_settings.auto_promote_tick_interval_seconds = 0;
+    app.project_editor.project_edit_task_board_settings.failed_retry_minutes = 0;
+    app.project_editor.project_edit_task_board_settings.failed_retry_max_attempts = 0;
+    app.project_editor.project_edit_task_board_settings.running_timeout_minutes = 0;
+    app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 0;
+    app.project_editor.project_edit_task_board_settings.recycle_worktree_on_task_finish = true;
 
     let element = scheduling_tab(&app);
 
@@ -112,13 +112,13 @@ fn scheduling_tab_clamps_low_values_for_stepper_controls() {
 #[test]
 fn scheduling_tab_clamps_high_values_for_stepper_controls() {
     let mut app = test_app();
-    app.project_edit_task_board_settings.max_concurrent = 99;
-    app.project_edit_task_board_settings.scheduler_tick_interval_seconds = 99;
-    app.project_edit_task_board_settings.auto_promote_tick_interval_seconds = 9000;
-    app.project_edit_task_board_settings.failed_retry_minutes = 9999;
-    app.project_edit_task_board_settings.failed_retry_max_attempts = 99;
-    app.project_edit_task_board_settings.running_timeout_minutes = 9999;
-    app.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 9999;
+    app.project_editor.project_edit_task_board_settings.max_concurrent = 99;
+    app.project_editor.project_edit_task_board_settings.scheduler_tick_interval_seconds = 99;
+    app.project_editor.project_edit_task_board_settings.auto_promote_tick_interval_seconds = 9000;
+    app.project_editor.project_edit_task_board_settings.failed_retry_minutes = 9999;
+    app.project_editor.project_edit_task_board_settings.failed_retry_max_attempts = 99;
+    app.project_editor.project_edit_task_board_settings.running_timeout_minutes = 9999;
+    app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 9999;
 
     let element = scheduling_tab(&app);
 
@@ -128,7 +128,7 @@ fn scheduling_tab_clamps_high_values_for_stepper_controls() {
 #[test]
 fn scheduling_tab_falls_back_when_configured_workflow_is_unknown() {
     let mut app = test_app();
-    app.project_edit_task_board_settings.workflow_id = "missing-workflow".to_string();
+    app.project_editor.project_edit_task_board_settings.workflow_id = "missing-workflow".to_string();
 
     let element = scheduling_tab(&app);
 
@@ -141,7 +141,7 @@ fn scheduling_tab_builds_without_cache_hint_after_lifecycles_loaded() {
     let registry = crate::app::task::workflow::TaskWorkflowRegistry::new();
     app.workflow_manager =
         crate::app::views::workflow_manager::WorkflowManagerState::from_registry(&registry);
-    app.project_edit_task_board_settings.workflow_id =
+    app.project_editor.project_edit_task_board_settings.workflow_id =
         crate::app::task::DEFAULT_TASK_WORKFLOW_ID.to_string();
 
     assert_eq!(workflow_cache_hint(&app), None);
@@ -151,13 +151,13 @@ fn scheduling_tab_builds_without_cache_hint_after_lifecycles_loaded() {
 #[test]
 fn scheduling_tab_keeps_summary_and_midrange_controls_in_separate_sections() {
     let mut app = test_app();
-    app.project_edit_task_board_settings.max_concurrent = 5;
-    app.project_edit_task_board_settings.scheduler_tick_interval_seconds = 30;
-    app.project_edit_task_board_settings.auto_promote_tick_interval_seconds = 300;
-    app.project_edit_task_board_settings.failed_retry_minutes = 60;
-    app.project_edit_task_board_settings.failed_retry_max_attempts = 5;
-    app.project_edit_task_board_settings.running_timeout_minutes = 120;
-    app.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 300;
+    app.project_editor.project_edit_task_board_settings.max_concurrent = 5;
+    app.project_editor.project_edit_task_board_settings.scheduler_tick_interval_seconds = 30;
+    app.project_editor.project_edit_task_board_settings.auto_promote_tick_interval_seconds = 300;
+    app.project_editor.project_edit_task_board_settings.failed_retry_minutes = 60;
+    app.project_editor.project_edit_task_board_settings.failed_retry_max_attempts = 5;
+    app.project_editor.project_edit_task_board_settings.running_timeout_minutes = 120;
+    app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 300;
 
     let element = scheduling_tab(&app);
     let tree = Tree::new(element.as_widget());

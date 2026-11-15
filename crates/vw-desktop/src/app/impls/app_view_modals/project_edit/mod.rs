@@ -30,7 +30,7 @@ pub(crate) fn with_project_edit<'a>(
     app: &'a App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some(path) = &app.project_edit_path else {
+    let Some(path) = &app.project_editor.project_edit_path else {
         return root_content;
     };
     let i18n = I18n::new(app.desktop_locale);
@@ -39,22 +39,22 @@ pub(crate) fn with_project_edit<'a>(
         tab_button(
             i18n.__("基础信息"),
             ProjectEditTab::General,
-            app.project_edit_tab == ProjectEditTab::General,
+            app.project_editor.project_edit_tab == ProjectEditTab::General,
         ),
         tab_button(
             i18n.__("启动与工作区"),
             ProjectEditTab::Launch,
-            app.project_edit_tab == ProjectEditTab::Launch,
+            app.project_editor.project_edit_tab == ProjectEditTab::Launch,
         ),
         tab_button(
             i18n.__("刷新策略"),
             ProjectEditTab::Refresh,
-            app.project_edit_tab == ProjectEditTab::Refresh,
+            app.project_editor.project_edit_tab == ProjectEditTab::Refresh,
         ),
         tab_button(
             i18n.__("调度与保护"),
             ProjectEditTab::Scheduling,
-            app.project_edit_tab == ProjectEditTab::Scheduling,
+            app.project_editor.project_edit_tab == ProjectEditTab::Scheduling,
         ),
     ])
     .wrap()
@@ -68,7 +68,7 @@ pub(crate) fn with_project_edit<'a>(
     ]
     .spacing(10);
 
-    let body = match app.project_edit_tab {
+    let body = match app.project_editor.project_edit_tab {
         ProjectEditTab::General => general_tab(app, path),
         ProjectEditTab::Launch => launch_tab(app),
         ProjectEditTab::Refresh => refresh_tab(app),
@@ -91,12 +91,12 @@ pub(crate) fn with_project_edit<'a>(
         .width(Length::Fixed(760.0))
         .height(Length::Fixed(590.0));
     let project_modal = settings_modal_overlay_with_backdrop_dismiss(root_content, cancel, card);
-    if !app.project_edit_icon_color_picker_open {
+    if !app.project_editor.project_edit_icon_color_picker_open {
         return project_modal;
     }
 
-    let color = parse_color(&app.project_edit_icon_color)
-        .or_else(|| parse_hex_color(&app.project_edit_icon_color))
+    let color = parse_color(&app.project_editor.project_edit_icon_color)
+        .or_else(|| parse_hex_color(&app.project_editor.project_edit_icon_color))
         .unwrap_or(Color::from_rgb8(96, 165, 250));
     let close = Message::Project(ProjectMessage::ProjectEditIconColorPickerClosed);
     let card = settings_modal_card(
@@ -107,7 +107,7 @@ pub(crate) fn with_project_edit<'a>(
             ),
             render_color_picker(
                 color,
-                app.project_edit_icon_color_format,
+                app.project_editor.project_edit_icon_color_format,
                 false,
                 |color| Message::Project(ProjectMessage::ProjectEditIconColorChanged(
                     format_hex_color(color),

@@ -77,9 +77,9 @@ fn icon_preview_press_clears_only_a_hovered_image() {
 #[test]
 fn general_tab_builds_with_default_text_preview() {
     let mut app = test_app();
-    app.project_edit_name = "Project".to_string();
-    app.project_edit_icon = String::new();
-    app.project_edit_icon_color = "#60a5fa".to_string();
+    app.project_editor.project_edit_name = "Project".to_string();
+    app.project_editor.project_edit_icon = String::new();
+    app.project_editor.project_edit_icon_color = "#60a5fa".to_string();
 
     let element = general_tab(&app, "/fixture/project");
 
@@ -89,9 +89,9 @@ fn general_tab_builds_with_default_text_preview() {
 #[test]
 fn general_tab_builds_with_icon_text_preview_and_color_fallbacks() {
     let mut app = test_app();
-    app.project_edit_name = String::new();
-    app.project_edit_icon = "  Zed  ".to_string();
-    app.project_edit_icon_color = "bad-color".to_string();
+    app.project_editor.project_edit_name = String::new();
+    app.project_editor.project_edit_icon = "  Zed  ".to_string();
+    app.project_editor.project_edit_icon_color = "bad-color".to_string();
 
     let element = general_tab(&app, "/fixture/project");
 
@@ -105,10 +105,10 @@ fn general_tab_builds_image_preview_and_hover_clear_overlay() {
     std::fs::write(&path, b"not a real png but enough for a path handle").unwrap();
 
     let mut app = test_app();
-    app.project_edit_name = "Image".to_string();
-    app.project_edit_icon = path.to_string_lossy().into_owned();
-    app.project_edit_icon_hovered = true;
-    app.project_edit_icon_color = "rgb(96, 165, 250)".to_string();
+    app.project_editor.project_edit_name = "Image".to_string();
+    app.project_editor.project_edit_icon = path.to_string_lossy().into_owned();
+    app.project_editor.project_edit_icon_hovered = true;
+    app.project_editor.project_edit_icon_color = "rgb(96, 165, 250)".to_string();
 
     let element = general_tab(&app, "/fixture/project");
 
@@ -123,9 +123,9 @@ fn general_tab_builds_unhovered_image_preview_without_clear_overlay() {
     std::fs::write(&path, b"image path fixture").unwrap();
 
     let mut app = test_app();
-    app.project_edit_name = "Image".to_string();
-    app.project_edit_icon = path.to_string_lossy().into_owned();
-    app.project_edit_icon_hovered = false;
+    app.project_editor.project_edit_name = "Image".to_string();
+    app.project_editor.project_edit_icon = path.to_string_lossy().into_owned();
+    app.project_editor.project_edit_icon_hovered = false;
 
     let element = general_tab(&app, "/fixture/project");
 
@@ -152,23 +152,23 @@ async fn project_edit_general_form_controls_render_and_update_draft() {
         420,
         test_app,
         |scene, app| {
-            app.project_edit_path = Some(format!("/fixture/{}", "nested-project/".repeat(30)));
-            app.project_edit_tab = ProjectEditTab::General;
-            app.project_edit_name = "测试项目 · Sample project".into();
-            app.project_edit_icon = "圖".into();
-            app.project_edit_icon_color = "#60a5fa".into();
+            app.project_editor.project_edit_path = Some(format!("/fixture/{}", "nested-project/".repeat(30)));
+            app.project_editor.project_edit_tab = ProjectEditTab::General;
+            app.project_editor.project_edit_name = "测试项目 · Sample project".into();
+            app.project_editor.project_edit_icon = "圖".into();
+            app.project_editor.project_edit_icon_color = "#60a5fa".into();
 
             let name = "修訂项目 · Renamed";
-            let message = scene.edit_modal_input(overlay(app), &app.project_edit_name, name);
+            let message = scene.edit_modal_input(overlay(app), &app.project_editor.project_edit_name, name);
             assert!(matches!(&message, Message::Project(ProjectMessage::ProjectEditNameChanged(value)) if value == name));
             let _ = app.update(message);
-            assert_eq!(app.project_edit_name, name);
+            assert_eq!(app.project_editor.project_edit_name, name);
 
             let icon = "檔";
-            let message = scene.edit_modal_input(overlay(app), &app.project_edit_icon, icon);
+            let message = scene.edit_modal_input(overlay(app), &app.project_editor.project_edit_icon, icon);
             assert!(matches!(&message, Message::Project(ProjectMessage::ProjectEditIconChanged(value)) if value == icon));
             let _ = app.update(message);
-            assert_eq!(app.project_edit_icon, icon);
+            assert_eq!(app.project_editor.project_edit_icon, icon);
 
             let i18n = I18n::new(app.desktop_locale);
             scene.check_modal_scroll(overlay(app), i18n.__("编辑项目"), i18n.__("保存"));
@@ -177,17 +177,17 @@ async fn project_edit_general_form_controls_render_and_update_draft() {
                 Message::Project(ProjectMessage::ProjectEditSaved)
             ));
 
-            app.project_edit_tab = ProjectEditTab::Refresh;
-            app.project_edit_session_refresh_interval_seconds_input = "23".into();
+            app.project_editor.project_edit_tab = ProjectEditTab::Refresh;
+            app.project_editor.project_edit_session_refresh_interval_seconds_input = "23".into();
             let message = scene.edit_modal_input(overlay(app), "23", "57");
             assert!(matches!(&message, Message::Project(ProjectMessage::ProjectEditSessionRefreshIntervalSecondsInputChanged(value)) if value == "57"));
             let _ = app.update(message);
-            assert_eq!(app.project_edit_session_refresh_interval_seconds_input, "57");
+            assert_eq!(app.project_editor.project_edit_session_refresh_interval_seconds_input, "57");
 
             let message = scene.click_message(overlay(app), i18n.__("取消"));
             assert!(matches!(message, Message::Project(ProjectMessage::ProjectEditCanceled)));
             let _ = app.update(message);
-            assert!(app.project_edit_path.is_none());
+            assert!(app.project_editor.project_edit_path.is_none());
         },
     )
     .await;

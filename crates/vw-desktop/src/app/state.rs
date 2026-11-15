@@ -22,7 +22,6 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use crate::app::components::color_picker::ColorFormat;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::lsp::LspEvent;
 #[cfg(not(target_arch = "wasm32"))]

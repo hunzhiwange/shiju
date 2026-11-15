@@ -637,32 +637,7 @@ impl App {
             session_rename_value: String::new(),
 
             // ========== 项目编辑 ==========
-            project_edit_path: None,
-            project_edit_tab: crate::app::state::ProjectEditTab::General,
-            project_edit_name: String::new(),
-            project_edit_icon: String::new(),
-            project_edit_icon_hovered: false,
-            project_edit_icon_color: String::new(),
-            project_edit_icon_color_picker_open: false,
-            project_edit_icon_color_format: crate::app::components::color_picker::ColorFormat::Hex,
-            project_edit_start_script: String::new(),
-            project_edit_start_script_editor: iced::widget::text_editor::Content::new(),
-            project_edit_worktree_enabled: false,
-            #[cfg(not(target_arch = "wasm32"))]
-            project_edit_worktree_dirty: false,
-            project_edit_task_board_settings: crate::app::task::TaskBoardSettings::new(),
-            project_edit_max_concurrent_input: String::new(),
-            project_edit_task_board_auto_refresh: true,
-            project_edit_session_auto_refresh:
-                crate::app::state::default_recent_project_session_auto_refresh(),
-            project_edit_session_refresh_interval_seconds_input: String::new(),
-            project_edit_task_board_refresh_interval_seconds_input: String::new(),
-            project_edit_task_board_scheduler_tick_interval_seconds_input: String::new(),
-            project_edit_task_board_auto_promote_tick_interval_seconds_input: String::new(),
-            project_edit_failed_retry_minutes_input: String::new(),
-            project_edit_failed_retry_max_attempts_input: String::new(),
-            project_edit_running_timeout_minutes_input: String::new(),
-            project_edit_pr_submitted_stall_timeout_seconds_input: String::new(),
+            project_editor: Default::default(),
 
             // ========== Diff和终端 ==========
             show_diff: true,

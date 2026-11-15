@@ -877,7 +877,7 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
         drop(sidebar);
         let _ = crate::app::message::project::update(&mut app, edit.clone());
         assert!(app.work_current_project_menu.is_none());
-        assert_eq!(app.project_edit_path.as_deref(), Some(active));
+        assert_eq!(app.project_editor.project_edit_path.as_deref(), Some(active));
     }
 }
 

@@ -273,7 +273,7 @@ fn fixture() -> App {
     assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
     let mut app = App::new().0;
     app.project_path = None;
-    app.project_edit_path = None;
+    app.project_editor.project_edit_path = None;
     app.recent_projects = vec![PATH.into()];
     app.recent_projects_edits = vec![NAME.into()];
     app
@@ -284,18 +284,18 @@ const COLOR: &str = "#8b5cf6";
 const SCRIPT: &str = "printf '專案' > start-command-ran\nprintf '第二行'";
 
 fn set_project_draft(app: &mut App) {
-    app.project_edit_path = Some(PATH.into());
-    app.project_edit_name = NAME.into();
-    app.project_edit_icon = ICON.into();
-    app.project_edit_icon_color = COLOR.into();
-    app.project_edit_start_script = SCRIPT.into();
-    app.project_edit_start_script_editor = iced::widget::text_editor::Content::with_text(SCRIPT);
-    app.project_edit_worktree_enabled = true;
-    app.project_edit_task_board_settings.max_concurrent = 4;
-    app.project_edit_max_concurrent_input = "4".into();
-    app.project_edit_session_refresh_interval_seconds_input = "123".into();
-    app.project_edit_task_board_refresh_interval_seconds_input = "321".into();
-    app.project_edit_task_board_scheduler_tick_interval_seconds_input = "27".into();
+    app.project_editor.project_edit_path = Some(PATH.into());
+    app.project_editor.project_edit_name = NAME.into();
+    app.project_editor.project_edit_icon = ICON.into();
+    app.project_editor.project_edit_icon_color = COLOR.into();
+    app.project_editor.project_edit_start_script = SCRIPT.into();
+    app.project_editor.project_edit_start_script_editor = iced::widget::text_editor::Content::with_text(SCRIPT);
+    app.project_editor.project_edit_worktree_enabled = true;
+    app.project_editor.project_edit_task_board_settings.max_concurrent = 4;
+    app.project_editor.project_edit_max_concurrent_input = "4".into();
+    app.project_editor.project_edit_session_refresh_interval_seconds_input = "123".into();
+    app.project_editor.project_edit_task_board_refresh_interval_seconds_input = "321".into();
+    app.project_editor.project_edit_task_board_scheduler_tick_interval_seconds_input = "27".into();
 }
 
 fn redraw_project(
@@ -346,7 +346,7 @@ async fn ui_refresh_30_layout_and_interaction() {
             (ProjectEditTab::Refresh, "refresh", "调度与保护", ProjectEditTab::Scheduling),
             (ProjectEditTab::Scheduling, "scheduling", "基础信息", ProjectEditTab::General),
         ] {
-            app.project_edit_tab = tab;
+            app.project_editor.project_edit_tab = tab;
             let mut ui = scene(app.view(), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
             assert_tab_labels_fit(&positions, i18n, size);
@@ -442,7 +442,7 @@ async fn ui_refresh_30_layout_and_interaction() {
         }
     }
 
-    app.project_edit_tab = ProjectEditTab::Scheduling;
+    app.project_editor.project_edit_tab = ProjectEditTab::Scheduling;
     let size = Size::new(420, 450);
     let i18n = I18n::new(app.desktop_locale);
     let mut registry = crate::app::task::workflow::TaskWorkflowRegistry::new();
@@ -653,7 +653,7 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
         [Message::Project(ProjectMessage::ProjectEditIconColorPickerToggled)]
     ));
     drop(ui);
-    app.project_edit_icon_color_picker_open = true;
+    app.project_editor.project_edit_icon_color_picker_open = true;
     let mut ui = scene(app.view(), &mut renderer, Size::new(420, 450));
     redraw_project(&mut ui, &mut renderer, &Theme::Dark, Size::new(420, 450), "color-picker-420");
     assert!(matches!(
@@ -665,8 +665,8 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
         [Message::Project(ProjectMessage::ProjectEditIconColorPickerClosed)]
     ));
     drop(ui);
-    app.project_edit_icon_color_picker_open = false;
-    app.project_edit_tab = ProjectEditTab::Launch;
+    app.project_editor.project_edit_icon_color_picker_open = false;
+    app.project_editor.project_edit_tab = ProjectEditTab::Launch;
     let mut ui = scene(app.view(), &mut renderer, size);
     let editor = geometry(&mut ui, &renderer).focusables[0];
     assert_fits(editor, size);
@@ -690,12 +690,12 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     let disk = dirs.data_local_dir().join("recent_projects_meta.json");
     let before = std::fs::read(&disk).ok();
     assert!(update(&mut app, cancel.clone()).units() == 0);
-    assert!(app.project_edit_path.is_none());
+    assert!(app.project_editor.project_edit_path.is_none());
     assert_eq!(std::fs::read(&disk).ok(), before);
     assert!(!std::path::Path::new("start-command-ran").exists());
 
     set_project_draft(&mut app);
-    app.project_edit_tab = ProjectEditTab::Scheduling;
+    app.project_editor.project_edit_tab = ProjectEditTab::Scheduling;
     let mut ui = scene(app.view(), &mut renderer, size);
     let input = geometry(&mut ui, &renderer).input("27");
     assert!(click(&mut ui, &mut renderer, input.center()).is_empty());
@@ -728,12 +728,12 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     assert_eq!(schedule.scheduler_tick_interval_seconds, 27);
     assert_eq!(schedule.max_concurrent, 4);
     drop(update(&mut app, ProjectMessage::ProjectEditOpened(PATH.into())));
-    assert_eq!(app.project_edit_path.as_deref(), Some(PATH));
-    assert_eq!(app.project_edit_name, NAME);
-    assert_eq!(app.project_edit_icon, ICON);
-    assert_eq!(app.project_edit_icon_color, COLOR);
-    assert_eq!(app.project_edit_start_script, SCRIPT);
-    assert_eq!(app.project_edit_max_concurrent_input, "4");
+    assert_eq!(app.project_editor.project_edit_path.as_deref(), Some(PATH));
+    assert_eq!(app.project_editor.project_edit_name, NAME);
+    assert_eq!(app.project_editor.project_edit_icon, ICON);
+    assert_eq!(app.project_editor.project_edit_icon_color, COLOR);
+    assert_eq!(app.project_editor.project_edit_start_script, SCRIPT);
+    assert_eq!(app.project_editor.project_edit_max_concurrent_input, "4");
     assert!(!std::path::Path::new("start-command-ran").exists());
 
     app.recent_projects.clear();
@@ -760,7 +760,7 @@ async fn settings_tabs_peripheral_appearance_project() {
         fixture,
         |scene, app| {
             set_project_draft(app);
-            app.project_edit_tab = ProjectEditTab::General;
+            app.project_editor.project_edit_tab = ProjectEditTab::General;
             let i18n = I18n::new(app.desktop_locale);
             let tabs =
                 ["基础信息", "启动与工作区", "刷新策略", "调度与保护"].map(|label| i18n.__(label));
@@ -773,8 +773,8 @@ async fn settings_tabs_peripheral_appearance_project() {
                 ))
             ));
             let _ = app.update(message);
-            assert_eq!(app.project_edit_tab, ProjectEditTab::Scheduling);
-            assert_eq!(app.project_edit_start_script, SCRIPT);
+            assert_eq!(app.project_editor.project_edit_tab, ProjectEditTab::Scheduling);
+            assert_eq!(app.project_editor.project_edit_start_script, SCRIPT);
             scene.check_modal_scroll(overlay(app), i18n.__("编辑项目"), i18n.__("保存"));
         },
     )
@@ -851,7 +851,7 @@ async fn help_rollout_21_renders_contextual_help() {
                 "限制并发、设置重试与超时，并控制 worktree 回收与合并锁。",
             ),
         ] {
-            app.project_edit_tab = tab;
+            app.project_editor.project_edit_tab = tab;
             let mut ui = scene(app.view(), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
             let viewport = positions.scroll[0].0;

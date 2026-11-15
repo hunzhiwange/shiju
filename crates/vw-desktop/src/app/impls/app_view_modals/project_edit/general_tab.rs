@@ -60,7 +60,7 @@ fn icon_color_controls(app: &App) -> Element<'_, Message> {
     let mut row_count = 0usize;
     for preset in icon_color_presets {
         let preset_color = parse_hex_color(preset).unwrap_or(DEFAULT_ICON_COLOR);
-        let is_selected = icon_color_preset_is_selected(&app.project_edit_icon_color, preset);
+        let is_selected = icon_color_preset_is_selected(&app.project_editor.project_edit_icon_color, preset);
         let preset_button = button(Space::new().width(20.0).height(20.0))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditIconColorPresetSelected(
@@ -98,7 +98,7 @@ fn icon_color_controls(app: &App) -> Element<'_, Message> {
     let icon_color_presets_row =
         column![text(i18n.__("预设颜色")).size(12).style(settings_muted_text_style), preset_grid,]
             .spacing(4);
-    let current_icon_color = current_icon_color(&app.project_edit_icon_color);
+    let current_icon_color = current_icon_color(&app.project_editor.project_edit_icon_color);
     let color_preview_btn = button(
         row![
             container(Space::new().width(16).height(16)).style(move |_: &Theme| {
@@ -123,9 +123,9 @@ fn icon_color_controls(app: &App) -> Element<'_, Message> {
     .padding([9, 12])
     .style(rounded_action_btn_style);
 
-    let preview_color = preview_badge_color(&app.project_edit_icon_color);
-    let preview_label = preview_label(&app.project_edit_icon, &app.project_edit_name);
-    let preview_image = icon_image_handle(&app.project_edit_icon);
+    let preview_color = preview_badge_color(&app.project_editor.project_edit_icon_color);
+    let preview_label = preview_label(&app.project_editor.project_edit_icon, &app.project_editor.project_edit_name);
+    let preview_image = icon_image_handle(&app.project_editor.project_edit_icon);
     let has_preview_image = preview_image.is_some();
     let preview_badge_content: Element<'_, Message> = if let Some(handle) = preview_image {
         Image::new(handle)
@@ -155,7 +155,7 @@ fn icon_color_controls(app: &App) -> Element<'_, Message> {
             }
         });
     let icon_preview_content: Element<'_, Message> =
-        if has_preview_image && app.project_edit_icon_hovered {
+        if has_preview_image && app.project_editor.project_edit_icon_hovered {
             let clear_overlay = container(text("x").size(14).color(Color::WHITE))
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -181,7 +181,7 @@ fn icon_color_controls(app: &App) -> Element<'_, Message> {
         .on_exit(Message::Project(
             crate::app::message::project::ProjectMessage::ProjectEditIconHovered(false),
         ))
-        .on_press(icon_preview_press_message(has_preview_image, app.project_edit_icon_hovered));
+        .on_press(icon_preview_press_message(has_preview_image, app.project_editor.project_edit_icon_hovered));
 
     row![icon_preview, column![icon_color_presets_row, color_preview_btn].spacing(10)]
         .spacing(16)
@@ -196,7 +196,7 @@ pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Messag
     let icon_label = i18n.__("图标文本或图片路径");
     let icon_help = i18n.__("支持 file:/// 或本地绝对路径。");
     let icon_row = responsive(move |size| {
-        let input = settings_text_input("", &app.project_edit_icon)
+        let input = settings_text_input("", &app.project_editor.project_edit_icon)
             .on_input(|value| Message::Project(ProjectMessage::ProjectEditIconChanged(value)));
         if size.width >= 600.0 {
             settings_flexible_row_with_help(
@@ -236,7 +236,7 @@ pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Messag
         settings_panel(
             column![
                 settings_responsive_row(name_label, "", move || {
-                    settings_text_input(name_label, &app.project_edit_name).on_input(|value| {
+                    settings_text_input(name_label, &app.project_editor.project_edit_name).on_input(|value| {
                         Message::Project(ProjectMessage::ProjectEditNameChanged(value))
                     })
                 }),

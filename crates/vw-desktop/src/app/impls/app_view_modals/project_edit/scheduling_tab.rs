@@ -30,7 +30,7 @@ impl std::fmt::Display for WorkflowOption {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let settings = &app.project_edit_task_board_settings;
+    let settings = &app.project_editor.project_edit_task_board_settings;
     let max_concurrent = settings.max_concurrent.clamp(1, 10);
     let scheduler_tick_interval_seconds = settings.scheduler_tick_interval_seconds.clamp(1, 60);
     let auto_promote_tick_interval_seconds =
@@ -77,7 +77,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         numeric_row(
             i18n.__("并发任务数"),
             "1-10",
-            &app.project_edit_max_concurrent_input,
+            &app.project_editor.project_edit_max_concurrent_input,
             |value| Message::Project(ProjectMessage::ProjectEditMaxConcurrentInputChanged(value)),
             Message::Project(ProjectMessage::ProjectEditMaxConcurrentChanged(
                 if max_concurrent <= 1 { 1 } else { max_concurrent - 1 },
@@ -90,7 +90,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let scheduler_tick_interval_row = numeric_row(
         i18n.__("执行唤醒间隔(秒)"),
         "1-60",
-        &app.project_edit_task_board_scheduler_tick_interval_seconds_input,
+        &app.project_editor.project_edit_task_board_scheduler_tick_interval_seconds_input,
         |value| {
             Message::Project(
                 ProjectMessage::ProjectEditTaskBoardSchedulerTickIntervalSecondsInputChanged(value),
@@ -107,7 +107,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let auto_promote_tick_interval_row = numeric_row(
         i18n.__("任务池回推间隔(秒)"),
         "1-3600",
-        &app.project_edit_task_board_auto_promote_tick_interval_seconds_input,
+        &app.project_editor.project_edit_task_board_auto_promote_tick_interval_seconds_input,
         |value| {
             Message::Project(
                 ProjectMessage::ProjectEditTaskBoardAutoPromoteTickIntervalSecondsInputChanged(
@@ -130,7 +130,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let failed_retry_row = numeric_row(
         i18n.__("失败重试(分钟)"),
         "1-1440",
-        &app.project_edit_failed_retry_minutes_input,
+        &app.project_editor.project_edit_failed_retry_minutes_input,
         |value| Message::Project(ProjectMessage::ProjectEditFailedRetryMinutesInputChanged(value)),
         Message::Project(ProjectMessage::ProjectEditFailedRetryMinutesChanged(
             if failed_retry_minutes <= 1 { 1 } else { failed_retry_minutes - 1 },
@@ -143,7 +143,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let failed_retry_max_attempts_row = numeric_row(
         i18n.__("最大重试(次)"),
         "0-10",
-        &app.project_edit_failed_retry_max_attempts_input,
+        &app.project_editor.project_edit_failed_retry_max_attempts_input,
         |value| {
             Message::Project(ProjectMessage::ProjectEditFailedRetryMaxAttemptsInputChanged(value))
         },
@@ -158,7 +158,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let running_timeout_row = numeric_row(
         i18n.__("运行超时(分钟)"),
         "1-1440",
-        &app.project_edit_running_timeout_minutes_input,
+        &app.project_editor.project_edit_running_timeout_minutes_input,
         |value| {
             Message::Project(ProjectMessage::ProjectEditRunningTimeoutMinutesInputChanged(value))
         },
@@ -186,7 +186,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let pr_stall_timeout_row = numeric_row(
         i18n.__("合并锁超时(秒)"),
         "5-3600",
-        &app.project_edit_pr_submitted_stall_timeout_seconds_input,
+        &app.project_editor.project_edit_pr_submitted_stall_timeout_seconds_input,
         |value| {
             Message::Project(ProjectMessage::ProjectEditPrSubmittedStallTimeoutSecondsInputChanged(
                 value,

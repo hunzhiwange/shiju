@@ -68,9 +68,9 @@ fn task_board_refresh_interval_input_changed(value: String) -> Message {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let settings = &app.project_edit_task_board_settings;
+    let settings = &app.project_editor.project_edit_task_board_settings;
     let session_refresh_interval_seconds = normalized_session_refresh_interval(
-        &app.project_edit_session_refresh_interval_seconds_input,
+        &app.project_editor.project_edit_session_refresh_interval_seconds_input,
     );
     let task_board_refresh_interval_seconds = settings.refresh_interval_seconds.clamp(1, 3600);
     let (session_refresh_interval_decrease, session_refresh_interval_increase) =
@@ -80,14 +80,14 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
 
     let task_board_auto_refresh_toggle = row![
         settings_field_label(i18n.__("任务看板自动刷新")).width(Length::Fill),
-        settings_toggle(app.project_edit_task_board_auto_refresh)
+        settings_toggle(app.project_editor.project_edit_task_board_auto_refresh)
             .on_toggle(task_board_auto_refresh_toggled)
     ]
     .align_y(iced::Alignment::Center);
 
     let session_auto_refresh_toggle = row![
         settings_field_label(i18n.__("项目会话自动刷新")).width(Length::Fill),
-        settings_toggle(app.project_edit_session_auto_refresh)
+        settings_toggle(app.project_editor.project_edit_session_auto_refresh)
             .on_toggle(session_auto_refresh_toggled)
     ]
     .align_y(iced::Alignment::Center);
@@ -95,7 +95,7 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let session_refresh_interval_row = numeric_row(
         i18n.__("会话刷新(秒)"),
         "1-3600",
-        &app.project_edit_session_refresh_interval_seconds_input,
+        &app.project_editor.project_edit_session_refresh_interval_seconds_input,
         session_refresh_interval_input_changed,
         session_refresh_interval_changed(session_refresh_interval_decrease),
         session_refresh_interval_changed(session_refresh_interval_increase),
@@ -104,7 +104,7 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let task_board_refresh_interval_row = numeric_row(
         i18n.__("任务看板刷新(秒)"),
         "1-3600",
-        &app.project_edit_task_board_refresh_interval_seconds_input,
+        &app.project_editor.project_edit_task_board_refresh_interval_seconds_input,
         task_board_refresh_interval_input_changed,
         task_board_refresh_interval_changed(task_board_refresh_interval_decrease),
         task_board_refresh_interval_changed(task_board_refresh_interval_increase),

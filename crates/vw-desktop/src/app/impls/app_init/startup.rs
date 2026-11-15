@@ -155,10 +155,10 @@ mod native {
                     }
                 }
             }
-            if !self.project_edit_worktree_dirty
-                && let Some(path) = self.project_edit_path.as_ref()
+            if !self.project_editor.project_edit_worktree_dirty
+                && let Some(path) = self.project_editor.project_edit_path.as_ref()
             {
-                self.project_edit_worktree_enabled = snapshot.get(path).copied().unwrap_or(false);
+                self.project_editor.project_edit_worktree_enabled = snapshot.get(path).copied().unwrap_or(false);
             }
             self.project_worktree_enabled = snapshot;
         }

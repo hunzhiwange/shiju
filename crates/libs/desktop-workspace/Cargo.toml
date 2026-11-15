@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced"] }
 unicode-width = "0.2"
 serde = { version = "1", features = ["derive"] }

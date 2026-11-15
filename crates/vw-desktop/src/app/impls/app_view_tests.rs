@@ -214,8 +214,8 @@ fn view_builds_with_plain_cli_install_modal() {
 #[test]
 fn view_builds_with_project_edit_and_permission_modals_together() {
     let mut app = test_app();
-    app.project_edit_path = Some("/workspace/project".to_string());
-    app.project_edit_name = "Project".to_string();
+    app.project_editor.project_edit_path = Some("/workspace/project".to_string());
+    app.project_editor.project_edit_name = "Project".to_string();
     app.permission_modal_request = Some(gateway_interaction::PendingPermissionRequestDto {
         id: "permission-1".to_string(),
         session_id: "session-1".to_string(),

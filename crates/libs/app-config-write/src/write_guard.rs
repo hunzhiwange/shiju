@@ -56,7 +56,7 @@ fn locks() -> &'static LockTable {
 
 #[derive(Debug)]
 pub struct AppWriteGuard {
-    pub(super) directory: File,
+    pub directory: File,
     additional: Vec<File>,
     targets: Vec<DirectoryTarget>,
     keys: Vec<LockKey>,
@@ -77,15 +77,15 @@ pub fn lock_app(app: AppId, directory: &Path) -> Result<AppWriteGuard, WriteErro
 
 /// Executor-defined logical names map to validated direct children, never request paths.
 #[derive(Debug)]
-pub(crate) struct DirectoryTarget {
+pub struct DirectoryTarget {
     pub key: OsString,
     pub directory: usize,
     pub name: OsString,
 }
-pub(crate) fn lock_directory(app: AppId, directory: File) -> Result<AppWriteGuard, WriteError> {
+pub fn lock_directory(app: AppId, directory: File) -> Result<AppWriteGuard, WriteError> {
     lock_directories(app, directory, Vec::new(), Vec::new())
 }
-pub(crate) fn lock_directories(
+pub fn lock_directories(
     app: AppId,
     directory: File,
     additional: Vec<File>,
@@ -140,11 +140,11 @@ impl Drop for AppWriteGuard {
 
 impl AppWriteGuard {
     /// Retained physical directory for the restricted host-side Codex daemon probe.
-    pub(crate) fn retained_directory(&self) -> &File {
+    pub fn retained_directory(&self) -> &File {
         &self.directory
     }
 
-    pub(crate) fn app(&self) -> AppId {
+    pub fn app(&self) -> AppId {
         match self.keys[0] {
             LockKey::App(app) => app,
             _ => unreachable!(),
@@ -165,10 +165,10 @@ impl AppWriteGuard {
         self.stage_one(name, bytes, privacy)?.commit()
     }
 
-    pub(super) fn directories(&self) -> impl Iterator<Item = &File> {
+    pub fn directories(&self) -> impl Iterator<Item = &File> {
         std::iter::once(&self.directory).chain(&self.additional)
     }
-    pub(super) fn directory_at(&self, index: usize) -> Result<&File, WriteError> {
+    pub fn directory_at(&self, index: usize) -> Result<&File, WriteError> {
         if index == 0 {
             Ok(&self.directory)
         } else {
@@ -202,11 +202,11 @@ impl AppWriteGuard {
     }
 }
 
-pub(super) fn read_from(directory: &File, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
+pub fn read_from(directory: &File, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
     read_child(directory, &checked_name(name)?)
 }
 
-pub(super) fn read_staged(directory: &File, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
+pub fn read_staged(directory: &File, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
     if !name.as_bytes().starts_with(b".shiju-live-") || name.as_bytes().contains(&b'/') {
         return Err(WriteError::InvalidResource);
     }
@@ -246,7 +246,7 @@ fn read_child(directory: &File, name: &CString) -> Result<Option<Vec<u8>>, Write
 
 #[cfg(target_os = "macos")]
 /// Stage a private replacement in a directory already anchored by its owner.
-pub(crate) fn prepare_private_child<'a>(
+pub fn prepare_private_child<'a>(
     directory: &'a File,
     name: &OsStr,
     bytes: &[u8],
@@ -254,7 +254,7 @@ pub(crate) fn prepare_private_child<'a>(
     prepare(directory, name, bytes, FilePrivacy::Private)
 }
 
-pub(super) fn prepare<'a>(
+pub fn prepare<'a>(
     directory: &'a File,
     name: &OsStr,
     bytes: &[u8],
@@ -349,16 +349,16 @@ fn checked_name(name: &OsStr) -> Result<CString, WriteError> {
 }
 
 /// Borrows the retained directory; the caller's guard cannot be released first.
-pub(crate) struct PreparedWrite<'a> {
-    pub(super) directory: &'a File,
-    pub(super) temp: CString,
-    pub(super) name: CString,
-    pub(super) retain: bool,
-    pub(super) delete: bool,
+pub struct PreparedWrite<'a> {
+    pub directory: &'a File,
+    pub temp: CString,
+    pub name: CString,
+    pub retain: bool,
+    pub delete: bool,
 }
 impl PreparedWrite<'_> {
     /// Preserve history timestamps before publication; never reopen the target.
-    pub(crate) fn set_modified(&self, modified: std::time::SystemTime) -> Result<(), WriteError> {
+    pub fn set_modified(&self, modified: std::time::SystemTime) -> Result<(), WriteError> {
         // SAFETY: retained directory and exclusively created staging name.
         let raw = unsafe {
             libc::openat(
@@ -377,10 +377,10 @@ impl PreparedWrite<'_> {
             .map_err(|_| WriteError::Io)
     }
 
-    pub(crate) fn commit(self) -> Result<(), WriteError> {
+    pub fn commit(self) -> Result<(), WriteError> {
         self.publish()
     }
-    pub(super) fn publish(&self) -> Result<(), WriteError> {
+    pub fn publish(&self) -> Result<(), WriteError> {
         let fd = self.directory.as_raw_fd();
         if self.delete {
             // SAFETY: retained directory and validated direct child, never follows links.

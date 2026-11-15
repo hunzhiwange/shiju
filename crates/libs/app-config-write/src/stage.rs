@@ -4,13 +4,13 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 use std::{collections::HashSet, ffi::OsStr};
 
-pub(super) struct FileRevision {
+pub struct FileRevision {
     pub directory: usize,
     pub source: std::ffi::OsString,
     pub before: Option<String>,
     pub after: Option<String>,
 }
-pub(super) fn digest(bytes: &[u8]) -> String {
+pub fn digest(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(bytes))
 }
 
@@ -53,8 +53,8 @@ pub struct FileChange<'a> {
 /// Retains the exclusive guard borrow until publication or discard. Drop removes
 /// unpublished temporary files. No pointer, backup or pending writes happen here.
 pub struct StagedBatch<'a> {
-    pub(super) writes: Vec<PreparedWrite<'a>>,
-    pub(super) revisions: Vec<FileRevision>,
+    pub writes: Vec<PreparedWrite<'a>>,
+    pub revisions: Vec<FileRevision>,
 }
 impl StagedBatch<'_> {
     pub fn len(&self) -> usize {

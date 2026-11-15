@@ -2111,3 +2111,15 @@ workspace_paths → providers
 - catalog::{read,observe,read_file}、delete::ensure_unreferenced 及各自测试保留原位，任务 29 接收（依赖任务 24 原生适配器）。editor_merge::ClaudeFile 原生访问/提交由任务 24 接收；project/display 依赖 preview 分发，由任务 29 接收。其余叶子已单独下沉，未复制业务实现。
 - 公共入口仍由 providers 模块逐项重导出，lib.rs 的 providers 注册无需改动；snippets::sensitive 仅因 aggregation/omo_read 的真实调用而公开。图标规则直接依赖 app-icons，JSON 编辑依赖 app-config-patch，字段分类依赖 app-provider-projection；无旧门面回依赖，无资源 include 路径。原包已有依赖仍被其它模块使用，未删除。
 - 静态证据：TOML 标准库解析、所有直接路径存在、workspace 注册、模块和独立测试注册、源码引用与迁移函数集合对照、git diff --check。Cargo.lock 未触碰；新包目标编译、迁移单测、原生服务集成及三平台条件留待授权统一验收，静态结果不表示行为通过。
+
+
+## 任务 12 迁移结果（2026-11-15）
+
+静态拆分完成；未运行 Cargo、单元及实机测试，统一验收待授权。
+
+- 本节覆盖历史所有权表：`providers/live/{write_guard,stage}.rs` 与两个独立测试文件移至 `app-config-write/src`，macOS 与 test 条件保持；`concurrency::Guarded` 纯快照规则同移，原模块重导出。原 lib.rs 的 providers 注册无需修改。锁表只有新包一份，所有旧调用者通过 live 重导出复用；无资源 include 引用。
+- `commit/recovery/project_binding/record_publication` 及对应测试仍在原位置，任务 29 接收整个事务边界：commit 持久化 AppState/PendingTarget 与 mode_state::StackState 相互引用，project_binding 调用 mode_state::observe，commit 调用 operations 发布门禁；不能只搬文件形成环。此次未拆分状态数据与发布门禁，任务 29 须将其和事务内聚归位，不能遗忘历史表要求。`concurrency::publish_checked` 依附 ProviderTransactions 且访问 Pending/Phase/checkpoint，连同 concurrency_tests 由任务 29 接收；Guarded 的集成测试仍注册于该文件。
+- `claude_directory` 及独立测试依赖 LoginHost、ProviderTransactions 与 ClaudeFile，任务 23 接登录部分、任务 24 接原生适配器部分，任务 29 接事务目录编排；独立测试随最终所有者迁移。没有添加回调 trait 或回依赖。
+- 仅为已有跨包事务和凭据文件调用公开 descriptor 操作、PreparedWrite 及其事务字段、FileRevision、batch writes/revisions/digest；resolve/stage_one 与锁表、路径检查仍私有。此接口供执行器持有已授权目录使用，原有路径校验、权限、暂存清理和发布顺序未改。commit/concurrency/recovery 使用的原始字段是现有协议，后续接收任务应将其收回内聚包内，不能将其用于客户端任意文件操作。
+- 直接依赖全部置于 macOS：api-app-identity、base64、sha2、libc；tempfile/serde_json（arbitrary_precision）仅测试。原包相同依赖仍有其它调用者，保留。workspace 与直接路径已注册，TOML 路径、导出、私有访问和文件移动作静态审阅，未触碰 Cargo.lock。
+- 静态证据：独立测试逐字移动，stage/write_guard 仅可见性变化，Guarded 逐字提取；新包无 vw-agent-apps 引用、无跨包 path/include，差异空白检查通过。统一验收须覆盖新增库、commit/recovery/concurrency 与其它直接调用者编译、迁移测试、原子提交与恢复授权绑定及三平台条件；本轮均未执行。

@@ -2,14 +2,10 @@
 pub use app_config_patch::{patch_dotenv, patch_json, patch_toml, patch_yaml};
 
 #[cfg(target_os = "macos")]
-pub mod write_guard;
-#[cfg(all(test, target_os = "macos"))]
-mod write_guard_tests;
+pub use app_config_write::write_guard;
 
 #[cfg(target_os = "macos")]
-pub mod stage;
-#[cfg(all(test, target_os = "macos"))]
-mod stage_tests;
+pub use app_config_write::stage;
 
 #[cfg(target_os = "macos")]
 pub mod claude_directory;

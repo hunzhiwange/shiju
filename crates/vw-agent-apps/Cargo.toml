@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-config-write = { path = "../libs/app-config-write" }
 app-provider-core = { path = "../libs/app-provider-core" }
 vw-api-project-profiles = { path = "../libs/api-project-profiles", version = "0.6.0" }
 vw-api-hermes-memory = { path = "../libs/api-hermes-memory", version = "0.6.0" }

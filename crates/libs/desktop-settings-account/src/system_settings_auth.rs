@@ -14,7 +14,7 @@ fn message<U>(event: Event<U>) -> Event<U> { event }
 use iced::widget::{button, checkbox, column, container, responsive, row, scrollable, svg, text};
 use iced::{Alignment, Element, Length, Theme};
 use vw_api_app_auth::{
-    AuthAccount, AuthRegion, AuthService,
+    AuthAccount, AuthCredentialState, AuthRegion, AuthService,
 };
 
 pub fn view<'a, U: Clone + 'static>(state: &State<'a>, usage: Usage<'a, U>) -> Element<'a, Event<U>> {

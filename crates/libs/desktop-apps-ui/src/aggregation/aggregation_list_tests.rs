@@ -1,8 +1,6 @@
 use super::*;
-use crate::app::{
-    message::settings::aggregation_list::{Selection, Snapshot},
-    state::{AgentAppsContext, app_providers::list::Scope},
-};
+use crate::aggregation::list::{Selection, Snapshot};
+use crate::{AgentAppsContext, ProviderScope as Scope};
 use iced::{
     Font, Renderer, Size, Theme,
     advanced::renderer::{Headless, Style},
@@ -24,7 +22,7 @@ async fn aggregation_t57_member_actions_shape_and_draw_in_both_themes() {
 async fn draw_directory() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }

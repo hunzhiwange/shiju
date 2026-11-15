@@ -168,3 +168,5 @@ impl std::fmt::Debug for Event {
         f.write_str("CodexClientsEvent([redacted])")
     }
 }
+
+pub use super::clients_update::{execute, update};

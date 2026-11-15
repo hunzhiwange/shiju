@@ -25,3 +25,6 @@ pub mod diagnostics;
 
 pub mod agent_apps_diagnostics;
 pub mod agent_apps_high_availability;
+
+pub mod app_routing;
+pub mod agent_apps_auth;

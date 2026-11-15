@@ -31,7 +31,7 @@ fn preview() -> AggregationPreview {
 async fn aggregation_t58_confirmation_shapes_draws_and_dispatches_in_both_themes() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -218,7 +218,7 @@ impl iced::advanced::widget::Operation for Geometry {
 async fn aggregation_t59_exit_shapes_draws_and_dispatches_in_both_themes() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -247,7 +247,7 @@ async fn aggregation_t59_exit_shapes_draws_and_dispatches_in_both_themes() {
                 result_state.notices =
                     vec![AggregationNotice::ModelReselect, AggregationNotice::RestartDesktop];
                 session.finish(Ok(
-                    crate::app::message::settings::aggregation_list::publish::Reply::Operation(
+                    crate::aggregation::publish::Reply::Operation(
                         ProviderOperationProgress {
                             operation_id: "exit-op".into(),
                             request_id: "exit-request".into(),

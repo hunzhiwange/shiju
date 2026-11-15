@@ -1,6 +1,6 @@
 use super::*;
-use desktop_apps_ui::AgentAppsContext;
-use desktop_apps_ui::ProviderScope as Scope;
+use crate::AgentAppsContext;
+use crate::ProviderScope as Scope;
 use {
     gateway_endpoint::GatewayEndpoint,
     vw_api_transport::id::TenantScope,

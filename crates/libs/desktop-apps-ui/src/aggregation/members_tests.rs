@@ -1,9 +1,9 @@
-use desktop_apps_ui::ProviderScope as Scope;
+use crate::ProviderScope as Scope;
 use super::*;
 fn selection() -> Selection {
     Selection {
         scope: Scope {
-            context: desktop_apps_ui::AgentAppsContext {
+            context: crate::AgentAppsContext {
                 gateway: "http://fixture".into(),
                 tenant: Default::default(),
                 project: None,

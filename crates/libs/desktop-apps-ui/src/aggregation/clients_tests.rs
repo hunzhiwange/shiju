@@ -12,7 +12,7 @@ fn ready() -> Session {
     Session { snapshot: Some(state()), ..Default::default() }
 }
 fn selection() -> Selection {
-    use desktop_apps_ui::{AgentAppsContext, ProviderScope as Scope};
+    use crate::{AgentAppsContext, ProviderScope as Scope};
     Selection {
         scope: Scope {
             context: AgentAppsContext {

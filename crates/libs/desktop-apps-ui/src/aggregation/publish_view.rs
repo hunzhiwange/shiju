@@ -1,9 +1,8 @@
-use super::notice_label;
-use crate::app::components::system_settings_common::*;
-use crate::app::{
-    Message,
-    message::settings::aggregation_list::publish::{Action, Event, Session, message},
-};
+use super::list_view::notice_label;
+use desktop_ui_controls::system_settings_common::*;
+use super::publish::{Action, Event, Session};
+type Message = Event;
+fn message(event: Event) -> Event { event }
 use iced::{
     Element,
     widget::{button, column, container, row, text},
@@ -11,7 +10,7 @@ use iced::{
 use vw_api_app_aggregation::*;
 use vw_api_task::TaskStatus;
 
-pub(super) fn overlay<'a>(
+pub fn overlay<'a>(
     session: &'a Session,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
@@ -185,10 +184,6 @@ pub(super) fn overlay<'a>(
     settings_modal_overlay(Some(base), close, container(card).padding(12))
 }
 
-#[cfg(test)]
-#[path = "aggregation_publish_tests.rs"]
-mod tests;
-
 fn recovery_label(recovery: RecoveryState) -> &'static str {
     match recovery {
         RecoveryState::None => "无需恢复",
@@ -197,3 +192,7 @@ fn recovery_label(recovery: RecoveryState) -> &'static str {
         RecoveryState::Failed => "恢复失败",
     }
 }
+
+#[cfg(test)]
+#[path = "aggregation_publish_tests.rs"]
+mod tests;

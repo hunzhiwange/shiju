@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/api-transport",
+  "crates/libs/api-transport",
   "crates/libs/config-runtime-paths",
   "crates/libs/agent-async",
   "crates/libs/agent-bus",
@@ -34,7 +35,6 @@ members = [
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
   "crates/libs/acp-access-policy",
-  "crates/libs/acp-metrics",
   "crates/libs/permission-engine",
   "crates/libs/security-audit",
   "crates/libs/syscall-anomaly",

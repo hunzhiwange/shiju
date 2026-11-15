@@ -203,7 +203,7 @@ fn fingerprint(root: &Path) -> Result<String> {
 }
 
 // Link ownership covers the link itself, never the mutable SSOT contents.
-pub(super) fn binding_fingerprint(path: &Path, link_target: Option<&Path>) -> Result<String> {
+pub fn binding_fingerprint(path: &Path, link_target: Option<&Path>) -> Result<String> {
     match link_target {
         None => fingerprint(path),
         Some(target) => {

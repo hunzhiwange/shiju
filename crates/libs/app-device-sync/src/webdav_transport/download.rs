@@ -5,7 +5,7 @@ use reqwest::{Client, Method, StatusCode, Url, header};
 use tokio::time::{Instant, timeout_at};
 
 use super::{WebDavError, status_error};
-use crate::device_sync::{
+use crate::{
     artifact::{ArtifactDeclaration, ArtifactVerifier, MAX_ARTIFACT_SIZE},
     manifest::MAX_MANIFEST_BYTES,
     webdav_config::WebDavConfig,

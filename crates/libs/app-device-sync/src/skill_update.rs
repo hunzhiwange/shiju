@@ -1,7 +1,7 @@
 //! Staged update of one SSOT and its existing managed projections.
 //! The caller holds the settings transaction until finish or explicit rollback.
 use std::{collections::BTreeMap, path::Path};
-use crate::skills::{
+use app_skills::{
     copy_deploy::{binding_fingerprint, CopyBinding, CopyDeploy},
     inventory::{compute_dir_hash, get_all_installed},
     link_deploy::SyncMethod,
@@ -37,7 +37,7 @@ impl BatchSkillUpdate {
             }
         }
         for path in paths {
-            let file = crate::providers::paths::open_beneath(&path, &path, true)
+            let file = app_config_paths::open_beneath(&path, &path, true)
                 .map_err(|_| LocalInstallError::UnsafeSource)?;
             use std::os::fd::AsRawFd;
             if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {

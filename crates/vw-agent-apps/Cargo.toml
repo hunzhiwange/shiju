@@ -8,7 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
-app-sync-core = { path = "../libs/app-sync-core" }
+app-device-sync = { path = "../libs/app-device-sync" }
 app-usage = { path = "../libs/app-usage" }
 app-usage-import = { path = "../libs/app-usage-import" }
 app-usage-codex = { path = "../libs/app-usage-codex" }
@@ -99,7 +99,6 @@ toml_edit = "0.22"
 semver = "1"
 sha2 = "0.11"
 chrono-tz = "0.10.4"
-chrono = { version = "0.4", default-features = false, features = ["std"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
 tempfile = "3"
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }

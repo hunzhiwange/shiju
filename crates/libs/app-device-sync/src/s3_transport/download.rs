@@ -6,7 +6,7 @@ use reqwest::{Client, Method, StatusCode, header::{self, HeaderMap, HeaderValue}
 use tokio::time::{Instant, timeout_at};
 
 
-use crate::device_sync::{
+use crate::{
     artifact::{ArtifactDeclaration, ArtifactVerifier, MAX_ARTIFACT_SIZE},
     manifest::MAX_MANIFEST_BYTES,
     s3_config::S3Config,

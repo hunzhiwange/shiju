@@ -1,0 +1,21 @@
+[package]
+name = "app-device-sync"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-sync-core = { path = "../app-sync-core" }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+tokio = { version = "1", features = ["time"] }
+sha2 = "0.11"
+chrono = { version = "0.4", default-features = false, features = ["std", "now"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-skills = { path = "../app-skills" }
+app-config-paths = { path = "../app-config-paths" }
+tempfile = "3"
+libc = "0.2"

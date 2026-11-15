@@ -1,0 +1,25 @@
+[package]
+name = "app-skill-catalog"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-config-paths = { path = "../app-config-paths" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+serde_yaml = "0.9"
+uuid = { version = "1.11", features = ["v4", "js"] }
+tempfile = "3"
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[dev-dependencies]
+app-catalog = { path = "../app-catalog" }
+tokio = { version = "1", features = ["macros", "rt", "io-util", "net", "time"] }

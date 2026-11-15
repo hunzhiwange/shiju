@@ -3,7 +3,7 @@
 //! HOME, overrides and environment must come from the selected host/installation,
 //! never from a client's filesystem. These observations grant no write permission;
 //! publishers must recheck path identity under their own transaction guard.
-use crate::providers::paths;
+use app_config_paths as paths;
 use std::{
     collections::BTreeMap,
     path::{Component, Path, PathBuf},

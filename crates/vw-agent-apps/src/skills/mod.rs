@@ -18,11 +18,11 @@ mod claude_toggle_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_status_tests;
 
-pub mod repos;
+pub use app_skill_catalog::repos;
 
-pub mod market_search;
+pub use app_skill_catalog::market_search;
 
-pub mod archive;
+pub use app_skill_catalog::archive;
 
 #[cfg(target_os = "macos")]
 pub mod local_install;
@@ -30,27 +30,14 @@ pub mod local_install;
 #[cfg(all(test, target_os = "macos"))]
 mod local_install_tests;
 
-#[cfg(test)]
-mod repos_tests;
+pub use app_skill_catalog::app_paths;
 
-#[cfg(test)]
-mod market_search_tests;
-
-pub mod app_paths;
-
-#[cfg(test)]
-mod app_paths_tests;
-
-pub mod discovery;
-
-#[cfg(test)]
-mod discovery_tests;
+pub use app_skill_catalog::discovery;
 
 #[cfg(target_os = "macos")]
 pub mod repo_install;
 
-pub mod discovery_cache;
-
+pub use app_skill_catalog::discovery_cache;
 
 #[cfg(target_os = "macos")]
 pub mod zip_install;
@@ -91,10 +78,7 @@ mod link_deploy_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod unmanaged_scan_tests;
 
-pub mod jobs;
-
-#[cfg(test)]
-mod jobs_tests;
+pub use app_skill_catalog::jobs;
 
 #[cfg(target_os = "macos")]
 pub mod unmanaged_import;
@@ -114,7 +98,7 @@ pub mod update_apply;
 #[cfg(all(test, target_os = "macos"))]
 mod update_apply_tests;
 
-pub mod job_cancel;
+pub use app_skill_catalog::job_cancel;
 #[cfg(test)]
 mod job_cancel_tests;
 

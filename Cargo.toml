@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-skill-catalog",
   "crates/libs/app-prompts",
   "crates/libs/desktop-ui-controls",
   "crates/libs/storage-types",

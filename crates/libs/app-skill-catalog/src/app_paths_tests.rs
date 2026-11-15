@@ -24,7 +24,7 @@ fn cp12_app_paths_success() {
         (Agy, ".gemini/config/skills", SkillDistribution::ManagedBinding),
         (Omp, ".omp/agent/skills", SkillDistribution::NativeDirectory),
     ];
-    assert_eq!(cases.len(), crate::apps::catalog::catalog().len());
+    assert_eq!(cases.len(), app_catalog::catalog::catalog().len());
     for (app, suffix, capability) in cases {
         let target = resolve(home.path(), app, None, &BTreeMap::new(), &[]).unwrap();
         assert_eq!(target.directory, home.path().join(suffix));

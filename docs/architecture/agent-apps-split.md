@@ -4,6 +4,27 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 42：技能目录与发现迁移结果
+
+`skills/{app_paths,archive,discovery,discovery_cache,job_cancel,jobs,market_search,repos}.rs`
+及对应八个独立测试文件已迁至 `crates/libs/app-skill-catalog/src/`。
+原 skills 模块重导出八个模块，lib.rs 的 `pub mod skills` 继续提供原路径。
+app_paths 直接使用 app-config-paths；路径测试直接使用 app-catalog。
+discovery 的 download_branch、download_branch_checked、scan_repo、scan_repo_checked
+因 repo_install/update_check/update_apply 真实调用而最小公开，其余内部辅助函数保持可见性。
+
+job_cancel_tests 的 macOS `cp12_job_cancel_cleans_staging_before_publication`
+直接依赖 LocalInstall，保留原包及测试注册，由任务 43 随部署编排接收；
+两个取消状态单测已下沉。原 macOS/unix cfg、ZIP 限制、错误及取消语义保持。
+archive/discovery_cache 的嵌套测试路径仍指向同目录文件，无资源路径变化。
+原包 zip 等依赖仍被 data_management/device_sync 及剩余部署测试使用，保留。
+
+静态证据：逐文件与 HEAD 对照，八个实现仅导入及上述四个函数可见性变化；
+检索新包无门面回依赖；workspace/门面直接路径依赖存在；独立测试注册完整。
+系统 Python 无 tomllib，未安装工具；逐行审阅 TOML，并用 Python 标准库确认路径存在。
+git diff --check 无空白错误。未运行 Cargo、单元及实机测试，统一验收待授权：
+新包及调用者编译、迁移单测、三平台条件和 Cargo.lock 一致性。
+
 ## 任务 15：Claude 认证基础迁移结果
 
 `auth/claude_keychain.rs`、`auth/claude_login_files.rs` 已移动至

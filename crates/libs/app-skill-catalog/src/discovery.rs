@@ -162,7 +162,7 @@ async fn fetch_repo(
     scan_repo(guard.path(), &resolved)
 }
 
-pub(super) async fn download_branch(
+pub async fn download_branch(
     client: &reqwest::Client,
     repo: &SkillRepo,
     archives: &str,
@@ -170,7 +170,7 @@ pub(super) async fn download_branch(
     download_branch_checked(client, repo, archives, &|| Ok(())).await
 }
 
-pub(super) async fn download_branch_checked(
+pub async fn download_branch_checked(
     client: &reqwest::Client, repo: &SkillRepo, archives: &str,
     check: &(dyn Fn() -> std::io::Result<()> + Sync),
 ) -> Result<tempfile::TempDir, DiscoveryError> {
@@ -213,11 +213,11 @@ fn metadata(path: &Path) -> Result<Metadata, DiscoveryError> {
 }
 
 // Only called on the private, bounded extraction directory, never a client path.
-pub(super) fn scan_repo(root: &Path, repo: &SkillRepo) -> Result<Vec<DiscoverableSkill>, DiscoveryError> {
+pub fn scan_repo(root: &Path, repo: &SkillRepo) -> Result<Vec<DiscoverableSkill>, DiscoveryError> {
     scan_repo_checked(root, repo, &|| Ok(()))
 }
 
-pub(super) fn scan_repo_checked(root: &Path, repo: &SkillRepo,
+pub fn scan_repo_checked(root: &Path, repo: &SkillRepo,
     check: &(dyn Fn() -> std::io::Result<()> + Sync)) -> Result<Vec<DiscoverableSkill>, DiscoveryError> {
     let mut pending = vec![PathBuf::new()];
     let mut skills = Vec::new();

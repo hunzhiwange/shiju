@@ -1,5 +1,5 @@
 //! 网关浏览器安装入口：白名单与进程内互斥，复用现有认证路由。
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
 use axum::{Json, extract::Path};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -19,7 +19,7 @@ pub(super) async fn install_post(Path(backend): Path<String>) -> Result<Json<Str
         return Err(ApiError::bad_request("网关正在安装浏览器，请稍后重试"));
     }
     let _guard = InstallGuard;
-    crate::app::agent::tools::browser::installation::install()
+    tool_browser::installation::install()
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json("代理浏览器与 Chrome 已安装并验证，可直接使用".into()))

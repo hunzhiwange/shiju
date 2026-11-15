@@ -7,9 +7,9 @@ use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
 use super::*;
-use crate::app::agent::storage;
-use crate::gateway::settings_store::GatewaySettingsStore;
-use crate::global_database::GlobalDatabase;
+use agent_storage as storage;
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use vw_api_transport::id::TenantScope;
 
 static DESKTOP_STORAGE_LOCK: Mutex<()> = Mutex::const_new(());

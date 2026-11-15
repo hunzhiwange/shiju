@@ -1,0 +1,41 @@
+[package]
+name = "gateway-desktop"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-skills = { path = "../agent-skills", version = "0.6.0" }
+agent-plugins = { path = "../agent-plugins", version = "0.6.0" }
+config-skills = { path = "../config-skills", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+tool-browser = { path = "../tool-browser", version = "0.6.0" }
+include_dir = "0.7"
+once_cell = "1"
+serde_yaml = "0.9"
+toml = "0.9"
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+acp-types = { path = "../acp-types", version = "0.6.0" }
+acp-client = { path = "../acp-client", version = "0.6.0" }
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
+config-acp-install = { path = "../config-acp-install", version = "0.6.0" }
+vw-api-file = { path = "../api-file", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync"] }
+tokio-util = "0.7.18"
+
+[dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

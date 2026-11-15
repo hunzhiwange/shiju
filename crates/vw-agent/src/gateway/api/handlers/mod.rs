@@ -58,8 +58,7 @@ pub mod desktop;
 /// Gateway skills 目录处理器模块
 pub(crate) mod desktop_skills;
 
-mod desktop_acp_install;
-mod desktop_browser_install;
+// Desktop installation handlers are composed by gateway-desktop.
 /// Gateway 插件目录与本地管理处理器模块
 pub(crate) mod plugins;
 

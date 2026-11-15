@@ -190,15 +190,15 @@ fn count_skill_resources_ignores_skill_documents() {
 #[test]
 fn local_skill_source_key_maps_all_kinds() {
     assert_eq!(
-        super::local_skill_source_key(crate::app::agent::skills::LocalSkillSourceKind::Workspace),
+        super::local_skill_source_key(agent_skills::local_sources::LocalSkillSourceKind::Workspace),
         "workspace"
     );
     assert_eq!(
-        super::local_skill_source_key(crate::app::agent::skills::LocalSkillSourceKind::Ancestor),
+        super::local_skill_source_key(agent_skills::local_sources::LocalSkillSourceKind::Ancestor),
         "ancestor"
     );
     assert_eq!(
-        super::local_skill_source_key(crate::app::agent::skills::LocalSkillSourceKind::Global),
+        super::local_skill_source_key(agent_skills::local_sources::LocalSkillSourceKind::Global),
         "global"
     );
 }
@@ -378,7 +378,7 @@ fn resolve_skill_detail_reports_disabled_local_skill_capabilities() {
     let skill_dir = project.path().join(".vibewindow/skills/disabled-detail");
     write_markdown_skill(&skill_dir, "Disabled Detail", "Disabled description");
     std::fs::write(
-        crate::app::agent::skills::local_skill_disabled_marker_path(&skill_dir),
+        agent_skills::local::local_skill_disabled_marker_path(&skill_dir),
         "disabled\n",
     )
     .expect("disabled marker");
@@ -524,7 +524,7 @@ fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
     write_markdown_skill(&skill_dir, "Local Plans", "Local description");
     std::fs::write(skill_dir.join("notes.txt"), "resource").expect("resource");
     std::fs::write(
-        crate::app::agent::skills::local_skill_disabled_marker_path(&skill_dir),
+        agent_skills::local::local_skill_disabled_marker_path(&skill_dir),
         "disabled\n",
     )
     .expect("disabled marker");
@@ -615,7 +615,7 @@ fn discover_local_skills_ignores_non_skills_and_reports_disabled_state() {
     let disabled_dir = skills_root.join("disabled-demo");
     write_markdown_skill(&disabled_dir, "Disabled Demo", "Disabled description");
     std::fs::write(
-        crate::app::agent::skills::local_skill_disabled_marker_path(&disabled_dir),
+        agent_skills::local::local_skill_disabled_marker_path(&disabled_dir),
         "disabled\n",
     )
     .expect("disabled marker");
@@ -645,7 +645,7 @@ fn set_local_skill_enabled_toggles_disabled_marker() {
         "---\nname: Demo\ndescription: Demo skill\n---\n# Demo\n",
     )
     .expect("skill md");
-    let marker = crate::app::agent::skills::local_skill_disabled_marker_path(&skill_dir);
+    let marker = agent_skills::local::local_skill_disabled_marker_path(&skill_dir);
 
     let disabled_path = super::set_local_skill_enabled(
         Some(project.path().to_str().expect("utf8 path")),
@@ -685,7 +685,7 @@ fn set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill(
     )
     .expect("enable already enabled skill");
 
-    let marker = crate::app::agent::skills::local_skill_disabled_marker_path(&skill_dir);
+    let marker = agent_skills::local::local_skill_disabled_marker_path(&skill_dir);
     std::fs::write(&marker, "disabled\n").expect("disabled marker");
 
     super::set_local_skill_enabled(

@@ -1,5 +1,5 @@
 //! 在网关主机安装固定白名单中的 ACP 包。
-use crate::app::agent::gateway::ApiError;
+use gateway_types::ApiError;
 use axum::{Json, extract::Path};
 use std::sync::atomic::{AtomicBool, Ordering};
 use config_acp_install::acp_install_command;

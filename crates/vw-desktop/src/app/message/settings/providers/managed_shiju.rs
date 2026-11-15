@@ -16,7 +16,7 @@ fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), 
     {
         return Err(Feedback::owned("识矩模型授权响应无效", vec![]));
     }
-    let info = auth_types::Info::Api(auth_types::ApiInfo { key: token.key.expose().to_string() });
+    let info = auth::Info::Api(auth::ApiInfo { key: token.key.expose().to_string() });
     auth::store::set_to(path, SHIJU_OFFICIAL_PROVIDER_ID, &info)
         .map_err(|_| Feedback::owned("识矩模型凭据保存失败，请检查认证文件权限", vec![]))
 }

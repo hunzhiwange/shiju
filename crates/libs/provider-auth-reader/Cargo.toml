@@ -5,7 +5,6 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-auth-types = { path = "../auth-types", version = "0.6.0" }
 provider-runtime-paths = { path = "../provider-runtime-paths", version = "0.6.0" }
 vw-shared = { path = "../../vw-shared", version = "0.6.0" }
 

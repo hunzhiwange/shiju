@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub use auth_types::Info;
+pub use vw_shared::auth::Info;
 
 use provider_runtime_paths as global;
 

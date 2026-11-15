@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/auth-types",
+  "crates/libs/api-agent-scheduler",
   "crates/libs/model-state",
   "crates/libs/api-task",
   "crates/libs/model-types",

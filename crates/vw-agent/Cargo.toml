@@ -12,8 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
-config-channel-types = { path = "../libs/config-channel-types", version = "0.6.0" }
-auth-types = { path = "../libs/auth-types", version = "0.6.0" }
+vw-api-agent-scheduler = { path = "../libs/api-agent-scheduler", version = "0.6.0" }
 config-security = { path = "../libs/config-security", version = "0.6.0" }
 model-state = { path = "../libs/model-state", version = "0.6.0" }
 vw-api-task = { path = "../libs/api-task", version = "0.6.0" }

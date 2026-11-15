@@ -1,6 +1,6 @@
 //! Gateway 编排快照与项目归属控制边界。
 
-use vw_gateway_client::vw_api_types::agent_scheduler::{
+use vw_api_agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskGraphResponse, AgentSchedulerTaskLogsResponse, AgentTaskStatusDto,

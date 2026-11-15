@@ -8,7 +8,7 @@ use std::sync::mpsc;
 use serde_json::json;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
-use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 
 use super::GatewayAgentRequest;

@@ -3,7 +3,7 @@
 
 use anyhow::{Result, bail};
 use rusqlite::Connection;
-use vw_api_types::agent_scheduler::AgentSchedulerScope;
+use vw_api_agent_scheduler::AgentSchedulerScope;
 
 pub(crate) fn initialize_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(AGENT_SCHEDULER_SCHEMA)?;

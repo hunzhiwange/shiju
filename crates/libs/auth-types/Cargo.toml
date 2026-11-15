@@ -1,8 +1,0 @@
-[package]
-name = "auth-types"
-version = "0.6.0"
-edition = "2024"
-license = "MIT"
-
-[dependencies]
-serde = { version = "1", features = ["derive"] }

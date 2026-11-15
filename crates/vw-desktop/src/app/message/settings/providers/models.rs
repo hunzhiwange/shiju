@@ -40,8 +40,8 @@ pub fn current_provider_api_key(provider_id: &str) -> Option<String> {
         return None;
     }
     match shared_auth::store::get_from(&auth_filepath(), provider_id) {
-        Some(auth_types::Info::Api(info)) => Some(info.key),
-        Some(auth_types::Info::Wellknown(info)) => Some(info.key),
+        Some(shared_auth::Info::Api(info)) => Some(info.key),
+        Some(shared_auth::Info::Wellknown(info)) => Some(info.key),
         _ => None,
     }
 }
@@ -492,7 +492,7 @@ pub async fn connect_provider(
     shared_auth::store::set_to(
         &path,
         &provider_id,
-        &auth_types::Info::Api(auth_types::ApiInfo { key: api_key }),
+        &shared_auth::Info::Api(shared_auth::ApiInfo { key: api_key }),
     )
     .map_err(|e| e.to_string())?;
     model_provider::invalidate_cache().await;
@@ -587,7 +587,7 @@ pub async fn save_custom_provider(
         shared_auth::store::set_to(
             &path,
             &provider_id,
-            &auth_types::Info::Api(auth_types::ApiInfo { key: draft.api_key.trim().to_string() }),
+            &shared_auth::Info::Api(shared_auth::ApiInfo { key: draft.api_key.trim().to_string() }),
         )
         .map_err(|e| e.to_string())?;
     }

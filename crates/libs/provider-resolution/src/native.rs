@@ -63,10 +63,10 @@ pub(crate) async fn load_state_impl(apply_enabled_filter: bool) -> State {
         let (next_source, next_key) = match info {
             auth::Info::Api(api) => (ProviderSource::Api, Some(api.key)),
             auth::Info::Oauth(_) => {
-                (ProviderSource::Api, Some(auth_types::OAUTH_DUMMY_KEY.to_string()))
+                (ProviderSource::Api, Some(vw_shared::auth::OAUTH_DUMMY_KEY.to_string()))
             }
             auth::Info::Wellknown(_) => {
-                (ProviderSource::Api, Some(auth_types::OAUTH_DUMMY_KEY.to_string()))
+                (ProviderSource::Api, Some(vw_shared::auth::OAUTH_DUMMY_KEY.to_string()))
             }
         };
 

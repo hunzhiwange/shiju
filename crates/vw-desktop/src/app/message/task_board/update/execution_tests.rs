@@ -258,7 +258,7 @@ fn manual_execute_deduplicates_agent_scheduler_start_log() {
 #[test]
 fn agent_scheduler_wake_response_does_not_reserve_desktop_running_slot() {
     use crate::app::task::{Task, TaskStatus};
-    use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse;
+    use vw_api_agent_scheduler::AgentSchedulerWakeResponse;
 
     let (mut app, _task) = crate::app::App::new();
     app.project_path = Some("/tmp/vibewindow-execution-reserve-test".to_string());
@@ -302,7 +302,7 @@ fn agent_scheduler_wake_response_does_not_reserve_desktop_running_slot() {
 #[test]
 fn wake_agent_scheduler_create_requests_include_pool_and_filter_terminal_tasks() {
     use crate::app::task::{Task, TaskStatus};
-    use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
+    use vw_api_agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
 
     let mut pending = Task::new(9);
     pending.id = "T-pending-register".to_string();

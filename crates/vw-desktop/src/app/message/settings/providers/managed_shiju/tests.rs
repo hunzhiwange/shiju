@@ -19,15 +19,15 @@ fn shiju_model_token_storage_preserves_other_provider_credentials() {
     auth::store::set_to(
         &path,
         "other",
-        &auth_types::Info::Api(auth_types::ApiInfo { key: "other-secret".to_string() }),
+        &auth::Info::Api(auth::ApiInfo { key: "other-secret".to_string() }),
     )
     .unwrap();
     save_token(&path, &token()).unwrap();
     assert!(
-        matches!(auth::store::get_from(&path, "shiju"), Some(auth_types::Info::Api(info)) if info.key == "issued-model-secret")
+        matches!(auth::store::get_from(&path, "shiju"), Some(auth::Info::Api(info)) if info.key == "issued-model-secret")
     );
     assert!(
-        matches!(auth::store::get_from(&path, "other"), Some(auth_types::Info::Api(info)) if info.key == "other-secret")
+        matches!(auth::store::get_from(&path, "other"), Some(auth::Info::Api(info)) if info.key == "other-secret")
     );
     auth::store::remove_from(&path, "shiju").unwrap();
     assert!(auth::store::get_from(&path, "shiju").is_none());

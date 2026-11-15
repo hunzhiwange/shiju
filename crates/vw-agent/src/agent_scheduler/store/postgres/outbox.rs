@@ -3,7 +3,7 @@
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
-use vw_api_types::agent_scheduler::AgentSchedulerScope;
+use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;

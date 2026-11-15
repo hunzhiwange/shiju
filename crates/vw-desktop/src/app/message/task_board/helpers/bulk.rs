@@ -86,15 +86,15 @@ pub(crate) fn selected_tasks_for_status(app: &crate::app::App, status: TaskStatu
 
 fn agent_scheduler_command_request(
     task_id: &str,
-    command: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto,
+    command: vw_api_agent_scheduler::AgentSchedulerCommandKindDto,
     reason: impl Into<Option<String>>,
-    payload: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto,
-) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {
-    vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {
+    payload: vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto,
+) -> vw_api_agent_scheduler::AgentSchedulerCommandRequest {
+    vw_api_agent_scheduler::AgentSchedulerCommandRequest {
         task_id: task_id.to_string().into(),
         command,
         dispatch_mode:
-            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto::Local,
+            vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local,
         max_concurrent: None,
         reason: reason.into(),
         payload,
@@ -103,7 +103,7 @@ fn agent_scheduler_command_request(
 
 async fn submit_agent_scheduler_bulk_command(
     project_path: &str,
-    commands: Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest>,
+    commands: Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest>,
     action_label: &str,
 ) -> Result<(), String> {
     if commands.is_empty() {
@@ -114,7 +114,7 @@ async fn submit_agent_scheduler_bulk_command(
     let response = client
         .agent_scheduler_bulk_command(
             &scope,
-            &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerBulkCommandRequest {
+            &vw_api_agent_scheduler::AgentSchedulerBulkCommandRequest {
                 commands,
                 stop_on_error: true,
             },
@@ -132,11 +132,11 @@ async fn submit_agent_scheduler_bulk_command(
 fn task_metadata_patch_for_gateway(
     task: &Task,
     workflow_id: &str,
-) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
+) -> vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
     let status_key = agent_scheduler_status_key_for_task_status(task.status, workflow_id);
     let status = agent_scheduler_status_for_task_status(task.status, workflow_id);
     let status_role = agent_scheduler_status_role_for_task_status(task.status, workflow_id);
-    vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
+    vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
         title: Some(task.prompt.lines().next().unwrap_or(&task.id).chars().take(120).collect()),
         status_key: Some(status_key),
         status: Some(status),
@@ -182,9 +182,9 @@ pub(crate) async fn persist_updated_tasks_via_gateway(
         .map(|task| {
             agent_scheduler_command_request(
                 &task.id,
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::UpdateMetadata,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::UpdateMetadata,
                 Some(action_label.to_string()),
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto {
+                vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto {
                     metadata_update: Some(task_metadata_patch_for_gateway(task, workflow_id)),
                     ..Default::default()
                 },
@@ -203,7 +203,7 @@ pub(crate) async fn delete_tasks_via_gateway(
         .map(|task_id| {
             agent_scheduler_command_request(
                 task_id,
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::SoftDelete,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::SoftDelete,
                 Some("删除任务".to_string()),
                 Default::default(),
             )
@@ -221,7 +221,7 @@ pub(crate) async fn send_archive_commands_via_gateway(
         .map(|task_id| {
             agent_scheduler_command_request(
                 task_id,
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Archive,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Archive,
                 Some("归档任务".to_string()),
                 Default::default(),
             )
@@ -241,11 +241,11 @@ pub(crate) async fn move_task_status_via_gateway(
     let status = agent_scheduler_status_for_task_status(target_status, workflow_id);
     let command = agent_scheduler_command_request(
         task_id,
-        vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Move,
+        vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Move,
         Some("手动移动任务".to_string()),
-        vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto {
+        vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto {
             move_task: Some(
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
+                vw_api_agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
                     from_status_key: None,
                     to_status_key: status_key,
                     to_status: Some(status),
@@ -271,11 +271,11 @@ pub(crate) async fn move_tasks_to_status_via_gateway(
         .map(|task_id| {
             agent_scheduler_command_request(
                 task_id,
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Move,
+                vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Move,
                 Some("批量移动任务".to_string()),
-                vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto {
+                vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto {
                     move_task: Some(
-                        vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
+                        vw_api_agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
                             from_status_key: None,
                             to_status_key: status_key.clone(),
                             to_status: Some(status.clone()),
@@ -381,7 +381,7 @@ pub(crate) fn start_manual_merge_queue_task(
             project_path.clone(),
             task,
             app.task_board_settings.workflow_id.clone(),
-            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Merge,
+            vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Merge,
             app.task_board_settings.agent_scheduler_dispatch_mode,
             None,
             None,

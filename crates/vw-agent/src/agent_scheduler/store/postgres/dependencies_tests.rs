@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use serde_json::json;
-use vw_api_types::agent_scheduler::AgentSchedulerScope;
+use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 use {
     vw_api_transport::id::ProjectId,

@@ -10,7 +10,7 @@ use super::traits::{
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 struct Args {

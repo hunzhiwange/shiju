@@ -298,7 +298,7 @@ async fn dynamic_tools_gateway_bootstrap_mounts_authenticated_host_routes() {
     };
     let response = app.clone().oneshot(request("/hosts", None)).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    let binding: vw_api_types::tools::DynamicToolHostBinding =
+    let binding: vw_api_tools::DynamicToolHostBinding =
         serde_json::from_slice(&axum::body::to_bytes(response.into_body(), 4096).await.unwrap())
             .unwrap();
     let stream = app.oneshot(request("/calls", Some(&binding.binding_token))).await.unwrap();

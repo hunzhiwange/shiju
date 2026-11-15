@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 acp-types = { path = "../acp-types", version = "0.6.0" }
 acp-paths = { path = "../acp-paths", version = "0.6.0" }
 acp-metrics = { path = "../acp-metrics", version = "0.6.0" }

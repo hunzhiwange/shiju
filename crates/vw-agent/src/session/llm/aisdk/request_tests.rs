@@ -436,7 +436,7 @@ async fn native_tool_search_request_captures_native_and_ordinary_transport() {
         read.identity.namespace = Some("files".into());
         read.identity.name = "read".into();
         let mut hidden = tools::ToolSpec::new("secret", "Hidden", json!({"type":"object"}));
-        hidden.exposure = vw_api_types::tools::ToolExposure::Hidden;
+        hidden.exposure = vw_api_tools::ToolExposure::Hidden;
         // The request snapshot deliberately excludes unregistered/unauthorized tools.
         let mut specs =
             HashMap::from([("tool_search".into(), search), ("stable_read".into(), read)]);

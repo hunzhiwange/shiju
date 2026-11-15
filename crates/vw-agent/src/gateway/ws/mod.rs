@@ -40,7 +40,7 @@ use axum::{
 };
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vw_api_types::tools::ToolResultDto;
+use vw_api_tools::ToolResultDto;
 
 /// WebSocket 空响应时的后备文本。
 ///

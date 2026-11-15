@@ -282,13 +282,13 @@ pub fn mcp_tools_to_specs(
             .with_concurrency_safe(concurrency_safe)
             .with_requires_user_interaction(false)
             .with_strict(true);
-        spec.identity = vw_api_types::tools::ToolIdentity::new(
+        spec.identity = vw_api_tools::ToolIdentity::new(
             Some(server_name.to_owned()),
             tool.name.to_string(),
         )
         .map_err(anyhow::Error::msg)?;
-        spec.source = vw_api_types::tools::ToolSource::Mcp;
-        spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+        spec.source = vw_api_tools::ToolSource::Mcp;
+        spec.exposure = vw_api_tools::ToolExposure::Deferred;
         specs.push(spec);
     }
 

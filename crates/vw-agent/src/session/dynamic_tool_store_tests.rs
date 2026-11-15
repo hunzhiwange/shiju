@@ -385,8 +385,8 @@ fn dynamic_tools_restore_client_specs_do_not_restore_host_capabilities() -> Resu
         "authenticated-host",
     )?);
     let mut spec = ToolSpec::new("client_echo", "Echo", json!({"type":"object"}));
-    spec.source = vw_api_types::tools::ToolSource::Client;
-    spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    spec.source = vw_api_tools::ToolSource::Client;
+    spec.exposure = vw_api_tools::ToolExposure::Deferred;
     store.replace_dynamic_tools(
         &scope,
         "session",

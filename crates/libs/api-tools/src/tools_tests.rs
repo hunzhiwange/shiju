@@ -1,6 +1,6 @@
 //! 验证工具规格、调用和结果 DTO 的默认值及省略规则。
 
-use crate::id::ToolId;
+use vw_api_transport::id::ToolId;
 use crate::tools::{ToolResultContentDto, ToolSpecDto, ToolUseDto};
 use serde_json::json;
 

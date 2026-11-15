@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value, json};
 use vw_acp::AcpJsonRpcMessage;
-use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
+use vw_api_tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
 
 use crate::app::agent::session::{llm::StreamEvent, ui_types};
 

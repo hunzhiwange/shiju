@@ -11,7 +11,7 @@ use std::{
     thread,
     time::Duration,
 };
-use vw_api_types::tools::{
+use vw_api_tools::{
     DynamicToolHostBinding, DynamicToolResponse, ReplaceDynamicToolsRequest,
 };
 

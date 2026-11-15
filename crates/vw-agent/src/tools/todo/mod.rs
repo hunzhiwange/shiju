@@ -25,7 +25,7 @@ use crate::app::agent::tools::traits::{
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 pub use vw_shared::todo::{LegacyTodo, Todo};
 

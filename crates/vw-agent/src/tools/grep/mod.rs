@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 const MAX_LINE_LENGTH: usize = 2000;
 const LIMIT: usize = 100;

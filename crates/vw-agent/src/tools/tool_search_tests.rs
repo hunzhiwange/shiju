@@ -18,9 +18,9 @@ fn deferred(id: &str, description: &str) -> ToolSpec {
     if let Some((namespace, name)) = id.strip_prefix("mcp__").and_then(|rest| rest.split_once("__"))
     {
         tool.identity =
-            vw_api_types::tools::ToolIdentity::new(Some(namespace.into()), name).unwrap();
-        tool.source = vw_api_types::tools::ToolSource::Mcp;
-        tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
+            vw_api_tools::ToolIdentity::new(Some(namespace.into()), name).unwrap();
+        tool.source = vw_api_tools::ToolSource::Mcp;
+        tool.exposure = vw_api_tools::ToolExposure::Deferred;
     }
     tool
 }
@@ -267,9 +267,9 @@ async fn codex_discovery_tool_execution_uses_current_authorization_instead_of_re
 #[tokio::test]
 async fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
     let mut client = deferred("client-stable", "invoice");
-    client.exposure = vw_api_types::tools::ToolExposure::DeferredModelOnly;
+    client.exposure = vw_api_tools::ToolExposure::DeferredModelOnly;
     let mut direct = deferred("mcp__fixture__direct", "invoice");
-    direct.exposure = vw_api_types::tools::ToolExposure::Direct;
+    direct.exposure = vw_api_tools::ToolExposure::Direct;
     let discovery = Arc::new(ToolDiscoverySession::new(vec![
         client,
         direct,

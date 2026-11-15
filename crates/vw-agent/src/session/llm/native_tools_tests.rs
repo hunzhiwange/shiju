@@ -87,7 +87,7 @@ fn weather_spec(id: &str, namespace: Option<&str>) -> crate::tools::ToolSpec {
         "weather forecast",
         json!({"type":"object", "properties":{"city":{"type":"string"}}}),
     );
-    spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    spec.exposure = vw_api_tools::ToolExposure::Deferred;
     spec.identity.name = "forecast".into();
     spec.identity.namespace = namespace.map(str::to_owned);
     spec
@@ -98,11 +98,11 @@ async fn native_tool_search_event_results_only_use_authorized_deferred_catalog()
     use aisdk::core::Message;
     let allowed = weather_spec("stable.weather", Some("climate"));
     let mut hidden = weather_spec("hidden", None);
-    hidden.exposure = vw_api_types::tools::ToolExposure::Hidden;
+    hidden.exposure = vw_api_tools::ToolExposure::Hidden;
     let mut direct = weather_spec("direct", None);
-    direct.exposure = vw_api_types::tools::ToolExposure::Direct;
+    direct.exposure = vw_api_tools::ToolExposure::Direct;
     let mut code = weather_spec("code", None);
-    code.exposure = vw_api_types::tools::ToolExposure::CodeModeOnly;
+    code.exposure = vw_api_tools::ToolExposure::CodeModeOnly;
     let snapshot = catalog(vec![allowed, hidden, direct, code]);
     let call = NativeCallCollector::default().search(search_call(), true).unwrap().unwrap();
     let output = native_search_output(&call, &snapshot, true).unwrap();

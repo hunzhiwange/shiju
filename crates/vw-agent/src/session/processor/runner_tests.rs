@@ -1776,9 +1776,9 @@ impl crate::tools::Tool for DiscoveryFileTool {
             crate::tools::ToolSpec::new(self.name(), self.description(), self.parameters_schema())
                 .with_read_only(self.is_read_only())
                 .with_concurrency_safe(self.is_concurrency_safe());
-        spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
-        spec.source = vw_api_types::tools::ToolSource::Mcp;
-        spec.identity = vw_api_types::tools::ToolIdentity::new(
+        spec.exposure = vw_api_tools::ToolExposure::Deferred;
+        spec.source = vw_api_tools::ToolSource::Mcp;
+        spec.identity = vw_api_tools::ToolIdentity::new(
             Some("fixture".into()),
             self.name().rsplit("__").next().unwrap(),
         )

@@ -13,7 +13,7 @@ use crate::app::agent::tools::context::scope_tool_use_context;
 use crate::app::agent::tools::{FileSnapshot, ToolUseContext};
 use serde_json::json;
 use tempfile::TempDir;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 /// 创建测试用的安全策略
 ///

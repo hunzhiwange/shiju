@@ -244,7 +244,7 @@ fn preview_section_header(
 }
 
 fn tool_summary(
-    tool: &vw_gateway_client::vw_api_types::tools::ToolSpecDto,
+    tool: &vw_api_tools::ToolSpecDto,
 ) -> Element<'static, Message> {
     row![
         text(compact_text(&tool.display_name, 42)).size(12).width(Length::Fixed(180.0)),

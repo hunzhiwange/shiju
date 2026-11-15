@@ -432,7 +432,7 @@ fn native_tool_search_request_request_uses_native_search_type() {
 #[test]
 fn native_tool_search_request_namespaces_filter_hidden_and_preserve_distinct_names() {
     use crate::tools::ToolSpec;
-    use vw_api_types::tools::ToolExposure;
+    use vw_api_tools::ToolExposure;
     let mut first = ToolSpec::new("stable_a", "A", json!({"type":"object"}));
     first.identity.name = "read".into();
     first.identity.namespace = Some("alpha".into());

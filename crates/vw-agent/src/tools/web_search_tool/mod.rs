@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 #[derive(Debug, Clone, Serialize)]
 struct SearchResultItem {

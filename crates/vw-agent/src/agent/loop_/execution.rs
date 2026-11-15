@@ -25,7 +25,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
-use vw_api_types::tools::{PermissionRequestDto, ToolResultDto};
+use vw_api_tools::{PermissionRequestDto, ToolResultDto};
 
 #[cfg(test)]
 #[path = "execution_tests.rs"]

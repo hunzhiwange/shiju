@@ -56,7 +56,7 @@ fn assert_wire_result(result: &ToolCallResult, expected: &Value) {
             .as_array()
             .unwrap()
             .iter()
-            .map(|value| vw_api_types::tools::ToolResultContentDto::Json { value: value.clone() })
+            .map(|value| vw_api_tools::ToolResultContentDto::Json { value: value.clone() })
             .collect::<Vec<_>>()
     );
     assert_eq!(dto.tool_use_id.as_deref(), Some("fixture-call-id"));

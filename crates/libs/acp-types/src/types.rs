@@ -19,7 +19,7 @@ use agent_client_protocol::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vw_api_types::tools::ToolResultDto;
+use vw_api_tools::ToolResultDto;
 
 pub use agent_client_protocol::{
     McpServer as AcpMcpServer, SessionNotification as AcpSessionNotification,

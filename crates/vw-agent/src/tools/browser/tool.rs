@@ -21,7 +21,7 @@ use anyhow::Context;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 impl BrowserTool {
     /// 使用默认代理浏览器后端创建受安全策略约束的工具。

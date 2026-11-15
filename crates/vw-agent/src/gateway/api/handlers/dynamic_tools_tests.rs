@@ -14,10 +14,10 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::tools::DynamicToolHostBinding,
-    vw_api_types::tools::DynamicToolResponse,
-    vw_api_types::tools::ReplaceDynamicToolsRequest,
-    vw_api_types::tools::ToolSource,
+    vw_api_tools::DynamicToolHostBinding,
+    vw_api_tools::DynamicToolResponse,
+    vw_api_tools::ReplaceDynamicToolsRequest,
+    vw_api_tools::ToolSource,
 };
 
 struct Fixture {
@@ -114,7 +114,7 @@ fn registration() -> Value {
     );
     spec.source = ToolSource::Client;
     spec.read_only = true;
-    serde_json::to_value(vw_api_types::tools::DynamicToolRegistration::Function(spec.to_dto()))
+    serde_json::to_value(vw_api_tools::DynamicToolRegistration::Function(spec.to_dto()))
         .unwrap()
 }
 fn replacement() -> Value {

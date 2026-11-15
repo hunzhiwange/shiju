@@ -76,7 +76,7 @@ impl McpSessionConnections {
             .iter()
             .filter(|tool| {
                 let spec = tool.spec();
-                spec.source != vw_api_types::tools::ToolSource::Mcp
+                spec.source != vw_api_tools::ToolSource::Mcp
                     || !spec
                         .identity
                         .namespace

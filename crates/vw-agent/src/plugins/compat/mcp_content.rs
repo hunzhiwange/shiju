@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use rmcp::model::CallToolResult;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 const WIRE_RESULT: &str = "vibewindow/internal-wire-result";
 

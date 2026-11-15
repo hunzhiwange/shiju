@@ -11,9 +11,9 @@ fn spec(id: &str, description: &str) -> ToolSpec {
     if let Some((namespace, name)) = id.strip_prefix("mcp__").and_then(|rest| rest.split_once("__"))
     {
         tool.identity =
-            vw_api_types::tools::ToolIdentity::new(Some(namespace.into()), name).unwrap();
-        tool.source = vw_api_types::tools::ToolSource::Mcp;
-        tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
+            vw_api_tools::ToolIdentity::new(Some(namespace.into()), name).unwrap();
+        tool.source = vw_api_tools::ToolSource::Mcp;
+        tool.exposure = vw_api_tools::ToolExposure::Deferred;
     }
     tool
 }
@@ -145,8 +145,8 @@ fn codex_discovery_catalog_exposure_intersects_current_authorization_and_is_isol
 #[test]
 fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
     let mut tool = spec("client-stable", "Find invoices");
-    tool.source = vw_api_types::tools::ToolSource::Client;
-    tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
+    tool.source = vw_api_tools::ToolSource::Client;
+    tool.exposure = vw_api_tools::ToolExposure::Deferred;
     let catalog = ToolDiscoveryCatalog::new(vec![tool]);
     assert!(catalog.exposed_specs(&ToolExposureState::default(), true).is_empty());
     assert_eq!(ids(&catalog.search("invoices", None).unwrap()), ["client-stable"]);
@@ -157,7 +157,7 @@ fn dynamic_tools_exposure_non_mcp_deferred_is_discoverable() {
 
 #[test]
 fn dynamic_tools_exposure_policies_control_search_and_fallback() {
-    use vw_api_types::tools::ToolExposure::*;
+    use vw_api_tools::ToolExposure::*;
     let policies = [Direct, Deferred, DirectModelOnly, DeferredModelOnly, CodeModeOnly, Hidden];
     let tools = policies
         .into_iter()
@@ -198,8 +198,8 @@ fn dynamic_tools_search_schema_fields_are_searchable() {
 fn dynamic_tools_search_normalized_names_and_sources_are_searchable() {
     let mut tool = spec("opaque", "neutral");
     tool.identity.name = "lookup_invoice".into();
-    tool.exposure = vw_api_types::tools::ToolExposure::Deferred;
-    tool.source = vw_api_types::tools::ToolSource::Client;
+    tool.exposure = vw_api_tools::ToolExposure::Deferred;
+    tool.source = vw_api_tools::ToolSource::Client;
     let catalog = ToolDiscoveryCatalog::new(vec![tool]);
     for query in ["lookup invoice", "client"] {
         assert_eq!(ids(&catalog.search(query, None).unwrap()), ["opaque"]);
@@ -232,12 +232,12 @@ fn dynamic_tools_search_cache_reuses_specs_and_invalidates_complete_versions() {
     assert_eq!(cache.rebuilds, 2);
     assert!(first.search("newkeyword", None).unwrap().is_empty());
     assert_eq!(schema.search("newkeyword", None).unwrap().len(), 1);
-    changed.source = vw_api_types::tools::ToolSource::Client;
+    changed.source = vw_api_tools::ToolSource::Client;
     let source = build(vec![changed.clone()], &mut cache);
     assert_eq!(cache.rebuilds, 3);
     assert_eq!(source.search("client", None).unwrap().len(), 1);
     assert!(schema.search("client", None).unwrap().is_empty());
-    changed.exposure = vw_api_types::tools::ToolExposure::Hidden;
+    changed.exposure = vw_api_tools::ToolExposure::Hidden;
     let hidden = build(vec![changed], &mut cache);
     assert_eq!(cache.rebuilds, 4);
     assert!(hidden.search("newkeyword", None).unwrap().is_empty());

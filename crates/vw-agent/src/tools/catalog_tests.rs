@@ -90,7 +90,7 @@ async fn dynamic_tools_catalog_revocation_does_not_restore_loaded_ids() {
 
 #[test]
 fn dynamic_tools_catalog_rejects_reserved_client_names() {
-    struct Reserved(vw_api_types::tools::ToolSource);
+    struct Reserved(vw_api_tools::ToolSource);
     #[async_trait::async_trait]
     impl Tool for Reserved {
         fn name(&self) -> &str {
@@ -111,7 +111,7 @@ fn dynamic_tools_catalog_rejects_reserved_client_names() {
             unreachable!()
         }
     }
-    for source in [vw_api_types::tools::ToolSource::Client, vw_api_types::tools::ToolSource::Mcp] {
+    for source in [vw_api_tools::ToolSource::Client, vw_api_tools::ToolSource::Mcp] {
         assert!(
             ToolCatalog::default()
                 .replace(vec![Arc::new(Reserved(source))], ["exec".into()])

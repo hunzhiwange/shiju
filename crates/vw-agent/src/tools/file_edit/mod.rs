@@ -27,7 +27,7 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 /// `file_edit` 工具。
 pub struct FileEditTool {
@@ -39,7 +39,7 @@ struct EditResponse {
     model_text: String,
     payload: EditPayload,
     render_hint: ToolRenderHint,
-    patch_hunks: Vec<vw_api_types::tools::StructuredPatchHunkDto>,
+    patch_hunks: Vec<vw_api_tools::StructuredPatchHunkDto>,
 }
 
 impl EditResponse {

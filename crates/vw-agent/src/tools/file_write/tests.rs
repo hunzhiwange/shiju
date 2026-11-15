@@ -30,7 +30,7 @@ mod tests {
     use crate::app::agent::tools::FileSnapshot;
     use crate::app::agent::tools::ToolUseContext;
     use crate::app::agent::tools::context::scope_tool_use_context;
-    use vw_api_types::tools::ToolResultContentDto;
+    use vw_api_tools::ToolResultContentDto;
 
     /// 创建用于测试的默认安全策略
     ///

@@ -17,7 +17,7 @@ use parking_lot::Mutex;
 use std::collections::VecDeque;
 use std::time::Duration;
 use tower::util::ServiceExt;
-use vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
+use vw_api_tools::{ToolResultContentDto, ToolResultDto};
 
 struct StaticProvider;
 

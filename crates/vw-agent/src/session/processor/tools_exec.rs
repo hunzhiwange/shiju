@@ -215,7 +215,7 @@ fn error_tool_payload_with_agent(
 
 fn insert_permission_request(
     payload: &mut serde_json::Map<String, serde_json::Value>,
-    permission_request: Option<&vw_api_types::tools::PermissionRequestDto>,
+    permission_request: Option<&vw_api_tools::PermissionRequestDto>,
 ) {
     let Some(permission_request) = permission_request else {
         return;

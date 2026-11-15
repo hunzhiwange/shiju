@@ -19,7 +19,7 @@ mod tests {
     use crate::app::agent::tools::context::scope_tool_use_context;
     use serde_json::json;
     use std::sync::Arc;
-    use vw_api_types::tools::ToolResultContentDto;
+    use vw_api_tools::ToolResultContentDto;
 
     fn test_security(workspace: std::path::PathBuf) -> Arc<SecurityPolicy> {
         test_security_with(

@@ -16,7 +16,7 @@ use crate::tools::tool_search::{TOOL_SEARCH_ID, ToolSearchTool};
 use crate::tools::{Tool, ToolSpec, ToolUseContext};
 use anyhow::{Result, bail};
 use std::sync::{Arc, LazyLock, Mutex};
-use vw_api_types::tools::{
+use vw_api_tools::{
     DynamicToolHostBinding, DynamicToolRegistration, ReplaceDynamicToolsRequest,
 };
 
@@ -177,7 +177,7 @@ pub(crate) struct SessionHostCalls {
     requests: ClientToolRequests,
 }
 impl SessionHostCalls {
-    pub async fn recv(&mut self) -> Option<vw_api_types::tools::DynamicToolCallRequest> {
+    pub async fn recv(&mut self) -> Option<vw_api_tools::DynamicToolCallRequest> {
         self.requests.recv().await
     }
 }

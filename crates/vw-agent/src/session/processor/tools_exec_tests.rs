@@ -168,7 +168,7 @@ fn denied_tool_payload_includes_input_error_and_optional_permission_request() {
 
     let denied = ToolCallError::denied_with_permission_request(
         "needs approval",
-        vw_api_types::tools::PermissionRequestDto {
+        vw_api_tools::PermissionRequestDto {
             reason: "write outside workspace".to_string(),
             warning: Some("careful".to_string()),
             updated_input: Some(json!({ "path": "demo.md" })),
@@ -209,7 +209,7 @@ fn completed_tool_payload_for_ui_uses_render_hint_metadata_and_omits_empty_resul
 
 #[test]
 fn completed_tool_payload_for_ui_keeps_structured_patch_content() {
-    use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto};
+    use vw_api_tools::{StructuredPatchHunkDto, ToolResultContentDto};
 
     let result = ToolCallResult {
         content_blocks: vec![ToolResultContentDto::StructuredPatch {
@@ -1952,7 +1952,7 @@ fn native_tool_search_desktop_executor_requires_real_success_and_preserves_hooks
                     name,
                     json!({"type":"object","properties":{}}),
                 );
-                spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+                spec.exposure = vw_api_tools::ToolExposure::Deferred;
                 spec
             })
             .collect::<Vec<_>>();

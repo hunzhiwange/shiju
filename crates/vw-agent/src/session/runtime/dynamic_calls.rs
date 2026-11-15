@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Instant;
-use vw_api_types::tools::{DynamicToolCallRequest, DynamicToolResponse};
+use vw_api_tools::{DynamicToolCallRequest, DynamicToolResponse};
 
 pub const MAX_PENDING_CLIENT_CALLS: usize = 32;
 pub const MAX_CLIENT_RESPONSE_BYTES: usize = 4 * 1024 * 1024;

@@ -4,7 +4,7 @@ use super::{Tool, ToolCallResult, ToolResult, ToolSpec, current_tool_use_context
 use crate::session::runtime::dynamic_calls::ClientToolHost;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vw_api_types::tools::{DynamicToolContent, DynamicToolRegistration, ToolResultContentDto};
+use vw_api_tools::{DynamicToolContent, DynamicToolRegistration, ToolResultContentDto};
 
 const MAX_CLIENT_SCHEMA_BYTES: usize = 64 * 1024;
 

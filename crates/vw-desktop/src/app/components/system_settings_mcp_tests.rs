@@ -16,7 +16,7 @@ use serde_json::json;
 use vw_gateway_client::vw_api_types::mcp::{
     McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto,
 };
-use vw_gateway_client::vw_api_types::tools::{ToolExposure, ToolIdentity, ToolSource, ToolSpecDto};
+use vw_api_tools::{ToolExposure, ToolIdentity, ToolSource, ToolSpecDto};
 
 // MCP fixture 只填充展示与状态匹配所需字段，连接行为不在 UI 单测中模拟。
 fn tool_spec(id: &str) -> ToolSpecDto {

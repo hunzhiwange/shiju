@@ -9,7 +9,7 @@ use super::mcp_common::{
 use anyhow::Context;
 use serde_json::Value;
 use vw_api_types::mcp::{McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto};
-use vw_api_types::tools::ToolSpecDto;
+use vw_api_tools::ToolSpecDto;
 
 #[derive(Debug, Default)]
 struct ServerInspectPayload {

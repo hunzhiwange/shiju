@@ -17,7 +17,7 @@ mod tests {
     use crate::app::agent::tools::{Tool, ToolResult};
     use async_trait::async_trait;
     use axum::http::HeaderValue;
-    use vw_api_types::tools::ToolResultContentDto;
+    use vw_api_tools::ToolResultContentDto;
 
     /// 测试 Bearer 令牌提取优先使用 Authorization 头
     ///

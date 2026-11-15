@@ -39,7 +39,7 @@
 use crate::app::agent::flag;
 use crate::app::agent::provider::provider as model_provider;
 use serde_json::json;
-use vw_api_types::tools::{ListToolSpecsResponse, ToolSpecDto};
+use vw_api_tools::{ListToolSpecsResponse, ToolSpecDto};
 
 /// 判断是否应启用联网搜索工具（websearch）
 ///

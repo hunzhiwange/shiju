@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::tools::{ToolExposure, ToolIdentity, ToolSource};
+use vw_api_tools::{ToolExposure, ToolIdentity, ToolSource};
 
 #[test]
 fn dynamic_tools_contract_namespace_identity_roundtrips() {

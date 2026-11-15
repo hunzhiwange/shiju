@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 use serde_json::{Value, json};
-use vw_api_types::tools::{RenderHintDto, ToolResultDto};
+use vw_api_tools::{RenderHintDto, ToolResultDto};
 
 use crate::cli::output_render::{
     SessionConnectionStatus, agent_session_id_payload, conversation_history_entries,

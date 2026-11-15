@@ -10,7 +10,7 @@
 use super::super::*;
 use async_trait::async_trait;
 use serde_json::json;
-use vw_api_types::tools::PermissionRequestDto;
+use vw_api_tools::PermissionRequestDto;
 
 /// 测试用虚拟工具
 ///

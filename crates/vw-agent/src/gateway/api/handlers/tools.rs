@@ -4,7 +4,7 @@
 
 use crate::app::agent::gateway::AppState;
 use axum::{Json, extract::State, http::HeaderMap, response::IntoResponse};
-use vw_api_types::tools::ListToolSpecsResponse;
+use vw_api_tools::ListToolSpecsResponse;
 
 /// 处理网关工具列表 API 请求。
 ///

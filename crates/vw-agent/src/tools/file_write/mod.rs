@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto};
+use vw_api_tools::{StructuredPatchHunkDto, ToolResultContentDto};
 
 pub struct FileWriteTool {
     security: Arc<SecurityPolicy>,

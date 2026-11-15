@@ -11,7 +11,7 @@ use vw_acp::{
     SessionEventLog, SessionMessage, SessionRecord, SessionTokenUsage, SessionToolResult,
     SessionToolResultContent, SessionUserContent, SessionUserMessage,
 };
-use vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
+use vw_api_tools::{ToolResultContentDto, ToolResultDto};
 
 #[test]
 fn session_message_serializes_ts_style_union_shapes() {

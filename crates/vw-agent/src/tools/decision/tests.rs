@@ -469,7 +469,7 @@ fn dynamic_tools_contract_client_readonly_hint_cannot_grant_security_capability(
     let mut spec = ToolSpec::new("client-stable", "Client", json!({"type":"object"}))
         .with_display_name("file_read")
         .with_read_only(true);
-    spec.source = vw_api_types::tools::ToolSource::Client;
+    spec.source = vw_api_tools::ToolSource::Client;
     let readonly =
         SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() };
     let decision = security_decision(&spec, json!({}), &context_with_security(readonly), false);

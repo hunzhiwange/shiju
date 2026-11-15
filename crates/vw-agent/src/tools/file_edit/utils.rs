@@ -5,7 +5,7 @@ use anyhow::Context;
 use serde_json::{Value, json};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use vw_api_types::tools::StructuredPatchHunkDto;
+use vw_api_tools::StructuredPatchHunkDto;
 
 /// patch 汇总信息。
 #[derive(Debug, Clone)]

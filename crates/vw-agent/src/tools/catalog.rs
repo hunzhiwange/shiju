@@ -139,7 +139,7 @@ impl ToolCatalog {
             {
                 anyhow::bail!("duplicate tool ID or identity");
             }
-            if spec.source != vw_api_types::tools::ToolSource::Builtin
+            if spec.source != vw_api_tools::ToolSource::Builtin
                 && std::iter::once(spec.id.as_str())
                     .chain(std::iter::once(spec.identity.name.as_str()))
                     .chain(spec.identity.namespace.as_deref())
@@ -148,8 +148,8 @@ impl ToolCatalog {
             {
                 anyhow::bail!("reserved dynamic tool name");
             }
-            if spec.source == vw_api_types::tools::ToolSource::Client {
-                vw_api_types::tools::DynamicToolRegistration::Function(spec.to_dto())
+            if spec.source == vw_api_tools::ToolSource::Client {
+                vw_api_tools::DynamicToolRegistration::Function(spec.to_dto())
                     .validate()
                     .map_err(anyhow::Error::msg)?;
             }

@@ -1,7 +1,7 @@
 //! Native session tool hosts. Binding tokens are capabilities, never URL parameters.
 use futures_util::StreamExt;
 use reqwest::{Method, RequestBuilder, Response, header::HeaderValue};
-use vw_api_types::tools::{
+use vw_api_tools::{
     DynamicToolCallRequest, DynamicToolHostBinding, DynamicToolResponse,
     ReplaceDynamicToolsRequest, ReplaceDynamicToolsResponse,
 };

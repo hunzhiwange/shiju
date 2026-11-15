@@ -7,7 +7,7 @@ use crate::session::runtime::dynamic_calls::{
 };
 use serde_json::json;
 use std::sync::Arc;
-use vw_api_types::tools::{DynamicToolContent, DynamicToolResponse, ToolSource};
+use vw_api_tools::{DynamicToolContent, DynamicToolResponse, ToolSource};
 
 fn setup() -> (Arc<ClientToolHost>, ClientToolRequests, ToolSpec, Arc<ToolUseContext>) {
     let root = std::env::current_dir().unwrap();
@@ -75,7 +75,7 @@ async fn dynamic_tools_callback_registered_tool_preserves_media_across_catalog_u
     assert_eq!(result.to_dto().content.len(), 3);
     assert_eq!(
         result.to_dto().content[1],
-        vw_api_types::tools::ToolResultContentDto::Json {
+        vw_api_tools::ToolResultContentDto::Json {
             value: json!({"type":"image","image_url":"data:image/png;base64,eA=="})
         }
     );

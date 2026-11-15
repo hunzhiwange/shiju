@@ -93,9 +93,9 @@ impl ToolDiscoveryCatalog {
                 }
             }
             let source = match spec.source {
-                vw_api_types::tools::ToolSource::Builtin => "builtin",
-                vw_api_types::tools::ToolSource::Mcp => "mcp",
-                vw_api_types::tools::ToolSource::Client => "client",
+                vw_api_tools::ToolSource::Builtin => "builtin",
+                vw_api_tools::ToolSource::Mcp => "mcp",
+                vw_api_tools::ToolSource::Client => "client",
             };
             for token in tokenize(source) {
                 *terms.entry(token).or_insert(0) += 1;

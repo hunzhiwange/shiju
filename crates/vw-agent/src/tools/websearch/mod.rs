@@ -57,7 +57,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 /// Exa AI MCP 服务端点的 URL 地址
 ///

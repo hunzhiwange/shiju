@@ -9,7 +9,7 @@ use agent_client_protocol::{
     ContentBlock, ContentChunk, Plan, SessionNotification, SessionUpdate, TextContent,
 };
 use serde_json::json;
-use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
+use vw_api_tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
 
 use super::*;
 use crate::{

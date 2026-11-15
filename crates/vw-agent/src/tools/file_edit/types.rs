@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vw_api_types::tools::StructuredPatchHunkDto;
+use vw_api_tools::StructuredPatchHunkDto;
 
 /// `edit` 工具输入参数。
 #[derive(Debug, Clone, Deserialize)]

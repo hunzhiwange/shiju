@@ -4,7 +4,7 @@
 //! 再投影为产品中立的 `V3Event`。未支持的附件或失配审批会显式失败。
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
-use vw_gateway_client::vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
+use vw_api_tools::{ToolResultContentDto, ToolResultDto};
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayChatToolEvent,
     GatewayChatToolEventKind, GatewayChatToolStatus, normalize_chat_tool_event,

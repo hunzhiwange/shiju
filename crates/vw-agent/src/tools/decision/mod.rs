@@ -20,7 +20,7 @@ use crate::app::agent::approval::{ApprovalRequest, ApprovalResponse};
 use crate::app::agent::security::SecurityPolicy;
 use crate::tools::shell::permissions::{Permission, PermissionContext, PermissionMode};
 use serde_json::Value;
-use vw_api_types::tools::PermissionRequestDto;
+use vw_api_tools::PermissionRequestDto;
 
 /// 工具权限决策结果。
 #[derive(Debug, Clone)]
@@ -341,14 +341,14 @@ fn security_decision(
         return PermissionDecision::allow(input);
     };
 
-    if spec.source == vw_api_types::tools::ToolSource::Builtin
+    if spec.source == vw_api_tools::ToolSource::Builtin
         && let Some(command) = command_input(spec.id.as_str(), &input)
     {
         return shell_security_decision(spec.id.as_str(), input, security, &command, approved);
     }
 
     // 客户端声明的只读属性仅供展示，不授予绕过宿主安全策略的能力。
-    let read_only = spec.read_only && spec.source != vw_api_types::tools::ToolSource::Client;
+    let read_only = spec.read_only && spec.source != vw_api_tools::ToolSource::Client;
     if !read_only && !security.can_act() {
         return PermissionDecision::deny(format!(
             "Security policy: read-only mode, cannot perform '{}'",

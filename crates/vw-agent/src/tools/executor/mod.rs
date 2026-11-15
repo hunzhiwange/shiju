@@ -10,7 +10,7 @@ use std::fmt::Write;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use vw_api_types::tools::PermissionRequestDto;
+use vw_api_tools::PermissionRequestDto;
 
 /// Claude Tools V2 运行时错误。
 #[derive(Debug, Clone, PartialEq)]

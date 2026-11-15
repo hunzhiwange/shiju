@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-tools",
   "crates/libs/provider-model-catalog",
   "crates/libs/api-app-identity",
   "crates/libs/cli-api-automation",

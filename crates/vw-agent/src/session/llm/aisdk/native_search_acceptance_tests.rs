@@ -31,10 +31,10 @@ impl Tool for Ledger {
     }
     fn spec(&self) -> ToolSpec {
         let mut spec = ToolSpec::new(READ, self.description(), self.parameters_schema());
-        spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
-        spec.source = vw_api_types::tools::ToolSource::Mcp;
+        spec.exposure = vw_api_tools::ToolExposure::Deferred;
+        spec.source = vw_api_tools::ToolSource::Mcp;
         spec.identity =
-            vw_api_types::tools::ToolIdentity::new(Some("fixture".into()), "ledger").unwrap();
+            vw_api_tools::ToolIdentity::new(Some("fixture".into()), "ledger").unwrap();
         spec
     }
     async fn execute(&self, _: Value) -> anyhow::Result<crate::tools::ToolResult> {

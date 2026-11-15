@@ -7,7 +7,7 @@ use crate::tools::ToolSpec;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use vw_api_types::tools::{DynamicToolContent, DynamicToolResponse};
+use vw_api_tools::{DynamicToolContent, DynamicToolResponse};
 
 fn connection() -> (Arc<ClientToolHost>, ClientToolRequests) {
     let scope = SessionScope::new(Default::default(), std::env::current_dir().unwrap()).unwrap();

@@ -118,9 +118,6 @@ mod task_tests;
 #[path = "todo_tests.rs"]
 mod todo_tests;
 #[cfg(test)]
-#[path = "tools_tests.rs"]
-mod tools_tests;
-#[cfg(test)]
 #[path = "workflow_tests.rs"]
 mod workflow_tests;
 #[cfg(test)]
@@ -135,8 +132,6 @@ pub use id::*;
 #[cfg(test)]
 mod acp_model_source_tests;
 
-#[cfg(test)]
-mod dynamic_tools_tests;
 
 #[cfg(test)]
 mod mcp_management_tests;

@@ -11,7 +11,7 @@ use rmcp::model::{
 };
 use serde_json::json;
 use std::sync::{Arc, Mutex};
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 fn schema(value: serde_json::Value) -> JsonObject {
     match value {

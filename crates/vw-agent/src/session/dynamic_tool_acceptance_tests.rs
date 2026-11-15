@@ -6,12 +6,12 @@ use serde_json::json;
 use std::sync::Arc;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::tools::DynamicToolContent,
-    vw_api_types::tools::DynamicToolHostBinding,
-    vw_api_types::tools::DynamicToolRegistration,
-    vw_api_types::tools::DynamicToolResponse,
-    vw_api_types::tools::ReplaceDynamicToolsRequest,
-    vw_api_types::tools::ToolSource,
+    vw_api_tools::DynamicToolContent,
+    vw_api_tools::DynamicToolHostBinding,
+    vw_api_tools::DynamicToolRegistration,
+    vw_api_tools::DynamicToolResponse,
+    vw_api_tools::ReplaceDynamicToolsRequest,
+    vw_api_tools::ToolSource,
 };
 use vw_gateway_client::GatewayClient;
 use gateway_endpoint::GatewayEndpoint;
@@ -115,7 +115,7 @@ fn replacement(name: &str, persist: bool) -> ReplaceDynamicToolsRequest {
     } else {
         let mut spec = ToolSpec::new(name, name, json!({"type":"object","properties":{}}));
         spec.source = ToolSource::Client;
-        spec.exposure = vw_api_types::tools::ToolExposure::Deferred;
+        spec.exposure = vw_api_tools::ToolExposure::Deferred;
         spec.read_only = true;
         vec![DynamicToolRegistration::Function(spec.to_dto())]
     };
@@ -211,7 +211,7 @@ async fn host_stream(
     binding: &DynamicToolHostBinding,
 ) -> (
     tokio::task::JoinHandle<()>,
-    tokio::sync::mpsc::UnboundedReceiver<vw_api_types::tools::DynamicToolCallRequest>,
+    tokio::sync::mpsc::UnboundedReceiver<vw_api_tools::DynamicToolCallRequest>,
 ) {
     let (send, receive) = tokio::sync::mpsc::unbounded_channel();
     let client = f.client.clone();
@@ -228,8 +228,8 @@ async fn host_stream(
     (task, receive)
 }
 async fn next_call(
-    receive: &mut tokio::sync::mpsc::UnboundedReceiver<vw_api_types::tools::DynamicToolCallRequest>,
-) -> vw_api_types::tools::DynamicToolCallRequest {
+    receive: &mut tokio::sync::mpsc::UnboundedReceiver<vw_api_tools::DynamicToolCallRequest>,
+) -> vw_api_tools::DynamicToolCallRequest {
     tokio::time::timeout(std::time::Duration::from_secs(20), receive.recv()).await.unwrap().unwrap()
 }
 async fn execute(

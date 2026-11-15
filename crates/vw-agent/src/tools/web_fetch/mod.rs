@@ -51,7 +51,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 /// 默认请求超时时间（秒）
 const DEFAULT_TIMEOUT_SECS: u64 = 30;

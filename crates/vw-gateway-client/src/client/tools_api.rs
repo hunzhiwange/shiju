@@ -1,5 +1,5 @@
 use super::GatewayClient;
-use vw_api_types::tools::ListToolSpecsResponse;
+use vw_api_tools::ListToolSpecsResponse;
 
 impl GatewayClient {
     /// 获取网关当前暴露的工具名称列表。

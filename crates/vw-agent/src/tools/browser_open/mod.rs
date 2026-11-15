@@ -13,7 +13,7 @@ use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vw_api_types::tools::ToolResultContentDto;
+use vw_api_tools::ToolResultContentDto;
 
 /// 浏览器打开工具
 ///

@@ -2,11 +2,7 @@
 
 pub mod config_command;
 pub mod flags;
-pub mod json_output;
-pub mod output_render;
+pub use acp_cli_render::cli::json_output;
+pub use acp_cli_render::cli::output_render;
 pub mod session_target;
 pub mod status_command;
-
-#[cfg(test)]
-#[path = "output_render_tests.rs"]
-mod output_render_tests;

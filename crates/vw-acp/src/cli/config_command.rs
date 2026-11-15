@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use serde::Serialize;
 
 use crate::cli::flags::GlobalFlags;
-use crate::cli::json_output::emit_json_result;
+use acp_cli_render::cli::json_output::emit_json_result;
 use crate::{
     ConfigDisplay, ConfigError, InitGlobalConfigFileResult, ResolvedAcpxConfig,
     init_global_config_file, to_config_display,

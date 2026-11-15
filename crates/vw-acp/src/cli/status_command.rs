@@ -9,9 +9,9 @@ use time::format_description::well_known::Rfc3339;
 use crate::cli::flags::{
     FlagsError, GlobalFlags, StatusFlags, resolve_agent_invocation, resolve_session_name_from_flags,
 };
-use crate::cli::json_output::emit_json_result;
-use crate::cli::output_render::AgentSessionIdPayload;
-use crate::cli::output_render::agent_session_id_payload;
+use acp_cli_render::cli::json_output::emit_json_result;
+use acp_cli_render::cli::output_render::AgentSessionIdPayload;
+use acp_cli_render::cli::output_render::agent_session_id_payload;
 use crate::{
     FindSessionOptions, ResolvedAcpxConfig, SessionRecord, SessionRepositoryError, find_session,
     probe_queue_owner_health,
@@ -277,7 +277,7 @@ pub async fn handle_sessions_show(
         return Err(StatusCommandError::Operational(msg));
     };
 
-    crate::cli::output_render::print_session_details_by_format(&record, global_flags.format)
+    acp_cli_render::cli::output_render::print_session_details_by_format(&record, global_flags.format)
         .map_err(|e| StatusCommandError::Operational(e.to_string()))
 }
 
@@ -309,7 +309,7 @@ pub async fn handle_sessions_history(
         return Err(StatusCommandError::Operational(msg));
     };
 
-    crate::cli::output_render::print_session_history_by_format(&record, global_flags.format, limit)
+    acp_cli_render::cli::output_render::print_session_history_by_format(&record, global_flags.format, limit)
         .map_err(|e| StatusCommandError::Operational(e.to_string()))
 }
 

@@ -8,6 +8,14 @@
 //! 它本身尽量保持薄入口，只负责环境读取、命令树注册和最终分发，
 //! 具体的参数解析、配置合并和会话执行逻辑下沉到库模块中实现。
 
+#[cfg(not(test))]
+use acp_cli_render::cli::output_render::{
+    print_cancel_result_by_format, print_closed_session_by_format,
+    print_created_session_banner, print_ensured_session_by_format,
+    print_new_session_by_format, print_prompt_session_banner, print_sessions_by_format,
+    print_set_config_option_result_by_format, print_set_mode_result_by_format,
+    print_set_model_result_by_format,
+};
 use clap::ArgMatches;
 #[cfg(not(test))]
 use clap::{Arg, ArgAction, Command};
@@ -27,13 +35,6 @@ use vw_acp::{
         flags::{
             PermissionFlags, StatusFlags, resolve_agent_invocation, resolve_global_flags,
             resolve_permission_mode,
-        },
-        output_render::{
-            print_cancel_result_by_format, print_closed_session_by_format,
-            print_created_session_banner, print_ensured_session_by_format,
-            print_new_session_by_format, print_prompt_session_banner, print_sessions_by_format,
-            print_set_config_option_result_by_format, print_set_mode_result_by_format,
-            print_set_model_result_by_format,
         },
         session_target::resolve_session_target,
         status_command::{handle_sessions_history, handle_sessions_show, handle_status},

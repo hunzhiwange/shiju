@@ -4,7 +4,7 @@ use std::io::{self, Write};
 
 use serde::Serialize;
 
-use crate::{OutputErrorParams, OutputFormat, OutputPolicy};
+use acp_types::{OutputErrorParams, OutputFormat, OutputPolicy};
 
 pub fn write_output_error(
     stdout: &mut dyn Write,

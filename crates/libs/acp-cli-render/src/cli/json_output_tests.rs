@@ -5,7 +5,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::{OutputErrorCode, OutputErrorParams, OutputFormat, OutputPolicy};
+use acp_types::{OutputErrorCode, OutputErrorParams, OutputFormat, OutputPolicy};
 
 use super::*;
 

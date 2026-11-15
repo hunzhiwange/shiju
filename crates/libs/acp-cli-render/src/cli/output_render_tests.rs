@@ -21,7 +21,7 @@ use crate::cli::output_render::{
     write_set_config_option_result_by_format, write_set_mode_result_by_format,
     write_set_model_result_by_format,
 };
-use crate::{
+use acp_types::{
     OutputFormat, SESSION_RECORD_SCHEMA, SessionAcpxState, SessionAgentContent,
     SessionAgentMessage, SessionEnqueueResult, SessionEventLog, SessionMessage,
     SessionMessageImage, SessionMessageImageSize, SessionRecord, SessionThinking,
@@ -81,7 +81,7 @@ fn sample_record() -> SessionRecord {
                 id: "user-1".to_string(),
                 content: vec![
                     SessionUserContent::Text("hello".to_string()),
-                    SessionUserContent::Mention(crate::SessionMention {
+                    SessionUserContent::Mention(acp_types::SessionMention {
                         uri: "file:///tmp/project/readme.md".to_string(),
                         content: "README".to_string(),
                     }),
@@ -227,7 +227,7 @@ fn conversation_history_entries_summarize_media_and_render_hint_fallbacks() {
             id: "user-2".to_string(),
             content: vec![
                 SessionUserContent::Text("   ".to_string()),
-                SessionUserContent::Mention(crate::SessionMention {
+                SessionUserContent::Mention(acp_types::SessionMention {
                     uri: "file:///tmp/project/empty.md".to_string(),
                     content: "  ".to_string(),
                 }),

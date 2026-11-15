@@ -8,10 +8,10 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::cli::json_output::emit_json_result;
-use crate::{
+use acp_queue::probe_queue_owner_health;
+use acp_types::{
     OutputFormat, SessionAgentContent, SessionEnqueueResult, SessionMessage, SessionRecord,
     SessionToolResult, SessionToolResultContent, SessionUserContent, normalize_runtime_session_id,
-    probe_queue_owner_health,
 };
 
 fn format_session_label(record: &SessionRecord) -> &str {

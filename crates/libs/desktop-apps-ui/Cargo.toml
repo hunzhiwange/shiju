@@ -9,7 +9,7 @@ doctest = false
 desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time"] }
+tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time", "fs"] }
 gateway-openclaw-settings = { path = "../gateway-openclaw-settings", version = "0.6.0" }
 gateway-workspace-memory = { path = "../gateway-workspace-memory", version = "0.6.0" }
 vw-api-openclaw-settings = { path = "../api-openclaw-settings", version = "0.6.0" }
@@ -30,6 +30,12 @@ vw-api-external-session = { path = "../api-external-session", version = "0.6.0" 
 vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
 vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
 gateway-app-diagnostics = { path = "../gateway-app-diagnostics", version = "0.6.0" }
+rand = "0.10.3"
+rfd = { version = "0.17", features = ["file-handle-inner"] }
+url = "2"
+local-app-auth = { path = "../local-app-auth", version = "0.6.0" }
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
+image = "0.25.9"
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 serde_json = "1"

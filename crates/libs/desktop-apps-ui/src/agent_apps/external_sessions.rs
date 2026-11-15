@@ -2,6 +2,7 @@ use crate::{AgentAppsContext, Connection, Notice, error as notify_error};
 use iced::Task;
 use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
+mod list;
 pub mod reader;
 pub mod delete;
 pub mod resume;
@@ -145,3 +146,29 @@ pub fn close(state: &mut State) {
     state.busy = false;
     state.generation = state.generation.wrapping_add(1);
 }
+
+/// Compose the catalog and its scoped overlays using local messages.
+pub fn view(state: &State, loopback: bool) -> iced::Element<'_, Event> {
+    let base = if let Some(reader) = &state.reader { reader::view(state, reader, loopback) } else { list::view(state, loopback) };
+    compression::view(state, maintenance::view(state, paths::view(state, resume::view(state, delete::view(state, base)))))
+}
+
+pub fn handles_reader(event: &Event) -> bool { reader::handles(event) }
+
+/// `verified_local` must come from the private local grant for this connection, host and token.
+/// It permits revealing paths only after the event scope and catalog identity are checked.
+pub fn update_local(state: &mut State, connection: &Connection, event: Event, notice: &mut Option<Notice>, verified_local: bool) -> Task<Event> {
+    match event {
+        Event::Maintenance(event) => maintenance::update(state, connection, notice, event),
+        Event::Export(event) => export::update(state, connection, notice, event),
+        Event::Path(event) => paths::update(state, connection, notice, event, verified_local),
+        Event::Resume(event) => resume::update(state, connection, notice, event),
+        Event::Delete(event) => delete::update(state, connection, notice, event),
+        Event::Details(event) => details::update(state, connection, notice, event),
+        Event::Image(event) => images::update(state, connection, notice, event),
+        event if reader::handles(&event) => reader::update(state, connection, notice, event),
+        _ => Task::none(),
+    }
+}
+
+pub fn navigate(state: &mut State, event: &Event) -> Option<Task<Event>> { reader::navigate(state, event) }

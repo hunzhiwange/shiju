@@ -1,13 +1,15 @@
 //! Catalog presentation only; host discovery and pagination stay in the SDK.
 use super::{Event, State, message, delete};
-use crate::app::{Message, components::system_settings_common::*};
+use desktop_ui_controls::system_settings_common::*;
+use super::Event as Message;
+
 use chrono::{Local, TimeZone};
 use iced::{Element, Length, widget::{button, column, container, row, scrollable, text}};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use std::collections::BTreeMap;
 use vw_api_external_session::SessionMeta;
 
-pub(super) fn view(state: &State) -> Element<'_, Message> {
+pub(super) fn view(state: &State, loopback: bool) -> Element<'_, Message> {
     if !state.open {
         return button(text("浏览外部会话"))
             .padding([8, 12]).style(rounded_action_btn_style)
@@ -87,7 +89,7 @@ pub(super) fn view(state: &State) -> Element<'_, Message> {
                     .unwrap_or_else(|| "时间未知".into());
                 item = item.push(text(format!("{} · {}", date, session.project_dir.as_deref().unwrap_or("未知项目")))
                     .size(12).style(settings_muted_text_style));
-                item = item.push(super::paths::controls(state, session));
+                item = item.push(super::paths::controls(state, session, loopback));
                 // Source locations are display metadata, never filesystem read authority.
                 if session.source_path.as_deref().is_some_and(|path|
                     path.replace('\\', "/").contains("/archived_sessions/")) {

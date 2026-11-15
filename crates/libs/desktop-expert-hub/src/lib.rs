@@ -74,3 +74,5 @@ async fn sleep(duration: std::time::Duration) {
 }
 
 pub mod skill_operations;
+
+pub mod views;

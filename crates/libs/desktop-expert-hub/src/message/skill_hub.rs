@@ -80,6 +80,12 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
         return Task::none();
     }
     match message {
+        SkillHubMessage::UpgradeAllFunctions => upgrades::start_functions(app),
+        SkillHubMessage::UpgradeMainSkill => upgrades::start_main(app),
+        SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result } => upgrades::finish_functions(app, generation, &account_id, result),
+        SkillHubMessage::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result } => upgrades::finish_main_package(app, generation, &account_id, selections, project_root, result),
+        SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result } => upgrades::finish_main_key_sync(app, generation, &account_id, result),
+        SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result } => upgrades::finish_main(app, generation, &account_id, project_root, result),
         SkillHubMessage::Connectors(message) => super::connectors::update(app, message),
         SkillHubMessage::Knowledge(message) => super::knowledge::update(app, message),
         SkillHubMessage::Public(message) => super::public::update(app, message),
@@ -588,3 +594,10 @@ pub fn show_skill_error(
 #[cfg(test)]
 #[path = "skill_hub_tests.rs"]
 mod tests;
+
+#[path = "skill_upgrades.rs"]
+pub mod upgrades;
+
+#[cfg(test)]
+#[path = "skill_upgrades_tests.rs"]
+mod upgrades_tests;

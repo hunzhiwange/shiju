@@ -46,34 +46,6 @@ fn upgrade_entry_opens_installed_skills_and_closes_detail() {
 }
 
 #[test]
-fn main_upgrade_includes_native_and_only_selected_agent_directories() {
-    let mut app = app_with_skills();
-    app.expert_hub.install_guide.install_scope = SkillInstallScope::Project;
-    app.expert_hub.install_guide.selected_targets =
-        vec![SkillInstallTarget::Codex, SkillInstallTarget::ClaudeCode];
-    assert_eq!(
-        main_selections(&app),
-        vec![
-            SkillInstallSelection {
-                target: SkillInstallTarget::VibeWindow,
-                scope: SkillInstallScope::Global
-            },
-            SkillInstallSelection {
-                target: SkillInstallTarget::Codex,
-                scope: SkillInstallScope::Project
-            },
-            SkillInstallSelection {
-                target: SkillInstallTarget::ClaudeCode,
-                scope: SkillInstallScope::Project
-            },
-        ]
-    );
-    app.expert_hub.install_guide.selected_targets = vec![SkillInstallTarget::VibeWindow];
-    app.expert_hub.install_guide.install_scope = SkillInstallScope::Global;
-    assert_eq!(main_selections(&app).len(), 1);
-}
-
-#[test]
 fn function_upgrade_prevents_duplicates_and_conflicting_operations() {
     let mut app = app_with_skills();
     let _ = update(&mut app, SkillHubMessage::UpgradeAllFunctions);

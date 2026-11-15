@@ -1,18 +1,13 @@
 //! 协调识矩技能列表、详情、安装、版本操作与本地缓存同步消息。
 
-use crate::app::session_gateway::{
-    gateway_shiju_skill_detail_async, gateway_shiju_skill_remote_install_version_async,
-};
 use crate::app::skill_hub::{
     CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill,
     MineSkillStatus, PackageVersionCacheEntry, Page, PublicDetailMode,
-    ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport,
+    ShijuInstallationsReport, ShijuKeySyncReport,
     ShijuMultiInstallReport, ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport,
-    SkillActionKind, SkillCacheSyncReport, SkillDetail, SkillHubClient, SkillHubError,
+    SkillActionKind, SkillCacheSyncReport, SkillDetail, SkillHubError,
     SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTab, SkillTag,
-    SkillVersion, SkillVersionAction, SystemSkill, TenantSkill, resolve_skill_destinations,
-    shiju_installation, sync_business_skill_cache, sync_shiju_key_for_targets,
-};
+    SkillVersion, SkillVersionAction, SystemSkill, TenantSkill,     };
 use crate::app::{
     App, AppTab, Message, Screen,
 };
@@ -254,12 +249,12 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::Connectors(message) => return connectors::update(app, message),
         SkillHubMessage::Knowledge(message) => return knowledge::update(app, message),
         SkillHubMessage::Public(message) => return public::update(app, message),
-        SkillHubMessage::UpgradeAllFunctions => return upgrades::start_functions(app),
-        SkillHubMessage::UpgradeMainSkill => return upgrades::start_main(app),
-        SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result } => return upgrades::finish_functions(app, generation, &account_id, result),
-        SkillHubMessage::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result } => return upgrades::finish_main_package(app, generation, &account_id, selections, project_root, result),
-        SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result } => return upgrades::finish_main_key_sync(app, generation, &account_id, result),
-        SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result } => return upgrades::finish_main(app, generation, &account_id, project_root, result),
+        SkillHubMessage::UpgradeAllFunctions => D::UpgradeAllFunctions,
+        SkillHubMessage::UpgradeMainSkill => D::UpgradeMainSkill,
+        SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result } => D::AllFunctionsUpgraded { generation, account_id, result },
+        SkillHubMessage::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result } => D::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result },
+        SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result } => D::MainUpgradeKeySynced { generation, account_id, result },
+        SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result } => D::MainSkillUpgraded { generation, account_id, project_root, result },
         SkillHubMessage::Open => D::Open,
         SkillHubMessage::OpenShijuSkills => D::OpenShijuSkills,
         SkillHubMessage::OpenInstalledShijuSkills => D::OpenInstalledShijuSkills,
@@ -334,11 +329,17 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
     };
     run_domain(app, |input| domain::update(input, message))
 }
-fn map_domain(message: D) -> SkillHubMessage {
+pub(crate) fn map_domain(message: D) -> SkillHubMessage {
     match message {
         D::Connectors(message) => SkillHubMessage::Connectors(message),
         D::Knowledge(message) => SkillHubMessage::Knowledge(message),
         D::Public(message) => SkillHubMessage::Public(message),
+            D::UpgradeAllFunctions => SkillHubMessage::UpgradeAllFunctions,
+            D::UpgradeMainSkill => SkillHubMessage::UpgradeMainSkill,
+            D::AllFunctionsUpgraded { generation, account_id, result } => SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result },
+            D::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result } => SkillHubMessage::MainUpgradePackageLoaded { generation, account_id, selections, project_root, result },
+            D::MainUpgradeKeySynced { generation, account_id, result } => SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result },
+            D::MainSkillUpgraded { generation, account_id, project_root, result } => SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result },
             D::Open => SkillHubMessage::Open,
             D::OpenShijuSkills => SkillHubMessage::OpenShijuSkills,
             D::OpenInstalledShijuSkills => SkillHubMessage::OpenInstalledShijuSkills,
@@ -483,28 +484,9 @@ fn run_domain(app: &mut App, operation: impl FnOnce(&mut SkillUpdate<'_>) -> Tas
     }), effects])
 }
 pub(crate) fn account_changed(app: &mut App) -> Task<Message> { run_domain(app, domain::account_changed) }
-fn load_installed_skills(app: &mut App, force: bool) -> Task<Message> { run_domain(app, |input| domain::load_installed_skills(input, force)) }
-fn reload_local_shiju_package_version(app: &mut App) { let (_, effects) = with_domain(app, domain::reload_local_shiju_package_version); debug_assert!(effects.is_empty()); }
-fn active_shiju_account(app: &mut App) -> Option<(String, crate::app::account::SecretSkey)> {
-    let (result, effects) = with_domain(app, domain::active_shiju_account);
-    // Account synchronization has no task-producing effect.
-    for effect in effects { if let Effect::ClearAccount(id) = effect { app.shiju_apps.clear_for_account(id); } }
-    result
-}
-fn selected_project_root(app: &App, selections: &[SkillInstallSelection]) -> Result<Option<PathBuf>, SkillHubError> { domain::selected_project_root(&app.expert_hub, selections) }
 pub(super) fn dispatch_download_with(app: &App, version_id: u64, opener: impl FnOnce(&str) -> Result<(), SkillHubError>) -> Result<(), SkillHubError> { domain::dispatch_download_with(&app.expert_hub, version_id, opener) }
 pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery { domain::mine_query(&app.expert_hub) }
 pub(super) fn marketplace_query(app: &App) -> ShijuSkillSearchQuery { domain::marketplace_query(&app.expert_hub) }
-fn show_skill_error(app: &mut App, kind: crate::app::state::ToastKind, source: Option<&str>, error: SkillHubError) -> Task<Message> {
-    use desktop_expert_hub::message::ToastKind as K;
-    let kind = match kind {
-        crate::app::state::ToastKind::Info => K::Info,
-        crate::app::state::ToastKind::Success => K::Success,
-        crate::app::state::ToastKind::Warning => K::Warning,
-        crate::app::state::ToastKind::Error => K::Error,
-    };
-    run_domain(app, |input| domain::show_skill_error(input, kind, source, error))
-}
 
 pub(crate) fn open_expert_hub_tab(app: &mut App) {
     if !app.open_tabs.iter().any(|tab| tab.id == EXPERT_HUB_TAB_ID) {

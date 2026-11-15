@@ -222,6 +222,7 @@ pub(crate) fn update(
     let Ok(client) = crate::app::config::gateway_client() else {
         return app.show_error_toast("网关不可用");
     };
+    let client = gateway_app_settings::GatewayAppSettingsClient::new(client.transport().clone());
     let context = current.unwrap();
     let host = app.apps_catalog.host.clone();
     let token = app.apps_catalog.token.clone();
@@ -243,10 +244,10 @@ pub(crate) fn update(
             }
             .map_err(|error| {
                 match error {
-                    vw_gateway_client::AgentAppsSettingsError::Http {
+                    gateway_app_settings::AgentAppsSettingsError::Http {
                         status: 401 | 403, ..
                     } => "未授权，设置未保存",
-                    vw_gateway_client::AgentAppsSettingsError::Http { status: 422, .. } => {
+                    gateway_app_settings::AgentAppsSettingsError::Http { status: 422, .. } => {
                         "设置被执行主机拒绝，已恢复原值"
                     }
                     _ => "未确认保存结果，已恢复原值；请重新打开设置读取后再保存",

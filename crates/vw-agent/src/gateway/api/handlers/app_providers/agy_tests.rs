@@ -99,6 +99,7 @@ printf '%s' "$dir" > proof
         GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant.clone()),
     )
     .unwrap();
+    let settings = gateway_app_settings::GatewayAppSettingsClient::new(client.transport().clone());
     let request = AgyWrite {
         target_host_id: "host".into(),
         profile: AgyProfile {
@@ -144,7 +145,7 @@ printf '%s' "$dir" > proof
         label: "Relay".into(),
     };
     assert!(
-        client
+        settings
             .agent_apps_launch_identity_authorized("host", &launch, &identity, "wrong-token")
             .await
             .is_err()
@@ -153,16 +154,16 @@ printf '%s' "$dir" > proof
     let mut wrong = identity.clone();
     wrong.id = "unknown".into();
     assert!(
-        client.agent_apps_launch_identity_authorized("host", &launch, &wrong, TOKEN).await.is_err()
+        settings.agent_apps_launch_identity_authorized("host", &launch, &wrong, TOKEN).await.is_err()
     );
     assert!(!private.join("agy-profiles").exists());
-    let result = client
+    let result = settings
         .agent_apps_launch_identity_authorized("host", &launch, &identity, TOKEN)
         .await
         .unwrap();
     let session = result.session_id.unwrap();
     for _ in 0..200 {
-        let status = client.agent_apps_launch_session("host", &session, TOKEN).await.unwrap();
+        let status = settings.agent_apps_launch_session("host", &session, TOKEN).await.unwrap();
         if matches!(status.phase, LaunchSessionPhase::Completed | LaunchSessionPhase::Failed) {
             assert_eq!(status.phase, LaunchSessionPhase::Completed);
             break;
@@ -237,7 +238,7 @@ printf '%s' "$dir" > proof
         "while test -f hold; do sleep 0.02; done\nprintf '%s' session",
     );
     std::fs::write(home.join("bin/agy"), script).unwrap();
-    let second = client
+    let second = settings
         .agent_apps_launch_identity_authorized("host", &launch, &identity, TOKEN)
         .await
         .unwrap()
@@ -250,7 +251,7 @@ printf '%s' "$dir" > proof
     std::fs::remove_file(home.join("hold")).unwrap();
     let mut completed = false;
     for _ in 0..200 {
-        let status = client.agent_apps_launch_session("host", &second, TOKEN).await.unwrap();
+        let status = settings.agent_apps_launch_session("host", &second, TOKEN).await.unwrap();
         if status.phase == LaunchSessionPhase::Completed {
             completed = true;
             break;

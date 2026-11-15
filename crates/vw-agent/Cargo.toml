@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.6.0" }
 config-agent-profile = { path = "../libs/config-agent-profile", version = "0.6.0" }
 vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 model-protocols = { path = "../libs/model-protocols", version = "0.6.0" }

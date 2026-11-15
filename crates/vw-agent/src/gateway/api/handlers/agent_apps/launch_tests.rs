@@ -189,7 +189,7 @@ async fn identity_roundtrip(
         agent_apps::*,
         app_providers::{AppProviderWrite, ProviderProtocol},
     };
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsSettingsError, GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, gateway_app_settings::{AgentAppsSettingsError, GatewayAppSettingsClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let bin = root.path().join("bin");
@@ -250,10 +250,11 @@ async fn identity_roundtrip(
     let server = tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     });
-    let client = GatewayClient::new(
+    let client = gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant.clone()),
     )
     .unwrap();
+    let client = GatewayAppSettingsClient::new(client);
     assert!(matches!(
         client
             .agent_apps_launch_identities(
@@ -264,11 +265,12 @@ async fn identity_roundtrip(
             .await,
         Err(AgentAppsSettingsError::Http { status: 401, .. })
     ));
-    let other = GatewayClient::new(
+    let other = gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", port)
             .with_tenant_scope(TenantScope::new("p", "other").unwrap()),
     )
     .unwrap();
+    let other = GatewayAppSettingsClient::new(other);
     assert!(
         other.agent_apps_launch_identities("h", AppId::Claude, TOKEN).await.unwrap().is_empty()
     );

@@ -318,8 +318,8 @@ mod app_providers_api;
 mod app_providers_api_tests;
 
 mod agent_apps_settings_api;
-pub use agent_apps_settings_api::AgentAppsSettingsError;
-#[cfg(test)]
+pub use gateway_app_settings::AgentAppsSettingsError;
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod agent_apps_settings_api_tests;
 
 mod model_catalog_api;

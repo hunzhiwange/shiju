@@ -171,7 +171,7 @@ fn event(value: LaunchMessage) -> Message {
     super::message(crate::app::message::settings::AppsCatalogMessage::Launch(value))
 }
 fn poll(
-    client: vw_gateway_client::GatewayClient,
+    client: gateway_app_settings::GatewayAppSettingsClient,
     scope: ReplyScope,
     id: String,
     token: String,
@@ -202,6 +202,8 @@ pub(crate) fn update(app: &mut App, message: LaunchMessage) -> Task<Message> {
         app.apps_catalog.launch.invalidate();
         return app.show_error_toast("连接上下文已更改，请重新加载应用");
     }
+    let gateway_client = client;
+    let client = gateway_app_settings::GatewayAppSettingsClient::new(gateway_client.transport().clone());
     match message {
         LaunchMessage::Identities { scope, result } => {
             if !scope.matches(app, &context) || !app.apps_catalog.launch.identities_loading {
@@ -297,7 +299,7 @@ pub(crate) fn update(app: &mut App, message: LaunchMessage) -> Task<Message> {
             }
             catalog.launch.invalidate();
             let cwd = super::local::launch_directory(
-                &client,
+                &gateway_client,
                 &catalog.host,
                 &catalog.token,
                 app.project_path.as_deref(),
@@ -394,14 +396,14 @@ pub(crate) fn update(app: &mut App, message: LaunchMessage) -> Task<Message> {
                     }
                     .map_err(|e| {
                         match e {
-                            vw_gateway_client::AgentAppsSettingsError::Http {
+                            gateway_app_settings::AgentAppsSettingsError::Http {
                                 status: 401 | 403,
                                 ..
                             } => "启动未授权；未回退其他主机或账号",
-                            vw_gateway_client::AgentAppsSettingsError::Http {
+                            gateway_app_settings::AgentAppsSettingsError::Http {
                                 status: 422, ..
                             } => "执行主机拒绝目录、身份、参数或实例；请关闭后刷新并重新选择",
-                            vw_gateway_client::AgentAppsSettingsError::Http {
+                            gateway_app_settings::AgentAppsSettingsError::Http {
                                 status: 501, ..
                             } => "执行主机尚不支持此身份的启动方式",
                             _ => "未确认启动结果；不会自动重试，请先检查执行主机上的终端",

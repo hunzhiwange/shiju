@@ -99,6 +99,12 @@ impl Gateway {
         )
         .unwrap())
     }
+    fn settings_client(&self, company: &str) -> gateway_app_settings::GatewayAppSettingsClient {
+        gateway_app_settings::GatewayAppSettingsClient::new(gateway_http::GatewayTransport::new(
+            GatewayEndpoint::new("127.0.0.1", self.port)
+                .with_tenant_scope(TenantScope::new("p", company).unwrap()),
+        ).unwrap())
+    }
     async fn action(&self, action: AppLifecycleAction, target: AppActionTarget) -> TaskId {
         let c = self.client("a");
         let p = c
@@ -169,15 +175,16 @@ async fn cc_apps_remote_host_isolation_sdk_install_launch_uninstall_and_cancel()
         };
         let mut invalid = request.clone();
         invalid.cwd = client_root.path().to_str().unwrap().into();
-        assert!(c.agent_apps_launch_authorized("host", &invalid, TOKEN).await.is_err());
+        let settings = selected.settings_client("a");
+        assert!(settings.agent_apps_launch_authorized("host", &invalid, TOKEN).await.is_err());
         assert!(
             untouched
-                .client("a")
+                .settings_client("a")
                 .agent_apps_launch_authorized("host", &request, TOKEN)
                 .await
                 .is_err()
         );
-        c.agent_apps_launch_authorized("host", &request, TOKEN).await.unwrap();
+        settings.agent_apps_launch_authorized("host", &request, TOKEN).await.unwrap();
         assert_eq!(
             std::fs::read_to_string(selected.fixture.root.path().join("launched")).unwrap(),
             "launched"

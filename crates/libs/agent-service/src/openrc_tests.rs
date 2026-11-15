@@ -340,7 +340,7 @@ fn openrc_install_requires_root_before_touching_system_paths() {
         return;
     }
 
-    let err = install_linux_openrc(&crate::app::agent::config::Config::default())
+    let err = install_linux_openrc(&agent_config::runtime::Config::default())
         .expect_err("non-root OpenRC install should stop before side effects");
 
     assert!(err.to_string().contains("requires root privileges"));

@@ -24,7 +24,7 @@ use agent_integrations::IntegrationCommands;
 use vw_agent::memory::cli::MemoryCommands;
 use vw_agent::plugins::PluginCommands;
 use vw_agent::security;
-use vw_agent::service::ServiceCommands;
+use agent_service::ServiceCommands;
 use vw_agent::skill::SkillCommands;
 
 use cli_gateway_commands::{ApiOptions, RootApiCommands, RootConfigCommands};

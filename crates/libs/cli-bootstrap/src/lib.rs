@@ -48,9 +48,10 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use vw_agent::channels::ChannelCommands;
 use vw_agent::cron;
 use agent_integrations as integrations;
+use agent_service as service;
 use vw_agent::{
     channels, config, daemon, doctor, gateway, initialize_runtime_build_id, memory, observability,
-    plugins, security, service, skills,
+    plugins, security, skills,
 };
 
 use config::Config;

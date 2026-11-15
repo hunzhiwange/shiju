@@ -5,7 +5,7 @@ use super::linux::{
     install_linux, linux_service_file, restart_linux, start_linux, status_linux, stop_linux,
     systemd_config_dir_args, systemd_quote_arg, uninstall_linux,
 };
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[test]

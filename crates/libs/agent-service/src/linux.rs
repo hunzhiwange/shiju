@@ -3,7 +3,7 @@
 //! 本模块根据 init system 分发 systemd user service 与 OpenRC 的安装、启动、
 //! 停止、重启、状态查询和卸载流程。具体 OpenRC 安装细节放在 `openrc` 模块中。
 
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 #[cfg(target_os = "linux")]
 use anyhow::bail;
 use anyhow::{Context, Result};

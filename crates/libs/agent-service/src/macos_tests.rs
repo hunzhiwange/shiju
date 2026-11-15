@@ -4,7 +4,7 @@ use super::macos::{
     SERVICE_LABEL, build_launchd_plist, config_dir_arg, launchd_gui_service_target_for_uid,
     macos_service_file,
 };
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use std::path::Path;
 
 #[test]

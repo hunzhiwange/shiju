@@ -4,7 +4,7 @@
 //! 迁移现有运行状态，并确保配置、工作区与日志目录由服务用户拥有且可写。这里的
 //! 权限检查直接影响守护进程的最小权限运行边界。
 
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -6,9 +6,9 @@ use super::windows::{
     stop_windows, uninstall_windows, windows_task_name,
 };
 
-fn temp_config() -> (tempfile::TempDir, crate::app::agent::config::Config) {
+fn temp_config() -> (tempfile::TempDir, agent_config::runtime::Config) {
     let dir = tempfile::tempdir().expect("temp dir");
-    let mut config = crate::app::agent::config::Config::default();
+    let mut config = agent_config::runtime::Config::default();
     config.config_path = dir.path().join("vibewindow.json");
     (dir, config)
 }

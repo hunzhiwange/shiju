@@ -1,4 +1,4 @@
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};

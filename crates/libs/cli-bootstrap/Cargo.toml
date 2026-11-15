@@ -6,6 +6,7 @@ license = "MIT"
 description = "CLI process initialization and command dispatch"
 
 [dependencies]
+agent-service = { path = "../agent-service", version = "0.6.0" }
 agent-migration = { path = "../agent-migration", version = "0.6.0" }
 agent-integrations = { path = "../agent-integrations", version = "0.6.0" }
 app-self-update = { path = "../app-self-update", version = "0.6.0" }

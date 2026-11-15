@@ -6,6 +6,7 @@ use vw_api_app_operations::AppActionExecutionResult;
 use vw_api_mcp_management::{McpRecordId, McpDistributionResult, McpResyncOperationStatus};
 
 impl GatewayClient {
+    /// Import definitions from trusted installations without writing their native files.
     pub async fn mcp_management_import(
         &self,
         request: &McpImportRequest,
@@ -15,6 +16,7 @@ impl GatewayClient {
             .mcp_management_import(request, token).await
     }
 
+    /// Save binding intent and preserve each native transaction outcome.
     pub async fn mcp_management_bind(
         &self,
         id: &McpRecordId,
@@ -25,6 +27,7 @@ impl GatewayClient {
             .mcp_management_bind(id, request, token).await
     }
 
+    /// Enable or disable the specified revisions on one installation.
     pub async fn mcp_management_bulk(
         &self,
         request: &McpBulkRequest,
@@ -34,6 +37,9 @@ impl GatewayClient {
             .mcp_management_bulk(request, token).await
     }
 
+    /// Accept a reconciliation job. Queued is not native success.
+    /// Recover/cancel with `mcp_management_resync_status` and
+    /// `mcp_management_resync_cancel` to retain the full per-target snapshot.
     pub async fn mcp_management_resync(
         &self,
         request: &McpResyncRequest,
@@ -43,6 +49,10 @@ impl GatewayClient {
             .mcp_management_resync(request, token).await
     }
 
+    /// Accept a reconciliation job. Queued is not native success.
+    /// Recover/cancel with `mcp_management_resync_status` and
+    /// `mcp_management_resync_cancel` to retain the full per-target snapshot.
+    /// Read the original reconciliation job without discarding per-target results.
     pub async fn mcp_management_resync_status(
         &self,
         host: &str,
@@ -53,6 +63,10 @@ impl GatewayClient {
             .mcp_management_resync_status(host, id, token).await
     }
 
+    /// Accept a reconciliation job. Queued is not native success.
+    /// Recover/cancel with `mcp_management_resync_status` and
+    /// `mcp_management_resync_cancel` to retain the full per-target snapshot.
+    /// Cancel the original reconciliation job and retain its completed target reports.
     pub async fn mcp_management_resync_cancel(
         &self,
         host: &str,

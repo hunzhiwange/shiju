@@ -203,7 +203,7 @@ fn build_main_agent_overrides_patch(config: &Config) -> Result<Option<serde_json
 
 async fn fetch_agent_config_via_gateway() -> Result<Config, String> {
     let client = gateway_client()?;
-    let value = client.config_get(None).await?;
+    let value = gateway_config::GatewayConfigClient::new(client.transport().clone()).config_get(None).await?;
     let mut config = serde_json::from_value::<Config>(value).map_err(|err| err.to_string())?;
     apply_main_agent_overrides(&mut config);
     Ok(config)
@@ -211,7 +211,7 @@ async fn fetch_agent_config_via_gateway() -> Result<Config, String> {
 
 async fn fetch_global_agent_config_via_gateway() -> Result<Config, String> {
     let client = gateway_client()?;
-    let value = client.global_config_get().await?;
+    let value = gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await?;
     let mut config = serde_json::from_value::<Config>(value).map_err(|err| err.to_string())?;
     apply_main_agent_overrides(&mut config);
     Ok(config)
@@ -219,7 +219,7 @@ async fn fetch_global_agent_config_via_gateway() -> Result<Config, String> {
 
 async fn fetch_global_config_value_via_gateway() -> Result<serde_json::Value, String> {
     let client = gateway_client()?;
-    client.global_config_get().await
+    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -237,12 +237,12 @@ fn load_local_agent_config() -> Option<Config> {
 
 async fn fetch_global_acp_config_via_gateway() -> Result<HashMap<String, AcpAgentConfig>, String> {
     let client = gateway_client()?;
-    client.global_acp_config_get().await
+    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_acp_config_get().await
 }
 
 async fn patch_agent_config_via_gateway(patch: &serde_json::Value) -> Result<(), String> {
     let client = gateway_client()?;
-    client.global_config_patch(patch).await
+    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_patch(patch).await
 }
 
 fn load_agent_config_via_gateway() -> Config {
@@ -295,7 +295,7 @@ pub async fn load_full_agent_config_async() -> Result<Config, String> {
 
 pub async fn load_project_agent_config_async(project_path: &str) -> Result<Config, String> {
     let client = gateway_client()?;
-    let value = client.config_get(Some(project_path)).await?;
+    let value = gateway_config::GatewayConfigClient::new(client.transport().clone()).config_get(Some(project_path)).await?;
     serde_json::from_value(value).map_err(|error| error.to_string())
 }
 
@@ -397,7 +397,7 @@ pub async fn load_enabled_acp_config_async() -> Result<HashMap<String, AcpAgentC
 }
 
 pub async fn load_acp_settings_snapshot_async() -> Result<AcpSettingsSnapshot, String> {
-    let defaults = gateway_client()?.global_acp_defaults_get().await?;
+    let defaults = gateway_config::GatewayConfigClient::new(gateway_client()?.transport().clone()).global_acp_defaults_get().await?;
     let mut catalog = fetch_global_acp_config_via_gateway().await?;
     let config = fetch_global_agent_config_via_gateway().await?;
     catalog.extend(config.acp_saved);
@@ -459,7 +459,7 @@ pub async fn patch_project_agent_config_async(
     patch: serde_json::Value,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.config_patch(Some(project_path), &patch).await.map(|_| ())
+    gateway_config::GatewayConfigClient::new(client.transport().clone()).config_patch(Some(project_path), &patch).await.map(|_| ())
 }
 
 /// 读取、保存或转换 `patch_agent_config_result` 对应的配置数据与运行时状态。

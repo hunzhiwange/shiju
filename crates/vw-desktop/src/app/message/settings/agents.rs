@@ -150,7 +150,7 @@ async fn load_catalog_config() -> Result<vw_config_types::config::Config, String
     let mut config: vw_config_types::config::Config =
         serde_json::from_value(crate::app::config::load_global_config_value_async().await?)
             .map_err(|error| error.to_string())?;
-    let value = crate::app::config::gateway_client()?.agent_profiles(None, true).await?;
+    let value = gateway_config::GatewayConfigClient::new(crate::app::config::gateway_client()?.transport().clone()).agent_profiles(None, true).await?;
     merge_catalog_profiles(&mut config, value)?;
     Ok(config)
 }
@@ -803,7 +803,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.catalog_busy = true;
             Task::perform(
                 async move {
-                    crate::app::config::gateway_client()?.agent_profile_copy(None, &key).await
+                    gateway_config::GatewayConfigClient::new(crate::app::config::gateway_client()?.transport().clone()).agent_profile_copy(None, &key).await
                 },
                 |result| {
                     Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogCopied(result)))

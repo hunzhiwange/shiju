@@ -101,27 +101,27 @@ pub async fn run<R: Read, W: Write>(
 ) -> Result<()> {
     let client = context.client();
     let response = match command {
-        ConfigCommands::Get => client.config_get(context.directory()).await,
+        ConfigCommands::Get => gateway_config::GatewayConfigClient::new(client.transport().clone()).config_get(context.directory()).await,
         ConfigCommands::Patch { input } => {
             let patch = read_json_input(&input, stdin)?;
-            client.config_patch(context.directory(), &patch).await
+            gateway_config::GatewayConfigClient::new(client.transport().clone()).config_patch(context.directory(), &patch).await
         }
         ConfigCommands::Global { command: GlobalConfigCommands::Get } => {
-            client.global_config_get().await
+            gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await
         }
         ConfigCommands::Global { command: GlobalConfigCommands::Patch { input } } => {
             let patch = read_json_input(&input, stdin)?;
-            client.global_config_patch(&patch).await.map(|()| Value::Null)
+            gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_patch(&patch).await.map(|()| Value::Null)
         }
-        ConfigCommands::Acp => client.global_acp_config_get::<Value>().await,
+        ConfigCommands::Acp => gateway_config::GatewayConfigClient::new(client.transport().clone()).global_acp_config_get::<Value>().await,
         ConfigCommands::Dashboard { command: DashboardConfigCommands::Get } => {
-            client.dashboard_config_get().await
+            gateway_config::GatewayConfigClient::new(client.transport().clone()).dashboard_config_get().await
         }
         ConfigCommands::Dashboard { command: DashboardConfigCommands::Put { input } } => {
             let config = read_json_input(&input, stdin)?;
-            client.dashboard_config_put(&config).await
+            gateway_config::GatewayConfigClient::new(client.transport().clone()).dashboard_config_put(&config).await
         }
-        ConfigCommands::Providers => client.config_providers(context.directory()).await,
+        ConfigCommands::Providers => gateway_config::GatewayConfigClient::new(client.transport().clone()).config_providers(context.directory()).await,
     }
     .map_err(anyhow::Error::msg)?;
 

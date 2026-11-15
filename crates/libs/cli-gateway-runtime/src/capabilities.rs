@@ -68,7 +68,7 @@ pub(crate) async fn load_session_capabilities(
         Err(error) => warnings.push(format!("加载 Gateway provider 能力失败：{error}")),
     }
 
-    match runtime.client().config_get(directory.as_deref()).await {
+    match gateway_config::GatewayConfigClient::new(runtime.client().transport().clone()).config_get(directory.as_deref()).await {
         Ok(config) => {
             default_model = configured_default_model(&config)
                 .filter(|model| matrix.models.iter().any(|candidate| candidate == model))

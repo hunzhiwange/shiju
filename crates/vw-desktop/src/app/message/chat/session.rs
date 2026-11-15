@@ -867,7 +867,7 @@ fn check_agent_installation(app: &App, backend: String, query: Option<String>) -
     let session_id = app.active_session_id.clone();
     let agent = app.current_session_runtime().agent.clone();
     Task::perform(
-        async { crate::app::gateway_client()?.global_acp_installed_get().await },
+        async { gateway_config::GatewayConfigClient::new(crate::app::gateway_client()?.transport().clone()).global_acp_installed_get().await },
         move |result| {
             Message::Chat(ChatMessage::AgentInstallationChecked {
                 session_id: session_id.clone(),
@@ -1465,7 +1465,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             if tab == SessionToolSelectorTab::Agent {
                 let status = Task::perform(
-                    async { crate::app::gateway_client()?.global_acp_installed_get().await },
+                    async { gateway_config::GatewayConfigClient::new(crate::app::gateway_client()?.transport().clone()).global_acp_installed_get().await },
                     |result| Message::Chat(ChatMessage::AgentInstallationStatusesLoaded(result)),
                 );
                 let profiles = if !app.agents_settings.dirty && !app.agents_settings.save_in_flight
@@ -1513,7 +1513,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
             if tab == SessionToolSelectorTab::Agent {
                 let status = Task::perform(
-                    async { crate::app::gateway_client()?.global_acp_installed_get().await },
+                    async { gateway_config::GatewayConfigClient::new(crate::app::gateway_client()?.transport().clone()).global_acp_installed_get().await },
                     |result| Message::Chat(ChatMessage::AgentInstallationStatusesLoaded(result)),
                 );
                 let profiles = if !app.agents_settings.dirty && !app.agents_settings.save_in_flight

@@ -307,8 +307,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
         return Task::perform(
             async move {
                 let client = client?;
-                client
-                    .global_config_patch(&serde_json::json!({"worktree_settings":policy}))
+                gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_patch(&serde_json::json!({"worktree_settings":policy}))
                     .await?;
                 // PATCH acknowledged this exact draft. A follow-up GET must not turn
                 // a committed save into an apparent failure if the connection drops.
@@ -338,7 +337,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
             Task::perform(
                 async move {
                     let client = client?;
-                    let config = client.global_config_get().await?;
+                    let config = gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await?;
                     let policy = serde_json::from_value(
                         config.get("worktree_settings").cloned().ok_or("网关未返回工作树设置。")?,
                     )

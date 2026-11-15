@@ -396,8 +396,8 @@ impl GatewayUiRuntime {
 
     pub(crate) async fn enabled_acp_backend_keys(&self) -> Result<Vec<String>, String> {
         let catalog =
-            self.client.global_acp_config_get::<HashMap<String, AcpAgentConfig>>().await?;
-        let config = self.client.global_config_get().await?;
+            gateway_config::GatewayConfigClient::new(self.client.transport().clone()).global_acp_config_get::<HashMap<String, AcpAgentConfig>>().await?;
+        let config = gateway_config::GatewayConfigClient::new(self.client.transport().clone()).global_config_get().await?;
         Ok(resolve_enabled_acp_backend_keys(&catalog, &config))
     }
 

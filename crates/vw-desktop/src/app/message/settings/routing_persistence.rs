@@ -77,7 +77,7 @@ impl RoutingPersistence {
             idle.send_replace(false);
         }
         Task::perform(
-            async move { GatewayClient::new(endpoint)?.global_config_patch(&patch).await },
+            async move { gateway_config::GatewayConfigClient::new(GatewayClient::new(endpoint)?.transport().clone()).global_config_patch(&patch).await },
             move |result| message(ModelRoutesMessage::Saved(revision, result)),
         )
     }
@@ -197,7 +197,7 @@ pub(super) fn refresh(app: &mut App) -> Task<Message> {
     state.loading_endpoint = Some(endpoint.clone());
     Task::perform(
         async move {
-            let config = GatewayClient::new(endpoint)?.global_config_get().await?;
+            let config = gateway_config::GatewayConfigClient::new(GatewayClient::new(endpoint)?.transport().clone()).global_config_get().await?;
             let routes = serde_json::from_value(
                 config.get("model_routes").cloned().unwrap_or_else(|| serde_json::json!([])),
             )

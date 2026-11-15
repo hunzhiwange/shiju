@@ -91,6 +91,7 @@ members = [
   "crates/libs/gateway-endpoint",
   "crates/libs/gateway-chat-stream",
   "crates/libs/gateway-http",
+  "crates/libs/gateway-config",
   "crates/libs/git-discovery",
   "crates/libs/memory-algorithms",
   "crates/libs/memory-types",

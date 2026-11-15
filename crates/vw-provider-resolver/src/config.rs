@@ -77,7 +77,7 @@ pub async fn get() -> Config {
     let Ok(client) = gateway_client() else {
         return Config::default();
     };
-    let Ok(value) = client.config_get(None).await else {
+    let Ok(value) = gateway_config::GatewayConfigClient::new(client.transport().clone()).config_get(None).await else {
         return Config::default();
     };
     serde_json::from_value(value).unwrap_or_default()

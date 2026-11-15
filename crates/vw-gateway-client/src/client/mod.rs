@@ -225,6 +225,11 @@ impl GatewayClient {
         Ok(Self { transport: gateway_http::GatewayTransport::new(endpoint)? })
     }
 
+    /// 返回共享传输，供领域客户端复用连接池。
+    pub fn transport(&self) -> &gateway_http::GatewayTransport {
+        &self.transport
+    }
+
     fn native_transport(&self) -> Result<&reqwest::Client, String> {
         self.transport.native_transport()
     }

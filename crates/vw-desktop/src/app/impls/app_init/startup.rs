@@ -274,7 +274,7 @@ mod native {
                 return (None, None, None);
             }
             let global = match &client {
-                Ok(client) => client.global_config_get().await,
+                Ok(client) => gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await,
                 Err(error) => Err(error.clone()),
             };
             let system = (!loaded.system).then(|| {
@@ -312,9 +312,8 @@ mod native {
                 Some(
                     async {
                         let mut global = global_config()?;
-                        let profiles = client
-                            .as_ref()
-                            .map_err(Clone::clone)?
+                        let transport = client.as_ref().map_err(Clone::clone)?.transport().clone();
+                        let profiles = gateway_config::GatewayConfigClient::new(transport)
                             .agent_profiles(None, true)
                             .await?;
                         crate::app::message::settings::agents::merge_catalog_profiles(
@@ -358,8 +357,9 @@ mod native {
     ) -> Result<StartupAgentSnapshot, String> {
         // The global API encrypts secrets. Keep the runtime config API for Agent settings,
         // and use the global Gateway subtree as the Gateway settings loader did.
+        let config_client = gateway_config::GatewayConfigClient::new(client.transport().clone());
         let (runtime, acp_catalog) =
-            tokio::join!(client.config_get(None), client.global_acp_config_get());
+            tokio::join!(config_client.config_get(None), config_client.global_acp_config_get());
         let mut runtime: Config =
             serde_json::from_value(runtime?).map_err(|err| err.to_string())?;
         config::apply_main_agent_overrides(&mut runtime);

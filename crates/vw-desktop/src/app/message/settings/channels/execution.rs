@@ -77,7 +77,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
                 definition: vw_config_types::agent::AgentDefinitionConfig,
             }
             let agents: Vec<Agent> =
-                serde_json::from_value(client.agent_profiles(directory.as_deref(), false).await?)
+                serde_json::from_value(gateway_config::GatewayConfigClient::new(client.transport().clone()).agent_profiles(directory.as_deref(), false).await?)
                     .map_err(|e| e.to_string())?;
             let mut agents = agents
                 .into_iter()

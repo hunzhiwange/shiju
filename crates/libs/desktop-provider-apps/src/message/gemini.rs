@@ -5,3 +5,102 @@ pub enum Field {
     Model(String),
     Apply(bool),
 }
+
+use crate::state::{
+    edit::{EditForm, Mode},
+    edit::ProviderEditState,
+};
+use gateway_http::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_provider_profiles::gemini::GeminiFormView;
+use vw_api_app_provider_profiles::gemini::GeminiLiveResult;
+use vw_api_app_provider_profiles::gemini::GeminiTarget;
+
+
+use crate::Scope;
+pub fn change(form: &mut EditForm, field: Field) {
+    use crate::state::gemini::Kind;
+    let Some(draft) = form.gemini.as_mut().filter(|draft| draft.kind != Kind::Unsupported) else {
+        return;
+    };
+    match field {
+        Field::ThirdParty(true) => draft.kind = Kind::ThirdParty,
+        Field::ThirdParty(false) => draft.kind = Kind::Official,
+        Field::BaseUrl(value) => draft.base_url = value,
+        Field::Model(value) => draft.model = value,
+        Field::Apply(value) => draft.apply = value,
+    }
+}
+
+pub async fn load(
+    client: GatewayClient,
+    scope: Scope,
+    id: &str,
+    token: &str,
+) -> Result<GeminiFormView, String> {
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
+        .gemini_form_read(id, &GeminiTarget { target_host_id: scope.host }, token)
+        .await
+        .map_err(error)
+}
+
+pub async fn save(
+    client: GatewayClient,
+    scope: Scope,
+    form: EditForm,
+    token: String,
+) -> Result<GeminiLiveResult, String> {
+    let request = form.gemini_request(scope.host).ok_or("当前供应商配置不可通过此表单保存")?;
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
+    let result = if matches!(form.mode, Mode::Create) {
+        client.gemini_form_create(&form.id, &request, &token).await
+    } else {
+        client.gemini_form_update(&form.id, &request, &token).await
+    }
+    .map_err(error)?;
+    if !result.catalog_saved {
+        return Err(if result.live == GeminiLiveResult::RecoveryRequired {
+            "供应商未保存，执行端配置需要恢复。"
+        } else {
+            "供应商未保存，请重试。"
+        }
+        .into());
+    }
+    Ok(result.live)
+}
+
+pub fn finish(
+    state: &mut ProviderEditState<'_>,
+    scope: &Scope,
+    generation: u64,
+    result: &Result<GeminiLiveResult, String>,
+) -> bool {
+    if state.scope != Some(scope) || state.generation != generation {
+        return false;
+    }
+    let Some(form) = state.form.as_mut().filter(|form| form.saving && form.gemini_editable())
+    else {
+        return false;
+    };
+    form.saving = false;
+    if result.is_ok() {
+        *state.form = None;
+    }
+    true
+}
+
+fn error(error: AgentAppsReadError) -> String {
+    match error {
+        AgentAppsReadError::Http { status: 400 | 422, .. } => {
+            "执行端未接受 Gemini 配置，请检查名称、API 地址、密钥和模型。"
+        }
+        AgentAppsReadError::Http { status: 401 | 403, .. } => {
+            "无权读取或保存此主机的 Gemini 配置。"
+        }
+        AgentAppsReadError::Http { status: 404, .. } => "供应商不存在，请刷新列表。",
+        AgentAppsReadError::Http { status: 409, .. } => "配置或事务状态已变更，请刷新后重试。",
+        AgentAppsReadError::Http { status: 501, .. } => "此执行主机不支持 Gemini 配置。",
+        _ => "Gemini 配置请求失败，请检查网关连接后重试。",
+    }
+    .into()
+}

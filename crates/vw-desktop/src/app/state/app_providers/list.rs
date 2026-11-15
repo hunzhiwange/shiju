@@ -36,14 +36,7 @@ pub(crate) struct ListState {
     #[cfg(not(target_arch = "wasm32"))]
     pub usage: crate::app::components::apps_usage_cards::Cards,
 }
-#[derive(Clone, Debug)]
-pub(crate) struct Editor {
-    pub id: String,
-    pub sort: String,
-    pub category: String,
-    pub notes: String,
-    pub saving: bool,
-}
+pub use desktop_provider_apps::state::list::Editor;
 impl ListState {
     pub fn begin(&mut self, scope: Scope) -> u64 {
         if self.scope.as_ref() != Some(&scope) {

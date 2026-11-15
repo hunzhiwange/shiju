@@ -2,14 +2,8 @@ pub(crate) mod claude;
 pub(crate) mod codex;
 pub(crate) mod edit;
 pub(crate) mod gemini;
-#[cfg(test)]
-mod gemini_tests;
 pub(crate) mod grok;
-#[cfg(test)]
-mod grok_tests;
 pub(crate) mod hermes;
-#[cfg(test)]
-mod hermes_tests;
 pub(crate) mod list;
 pub(crate) mod openclaw;
 #[cfg(test)]
@@ -31,8 +25,6 @@ mod mcode_tests;
 
 pub(crate) mod kimi;
 
-#[cfg(test)]
-mod kimi_tests;
 
 pub(crate) mod dsh;
 
@@ -41,12 +33,8 @@ pub(crate) mod agy;
 pub(crate) mod desktop;
 
 pub(crate) mod endpoints;
-#[cfg(test)]
-mod endpoints_tests;
 
 pub(crate) mod icons;
-#[cfg(test)]
-mod icons_tests;
 
 pub(crate) mod universal;
 #[cfg(test)]
@@ -59,8 +47,6 @@ mod snippets_tests;
 pub(crate) mod preview;
 
 pub(crate) mod env;
-#[cfg(test)]
-mod env_tests;
 
 pub(crate) mod mode;
 #[cfg(test)]

@@ -1,7 +1,2 @@
-/// Navigation is retained only in memory; it never contains editor credentials.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct LeaveState {
-    pub dirty: bool,
-    pub pending: Option<Box<crate::app::Message>>,
-    pub saving: bool,
-}
+/// Navigation remains in memory in the host message type.
+pub(crate) type LeaveState = desktop_provider_apps::message::leave::LeaveState<crate::app::Message>;

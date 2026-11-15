@@ -39,3 +39,28 @@ mod dsh_tests;
 
 #[cfg(test)]
 mod edit_tests;
+
+#[cfg(test)]
+mod gemini_tests;
+
+#[cfg(test)]
+mod grok_tests;
+
+#[cfg(test)]
+mod hermes_tests;
+
+#[cfg(test)]
+mod kimi_tests;
+
+#[cfg(test)]
+mod endpoints_tests;
+
+#[cfg(test)]
+mod env_tests;
+
+#[cfg(test)]
+mod icons_tests;
+
+pub mod list;
+
+pub mod leave;

@@ -1,9 +1,7 @@
 use super::env::restore;
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{
+use crate::{AgentAppsContext, Scope, state::{
         env::{Form, cleanup_selection, restore_request},
-        list::Scope,
+
     },
 };
 use std::io::{BufRead, BufReader, Read, Write};

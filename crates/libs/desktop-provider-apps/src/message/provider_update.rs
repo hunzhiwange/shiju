@@ -4,12 +4,20 @@ use vw_gateway_client::GatewayClient;
 pub struct State {
  pub scope: Option<Scope>, pub generation: u64, pub loading: bool,
  pub form: Option<EditForm>, pub desktop: Option<Form>,
+ pub editor: Option<crate::state::list::Editor>,
+ pub icons: Option<crate::state::icons::Form>, pub env: Option<crate::state::env::Form>, pub endpoints: Option<crate::state::endpoints::Form>,
+ pub other_modal_open: bool,
  pub new_draft: Option<vw_api_app_provider_base::create::AppProviderCreate>,
 }
 #[derive(Clone)]
 pub enum Effect {
  DshMemberChanged { scope: Scope, generation: u64, add: bool, result: Result<vw_api_app_provider_terminal::dsh::DshLiveResult,String> },
  Desktop(super::desktop::Event),
+ Endpoints(super::endpoints::Event), Env(super::env::Event), Icons(super::icons::Event),
+ List(super::list::Event),
+ None, OpenList(vw_api_app_identity::AppId),
+ HermesMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_extended::hermes::HermesLiveResult,String>},
+ KimiMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_terminal::kimi::KimiLiveResult,String>},
  Error(String), Info(String), Success(String), Warning(String), Refresh { scope: Scope, generation: u64 },
  Load { client: GatewayClient, scope: Scope, generation: u64, id: String, copy: bool, delete: bool, claude: bool, token: String },
  Save { client: GatewayClient, scope: Scope, generation: u64, form: EditForm, token: String },

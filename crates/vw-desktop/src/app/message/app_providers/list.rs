@@ -1,29 +1,12 @@
 use crate::app::state::app_providers::list::{Scope, Snapshot};
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_edit::presentation::AppProviderPresentation;
-pub(crate) async fn load(
-    client: GatewayClient,
-    scope: Scope,
-    token: String,
-) -> Result<Snapshot, String> {
-    let (catalog, presentation) = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_presented_catalog(scope.app, &scope.host, &token)
-        .await
-        .map_err(|_| "无法读取供应商列表与排序".to_string())?;
-    Ok(Snapshot { catalog, presentation })
-}
-pub(crate) async fn save(
-    client: GatewayClient,
-    scope: Scope,
-    id: String,
-    value: AppProviderPresentation,
-) -> Result<AppProviderPresentation, String> {
-    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_presentation_set(scope.app, &id, &value).await
-}
+use desktop_provider_apps::message::list::load;
 #[cfg(test)]
 #[path = "list_tests.rs"]
 mod tests;
 
-use crate::app::state::app_providers::list::Editor;
+
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 use vw_api_types::{
@@ -324,102 +307,13 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         ListMessage::OpenCodeMemberChanged { scope, generation, add, result } => {
             return super::opencode::membership_changed(app, scope, generation, add, result);
         }
-        ListMessage::Edit(id) => {
-            if app.app_providers.loading || app.app_providers.editor.is_some() {
-                return Task::none();
-            }
-            if !app
-                .app_providers
-                .snapshot
-                .as_ref()
-                .is_some_and(|s| s.catalog.rows.iter().any(|r| r.provider.id == id))
-            {
-                return Task::none();
-            }
-            let p = app.app_providers.presentation(&id);
-            app.app_providers.editor = Some(Editor {
-                id,
-                sort: p.sort_index.map(|v| v.to_string()).unwrap_or_default(),
-                category: p.category.unwrap_or_default(),
-                notes: p.notes.unwrap_or_default(),
-                saving: false,
-            });
-        }
-        ListMessage::Sort(v) => {
-            if let Some(f) = app.app_providers.editor.as_mut().filter(|f| !f.saving) {
-                f.sort = v;
-            }
-        }
-        ListMessage::Category(v) => {
-            if let Some(f) = app.app_providers.editor.as_mut().filter(|f| !f.saving) {
-                f.category = v;
-            }
-        }
-        ListMessage::Notes(v) => {
-            if let Some(f) = app.app_providers.editor.as_mut().filter(|f| !f.saving) {
-                f.notes = v;
-            }
-        }
-        ListMessage::Cancel => {
-            if app.app_providers.editor.as_ref().is_some_and(|f| !f.saving) {
-                app.app_providers.editor = None;
-            }
-        }
-        ListMessage::Save => {
-            let Some(scope) = app.app_providers.scope.clone() else { return Task::none() };
-            let (client, now) = match current(app, scope.app) {
-                Ok(v) => v,
-                Err(e) => return app.show_error_toast(e),
-            };
-            if now != scope {
-                return update(app, ListMessage::Open(scope.app));
-            }
-            let Some(form) = app.app_providers.editor.as_mut() else { return Task::none() };
-            if form.saving {
-                return Task::none();
-            }
-            let sort_index = if form.sort.trim().is_empty() {
-                None
-            } else {
-                match form.sort.trim().parse::<u32>() {
-                    Ok(v) => Some(v),
-                    Err(_) => return app.show_error_toast("排序须为非负整数"),
-                }
-            };
-            let value = AppProviderPresentation {
-                sort_index,
-                category: (!form.category.trim().is_empty())
-                    .then(|| form.category.trim().to_string()),
-                notes: (!form.notes.trim().is_empty()).then(|| form.notes.trim().to_string()),
-            };
-            form.saving = true;
-            let id = form.id.clone();
-            app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
-            let generation = app.app_providers.generation;
-            return Task::perform(save(client, scope.clone(), id, value), move |result| {
-                message(ListMessage::Saved { scope: scope.clone(), generation, result })
-            });
-        }
-        ListMessage::Saved { scope, generation, result } => {
-            if app.app_providers.scope.as_ref() != Some(&scope)
-                || app.app_providers.generation != generation
-                || current(app, scope.app).ok().map(|(_, s)| s).as_ref() != Some(&scope)
-            {
-                return Task::none();
-            }
-            match result {
-                Ok(_) => {
-                    app.app_providers.editor = None;
-                    return update(app, ListMessage::Refresh);
-                }
-                Err(e) => {
-                    if let Some(f) = app.app_providers.editor.as_mut() {
-                        f.saving = false;
-                    }
-                    return app.show_error_toast(e);
-                }
-            }
-        }
+        ListMessage::Edit(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Edit(v)),
+        ListMessage::Sort(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Sort(v)),
+        ListMessage::Category(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Category(v)),
+        ListMessage::Notes(v) => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Notes(v)),
+        ListMessage::Cancel => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Cancel),
+        ListMessage::Save => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Save),
+        ListMessage::Saved {scope,generation,result} => return super::provider_update::list(app,desktop_provider_apps::message::list::Event::Saved {scope,generation,result}),
     }
     Task::none()
 }

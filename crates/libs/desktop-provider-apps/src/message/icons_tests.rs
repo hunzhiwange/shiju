@@ -1,5 +1,5 @@
 use super::icons::{Operation, execute, finish};
-use crate::app::state::app_providers::icons::{Draft, Form};
+use crate::state::icons::{Draft, Form};
 use std::{
     io::{Read, Write},
     net::TcpListener,

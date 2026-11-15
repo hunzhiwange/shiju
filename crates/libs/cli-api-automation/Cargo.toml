@@ -5,7 +5,6 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.6.0" }
 cli-api-core = { path = "../cli-api-core", version = "0.6.0" }

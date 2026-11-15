@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use serde_json::{Value, json};
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 use {
     vw_api_transport::id::ProjectId,

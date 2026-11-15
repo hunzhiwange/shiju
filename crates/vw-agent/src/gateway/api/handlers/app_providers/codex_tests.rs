@@ -48,7 +48,7 @@ async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
         "profile='active'\n[profiles.active]\nexperimental_bearer_token='fake-profile-key'\n",
     ] {
         std::fs::write(&config, live).unwrap();
-        let response = client.app_provider_preview(AppId::Codex, &request, TOKEN).await.unwrap();
+        let response = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Codex, &request, TOKEN).await.unwrap();
         if live.contains("profile=") {
             assert_eq!(response.unavailable, Some(PreviewUnavailable::Ownership));
             assert!(response.settings.is_null());
@@ -69,7 +69,7 @@ async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
     }
     request.target_host_id = "metadata-only".into();
     assert!(matches!(
-        client.app_provider_preview(AppId::Codex, &request, TOKEN).await.unwrap_err(),
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Codex, &request, TOKEN).await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
     ));
     server.abort();

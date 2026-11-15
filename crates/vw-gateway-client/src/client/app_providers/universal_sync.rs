@@ -6,10 +6,7 @@ impl GatewayClient {
         id: &str,
         request: &UniversalSyncRequest,
     ) -> Result<Vec<UniversalSyncResult>, String> {
-        let path = super::universal::path(id)?;
-        self.universal_response(
-            self.transport.client().post(format!("{}{path}/sync", self.transport.endpoint().base_url())).json(request),
-        )
-        .await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .universal_provider_sync(id, request).await
     }
 }

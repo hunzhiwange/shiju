@@ -304,8 +304,7 @@ fn check(
         async move {
             match save.progress {
                 Some(progress) if save.cancel_requested && !progress.cancellation_requested => {
-                    client
-                        .provider_operation_cancel(
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_operation_cancel(
                             progress.operation_id.as_ref(),
                             &scope.host,
                             &token,
@@ -314,11 +313,10 @@ fn check(
                 }
                 Some(progress) => {
                     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-                    client
-                        .provider_operation_get(progress.operation_id.as_ref(), &scope.host, &token)
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_operation_get(progress.operation_id.as_ref(), &scope.host, &token)
                         .await
                 }
-                None => client.provider_operation_start(&save.request, &token).await,
+                None => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_operation_start(&save.request, &token).await,
             }
         },
         move |result| {
@@ -328,8 +326,7 @@ fn check(
 }
 
 async fn load(client: GatewayClient, scope: Scope, id: String, token: String) -> Loaded {
-    let preview = client
-        .app_provider_preview(
+    let preview = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(
             scope.app,
             &ProviderPreviewRequest {
                 target_host_id: scope.host.clone(),
@@ -367,8 +364,7 @@ async fn load(client: GatewayClient, scope: Scope, id: String, token: String) ->
         && warning.is_none()
     {
         let editor = if scope.app == AppId::Claude {
-            client
-                .app_provider_editor_open(
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_editor_open(
                     scope.app,
                     &id,
                     &EditorOpen { target_host_id: scope.host },
@@ -384,8 +380,7 @@ async fn load(client: GatewayClient, scope: Scope, id: String, token: String) ->
         return Loaded { view: Ok(Display::Native(preview)), editor, warning };
     }
 
-    let view = client
-        .app_provider_saved_preview(
+    let view = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_saved_preview(
             scope.app,
             &SavedProviderPreviewRequest { target_host_id: scope.host, provider_id: id },
             &token,

@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use serde_json::json;
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

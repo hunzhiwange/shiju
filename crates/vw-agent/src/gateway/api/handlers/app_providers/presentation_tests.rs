@@ -104,9 +104,9 @@ async fn cc04_presentation_sdk_api_reload_isolated_and_native_unchanged() {
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();
-    let result = client.app_provider_presentation_set(AppId::Claude, "z", &input()).await;
-    let listed = client.app_provider_presentation_list(AppId::Claude).await;
-    let existing_id = client.app_provider_get(AppId::Claude, "presentation").await;
+    let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_presentation_set(AppId::Claude, "z", &input()).await;
+    let listed = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_presentation_list(AppId::Claude).await;
+    let existing_id = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "presentation").await;
     server.abort();
     let _ = server.await;
     assert_eq!(result.unwrap(), input());

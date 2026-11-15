@@ -28,7 +28,7 @@ use vw_gateway_client::SkillMarketSkillQuery;
 use vw_gateway_client::SkillMarketSkillSetDetailDto;
 use vw_gateway_client::SkillMarketSkillSetPageDto;
 use vw_gateway_client::SkillMarketSourceDto;
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 use vw_api_project::{ProjectScopeDto, TenantScopeDto};
 use vw_gateway_client::{

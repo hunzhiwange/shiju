@@ -19,8 +19,7 @@ pub(crate) async fn save(
                 .await
                 .map_err(|_| "Agy 档案未删除：请先关闭运行中的终端并检查引用。".to_string())?
         } else {
-            client
-                .app_provider_delete(
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_delete(
                     scope.app,
                     &form.id,
                     &AppProviderDelete { target_host_id: scope.host },
@@ -32,7 +31,7 @@ pub(crate) async fn save(
             return Err("供应商未删除".into());
         }
     } else {
-        client.app_provider_basic_write(scope.app, &form.id, &form.request()?).await?;
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic_write(scope.app, &form.id, &form.request()?).await?;
     }
     Ok(())
 }
@@ -552,7 +551,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             return Task::perform(
-                async move { client.app_provider_basic(scope.app, &source).await },
+                async move { gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic(scope.app, &source).await },
                 move |result| {
                     message(EditMessage::Loaded {
                         scope: scope.clone(),

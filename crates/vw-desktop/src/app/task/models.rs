@@ -9,7 +9,7 @@ use std::fmt;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use time::OffsetDateTime;
 use vw_api_chat_identity::ReasoningEffortDto;
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
 /// 公开的 TASK_MODEL_AUTO 常量，集中保存该模块复用的稳定取值。
 pub const TASK_MODEL_AUTO: &str = "auto";

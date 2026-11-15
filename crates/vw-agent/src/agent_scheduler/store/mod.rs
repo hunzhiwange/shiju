@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Result, bail};
 use rusqlite::Connection;
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 #[cfg(test)]
 use vw_api_transport::id::ProjectId;
 

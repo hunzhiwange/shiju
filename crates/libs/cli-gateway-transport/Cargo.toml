@@ -8,7 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-project = { path = "../api-project", version = "0.6.0" }
 todo-types = { path = "../todo-types", version = "0.6.0" }

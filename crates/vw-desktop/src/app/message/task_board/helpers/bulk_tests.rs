@@ -139,7 +139,7 @@ fn selected_tasks_for_status_returns_cloned_visible_selected_tasks_in_board_orde
 
 #[test]
 fn agent_scheduler_command_request_sets_local_defaults_and_payload() {
-    use vw_api_agent_scheduler::{
+    use vw_gateway_client::vw_api_types::agent_scheduler::{
         AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto,
         AgentSchedulerDispatchModeDto,
     };

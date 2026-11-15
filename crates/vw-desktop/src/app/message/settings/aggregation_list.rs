@@ -241,8 +241,7 @@ pub(crate) async fn load(
             },
         )
         .await?;
-    let catalog = client
-        .app_provider_catalog(selection.scope.app, &selection.scope.host, &token)
+    let catalog = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(selection.scope.app, &selection.scope.host, &token)
         .await
         .map_err(|e| match e {
             vw_gateway_client::AgentAppsReadError::Http { status, body } => {

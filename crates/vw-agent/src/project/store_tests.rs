@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use rusqlite::Connection;
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use {
     vw_api_transport::id::DEFAULT_COMPANY_ID,
     vw_api_transport::id::DEFAULT_PLATFORM_ID,

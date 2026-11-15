@@ -2,7 +2,7 @@
 //! 空运行标识、未知状态和非法任务或工作区标识均不得进入领域对象。
 
 use anyhow::Result;
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 use vw_api_transport::id::ProjectId;
 

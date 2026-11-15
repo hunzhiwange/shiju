@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ::postgres::GenericClient;
 use anyhow::{Context, Result};
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 
 use super::PostgresAgentSchedulerStore;
 use crate::agent_scheduler::domain::TaskId;

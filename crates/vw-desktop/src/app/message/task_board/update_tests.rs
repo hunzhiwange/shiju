@@ -3,8 +3,8 @@ use super::*;
 fn snapshot(
     task_id: &str,
     status_key: &str,
-) -> vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto {
-    use vw_api_agent_scheduler::{
+) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto {
+    use vw_gateway_client::vw_api_types::agent_scheduler::{
         AgentSchedulerTaskBoardTaskDto, AgentSchedulerTaskBoardTaskReadModelDto,
     };
 
@@ -39,8 +39,8 @@ fn snapshot(
 fn response(
     task_id: &str,
     status_key: &str,
-) -> vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse {
-    use vw_api_agent_scheduler::{
+) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse {
+    use vw_gateway_client::vw_api_types::agent_scheduler::{
         AgentSchedulerTaskBoardSnapshotReadModelDto, AgentSchedulerTaskBoardStatusResponse,
     };
 

@@ -117,20 +117,19 @@ async fn cc04_create_sdk_api_persists_without_native_file_changes() {
         .with_tenant_scope(TenantScope::new("p", "a").unwrap());
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
     assert_eq!(
-        client.app_provider_create(AppId::Claude, "new", &request()).await.unwrap().id,
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_create(AppId::Claude, "new", &request()).await.unwrap().id,
         "new"
     );
-    assert_eq!(client.app_provider_get(AppId::Claude, "new").await.unwrap().name, "fixture");
+    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "new").await.unwrap().name, "fixture");
     assert!(
-        client
-            .app_provider_create(AppId::Claude, "new", &request())
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_create(AppId::Claude, "new", &request())
             .await
             .unwrap_err()
             .contains("409")
     );
     let mut input = request();
     input.add_to_live = true;
-    assert!(client.app_provider_create(AppId::Claude, "live", &input).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_create(AppId::Claude, "live", &input).await.is_err());
     assert!(
         AppProviderStore::new(db)
             .unwrap()

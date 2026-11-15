@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
 use vw_tui::V3Action;

@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::json;
-use vw_api_agent_scheduler::{
+use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerBulkCommandRequest, AgentSchedulerCommandRequest,
     AgentSchedulerCreateTaskRequest, AgentSchedulerLegacyImportRequest,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerScopeDto,

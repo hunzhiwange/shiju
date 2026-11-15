@@ -77,6 +77,9 @@ pub mod workflow;
 pub mod worktree;
 
 #[cfg(test)]
+#[path = "agent_scheduler_tests.rs"]
+mod agent_scheduler_tests;
+#[cfg(test)]
 mod apps_usage_tests;
 #[cfg(test)]
 #[path = "knowledge_tests.rs"]

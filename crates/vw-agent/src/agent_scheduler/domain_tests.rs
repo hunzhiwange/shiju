@@ -2,7 +2,7 @@
 //! 往返序列化覆盖合法值和拒绝路径，防止存储字符串与领域枚举悄然漂移。
 
 use serde_json::json;
-use vw_api_agent_scheduler::{
+use vw_api_types::agent_scheduler::{
     AgentCapabilityDto, AgentCapabilityKindDto, AgentResourceLeaseDto, AgentResourceLeaseStatusDto,
     AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
     AgentTaskStatusDto, TaskDependencyNodeDto,

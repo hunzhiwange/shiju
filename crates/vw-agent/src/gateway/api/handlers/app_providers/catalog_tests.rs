@@ -165,8 +165,8 @@ mod host_reads {
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
         .unwrap();
-        assert_eq!(client.app_provider_list(AppId::Claude).await.unwrap()[0].id, "ours");
-        let result = client.app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap();
+        assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_list(AppId::Claude).await.unwrap()[0].id, "ours");
+        let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap();
         assert_eq!(result.in_use, ProviderSelection::Selected { id: "native".into() });
         assert_eq!(
             result.direct,
@@ -176,16 +176,16 @@ mod host_reads {
         assert_eq!(std::fs::read_to_string(&path).unwrap(), content);
         std::fs::write(&path, "broken = [").unwrap();
         assert_eq!(
-            client.app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap().native_read,
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap().native_read,
             Some(ProviderReadUnavailable::InvalidConfiguration)
         );
         std::fs::remove_file(&path).unwrap();
         assert_eq!(
-            client.app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap().in_use,
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap().in_use,
             ProviderSelection::Unconfigured
         );
         let error =
-            client.app_provider_catalog(AppId::Kimi, "metadata-only", TOKEN).await.unwrap_err();
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(AppId::Kimi, "metadata-only", TOKEN).await.unwrap_err();
         assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
         server.abort();
         let _ = server.await;

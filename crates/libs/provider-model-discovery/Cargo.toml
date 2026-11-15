@@ -8,7 +8,7 @@ license = "MIT"
 model-state = { path = "../model-state", version = "0.6.0" }
 provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
 provider-model-catalog = { path = "../provider-model-catalog", version = "0.6.0" }
-vw-shared = { path = "../../vw-shared", version = "0.6.0" }
+auth-types = { path = "../auth-types", version = "0.6.0" }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

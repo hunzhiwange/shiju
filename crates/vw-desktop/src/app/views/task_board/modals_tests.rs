@@ -6,7 +6,7 @@ use crate::app::state::TaskBoardSettingsModalTab;
 use crate::app::task::{Task, TaskStatus};
 use crate::app::{App, Message};
 use iced::{Element, Length};
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
 fn test_app() -> App {
     let (app, _task) = App::new();

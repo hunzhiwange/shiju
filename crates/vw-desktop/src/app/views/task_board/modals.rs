@@ -15,7 +15,7 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardSettingsModalTab;
 use crate::app::task::Task;
 use crate::app::{App, Message};
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
 use super::common::button_style_secondary;
 

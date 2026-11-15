@@ -2,7 +2,7 @@
 //! 连接只接受已注册项目作用域，避免调度数据脱离平台层级成为孤儿记录。
 
 use anyhow::{Context, Result, bail};
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 
 use crate::global_database::GlobalDatabase;
 

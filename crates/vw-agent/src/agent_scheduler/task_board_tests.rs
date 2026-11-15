@@ -4,7 +4,7 @@
 use anyhow::Result;
 use serde_json::{Value, json};
 use vw_api_chat_identity::ReasoningEffortDto;
-use vw_api_agent_scheduler::{
+use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
 };

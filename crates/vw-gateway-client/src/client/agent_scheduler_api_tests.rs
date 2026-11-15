@@ -5,8 +5,8 @@
 //! 测试同时覆盖项目作用域编码、租户隔离校验以及事件游标的可选查询语义。
 
 use serde_json::json;
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
-use vw_api_agent_scheduler::{
+use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_api_types::agent_scheduler::{
     AgentEventKindDto, AgentSchedulerBulkCommandRequest, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest, AgentSchedulerCreateTaskRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,

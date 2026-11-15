@@ -4,7 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::*;
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
 #[derive(Debug, Clone)]
 pub struct WorktreePoolMaintenanceOutcome {
@@ -272,13 +272,13 @@ pub enum TaskBoardMessage {
     PromotePoolTasksTick,
     AgentSchedulerPoolWakeCompleted(
         Result<
-            vw_api_agent_scheduler::AgentSchedulerWakeResponse,
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,
             String,
         >,
     ),
     AgentSchedulerExecutionWakeCompleted(
         Result<
-            vw_api_agent_scheduler::AgentSchedulerWakeResponse,
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,
             String,
         >,
     ),
@@ -294,20 +294,20 @@ pub enum TaskBoardMessage {
     AgentSchedulerStatusLoaded {
         project_path: String,
         result: Result<
-            vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
             String,
         >,
     },
     AgentSchedulerLogsLoaded {
         project_path: String,
         result: Result<
-            Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
+            Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse>,
             String,
         >,
     },
     AgentSchedulerAutoMergeWakeCompleted(
         Result<
-            vw_api_agent_scheduler::AgentSchedulerWakeResponse,
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,
             String,
         >,
     ),

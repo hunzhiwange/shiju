@@ -301,7 +301,7 @@ pub(crate) async fn resolve_task_board_project_id(
 
 pub(crate) async fn resolve_task_board_scheduler_scope(
     project_path: &str,
-) -> Result<vw_api_agent_scheduler::AgentSchedulerScopeDto, String> {
+) -> Result<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto, String> {
     let project_id = resolve_task_board_project_id(project_path).await?;
     crate::app::session_gateway::active_agent_scheduler_scope(project_id)
 }
@@ -327,7 +327,7 @@ async fn load_agent_scheduler_logs(
     project_id: vw_api_transport::ProjectId,
     task_ids: Vec<String>,
 ) -> Result<
-    Vec<vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse>,
+    Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse>,
     String,
 > {
     let client = crate::app::config::gateway_client()?;
@@ -565,8 +565,8 @@ fn agent_scheduler_status_key_map(
 fn task_status_to_agent_scheduler_status(
     status: TaskStatus,
     workflow: Option<&TaskWorkflow>,
-) -> vw_api_agent_scheduler::AgentTaskStatusDto {
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
+) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto {
+    use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;
 
     if let Some(role) = workflow.and_then(|workflow| workflow.status_role(status)) {
         return match role {
@@ -603,7 +603,7 @@ fn task_status_to_agent_scheduler_status(
 pub(crate) fn agent_scheduler_status_for_task_status(
     status: TaskStatus,
     workflow_id: &str,
-) -> vw_api_agent_scheduler::AgentTaskStatusDto {
+) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto {
     let workflow = task_workflow_for_agent_scheduler(workflow_id);
     task_status_to_agent_scheduler_status(status, workflow.as_ref())
 }
@@ -622,7 +622,7 @@ fn task_title_for_agent_scheduler(task: &Task) -> String {
 fn agent_scheduler_create_task_request(
     task: &Task,
     workflow_id: &str,
-) -> vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
+) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest {
     let task_id = task.id.clone();
     let workflow = task_workflow_for_agent_scheduler(workflow_id);
     let workflow_ref = workflow.as_ref();
@@ -640,10 +640,10 @@ fn agent_scheduler_create_task_request(
         .map(status_role_metadata_key)
         .unwrap_or("custom");
     let status_key_map = agent_scheduler_status_key_map(workflow_ref, task.status);
-    vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
+    vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest {
         task_id: task_id.clone(),
         title: task_title_for_agent_scheduler(task),
-        kind: vw_api_agent_scheduler::AgentTaskKindDto::Finite,
+        kind: vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskKindDto::Finite,
         status: Some(task_status_to_agent_scheduler_status(task.status, workflow_ref)),
         spec_uri: format!("task-board/{task_id}/spec.md"),
         meta_uri: format!("task-board/{task_id}/meta.json"),
@@ -704,7 +704,7 @@ pub(crate) fn sync_task_board_gateway_snapshot(
 pub(crate) fn agent_scheduler_wake_create_task_requests(
     tasks: &[Task],
     workflow_id: &str,
-) -> Vec<vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest> {
+) -> Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest> {
     let workflow = task_workflow_for_agent_scheduler(workflow_id);
     tasks
         .iter()
@@ -733,8 +733,8 @@ pub(crate) async fn create_task_via_agent_scheduler(
 
 pub(crate) async fn register_pending_agent_scheduler_tasks(
     client: &vw_gateway_client::GatewayClient,
-    scope: &vw_api_agent_scheduler::AgentSchedulerScopeDto,
-    requests: &[vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest],
+    scope: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto,
+    requests: &[vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest],
 ) -> Result<(), String> {
     for request in requests {
         client.agent_scheduler_create_task(scope, request).await?;
@@ -743,10 +743,10 @@ pub(crate) async fn register_pending_agent_scheduler_tasks(
 }
 
 fn should_send_agent_scheduler_command_after_create(
-    command: vw_api_agent_scheduler::AgentSchedulerCommandKindDto,
-    status: &vw_api_agent_scheduler::AgentTaskStatusDto,
+    command: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto,
+    status: &vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto,
 ) -> bool {
-    use vw_api_agent_scheduler::{
+    use vw_gateway_client::vw_api_types::agent_scheduler::{
         AgentSchedulerCommandKindDto, AgentTaskStatusDto,
     };
 
@@ -767,8 +767,8 @@ pub(crate) fn send_agent_scheduler_command(
     project_path: String,
     task: Task,
     workflow_id: String,
-    command: vw_api_agent_scheduler::AgentSchedulerCommandKindDto,
-    dispatch_mode: vw_api_agent_scheduler::AgentSchedulerDispatchModeDto,
+    command: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto,
+    dispatch_mode: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto,
     max_concurrent: Option<u32>,
     reason: Option<String>,
 ) -> iced::Task<crate::app::Message> {
@@ -790,7 +790,7 @@ pub(crate) fn send_agent_scheduler_command(
             let command_result = client
                 .agent_scheduler_command(
                     &scope,
-	                    &vw_api_agent_scheduler::AgentSchedulerCommandRequest {
+	                    &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {
 	                        task_id: vw_api_transport::TaskId(task_id.clone()),
                         command,
                         dispatch_mode,

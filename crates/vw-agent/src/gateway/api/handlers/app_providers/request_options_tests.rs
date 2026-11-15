@@ -98,8 +98,7 @@ async fn cc04_ui_endpoints_options_survive_native_save_and_never_return_secrets(
     let f = Fixture::new().await;
     for app in [AppId::Claude, AppId::Codex] {
         let result = f
-            .client
-            .app_provider_request_options_save(app, "fixture", &request(), TOKEN)
+            .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_request_options_save(app, "fixture", &request(), TOKEN)
             .await
             .unwrap();
         assert!(result.headers_configured && result.overrides_configured);
@@ -139,8 +138,7 @@ async fn cc04_ui_endpoints_options_survive_native_save_and_never_return_secrets(
             "fake-sensitive-header"
         );
         assert_eq!(
-            f.client
-                .app_provider_request_options_read(app, "fixture", &target(), TOKEN)
+            gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_request_options_read(app, "fixture", &target(), TOKEN)
                 .await
                 .unwrap(),
             result
@@ -162,22 +160,19 @@ async fn cc04_ui_endpoints_options_permissions_validation_and_explicit_clear() {
     let f = Fixture::new().await;
     let before = f.row(AppId::Claude);
     assert!(
-        f.client
-            .app_provider_request_options_save(AppId::Claude, "fixture", &request(), "invalid")
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_request_options_save(AppId::Claude, "fixture", &request(), "invalid")
             .await
             .is_err()
     );
     assert!(
-        f.client
-            .app_provider_request_options_read(AppId::Claude, "fixture", &target(), "invalid")
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_request_options_read(AppId::Claude, "fixture", &target(), "invalid")
             .await
             .is_err()
     );
     let mut invalid = request();
     invalid.target_host_id = "another-host".into();
     assert!(
-        f.client
-            .app_provider_request_options_save(AppId::Claude, "fixture", &invalid, TOKEN)
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_request_options_save(AppId::Claude, "fixture", &invalid, TOKEN)
             .await
             .is_err()
     );
@@ -192,22 +187,19 @@ async fn cc04_ui_endpoints_options_permissions_validation_and_explicit_clear() {
         .unwrap()
         .insert("Authorization".into(), "secret".into());
     assert!(
-        f.client
-            .app_provider_request_options_save(AppId::Claude, "fixture", &invalid, TOKEN)
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_request_options_save(AppId::Claude, "fixture", &invalid, TOKEN)
             .await
             .is_err()
     );
     assert_eq!(before, f.row(AppId::Claude));
-    f.client
-        .app_provider_request_options_save(AppId::Claude, "fixture", &request(), TOKEN)
+    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_request_options_save(AppId::Claude, "fixture", &request(), TOKEN)
         .await
         .unwrap();
     let clear: RequestOptionsWrite =
         serde_json::from_value(json!({"targetHostId":"host","options":{"requestHeaders":{}}}))
             .unwrap();
     let result = f
-        .client
-        .app_provider_request_options_save(AppId::Claude, "fixture", &clear, TOKEN)
+        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_request_options_save(AppId::Claude, "fixture", &clear, TOKEN)
         .await
         .unwrap();
     assert!(!result.headers_configured && result.overrides_configured);
@@ -216,8 +208,7 @@ async fn cc04_ui_endpoints_options_permissions_validation_and_explicit_clear() {
     )
     .unwrap();
     let result = f
-        .client
-        .app_provider_request_options_save(AppId::Claude, "fixture", &clear, TOKEN)
+        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_request_options_save(AppId::Claude, "fixture", &clear, TOKEN)
         .await
         .unwrap();
     assert!(!result.headers_configured && !result.overrides_configured);
@@ -231,8 +222,7 @@ async fn cc04_ui_endpoints_native_address_book_persists_full_url_and_server_time
     let f = Fixture::new().await;
     let url = "https://fixture.test/v1/messages/".to_string();
     let rows = f
-        .client
-        .app_provider_endpoint_change(
+        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
             AppId::Claude,
             "fixture",
             &Change::Add { url: url.clone(), kind: Kind::FullUrl },
@@ -244,8 +234,7 @@ async fn cc04_ui_endpoints_native_address_book_persists_full_url_and_server_time
     assert!(rows[0].added_at > 0);
     assert_eq!(rows[0].last_used, None);
     let rows = f
-        .client
-        .app_provider_endpoint_change(
+        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
             AppId::Claude,
             "fixture",
             &Change::MarkUsed { url: url.clone(), kind: Kind::FullUrl },
@@ -253,14 +242,13 @@ async fn cc04_ui_endpoints_native_address_book_persists_full_url_and_server_time
         .await
         .unwrap();
     assert!(rows[0].last_used.unwrap() >= rows[0].added_at);
-    assert_eq!(f.client.app_provider_endpoints(AppId::Claude, "fixture").await.unwrap(), rows);
+    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_endpoints(AppId::Claude, "fixture").await.unwrap(), rows);
     let stored: Value = serde_json::from_str(&f.row(AppId::Claude)).unwrap();
     assert_eq!(stored["customEndpoints"], serde_json::to_value(&rows).unwrap());
     assert_eq!(stored["claude"]["config"]["api_key"], "fake-secret");
     let before = f.row(AppId::Claude);
     assert!(
-        f.client
-            .app_provider_endpoint_change(
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_endpoint_change(
                 AppId::Claude,
                 "fixture",
                 &Change::Add {
@@ -273,8 +261,7 @@ async fn cc04_ui_endpoints_native_address_book_persists_full_url_and_server_time
     );
     assert_eq!(f.row(AppId::Claude), before);
     assert!(
-        f.client
-            .app_provider_endpoint_change(
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_endpoint_change(
                 AppId::Claude,
                 "fixture",
                 &Change::Remove { url, kind: Kind::FullUrl }

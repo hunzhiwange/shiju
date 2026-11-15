@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 use tower::ServiceExt;
 use uuid::Uuid;
-use vw_api_agent_scheduler::{
+use vw_api_types::agent_scheduler::{
     AgentCapabilityDto, AgentCapabilityKindDto, AgentSchedulerBulkCommandRequest,
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,

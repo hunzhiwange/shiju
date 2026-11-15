@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use serde_json::{Value, json};
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_chat::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 use {
     vw_api_transport::id::ProjectId,

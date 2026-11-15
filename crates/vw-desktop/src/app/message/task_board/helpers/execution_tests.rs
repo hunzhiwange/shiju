@@ -74,7 +74,7 @@ fn append_task_log_stream_updates_subtask_execution_status() {
 
 #[test]
 fn start_command_skips_created_in_flight_task() {
-    use vw_api_agent_scheduler::{
+    use vw_gateway_client::vw_api_types::agent_scheduler::{
         AgentSchedulerCommandKindDto, AgentTaskStatusDto,
     };
 
@@ -741,7 +741,7 @@ fn worktree_recycle_failure_log_explains_gateway_cleanup_ownership() {
 #[test]
 fn scheduler_status_mapping_covers_every_builtin_task_status() {
     use crate::app::task::TaskStatus;
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
+    use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;
 
     for (status, expected) in [
         (TaskStatus::Pool, AgentTaskStatusDto::Draft),
@@ -843,7 +843,7 @@ fn code_review_selection_honors_exclusions_and_priority_order() {
 #[test]
 fn wake_scheduler_requests_include_pool_queued_and_planning_tasks() {
     use crate::app::task::{Task, TaskStatus};
-    use vw_api_agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
+    use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
 
     let mut pending = Task::new(1);
     pending.id = "pending".to_string();
@@ -906,7 +906,7 @@ fn scheduler_create_request_uses_prompt_title_and_saturates_timestamp() {
 #[test]
 fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
     use crate::app::task::{Task, TaskStatus, update_runtime_task_lifecycle_cache};
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
+    use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;
     use vw_api_task_lifecycle::{
         TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
     };

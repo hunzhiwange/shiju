@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
+use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 
 use super::GatewayClient;
 

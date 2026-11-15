@@ -5,7 +5,7 @@ use ::postgres::types::ToSql;
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 use vw_api_task::TaskPoolWorkflowSnapshotDto;
 

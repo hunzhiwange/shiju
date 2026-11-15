@@ -1,7 +1,7 @@
 use std::net::TcpListener;
 use std::path::PathBuf;
 
-use vw_api_agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
 use vw_tui::{V3Action, V3ApprovalDecision};

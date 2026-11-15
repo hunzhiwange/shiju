@@ -118,7 +118,7 @@ async fn cc04_mode_state_sdk_api_reads_persisted_state_and_safe_decision_without
     let db_before = std::fs::read(f.db.sqlite_path().unwrap()).unwrap();
     let mut q = query();
     q.provider_id = Some("saved".into());
-    let status = f.client.provider_mode_state(AppId::Claude, &q, TOKEN).await.unwrap();
+    let status = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &q, TOKEN).await.unwrap();
     assert_eq!(status.direct_provider.as_deref(), Some("saved"));
     assert_eq!(status.in_use_provider.as_deref(), Some("saved"));
     assert!(!status.stack.active);
@@ -141,7 +141,7 @@ async fn cc04_mode_state_sdk_api_reads_persisted_state_and_safe_decision_without
     mode.attached = false;
     tx.commit(&tenant(), &mut guard, &[], PendingTarget { mode: Some(mode), ..Default::default() })
         .unwrap();
-    let status = f.client.provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap();
+    let status = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap();
     assert_eq!(status.in_use_provider.as_deref(), Some("route"));
     assert!(status.stack.active);
     assert!(!status.attached);
@@ -163,7 +163,7 @@ async fn cc04_mode_state_denial_unknown_fields_and_unavailable_proxy_do_not_writ
             503,
         ),
     ] {
-        let error = f.client.provider_mode_state(AppId::Claude, &q, token).await.unwrap_err();
+        let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &q, token).await.unwrap_err();
         assert!(
             matches!(error,vw_gateway_client::AgentAppsReadError::Http{status,..} if status==expected)
         );
@@ -173,7 +173,7 @@ async fn cc04_mode_state_denial_unknown_fields_and_unavailable_proxy_do_not_writ
 #[tokio::test]
 async fn cc04_mode_state_missing_state_is_empty_without_provisioning() {
     let f = Fixture::new().await;
-    let view = f.client.provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap();
+    let view = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap();
     assert_eq!(view.mode, ProviderMode::Direct);
     assert!(view.direct_provider.is_none());
     assert!(view.in_use_provider.is_none());
@@ -209,12 +209,12 @@ async fn cc04_mode_state_forged_contract_foreign_owner_and_pending_are_rejected(
     let mut state: AppState = serde_json::from_slice(&before).unwrap();
     state.mode_tenant = Some(TenantScope::new("p", "other").unwrap());
     std::fs::write(&path, serde_json::to_vec(&state).unwrap()).unwrap();
-    let error = f.client.provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
+    let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
     assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
     std::fs::write(&path, &before).unwrap();
     let pending = path.with_file_name("claude.pending.json");
     std::fs::write(&pending,serde_json::to_vec(&json!({"version":4,"host":"host","app":"claude","tenant":tenant(),"directory_device":0,"directory_inode":0,"target":{},"files":[],"published":false})).unwrap()).unwrap();
-    let error = f.client.provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
+    let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
     assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }));
     assert_eq!(std::fs::read(&path).unwrap(), before);
     assert!(pending.exists());
@@ -241,7 +241,7 @@ async fn aggregation_t39_legacy_mode_read_rejects_project_owned_state() {
     .unwrap();
     drop(guard);
     let before = std::fs::read(&path).unwrap();
-    let error = f.client.provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
+    let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
     assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
     assert_eq!(std::fs::read(path).unwrap(), before);
 }

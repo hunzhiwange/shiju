@@ -2,7 +2,7 @@
 //! 连接失败和事务回滚路径显式覆盖，初始化不得留下部分写入。
 
 use anyhow::Result;
-use vw_api_agent_scheduler::AgentSchedulerScope;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

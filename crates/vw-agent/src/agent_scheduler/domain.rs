@@ -3,7 +3,7 @@
 use anyhow::{Result, bail};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use vw_api_agent_scheduler::{
+use vw_api_types::agent_scheduler::{
     AgentCapabilityDto, AgentCapabilityKindDto, AgentResourceLeaseDto, AgentResourceLeaseStatusDto,
     AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
     AgentTaskStatusDto, TaskDependencyNodeDto,

@@ -3,7 +3,7 @@
 //! 本模块负责把可审计的运行时事件写入工作区内文件，并提供按事件类型、文本和 ID 查询的读取入口。
 //! 写入路径使用私有文件权限和显式存储模式，避免在未配置时悄悄持久化运行时数据。
 
-use crate::app::agent::config::ObservabilityConfig;
+use config_observability::ObservabilityConfig;
 use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

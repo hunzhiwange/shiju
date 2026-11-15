@@ -4,7 +4,7 @@ use super::*;
 use iced::Size;
 use serde_yaml::Value;
 
-use crate::apps::workflow::model::{
+use desktop_workflow_model::{
     WorkflowDocument, WorkflowHandleSide, WorkflowNodeIconDescriptor,
 };
 
@@ -103,7 +103,7 @@ fn context_node_picker_button_builds_create_context_node_action() {
         .expect("llm node type should be registered");
 
     let element =
-        context_node_picker_button(crate::app::i18n::I18n::new(Default::default()), node_type);
+        context_node_picker_button(desktop_i18n::I18n::new(Default::default()), node_type);
 
     assert_element_size(&element, Length::Fill, Length::Shrink);
     assert_eq!(element.as_widget().children().len(), 1);
@@ -113,7 +113,7 @@ fn context_node_picker_button_builds_create_context_node_action() {
 fn context_node_picker_buttons_keep_uniform_width_for_all_registered_nodes() {
     for node_type in supported_node_types().iter().copied() {
         let element =
-            context_node_picker_button(crate::app::i18n::I18n::new(Default::default()), node_type);
+            context_node_picker_button(desktop_i18n::I18n::new(Default::default()), node_type);
 
         assert_element_size(&element, Length::Fill, Length::Shrink);
         assert_eq!(element.as_widget().children().len(), 1, "{}", node_type.block_type);
@@ -129,7 +129,7 @@ fn context_node_picker_menu_includes_start_when_state_has_no_start() {
     assert!(node_types.iter().any(|node_type| { node_type.block_type == "start" }));
 
     let element = build_context_node_picker_menu(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "添加节点",
         "选择要创建的节点类型。",
@@ -149,7 +149,7 @@ fn context_node_picker_menu_excludes_start_when_requested() {
     assert!(!node_types.iter().any(|node_type| { node_type.block_type == "start" }));
 
     let element = build_context_node_picker_menu(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "添加下游节点",
         "选择下游节点类型。",
@@ -175,7 +175,7 @@ fn context_node_picker_menu_excludes_start_when_document_already_has_start() {
     assert!(!node_types.iter().any(|node_type| { node_type.block_type == "start" }));
 
     let element = build_context_node_picker_menu(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "添加节点",
         "开始节点已存在。",
@@ -188,7 +188,7 @@ fn context_node_picker_menu_excludes_start_when_document_already_has_start() {
 
 #[test]
 fn error_banner_builds_dismissible_error_element() {
-    let element = error_banner(crate::app::i18n::I18n::new(Default::default()), "保存失败");
+    let element = error_banner(desktop_i18n::I18n::new(Default::default()), "保存失败");
 
     assert_element_size(&element, Length::Fill, Length::Shrink);
     assert_eq!(element.as_widget().children().len(), 3);

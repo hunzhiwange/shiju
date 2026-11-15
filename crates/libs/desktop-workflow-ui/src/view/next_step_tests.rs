@@ -4,10 +4,10 @@ use super::*;
 use iced::{Point, Size, widget::text_editor};
 use serde_yaml::Value;
 
-use crate::apps::workflow::model::{
+use desktop_workflow_model::{
     WorkflowDocument, WorkflowHandle, WorkflowHandleKind, WorkflowHandleSide,
 };
-use crate::apps::workflow::state::{WorkflowNodeEditorDraft, WorkflowNodeEditorValidation};
+use desktop_workflow_state::state::{WorkflowNodeEditorDraft, WorkflowNodeEditorValidation};
 
 fn workflow_node(id: &str, block_type: &str, source_handles: Vec<WorkflowHandle>) -> WorkflowNode {
     WorkflowNode {
@@ -112,12 +112,12 @@ fn build_node_next_step_existing_item_handles_empty_and_custom_description() {
     };
 
     let empty_description_element = build_node_next_step_existing_item(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &edge,
         &empty_description,
     );
     let described_element = build_node_next_step_existing_item(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &edge,
         &described_node,
     );
@@ -131,7 +131,7 @@ fn build_node_next_step_section_handles_create_mode() {
     let editor = create_editor("answer");
 
     let element = build_node_next_step_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
     );
@@ -152,7 +152,7 @@ fn build_node_next_step_section_handles_edit_mode_without_fail_branch() {
     let editor = code_editor_with_error_strategy("code_1", "none");
 
     let element = build_node_next_step_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
     );
@@ -181,7 +181,7 @@ fn build_node_next_step_section_handles_saved_fail_branch() {
     let editor = code_editor_with_error_strategy("code_1", "none");
 
     let element = build_node_next_step_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
     );
@@ -198,7 +198,7 @@ fn build_node_next_step_section_handles_draft_fail_branch() {
     let editor = code_editor_with_error_strategy("code_1", "fail-branch");
 
     let element = build_node_next_step_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
     );
@@ -247,14 +247,14 @@ fn build_node_next_step_connection_list_handles_empty_and_dangling_edges() {
     });
 
     let default_list = build_node_next_step_connection_list(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "code_1",
         None,
         "空",
     );
     let fail_branch_list = build_node_next_step_connection_list(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "code_1",
         Some("fail-branch"),
@@ -280,14 +280,14 @@ fn build_node_next_step_connection_list_filters_default_and_fail_branch_edges() 
     });
 
     let default_list = build_node_next_step_connection_list(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "code_1",
         None,
         "空",
     );
     let fail_branch_list = build_node_next_step_connection_list(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         "code_1",
         Some("fail-branch"),

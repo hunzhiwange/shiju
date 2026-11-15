@@ -48,7 +48,7 @@ fn state_with_editor(editor: state::WorkflowNodeEditorDraft) -> WorkflowState {
 fn modal_without_editor_builds_empty_placeholder() {
     let state = WorkflowState::default();
 
-    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_node_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, None, |message| message);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn modal_builds_visual_tab_with_answer_editor() {
     let state =
         state_with_editor(editor_with_tab(WorkflowNodeEditorTab::Visual, Some(answer_visual())));
 
-    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_node_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, None, |message| message);
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn node_editor_drawer_uses_two_fifths_of_the_workflow_width() {
 fn modal_falls_back_from_missing_visual_tab_to_description() {
     let state = state_with_editor(editor_with_tab(WorkflowNodeEditorTab::Visual, None));
 
-    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_node_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, None, |message| message);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn modal_builds_description_basic_and_advanced_tabs() {
         let state = state_with_editor(editor_with_tab(tab, Some(answer_visual())));
 
         let _element =
-            build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+            build_node_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, None, |message| message);
     }
 }
 
@@ -95,7 +95,7 @@ fn modal_without_visual_draft_keeps_non_visual_tabs_active() {
         let state = state_with_editor(editor_with_tab(tab, None));
 
         let _element =
-            build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+            build_node_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, None, |message| message);
     }
 }
 
@@ -108,7 +108,7 @@ fn modal_builds_validation_summary_when_editor_has_errors() {
     });
     let state = state_with_editor(editor);
 
-    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_node_editor_modal(desktop_i18n::I18n::new(Default::default()), &state, None, |message| message);
 }
 
 #[test]
@@ -123,14 +123,14 @@ fn node_editor_parts_build_individually() {
         88.0,
     );
     let _header =
-        build_node_editor_header(crate::app::i18n::I18n::new(Default::default()), &editor);
+        build_node_editor_header(desktop_i18n::I18n::new(Default::default()), &editor);
     let _tabs_with_visual = build_node_editor_tabs(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         true,
         WorkflowNodeEditorTab::Visual,
     );
     let _tabs_without_visual = build_node_editor_tabs(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         false,
         WorkflowNodeEditorTab::Basic,
     );
@@ -145,19 +145,19 @@ fn node_editor_parts_build_individually() {
         WorkflowNodeEditorTab::Visual,
     );
     let _description =
-        build_node_description_section(crate::app::i18n::I18n::new(Default::default()), &editor);
-    let _hint = build_node_connection_hint(crate::app::i18n::I18n::new(Default::default()));
+        build_node_description_section(desktop_i18n::I18n::new(Default::default()), &editor);
+    let _hint = build_node_connection_hint(desktop_i18n::I18n::new(Default::default()));
     let state = state_with_editor(editor_with_tab(
         WorkflowNodeEditorTab::AdvancedDsl,
         Some(answer_visual()),
     ));
     let _advanced = build_node_advanced_dsl_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         state.node_editor.as_ref().expect("node editor"),
     );
     let _placeholder =
-        build_node_visual_placeholder(crate::app::i18n::I18n::new(Default::default()));
+        build_node_visual_placeholder(desktop_i18n::I18n::new(Default::default()));
 }
 
 #[test]
@@ -220,16 +220,16 @@ fn advanced_dsl_shortcuts_use_platform_command_for_undo_and_redo() {
 
     assert!(matches!(
         undo,
-        Some(text_editor::Binding::Custom(Message::WorkflowTool(
+        Some(text_editor::Binding::Custom(
             WorkflowMessage::NodeEditorDslUndo
-        )))
+        ))
     ));
     for redo in [redo_with_shift, redo_with_y] {
         assert!(matches!(
             redo,
-            Some(text_editor::Binding::Custom(Message::WorkflowTool(
+            Some(text_editor::Binding::Custom(
                 WorkflowMessage::NodeEditorDslRedo
-            )))
+            ))
         ));
     }
 }

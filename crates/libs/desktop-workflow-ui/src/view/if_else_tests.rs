@@ -42,7 +42,7 @@ fn visual_section_handles_empty_cases() {
     let validation = state::WorkflowNodeEditorValidation::default();
 
     let _element = build_if_else_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &cases,
         &validation,
     );
@@ -54,7 +54,7 @@ fn visual_section_renders_case_list() {
     let validation = state::WorkflowNodeEditorValidation::default();
 
     let element = build_if_else_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &cases,
         &validation,
     );
@@ -76,7 +76,7 @@ fn visual_section_renders_multiple_cases_with_mixed_conditions() {
     let validation = validation_with_errors(&["if_else.cases[1].conditions"]);
 
     let element = build_if_else_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &cases,
         &validation,
     );
@@ -106,7 +106,7 @@ fn visual_section_passes_validation_to_nested_condition_fields() {
     ]);
 
     let element = build_if_else_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &cases,
         &validation,
     );
@@ -120,7 +120,7 @@ fn case_card_handles_empty_conditions_without_validation_error() {
     let validation = state::WorkflowNodeEditorValidation::default();
 
     let element = build_if_else_case_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &case,
         &validation,
@@ -142,7 +142,7 @@ fn case_card_renders_validation_errors_and_conditions() {
     ]);
 
     let element = build_if_else_case_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         2,
         &case,
         &validation,
@@ -161,7 +161,7 @@ fn case_card_ignores_validation_for_other_case_indexes() {
     ]);
 
     let element = build_if_else_case_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &case,
         &validation,
@@ -176,7 +176,7 @@ fn condition_card_renders_without_validation_errors() {
     let validation = state::WorkflowNodeEditorValidation::default();
 
     let element = build_if_else_condition_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         1,
         3,
         &condition,
@@ -197,7 +197,7 @@ fn condition_card_renders_field_validation_errors() {
     ]);
 
     let element = build_if_else_condition_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         1,
         3,
         &condition,
@@ -224,7 +224,7 @@ fn condition_card_uses_indexes_when_building_change_messages() {
     ]);
 
     let element = build_if_else_condition_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         4,
         2,
         &condition,
@@ -246,7 +246,7 @@ fn condition_card_accepts_blank_draft_values_before_validation() {
 
     let validation = state::WorkflowNodeEditorValidation::default();
     let element = build_if_else_condition_card(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         0,
         &condition,

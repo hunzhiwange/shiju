@@ -22,7 +22,7 @@ use crate::app::{App, AppTab, Message, Screen};
 use iced::Task;
 
 pub(crate) const WORKFLOW_TOOL_TAB_ID: &str = "workflow_tool";
-pub(crate) const NODE_EDITOR_DSL_EDITOR_ID: &str = "workflow-node-advanced-dsl-editor";
+pub(crate) use desktop_workflow_ui::view::node_editor::NODE_EDITOR_DSL_EDITOR_ID;
 
 pub(crate) fn sync_top_tab(app: &mut App) {
     let title = app.workflow_state.display_title(crate::app::i18n::I18n::new(app.desktop_locale));

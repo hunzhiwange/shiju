@@ -101,41 +101,12 @@ pub(super) fn modal_backdrop_style(theme: &Theme) -> iced::widget::container::St
 pub(super) use desktop_workflow_ui::view::styles::modal_card_style;
 
 /// 节点编辑器作为覆盖画布的右侧抽屉展示，不使用模态圆角与遮罩。
-pub(super) fn node_editor_drawer_style(theme: &Theme) -> iced::widget::container::Style {
-    let mut style = settings_modal_card_style(theme);
-    if let Some(Background::Color(background)) = &mut style.background {
-        background.a = 1.0;
-    }
-    style.border.radius = 0.0.into();
-    style.shadow = Shadow {
-        color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.28 } else { 0.16 }),
-        offset: Vector::new(-8.0, 0.0),
-        blur_radius: 24.0,
-    };
-    style
-}
+pub(super) use desktop_workflow_ui::view::node_editor::node_editor_drawer_style;
 
 /// 提供 validation summary style 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn validation_summary_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.danger.weak.color.scale_alpha(0.20))),
-        text_color: Some(if is_dark_theme(theme) {
-            palette.background.base.text
-        } else {
-            palette.danger.base.color
-        }),
-        border: Border {
-            color: palette.danger.base.color.scale_alpha(0.45),
-            width: 1.0,
-            radius: 16.0.into(),
-        },
-        ..Default::default()
-    }
-}
+pub(super) use desktop_workflow_ui::view::node_editor::validation_summary_style;
 
 #[cfg(test)]
 #[path = "styles_tests.rs"]

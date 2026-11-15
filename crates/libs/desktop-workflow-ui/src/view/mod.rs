@@ -3,12 +3,12 @@ use desktop_workflow_model::{
     WorkflowNodeIconDescriptor, WorkflowNodeTypeDescriptor,
     supported_node_types, workflow_node_accent_color,
 };
-#[cfg(test)]
-use desktop_workflow_model::{WorkflowEdge, WorkflowNode};
+use desktop_workflow_model::{WorkflowEdge, WorkflowNode, pretty_block_type, workflow_node_icon};
 use desktop_workflow_state::state;
 use desktop_workflow_state::state::{
     WorkflowCanvasContextMenuTarget, WorkflowDataNodeEdit, WorkflowHttpRequestEdit,
     WorkflowNodeRetryDraft, WorkflowState, WorkflowVariablePanelKind,
+    WorkflowNodeEditorTab, WorkflowNodeVisualDraft, WorkflowNodeEditorMode,
 };
 use crate::message::WorkflowMessage;
 type Message = WorkflowMessage;
@@ -21,6 +21,7 @@ use desktop_ui_controls::system_settings_common::{
     settings_modal_header, settings_modal_layout, settings_modal_overlay,
     settings_muted_text_style, settings_panel_style, settings_select, settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
+use desktop_ui_controls::system_settings_common::settings_segment_button_style;
 use iced::widget::{
     Space, button, checkbox, container, image, scrollable,
     scrollable::{Direction, Scrollbar},
@@ -70,6 +71,14 @@ pub mod header;
 use header::*;
 pub mod http_request;
 use http_request::*;
+pub mod if_else;
+use if_else::*;
+pub mod next_step;
+use next_step::*;
+pub mod node_editor_fields;
+pub mod node_visual;
+#[cfg(test)]
+mod node_editor_fields_tests;
 pub mod menu;
 use menu::*;
 pub mod node_editor;

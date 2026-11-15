@@ -59,10 +59,6 @@ mod video_edit;
 #[cfg(test)]
 mod video_edit_tests;
 
-#[cfg(test)]
-#[path = "node_editor_fields_tests.rs"]
-mod node_editor_fields_tests;
-
 use app_editor::*;
 use app_list::*;
 use canvas_shell::*;
@@ -100,48 +96,7 @@ pub(super) use desktop_workflow_ui::view::is_dark_theme;
 
 pub(super) use desktop_workflow_ui::view::workflow_text_input;
 
-fn next_step_jump_card_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let extended = theme.extended_palette();
-    let is_dark = is_dark_theme(theme);
-
-    let background = match status {
-        iced::widget::button::Status::Pressed => {
-            Some(Background::Color(extended.background.strong.color.scale_alpha(0.92)))
-        }
-        iced::widget::button::Status::Hovered => {
-            Some(Background::Color(extended.background.weak.color.scale_alpha(if is_dark {
-                0.92
-            } else {
-                0.96
-            })))
-        }
-        _ => Some(Background::Color(if is_dark {
-            extended.background.base.color.scale_alpha(0.86)
-        } else {
-            Color::WHITE.scale_alpha(0.82)
-        })),
-    };
-
-    iced::widget::button::Style {
-        background,
-        border: Border {
-            width: 1.0,
-            color: match status {
-                iced::widget::button::Status::Pressed => theme.palette().primary.scale_alpha(0.72),
-                iced::widget::button::Status::Hovered => theme.palette().primary.scale_alpha(0.34),
-                _ => {
-                    extended.background.strong.color.scale_alpha(if is_dark { 0.56 } else { 0.14 })
-                }
-            },
-            radius: 14.0.into(),
-        },
-        text_color: theme.palette().text,
-        ..Default::default()
-    }
-}
+use desktop_workflow_ui::view::next_step::next_step_jump_card_style;
 
 use desktop_workflow_ui::view::{WorkflowAppSwitchOption, WorkflowAppSwitchSource};
 

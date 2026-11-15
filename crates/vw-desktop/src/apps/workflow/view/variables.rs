@@ -387,30 +387,7 @@ pub(super) fn build_node_validation_summary(
     i18n: crate::app::i18n::I18n,
     validation: &super::state::WorkflowNodeEditorValidation,
 ) -> Element<'_, Message> {
-    let mut items = column![
-        text(i18n.__("当前节点还有未修正的字段")).size(14),
-        text(i18n.__("请先处理下面这些错误，再保存节点。")).size(12),
-    ]
-    .spacing(6);
-
-    for error in validation.field_errors.iter().take(8) {
-        items = items.push(text(format!("- {}", error.message.render(i18n))).size(12));
-    }
-
-    if validation.field_errors.len() > 8 {
-        items = items.push(
-            text(
-                i18n.format(
-                    "还有 %s 项未展示",
-                    &[(validation.field_errors.len() - 8).to_string().into()],
-                )
-                .expect("valid workflow display template"),
-            )
-            .size(12),
-        );
-    }
-
-    container(items).padding([12, 14]).style(validation_summary_style).into()
+    desktop_workflow_ui::view::node_editor::build_node_validation_summary(i18n, validation).map(Message::WorkflowTool)
 }
 
 /// 构建 inline error 对应的界面元素。

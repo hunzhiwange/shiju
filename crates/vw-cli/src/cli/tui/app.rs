@@ -55,7 +55,7 @@ use super::model::{
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiMessageOrigin,
     UiOverlay, UiPermissionOverlay, UiStepState, UiTodoOverlay, UiTurnTerminal, UiUserMessage,
 };
-use super::paste::{PromptAttachment, PromptAttachmentKind};
+use super::model::paste::{PromptAttachment, PromptAttachmentKind};
 use super::runtime::capabilities::load_session_capabilities_blocking;
 use super::runtime::cron::{
     CronDetailView, CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
@@ -2422,7 +2422,7 @@ impl V3GatewayApp {
             fast: self.state.session_options.fast,
             theme: self.state.theme_name.clone(),
             permission_mode: self.state.session_options.permission_mode,
-            vim_mode: super::vim::VimMode::Disabled,
+            vim_mode: super::model::vim::VimMode::Disabled,
         }
     }
 

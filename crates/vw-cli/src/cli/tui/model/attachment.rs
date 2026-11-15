@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use vw_tui::{V3Attachment, V3AttachmentKind};
 
-use crate::cli::tui::paste::{PromptAttachment, PromptAttachmentKind};
+use super::paste::{PromptAttachment, PromptAttachmentKind};
 
 use super::UiMessageBase;
 

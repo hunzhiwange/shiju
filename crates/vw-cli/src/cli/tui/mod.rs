@@ -9,12 +9,9 @@ pub(crate) mod app;
 pub(crate) mod bridge;
 pub(crate) mod commands;
 pub(crate) mod controller;
-pub(crate) mod editor;
 pub(crate) mod model;
-pub(crate) mod paste;
 pub(crate) mod runtime;
 pub(crate) mod state;
-pub(crate) mod vim;
 
 #[cfg(not(test))]
 pub(crate) use app::run_tui;

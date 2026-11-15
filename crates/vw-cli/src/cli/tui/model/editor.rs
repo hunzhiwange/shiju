@@ -6,7 +6,18 @@
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use super::model::{PromptMotion, PromptState};
+use super::prompt::PromptState;
+
+/// prompt 光标移动方向。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PromptMotion {
+    Left,
+    Right,
+    Up,
+    Down,
+    Home,
+    End,
+}
 
 /// 用字素索引表示的选区，`anchor` 在扩展选择时保持不变。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

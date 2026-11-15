@@ -6,9 +6,9 @@
 //! - 忙碌期间的 queued commands
 //! - 一次提交请求的最小生命周期模型
 
-use crate::cli::tui::editor::{EditorCommand, EditorState, apply_editor_command, grapheme_count};
-use crate::cli::tui::paste::PromptAttachment;
-use crate::cli::tui::vim::VimMode;
+use super::editor::{EditorCommand, EditorState, PromptMotion, apply_editor_command, grapheme_count};
+use super::paste::PromptAttachment;
+use super::vim::VimMode;
 
 use super::session_mode::SessionExecutionSnapshot;
 
@@ -118,17 +118,6 @@ fn is_sensitive_history_entry(entry: &str) -> bool {
     ]
     .iter()
     .any(|marker| normalized.contains(marker))
-}
-
-/// prompt 光标移动方向。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PromptMotion {
-    Left,
-    Right,
-    Up,
-    Down,
-    Home,
-    End,
 }
 
 /// 忙碌期间排队等待重放的命令类型。

@@ -4,7 +4,7 @@
 //! 能力矩阵负责标记不可用项，界面不伪造 Gateway 尚未提供的持久化能力。
 
 use super::session_mode::{GoalMode, PermissionMode, ReasoningEffort, WorkflowMode};
-use crate::cli::tui::vim::VimMode;
+use super::vim::VimMode;
 
 /// 稳定标识一个设置行，用于选择、过滤与值渲染。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

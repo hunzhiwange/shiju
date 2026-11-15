@@ -39,3 +39,24 @@ pub mod aggregation_desktop;
 pub mod exit_host;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod aggregation_exit;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aggregation_omo;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aggregation_omp;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aggregation_pi;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aggregation_read;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aggregation_publish;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod publish_host;
+
+#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
+pub mod aggregation_read_snapshot;

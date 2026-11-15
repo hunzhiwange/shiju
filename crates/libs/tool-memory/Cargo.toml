@@ -1,0 +1,21 @@
+[package]
+name = "tool-memory"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-security = { path = "../agent-security", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+memory-types = { path = "../memory-types", version = "0.6.0" }
+serde_json = "1"
+tool-types = { path = "../tool-types", version = "0.6.0" }
+
+[dev-dependencies]
+memory-sqlite = { path = "../memory-sqlite", version = "0.6.0" }
+tempfile = "3"
+tokio = { version = "1", features = ["rt", "macros"] }

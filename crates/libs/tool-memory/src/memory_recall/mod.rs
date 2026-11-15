@@ -3,8 +3,8 @@
 //! 从长期记忆中搜索相关的事实、偏好或上下文。返回按相关性排序的结果，
 //! 支持限制返回数量。
 
-use super::traits::{Tool, ToolResult};
-use crate::app::agent::memory::Memory;
+use tool_types::{Tool, ToolResult};
+use memory_types::memory::Memory;
 use async_trait::async_trait;
 use serde_json::json;
 use std::fmt::Write;

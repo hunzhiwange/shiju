@@ -95,9 +95,7 @@ pub mod mcp_inspect;
 pub(crate) mod mcp_resource;
 pub mod mcp_status;
 pub mod mcp_tool;
-pub mod memory_forget;
-pub mod memory_recall;
-pub mod memory_store;
+pub use tool_memory::{memory_forget, memory_recall, memory_store};
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pdf_read;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]

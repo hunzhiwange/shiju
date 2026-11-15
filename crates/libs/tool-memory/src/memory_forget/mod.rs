@@ -19,10 +19,10 @@
 //! 所有删除操作都需通过安全策略检查，
 //! 只有被授权的操作才会被执行。
 
-use super::traits::{Tool, ToolResult};
-use crate::app::agent::memory::Memory;
-use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::security::policy::ToolOperation;
+use tool_types::{Tool, ToolResult};
+use memory_types::memory::Memory;
+use agent_security::SecurityPolicy;
+use agent_security::policy::ToolOperation;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;

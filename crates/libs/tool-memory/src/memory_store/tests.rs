@@ -15,9 +15,10 @@
 //! - `SecurityPolicy`：安全策略，用于控制工具执行权限
 //! - `TempDir`：临时目录，用于隔离测试环境
 
-use super::super::*;
-use crate::app::agent::memory::{MemoryCategory, SqliteMemory};
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use super::*;
+use memory_types::memory::MemoryCategory;
+use memory_sqlite::memory::sqlite::SqliteMemory;
+use agent_security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use tempfile::TempDir;
 

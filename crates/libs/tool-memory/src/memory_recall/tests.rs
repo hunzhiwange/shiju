@@ -15,8 +15,9 @@
 //! - `SqliteMemory`：使用 SQLite 作为测试用内存后端
 //! - `TempDir`：为每个测试创建独立的临时目录，确保测试隔离
 
-use super::super::*;
-use crate::app::agent::memory::{MemoryCategory, SqliteMemory};
+use super::*;
+use memory_types::memory::MemoryCategory;
+use memory_sqlite::memory::sqlite::SqliteMemory;
 use serde_json::json;
 use tempfile::TempDir;
 

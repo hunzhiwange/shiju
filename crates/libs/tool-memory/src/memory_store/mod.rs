@@ -3,10 +3,10 @@
 //! 将事实、偏好或笔记存储到长期记忆中。支持多种分类（core 永久、daily 会话、
 //! conversation 对话），用于代理的持久化知识存储。
 
-use super::traits::{Tool, ToolResult};
-use crate::app::agent::memory::{Memory, MemoryCategory};
-use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::security::policy::ToolOperation;
+use tool_types::{Tool, ToolResult};
+use memory_types::memory::{Memory, MemoryCategory};
+use agent_security::SecurityPolicy;
+use agent_security::policy::ToolOperation;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;

@@ -3,9 +3,10 @@
 //! 这些测试覆盖成功删除、空缺键、只读自治模式和速率限制，确保删除记忆必须经过
 //! 显式安全策略检查。
 
-use super::super::*;
-use crate::app::agent::memory::{MemoryCategory, SqliteMemory};
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use super::*;
+use memory_types::memory::MemoryCategory;
+use memory_sqlite::memory::sqlite::SqliteMemory;
+use agent_security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use tempfile::TempDir;
 

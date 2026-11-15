@@ -2,14 +2,14 @@
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::workflow::VideoEditTemplateOptions,
-    vw_api_types::workflow::WorkflowRecord,
-    vw_api_types::workflow::WorkflowRecordUpsertBody,
+    vw_api_workflow::VideoEditTemplateOptions,
+    vw_api_workflow::WorkflowRecord,
+    vw_api_workflow::WorkflowRecordUpsertBody,
 };
 
 pub use super::store::WorkflowStoreError;
 use crate::global_database::GlobalDatabase;
-pub use vw_api_types::workflow::VIDEO_EDIT_TEMPLATE_UUID;
+pub use vw_api_workflow::VIDEO_EDIT_TEMPLATE_UUID;
 
 pub const VIDEO_EDIT_TEMPLATE_NAME: &str = "通用云端视频剪辑";
 

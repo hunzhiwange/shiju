@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result, bail};
 use vw_api_transport::TenantScope;
-use vw_api_types::workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpsertBody};
+use vw_api_workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpsertBody};
 
 use crate::global_database::GlobalDatabase;
 

@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, fmt};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vw_api_types::workflow::{
+use vw_api_workflow::{
     WorkflowPauseDto, WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary,
     WorkflowRecordUpsertBody, WorkflowResumeRequest, WorkflowRunResponse,
 };

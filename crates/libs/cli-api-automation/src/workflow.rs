@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::json;
-use vw_gateway_client::vw_api_types::workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
+use vw_api_workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
 use vw_gateway_client::{
     GatewayWorkflowDefaultStreamRequest, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };

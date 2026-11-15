@@ -6,7 +6,7 @@ use std::sync::{
     Arc, Mutex,
     atomic::{AtomicUsize, Ordering},
 };
-use vw_api_types::workflow::{WorkflowNodeRunStatus, WorkflowRunRequest, WorkflowRunStatus};
+use vw_api_workflow::{WorkflowNodeRunStatus, WorkflowRunRequest, WorkflowRunStatus};
 
 struct DsmlProvider {
     responses: Vec<String>,
@@ -87,7 +87,7 @@ workflow:
 async fn run(
     responses: &[&str],
     streaming: bool,
-) -> (vw_api_types::workflow::WorkflowRunResponse, Arc<DsmlProvider>, Vec<WorkflowRunEvent>) {
+) -> (vw_api_workflow::WorkflowRunResponse, Arc<DsmlProvider>, Vec<WorkflowRunEvent>) {
     let provider = Arc::new(DsmlProvider {
         responses: responses.iter().map(|s| s.to_string()).collect(),
         streaming,

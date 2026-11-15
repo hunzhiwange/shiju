@@ -13,7 +13,7 @@ use axum::{Json, Router, extract::Query, http::HeaderMap, routing::get};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
-use vw_api_types::workflow::{WorkflowResumeRequest, WorkflowRunRequest, WorkflowRunStatus};
+use vw_api_workflow::{WorkflowResumeRequest, WorkflowRunRequest, WorkflowRunStatus};
 
 #[test]
 fn parse_workflow_yaml_reads_dify_graph() {
@@ -886,7 +886,7 @@ async fn run_workflow_variable_aggregator_ignores_unexecuted_branch() {
 
 async fn run_variable_aggregator_workflow(
     query: &str,
-) -> vw_api_types::workflow::WorkflowRunResponse {
+) -> vw_api_workflow::WorkflowRunResponse {
     let workflow_yaml = r#"
 workflow:
   graph:
@@ -3413,7 +3413,7 @@ async fn talking_head_run(invalid: bool) {
         assert_eq!(response.status, WorkflowRunStatus::Failed);
         assert!(response.answer.as_deref().unwrap_or_default().is_empty());
         let validation = response.nodes.iter().find(|node| node.node_id == "validate").unwrap();
-        assert_eq!(validation.status, vw_api_types::workflow::WorkflowNodeRunStatus::Failed);
+        assert_eq!(validation.status, vw_api_workflow::WorkflowNodeRunStatus::Failed);
         assert!(validation.error.as_deref().unwrap_or_default().contains("invalid anchor"));
         assert!(!response.nodes.iter().any(|node| node.node_id == "answer"));
     } else {

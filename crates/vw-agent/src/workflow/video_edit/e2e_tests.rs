@@ -432,7 +432,7 @@ async fn video_edit_e2e_template_edit_changes_next_native_model_request() {
         .unwrap();
     let text = brief["data"]["prompt_template"][0]["text"].as_str().unwrap();
     brief["data"]["prompt_template"][0]["text"] = json!(format!("{text} E2E_TEMPLATE_EDIT"));
-    let body = vw_api_types::workflow::WorkflowRecordUpsertBody {
+    let body = vw_api_workflow::WorkflowRecordUpsertBody {
         uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
         name: VIDEO_EDIT_TEMPLATE_NAME.into(),
         description: String::new(),
@@ -463,7 +463,7 @@ async fn video_edit_e2e_template_edit_changes_next_native_model_request() {
     save_template(
         database,
         tenant,
-        vw_api_types::workflow::WorkflowRecordUpsertBody {
+        vw_api_workflow::WorkflowRecordUpsertBody {
             uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
             name: VIDEO_EDIT_TEMPLATE_NAME.into(),
             description: String::new(),

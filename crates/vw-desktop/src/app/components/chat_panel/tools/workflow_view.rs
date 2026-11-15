@@ -464,7 +464,7 @@ pub(crate) fn workflow_node_detail_body(i18n: crate::app::i18n::I18n, value: &Va
 mod tests;
 
 fn video_edit_summary(value: &Value) -> Option<String> {
-    let p: vw_gateway_client::vw_api_types::workflow::VideoEditProgress =
+    let p: vw_api_workflow::VideoEditProgress =
         serde_json::from_value(metadata_value(value, "video_edit_progress")?.clone()).ok()?;
     Some(format!(
         "{} · 分段 {} · 排队 {} / 运行 {} / 完成 {} / 失败 {} · 峰值 {}/{}\n素材：排队 {} / 运行 {} / 完成 {} / 失败 {}\n本轮模板 {}",

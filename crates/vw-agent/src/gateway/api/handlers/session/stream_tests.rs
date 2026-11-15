@@ -2179,7 +2179,7 @@ async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persis
         if index == 1 {
             let current = seed.load(database.clone(), tenant.clone()).await.unwrap();
             assert_eq!(current.digest, initial.digest);
-            let payload = vw_api_types::workflow::WorkflowRecordUpsertBody {
+            let payload = vw_api_workflow::WorkflowRecordUpsertBody {
                 uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
                 name: VIDEO_EDIT_TEMPLATE_NAME.into(),
                 description: String::new(),
@@ -2208,7 +2208,7 @@ async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persis
             .await
             .unwrap();
             assert_eq!(response.status(), axum::http::StatusCode::OK);
-            let record: vw_api_types::workflow::WorkflowRecord = serde_json::from_slice(
+            let record: vw_api_workflow::WorkflowRecord = serde_json::from_slice(
                 &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap(),
             )
             .unwrap();

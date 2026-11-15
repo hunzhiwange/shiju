@@ -1,4 +1,4 @@
-use crate::identity::model::AieosIdentity;
+use crate::model::AieosIdentity;
 
 /// 将 AIEOS 身份转换为系统提示字符串。
 ///

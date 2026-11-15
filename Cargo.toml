@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-routing-policy",
   "crates/libs/app-availability-core",
   "crates/libs/cli-terminal",
   "crates/libs/cli-stdio",

@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-routing-policy = { path = "../libs/app-routing-policy" }
 app-availability-core = { path = "../libs/app-availability-core" }
 app-catalog = { path = "../libs/app-catalog" }
 app-config-patch = { path = "../libs/app-config-patch" }

@@ -1,6 +1,5 @@
 use crate::app::agent::config::IdentityConfig;
-use crate::identity::model::AieosIdentity;
-use crate::identity::normalize::normalize_aieos_identity;
+use agent_identity::{AieosIdentity, normalize_aieos_identity};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::path::{Path, PathBuf};

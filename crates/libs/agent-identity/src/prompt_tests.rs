@@ -2,7 +2,7 @@
 
 // 提示词测试固定键排序，确保相同身份数据在多次运行中生成稳定文本。
 use super::*;
-use crate::identity::model::{
+use crate::model::{
     AieosIdentity, CapabilitiesSection, HistorySection, IdentitySection, InterestsSection,
     LinguisticsSection, MotivationsSection, Names, OceanTraits, PhysicalitySection,
     PsychologySection,

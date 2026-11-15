@@ -4,6 +4,34 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 8：路由载荷规则迁移结果
+
+所有权表任务 8 的 budget_rectify、cache_policy、classifier_guard、compaction_replay、
+gemini_schema、inline_think、lifecycle_state、moonshot_schema、private_params、
+thinking_options 实现及对应八个独立测试现归 `crates/libs/app-routing-policy/src/`。
+根 supports_app 叶子函数一并下沉，原 routing/mod.rs 显式 re-export，lib.rs 继续
+通过 routing 保留调用路径，无需新增顶层别名。override_validate_tests、user_agent_tests
+一并迁入新包，直接引用任务 4 已下沉的 app-provider-validation（仅 dev 依赖）。
+
+media_sanitize 的 repair、replace 及私有遍历/拒绝识别规则下沉；replace 因原门面
+prepare 的真实跨包调用最小公开。prepare 仍在原位置解析模型能力再调用 replace，
+由任务 9 接收其能力编排，届时依赖 app-routing-policy，不得反向依赖模型目录。
+target_model::resolve 及其私有 helper、target_model_tests 暂留原包，由任务 10 接收；
+其 desktop_mapping::defaults 尚未下沉，测试还引用任务 27 的 model_ids，任务 10
+如未闭合须按既有桌面映射交接到任务 28。无复制实现或门面回依赖。
+
+新包依赖 base64、sha2、serde_json（arbitrary_precision）、vw-api-types 和仅用于
+Url 解析的 reqwest（关闭默认特性）；测试依赖 app-provider-validation。原包这些
+生产依赖仍有其它调用，因此保留。未改变平台条件、错误语义或资源路径，无 include
+资源；独立测试仍仅 cfg(test) 注册。调用者 app_routing/dispatch、provider_publication、
+model_relay 以及网关路由授权继续使用原门面，类型身份保持一致。
+
+静态证据：迁移文件与 HEAD 内容对照（仅两个测试 import 改为底层包）、模块注册、
+真实调用者和依赖检索、清单路径审阅、git diff --check。系统 Python 无 tomllib，未解析 TOML；
+使用标准库核对两个包的全部直接路径均存在。媒体拆分仅提取 prepare，
+replace 增加公开可见性及说明。未运行 Cargo、单元及实机测试，统一验收待授权：
+新包及直接调用者编译、迁移测试、后继编排收口、锁文件一致性及三平台行为。
+
 ## 任务 7：高可用状态与重试迁移结果
 
 所有权表任务 7 的 circuit_breaker、health、retry 实现及三个独立测试现归

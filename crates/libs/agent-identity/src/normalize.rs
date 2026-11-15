@@ -1,4 +1,4 @@
-use crate::identity::model::{
+use crate::model::{
     AieosIdentity, CapabilitiesSection, HistorySection, IdentitySection, InterestsSection,
     LinguisticsSection, MotivationsSection, Names, OceanTraits, PhysicalitySection,
     PsychologySection,
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 ///
 /// 将原始 JSON 值转换为强类型的 `AieosIdentity` 结构，
 /// 对各个数据段进行规范化处理。
-pub(super) fn normalize_aieos_identity(payload: &Value) -> AieosIdentity {
+pub fn normalize_aieos_identity(payload: &Value) -> AieosIdentity {
     AieosIdentity {
         identity: normalize_identity_section(value_at_path(payload, &["identity"])),
         psychology: normalize_psychology_section(value_at_path(payload, &["psychology"])),

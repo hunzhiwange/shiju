@@ -1,4 +1,4 @@
-use crate::providers::request_options;
+use app_provider_validation::request_options;
 use serde_json::json;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 

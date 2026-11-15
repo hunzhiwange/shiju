@@ -766,7 +766,7 @@ pub(crate) struct ProxySettingsState {
     /// 不使用代理的地址输入
     pub(crate) no_proxy_input: String,
     /// 代理作用域
-    pub(crate) scope: vw_config_types::proxy::ProxyScope,
+    pub(crate) scope: config_proxy::ProxyScope,
     /// 服务列表输入
     pub(crate) services_input: String,
     /// 是否显示帮助对话框
@@ -783,7 +783,7 @@ impl Default for ProxySettingsState {
             https_proxy: String::new(),
             all_proxy: String::new(),
             no_proxy_input: String::new(),
-            scope: vw_config_types::proxy::ProxyScope::Vibewindow,
+            scope: config_proxy::ProxyScope::Vibewindow,
             services_input: String::new(),
             show_help_modal: false,
             save_error: None,

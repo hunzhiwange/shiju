@@ -43,7 +43,7 @@ fn maybe_auto_collapse_todo_panel(app: &mut App) -> Task<Message> {
 fn apply_loaded_session_todos(
     app: &mut App,
     session_id: String,
-    res: Result<Vec<todo_types::Todo>, String>,
+    res: Result<Vec<vw_shared::todo::Todo>, String>,
 ) -> Task<Message> {
     if app.active_session_id.as_deref() != Some(session_id.as_str()) {
         return Task::none();
@@ -128,7 +128,7 @@ pub(super) fn handle_todo_poll_tick(app: &mut App) -> Task<Message> {
 pub(super) fn handle_input_panel_todos_loaded(
     app: &mut App,
     session_id: String,
-    res: Result<Vec<todo_types::Todo>, String>,
+    res: Result<Vec<vw_shared::todo::Todo>, String>,
 ) -> Task<Message> {
     apply_loaded_session_todos(app, session_id, res)
 }

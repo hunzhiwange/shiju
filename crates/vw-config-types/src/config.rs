@@ -28,7 +28,7 @@ use config_hooks::HooksConfig;
 use crate::memory::{MemoryConfig, StorageConfig};
 use config_observability::ObservabilityConfig;
 use crate::plugins::PluginsConfig;
-use crate::proxy::ProxyConfig;
+use config_proxy::ProxyConfig;
 use config_reliability::ReliabilityConfig;
 use config_routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig};
 use config_runtime::RuntimeConfig;

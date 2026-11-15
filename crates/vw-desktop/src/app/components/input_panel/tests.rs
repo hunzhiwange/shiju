@@ -18,7 +18,7 @@ use iced::advanced::{Layout, layout, widget::Tree};
 use iced::{Element, Length, Theme};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::{Font, Pixels, Size};
-use todo_types::Todo;
+use vw_shared::todo::Todo;
 
 // 入口测试使用最小目录项、队列项和待办项组合输入面板的独立区域。
 fn catalog_skill(id: &str, title: &str) -> SkillsCatalogItem {

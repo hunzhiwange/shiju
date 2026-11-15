@@ -8,7 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-todo-types = { path = "../todo-types", version = "0.6.0" }
 vw-api-session = { path = "../api-session", version = "0.6.0" }
 gateway-session = { path = "../gateway-session", version = "0.6.0" }
 question-types = { path = "../question-types", version = "0.6.0" }

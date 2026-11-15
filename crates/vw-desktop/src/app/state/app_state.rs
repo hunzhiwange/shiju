@@ -277,7 +277,7 @@ pub struct App {
     /// Todo 缓存所属会话 ID
     pub(crate) chat_todo_session_id: Option<String>,
     /// 当前活跃会话的 Todo 缓存
-    pub(crate) chat_todo_items: Vec<todo_types::Todo>,
+    pub(crate) chat_todo_items: Vec<vw_shared::todo::Todo>,
     /// Token 使用量统计
     pub(crate) usage: models::TokenUsage,
     /// 当前活跃会话的轻量视图状态

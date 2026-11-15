@@ -7,7 +7,7 @@ use crate::app::App;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
-use vw_config_types::proxy::ProxyScope;
+use config_proxy::ProxyScope;
 
 fn test_app() -> App {
     App::new().0

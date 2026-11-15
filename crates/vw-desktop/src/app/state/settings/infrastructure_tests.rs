@@ -207,7 +207,7 @@ fn observability_storage_proxy_and_tunnel_defaults_are_stable() {
     assert!(proxy.https_proxy.is_empty());
     assert!(proxy.all_proxy.is_empty());
     assert!(proxy.no_proxy_input.is_empty());
-    assert_eq!(proxy.scope, vw_config_types::proxy::ProxyScope::Vibewindow);
+    assert_eq!(proxy.scope, config_proxy::ProxyScope::Vibewindow);
     assert!(proxy.services_input.is_empty());
     assert!(!proxy.show_help_modal);
     assert!(proxy.save_error.is_none());

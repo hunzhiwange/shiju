@@ -749,7 +749,7 @@ pub enum ChatMessage {
     PermissionListLoaded(Result<Vec<vw_gateway_client::PendingPermissionRequestDto>, String>),
 
     /// 输入面板 Todo 列表加载完成
-    InputPanelTodosLoaded(String, Result<Vec<todo_types::Todo>, String>),
+    InputPanelTodosLoaded(String, Result<Vec<vw_shared::todo::Todo>, String>),
 
     /// 问题回复提交完成
     QuestionReplySubmitted(Result<(), String>),

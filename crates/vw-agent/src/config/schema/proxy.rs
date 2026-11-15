@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
-pub use vw_config_types::proxy::*;
+pub use config_proxy::*;
 
 static RUNTIME_PROXY_CONFIG: OnceLock<RwLock<ProxyConfig>> = OnceLock::new();
 static RUNTIME_PROXY_CLIENT_CACHE: OnceLock<RwLock<HashMap<String, reqwest::Client>>> =

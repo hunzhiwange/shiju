@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/libs/todo-types",
   "crates/libs/api-session",
   "crates/libs/project-types",
   "crates/libs/gateway-session",
@@ -16,6 +15,7 @@ members = [
   "crates/libs/config-gateway",
   "crates/libs/config-memory",
   "crates/libs/config-skills",
+  "crates/libs/config-proxy",
   "crates/libs/config-runtime",
   "crates/libs/provider-auth-reader",
   "crates/libs/api-acp-model",

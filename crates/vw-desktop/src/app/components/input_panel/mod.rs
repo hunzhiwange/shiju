@@ -657,7 +657,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let attachment_strip = attachment::attachment_strip(app);
 
     // 读取当前会话的TODO项
-    let todo_items: &[todo_types::Todo] = if app.chat_todo_session_id == app.active_session_id
+    let todo_items: &[vw_shared::todo::Todo] = if app.chat_todo_session_id == app.active_session_id
     {
         app.chat_todo_items.as_slice()
     } else {

@@ -8,7 +8,7 @@ use super::todo_panel::{
 use crate::app::state::AcpHistoryReplayMode;
 use crate::app::{AgentRequest, App, Message, TodoPanelPlacement};
 use iced::{Color, Theme};
-use todo_types::Todo;
+use vw_shared::todo::Todo;
 
 fn test_app() -> App {
     App::new().0

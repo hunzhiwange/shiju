@@ -590,7 +590,7 @@ pub async fn gateway_question_list_async() -> Result<Vec<question_types::Request
 pub async fn gateway_session_todo_list_async(
     id: &str,
     directory: Option<&str>,
-) -> Result<Vec<todo_types::Todo>, String> {
+) -> Result<Vec<vw_shared::todo::Todo>, String> {
     let client = gateway_client()?;
     gateway_session::GatewaySessionClient::new(client.transport().clone()).session_todo_get(id, directory).await
 }

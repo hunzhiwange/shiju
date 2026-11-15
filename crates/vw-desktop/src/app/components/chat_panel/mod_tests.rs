@@ -18,7 +18,7 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, widget::Tree};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::{Font, Pixels, Size};
-use todo_types::Todo;
+use vw_shared::todo::Todo;
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
     ChatMessage {

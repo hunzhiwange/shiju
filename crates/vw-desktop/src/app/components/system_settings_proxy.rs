@@ -27,7 +27,7 @@ use crate::app::i18n::I18n;
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::proxy::ProxyScope;
+use config_proxy::ProxyScope;
 
 const PROXY_SCOPE_OPTIONS: [&str; 3] = ["系统环境", "ShiJu", "指定服务"];
 

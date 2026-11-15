@@ -8,6 +8,7 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+config-proxy = { path = "../libs/config-proxy", version = "0.6.0" }
 config-skills = { path = "../libs/config-skills", version = "0.6.0" }
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }
 config-memory = { path = "../libs/config-memory", version = "0.6.0" }

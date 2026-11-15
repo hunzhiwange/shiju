@@ -27,7 +27,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use vw_api_tools::ToolResultContentDto;
 
-pub use todo_types::{LegacyTodo, Todo};
+pub use vw_shared::todo::{LegacyTodo, Todo};
 
 use self::store::{
     read_for_tool, read_for_tool_scoped, read_for_ui, write_todos, write_todos_scoped,

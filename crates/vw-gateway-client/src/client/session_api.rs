@@ -14,7 +14,7 @@ use crate::session::{
 use vw_shared::session::ui_types::{
     ChatSession, ChatSessionMeta, SessionMessageDelta, SessionMessageRecord,
 };
-use todo_types::Todo;
+use vw_shared::todo::Todo;
 
 pub use gateway_session::SessionUiLoadResult;
 

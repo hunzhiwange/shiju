@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::App;
-use vw_config_types::proxy::ProxyScope;
+use config_proxy::ProxyScope;
 
 fn app() -> App {
     App::new().0

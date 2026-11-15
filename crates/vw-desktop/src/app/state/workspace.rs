@@ -48,19 +48,7 @@ pub enum ProjectEditTab {
     Scheduling,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TaskBoardSettingsModalTab {
-    #[default]
-    Refresh,
-    Scheduling,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TaskBoardDetailTab {
-    #[default]
-    Basic,
-    Logs,
-}
+pub use desktop_task_board::message::{TaskBoardDetailTab, TaskBoardSettingsModalTab};
 
 pub use desktop_file_tree::state::{FindInFolderMatch, FindInFolderTab, FIND_RESULTS_PAGE_SIZE, find_results_page_bounds};
 

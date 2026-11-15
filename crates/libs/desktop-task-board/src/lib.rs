@@ -7,3 +7,4 @@ pub mod model_selector;
 pub mod bulk;
 pub mod selector_styles;
 pub mod helpers;
+pub mod message;

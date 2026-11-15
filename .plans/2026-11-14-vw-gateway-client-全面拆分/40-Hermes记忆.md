@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：40，线性顺序 40；依赖：前一批次 39。符号依赖卡：2。不并行。
 
@@ -34,3 +34,14 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-hermes-memory crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+
+## 实现与静态审查记录
+
+- 前置提交：9f3a373f9，GatewayWorkspaceMemoryClient 与 GatewayTransport 已落地。
+- hermes_memory_api.rs：作用域、错误及 fmt、全部五个公开入口、hermes_memory_request、memory_path 归 gateway-hermes-memory；原模块仅显式转发。
+- hermes_dashboard_api.rs：错误、BASE、四个公开入口、hermes_dashboard_request、operation_path 归新库；原模块转发并重导出错误。
+- 两个独立测试文件随实现迁移，测试工厂改持有领域客户端，保留断言与原生测试 cfg；dashboard 路径测试保持原 cfg。
+- 四包调用者复查：桌面 Hermes memory、limits、dashboard 直达新库；其余包无这些客户端方法直接调用。
+- 新库无 vw_gateway_client 反向依赖；请求上下文、敏感头、原生传输拒绝、路径及响应处理沿用原实现。
+- git diff --check 静态检查无空白错误。未运行 Cargo、测试及实机验证；后续另行统一验证。

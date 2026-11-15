@@ -2,7 +2,8 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_gateway_client::vw_api_types::{hermes_dashboard::*, };
+use vw_api_types::hermes_dashboard::*;
+use gateway_hermes_memory::GatewayHermesMemoryClient;
 use vw_api_task::TaskStatus;
 
 #[derive(Clone, Default)]
@@ -121,6 +122,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(event, Event::Start | Event::Probe) { state.attempts = 0; }
     let scope = Scope { context, host: app.apps_catalog.host.clone(), project: project.to_string(),
         catalog: app.apps_catalog.generation, generation: state.generation };
+    let client = GatewayHermesMemoryClient::new(client.transport().clone());
     let query = DashboardScope { project_id: project.into(), target_host_id: scope.host.clone() };
     let id = state.operation.clone();
     let token = app.apps_catalog.token.clone();

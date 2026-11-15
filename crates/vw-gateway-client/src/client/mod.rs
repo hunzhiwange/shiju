@@ -386,9 +386,7 @@ pub use agent_apps_skills::SkillStorageError;
 pub mod hermes_dashboard_api;
 
 mod hermes_memory_api;
-pub use hermes_memory_api::{HermesMemoryError, HermesMemoryScope};
-#[cfg(test)]
-mod hermes_memory_api_tests;
+pub use gateway_hermes_memory::{HermesMemoryError, HermesMemoryScope};
 
 mod agent_app_prompts_api;
 pub use agent_app_prompts_api::*;

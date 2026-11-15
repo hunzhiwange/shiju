@@ -1,4 +1,4 @@
-use super::{GatewayClient, HermesMemoryError, HermesMemoryScope, test_support};
+use super::{GatewayHermesMemoryClient, HermesMemoryError, HermesMemoryScope, test_support};
 use serde_json::json;
 use {
     vw_api_types::hermes_memory::HermesMemoryKind as Kind,
@@ -76,7 +76,7 @@ async fn hermes_sdk_preserves_outcome_invalid_credentials_and_transport() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     drop(listener);
-    let client = GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+    let client = GatewayHermesMemoryClient::new(gateway_http::GatewayTransport::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap());
     for token in ["", "bad\ncredential"] {
         assert_eq!(client.hermes_memory_limits(&scope(), token).await, Err(HermesMemoryError::InvalidInput));
     }

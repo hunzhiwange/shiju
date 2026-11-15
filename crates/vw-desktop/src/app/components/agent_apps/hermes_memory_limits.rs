@@ -8,7 +8,8 @@ use iced::{
     Element, Task,
     widget::{button, column, text},
 };
-use vw_gateway_client::{GatewayClient, HermesMemoryScope, vw_api_types::hermes_memory::*};
+use gateway_hermes_memory::{GatewayHermesMemoryClient, HermesMemoryScope};
+use vw_api_types::hermes_memory::*;
 
 #[derive(Clone, Default)]
 pub(crate) struct State {
@@ -89,7 +90,7 @@ pub(crate) fn view<'a>(state: &'a State, index: usize, content: &str) -> Element
 pub(crate) fn request(
     state: &mut State,
     action: Event,
-    client: GatewayClient,
+    client: GatewayHermesMemoryClient,
     query: HermesMemoryScope,
     token: String,
     scope: Scope,

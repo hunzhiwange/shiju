@@ -1,0 +1,17 @@
+[package]
+name = "task-file-store"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+task-types = { path = "../task-types", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+serde_json = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+runtime-time = { path = "../runtime-time", version = "0.6.0" }
+time = "0.3"
+
+[dev-dependencies]
+tempfile = "3"

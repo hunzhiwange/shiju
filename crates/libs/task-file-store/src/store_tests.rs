@@ -83,7 +83,7 @@ fn native_task_artifact_operations_fail_closed_as_unsupported() {
 fn board_settings_remain_json_presentation_state() {
     let project = tempfile::tempdir().expect("temp project");
     let project_path = project.path().to_string_lossy();
-    let settings = super::super::models::TaskBoardSettings::default();
+    let settings = task_types::TaskBoardSettings::default();
 
     save_task_board_settings(&project_path, &settings).expect("save settings");
     assert_eq!(
@@ -102,7 +102,7 @@ fn invalid_board_settings_fall_back_to_defaults() {
         .expect("write invalid settings");
 
     let loaded = load_task_board_settings(&project_path);
-    let expected = super::super::models::TaskBoardSettings::default();
+    let expected = task_types::TaskBoardSettings::default();
 
     assert_eq!(
         serde_json::to_value(loaded).expect("serialize loaded"),
@@ -114,7 +114,7 @@ fn invalid_board_settings_fall_back_to_defaults() {
 fn task_paths_stay_under_project_metadata_directory() {
     let project = tempfile::tempdir().expect("temp project");
     let project_path = project.path().to_string_lossy();
-    let expected = project.path().join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks");
+    let expected = project.path().join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks");
 
     assert_eq!(get_task_root_dir(&project_path), expected);
     assert_eq!(get_task_logs_dir(&project_path), expected.join("logs"));

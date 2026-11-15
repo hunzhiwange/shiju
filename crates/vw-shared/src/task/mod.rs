@@ -14,7 +14,3 @@ pub use models::{
 };
 /// 任务持久化读写接口。
 pub use store::*;
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;

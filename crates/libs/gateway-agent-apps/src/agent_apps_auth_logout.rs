@@ -1,11 +1,11 @@
 //! Local logout and confirmed remote revocation on the management chain.
 
 use super::{
-    agent_apps::{AccountTermination, authorize_auth_account_termination},
+    auth_access::{AccountTermination, authorize_auth_account_termination},
     agent_apps_auth_read::PolicyFile,
     agent_apps_auth_start::{FlowError, Runtime, ScopeQuery},
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json, Router,
     extract::{
@@ -39,8 +39,8 @@ use {
 };
 #[cfg(target_os = "macos")]
 use {
-    super::agent_apps::AuthAccountHost,
-    crate::agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore, NativeAccountLogout},
+    super::auth_access::AuthAccountHost,
+    agent_app_services::auth_accounts::{AuthAccountScope, AuthAccountStore, NativeAccountLogout},
 };
 
 #[derive(Deserialize)]
@@ -151,7 +151,7 @@ async fn run(
 
             let database = match database {
                 Some(Extension(database)) => database,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| AuthErrorCode::StorageUnavailable)?,
             };
             let accounts = AuthAccountStore::new(database, &host.credential_root)

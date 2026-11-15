@@ -1,15 +1,15 @@
 //! Scoped deletion on the management chain.
 
 use super::{
-    agent_apps::authorize_auth_account_delete,
+    auth_access::authorize_auth_account_delete,
     agent_apps_auth_read::PolicyFile,
     agent_apps_auth_start::{FlowError, ScopeQuery},
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 #[cfg(target_os = "macos")]
-use crate::{
-    agent_apps::auth_accounts::AuthAccountScope,
-    app_providers::{AppProviderStore, NativeAccountRemoval},
+use {
+    agent_app_services::auth_accounts::AuthAccountScope,
+    app_provider_services::{AppProviderStore, NativeAccountRemoval},
 };
 use axum::{
     Extension,
@@ -65,7 +65,7 @@ pub(super) async fn delete(
         {
             let database = match database {
                 Some(Extension(database)) => database,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| AuthErrorCode::StorageUnavailable)?,
             };
             let providers =

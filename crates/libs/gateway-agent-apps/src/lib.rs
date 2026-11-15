@@ -32,3 +32,13 @@ mod apps_usage_refresh_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod apps_usage_script_tests;
+
+mod auth_access;
+mod agent_apps_auth_binding;
+mod agent_apps_auth_cancel;
+mod agent_apps_auth_default;
+mod agent_apps_auth_logout;
+mod agent_apps_auth_poll;
+pub mod agent_apps_auth_read;
+mod agent_apps_auth_remove;
+pub mod agent_apps_auth_start;

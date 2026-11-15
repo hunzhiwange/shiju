@@ -7,7 +7,12 @@ license = "MIT"
 [lib]
 doctest = false
 
+[features]
+test-support = []
+
 [dependencies]
+anyhow = "1"
+local-app-auth = { path = "../local-app-auth", version = "0.6.0" }
 app-access-service = { path = "../app-access-service", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0" }
 agent-paths = { path = "../agent-paths", version = "0.6.0" }

@@ -1,7 +1,7 @@
 use super::{Execution, Runtime, StartSender, drive, started};
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountStore},
-    global_database::run_sync_database,
+use {
+    agent_app_services::auth_accounts::{AuthAccountMetadata, AuthAccountStore},
+    agent_database::run_sync_database,
 };
 use std::{
     collections::HashMap,
@@ -62,7 +62,7 @@ impl ClaudeAttempts {
 
 impl Runtime {
     /// Wait for Claude attempts whose scoped cancellation has already started.
-    pub(in crate::gateway::api::handlers) async fn wait_for_claude_logout(
+    pub(crate) async fn wait_for_claude_logout(
         &self,
         scope: AuthAccountScope<'_>,
     ) -> Result<(), AuthErrorCode> {
@@ -85,7 +85,7 @@ impl Runtime {
         Ok(())
     }
 
-    pub(in crate::gateway::api::handlers) async fn wait_for_claude_cleanup(
+    pub(crate) async fn wait_for_claude_cleanup(
         &self,
         id: &AuthFlowId,
     ) -> Result<(), AuthErrorCode> {

@@ -1,13 +1,13 @@
 //! Scoped default selection on the management chain.
 
 use super::{
-    agent_apps::authorize_auth_default,
+    auth_access::authorize_auth_default,
     agent_apps_auth_read::PolicyFile,
     agent_apps_auth_start::{FlowError, ScopeQuery},
 };
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore, NativeAccountDefault},
-    global_database::GlobalDatabase,
+use {
+    agent_app_services::auth_accounts::{AuthAccountScope, AuthAccountStore, NativeAccountDefault},
+    agent_database::GlobalDatabase,
 };
 use axum::{
     Extension,
@@ -75,10 +75,10 @@ pub(super) async fn put(
             principal: &host.principal,
             service,
         };
-        let store = crate::global_database::run_sync_database(|| {
+        let store = agent_database::run_sync_database(|| {
             let database = match database {
                 Some(Extension(database)) => database,
-                None => GlobalDatabase::for_home(&crate::global::paths().home)?,
+                None => GlobalDatabase::for_home(&agent_paths::paths().home)?,
             };
             AuthAccountStore::new(database, &host.credential_root).map_err(anyhow::Error::msg)
         })

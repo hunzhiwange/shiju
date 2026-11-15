@@ -52,19 +52,19 @@ use cli_interaction_model::{
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiMessageOrigin,
     UiOverlay, UiPermissionOverlay, UiStepState, UiTodoOverlay, UiTurnTerminal, UiUserMessage,
 };
-use cli_gateway_runtime::capabilities::load_session_capabilities_blocking;
+use cli_gateway_capabilities::capabilities::load_session_capabilities_blocking;
 use cli_gateway_automation::cron::{
     CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
-use cli_gateway_runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
+use cli_gateway_capabilities::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
 use cli_gateway_workspace::file_search::search_files_blocking;
 use cli_gateway_transport::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
-use cli_gateway_runtime::hooks::{
+use cli_gateway_capabilities::hooks::{
     HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh, load_hook_audit_blocking,
     load_hook_catalog_blocking, mutate_hook_and_refresh_blocking,
 };
-use cli_gateway_runtime::integrations::{
+use cli_gateway_capabilities::integrations::{
     MemoryMutation, delete_integration_blocking, load_integrations_blocking,
     mutate_memory_and_refresh_blocking, query_memory_blocking, set_integration_enabled_blocking,
 };

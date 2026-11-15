@@ -21,7 +21,7 @@ use cli_interaction_model::{
     AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort,
     SessionCapabilityMatrix, UiOverlay,
 };
-use cli_gateway_runtime::capabilities::load_session_capabilities_blocking;
+use cli_gateway_capabilities::capabilities::load_session_capabilities_blocking;
 use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 

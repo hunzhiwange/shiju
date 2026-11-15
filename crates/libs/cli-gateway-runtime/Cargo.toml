@@ -22,3 +22,6 @@ vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
 
 [dev-dependencies]
 tempfile = "3"
+
+# 组合测试直接装配已拆出的能力服务。
+cli-gateway-capabilities = { path = "../cli-gateway-capabilities", version = "0.6.0" }

@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/bottom_pane/selection_popup_common.rs
+source: crates/libs/tui-widgets/src/selection_popup_common_tests.rs
 assertion_line: 859
 expression: "format!(\"{buf:?}\")"
 ---

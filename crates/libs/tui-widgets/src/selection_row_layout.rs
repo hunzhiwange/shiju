@@ -12,16 +12,16 @@ use ratatui::text::Span;
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::selection_popup_common::GenericDisplayRow;
-use crate::line_truncation::line_width;
-use crate::width::display_width;
-use crate::wrapping::RtOptions;
-use crate::wrapping::word_wrap_line;
+use tui_text::line_truncation::line_width;
+use tui_text::width::display_width;
+use tui_text::wrapping::RtOptions;
+use tui_text::wrapping::word_wrap_line;
 
 /// 当描述列变窄无法阅读时，控制选择行描述是否保持在列中或移至标签下方。
 /// Controls whether selection-row descriptions stay in a column or move below
 /// their labels when the description column becomes too narrow to read.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum SelectionDescriptionLayout {
+pub enum SelectionDescriptionLayout {
     #[default]
     Columns,
     StackBelowWhenNarrow {

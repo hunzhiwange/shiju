@@ -13,17 +13,17 @@
 //!
 //! This module contains no command lookup, session I/O, file search, theme persistence, or
 //! configuration writes. The bridge supplies rows and consumes V3Action.
-use crate::bottom_pane::scroll_state::ScrollState;
-use crate::bottom_pane::selection_popup_common::{
+use crate::scroll_state::ScrollState;
+use crate::selection_popup_common::{
     ColumnWidthConfig, ColumnWidthMode, GenericDisplayRow, measure_rows_height_with_col_width_mode,
     render_menu_surface, render_rows_single_line_with_col_width_mode,
     render_rows_with_col_width_mode,
 };
-use crate::bottom_pane::selection_row_layout::SelectionDescriptionLayout;
-use crate::bottom_pane::selection_tabs::{SelectionTab, render_tab_bar, tab_bar_height};
-use crate::key_hint::is_plain_text_key_event;
-use crate::render::renderable::{ColumnRenderable, Renderable};
-use crate::vibe::action::{V3Action, V3SelectionItem};
+use crate::selection_row_layout::SelectionDescriptionLayout;
+use crate::selection_tabs::{SelectionTab, render_tab_bar, tab_bar_height};
+use tui_input::key_hint::is_plain_text_key_event;
+use tui_render::renderable::{ColumnRenderable, Renderable};
+use tui_contracts::action::{V3Action, V3SelectionItem};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -34,20 +34,20 @@ use unicode_width::UnicodeWidthStr;
 const MAX_POPUP_ROWS: usize = 8;
 const MENU_HORIZONTAL_INSET: u16 = 2;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum SideContentWidth {
+pub enum SideContentWidth {
     #[default]
     None,
     Fixed(u16),
     Half,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum SelectionRowDisplay {
+pub enum SelectionRowDisplay {
     #[default]
     Wrapped,
     SingleLine,
 }
 #[derive(Default)]
-pub(crate) struct SelectionItem {
+pub struct SelectionItem {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
@@ -57,12 +57,12 @@ pub(crate) struct SelectionItem {
     pub is_disabled: bool,
     pub disabled_reason: Option<String>,
     pub name_prefix_spans: Vec<Span<'static>>,
-    pub display_shortcut: Option<crate::key_hint::ShortcutHint>,
+    pub display_shortcut: Option<tui_input::key_hint::ShortcutHint>,
     pub toggle: Option<SelectionToggle>,
     pub disabled_gutter_marker: Option<&'static str>,
 }
 impl SelectionItem {
-    pub(crate) fn from_v3(item: V3SelectionItem) -> Self {
+    pub fn from_v3(item: V3SelectionItem) -> Self {
         Self {
             id: item.id,
             name: item.label,
@@ -77,10 +77,10 @@ impl SelectionItem {
     }
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub(crate) struct SelectionToggle {
+pub struct SelectionToggle {
     pub is_on: bool,
 }
-pub(crate) struct SelectionViewParams {
+pub struct SelectionViewParams {
     pub surface: String,
     pub title: Option<String>,
     pub subtitle: Option<String>,
@@ -128,7 +128,7 @@ impl Default for SelectionViewParams {
         }
     }
 }
-pub(crate) struct ListSelectionView {
+pub struct ListSelectionView {
     surface: String,
     footer_note: Option<Line<'static>>,
     footer_hint: Option<Line<'static>>,
@@ -150,7 +150,7 @@ pub(crate) struct ListSelectionView {
     last_selected_id: Option<String>,
 }
 impl ListSelectionView {
-    pub(crate) fn new(params: SelectionViewParams) -> Self {
+    pub fn new(params: SelectionViewParams) -> Self {
         let active_tab_idx = if params.tabs.is_empty() {
             None
         } else {
@@ -195,7 +195,7 @@ impl ListSelectionView {
         view.apply_filter();
         view
     }
-    pub(crate) fn from_v3(
+    pub fn from_v3(
         surface: impl Into<String>,
         title: impl Into<String>,
         items: Vec<V3SelectionItem>,
@@ -314,7 +314,7 @@ impl ListSelectionView {
         self.last_selected_id = Some(item_id.clone());
         V3Action::Select { surface: self.surface.clone(), item_id }
     }
-    pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         let plain = is_plain_text_key_event(event);
         match event.code {
             KeyCode::Up | KeyCode::Char('k') if !self.is_searchable || !plain => {
@@ -388,7 +388,7 @@ impl ListSelectionView {
             _ => V3Action::None,
         }
     }
-    pub(crate) fn handle_paste(&mut self, pasted: &str) {
+    pub fn handle_paste(&mut self, pasted: &str) {
         if self.is_searchable {
             let query = pasted.trim();
             if !query.is_empty() {
@@ -397,10 +397,10 @@ impl ListSelectionView {
             }
         }
     }
-    pub(crate) fn selected_index(&self) -> Option<usize> {
+    pub fn selected_index(&self) -> Option<usize> {
         self.selected_actual_idx()
     }
-    pub(crate) fn take_last_selected_id(&mut self) -> Option<String> {
+    pub fn take_last_selected_id(&mut self) -> Option<String> {
         self.last_selected_id.take()
     }
     fn rows(&self) -> Vec<GenericDisplayRow> {
@@ -548,78 +548,5 @@ impl From<V3SelectionItem> for SelectionItem {
     }
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use insta::assert_snapshot;
-    use ratatui::buffer::Buffer;
-    fn render(view: &ListSelectionView, width: u16) -> String {
-        let area = Rect::new(0, 0, width, view.desired_height(width));
-        let mut buf = Buffer::empty(area);
-        view.render(area, &mut buf);
-        (0..area.height)
-            .map(|y| {
-                (0..area.width)
-                    .map(|x| buf[(x, y)].symbol())
-                    .collect::<String>()
-                    .trim_end()
-                    .to_string()
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-    fn items() -> Vec<V3SelectionItem> {
-        vec![
-            V3SelectionItem {
-                id: "read".into(),
-                label: "Read only".into(),
-                description: Some("Inspect files".into()),
-                is_current: true,
-                ..Default::default()
-            },
-            V3SelectionItem {
-                id: "write".into(),
-                label: "Full access".into(),
-                description: Some("Modify files".into()),
-                ..Default::default()
-            },
-            V3SelectionItem {
-                id: "locked".into(),
-                label: "Unavailable".into(),
-                disabled: true,
-                disabled_reason: Some("not configured".into()),
-                ..Default::default()
-            },
-        ]
-    }
-    // 验证 `v3_selection_surfaces_reuse_copied_codex_list_view` 场景的触发条件与预期结果。
-    #[test]
-    fn v3_selection_surfaces_reuse_copied_codex_list_view() {
-        let mut view = ListSelectionView::from_v3("permissions", "Permissions", items());
-        assert_eq!(view.handle_key_event(KeyEvent::from(KeyCode::Down)), V3Action::None);
-        assert_eq!(
-            view.handle_key_event(KeyEvent::from(KeyCode::Enter)),
-            V3Action::Select { surface: "permissions".into(), item_id: "write".into() }
-        );
-        assert_snapshot!(render(&view, 48), @r###"
-Permissions
-  1. Read only (current)     Inspect files
-› 2. Full access             Modify files
-     Unavailable (disabled)  disabled: not
-     configured
-"###);
-    }
-    // 验证 `filtering_skips_disabled_rows_and_empty_state_is_rendered` 场景的触发条件与预期结果。
-    #[test]
-    fn filtering_skips_disabled_rows_and_empty_state_is_rendered() {
-        let mut view = ListSelectionView::new(SelectionViewParams {
-            surface: "search".into(),
-            title: Some("Search".into()),
-            is_searchable: true,
-            items: items().into_iter().map(SelectionItem::from_v3).collect(),
-            ..Default::default()
-        });
-        view.handle_key_event(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
-        assert_eq!(view.selected_index(), None);
-        assert!(render(&view, 40).contains("no matches"));
-    }
-}
+#[path = "list_selection_view_tests.rs"]
+mod tests;

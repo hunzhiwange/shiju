@@ -1,15 +1,15 @@
 //! 构建带序号、选中标记和禁用弱化样式的通用选择行。
 
-use crate::render::renderable::Renderable;
-use crate::render::renderable::RowRenderable;
-use crate::vibe::action::V3SelectionItem;
+use tui_render::renderable::Renderable;
+use tui_render::renderable::RowRenderable;
+use tui_contracts::action::V3SelectionItem;
 use ratatui::style::Style;
 use ratatui::style::Styled as _;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 use unicode_width::UnicodeWidthStr;
 
-pub(crate) fn selection_option_row_for_item(
+pub fn selection_option_row_for_item(
     index: usize,
     item: &V3SelectionItem,
     is_selected: bool,
@@ -18,7 +18,7 @@ pub(crate) fn selection_option_row_for_item(
     selection_option_row_with_dim(index, item.label.clone(), is_selected, item.disabled)
 }
 
-pub(crate) fn selection_option_row(
+pub fn selection_option_row(
     index: usize,
     label: String,
     is_selected: bool,
@@ -26,7 +26,7 @@ pub(crate) fn selection_option_row(
     selection_option_row_with_dim(index, label, is_selected, /*dim*/ false)
 }
 
-pub(crate) fn selection_option_row_with_dim(
+pub fn selection_option_row_with_dim(
     index: usize,
     label: String,
     is_selected: bool,

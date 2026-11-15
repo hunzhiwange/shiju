@@ -9,14 +9,14 @@ use ratatui::text::Span;
 use ratatui::widgets::Block;
 use ratatui::widgets::Widget;
 
-use crate::key_hint::ShortcutHint;
-use crate::line_truncation::line_width;
-use crate::line_truncation::truncate_line_with_ellipsis_if_overflow;
-use crate::render::Insets;
-use crate::render::RectExt as _;
-use crate::style::accent_style;
-use crate::style::user_message_style;
-use crate::width::display_width;
+use tui_input::key_hint::ShortcutHint;
+use tui_text::line_truncation::line_width;
+use tui_text::line_truncation::truncate_line_with_ellipsis_if_overflow;
+use tui_render::Insets;
+use tui_render::RectExt as _;
+use tui_theme::style::accent_style;
+use tui_theme::style::user_message_style;
+use tui_text::width::display_width;
 
 use super::scroll_state::ScrollState;
 use super::selection_row_layout::SelectionDescriptionLayout;
@@ -31,7 +31,7 @@ use super::selection_row_layout::wrap_stacked_row;
 /// concrete than source domain models. `match_indices` are character offsets
 /// into `name`, and `wrap_indent` is interpreted in terminal cell columns.
 #[derive(Default)]
-pub(crate) struct GenericDisplayRow {
+pub struct GenericDisplayRow {
     pub name: String,
     pub name_prefix_spans: Vec<Span<'static>>,
     pub display_shortcut: Option<ShortcutHint>,
@@ -50,7 +50,7 @@ pub(crate) struct GenericDisplayRow {
 /// popup can reserve the wrong number of lines and clip content.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(not(test), allow(dead_code))]
-pub(crate) enum ColumnWidthMode {
+pub enum ColumnWidthMode {
     /// 从可见视口行中推导列位置
     /// Derive column placement from only the visible viewport rows.
     #[default]
@@ -66,18 +66,18 @@ pub(crate) enum ColumnWidthMode {
 /// 列宽行为加上可选的共享左侧列宽度覆盖
 /// Column-width behavior plus an optional shared left-column width override.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ColumnWidthConfig {
+pub struct ColumnWidthConfig {
     pub mode: ColumnWidthMode,
     pub name_column_width: Option<usize>,
     pub description_layout: SelectionDescriptionLayout,
 }
 
 impl ColumnWidthConfig {
-    pub(crate) const fn new(mode: ColumnWidthMode, name_column_width: Option<usize>) -> Self {
+    pub const fn new(mode: ColumnWidthMode, name_column_width: Option<usize>) -> Self {
         Self { mode, name_column_width, description_layout: SelectionDescriptionLayout::Columns }
     }
 
-    pub(crate) const fn with_description_layout(
+    pub const fn with_description_layout(
         mut self,
         description_layout: SelectionDescriptionLayout,
     ) -> Self {
@@ -100,13 +100,13 @@ const MENU_SURFACE_INSET_H: u16 = 2;
 ///
 /// Rendering code should generally call [`render_menu_surface`] and then lay
 /// out content inside the returned inset rect.
-pub(crate) fn menu_surface_inset(area: Rect) -> Rect {
+pub fn menu_surface_inset(area: Rect) -> Rect {
     area.inset(Insets::vh(MENU_SURFACE_INSET_V, MENU_SURFACE_INSET_H))
 }
 
 /// 菜单表面处理引入的垂直间隙
 /// Total vertical padding introduced by the menu surface treatment.
-pub(crate) const fn menu_surface_padding_height() -> u16 {
+pub const fn menu_surface_padding_height() -> u16 {
     MENU_SURFACE_INSET_V * 2
 }
 
@@ -116,7 +116,7 @@ pub(crate) const fn menu_surface_padding_height() -> u16 {
 /// This keeps the surface treatment consistent across VibeWindow selection-style overlays.
 /// Callers should
 /// render all inner content in the returned rect, not the original area.
-pub(crate) fn render_menu_surface(area: Rect, buf: &mut Buffer) -> Rect {
+pub fn render_menu_surface(area: Rect, buf: &mut Buffer) -> Rect {
     if area.is_empty() {
         return area;
     }
@@ -129,9 +129,9 @@ pub(crate) fn render_menu_surface(area: Rect, buf: &mut Buffer) -> Rect {
 ///
 /// The function clamps `width` to at least one terminal cell so callers can use
 /// it safely with narrow layouts.
-pub(crate) fn wrap_styled_line<'a>(line: &'a Line<'a>, width: u16) -> Vec<Line<'a>> {
-    use crate::wrapping::RtOptions;
-    use crate::wrapping::word_wrap_line;
+pub fn wrap_styled_line<'a>(line: &'a Line<'a>, width: u16) -> Vec<Line<'a>> {
+    use tui_text::wrapping::RtOptions;
+    use tui_text::wrapping::word_wrap_line;
 
     let width = width.max(1) as usize;
     let opts =
@@ -230,8 +230,8 @@ fn should_wrap_name_in_column(row: &GenericDisplayRow) -> bool {
 }
 
 fn wrap_two_column_row(row: &GenericDisplayRow, desc_col: usize, width: u16) -> Vec<Line<'static>> {
-    use crate::wrapping::RtOptions;
-    use crate::wrapping::word_wrap_lines;
+    use tui_text::wrapping::RtOptions;
+    use tui_text::wrapping::word_wrap_lines;
 
     let Some(description) = row.description.as_deref() else {
         return Vec::new();
@@ -290,8 +290,8 @@ fn wrap_standard_row(
     width: u16,
     description_layout: SelectionDescriptionLayout,
 ) -> Vec<Line<'static>> {
-    use crate::wrapping::RtOptions;
-    use crate::wrapping::word_wrap_line;
+    use tui_text::wrapping::RtOptions;
+    use tui_text::wrapping::word_wrap_line;
 
     let full_line = build_full_line(row, desc_col, description_layout);
     let continuation_indent = wrap_indent(row, desc_col, width);
@@ -530,7 +530,7 @@ fn render_rows_inner(
 /// This function should be paired with [`measure_rows_height`] when reserving
 /// space; pairing it with a different measurement mode can cause clipping.
 /// Returns the number of terminal lines actually rendered.
-pub(crate) fn render_rows(
+pub fn render_rows(
     area: Rect,
     buf: &mut Buffer,
     rows_all: &[GenericDisplayRow],
@@ -556,7 +556,7 @@ pub(crate) fn render_rows(
 /// This is the low-level entry point for callers that need to thread a mode
 /// through higher-level configuration.
 /// Returns the number of terminal lines actually rendered.
-pub(crate) fn render_rows_with_col_width_mode(
+pub fn render_rows_with_col_width_mode(
     area: Rect,
     buf: &mut Buffer,
     rows_all: &[GenericDisplayRow],
@@ -574,7 +574,7 @@ pub(crate) fn render_rows_with_col_width_mode(
 /// This path always uses viewport-local width alignment and is best for dense
 /// list UIs where multi-line descriptions would add too much vertical churn.
 /// Returns the number of terminal lines actually rendered.
-pub(crate) fn render_rows_single_line(
+pub fn render_rows_single_line(
     area: Rect,
     buf: &mut Buffer,
     rows_all: &[GenericDisplayRow],
@@ -596,7 +596,7 @@ pub(crate) fn render_rows_single_line(
 /// 将每一行渲染为单行，并截断溢出以保留配置的列宽行为。
 /// Render a list of rows as a single line each (no wrapping), truncating overflow with an
 /// ellipsis while honoring the configured column width behavior.
-pub(crate) fn render_rows_single_line_with_col_width_mode(
+pub fn render_rows_single_line_with_col_width_mode(
     area: Rect,
     buf: &mut Buffer,
     rows_all: &[GenericDisplayRow],
@@ -667,7 +667,7 @@ pub(crate) fn render_rows_single_line_with_col_width_mode(
 /// This function matches [`render_rows`] semantics (`AutoVisible` column
 /// sizing). Mixing it with stable or fixed render modes can under- or
 /// over-estimate required height.
-pub(crate) fn measure_rows_height(
+pub fn measure_rows_height(
     rows_all: &[GenericDisplayRow],
     state: &ScrollState,
     max_results: usize,
@@ -680,7 +680,7 @@ pub(crate) fn measure_rows_height(
 /// Measure selection-row height using explicit [`ColumnWidthMode`] behavior.
 ///
 /// This is the low-level companion to [`render_rows_with_col_width_mode`].
-pub(crate) fn measure_rows_height_with_col_width_mode(
+pub fn measure_rows_height_with_col_width_mode(
     rows_all: &[GenericDisplayRow],
     state: &ScrollState,
     max_results: usize,
@@ -729,158 +729,5 @@ fn measure_rows_height_inner(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-    use ratatui::buffer::Buffer;
-    use ratatui::layout::Rect;
-    use ratatui::style::Modifier;
-
-    // 验证 `one_cell_width_falls_back_without_panic_for_wrapped_two_column_rows` 场景的触发条件与预期结果。
-    #[test]
-    fn one_cell_width_falls_back_without_panic_for_wrapped_two_column_rows() {
-        let row = GenericDisplayRow {
-            name: "1. Very long option label".to_string(),
-            description: Some("Very long description".to_string()),
-            wrap_indent: Some(4),
-            ..Default::default()
-        };
-
-        let two_col = wrap_two_column_row(&row, /*desc_col*/ 0, /*width*/ 1);
-        assert_eq!(two_col.len(), 0);
-    }
-
-    // 验证 `popup_name_truncation_counts_halfwidth_sound_marks` 场景的触发条件与预期结果。
-    #[test]
-    fn popup_name_truncation_counts_halfwidth_sound_marks() {
-        for (name, desc_col, match_index, expected) in
-            [("abｶﾞc", 6, None, "abｶﾞ…"), ("aｶﾞc", 4, Some(1), "a…")]
-        {
-            let row = GenericDisplayRow {
-                name: name.to_string(),
-                description: Some("description".to_string()),
-                match_indices: match_index.map(|index| vec![index]),
-                ..Default::default()
-            };
-            let text =
-                build_full_line(&row, desc_col, SelectionDescriptionLayout::Columns).to_string();
-
-            assert!(text.starts_with(expected), "unexpected row: {text:?}");
-        }
-    }
-
-    // 验证 `fuzzy_matched_emoji_graphemes_keep_description_alignment` 场景的触发条件与预期结果。
-    #[test]
-    fn fuzzy_matched_emoji_graphemes_keep_description_alignment() {
-        let rows = [
-            GenericDisplayRow {
-                name: "👍🏻".to_string(),
-                match_indices: Some(vec![1]),
-                description: Some("description".to_string()),
-                ..Default::default()
-            },
-            GenericDisplayRow {
-                name: "👨‍👩‍👧‍👦".to_string(),
-                match_indices: Some(vec![2]),
-                description: Some("description".to_string()),
-                ..Default::default()
-            },
-        ];
-        let area = Rect::new(0, 0, /*width*/ 20, /*height*/ 2);
-        let mut buf = Buffer::empty(area);
-
-        for (row_index, row) in rows.iter().enumerate() {
-            let line =
-                build_full_line(row, /*desc_col*/ 4, SelectionDescriptionLayout::Columns);
-            let name = line.spans.first().expect("fuzzy-matched name span");
-            assert_eq!(name.content.as_ref(), row.name);
-            assert!(name.style.add_modifier.contains(Modifier::BOLD));
-
-            let row_area = Rect::new(area.x, area.y + row_index as u16, area.width, 1);
-            ratatui::widgets::Widget::render(
-                ratatui::widgets::Paragraph::new(line),
-                row_area,
-                &mut buf,
-            );
-            assert_eq!(buf[(4, row_index as u16)].symbol(), "d");
-        }
-
-        insta::assert_snapshot!("popup_fuzzy_matched_emoji_graphemes", format!("{buf:?}"));
-    }
-
-    // 验证 `wrapped_two_column_rows_count_halfwidth_sound_marks` 场景的触发条件与预期结果。
-    #[test]
-    fn wrapped_two_column_rows_count_halfwidth_sound_marks() {
-        let rows = vec![GenericDisplayRow {
-            name: "abｶﾞc".to_string(),
-            description: Some("abﾊﾟc".to_string()),
-            wrap_indent: Some(0),
-            ..Default::default()
-        }];
-        let area = Rect::new(0, 0, 9, 2);
-        let mut buf = Buffer::empty(area);
-
-        let rendered_lines = render_rows(
-            area,
-            &mut buf,
-            &rows,
-            &ScrollState::default(),
-            /*max_results*/ 1,
-            "no rows",
-        );
-        let rendered = (0..area.height)
-            .map(|y| {
-                (0..area.width)
-                    .map(|x| buf[(x, y)].symbol())
-                    .collect::<String>()
-                    .trim_end()
-                    .to_string()
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        assert_eq!(rendered_lines, 2);
-        insta::assert_snapshot!(rendered, @r"
-        abｶﾞ  ab
-        c     ﾊﾟ c
-        ");
-    }
-
-    // 验证 `wrapped_two_column_rows_preserve_hard_line_breaks` 场景的触发条件与预期结果。
-    #[test]
-    fn wrapped_two_column_rows_preserve_hard_line_breaks() {
-        let row = GenericDisplayRow {
-            name: "first\nsecond".to_string(),
-            description: Some("alpha\nbeta".to_string()),
-            wrap_indent: Some(0),
-            ..Default::default()
-        };
-
-        let rendered = wrap_two_column_row(&row, /*desc_col*/ 8, /*width*/ 24)
-            .into_iter()
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        insta::assert_snapshot!(rendered, @r"
-        first   alpha
-        second  beta
-        ");
-    }
-
-    // 验证 `selected_rows_use_the_shared_accent_style` 场景的触发条件与预期结果。
-    #[test]
-    fn selected_rows_use_the_shared_accent_style() {
-        let rows = vec![GenericDisplayRow { name: "selected".to_string(), ..Default::default() }];
-        let state = ScrollState { selected_idx: Some(0), ..Default::default() };
-        let area = Rect::new(0, 0, 16, 1);
-        let mut buf = Buffer::empty(area);
-
-        render_rows(area, &mut buf, &rows, &state, /*max_results*/ 1, "no rows");
-
-        let style = buf[(0, 0)].style();
-        let expected = accent_style();
-        assert_eq!(style.fg, expected.fg);
-        assert!(style.add_modifier.contains(Modifier::BOLD));
-    }
-}
+#[path = "selection_popup_common_tests.rs"]
+mod tests;

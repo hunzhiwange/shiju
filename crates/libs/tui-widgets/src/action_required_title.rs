@@ -3,20 +3,20 @@
 //! 用于显式用户操作的标题文本
 //! Shared title text for overlays that require an explicit user action.
 
-pub(crate) const ACTION_REQUIRED_PREVIEW_PREFIX: &str = "[ ! ] Action Required";
+pub const ACTION_REQUIRED_PREVIEW_PREFIX: &str = "[ ! ] Action Required";
 
 /// 中性产品标题部分。一个旋转器刻意被排除，以确保等待动画无法掩盖审批或问题仍处于待处理状态的事实。
 /// Product-neutral title parts.  A spinner is deliberately excluded so a waiting animation
 /// cannot hide the fact that an approval or question is still pending.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ActionRequiredTitleItem {
+pub enum ActionRequiredTitleItem {
     Spinner,
     Approval,
     UserInput,
     Thread,
 }
 
-pub(crate) fn build_action_required_title_text<I, F>(
+pub fn build_action_required_title_text<I, F>(
     prefix: &str,
     items: I,
     excluded_items: &[ActionRequiredTitleItem],
@@ -39,20 +39,5 @@ where
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // 验证 `action_required_title_keeps_security_surface_visible` 场景的触发条件与预期结果。
-    #[test]
-    fn action_required_title_keeps_security_surface_visible() {
-        assert_eq!(
-            build_action_required_title_text(
-                ACTION_REQUIRED_PREVIEW_PREFIX,
-                [ActionRequiredTitleItem::Spinner, ActionRequiredTitleItem::Approval],
-                &[],
-                |item| (item == ActionRequiredTitleItem::Approval).then(|| "approval".to_string()),
-            ),
-            "[ ! ] Action Required | approval"
-        );
-    }
-}
+#[path = "action_required_title_tests.rs"]
+mod tests;

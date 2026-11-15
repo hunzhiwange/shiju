@@ -54,7 +54,7 @@ mod render;
 #[allow(dead_code)]
 pub(crate) mod resume_picker;
 #[allow(dead_code)]
-pub mod selection_list;
+pub use tui_widgets::selection_list;
 #[allow(dead_code)]
 pub use tui_cells::status;
 #[allow(dead_code)]

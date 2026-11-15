@@ -108,6 +108,7 @@ members = [
   "crates/libs/tui-stream",
   "crates/libs/tui-terminal",
   "crates/libs/tui-input",
+  "crates/libs/tui-widgets",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-endpoint",

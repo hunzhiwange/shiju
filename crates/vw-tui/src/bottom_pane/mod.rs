@@ -22,8 +22,7 @@ use ratatui::widgets::WidgetRef;
 
 pub(crate) use tui_contracts::presentation::MentionBinding;
 
-#[path = "bottom_pane_view.rs"]
-mod bottom_pane_view;
+pub(crate) use tui_widgets::bottom_pane_view;
 #[path = "chat_composer_history.rs"]
 pub(crate) mod chat_composer_history;
 pub(crate) use tui_input::paste_burst;
@@ -31,8 +30,8 @@ pub(crate) use tui_input::paste_burst;
 mod pending_input_preview;
 pub(crate) use tui_input::textarea;
 pub(crate) use bottom_pane_view::BottomPaneView;
-#[path = "action_required_title.rs"]
-pub(crate) mod action_required_title;
+#[allow(unused_imports)]
+pub(crate) use tui_widgets::action_required_title;
 #[path = "approval_overlay.rs"]
 pub(crate) mod approval_overlay;
 #[path = "chat_composer.rs"]
@@ -47,18 +46,15 @@ pub(crate) mod file_search_popup;
 mod footer;
 #[path = "chat_composer/footer_state.rs"]
 mod footer_state;
-#[path = "list_selection_view.rs"]
-pub(crate) mod list_selection_view;
+pub(crate) use tui_widgets::list_selection_view;
 #[path = "request_user_input/mod.rs"]
 pub(crate) mod request_user_input;
-#[path = "scroll_state.rs"]
-pub(crate) mod scroll_state;
-#[path = "selection_popup_common.rs"]
-pub(crate) mod selection_popup_common;
-#[path = "selection_row_layout.rs"]
-pub(crate) mod selection_row_layout;
-#[path = "selection_tabs.rs"]
-pub(crate) mod selection_tabs;
+pub(crate) use tui_widgets::scroll_state;
+pub(crate) use tui_widgets::selection_popup_common;
+#[allow(unused_imports)]
+pub(crate) use tui_widgets::selection_row_layout;
+#[allow(unused_imports)]
+pub(crate) use tui_widgets::selection_tabs;
 #[path = "slash_commands.rs"]
 pub(crate) mod slash_commands;
 

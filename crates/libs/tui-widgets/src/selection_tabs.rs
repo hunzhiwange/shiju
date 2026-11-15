@@ -11,28 +11,28 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use ratatui::widgets::Widget;
 
-use crate::render::renderable::Renderable;
-use crate::style::accent_style;
+use tui_render::renderable::Renderable;
+use tui_theme::style::accent_style;
 
-use crate::bottom_pane::list_selection_view::SelectionItem;
+use crate::list_selection_view::SelectionItem;
 
 const TAB_GAP_WIDTH: usize = 2;
 
-pub(crate) struct SelectionTab {
-    pub(crate) id: String,
-    pub(crate) label: String,
-    pub(crate) header: Box<dyn Renderable>,
-    pub(crate) items: Vec<SelectionItem>,
+pub struct SelectionTab {
+    pub id: String,
+    pub label: String,
+    pub header: Box<dyn Renderable>,
+    pub items: Vec<SelectionItem>,
 }
 
-pub(crate) fn tab_bar_height(tabs: &[SelectionTab], active_idx: usize, width: u16) -> u16 {
+pub fn tab_bar_height(tabs: &[SelectionTab], active_idx: usize, width: u16) -> u16 {
     if tabs.is_empty() {
         return 0;
     }
     tab_bar_lines(tabs, active_idx, width).len().try_into().unwrap_or(u16::MAX)
 }
 
-pub(crate) fn render_tab_bar(
+pub fn render_tab_bar(
     tabs: &[SelectionTab],
     active_idx: usize,
     area: Rect,

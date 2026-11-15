@@ -24,10 +24,7 @@ use crate::app::assets::{self, Icon};
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn provider_logo_handle(provider_id: &str) -> svg::Handle {
-    // crate 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    crate::app::assets::get_provider_icon(provider_id)
-}
+pub use desktop_chat_input::input_panel::icons::provider_logo_handle;
 
 /// 处理 auto icon 对应的局部职责。
 ///
@@ -42,10 +39,7 @@ pub fn provider_logo_handle(provider_id: &str) -> svg::Handle {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn auto_icon() -> svg::Handle {
-    // assets 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    assets::get_icon(Icon::Star)
-}
+pub use desktop_chat_input::input_panel::icons::auto_icon;
 
 /// 处理 max icon 对应的局部职责。
 ///
@@ -78,13 +72,7 @@ pub fn max_icon() -> svg::Handle {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn icon_svg<'a>(icon: Icon, size: f32) -> svg::Svg<'a> {
-    // svg 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    svg::Svg::<'a, iced::Theme>::new(assets::get_icon(icon))
-        .width(Length::Fixed(size))
-        .height(Length::Fixed(size))
-        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
-}
+pub use desktop_chat_input::input_panel::icons::icon_svg;
 
 /// 处理 themed svg handle 对应的局部职责。
 ///
@@ -99,13 +87,7 @@ pub fn icon_svg<'a>(icon: Icon, size: f32) -> svg::Svg<'a> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn themed_svg_handle<'a>(handle: svg::Handle, size: f32) -> svg::Svg<'a> {
-    // svg 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    svg::Svg::<'a, iced::Theme>::new(handle)
-        .width(Length::Fixed(size))
-        .height(Length::Fixed(size))
-        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
-}
+pub use desktop_chat_input::input_panel::icons::themed_svg_handle;
 
 /// 处理 raw svg handle 对应的局部职责。
 ///

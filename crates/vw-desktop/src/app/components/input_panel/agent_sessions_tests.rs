@@ -3,9 +3,9 @@
 
 use super::agent_sessions::{
     agent_session_row, agent_session_status_label, agent_session_stop_message,
-    agent_session_tooltip_text, agent_sessions_badge_label, agent_sessions_badge_style,
-    agent_sessions_entry, agent_sessions_popover, agent_sessions_popover_style,
-    agent_sessions_row_style, agent_sessions_stop_style, running_agent_sessions,
+    agent_session_tooltip_text, agent_sessions_badge_label,
+    agent_sessions_entry, agent_sessions_popover,
+    running_agent_sessions,
 };
 use crate::app::models::{ChatMessage as ChatEntry, ChatRole};
 use crate::app::session::{AgentChildSession, AgentChildSessionKind, AgentChildSessionStatus};
@@ -151,25 +151,6 @@ fn agent_sessions_popover_lists_running_children() {
 
     let popover = agent_sessions_popover(&app, &children);
     assert!(!popover.as_widget().children().is_empty());
-}
-
-#[test]
-fn agent_sessions_popover_styles_support_light_and_dark_themes() {
-    for theme in [Theme::Light, Theme::Dark] {
-        let badge = agent_sessions_badge_style(&theme, iced::widget::button::Status::Hovered);
-        let popover = agent_sessions_popover_style(&theme);
-        let row = agent_sessions_row_style(&theme);
-        let stop = agent_sessions_stop_style(&theme, iced::widget::button::Status::Hovered);
-
-        assert!(badge.background.is_some());
-        assert!(badge.text_color.a > 0.0);
-        assert!(popover.background.is_some());
-        assert!(popover.text_color.is_some());
-        assert!(row.background.is_some());
-        assert!(row.text_color.is_some_and(|color| color.a > 0.0));
-        assert!(stop.background.is_some());
-        assert!(stop.text_color.a > 0.0);
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

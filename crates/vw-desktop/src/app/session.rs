@@ -27,9 +27,6 @@ pub use self::agent_children::{
     AgentChildSession, AgentChildSessionKind, AgentChildSessionStatus,
     agent_child_session_projection,
 };
-pub(crate) use self::agent_children::{
-    PlanRunSessionControl, plan_run_session_controls_from_content,
-};
 /// 对外暴露当前模块需要复用的能力。
 pub use self::chat_ui::{
     CHAT_UI_CHUNK_SIZE, PreparedChatUiChunk, PreparedChatUiMessage, PreparedChatUiPhase,
@@ -96,9 +93,6 @@ pub(crate) fn backfill_message_models_from_steps(
     }
 }
 
-#[cfg(test)]
-#[path = "session/agent_children_tests.rs"]
-mod agent_children_tests;
 #[cfg(test)]
 #[path = "session/chat_timeline_tests.rs"]
 mod chat_timeline_tests;

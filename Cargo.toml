@@ -280,6 +280,7 @@ members = [
   "crates/libs/agent-identity-loader",
   "crates/libs/agent-log",
   "crates/libs/agent-paths",
+  "crates/libs/agent-mcp",
   "crates/libs/agent-app-services",
   "crates/libs/agent-knowledge",
   "crates/libs/agent-hooks",

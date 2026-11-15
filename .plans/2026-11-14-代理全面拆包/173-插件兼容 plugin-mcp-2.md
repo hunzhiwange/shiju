@@ -65,3 +65,8 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+
+## 2026-11-16 由47先行迁出下层契约（授权精确范围）
+
+47公共窗口中：mcp_notifications.rs 的 Catalog/Listed/McpCatalogs/ToolCatalogBinding 完整迁入 mcp-client/src/notifications.rs，原文件薄重导出；resources/templates/prompts 仅接收缓存能力布尔值与原list_entries抓取闭包，取消/关闭/revision/刷新互斥原样保留。mcp_resources.rs 仅迁 RawResponse 到 mcp-client/src/protocol.rs 并调整三处目录调用签名；资源/提示词业务执行、校验和其余文件未迁。173仍未完成，后续不要复制上述共享类型或恢复旧状态。47卡与同次提交正文保存完整接线和验证范围。

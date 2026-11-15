@@ -1,0 +1,24 @@
+[package]
+name = "plugin-mcp"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+rmcp = { version = "0.8.0", features = ["client"] }
+tokio = { version = "1", features = ["time", "macros"] }
+tokio-util = "0.7.18"
+chrono = "0.4"
+url = "2"
+agent-question = { path = "../agent-question", version = "0.6.0" }
+question-types = { path = "../question-types", version = "0.6.0" }
+network-policy = { path = "../network-policy", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+mcp-client = { path = "../mcp-client", version = "0.6.0" }

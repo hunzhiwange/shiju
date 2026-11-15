@@ -6,6 +6,15 @@ use serde_json::{Value, json};
 use std::{collections::HashMap, time::Duration};
 
 mod config;
+
+pub mod protocol;
+pub mod notifications;
+pub mod catalog;
+pub mod capabilities;
+pub mod wire_result;
+
+pub use protocol::{FormOwner, RawResponse as RawMcpResponse};
+pub use notifications::{McpCatalogs, ToolCatalogBinding};
 pub use config::{apply_mcp_server_override_values, merge_global_mcp_server_values};
 
 pub fn management_for_server(

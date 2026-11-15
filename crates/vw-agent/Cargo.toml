@@ -108,6 +108,7 @@ acp-lifecycle = { path = "../libs/acp-lifecycle", version = "0.6.0" }
 acp-host-io = { path = "../libs/acp-host-io", version = "0.6.0" }
 acp-config = { path = "../libs/acp-config", version = "0.6.0" }
 mcp-client = { path = "../libs/mcp-client", version = "0.6.0" }
+plugin-mcp = { path = "../libs/plugin-mcp", version = "0.6.0" }
 acp-cli-model = { path = "../libs/acp-cli-model", version = "0.6.0" }
 acp-agent-registry = { path = "../libs/acp-agent-registry", version = "0.6.0" }
 acp-access-policy = { path = "../libs/acp-access-policy", version = "0.6.0" }

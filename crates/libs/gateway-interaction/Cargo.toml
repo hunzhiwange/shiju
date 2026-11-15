@@ -1,0 +1,18 @@
+[package]
+name = "gateway-interaction"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+
+serde_json = "1"
+question-types = { path = "../question-types", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+
+[dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

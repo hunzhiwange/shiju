@@ -48,9 +48,7 @@ pub fn load_gateway_diagnostics_blocking(
     runtime: &GatewayUiRuntime,
 ) -> Result<GatewayDiagnosticsReport, String> {
     block_on_gateway(async {
-        runtime
-            .client()
-            .doctor_get()
+        gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone()).doctor_get()
             .await
             .and_then(|value| diagnostics_report(&value))
             .map_err(|error| sanitize_diagnostics_error(&error))

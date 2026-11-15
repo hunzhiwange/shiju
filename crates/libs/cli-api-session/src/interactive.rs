@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result, bail};
 use clap::{Subcommand, ValueEnum};
 use serde_json::{Value, json};
-use vw_gateway_client::PendingPermissionReplyDto;
+use gateway_interaction::PendingPermissionReplyDto;
 use gateway_pty::{GatewayPtyClient, PtyCreateRequest, PtyUpdateRequest};
 
 use cli_api_core::ApiOutputFormat;
@@ -167,34 +167,31 @@ pub async fn run(
         InteractiveCommands::Permission { command } => match command {
             PermissionCommands::List => {
                 json!(
-                    client
-                        .permission_list(context.directory())
+                    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).permission_list(context.directory())
                         .await
                         .map_err(anyhow::Error::msg)?
                 )
             }
             PermissionCommands::Reply { request_id, reply, message } => json!(
-                client
-                    .permission_reply(&request_id, reply.into(), context.directory(), message)
+                gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).permission_reply(&request_id, reply.into(), context.directory(), message)
                     .await
                     .map_err(anyhow::Error::msg)?
             ),
         },
         InteractiveCommands::Question { command } => match command {
             QuestionCommands::List => {
-                json!(client.question_list().await.map_err(anyhow::Error::msg)?)
+                json!(gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).question_list().await.map_err(anyhow::Error::msg)?)
             }
             QuestionCommands::Reply { request_id, input } => {
                 let answers = parse_answers(&input, stdin)?;
                 json!(
-                    client
-                        .question_reply(&request_id, answers)
+                    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).question_reply(&request_id, answers)
                         .await
                         .map_err(anyhow::Error::msg)?
                 )
             }
             QuestionCommands::Reject { request_id } => {
-                json!(client.question_reject(&request_id).await.map_err(anyhow::Error::msg)?)
+                json!(gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).question_reject(&request_id).await.map_err(anyhow::Error::msg)?)
             }
         },
         InteractiveCommands::Pty { command } => {

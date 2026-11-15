@@ -334,7 +334,7 @@ mod native {
                 return None;
             }
             Some(match &client {
-                Ok(client) => client.tools_list().await,
+                Ok(client) => gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).tools_list().await,
                 Err(error) => Err(error.clone()),
             })
         };

@@ -20,7 +20,7 @@ pub fn load_tools_list_via_gateway(&self) -> Vec<String> {
         }
     };
 
-    let result = run_gateway_call(async { client.tools_list().await });
+    let result = run_gateway_call(async { gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).tools_list().await });
 
     match result {
         Ok(tools) => normalize_tool_ids(tools),

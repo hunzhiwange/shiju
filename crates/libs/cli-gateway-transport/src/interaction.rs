@@ -3,7 +3,7 @@
 //! 本模块只负责请求、会话过滤和传输结果判定；overlay 选择、清理与错误展示
 //! 由活动宿主处理，避免网络副作用进入 reducer 或渲染 crate。
 
-use vw_gateway_client::{PendingPermissionReplyDto, PendingPermissionRequestDto};
+use gateway_interaction::{PendingPermissionReplyDto, PendingPermissionRequestDto};
 use question_types as question;
 use todo_types::Todo;
 
@@ -26,16 +26,14 @@ impl GatewayUiRuntime {
     ) -> Result<InteractionSnapshot, String> {
         let session_id = self.resolve_session_id(session_id)?.to_string();
         let directory = self.directory_value();
-        let permissions = self
-            .client()
-            .permission_list(directory.as_deref())
+        let permissions = gateway_interaction::GatewayInteractionClient::new(self
+            .client().transport().clone()).permission_list(directory.as_deref())
             .await?
             .into_iter()
             .filter(|request| request.session_id == session_id)
             .collect();
-        let questions = self
-            .client()
-            .question_list()
+        let questions = gateway_interaction::GatewayInteractionClient::new(self
+            .client().transport().clone()).question_list()
             .await?
             .into_iter()
             .filter(|request| request.session_id == session_id)
@@ -61,7 +59,7 @@ impl GatewayUiRuntime {
         message: Option<String>,
     ) -> Result<(), String> {
         let directory = self.directory_value();
-        if self.client().permission_reply(request_id, reply, directory.as_deref(), message).await? {
+        if gateway_interaction::GatewayInteractionClient::new(self.client().transport().clone()).permission_reply(request_id, reply, directory.as_deref(), message).await? {
             Ok(())
         } else {
             Err(format!("gateway did not resolve permission request {request_id}"))
@@ -83,7 +81,7 @@ impl GatewayUiRuntime {
         request_id: &str,
         answers: Vec<Vec<String>>,
     ) -> Result<(), String> {
-        if self.client().question_reply(request_id, answers).await? {
+        if gateway_interaction::GatewayInteractionClient::new(self.client().transport().clone()).question_reply(request_id, answers).await? {
             Ok(())
         } else {
             Err(format!("gateway did not resolve question request {request_id}"))
@@ -100,7 +98,7 @@ impl GatewayUiRuntime {
 
     /// 显式拒绝一个提问请求；断连或未知响应不会被解释为成功。
     pub(crate) async fn question_reject(&self, request_id: &str) -> Result<(), String> {
-        if self.client().question_reject(request_id).await? {
+        if gateway_interaction::GatewayInteractionClient::new(self.client().transport().clone()).question_reject(request_id).await? {
             Ok(())
         } else {
             Err(format!("gateway did not reject question request {request_id}"))

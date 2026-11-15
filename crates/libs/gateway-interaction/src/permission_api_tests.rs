@@ -5,7 +5,7 @@
 use serde_json::json;
 
 use super::{PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto};
-use crate::client::test_support;
+use crate::test_support;
 
 #[test]
 fn pending_permission_request_deserializes_complete_payload() {

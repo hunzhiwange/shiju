@@ -13,7 +13,7 @@ use vw_gateway_client::ExternalAppsStateDto;
 use vw_gateway_client::HookAuditEntryDto;
 use vw_gateway_client::HookCatalogEntryDto;
 use vw_gateway_client::HookMutationResponseDto;
-use vw_gateway_client::PendingPermissionReplyDto;
+use gateway_interaction::PendingPermissionReplyDto;
 use vw_gateway_client::PendingPermissionRequestDto;
 use vw_gateway_client::ProjectChangeRecordDto;
 use vw_gateway_client::SkillMarketCategoryDto;
@@ -458,7 +458,7 @@ pub async fn gateway_permission_list_owned_async(
     directory: Option<String>,
 ) -> Result<Vec<PendingPermissionRequestDto>, String> {
     let client = gateway_client()?;
-    client.permission_list(directory.as_deref()).await
+    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).permission_list(directory.as_deref()).await
 }
 
 /// 执行 gateway_save_session_async 对应的领域操作。
@@ -580,7 +580,7 @@ pub async fn gateway_current_session_scope_async() -> Result<Option<String>, Str
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_question_list_async() -> Result<Vec<question_types::Request>, String> {
     let client = gateway_client()?;
-    client.question_list().await
+    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).question_list().await
 }
 
 /// 执行 gateway_session_todo_list_async 对应的领域操作。
@@ -604,7 +604,7 @@ pub async fn gateway_question_reply_async(
     answers: Vec<Vec<String>>,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.question_reply(request_id, answers).await.map(|_| ())
+    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).question_reply(request_id, answers).await.map(|_| ())
 }
 
 /// 执行 gateway_question_reject_async 对应的领域操作。
@@ -613,7 +613,7 @@ pub async fn gateway_question_reply_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_question_reject_async(request_id: &str) -> Result<(), String> {
     let client = gateway_client()?;
-    client.question_reject(request_id).await.map(|_| ())
+    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).question_reject(request_id).await.map(|_| ())
 }
 
 /// 执行 gateway_permission_list_async 对应的领域操作。
@@ -624,7 +624,7 @@ pub async fn gateway_permission_list_async(
     directory: Option<&str>,
 ) -> Result<Vec<PendingPermissionRequestDto>, String> {
     let client = gateway_client()?;
-    client.permission_list(directory).await
+    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).permission_list(directory).await
 }
 
 /// 执行 gateway_permission_reply_async 对应的领域操作。
@@ -637,7 +637,7 @@ pub async fn gateway_permission_reply_async(
     directory: Option<&str>,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.permission_reply(request_id, reply, directory, None).await.map(|_| ())
+    gateway_interaction::GatewayInteractionClient::new(client.transport().clone()).permission_reply(request_id, reply, directory, None).await.map(|_| ())
 }
 
 /// 执行 gateway_save_agent_session_scoped_async 对应的领域操作。

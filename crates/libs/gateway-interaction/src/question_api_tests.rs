@@ -4,7 +4,7 @@
 
 use serde_json::json;
 
-use crate::client::test_support;
+use crate::test_support;
 
 #[tokio::test]
 async fn question_api_lists_replies_and_rejects_requests() {

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
 gateway-mcp = { path = "../gateway-mcp", version = "0.6.0" }
 vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }

@@ -4,7 +4,7 @@
 
 use serde_json::json;
 
-use crate::client::test_support;
+use crate::test_support;
 
 #[tokio::test]
 async fn tools_list_maps_tool_specs_to_ids() {

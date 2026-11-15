@@ -37,11 +37,12 @@ impl MemoryMutation {
 pub(crate) async fn load_integrations(runtime: &GatewayUiRuntime) -> LoadedIntegrationCatalog {
     let directory = runtime.directory_value();
     let mcp_client = gateway_mcp::GatewayMcpClient::new(runtime.client().transport().clone());
+    let interaction_client = gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone());
     let (skills, plugins, mcp, memory) = tokio::join!(
         runtime.client().skills_get(directory.as_deref()),
         runtime.client().plugins_get(),
         mcp_client.mcp_inspect(),
-        runtime.client().memory_query_get(None, None),
+        interaction_client.memory_query_get(None, None),
     );
     let mut loaded = LoadedIntegrationCatalog::default();
 
@@ -131,7 +132,7 @@ pub fn query_memory_blocking(
     query: Option<&str>,
 ) -> Result<Vec<IntegrationItem>, String> {
     block_on_gateway(async {
-        runtime.client().memory_query_get(query, None).await.map(|value| memory_items(&value))
+        gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone()).memory_query_get(query, None).await.map(|value| memory_items(&value))
     })
     .map_err(|error| sanitized_warning("memory", error))
 }
@@ -145,9 +146,7 @@ pub fn mutate_memory_and_refresh_blocking(
     block_on_gateway(async {
         match mutation {
             MemoryMutation::Store { key, content } => {
-                runtime
-                    .client()
-                    .memory_store(&json!({
+                gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone()).memory_store(&json!({
                         "key": key,
                         "content": content,
                         "category": "core",
@@ -155,10 +154,10 @@ pub fn mutate_memory_and_refresh_blocking(
                     .await?;
             }
             MemoryMutation::Delete { key } => {
-                runtime.client().memory_delete(key).await?;
+                gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone()).memory_delete(key).await?;
             }
         }
-        runtime.client().memory_query_get(query, None).await.map(|value| memory_items(&value))
+        gateway_interaction::GatewayInteractionClient::new(runtime.client().transport().clone()).memory_query_get(query, None).await.map(|value| memory_items(&value))
     })
     .map_err(|error| sanitized_warning("memory", error))
 }

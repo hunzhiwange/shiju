@@ -94,9 +94,6 @@ mod mcp_management_write;
 #[cfg(test)]
 mod mcp_management_write_tests;
 mod operations_api;
-#[cfg(test)]
-#[path = "operations_api_tests.rs"]
-mod operations_api_tests;
 mod permission_api;
 mod project_api;
 pub mod project_profile_api;

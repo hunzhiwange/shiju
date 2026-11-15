@@ -89,7 +89,7 @@ fn refresh_task() -> Task<Message> {
 // Load independently: provider failures must not hide tools, and WASM cannot use
 // the legacy synchronous gateway shim (which returns an empty default).
 fn refresh_tools_task() -> Task<Message> {
-    Task::perform(async { crate::app::config::gateway_client()?.tools_list().await }, |result| {
+    Task::perform(async { gateway_interaction::GatewayInteractionClient::new(crate::app::config::gateway_client()?.transport().clone()).tools_list().await }, |result| {
         Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolsLoaded(result)))
     })
 }

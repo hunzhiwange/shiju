@@ -2,7 +2,7 @@
 
 use serde_json::json;
 
-use crate::client::test_support;
+use crate::test_support;
 
 #[tokio::test]
 async fn operations_api_uses_documented_routes() {

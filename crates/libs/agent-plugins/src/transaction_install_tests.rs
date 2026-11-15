@@ -1,19 +1,18 @@
 //! Real installation checkpoints inspect visible files, rejection and competing destinations.
 
-use super::identity::metadata_path;
-use crate::plugins::install::{
-    install_plugin_from_marketplace, install_plugin_from_source,
+use plugin_install::identity::metadata_path;
+use crate::install::{
     set_next_post_copy_observer_for_test,
 };
-use crate::plugins::{
+use crate::{
     PluginDiscoveryOptions, PluginHookSource, PluginMcpServers, discover_plugins,
     load_plugin_manifest,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const MANIFEST: &[u8] = include_bytes!("../../../testdata/plugin_compat/t08/plugin.json");
-const PAYLOAD: &[u8] = include_bytes!("../../../testdata/plugin_compat/t08/payload.txt");
+const MANIFEST: &[u8] = include_bytes!("../testdata/plugin_compat/t08/plugin.json");
+const PAYLOAD: &[u8] = include_bytes!("../testdata/plugin_compat/t08/payload.txt");
 
 fn package(root: &Path) -> &str {
     fs::create_dir_all(root.join(".codex-plugin")).unwrap();
@@ -332,3 +331,7 @@ fn codex_plugin_compat_t08_keeps_staging_out_of_plugin_discovery() {
     assert_eq!(installed.identity.as_key(), ".codex-plugin");
     assert_eq!(children(&plugins).len(), 2);
 }
+
+fn unexpected_npm(_: &str, _: Option<&str>, _: Option<&str>, _: &std::path::Path, _: Option<&str>) -> anyhow::Result<crate::PluginInstallResult> { panic!("unexpected npm source in filesystem fixture") }
+fn install_plugin_from_source(source: &str, root: &std::path::Path) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_source(source, root, &unexpected_npm) }
+fn install_plugin_from_marketplace(source: &str, root: &std::path::Path, marketplace: &str) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_marketplace(source, root, marketplace, &unexpected_npm) }

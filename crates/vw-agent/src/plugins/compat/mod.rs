@@ -53,9 +53,6 @@ mod t06_tests;
 #[path = "t07_tests.rs"]
 mod t07_tests;
 
-#[cfg(test)]
-#[path = "t08_tests.rs"]
-mod t08_tests;
 
 #[cfg(test)]
 #[path = "t09_tests.rs"]

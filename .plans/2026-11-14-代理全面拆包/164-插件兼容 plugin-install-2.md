@@ -131,3 +131,31 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+
+## 安全安装闭环静态实施（待本会话取得公共写入/提交窗口）
+
+替代前文将旧宿主路径视为安装阻塞的结论：已迁install主体、transaction_install完整原子事务和npm_archive完整解包/审计至agent-plugins；原处为组合适配/薄转发。安全复制、禁止源内安装、符号链接拒绝、逐字段post-copy审计、身份元数据、同文件系统暂存、无覆盖发布及失败清理保持原流程；Linux/macOS/Windows及不支持平台明确错误分支原样保留。Git使用plugin-install现有真实提取接口并注入已迁manifest和transaction，不增加反向依赖。
+
+两个真实窄端口：InstallNpm是原五个参数及Result<PluginInstallResult>的同步npm来源安装签名，由宿主原npm_archive::install注入；关闭连接是原Fn(&Path)动作，由宿主原mcp_connection_sessions::close_plugin注入，仍在原installed_state锁内、原校验/标记/移除顺序执行，无生产Noop。调用者原API不变。npm_archive宿主只保留原同步下载线程及真实fetch_npm_plugin组合，下载后调用库内install_archive；NpmPluginArchive唯一契约提取到plugin-types，npm_source原下载/网络安全实现保留，未复制。
+
+测试归属：install_tests除配置目录投影测试外随实现迁库，原断言保留，增加仅测试内的来源/关闭端口装配；意外npm来源直接panic，文件系统测试无会话连接，关闭回调仅用于此测试装配。config投影测试仍在宿主install_tests。compat/t08_tests随原post-copy测试钩子迁为agent-plugins/transaction_install_tests，原断言保留，只调整导入并装配真实本地安装入口；测试注入线程局部状态仅随实现迁移，不对生产开放测试开关。
+
+新增实际运行依赖tempfile、flate2、tar，unix libc，版本沿宿主；没有执行Cargo/测试。静态比较transaction_install和npm解包实现与HEAD原文仅路径/可见性变更一致；目标全部Rust的no-index diff --check和限定diff --check通过。未做编译或行为通过声明。
+
+申请公共窗口的具体路径：crates/vw-agent/src/plugins/mod.rs删除manifest_tests/hook_trust_tests已迁声明（install_tests仍保留）；crates/vw-agent/src/plugins/compat/mod.rs删除t08_tests已迁声明。根Cargo.toml和宿主Cargo.toml仅复核现有注册，本阶段不需新增宿主依赖。本会话取得窗口后自行接线、静态复核及限定提交，当前不抢占任务19公共文件窗口。
+
+跨卡记录：158的manifest/loader/install主实现及相邻测试已提前迁移；164的legacy_manifest/portable_manifest、transaction_install、npm_archive解包已提前迁移，后续不得再复制；npm_source只提前提取NpmPluginArchive契约，原下载DNS/端点/凭据/代理/重定向与大小/SRI校验仍原样由宿主实际执行。CLI的onboarding需要保留普通技能库存的精确包身份、路径与可调用权限校验；upgrade需要保留事务状态锁及journal，后续应以真实类型接口迁移，不能回避。hook_handler仍在分析工具上下文绑定、上下文留存、MCP调用、进程终止/异步取消边界，不能将其概括为仅等待旧路径迁移。任务17/158均未宣称全部闭环。
+
+t08既有fixture目录（README.md/payload.txt/plugin.json）随测试迁至agent-plugins/testdata/plugin_compat/t08，include_bytes路径已调整，无复制残留。调度已明确当前窗口分配20，本会话不占用公共文件/index；等待后续唤醒后自行收尾。
+
+
+## 本会话公共接线与限定提交收尾
+
+已获独占窗口并自行完成：plugins/mod.rs删除manifest_tests/hook_trust_tests旧声明；compat/mod.rs删除t08_tests旧声明；宿主install.rs保留配置投影、npm实际下载和租户连接撤销的明确装配，其余实现由库唯一持有；根Cargo.toml补plugin-install实际工作区成员。root只提交这一条成员增量，不包含其它任务变更。plugin-install任务29本身尚待独立提交，本提交不携带其领域产物。
+
+本次重新静态解析根、宿主、agent-plugins、plugin-types、plugin-hooks、plugin-install六份TOML均成功（使用本机已有Python3.12 tomllib，无安装依赖）；三份原样迁移测试逐字比较一致；安装与事务测试的原assert断言集合完全保持，配置投影断言仍在宿主。迁移include资源存在，全部目标Rust空白检查通过。锁内close_plugin保留原校验/标记/删除顺序；未添加生产Noop。事务与解包的原始安全算法已逐字变换复核。仅迁移带来的可见性调整，内部安全复制/测试钩子限制pub(crate)，没有新增生产测试开关。
+
+17仍保留：cli/hook_handler尚未迁；158仍保留：mcp.rs/skills.rs及运行时快照加载尚未迁；164仍保留：其它大量compat职责和npm_source下载未迁，仅提前提取记录内文件/类型。这些是剩余业务，不是编译失败或已通过验收。hook_handler可复用已有泛型tool-context::ToolUseContext<H>/task-local（需显式ContextHost关联AsyncHooks类型），bind_input/retain_context需保存宿主可信会话/轮次/权限与取消上下文，MCP执行需真实执行端口，进程spawn需保留现有终止策略；不是仅因为旧路径存在而判阻塞。CLI onboarding仍须库存中匹配包身份、规范路径与user_invocable，upgrade仍须状态锁/journal。后续按这些真实边界继续迁移，卡片不删。
+
+未运行Cargo、单元测试、集成测试或实机测试，待统一验收；本轮仅静态集成。提交使用指定隔离索引脚本，保留他人工作区及暂存。

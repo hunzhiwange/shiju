@@ -1,0 +1,160 @@
+//! 已审核插件钩子声明的信任记录。
+
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use super::hooks::PluginHook;
+
+const TRUST_FILE_NAME: &str = "plugin-hook-trust.json";
+const TRUST_VERSION: u32 = 1;
+
+/// 插件钩子声明相对当前信任库的审核状态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PluginHookTrustStatus {
+    Trusted,
+    Pending,
+}
+
+/// 持久化保存已审核钩子摘要的信任库。
+///
+/// 仅保存安全相关声明的摘要，不保存命令输出或运行时载荷。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginHookTrustStore {
+    #[serde(default = "default_trust_version")]
+    version: u32,
+    #[serde(default)]
+    trusted_hashes: BTreeSet<String>,
+    #[serde(skip)]
+    path: PathBuf,
+}
+
+impl PluginHookTrustStore {
+    /// 从指定路径加载信任库；文件不存在时返回空库。
+    pub fn load_or_default(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self {
+                version: TRUST_VERSION,
+                trusted_hashes: BTreeSet::new(),
+                path: path.to_path_buf(),
+            });
+        }
+
+        let bytes = fs::read(path).with_context(|| {
+            format!("failed to read plugin hook trust store: {}", path.display())
+        })?;
+        let mut store: Self = serde_json::from_slice(&bytes).with_context(|| {
+            format!("failed to parse plugin hook trust store: {}", path.display())
+        })?;
+        if store.version == 0 {
+            store.version = TRUST_VERSION;
+        }
+        store.path = path.to_path_buf();
+        Ok(store)
+    }
+
+    /// 根据插件名和完整钩子身份判断是否仍受信任。
+    pub fn review_status(&self, plugin_name: &str, hook: &PluginHook) -> PluginHookTrustStatus {
+        let hash = plugin_hook_trust_hash(plugin_name, hook);
+        if self.trusted_hashes.contains(&hash) {
+            PluginHookTrustStatus::Trusted
+        } else {
+            PluginHookTrustStatus::Pending
+        }
+    }
+
+    /// 信任当前钩子声明并立即持久化其稳定摘要。
+    pub fn trust_hook(&mut self, plugin_name: &str, hook: &PluginHook) -> Result<()> {
+        self.trusted_hashes.insert(plugin_hook_trust_hash(plugin_name, hook));
+        self.save()
+    }
+
+    /// Approve the complete Codex declaration, including matchers and package location.
+    pub fn trust_codex_hooks(
+        &mut self,
+        plugin_name: &str,
+        root: &Path,
+        manifest: &plugin_types::CodexHooksManifest,
+    ) -> Result<()> {
+        self.trusted_hashes.insert(codex_hook_hash(plugin_name, root, manifest)?);
+        self.save()
+    }
+
+    pub fn codex_hooks_trusted(
+        &self,
+        plugin_name: &str,
+        root: &Path,
+        manifest: &plugin_types::CodexHooksManifest,
+    ) -> Result<bool> {
+        Ok(self.trusted_hashes.contains(&codex_hook_hash(plugin_name, root, manifest)?))
+    }
+
+    /// 按精确稳定摘要撤销一个已审核声明。
+    pub fn revoke_hash(&mut self, hook_hash: &str) -> Result<bool> {
+        let removed = self.trusted_hashes.remove(hook_hash);
+        if removed {
+            self.save()?;
+        }
+        Ok(removed)
+    }
+
+    pub fn host_directory(&self) -> Result<PathBuf> {
+        self.path
+            .parent()
+            .context("hook trust store has no host directory")?
+            .canonicalize()
+            .context("failed to resolve hook host directory")
+    }
+
+    fn save(&self) -> Result<()> {
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create plugin hook trust dir: {}", parent.display())
+            })?;
+        }
+        let bytes = serde_json::to_vec_pretty(self)
+            .context("failed to serialize plugin hook trust store")?;
+        fs::write(&self.path, bytes).with_context(|| {
+            format!("failed to write plugin hook trust store: {}", self.path.display())
+        })
+    }
+}
+
+/// 返回代理配置目录下稳定的钩子信任文件位置。
+pub fn plugin_hook_trust_file(config_dir: &Path) -> PathBuf {
+    config_dir.join(TRUST_FILE_NAME)
+}
+
+/// 计算覆盖命令、参数、事件、工作目录和清单路径的审核摘要。
+pub fn plugin_hook_trust_hash(plugin_name: &str, hook: &PluginHook) -> String {
+    let working_dir = hook.working_dir.to_string_lossy();
+    let manifest_path = hook.manifest_path.to_string_lossy();
+    let payload = serde_json::json!({
+        "plugin_name": plugin_name,
+        "event": hook.event.as_str(),
+        "command": hook.command.as_str(),
+        "args": &hook.args,
+        "working_dir": working_dir.as_ref(),
+        "manifest_path": manifest_path.as_ref(),
+    });
+    let bytes = serde_json::to_vec(&payload).expect("trust hash payload serializes");
+    hex::encode(Sha256::digest(bytes))
+}
+
+fn default_trust_version() -> u32 {
+    TRUST_VERSION
+}
+
+fn codex_hook_hash(
+    plugin_name: &str,
+    root: &Path,
+    manifest: &plugin_types::CodexHooksManifest,
+) -> Result<String> {
+    let root = root.canonicalize().context("invalid Codex hook package root")?;
+    let content = plugin_hooks::hook_trust_content::plugin_content_hash(&root, &|| false)?;
+    let bytes = serde_json::to_vec(&("codex-hooks-v2", plugin_name, root, manifest, content))?;
+    Ok(hex::encode(Sha256::digest(bytes)))
+}

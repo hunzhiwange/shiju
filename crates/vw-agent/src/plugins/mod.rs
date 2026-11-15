@@ -65,18 +65,12 @@ pub use types::{
     PluginInterface, PluginManifest, PluginMcpServers, PluginPath,
 };
 
-#[cfg(test)]
-#[path = "manifest_tests.rs"]
-mod manifest_tests;
 
 #[cfg(test)]
 #[path = "mcp_tests.rs"]
 mod mcp_tests;
 
 
-#[cfg(test)]
-#[path = "hook_trust_tests.rs"]
-mod hook_trust_tests;
 
 #[cfg(test)]
 #[path = "hook_handler_tests.rs"]

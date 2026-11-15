@@ -295,6 +295,7 @@ members = [
   "crates/libs/agent-paths",
   "crates/libs/agent-provider",
   "crates/libs/plugin-hooks",
+  "crates/libs/plugin-install",
   "crates/libs/tool-web",
   "crates/libs/network-policy",
   "crates/libs/agent-plugins",

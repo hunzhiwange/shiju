@@ -8,15 +8,7 @@ use url::Url;
 const MAX_METADATA: usize = 2 * 1024 * 1024;
 const MAX_ARCHIVE: usize = 50 * 1024 * 1024;
 
-/// Verified bytes and resolved provenance; no package code has been executed.
-#[derive(Debug)]
-pub struct NpmPluginArchive {
-    pub package: String,
-    pub version: String,
-    pub registry: String,
-    pub sha256: String,
-    pub bytes: Vec<u8>,
-}
+pub use plugin_types::NpmPluginArchive;
 
 /// Resolve an exact version or registry tag and verify its SHA-512/SHA-256 SRI.
 /// Redirects, private destinations and ambient credentials/proxies are rejected.

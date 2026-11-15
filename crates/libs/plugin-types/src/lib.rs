@@ -106,3 +106,22 @@ pub mod hooks;
 pub mod path_audit;
 pub use hook_manifest::{CodexHookDiagnostic, CodexHookEvent, CodexHookHandler, CodexHookMatcherGroup, CodexHooksManifest};
 pub use hooks::{PluginHook, PluginHookEvent, PluginHookMode};
+
+/// Result of a local plugin installation.
+#[derive(Debug, Clone, PartialEq)]
+/// 插件安装成功后返回的规范化清单与最终目录。
+pub struct PluginInstallResult {
+    pub installed_dir: PathBuf,
+    pub manifest: PluginManifest,
+    pub identity: PluginIdentity,
+}
+
+/// Verified bytes and resolved provenance; no package code has been executed.
+#[derive(Debug)]
+pub struct NpmPluginArchive {
+    pub package: String,
+    pub version: String,
+    pub registry: String,
+    pub sha256: String,
+    pub bytes: Vec<u8>,
+}

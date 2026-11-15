@@ -2,7 +2,7 @@
 //! 保存策略时只规范化持久化副本，阻止域优先级高于父域信任与来源别名。
 
 use super::*;
-use crate::app::agent::skills::types::SkillDownloadPolicy;
+use crate::types::SkillDownloadPolicy;
 
 #[test]
 fn normalize_domain_list_sorts_deduplicates_and_strips_url_parts() {

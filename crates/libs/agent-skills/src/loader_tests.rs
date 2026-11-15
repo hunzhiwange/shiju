@@ -2,7 +2,7 @@
 //! Markdown 前言与正文回退分别验证，元数据模式必须省略大段提示正文。
 
 use super::*;
-use crate::app::agent::skills::types::SkillLoadMode;
+use crate::types::SkillLoadMode;
 
 #[test]
 fn markdown_metadata_parser_uses_frontmatter_when_present() {
@@ -57,7 +57,7 @@ fn load_skills_from_directory_skips_disabled_and_missing_directories() {
     let disabled = dir.path().join("disabled");
     std::fs::create_dir_all(&disabled).unwrap();
     std::fs::write(disabled.join("SKILL.md"), "# Disabled\nShould not load\n").unwrap();
-    std::fs::write(crate::app::agent::skills::local_skill_disabled_marker_path(&disabled), "")
+    std::fs::write(crate::local::local_skill_disabled_marker_path(&disabled), "")
         .unwrap();
 
     assert!(

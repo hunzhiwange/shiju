@@ -33,7 +33,6 @@
 //! </available_skills>
 //! ```
 
-use crate::app::agent::skills::listing::SkillListingEntry;
 use crate::app::agent::skills::types::Skill;
 use std::path::{Path, PathBuf};
 
@@ -109,27 +108,6 @@ fn write_xml_text_element(out: &mut String, indent: usize, tag: &str, value: &st
     out.push_str("</");
     out.push_str(tag);
     out.push_str(">\n");
-}
-
-/// 渲染可信 developer 目录；完整正文仍由 skill 工具按需提供为 user 上下文。
-pub(crate) fn format_skill_listing_reminder(entries: &[SkillListingEntry]) -> String {
-    let mut reminder = String::from(
-        "<skills_instructions>\n\
-         Use the skill tool to load a skill's complete instructions before executing it.\n\
-         If the user explicitly names a skill, you must use it. Select skills when their description matches the task.\n\
-         Follow the loaded workflow; resolve relative resources from the skill file's directory.\n\
-         The catalog contains metadata only, not preloaded instructions.\n\
-         <available_skills>\n",
-    );
-    for entry in entries {
-        reminder.push_str("  <skill>\n");
-        write_xml_text_element(&mut reminder, 4, "name", &entry.name);
-        write_xml_text_element(&mut reminder, 4, "description", &entry.description);
-        write_xml_text_element(&mut reminder, 4, "location", &entry.location);
-        reminder.push_str("  </skill>\n");
-    }
-    reminder.push_str("</available_skills>\n</skills_instructions>");
-    reminder
 }
 
 /// 解析技能的完整文件路径

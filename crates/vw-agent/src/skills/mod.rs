@@ -61,7 +61,7 @@ pub(crate) use session_state::SkillListingSessionState;
 pub(crate) use types::SkillLoadMode;
 pub use types::{PluginSkillSource, Skill, SkillTool};
 
-const SKILL_DISABLED_MARKER_FILE: &str = "SKILL.disabled";
+pub(crate) use agent_skills::local::{is_local_skill_disabled, local_skill_disabled_marker_path};
 const COMMON_PROJECT_SKILL_SOURCE_PATHS: [&str; 2] = ["skills", ".agents/skills"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,14 +75,6 @@ pub(crate) enum LocalSkillSourceKind {
 pub(crate) struct LocalSkillSourceDir {
     pub(crate) kind: LocalSkillSourceKind,
     pub(crate) path: PathBuf,
-}
-
-pub(crate) fn local_skill_disabled_marker_path(skill_dir: &Path) -> PathBuf {
-    skill_dir.join(SKILL_DISABLED_MARKER_FILE)
-}
-
-pub(crate) fn is_local_skill_disabled(skill_dir: &Path) -> bool {
-    local_skill_disabled_marker_path(skill_dir).is_file()
 }
 
 pub(crate) fn discover_local_skill_source_dirs(

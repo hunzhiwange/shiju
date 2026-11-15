@@ -21,39 +21,7 @@ const NON_CLI_APPROVAL_WAIT_TIMEOUT_SECS: u64 = 300;
 /// 系统会定期检查是否有新的审批决策可用
 const NON_CLI_APPROVAL_POLL_INTERVAL_MS: u64 = 250;
 
-/// 非 CLI 审批提示信息
-///
-/// 用于向用户展示需要审批的工具调用详情
-#[derive(Debug, Clone)]
-pub(crate) struct NonCliApprovalPrompt {
-    /// 审批请求的唯一标识符
-    pub request_id: String,
-    /// 待审批的工具名称
-    pub tool_name: String,
-    /// 工具调用的参数
-    pub arguments: serde_json::Value,
-    /// 可选的稳定工具调用 ID。
-    pub call_id: Option<String>,
-    /// 原始审批请求者。
-    pub sender: String,
-    /// 原始审批通道。
-    pub channel: String,
-    /// 原始审批回复目标。
-    pub reply_target: String,
-}
-
-/// 非 CLI 审批上下文
-///
-/// 包含用于发送审批提示和回复的通道信息
-#[derive(Debug, Clone)]
-pub struct NonCliApprovalContext {
-    /// 发起审批请求的发送者标识
-    pub(crate) sender: String,
-    /// 回复目标地址（如频道、用户等）
-    pub(crate) reply_target: String,
-    /// 用于发送审批提示的无界通道发送端
-    pub(crate) prompt_tx: tokio::sync::mpsc::UnboundedSender<NonCliApprovalPrompt>,
-}
+pub use tool_context::approval::{NonCliApprovalPrompt, NonCliApprovalContext};
 
 // 任务本地存储：非 CLI 审批上下文
 //

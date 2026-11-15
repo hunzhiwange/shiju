@@ -375,13 +375,15 @@ fn collect_gateway_local_agent_output(
             body.session_id.as_ref().expect("scheduler session").as_ref().to_string(),
             Some(workspace_path.clone()),
         )
-        .with_run_worktree_owner(crate::tools::RunWorktreeOwner {
-            claims: Default::default(),
-            store: store.clone(),
-            project_path: project_path.clone(),
-            task_id: task_id.clone(),
-            run_id: run_id.clone(),
-        }),
+        .with_run_worktree_owner(crate::tools::RunWorktreeOwner::new(
+            crate::tools::context::run_worktree::SchedulerWorktreeOwner {
+                claims: Default::default(),
+                store: store.clone(),
+                project_path: project_path.clone(),
+                task_id: task_id.clone(),
+                run_id: run_id.clone(),
+            },
+        )),
     );
     let worktree_owner = tool_context.run_worktree_owner().expect("run owner").clone();
     let stream_log_store = store.clone();

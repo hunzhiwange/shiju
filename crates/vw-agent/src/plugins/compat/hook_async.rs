@@ -2,7 +2,7 @@
 use std::sync::Mutex;
 use tokio::task::JoinSet;
 
-pub(crate) struct AsyncHooks {
+pub struct AsyncHooks {
     tasks: Mutex<JoinSet<()>>,
     closed: std::sync::atomic::AtomicBool,
     permits: std::sync::Arc<tokio::sync::Semaphore>,

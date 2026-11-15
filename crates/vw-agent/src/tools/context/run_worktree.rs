@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use vw_api_transport::common::TimestampMs;
 
 #[derive(Clone)]
-pub(crate) struct RunWorktreeOwner {
+pub struct SchedulerWorktreeOwner {
     pub store: AgentSchedulerStore,
     pub project_path: PathBuf,
     pub task_id: TaskId,
@@ -15,8 +15,8 @@ pub(crate) struct RunWorktreeOwner {
     pub claims: std::sync::Arc<std::sync::Mutex<Vec<PathBuf>>>,
 }
 
-impl RunWorktreeOwner {
-    pub fn validate(&self) -> anyhow::Result<()> {
+impl tool_context::run_worktree::RunWorktreePort for SchedulerWorktreeOwner {
+    fn validate(&self) -> anyhow::Result<()> {
         let run = self
             .store
             .load_run(&self.project_path, &self.run_id)?
@@ -29,7 +29,7 @@ impl RunWorktreeOwner {
         Ok(())
     }
 
-    pub fn claim_directory(&self, directory: &str) -> anyhow::Result<()> {
+    fn claim_directory(&self, directory: &str) -> anyhow::Result<()> {
         use crate::agent_scheduler::runner::workspace_claim::{WorkspaceClaim, lock_root};
         let path = std::path::Path::new(directory).canonicalize()?;
         // The original directory claim remains held throughout execution.
@@ -43,7 +43,7 @@ impl RunWorktreeOwner {
         Ok(())
     }
 
-    pub fn retain_unconfirmed(&self) -> anyhow::Result<()> {
+    fn retain_unconfirmed(&self) -> anyhow::Result<()> {
         use crate::agent_scheduler::runner::workspace_claim::WorkspaceClaim;
         for path in self.claims.lock().unwrap_or_else(|e| e.into_inner()).iter() {
             if let Some(claim) = WorkspaceClaim::take_canonical(path, self.run_id.as_str())? {
@@ -53,7 +53,7 @@ impl RunWorktreeOwner {
         Ok(())
     }
 
-    pub fn release_directories(&self) -> anyhow::Result<()> {
+    fn release_directories(&self) -> anyhow::Result<()> {
         use crate::agent_scheduler::runner::workspace_claim::WorkspaceClaim;
         for path in self.claims.lock().unwrap_or_else(|e| e.into_inner()).drain(..) {
             if let Some(mut claim) = WorkspaceClaim::take_canonical(&path, self.run_id.as_str())? {
@@ -63,7 +63,7 @@ impl RunWorktreeOwner {
         Ok(())
     }
 
-    pub fn record(
+    fn record(
         &self,
         binding: &super::WorktreeBindingState,
         action: &str,
@@ -84,3 +84,5 @@ impl RunWorktreeOwner {
         Ok(())
     }
 }
+
+pub use tool_context::run_worktree::RunWorktreeOwner;

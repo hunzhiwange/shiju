@@ -12,7 +12,7 @@ pub(crate) const TOOL_SEARCH_ID: &str = "tool_search";
 
 /// One authorized user turn. Sharing this reference never grants extra tools.
 /// Callers capture exposed_specs before executing a batch, then refresh next round.
-pub(crate) struct ToolDiscoverySession {
+pub struct ToolDiscoverySession {
     catalog: ToolDiscoveryCatalog,
     exposure: Mutex<ToolExposureState>,
     search_enabled: bool,

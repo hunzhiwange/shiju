@@ -1,37 +1,5 @@
 use serde::{Deserialize, Serialize};
-
-/// 工具执行前的审批请求。
-///
-/// 当代理尝试执行某个工具时，如果该工具需要审批，系统会创建此请求结构
-/// 并等待用户的确认响应。
-///
-/// # 字段说明
-///
-/// - `tool_name`：待执行的工具名称（如 "shell"、"file_write" 等）
-/// - `arguments`：传递给工具的参数，以 JSON 格式存储
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApprovalRequest {
-    /// 待执行的工具名称
-    pub tool_name: String,
-    /// 传递给工具的参数（JSON 格式）
-    pub arguments: serde_json::Value,
-}
-
-/// 用户对审批请求的响应类型。
-///
-/// 定义了用户可以对审批请求做出的三种响应选择。
-/// `Yes` 和 `No` 是一次性决策，而 `Always` 会将会话级别的权限
-/// 添加到白名单中。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ApprovalResponse {
-    /// 执行本次调用（仅此一次）
-    Yes,
-    /// 拒绝本次调用
-    No,
-    /// 执行并将工具添加到会话白名单（后续调用自动批准）
-    Always,
-}
+pub use tool_context::approval::{ApprovalRequest, ApprovalResponse};
 
 /// 单条审批决策的审计日志条目。
 ///

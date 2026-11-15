@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 /// 已调用技能的稳定记录；不保存技能正文或其它展开后的上下文。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct InvokedSkillRecord {
+pub struct InvokedSkillRecord {
     pub(crate) skill_name: String,
     pub(crate) source: PathBuf,
     pub(crate) args: Option<String>,

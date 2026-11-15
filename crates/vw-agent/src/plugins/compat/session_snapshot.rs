@@ -12,7 +12,7 @@ use std::{
 };
 
 /// Data may be retained by MCP clients; it must never own lifecycle locks.
-pub(crate) struct PluginSessionSnapshot {
+pub struct PluginSessionSnapshot {
     options: PluginDiscoveryOptions,
     discovery: PluginDiscovery,
     tenant: vw_api_transport::TenantScope,

@@ -875,13 +875,15 @@ async fn exercise_task_pool_worktree(git: bool, fail_run: bool) -> Result<()> {
                     "explicit-worktree-run",
                     Some(owned_path.to_string_lossy().into_owned()),
                 )
-                .with_run_worktree_owner(crate::tools::RunWorktreeOwner {
-                    claims: Default::default(),
-                    store: owned_store.clone(),
-                    project_path: owned_path.clone(),
-                    task_id: owned_task.clone(),
-                    run_id: owned_run.clone(),
-                }),
+                .with_run_worktree_owner(crate::tools::RunWorktreeOwner::new(
+                    crate::tools::context::run_worktree::SchedulerWorktreeOwner {
+                        claims: Default::default(),
+                        store: owned_store.clone(),
+                        project_path: owned_path.clone(),
+                        task_id: owned_task.clone(),
+                        run_id: owned_run.clone(),
+                    },
+                )),
             );
             assert!(context.worktree_binding_state().directory.is_none());
             assert!(owned_store.list_task_artifacts(&owned_path, &owned_task)?.is_empty());

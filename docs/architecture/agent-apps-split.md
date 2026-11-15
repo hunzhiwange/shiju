@@ -2353,3 +2353,18 @@ unix/non-wasm 注册和私有访问，随任务 22 迁移。无资源路径需�
 静态审阅：workspace 与直接路径依赖存在；新包无门面回依赖，协议唯一
 实现，无资源复制。未运行 Cargo、单元及实机测试，统一验收待授权：新包与
 调用者编译、现有 Gemini 刷新定向测试和平台条件。
+
+### 任务 22：部分下沉，依赖阻塞
+
+app-auth 接收 accounts::managed_default_key 和 macOS logout::check_revocation_support，
+原位置重导出，真实调用者继续沿用 auth 路径；函数体、错误语义与 cfg 不变。
+其余 accounts、logout、binding_tests 与现有独立测试保留原位置和注册，无复制。
+credential_file::register_claude_directory 依赖 providers::claude_login::LoginMaterial
+（任务 23），credential_lease::remove_claude 依赖 providers 原生配置；
+DSH/Kimi 账户依赖 DshCredentials/KimiFiles（任务 24）。前序交接的 Codex、Copilot、
+xAI、Kimi、Gemini 持久化适配器及测试仍待凭据存储闭环，任务 22 尚未完成。
+不得通过回依赖门面或跨包 path/include 闭合。建议先闭合任务 23/24 的底层依赖，
+再恢复任务 22，后续执行器需调整原串行依赖，不能据此跳过待迁移文件。
+本次仅静态审阅：新包直接依赖 core、API、serde_json，无资源引用或回依赖。
+未运行 Cargo、单元及实机测试，统一验收待授权；还需验证新库与门面调用者编译、
+全部原平台条件和迁移单测。

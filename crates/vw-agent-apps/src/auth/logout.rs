@@ -21,14 +21,7 @@ const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
 pub use app_auth_core::logout::LogoutSelection;
 
-/// Only the DSH protocol provides confirmed upstream revocation.
-pub fn check_revocation_support(scope: AuthAccountScope<'_>) -> Result<(), AuthErrorCode> {
-    scope.validate()?;
-    if scope.service != AuthService::DshAccount {
-        return Err(AuthErrorCode::Unsupported);
-    }
-    Ok(())
-}
+pub use app_auth::logout::check_revocation_support;
 
 /// Invalidate private material while holding the existing account lease.
 /// Managed HTTP refreshes take this lease again before publication, so a late

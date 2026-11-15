@@ -1,0 +1,10 @@
+[package]
+name = "app-auth"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-auth-core = { path = "../app-auth-core" }
+vw-api-app-auth = { path = "../api-app-auth" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }

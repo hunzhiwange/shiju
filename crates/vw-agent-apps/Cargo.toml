@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-auth = { path = "../libs/app-auth" }
 app-auth-agy = { path = "../libs/app-auth-agy" }
 app-auth-claude = { path = "../libs/app-auth-claude" }
 app-auth-codex = { path = "../libs/app-auth-codex" }

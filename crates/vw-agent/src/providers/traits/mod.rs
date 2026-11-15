@@ -2,7 +2,7 @@
 //!
 //! 上层会话通过这些类型屏蔽具体供应商协议差异。
 
-use crate::app::agent::tools::ToolSpec;
+use tool_types::ToolSpec;
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream};
 use serde::{Deserialize, Serialize};

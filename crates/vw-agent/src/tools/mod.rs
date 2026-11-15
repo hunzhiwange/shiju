@@ -195,9 +195,9 @@ pub use skill::SkillTool;
 pub use sleep::SleepTool;
 pub use thread_tool::CreateThreadTool;
 pub use todo::{Todo, TodoReadTool, TodoWriteTool};
-pub use traits::Tool;
+pub use tool_types::Tool;
 #[allow(unused_imports)]
-pub use traits::{
+pub use tool_types::{
     ToolCallResult, ToolCallTelemetry, ToolContextUpdate, ToolExtraMessage, ToolRenderHint,
     ToolResult, ToolSpec,
 };

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/tool-types",
   "crates/libs/gateway-skill-market",
   "crates/libs/app-providers",
   "crates/libs/gateway-shiju-skill",

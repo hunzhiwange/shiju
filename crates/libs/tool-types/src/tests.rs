@@ -7,7 +7,7 @@
 //!
 //! 使用 `DummyTool` 作为测试替身，提供确定性行为以简化测试验证。
 
-use super::super::*;
+use super::*;
 use async_trait::async_trait;
 use serde_json::json;
 use vw_api_tools::PermissionRequestDto;

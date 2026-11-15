@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use provider_resolution as model_provider;
 use provider_model_cache as provider_models;
 use auth_file_store as shared_auth;
-pub(crate) async fn load_gateway_providers(endpoint: gateway_endpoint::GatewayEndpoint) -> Result<std::collections::HashMap<String, model_types::Info>, String> {
+pub async fn load_gateway_providers(endpoint: gateway_endpoint::GatewayEndpoint) -> Result<std::collections::HashMap<String, model_types::Info>, String> {
     let client = vw_gateway_client::GatewayClient::new(endpoint)?;
     let response = gateway_model_provider::GatewayModelProviderClient::new(client.transport().clone()).provider_list(None).await?;
     Ok(response.all.into_iter().map(|provider| (provider.id.clone(), provider)).collect())

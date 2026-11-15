@@ -4,8 +4,8 @@ use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, CronAddJobType,
     CronAddScheduleKind, CronFrequency, CronListFilter, CronSettingsTab, CustomProviderModelFilter,
-    CustomProviderModelTab, CustomProviderTab, McpNewServerTransport,
-    McpSettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
+    CustomProviderModelTab, CustomProviderTab,
+    ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
@@ -27,43 +27,16 @@ pub use desktop_settings_security::security_message::{BashPolicyCheck, BashValid
 mod messages_tests;
 
 /// 模型路由设置页消息。
-#[derive(Debug, Clone)]
-pub enum ModelRoutesMessage {
-    SaveDue(u64),
-    Saved(u64, Result<(), String>),
-    Loaded(
-        u64,
-        Result<
-            (
-                Vec<config_routing::ModelRouteConfig>,
-                config_routing::QueryClassificationConfig,
-            ),
-            String,
-        >,
-    ),
-    Refresh,
-    AddRoute,
-    RemoveRoute(usize),
-    PatternChanged(usize, String),
-    ProviderChanged(usize, String),
-    ModelChanged(usize, String),
-    PriorityChanged(usize, String),
-}
+pub use desktop_settings_providers::settings_message::ModelRoutesMessage;
 
 /// 存储设置页消息。
 pub use desktop_settings_memory::messages::StorageMessage;
 
 /// 模型配置内的子标签切换消息。
-#[derive(Debug, Clone, Copy)]
-pub enum ModelConfigTabMessage {
-    Selected(crate::app::state::ModelConfigTab),
-}
+pub use desktop_settings_providers::settings_message::ModelConfigTabMessage;
 
 /// 智能体配置内的子标签切换消息。
-#[derive(Debug, Clone, Copy)]
-pub enum AgentConfigTabMessage {
-    Selected(crate::app::state::AgentConfigTab),
-}
+pub use desktop_settings_agents::agents_update_message::AgentConfigTabMessage;
 
 /// 浏览器工具设置页消息。
 pub use desktop_settings_network::messages::BrowserMessage;
@@ -90,48 +63,7 @@ pub use desktop_settings_network::messages::GatewayClientMessage;
 pub use desktop_settings_agents::acp_update_message::AcpMessage;
 
 /// MCP 设置页消息。
-#[derive(Debug, Clone)]
-pub enum McpMessage {
-    Tools(super::mcp_management_tools::ToolsMessage),
-    Diagnostic(crate::app::message::agent_apps_diagnostics::McpDiagnosticMessage),
-    Catalog(super::mcp_management_list::CatalogMessage),
-    ConnectionForm(super::mcp_management_form::FormMessage),
-    Bindings(super::mcp_management_bindings::BindingsMessage),
-    Resync(super::mcp_management_resync::ResyncMessage),
-    Import(super::mcp_management_import::ImportMessage),
-    TabSelected(McpSettingsTab),
-    Refresh,
-    Loaded(Result<serde_json::Value, String>),
-    InspectRefresh,
-    Inspected(Result<vw_api_mcp_inspect::McpInspectResponse, String>),
-    EditorAction(text_editor::Action),
-    Format,
-    InsertTemplate,
-    NewServerPanelToggled,
-    NewServerNameChanged(String),
-    NewServerTransportChanged(McpNewServerTransport),
-    NewServerCommandChanged(String),
-    NewServerArgsChanged(String),
-    NewServerUrlChanged(String),
-    NewServerTimeoutChanged(String),
-    NewServerEnabledToggled(bool),
-    NewServerRequiredToggled(bool),
-    AddServer,
-    ServerEditRequested(usize),
-    ServerEditCanceled,
-    SaveServerEdit,
-    ServerEnabledToggled(usize, bool),
-    RuntimeServerEnabledToggled(String, bool),
-    PreviewExpandedToggled(String),
-    /// 请求删除指定索引的 MCP 服务器（弹出确认）。
-    RequestDelete(usize),
-    /// 确认删除指定的 MCP 服务器；处理时仍需匹配当前待确认索引。
-    ConfirmDelete(usize),
-    /// 取消删除操作。
-    CancelDelete,
-    Save,
-    Saved(Result<(), String>),
-}
+pub use desktop_settings_mcp::settings_message::McpMessage;
 
 /// 隧道设置页消息。
 pub use desktop_settings_network::messages::TunnelMessage;
@@ -144,49 +76,7 @@ pub use desktop_settings_agents::message::AgentsMessage;
 pub use desktop_settings_appearance::quick_messages_update::QuickMessagesMessage;
 
 /// 系统设置页顶层消息。
-#[derive(Debug, Clone)]
-pub enum GeneralSettingsMessage {
-    LocaleSelected(config_ui::DesktopLocale),
-    LocaleSaved(config_ui::DesktopLocale, Result<(), String>),
-    TabSelected(crate::app::state::GeneralSettingsTab),
-    TimezoneSelected(String),
-    TaskCompletionNotificationToggled(bool),
-    TaskCompletionNotificationSaved(bool, Result<(), String>),
-    TestTaskCompletionNotification,
-    TaskCompletionNotificationSent(Result<(), String>),
-    TaskCompletionNotificationPermissionChecked(Result<(), String>),
-    LaunchAtLoginToggled(bool),
-    LaunchAtLoginSaved(Result<bool, String>),
-    LaunchAtLoginRefreshed(Result<bool, String>),
-    CloseToTrayToggled(bool),
-    #[cfg(target_os = "macos")]
-    ProviderLinkRejected(u64),
-    #[cfg(target_os = "macos")]
-    McpLinkPreview(u64),
-    #[cfg(target_os = "macos")]
-    McpLinkRejected(u64),
-    #[cfg(target_os = "macos")]
-    SkillLinkPreview(u64),
-    #[cfg(target_os = "macos")]
-    SkillLinkRejected(u64),
-    #[cfg(target_os = "macos")]
-    PromptLinkPreview(u64),
-    #[cfg(target_os = "macos")]
-    PromptLinkRejected(u64),
-    #[cfg(target_os = "macos")]
-    InstanceTick,
-    TrayTick,
-    TrayProviderSwitch(String),
-    TrayProviderSwitched {
-        scope: crate::app::state::app_providers::list::Scope,
-        generation: u64,
-        id: String,
-        result: Result<(), String>,
-    },
-    TrayShow,
-    TrayOpenApp(vw_api_app_identity::AppId),
-    TrayQuit,
-}
+pub use desktop_settings_appearance::general_message::GeneralSettingsMessage;
 
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]

@@ -64,3 +64,12 @@ pub struct PluginCatalogItem {
     pub origin: gateway_desktop_settings::DesktopPluginSourceDto,
     pub hook_review: String,
 }
+
+/// `SkillsLoaded` 的加载结果类型。
+///
+/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
+pub type SkillsLoaded = Result<Vec<gateway_desktop_settings::DesktopSkillCatalogEntryDto>, String>;
+/// `PluginsLoaded` 的加载结果类型。
+///
+/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
+pub type PluginsLoaded = Result<Vec<gateway_desktop_settings::DesktopPluginCatalogEntryDto>, String>;

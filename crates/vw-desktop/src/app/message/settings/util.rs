@@ -3,25 +3,12 @@
 use model_types::Info;
 
 pub async fn load_gateway_providers() -> Result<std::collections::HashMap<String, Info>, String> {
-    let client = crate::app::config::gateway_client()?;
-    let response = gateway_model_provider::GatewayModelProviderClient::new(client.transport().clone())
-        .provider_list(None).await?;
-    Ok(response.all.into_iter().map(|provider| (provider.id.clone(), provider)).collect())
+    desktop_settings_providers::provider_tasks::load_gateway_providers(
+        crate::app::config::gateway_client()?.endpoint().clone(),
+    ).await
 }
 
-pub fn parse_comma_or_newline_list(input: &str) -> Vec<String> {
-    input
-        .split([',', '\n'])
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToString::to_string)
-        .collect()
-}
-
-/// 处理 `is_provider_connected` 对应的用户输入、异步结果或状态转换。
-///
-/// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-pub use desktop_settings_providers::models::is_provider_connected;
+pub use desktop_settings_providers::settings_util::{parse_comma_or_newline_list, is_provider_connected, sync_save};
 
 #[cfg(target_arch = "wasm32")]
 #[allow(dead_code)]
@@ -34,26 +21,3 @@ pub fn wasm_save_task(
 ) -> iced::Task<crate::app::Message> {
     crate::app::config::spawn_gateway_task(tag, future)
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
-/// 处理 `sync_save` 对应的用户输入、异步结果或状态转换。
-///
-/// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-/// 返回 `Err` 时保留原始错误文本，交由上层设置页展示。
-pub fn sync_save(persist: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
-    persist()
-}
-
-#[cfg(target_arch = "wasm32")]
-#[allow(dead_code)]
-/// 处理 `sync_save` 对应的用户输入、异步结果或状态转换。
-///
-/// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-/// 返回 `Err` 时保留原始错误文本，交由上层设置页展示。
-pub fn sync_save(_persist: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
-    Ok(())
-}
-#[cfg(test)]
-#[path = "util_tests.rs"]
-mod util_tests;

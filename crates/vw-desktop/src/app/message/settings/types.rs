@@ -1,56 +1,14 @@
-//! 定义系统设置异步加载结果类型别名，统一各设置模块的任务返回值。
-
-use model_types as model_provider;
-
-use crate::app::state::{ModelCatalogEntry, ProviderModelsSummary, ProviderSummary};
+//! Domain-owned settings task results.
 
 pub use desktop_settings_providers::models::ModelStatusChange;
 
-/// `ProvidersLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type ProvidersLoaded = Result<
-    (
-        std::collections::HashMap<String, model_provider::Info>,
-        Vec<String>,
-        bool,
-        Vec<ModelCatalogEntry>,
-    ),
-    crate::app::i18n::settings_models::messages::Feedback,
->;
+pub use desktop_settings_providers::provider_message::ProvidersLoaded;
+pub use desktop_settings_providers::models::ModelsLoaded;
 
-/// `ModelsLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type ModelsLoaded =
-    Result<Vec<ProviderModelsSummary>, crate::app::i18n::settings_models::messages::Feedback>;
-/// `SkillsLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type SkillsLoaded = Result<Vec<gateway_desktop_settings::DesktopSkillCatalogEntryDto>, String>;
-/// `PluginsLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type PluginsLoaded = Result<Vec<gateway_desktop_settings::DesktopPluginCatalogEntryDto>, String>;
-/// `HookCatalogLoaded` 的加载结果类型。
-pub type HookCatalogLoaded = Result<Vec<gateway_desktop_settings::HookCatalogEntryDto>, String>;
-/// `HookAuditLoaded` 的加载结果类型。
-pub type HookAuditLoaded = Result<Vec<gateway_desktop_settings::HookAuditEntryDto>, String>;
-/// hook 信任或撤销操作的结果类型。
-pub type HookMutationCompleted = Result<gateway_desktop_settings::HookMutationResponseDto, String>;
-/// `AgentsLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type AgentsLoaded =
-    Result<(Vec<ProviderSummary>, Vec<ProviderModelsSummary>, Vec<String>), String>;
-/// `DialogueFlowPermissionLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type DialogueFlowPermissionLoaded = Result<String, String>;
-/// `DialogueFlowUiSettingsLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type DialogueFlowUiSettingsLoaded = Result<(bool, bool, bool), String>;
+pub use desktop_settings_skills::types::{SkillsLoaded, PluginsLoaded};
+pub use desktop_settings_runtime::messages::{HookCatalogLoaded, HookAuditLoaded, HookMutationCompleted};
+pub use desktop_settings_agents::agents_update_message::AgentsLoaded;
+pub use desktop_settings_agents::dialogue_flow_message::{DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded};
 #[cfg(test)]
 #[path = "types_tests.rs"]
 mod types_tests;

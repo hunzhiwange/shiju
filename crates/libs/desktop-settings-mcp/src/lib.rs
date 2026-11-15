@@ -330,3 +330,5 @@ pub mod management_probe;
 pub mod management_resync;
 pub mod management_tools;
 pub mod management_effect;
+
+pub mod settings_message;

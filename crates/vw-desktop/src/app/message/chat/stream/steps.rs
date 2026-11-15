@@ -4,7 +4,7 @@
 use super::{ChatMessage, load_session_or_default, now_ms};
 use crate::app::{App, Message, models};
 use iced::Task;
-use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind};
+use gateway_chat_stream::{GatewayChatToolEvent, GatewayChatToolEventKind};
 
 fn upsert_step_start(
     session: &mut models::ChatSession,

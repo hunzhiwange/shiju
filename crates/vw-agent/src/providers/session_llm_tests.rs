@@ -57,7 +57,7 @@ fn parse_usage_returns_none_without_payload() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn tool_lifecycle_events_reset_nested_provider_visible_output() {
-    use vw_gateway_client::GatewayChatStreamEvent;
+    use gateway_chat_stream::GatewayChatStreamEvent;
 
     let tool = GatewayChatStreamEvent::Other(serde_json::json!({
         "type": "chat.tool",

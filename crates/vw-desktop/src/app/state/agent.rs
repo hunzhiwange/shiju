@@ -469,7 +469,7 @@ pub(crate) struct SessionRuntimeState {
     /// 当前活跃的 Agent 请求
     pub(crate) active_agent_request: Option<Arc<AgentRequest>>,
     /// 当前请求的恢复事件；不进入模型上下文。
-    pub(crate) model_recovery: Option<(u64, vw_gateway_client::GatewayModelRecoveryEvent)>,
+    pub(crate) model_recovery: Option<(u64, gateway_chat_stream::GatewayModelRecoveryEvent)>,
     /// 尚未提交到聊天 UI 的流式文本增量。
     pub(crate) pending_stream_delta: String,
     /// 是否已经为流式文本增量安排了合并刷新。

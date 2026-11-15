@@ -4,7 +4,7 @@
 
 use crate::app::models::{ChatMessage, ChatRole, ChatSession, ChatSessionStep, TokenUsage};
 use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
-use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus};
+use gateway_chat_stream::{GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus};
 
 fn empty_session() -> ChatSession {
     ChatSession {

@@ -123,14 +123,14 @@ impl Harness {
                 if let AppMessage::Chat(ChatMessage::AgentStreamError(_, error)) = &event {
                     eprintln!("WINDOW ERROR {error}");
                 }
-                let waiting = matches!(&event, AppMessage::Chat(ChatMessage::AgentModelRecovery(_, state)) if state.phase == vw_gateway_client::GatewayModelRecoveryPhase::Waiting);
+                let waiting = matches!(&event, AppMessage::Chat(ChatMessage::AgentModelRecovery(_, state)) if state.phase == gateway_chat_stream::GatewayModelRecoveryPhase::Waiting);
                 let terminal = matches!(
                     &event,
                     AppMessage::Chat(
                         ChatMessage::AgentStreamDone(..) | ChatMessage::AgentStreamError(..)
                     )
                 );
-                if matches!(&event, AppMessage::Chat(ChatMessage::AgentModelRecovery(_, state)) if state.phase == vw_gateway_client::GatewayModelRecoveryPhase::Recovered)
+                if matches!(&event, AppMessage::Chat(ChatMessage::AgentModelRecovery(_, state)) if state.phase == gateway_chat_stream::GatewayModelRecoveryPhase::Recovered)
                 {
                     assert!(self.waiting_seen, "recovery must follow waiting");
                 }

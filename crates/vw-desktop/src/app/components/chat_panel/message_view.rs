@@ -827,8 +827,8 @@ pub(super) fn should_use_user_message_editor(
         && app.chat_message_editors.get(idx).is_some_and(|editor| !editor.text().trim().is_empty())
 }
 
-pub(crate) fn model_recovery_text(event: &vw_gateway_client::GatewayModelRecoveryEvent) -> String {
-    use vw_gateway_client::GatewayModelRecoveryPhase;
+pub(crate) fn model_recovery_text(event: &gateway_chat_stream::GatewayModelRecoveryEvent) -> String {
+    use gateway_chat_stream::GatewayModelRecoveryPhase;
     match event.phase {
         GatewayModelRecoveryPhase::Waiting => format!(
             "正在重试 {}/{}，等待 {}ms，原因：{}",
@@ -849,9 +849,9 @@ pub(crate) fn model_recovery_text(event: &vw_gateway_client::GatewayModelRecover
 
 pub(crate) fn localized_model_recovery_text(
     i18n: crate::app::i18n::I18n,
-    event: &vw_gateway_client::GatewayModelRecoveryEvent,
+    event: &gateway_chat_stream::GatewayModelRecoveryEvent,
 ) -> String {
-    use vw_gateway_client::GatewayModelRecoveryPhase;
+    use gateway_chat_stream::GatewayModelRecoveryPhase;
     match event.phase {
         GatewayModelRecoveryPhase::Waiting => i18n
             .format(
@@ -889,7 +889,7 @@ pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
     let runtime = app.current_session_runtime_ref()?;
     let (id, event) = runtime.model_recovery.as_ref()?;
     if runtime.active_agent_request.as_ref()?.id != *id
-        || event.phase != vw_gateway_client::GatewayModelRecoveryPhase::Waiting
+        || event.phase != gateway_chat_stream::GatewayModelRecoveryPhase::Waiting
     {
         return None;
     }

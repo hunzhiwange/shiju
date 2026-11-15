@@ -108,7 +108,7 @@ fn task_gateway_idle_timeout() -> Duration {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn handle_gateway_stream_event(
-    event: vw_gateway_client::GatewayChatStreamEvent,
+    event: gateway_chat_stream::GatewayChatStreamEvent,
     visible_filter: &mut GatewayVisibleOutputFilter,
     output: &mut String,
     pending: &mut String,
@@ -117,14 +117,14 @@ fn handle_gateway_stream_event(
     sender: Option<&Sender<TaskLogStream>>,
 ) -> bool {
     match event {
-        vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+        gateway_chat_stream::GatewayChatStreamEvent::Delta(delta) => {
             let visible_delta = visible_filter.push(&delta);
             output.push_str(&visible_delta);
             pending.push_str(&visible_delta);
             flush_gateway_output_lines(pending, sender, false);
             true
         }
-        vw_gateway_client::GatewayChatStreamEvent::Done { finish_reason, .. } => {
+        gateway_chat_stream::GatewayChatStreamEvent::Done { finish_reason, .. } => {
             *done_seen = true;
             let visible_tail = visible_filter.finish();
             output.push_str(&visible_tail);
@@ -139,7 +139,7 @@ fn handle_gateway_stream_event(
             );
             true
         }
-        vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+        gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
             let visible_tail = visible_filter.finish();
             output.push_str(&visible_tail);
             pending.push_str(&visible_tail);
@@ -148,7 +148,7 @@ fn handle_gateway_stream_event(
             *stream_error = Some(error);
             false
         }
-        vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {
+        gateway_chat_stream::GatewayChatStreamEvent::Other(payload) => {
             match payload.get("type").and_then(serde_json::Value::as_str) {
                 Some("chat.step_start") => {
                     let step_index = payload
@@ -295,7 +295,7 @@ fn execute_gateway_prompt_with_streaming_in_mode(
     );
 
     let result = if let Some(idle_timeout) = idle_timeout {
-        vw_gateway_client::GatewayClient::stream_chat_blocking_with_idle_timeout(
+        gateway_chat_stream::stream_chat_blocking_with_idle_timeout(
             &endpoint,
             Some(execution_path),
             &request,
@@ -313,7 +313,7 @@ fn execute_gateway_prompt_with_streaming_in_mode(
             },
         )
     } else {
-        vw_gateway_client::GatewayClient::stream_chat_blocking(
+        gateway_chat_stream::stream_chat_blocking(
             &endpoint,
             Some(execution_path),
             &request,
@@ -359,7 +359,7 @@ fn gateway_task_stream_request(
     acp_agent: Option<String>,
     reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     session_mode: GatewayPromptSessionMode,
-) -> vw_gateway_client::GatewayChatStreamRequest {
+) -> gateway_chat_stream::GatewayChatStreamRequest {
     let acp_enabled = acp_agent.is_some();
     let mut options = gateway_prompt_options_for_mode(execution_path, acp_enabled, session_mode);
     if agent.is_some() {
@@ -368,7 +368,7 @@ fn gateway_task_stream_request(
     if acp_enabled {
         options.insert("acp_agent".to_string(), json!(acp_agent));
     }
-    vw_gateway_client::GatewayChatStreamRequest {
+    gateway_chat_stream::GatewayChatStreamRequest {
         acp_model_source:
             vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
         session_id: Some(session_id.into()),

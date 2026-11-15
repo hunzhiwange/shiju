@@ -1370,7 +1370,7 @@ fn gateway_stream_delta_and_done_update_state_and_emit_lines() {
     let mut done_seen = false;
 
     let keep_streaming = super::handle_gateway_stream_event(
-        vw_gateway_client::GatewayChatStreamEvent::Delta("first\npartial".to_string()),
+        gateway_chat_stream::GatewayChatStreamEvent::Delta("first\npartial".to_string()),
         &mut visible_filter,
         &mut output,
         &mut pending,
@@ -1385,7 +1385,7 @@ fn gateway_stream_delta_and_done_update_state_and_emit_lines() {
     assert!(!done_seen);
 
     let keep_streaming = super::handle_gateway_stream_event(
-        vw_gateway_client::GatewayChatStreamEvent::Done {
+        gateway_chat_stream::GatewayChatStreamEvent::Done {
             finish_reason: None,
             usage: None,
             message_id: None,
@@ -1423,7 +1423,7 @@ fn gateway_stream_hides_reasoning_chunks_split_across_deltas() {
 
     for delta in ["<thi", "nk>reasoning effort 用户消息", "</thi", "nk>\nanswer"] {
         assert!(super::handle_gateway_stream_event(
-            vw_gateway_client::GatewayChatStreamEvent::Delta(delta.to_string()),
+            gateway_chat_stream::GatewayChatStreamEvent::Delta(delta.to_string()),
             &mut visible_filter,
             &mut output,
             &mut pending,
@@ -1433,7 +1433,7 @@ fn gateway_stream_hides_reasoning_chunks_split_across_deltas() {
         ));
     }
     assert!(super::handle_gateway_stream_event(
-        vw_gateway_client::GatewayChatStreamEvent::Done {
+        gateway_chat_stream::GatewayChatStreamEvent::Done {
             finish_reason: Some("stop".to_string()),
             usage: None,
             message_id: None,
@@ -1470,7 +1470,7 @@ fn gateway_stream_error_flushes_tail_and_stops_streaming() {
     let mut done_seen = false;
 
     let keep_streaming = super::handle_gateway_stream_event(
-        vw_gateway_client::GatewayChatStreamEvent::Error("backend failed".to_string()),
+        gateway_chat_stream::GatewayChatStreamEvent::Error("backend failed".to_string()),
         &mut visible_filter,
         &mut output,
         &mut pending,
@@ -1508,7 +1508,7 @@ fn gateway_stream_step_events_emit_indexes_and_ignore_unknown_payloads() {
         serde_json::json!({"type": "chat.unknown", "step_index": 9}),
     ] {
         assert!(super::handle_gateway_stream_event(
-            vw_gateway_client::GatewayChatStreamEvent::Other(payload),
+            gateway_chat_stream::GatewayChatStreamEvent::Other(payload),
             &mut visible_filter,
             &mut output,
             &mut pending,

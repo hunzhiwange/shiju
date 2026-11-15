@@ -1837,7 +1837,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     let recovery = clear_model_recovery(app, &session_id);
     let display_err = if let Some((request, event)) = recovery
         && request == id
-        && event.phase == vw_gateway_client::GatewayModelRecoveryPhase::Stopped
+        && event.phase == gateway_chat_stream::GatewayModelRecoveryPhase::Stopped
     {
         crate::app::components::chat_panel::message_view::model_recovery_text(&event)
     } else {
@@ -1944,7 +1944,7 @@ mod stream_events_tests;
 pub(super) fn clear_model_recovery(
     app: &mut App,
     session_id: &str,
-) -> Option<(u64, vw_gateway_client::GatewayModelRecoveryEvent)> {
+) -> Option<(u64, gateway_chat_stream::GatewayModelRecoveryEvent)> {
     let recovery = app.get_session_runtime_mut(session_id).model_recovery.take();
     if let Some((_, event)) = &recovery
         && app.active_session_id.as_deref() == Some(session_id)
@@ -1961,7 +1961,7 @@ pub(super) fn clear_model_recovery(
 pub(super) fn handle_agent_model_recovery(
     app: &mut App,
     id: u64,
-    event: vw_gateway_client::GatewayModelRecoveryEvent,
+    event: gateway_chat_stream::GatewayModelRecoveryEvent,
 ) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
@@ -1985,11 +1985,11 @@ pub(super) fn handle_agent_model_recovery(
         return Task::none();
     }
     match phase {
-        vw_gateway_client::GatewayModelRecoveryPhase::Waiting => {
+        gateway_chat_stream::GatewayModelRecoveryPhase::Waiting => {
             app.show_toast(crate::app::state::ToastKind::Info, text)
         }
-        vw_gateway_client::GatewayModelRecoveryPhase::Stopped => app.show_error_toast(text),
-        vw_gateway_client::GatewayModelRecoveryPhase::Recovered
-        | vw_gateway_client::GatewayModelRecoveryPhase::Cancelled => Task::none(),
+        gateway_chat_stream::GatewayModelRecoveryPhase::Stopped => app.show_error_toast(text),
+        gateway_chat_stream::GatewayModelRecoveryPhase::Recovered
+        | gateway_chat_stream::GatewayModelRecoveryPhase::Cancelled => Task::none(),
     }
 }

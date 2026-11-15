@@ -524,14 +524,14 @@ pub enum ChatMessage {
     AgentStreamDelta(u64, String),
 
     /// Agent 工具调用的类型化生命周期事件。
-    AgentToolLifecycle(u64, vw_gateway_client::GatewayChatToolEvent),
+    AgentToolLifecycle(u64, gateway_chat_stream::GatewayChatToolEvent),
     McpAppPanelTick,
 
     /// 自动压缩生命周期状态；`completed` 为真时表示安全替换已经完成。
     AgentCompactionStatus(u64, bool),
     /// 未完成待办触发的自动续推状态。
     AgentTodoContinuation(u64),
-    AgentModelRecovery(u64, vw_gateway_client::GatewayModelRecoveryEvent),
+    AgentModelRecovery(u64, gateway_chat_stream::GatewayModelRecoveryEvent),
 
     /// SessionTool 创建完成后，从网关读取到的权威可见任务会话元信息。
     VisibleTaskSessionLoaded(Result<vw_shared::session::info::Info, String>),

@@ -85,7 +85,7 @@ impl SessionLlmProvider {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn parse_usage(value: Option<&serde_json::Value>) -> Option<TokenUsage> {
-        let usage: vw_gateway_client::GatewayChatUsage =
+        let usage: gateway_chat_stream::GatewayChatUsage =
             serde_json::from_value(value?.clone()).ok()?;
 
         Some(TokenUsage {
@@ -97,10 +97,10 @@ impl SessionLlmProvider {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn is_tool_lifecycle_event(event: &vw_gateway_client::GatewayChatStreamEvent) -> bool {
+    fn is_tool_lifecycle_event(event: &gateway_chat_stream::GatewayChatStreamEvent) -> bool {
         matches!(
             event,
-            vw_gateway_client::GatewayChatStreamEvent::Other(payload)
+            gateway_chat_stream::GatewayChatStreamEvent::Other(payload)
                 if payload.get("type").and_then(serde_json::Value::as_str) == Some("chat.tool")
         )
     }
@@ -109,8 +109,8 @@ impl SessionLlmProvider {
     fn gateway_chat_request(
         messages: Vec<serde_json::Value>,
         model: &str,
-    ) -> vw_gateway_client::GatewayChatStreamRequest {
-        vw_gateway_client::GatewayChatStreamRequest {
+    ) -> gateway_chat_stream::GatewayChatStreamRequest {
+        gateway_chat_stream::GatewayChatStreamRequest {
             acp_model_source: vw_api_types::acp_model_source::AcpModelSource::SessionModel,
             session_id: None,
             messages,
@@ -141,28 +141,28 @@ impl SessionLlmProvider {
         let mut usage = None;
         let mut calls = output::GatewayToolCalls::default();
 
-        vw_gateway_client::GatewayClient::stream_chat_blocking(
+        gateway_chat_stream::stream_chat_blocking(
             &endpoint,
             None,
             &Self::gateway_chat_request(messages, model),
             |event| {
                 match event {
-                    vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                    gateway_chat_stream::GatewayChatStreamEvent::Delta(delta) => {
                         output.push_str(&projection.push(&delta))
                     }
-                    vw_gateway_client::GatewayChatStreamEvent::Done {
+                    gateway_chat_stream::GatewayChatStreamEvent::Done {
                         usage: done_usage, ..
                     } => {
                         // Done 事件是用量统计的唯一可靠来源，收到后即可停止阻塞流消费。
                         usage = Self::parse_usage(done_usage.as_ref());
                         return false;
                     }
-                    vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+                    gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
                         stream_error = Some(error);
                         return false;
                     }
-                    event @ vw_gateway_client::GatewayChatStreamEvent::Other(_) => {
-                        if let vw_gateway_client::GatewayChatStreamEvent::Other(payload) = &event
+                    event @ gateway_chat_stream::GatewayChatStreamEvent::Other(_) => {
+                        if let gateway_chat_stream::GatewayChatStreamEvent::Other(payload) = &event
                             && let Err(error) = calls.push(payload)
                         {
                             stream_error = Some(error.to_string());
@@ -334,13 +334,13 @@ impl Provider for SessionLlmProvider {
             std::thread::spawn(move || {
                 let mut projection = output::GatewayOutput::default();
                 // gateway client 是阻塞接口，放入独立线程并用 channel 桥接回异步 stream。
-                let result = vw_gateway_client::GatewayClient::stream_chat_blocking(
+                let result = gateway_chat_stream::stream_chat_blocking(
                     &endpoint,
                     None,
                     &Self::gateway_chat_request(messages, &model),
                     |event| {
                         match event {
-                            vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                            gateway_chat_stream::GatewayChatStreamEvent::Delta(delta) => {
                                 let delta = projection.push(&delta);
                                 if delta.is_empty() {
                                     return true;
@@ -353,7 +353,7 @@ impl Provider for SessionLlmProvider {
                                 };
                                 let _ = tx.send(Ok(chunk));
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Done { .. } => {
+                            gateway_chat_stream::GatewayChatStreamEvent::Done { .. } => {
                                 match projection.finish() {
                                     Ok((tail, _)) => {
                                         if !tail.is_empty() {
@@ -373,11 +373,11 @@ impl Provider for SessionLlmProvider {
                                 }
                                 return false;
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+                            gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
                                 let _ = tx.send(Err(super::traits::StreamError::Provider(error)));
                                 return false;
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}
+                            gateway_chat_stream::GatewayChatStreamEvent::Other(_) => {}
                         }
                         true
                     },
@@ -422,13 +422,13 @@ impl Provider for SessionLlmProvider {
             std::thread::spawn(move || {
                 let mut projection = output::GatewayOutput::default();
                 // 与 system/message 入口保持相同桥接方式，确保历史消息流式路径行为一致。
-                let result = vw_gateway_client::GatewayClient::stream_chat_blocking(
+                let result = gateway_chat_stream::stream_chat_blocking(
                     &endpoint,
                     None,
                     &Self::gateway_chat_request(messages, &model),
                     |event| {
                         match event {
-                            vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                            gateway_chat_stream::GatewayChatStreamEvent::Delta(delta) => {
                                 let delta = projection.push(&delta);
                                 if delta.is_empty() {
                                     return true;
@@ -440,7 +440,7 @@ impl Provider for SessionLlmProvider {
                                 };
                                 let _ = tx.send(Ok(chunk));
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Done { .. } => {
+                            gateway_chat_stream::GatewayChatStreamEvent::Done { .. } => {
                                 match projection.finish() {
                                     Ok((tail, _)) => {
                                         if !tail.is_empty() {
@@ -460,11 +460,11 @@ impl Provider for SessionLlmProvider {
                                 }
                                 return false;
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+                            gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
                                 let _ = tx.send(Err(super::traits::StreamError::Provider(error)));
                                 return false;
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}
+                            gateway_chat_stream::GatewayChatStreamEvent::Other(_) => {}
                         }
                         true
                     },

@@ -408,8 +408,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentToolLifecycle(id, event) => {
             let mut app_task = Task::none();
             #[cfg(not(target_arch = "wasm32"))]
-            if event.kind == vw_gateway_client::GatewayChatToolEventKind::Complete
-                && event.status == vw_gateway_client::GatewayChatToolStatus::Completed
+            if event.kind == gateway_chat_stream::GatewayChatToolEventKind::Complete
+                && event.status == gateway_chat_stream::GatewayChatToolStatus::Completed
                 && let Some(session) = app.find_session_by_request_id(id)
                 && let Some(data) = event
                     .payload
@@ -738,9 +738,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 }
 
 pub(crate) fn session_tool_created_session(
-    event: &vw_gateway_client::GatewayChatToolEvent,
+    event: &gateway_chat_stream::GatewayChatToolEvent,
 ) -> Option<(String, Option<String>)> {
-    use vw_gateway_client::{GatewayChatToolEventKind, GatewayChatToolStatus};
+    use gateway_chat_stream::{GatewayChatToolEventKind, GatewayChatToolStatus};
 
     if event.name != "SessionTool"
         || event.kind != GatewayChatToolEventKind::Complete

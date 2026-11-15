@@ -329,7 +329,7 @@ fn session_tool_create_event_requests_visible_session_refresh() {
     );
 
     let mut failed = event.clone();
-    failed.status = vw_gateway_client::GatewayChatToolStatus::Failed;
+    failed.status = gateway_chat_stream::GatewayChatToolStatus::Failed;
     assert!(crate::app::message::chat::stream::session_tool_created_session(&failed).is_none());
     let mut other_action = event;
     other_action.payload["output"] = serde_json::Value::String(
@@ -346,7 +346,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     use std::collections::VecDeque;
     use std::time::Duration;
 
-    use vw_gateway_client::GatewayStreamAttemptResult;
+    use gateway_chat_stream::GatewayStreamAttemptResult;
 
     assert_eq!(super::GATEWAY_STREAM_MAX_RETRY_DELAY, Duration::from_secs(3 * 60 * 60));
     assert!(
@@ -2300,7 +2300,7 @@ fn lightweight_goal_mode_finishes_without_secondary_evaluation() {
 
     assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
     assert_eq!(
-        SOURCE.matches("GatewayClient::stream_chat").count(),
+        SOURCE.matches("gateway_chat_stream::stream_chat").count(),
         1,
         "ordinary goal mode must send only the main chat request"
     );
@@ -2533,7 +2533,8 @@ fn recovery_notice_gateway_payload_keeps_request_and_rejects_other_session() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn desktop_first_response_disconnect_replays_the_same_request_and_session() {
-    use vw_gateway_client::{GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient};
+    use vw_gateway_client::{GatewayClient};
+use gateway_chat_stream::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 
     let body = GatewayChatStreamRequest {
         session_id: Some("draft-id".to_string().into()),

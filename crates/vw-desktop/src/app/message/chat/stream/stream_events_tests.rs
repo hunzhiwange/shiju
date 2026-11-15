@@ -1962,10 +1962,10 @@ fn compaction_error_and_cancel_settle_active_and_background_status() {
 
 fn recovery_notice_event(
     session: &str,
-    phase: vw_gateway_client::GatewayModelRecoveryPhase,
+    phase: gateway_chat_stream::GatewayModelRecoveryPhase,
     attempt: u64,
-) -> vw_gateway_client::GatewayModelRecoveryEvent {
-    vw_gateway_client::GatewayModelRecoveryEvent {
+) -> gateway_chat_stream::GatewayModelRecoveryEvent {
+    gateway_chat_stream::GatewayModelRecoveryEvent {
         session_id: session.into(),
         attempt,
         max_attempts: 3,
@@ -1978,7 +1978,7 @@ fn recovery_notice_event(
 
 #[test]
 fn recovery_notice_waiting_deduplicates_and_keeps_request_busy() {
-    use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;
+    use gateway_chat_stream::GatewayModelRecoveryPhase::Waiting;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("notice".into());
     app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
@@ -1995,7 +1995,7 @@ fn recovery_notice_waiting_deduplicates_and_keeps_request_busy() {
 
 #[test]
 fn recovery_notice_recovered_cancelled_and_done_clear_waiting() {
-    use vw_gateway_client::GatewayModelRecoveryPhase::{Cancelled, Recovered, Waiting};
+    use gateway_chat_stream::GatewayModelRecoveryPhase::{Cancelled, Recovered, Waiting};
     for phase in [Recovered, Cancelled] {
         let (mut app, _) = crate::app::App::new();
         app.active_session_id = Some("notice".into());
@@ -2021,7 +2021,7 @@ fn recovery_notice_recovered_cancelled_and_done_clear_waiting() {
 
 #[test]
 fn recovery_notice_stopped_preserves_actual_attempts_and_action() {
-    use vw_gateway_client::GatewayModelRecoveryPhase::Stopped;
+    use gateway_chat_stream::GatewayModelRecoveryPhase::Stopped;
     for attempt in [0, 1, 3] {
         let (mut app, _) = crate::app::App::new();
         app.active_session_id = Some("notice".into());
@@ -2046,7 +2046,7 @@ fn recovery_notice_stopped_preserves_actual_attempts_and_action() {
 
 #[test]
 fn recovery_notice_background_and_old_request_do_not_pollute_active_request() {
-    use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;
+    use gateway_chat_stream::GatewayModelRecoveryPhase::Waiting;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("active".into());
     app.get_session_runtime_mut("active").active_agent_request = Some(agent_request(43, "active"));
@@ -2075,7 +2075,7 @@ fn recovery_notice_background_and_old_request_do_not_pollute_active_request() {
 
 #[test]
 fn recovery_notice_cancel_terminal_and_old_error_keep_new_request() {
-    use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;
+    use gateway_chat_stream::GatewayModelRecoveryPhase::Waiting;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("notice".into());
     app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
@@ -2104,7 +2104,7 @@ async fn recovery_notice_chinese_text_draws_in_light_and_dark_themes() {
     let _ = super::handle_agent_model_recovery(
         &mut app,
         42,
-        recovery_notice_event("notice", vw_gateway_client::GatewayModelRecoveryPhase::Waiting, 1),
+        recovery_notice_event("notice", gateway_chat_stream::GatewayModelRecoveryPhase::Waiting, 1),
     );
     for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
         let mut renderer =

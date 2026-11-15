@@ -170,8 +170,8 @@ impl GatewayReconnectState {
         Self { request_id, last_event_id: None, next_delay: GATEWAY_STREAM_INITIAL_RETRY_DELAY }
     }
 
-    fn resume(&self) -> vw_gateway_client::GatewayStreamResume {
-        vw_gateway_client::GatewayStreamResume {
+    fn resume(&self) -> gateway_chat_stream::GatewayStreamResume {
+        gateway_chat_stream::GatewayStreamResume {
             request_id: self.request_id.clone(),
             last_event_id: self.last_event_id,
         }
@@ -179,7 +179,7 @@ impl GatewayReconnectState {
 
     fn finish_attempt(
         &mut self,
-        result: Result<vw_gateway_client::GatewayStreamAttemptResult, String>,
+        result: Result<gateway_chat_stream::GatewayStreamAttemptResult, String>,
         saw_new_event: bool,
         last_forwarded_event_id: Option<u64>,
         stop_reason: Option<GatewayStreamStopReason>,
@@ -203,13 +203,13 @@ impl GatewayReconnectState {
         }
 
         match result {
-            Ok(vw_gateway_client::GatewayStreamAttemptResult::Terminated) => {
+            Ok(gateway_chat_stream::GatewayStreamAttemptResult::Terminated) => {
                 GatewayStreamNext::Terminal
             }
-            Ok(vw_gateway_client::GatewayStreamAttemptResult::CallerStopped) => {
+            Ok(gateway_chat_stream::GatewayStreamAttemptResult::CallerStopped) => {
                 GatewayStreamNext::Cancelled
             }
-            Ok(vw_gateway_client::GatewayStreamAttemptResult::Incomplete) => {
+            Ok(gateway_chat_stream::GatewayStreamAttemptResult::Incomplete) => {
                 self.last_event_id.get_or_insert(0);
                 GatewayStreamNext::Retry(self.take_retry_delay())
             }
@@ -1994,11 +1994,11 @@ async fn stream_task_plan_run(
 async fn stream_task_plan_run_resumable(
     endpoint: &gateway_endpoint::GatewayEndpoint,
     body: &vw_api_types::task::TaskPlanRunRequest,
-    resume: &vw_gateway_client::GatewayStreamResume,
+    resume: &gateway_chat_stream::GatewayStreamResume,
     on_event: impl FnMut(
-        vw_gateway_client::GatewayStreamEvent<vw_api_types::task::TaskPlanRunStreamEventDto>,
+        gateway_chat_stream::GatewayStreamEvent<vw_api_types::task::TaskPlanRunStreamEventDto>,
     ) -> bool,
-) -> Result<vw_gateway_client::GatewayStreamAttemptResult, String> {
+) -> Result<gateway_chat_stream::GatewayStreamAttemptResult, String> {
     tracing::info!(
         target: "vw_desktop",
         endpoint = %endpoint.describe(),
@@ -2069,7 +2069,7 @@ fn gateway_request_options(
 }
 
 fn chat_tool_message(request_id: u64, payload: &serde_json::Value) -> Option<Message> {
-    vw_gateway_client::normalize_chat_tool_event(payload)
+    gateway_chat_stream::normalize_chat_tool_event(payload)
         .map(|event| Message::Chat(message::ChatMessage::AgentToolLifecycle(request_id, event)))
 }
 
@@ -2126,7 +2126,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                     return;
                 }
             };
-            let chat_body = vw_gateway_client::GatewayChatStreamRequest {
+            let chat_body = gateway_chat_stream::GatewayChatStreamRequest {
                 acp_model_source: req.acp_model_source,
                 session_id: Some(req.session.clone().into()),
                 messages: body
@@ -2205,7 +2205,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 let resume = reconnect.resume();
 
                 let result = if stop_reason.is_some() {
-                    Ok(vw_gateway_client::GatewayStreamAttemptResult::CallerStopped)
+                    Ok(gateway_chat_stream::GatewayStreamAttemptResult::CallerStopped)
                 } else if let Some(plan_run_body) = plan_run_body.as_ref() {
                     let root = req.root.as_deref().expect("validated workflow root");
                     stream_task_plan_run_resumable(
@@ -2420,7 +2420,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                     )
                     .await
                 } else {
-                    vw_gateway_client::GatewayClient::stream_chat_resumable(
+                    gateway_chat_stream::stream_chat_resumable(
                         &endpoint,
                         req.root.as_deref(),
                         &chat_body,
@@ -2432,20 +2432,20 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                 saw_new_event = true;
                             }
                             let event_kind = match &event {
-                                vw_gateway_client::GatewayChatStreamEvent::Delta(_) => "delta",
-                                vw_gateway_client::GatewayChatStreamEvent::Done { .. } => "done",
-                                vw_gateway_client::GatewayChatStreamEvent::Error(_) => "error",
-                                vw_gateway_client::GatewayChatStreamEvent::Other(_) => "other",
+                                gateway_chat_stream::GatewayChatStreamEvent::Delta(_) => "delta",
+                                gateway_chat_stream::GatewayChatStreamEvent::Done { .. } => "done",
+                                gateway_chat_stream::GatewayChatStreamEvent::Error(_) => "error",
+                                gateway_chat_stream::GatewayChatStreamEvent::Other(_) => "other",
                             };
                             let terminal_event = matches!(
                                 event,
-                                vw_gateway_client::GatewayChatStreamEvent::Done { .. }
-                                    | vw_gateway_client::GatewayChatStreamEvent::Error(_)
+                                gateway_chat_stream::GatewayChatStreamEvent::Done { .. }
+                                    | gateway_chat_stream::GatewayChatStreamEvent::Error(_)
                             );
                             let mut handoff = false;
 
                             let next_message = match event {
-                                vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                                gateway_chat_stream::GatewayChatStreamEvent::Delta(delta) => {
                                     if !received_delta && !delta.is_empty() {
                                         received_delta = true;
                                         info!(target: "vw_desktop", request_id = req.id, session_id = %req.session, event_id, "desktop received first gateway delta");
@@ -2461,7 +2461,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         req.id, delta,
                                     )))
                                 }
-                                vw_gateway_client::GatewayChatStreamEvent::Done {
+                                gateway_chat_stream::GatewayChatStreamEvent::Done {
                                     usage,
                                     message_id,
                                     parent_message_id,
@@ -2483,12 +2483,12 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         parent_message_id,
                                     )))
                                 }
-                                vw_gateway_client::GatewayChatStreamEvent::Error(error)
+                                gateway_chat_stream::GatewayChatStreamEvent::Error(error)
                                     if error == "cancelled" =>
                                 {
                                     Some(Message::Chat(message::ChatMessage::AgentStreamCancelled(req.id)))
                                 }
-                                vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+                                gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
                                     info!(
                                         target: "vw_desktop",
                                         request_id = req.id,
@@ -2499,7 +2499,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         req.id, error,
                                     )))
                                 }
-                                vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {
+                                gateway_chat_stream::GatewayChatStreamEvent::Other(payload) => {
                                     match payload
                                         .get("type")
                                         .and_then(serde_json::Value::as_str)
@@ -2821,7 +2821,7 @@ fn chat_model_recovery_message(
     session_id: &str,
     payload: &serde_json::Value,
 ) -> Option<Message> {
-    let event: vw_gateway_client::GatewayModelRecoveryEvent =
+    let event: gateway_chat_stream::GatewayModelRecoveryEvent =
         serde_json::from_value(payload.clone()).ok()?;
     (event.session_id == session_id)
         .then_some(Message::Chat(message::ChatMessage::AgentModelRecovery(request_id, event)))

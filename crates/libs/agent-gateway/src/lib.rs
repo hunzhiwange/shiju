@@ -1,4 +1,8 @@
 //! Gateway application services.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod api;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod approval_state;
 #[cfg(target_os = "macos")]
 pub mod aggregation_resync;
 pub mod agent_apps;

@@ -3,14 +3,14 @@
 // fixture 刻意填满各渠道密钥字段，用于防止新增配置项漏出脱敏清单。
 use super::*;
 
-use crate::app::agent::channels::email_channel::EmailConfig;
-use crate::app::agent::config::schema::{
+use config_channel_services::EmailConfig;
+use agent_config::runtime_schema::{
     CloudflareTunnelConfig, CustomTunnelConfig, DingTalkConfig, DiscordConfig,
     EmbeddingRouteConfig, FeishuConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig,
     MattermostConfig, NextcloudTalkConfig, NgrokTunnelConfig, NostrConfig, QQConfig, QQReceiveMode,
     SlackConfig, StreamMode, TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
-use crate::app::agent::config::{Config, DelegateAgentConfig};
+use agent_config::runtime::{Config, DelegateAgentConfig};
 use config_channel_services::ClawdTalkConfig;
 
 fn secret(value: &str) -> Option<String> {
@@ -345,8 +345,8 @@ fn full_config() -> Config {
         receive_mode: LarkReceiveMode::Webhook,
         port: Some(42617),
         draft_update_interval_ms:
-            crate::app::agent::config::schema::default_lark_draft_update_interval_ms(),
-        max_draft_edits: crate::app::agent::config::schema::default_lark_max_draft_edits(),
+            agent_config::runtime_schema::default_lark_draft_update_interval_ms(),
+        max_draft_edits: agent_config::runtime_schema::default_lark_max_draft_edits(),
     });
     config.channels_config.feishu = Some(FeishuConfig {
         app_id: "feishu-app".into(),
@@ -358,8 +358,8 @@ fn full_config() -> Config {
         receive_mode: LarkReceiveMode::Webhook,
         port: Some(42618),
         draft_update_interval_ms:
-            crate::app::agent::config::schema::default_lark_draft_update_interval_ms(),
-        max_draft_edits: crate::app::agent::config::schema::default_lark_max_draft_edits(),
+            agent_config::runtime_schema::default_lark_draft_update_interval_ms(),
+        max_draft_edits: agent_config::runtime_schema::default_lark_max_draft_edits(),
     });
     config.channels_config.dingtalk = Some(DingTalkConfig {
         client_id: "dingtalk-client".into(),

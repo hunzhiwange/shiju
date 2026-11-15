@@ -106,9 +106,7 @@ pub use types::{
 /// 单元测试模块
 ///
 /// 测试文件位于 `tests.rs`，与主模块同级目录。
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
+// 配置组合测试随领域实现迁入 agent-gateway。
 
 /// Independently authenticated voice routes, mounted at the contract's /api prefix.
 pub(crate) fn voice_router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {

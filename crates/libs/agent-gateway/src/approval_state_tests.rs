@@ -2,7 +2,7 @@
 
 // 测试串行持有全局锁，避免进程级审批缓存在用例之间互相污染。
 use super::*;
-use crate::app::agent::project;
+use agent_project as project;
 use std::panic;
 use std::sync::Arc;
 
@@ -25,8 +25,8 @@ async fn approval_manager_reuses_current_instance_cache_entry() {
 
     let (first, second) = project::instance::provide(temp.path(), None, || {
         Box::pin(async {
-            let first = approval_manager_for_current_instance().await;
-            let second = approval_manager_for_current_instance().await;
+            let first = approval_manager_for_current_instance(TenantScope::default()).await;
+            let second = approval_manager_for_current_instance(TenantScope::default()).await;
             Ok::<_, project::Error>((first, second))
         })
     })
@@ -49,13 +49,13 @@ async fn approval_manager_uses_separate_entries_for_separate_instances() {
     clear_approval_manager_for_directory(&second_directory);
 
     let first = project::instance::provide(first_temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("first instance context should be provided")
     .expect("first approval manager should load");
     let second = project::instance::provide(second_temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("second instance context should be provided")
@@ -74,14 +74,14 @@ async fn clear_approval_manager_removes_existing_directory_entry() {
     clear_approval_manager_for_directory(&directory);
 
     let first = project::instance::provide(temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("instance context should be provided")
     .expect("first approval manager should load");
     clear_approval_manager_for_directory(&directory);
     let second = project::instance::provide(temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("instance context should be provided")
@@ -107,7 +107,7 @@ async fn approval_manager_recovers_from_poisoned_cache_lock() {
     clear_approval_manager_for_directory(&directory);
 
     let manager = project::instance::provide(temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("instance context should be provided")
@@ -115,7 +115,7 @@ async fn approval_manager_recovers_from_poisoned_cache_lock() {
 
     let lock = APPROVAL_MANAGERS.lock().unwrap_or_else(|error| error.into_inner());
     let cached = lock
-        .get(&(current_tenant_scope(), normalize_directory_key(&directory)))
+        .get(&(TenantScope::default(), normalize_directory_key(&directory)))
         .expect("recovered manager should be cached");
     assert!(Arc::ptr_eq(&manager, cached));
     drop(lock);
@@ -132,7 +132,7 @@ async fn approval_manager_recovers_existing_entry_from_poisoned_cache_lock() {
     clear_approval_manager_for_directory(&directory);
 
     let cached = project::instance::provide(temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("instance context should be provided")
@@ -146,7 +146,7 @@ async fn approval_manager_recovers_existing_entry_from_poisoned_cache_lock() {
     clear_approval_manager_for_directory(&directory);
 
     let recovered = project::instance::provide(temp.path(), None, || {
-        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance().await) })
+        Box::pin(async { Ok::<_, project::Error>(approval_manager_for_current_instance(TenantScope::default()).await) })
     })
     .await
     .expect("instance context should be provided")

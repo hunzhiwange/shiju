@@ -7,25 +7,25 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::schema::{
+    use agent_config::runtime_schema::{
         CloudflareTunnelConfig, LarkReceiveMode, NgrokTunnelConfig, WatiConfig,
     };
-    use crate::app::agent::gateway::api::integrations::{
+    use crate::api::integrations::{
         apply_integration_credentials_update, build_integration_settings_payload, config_revision,
     };
-    use crate::app::agent::gateway::api::secrets::{
+    use crate::api::secrets::{
         MASKED_SECRET, hydrate_config_for_save, mask_sensitive_fields,
     };
     use std::collections::BTreeMap;
 
     #[test]
     fn masking_keeps_toml_valid() {
-        let mut cfg = crate::app::agent::config::Config::default();
+        let mut cfg = agent_config::runtime::Config::default();
         cfg.api_key = Some("sk-live-123".to_string());
 
         let masked = mask_sensitive_fields(&cfg);
         let toml = toml::to_string_pretty(&masked).expect("masked config should serialize");
-        let parsed: crate::app::agent::config::Config =
+        let parsed: agent_config::runtime::Config =
             toml::from_str(&toml).expect("masked config should remain valid TOML for Config");
 
         assert_eq!(parsed.api_key.as_deref(), Some(MASKED_SECRET));
@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn hydrate_config_for_save_restores_masked_secrets_and_paths() {
-        let mut current = crate::app::agent::config::Config::default();
+        let mut current = agent_config::runtime::Config::default();
         current.config_path = std::path::PathBuf::from("/tmp/current/vibewindow.json");
         current.workspace_dir = std::path::PathBuf::from("/tmp/current/workspace");
         current.api_key = Some("real-key".to_string());
@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn mask_sensitive_fields_covers_wati_email_and_feishu_secrets() {
-        let mut cfg = crate::app::agent::config::Config::default();
+        let mut cfg = agent_config::runtime::Config::default();
         cfg.proxy.http_proxy = Some("http://user:pass@proxy.internal:8080".to_string());
         cfg.proxy.https_proxy = Some("https://user:pass@proxy.internal:8443".to_string());
         cfg.proxy.all_proxy = Some("socks5://user:pass@proxy.internal:1080".to_string());
@@ -67,10 +67,10 @@ mod tests {
             tenant_id: Some("tenant-1".to_string()),
             allowed_numbers: vec!["*".to_string()],
         });
-        let mut email = crate::app::agent::channels::email_channel::EmailConfig::default();
+        let mut email = config_channel_services::EmailConfig::default();
         email.password = "email-real-password".to_string();
         cfg.channels_config.email = Some(email);
-        cfg.channels_config.feishu = Some(crate::app::agent::config::FeishuConfig {
+        cfg.channels_config.feishu = Some(agent_config::runtime::FeishuConfig {
             app_id: "cli_app_id".to_string(),
             app_secret: "feishu-real-secret".to_string(),
             encrypt_key: Some("feishu-encrypt-key".to_string()),
@@ -80,8 +80,8 @@ mod tests {
             receive_mode: LarkReceiveMode::Webhook,
             port: Some(42617),
             draft_update_interval_ms:
-                crate::app::agent::config::schema::default_lark_draft_update_interval_ms(),
-            max_draft_edits: crate::app::agent::config::schema::default_lark_max_draft_edits(),
+                agent_config::runtime_schema::default_lark_draft_update_interval_ms(),
+            max_draft_edits: agent_config::runtime_schema::default_lark_max_draft_edits(),
         });
 
         let masked = mask_sensitive_fields(&cfg);
@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn hydrate_config_for_save_restores_wati_email_and_feishu_secrets() {
-        let mut current = crate::app::agent::config::Config::default();
+        let mut current = agent_config::runtime::Config::default();
         current.proxy.http_proxy = Some("http://user:pass@proxy.internal:8080".to_string());
         current.proxy.https_proxy = Some("https://user:pass@proxy.internal:8443".to_string());
         current.proxy.all_proxy = Some("socks5://user:pass@proxy.internal:1080".to_string());
@@ -129,10 +129,10 @@ mod tests {
             tenant_id: Some("tenant-1".to_string()),
             allowed_numbers: vec!["*".to_string()],
         });
-        let mut email = crate::app::agent::channels::email_channel::EmailConfig::default();
+        let mut email = config_channel_services::EmailConfig::default();
         email.password = "email-real-password".to_string();
         current.channels_config.email = Some(email);
-        current.channels_config.feishu = Some(crate::app::agent::config::FeishuConfig {
+        current.channels_config.feishu = Some(agent_config::runtime::FeishuConfig {
             app_id: "cli_app_id".to_string(),
             app_secret: "feishu-real-secret".to_string(),
             encrypt_key: Some("feishu-encrypt-key".to_string()),
@@ -142,8 +142,8 @@ mod tests {
             receive_mode: LarkReceiveMode::Webhook,
             port: Some(42617),
             draft_update_interval_ms:
-                crate::app::agent::config::schema::default_lark_draft_update_interval_ms(),
-            max_draft_edits: crate::app::agent::config::schema::default_lark_max_draft_edits(),
+                agent_config::runtime_schema::default_lark_draft_update_interval_ms(),
+            max_draft_edits: agent_config::runtime_schema::default_lark_max_draft_edits(),
         });
 
         let incoming = mask_sensitive_fields(&current);
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn integration_settings_payload_includes_openrouter_and_revision() {
-        let config = crate::app::agent::config::Config::default();
+        let config = agent_config::runtime::Config::default();
         let payload = build_integration_settings_payload(&config);
 
         assert!(
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn apply_integration_credentials_update_switches_provider_with_fallback_model() {
-        let mut config = crate::app::agent::config::Config::default();
+        let mut config = agent_config::runtime::Config::default();
         config.default_provider = Some("openrouter".to_string());
         config.default_model = Some("anthropic/claude-sonnet-4-6".to_string());
         config.api_url = Some("https://old.example.com".to_string());
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn apply_integration_credentials_update_rejects_unknown_fields() {
-        let config = crate::app::agent::config::Config::default();
+        let config = agent_config::runtime::Config::default();
         let mut fields = BTreeMap::new();
         fields.insert("unknown".to_string(), "value".to_string());
 
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn config_revision_changes_when_config_changes() {
-        let mut config = crate::app::agent::config::Config::default();
+        let mut config = agent_config::runtime::Config::default();
         let initial = config_revision(&config);
         config.default_model = Some("gpt-5.2".to_string());
         let changed = config_revision(&config);

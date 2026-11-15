@@ -1,11 +1,11 @@
 // 覆盖网关 Bearer 令牌提取与配对认证规则。
 
 use super::{extract_bearer_token, require_auth};
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::NoneMemory;
+use agent_config::runtime::Config;
+use gateway_types::{AppState, GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::NoneMemory;
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ impl Provider for StaticProvider {
     }
 }
 
-fn state(require_pairing: bool, paired_tokens: &[String]) -> AppState {
+fn state(require_pairing: bool, paired_tokens: &[String]) -> AppState<(), (), ()> {
     AppState {
         config: Arc::new(Mutex::new(Config::default())),
         provider: Arc::new(StaticProvider),
@@ -39,10 +39,10 @@ fn state(require_pairing: bool, paired_tokens: &[String]) -> AppState {
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),

@@ -3,6 +3,36 @@ name = "agent-gateway"
 version = "0.6.0"
 edition = "2024"
 license = "MIT"
+[dependencies.agent-config]
+path = "../agent-config"
+version = "0.6.0"
+
+[dependencies.agent-approval]
+path = "../agent-approval"
+version = "0.6.0"
+
+[dependencies.agent-project]
+path = "../agent-project"
+version = "0.6.0"
+
+[dependencies.hex]
+version = "0.4"
+
+[dev-dependencies.config-channel-services]
+path = "../config-channel-services"
+version = "0.6.0"
+
+[dev-dependencies.gateway-pairing]
+path = "../gateway-pairing"
+version = "0.6.0"
+
+[dev-dependencies.observer-backends]
+path = "../observer-backends"
+version = "0.6.0"
+
+[dev-dependencies.async-trait]
+version = "0.1"
+
 
 [lib]
 doctest = false

@@ -137,6 +137,7 @@ members = [
   "crates/libs/auth-file-store",
   "crates/libs/agent-auth",
   "crates/libs/agent-cli-types",
+  "crates/libs/agent-config",
   "crates/libs/api-workflow",
   "crates/libs/api-knowledge",
   "crates/libs/auth-types",

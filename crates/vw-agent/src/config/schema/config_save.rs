@@ -53,7 +53,7 @@ pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Re
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let home = crate::config::runtime_home::config_home()?;
+        let home = agent_config::runtime_home::config_home()?;
         #[cfg(test)]
         {
             let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
@@ -101,7 +101,7 @@ pub(super) fn save_project_config_to_store(
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn open_system_config_store() -> Result<SystemConfigStore> {
-    let home = crate::config::runtime_home::config_home()?;
+    let home = agent_config::runtime_home::config_home()?;
     let database = GlobalDatabase::for_home(home)?;
     tokio::task::spawn_blocking(move || SystemConfigStore::new(database))
         .await

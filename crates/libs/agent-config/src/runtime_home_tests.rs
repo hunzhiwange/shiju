@@ -5,14 +5,14 @@ fn model_protocol_021_config_store_uses_runtime_home() {
     if std::env::var_os(CHILD).is_some() {
         let root = std::path::PathBuf::from(std::env::var_os("VIBEWINDOW_TEST_ROOT").unwrap());
         assert_eq!(super::runtime_home::config_home().unwrap(), root);
-        assert_eq!(crate::global::paths().home, root);
+        assert_eq!(agent_paths::paths().home, root);
         return;
     }
     let root = tempfile::tempdir().unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "config::runtime_home_tests::model_protocol_021_config_store_uses_runtime_home",
+            "runtime_home_tests::model_protocol_021_config_store_uses_runtime_home",
             "--nocapture",
         ])
         .env(CHILD, "1")

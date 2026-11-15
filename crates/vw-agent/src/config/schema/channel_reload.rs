@@ -17,7 +17,7 @@ pub(crate) struct ChannelConfigWatcher {
 
 impl ChannelConfigWatcher {
     pub(crate) async fn new(config: &Config, include_project: bool) -> Result<Self> {
-        let home = crate::config::runtime_home::config_home()?;
+        let home = agent_config::runtime_home::config_home()?;
         let open_store = move || SystemConfigStore::new(GlobalDatabase::for_home(home)?);
         #[cfg(test)]
         let open_store = crate::global_database::inherit_test_database_context(open_store);

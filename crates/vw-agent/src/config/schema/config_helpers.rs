@@ -119,7 +119,7 @@ pub(crate) fn config_dir_creation_error(path: &Path) -> String {
 ///
 /// 每个步骤使用 `?` 操作符进行短路求值，确保在任一步骤失败时优雅地返回 `None`。
 pub(crate) fn read_codex_openai_api_key() -> Option<String> {
-    let home = crate::config::runtime_home::config_home().ok()?;
+    let home = agent_config::runtime_home::config_home().ok()?;
 
     // 构建 Codex 的 auth.json 文件路径
     let auth_path = home.join(".codex").join("auth.json");

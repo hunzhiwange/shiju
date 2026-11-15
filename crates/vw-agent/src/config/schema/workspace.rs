@@ -83,7 +83,7 @@ pub fn default_config_and_workspace_dirs() -> Result<(PathBuf, PathBuf)> {
 /// 如果无法找到用户的家目录，将返回错误。
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn default_config_dir() -> Result<PathBuf> {
-    let home = crate::config::runtime_home::config_home()?;
+    let home = agent_config::runtime_home::config_home()?;
     Ok(config_runtime_paths::home_config_dir(home))
 }
 

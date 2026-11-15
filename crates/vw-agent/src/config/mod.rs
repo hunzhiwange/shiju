@@ -69,7 +69,8 @@ pub(crate) use schema::{save_config, validate_config};
 pub use store::SystemConfigStore;
 
 fn gateway_skey_store() -> Result<GatewaySkeyStore, Error> {
-    let home = runtime_home::config_home().map_err(|error| Error::Invalid(error.to_string()))?;
+    let home = agent_config::runtime_home::config_home()
+        .map_err(|error| Error::Invalid(error.to_string()))?;
     let database =
         GlobalDatabase::for_home(home).map_err(|error| Error::Invalid(error.to_string()))?;
     GatewaySkeyStore::new(database).map_err(|error| Error::Invalid(error.to_string()))
@@ -820,7 +821,3 @@ pub async fn get_global() -> Config {
 pub async fn directories() -> Vec<String> {
     Vec::new()
 }
-
-mod runtime_home;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod runtime_home_tests;

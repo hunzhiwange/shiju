@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use crate::agent_registry::AgentCommandSpec;
-use crate::config::ResolvedAcpxConfig;
-use crate::types::{
+use acp_agent_registry::agent_registry::AgentCommandSpec;
+use acp_config::config::ResolvedAcpxConfig;
+use acp_types::types::{
     AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, OutputPolicy, PermissionMode,
 };
 

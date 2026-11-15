@@ -1,0 +1,21 @@
+[package]
+name = "acp-cli-model"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+acp-types = { path = "../acp-types", version = "0.6.0" }
+acp-config = { path = "../acp-config", version = "0.6.0" }
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
+acp-access-policy = { path = "../acp-access-policy", version = "0.6.0" }
+acp-owner-process = { path = "../acp-owner-process", version = "0.6.0" }
+serde_json = "1"
+thiserror = "2.0.18"
+tokio = { version = "1", features = ["fs", "rt"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros"] }

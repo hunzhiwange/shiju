@@ -2,7 +2,22 @@
 //!
 //! 隔离的命令、环境和临时路径 fixture 用于验证跨平台解析规则。
 
-use super::*;
+use super::{parse_version, read_package_version, resolve_version_from_ancestors, ResolveAcpxVersionParams, UNKNOWN_VERSION, VersionSource};
+
+const MODULE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
+const SOURCE: VersionSource = VersionSource { package_name: "vw-acp", module_dir: MODULE_DIR };
+
+fn env_version(env: Option<&HashMap<String, String>>) -> Option<String> {
+    super::env_version(env, SOURCE)
+}
+
+fn resolve_vwacp_version(params: Option<ResolveAcpxVersionParams<'_>>) -> String {
+    super::resolve_vwacp_version(params, SOURCE)
+}
+
+fn get_vwacp_version() -> String {
+    super::get_vwacp_version(SOURCE)
+}
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -79,7 +94,7 @@ fn env_version_accepts_vwacp_package_only() {
 
 #[test]
 fn env_version_accepts_cargo_package_name_alias() {
-    let env = env_with(env!("CARGO_PKG_NAME"), "2.3.4");
+    let env = env_with(SOURCE.package_name, "2.3.4");
 
     assert_eq!(env_version(Some(&env)), Some("2.3.4".to_string()));
 }

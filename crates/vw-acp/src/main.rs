@@ -13,7 +13,7 @@ use clap::ArgMatches;
 use clap::{Arg, ArgAction, Command};
 #[cfg(not(test))]
 use std::{env, io::IsTerminal};
-use vw_acp::cli::flags::{
+use acp_cli_model::cli::flags::{
     GlobalFlagOptions, parse_allowed_tools, parse_auth_policy, parse_max_turns,
     parse_non_interactive_permission_policy, parse_output_format, parse_prompt_retries,
     parse_timeout_seconds, parse_ttl_seconds,

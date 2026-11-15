@@ -225,6 +225,7 @@ members = [
   "crates/libs/gateway-workspace-memory",
   "crates/libs/gateway-workspace",
   "crates/libs/gateway-hermes-memory",
+  "crates/libs/gateway-hermes-dashboard",
   "crates/libs/api-app-provider-edit",
   "crates/libs/runtime-log",
   "crates/libs/api-app-provider-extended",

@@ -1,11 +1,12 @@
 //! Defaults form consumes the gateway section; configuration IO stays on the executor.
+use vw_api_types::openclaw_settings::*;
 use crate::app::components::system_settings_common::*;
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::{
     Element, Length, Task,
     widget::{button, column, container, row, text},
 };
-use vw_gateway_client::{OpenClawSettingsScope, vw_api_types::openclaw_settings::*};
+use gateway_openclaw_settings::{OpenClawSettingsScope};
 
 const FIELDS: [(&str, &str); 4] = [
     ("workspace", "工作区"),
@@ -166,6 +167,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         tenant: client.endpoint().tenant_scope().clone(),
         project: app.project_path.clone(),
     };
+    let client = gateway_openclaw_settings::GatewayOpenClawSettingsClient::new(client.transport().clone());
     let Some(project) = app.project_id.clone().filter(|p| !p.is_empty()) else {
         return app.show_error_toast("请先选择项目");
     };

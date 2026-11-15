@@ -395,9 +395,7 @@ mod agent_app_prompt_resources_api;
 pub use agent_app_prompt_resources_api::*;
 
 mod openclaw_settings_api;
-pub use openclaw_settings_api::{OpenClawSettingsError, OpenClawSettingsScope};
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod openclaw_settings_api_tests;
+pub use gateway_openclaw_settings::{OpenClawSettingsError, OpenClawSettingsScope};
 
 mod workspace_memory_api;
 pub use gateway_workspace_memory::{WorkspaceMemoryScope, WorkspaceMemoryError, WorkspaceSearch, WorkspaceSearchResponse};

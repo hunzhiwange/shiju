@@ -1,4 +1,4 @@
-use super::{GatewayClient, OpenClawSettingsError as Error, OpenClawSettingsScope, test_support};
+use super::{GatewayOpenClawSettingsClient, OpenClawSettingsError as Error, OpenClawSettingsScope, test_support};
 use serde_json::json;
 use {
     vw_api_transport::id::ProjectId,
@@ -126,7 +126,9 @@ async fn openclaw_sdk_preserves_warnings_invalid_input_and_transport() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
     let client =
-        GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        GatewayOpenClawSettingsClient::new(gateway_http::GatewayTransport::new(
+            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port),
+        ).unwrap());
     for token in ["", "bad\ncredential"] {
         assert_eq!(
             client.openclaw_settings_health(&scope(), token).await,

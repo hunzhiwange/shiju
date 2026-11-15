@@ -1,8 +1,9 @@
 //! Section-only model editor. Configuration text remains owned by the gateway.
+use vw_api_types::openclaw_settings::*;
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Length, Task, widget::{button, column, container, row, text}};
-use vw_gateway_client::{OpenClawSettingsScope, vw_api_types::openclaw_settings::*};
+use gateway_openclaw_settings::{OpenClawSettingsScope};
 
 #[derive(Clone, Default)]
 pub(crate) struct State {
@@ -94,6 +95,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if matches!(event, Event::Close) { app.apps_catalog.openclaw_model.invalidate(); return Task::none(); }
     let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用"); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let client = gateway_openclaw_settings::GatewayOpenClawSettingsClient::new(client.transport().clone());
     let Some(project) = app.project_id.clone().filter(|p| !p.is_empty()) else { return app.show_error_toast("请先选择项目"); };
     let valid = |scope: &Scope, app: &App| scope.context == context && scope.project == project.to_string()
         && scope.host == app.apps_catalog.host && scope.catalog == app.apps_catalog.generation

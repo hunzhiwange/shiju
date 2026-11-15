@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-openclaw-settings = { path = "../libs/gateway-openclaw-settings", version = "0.6.0" }
 vw-api-hermes-memory = { path = "../libs/api-hermes-memory", version = "0.6.0" }
 vw-api-workspace-memory = { path = "../libs/api-workspace-memory", version = "0.6.0" }
 vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.6.0" }

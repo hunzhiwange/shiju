@@ -156,6 +156,7 @@ members = [
   "crates/libs/tui-markdown",
   "crates/libs/tui-stream",
   "crates/libs/tui-terminal",
+  "crates/libs/tui-terminal-lifecycle",
   "crates/libs/tui-input",
   "crates/libs/tui-approval",
   "crates/libs/tui-user-input",

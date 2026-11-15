@@ -1,6 +1,6 @@
 //! TUI 上层交互装配。
 //!
-//! 保留聊天组件、surface 和终端运行循环；底部面板由独立库装配。
+//! 保留聊天组件和 surface；底部面板与终端生命周期由独立库提供。
 //! 契约、文本、渲染、主题、流式处理、终端后端及剪贴板由 `tui-*` 库提供；
 //! 对外重导出保持既有消费者入口和底层类型所有权。
 
@@ -81,8 +81,6 @@ use tui_cells::thread_transcript;
 #[allow(dead_code)]
 use tui_terminal::transcript_reflow;
 #[allow(dead_code)]
-mod tui;
-#[allow(dead_code)]
 mod ui_consts;
 pub mod vibe;
 #[allow(dead_code)]
@@ -110,7 +108,7 @@ pub use tui_pager::TranscriptPager;
 pub use resize_reflow_cap::{ResizeReflowCap, resize_reflow_max_rows};
 pub use status::{StatusHistoryCell, V3SessionDisplayData, V3TokenUsage};
 pub use transcript_reflow::{TranscriptReflowState, TranscriptWidthChange};
-pub use tui::{TerminalMode, run_terminal};
+pub use tui_terminal_lifecycle::{TerminalMode, run_terminal};
 pub use vibe::action::{
     V3_NON_SECURITY_SELECTION_SURFACES, V3Action, V3ApprovalChoice, V3ApprovalDecision,
     V3ApprovalKind, V3ApprovalRequest, V3FileSearchMatch, V3FooterData, V3SelectionItem,

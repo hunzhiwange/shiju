@@ -365,3 +365,7 @@ pub async fn load_runtime_defaults_from_config_file(
         ))
     }
 }
+
+#[cfg(test)]
+#[path = "timeout_budget_tests.rs"]
+mod timeout_budget_tests;

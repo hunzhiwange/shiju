@@ -8,6 +8,13 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+directories = "5"
+glob = "0.3"
+regex = "1"
+shell-words = "1.1"
+thiserror = "2.0.18"
+tree-sitter = { version = "0.26.10", optional = true }
+tree-sitter-bash = { version = "0.23", optional = true }
 config-security = { path = "../config-security", version = "0.6.0" }
 process-sandbox = { path = "../process-sandbox", version = "0.6.0" }
 domain-matcher = { path = "../domain-matcher", version = "0.6.0" }
@@ -31,5 +38,6 @@ tempfile = "3"
 
 [features]
 default = []
+shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap"]
 sandbox-landlock = ["process-sandbox/sandbox-landlock"]

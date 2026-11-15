@@ -1,0 +1,39 @@
+[package]
+name = "tool-web"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+default = []
+firecrawl = []
+web-fetch-html2md = ["dep:html2md"]
+web-fetch-plaintext = ["dep:nanohtml2text"]
+
+[dependencies]
+agent-security = { path = "../agent-security", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }
+network-policy = { path = "../network-policy", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+pulldown-cmark = "0.13"
+tracing = "0.1"
+html2md = { version = "0.2.15", optional = true }
+nanohtml2text = { version = "0.2.1", optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls", "socks"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+reqwest = { version = "0.13", features = ["json"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "net", "io-util"] }

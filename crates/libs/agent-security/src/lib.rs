@@ -23,3 +23,7 @@ pub use domain_matcher::DomainMatcher;
 pub use estop::{EstopLevel, EstopManager, EstopState, ResumeSelector};
 pub use otp::OtpValidator;
 pub use secrets::SecretStore;
+
+pub mod policy;
+pub mod shell;
+pub use policy::{AutonomyLevel, SecurityPolicy, ShellRedirectPolicy};

@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+tool-web = { path = "../libs/tool-web", version = "0.6.0", default-features = false }
 network-policy = { path = "../libs/network-policy", version = "0.6.0" }
 agent-plugins = { path = "../libs/agent-plugins", version = "0.6.0" }
 agent-memory = { path = "../libs/agent-memory", version = "0.6.0" }
@@ -361,16 +362,16 @@ default = [
 ]
 "browser-native" = ["dep:fantoccini"]
 "rag-pdf" = ["agent-knowledge/rag-pdf"]
-firecrawl = []
-"web-fetch-html2md" = []
-"web-fetch-plaintext" = []
+firecrawl = ["tool-web/firecrawl"]
+"web-fetch-html2md" = ["tool-web/web-fetch-html2md"]
+"web-fetch-plaintext" = ["tool-web/web-fetch-plaintext"]
 probe = ["dep:probe-rs"]
 memory-postgres = ["dep:memory-postgres", "agent-memory/memory-postgres"]
 memory-mariadb = ["dep:memory-mariadb", "agent-memory/memory-mariadb"]
 observability-otel = ["agent-observability/observability-otel"]
 sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap", "agent-security/sandbox-bubblewrap"]
 sandbox-landlock = ["process-sandbox/sandbox-landlock", "agent-security/sandbox-landlock"]
-shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
+shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash", "agent-security/shell-ast"]
 channel-lark = ["dep:prost"]
 whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport"]
 

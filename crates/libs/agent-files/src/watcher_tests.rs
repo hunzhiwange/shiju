@@ -2,7 +2,7 @@
 
 use super::event::UPDATED;
 use super::{UpdatedProperties, publish_updated};
-use crate::app::agent::bus;
+use agent_bus;
 use serde_json::Value;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
@@ -172,7 +172,7 @@ async fn init_is_noop_when_filewatcher_flag_is_disabled() {
     let temp = tempfile::tempdir().expect("tempdir");
     super::stop(temp.path());
 
-    if !*crate::app::agent::flag::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER {
+    if !*runtime_flags::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER {
         super::init(temp.path());
         assert!(!super::running(temp.path()));
     }
@@ -187,8 +187,8 @@ async fn init_respects_flags_and_deduplicates_enabled_directory() {
 
     super::init(temp.path());
 
-    let should_run = *crate::app::agent::flag::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER
-        && !*crate::app::agent::flag::VIBEWINDOW_EXPERIMENTAL_DISABLE_FILEWATCHER;
+    let should_run = *runtime_flags::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER
+        && !*runtime_flags::VIBEWINDOW_EXPERIMENTAL_DISABLE_FILEWATCHER;
     assert_eq!(super::running(temp.path()), should_run);
 
     if should_run {
@@ -250,8 +250,8 @@ fn wasm_watcher_functions_are_noops() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn filewatcher_should_run() -> bool {
-    *crate::app::agent::flag::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER
-        && !*crate::app::agent::flag::VIBEWINDOW_EXPERIMENTAL_DISABLE_FILEWATCHER
+    *runtime_flags::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER
+        && !*runtime_flags::VIBEWINDOW_EXPERIMENTAL_DISABLE_FILEWATCHER
 }
 
 #[cfg(not(target_arch = "wasm32"))]

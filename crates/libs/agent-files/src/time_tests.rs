@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 fn filetime_check_disabled() -> bool {
-    *crate::app::agent::flag::VIBEWINDOW_DISABLE_FILETIME_CHECK
+    *runtime_flags::VIBEWINDOW_DISABLE_FILETIME_CHECK
 }
 
 // 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。

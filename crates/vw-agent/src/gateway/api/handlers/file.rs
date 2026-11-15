@@ -37,7 +37,7 @@ use {
     vw_api_transport::id::TenantScope,
 };
 
-use crate::app::agent::file;
+use agent_files as file;
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::api::handlers::misc::not_implemented;
 use crate::app::agent::gateway::instance::InstanceQuery;

@@ -4,7 +4,7 @@
 //! 工作区内列文件、构建目录摘要、执行文本匹配。遍历会复用默认忽略规则，降低
 //! 依赖目录和构建产物带来的噪声。
 
-use crate::app::agent::file::ignore;
+use crate::ignore;
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

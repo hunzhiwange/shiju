@@ -17,8 +17,8 @@ use super::file_edit::utils::{
     build_file_descriptor, build_patch_summary, display_path, snapshot_from_text,
 };
 use super::traits::{Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult};
-use crate::app::agent::file;
-use crate::app::agent::file::watcher;
+use agent_files as file;
+use agent_files::watcher;
 use crate::app::agent::patch;
 use crate::app::agent::security::SecurityPolicy;
 use anyhow::anyhow;

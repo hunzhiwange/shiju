@@ -6,7 +6,7 @@
 use super::detect::is_enabled;
 use super::state::{FormatterStatus, LOGGER, instance_state};
 use crate::app::agent::bus;
-use crate::app::agent::file;
+use agent_files as file;
 use crate::app::agent::project::instance;
 use crate::app::agent::shell::tokio_command;
 use serde_json::{Map, Value};

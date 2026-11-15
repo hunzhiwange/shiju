@@ -32,9 +32,9 @@
 //! watcher::stop("/path/to/watch");
 //! ```
 
-use crate::app::agent::bus;
-use crate::app::agent::file::ignore;
-use crate::app::agent::flag;
+use agent_bus;
+use crate::ignore;
+use runtime_flags;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ mod watcher_tests;
 ///
 /// 定义文件监视器相关的事件类型，用于事件总线的订阅和发布。
 pub mod event {
-    use crate::app::agent::bus;
+    use agent_bus;
 
     /// 文件更新事件定义
     ///

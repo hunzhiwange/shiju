@@ -6,7 +6,7 @@
 use super::context::current_read_state_for_path;
 use super::external_directory;
 use super::traits::{Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult};
-use crate::app::agent::file::time;
+use agent_files::time;
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};

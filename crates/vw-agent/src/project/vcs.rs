@@ -7,7 +7,7 @@
 //! `/v1/git/command`、普通 worktree fetch/submodule、skill clone/pull、snapshot 等。
 
 use crate::app::agent::bus;
-use crate::app::agent::file::watcher as file_watcher;
+use agent_files::watcher as file_watcher;
 use crate::app::agent::util::log;
 use crate::git_repository;
 use serde::{Deserialize, Serialize};

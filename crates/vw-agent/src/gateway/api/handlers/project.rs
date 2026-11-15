@@ -29,7 +29,7 @@ use vw_api_worktree::{
     ListWorktreesResponse, ResetMode, ResetWorktreeRequest, WorktreeDto, WorktreeStatus,
 };
 
-use crate::app::agent::file;
+use agent_files as file;
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project;

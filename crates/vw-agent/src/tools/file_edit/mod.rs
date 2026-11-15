@@ -20,8 +20,8 @@ use super::external_directory;
 use super::traits::{
     Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult, ToolSpec,
 };
-use crate::app::agent::file;
-use crate::app::agent::file::watcher;
+use agent_files as file;
+use agent_files::watcher;
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde_json::{Value, json};

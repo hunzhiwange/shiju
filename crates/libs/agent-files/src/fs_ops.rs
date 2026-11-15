@@ -1,4 +1,4 @@
-use crate::app::agent::bus;
+use agent_bus;
 use base64::Engine;
 use serde_json::{Map, Value};
 use std::path::Path;

@@ -374,7 +374,7 @@ fn gateway_git2_core_flow_works_without_git_executable() {
 
     // 脏工作区状态元数据同样不依赖系统 Git。
     std::fs::write(repo.path().join("dirty.txt"), "dirty\n").expect("dirty file");
-    let status = crate::app::agent::file::status_git(repo.path());
+    let status = agent_files::status_git(repo.path());
     assert!(
         status.iter().any(|info| info.path == "dirty.txt"),
         "status_git should report untracked file without git CLI"

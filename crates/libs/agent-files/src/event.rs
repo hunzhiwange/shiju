@@ -1,4 +1,4 @@
-use crate::app::agent::bus;
+use agent_bus;
 
 /// 文件编辑事件定义
 ///

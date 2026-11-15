@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::app::agent::bus;
-use crate::app::agent::file::watcher as file_watcher;
+use agent_files::watcher as file_watcher;
 use git2::Repository;
 use serde_json::json;
 use std::ffi::OsString;

@@ -35,7 +35,7 @@
 
 use super::external_directory;
 use super::traits::{Tool, ToolResult};
-use crate::app::agent::file::ripgrep;
+use agent_files::ripgrep;
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use glob::Pattern;

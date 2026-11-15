@@ -17,12 +17,12 @@ fn init_ignores_edited_events_without_a_string_file() {
     super::runtime::init();
 
     crate::app::agent::bus::publish_value(
-        crate::app::agent::file::event::EDITED,
+        agent_files::event::EDITED,
         serde_json::Value::Null,
         None,
     );
     crate::app::agent::bus::publish_value(
-        crate::app::agent::file::event::EDITED,
+        agent_files::event::EDITED,
         serde_json::json!({ "file": 7 }),
         None,
     );

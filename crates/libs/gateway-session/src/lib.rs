@@ -45,3 +45,8 @@ pub mod session_ops;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod archived_routes;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod stream;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod stream_host;

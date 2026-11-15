@@ -1,5 +1,5 @@
 use crate::app::state::aggregation_omo::*;
-use vw_gateway_client::AggregationOmoError;
+use gateway_aggregation_omo::AggregationOmoError;
 use vw_api_app_aggregation::*;
 fn standard(revision: &str, current: Option<&str>) -> Snapshot {
     Snapshot::Standard(OmoState {
@@ -131,8 +131,7 @@ async fn aggregation_t64_sdk_uses_variant_scope_revision_and_provider_reference(
     use super::{Action, Context, request};
     use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
     use std::io::{Read, Write};
-    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
-        GatewayClient, vw_api_app_identity::AppId}};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, gateway_aggregation_omo::GatewayAggregationOmoClient, vw_api_app_identity::AppId};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let worker = std::thread::spawn(move || {
@@ -178,11 +177,10 @@ async fn aggregation_t64_sdk_uses_variant_scope_revision_and_provider_reference(
         }
         captured
     });
-    let client = GatewayClient::new(
+    let client = GatewayAggregationOmoClient::new(gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", port)
             .with_auth(GatewayAuth { skey: Some("fixture-t64".into()) }),
-    )
-    .unwrap();
+    ).unwrap());
     let context = Context {
         scope: Scope {
             context: AgentAppsContext {

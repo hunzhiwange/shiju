@@ -7,9 +7,9 @@ use crate::app::{
     },
 };
 use iced::Task;
+use gateway_aggregation_omo::AggregationOmoError;
 use gateway_endpoint::GatewayAuth;
-use vw_gateway_client::AggregationOmoError;
-use vw_gateway_client::GatewayClient;
+use gateway_aggregation_omo::GatewayAggregationOmoClient;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::OmoApplyRequest;
 use vw_api_app_aggregation::OmoDisableRequest;
@@ -39,7 +39,7 @@ impl std::fmt::Debug for Event {
 pub(crate) fn message(event: Event) -> Message {
     list::message(ListMessage::Omo(event))
 }
-fn current(app: &App) -> Result<(GatewayClient, Context), String> {
+fn current(app: &App) -> Result<(GatewayAggregationOmoClient, Context), String> {
     let (client, scope) = list::current(app, AppId::OpenCode)?;
     let project =
         app.project_id.as_ref().filter(|id| !id.is_empty()).ok_or("请先打开已注册项目")?;
@@ -54,7 +54,7 @@ fn current(app: &App) -> Result<(GatewayClient, Context), String> {
         .clone()
         .with_auth(GatewayAuth { skey: Some(app.apps_catalog.token.clone()) });
     Ok((
-        GatewayClient::new(endpoint)?,
+        GatewayAggregationOmoClient::new(gateway_http::GatewayTransport::new(endpoint)?),
         Context { scope, project: project.as_str().into(), access: app.apps_catalog.generation },
     ))
 }
@@ -65,7 +65,7 @@ pub(crate) enum Action {
     Disable,
 }
 pub(crate) async fn request(
-    client: GatewayClient,
+    client: GatewayAggregationOmoClient,
     context: Context,
     variant: Variant,
     action: Action,

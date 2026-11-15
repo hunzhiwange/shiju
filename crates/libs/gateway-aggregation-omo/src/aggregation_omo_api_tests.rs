@@ -1,5 +1,5 @@
-use super::{AggregationOmoError, GatewayClient, test_support};
-use crate::GatewayAuth;
+use super::{AggregationOmoError, GatewayAggregationOmoClient, test_support};
+use gateway_endpoint::GatewayAuth;
 use serde_json::{Value, json};
 use vw_api_app_aggregation::OmoApplyRequest;
 use vw_api_app_aggregation::OmoDisableRequest;
@@ -35,14 +35,13 @@ async fn aggregation_t54_aggregation_omo_api_preserves_contract() {
     for slim in [false, true] {
         let values = [state(slim, None), state(slim, Some("saved-provider")), state(slim, None)];
         let server = test_support::server(values.iter().map(|v| (200, v.clone())).collect());
-        let client = GatewayClient::new(
+        let client = GatewayAggregationOmoClient::new(gateway_http::GatewayTransport::new(
             server
                 .client()
                 .endpoint()
                 .clone()
                 .with_auth(GatewayAuth { skey: Some("test-omo-token".into()) }),
-        )
-        .unwrap();
+        ).unwrap());
         let a = apply();
         let d = disable();
         let actual = if slim {
@@ -154,7 +153,7 @@ async fn aggregation_t54_disconnected_target_is_transport_error() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     drop(listener);
-    let client = GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+    let client = GatewayAggregationOmoClient::new(gateway_http::GatewayTransport::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap());
     assert!(matches!(
         client.aggregation_omo_slim_disable(&disable()).await,
         Err(AggregationOmoError::Transport(_))

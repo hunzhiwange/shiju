@@ -1,4 +1,4 @@
-use vw_gateway_client::AggregationOmoError;
+use gateway_aggregation_omo::AggregationOmoError;
 use vw_api_app_aggregation::OmoSlimState;
 use vw_api_app_aggregation::OmoState;
 

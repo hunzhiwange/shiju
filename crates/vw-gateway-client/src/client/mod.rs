@@ -335,9 +335,7 @@ mod aggregation_members_api;
 pub use gateway_aggregation::AggregationApiError;
 
 mod aggregation_omo_api;
-pub use aggregation_omo_api::AggregationOmoError;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod aggregation_omo_api_tests;
+pub use gateway_aggregation_omo::AggregationOmoError;
 
 mod aggregation_native_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]

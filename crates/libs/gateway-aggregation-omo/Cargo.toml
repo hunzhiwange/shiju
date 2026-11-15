@@ -1,0 +1,22 @@
+[package]
+name = "gateway-aggregation-omo"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+reqwest = { version = "0.13", features = ["json", "query"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

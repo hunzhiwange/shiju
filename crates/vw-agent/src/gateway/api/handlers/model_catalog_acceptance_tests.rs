@@ -213,7 +213,7 @@ impl Fixture {
         )
         .await
         .unwrap();
-        let cache = vw_provider_resolver::global::paths().cache.join("models.json");
+        let cache = provider_runtime_paths::paths().cache.join("models.json");
         assert!(cache.starts_with(&home), "the models.dev fixture must stay inside its own home");
         write_json(
             &cache,

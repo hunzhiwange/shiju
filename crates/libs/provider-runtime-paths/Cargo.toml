@@ -1,0 +1,10 @@
+[package]
+name = "provider-runtime-paths"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+once_cell = "1"
+directories = "5"

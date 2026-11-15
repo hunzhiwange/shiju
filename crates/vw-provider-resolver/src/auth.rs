@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 pub use vw_shared::auth::Info;
 
-use crate::global;
+use provider_runtime_paths as global;
 
 /// 解析认证信息存储文件路径。
 ///

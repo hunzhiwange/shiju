@@ -1,4 +1,4 @@
-use crate::client::{test_support, agent_apps_skills::SkillInstallError};
+use crate::{test_support, SkillInstallError};
 use serde_json::json;
 use vw_api_app_skills::{install_api::*, repos_api::SkillReposQuery};
 

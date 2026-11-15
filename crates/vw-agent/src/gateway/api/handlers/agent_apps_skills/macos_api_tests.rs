@@ -16,7 +16,7 @@ use {
     vw_api_app_skills::updates_api::UpdateSkillRequest,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_skills::GatewayAppSkillsClient};
 use crate::global_database::GlobalDatabase;
 
 const TOKEN: &str = "macos-acceptance-fixture-token";
@@ -80,7 +80,7 @@ struct Server {
     task: tokio::task::JoinHandle<()>,
 }
 impl Server {
-    fn client(&self) -> GatewayClient { GatewayClient::new(self.endpoint.clone()).unwrap() }
+    fn client(&self) -> GatewayAppSkillsClient { GatewayAppSkillsClient::new(gateway_http::GatewayTransport::new(self.endpoint.clone()).unwrap()) }
 }
 impl Drop for Server {
     fn drop(&mut self) { self.task.abort(); }

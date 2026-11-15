@@ -1,4 +1,4 @@
-use crate::client::{test_support, agent_apps_skills::SkillBackupError};
+use crate::{test_support, SkillBackupError};
 use serde_json::json;
 use vw_api_app_skills::{backups_api::*, repos_api::SkillReposQuery};
 

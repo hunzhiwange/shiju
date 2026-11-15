@@ -1,5 +1,5 @@
 use super::search_api::MarketSearchError;
-use crate::client::test_support;
+use crate::test_support;
 use serde_json::json;
 use vw_api_app_skills::search_api::*;
 

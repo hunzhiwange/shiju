@@ -1183,11 +1183,12 @@ pub async fn gateway_skill_repos_request(
 ) -> Result<vw_api_app_skills::repos_api::SkillReposResponse, String> {
     use vw_api_app_skills::repos_api::*;
     let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     match change {
-        None => client.skill_repos_list(&scope).await,
-        Some((repo, true)) => client.skill_repo_remove(&repo.owner, &repo.name,
+        None => skills.skill_repos_list(&scope).await,
+        Some((repo, true)) => skills.skill_repo_remove(&repo.owner, &repo.name,
             &RemoveSkillRepoRequest { scope, expected_version: version }).await,
-        Some((repo, false)) => client.skill_repo_save(&SaveSkillRepoRequest {
+        Some((repo, false)) => skills.skill_repo_save(&SaveSkillRepoRequest {
             scope, expected_version: version, repo,
         }).await,
     }
@@ -1201,16 +1202,17 @@ pub(crate) async fn gateway_claude_config_request(
 ) -> Result<(vw_api_app_skills::claude_api::ClaudeConfigResponse, Option<String>), String> {
     use vw_api_app_skills::claude_api::*;
     let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     let notice = if let Some((onboarding, action)) = change {
         let request = ClaudeConfigRequest { scope: scope.clone(), action };
-        let response = if onboarding { client.claude_onboarding(&request, &token).await? }
-            else { client.claude_config_marker(&request, &token).await? };
+        let response = if onboarding { skills.claude_onboarding(&request, &token).await? }
+            else { skills.claude_config_marker(&request, &token).await? };
         if response.scope.project_id != scope.project_id || response.scope.target_host_id != scope.target_host_id {
             return Err("Claude response scope mismatch".into());
         }
         Some(if response.changed { "操作已保存" } else { "配置已符合所选操作" }.to_owned())
     } else { None };
-    Ok((client.claude_config_status(&scope, &token).await?, notice))
+    Ok((skills.claude_config_status(&scope, &token).await?, notice))
 }
 
 /// Read-only skills requests; credentials stay outside UI messages.
@@ -1221,13 +1223,14 @@ pub(crate) async fn gateway_skills_market_request(
         discovery_api::DiscoverSkillsRequest, search_api::MarketSearchQuery};
     use crate::app::message::settings::skills::market_view::Results;
     let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     if query.is_empty() {
-        client.agent_apps_skills_discover(&DiscoverSkillsRequest {
+        skills.agent_apps_skills_discover(&DiscoverSkillsRequest {
             scope: SkillReposQuery { project_id: project.into(), target_host_id: host },
             repo_id: None, force_refresh: false,
         }, &token).await.map(Results::Discovery).map_err(|e| e.to_string())
     } else {
-        client.agent_apps_market_search(&MarketSearchQuery {
+        skills.agent_apps_market_search(&MarketSearchQuery {
             project_id: project.into(), target_host_id: host, query, limit: 100, offset: 0,
         }, &token).await.map(Results::Search).map_err(|e| e.to_string())
     }
@@ -1241,13 +1244,14 @@ pub(crate) async fn gateway_skills_install_view(
 ) -> Result<Option<vw_api_app_skills::inventory_api::SkillInventoryResponse>, String> {
     use vw_api_app_skills::jobs_api::SkillJobPhase;
     let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     let Some(request) = request else {
-        return client.agent_apps_skills_inventory(&scope, &token).await.map(Some).map_err(|e| e.to_string());
+        return skills.agent_apps_skills_inventory(&scope, &token).await.map(Some).map_err(|e| e.to_string());
     };
-    let response = client.agent_apps_skills_install(&request, &token).await.map_err(|e| e.to_string())?;
+    let response = skills.agent_apps_skills_install(&request, &token).await.map_err(|e| e.to_string())?;
     if response.scope != scope { return Err("安装响应目标不匹配".into()); }
     loop {
-        let job = client.agent_apps_skills_job(&scope, &response.task_id, &token).await.map_err(|e| e.to_string())?;
+        let job = skills.agent_apps_skills_job(&scope, &response.task_id, &token).await.map_err(|e| e.to_string())?;
         if job.scope != scope || job.task_id != response.task_id { return Err("安装任务目标不匹配".into()); }
         match job.phase {
             SkillJobPhase::Completed if !job.requires_reconciliation => return Ok(None),
@@ -1269,13 +1273,14 @@ pub(crate) async fn gateway_skills_import_request(
     let mut outcomes = Vec::new();
     let result = async {
         let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
         let app_names = apps.iter().map(|id| {
             serde_json::to_value(id).map_err(|_| "应用标识无效".to_owned())?
                 .as_str().map(str::to_owned).ok_or_else(|| "应用标识无效".to_owned())
         }).collect::<Result<Vec<_>, String>>()?;
         let query = UnmanagedSkillsQuery { project_id: project.into(), target_host_id: host.clone(),
             apps: app_names.join(",") };
-        let mut report = client.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
+        let mut report = skills.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
         for row in selected {
             if report.scope.project_id != query.project_id || report.scope.target_host_id != host {
                 return Err("扫描响应作用域不匹配".to_owned());
@@ -1287,7 +1292,7 @@ pub(crate) async fn gateway_skills_import_request(
                 let selection_id = current.selection_id.clone().ok_or_else(|| "技能不可导入".to_owned())?;
                 let targets: Vec<_> = apps.iter().copied().filter(|id| current.apps.contains(id)).collect();
                 if targets.is_empty() { return Err("未选择来源应用".to_owned()); }
-                let imported = client.agent_apps_skills_import(&ImportSkillRequest {
+                let imported = skills.agent_apps_skills_import(&ImportSkillRequest {
                     scope: SkillReposQuery { project_id: query.project_id.clone(), target_host_id: host.clone() },
                     expected_version: report.version, selection_id, apps: targets,
                 }, &token).await.map_err(|e| e.to_string())?;
@@ -1298,7 +1303,7 @@ pub(crate) async fn gateway_skills_import_request(
                 Ok(())
             }.await;
             outcomes.push((row.directory, result));
-            report = client.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
+            report = skills.agent_apps_skills_unmanaged(&query, &token).await.map_err(|e| e.to_string())?;
         }
         Ok(report)
     }.await;
@@ -1312,8 +1317,9 @@ pub(crate) async fn gateway_skills_job(
     cancel: bool,
 ) -> Result<vw_api_app_skills::jobs_api::SkillJobResponse, String> {
     let client = gateway_client()?;
-    if cancel { client.agent_apps_skills_cancel_job(&scope, &id, &token).await }
-    else { client.agent_apps_skills_job(&scope, &id, &token).await }.map_err(|e| e.to_string())
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
+    if cancel { skills.agent_apps_skills_cancel_job(&scope, &id, &token).await }
+    else { skills.agent_apps_skills_job(&scope, &id, &token).await }.map_err(|e| e.to_string())
 }
 
 pub(crate) async fn gateway_skills_submit(
@@ -1330,18 +1336,19 @@ pub(crate) async fn gateway_skill_bindings_request(
 ) -> Result<crate::app::message::settings::skills::bindings_view::Readback, String> {
     use crate::app::message::settings::skills::bindings_view::{Change, Readback, complete_success};
     let client = crate::app::config::gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     let changed = change.is_some();
     let mut resync_targets = None;
     let mut results = Vec::new();
     let mut error = None;
     match change {
         Some(Change::Save(request)) => {
-            if client.agent_apps_skill_binding_targets(&scope, Some(&request), &token).await.is_err() {
+            if skills.agent_apps_skill_binding_targets(&scope, Some(&request), &token).await.is_err() {
                 error = Some("保存目标偏好失败，请刷新后重试".into());
             }
         }
         Some(Change::Bind(id, request)) => {
-            match client.agent_apps_skills_bindings(&id, &request, &token).await {
+            match skills.agent_apps_skills_bindings(&id, &request, &token).await {
                 Ok(response) if response.scope == scope => {
                     if !complete_success(&response.results, &request.targets, &id, request.enabled) {
                         error = Some("绑定未全部成功，请检查逐项结果".into());
@@ -1353,7 +1360,7 @@ pub(crate) async fn gateway_skill_bindings_request(
         }
         Some(Change::Resync(request)) => {
             resync_targets = Some(request.targets.clone());
-            match client.agent_apps_skills_resync(&request, &token).await {
+            match skills.agent_apps_skills_resync(&request, &token).await {
                 Ok(response) if response.scope == scope => {
                     // Resync can legitimately have no pairs when no skills are installed.
                     if response.results.iter().any(|r| r.status != vw_api_app_skills::bindings_api::SkillBindingStatus::Enabled) {
@@ -1366,14 +1373,14 @@ pub(crate) async fn gateway_skill_bindings_request(
         }
         None => {}
     }
-    let snapshot = match client.agent_apps_skill_binding_targets(&scope, None, &token).await {
+    let snapshot = match skills.agent_apps_skill_binding_targets(&scope, None, &token).await {
         Ok(snapshot) => Some(snapshot),
         Err(cause) => {
             error.get_or_insert_with(|| format!("读取绑定目标失败：{cause}；请刷新确认实际状态"));
             None
         }
     };
-    let inventory = match client.agent_apps_skills_inventory(&scope, &token).await {
+    let inventory = match skills.agent_apps_skills_inventory(&scope, &token).await {
         Ok(inventory) => Some(inventory),
         Err(cause) => {
             error.get_or_insert_with(|| format!("读取技能库存失败：{cause}；请刷新确认实际状态"));
@@ -1402,16 +1409,17 @@ pub(crate) async fn gateway_skills_mutation(
     use crate::app::message::settings::skills::updates_view::{Operation, Outcome};
     use vw_api_app_skills::{updates_api::*, uninstall_api::*};
     let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     let (operation, expected_version, hash) = operation;
     match operation {
         Operation::Uninstall(id) => {
-            let response = client.agent_apps_skills_uninstall(&id, &UninstallSkillRequest { scope: scope.clone(), expected_version }, &token).await.map_err(|e| e.to_string())?;
+            let response = skills.agent_apps_skills_uninstall(&id, &UninstallSkillRequest { scope: scope.clone(), expected_version }, &token).await.map_err(|e| e.to_string())?;
             if response.scope != scope { return Err("卸载响应目标不匹配".into()); }
             Ok(Outcome::Uninstalled(id, response))
         }
         Operation::Update(id) => {
             let expected_hash = hash.ok_or("缺少已检查的当前哈希")?;
-            let mut task = client.agent_apps_skills_update(&id, &UpdateSkillRequest { scope: scope.clone(), expected_version, expected_hash }, &token).await.map_err(|e| e.to_string())?;
+            let mut task = skills.agent_apps_skills_update(&id, &UpdateSkillRequest { scope: scope.clone(), expected_version, expected_hash }, &token).await.map_err(|e| e.to_string())?;
             let task_id = task.task_id.clone();
             for _ in 0..300 {
                 if task.scope != scope || task.task_id != task_id || task.directory.as_deref().is_some_and(|d| d != id) {
@@ -1422,7 +1430,7 @@ pub(crate) async fn gateway_skills_mutation(
                     _ => {}
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                task = client.agent_apps_skills_update_task(task_id.as_ref(), &scope, &token).await.map_err(|e| e.to_string())?;
+                task = skills.agent_apps_skills_update_task(task_id.as_ref(), &scope, &token).await.map_err(|e| e.to_string())?;
             }
             Err("更新仍在执行，请稍后刷新核对实际状态".into())
         }
@@ -1436,6 +1444,7 @@ pub(crate) async fn gateway_skill_storage_request(
 ) -> Result<crate::app::message::settings::skills::storage_modal::Readback, String> {
     use crate::app::message::settings::skills::storage_modal::{Change, Readback};
     let client = gateway_client()?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     match change {
         Change::OpenDirectory(path) => {
             tokio::task::spawn_blocking(move || {
@@ -1446,19 +1455,19 @@ pub(crate) async fn gateway_skill_storage_request(
                 Ok(Readback::Opened)
             }).await.map_err(|_| "打开目录任务失败".to_string())?
         }
-        Change::Read => client.agent_apps_skills_storage(&scope, &token).await.map(Readback::Storage).map_err(|e| e.to_string()),
-        Change::Mode(request) => client.agent_apps_skills_storage_patch(&request, &token).await.map(Readback::Storage).map_err(|e| e.to_string()),
+        Change::Read => skills.agent_apps_skills_storage(&scope, &token).await.map(Readback::Storage).map_err(|e| e.to_string()),
+        Change::Mode(request) => skills.agent_apps_skills_storage_patch(&request, &token).await.map(Readback::Storage).map_err(|e| e.to_string()),
         Change::Move(mut request) => {
-            let targets = client.agent_apps_skill_binding_targets(&scope, None, &token).await.map_err(|e| e.to_string())?;
+            let targets = skills.agent_apps_skill_binding_targets(&scope, None, &token).await.map_err(|e| e.to_string())?;
             if targets.scope != scope { return Err("目标作用域不匹配".into()); }
             request.targets = targets.targets;
-            client.agent_apps_skills_storage_move(&request, &token).await.map(Readback::Move).map_err(|e| e.to_string())
+            skills.agent_apps_skills_storage_move(&request, &token).await.map(Readback::Move).map_err(|e| e.to_string())
         }
         Change::Resync(mut request) => {
-            let targets = client.agent_apps_skill_binding_targets(&scope, None, &token).await.map_err(|e| e.to_string())?;
+            let targets = skills.agent_apps_skill_binding_targets(&scope, None, &token).await.map_err(|e| e.to_string())?;
             if targets.scope != scope || targets.targets.is_empty() { return Err("请先配置应用绑定目标".into()); }
             request.targets = targets.targets;
-            client.agent_apps_skills_resync(&request, &token).await.map(Readback::Sync).map_err(|e| e.to_string())
+            skills.agent_apps_skills_resync(&request, &token).await.map(Readback::Sync).map_err(|e| e.to_string())
         }
     }
 }
@@ -1472,19 +1481,20 @@ pub(crate) async fn gateway_skill_backups_request(
     use crate::app::message::settings::skills::backup_modal::{Change, Readback};
     use vw_api_app_skills::backups_api::DeleteSkillBackupRequest;
     let client = crate::app::config::gateway_client().map_err(|_| "无法连接备份服务".to_string())?;
+    let skills = gateway_app_skills::GatewayAppSkillsClient::new(client.transport().clone());
     match change {
         Change::Read => {
-            let list = client.agent_apps_skills_backups(&scope, &token).await.map_err(|e| e.to_string())?;
-            let inventory = client.agent_apps_skills_inventory(&scope, &token).await.map_err(|e| e.to_string())?;
-            let bindings = client.agent_apps_skill_binding_targets(&scope, None, &token).await.map_err(|e| e.to_string())?;
+            let list = skills.agent_apps_skills_backups(&scope, &token).await.map_err(|e| e.to_string())?;
+            let inventory = skills.agent_apps_skills_inventory(&scope, &token).await.map_err(|e| e.to_string())?;
+            let bindings = skills.agent_apps_skill_binding_targets(&scope, None, &token).await.map_err(|e| e.to_string())?;
             if list.scope != scope || inventory.scope != scope || bindings.scope != scope {
                 return Err("备份读取作用域不匹配".into());
             }
             Ok(Readback::List(list, inventory.version, bindings.targets))
         }
-        Change::Delete(id) => client.agent_apps_skills_backup_delete(&id, &DeleteSkillBackupRequest { scope }, &token)
+        Change::Delete(id) => skills.agent_apps_skills_backup_delete(&id, &DeleteSkillBackupRequest { scope }, &token)
             .await.map(Readback::Deleted).map_err(|e| e.to_string()),
-        Change::Restore(id, request) => client.agent_apps_skills_backup_restore(&id, &request, &token)
+        Change::Restore(id, request) => skills.agent_apps_skills_backup_restore(&id, &request, &token)
             .await.map(Readback::Restored).map_err(|e| e.to_string()),
     }
 }

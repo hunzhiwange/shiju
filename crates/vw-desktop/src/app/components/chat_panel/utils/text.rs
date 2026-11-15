@@ -28,20 +28,7 @@ use super::super::tool_names::{is_compact_tool_call_trace, is_known_tool_name};
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn truncate_chars(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        return s.to_string();
-    }
-    let mut out = String::new();
-    for (i, ch) in s.chars().enumerate() {
-        if i >= max_chars {
-            break;
-        }
-        out.push(ch);
-    }
-    out.push('…');
-    out
-}
+pub use desktop_chat_view::presentation::truncate_chars;
 
 /// 将文本压缩为单行摘要，并按字符数截断。
 pub fn single_line_preview(s: &str, max_chars: usize) -> String {

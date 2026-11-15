@@ -191,8 +191,6 @@ pub fn tool_text_style_with_danger(
     read_only_text_style(theme, value)
 }
 
-const SAFE_EDITOR_MAX_CHARS: usize = 20_000;
-const SAFE_EDITOR_MAX_LINE_CHARS: usize = 2_000;
 pub(crate) const READ_ONLY_EDITOR_MAX_HEIGHT: f32 = 1_000_000.0;
 const PREVIEW_MAX_LINES: usize = 120;
 const PREVIEW_MAX_LINE_CHARS: usize = 500;
@@ -200,14 +198,7 @@ const PREVIEW_MAX_LINE_CHARS: usize = 500;
 /// 执行 is_safe_for_text_editor 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn is_safe_for_text_editor(content: &str) -> bool {
-    if content.len() > SAFE_EDITOR_MAX_CHARS {
-        return false;
-    }
-
-    content.lines().map(|line| line.chars().count()).max().unwrap_or(0)
-        <= SAFE_EDITOR_MAX_LINE_CHARS
-}
+pub use desktop_chat_view::text_safety::is_safe_for_text_editor;
 
 fn preview_text<'a>(
     content: &str,

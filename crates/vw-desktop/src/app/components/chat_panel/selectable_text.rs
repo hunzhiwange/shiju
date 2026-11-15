@@ -34,15 +34,7 @@ pub(crate) fn selectable_text_policy(content: &str, should_segment: bool) -> Sel
 }
 
 /// 为安全且非空的文本创建只读编辑器内容，否则返回 `None`。
-pub(crate) fn read_only_editor_content(text: &str) -> Option<text_editor::Content> {
-    if text.trim().is_empty()
-        || selectable_text_policy(text, false) == SelectableTextPolicy::PreviewWithCopyFallback
-    {
-        return None;
-    }
-
-    Some(text_editor::Content::with_text(text))
-}
+pub(crate) use desktop_chat_view::text_safety::read_only_editor_content;
 
 fn strip_session_control_selection(raw: &str) -> String {
     let Some(open_start) = raw.find(SESSION_CONTROL_OPEN) else {

@@ -38,7 +38,7 @@ pub enum PreparedChatUiPhase {
 }
 
 /// CHAT_UI_CHUNK_SIZE 使用的固定配置值。
-pub const CHAT_UI_CHUNK_SIZE: usize = 32;
+pub use desktop_chat_view::chunk_loader::CHAT_UI_CHUNK_SIZE;
 const CHAT_HEAVY_EDITOR_CACHE_MESSAGE_MARGIN: usize = 24;
 pub(crate) const CHAT_INITIAL_MESSAGE_HEIGHT: f32 = 120.0;
 
@@ -140,19 +140,13 @@ fn revision_render_key(
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn chat_ui_chunk_start_idx(idx: usize) -> usize {
-    (idx / CHAT_UI_CHUNK_SIZE) * CHAT_UI_CHUNK_SIZE
-}
+pub use desktop_chat_view::chunk_loader::chat_ui_chunk_start_idx;
 
 /// 执行 chat_ui_chunk_bounds 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn chat_ui_chunk_bounds(chat_len: usize, chunk_start_idx: usize) -> (usize, usize) {
-    let chunk_start_idx = chunk_start_idx.min(chat_len);
-    let chunk_end_idx = chunk_start_idx.saturating_add(CHAT_UI_CHUNK_SIZE).min(chat_len);
-    (chunk_start_idx, chunk_end_idx)
-}
+pub use desktop_chat_view::chunk_loader::chat_ui_chunk_bounds;
 
 fn chat_ui_visible_window_bounds(
     chat_len: usize,

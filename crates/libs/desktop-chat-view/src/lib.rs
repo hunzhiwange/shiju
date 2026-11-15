@@ -1,0 +1,15 @@
+//! 聊天排版的解析、窗口调度与轨迹状态。
+pub mod chunk_loader;
+pub mod message_view;
+pub mod trajectory;
+pub mod text_safety;
+#[cfg(test)]
+mod chunk_loader_tests;
+pub mod empty;
+pub mod global_status;
+pub mod tool_presentation;
+pub mod presentation;
+#[cfg(test)]
+mod global_status_tests;
+#[cfg(test)]
+mod tool_presentation_tests;

@@ -4,16 +4,14 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 /// 重新导出 use iced::widget::svg::{self, Svg}，让上层模块通过稳定路径访问。
-use iced::widget::svg::{self, Svg};
+use iced::widget::svg;
 /// 重新导出 use iced::widget::{button, text}，让上层模块通过稳定路径访问。
 use iced::widget::{button, text};
-/// 重新导出 use iced::{Alignment, Background, Border, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+/// 重新导出 use iced::{Alignment, Background, Border, Color, Element, Theme}，让上层模块通过稳定路径访问。
+use iced::{Alignment, Background, Border, Color, Element, Theme};
 
 /// 重新导出 use crate::app::Message，让上层模块通过稳定路径访问。
 use crate::app::Message;
-/// 重新导出 use crate::app::assets::{self, Icon}，让上层模块通过稳定路径访问。
-use crate::app::assets::{self, Icon};
 
 /// 根据主题与语义状态计算 muted icon color。
 ///
@@ -72,10 +70,7 @@ pub fn mix_color(a: Color, b: Color, t: f32) -> Color {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn icon_svg(icon: Icon) -> Svg<'static> {
-    // Svg 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    Svg::new(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0))
-}
+pub use desktop_chat_view::presentation::icon_svg;
 
 /// 处理 chat scroll direction 对应的局部职责。
 ///
@@ -108,9 +103,7 @@ pub fn chat_scroll_direction() -> Direction {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn is_dark_theme(theme: &Theme) -> bool {
-    theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
-}
+pub use desktop_chat_view::presentation::is_dark_theme;
 
 /// 根据主题与语义状态计算 chat secondary text color。
 ///
@@ -125,13 +118,7 @@ pub fn is_dark_theme(theme: &Theme) -> bool {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn chat_secondary_text_color(theme: &Theme) -> Color {
-    if is_dark_theme(theme) {
-        theme.palette().text.scale_alpha(0.92)
-    } else {
-        theme.extended_palette().secondary.base.text.scale_alpha(0.90)
-    }
-}
+pub use desktop_chat_view::presentation::chat_secondary_text_color;
 
 /// 根据主题与语义状态计算 chat secondary muted text color。
 ///
@@ -167,13 +154,7 @@ pub fn chat_secondary_muted_text_color(theme: &Theme) -> Color {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn chat_secondary_subtle_text_color(theme: &Theme) -> Color {
-    if is_dark_theme(theme) {
-        theme.palette().text.scale_alpha(0.56)
-    } else {
-        theme.extended_palette().secondary.base.text.scale_alpha(0.58)
-    }
-}
+pub use desktop_chat_view::presentation::chat_secondary_subtle_text_color;
 
 /// 构建 icon button style 控件，并绑定既有消息或样式。
 ///

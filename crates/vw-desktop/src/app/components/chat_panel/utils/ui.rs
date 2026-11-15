@@ -227,10 +227,7 @@ pub(super) fn chat_context_menu_style(theme: &Theme) -> iced::widget::container:
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn bold_font() -> iced::Font {
-    // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }
-}
+pub use desktop_chat_view::presentation::bold_font;
 
 /// 处理 capped scroll height 对应的局部职责。
 ///

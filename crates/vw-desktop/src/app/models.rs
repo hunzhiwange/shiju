@@ -9,13 +9,7 @@ pub use session_ui_types::{
     ThinkTiming, TokenUsage, ToolTiming,
 };
 
-#[derive(Debug, Clone)]
-/// 描述 ParsedChatBlock 支持的离散状态或消息分支。
-pub enum ParsedChatBlock {
-    Think { content: String, open: bool },
-    Tool { raw: String },
-    Text { content: String },
-}
+pub use desktop_chat_view::message_view::ParsedChatBlock;
 
 #[derive(Debug, Clone, Default)]
 /// 表示 ChatRenderCacheEntry 相关的应用状态或派生数据。

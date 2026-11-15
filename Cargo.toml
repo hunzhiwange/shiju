@@ -318,6 +318,7 @@ members = [
   "crates/libs/network-policy",
   "crates/libs/agent-plugins",
   "crates/libs/agent-memory",
+  "crates/libs/agent-migration",
   "crates/libs/agent-multimodal",
   "crates/libs/computer-control",
   "crates/libs/agent-mcp",

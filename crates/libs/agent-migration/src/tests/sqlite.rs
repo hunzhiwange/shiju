@@ -9,7 +9,7 @@
 //! 这些测试确保迁移工具能够正确处理各种边界情况和历史数据格式。
 
 use super::super::*;
-use crate::memory::MemoryCategory;
+use agent_memory::MemoryCategory;
 use rusqlite::params;
 use tempfile::TempDir;
 

@@ -182,6 +182,7 @@ tool-web = { path = "../libs/tool-web", version = "0.6.0", default-features = fa
 network-policy = { path = "../libs/network-policy", version = "0.6.0" }
 agent-plugins = { path = "../libs/agent-plugins", version = "0.6.0" }
 agent-memory = { path = "../libs/agent-memory", version = "0.6.0" }
+agent-migration = { path = "../libs/agent-migration", version = "0.6.0" }
 agent-multimodal = { path = "../libs/agent-multimodal", version = "0.6.0" }
 computer-control = { path = "../libs/computer-control", version = "0.6.0" }
 agent-mcp = { path = "../libs/agent-mcp", version = "0.6.0" }

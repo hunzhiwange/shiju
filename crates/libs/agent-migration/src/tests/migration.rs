@@ -5,7 +5,7 @@
 
 use super::super::*;
 use super::test_config;
-use crate::memory::{MemoryCategory, SqliteMemory};
+use agent_memory::{MemoryCategory, SqliteMemory};
 use rusqlite::params;
 use tempfile::TempDir;
 

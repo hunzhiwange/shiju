@@ -18,7 +18,7 @@ mod parse;
 mod sqlite;
 mod workspace;
 
-use crate::app::agent::config::{Config, MemoryConfig};
+use agent_config::runtime::{Config, MemoryConfig};
 use std::path::Path;
 
 /// 创建用于测试的配置实例

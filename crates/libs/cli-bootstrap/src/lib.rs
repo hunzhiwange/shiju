@@ -39,6 +39,7 @@
     dead_code
 )]
 
+use agent_migration as migration;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use tracing::info;

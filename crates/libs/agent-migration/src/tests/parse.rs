@@ -15,7 +15,7 @@
 //! 测试确保解析结果在不同运行间保持确定性，包括键的生成和条目的排序顺序。
 
 use super::super::*;
-use crate::memory::MemoryCategory;
+use agent_memory::MemoryCategory;
 use std::path::Path;
 
 /// 测试结构化 Markdown 行的正确解析

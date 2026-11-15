@@ -12,10 +12,10 @@ use vw_api_task::{TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto};
 
 use super::worktree::WorktreeResourceProvider;
 use super::{AcquireResourceRequest, ResourceLease, ResourceProvider};
-use crate::agent_scheduler::domain::{HolderId, ResourceId};
-use crate::agent_scheduler::store::resources::ResourceKind;
-use crate::app::agent::project;
-use crate::task_worktree_pool::TaskWorktreePoolService;
+use crate::domain::{HolderId, ResourceId};
+use crate::resource_kind::ResourceKind;
+use project_types as project;
+use task_worktree_pool::TaskWorktreePoolService;
 
 #[tokio::test]
 async fn agent_worktree_provider_maps_pool_slot_to_resource_lease() -> Result<()> {

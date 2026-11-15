@@ -1,0 +1,25 @@
+[package]
+name = "task-scheduler-core"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+async-trait = "0.1"
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+project-types = { path = "../project-types", version = "0.6.0" }
+task-worktree-pool = { path = "../task-worktree-pool", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+task-worktree-pool = { path = "../task-worktree-pool", version = "0.6.0", features = ["test-support"] }

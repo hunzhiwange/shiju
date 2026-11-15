@@ -12,7 +12,7 @@ use vw_api_transport::common::TimestampMs;
 use super::artifacts::TaskArtifactWriter;
 use super::domain::{AssigneeId, TaskId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
-use super::store::tasks::StoredAgentTask;
+use crate::task_records::StoredAgentTask;
 
 #[test]
 fn agent_artifacts_export_and_import_legacy_task_files() -> Result<()> {

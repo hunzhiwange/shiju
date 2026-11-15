@@ -27,14 +27,6 @@ pub mod task_graph;
 mod task_board_tests;
 
 #[cfg(test)]
-#[path = "domain_tests.rs"]
-mod domain_tests;
-
-#[cfg(test)]
-#[path = "state_machine_tests.rs"]
-mod state_machine_tests;
-
-#[cfg(test)]
 #[path = "store/schema_tests.rs"]
 mod schema_tests;
 
@@ -73,10 +65,6 @@ mod policy_tests;
 #[cfg(test)]
 #[path = "lifecycle_bridge_tests.rs"]
 mod lifecycle_bridge_tests;
-
-#[cfg(test)]
-#[path = "artifacts_tests.rs"]
-mod artifacts_tests;
 
 #[cfg(test)]
 #[path = "integration_tests.rs"]

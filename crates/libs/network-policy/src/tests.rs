@@ -20,7 +20,7 @@
 //! - 禁止包含用户信息的 URL（防止认证信息泄露）
 //! - 可选地禁止 IPv6 地址（防止绕过 IPv4 过滤规则）
 
-use super::super::url_validation::{
+use super::{
     DomainPolicy, UrlSchemePolicy, extract_host, host_matches_allowlist, is_private_or_local_host,
     normalize_allowed_domains, normalize_domain, validate_url,
 };

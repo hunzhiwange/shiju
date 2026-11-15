@@ -285,6 +285,7 @@ members = [
   "crates/libs/agent-identity-loader",
   "crates/libs/agent-log",
   "crates/libs/agent-paths",
+  "crates/libs/network-policy",
   "crates/libs/agent-plugins",
   "crates/libs/agent-memory",
   "crates/libs/agent-multimodal",

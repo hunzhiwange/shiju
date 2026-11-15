@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+network-policy = { path = "../libs/network-policy", version = "0.6.0" }
 agent-plugins = { path = "../libs/agent-plugins", version = "0.6.0" }
 agent-memory = { path = "../libs/agent-memory", version = "0.6.0" }
 agent-multimodal = { path = "../libs/agent-multimodal", version = "0.6.0" }

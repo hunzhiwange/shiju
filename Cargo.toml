@@ -108,6 +108,7 @@ members = [
   "crates/vw-desktop",
   "crates/vw-webview",
   "crates/vw-provider-resolver",
+  "crates/libs/provider-errors",
 ]
 exclude = [
   "vendor/iced_winit",

@@ -38,9 +38,6 @@ pub mod provider;
 /// 已连接 provider 的 OpenAI 兼容模型发现。
 pub mod remote_models;
 
-#[cfg(test)]
-#[path = "error_tests.rs"]
-mod error_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "remote_models_tests.rs"]
 mod remote_models_tests;

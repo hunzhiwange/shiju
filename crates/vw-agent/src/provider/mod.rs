@@ -20,7 +20,7 @@
 pub mod auth;
 
 pub mod error {
-    pub use vw_provider_resolver::error::*;
+    pub use provider_errors::*;
 }
 
 pub mod models {

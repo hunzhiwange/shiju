@@ -6,7 +6,8 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_api_types::app_providers::pi::*;
+use vw_api_app_provider_terminal::pi::*;
+
 use vw_api_app_identity::{AppId};
 
 const ROOT: &[&str] = &["name", "baseUrl", "api", "models"];

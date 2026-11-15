@@ -11,7 +11,7 @@ use {
     vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryChange,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryState,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryWrite,
-    vw_gateway_client::vw_api_types::app_providers::pi::PiProfile,
+    vw_gateway_client::vw_api_app_provider_terminal::pi::PiProfile,
     vw_api_transport::id::ProjectId,
 };
 

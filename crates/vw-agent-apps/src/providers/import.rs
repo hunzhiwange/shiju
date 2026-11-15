@@ -64,10 +64,10 @@ pub enum NativeImport {
     OpenCode(vw_api_types::app_providers::opencode::OpenCodeProfile),
     OpenClaw(vw_api_types::app_providers::openclaw::OpenClawProfile),
     Hermes(vw_api_types::app_providers::hermes::HermesProfile),
-    Pi(vw_api_types::app_providers::pi::PiProfile),
-    Omp(vw_api_types::app_providers::omp::OmpProfile),
-    Mcode(vw_api_types::app_providers::mcode::McodeProfile),
-    Kimi(vw_api_types::app_providers::kimi::KimiProfile),
+    Pi(vw_api_app_provider_terminal::pi::PiProfile),
+    Omp(vw_api_app_provider_terminal::omp::OmpProfile),
+    Mcode(vw_api_app_provider_terminal::mcode::McodeProfile),
+    Kimi(vw_api_app_provider_terminal::kimi::KimiProfile),
 }
 /// All file paths are fixed or resolved by the existing bounded application reader.
 /// No write guards, native locks, directories, login changes or processes are created.

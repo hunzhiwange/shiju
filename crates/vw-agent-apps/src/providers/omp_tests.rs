@@ -1,6 +1,7 @@
 use super::omp::*;
 use serde_json::json;
-use vw_api_types::app_providers::omp::*;
+use vw_api_app_provider_terminal::omp::*;
+
 #[test]
 fn cc04_omp_roundtrip_keeps_comments_and_other_nodes() {
     let home = tempfile::tempdir().unwrap();

@@ -7,7 +7,8 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{app_providers::catalog::ProviderReadUnavailable, app_providers::omp::*};
+use vw_api_app_provider_terminal::omp::*;
+use vw_api_types::app_providers::catalog::ProviderReadUnavailable;
 use vw_api_app_identity::{AppId};
 
 #[cfg(test)]

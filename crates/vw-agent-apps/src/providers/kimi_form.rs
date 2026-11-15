@@ -3,7 +3,8 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_api_types::app_providers::kimi::*;
+use vw_api_app_provider_terminal::kimi::*;
+
 
 use super::{WriteError, official, validate};
 use crate::providers::basic;

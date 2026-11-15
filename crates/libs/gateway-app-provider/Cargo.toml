@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
 vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }

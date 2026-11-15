@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+vw-api-app-provider-terminal = { path = "../libs/api-app-provider-terminal", version = "0.6.0" }
 session-artifact-store = { path = "../libs/session-artifact-store", version = "0.6.0" }
 vw-api-app-provider-profiles = { path = "../libs/api-app-provider-profiles", version = "0.6.0" }
 task-types = { path = "../libs/task-types", version = "0.6.0" }

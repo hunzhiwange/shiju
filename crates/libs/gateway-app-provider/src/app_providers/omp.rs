@@ -1,7 +1,8 @@
 //! Fixed Omp operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use crate::GatewayAppProviderClient;
-use vw_api_types::app_providers::omp::*;
+use vw_api_app_provider_terminal::omp::*;
+
 impl GatewayAppProviderClient {
     pub async fn omp_form_read(
         &self,

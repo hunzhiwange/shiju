@@ -1,7 +1,8 @@
 //! Fixed Omp operations with sensitive headers and payload-free errors.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::omp::*;
+use vw_api_app_provider_terminal::omp::*;
+
 impl GatewayClient {
     pub async fn omp_form_read(
         &self,

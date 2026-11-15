@@ -1,6 +1,7 @@
 use super::mcode::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::mcode::*;
+use vw_api_app_provider_terminal::mcode::*;
+
 fn declaration() -> Value {
     json!({"kind":"custom","api":"openai-completions","options":{"baseURL":"https://example.com/v1","apiKey":"fake-secret"},"models":{"m":{}}})
 }

@@ -1,6 +1,7 @@
 use super::dsh::*;
 use serde_json::json;
-use vw_api_types::app_providers::dsh::*;
+use vw_api_app_provider_terminal::dsh::*;
+
 fn profile() -> DshProfile {
     DshProfile {
         name: "Fixture".into(),

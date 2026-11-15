@@ -1,7 +1,8 @@
 //! Fixed Mcode operations with sensitive headers and payload-free errors.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::mcode::*;
+use vw_api_app_provider_terminal::mcode::*;
+
 impl GatewayClient {
     pub async fn mcode_form_read(
         &self,
@@ -9,7 +10,8 @@ impl GatewayClient {
         body: &McodeTarget,
         token: &str,
     ) -> Result<McodeFormView, Error> {
-        self.mcode_request(id, "POST", "/form/read", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_form_read(id, body, token).await
     }
     pub async fn mcode_form_create(
         &self,
@@ -17,7 +19,8 @@ impl GatewayClient {
         body: &McodeFormWrite,
         token: &str,
     ) -> Result<McodeResult, Error> {
-        self.mcode_request(id, "POST", "/form", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_form_create(id, body, token).await
     }
     pub async fn mcode_form_update(
         &self,
@@ -25,7 +28,8 @@ impl GatewayClient {
         body: &McodeFormWrite,
         token: &str,
     ) -> Result<McodeResult, Error> {
-        self.mcode_request(id, "PATCH", "/form", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_form_update(id, body, token).await
     }
 
     pub async fn mcode_provider_editor_save(
@@ -34,7 +38,8 @@ impl GatewayClient {
         body: &McodeEditorWrite,
         token: &str,
     ) -> Result<McodeResult, Error> {
-        self.mcode_request(id, "PUT", "/editor", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_provider_editor_save(id, body, token).await
     }
 
     pub async fn mcode_provider_save(
@@ -43,7 +48,8 @@ impl GatewayClient {
         body: &McodeWrite,
         token: &str,
     ) -> Result<McodeResult, Error> {
-        self.mcode_request(id, "PUT", "/config", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_provider_save(id, body, token).await
     }
     pub async fn mcode_provider_add(
         &self,
@@ -51,7 +57,8 @@ impl GatewayClient {
         body: &McodeTarget,
         token: &str,
     ) -> Result<McodeResult, Error> {
-        self.mcode_request(id, "POST", "/add", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_provider_add(id, body, token).await
     }
     pub async fn mcode_provider_remove_live(
         &self,
@@ -59,58 +66,19 @@ impl GatewayClient {
         body: &McodeTarget,
         token: &str,
     ) -> Result<McodeResult, Error> {
-        self.mcode_request(id, "POST", "/remove-live", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_provider_remove_live(id, body, token).await
     }
     pub async fn mcode_import(
         &self,
         body: &McodeTarget,
         token: &str,
     ) -> Result<McodeImportResult, Error> {
-        self.mcode_request("config", "POST", "/import", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_import(body, token).await
     }
     pub async fn mcode_state(&self, body: &McodeTarget, token: &str) -> Result<McodeState, Error> {
-        self.mcode_request("config", "POST", "/state", body, token).await
-    }
-    async fn mcode_request<B: serde::Serialize, R: serde::de::DeserializeOwned>(
-        &self,
-        id: &str,
-        method: &str,
-        action: &str,
-        body: &B,
-        token: &str,
-    ) -> Result<R, Error> {
-        if id.is_empty()
-            || id.len() > 128
-            || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))
-        {
-            return Err(Error::Transport("invalid provider identity".into()));
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = (method, action, body, token);
-            Err(Error::Transport("Mcode requires native transport".into()))
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
-            let prefix = "/v1/app-providers/mcode";
-            let method = reqwest::Method::from_bytes(method.as_bytes())
-                .map_err(|_| Error::Transport("invalid method".into()))?;
-            let request = self.transport.dynamic_host_client()
-                .request(method, format!("{}{prefix}/{id}{action}", self.transport.endpoint().base_url()))
-                .header("x-agent-apps-token", credential)
-                .json(body);
-            let response = crate::http::apply_request_context(request, self.transport.endpoint())
-                .send()
-                .await
-                .map_err(|_| Error::Transport("Mcode request failed".into()))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(Error::Http { status: status.as_u16(), body: serde_json::Value::Null });
-            }
-            response.json().await.map_err(|_| Error::Decode("invalid Mcode response".into()))
-        }
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .mcode_state(body, token).await
     }
 }

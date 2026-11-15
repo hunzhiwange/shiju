@@ -1,7 +1,8 @@
 //! Fixed Pi operations with sensitive headers and payload-free errors.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::pi::*;
+use vw_api_app_provider_terminal::pi::*;
+
 impl GatewayClient {
     pub async fn pi_usage_save(
         &self,

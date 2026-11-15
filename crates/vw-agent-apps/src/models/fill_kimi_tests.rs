@@ -2,8 +2,8 @@ use super::fill_kimi::{KimiModelFill, fill_kimi_model};
 use crate::providers::kimi;
 use serde_json::{Value, json};
 use {
-    vw_api_types::app_providers::kimi::KimiActivation,
-    vw_api_types::app_providers::kimi::KimiProfile,
+    vw_api_app_provider_terminal::kimi::KimiActivation,
+    vw_api_app_provider_terminal::kimi::KimiProfile,
     vw_api_transport::common::TimestampMs,
     vw_api_model_catalog::ModelCapabilityState::Supported,
     vw_api_model_catalog::ModelCapabilityState::Unsupported,

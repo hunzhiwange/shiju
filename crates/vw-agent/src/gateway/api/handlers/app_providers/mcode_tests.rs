@@ -4,16 +4,16 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 use {
-    vw_api_types::app_providers::mcode::*,
+    vw_api_app_provider_terminal::mcode::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-mcode-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
     port: u16,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -48,11 +48,10 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
-        )
-        .unwrap();
+        ).unwrap());
         Self { root, db, port, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -169,11 +168,10 @@ async fn cc04_mcode_permission_tenant_and_host_denials_leave_no_changes() {
     let mut bad = f.request(McodeActivation::Add);
     bad.target_host_id = "foreign".into();
     assert!(f.client.mcode_provider_save("one", &bad, TOKEN).await.is_err());
-    let foreign = GatewayClient::new(
+    let foreign = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", f.port)
             .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
-    )
-    .unwrap();
+    ).unwrap());
     assert!(
         foreign.mcode_provider_save("one", &f.request(McodeActivation::Add), TOKEN).await.is_err()
     );
@@ -358,7 +356,7 @@ use vw_api_app_provider_base::create::ProviderSecretWrite;
     assert!(String::from_utf8(after.clone()).unwrap().contains("# keep"));
     assert!(matches!(
         f.client.mcode_form_update("fixture", &body, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }
+        gateway_app_provider::AgentAppsReadError::Http { status: 409, .. }
     ));
     assert_eq!(f.bytes(), after);
 }
@@ -383,7 +381,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
         revision: None,
     };
     let err = f.client.mcode_form_create("fixture", &body, TOKEN).await.unwrap_err();
-    assert!(matches!(err, vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }));
+    assert!(matches!(err, gateway_app_provider::AgentAppsReadError::Http { status: 422, .. }));
     assert_eq!(f.bytes(), before);
     assert!(f.record("fixture").is_none());
     body.declaration =

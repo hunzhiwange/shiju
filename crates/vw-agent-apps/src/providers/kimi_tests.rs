@@ -1,6 +1,7 @@
 use super::kimi::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::kimi::*;
+use vw_api_app_provider_terminal::kimi::*;
+
 fn declaration() -> Value {
     json!({"provider":{"type":"openai","base_url":"https://example.com/v1","api_key":"fake-secret"},"models":{"alias":{"model":"model","provider":"one","max_context_size":32000,"capabilities":["future"]}}})
 }

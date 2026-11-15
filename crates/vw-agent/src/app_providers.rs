@@ -514,7 +514,7 @@ impl AppProviderStore {
         if app == AppId::Pi {
             if let Some(row) = self.pi_record(tenant, id)? {
                 if let Some(profile) = row.get("pi") {
-                    let profile: vw_api_types::app_providers::pi::PiProfile =
+                    let profile: vw_api_app_provider_terminal::pi::PiProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -529,7 +529,7 @@ impl AppProviderStore {
         if app == AppId::Omp {
             if let Some(row) = self.omp_record(tenant, id)? {
                 if let Some(profile) = row.get("omp") {
-                    let profile: vw_api_types::app_providers::omp::OmpProfile =
+                    let profile: vw_api_app_provider_terminal::omp::OmpProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -544,7 +544,7 @@ impl AppProviderStore {
         if app == AppId::Mcode {
             if let Some(row) = self.mcode_record(tenant, id)? {
                 if let Some(profile) = row.get("mcode") {
-                    let profile: vw_api_types::app_providers::mcode::McodeProfile =
+                    let profile: vw_api_app_provider_terminal::mcode::McodeProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -559,7 +559,7 @@ impl AppProviderStore {
         if app == AppId::Kimi {
             if let Some(row) = self.kimi_record(tenant, id)? {
                 if let Some(profile) = row.get("kimi") {
-                    let profile: vw_api_types::app_providers::kimi::KimiProfile =
+                    let profile: vw_api_app_provider_terminal::kimi::KimiProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {

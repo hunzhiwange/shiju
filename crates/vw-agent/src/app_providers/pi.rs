@@ -1,7 +1,8 @@
 //! Pi supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::pi::PiProfile;
+use vw_api_app_provider_terminal::pi::PiProfile;
+
 impl AppProviderStore {
     pub(crate) fn pi_record(
         &self,
@@ -62,7 +63,7 @@ impl AppProviderStore {
         &self,
         tenant: &TenantScope,
         id: &str,
-        script: &vw_api_types::app_providers::pi::PiUsageScript,
+        script: &vw_api_app_provider_terminal::pi::PiUsageScript,
     ) -> Result<(), String> {
         if script.auto_query_interval.is_some_and(|n| n > 1440) {
             return Err("invalid usage interval".into());

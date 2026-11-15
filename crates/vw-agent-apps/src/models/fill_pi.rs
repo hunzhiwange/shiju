@@ -13,9 +13,9 @@ use reqwest::Url;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
+use vw_api_app_provider_terminal::pi::PiProfile;
 use vw_api_types::{
     agent_apps::AppId,
-    app_providers::pi::PiProfile,
 };
 use vw_api_app_identity::{AppId};
 

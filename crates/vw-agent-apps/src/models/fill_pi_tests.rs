@@ -6,8 +6,8 @@ use crate::providers::pi::{declarations, patch};
 use serde_json::{Value, json};
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_providers::pi::PiActivation,
-    vw_api_types::app_providers::pi::PiProfile,
+    vw_api_app_provider_terminal::pi::PiActivation,
+    vw_api_app_provider_terminal::pi::PiProfile,
     vw_api_transport::common::TimestampMs,
     vw_api_model_catalog::ModelCapabilityState,
     vw_api_model_catalog::ModelMetadataDto,

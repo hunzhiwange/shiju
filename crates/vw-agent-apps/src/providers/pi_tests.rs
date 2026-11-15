@@ -1,6 +1,7 @@
 use super::pi::*;
 use serde_json::json;
-use vw_api_types::app_providers::pi::*;
+use vw_api_app_provider_terminal::pi::*;
+
 #[test]
 fn cc04_pi_membership_preserves_defaults_and_login() {
     let home = tempfile::tempdir().unwrap();

@@ -17,7 +17,7 @@ use {
     vw_api_app_auth::AuthErrorCode,
     vw_api_app_auth::AuthRegion,
     vw_api_app_auth::AuthService,
-    vw_api_types::app_providers::kimi::KimiActivation,
+    vw_api_app_provider_terminal::kimi::KimiActivation,
 };
 
 const HOST: &str = "host";
@@ -236,7 +236,7 @@ async fn provider_kimi_binding_rejects_foreign_service_grant_and_stale_requests(
     let mut altered: Value = profile.declaration.clone();
     altered["provider"]["base_url"] = json!("https://untrusted.invalid");
     let altered_profile =
-        vw_api_types::app_providers::kimi::KimiProfile { declaration: altered, ..profile.clone() };
+        vw_api_app_provider_terminal::kimi::KimiProfile { declaration: altered, ..profile.clone() };
     let row = f.store.kimi_record(&f.tenant, PROVIDER).unwrap().unwrap();
     let altered_row =
         f.store.kimi_save(&f.tenant, PROVIDER, &altered_profile, Some(&row), None).unwrap();

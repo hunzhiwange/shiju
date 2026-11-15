@@ -1,7 +1,8 @@
 //! Omp supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::omp::OmpProfile;
+use vw_api_app_provider_terminal::omp::OmpProfile;
+
 impl AppProviderStore {
     pub(crate) fn omp_record(
         &self,

@@ -3,7 +3,8 @@ use super::live::write_guard::WriteError;
 use serde_json::{Value, json};
 use serde_yaml::Value as Yaml;
 use std::collections::BTreeMap;
-use vw_api_types::app_providers::dsh::*;
+use vw_api_app_provider_terminal::dsh::*;
+
 const MAX_YAML_BYTES: usize = 1024 * 1024;
 
 pub type Snapshot = BTreeMap<String, Option<Vec<u8>>>;

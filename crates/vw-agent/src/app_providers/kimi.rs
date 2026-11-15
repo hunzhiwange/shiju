@@ -1,7 +1,8 @@
 //! Kimi supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::kimi::KimiProfile;
+use vw_api_app_provider_terminal::kimi::KimiProfile;
+
 impl AppProviderStore {
     pub(crate) fn kimi_record(
         &self,

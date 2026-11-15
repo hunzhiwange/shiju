@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::{os::unix::ffi::OsStrExt, path::Path};
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_providers::pi::PiProfile,
+    vw_api_app_provider_terminal::pi::PiProfile,
     vw_api_transport::id::TenantScope,
 };
 

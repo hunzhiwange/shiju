@@ -1,7 +1,8 @@
 //! Mcode supplier rows in the existing provider namespace with compare-and-exchange saves.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::mcode::McodeProfile;
+use vw_api_app_provider_terminal::mcode::McodeProfile;
+
 impl AppProviderStore {
     pub(crate) fn mcode_record(
         &self,

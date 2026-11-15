@@ -1,7 +1,9 @@
 use super::{AggregationApiError as Error, test_support};
 use serde_json::json;
 use vw_api_types::agent_apps::aggregation::*;
-use vw_api_types::app_providers::{omp::OmpProfile, pi::PiProfile};
+use vw_api_app_provider_terminal::omp::OmpProfile;
+use vw_api_app_provider_terminal::pi::PiProfile;
+
 
 fn scope() -> AggregationQuery {
     AggregationQuery { target_host_id: "remote-host".into(), project_id: "project-a".into() }

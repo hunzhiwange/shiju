@@ -1,7 +1,8 @@
 //! Fixed Pi operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use crate::GatewayAppProviderClient;
-use vw_api_types::app_providers::pi::*;
+use vw_api_app_provider_terminal::pi::*;
+
 impl GatewayAppProviderClient {
     pub async fn pi_usage_save(
         &self,

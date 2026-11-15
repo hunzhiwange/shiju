@@ -5,7 +5,8 @@ use super::live::{
 };
 use serde_json::{Map, Value};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{app_providers::catalog::ProviderReadUnavailable, app_providers::pi::*};
+use vw_api_app_provider_terminal::pi::*;
+use vw_api_types::app_providers::catalog::ProviderReadUnavailable;
 use vw_api_app_identity::{AppId};
 pub mod form;
 #[cfg(test)]

@@ -16,16 +16,10 @@ mod utils;
 #[cfg(test)]
 #[path = "help_tests.rs"]
 mod help_tests;
-#[cfg(test)]
-#[path = "styles_tests.rs"]
-mod styles_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(in crate::app) mod tab_appearance_tests;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "theme_tests.rs"]
-mod theme_tests;
 
 pub(crate) use help::settings_hover_help_label;
 pub use help::{

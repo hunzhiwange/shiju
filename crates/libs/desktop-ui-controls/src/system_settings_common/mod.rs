@@ -17,3 +17,8 @@ mod help_tests;
 
 #[cfg(test)]
 mod help_ui_refresh_03_tests;
+
+pub mod tabs;
+pub use styles::*;
+#[cfg(test)] mod styles_tests;
+#[cfg(test)] mod theme_tests;

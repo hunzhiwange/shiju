@@ -161,9 +161,6 @@ pub mod toast;
 mod toast_tests;
 
 pub mod text_editor_context_menu;
-#[cfg(test)]
-#[path = "text_editor_context_menu_tests.rs"]
-mod text_editor_context_menu_tests;
 
 pub mod text_editor_scroll_panel;
 

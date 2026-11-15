@@ -175,3 +175,371 @@ pub fn settings_text_editor_style(
         selection: input.selection,
     }
 }
+
+pub fn rounded_action_btn_style(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let bg = match status {
+        button::Status::Hovered => Some(
+            if is_dark {
+                palette.background.weak.color.scale_alpha(0.9)
+            } else {
+                palette.background.weak.color
+            }
+            .into(),
+        ),
+        button::Status::Pressed => Some(
+            if is_dark {
+                palette.background.strong.color.scale_alpha(0.94)
+            } else {
+                palette.background.strong.color
+            }
+            .into(),
+        ),
+        button::Status::Disabled => Some(palette.background.weak.color.scale_alpha(0.50).into()),
+        button::Status::Active => Some(
+            if is_dark {
+                palette.background.base.color.scale_alpha(0.52)
+            } else {
+                Color::WHITE.scale_alpha(0.56)
+            }
+            .into(),
+        ),
+    };
+
+    button::Style {
+        background: bg,
+        text_color: if status == button::Status::Disabled {
+            theme.palette().text.scale_alpha(0.55)
+        } else {
+            theme.palette().text
+        },
+        border: Border {
+            radius: 10.0.into(),
+            width: 1.0,
+            color: if is_dark {
+                palette.background.strong.color.scale_alpha(0.86)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.08)
+            },
+        },
+        ..Default::default()
+    }
+}
+
+pub fn round_icon_btn_style(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let bg = match status {
+        button::Status::Hovered => Some(
+            if is_dark {
+                palette.background.weak.color.scale_alpha(0.92)
+            } else {
+                palette.background.weak.color
+            }
+            .into(),
+        ),
+        button::Status::Pressed => Some(
+            if is_dark {
+                palette.background.strong.color.scale_alpha(0.96)
+            } else {
+                palette.background.strong.color
+            }
+            .into(),
+        ),
+        _ => Some(
+            if is_dark {
+                palette.background.base.color.scale_alpha(0.58)
+            } else {
+                Color::WHITE.scale_alpha(0.76)
+            }
+            .into(),
+        ),
+    };
+
+    button::Style {
+        background: bg,
+        text_color: theme.palette().text,
+        border: Border {
+            radius: 999.0.into(),
+            width: 1.0,
+            color: if is_dark {
+                palette.background.strong.color.scale_alpha(0.86)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.08)
+            },
+        },
+        ..Default::default()
+    }
+}
+
+pub fn danger_action_btn_style(theme: &Theme, status: button::Status) -> button::Style {
+    let (background, text_color) = match status {
+        button::Status::Active => (Color::from_rgb8(196, 43, 40), Color::WHITE),
+        button::Status::Hovered => (Color::from_rgb8(174, 34, 31), Color::WHITE),
+        button::Status::Pressed => (Color::from_rgb8(145, 27, 25), Color::WHITE),
+        button::Status::Disabled => {
+            (theme.extended_palette().background.weak.color, theme.palette().text.scale_alpha(0.55))
+        }
+    };
+
+    button::Style {
+        background: Some(background.into()),
+        text_color,
+        border: Border { radius: 8.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+pub fn primary_action_btn_style(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let base = palette.primary.base;
+    let (background, text_color) = match status {
+        button::Status::Active => (base.color, base.text),
+        button::Status::Hovered => {
+            let strong = palette.primary.strong.color;
+            let background = if base.text.is_readable_on(strong) {
+                strong
+            } else {
+                let shade = if base.text.relative_luminance() > base.color.relative_luminance() {
+                    Color::BLACK
+                } else {
+                    Color::WHITE
+                };
+                palette::mix(base.color, shade, 0.12)
+            };
+            (background, base.text)
+        }
+        button::Status::Pressed => (palette.primary.weak.color, palette.primary.weak.text),
+        button::Status::Disabled => {
+            (palette.background.weak.color, theme.palette().text.scale_alpha(0.55))
+        }
+    };
+
+    button::Style {
+        background: Some(background.into()),
+        text_color,
+        border: Border { radius: 8.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+pub fn settings_icon_tile_style(theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.045).into()),
+        border: Border { radius: 12.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+pub fn settings_text_editor_style_for(
+    enabled: bool,
+) -> impl Fn(&Theme, text_editor::Status) -> text_editor::Style {
+    move |theme, status| {
+        settings_text_editor_style(
+            theme,
+            if enabled { status } else { text_editor::Status::Disabled },
+        )
+    }
+}
+
+pub fn settings_pick_list_style(theme: &Theme, status: pick_list::Status) -> pick_list::Style {
+    let palette = theme.palette();
+    let extended = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let is_active = matches!(status, pick_list::Status::Active);
+    let is_hovered = matches!(status, pick_list::Status::Hovered)
+        || matches!(status, pick_list::Status::Opened { is_hovered: true });
+    let is_open = matches!(status, pick_list::Status::Opened { .. });
+
+    let background = if is_open {
+        if is_dark {
+            extended.background.weak.color.scale_alpha(0.94)
+        } else {
+            Color::WHITE.scale_alpha(0.98)
+        }
+    } else if is_hovered {
+        if is_dark {
+            extended.background.base.color.scale_alpha(0.96)
+        } else {
+            Color::WHITE.scale_alpha(0.94)
+        }
+    } else if is_active {
+        if is_dark {
+            extended.background.base.color.scale_alpha(0.84)
+        } else {
+            Color::WHITE.scale_alpha(0.90)
+        }
+    } else {
+        extended.background.base.color.into()
+    };
+
+    let border_color = if is_open {
+        palette.primary.scale_alpha(0.82)
+    } else if is_hovered {
+        extended.background.strong.color.scale_alpha(0.92)
+    } else if is_dark {
+        extended.background.strong.color.scale_alpha(0.82)
+    } else {
+        Color::from_rgba8(15, 23, 42, 0.10)
+    };
+
+    pick_list::Style {
+        text_color: palette.text,
+        placeholder_color: palette.text.scale_alpha(0.50),
+        handle_color: if is_open {
+            palette.primary.scale_alpha(0.92)
+        } else {
+            palette.text.scale_alpha(0.68)
+        },
+        background: Background::Color(background),
+        border: Border { width: 1.0, color: border_color, radius: 14.0.into() },
+    }
+}
+
+pub fn settings_pick_list_menu_style(theme: &Theme) -> iced::overlay::menu::Style {
+    let palette = theme.palette();
+    let extended = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+
+    iced::overlay::menu::Style {
+        background: Background::Color(if is_dark {
+            extended.background.base.color.scale_alpha(0.98)
+        } else {
+            Color::from_rgba8(255, 255, 255, 0.98)
+        }),
+        border: Border {
+            width: 1.0,
+            color: if is_dark {
+                extended.background.strong.color.scale_alpha(0.94)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.10)
+            },
+            radius: 16.0.into(),
+        },
+        text_color: palette.text,
+        selected_text_color: palette.text,
+        selected_background: Background::Color(if is_dark {
+            palette.primary.scale_alpha(0.24)
+        } else {
+            palette.primary.scale_alpha(0.10)
+        }),
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark { 0.30 } else { 0.12 }),
+            offset: Vector::new(0.0, 10.0),
+            blur_radius: 22.0,
+        },
+    }
+}
+
+pub fn settings_checkbox_style(theme: &Theme, status: checkbox::Status) -> checkbox::Style {
+    let palette = theme.palette();
+    let extended = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let (is_checked, is_hovered, is_disabled) = match status {
+        checkbox::Status::Active { is_checked } => (is_checked, false, false),
+        checkbox::Status::Hovered { is_checked } => (is_checked, true, false),
+        checkbox::Status::Disabled { is_checked } => (is_checked, false, true),
+    };
+
+    let background = if is_checked {
+        if is_hovered {
+            palette.primary.scale_alpha(0.94)
+        } else if is_disabled {
+            palette.primary.scale_alpha(0.36)
+        } else {
+            palette.primary.scale_alpha(0.86)
+        }
+    } else if is_disabled {
+        extended.background.base.color.scale_alpha(if is_dark { 0.36 } else { 0.58 })
+    } else if is_hovered {
+        if is_dark {
+            extended.background.base.color.scale_alpha(0.96)
+        } else {
+            Color::WHITE.scale_alpha(0.94)
+        }
+    } else if is_dark {
+        extended.background.base.color.scale_alpha(0.82)
+    } else {
+        Color::WHITE.scale_alpha(0.90)
+    };
+
+    checkbox::Style {
+        background: Background::Color(background),
+        icon_color: if is_checked { Color::WHITE } else { Color::TRANSPARENT },
+        border: Border {
+            width: 1.0,
+            color: if is_checked {
+                palette.primary.scale_alpha(if is_disabled { 0.36 } else { 0.84 })
+            } else if !is_disabled {
+                palette.text.scale_alpha(if is_hovered { 0.66 } else { 0.50 })
+            } else if is_dark {
+                extended.background.strong.color.scale_alpha(0.82)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.10)
+            },
+            radius: 8.0.into(),
+        },
+        text_color: Some(if is_disabled {
+            palette.text.scale_alpha(0.48)
+        } else {
+            palette.text.scale_alpha(0.94)
+        }),
+    }
+}
+
+pub fn settings_segment_button_style(
+    theme: &Theme,
+    status: button::Status,
+    is_active: bool,
+) -> button::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+
+    let background = if is_active {
+        Some(Background::Color(if is_dark {
+            theme.palette().primary.scale_alpha(0.24)
+        } else {
+            theme.palette().primary.scale_alpha(0.10)
+        }))
+    } else {
+        match status {
+            button::Status::Hovered => Some(Background::Color(if is_dark {
+                palette.background.weak.color.scale_alpha(0.70)
+            } else {
+                palette.background.weak.color
+            })),
+            button::Status::Pressed => Some(Background::Color(if is_dark {
+                palette.background.strong.color.scale_alpha(0.86)
+            } else {
+                palette.background.strong.color
+            })),
+            _ => Some(Background::Color(if is_dark {
+                palette.background.base.color.scale_alpha(0.40)
+            } else {
+                Color::WHITE.scale_alpha(0.52)
+            })),
+        }
+    };
+
+    button::Style {
+        background,
+        text_color: if is_active {
+            theme.palette().primary.scale_alpha(0.96)
+        } else {
+            theme.palette().text.scale_alpha(0.92)
+        },
+        border: Border {
+            width: 1.0,
+            color: if is_active {
+                theme.palette().primary.scale_alpha(0.28)
+            } else if is_dark {
+                palette.background.strong.color.scale_alpha(0.80)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.08)
+            },
+            radius: 999.0.into(),
+        },
+        ..Default::default()
+    }
+}

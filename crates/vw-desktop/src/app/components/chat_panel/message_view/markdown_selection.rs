@@ -435,7 +435,9 @@ impl overlay::Overlay<Message, Theme, Renderer> for TextMenuOverlay<'_> {
             && let Some((_, text)) = self.request.take()
         {
             if let Some(message) = action.message(text) {
-                shell.publish(message);
+                shell.publish(
+                    crate::app::components::text_editor_context_menu::text_context_message(message),
+                );
             }
             shell.invalidate_layout();
             shell.request_redraw();

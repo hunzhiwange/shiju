@@ -162,6 +162,7 @@ fn handle_text_context_action(app: &mut App, action: TextContextAction) -> Task<
     app.chat_context_menu_pos = None;
     action
         .message(std::mem::take(&mut app.chat_context_menu_text))
+        .map(crate::app::components::text_editor_context_menu::text_context_message)
         .map_or_else(Task::none, Task::done)
 }
 

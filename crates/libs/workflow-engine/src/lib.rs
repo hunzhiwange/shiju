@@ -10,6 +10,9 @@ mod native_permissions;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native_permissions::check_allowed;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod knowledge;
+
 mod types;
 pub use types::*;
 

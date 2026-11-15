@@ -24,6 +24,9 @@ pdf-extract = { version = "0.12.0", optional = true }
 agent-database = { path = "../agent-database", version = "0.6.0" }
 gateway-error = { path = "../gateway-error", version = "0.6.0" }
 memory-algorithms = { path = "../memory-algorithms", version = "0.6.0" }
+memory-types = { path = "../memory-types", version = "0.6.0" }
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+tracing = "0.1"
 anyhow = "1"
 hex = "0.4"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
@@ -34,3 +37,12 @@ vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"
+async-trait = "0.1.89"
+axum = { version = "0.8.8", features = ["json"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"

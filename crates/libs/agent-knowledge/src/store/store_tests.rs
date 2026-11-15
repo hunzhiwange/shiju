@@ -1,14 +1,13 @@
 // 验证知识存储抽象的后端选择、输入校验与公共契约。
 
 // 公共行为矩阵同时覆盖提供方连线、安全输入及多种检索模式。
-use super::super::fusion::{RetrievalSource, RetrievedCandidate};
+use crate::fusion::{RetrievalSource, RetrievedCandidate};
 use super::*;
-use crate::global_database::GlobalDatabase;
-use crate::global_database::config::DatabaseProvider;
-use crate::global_database::test_support::PostgresTestDatabase;
-use crate::memory::embeddings::EmbeddingProvider;
-use crate::memory::vector;
-use crate::workflow::{WorkflowKnowledgeProvider, WorkflowKnowledgeRequest};
+use agent_database::global_database::GlobalDatabase;
+use agent_database::global_database::config::DatabaseProvider;
+use agent_database::global_database::test_support::PostgresTestDatabase;
+use memory_types::memory::embeddings::EmbeddingProvider;
+use memory_algorithms::vector;
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use rusqlite::{Connection, params};
@@ -69,7 +68,7 @@ async fn knowledge_retrieval_modes_filters_and_safe_inputs_run_by_provider() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");
     assert_knowledge_retrieval_modes_filters_and_safe_inputs(sqlite).await;
 
-    let postgres = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres = agent_database::global_database::test_support::postgres_test_database_unit!();
     assert_knowledge_retrieval_modes_filters_and_safe_inputs(postgres.database().clone()).await;
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
@@ -326,7 +325,7 @@ async fn knowledge_indexing_chunks_and_cache_run_by_provider() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");
     assert_knowledge_indexing_chunks_and_cache(sqlite).await;
 
-    let postgres = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres = agent_database::global_database::test_support::postgres_test_database_unit!();
     assert_knowledge_indexing_chunks_and_cache(postgres.database().clone()).await;
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
@@ -336,7 +335,7 @@ async fn knowledge_index_job_claim_is_exclusive_by_provider() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");
     assert_knowledge_index_job_claim_is_exclusive(sqlite).await;
 
-    let postgres = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres = agent_database::global_database::test_support::postgres_test_database_unit!();
     assert_knowledge_index_job_claim_is_exclusive(postgres.database().clone()).await;
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
@@ -346,7 +345,7 @@ async fn knowledge_chunk_replace_rolls_back_by_provider() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");
     assert_knowledge_chunk_replace_rolls_back(sqlite).await;
 
-    let postgres = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres = agent_database::global_database::test_support::postgres_test_database_unit!();
     assert_knowledge_chunk_replace_rolls_back(postgres.database().clone()).await;
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
@@ -436,7 +435,7 @@ async fn knowledge_base_store_round_trips_and_isolates_tenants_by_provider() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");
     assert_knowledge_base_store_round_trip(sqlite).await;
 
-    let postgres = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres = agent_database::global_database::test_support::postgres_test_database_unit!();
     assert_knowledge_base_store_round_trip(postgres.database().clone()).await;
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
@@ -652,7 +651,7 @@ fn install_failing_knowledge_chunk_trigger(database: &GlobalDatabase) {
 
 #[test]
 fn knowledge_postgres_store_initializes_six_scoped_tables() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::global_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
     SqliteKnowledgeStore::new(database.clone(), TenantScope::default())
         .expect("PostgreSQL knowledge store");
@@ -684,7 +683,7 @@ fn knowledge_postgres_store_initializes_six_scoped_tables() {
 
 #[test]
 fn knowledge_postgres_store_rejects_unscoped_schema_without_mutation() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::global_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
     database
         .connect_postgres()
@@ -1404,7 +1403,7 @@ fn validation_rejects_invalid_dataset_document_retrieve_and_ids() {
         "metadata",
     );
 
-    let max_encoded = ((crate::knowledge::import::MAX_IMPORT_FILE_BYTES + 2) / 3) * 4;
+    let max_encoded = ((crate::import::MAX_IMPORT_FILE_BYTES + 2) / 3) * 4;
     assert_api_error(
         import_source_bytes(&"A".repeat(max_encoded + 1)).unwrap_err(),
         StatusCode::BAD_REQUEST,
@@ -1760,7 +1759,7 @@ fn embedding_cache_prunes_only_current_tenant() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");
     assert_embedding_cache_prunes_only_current_tenant(sqlite);
 
-    let postgres = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres = agent_database::global_database::test_support::postgres_test_database_unit!();
     assert_embedding_cache_prunes_only_current_tenant(postgres.database().clone());
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
@@ -3002,27 +3001,6 @@ async fn invalid_and_missing_records_return_stable_api_errors() {
     );
 }
 
-#[tokio::test]
-async fn workflow_provider_maps_retrieval_errors_to_strings() {
-    let store = store();
-    let err = match WorkflowKnowledgeProvider::retrieve(
-        &store,
-        WorkflowKnowledgeRequest {
-            query: " ".to_string(),
-            dataset_ids: vec![],
-            top_k: 1,
-            score_threshold: None,
-            metadata_filter: None,
-        },
-    )
-    .await
-    {
-        Ok(_) => panic!("invalid workflow query should fail"),
-        Err(error) => error,
-    };
-
-    assert!(err.contains("query is required"));
-}
 
 async fn assert_knowledge_indexing_chunks_and_cache(database: GlobalDatabase) {
     let tenant = TenantScope::new("platform-index", "company-index").expect("index tenant");

@@ -71,7 +71,7 @@ fn voice_task_15_chat_shortcut_ignores_repeat_and_active_dictation() {
 #[test]
 fn voice_task_15_local_preferences_roundtrip_and_cancel_do_not_change_gateway() {
     use super::super::preferences::{Edit, Preferences};
-    let config = vw_config_types::voice::VoiceConfig::default();
+    let config = config_voice::VoiceConfig::default();
     let local = Preferences::default();
     assert!(!local.hotkeys.enabled);
     let mut edit = Edit::new(config, local.clone());

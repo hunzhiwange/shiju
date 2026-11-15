@@ -31,9 +31,6 @@ pub mod voice;
 mod agent_profile_tests;
 
 #[cfg(test)]
-mod voice_tests;
-
-#[cfg(test)]
 mod computer_control_tests;
 
 pub mod worktree;

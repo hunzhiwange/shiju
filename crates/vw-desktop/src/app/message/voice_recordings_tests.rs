@@ -83,7 +83,7 @@ async fn voice_task_14_recordings_retry_reads_stored_wav_over_loopback() {
             drop(reader);
             let response = if index == 0 {
                 assert!(request.starts_with("GET /api/voice/config "));
-                serde_json::to_vec(&vw_config_types::voice::VoiceConfig {
+                serde_json::to_vec(&config_voice::VoiceConfig {
                     dictation_enabled: true,
                     provider_id: Some("openai".into()),
                     ..Default::default()

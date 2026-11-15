@@ -11,7 +11,7 @@ use crate::app::message::{
 use crate::app::{App, Message};
 use iced::widget::{Space, button, checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::voice::{RecognitionLanguage, VoiceName};
+use config_voice::{RecognitionLanguage, VoiceName};
 fn msg(event: Event) -> Message {
     Message::Settings(SettingsMessage::Voice(event))
 }

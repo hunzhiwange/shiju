@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+config-voice = { path = "../libs/config-voice", version = "0.6.0" }
 display-format = { path = "../libs/display-format", version = "0.6.0" }
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
 gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.6.0" }

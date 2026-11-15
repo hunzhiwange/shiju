@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/config-voice",
   "crates/libs/display-format",
   "crates/libs/config-computer-control",
   "crates/libs/json-extract",

@@ -16,14 +16,12 @@ use {
     vw_api_apps_usage::apps_usage::UsageSubscription,
 };
 
-use crate::{
-    auth::{
-        credential_file::{AccountCredential, CredentialFileStore},
-        kimi::KimiDeviceAuth,
-        kimi_account::{KimiAccountTarget, KimiNativeTarget},
-    },
-    usage::coding::kimi::query_windows,
-};
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::credential_file::CredentialFileStore;
+use app_auth::auth::kimi::KimiDeviceAuth;
+use app_auth::auth::kimi_account::KimiAccountTarget;
+use app_auth::auth::kimi_account::KimiNativeTarget;
+use app_usage_coding::kimi::query_windows;
 
 /// Query a verified managed account. The caller must authorize regional egress
 /// and may supply the account's authorized native profile for renewal.

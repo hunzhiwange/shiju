@@ -14,11 +14,9 @@ use {
     vw_api_transport::id::ProjectScope,
 };
 
-use super::{
-    binding::UsageAccount,
-    cache::{UsageCache, UsageCacheKey, UsageCacheResult},
-    subscriptions::codex_tests::replay_with_usage,
-};
+use app_usage_core::binding::UsageAccount;
+use app_usage_store::cache::{UsageCache, UsageCacheKey, UsageCacheResult};
+use crate::codex_tests::replay_with_usage;
 
 fn key() -> UsageCacheKey {
     UsageCacheKey {

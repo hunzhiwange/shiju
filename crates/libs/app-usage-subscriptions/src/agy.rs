@@ -29,18 +29,18 @@ use {
     vw_api_apps_usage::apps_usage::UsageSubscription,
 };
 
-use crate::{
-    apps::{
-        discovery::read::{LocalReadEnvironment, locate_cli},
-        launch::{host, request::LaunchMaterial},
-    },
-    auth::{
-        agy_account::{AgyNativeTarget, lock_native_usage, query_access_token},
-        agy_refresh::refresh_account,
-        flow::AuthAccountScope,
-    },
-    usage::coding::zhipu::{client_builder, read_json_response, transport_error},
-};
+use app_discovery::read::LocalReadEnvironment;
+use app_discovery::read::locate_cli;
+use app_launch::host;
+use app_launch::request::LaunchMaterial;
+use app_auth::auth::agy_account::AgyNativeTarget;
+use app_auth::auth::agy_account::lock_native_usage;
+use app_auth::auth::agy_account::query_access_token;
+use app_auth::auth::agy_refresh::refresh_account;
+use app_auth::auth::flow::AuthAccountScope;
+use app_usage_coding::zhipu::client_builder;
+use app_usage_coding::zhipu::read_json_response;
+use app_usage_coding::zhipu::transport_error;
 
 const ORIGIN: &str = "https://cloudcode-pa.googleapis.com";
 const FALLBACK_CLI_VERSION: &str = "1.4.6";

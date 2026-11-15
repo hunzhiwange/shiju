@@ -20,16 +20,14 @@ use {
     vw_api_apps_usage::apps_usage::UsageSubscription,
 };
 
-use crate::{
-    auth::{
-        copilot::{CopilotAuth, valid_token},
-        credential_file::{AccountCredential, CredentialFileStore},
-    },
-    usage::{
-        binding::{UsageAccount, UsageCredentialRef},
-        coding::zhipu::{read_json_response, transport_error},
-    },
-};
+use app_auth::auth::copilot::CopilotAuth;
+use app_auth::auth::copilot::valid_token;
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::credential_file::CredentialFileStore;
+use app_usage_core::binding::UsageAccount;
+use app_usage_core::binding::UsageCredentialRef;
+use app_usage_coding::zhipu::read_json_response;
+use app_usage_coding::zhipu::transport_error;
 
 /// Query the host-resolved explicit, bound or default account. The host must
 /// authorize egress and supply the authority from that account's login record.

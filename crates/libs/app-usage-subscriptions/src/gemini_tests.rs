@@ -18,7 +18,7 @@ use {
 };
 
 use super::gemini::{GeminiOAuth, query_at};
-use crate::usage::coding::zhipu::client_builder;
+use app_usage_coding::zhipu::client_builder;
 
 const NOW: TimestampMs = TimestampMs(1_893_456_000_000);
 const LOAD: &str = "/v1internal:loadCodeAssist";

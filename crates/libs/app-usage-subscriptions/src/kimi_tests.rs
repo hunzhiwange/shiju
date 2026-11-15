@@ -1,10 +1,10 @@
 use super::kimi::query_at;
-use crate::auth::{
-    copilot_tests::oauth_server,
-    credential_file::AccountCredential,
-    kimi::KimiDeviceAuth,
-    kimi_account_tests::{ACCOUNT, CONFIG, Fixture},
-};
+use app_auth::auth::test_support::oauth_server;
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::kimi::KimiDeviceAuth;
+use app_auth::auth::kimi_test_support::ACCOUNT;
+use app_auth::auth::kimi_test_support::CONFIG;
+use app_auth::auth::kimi_test_support::Fixture;
 use reqwest::{Request, Url, header};
 use serde_json::json;
 use std::fs;

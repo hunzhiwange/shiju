@@ -105,12 +105,12 @@ zip = { version = "8.6", default-features = false, features = ["deflate-flate2-z
 vw-api-types = { path = "../vw-api-types" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+app-usage-subscriptions = { path = "../libs/app-usage-subscriptions" }
 app-session-terminal = { path = "../libs/app-session-terminal" }
 app-openclaw = { path = "../libs/app-openclaw" }
 app-workspace-memory = { path = "../libs/app-workspace-memory" }
 app-workspace-paths = { path = "../libs/app-workspace-paths" }
 rquickjs = { version = "0.14", default-features = false, features = ["std"] }
-security-framework = "3.7"
 tokio = { version = "1", features = ["io-util", "process", "time"] }
 
 [target.'cfg(unix)'.dependencies]

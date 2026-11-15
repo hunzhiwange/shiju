@@ -21,19 +21,14 @@ use {
 };
 
 use super::codex::query_at;
-use crate::{
-    auth::{
-        credential_file::{AccountCredential, CredentialFileStore},
-        flow::AuthAccountScope,
-    },
-    usage::{
-        binding::{
-            UnboundUsageAccount, UsageAccountSelection, UsageCredentialRef,
-            resolve_usage_credential,
-        },
-        coding::zhipu::client_builder,
-    },
-};
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::credential_file::CredentialFileStore;
+use app_auth::auth::flow::AuthAccountScope;
+use app_usage_core::binding::UnboundUsageAccount;
+use app_usage_core::binding::UsageAccountSelection;
+use app_usage_core::binding::UsageCredentialRef;
+use app_usage_core::binding::resolve_usage_credential;
+use app_usage_coding::zhipu::client_builder;
 
 const NOW: TimestampMs = TimestampMs(1_893_456_000_000);
 const ID: &str = "fixture-query";
@@ -96,7 +91,7 @@ async fn replay(
     replay_with_usage(managed, workspace, Some(usage), reset).await
 }
 
-pub(in crate::usage) async fn replay_with_usage(
+pub(crate) async fn replay_with_usage(
     managed: bool,
     workspace: Option<&str>,
     usage: Option<(&str, &str)>,

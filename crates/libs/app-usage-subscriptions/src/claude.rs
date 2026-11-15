@@ -28,26 +28,23 @@ use {
     vw_api_apps_usage::apps_usage::UsageSubscription,
 };
 
-use crate::{
-    auth::{
-        claude_keychain::{ClaudeKeychain, MacOsKeychain},
-        claude_rotation::{default_login_available, expiry},
-        credential_file::AccountCredential,
-        credential_lease::CredentialLease,
-        flow::AuthAccountScope,
-    },
-    providers::{
-        claude_login::{LoginHost, LoginMaterial},
-        live::{
-            commit::{ExecutionHostId, ProviderTransactions},
-            write_guard::WriteError,
-        },
-    },
-    usage::{
-        binding::{UsageAccount, UsageCredentialRef},
-        coding::zhipu::{client_builder, read_json_response, transport_error},
-    },
-};
+use app_auth::auth::claude_keychain::ClaudeKeychain;
+use app_auth::auth::claude_keychain::MacOsKeychain;
+use app_auth::auth::claude_rotation::default_login_available;
+use app_auth::auth::claude_rotation::expiry;
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::credential_lease::CredentialLease;
+use app_auth::auth::flow::AuthAccountScope;
+use app_auth::providers::claude_login::LoginHost;
+use app_auth::providers::claude_login::LoginMaterial;
+use app_auth::providers::live::commit::ExecutionHostId;
+use app_auth::providers::live::commit::ProviderTransactions;
+use app_auth::providers::live::write_guard::WriteError;
+use app_usage_core::binding::UsageAccount;
+use app_usage_core::binding::UsageCredentialRef;
+use app_usage_coding::zhipu::client_builder;
+use app_usage_coding::zhipu::read_json_response;
+use app_usage_coding::zhipu::transport_error;
 
 #[derive(Debug)]
 pub struct ClaudeUsage {
@@ -280,7 +277,7 @@ fn bearer(oauth: Option<&Value>, now: TimestampMs) -> Result<HeaderValue, UsageC
             && token_expiry(oauth.get("refreshTokenExpiresAt"))?.is_none_or(|expiry| expiry > now);
         return Err(if refreshable { RefreshPending } else { Expired });
     }
-    let mut bearer = crate::providers::validation::header_value(&format!("Bearer {token}"))
+    let mut bearer = app_provider_validation::validation::header_value(&format!("Bearer {token}"))
         .map_err(|_| ParseError)?;
     bearer.set_sensitive(true);
     Ok(bearer)

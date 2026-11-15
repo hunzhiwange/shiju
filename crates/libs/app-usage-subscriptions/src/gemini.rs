@@ -10,10 +10,11 @@ use serde_json::json;
 use {vw_api_transport::TimestampMs, vw_api_apps_usage::apps_usage::UsageCredentialState, vw_api_apps_usage::apps_usage::UsageNumber, vw_api_apps_usage::apps_usage::UsageQueryData, vw_api_apps_usage::apps_usage::UsageQueryError, vw_api_apps_usage::apps_usage::UsageQueryErrorCode, vw_api_apps_usage::apps_usage::UsageQueryKind, vw_api_apps_usage::apps_usage::UsageQueryOutcome, vw_api_apps_usage::apps_usage::UsageQueryResult, vw_api_apps_usage::apps_usage::UsageQuotaWindow, vw_api_apps_usage::apps_usage::UsageSource, vw_api_apps_usage::apps_usage::UsageSubscription};
 use vw_api_app_provider_environment::paths::ConfigPathState;
 
-use crate::{
-    providers::{paths::open_beneath, validation::header_value},
-    usage::coding::zhipu::{client_builder, read_json_response, transport_error},
-};
+use app_config_paths::open_beneath;
+use app_provider_validation::validation::header_value;
+use app_usage_coding::zhipu::client_builder;
+use app_usage_coding::zhipu::read_json_response;
+use app_usage_coding::zhipu::transport_error;
 
 const MAX_CREDENTIAL_BYTES: u64 = 256 * 1024;
 const CODE_ASSIST_ORIGIN: &str = "https://cloudcode-pa.googleapis.com";

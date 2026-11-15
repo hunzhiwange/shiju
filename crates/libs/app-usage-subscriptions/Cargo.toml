@@ -1,0 +1,35 @@
+[package]
+name = "app-usage-subscriptions"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-auth = { path = "../app-auth" }
+app-discovery = { path = "../app-discovery" }
+app-launch = { path = "../app-launch" }
+app-config-paths = { path = "../app-config-paths" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-usage-core = { path = "../app-usage-core" }
+app-usage-coding = { path = "../app-usage-coding" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-apps-usage = { path = "../api-apps-usage" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+sha2 = "0.11"
+security-framework = "3.7"
+tokio = { version = "1", features = ["io-util", "process", "time"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+app-auth = { path = "../app-auth", features = ["test-support"] }
+app-usage-store = { path = "../app-usage-store" }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "io-util", "net", "time"] }

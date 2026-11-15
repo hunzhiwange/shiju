@@ -1,15 +1,13 @@
 use super::copilot::query_at;
-use crate::{
-    auth::{
-        copilot::CopilotAuth,
-        copilot_tests::oauth_server,
-        credential_file::{AccountCredential, CredentialFileStore},
-        flow::AuthAccountScope,
-    },
-    usage::binding::{
-        UnboundUsageAccount, UsageAccountSelection, UsageCredentialRef, resolve_usage_credential,
-    },
-};
+use app_auth::auth::copilot::CopilotAuth;
+use app_auth::auth::test_support::oauth_server;
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::credential_file::CredentialFileStore;
+use app_auth::auth::flow::AuthAccountScope;
+use app_usage_core::binding::UnboundUsageAccount;
+use app_usage_core::binding::UsageAccountSelection;
+use app_usage_core::binding::UsageCredentialRef;
+use app_usage_core::binding::resolve_usage_credential;
 use reqwest::{Request, Url, header};
 use serde_json::{Value, json};
 use std::os::unix::fs::PermissionsExt;

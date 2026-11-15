@@ -31,10 +31,7 @@ pub mod scripts;
 pub use app_usage_store::store;
 pub use app_usage_store::source_settings;
 #[cfg(target_os = "macos")]
-pub mod subscriptions;
-
-#[cfg(all(test, target_os = "macos"))]
-mod cache_tests;
+pub use app_usage_subscriptions as subscriptions;
 
 pub mod opencode;
 

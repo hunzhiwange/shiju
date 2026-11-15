@@ -20,7 +20,8 @@ use {
 };
 
 use super::agy::{query_account_at, query_cli_at};
-use crate::{apps::discovery::read::LocalReadEnvironment, auth::flow::AuthAccountScope};
+use app_discovery::read::LocalReadEnvironment;
+use app_auth::auth::flow::AuthAccountScope;
 
 const NOW: TimestampMs = TimestampMs(1_893_456_000_000);
 const QUERY: &str = "agy-fixture-query";

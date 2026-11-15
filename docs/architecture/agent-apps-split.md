@@ -1164,7 +1164,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `crates/libs/app-usage-core/src/binding.rs` | 100 | 55 |
 | `crates/libs/app-usage-core/src/binding_tests.rs` | 225 | 55 |
 | `usage/cache.rs` → `app-usage-store/src/cache.rs` | 120 | 56 |
-| `usage/cache_tests.rs`（订阅回放集成，留存至任务 59） | 149 | 59 |
+| `usage/cache_tests.rs` → `app-usage-subscriptions/src/cache_tests.rs`（订阅回放集成） | 149 | 59 |
 | `usage/claude.rs` | 96 | 62 |
 | `usage/claude_scan.rs` | 312 | 62 |
 | `usage/codex_delta.rs` | 245 | 61 |
@@ -1242,22 +1242,22 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/snapshot_scan.rs` | 109 | 63 |
 | `usage/source_settings.rs` → `app-usage-store/src/source_settings.rs` | 175 | 56 |
 | `usage/store.rs` → `app-usage-store/src/store.rs` | 221 | 56 |
-| `usage/subscriptions/agy.rs` | 428 | 59 |
-| `usage/subscriptions/agy_tests.rs` | 250 | 59 |
-| `usage/subscriptions/claude.rs` | 390 | 59 |
-| `usage/subscriptions/claude_tests.rs` | 385 | 59 |
-| `usage/subscriptions/codex.rs` | 412 | 59 |
-| `usage/subscriptions/codex_tests.rs` | 361 | 59 |
-| `usage/subscriptions/copilot.rs` | 194 | 59 |
-| `usage/subscriptions/copilot_tests.rs` | 249 | 59 |
-| `usage/subscriptions/gemini.rs` | 341 | 59 |
-| `usage/subscriptions/gemini_tests.rs` | 326 | 59 |
-| `usage/subscriptions/grok.rs` | 492 | 59 |
-| `usage/subscriptions/grok/grpc.rs` | 205 | 59 |
-| `usage/subscriptions/grok_tests.rs` | 298 | 59 |
-| `usage/subscriptions/kimi.rs` | 145 | 59 |
-| `usage/subscriptions/kimi_tests.rs` | 179 | 59 |
-| `usage/subscriptions/mod.rs` | 30 | 59 |
+| `usage/subscriptions/agy.rs` → `app-usage-subscriptions/src/agy.rs` | 428 | 59 |
+| `usage/subscriptions/agy_tests.rs` → `app-usage-subscriptions/src/agy_tests.rs` | 250 | 59 |
+| `usage/subscriptions/claude.rs` → `app-usage-subscriptions/src/claude.rs` | 390 | 59 |
+| `usage/subscriptions/claude_tests.rs` → `app-usage-subscriptions/src/claude_tests.rs` | 385 | 59 |
+| `usage/subscriptions/codex.rs` → `app-usage-subscriptions/src/codex.rs` | 412 | 59 |
+| `usage/subscriptions/codex_tests.rs` → `app-usage-subscriptions/src/codex_tests.rs` | 361 | 59 |
+| `usage/subscriptions/copilot.rs` → `app-usage-subscriptions/src/copilot.rs` | 194 | 59 |
+| `usage/subscriptions/copilot_tests.rs` → `app-usage-subscriptions/src/copilot_tests.rs` | 249 | 59 |
+| `usage/subscriptions/gemini.rs` → `app-usage-subscriptions/src/gemini.rs` | 341 | 59 |
+| `usage/subscriptions/gemini_tests.rs` → `app-usage-subscriptions/src/gemini_tests.rs` | 326 | 59 |
+| `usage/subscriptions/grok.rs` → `app-usage-subscriptions/src/grok.rs` | 492 | 59 |
+| `usage/subscriptions/grok/grpc.rs` → `app-usage-subscriptions/src/grok/grpc.rs` | 205 | 59 |
+| `usage/subscriptions/grok_tests.rs` → `app-usage-subscriptions/src/grok_tests.rs` | 298 | 59 |
+| `usage/subscriptions/kimi.rs` → `app-usage-subscriptions/src/kimi.rs` | 145 | 59 |
+| `usage/subscriptions/kimi_tests.rs` → `app-usage-subscriptions/src/kimi_tests.rs` | 179 | 59 |
+| `usage/subscriptions/mod.rs` → `app-usage-subscriptions/src/lib.rs` | 30 | 59 |
 | `usage/summary.rs` → `app-usage-store/src/summary.rs` | 321 | 56 |
 | `crates/libs/app-usage-core/src/tokens.rs` | 193 | 55 |
 | `workspace_files.rs` | 52 | 37（已迁入 app-workspace-memory） |
@@ -1591,8 +1591,8 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `usage/scripts/run.rs` | `crate::apps::lifecycle::operations::Operation` |
 | `usage/scripts/run_tests.rs` | `crate::apps::lifecycle::operations::Operation` |
 | `usage/scripts/runtime.rs` | `crate::apps::lifecycle::operations::Operation` |
-| `usage/subscriptions/claude.rs` | `crate::providers::validation::header_value` |
-| `usage/subscriptions/kimi_tests.rs` | `crate::auth::{     copilot_tests::oauth_server,     credential_file::AccountCredential,     kimi::KimiDeviceAuth,     kimi_account_tests::{ACCOUNT, CONFIG, Fixture}` |
+| `usage/subscriptions/claude.rs` → `app-usage-subscriptions/src/claude.rs` | `crate::providers::validation::header_value` |
+| `usage/subscriptions/kimi_tests.rs` → `app-usage-subscriptions/src/kimi_tests.rs` | `crate::auth::{     copilot_tests::oauth_server,     credential_file::AccountCredential,     kimi::KimiDeviceAuth,     kimi_account_tests::{ACCOUNT, CONFIG, Fixture}` |
 | `workspace_files.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
 | `workspace_paths.rs` | `crate::providers::{     live::write_guard::{FilePrivacy, lock_directory}` |
 
@@ -2815,3 +2815,12 @@ app-usage-coding/src 唯一拥有原 usage/coding 的全部 19 个文件（mod.r
 静态证据：逐文件对照 HEAD 的移动差异仅涉及导入、可见性、模块条件及测试文件名；Python 3.13 标准库 tomllib 审阅三份清单及直接路径，模块/测试注册路径均存在，源码检索无旧门面回依赖，git diff --check 无空白错误。系统 python3 不含 tomllib，改用本机已有 Python 3.13，未安装工具。
 
 未运行 Cargo、单元及实机测试，统一验收待授权；需覆盖新包与网关、订阅调用者编译、迁移定向单测、macOS/Windows/Linux 平台行为和锁文件一致性。Cargo.lock 保持不变。
+
+
+### 任务59：用量订阅查询迁移结果
+
+app-usage-subscriptions 唯一拥有原 subscriptions 的16个文件（mod.rs 改为 lib.rs），并接收任务56移交的 cache_tests.rs，保持八个独立测试模块注册。原 usage::subscriptions 在 macOS cfg 下重导出；lib.rs 既有 usage 入口无需改动。ManagedCodexUsage 与 CODEX_USAGE_ORIGIN 的网关调用路径保持不变，未留存待移交符号。
+
+新包整体及其依赖保留 macOS 条件。凭据选择依赖 app-auth、用量绑定依赖 app-usage-core，HTTP 读取复用 app-usage-coding，CLI 定位与启动分别依赖 app-discovery 和 app-launch；直接路径依赖闭包无旧门面及回环。认证测试复用既有 test-support；缓存测试依赖仅在 dev-dependencies 声明 app-usage-store。Grok gRPC 子模块原样迁移，无资源/include 路径。原门面 security-framework 已无调用，移除；prost 仍由 agy_native 使用，保留。
+
+静态证据：Python 3.12 标准库 tomllib 解析清单、核验路径及依赖闭包；15个叶子实现/测试文件去除 use 后与迁移前一致（仅调整一处完整限定调用和测试可见范围）；导出及网关真实调用者检索、diff --check 通过。未运行 Cargo、单元及实机测试，未修改 Cargo.lock。统一验收待授权：新包及网关调用方目标编译、迁移测试、macOS 凭据选择与 Grok gRPC 行为。

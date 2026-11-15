@@ -27,25 +27,22 @@ use {
 };
 
 use super::claude::{ClaudeUsage, LoginSlots, query_at};
-use crate::{
-    auth::{
-        claude_keychain::{ClaudeKeychain, KeychainError},
-        credential_file::{AccountCredential, CredentialFileStore},
-        credential_lease::CredentialLease,
-        flow::AuthAccountScope,
-    },
-    providers::{
-        claude::ClaudeFile,
-        live::commit::{AppState, ClaudeManagedLogin, ExecutionHostId, ProviderTransactions},
-    },
-    usage::{
-        binding::{
-            UnboundUsageAccount, UsageAccountSelection, UsageCredentialRef,
-            resolve_usage_credential,
-        },
-        coding::zhipu::client_builder,
-    },
-};
+use app_auth::auth::claude_keychain::ClaudeKeychain;
+use app_auth::auth::claude_keychain::KeychainError;
+use app_auth::auth::credential_file::AccountCredential;
+use app_auth::auth::credential_file::CredentialFileStore;
+use app_auth::auth::credential_lease::CredentialLease;
+use app_auth::auth::flow::AuthAccountScope;
+use app_auth::providers::claude::ClaudeFile;
+use app_auth::providers::live::commit::AppState;
+use app_auth::providers::live::commit::ClaudeManagedLogin;
+use app_auth::providers::live::commit::ExecutionHostId;
+use app_auth::providers::live::commit::ProviderTransactions;
+use app_usage_core::binding::UnboundUsageAccount;
+use app_usage_core::binding::UsageAccountSelection;
+use app_usage_core::binding::UsageCredentialRef;
+use app_usage_core::binding::resolve_usage_credential;
+use app_usage_coding::zhipu::client_builder;
 
 const NOW: TimestampMs = TimestampMs(1_893_456_000_000);
 const ID: &str = "fixture-query";

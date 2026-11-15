@@ -13,3 +13,10 @@ pub mod common;
 pub mod board;
 
 pub mod control;
+
+pub mod drag;
+pub mod modals;
+pub mod panel;
+
+#[cfg(test)]
+mod slice_view_fixture;

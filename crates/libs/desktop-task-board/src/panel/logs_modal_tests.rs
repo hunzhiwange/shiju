@@ -3,9 +3,10 @@
 use iced::widget::button;
 use iced::{Background, Color, Element, Length, Theme};
 
-use crate::app::message::TaskBoardMessage;
-use crate::app::task::{SubTask, SubTaskStatus, Task, TaskLogEntry};
-use crate::app::{App, Message};
+use crate::message::TaskBoardMessage;
+use desktop_task_model::{SubTask, SubTaskStatus, Task, TaskLogEntry};
+use crate::slice_view_fixture::Fixture;
+use crate::message::TaskBoardMessage as Message;
 
 use super::*;
 
@@ -71,7 +72,7 @@ fn test_module_is_wired() {
 
 #[test]
 fn task_logs_modal_builds_public_and_content_entries() {
-    let (mut app, _task) = App::new();
+    let (mut app, _task) = Fixture::new();
     app.task_board_new_subtask_content = "下一步".to_string();
 
     let mut task = task_with_logs();
@@ -81,13 +82,13 @@ fn task_logs_modal_builds_public_and_content_entries() {
         subtask("sub-3", "验收", SubTaskStatus::Completed, 7_200_000),
     ];
 
-    let public_modal = build_task_logs_modal(&app, &task);
+    let public_modal = build_task_logs_modal_content(desktop_i18n::I18n::new(app.desktop_locale), &app.task_board_new_subtask_content, &task);
     assert_eq!(public_modal.as_widget().size().width, Length::FillPortion(1));
     assert_eq!(public_modal.as_widget().size().height, Length::Fill);
     keep_element(public_modal);
 
     let content_modal = build_task_logs_modal_content(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "另一条子任务",
         &task,
     );
@@ -101,7 +102,7 @@ fn task_logs_modal_omits_subtask_section_when_empty() {
     let task = task_with_logs();
 
     let modal = build_task_logs_modal_content(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "",
         &task,
     );
@@ -120,7 +121,7 @@ fn subtask_section_covers_move_button_edges() {
     ];
 
     let column: Element<'_, Message> = build_subtasks_section(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &task,
         iced::widget::column![],
     )
@@ -134,7 +135,7 @@ fn add_subtask_section_uses_current_input_value_for_messages() {
     let task = Task { id: "task-add".to_string(), ..Task::default() };
 
     let column: Element<'_, Message> = build_add_subtask_section(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "新的子任务",
         &task,
         iced::widget::column![],
@@ -143,14 +144,14 @@ fn add_subtask_section_uses_current_input_value_for_messages() {
     assert_eq!(column.as_widget().children().len(), 4);
 
     match update_new_subtask_content_message("typed".to_string()) {
-        Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(content)) => {
+        TaskBoardMessage::UpdateNewSubtaskContent(content) => {
             assert_eq!(content, "typed");
         }
         other => panic!("unexpected message: {other:?}"),
     }
 
     match add_subtask_message("task-add".to_string(), "新的子任务".to_string()) {
-        Message::TaskBoard(TaskBoardMessage::AddSubTask { task_id, content }) => {
+        TaskBoardMessage::AddSubTask { task_id, content } => {
             assert_eq!(task_id, "task-add");
             assert_eq!(content, "新的子任务");
         }
@@ -167,7 +168,7 @@ fn logs_section_formats_empty_and_multi_line_logs() {
     assert_eq!(format_logs_content(&task), "1:1 - started\n2:5 - finished");
 
     let column: Element<'_, Message> = build_logs_section(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &task,
         iced::widget::column![],
     )

@@ -3,7 +3,7 @@
 use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Point, Theme};
 
-use crate::app::task::{Task, TaskStatus};
+use desktop_task_model::{Task, TaskStatus};
 
 #[test]
 fn test_module_is_wired() {
@@ -24,7 +24,7 @@ fn task_with(priority: u32, prompt: &str, status: TaskStatus) -> Task {
     task
 }
 
-async fn assert_element_draws(mut element: iced::Element<'_, crate::app::Message>) {
+async fn assert_element_draws(mut element: iced::Element<'_, crate::message::TaskBoardMessage>) {
     let mut renderer = <iced::Renderer as Headless>::new(
         iced::Font::DEFAULT,
         iced::Pixels(16.0),
@@ -162,7 +162,7 @@ fn drag_preview_card_builds_for_priority_and_prompt_variants() {
         task_with(501, "neutral priority", TaskStatus::Completed),
     ] {
         let _element = super::build_drag_preview_card(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task,
         );
     }
@@ -173,7 +173,7 @@ async fn drag_preview_card_draws_badges_and_theme_styles() {
     let task = task_with(100, "render the dragged task", TaskStatus::Running);
 
     assert_element_draws(super::build_drag_preview_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &task,
     ))
     .await;
@@ -181,27 +181,27 @@ async fn drag_preview_card_draws_badges_and_theme_styles() {
 
 #[test]
 fn drag_preview_layer_builds_empty_layer_without_active_drag() {
-    let (app, _task) = crate::app::App::new();
+    let (app, _task) = crate::slice_view_fixture::Fixture::new();
 
-    let _element = super::build_drag_preview_layer(&app);
+    let _element = super::build_drag_preview_layer(app.drag());
 }
 
 #[test]
 fn drag_preview_layer_builds_empty_layer_when_dragged_task_is_missing() {
-    let (mut app, _task) = crate::app::App::new();
+    let (mut app, _task) = crate::slice_view_fixture::Fixture::new();
     app.task_board_dragging = Some(("missing".to_string(), TaskStatus::Pool));
 
-    let _element = super::build_drag_preview_layer(&app);
+    let _element = super::build_drag_preview_layer(app.drag());
 }
 
 #[test]
 fn drag_preview_layer_builds_card_for_matching_dragged_task() {
-    let (mut app, _task) = crate::app::App::new();
+    let (mut app, _task) = crate::slice_view_fixture::Fixture::new();
     let task = task_with(42, "drag me", TaskStatus::Planning);
     app.task_board_dragging = Some((task.id.clone(), task.status));
     app.task_board_tasks = vec![task];
     app.cursor_position = Point::new(9_999.0, -20.0);
     app.window_size = (180.0, 36.0);
 
-    let _element = super::build_drag_preview_layer(&app);
+    let _element = super::build_drag_preview_layer(app.drag());
 }

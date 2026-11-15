@@ -1,59 +1,9 @@
 //! 任务详情推理强度选择器的测试，覆盖默认值和各档位交互。
 //! 用例核对禁用及选中样式，并保证消息携带预期的强度值。
-use super::*;
 use crate::app::App;
 use crate::app::message::{self, ChatMessage, TaskBoardMessage};
 use crate::app::task::{Task, TaskStatus};
 use vw_api_chat_identity::ReasoningEffortDto;
-
-#[test]
-fn reasoning_option_formats_automatic_and_explicit_efforts() {
-    assert_eq!(
-        TaskBoardReasoningEffortOption(None, config_ui::DesktopLocale::SimplifiedChinese)
-            .to_string(),
-        "默认"
-    );
-    assert_eq!(
-        TaskBoardReasoningEffortOption(
-            Some(ReasoningEffortDto::High),
-            config_ui::DesktopLocale::SimplifiedChinese
-        )
-        .to_string(),
-        "High"
-    );
-}
-
-#[test]
-fn selector_kind_reads_draft_and_bulk_agent_and_effort_sources() {
-    let mut app = App::new().0;
-    app.task_board_draft.acp_agent = Some("draft-agent".to_string());
-    app.task_board_draft.reasoning_effort = Some(ReasoningEffortDto::Medium);
-    app.task_board_bulk_acp_agent = Some("bulk-agent".to_string());
-    app.task_board_bulk_reasoning_effort = Some(ReasoningEffortDto::Low);
-
-    assert_eq!(TaskBoardReasoningSelectorKind::Draft.agent(&app), Some("draft-agent"));
-    assert_eq!(TaskBoardReasoningSelectorKind::Edit.agent(&app), Some("draft-agent"));
-    assert_eq!(TaskBoardReasoningSelectorKind::Bulk.agent(&app), Some("bulk-agent"));
-    assert_eq!(
-        TaskBoardReasoningSelectorKind::Edit.current(&app),
-        Some(ReasoningEffortDto::Medium)
-    );
-    assert_eq!(TaskBoardReasoningSelectorKind::Bulk.current(&app), Some(ReasoningEffortDto::Low));
-}
-
-#[test]
-fn selector_builders_cover_draft_edit_bulk_and_missing_agent_defaults() {
-    let mut app = App::new().0;
-
-    assert!(build_reasoning_effort_selector(&app, false).is_none());
-    assert!(build_reasoning_effort_selector(&app, true).is_none());
-    assert!(build_bulk_reasoning_effort_selector(&app).is_none());
-
-    app.task_board_draft.acp_agent = Some("codex".to_string());
-    app.task_board_bulk_acp_agent = Some("codex".to_string());
-    assert!(build_reasoning_effort_selector(&app, false).is_some());
-    assert!(build_bulk_reasoning_effort_selector(&app).is_some());
-}
 
 #[test]
 fn task_reasoning_effort_selector_updates_draft_edit_bulk_and_task_mode() {
@@ -64,11 +14,6 @@ fn task_reasoning_effort_selector_updates_draft_edit_bulk_and_task_mode() {
         TaskBoardMessage::UpdateDraftReasoningEffort(Some(ReasoningEffortDto::High)),
     );
     assert_eq!(app.task_board_draft.reasoning_effort, Some(ReasoningEffortDto::High));
-    assert_eq!(TaskBoardReasoningSelectorKind::Draft.current(&app), Some(ReasoningEffortDto::High));
-    assert!(matches!(
-        TaskBoardReasoningSelectorKind::Draft.select_message(None),
-        TaskBoardMessage::UpdateDraftReasoningEffort(None)
-    ));
 
     let mut editing_task = Task::new(1);
     editing_task.id = "reasoning-edit".to_string();

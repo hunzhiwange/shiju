@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+desktop-chat-input = { path = "../desktop-chat-input", version = "0.6.0" }
 desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }

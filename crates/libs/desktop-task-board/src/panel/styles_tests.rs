@@ -3,7 +3,7 @@
 use iced::widget::{button, text_editor, text_input};
 use iced::{Background, Color, Theme};
 
-use crate::app::task::SubTaskStatus;
+use desktop_task_model::SubTaskStatus;
 
 use super::*;
 
@@ -36,7 +36,7 @@ fn test_module_is_wired() {
 
 #[test]
 fn input_controls_delegate_to_shared_settings_styles() {
-    let label = input_label("目标");
+    let label = input_label::<crate::message::TaskBoardMessage>("目标");
     assert_eq!(label.as_widget().children().len(), 0);
 
     let input = input_style(&Theme::Dark, text_input::Status::Active);

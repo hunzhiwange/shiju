@@ -20,7 +20,7 @@ use {
     vw_api_types::apps_usage::UsageQuotaWindow,
     vw_api_types::apps_usage::UsageSource,
 };
-use vw_provider_resolver::remote_models::is_real_bearer;
+use provider_model_discovery::is_real_bearer;
 
 use super::zhipu::{client_builder, read_json, transport_error};
 use crate::providers::validation::header_value;

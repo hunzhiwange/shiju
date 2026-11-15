@@ -454,10 +454,10 @@ where
         args: agent_client_protocol::ExtRequest,
     ) -> Result<agent_client_protocol::ExtResponse> {
         self.ensure_initialized()?;
-        if args.method.as_ref() != acp_types::session_mounts::SET_SESSION_MOUNTS_METHOD {
+        if args.method.as_ref() != crate::session_mounts::SET_SESSION_MOUNTS_METHOD {
             return Err(Error::method_not_found());
         }
-        let request: acp_types::SetSessionMountsRequest = serde_json::from_str(args.params.get())
+        let request: crate::SetSessionMountsRequest = serde_json::from_str(args.params.get())
             .map_err(|_| protocol_error(Error::invalid_params(), "invalid mount replacement"))?;
         let id = request.session_id.to_string();
         {

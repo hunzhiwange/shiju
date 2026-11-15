@@ -38,7 +38,7 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, LazyLock};
 #[cfg(not(target_arch = "wasm32"))]
-use vw_provider_resolver::remote_models::{discover_and_merge_provider, is_real_bearer};
+use provider_model_discovery::{discover_and_merge_provider, is_real_bearer};
 
 pub use vw_shared::provider::state::{
     State, as_string_map, builtin_model_limit, default_model_capabilities, from_models_dev_model,

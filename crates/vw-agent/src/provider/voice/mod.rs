@@ -88,20 +88,20 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
     let key = provider
         .key
         .as_deref()
-        .filter(|key| vw_provider_resolver::remote_models::is_real_bearer(key))
+        .filter(|key| provider_model_discovery::is_real_bearer(key))
         .map(str::to_owned)
         .or_else(|| {
             provider
                 .env
                 .iter()
                 .filter_map(|name| crate::env::get(name))
-                .find(|key| vw_provider_resolver::remote_models::is_real_bearer(key))
+                .find(|key| provider_model_discovery::is_real_bearer(key))
         })
         .or_else(|| match auth {
             Some(crate::auth::Info::Api(api)) => Some(api.key),
             _ => None,
         })
-        .filter(|key| vw_provider_resolver::remote_models::is_real_bearer(key))
+        .filter(|key| provider_model_discovery::is_real_bearer(key))
         .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
     let base = match provider.options.get("baseURL") {
         Some(value) => value

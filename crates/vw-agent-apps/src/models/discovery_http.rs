@@ -7,8 +7,8 @@ use reqwest::{
     header::{AUTHORIZATION, HeaderMap, HeaderName, USER_AGENT},
 };
 use vw_api_types::app_providers::{ProviderProtocol, endpoints::AppProviderEndpointKind};
-pub use vw_provider_resolver::remote_models::DiscoveredModel;
-use vw_provider_resolver::remote_models::{discover_catalog_models, is_real_bearer};
+pub use provider_model_discovery::DiscoveredModel;
+use provider_model_discovery::{discover_catalog_models, is_real_bearer};
 
 use super::{discovery_url::build_models_url_candidates, user_agent_presets::custom_user_agent};
 use crate::providers::validation::{header_value, protected_header};

@@ -86,7 +86,7 @@ struct MountBackend {
         std::sync::Mutex<Option<tokio::sync::mpsc::UnboundedSender<super::BackendEvent>>>,
     >,
     requests: std::sync::Arc<std::sync::Mutex<Vec<super::BackendMountRequest>>>,
-    saved: std::sync::Arc<std::sync::Mutex<Vec<acp_types::session_mounts::SessionSkillMount>>>,
+    saved: std::sync::Arc<std::sync::Mutex<Vec<crate::session_mounts::SessionSkillMount>>>,
     cwd: std::sync::Arc<std::sync::Mutex<Option<std::path::PathBuf>>>,
 }
 
@@ -143,13 +143,13 @@ impl MountBackend {
         request: super::BackendMountRequest,
     ) -> Result<super::BackendMountedSession, super::BackendError> {
         let mut saved = self.saved.lock().unwrap();
-        *saved = acp_types::session_mounts::SessionMountSelection::resolve(
+        *saved = crate::session_mounts::SessionMountSelection::resolve(
             request.skills.as_ref(),
             Some(&saved),
         );
         let mut mounts = request.legacy_response()?;
         mounts.skills = saved.iter().map(|skill| skill.name.clone()).collect();
-        mounts.revision = acp_types::session_mounts::SessionMountRevision(7);
+        mounts.revision = crate::session_mounts::SessionMountRevision(7);
         self.requests.lock().unwrap().push(request);
         Ok(super::BackendMountedSession {
             session: super::BackendSession { id: "owned".into(), cwd, history: Vec::new() },

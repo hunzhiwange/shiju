@@ -10,6 +10,7 @@ license = "MIT"
 [dependencies]
 provider-auth-reader = { path = "../libs/provider-auth-reader", version = "0.6.0" }
 provider-config-reader = { path = "../libs/provider-config-reader", version = "0.6.0" }
+provider-model-discovery = { path = "../libs/provider-model-discovery", version = "0.6.0" }
 provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 provider-model-catalog = { path = "../libs/provider-model-catalog", version = "0.6.0" }
 provider-request-identity = { path = "../libs/provider-request-identity", version = "0.6.0" }
@@ -27,7 +28,6 @@ strsim = "0.11"
 vw-shared = { path = "../vw-shared", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "fs"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

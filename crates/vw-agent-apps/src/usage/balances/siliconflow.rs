@@ -9,7 +9,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Deserializer, de};
 use vw_api_types::apps_usage::{UsageNumber, UsageQueryErrorCode, UsageWallet};
-use vw_provider_resolver::remote_models::is_real_bearer;
+use provider_model_discovery::is_real_bearer;
 
 use crate::{providers::validation::header_value, usage::detect::BalanceProvider};
 

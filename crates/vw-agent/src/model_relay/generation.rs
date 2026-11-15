@@ -3,7 +3,7 @@
 use axum::http::{StatusCode, header};
 use reqwest::Url;
 use vw_agent_apps::providers::validation;
-use vw_provider_resolver::remote_models::is_real_bearer;
+use provider_model_discovery::is_real_bearer;
 
 use super::transport::{
     chat_url, gemini_url, messages_url, official_alibaba_messages_url,

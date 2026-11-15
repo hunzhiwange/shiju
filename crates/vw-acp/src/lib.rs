@@ -55,7 +55,7 @@ mod queue_paths {
     #[cfg(test)]
     pub(crate) static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 }
-pub use acp_server::server;
+pub mod server;
 use acp_storage::session_conversation_model;
 use acp_storage::session_events;
 pub use session_mounts::*;

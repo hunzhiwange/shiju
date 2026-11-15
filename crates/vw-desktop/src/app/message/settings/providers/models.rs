@@ -83,7 +83,7 @@ pub(crate) fn merge_discovered_model_drafts(
 pub async fn discover_custom_provider_models(
     draft: CustomProviderDraft,
 ) -> Result<Vec<String>, Feedback> {
-    use vw_provider_resolver::remote_models::{
+    use provider_model_discovery::{
         discover_openai_compatible_models, is_real_bearer, resolve_api_base,
     };
 

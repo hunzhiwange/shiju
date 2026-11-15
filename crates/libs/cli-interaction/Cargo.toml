@@ -5,7 +5,6 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-cli-gateway-workspace = { path = "../cli-gateway-workspace", version = "0.6.0" }
 cli-gateway-automation = { path = "../cli-gateway-automation", version = "0.6.0" }
 vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
 cli-gateway-session = { path = "../cli-gateway-session", version = "0.6.0" }

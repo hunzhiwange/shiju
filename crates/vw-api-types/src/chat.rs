@@ -16,10 +16,10 @@
 
 use crate::common::{JsonMap, TimestampMs};
 use crate::id::{MessageId, ProjectId, RequestId, SessionId, WorktreeId};
+use crate::question::QuestionDto;
 use crate::session::{SessionDto, SessionUsageDto};
 use crate::todo::TodoDto;
 use serde::{Deserialize, Serialize};
-use vw_api_question::QuestionDto;
 
 /// 消息角色。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

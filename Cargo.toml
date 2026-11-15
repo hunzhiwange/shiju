@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/provider-model-discovery",
   "crates/libs/desktop-i18n",
   "crates/libs/api-question",
   "crates/libs/snapshot-types",

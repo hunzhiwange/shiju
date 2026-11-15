@@ -553,21 +553,21 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             let bearer = provider
                 .key
                 .as_deref()
-                .filter(|key| crate::remote_models::is_real_bearer(key))
+                .filter(|key| provider_model_discovery::is_real_bearer(key))
                 .map(str::to_string)
                 .or_else(|| {
                     provider
                         .env
                         .iter()
                         .filter_map(|name| env_vars.get(name))
-                        .find(|key| crate::remote_models::is_real_bearer(key))
+                        .find(|key| provider_model_discovery::is_real_bearer(key))
                         .cloned()
                 });
             let Some(bearer) = bearer else {
                 continue;
             };
 
-            if let Err(error) = crate::remote_models::discover_and_merge_provider(
+            if let Err(error) = provider_model_discovery::discover_and_merge_provider(
                 provider,
                 configured_api.as_deref(),
                 &explicit_model_ids,

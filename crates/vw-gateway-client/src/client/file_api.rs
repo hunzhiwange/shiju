@@ -1,7 +1,7 @@
 //! 文件与目录 API 的兼容转发。
 
 use vw_api_transport::common::OperationAck;
-use vw_api_types::file::{
+use vw_api_file::file::{
     CopyFileRequest, DeleteFileRequest, DuplicateFileRequest,
     ListFilesRequest, ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest,
     ReadFileRequest, ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest,

@@ -12,7 +12,7 @@ use std::pin::Pin;
 
 use serde::{Deserialize, Serialize};
 use vw_api_transport::common::OperationAck;
-use vw_api_types::file::{
+use vw_api_file::file::{
     CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
     ListFilesRequest, ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest,
     ReadFileRequest, ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest,

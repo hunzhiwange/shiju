@@ -616,7 +616,7 @@ pub enum ViewMessage {
     OpenChatPath(String),
     ChatPathKindResolved {
         path: String,
-        result: Result<vw_gateway_client::vw_api_types::file::FileNodeKind, String>,
+        result: Result<vw_api_file::file::FileNodeKind, String>,
     },
     /// 在系统文件管理器中打开指定路径
     ///

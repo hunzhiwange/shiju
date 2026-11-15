@@ -235,7 +235,7 @@ pub enum ProjectMessage {
     FileTreeImportCompleted {
         project_path: String,
         source_path: String,
-        result: Result<vw_gateway_client::vw_api_types::file::LocalImportResponse, String>,
+        result: Result<vw_api_file::file::LocalImportResponse, String>,
     },
     FileTreeDragCancel,
     FileTreeMoveCompleted {

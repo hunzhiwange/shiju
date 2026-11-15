@@ -16,7 +16,7 @@ use crate::app::App;
 use std::fs;
 use tempfile::tempdir;
 use vw_api_transport::common::TimestampMs;
-use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+use vw_api_file::file::{FileNodeDto, FileNodeKind};
 use vw_api_transport::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectDto, ProjectGitStateDto, ProjectStatus};
 

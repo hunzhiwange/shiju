@@ -3,7 +3,7 @@
 //! 测试覆盖跨平台分隔符规整、根目录编码、可选工作树上下文及错误传播。
 
 use serde_json::json;
-use vw_api_types::file::{
+use vw_api_file::file::{
     CopyFileRequest, DeleteFileRequest, FileNodeKind, ListFilesRequest, MoveFileRequest,
     ReadFileRequest, SearchFilesRequest, StatFileRequest, WriteFileRequest,
 };
@@ -466,7 +466,7 @@ async fn file_list_propagates_nested_directory_errors() {
 
 #[tokio::test]
 async fn local_import_client_sends_scoped_request() {
-    use vw_api_types::file::LocalImportRequest;
+    use vw_api_file::file::LocalImportRequest;
     use vw_api_transport::id::TenantScope;
     let server = test_support::server_with_tenant_scope(
         vec![(
@@ -508,7 +508,7 @@ async fn local_import_client_rejects_remote_endpoint() {
             gateway_endpoint::GatewayEndpoint::new("192.0.2.1", 9),
         ).unwrap());
     let error = client
-        .file_import_local(&vw_api_types::file::LocalImportRequest {
+        .file_import_local(&vw_api_file::file::LocalImportRequest {
             project_id: "project".into(),
             worktree_id: None,
             target_directory: String::new(),

@@ -3,7 +3,7 @@ use crate::app::message::ProjectMessage;
 use crate::app::{App, Message};
 use iced::Task;
 use std::path::{Component, Path};
-use vw_gateway_client::vw_api_types::file::LocalImportResponse;
+use vw_api_file::file::LocalImportResponse;
 
 pub(super) fn submit(
     app: &mut App,

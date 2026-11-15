@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use axum::{Extension, Json};
 use vw_api_transport::common::OperationAck;
-use vw_api_types::file::DuplicateFileRequest;
+use vw_api_file::file::DuplicateFileRequest;
 use vw_api_transport::id::TenantScope;
 
 use super::file_import::{copy_entry, io_error, publish_no_replace, target_directory};

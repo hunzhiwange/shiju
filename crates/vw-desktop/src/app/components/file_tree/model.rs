@@ -224,9 +224,9 @@ pub(crate) fn build_file_tree_subtree(
 /// 从网关目录节点构建模型，保留没有文件的目录。
 pub(crate) fn build_file_tree_model_from_dto(
     project_root: &str,
-    root: &vw_gateway_client::vw_api_types::file::FileNodeDto,
+    root: &vw_api_file::file::FileNodeDto,
 ) -> FileTreeNode {
-    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    use vw_api_file::file::{FileNodeDto, FileNodeKind};
     fn insert(project_root: &str, dto: &FileNodeDto, tree: &mut FileTreeNode) {
         // DTO 路径已经相对项目根；不能剥掉恰好与项目同名的目录。
         let normalized = dto.path.replace('\\', "/");

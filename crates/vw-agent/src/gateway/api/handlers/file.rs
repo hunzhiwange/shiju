@@ -31,7 +31,7 @@ use base64::Engine;
 use serde::Deserialize;
 use serde::Serialize;
 use vw_api_transport::common::OperationAck;
-use vw_api_types::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest, WriteFileResponse};
+use vw_api_file::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest, WriteFileResponse};
 use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

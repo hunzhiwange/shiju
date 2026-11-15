@@ -10,7 +10,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     routing::post,
 };
-use vw_api_types::file::{LocalImportItemResult, LocalImportRequest, LocalImportResponse};
+use vw_api_file::file::{LocalImportItemResult, LocalImportRequest, LocalImportResponse};
 
 pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new().route(

@@ -7,7 +7,7 @@ use super::ViewMessage;
 use crate::app::message::PreviewMessage;
 use crate::app::{App, Message, state::ExternalOpenApp};
 use iced::Task;
-use vw_gateway_client::vw_api_types::file::FileNodeKind;
+use vw_api_file::file::FileNodeKind;
 
 /// 执行 update 对应的领域操作。
 ///

@@ -19,7 +19,7 @@ use crate::app::agent::gateway::ApiError;
 use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
 use crate::storage;
-use vw_api_types::file::FileNodeKind;
+use vw_api_file::file::FileNodeKind;
 use vw_api_transport::id::TenantScope;
 
 const TOOL_CONTENT_TYPES: &[&str] = &["json", "sql", "html"];

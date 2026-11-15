@@ -8,8 +8,8 @@ use base64::Engine;
 use parking_lot::Mutex;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use {
-    vw_api_types::file::LocalImportRequest,
-    vw_api_types::file::MoveFileRequest,
+    vw_api_file::file::LocalImportRequest,
+    vw_api_file::file::MoveFileRequest,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

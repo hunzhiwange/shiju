@@ -213,9 +213,9 @@ fn build_file_tree_subtree_returns_empty_for_missing_directory() {
 
 fn empty_directory_dto(
     path: &str,
-    children: Vec<vw_gateway_client::vw_api_types::file::FileNodeDto>,
-) -> vw_gateway_client::vw_api_types::file::FileNodeDto {
-    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    children: Vec<vw_api_file::file::FileNodeDto>,
+) -> vw_api_file::file::FileNodeDto {
+    use vw_api_file::file::{FileNodeDto, FileNodeKind};
     FileNodeDto {
         path: path.into(),
         name: path.rsplit('/').next().unwrap().into(),
@@ -242,7 +242,7 @@ fn file_tree_empty_directory_empty_root_has_no_entries() {
 }
 #[test]
 fn file_tree_empty_directory_file_and_directory_names_remain_distinct() {
-    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    use vw_api_file::file::{FileNodeDto, FileNodeKind};
     let dto = empty_directory_dto(
         ".",
         vec![

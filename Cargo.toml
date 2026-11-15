@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-file",
   "crates/libs/acp-cli-model",
   "crates/libs/display-format",
   "crates/libs/config-computer-control",

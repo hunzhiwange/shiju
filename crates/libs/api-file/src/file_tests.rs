@@ -1,7 +1,7 @@
 //! 验证文件 API DTO 的默认值与节点类型线协议。
 
 use crate::file::{FileNodeDto, FileNodeKind, ListFilesRequest, WriteFileRequest};
-use crate::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 use serde_json::json;
 
 // 文件节点和请求 fixture 验证类型名称、递归子节点及写入策略的兼容默认值。

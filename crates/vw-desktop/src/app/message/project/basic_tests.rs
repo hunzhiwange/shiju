@@ -684,7 +684,7 @@ fn empty_directory_snapshot(
     root: &str,
     empty: &str,
 ) -> super::super::helpers::FileTreeIndexSnapshot {
-    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    use vw_api_file::file::{FileNodeDto, FileNodeKind};
     super::super::helpers::FileTreeIndexSnapshot::from_dto(
         root,
         &FileNodeDto {

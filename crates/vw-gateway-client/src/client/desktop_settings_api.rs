@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vw_api_types::file::FileNodeKind;
+use vw_api_file::file::FileNodeKind;
 
 use super::GatewayClient;
 use crate::http::apply_request_context;

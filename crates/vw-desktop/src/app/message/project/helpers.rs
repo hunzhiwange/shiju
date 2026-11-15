@@ -12,7 +12,7 @@ use regex::RegexBuilder;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use vw_gateway_client::vw_api_types::file::{
+use vw_api_file::file::{
     CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
     ListFilesRequest, MoveFileRequest,
 };
@@ -875,7 +875,7 @@ pub(crate) async fn gateway_import_local_paths(
     project_path: &str,
     target_directory: &str,
     source_paths: Vec<String>,
-) -> Result<vw_gateway_client::vw_api_types::file::LocalImportResponse, String> {
+) -> Result<vw_api_file::file::LocalImportResponse, String> {
     let client = gateway_client()?;
     if !client.endpoint().is_loopback() {
         return Err("本机导入不支持远程网关".into());
@@ -884,7 +884,7 @@ pub(crate) async fn gateway_import_local_paths(
     let directory = relative_to_project(&context.base_directory, target_directory)
         .ok_or_else(|| "无法定位目标目录".to_string())?;
     gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_import_local(&vw_gateway_client::vw_api_types::file::LocalImportRequest {
+        .file_import_local(&vw_api_file::file::LocalImportRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
             target_directory: if directory == "." { String::new() } else { directory },

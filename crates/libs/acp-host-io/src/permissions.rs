@@ -10,11 +10,11 @@ use agent_client_protocol::{
     RequestPermissionResponse, SelectedPermissionOutcome, ToolKind,
 };
 
-use crate::errors::PermissionPromptUnavailableError;
+use acp_types::errors::PermissionPromptUnavailableError;
 use crate::permission_prompt::{
     PermissionPromptOptions, can_prompt_for_permission, prompt_for_permission,
 };
-use crate::types::{NonInteractivePermissionPolicy, PermissionMode};
+use acp_types::types::{NonInteractivePermissionPolicy, PermissionMode};
 
 pub type PermissionConfirmation = std::sync::Arc<
     dyn Fn(
@@ -25,7 +25,7 @@ pub type PermissionConfirmation = std::sync::Arc<
         + Sync,
 >;
 
-pub(crate) fn resolve_host_confirmation(
+pub fn resolve_host_confirmation(
     request: &RequestPermissionRequest,
     approved: bool,
 ) -> RequestPermissionResponse {

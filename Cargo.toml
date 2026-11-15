@@ -50,6 +50,7 @@ members = [
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
   "crates/libs/acp-output",
+  "crates/libs/acp-host-io",
   "crates/libs/acp-access-policy",
   "crates/libs/permission-engine",
   "crates/libs/security-audit",

@@ -311,12 +311,11 @@ mod app_providers_tests;
 pub(crate) mod model_catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod model_catalog_acceptance_tests;
-mod model_catalog_edits;
+// Model catalog edits are composed inside gateway-model.
 #[cfg(all(test, target_os = "macos"))]
 mod model_catalog_tests;
 
-#[cfg(target_os = "macos")]
-mod model_discovery;
+// Discovery routes live in gateway-model; host integration tests stay here.
 #[cfg(all(test, target_os = "macos"))]
 mod model_discovery_tests;
 

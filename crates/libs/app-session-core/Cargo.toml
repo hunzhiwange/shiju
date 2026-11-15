@@ -12,3 +12,4 @@ serde_json = { version = "1", features = ["arbitrary_precision"] }
 toml_edit = "0.22"
 vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }

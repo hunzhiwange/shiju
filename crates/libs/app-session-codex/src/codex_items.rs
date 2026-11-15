@@ -22,12 +22,12 @@ use vw_api_external_session::{
     ToolStatus,
 };
 
-use crate::sessions::blocks::{
+use app_session_core::blocks::{
     count_diff_lines, kind_from_codex_parsed_cmd, one_line_title, preview, preview_chars,
     refine_shell_kind, saturating_u32, title_mcp, title_path, title_shell, title_web, Preview,
     INPUT_PREVIEW_CHARS,
 };
-use super::pi_jsonl::JsonlSpan;
+use app_session_core::pi_jsonl::JsonlSpan;
 
 // ─── 行位置与 ContentRef ─────────────────────────────────────────────────
 
@@ -466,7 +466,7 @@ impl RawItem<'_> {
         let detail = self
             .arguments
             .as_ref()
-            .and_then(crate::sessions::blocks::first_string_field);
+            .and_then(app_session_core::blocks::first_string_field);
         let input = self
             .arguments
             .as_ref()
@@ -505,7 +505,7 @@ impl RawItem<'_> {
                                 .content_ref(format!("/payload/item/result/content/{i}/data")),
                         },
                         media_type: opt_str(&item.mime_type).unwrap_or("image/png").to_string(),
-                        size: crate::sessions::blocks::estimate_base64_size(data.len()),
+                        size: app_session_core::blocks::estimate_base64_size(data.len()),
                         alt: None,
                     })
                 })
@@ -680,7 +680,7 @@ pub(super) fn parse_exec_script(input: &str) -> ExecScript {
         .captures(input)
         .map(|c| decode_js_string(&c[1]));
     let mcp = EXEC_MCP_RE.captures(input).and_then(|c| {
-        crate::sessions::blocks::split_mcp_name(&c[1]).map(|(s, t)| (s.to_string(), t.to_string()))
+        app_session_core::blocks::split_mcp_name(&c[1]).map(|(s, t)| (s.to_string(), t.to_string()))
     });
     ExecScript { cmds, workdir, mcp }
 }
@@ -902,7 +902,7 @@ pub(super) fn image_from_url(url: &str, span: JsonlSpan, pointer: String) -> Opt
                 content: span.content_ref(pointer),
             },
             media_type: media_type.unwrap_or("image/png").to_string(),
-            size: crate::sessions::blocks::estimate_base64_size(data.len()),
+            size: app_session_core::blocks::estimate_base64_size(data.len()),
             alt: None,
         });
     }

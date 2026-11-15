@@ -9,6 +9,7 @@ license = "MIT"
 
 [dependencies]
 app-session-core = { path = "../libs/app-session-core" }
+app-session-codex = { path = "../libs/app-session-codex" }
 app-skills = { path = "../libs/app-skills" }
 app-prompts = { path = "../libs/app-prompts" }
 app-mcp = { path = "../libs/app-mcp" }

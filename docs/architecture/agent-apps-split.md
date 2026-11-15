@@ -2669,3 +2669,14 @@ native_resume_identity 依赖上层 source::ValidatedSource，暂留原 sessions
 静态证据：五个完整迁移文件与 HEAD 逐字核对（仅 openai_tool_calls 可见性调整）；身份纯逻辑与恢复校验分别保留原函数体。原文件无独立单测、cfg、include 或资源路径，未新增测试。新包直接依赖 serde_json（保留 arbitrary_precision）、toml_edit、vw-api-external-session、vw-api-transport；路径存在且无旧门面回依赖。原包其余领域仍使用这些依赖，保留。Python 标准库核实路径；当前 Python 无 tomllib，清单语法、版本及特性人工审阅。差异空白检查通过。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：覆盖 app-session-core 与直接调用者编译、迁移函数的定向验证和三平台路径行为。静态审阅不代表行为验收；Cargo.lock 未触碰。
+
+
+## 任务 45：Codex 会话解析静态迁移结果
+
+app-session-codex/src 唯一拥有 codex.rs、codex_items.rs、codex_messages.rs、codex_parser_1 至 4.rs；rollout.rs 因扫描、消息读取直接使用，提前从任务 53 迁入本包。任务 53 接收其上层内容/存储调用并沿用原 sessions::rollout 重导出，不再迁移底层实现。共享 pi_jsonl.rs 提前从任务 48 移至 app-session-core，原 providers::pi_jsonl 重导出；任务 48 直接使用基础库，不让 Codex 依赖 Pi 适配器。此节覆盖历史所有权表的对应原路径。
+
+原 providers::codex 保持轻量重导出，sessions/mod.rs 与 lib.rs 接线无需变更；跨适配器分发仍归后继会话服务。scan_session_file 仅因 delete/codex 的真实跨包调用改为 pub。消息解析补齐对同包 IDE 提示词辅助函数与常量的导入（辅助符号仅 pub(super)），函数体保持不变。原包所有直接依赖仍有其它调用者，保留。
+
+静态证据：rollout 与四个 parser 文件逐字比较一致；pi_jsonl 仅清理末尾空行；其余三个文件仅调整所有者导入与必要可见性。无独立测试、cfg 或 include/资源引用需要搬迁。Python 使用现有 pip._vendor.tomli 只读解析五个生产依赖包，路径存在、无环、无旧门面回边；成员、直接依赖与原调用者接线检索及差异空白检查完成。Cargo.lock 未触碰。
+
+已有源码缺口：codex_messages::sniff_types 引用 SNIFF_BYTES，parser_2 引用 INJECTED_USER_PREFIXES，当前源树未定义二者，迁移前已存在；不臆测常量值或改变解析行为，统一验收需恢复经核实的原定义。RustCodeGraph 仍含旧路径，未更新索引。未运行 Cargo、单元及实机测试，统一验收待授权：新包、基础包及直接调用者编译、解析定向测试、压缩 rollout 与三平台行为、清单及锁文件一致性。静态迁移完成不表示编译或行为验收通过。

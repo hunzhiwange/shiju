@@ -1,12 +1,13 @@
 //! Structured Codex rollout messages; encrypted fields are never retained or decoded.
+use super::codex::{extract_codex_prompt_from_ide_context, VSCODE_CONTEXT_PREFIX};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 use vw_api_external_session::*;
-use crate::sessions::rollout as codex_rollout_file;
-use crate::sessions::blocks::{
+use crate::rollout as codex_rollout_file;
+use app_session_core::blocks::{
     first_string_field, large_text_block, normalize_tool, preview, preview_chars,
     refine_shell_kind, summary_event_block, title_agent, title_ask, title_mcp, title_other,
     title_path, title_read, title_shell, title_todo, title_web, ToolSource, THINKING_PREVIEW_CHARS,
@@ -18,7 +19,7 @@ use super::codex_items::{
     web_action_title, CallSpec, CommandInfo, Contents, FileChangeInfo, ItemRecord, RawItem,
     ResultSpec, Str,
 };
-use super::pi_jsonl::{JsonlSpan, LineSpans};
+use app_session_core::pi_jsonl::{JsonlSpan, LineSpans};
 pub fn load_messages(path: &Path) -> Result<Vec<SessionMessage>, String> {
     let reader = codex_rollout_file::open_reader(path)
         .map_err(|e| format!("Failed to open session file: {e}"))?;
@@ -441,4 +442,3 @@ fn is_image_wrapper(text: &str) -> bool {
     text == "</image>"
         || (text.starts_with("<image ") && text.ends_with('>') && !text.contains('\n'))
 }
-

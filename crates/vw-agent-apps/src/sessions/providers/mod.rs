@@ -22,8 +22,6 @@ mod pi_tree;
 
 pub mod grokbuild;
 
-mod codex_messages;
-mod codex_items;
 
 pub mod openclaw;
 

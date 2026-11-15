@@ -422,7 +422,7 @@ pub(crate) fn restore_task(
     let id = row.id.clone();
     Task::perform(
         async move {
-            client?
+            gateway_session::GatewaySessionClient::new(client?.transport().clone())
                 .session_update::<Info>(
                     &row.id,
                     Some(&row.directory),
@@ -484,7 +484,7 @@ pub(crate) fn load_task(
     Task::perform(
         async move {
             let client = client?;
-            client.session_list::<Vec<Info>>(None).await.map_err(|error| error.to_string())
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list::<Vec<Info>>(None).await.map_err(|error| error.to_string())
         },
         move |result| {
             Message::Settings(SettingsMessage::ArchivedChats(ArchivedChatsMessage::Loaded {

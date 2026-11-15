@@ -62,11 +62,11 @@ pub(super) async fn read_publication(
     session_id: &str,
     directory: &str,
 ) -> Result<Option<DraftPublication>, String> {
-    let info = client.session_get::<Info>(session_id, Some(directory)).await?;
+    let info = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Info>(session_id, Some(directory)).await?;
     if info.id != session_id || info.is_first_response_pending() || info.time.archived.is_some() {
         return Ok(None);
     }
-    let preview = client.session_preview_meta_get(session_id, Some(directory)).await.ok().flatten();
+    let preview = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_preview_meta_get(session_id, Some(directory)).await.ok().flatten();
     Ok(Some(DraftPublication { info, preview }))
 }
 
@@ -90,7 +90,7 @@ pub(super) fn recover_expired_replay(
         async move {
             let client = GatewayClient::new(endpoint).ok()?;
             let publication = read_publication(&client, &session_id, &directory).await.ok()??;
-            let snapshot = client
+            let snapshot = gateway_session::GatewaySessionClient::new(client.transport().clone())
                 .session_ui_get_without_raw(&session_id, Some(&directory))
                 .await
                 .ok()??
@@ -198,7 +198,7 @@ pub(super) fn publish(
             for delay in [1, 2, 4, 8, 16, 16, 16] {
                 crate::app::message::sleep(Duration::from_secs(delay)).await;
                 if let Ok(updated) =
-                    client.session_get::<Info>(&info.id, Some(&draft.directory)).await
+                    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Info>(&info.id, Some(&draft.directory)).await
                     && updated.id == info.id
                     && updated.project_id == info.project_id
                     && !updated.is_first_response_pending()

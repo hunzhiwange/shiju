@@ -460,7 +460,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     Task::perform(
                         async move {
                             let client = crate::app::gateway_client()?;
-                            client
+                            gateway_session::GatewaySessionClient::new(client.transport().clone())
                                 .session_get::<vw_shared::session::info::Info>(
                                     &session_id,
                                     directory.as_deref(),
@@ -825,7 +825,7 @@ pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message
             if workflow {
                 client.task_plan_run_stream_stop(&request_id).await
             } else {
-                client.chat_stream_stop(&request_id).await
+                gateway_session::GatewaySessionClient::new(client.transport().clone()).chat_stream_stop(&request_id).await
             }
         },
         move |result| Message::Chat(ChatMessage::AgentStreamStopFinished(id, result)),

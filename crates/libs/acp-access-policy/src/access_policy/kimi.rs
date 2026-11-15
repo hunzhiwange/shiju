@@ -1,10 +1,10 @@
 //! Kimi Code ACP modes from the official acp-server; CLI flags are a separate boundary.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 
-pub(crate) const FULL_MODE: &str = "yolo";
-pub(crate) const RESTRICTED_MODE: &str = "default";
+pub const FULL_MODE: &str = "yolo";
+pub const RESTRICTED_MODE: &str = "default";
 
-pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
+pub fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
             Some(select.current_value.0.as_ref())
@@ -13,7 +13,7 @@ pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&s
     })
 }
 
-pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
+pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
     options.is_some_and(|options| {
         options.iter().any(|option| {
             if option.id.0.as_ref() != "mode" {
@@ -32,12 +32,12 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
     })
 }
 
-pub(crate) fn restricted_mode(mode: &str) -> bool {
+pub fn restricted_mode(mode: &str) -> bool {
     matches!(mode, RESTRICTED_MODE | "plan")
 }
 
 /// Question and plan answers share request_permission but are not tool grants.
-pub(crate) fn has_workflow_answers(
+pub fn has_workflow_answers(
     request: &agent_client_protocol::RequestPermissionRequest,
 ) -> bool {
     request.options.iter().any(|option| {

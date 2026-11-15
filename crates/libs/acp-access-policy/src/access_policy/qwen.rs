@@ -1,10 +1,10 @@
 //! Fixed Qwen Code 0.26.7 controls. Runtime identity and readback are separate gates.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 
-pub(crate) const FULL_MODE: &str = "yolo";
-pub(crate) const RESTRICTED_MODE: &str = "default";
+pub const FULL_MODE: &str = "yolo";
+pub const RESTRICTED_MODE: &str = "default";
 
-pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
+pub fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
             Some(select.current_value.0.as_ref())
@@ -13,7 +13,7 @@ pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&s
     })
 }
 
-pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
+pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
     options.is_some_and(|options| {
         options.iter().any(|option| {
             if option.id.0.as_ref() != "mode" {
@@ -33,7 +33,7 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
 }
 
 /// Hash the fixed npm package, including permission implementation chunks.
-pub(crate) fn verified_entry(command: &str, args: &[String]) -> bool {
+pub fn verified_entry(command: &str, args: &[String]) -> bool {
     use sha2::{Digest, Sha256};
     use std::path::{Path, PathBuf};
     fn collect(root: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {

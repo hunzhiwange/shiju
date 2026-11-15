@@ -32,6 +32,7 @@ members = [
   "crates/libs/content-guard",
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
+  "crates/libs/acp-access-policy",
   "crates/libs/permission-engine",
   "crates/libs/security-audit",
   "crates/libs/syscall-anomaly",

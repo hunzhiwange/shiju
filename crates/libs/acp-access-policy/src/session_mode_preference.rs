@@ -7,7 +7,7 @@ use agent_client_protocol::{
     SessionConfigSelectOptions, SessionModelState,
 };
 
-use crate::{SessionAcpxState, SessionRecord, SessionStateOptions};
+use acp_types::{SessionAcpxState, SessionRecord, SessionStateOptions};
 
 #[cfg(test)]
 #[path = "session_mode_preference_tests.rs"]

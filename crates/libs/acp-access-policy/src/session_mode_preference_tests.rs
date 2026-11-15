@@ -3,7 +3,7 @@
 //! 最小会话记录与能力选项用于独立观察期望值和当前值的同步。
 
 use super::*;
-use crate::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
+use acp_types::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
 use agent_client_protocol::{
     ModelInfo, SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectGroup,
     SessionConfigSelectOption, SessionModelState,

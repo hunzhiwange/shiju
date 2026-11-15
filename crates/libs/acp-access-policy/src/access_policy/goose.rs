@@ -1,13 +1,13 @@
 //! Goose ACP server v1.57.0 exposes session-local tool approval modes.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 
-pub(crate) const RESTRICTED_MODE: &str = "approve";
+pub const RESTRICTED_MODE: &str = "approve";
 
-pub(crate) fn restricted_mode(mode: &str) -> bool {
+pub fn restricted_mode(mode: &str) -> bool {
     matches!(mode, RESTRICTED_MODE | "chat")
 }
 
-pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
+pub fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
             Some(select.current_value.0.as_ref())
@@ -16,7 +16,7 @@ pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&s
     })
 }
 
-pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
+pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
     options.is_some_and(|options| {
         options.iter().any(|option| {
             if option.id.0.as_ref() != "mode" {
@@ -36,7 +36,7 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
 }
 
 /// Goose refreshes available model choices when it changes mode.
-pub(crate) fn same_selected_settings(
+pub fn same_selected_settings(
     previous: &[SessionConfigOption],
     current: &[SessionConfigOption],
 ) -> bool {

@@ -25,14 +25,13 @@ use acp_types::{
     jsonrpc_error, prompt_content, runtime_session_id, session_event_log, session_mounts, types,
 };
 
-mod access_policy;
+use acp_access_policy::{access_policy, codex_compat, session_mode_preference};
 pub use access_policy::{AccessPolicy, AccessPolicyReason, FullAccessSupport};
 mod agent_registry;
 pub mod cli;
 mod cli_core;
 mod cli_public;
 mod client;
-mod codex_compat;
 mod config;
 mod filesystem;
 mod managed_runtime;
@@ -63,7 +62,6 @@ mod read_output_suppression;
 pub mod server;
 mod session_conversation_model;
 mod session_events;
-mod session_mode_preference;
 pub use session_mounts::*;
 mod session_persistence;
 mod session_runtime;
@@ -73,8 +71,11 @@ mod terminal;
 mod version;
 
 #[cfg(test)]
-#[path = "codex_compat_tests.rs"]
-mod codex_compat_tests;
+#[path = "access_policy_tests.rs"]
+mod access_policy_tests;
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
+#[path = "client/claude_fallback_acceptance.rs"]
+mod claude_fallback_acceptance;
 #[cfg(test)]
 #[path = "filesystem_tests.rs"]
 mod filesystem_tests;

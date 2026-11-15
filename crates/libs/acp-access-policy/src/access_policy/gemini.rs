@@ -2,11 +2,11 @@
 //! permissions restricted: YOLO also rewrites tools and system instructions.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption, SessionModeState};
 
-pub(crate) fn restricted_mode(mode: &str) -> bool {
+pub fn restricted_mode(mode: &str) -> bool {
     matches!(mode, "default" | "plan")
 }
 
-pub(crate) fn restricted_session(
+pub fn restricted_session(
     modes: Option<&SessionModeState>,
     options: Option<&[SessionConfigOption]>,
 ) -> bool {

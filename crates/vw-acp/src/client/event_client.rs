@@ -186,7 +186,7 @@ impl acp::Client for AcpEventClient {
             args.tool_call.fields.kind = Some(acp::ToolKind::Other);
         }
         let resolve = if self.transient_permissions || self.desktop_workspace.is_some() {
-            crate::access_policy::opencode::resolve_permission_request
+            resolve_transient_permission_request
         } else {
             resolve_permission_request
         };
@@ -414,4 +414,16 @@ impl AcpEventClient {
             })
             && !self.cancelling_session_ids.lock().contains(session_id)
     }
+}
+
+fn resolve_transient_permission_request(
+    request: &acp::RequestPermissionRequest,
+    mode: crate::PermissionMode,
+    non_interactive_policy: Option<crate::NonInteractivePermissionPolicy>,
+) -> Result<acp::RequestPermissionResponse, crate::errors::PermissionPromptUnavailableError> {
+    crate::permissions::resolve_permission_request(
+        &crate::access_policy::opencode::transient_request(request),
+        mode,
+        non_interactive_policy,
+    )
 }

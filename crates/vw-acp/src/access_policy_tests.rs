@@ -1,4 +1,5 @@
 use super::*;
+use agent_client_protocol::SessionConfigOption;
 use crate::{AcpAgentConfig, AcpClient};
 use agent_client_protocol::{SessionMode, SessionModeState};
 

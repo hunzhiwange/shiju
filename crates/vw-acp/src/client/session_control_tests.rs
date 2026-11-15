@@ -549,14 +549,14 @@ async fn actor_set_session_model_stores_session_for_reuse() {
 #[path = "access_policy_tests.rs"]
 mod access_policy_tests;
 
-#[path = "../access_policy/codex_tests.rs"]
+#[path = "codex_tests.rs"]
 mod codex_tests;
 
-#[path = "../access_policy/claude_tests.rs"]
+#[path = "claude_tests.rs"]
 mod claude_tests;
 
-#[path = "../access_policy/gemini_tests.rs"]
+#[path = "gemini_tests.rs"]
 mod gemini_tests;
 
-#[path = "../access_policy/qwen_tests.rs"]
+#[path = "qwen_tests.rs"]
 mod qwen_tests;

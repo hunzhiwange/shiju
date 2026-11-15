@@ -1,7 +1,7 @@
 //! V3 session presets are in-memory grants, not sandbox or enterprise overrides.
-use crate::PermissionMode;
+use acp_types::PermissionMode;
 
-pub(crate) fn session_policy(
+pub fn session_policy(
     full_access: bool,
     permission_mode: PermissionMode,
 ) -> serde_json::Value {

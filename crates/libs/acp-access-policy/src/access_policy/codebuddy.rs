@@ -2,10 +2,10 @@
 //! Keep `fullAccess` (which also skips dangerous-command checks) out of automatic grants.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 
-pub(crate) const FULL_MODE: &str = "bypassPermissions";
-pub(crate) const RESTRICTED_MODE: &str = "default";
+pub const FULL_MODE: &str = "bypassPermissions";
+pub const RESTRICTED_MODE: &str = "default";
 
-pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
+pub fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
             Some(select.current_value.0.as_ref())
@@ -14,7 +14,7 @@ pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&s
     })
 }
 
-pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
+pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
     options.is_some_and(|options| {
         options.iter().any(|option| {
             if option.id.0.as_ref() != "mode" {
@@ -33,12 +33,12 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
     })
 }
 
-pub(crate) fn restricted_mode(mode: &str) -> bool {
+pub fn restricted_mode(mode: &str) -> bool {
     matches!(mode, "default" | "dontAsk" | "plan")
 }
 
 /// CodeBuddy publishes question/plan tool identity in vendor metadata, not ToolKind.
-pub(crate) fn is_workflow_request(
+pub fn is_workflow_request(
     request: &agent_client_protocol::RequestPermissionRequest,
 ) -> bool {
     request.tool_call.fields.kind == Some(agent_client_protocol::ToolKind::SwitchMode)

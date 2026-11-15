@@ -1,11 +1,10 @@
-//! Qoder CLI uses `bypass_permissions`; its ACP config uses `mode=yolo`.
-//! Protocol fields were observed in 1.1.83; tool execution remains untested.
+//! Fixed Codex ACP 2.5.0 controls. Runtime identity and readback are separate gates.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption};
 
-pub(crate) const FULL_MODE: &str = "yolo";
-pub(crate) const RESTRICTED_MODE: &str = "default";
+pub const FULL_MODE: &str = "agent-full-access";
+pub const RESTRICTED_MODE: &str = "read-only";
 
-pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
+pub fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
             Some(select.current_value.0.as_ref())
@@ -14,7 +13,7 @@ pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&s
     })
 }
 
-pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
+pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
     options.is_some_and(|options| {
         options.iter().any(|option| {
             if option.id.0.as_ref() != "mode" {
@@ -31,8 +30,4 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
             }
         })
     })
-}
-
-pub(crate) fn restricted_mode(mode: &str) -> bool {
-    matches!(mode, "default" | "dontAsk" | "plan")
 }

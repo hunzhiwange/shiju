@@ -4,18 +4,18 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-pub(crate) const FULL_MODE: &str = "bypassPermissions";
-pub(crate) const AUTO_MODE: &str = "auto";
-pub(crate) const RESTRICTED_MODE: &str = "default";
+pub const FULL_MODE: &str = "bypassPermissions";
+pub const AUTO_MODE: &str = "auto";
+pub const RESTRICTED_MODE: &str = "default";
 
 // This SDK mode includes filesystem shell commands and may skip canUseTool.
-pub(crate) const ACCEPT_EDITS_MODE: &str = "acceptEdits";
+pub const ACCEPT_EDITS_MODE: &str = "acceptEdits";
 
-pub(crate) fn desktop_restricted_mode(value: &str) -> bool {
+pub fn desktop_restricted_mode(value: &str) -> bool {
     matches!(value, RESTRICTED_MODE | "plan")
 }
 
-pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
+pub fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&str> {
     options?.iter().find_map(|option| match &option.kind {
         SessionConfigKind::Select(select) if option.id.0.as_ref() == "mode" => {
             Some(select.current_value.0.as_ref())
@@ -24,7 +24,7 @@ pub(crate) fn current_mode(options: Option<&[SessionConfigOption]>) -> Option<&s
     })
 }
 
-pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
+pub fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &str) -> bool {
     options.is_some_and(|options| {
         options.iter().any(|option| {
             if option.id.0.as_ref() != "mode" {
@@ -44,7 +44,7 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
 }
 
 /// Verify the actual npm entry and SDK, rather than trusting agentInfo or an npx label.
-pub(crate) fn verified_entry(command: &str, args: &[String]) -> bool {
+pub fn verified_entry(command: &str, args: &[String]) -> bool {
     if !args.is_empty() {
         return false;
     }
@@ -75,7 +75,7 @@ pub(crate) fn verified_entry(command: &str, args: &[String]) -> bool {
 }
 
 /// The native SDK engine is reviewed for the managed model route only.
-pub(crate) fn verified_effort_entry(command: &str) -> bool {
+pub fn verified_effort_entry(command: &str) -> bool {
     if !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         return false;
     }
@@ -150,7 +150,3 @@ fn matches_hashes(directory: &Path, files: &[(&str, &str)]) -> bool {
         }
     })
 }
-
-#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
-#[path = "claude_fallback_acceptance.rs"]
-mod fallback_acceptance;

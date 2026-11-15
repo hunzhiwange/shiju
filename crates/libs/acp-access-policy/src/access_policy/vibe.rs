@@ -2,9 +2,9 @@
 //! Builtin names can be overridden locally; never switch profiles implicitly.
 use agent_client_protocol::{SessionConfigKind, SessionConfigOption, SessionModeState};
 
-pub(crate) const FULL_MODE: &str = "auto-approve";
+pub const FULL_MODE: &str = "auto-approve";
 
-pub(crate) fn has_auto_approve(
+pub fn has_auto_approve(
     modes: Option<&SessionModeState>,
     options: Option<&[SessionConfigOption]>,
 ) -> bool {

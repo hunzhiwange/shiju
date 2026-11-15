@@ -21,7 +21,7 @@ async fn acp_desktop_approval_policy_real_claude_falls_back() {
     let command = std::env::var("VW_ACP_CLAUDE_ACCEPTANCE_ENTRY")
         .expect("set VW_ACP_CLAUDE_ACCEPTANCE_ENTRY to the fixed Claude npm entry");
     assert!(
-        super::verified_entry(&command, &[]),
+        crate::access_policy::claude::verified_entry(&command, &[]),
         "Claude acceptance requires the reviewed runtime"
     );
     let root = tempfile::tempdir().unwrap();

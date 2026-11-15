@@ -2,24 +2,24 @@
 
 use agent_client_protocol::{SessionConfigOption, SessionModeState};
 
-use crate::PermissionMode;
+use acp_types::PermissionMode;
 
-pub(crate) mod claude;
-pub(crate) mod codebuddy;
-pub(crate) mod codex;
-pub(crate) mod copilot;
-pub(crate) mod cursor;
-pub(crate) mod droid;
-pub(crate) mod gemini;
-pub(crate) mod goose;
-pub(crate) mod hermes;
-pub(crate) mod iflow;
-pub(crate) mod kimi;
-pub(crate) mod kiro;
-pub(crate) mod opencode;
-pub(crate) mod qoder;
-pub(crate) mod qwen;
-pub(crate) mod vibe;
+pub mod claude;
+pub mod codebuddy;
+pub mod codex;
+pub mod copilot;
+pub mod cursor;
+pub mod droid;
+pub mod gemini;
+pub mod goose;
+pub mod hermes;
+pub mod iflow;
+pub mod kimi;
+pub mod kiro;
+pub mod opencode;
+pub mod qoder;
+pub mod qwen;
+pub mod vibe;
 
 /// 原生权限与客户端回调是不同的执行边界。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +51,7 @@ pub struct AccessPolicy {
 }
 
 impl AccessPolicy {
-    pub(crate) fn resolve(
+    pub fn resolve(
         full_access_requested: bool,
         permission_mode: PermissionMode,
         modes: Option<&SessionModeState>,
@@ -81,7 +81,3 @@ impl AccessPolicy {
         Self { full_access_requested, permission_mode, support, reason }
     }
 }
-
-#[cfg(test)]
-#[path = "access_policy_tests.rs"]
-mod tests;

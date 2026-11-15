@@ -1,0 +1,26 @@
+[package]
+name = "desktop-theme"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+# 桌面组合测试需要与本库共用同线程的主题根目录覆盖。
+test-support = []
+
+[dependencies]
+anyhow = "1"
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+directories = "5"
+iced = { version = "0.14", features = ["image"] }
+include_dir = "0.7"
+serde_json = "1"
+theme-model = { path = "../theme-model", version = "0.6.0" }
+theme-store = { path = "../theme-store", version = "0.6.0" }
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"

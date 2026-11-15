@@ -199,6 +199,7 @@ desktop-git = { path = "../libs/desktop-git", version = "0.6.0" }
 desktop-lsp = { path = "../libs/desktop-lsp", version = "0.6.0" }
 file-index = { path = "../libs/file-index", version = "0.6.0" }
 preview-content = { path = "../libs/preview-content", version = "0.6.0" }
+desktop-theme = { path = "../libs/desktop-theme", version = "0.6.0" }
 theme-model = { path = "../libs/theme-model", version = "0.6.0" }
 theme-store = { path = "../libs/theme-store", version = "0.6.0" }
 diff-text = { path = "../libs/diff-text", version = "0.6.0" }
@@ -441,4 +442,9 @@ features = ["test-support"]
 [dev-dependencies.desktop-voice]
 path = "../libs/desktop-voice"
 version = "0.6.0"
+
+[dev-dependencies.desktop-theme]
+path = "../libs/desktop-theme"
+version = "0.6.0"
+features = ["test-support"]
 features = ["acceptance-fixture"]

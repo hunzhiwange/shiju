@@ -5,7 +5,7 @@ use super::{
     resolve_chrome_style, resolve_chrome_style_from_skin, resolve_chrome_style_from_theme,
     resolve_chrome_style_with_wallpaper,
 };
-use crate::app::theme_catalog::{ActiveThemeSkin, ThemeChrome};
+use crate::theme_catalog::{ActiveThemeSkin, ThemeChrome};
 use iced::{Color, Theme};
 
 fn assert_color(actual: Color, expected: Color) {

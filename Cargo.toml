@@ -298,6 +298,7 @@ members = [
   "crates/libs/desktop-task-executor",
   "crates/libs/theme-model",
   "crates/libs/theme-store",
+  "crates/libs/desktop-theme",
   "crates/libs/preview-content",
   "crates/libs/voice-recordings",
   "crates/libs/audio-playback",

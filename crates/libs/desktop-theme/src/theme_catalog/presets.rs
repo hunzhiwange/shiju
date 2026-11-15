@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use include_dir::{Dir, include_dir};
 
-static BUNDLED_PRESETS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../assets/themes/presets");
+static BUNDLED_PRESETS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/presets");
 
 /// ensure 结果：本次新写入与因已存在而跳过的预设 id。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

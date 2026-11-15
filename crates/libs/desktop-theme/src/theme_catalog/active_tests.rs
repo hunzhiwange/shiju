@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::{ActiveThemeSkin, resolve_active_theme_skin};
-use crate::app::theme_catalog::{
+use crate::theme_catalog::{
     ThemeAssetSources, ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore,
 };
 

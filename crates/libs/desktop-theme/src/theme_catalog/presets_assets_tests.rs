@@ -36,7 +36,7 @@ const EXPECTED_PRESET_IDS: &[&str] = &[
 ];
 
 fn presets_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/themes/presets")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/presets")
 }
 
 fn assert_asset_exists(dir: &Path, field: &str, name: Option<&str>) {

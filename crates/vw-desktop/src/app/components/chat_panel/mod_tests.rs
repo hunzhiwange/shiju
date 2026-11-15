@@ -141,7 +141,7 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
 
         if skinned {
             let background = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../assets/themes/presets/tahoe-beach-night/background.webp");
+                .join("../libs/desktop-theme/assets/presets/tahoe-beach-night/background.webp");
             assert!(background.is_file(), "visual regression skin asset should exist");
             app.active_theme_skin = Some(crate::app::theme_catalog::ActiveThemeSkin {
                 theme_id: "batch-6-visual-regression".to_string(),

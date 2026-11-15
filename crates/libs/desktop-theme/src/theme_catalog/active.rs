@@ -109,19 +109,22 @@ pub fn resolve_active_theme_skin(store: &ThemeStore, theme_id: &str) -> Result<A
     Ok(ActiveThemeSkin::from_definition(store, &definition))
 }
 
-/// 按当前活动自定义主题 id 刷新或清空 App 上的皮肤缓存。
-pub fn sync_active_theme_skin(app: &mut crate::app::App) {
-    let Some(theme_id) = app.active_custom_theme_id.clone() else {
-        app.active_theme_skin = None;
+/// 按当前活动自定义主题 id 刷新或清空皮肤缓存。
+pub fn sync_active_theme_skin(
+    active_custom_theme_id: Option<&str>,
+    active_theme_skin: &mut Option<ActiveThemeSkin>,
+) {
+    let Some(theme_id) = active_custom_theme_id else {
+        *active_theme_skin = None;
         return;
     };
     let Some(store) = super::theme_store_from_home() else {
-        app.active_theme_skin = None;
+        *active_theme_skin = None;
         return;
     };
-    match resolve_active_theme_skin(&store, &theme_id) {
+    match resolve_active_theme_skin(&store, theme_id) {
         Ok(skin) => {
-            app.active_theme_skin = Some(skin);
+            *active_theme_skin = Some(skin);
         }
         Err(err) => {
             tracing::warn!(
@@ -130,14 +133,14 @@ pub fn sync_active_theme_skin(app: &mut crate::app::App) {
                 error = %err,
                 "failed to resolve active theme skin; clearing wallpaper cache"
             );
-            app.active_theme_skin = None;
+            *active_theme_skin = None;
         }
     }
 }
 
 /// 清空活动皮肤缓存（切换到内置主题时）。
-pub fn clear_active_theme_skin(app: &mut crate::app::App) {
-    app.active_theme_skin = None;
+pub fn clear_active_theme_skin(active_theme_skin: &mut Option<ActiveThemeSkin>) {
+    *active_theme_skin = None;
 }
 
 #[cfg(test)]

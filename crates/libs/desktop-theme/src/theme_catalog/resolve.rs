@@ -13,10 +13,10 @@ use super::store::ThemeStore;
 /// 自定义主题配置前缀。
 pub const CUSTOM_THEME_PREFIX: &str = "custom:";
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 use std::cell::RefCell;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 thread_local! {
     static TEST_THEMES_ROOT: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
 }
@@ -27,7 +27,7 @@ pub fn themes_root(home: impl AsRef<Path>) -> PathBuf {
 }
 
 /// 测试用：覆盖默认 themes 根目录；传入 `None` 恢复。
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub fn set_test_themes_root(root: Option<PathBuf>) {
     TEST_THEMES_ROOT.with(|slot| {
         *slot.borrow_mut() = root;
@@ -41,7 +41,7 @@ pub fn theme_store_from_home() -> Option<ThemeStore> {
 
 /// 当前 themes 根目录（测试时可被 `set_test_themes_root` 覆盖）。
 pub fn current_themes_root() -> Option<PathBuf> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     {
         if let Some(root) = TEST_THEMES_ROOT.with(|slot| slot.borrow().clone()) {
             return Some(root);

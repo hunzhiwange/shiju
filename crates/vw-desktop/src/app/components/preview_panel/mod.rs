@@ -32,9 +32,6 @@ mod lsp_overlay_tests;
 #[cfg(test)]
 #[path = "styles_tests.rs"]
 mod styles_tests;
-#[cfg(test)]
-#[path = "view_tests.rs"]
-mod view_tests;
 
 pub(crate) use view::build_settings_overlay;
 pub use view::view;

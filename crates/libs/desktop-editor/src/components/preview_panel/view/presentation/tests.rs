@@ -39,12 +39,12 @@ fn relative_segments_from_root_rejects_project_root_itself() {
 #[test]
 fn project_relative_segments_uses_canonical_paths_when_lexical_roots_differ() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let active_path = Path::new(manifest_dir).join("src/app");
+    let active_path = Path::new(manifest_dir).join("src/components");
     let project_path = format!("{manifest_dir}/src/..");
 
     let segments = project_relative_segments(&active_path, Some(project_path.as_str()));
 
-    assert_eq!(segments, Some(vec!["src".to_string(), "app".to_string()]));
+    assert_eq!(segments, Some(vec!["src".to_string(), "components".to_string()]));
 }
 
 #[test]

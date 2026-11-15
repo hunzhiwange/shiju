@@ -4,14 +4,16 @@
 
 use std::path::Path;
 
-/// 重新导出 use super::view::{BadgeTone, preview_breadcrumb_segments}，让上层模块通过稳定路径访问。
-use super::view::{BadgeTone, preview_breadcrumb_segments};
+/// 重新导出 use super::{BadgeTone, preview_breadcrumb_segments}，让上层模块通过稳定路径访问。
+use super::preview_breadcrumb_segments;
+#[cfg(not(target_arch = "wasm32"))]
+use super::BadgeTone;
 /// 重新导出 use iced::Theme，让上层模块通过稳定路径访问。
 use iced::Theme;
 
-/// 重新导出 use super::view::{，让上层模块通过稳定路径访问。
+/// 重新导出 use super::{，让上层模块通过稳定路径访问。
 #[cfg(not(target_arch = "wasm32"))]
-use super::view::{
+use super::{
     active_preview_lsp_badge_colors, active_preview_lsp_badge_dot_color,
     active_preview_lsp_badge_state,
 };

@@ -42,3 +42,8 @@ pub enum ContentMessage<External> {
 #[cfg(test)] mod menus_tests;
 
 #[cfg(test)] mod editor_help_tests;
+
+mod presentation;
+pub mod layout;
+
+#[cfg(test)] mod editor_tools_acceptance_tests;

@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+agent-security = { path = "../libs/agent-security", version = "0.6.0" }
 agent-util = { path = "../libs/agent-util", version = "0.6.0" }
 agent-runtime = { path = "../libs/agent-runtime", version = "0.6.0" }
 agent-pty = { path = "../libs/agent-pty", version = "0.6.0" }
@@ -356,8 +357,8 @@ probe = ["dep:probe-rs"]
 memory-postgres = ["dep:memory-postgres"]
 memory-mariadb = ["dep:memory-mariadb"]
 observability-otel = ["agent-observability/observability-otel"]
-sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap"]
-sandbox-landlock = ["process-sandbox/sandbox-landlock"]
+sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap", "agent-security/sandbox-bubblewrap"]
+sandbox-landlock = ["process-sandbox/sandbox-landlock", "agent-security/sandbox-landlock"]
 shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 channel-lark = ["dep:prost"]
 whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport"]

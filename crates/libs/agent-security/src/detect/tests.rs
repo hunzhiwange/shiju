@@ -6,7 +6,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::{SandboxConfig, SecurityConfig};
+    use config_security::{SandboxConfig, SecurityConfig};
 
     #[test]
     fn detect_best_sandbox_returns_something() {

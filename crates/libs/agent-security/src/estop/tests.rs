@@ -25,9 +25,9 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::OtpConfig;
-    use crate::app::agent::security::SecretStore;
-    use crate::app::agent::security::otp::OtpValidator;
+    use config_security::OtpConfig;
+    use crate::SecretStore;
+    use crate::otp::OtpValidator;
     use tempfile::tempdir;
 
     /// 创建测试用的紧急停止配置

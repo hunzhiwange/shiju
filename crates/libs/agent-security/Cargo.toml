@@ -1,0 +1,35 @@
+[package]
+name = "agent-security"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+config-security = { path = "../config-security", version = "0.6.0" }
+process-sandbox = { path = "../process-sandbox", version = "0.6.0" }
+domain-matcher = { path = "../domain-matcher", version = "0.6.0" }
+content-guard = { path = "../content-guard", version = "0.6.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
+secret-store = { path = "../secret-store", version = "0.6.0" }
+anyhow = "1"
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rand = "0.10.3"
+ring = "0.17.14"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = []
+sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap"]
+sandbox-landlock = ["process-sandbox/sandbox-landlock"]

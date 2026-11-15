@@ -380,8 +380,8 @@ pub async fn run() -> Result<()> {
 fn init_tracing(interactive_agent_mode: bool, acp_mode: bool) {
     let terminal_filter = default_tracing_filter();
     let file_filter = default_tracing_filter();
-    let runtime_log_dir = vw_shared::runtime_log::default_runtime_log_dir();
-    if let Err(err) = vw_shared::runtime_log::ensure_runtime_log_dir(&runtime_log_dir) {
+    let runtime_log_dir = runtime_log::default_runtime_log_dir();
+    if let Err(err) = runtime_log::ensure_runtime_log_dir(&runtime_log_dir) {
         eprintln!("failed to create runtime log directory {}: {err}", runtime_log_dir.display());
     }
 
@@ -393,7 +393,7 @@ fn init_tracing(interactive_agent_mode: bool, acp_mode: bool) {
         let file_layer = fmt::layer()
             .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
             .with_ansi(false)
-            .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+            .with_writer(runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
             .with_filter(file_filter);
         let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
         tracing::subscriber::set_global_default(subscriber)
@@ -406,7 +406,7 @@ fn init_tracing(interactive_agent_mode: bool, acp_mode: bool) {
         let file_layer = fmt::layer()
             .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
             .with_ansi(false)
-            .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+            .with_writer(runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
             .with_filter(file_filter);
         let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
         tracing::subscriber::set_global_default(subscriber)
@@ -418,7 +418,7 @@ fn init_tracing(interactive_agent_mode: bool, acp_mode: bool) {
         let file_layer = fmt::layer()
             .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
             .with_ansi(false)
-            .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+            .with_writer(runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
             .with_filter(file_filter);
         let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
         tracing::subscriber::set_global_default(subscriber)

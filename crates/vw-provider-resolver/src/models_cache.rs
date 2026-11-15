@@ -1,6 +1,6 @@
 use super::{ModelsRefresh, ModelsRefreshStatus, ModelsSnapshot, Provider};
 use super::{bundled_models, merge_bundled_protocols, merge_bundled_shiju, parse_models_text};
-use crate::installation;
+use provider_request_identity::installation;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read, Write};

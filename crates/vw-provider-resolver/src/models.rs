@@ -6,7 +6,7 @@
 //! - 兼容不同 JSON 包装结构
 //! - 在进程内缓存解析结果，避免重复读取与反序列化
 
-use crate::flag;
+use provider_request_identity::flag;
 use provider_runtime_paths as global;
 use once_cell::sync::Lazy;
 use serde_json::Value;

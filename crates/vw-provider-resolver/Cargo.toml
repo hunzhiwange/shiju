@@ -8,6 +8,7 @@ description = "Provider and model resolver for VibeWindow"
 license = "MIT"
 
 [dependencies]
+provider-request-identity = { path = "../libs/provider-request-identity", version = "0.6.0" }
 provider-state-cache = { path = "../libs/provider-state-cache", version = "0.6.0" }
 provider-runtime-paths = { path = "../libs/provider-runtime-paths", version = "0.6.0" }
 provider-protocol-routes = { path = "../libs/provider-protocol-routes", version = "0.6.0" }

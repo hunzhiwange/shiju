@@ -1,4 +1,4 @@
-//! Terminal frontends for host-validated native resume plans.
+//! Resume-plan wrappers for app-session-terminal; orchestration belongs to task 54.
 #[cfg(target_os = "macos")]
 pub mod custom;
 #[cfg(target_os = "macos")]

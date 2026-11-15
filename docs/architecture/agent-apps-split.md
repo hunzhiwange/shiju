@@ -1082,14 +1082,14 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/resume.rs` | 272 | 54 |
 | `sessions/rollout.rs` | 103 | 53 |
 | `sessions/source.rs` | 148 | 53 |
-| `sessions/terminal/alacritty.rs` | 65 | 51 |
-| `sessions/terminal/apple.rs` | 115 | 51 |
-| `sessions/terminal/custom.rs` | 123 | 51 |
-| `sessions/terminal/ghostty_kitty.rs` | 108 | 51 |
-| `sessions/terminal/mod.rs` | 15 | 51 |
-| `sessions/terminal/otty.rs` | 122 | 51 |
-| `sessions/terminal/warp.rs` | 71 | 51 |
-| `sessions/terminal/wezterm_kaku.rs` | 93 | 51 |
+| `sessions/terminal/alacritty.rs` | 65 | 51 → `crates/libs/app-session-terminal/src/alacritty.rs`；原路径留 ResumePlan 薄包装归 54 |
+| `sessions/terminal/apple.rs` | 115 | 51 → `crates/libs/app-session-terminal/src/apple.rs`；原路径留 ResumePlan 薄包装归 54 |
+| `sessions/terminal/custom.rs` | 123 | 51 → `crates/libs/app-session-terminal/src/custom.rs`；原路径留 ResumePlan 薄包装归 54 |
+| `sessions/terminal/ghostty_kitty.rs` | 108 | 51 → `crates/libs/app-session-terminal/src/ghostty_kitty.rs`；原路径留 ResumePlan 薄包装归 54 |
+| `sessions/terminal/mod.rs` | 15 | 51 → 新包 src/lib.rs 保留相同 cfg 模块树；原模块注册归 54 |
+| `sessions/terminal/otty.rs` | 122 | 51 → `crates/libs/app-session-terminal/src/otty.rs`；原路径留 ResumePlan 薄包装归 54 |
+| `sessions/terminal/warp.rs` | 71 | 51 → `crates/libs/app-session-terminal/src/warp.rs`；原路径留 ResumePlan 薄包装归 54 |
+| `sessions/terminal/wezterm_kaku.rs` | 93 | 51 → `crates/libs/app-session-terminal/src/wezterm_kaku.rs`；原路径留 ResumePlan 薄包装归 54 |
 | `sessions/tool_normalization.rs` | 195 | 44 |
 | `sessions/turns.rs` | 247 | 53 |
 | `sessions/utils.rs` | 83 | 44 |
@@ -2728,3 +2728,12 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 - 为真实跨包调用最小公开 agy::{checked_path, records, timestamp}、mcode::open_database、openclaw::parse_session、omp::verify_omp_session_id，以及 kimi_requests::{RequestInfo, RequestIndex, timestamp_ms} 和 RequestIndex::for_agent；分别供 usage/agy、usage/agy_native、usage/mcode、delete/openclaw、delete/omp、usage/kimi 使用。dsh::read_session 保持包内可见；其它签名不变。迁移静态审阅发现 Kimi 分支行号转换原有 `? try_into()` 缺少方法访问点，最小修正为 `?.try_into()`，保持原转换与错误语义；无其它函数体变化。
 - 静态证据：八文件与 HEAD 源码逐行对照，除导入、上述可见性、Kimi 方法访问点及两个 EOF 空行外一致；源码检索无旧门面回依赖。当前 Python 3.9 无 tomllib，使用环境已有 pip._vendor.tomli 读取 TOML，再以标准库核对 workspace 注册、原包直接路径、新包九项直接依赖与六个传递本地生产清单，路径存在且无环；本任务路径的 git diff --check 通过。全局检查另发现并行 UI 任务的 system_settings_common/mod.rs 与 toast_tests.rs 末尾空行，未修改这些无关文件。网关 external_sessions/{scan,messages}、用量及删除调用者保持原 providers 路径。
 - providers/mod.rs 无叶子根函数或分发实现遗留。跨适配器与会话操作由任务 54 收口，内容编排归任务 53、用量编排归任务 62，无未闭合叶子符号。未运行 Cargo、单元及实机测试，统一验收待授权：app-session-native、Pi 共享依赖与直接调用者编译、迁移解析与用量集成测试及 macOS/Windows/Linux 平台行为。静态证据不代表编译或行为通过；Cargo.lock 未修改。
+
+
+### 任务 51：会话终端集成迁移结果
+
+- `app-session-terminal/src` 唯一拥有 alacritty、apple、custom、ghostty_kitty、otty、warp、wezterm_kaku 七个终端的执行、附件转义与模板授权校验实现，lib.rs 保留原 macOS 条件模块树。原文件无独立测试、测试注册、include 或外部资源需搬迁。
+- ResumePlan 依赖 SourceRegistry 与跨适配器恢复编排，继续归任务 54。七个原 launch_resume 签名不变，仅调用 command_with_credentials 后转交下层 launch_command；四种终端类型按原路径重导出，私有模板字段与构造校验不变。任务 54 接收这七个薄包装及 terminal/mod.rs，不得遗漏。lib.rs → sessions → terminal 的既有公开链及网关 external_sessions/resume.rs 的全部调用保持。
+- 新包仅在 macOS 直接依赖 app-launch，后者已有 request 与 TerminalSession 的实际公开导出。无新增回调 trait、配置或门面回依赖。旧门面仅在 macOS 添加新包路径依赖，原 app-launch 及外部会话 API 仍有真实调用者，保留。
+- 静态证据：七个 launch_command 从 HOME 提取直到函数及后续辅助实现与 HEAD 原文逐字一致；custom 的授权能力实现也逐字一致（仅导入位置改变）。七个旧包装签名与 HEAD 一致，新旧模块 cfg 一致；标准库核对所有路径，既有 pip._vendor.tomli 解析 TOML（系统 Python 3.9 无 tomllib），递归生产路径依赖无环且无旧门面回边。源码检索和 git diff --check 通过。RustCodeGraph 索引仍指向已迁移旧路径并返回无源码，本任务改用源码检索，不更新索引。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：新包、app-launch 与网关调用者目标编译，macOS 终端恢复、凭据隔离、参数转义和自定义模板授权边界，以及 Windows/Linux cfg。禁止实际唤起终端；静态审阅不代表行为验收，Cargo.lock 未修改。

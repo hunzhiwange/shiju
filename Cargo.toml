@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/channel-whatsapp-storage",
   "crates/libs/channel-nextcloud-talk",
   "crates/libs/channel-irc",
   "crates/libs/task-scheduler-core",

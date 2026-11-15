@@ -1,80 +1,75 @@
 //! 智能体资料草稿消息与保存事务。
 use super::*;
 
-pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
+pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Message> {
     match message {
         AgentsMessage::ProfileOpen(key) => {
-            if !catalog_can_write(app) || app.agents_settings.profile_entering_key {
+            if !catalog_can_write(app) || app.state.profile_entering_key {
                 return Task::none();
             }
-            app.agents_settings.profile_modal =
-                app.agents_settings.entries.iter().find(|entry| entry.key == key).cloned();
-            if let Some(draft) = app.agents_settings.profile_modal.as_mut() {
+            app.state.profile_modal =
+                app.state.entries.iter().find(|entry| entry.key == key).cloned();
+            if let Some(draft) = app.state.profile_modal.as_mut() {
                 draft.description_editor = text_editor::Content::with_text(&draft.description);
-                app.agents_settings.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
-                app.agents_settings.workspace_identity_root_path = None;
-                app.agents_settings.selected_agent = key;
-                app.agents_settings.active_detail_tab =
-                    crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
+                app.state.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
+                app.state.workspace_identity_root_path = None;
+                app.state.selected_agent = key;
+                app.state.active_detail_tab =
+                    crate::state::AGENT_DETAIL_BASIC_TAB.to_string();
                 return Task::batch([
-                    refresh_tools_task(),
+                    refresh_tools_task(app.access.clone(), app.client.clone()),
                     refresh_skill_catalog(app),
-                    super::super::mcp::update(
-                        app,
-                        SettingsMessage::Mcp(
-                            crate::app::message::settings::McpMessage::InspectRefresh,
-                        ),
-                    ),
+                    app.effect(Effect::RefreshMcp),
                 ]);
             }
             Task::none()
         }
         AgentsMessage::ProfileCancel => {
-            if !app.agents_settings.profile_saving {
-                if app.agents_settings.profile_entering_key {
-                    app.agents_settings.profile_entering_key = false;
-                    app.agents_settings.new_agent_key_input.clear();
+            if !app.state.profile_saving {
+                if app.state.profile_entering_key {
+                    app.state.profile_entering_key = false;
+                    app.state.new_agent_key_input.clear();
                 }
-                app.agents_settings.profile_modal = None;
+                app.state.profile_modal = None;
             }
             Task::none()
         }
         AgentsMessage::ProfileSaved(result) => {
-            if !app.agents_settings.profile_saving {
+            if !app.state.profile_saving {
                 return Task::none();
             }
-            app.agents_settings.profile_saving = false;
+            app.state.profile_saving = false;
             match result {
                 Ok(()) => {
-                    if let Some(draft) = app.agents_settings.profile_modal.take() {
-                        if app.agents_settings.profile_deleting {
-                            app.agents_settings.entries.retain(|entry| entry.key != draft.key);
-                            app.agents_settings.selected_agent = MAIN_AGENT_KEY.to_string();
+                    if let Some(draft) = app.state.profile_modal.take() {
+                        if app.state.profile_deleting {
+                            app.state.entries.retain(|entry| entry.key != draft.key);
+                            app.state.selected_agent = MAIN_AGENT_KEY.to_string();
                         } else if let Some(entry) = find_entry_mut(app, &draft.key) {
                             *entry = draft;
                         } else {
-                            app.agents_settings.entries.push(draft);
+                            app.state.entries.push(draft);
                         }
                     }
-                    app.agents_settings.profile_deleting = false;
+                    app.state.profile_deleting = false;
                     app.show_localized_toast(
-                        crate::app::state::ToastKind::Success,
+                        ToastKind::Success,
                         "智能体资料已保存",
                         vec![],
                     )
                 }
                 Err(error) => app.show_localized_toast(
-                    crate::app::state::ToastKind::Error,
+                    ToastKind::Error,
                     "保存智能体配置失败：%s",
                     vec![error.into()],
                 ),
             }
         }
         AgentsMessage::ProfileSave | AgentsMessage::ProfileDelete => {
-            if app.agents_settings.profile_saving || !app.agents_settings.config_ready {
+            if app.state.profile_saving || !app.state.config_ready {
                 return Task::none();
             }
-            let Some(draft) = app.agents_settings.profile_modal.as_ref() else {
+            let Some(draft) = app.state.profile_modal.as_ref() else {
                 return Task::none();
             };
             let deleting = matches!(message, AgentsMessage::ProfileDelete);
@@ -84,19 +79,16 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
             }
             if !deleting && draft.label.trim().is_empty() {
                 return app.show_localized_toast(
-                    crate::app::state::ToastKind::Error,
+                    ToastKind::Error,
                     "智能体名称不能为空",
                     vec![],
                 );
             }
             if !deleting {
-                let error =
-                    crate::app::components::system_settings_agents::defaults::validation_error(
-                        app, draft,
-                    );
+                let error = app.validation_error.clone();
                 if let Some(error) = error {
                     return app.show_localized_toast(
-                        crate::app::state::ToastKind::Error,
+                        ToastKind::Error,
                         "保存智能体配置失败：%s",
                         vec![error.into()],
                     );
@@ -109,7 +101,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                     "label": draft.label, "description": draft.description,
                     "recommended_prompts": draft.recommended_prompts, "runtime": draft.runtime,
                     "system_prompt": draft.system_prompt_editor.text(),
-                    "defaults": crate::app::components::system_settings_agents::defaults::patch(&draft.defaults),
+                    "defaults": crate::defaults::patch(&draft.defaults),
                 })
             };
             // JSON Merge Patch must remove the ACP-only field when returning to native.
@@ -136,9 +128,9 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 // A single-agent edit must not remove unrelated legacy entries.
                 patch["agents"].as_object_mut().unwrap().remove("general");
             }
-            app.agents_settings.profile_saving = true;
-            app.agents_settings.profile_deleting = deleting;
-            Task::perform(persist_agents_patch(patch), |result| {
+            app.state.profile_saving = true;
+            app.state.profile_deleting = deleting;
+            Task::perform(persist_agents_patch(app.access.clone(), app.client.clone(), patch), |result| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileSaved(result)))
             })
         }
@@ -151,10 +143,10 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
         | AgentsMessage::ProfilePromptAdd
         | AgentsMessage::ProfilePromptRemove(_)
         | AgentsMessage::ProfilePromptMove(_, _) => {
-            if app.agents_settings.profile_saving {
+            if app.state.profile_saving {
                 return Task::none();
             }
-            let Some(draft) = app.agents_settings.profile_modal.as_mut() else {
+            let Some(draft) = app.state.profile_modal.as_mut() else {
                 return Task::none();
             };
             match message {
@@ -181,7 +173,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 AgentsMessage::ProfileRuntimeChanged(value) => {
                     if builtin_agent_spec(&draft.key).is_none()
                         && !draft.key.starts_with("acp-")
-                        && !app.agents_settings.entries.iter().any(|entry| entry.key == draft.key)
+                        && !app.state.entries.iter().any(|entry| entry.key == draft.key)
                     {
                         draft.runtime = if value == "native" {
                             config_agent_profile::AgentRuntime::Native
@@ -191,11 +183,11 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                             return Task::none();
                         };
                         if matches!(draft.runtime, config_agent_profile::AgentRuntime::Acp { .. })
-                            && app.agents_settings.active_detail_tab
-                                == crate::app::state::AGENT_DETAIL_TOOLS_TAB
+                            && app.state.active_detail_tab
+                                == crate::state::AGENT_DETAIL_TOOLS_TAB
                         {
-                            app.agents_settings.active_detail_tab =
-                                crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
+                            app.state.active_detail_tab =
+                                crate::state::AGENT_DETAIL_BASIC_TAB.to_string();
                         }
                     }
                 }

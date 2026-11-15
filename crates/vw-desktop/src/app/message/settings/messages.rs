@@ -12,7 +12,7 @@ use iced::widget::text_editor;
 use config_security::{AutonomyLevel, ShellRedirectPolicy};
 
 use super::types::{
-    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded,
+    DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded,
     ModelStatusChange, ModelsLoaded, PluginsLoaded,
     ProvidersLoaded, SkillsLoaded,
 };
@@ -139,118 +139,7 @@ pub use desktop_settings_network::messages::TunnelMessage;
 pub use desktop_settings_appearance::system_settings_themes::messages::{ThemePaletteField, ThemeChromeField, ThemeColorPickerTarget, ThemesMessage};
 
 /// Agent 设置页消息。
-#[derive(Debug, Clone)]
-#[allow(private_interfaces)]
-pub enum AgentsMessage {
-    CatalogTabSelected(bool),
-    CatalogQueryChanged(String),
-    CatalogToggle(String, bool),
-    CatalogToggled {
-        key: String,
-        enabled: bool,
-        result: Result<(), String>,
-    },
-    CatalogCopy(String),
-    CatalogCopied(Result<serde_json::Value, String>),
-    CatalogLaunch(String),
-    CatalogRuntimeSettings(String),
-    ProfileOpen(String),
-    ProfileCancel,
-    ProfileNameChanged(String),
-    ProfileDefaultsChanged(config_agent_profile::AgentDefaults),
-    ProfileModelChanged(
-        config_agent_profile::AgentDefault<config_agent_profile::AgentModelReference>,
-    ),
-    ProfileDescriptionAction(text_editor::Action),
-    ProfileRuntimeChanged(String),
-    ProfilePromptChanged(usize, String),
-    ProfilePromptAdd,
-    ProfilePromptRemove(usize),
-    ProfilePromptMove(usize, usize),
-    ProfileSave,
-    ProfileDelete,
-    ProfileSaved(Result<(), String>),
-    Refresh,
-    Save,
-    DiscardChanges,
-    Loaded(AgentsLoaded),
-    ToolsLoaded(Result<Vec<String>, String>),
-    ConfigLoaded {
-        project_path: Option<String>,
-        result: Result<Box<config_aggregate::Config>, String>,
-    },
-    ProjectSelected(String),
-    SkillDirectorySelected(Option<String>),
-    SkillCatalogRefresh,
-    SkillDirectoryScopeChanged(crate::app::state::SkillsDirectoryScope),
-    SkillCatalogLoaded {
-        directory: Option<String>,
-        generation: u64,
-        result: Result<Vec<crate::app::state::SkillsCatalogItem>, String>,
-    },
-    ProjectChanged(String),
-    ProjectConfigLoaded {
-        project_path: String,
-        result: Result<Box<config_aggregate::Config>, String>,
-    },
-    SelectAgent(String),
-    AddAgentOpened,
-    AddAgentKeyChanged(String),
-    AddAgentRequested,
-    DetailTabSelected(String),
-    ProviderChanged(String, String),
-    ProviderCleared(String),
-    ModelChanged(String, String),
-    ModelCleared(String),
-    ForceModelSelectionToggled(String, bool),
-    EnabledToggled(String, bool),
-    AllowAsSubagentToggled(String, bool),
-    MaxParallelSubagentsChanged(String, u32),
-    SystemPromptAction(String, text_editor::Action),
-    PromptTabSelected(String),
-    WorkspaceIdentityLoaded {
-        agent_key: String,
-        file_name: String,
-        workspace_root_path: Option<String>,
-        result: Result<(String, Option<u64>, Option<u64>), String>,
-    },
-    WorkspaceIdentityRestoreDefaultRequested(String),
-    WorkspaceIdentityEnabledToggled {
-        agent_key: String,
-        file_name: String,
-        enabled: bool,
-    },
-    WorkspaceIdentityDefaultRestored {
-        agent_key: String,
-        file_name: String,
-        workspace_root_path: Option<String>,
-        result: Result<(String, Option<u64>, Option<u64>), String>,
-    },
-    WorkspaceIdentityEditorAction(String, text_editor::Action),
-    WorkspaceIdentitySaved {
-        file_name: String,
-        size_bytes: Option<u64>,
-        modified_at_ms: Option<u64>,
-        result: Result<(), String>,
-    },
-    ApiKeyChanged(String, String),
-    TemperatureChanged(String, f32),
-    CompactContextToggled(String, bool),
-    MaxHistoryMessagesChanged(String, u32),
-    ParallelToolsToggled(String, bool),
-    MaxDepthChanged(String, u32),
-    AgenticToggled(String, bool),
-    AllowedToolToggled(String, String, bool),
-    AllowedToolsSelectAll(String),
-    AllowedToolsInvertSelection(String),
-    AllowedToolsApplyPreset(String, String),
-    ToolsListTabSelected(String),
-    SkillPolicyChanged(String, config_agent::DelegateCapabilityPolicy),
-    AllowedSkillToggled(String, String, bool),
-    AllowedSkillsSelectAll(String, crate::app::state::SkillsDirectoryScope),
-    AllowedSkillsInvertSelection(String, crate::app::state::SkillsDirectoryScope),
-    MaxIterationsChanged(String, u32),
-}
+pub use desktop_settings_agents::message::AgentsMessage;
 
 pub use desktop_settings_appearance::quick_messages_update::QuickMessagesMessage;
 

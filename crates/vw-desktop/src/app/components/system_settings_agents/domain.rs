@@ -1,8 +1,8 @@
 //! Desktop mapping for the agents domain's local events and borrowed inputs.
 use crate::app::{App, Message};
-use crate::app::message::settings::{AgentsMessage, AcpMessage, SettingsMessage, AgentConfigTabMessage, McpMessage};
+use crate::app::message::settings::{AcpMessage, SettingsMessage, AgentConfigTabMessage, McpMessage};
 use crate::app::state::AgentConfigTab;
-use desktop_settings_agents::{self as domain, message::{Event, AgentsMessage as LocalAgents, AcpMessage as LocalAcp}};
+use desktop_settings_agents::{self as domain, message::{Event, AcpMessage as LocalAcp}};
 
 pub(in crate::app::components) fn event(event: Event) -> Message {
     match event {
@@ -11,59 +11,7 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
         Event::None => Message::None,
         Event::RefreshMcp => Message::Settings(SettingsMessage::Mcp(McpMessage::InspectRefresh)),
         Event::OpenMcp => Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(AgentConfigTab::Mcp))),
-        Event::Agents(value) => Message::Settings(SettingsMessage::Agents(match value {
-        LocalAgents::AddAgentRequested => AgentsMessage::AddAgentRequested,
-        LocalAgents::AddAgentKeyChanged(v) => AgentsMessage::AddAgentKeyChanged(v),
-        LocalAgents::ProfileCancel => AgentsMessage::ProfileCancel,
-        LocalAgents::ProfileDelete => AgentsMessage::ProfileDelete,
-        LocalAgents::ProfileSave => AgentsMessage::ProfileSave,
-        LocalAgents::AllowedToolToggled(v0, v1, v2) => AgentsMessage::AllowedToolToggled(v0, v1, v2),
-        LocalAgents::ToolsListTabSelected(v0) => AgentsMessage::ToolsListTabSelected(v0),
-        LocalAgents::AllowedToolsApplyPreset(v0, v1) => AgentsMessage::AllowedToolsApplyPreset(v0, v1),
-        LocalAgents::AllowedToolsSelectAll(v0) => AgentsMessage::AllowedToolsSelectAll(v0),
-        LocalAgents::AllowedToolsInvertSelection(v0) => AgentsMessage::AllowedToolsInvertSelection(v0),
-        LocalAgents::SkillPolicyChanged(v0, v1) => AgentsMessage::SkillPolicyChanged(v0, v1),
-        LocalAgents::SkillDirectoryScopeChanged(v0) => AgentsMessage::SkillDirectoryScopeChanged(v0),
-        LocalAgents::AllowedSkillToggled(v0, v1, v2) => AgentsMessage::AllowedSkillToggled(v0, v1, v2),
-        LocalAgents::SkillDirectorySelected(v0) => AgentsMessage::SkillDirectorySelected(v0),
-        LocalAgents::SkillCatalogRefresh => AgentsMessage::SkillCatalogRefresh,
-        LocalAgents::AllowedSkillsSelectAll(v0, v1) => AgentsMessage::AllowedSkillsSelectAll(v0, v1),
-        LocalAgents::AllowedSkillsInvertSelection(v0, v1) => AgentsMessage::AllowedSkillsInvertSelection(v0, v1),
-        LocalAgents::CatalogTabSelected(v0) => AgentsMessage::CatalogTabSelected(v0),
-        LocalAgents::CatalogQueryChanged(v0) => AgentsMessage::CatalogQueryChanged(v0),
-        LocalAgents::CatalogToggle(v0, v1) => AgentsMessage::CatalogToggle(v0, v1),
-        LocalAgents::CatalogCopy(v0) => AgentsMessage::CatalogCopy(v0),
-        LocalAgents::CatalogLaunch(v0) => AgentsMessage::CatalogLaunch(v0),
-        LocalAgents::CatalogRuntimeSettings(v0) => AgentsMessage::CatalogRuntimeSettings(v0),
-        LocalAgents::ProfileOpen(v0) => AgentsMessage::ProfileOpen(v0),
-        LocalAgents::ProfileNameChanged(v0) => AgentsMessage::ProfileNameChanged(v0),
-        LocalAgents::ProfileDefaultsChanged(v0) => AgentsMessage::ProfileDefaultsChanged(v0),
-        LocalAgents::ProfileModelChanged(v0) => AgentsMessage::ProfileModelChanged(v0),
-        LocalAgents::ProfileDescriptionAction(v0) => AgentsMessage::ProfileDescriptionAction(v0),
-        LocalAgents::ProfileRuntimeChanged(v0) => AgentsMessage::ProfileRuntimeChanged(v0),
-        LocalAgents::ProfilePromptChanged(v0, v1) => AgentsMessage::ProfilePromptChanged(v0, v1),
-        LocalAgents::ProfilePromptAdd => AgentsMessage::ProfilePromptAdd,
-        LocalAgents::ProfilePromptRemove(v0) => AgentsMessage::ProfilePromptRemove(v0),
-        LocalAgents::ProfilePromptMove(v0, v1) => AgentsMessage::ProfilePromptMove(v0, v1),
-        LocalAgents::AddAgentOpened => AgentsMessage::AddAgentOpened,
-        LocalAgents::DetailTabSelected(v0) => AgentsMessage::DetailTabSelected(v0),
-        LocalAgents::ForceModelSelectionToggled(v0, v1) => AgentsMessage::ForceModelSelectionToggled(v0, v1),
-        LocalAgents::AllowAsSubagentToggled(v0, v1) => AgentsMessage::AllowAsSubagentToggled(v0, v1),
-        LocalAgents::MaxParallelSubagentsChanged(v0, v1) => AgentsMessage::MaxParallelSubagentsChanged(v0, v1),
-        LocalAgents::SystemPromptAction(v0, v1) => AgentsMessage::SystemPromptAction(v0, v1),
-        LocalAgents::PromptTabSelected(v0) => AgentsMessage::PromptTabSelected(v0),
-        LocalAgents::WorkspaceIdentityRestoreDefaultRequested(v0) => AgentsMessage::WorkspaceIdentityRestoreDefaultRequested(v0),
-        LocalAgents::WorkspaceIdentityEnabledToggled { agent_key, file_name, enabled } => AgentsMessage::WorkspaceIdentityEnabledToggled { agent_key, file_name, enabled },
-        LocalAgents::WorkspaceIdentityEditorAction(v0, v1) => AgentsMessage::WorkspaceIdentityEditorAction(v0, v1),
-        LocalAgents::ApiKeyChanged(v0, v1) => AgentsMessage::ApiKeyChanged(v0, v1),
-        LocalAgents::TemperatureChanged(v0, v1) => AgentsMessage::TemperatureChanged(v0, v1),
-        LocalAgents::CompactContextToggled(v0, v1) => AgentsMessage::CompactContextToggled(v0, v1),
-        LocalAgents::MaxHistoryMessagesChanged(v0, v1) => AgentsMessage::MaxHistoryMessagesChanged(v0, v1),
-        LocalAgents::ParallelToolsToggled(v0, v1) => AgentsMessage::ParallelToolsToggled(v0, v1),
-        LocalAgents::MaxDepthChanged(v0, v1) => AgentsMessage::MaxDepthChanged(v0, v1),
-        LocalAgents::AgenticToggled(v0, v1) => AgentsMessage::AgenticToggled(v0, v1),
-        LocalAgents::MaxIterationsChanged(v0, v1) => AgentsMessage::MaxIterationsChanged(v0, v1),
-        })),
+        Event::Agents(value) => Message::Settings(SettingsMessage::Agents(value)),
         Event::Acp(value) => Message::Settings(SettingsMessage::Acp(match value {
         LocalAcp::StartDiagnostic => AcpMessage::StartDiagnostic,
         LocalAcp::TestAgent(v0) => AcpMessage::TestAgent(v0),

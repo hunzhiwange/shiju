@@ -21,5 +21,6 @@ pub enum Message {
     AutonomyShellRedirectPolicyChanged(ShellRedirectPolicy),
     AutonomyTabSelected(desktop_settings_security::app_init::state::AutonomySettingsTab),
     AutonomyWorkspaceOnlyToggled(bool),
+    AutonomySave,
     CopyCode(String), None,
 }

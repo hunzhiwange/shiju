@@ -30,3 +30,8 @@ pub mod dialogue_flow_help;
 pub mod system_settings_dialogue_flow;
 pub mod acp_update;
 pub mod acp_update_message;
+
+pub mod agents_state;
+pub mod agents_update;
+pub mod agents_update_message;
+pub mod autonomy_update;

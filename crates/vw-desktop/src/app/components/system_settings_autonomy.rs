@@ -4,6 +4,7 @@ use desktop_settings_agents::autonomy_message::Message as Local;
 use desktop_settings_agents::autonomy_inputs::View;
 use iced::Element;
 fn map(message: Local) -> Message { match message {
+ Local::AutonomySave => Message::Settings(SettingsMessage::AutonomySave),
         Local::AutonomyBlockHighRiskCommandsToggled(a) => Message::Settings(SettingsMessage::AutonomyBlockHighRiskCommandsToggled(a)),
         Local::AutonomyHelpClose => Message::Settings(SettingsMessage::AutonomyHelpClose),
         Local::AutonomyHelpOpen => Message::Settings(SettingsMessage::AutonomyHelpOpen),

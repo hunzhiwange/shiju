@@ -348,3 +348,14 @@ pub fn agent_settings_entries_from_config(
 }
 
 #[cfg(test)] mod tests;
+
+pub use crate::agents_state::{AgentsSettingsState, AgentConfigTab};
+pub use desktop_settings_skills::types::{SkillsCatalogItem, SkillsDirectoryScope};
+pub use desktop_settings_providers::{provider_state::ProviderSummary, state::{ProviderModelsSummary, ModelSummary}};
+pub const AGENT_DETAIL_BASIC_TAB: &str = "basic";
+pub const AGENT_DETAIL_IDENTITY_TAB: &str = "identity";
+pub const AGENT_DETAIL_TOOLS_TAB: &str = "tools";
+pub const AGENT_DETAIL_SKILLS_TAB: &str = "skills";
+pub const AGENT_DETAIL_MCP_TAB: &str = "mcp";
+pub const AGENT_TOOLS_OPTIONAL_TAB: &str = "optional";
+pub const AGENT_TOOLS_BUILTIN_TAB: &str = "builtin";

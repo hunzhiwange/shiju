@@ -1,6 +1,6 @@
 //! 宿主组合状态与领域条目的接线检查；纯领域断言随实现迁移。
 use super::AgentsSettingsState;
-use crate::app::state::{
+use crate::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB, AgentConfigTab,
     AgentSettingsEntryKind, MAIN_AGENT_KEY, WORKSPACE_IDENTITY_FILES,
 };

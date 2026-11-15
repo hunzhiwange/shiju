@@ -30,5 +30,13 @@ vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 config-security = { path = "../config-security", version = "0.6.0" }
 tokio = { version = "1", features = ["time"] }
 
+model-types = { path = "../model-types", version = "0.6.0" }
+gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
+gateway-model-provider = { path = "../gateway-model-provider", version = "0.6.0" }
+gateway-config = { path = "../gateway-config", version = "0.6.0" }
+gateway-files = { path = "../gateway-files", version = "0.6.0" }
+desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

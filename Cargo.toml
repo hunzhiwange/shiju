@@ -46,6 +46,7 @@ members = [
   "crates/libs/cli-gateway-automation",
   "crates/libs/cli-gateway-runtime",
   "crates/libs/cli-gateway-workspace",
+  "crates/libs/cli-gateway-workspace",
   "crates/libs/cli-gateway-session",
   "crates/libs/cli-gateway-transport",
   "crates/libs/cli-stdio",

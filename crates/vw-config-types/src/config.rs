@@ -24,7 +24,7 @@ use crate::channels::ChannelsConfig;
 use crate::computer_control::ComputerControlConfig;
 use crate::gateway::GatewayConfig;
 use crate::gateway::TunnelConfig;
-use crate::hooks::HooksConfig;
+use config_hooks::HooksConfig;
 use crate::memory::{MemoryConfig, StorageConfig};
 use crate::observability::ObservabilityConfig;
 use crate::plugins::PluginsConfig;

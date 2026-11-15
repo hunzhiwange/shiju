@@ -53,7 +53,7 @@ mod workspace_tests;
 // Tier-1 types migrated to vw-config-types; re-export for backward compatibility
 pub use vw_config_types::agent;
 pub use vw_config_types::gateway;
-pub use vw_config_types::hooks;
+pub use config_hooks as hooks;
 pub use vw_config_types::memory;
 pub use vw_config_types::observability;
 pub use config_reliability as reliability;

@@ -4,6 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护配置持久化流程。
 
 use crate::app::Message;
+use config_hooks::HooksConfig;
 use config_automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use config_reliability::ReliabilityConfig;
 use iced::Task;
@@ -13,7 +14,6 @@ use vw_config_types::{
     channels::ChannelsConfig,
     config::{AcpAgentConfig, Config},
     gateway::{GatewayConfig, TunnelConfig},
-    hooks::HooksConfig,
     memory::{MemoryConfig, StorageConfig},
     observability::ObservabilityConfig,
     proxy::ProxyConfig,

@@ -8,7 +8,7 @@ use std::future::Future;
 
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
-use vw_api_chat::chat::GatewayChatStreamRequest;
+use vw_api_types::chat::GatewayChatStreamRequest;
 use vw_api_transport::id::SessionId;
 
 use crate::app::agent::project;

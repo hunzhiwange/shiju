@@ -46,7 +46,7 @@ async fn send(
     let response = super::super::super::super::stream::chat_stream(
         Query(query_for(FsPath::new(&branch.directory))),
         HeaderMap::new(),
-        Json(vw_api_chat::chat::GatewayChatStreamRequest {
+        Json(vw_api_types::chat::GatewayChatStreamRequest {
             session_id: Some(branch.id.clone().into()),
             agent: Some(format!("acp-{backend}")),
             acp_agent: Some(backend.into()),

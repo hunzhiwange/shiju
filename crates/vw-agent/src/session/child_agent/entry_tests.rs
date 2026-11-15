@@ -207,7 +207,7 @@ async fn agcollab_end_to_end_gateway_and_query_engine_entries() {
         let result = if gateway {
             crate::gateway::api::handlers::session::stream::collect_gateway_chat_stream(
                 directory.clone(),
-                vw_api_chat::chat::GatewayChatStreamRequest {
+                vw_api_types::chat::GatewayChatStreamRequest {
                     session_id: Some(parent.id.clone().into()),
                     messages: vec![json!({"role":"user","content":"ROOT_ENTRY_WORKFLOW"})],
                     agent: Some("main".into()),

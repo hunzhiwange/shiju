@@ -40,7 +40,7 @@ fn now_ms() -> u64 {
 
 fn format_duration_ms(duration_ms: u64) -> String {
     let secs = (duration_ms / 1000) as i64;
-    let value = vw_shared::util::format_duration(secs);
+    let value = display_format::format_duration(secs);
     if value.is_empty() { "0s".to_string() } else { value }
 }
 

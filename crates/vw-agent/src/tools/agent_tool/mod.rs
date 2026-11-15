@@ -25,7 +25,7 @@ const MAX_PARALLEL_SUBAGENTS: usize = 32;
 #[cfg(test)]
 type ChildAgentStreamExecutor = Arc<
     dyn Fn(
-            vw_api_chat::chat::GatewayChatStreamRequest,
+            vw_api_types::chat::GatewayChatStreamRequest,
         ) -> futures_util::future::BoxFuture<
             'static,
             std::result::Result<

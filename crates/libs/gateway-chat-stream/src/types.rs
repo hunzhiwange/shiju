@@ -1,7 +1,7 @@
 //! 聊天流客户端事件与恢复契约。
 
 /// 直接透出新的流式聊天事件类型。
-pub use vw_api_chat::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
+pub use vw_api_types::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 
 /// 将网关 usage 载荷规整后的轻量统计结构。
 ///

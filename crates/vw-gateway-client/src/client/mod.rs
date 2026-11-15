@@ -336,8 +336,12 @@ mod model_catalog_api;
 mod model_catalog_api_tests;
 
 mod model_catalog_edits_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod model_catalog_edits_api_tests;
 
 mod model_discovery_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod model_discovery_api_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod voice_api;

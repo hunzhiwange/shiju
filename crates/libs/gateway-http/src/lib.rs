@@ -79,6 +79,3 @@ impl GatewayTransport {
 
 #[cfg(test)]
 mod test_support;
-
-mod agent_apps_error;
-pub use agent_apps_error::AgentAppsReadError;

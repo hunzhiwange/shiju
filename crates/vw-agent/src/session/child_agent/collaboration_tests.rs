@@ -34,7 +34,7 @@ async fn agcollab_end_to_end_team_workflow() {
         let barrier = barrier.clone();
         let release = release.clone();
         let calls = calls.clone();
-        Arc::new(move |request: vw_api_chat::chat::GatewayChatStreamRequest| {
+        Arc::new(move |request: vw_api_types::chat::GatewayChatStreamRequest| {
             let barrier = barrier.clone();
             let release = release.clone();
             let calls = calls.clone();

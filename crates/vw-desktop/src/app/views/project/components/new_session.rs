@@ -26,7 +26,7 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style,
 };
 use crate::app::{Message, message};
-use vw_shared::util::truncate;
+use display_format::truncate;
 
 /// 判断当前主题是否为暗色主题
 ///

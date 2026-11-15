@@ -1,17 +1,17 @@
 //! 提供代理侧本地化与时间展示辅助函数。
-//! 共享文本格式化由 vw_shared 负责，本模块只保留与当前时间语义相关的轻量封装。
+//! 共享文本格式化由 display_format 负责，本模块只保留与当前时间语义相关的轻量封装。
 
-pub use vw_shared::util::duration;
+pub use display_format::duration;
 /// 重新导出共享实现，保持当前模块的公开访问路径稳定。
-pub use vw_shared::util::number;
+pub use display_format::number;
 /// 重新导出共享实现，保持当前模块的公开访问路径稳定。
-pub use vw_shared::util::pluralize;
+pub use display_format::pluralize;
 /// 重新导出共享实现，保持当前模块的公开访问路径稳定。
-pub use vw_shared::util::titlecase;
+pub use display_format::titlecase;
 /// 重新导出共享实现，保持当前模块的公开访问路径稳定。
-pub use vw_shared::util::truncate;
+pub use display_format::truncate;
 /// 重新导出共享实现，保持当前模块的公开访问路径稳定。
-pub use vw_shared::util::truncate_middle;
+pub use display_format::truncate_middle;
 
 use time::{OffsetDateTime, UtcOffset};
 

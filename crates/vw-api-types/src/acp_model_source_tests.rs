@@ -1,4 +1,4 @@
-use vw_api_chat::chat::{ChatOptionsDto, GatewayChatStreamRequest};
+use crate::chat::{ChatOptionsDto, GatewayChatStreamRequest};
 use serde_json::json;
 
 #[test]

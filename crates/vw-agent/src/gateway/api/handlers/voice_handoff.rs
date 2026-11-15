@@ -140,7 +140,7 @@ impl Drop for Handoffs {
 async fn run(binding: Binding, call: HandoffCall, tx: tokio::sync::mpsc::Sender<Update>) {
     use super::session::stream::collect_gateway_chat_stream_with_observer;
     use std::sync::{Arc, Mutex};
-    use vw_api_chat::chat::GatewayChatStreamRequest;
+    use vw_api_types::chat::GatewayChatStreamRequest;
     let send = |status, text: &str| {
         tx.try_send(Update { call: call.clone(), status, text: text.to_owned() }).is_ok()
     };

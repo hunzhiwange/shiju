@@ -19,7 +19,7 @@ fn test_module_is_wired() {
 #[test]
 fn duration_and_running_dots_format_boundary_values() {
     assert_eq!(super::format_duration_ms(0), "0s");
-    assert_eq!(super::format_duration_ms(1_250), vw_shared::util::format_duration(1));
+    assert_eq!(super::format_duration_ms(1_250), display_format::format_duration(1));
 
     assert_eq!(super::running_dots(0), "·");
     assert_eq!(super::running_dots(1_000), "··");

@@ -1,6 +1,6 @@
 use super::VibeWindowBackend;
-use acp_server::server::{BackendMountRequest, SessionBackend};
-use acp_types::{SessionMountSelection, SessionSkillMount};
+use vw_acp::server::{BackendMountRequest, SessionBackend};
+use vw_acp::{SessionMountSelection, SessionSkillMount};
 
 #[tokio::test]
 async fn acp_server_skill_overlay_accepts_native_directory() {

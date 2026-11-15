@@ -9,19 +9,12 @@ use std::sync::Arc;
 
 use serde_json::json;
 use tokio::sync::mpsc;
-use acp_types::{
-    AcpJsonRpcMessage,
-    AcpSessionOptions,
-    AuthPolicy,
-    DEFAULT_EVENT_MAX_SEGMENTS,
-    DEFAULT_EVENT_SEGMENT_MAX_BYTES,
-    PermissionMode,
-    SessionAcpxState,
-    SessionEventLog,
-    SessionRecord,
-    SessionStateOptions,
-    default_session_event_log,
-    session_event_log,
+use vw_acp::{
+    AcpJsonRpcMessage, AcpSessionOptions, AuthPolicy, DEFAULT_EVENT_MAX_SEGMENTS,
+    DEFAULT_EVENT_SEGMENT_MAX_BYTES, PermissionMode, SessionAcpxState, SessionEventLog,
+    SessionRecord, SessionStateOptions, apply_lifecycle_snapshot_to_record,
+    create_session_conversation, default_session_event_log, session_event_log, set_desired_mode_id,
+    write_session_record,
 };
 
 use crate::app::agent::config;
@@ -163,7 +156,7 @@ fn build_cached_acp_client(
     parsed_options: &ParsedAcpOptions,
 ) -> Arc<CachedAcpClient> {
     let permission_confirmation =
-        Arc::new(parking_lot::Mutex::new(None::<acp_host_io::permissions::PermissionConfirmation>));
+        Arc::new(parking_lot::Mutex::new(None::<vw_acp::PermissionConfirmation>));
     let active_confirmation = permission_confirmation.clone();
     let output_tx =
         Arc::new(parking_lot::Mutex::new(None::<mpsc::UnboundedSender<AcpJsonRpcMessage>>));
@@ -176,9 +169,9 @@ fn build_cached_acp_client(
         }
     });
 
-    let client = acp_client::AcpClient::new(
+    let client = vw_acp::AcpClient::new(
         acp_agent_name.to_string(),
-        acp_types::AcpAgentConfig {
+        vw_acp::AcpAgentConfig {
             command: acp_cfg.command.clone(),
             args: acp_cfg.args.clone(),
             env: acp_cfg.env.clone(),
@@ -186,12 +179,12 @@ fn build_cached_acp_client(
     )
     .with_skill_mounts(
         (!parsed_options.skill_mounts.is_empty() || matches!(acp_agent_name, "codex" | "claude"))
-            .then(|| acp_types::SessionMountSelection {
+            .then(|| vw_acp::SessionMountSelection {
                 version: 1,
                 skills: parsed_options
                     .skill_mounts
                     .iter()
-                    .map(|mount| acp_types::SessionSkillMount {
+                    .map(|mount| vw_acp::SessionSkillMount {
                         name: mount.name.clone(),
                         path: parsed_options
                             .skill_view
@@ -374,11 +367,11 @@ async fn create_cached_session_record(
 ) -> Result<SessionRecord, Error> {
     let session_info = cached_client.client.create_session(cwd).await.map_err(to_api_error)?;
     let session_id = session_info.session_id;
-    let now = acp_storage::iso_now();
+    let now = vw_acp::iso_now();
     let conversation = create_session_conversation(Some(&now));
     let cwd_text = cwd.to_string_lossy().into_owned();
     let mut record = SessionRecord {
-        schema: acp_types::SESSION_RECORD_SCHEMA.to_string(),
+        schema: vw_acp::SESSION_RECORD_SCHEMA.to_string(),
         vwacp_record_id: session_id.clone(),
         acp_session_id: session_id.clone(),
         agent_session_id: None,
@@ -386,7 +379,7 @@ async fn create_cached_session_record(
         agent_config: if launch_reference(acp_cfg).is_some() {
             None
         } else {
-            Some(acp_types::AcpAgentConfig {
+            Some(vw_acp::AcpAgentConfig {
                 command: acp_cfg.command.clone(),
                 args: acp_cfg.args.clone(),
                 env: acp_cfg.env.clone(),
@@ -470,7 +463,7 @@ pub(crate) async fn find_or_create_cached_session_record(
 
     if force_new_session
         && let Some(existing) =
-            acp_storage::find_session_by_directory_walk(&acp_storage::FindSessionByDirectoryWalkOptions {
+            vw_acp::find_session_by_directory_walk(&vw_acp::FindSessionByDirectoryWalkOptions {
                 agent_command: agent_command.clone(),
                 cwd: cwd_text.clone(),
                 name: session_name.clone(),
@@ -479,11 +472,11 @@ pub(crate) async fn find_or_create_cached_session_record(
             .await
             .map_err(to_api_error)?
     {
-        acp_storage::close_session(&existing.vwacp_record_id).await.map_err(to_api_error)?;
+        vw_acp::close_session(&existing.vwacp_record_id).await.map_err(to_api_error)?;
     }
 
     if let Some(existing) =
-        acp_storage::find_session_by_directory_walk(&acp_storage::FindSessionByDirectoryWalkOptions {
+        vw_acp::find_session_by_directory_walk(&vw_acp::FindSessionByDirectoryWalkOptions {
             agent_command,
             cwd: cwd_text,
             name: session_name.clone(),

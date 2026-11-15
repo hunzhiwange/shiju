@@ -2,12 +2,9 @@
 use super::VibeWindowBackend;
 use agent_client_protocol::{McpServer, McpServerStdio};
 use serde_json::json;
-use acp_server::server::{BackendMountRequest, SessionBackend};
-use acp_types::{
-    SessionMountRevision,
-    SessionMountSelection,
-    SessionSkillMount,
-    SetSessionMountsRequest,
+use vw_acp::server::{BackendMountRequest, SessionBackend};
+use vw_acp::{
+    SessionMountRevision, SessionMountSelection, SessionSkillMount, SetSessionMountsRequest,
 };
 
 fn update(id: &str, revision: u64) -> SetSessionMountsRequest {
@@ -198,14 +195,14 @@ async fn acp_mount_update_protocol_blocks_prompt_load_and_second_update_during_p
     let script = root.path().join("slow.py");
     let text = std::fs::read_to_string(&script).unwrap().replace("out = {'tools':", "import time\n        Path(sys.argv[1] + '.preparing').touch()\n        while not Path(sys.argv[1] + '.release').exists(): time.sleep(0.01)\n        out = {'tools':");
     std::fs::write(&script, text).unwrap();
-    let agent = acp_server::server::VibeWindowAgent::new(VibeWindowBackend::default());
+    let agent = vw_acp::server::VibeWindowAgent::new(VibeWindowBackend::default());
     agent.initialize(InitializeRequest::new(ProtocolVersion::V1)).await.unwrap();
     let created = agent.new_session(NewSessionRequest::new(root.path())).await.unwrap();
     let id = created.session_id.to_string();
     let mut request = update(&id, 0);
     request.mcp_servers = vec![mcp];
     let capabilities =
-        acp_types::SessionMountCapabilities { version: 1, skills: true, set_mounts: true };
+        vw_acp::SessionMountCapabilities { version: 1, skills: true, set_mounts: true };
     let ext = request.to_ext_request(Some(&capabilities)).unwrap();
     let busy = async {
         while !root.path().join("slow.pid.preparing").exists() {
@@ -227,7 +224,7 @@ async fn acp_mount_update_protocol_blocks_prompt_load_and_second_update_during_p
     };
     tokio::time::timeout(std::time::Duration::from_secs(15), async {
         let (result, ()) = tokio::join!(agent.ext_method(ext), busy);
-        let result: acp_types::SetSessionMountsResponse =
+        let result: vw_acp::SetSessionMountsResponse =
             serde_json::from_str(result.unwrap().0.get()).unwrap();
         assert_eq!(result.revision, SessionMountRevision(1));
     })

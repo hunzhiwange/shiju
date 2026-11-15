@@ -222,7 +222,7 @@ impl rmcp::ClientHandler for NoopClient {
 /// # 错误
 ///
 /// 当当前目录不可读取，或 ACP 配置加载、解析失败时返回错误。
-pub async fn load_resolved_acp_config() -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
+pub async fn load_resolved_acp_config() -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
     load_resolved_acp_config_from(std::env::current_dir()?).await
 }
 
@@ -241,14 +241,14 @@ pub async fn load_resolved_acp_config() -> anyhow::Result<acp_config::ResolvedAc
 /// 当 ACP 配置加载或解析失败时返回错误。
 pub async fn load_resolved_acp_config_from(
     cwd: impl AsRef<Path>,
-) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
+) -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
     load_resolved_mcp_config(cwd.as_ref(), None).await
 }
 
 /// Native tool discovery uses the project established at the request boundary.
 pub(crate) fn load_resolved_runtime_mcp_config_from(
     cwd: &Path,
-) -> impl Future<Output = anyhow::Result<acp_config::ResolvedAcpxConfig>> + '_ {
+) -> impl Future<Output = anyhow::Result<vw_acp::ResolvedAcpxConfig>> + '_ {
     // Capture the project before the toolset's synchronous bridge changes threads.
     let project_id = crate::project::instance::project()
         .filter(|_| {
@@ -262,8 +262,8 @@ pub(crate) fn load_resolved_runtime_mcp_config_from(
 async fn load_resolved_mcp_config(
     cwd: &Path,
     project_id: Option<String>,
-) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
-    let mut config = acp_config::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
+) -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
+    let mut config = vw_acp::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
     merge_runtime_mcp_servers(&mut config, cwd, project_id).await?;
     if let Some(context) = crate::tools::current_tool_use_context()
         && let Some(selected) = context.native_mcp_selection()
@@ -276,8 +276,8 @@ async fn load_resolved_mcp_config(
 pub(crate) async fn load_resolved_acp_config_from_with_plugin_options(
     cwd: impl AsRef<Path>,
     plugin_options: &PluginDiscoveryOptions,
-) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
-    let mut config = acp_config::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
+) -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
+    let mut config = vw_acp::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
     let agent_config = merge_runtime_global_mcp_servers(&mut config).await?;
     merge_enabled_plugin_mcp_servers(&mut config.mcp_servers, plugin_options)?;
     apply_global_mcp_server_overrides_from_agent_config(&mut config, &agent_config)?;
@@ -285,7 +285,7 @@ pub(crate) async fn load_resolved_acp_config_from_with_plugin_options(
 }
 
 async fn merge_runtime_mcp_servers(
-    config: &mut acp_config::ResolvedAcpxConfig,
+    config: &mut vw_acp::ResolvedAcpxConfig,
     workspace: &Path,
     project_id: Option<String>,
 ) -> anyhow::Result<()> {
@@ -315,7 +315,7 @@ async fn merge_runtime_mcp_servers(
 }
 
 async fn merge_runtime_global_mcp_servers(
-    config: &mut acp_config::ResolvedAcpxConfig,
+    config: &mut vw_acp::ResolvedAcpxConfig,
 ) -> anyhow::Result<Config> {
     let agent_config = match Config::load_or_init().await {
         Ok(config) => config,
@@ -329,7 +329,7 @@ async fn merge_runtime_global_mcp_servers(
 }
 
 fn apply_global_mcp_server_overrides_from_agent_config(
-    config: &mut acp_config::ResolvedAcpxConfig,
+    config: &mut vw_acp::ResolvedAcpxConfig,
     agent_config: &Config,
 ) -> anyhow::Result<()> {
     apply_mcp_server_override_values(
@@ -340,7 +340,7 @@ fn apply_global_mcp_server_overrides_from_agent_config(
 }
 
 fn merge_global_mcp_servers_from_agent_config(
-    config: &mut acp_config::ResolvedAcpxConfig,
+    config: &mut vw_acp::ResolvedAcpxConfig,
     agent_config: &Config,
 ) -> anyhow::Result<()> {
     merge_global_mcp_server_values(
@@ -351,7 +351,7 @@ fn merge_global_mcp_servers_from_agent_config(
 }
 
 fn merge_global_mcp_server_values(
-    config: &mut acp_config::ResolvedAcpxConfig,
+    config: &mut vw_acp::ResolvedAcpxConfig,
     raw_servers: &[Value],
     source_path: &str,
 ) -> anyhow::Result<()> {
@@ -359,12 +359,12 @@ fn merge_global_mcp_server_values(
         return Ok(());
     }
 
-    let parsed = acp_config::parse_mcp_server_configs(&Value::Array(raw_servers.to_vec()), source_path)
+    let parsed = vw_acp::parse_mcp_server_configs(&Value::Array(raw_servers.to_vec()), source_path)
         .map_err(anyhow::Error::from)?;
     let mut merged_names =
         config.mcp_servers.iter().map(server_name).map(ToString::to_string).collect::<HashSet<_>>();
 
-    for acp_config::McpServerConfig { server, management } in parsed {
+    for vw_acp::McpServerConfig { server, management } in parsed {
         let name = server_name(&server);
         if !merged_names.insert(name.to_string()) {
             tracing::warn!(
@@ -471,7 +471,7 @@ fn parse_mcp_server_management_override(
 }
 
 fn apply_mcp_management_override(
-    management: &mut acp_config::McpServerManagement,
+    management: &mut vw_acp::McpServerManagement,
     override_entry: McpServerManagementOverride,
 ) {
     if let Some(enabled) = override_entry.enabled {
@@ -492,7 +492,7 @@ fn apply_mcp_management_override(
 }
 
 fn apply_mcp_server_override_values(
-    config: &mut acp_config::ResolvedAcpxConfig,
+    config: &mut vw_acp::ResolvedAcpxConfig,
     raw_overrides: &[Value],
     source_path: &str,
 ) -> anyhow::Result<()> {
@@ -518,7 +518,7 @@ fn apply_mcp_server_override_values(
             .find(|entry| entry.name == override_entry.name)
             .cloned()
             .unwrap_or_else(|| {
-                acp_config::McpServerManagement::default_for_server(override_entry.name.clone())
+                vw_acp::McpServerManagement::default_for_server(override_entry.name.clone())
             });
         apply_mcp_management_override(&mut management, override_entry);
 
@@ -832,24 +832,24 @@ async fn open_server_peer_inner(
 }
 
 pub fn management_for_server(
-    config: &acp_config::ResolvedAcpxConfig,
+    config: &vw_acp::ResolvedAcpxConfig,
     server: &McpServer,
-) -> acp_config::McpServerManagement {
+) -> vw_acp::McpServerManagement {
     let name = server_name(server);
     config
         .mcp_server_management
         .iter()
         .find(|management| management.name == name)
         .cloned()
-        .unwrap_or_else(|| acp_config::McpServerManagement::default_for_server(name))
+        .unwrap_or_else(|| vw_acp::McpServerManagement::default_for_server(name))
 }
 
-pub fn management_timeout(management: &acp_config::McpServerManagement) -> Option<Duration> {
+pub fn management_timeout(management: &vw_acp::McpServerManagement) -> Option<Duration> {
     management.timeout_ms.map(Duration::from_millis)
 }
 
 pub fn mcp_tool_allowed(
-    management: &acp_config::McpServerManagement,
+    management: &vw_acp::McpServerManagement,
     tool_name: &str,
     tool_id: &str,
 ) -> bool {

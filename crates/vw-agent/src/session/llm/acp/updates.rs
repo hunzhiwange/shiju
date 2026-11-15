@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use serde_json::{Map, Value, json};
-use acp_types::AcpJsonRpcMessage;
+use vw_acp::AcpJsonRpcMessage;
 use vw_api_tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
 
 use crate::app::agent::session::ui_types;

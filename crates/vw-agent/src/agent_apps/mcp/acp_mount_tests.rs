@@ -1,8 +1,9 @@
 use std::{fs, path::Path};
 
 use serde_json::json;
-use acp_types::{McpCatalogMount, SessionMountRevision, SetSessionMountsRequest};
-use acp_server::server::SessionBackend;
+use vw_acp::{
+    McpCatalogMount, SessionMountRevision, SetSessionMountsRequest, server::SessionBackend,
+};
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,

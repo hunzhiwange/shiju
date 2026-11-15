@@ -4,7 +4,7 @@
 //! 诊断断言用于暴露遗漏边界或重复终止事件，而非静默修复状态。
 
 use super::*;
-use crate::vibe::event::{V3Event, V3FileChange, V3FileDiff, V3FileDiffEntry};
+use tui_contracts::event::{V3Event, V3FileChange, V3FileDiff, V3FileDiffEntry};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 

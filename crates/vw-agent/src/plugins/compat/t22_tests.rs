@@ -4,16 +4,16 @@ use crate::tools::{Tool, mcp_resource::McpResourceTool};
 use serde_json::json;
 use std::sync::Arc;
 
-fn config(servers: Vec<agent_client_protocol::McpServer>) -> acp_config::ResolvedAcpxConfig {
-    acp_config::ResolvedAcpxConfig {
+fn config(servers: Vec<agent_client_protocol::McpServer>) -> vw_acp::ResolvedAcpxConfig {
+    vw_acp::ResolvedAcpxConfig {
         default_agent: "main".into(),
-        default_permissions: acp_types::PermissionMode::ApproveAll,
-        non_interactive_permissions: acp_types::NonInteractivePermissionPolicy::Deny,
-        auth_policy: acp_types::AuthPolicy::Skip,
+        default_permissions: vw_acp::PermissionMode::ApproveAll,
+        non_interactive_permissions: vw_acp::NonInteractivePermissionPolicy::Deny,
+        auth_policy: vw_acp::AuthPolicy::Skip,
         ttl_ms: 300_000,
         timeout_ms: None,
         queue_max_depth: 16,
-        format: acp_types::OutputFormat::Text,
+        format: vw_acp::OutputFormat::Text,
         agents: Default::default(),
         auth: Default::default(),
         disable_exec: false,
@@ -318,7 +318,7 @@ async fn codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remo
             mode.into(),
         ]));
         let mut config = config(vec![server]);
-        let mut management = acp_config::McpServerManagement::default_for_server("local");
+        let mut management = vw_acp::McpServerManagement::default_for_server("local");
         management.enabled = mode != "disabled";
         management.timeout_ms = Some(250);
         config.mcp_server_management.push(management);

@@ -107,16 +107,16 @@ fn server_names(servers: &[McpServer]) -> Vec<&str> {
     servers.iter().map(server_name).collect()
 }
 
-fn resolved_config_with_servers(servers: Vec<McpServer>) -> acp_config::ResolvedAcpxConfig {
-    acp_config::ResolvedAcpxConfig {
+fn resolved_config_with_servers(servers: Vec<McpServer>) -> vw_acp::ResolvedAcpxConfig {
+    vw_acp::ResolvedAcpxConfig {
         default_agent: "main".to_string(),
-        default_permissions: acp_types::PermissionMode::ApproveAll,
-        non_interactive_permissions: acp_types::NonInteractivePermissionPolicy::Deny,
-        auth_policy: acp_types::AuthPolicy::Skip,
+        default_permissions: vw_acp::PermissionMode::ApproveAll,
+        non_interactive_permissions: vw_acp::NonInteractivePermissionPolicy::Deny,
+        auth_policy: vw_acp::AuthPolicy::Skip,
         ttl_ms: 300_000,
         timeout_ms: None,
         queue_max_depth: 16,
-        format: acp_types::OutputFormat::Text,
+        format: vw_acp::OutputFormat::Text,
         agents: HashMap::new(),
         auth: HashMap::new(),
         disable_exec: false,
@@ -477,7 +477,7 @@ fn mcp_server_overrides_skip_unknown_servers() {
 fn mcp_server_overrides_update_existing_entry_and_preserve_omitted_fields() {
     let server = McpServer::Stdio(McpServerStdio::new("plugin-mcp", "plugin-command"));
     let mut config = resolved_config_with_servers(vec![server]);
-    let mut existing = acp_config::McpServerManagement::default_for_server("plugin-mcp");
+    let mut existing = vw_acp::McpServerManagement::default_for_server("plugin-mcp");
     existing.enabled = false;
     existing.required = true;
     existing.timeout_ms = Some(5_000);
@@ -536,7 +536,7 @@ fn mcp_server_overrides_create_management_when_entry_is_missing() {
 fn mcp_server_overrides_empty_input_preserves_management() {
     let server = McpServer::Stdio(McpServerStdio::new("plugin-mcp", "plugin-command"));
     let mut config = resolved_config_with_servers(vec![server]);
-    let management = acp_config::McpServerManagement::default_for_server("plugin-mcp");
+    let management = vw_acp::McpServerManagement::default_for_server("plugin-mcp");
     config.mcp_server_management.push(management.clone());
 
     apply_mcp_server_override_values(&mut config, &[], "vibewindow.json")
@@ -744,7 +744,7 @@ fn mcp_management_helpers_apply_defaults_and_timeout() {
 
 #[test]
 fn mcp_tool_policy_honors_allow_lists_and_deny_precedence() {
-    let mut management = acp_config::McpServerManagement::default_for_server("gateway");
+    let mut management = vw_acp::McpServerManagement::default_for_server("gateway");
     assert!(mcp_tool_allowed(&management, "echo", "gateway__echo"));
 
     management.allowed_tools = vec!["echo".to_string(), "gateway__sum".to_string()];
@@ -887,7 +887,7 @@ async fn resolved_acp_config_from_merges_global_servers_and_management_overrides
         ..Config::default()
     };
 
-    let mut config = acp_config::load_resolved_config(&workspace_dir).await.expect("resolved config");
+    let mut config = vw_acp::load_resolved_config(&workspace_dir).await.expect("resolved config");
     merge_global_mcp_servers_from_agent_config(&mut config, &agent_config)
         .expect("merge global mcp servers");
     apply_global_mcp_server_overrides_from_agent_config(&mut config, &agent_config)

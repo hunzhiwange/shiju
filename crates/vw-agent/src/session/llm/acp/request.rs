@@ -6,9 +6,10 @@
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use acp_types::{AcpJsonRpcMessage, PromptRequest, SessionStrategy};
-use acp_lifecycle::apply_lifecycle_snapshot_to_record;
-use acp_storage::write_session_record;
+use vw_acp::{
+    AcpJsonRpcMessage, PromptRequest, SessionStrategy, apply_lifecycle_snapshot_to_record,
+    write_session_record,
+};
 
 use crate::app::agent::auth;
 use crate::app::agent::config;
@@ -185,7 +186,7 @@ pub(crate) async fn do_stream_request_acp(
     .await?;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
-        acp_client::AcpClient::ensure_desktop_native_access(
+        vw_acp::AcpClient::ensure_desktop_native_access(
             &acp_agent_name,
             parsed_options.full_access,
         )
@@ -221,11 +222,11 @@ pub(crate) async fn do_stream_request_acp(
         let state = if let Some(recovered) = &recovered {
             recovered.record.vwacp.clone()
         } else if let Some(previous) = locked_selection {
-            acp_storage::resolve_session_record(&previous.record_id).await.map_err(to_api_error)?.vwacp
+            vw_acp::resolve_session_record(&previous.record_id).await.map_err(to_api_error)?.vwacp
         } else {
             None
         };
-        let model = acp_access_policy::session_mode_preference::get_desired_model_id(state.as_ref());
+        let model = vw_acp::get_desired_model_id(state.as_ref());
         parsed_options.session_options.get_or_insert_with(Default::default).model = model;
         state
     } else {
@@ -318,7 +319,7 @@ pub(crate) async fn do_stream_request_acp(
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
-    let walk_boundary = acp_storage::find_git_repository_root(&cwd_text)
+    let walk_boundary = vw_acp::find_git_repository_root(&cwd_text)
         .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_else(|| cwd_text.clone());
     let session_name = acp_session_name(&scoped_session);
@@ -416,19 +417,19 @@ pub(crate) async fn do_stream_request_acp(
             launch_profile.as_ref().and_then(|profile| profile.session_model_id.as_deref());
         if let Some(model_id) = bound_model_id {
             // Managed launch identity takes precedence over a saved native selection.
-            acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some(model_id));
+            vw_acp::set_desired_model_id(&mut record, Some(model_id));
         }
         // Capture the non-elevated preference before replaying controls. Automatic
         // native access sync must never become the saved user preference.
-        if acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref()).is_none() {
-            acp_access_policy::session_mode_preference::set_desired_mode_id(&mut record, parsed_options.session_mode.as_deref());
+        if vw_acp::get_desired_mode_id(record.vwacp.as_ref()).is_none() {
+            vw_acp::set_desired_mode_id(&mut record, parsed_options.session_mode.as_deref());
         }
-        let saved_config = acp_access_policy::session_mode_preference::get_desired_config_options(record.vwacp.as_ref());
+        let saved_config = vw_acp::get_desired_config_options(record.vwacp.as_ref());
         for (id, value) in &parsed_options.session_config_options {
             if !saved_config.contains_key(id)
                 && matches!(id.as_str(), "mode" | "edit_approval_policy")
             {
-                acp_access_policy::session_mode_preference::set_desired_config_option(&mut record, id, value);
+                vw_acp::set_desired_config_option(&mut record, id, value);
             }
         }
         super::controls::prepare_access_restore(&cached_client.client, &mut record);
@@ -436,7 +437,7 @@ pub(crate) async fn do_stream_request_acp(
         if !super::controls::has_saved_config_category(
             &record,
             agent_client_protocol::SessionConfigOptionCategory::Mode,
-        ) && let Some(mode_id) = acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref())
+        ) && let Some(mode_id) = vw_acp::get_desired_mode_id(record.vwacp.as_ref())
             .or_else(|| parsed_options.session_mode.clone())
         {
             if let Err(err) = apply_default_mode(
@@ -463,7 +464,7 @@ pub(crate) async fn do_stream_request_acp(
                     agent_client_protocol::SessionConfigOptionCategory::Model,
                 )))
             && let Some(model_id) =
-                acp_access_policy::session_mode_preference::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
+                vw_acp::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
                     parsed_options
                         .session_options
                         .as_ref()
@@ -528,7 +529,7 @@ pub(crate) async fn do_stream_request_acp(
         if locked_selection.is_some() || recovered.is_some() {
             config_options.retain(|id, _| id != "model" && native_config(id).is_none());
         }
-        config_options.extend(acp_access_policy::session_mode_preference::get_desired_config_options(record.vwacp.as_ref()));
+        config_options.extend(vw_acp::get_desired_config_options(record.vwacp.as_ref()));
         if let Some(state) = previous_native.as_ref() {
             for option in state
                 .config_options
@@ -580,11 +581,11 @@ pub(crate) async fn do_stream_request_acp(
         if launch_profile.is_none()
             && let Some(info) = cached_client.client.session_capabilities(&acp_session_id)
         {
-            if acp_access_policy::session_mode_preference::get_desired_model_id(record.vwacp.as_ref()).is_none()
+            if vw_acp::get_desired_model_id(record.vwacp.as_ref()).is_none()
                 && let Some(models) = info.models.as_ref()
                 && !info.config_options.iter().flatten().any(super::controls::is_model_config)
             {
-                acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some(models.current_model_id.0.as_ref()));
+                vw_acp::set_desired_model_id(&mut record, Some(models.current_model_id.0.as_ref()));
             }
             for option in info
                 .config_options
@@ -593,14 +594,14 @@ pub(crate) async fn do_stream_request_acp(
                 .filter(|option| super::controls::is_model_config(option))
             {
                 if let agent_client_protocol::SessionConfigKind::Select(select) = &option.kind {
-                    acp_access_policy::session_mode_preference::set_desired_config_option(
+                    vw_acp::set_desired_config_option(
                         &mut record,
                         option.id.0.as_ref(),
                         select.current_value.0.as_ref(),
                     );
                 }
             }
-            acp_access_policy::session_mode_preference::sync_config_options(&mut record, info.config_options);
+            vw_acp::sync_config_options(&mut record, info.config_options);
         }
         apply_lifecycle_snapshot_to_record(
             &mut record,
@@ -646,7 +647,7 @@ pub(crate) async fn do_stream_request_acp(
         let prompt_text = prompt.clone();
         let prompt_session_id = record.acp_session_id.clone();
         let mut acp_task = tokio::spawn(async move {
-            let mut on_prompt_event = |_event: acp_types::PromptEvent| {};
+            let mut on_prompt_event = |_event: vw_acp::PromptEvent| {};
             prompt_client
                 .run_prompt(
                     PromptRequest::from_content(prompt_cwd, prompt_text)
@@ -851,7 +852,7 @@ pub(crate) async fn do_stream_request_acp(
             return Err(err);
         }
 
-        let now = acp_storage::iso_now();
+        let now = vw_acp::iso_now();
         if let Some(profile) = launch_profile.as_ref()
             && profile.model_api.as_ref().is_some_and(|api| match acp_agent_name.as_str() {
                 "codex" | "claude" => {
@@ -878,7 +879,7 @@ pub(crate) async fn do_stream_request_acp(
                         && super::controls::is_managed_effort_config(&acp_agent_name, option)
                 })
                 .collect();
-            acp_access_policy::session_mode_preference::sync_config_options(&mut record, Some(effort));
+            vw_acp::sync_config_options(&mut record, Some(effort));
         }
         record.last_used_at = now.clone();
         record.last_prompt_at = Some(now);
@@ -993,7 +994,7 @@ fn is_usable_copilot_token(value: &str) -> bool {
 
 /// Validate advertised choices before requesting a mode, including permissive peers.
 async fn apply_default_mode(
-    client: &acp_client::AcpClient,
+    client: &vw_acp::AcpClient,
     session_id: &str,
     cwd: &std::path::Path,
     mode: String,

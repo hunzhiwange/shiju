@@ -109,8 +109,8 @@ pub(super) async fn read_acp(
         .await
         .map_err(|error| {
             access_error(match error {
-                acp_server::server::BackendError::NotFound(_) => StatusCode::NOT_FOUND,
-                acp_server::server::BackendError::OwnershipMismatch(_) => StatusCode::FORBIDDEN,
+                vw_acp::server::BackendError::NotFound(_) => StatusCode::NOT_FOUND,
+                vw_acp::server::BackendError::OwnershipMismatch(_) => StatusCode::FORBIDDEN,
                 _ => StatusCode::SERVICE_UNAVAILABLE,
             })
         })?;

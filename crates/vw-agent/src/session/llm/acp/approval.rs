@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use tokio_util::sync::CancellationToken;
-use acp_host_io::permissions::PermissionConfirmation;
+use vw_acp::PermissionConfirmation;
 
 use crate::agent::loop_::approval::await_non_cli_approval_decision;
 use crate::approval::{

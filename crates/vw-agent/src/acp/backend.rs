@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use agent_client_protocol::McpServer;
 use async_trait::async_trait;
 use serde_json::{Value, json};
-use acp_server::server::{
+use vw_acp::server::{
     BackendCancelHandle, BackendError, BackendEvent, BackendHistoryEntry, BackendPrompt,
     BackendRole, BackendSession, BackendTermination, BackendToolStatus, PromptContent,
     SessionBackend,
@@ -36,7 +36,7 @@ struct BoundSession {
     scope: SessionScope,
     tools: SessionToolset,
     skills: super::mounts::SessionSkillSources,
-    revision: acp_types::SessionMountRevision,
+    revision: vw_acp::SessionMountRevision,
     operation: Arc<tokio::sync::Mutex<()>>,
     model: Arc<tokio::sync::Mutex<String>>,
 }
@@ -63,7 +63,7 @@ impl VibeWindowBackend {
         scope: SessionScope,
         tools: SessionToolset,
         skills: super::mounts::SessionSkillSources,
-        revision: acp_types::SessionMountRevision,
+        revision: vw_acp::SessionMountRevision,
         stored_model: String,
     ) -> Result<(), BackendError> {
         let mut sessions = self.sessions.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -636,8 +636,8 @@ impl SessionBackend for VibeWindowBackend {
 
     async fn set_session_mounts(
         &self,
-        request: acp_types::SetSessionMountsRequest,
-    ) -> Result<acp_types::SetSessionMountsResponse, BackendError> {
+        request: vw_acp::SetSessionMountsRequest,
+    ) -> Result<vw_acp::SetSessionMountsResponse, BackendError> {
         let id = request.session_id.to_string();
         let bound = self.bound_session(&id)?;
         let operation = bound.operation.clone();
@@ -660,8 +660,8 @@ impl SessionBackend for VibeWindowBackend {
         let mut prepared = super::mounts::prepare_revision(
             &bound.scope,
             &id,
-            acp_server::server::BackendMountRequest {
-                skills: Some(acp_types::SessionMountSelection { version: 1, skills: request.skills }),
+            vw_acp::server::BackendMountRequest {
+                skills: Some(vw_acp::SessionMountSelection { version: 1, skills: request.skills }),
                 mcp_servers: request.mcp_servers,
             },
             &[],
@@ -694,8 +694,8 @@ impl SessionBackend for VibeWindowBackend {
     async fn create_session_with_mounts(
         &self,
         cwd: PathBuf,
-        request: acp_server::server::BackendMountRequest,
-    ) -> Result<acp_server::server::BackendMountedSession, BackendError> {
+        request: vw_acp::server::BackendMountRequest,
+    ) -> Result<vw_acp::server::BackendMountedSession, BackendError> {
         let scope = self.scope(cwd)?;
         let snapshot = create_session(CreateSessionInput {
             scope: scope.clone(),
@@ -717,15 +717,15 @@ impl SessionBackend for VibeWindowBackend {
             prepared.response.revision,
             stored_model,
         )?;
-        Ok(acp_server::server::BackendMountedSession { session, mounts: prepared.response })
+        Ok(vw_acp::server::BackendMountedSession { session, mounts: prepared.response })
     }
 
     async fn load_session_with_mounts(
         &self,
         session_id: &str,
         cwd: PathBuf,
-        request: acp_server::server::BackendMountRequest,
-    ) -> Result<acp_server::server::BackendMountedSession, BackendError> {
+        request: vw_acp::server::BackendMountRequest,
+    ) -> Result<vw_acp::server::BackendMountedSession, BackendError> {
         let scope = self.scope(cwd)?;
         let existing = self.bound_session(session_id).ok();
         let _operation = existing
@@ -737,7 +737,7 @@ impl SessionBackend for VibeWindowBackend {
         let record = super::mount_store::load(&scope, session_id).await?;
         let restoring = request.skills.is_none();
         let previous_revision =
-            record.as_ref().map(|r| r.revision).unwrap_or(acp_types::SessionMountRevision(0));
+            record.as_ref().map(|r| r.revision).unwrap_or(vw_acp::SessionMountRevision(0));
         let revision = if !restoring && record.is_some() {
             previous_revision
                 .next(previous_revision)
@@ -781,7 +781,7 @@ impl SessionBackend for VibeWindowBackend {
             revision,
             stored_model,
         )?;
-        Ok(acp_server::server::BackendMountedSession { session, mounts: prepared.response })
+        Ok(vw_acp::server::BackendMountedSession { session, mounts: prepared.response })
     }
 
     async fn session_models(
@@ -818,7 +818,7 @@ impl SessionBackend for VibeWindowBackend {
         Ok(self
             .create_session_with_mounts(
                 cwd,
-                acp_server::server::BackendMountRequest { skills: None, mcp_servers },
+                vw_acp::server::BackendMountRequest { skills: None, mcp_servers },
             )
             .await?
             .session)
@@ -842,7 +842,7 @@ impl SessionBackend for VibeWindowBackend {
             .load_session_with_mounts(
                 session_id,
                 cwd,
-                acp_server::server::BackendMountRequest { skills: None, mcp_servers },
+                vw_acp::server::BackendMountRequest { skills: None, mcp_servers },
             )
             .await?
             .session)

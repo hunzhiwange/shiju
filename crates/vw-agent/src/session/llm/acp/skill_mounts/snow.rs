@@ -12,7 +12,7 @@ pub(super) fn configure(
     }
     let root = if let Some(view) = view {
         view.0.validate().map_err(super::super::to_api_error)?;
-        acp_agent_registry::verify_reviewed_agent_executable("snow", &config.command)
+        vw_acp::verify_reviewed_agent_executable("snow", &config.command)
             .map_err(super::super::to_api_error)?;
         view.0.root().to_string_lossy().into_owned()
     } else {

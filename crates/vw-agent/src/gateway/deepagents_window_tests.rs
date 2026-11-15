@@ -36,7 +36,7 @@ async fn acp_onboarding_deepagents_desktop_gateway_fixture() {
     let workspace = root.join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
     let entry = std::env::var("SHIJU_DEEPAGENTS_TEST_ENTRY").unwrap();
-    acp_agent_registry::verify_reviewed_agent_executable("deepagents", &entry).unwrap();
+    vw_acp::verify_reviewed_agent_executable("deepagents", &entry).unwrap();
     let endpoint = std::env::var("SHIJU_DEEPAGENTS_TEST_ENDPOINT").unwrap();
     assert!(endpoint.starts_with("http://127.0.0.1:"));
     let model_port = reqwest::Url::parse(&endpoint).unwrap().port().unwrap();

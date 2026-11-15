@@ -10,8 +10,8 @@ use crate::{
 };
 use anyhow::{Result, ensure};
 use std::{path::Path, sync::Arc};
-use acp_server::server::{BackendError, BackendMountRequest};
-use acp_types::{McpCatalogMount, SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
+use vw_acp::server::{BackendError, BackendMountRequest};
+use vw_acp::{McpCatalogMount, SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
 
 /// Audited skill directories owned by one inbound session and retained across tool rounds.
 #[derive(Clone, Default)]
@@ -115,7 +115,7 @@ pub(super) async fn prepare_revision(
     if request.skills.as_ref().is_some_and(|selection| selection.version != 1) {
         return Err(BackendError::InvalidRequest("unsupported session mounts version".into()));
     }
-    let mounts = acp_types::SessionMountSelection::resolve(request.skills.as_ref(), Some(saved));
+    let mounts = vw_acp::SessionMountSelection::resolve(request.skills.as_ref(), Some(saved));
     let config = crate::config::get_project_for_tenant(scope.tenant(), scope.directory())
         .await
         .map_err(|error| BackendError::InvalidRequest(error.to_string()))?;

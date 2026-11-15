@@ -272,7 +272,7 @@ async fn codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and
     use crate::tools::{ToolUseContext, scope_tool_use_context};
     let fixture = Fixture::start().await;
     let root = tempfile::tempdir().unwrap();
-    let mut config = acp_config::load_resolved_config(root.path()).await.unwrap();
+    let mut config = vw_acp::load_resolved_config(root.path()).await.unwrap();
     config.mcp_servers = vec![fixture.server.clone()];
     config.mcp_server_management.clear();
     let context =

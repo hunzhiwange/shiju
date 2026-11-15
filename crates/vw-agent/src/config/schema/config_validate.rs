@@ -315,7 +315,7 @@ pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<
     for (key, value) in agents {
         let official_backend = key
             .strip_prefix("acp-")
-            .filter(|backend| acp_agent_registry::built_in_agent_specs().contains_key(*backend));
+            .filter(|backend| vw_acp::built_in_agent_specs().contains_key(*backend));
         let native = config_agent::builtin_agent_spec(key).is_some();
         if official_backend.is_none() && !native {
             continue;
@@ -346,7 +346,7 @@ pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<
 fn validate_agent_profiles(config: &Config) -> Result<()> {
     use config_agent_profile::{AgentDefault, AgentRuntime};
     use config_agent::builtin_agent_spec;
-    let backends = acp_agent_registry::built_in_agent_specs();
+    let backends = vw_acp::built_in_agent_specs();
     for (key, agent) in &config.agents {
         if key.is_empty()
             || !key.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')

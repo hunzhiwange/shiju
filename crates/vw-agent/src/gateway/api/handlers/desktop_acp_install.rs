@@ -20,7 +20,7 @@ pub(super) async fn install_post(Path(agent): Path<String>) -> Result<Json<Strin
         return Err(ApiError::bad_request("网关正在安装 ACP，请稍后重试"));
     }
     let _guard = InstallGuard;
-    acp_agent_registry::install_builtin_agent(&agent).await.map_err(ApiError::bad_request)?;
+    vw_acp::install_builtin_agent(&agent).await.map_err(ApiError::bad_request)?;
     Ok(Json(format!("{agent} 安装完成，请测试连接；首次使用可能需要登录")))
 }
 

@@ -10,7 +10,7 @@ use crate::app::agent::tools::Tool;
 use crate::session::runtime::SessionToolset;
 use crate::tools::catalog::ToolCatalogSnapshot;
 use crate::tools::mcp_common::server_name;
-use acp_server::server::BackendError;
+use vw_acp::server::BackendError;
 
 fn supported_server_name(server: &McpServer) -> Result<&str, BackendError> {
     let name = match server {
@@ -60,7 +60,7 @@ pub(crate) async fn prepare_session_tools(
         let discovered = connections
             .discover_catalog_tools(
                 server,
-                acp_config::McpServerManagement::default_for_server(server_name(server)),
+                vw_acp::McpServerManagement::default_for_server(server_name(server)),
                 &reserved,
             )
             .await

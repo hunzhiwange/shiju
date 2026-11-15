@@ -12,15 +12,6 @@ autotests = false
 doctest = false
 
 [dependencies]
-acp-types = { path = "../libs/acp-types", version = "0.6.0" }
-acp-storage = { path = "../libs/acp-storage", version = "0.6.0" }
-acp-server = { path = "../libs/acp-server", version = "0.6.0" }
-acp-lifecycle = { path = "../libs/acp-lifecycle", version = "0.6.0" }
-acp-host-io = { path = "../libs/acp-host-io", version = "0.6.0" }
-acp-config = { path = "../libs/acp-config", version = "0.6.0" }
-acp-cli-model = { path = "../libs/acp-cli-model", version = "0.6.0" }
-acp-agent-registry = { path = "../libs/acp-agent-registry", version = "0.6.0" }
-acp-access-policy = { path = "../libs/acp-access-policy", version = "0.6.0" }
 config-agent = { path = "../libs/config-agent", version = "0.6.0" }
 model-reasoning = { path = "../libs/model-reasoning", version = "0.6.0" }
 gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.6.0" }
@@ -172,6 +163,7 @@ vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
 vw-agent-apps = { path = "../vw-agent-apps", version = "0.6.0" }
 vw-api-types = { path = "../vw-api-types", version = "0.6.0" }
+vw-acp = { path = "../vw-acp", version = "0.6.0" }
 vw-shared = { path = "../vw-shared", version = "0.6.0", features = ["shell-tokio"] }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 

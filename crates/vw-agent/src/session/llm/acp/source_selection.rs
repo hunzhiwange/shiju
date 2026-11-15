@@ -16,7 +16,7 @@ pub(crate) async fn select(
         return Err("changing a session model requires a new session".into());
     }
     let config = crate::config::get_current().await.map_err(|e| e.to_string())?;
-    if acp_agent_registry::resolve_agent_spec(&update.agent).is_none()
+    if vw_acp::resolve_agent_spec(&update.agent).is_none()
         && !config.acp.contains_key(&update.agent)
     {
         return Err("Unknown ACP agent".into());

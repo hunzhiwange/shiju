@@ -2,8 +2,8 @@
 use crate::session::runtime::SessionScope;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use acp_server::server::BackendError;
-use acp_types::{McpCatalogMount, SessionMountRevision, SessionSkillMount};
+use vw_acp::server::BackendError;
+use vw_acp::{McpCatalogMount, SessionMountRevision, SessionSkillMount};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

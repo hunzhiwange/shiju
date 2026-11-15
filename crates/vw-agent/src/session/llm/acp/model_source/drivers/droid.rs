@@ -31,7 +31,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             && url.fragment().is_none(),
         "Droid requires an owned loopback relay"
     );
-    acp_agent_registry::verify_reviewed_agent_executable("droid", &profile.config().command)
+    vw_acp::verify_reviewed_agent_executable("droid", &profile.config().command)
         .map_err(anyhow::Error::msg)?;
     // Airgap disables Factory authentication, managed inference, updates and telemetry.
     // Runtime settings take precedence over native user/project model settings.

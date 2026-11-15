@@ -1,11 +1,8 @@
 //! Restart the production backend in independent processes with isolated storage.
 use super::VibeWindowBackend;
-use acp_server::server::{BackendMountRequest, SessionBackend};
-use acp_types::{
-    SessionMountRevision,
-    SessionMountSelection,
-    SessionSkillMount,
-    SetSessionMountsRequest,
+use vw_acp::server::{BackendMountRequest, SessionBackend};
+use vw_acp::{
+    SessionMountRevision, SessionMountSelection, SessionSkillMount, SetSessionMountsRequest,
 };
 
 fn request(source: &std::path::Path) -> BackendMountRequest {

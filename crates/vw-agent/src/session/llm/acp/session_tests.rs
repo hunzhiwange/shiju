@@ -5,11 +5,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use tokio::sync::{Mutex, watch};
-use acp_types::{
-    AcpSessionOptions,
-    AuthPolicy,
-    DEFAULT_EVENT_MAX_SEGMENTS,
-    NonInteractivePermissionPolicy,
+use vw_acp::{
+    AcpSessionOptions, AuthPolicy, DEFAULT_EVENT_MAX_SEGMENTS, NonInteractivePermissionPolicy,
     PermissionMode,
 };
 
@@ -437,8 +434,8 @@ for line in sys.stdin:
     client
         .client
         .run_prompt(
-            acp_types::PromptRequest::new(temp.path().to_path_buf(), prompt)
-                .with_session_strategy(acp_types::SessionStrategy::Load(session.session_id)),
+            vw_acp::PromptRequest::new(temp.path().to_path_buf(), prompt)
+                .with_session_strategy(vw_acp::SessionStrategy::Load(session.session_id)),
             &mut |_| {},
         )
         .await
@@ -504,7 +501,7 @@ fn acp_skill_mount_outbound_cache_tracks_content_and_client_retains_view() {
     let source = directory.join("SKILL.md");
     std::fs::write(&source, "---\nname: selected\ndescription: fixture\n---\nfirst\n").unwrap();
     let mut options = ParsedAcpOptions {
-        skill_mounts: vec![acp_types::SessionSkillMount {
+        skill_mounts: vec![vw_acp::SessionSkillMount {
             name: "selected".into(),
             path: directory.to_str().unwrap().into(),
         }],

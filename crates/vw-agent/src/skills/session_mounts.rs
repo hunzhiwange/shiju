@@ -8,7 +8,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
 };
-use acp_types::SessionSkillMount;
+use vw_acp::SessionSkillMount;
 use config_skills::SkillSecurityConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

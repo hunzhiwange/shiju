@@ -1,8 +1,7 @@
 //! Read committed ACP catalog references after checking the exact session scope.
 
 use serde::Serialize;
-use acp_types::{McpCatalogMount, SessionMountRevision};
-use acp_server::server::BackendError;
+use vw_acp::{McpCatalogMount, SessionMountRevision, server::BackendError};
 use {
     vw_api_transport::ProjectScope,
     vw_api_types::mcp_management::McpCatalogScope,

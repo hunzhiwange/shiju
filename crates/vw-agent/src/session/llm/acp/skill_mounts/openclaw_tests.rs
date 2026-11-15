@@ -24,7 +24,7 @@ fn acp_skill_mount_openclaw_unreviewed_executable_cannot_receive_mounts() {
     std::fs::write(source.join("SKILL.md"), "---\nname: example\ndescription: fixture\n---\nBODY")
         .unwrap();
     let view = super::super::MountedSkills::prepare(
-        &[acp_types::SessionSkillMount {
+        &[vw_acp::SessionSkillMount {
             name: "example".into(),
             path: source.to_string_lossy().into(),
         }],

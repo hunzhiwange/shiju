@@ -3,8 +3,7 @@
 use std::collections::HashSet;
 
 use agent_client_protocol::McpServer;
-use acp_types::McpCatalogMount;
-use acp_server::server::BackendError;
+use vw_acp::{McpCatalogMount, server::BackendError};
 #[cfg(not(target_arch = "wasm32"))]
 use vw_api_transport::ProjectScope;
 use {

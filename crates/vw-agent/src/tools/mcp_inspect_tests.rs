@@ -6,16 +6,16 @@ use agent_client_protocol::{McpServer, McpServerHttp, McpServerSse, McpServerStd
 use serde_json::json;
 use std::collections::HashMap;
 
-fn resolved_config(servers: Vec<McpServer>) -> acp_config::ResolvedAcpxConfig {
-    acp_config::ResolvedAcpxConfig {
+fn resolved_config(servers: Vec<McpServer>) -> vw_acp::ResolvedAcpxConfig {
+    vw_acp::ResolvedAcpxConfig {
         default_agent: "main".to_string(),
-        default_permissions: acp_types::PermissionMode::ApproveAll,
-        non_interactive_permissions: acp_types::NonInteractivePermissionPolicy::Deny,
-        auth_policy: acp_types::AuthPolicy::Skip,
+        default_permissions: vw_acp::PermissionMode::ApproveAll,
+        non_interactive_permissions: vw_acp::NonInteractivePermissionPolicy::Deny,
+        auth_policy: vw_acp::AuthPolicy::Skip,
         ttl_ms: 300_000,
         timeout_ms: None,
         queue_max_depth: 16,
-        format: acp_types::OutputFormat::Text,
+        format: vw_acp::OutputFormat::Text,
         agents: HashMap::new(),
         auth: HashMap::new(),
         disable_exec: false,
@@ -44,7 +44,7 @@ async fn inspect_disabled_servers_preserves_management_and_transport_metadata() 
     ];
     let mut config = resolved_config(servers);
     config.mcp_server_management = vec![
-        acp_config::McpServerManagement {
+        vw_acp::McpServerManagement {
             name: "docs".to_string(),
             enabled: false,
             required: true,
@@ -52,15 +52,15 @@ async fn inspect_disabled_servers_preserves_management_and_transport_metadata() 
             allowed_tools: vec!["search".to_string()],
             denied_tools: vec!["delete".to_string()],
         },
-        acp_config::McpServerManagement {
+        vw_acp::McpServerManagement {
             name: "events".to_string(),
             enabled: false,
-            ..acp_config::McpServerManagement::default_for_server("events")
+            ..vw_acp::McpServerManagement::default_for_server("events")
         },
-        acp_config::McpServerManagement {
+        vw_acp::McpServerManagement {
             name: "local".to_string(),
             enabled: false,
-            ..acp_config::McpServerManagement::default_for_server("local")
+            ..vw_acp::McpServerManagement::default_for_server("local")
         },
     ];
 

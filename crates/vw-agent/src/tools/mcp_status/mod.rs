@@ -129,7 +129,7 @@ impl Tool for McpStatusTool {
 
 async fn inspect_server(
     server: &agent_client_protocol::McpServer,
-    management: &acp_config::McpServerManagement,
+    management: &vw_acp::McpServerManagement,
 ) -> anyhow::Result<usize> {
     with_server_client_timeout(server, management_timeout(management), |client| {
         Box::pin(async move {

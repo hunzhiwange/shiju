@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use agent_client_protocol::{ModelInfo, SessionModelState};
 use sha2::{Digest, Sha256};
-use acp_server::server::BackendError;
+use vw_acp::server::BackendError;
 
 use crate::provider::provider;
 use crate::session::runtime::SessionScope;

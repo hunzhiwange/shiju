@@ -945,7 +945,7 @@ impl Drop for AcpProbeGuard {
 
 async fn acp_diagnostic_post(
     Path(id): Path<String>,
-    Json(config): Json<acp_types::AcpAgentConfig>,
+    Json(config): Json<vw_acp::AcpAgentConfig>,
 ) -> Result<Json<String>, ApiError> {
     if id.len() > 128 || config.command.trim().is_empty() {
         return Err(ApiError::bad_request("invalid ACP diagnostic request"));

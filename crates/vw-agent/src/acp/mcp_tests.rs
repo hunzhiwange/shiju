@@ -3,7 +3,7 @@
 
 use agent_client_protocol::{EnvVariable, McpServer, McpServerStdio};
 use tempfile::TempDir;
-use acp_server::server::SessionBackend;
+use vw_acp::server::SessionBackend;
 use vw_api_transport::id::TenantScope;
 
 use super::backend::VibeWindowBackend;

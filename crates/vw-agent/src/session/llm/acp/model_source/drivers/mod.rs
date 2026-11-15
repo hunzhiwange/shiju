@@ -98,7 +98,7 @@ pub(in crate::session::llm::acp) fn capabilities(
     let verified = cfg!(all(target_os = "macos", target_arch = "aarch64"))
         && verified_release(agent).is_some()
         && (!patched
-            || acp_agent_registry::reviewed_agent_command(agent).is_ok_and(|command| command.is_some()));
+            || vw_acp::reviewed_agent_command(agent).is_ok_and(|command| command.is_some()));
     vec![
         if verified {
             Capability::Supported { source: Source::SessionModel }

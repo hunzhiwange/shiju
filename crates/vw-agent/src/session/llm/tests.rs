@@ -10,7 +10,7 @@ use super::acp::{
     missing_session_error, normalize_acp_agent_config, parse_acp_options, parse_replay_strategy,
 };
 use serde_json::json;
-use acp_types::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
+use vw_acp::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
 
 use crate::app::agent::config;
 use crate::app::agent::provider::provider;
@@ -266,7 +266,7 @@ fn normalize_acp_agent_config_rewrites_legacy_claude_code_package() {
         },
     );
     let expected =
-        acp_agent_registry::resolve_agent_spec("Claude Code").expect("built-in Claude Code spec should exist");
+        vw_acp::resolve_agent_spec("Claude Code").expect("built-in Claude Code spec should exist");
 
     assert_eq!(normalized.command, expected.command);
     assert_eq!(normalized.args, expected.args);

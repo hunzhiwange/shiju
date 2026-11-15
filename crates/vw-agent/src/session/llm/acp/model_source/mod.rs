@@ -43,7 +43,7 @@ pub(super) async fn prepare(
     // Claude verifies its native engine when spawning, so reused sessions do
     // not hash the same running executable on every turn.
     if agent != "claude" {
-        acp_agent_registry::verify_reviewed_agent_executable(agent, &config.command)
+        vw_acp::verify_reviewed_agent_executable(agent, &config.command)
             .map_err(anyhow::Error::msg)?;
     }
     let identity = launch_identity(context.project.id.clone(), agent, model, session);

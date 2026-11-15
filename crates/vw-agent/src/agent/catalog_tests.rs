@@ -24,7 +24,7 @@ fn agent_catalog_covers_thirty_unique_backends() {
             .count(),
         6
     );
-    for backend in acp_agent_registry::built_in_agent_specs().keys() {
+    for backend in vw_acp::built_in_agent_specs().keys() {
         let entry = &catalog[&format!("acp-{backend}")];
         assert!(entry.builtin);
         assert!(!entry.recommended_prompts.is_empty());

@@ -15,7 +15,7 @@ fn acp_skill_mount_claude_creates_manifest_over_selected_view_only() {
     )
     .unwrap();
     let view = super::super::MountedSkills::prepare(
-        &[acp_types::SessionSkillMount {
+        &[vw_acp::SessionSkillMount {
             name: "example".into(),
             path: source.to_string_lossy().into(),
         }],

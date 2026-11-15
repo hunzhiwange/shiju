@@ -39,7 +39,7 @@ async fn merged_global_acp_config() -> HashMap<String, config::schema::AcpAgentC
         .map(|(name, spec)| {
             (
                 name.clone(),
-                acp_agent_registry::AgentCommandSpec {
+                vw_acp::AgentCommandSpec {
                     display_name: name.trim().to_string(),
                     command: spec.command.trim().to_string(),
                     args: spec.args.clone(),
@@ -49,7 +49,7 @@ async fn merged_global_acp_config() -> HashMap<String, config::schema::AcpAgentC
         })
         .collect::<HashMap<_, _>>();
 
-    acp_agent_registry::merge_agent_specs(Some(&overrides))
+    vw_acp::merge_agent_specs(Some(&overrides))
         .into_iter()
         .map(|(name, spec)| {
             (
@@ -153,7 +153,7 @@ async fn global_config_get(
 }
 
 async fn global_config_acp_defaults_get() -> Json<Value> {
-    Json(serde_json::to_value(acp_agent_registry::built_in_agent_specs()).expect("serializable ACP defaults"))
+    Json(serde_json::to_value(vw_acp::built_in_agent_specs()).expect("serializable ACP defaults"))
 }
 
 async fn global_config_acp_get() -> Json<Value> {

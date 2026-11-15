@@ -24,7 +24,7 @@ fn acp_skill_mount_copilot_unreviewed_executable_is_rejected_before_environment_
     std::fs::write(source.join("SKILL.md"), "---\nname: example\ndescription: fixture\n---\nBODY")
         .unwrap();
     let view = super::super::MountedSkills::prepare(
-        &[acp_types::SessionSkillMount {
+        &[vw_acp::SessionSkillMount {
             name: "example".into(),
             path: source.to_string_lossy().into(),
         }],

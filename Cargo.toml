@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-app-read",
   "crates/libs/config-voice",
   "crates/libs/runtime-time",
   "crates/libs/api-file",

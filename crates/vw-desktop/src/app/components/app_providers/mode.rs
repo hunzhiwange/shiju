@@ -12,9 +12,9 @@ use iced::{
     Element, Length,
     widget::{button, column, row, text},
 };
-use vw_gateway_client::vw_api_types::app_providers::mode_state::{
-    ProviderMode, ProviderModeStatus, RouteRuntimeStatus,
-};
+use vw_api_app_provider_environment::mode_state::ProviderMode;
+use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
+use vw_api_app_provider_environment::mode_state::RouteRuntimeStatus;
 
 pub(super) fn overlay<'a>(
     state: &'a ListState,

@@ -1,6 +1,6 @@
 use gateway_app_read::AgentAppsReadError as Error;
 use super::{GatewayAppProviderClient, provider_collection_path};
-use vw_api_types::{app_providers::paths::*};
+use vw_api_app_provider_environment::paths::*;
 use vw_api_app_identity::{AppId};
 
 enum Request {

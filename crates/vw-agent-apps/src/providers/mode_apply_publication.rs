@@ -60,7 +60,7 @@ impl ClaudeMode<'_> {
         &mut self,
         project: &ProjectScope,
         expected: &AppState,
-        action: &vw_api_types::app_providers::mode_apply::ModeApplyAction,
+        action: &vw_api_app_provider_environment::mode_apply::ModeApplyAction,
         target: &Value,
         validate: impl Fn() -> bool,
     ) -> Result<bool, ModeApplyError> {
@@ -83,7 +83,7 @@ impl ClaudeMode<'_> {
         {
             return Err(WriteError::Conflict.into());
         }
-        use vw_api_types::app_providers::mode_apply::ModeApplyAction;
+use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
         let provider = match action {
             ModeApplyAction::Proxy { provider_id } => Some(provider_id.as_str()),
             _ => None,

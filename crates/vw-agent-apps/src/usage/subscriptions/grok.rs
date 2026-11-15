@@ -8,25 +8,8 @@ use chrono::{DateTime, NaiveDateTime, SecondsFormat};
 use reqwest::{ClientBuilder, RequestBuilder, header::HeaderValue};
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_app_auth::AuthService,
-    vw_api_types::app_providers::paths::ConfigPathState,
-    vw_api_types::apps_usage::UsageCredentialState,
-    vw_api_types::apps_usage::UsageExtraUsage,
-    vw_api_types::apps_usage::UsageNumber,
-    vw_api_types::apps_usage::UsageQueryData,
-    vw_api_types::apps_usage::UsageQueryError,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageQueryKind,
-    vw_api_types::apps_usage::UsageQueryOutcome,
-    vw_api_types::apps_usage::UsageQueryResult,
-    vw_api_types::apps_usage::UsageQuotaWindow,
-    vw_api_types::apps_usage::UsageSource,
-    vw_api_types::apps_usage::UsageSubscription,
-    vw_api_types::apps_usage::UsageWallet,
-};
+use {vw_api_transport::TimestampMs, vw_api_app_auth::AuthErrorCode, vw_api_app_auth::AuthService, vw_api_types::apps_usage::UsageCredentialState, vw_api_types::apps_usage::UsageExtraUsage, vw_api_types::apps_usage::UsageNumber, vw_api_types::apps_usage::UsageQueryData, vw_api_types::apps_usage::UsageQueryError, vw_api_types::apps_usage::UsageQueryErrorCode, vw_api_types::apps_usage::UsageQueryKind, vw_api_types::apps_usage::UsageQueryOutcome, vw_api_types::apps_usage::UsageQueryResult, vw_api_types::apps_usage::UsageQuotaWindow, vw_api_types::apps_usage::UsageSource, vw_api_types::apps_usage::UsageSubscription, vw_api_types::apps_usage::UsageWallet};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 use crate::{
     auth::{credential_file::CredentialFileStore, xai_refresh::XaiRefresh},

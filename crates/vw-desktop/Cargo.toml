@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+vw-api-app-provider-environment = { path = "../libs/api-app-provider-environment", version = "0.6.0" }
 gateway-app-routing = { path = "../libs/gateway-app-routing", version = "0.6.0" }
 vw-api-app-provider-edit = { path = "../libs/api-app-provider-edit", version = "0.6.0" }
 vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended", version = "0.6.0" }

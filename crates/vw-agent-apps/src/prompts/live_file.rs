@@ -4,10 +4,8 @@
 use std::{collections::BTreeMap, io::Read, os::unix::fs::MetadataExt, path::Path};
 
 use sha2::{Digest, Sha256};
-use vw_api_types::{
-    agent_apps::{AppId, PromptContentSnapshot, PromptResource, PromptRevision, PromptTargetPreview},
-    app_providers::paths::ConfigPathState,
-};
+use vw_api_types::{agent_apps::{AppId, PromptContentSnapshot, PromptResource, PromptRevision, PromptTargetPreview}};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 use crate::providers::paths;
 use super::targets;

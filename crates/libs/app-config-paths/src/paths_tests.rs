@@ -1,7 +1,7 @@
 #![cfg(target_os = "macos")]
 use super::paths::*;
 use std::collections::BTreeMap;
-use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 #[test]
 fn cc04_paths_resolves_macos_override() {

@@ -126,7 +126,7 @@ fn read_first(
 #[cfg(target_os = "macos")]
 pub(super) fn read_candidate(home: &Path, path: &Path) -> Result<Option<Vec<u8>>, OmoReadError> {
     use std::io::Read;
-    use vw_api_types::app_providers::paths::ConfigPathState;
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
     const MAX_BYTES: u64 = 1024 * 1024;
     let file = match paths::open_beneath(home, path, false) {

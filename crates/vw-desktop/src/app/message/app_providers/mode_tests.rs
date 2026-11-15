@@ -1,10 +1,9 @@
 use crate::app::state::app_providers::mode::{Form, Operation, Outcome};
-use vw_gateway_client::{
-    AgentAppsReadError,
-    vw_api_types::app_providers::mode_state::{
-        ProviderMode, ProviderModeStatus, RouteRuntimeStatus, StackStatus,
-    },
-};
+use vw_gateway_client::{AgentAppsReadError};
+use vw_api_app_provider_environment::mode_state::ProviderMode;
+use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
+use vw_api_app_provider_environment::mode_state::RouteRuntimeStatus;
+use vw_api_app_provider_environment::mode_state::StackStatus;
 
 fn status(mode: ProviderMode) -> ProviderModeStatus {
     ProviderModeStatus {

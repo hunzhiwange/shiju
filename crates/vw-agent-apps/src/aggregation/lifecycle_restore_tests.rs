@@ -100,7 +100,7 @@ impl Fixture {
     fn attach(
         &mut self,
         fail: bool,
-    ) -> Result<vw_api_types::app_providers::mode_apply::ModeApplyResult, ModeApplyError> {
+    ) -> Result<vw_api_app_provider_environment::mode_apply::ModeApplyResult, ModeApplyError> {
         let record = json!({"name":"Alpha","settingsConfig":{"env":{"ANTHROPIC_MODEL":"model"}}});
         let providers = [Provider {
             id: "alpha",

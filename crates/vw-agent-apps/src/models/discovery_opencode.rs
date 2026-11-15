@@ -1,7 +1,7 @@
 //! Read the authorized execution host's OpenCode runtime catalog.
 
 use std::{collections::BTreeSet, future::Future, path::Path};
-use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 
 use super::discovery_process;

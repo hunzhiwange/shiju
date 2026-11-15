@@ -1,4 +1,4 @@
-use vw_api_types::{app_providers::mode_apply::*};
+use vw_api_app_provider_environment::mode_apply::*;
 use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_mode_apply_sdk_sends_typed_operation_and_discards_error_payload() {

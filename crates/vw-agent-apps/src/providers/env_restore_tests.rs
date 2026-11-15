@@ -4,7 +4,8 @@ use super::{
     env_restore::restore,
 };
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{app_providers::env_diagnose::*, app_providers::env_restore::*};
+use vw_api_app_provider_environment::env_diagnose::*;
+use vw_api_app_provider_environment::env_restore::*;
 use vw_api_app_identity::{AppId};
 struct Fixture {
     home: tempfile::TempDir,

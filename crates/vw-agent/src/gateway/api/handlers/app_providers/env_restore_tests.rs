@@ -36,13 +36,10 @@ mod execution {
     use axum::{Router, middleware};
     use sha2::{Digest, Sha256};
     use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-    use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::env_clean::*,
-    vw_api_types::app_providers::env_diagnose::*,
-    vw_api_types::app_providers::env_restore::*,
-    vw_api_transport::id::TenantScope,
-};
+    use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::env_clean::*;
+use vw_api_app_provider_environment::env_diagnose::*;
+use vw_api_app_provider_environment::env_restore::*;
     use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
     const TOKEN: &str = "fixture-config-cleaner-token-over-32-chars";
     fn policy(home: &Path, private: &Path) -> std::path::PathBuf {

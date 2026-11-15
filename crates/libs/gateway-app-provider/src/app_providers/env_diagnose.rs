@@ -5,10 +5,10 @@ impl GatewayAppProviderClient {
     pub async fn provider_env_diagnose(
         &self,
         app: AppId,
-        request_body: &vw_api_types::app_providers::env_diagnose::EnvDiagnoseRequest,
+        request_body: &vw_api_app_provider_environment::env_diagnose::EnvDiagnoseRequest,
         token: &str,
     ) -> Result<
-        vw_api_types::app_providers::env_diagnose::EnvDiagnosis,
+        vw_api_app_provider_environment::env_diagnose::EnvDiagnosis,
         gateway_app_read::AgentAppsReadError,
     > {
         use gateway_app_read::AgentAppsReadError as Error;

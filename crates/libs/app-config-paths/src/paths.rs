@@ -3,10 +3,10 @@ use std::{
     collections::BTreeMap,
     path::{Component, Path, PathBuf},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::paths::{ConfigPathState, ConfigPathStatus, ProviderPaths},
-};
+use vw_api_types::{agent_apps::AppId};
+use vw_api_app_provider_environment::paths::ConfigPathState;
+use vw_api_app_provider_environment::paths::ConfigPathStatus;
+use vw_api_app_provider_environment::paths::ProviderPaths;
 
 use vw_api_app_identity::{AppId};
 /// Capture only the execution process's relevant environment, never request-supplied values.

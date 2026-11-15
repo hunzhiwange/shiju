@@ -1,10 +1,7 @@
 //! Failover admission from a settled, authorized mode snapshot.
 use crate::providers::{live::commit::AppState, mode_state::observe};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_state::ProviderMode,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::mode_state::ProviderMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailoverError {

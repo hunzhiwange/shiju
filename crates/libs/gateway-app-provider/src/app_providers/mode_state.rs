@@ -1,7 +1,7 @@
 //! Mode status and decisions never expose the saved client configuration.
 use gateway_app_read::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::{app_providers::mode_state::*};
+use vw_api_app_provider_environment::mode_state::*;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn provider_mode_state(

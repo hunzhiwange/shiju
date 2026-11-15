@@ -5,10 +5,8 @@ use crate::app::{
     state::app_providers::{list::Scope, paths::Form},
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{agent_apps::AppId, app_providers::paths::*},
-};
+use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::{agent_apps::AppId}};
+use vw_api_app_provider_environment::paths::*;
 
 #[derive(Clone, Debug)]
 pub enum Event {

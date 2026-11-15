@@ -7,16 +7,12 @@ use crate::app::{
     },
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{
-            mode_apply::{ModeApplyAction, ModeApplyRequest, TargetPublication},
-            mode_state::{ModeStateQuery, ProviderMode},
-        },
-    },
-};
+use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::{agent_apps::AppId}};
+use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
+use vw_api_app_provider_environment::mode_apply::ModeApplyRequest;
+use vw_api_app_provider_environment::mode_apply::TargetPublication;
+use vw_api_app_provider_environment::mode_state::ModeStateQuery;
+use vw_api_app_provider_environment::mode_state::ProviderMode;
 
 use crate::app::state::app_providers::mode::Outcome;
 

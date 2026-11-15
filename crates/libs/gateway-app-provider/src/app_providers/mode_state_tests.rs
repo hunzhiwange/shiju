@@ -1,4 +1,4 @@
-use vw_api_types::{app_providers::mode_state::*};
+use vw_api_app_provider_environment::mode_state::*;
 use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_mode_state_sdk_scopes_query_and_discards_sensitive_error() {

@@ -1,6 +1,6 @@
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::{app_providers::paths::*};
+use vw_api_app_provider_environment::paths::*;
 use vw_api_app_identity::{AppId};
 
 

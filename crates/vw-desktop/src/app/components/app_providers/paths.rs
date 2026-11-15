@@ -9,7 +9,7 @@ use iced::{
     Element, Length,
     widget::{button, column, row, text, text_input},
 };
-use vw_gateway_client::vw_api_types::app_providers::paths::ConfigPathState;
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 pub(super) fn overlay<'a>(
     form: &'a Form,

@@ -1,9 +1,6 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::env_restore::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::env_restore::*;
 #[tokio::test]
 async fn cc04_env_restore_sdk_encodes_backup_ids_and_redacts_denial() {
     let server = test_support::server_with_tenant_scope(

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use vw_agent_apps::project_profiles::snapshot::{SnapshotReadFailure, SnapshotScope};
-use vw_api_types::app_providers::mode_state::ProviderModeStatus;
+use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
 use vw_api_types::project_profiles::ProjectProfileSkillRef;
 use {
     vw_api_transport::id::ProjectScope,

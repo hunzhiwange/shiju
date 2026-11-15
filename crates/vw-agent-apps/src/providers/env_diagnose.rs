@@ -1,6 +1,6 @@
 //! macOS environment diagnostics. No shell execution, ambient HOME or value disclosure.
 use std::path::Path;
-use vw_api_types::{app_providers::env_diagnose::EnvDiagnosis};
+use vw_api_app_provider_environment::env_diagnose::EnvDiagnosis;
 use vw_api_app_identity::{AppId};
 
 pub fn diagnose(home: &Path, app: AppId) -> Result<EnvDiagnosis, &'static str> {
@@ -31,7 +31,7 @@ pub(super) mod macos {
             unix::fs::OpenOptionsExt,
         },
     };
-    use vw_api_types::app_providers::env_diagnose::*;
+use vw_api_app_provider_environment::env_diagnose::*;
 
     const MAX_SOURCE: u64 = 1024 * 1024;
     const MAX_ENTRIES: usize = 4096;

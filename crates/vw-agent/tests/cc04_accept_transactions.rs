@@ -15,7 +15,7 @@ use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::claude::*;
 use vw_api_app_provider_profiles::codex_catalog::*;
 use vw_api_app_provider_edit::editor_merge::*;
-use vw_api_types::app_providers::mode_state::*;
+use vw_api_app_provider_environment::mode_state::*;
 use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 

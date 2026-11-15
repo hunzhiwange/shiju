@@ -1,10 +1,7 @@
-use vw_gateway_client::{
-    AgentAppsReadError,
-    vw_api_types::app_providers::{
-        mode_apply::ModeApplyResult,
-        mode_state::{ProviderMode, ProviderModeStatus},
-    },
-};
+use vw_gateway_client::{AgentAppsReadError};
+use vw_api_app_provider_environment::mode_apply::ModeApplyResult;
+use vw_api_app_provider_environment::mode_state::ProviderMode;
+use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
 
 pub(crate) const SCROLL_ID: &str = "provider-mode-scroll";
 

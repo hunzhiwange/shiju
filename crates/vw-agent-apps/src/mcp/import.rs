@@ -2,14 +2,8 @@
 
 use std::{collections::BTreeMap, path::Path};
 
-use {
-    vw_api_transport::TenantScope,
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::paths::ConfigPathState,
-    vw_api_types::mcp_management::McpAppTarget,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpFailureCode,
-};
+use {vw_api_transport::TenantScope, vw_api_app_identity::AppId, vw_api_types::mcp_management::McpAppTarget, vw_api_types::mcp_management::McpConnectionDefinition, vw_api_types::mcp_management::McpFailureCode};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 use super::adapters::{
     agy, claude, codex, dsh, gemini, grokbuild, hermes, kimi, mcode, omp, opencode, pi,

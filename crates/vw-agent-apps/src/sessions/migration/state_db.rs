@@ -234,7 +234,7 @@ fn write_error(error: WriteError) -> io::Error {
 }
 
 fn open(path: &Path, directory: bool) -> io::Result<File> {
-    use vw_api_types::app_providers::paths::ConfigPathState;
+use vw_api_app_provider_environment::paths::ConfigPathState;
     open_beneath(Path::new("/"), path, directory).map_err(|state| match state {
         ConfigPathState::Absent => {
             io::Error::new(io::ErrorKind::NotFound, "Codex state source absent")

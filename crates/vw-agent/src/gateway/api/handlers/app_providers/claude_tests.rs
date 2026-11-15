@@ -101,7 +101,7 @@ impl Fixture {
 
 #[tokio::test]
 async fn cc04_ui_paths_saved_directory_is_used_by_native_activation_and_import() {
-    use vw_api_types::app_providers::paths::*;
+use vw_api_app_provider_environment::paths::*;
     use vw_gateway_client::AgentAppsReadError;
 
     let f = Fixture::new().await;

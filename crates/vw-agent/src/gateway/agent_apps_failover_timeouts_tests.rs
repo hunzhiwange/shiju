@@ -25,7 +25,7 @@ use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
-use vw_api_types::app_providers::mode_apply::ModeApplyAction;
+use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
 use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;
 

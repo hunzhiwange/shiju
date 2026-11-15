@@ -42,7 +42,7 @@ fn cp12_update_apply_rejects_without_side_effects() {
 #[test]
 fn cp12_update_apply_projection_failure_restores_ssot_and_prior_copy() {
     use super::{app_paths::{AppSkillsPath, distribution}, copy_deploy::CopyDeploy};
-    use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_provider_environment::paths::ConfigPathState;
     use vw_api_app_identity::{AppId};
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("ssot");

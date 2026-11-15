@@ -10,11 +10,8 @@ use crate::providers::{
 };
 use serde::Serialize;
 use std::{ffi::OsStr, path::Path};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::paths::ConfigPathState,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 /// The only public configuration projection. No arbitrary fields or values escape.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

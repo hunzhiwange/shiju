@@ -264,7 +264,7 @@ fn execute(
         let attached = observed.attached;
         let mode = if observed.stack.active {
             AggregationMode::Aggregation
-        } else if observed.mode == vw_api_types::app_providers::mode_state::ProviderMode::Proxy {
+        } else if observed.mode == vw_api_app_provider_environment::mode_state::ProviderMode::Proxy {
             AggregationMode::Routing
         } else {
             AggregationMode::Direct

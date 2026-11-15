@@ -7,11 +7,8 @@ use axum::{
     routing::post,
 };
 use std::path::PathBuf;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_apply::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::mode_apply::*;
 
 #[cfg(target_os = "macos")]
 use super::super::app_routing::RoutingControl;

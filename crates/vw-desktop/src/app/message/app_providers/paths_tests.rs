@@ -1,11 +1,7 @@
 use crate::app::state::app_providers::paths::Form;
-use vw_gateway_client::{
-    AgentAppsReadError,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::paths::{ProviderDirectoryStatus, ProviderPaths},
-    },
-};
+use vw_gateway_client::{AgentAppsReadError, vw_api_types::{agent_apps::AppId}};
+use vw_api_app_provider_environment::paths::ProviderDirectoryStatus;
+use vw_api_app_provider_environment::paths::ProviderPaths;
 
 #[test]
 fn cc04_ui_paths_validation_failure_preserves_draft() {

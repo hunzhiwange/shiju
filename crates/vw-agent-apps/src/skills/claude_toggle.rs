@@ -21,11 +21,8 @@ use std::{
     },
     path::Path,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::paths::ConfigPathState,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 /// Returns whether config.json changed. HOME and host must come from trusted
 /// executor dispatch. This marker does not install or authorize any plugin.

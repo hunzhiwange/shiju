@@ -5,10 +5,10 @@ impl GatewayAppProviderClient {
     pub async fn provider_env_restore(
         &self,
         app: AppId,
-        request_body: &vw_api_types::app_providers::env_restore::EnvRestoreRequest,
+        request_body: &vw_api_app_provider_environment::env_restore::EnvRestoreRequest,
         token: &str,
     ) -> Result<
-        vw_api_types::app_providers::env_restore::EnvRestoreResult,
+        vw_api_app_provider_environment::env_restore::EnvRestoreResult,
         gateway_app_read::AgentAppsReadError,
     > {
         use gateway_app_read::AgentAppsReadError as Error;

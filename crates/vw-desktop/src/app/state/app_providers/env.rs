@@ -1,12 +1,11 @@
 use std::collections::BTreeSet;
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        env_clean::{EnvCleanRequest, EnvCleanSelection},
-        env_diagnose::{EnvDiagnostic, EnvSource},
-        env_restore::{EnvRestoreItem, EnvRestoreRequest},
-    },
-};
+use vw_gateway_client::vw_api_types::{agent_apps::AppId};
+use vw_api_app_provider_environment::env_clean::EnvCleanRequest;
+use vw_api_app_provider_environment::env_clean::EnvCleanSelection;
+use vw_api_app_provider_environment::env_diagnose::EnvDiagnostic;
+use vw_api_app_provider_environment::env_diagnose::EnvSource;
+use vw_api_app_provider_environment::env_restore::EnvRestoreItem;
+use vw_api_app_provider_environment::env_restore::EnvRestoreRequest;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {

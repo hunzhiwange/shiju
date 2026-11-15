@@ -1,7 +1,6 @@
-use vw_gateway_client::{
-    AgentAppsReadError,
-    vw_api_types::app_providers::paths::{ProviderDirectoryStatus, ProviderPaths},
-};
+use vw_gateway_client::{AgentAppsReadError};
+use vw_api_app_provider_environment::paths::ProviderDirectoryStatus;
+use vw_api_app_provider_environment::paths::ProviderPaths;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Form {

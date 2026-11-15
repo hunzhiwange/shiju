@@ -1,6 +1,7 @@
 //! Selective shell cleanup owns receipts and private backups on the execution host.
 use std::path::Path;
-use vw_api_types::{app_providers::env_clean::*, app_providers::env_diagnose::EnvDiagnosis};
+use vw_api_app_provider_environment::env_clean::*;
+use vw_api_app_provider_environment::env_diagnose::EnvDiagnosis;
 use vw_api_app_identity::{AppId};
 
 /// Bind receipts to the authorized tenant/host identity, independently of file coordinates.
@@ -45,7 +46,7 @@ pub(super) mod macos {
         sync::{Mutex, OnceLock},
         time::{Duration, Instant},
     };
-    use vw_api_types::app_providers::env_diagnose::*;
+use vw_api_app_provider_environment::env_diagnose::*;
     const UNAVAILABLE: &str = "environment cleanup unavailable";
     const CONFLICT: &str = "environment diagnosis changed";
     #[derive(Clone)]

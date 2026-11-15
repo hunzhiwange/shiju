@@ -79,7 +79,7 @@ impl AggregationPublication {
         if !mode.attached
             || (!mode.stack.active
                 && (!ordinary_desktop
-                    || mode.mode != vw_api_types::app_providers::mode_state::ProviderMode::Proxy
+                    || mode.mode != vw_api_app_provider_environment::mode_state::ProviderMode::Proxy
                     || !self.members.is_empty()
                     || !self.models.is_empty()))
         {

@@ -20,11 +20,10 @@ use vw_agent_apps::providers::{
     mode_apply::{ClaudeMode, RouteScope},
     mode_state::observe,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_high_availability::FailoverQueueScope,
-    app_providers::mode_apply::{ModeApplyAction, ModeApplyResult, TargetPublication},
-};
+use vw_api_types::{agent_apps::AppId, agent_apps_high_availability::FailoverQueueScope};
+use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
+use vw_api_app_provider_environment::mode_apply::ModeApplyResult;
+use vw_api_app_provider_environment::mode_apply::TargetPublication;
 
 use vw_api_app_identity::{AppId};
 /// Executor-only proof. Saved credentials are never projected in observations.

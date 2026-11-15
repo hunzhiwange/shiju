@@ -7,11 +7,8 @@ use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_state::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::mode_state::*;
 fn tenant() -> TenantScope {
     TenantScope::new("p", "c").unwrap()
 }

@@ -1,6 +1,6 @@
 use super::{app_paths::{AppSkillsPath, distribution}, copy_deploy::CopyDeploy};
 use std::fs;
-use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 
 fn fixture() -> (tempfile::TempDir, std::path::PathBuf, AppSkillsPath) {

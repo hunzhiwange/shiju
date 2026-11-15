@@ -1,6 +1,6 @@
 //! Restores only host-bound cleanup backups, preserving subsequent external edits.
 use std::path::Path;
-use vw_api_types::{app_providers::env_restore::*};
+use vw_api_app_provider_environment::env_restore::*;
 use vw_api_app_identity::{AppId};
 pub fn restore(
     home: &Path,

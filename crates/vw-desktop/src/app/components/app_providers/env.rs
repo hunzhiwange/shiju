@@ -11,9 +11,8 @@ use iced::{
     Element, Length,
     widget::{button, checkbox, column, row, text, text_input},
 };
-use vw_gateway_client::vw_api_types::app_providers::{
-    env_diagnose::EnvSource, env_restore::EnvRestoreStatus,
-};
+use vw_api_app_provider_environment::env_diagnose::EnvSource;
+use vw_api_app_provider_environment::env_restore::EnvRestoreStatus;
 
 pub(super) fn overlay<'a>(
     form: &'a Form,

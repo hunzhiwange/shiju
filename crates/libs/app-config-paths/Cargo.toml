@@ -8,9 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-types = { path = "../../vw-api-types" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

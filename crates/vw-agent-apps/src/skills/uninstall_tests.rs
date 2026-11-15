@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fs, path::PathBuf};
 use super::{app_paths::{distribution, AppSkillsPath}, copy_deploy::CopyBinding,
     link_deploy::{prepare_deploy, SyncMethod}, local_install::LocalSkill, uninstall::SkillUninstall};
-use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 
 struct Fixture {

@@ -18,11 +18,8 @@ use std::{
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::paths::ConfigPathState,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::paths::ConfigPathState;
 
 const NAMES: [&str; 2] = ["oh-my-opencode-slim.jsonc", "oh-my-opencode-slim.json"];
 

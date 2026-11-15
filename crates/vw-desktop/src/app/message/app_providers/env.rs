@@ -7,17 +7,14 @@ use crate::app::{
     },
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{
-            env_clean::{EnvCleanRequest, EnvCleanResult},
-            env_diagnose::{EnvDiagnoseRequest, EnvDiagnosis},
-            env_restore::{EnvRestoreRequest, EnvRestoreResult, EnvRestoreStatus},
-        },
-    },
-};
+use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::{agent_apps::AppId}};
+use vw_api_app_provider_environment::env_clean::EnvCleanRequest;
+use vw_api_app_provider_environment::env_clean::EnvCleanResult;
+use vw_api_app_provider_environment::env_diagnose::EnvDiagnoseRequest;
+use vw_api_app_provider_environment::env_diagnose::EnvDiagnosis;
+use vw_api_app_provider_environment::env_restore::EnvRestoreRequest;
+use vw_api_app_provider_environment::env_restore::EnvRestoreResult;
+use vw_api_app_provider_environment::env_restore::EnvRestoreStatus;
 
 #[derive(Clone)]
 pub enum Event {

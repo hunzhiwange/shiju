@@ -1,7 +1,7 @@
 //! Apply an explicit mode operation; responses never expose native configuration.
 use gateway_app_read::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::{app_providers::mode_apply::*};
+use vw_api_app_provider_environment::mode_apply::*;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn provider_mode_apply(

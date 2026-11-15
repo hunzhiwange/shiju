@@ -5,10 +5,10 @@ impl GatewayClient {
     pub async fn provider_env_restore(
         &self,
         app: AppId,
-        request_body: &vw_api_types::app_providers::env_restore::EnvRestoreRequest,
+        request_body: &vw_api_app_provider_environment::env_restore::EnvRestoreRequest,
         token: &str,
     ) -> Result<
-        vw_api_types::app_providers::env_restore::EnvRestoreResult,
+        vw_api_app_provider_environment::env_restore::EnvRestoreResult,
         super::super::agent_apps_read_api::AgentAppsReadError,
     > {
         gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())

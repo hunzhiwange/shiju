@@ -4,11 +4,8 @@ use super::{
     live::{commit::*, write_guard::WriteError},
 };
 use serde_json::Value;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_apply::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::mode_apply::*;
 
 /// Observe the existing mode transaction before any route preparation. Recovery
 /// and configuration writes remain owned by the mode publication path.
@@ -102,7 +99,8 @@ impl ClaudeMode<'_> {
         };
         use serde_json::json;
         use std::ffi::OsStr;
-        use vw_api_types::app_providers::mode_state::{ProviderMode, RewriteDecision};
+use vw_api_app_provider_environment::mode_state::ProviderMode;
+use vw_api_app_provider_environment::mode_state::RewriteDecision;
         if self.scope.app != AppId::Claude {
             return Err(ModeApplyError::InvalidInput);
         }

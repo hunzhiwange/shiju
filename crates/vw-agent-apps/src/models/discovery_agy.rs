@@ -3,7 +3,7 @@
 use std::{collections::BTreeSet, fs, future::Future, io::Read, path::Path};
 
 use vw_api_app_provider_profiles::agy::AgyProfile;
-use vw_api_types::app_providers::paths::ConfigPathState;
+use vw_api_app_provider_environment::paths::ConfigPathState;
 use vw_api_app_identity::{AppId};
 
 use super::discovery_process;

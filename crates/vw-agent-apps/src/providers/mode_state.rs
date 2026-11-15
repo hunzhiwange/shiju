@@ -4,11 +4,8 @@ use super::live::commit::{AppState, Contract, Mode};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_state::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::mode_state::*;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StackState {
     pub enabled: bool,

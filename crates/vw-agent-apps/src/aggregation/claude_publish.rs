@@ -15,12 +15,9 @@ use crate::providers::{
 };
 use serde_json::{Map, Value, json};
 use std::{cell::Cell, ffi::OsStr};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_apply::ModeApplyResult,
-    vw_api_types::app_providers::mode_apply::TargetPublication,
-    vw_api_transport::id::ProjectScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::ProjectScope};
+use vw_api_app_provider_environment::mode_apply::ModeApplyResult;
+use vw_api_app_provider_environment::mode_apply::TargetPublication;
 
 /// The executor supplies authorized saved records and restore/failover proofs,
 /// then revalidates their revision and project binding inside `unchanged`.

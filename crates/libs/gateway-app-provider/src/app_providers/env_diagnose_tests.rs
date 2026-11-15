@@ -1,9 +1,6 @@
 use crate::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::env_diagnose::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::env_diagnose::*;
 #[tokio::test]
 async fn cc04_env_diagnose_sdk_encodes_target_and_redacts_denial() {
     let server = test_support::server_with_tenant_scope(

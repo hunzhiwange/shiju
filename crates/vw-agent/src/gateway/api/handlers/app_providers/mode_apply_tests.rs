@@ -10,11 +10,8 @@ use std::{
     },
 };
 use vw_agent_apps::providers::{live::commit::*, mode_apply::*};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::mode_apply::*,
-    vw_api_transport::id::TenantScope,
-};
+use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
+use vw_api_app_provider_environment::mode_apply::*;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-mode-authorized-token-32-characters";
 fn tenant() -> TenantScope {

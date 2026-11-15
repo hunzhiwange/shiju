@@ -29,7 +29,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         }),
         "conflicting Auggie model or authentication environment"
     );
-    vw_acp::verify_reviewed_agent_executable("auggie", &config.command)
+    acp_agent_registry::verify_reviewed_agent_executable("auggie", &config.command)
         .map_err(anyhow::Error::msg)?;
     anyhow::ensure!(profile.model_supports_tool_call, "Auggie requires model tool support");
     let model = profile.model_alias.clone();

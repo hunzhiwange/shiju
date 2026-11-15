@@ -342,9 +342,9 @@ async fn run(mode: &str) {
                 &format!("real-cli-offline-{}", input["challenge"].as_str().unwrap()),
                 &root.to_string_lossy(),
             ).unwrap().read().unwrap().expect("managed Pi selection must be committed");
-            let mut record = vw_acp::resolve_session_record(&saved.record_id).await.unwrap();
-            vw_acp::set_desired_model_id(&mut record, Some("session-provider/forbidden-native-model"));
-            vw_acp::write_session_record(&record).await.unwrap();
+            let mut record = acp_storage::resolve_session_record(&saved.record_id).await.unwrap();
+            acp_access_policy::session_mode_preference::set_desired_model_id(&mut record, Some("session-provider/forbidden-native-model"));
+            acp_storage::write_session_record(&record).await.unwrap();
         }
         flow["second_turn"] = json!(request(&input, &model, &info, prompt, false).await);
         checkpoint(&flow);
@@ -376,7 +376,7 @@ async fn run(mode: &str) {
             checkpoint(&flow);
         }
         flow["handshake"] = json!(
-            vw_acp::list_sessions()
+            acp_storage::list_sessions()
                 .await
                 .unwrap()
                 .iter()
@@ -436,7 +436,7 @@ async fn effort_run(input: &Value, model: &provider::Model, info: &provider::Inf
     check("default_turn", request(input, model, info, "ACP_EFFORT_DEFAULT", false).await);
     let store = lifecycle::Store::open(&session, directory).unwrap();
     let anchor = store.read().unwrap().unwrap();
-    let original = vw_acp::resolve_session_record(&anchor.record_id).await.unwrap();
+    let original = acp_storage::resolve_session_record(&anchor.record_id).await.unwrap();
     let options = controls::read(&session, directory).await.unwrap();
     check(
         "managed_model",
@@ -488,7 +488,7 @@ async fn effort_run(input: &Value, model: &provider::Model, info: &provider::Inf
             && options.options.iter().any(|option| option.kind == kind && option.current == "high"),
     );
     let latest = store.read().unwrap().unwrap();
-    let record = vw_acp::resolve_session_record(&latest.record_id).await.unwrap();
+    let record = acp_storage::resolve_session_record(&latest.record_id).await.unwrap();
     check(
         "same_session",
         latest.record_id == anchor.record_id
@@ -546,14 +546,14 @@ async fn acp_model_source_real_cli_cli_local() {
 /// Closed, non-payload diagnostics for a real acceptance process. Never persist
 /// messages, session identifiers, environment values, paths or credentials.
 pub(in crate::session::llm::acp) fn observe_rpc(
-    direction: vw_acp::AcpMessageDirection,
-    message: &vw_acp::AcpJsonRpcMessage,
+    direction: acp_types::AcpMessageDirection,
+    message: &acp_types::AcpJsonRpcMessage,
 ) {
     let Some(path) = std::env::var_os("VW_ACP_ACCEPTANCE_DIAGNOSTICS") else { return };
     let Ok(value) = serde_json::to_value(message) else { return };
     static STATS: std::sync::LazyLock<parking_lot::Mutex<Value>> =
         std::sync::LazyLock::new(|| parking_lot::Mutex::new(json!({})));
-    let outbound = direction == vw_acp::AcpMessageDirection::Outbound;
+    let outbound = direction == acp_types::AcpMessageDirection::Outbound;
     let key = match (outbound, value["method"].as_str()) {
         (true, Some("initialize")) => Some("out_initialize"),
         (true, Some("session/new")) => Some("out_new"),

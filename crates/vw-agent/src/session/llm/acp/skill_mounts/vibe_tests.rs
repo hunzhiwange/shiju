@@ -20,7 +20,7 @@ fn acp_skill_mount_vibe_unreviewed_executable_is_rejected_before_environment_cha
     std::fs::write(source.join("SKILL.md"), "---\nname: example\ndescription: fixture\n---\nBODY")
         .unwrap();
     let view = super::super::MountedSkills::prepare(
-        &[vw_acp::SessionSkillMount {
+        &[acp_types::SessionSkillMount {
             name: "example".into(),
             path: source.to_string_lossy().into(),
         }],

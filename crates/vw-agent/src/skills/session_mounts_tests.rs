@@ -2,7 +2,7 @@
 mod supported {
     use super::super::session_mounts::*;
     use std::{fs, path::Path};
-    use vw_acp::SessionSkillMount;
+    use acp_types::SessionSkillMount;
     use config_skills::SkillSecurityConfig;
 
     fn binding(project: &Path, session: &str) -> SessionSkillBinding {
@@ -168,7 +168,7 @@ mod supported {
 fn session_skill_mount_view_reports_unsupported_platform() {
     use super::session_mounts::{SessionSkillBinding, SessionSkillView};
     let temp = tempfile::tempdir().unwrap();
-    let mount = vw_acp::SessionSkillMount {
+    let mount = acp_types::SessionSkillMount {
         name: "demo".into(),
         path: temp.path().to_str().unwrap().into(),
     };

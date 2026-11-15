@@ -34,7 +34,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         profile.model_supports_tool_call && profile.model_supports_temperature,
         "TRAE requires a tool-capable Chat model supporting temperature"
     );
-    vw_acp::verify_reviewed_agent_executable("trae", &profile.config().command)
+    acp_agent_registry::verify_reviewed_agent_executable("trae", &profile.config().command)
         .map_err(anyhow::Error::msg)?;
     let path = profile.write_config(
         "binding.json",

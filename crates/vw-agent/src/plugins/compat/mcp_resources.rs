@@ -238,7 +238,7 @@ pub(super) async fn list_entries(
     .await
 }
 pub(crate) async fn call(
-    config: &vw_acp::ResolvedAcpxConfig,
+    config: &acp_config::ResolvedAcpxConfig,
     connections: &super::mcp_connections::McpSessionConnections,
     input: Value,
 ) -> Result<ToolCallResult> {

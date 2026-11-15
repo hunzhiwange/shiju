@@ -2,7 +2,7 @@
 //! The caller holds lifecycle::try_lock for the entire request, including persistence.
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use vw_acp::SessionRecord;
+use acp_types::SessionRecord;
 
 use super::lifecycle::session_identity;
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};

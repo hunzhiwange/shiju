@@ -85,7 +85,7 @@ pub(crate) fn parse_legacy_mcp(value: Value, source: &str) -> Result<PluginMcpPa
                     .and_then(Value::as_str)
                     .map(str::to_owned)
                     .unwrap_or_else(|| format!("#{index}"));
-                match vw_acp::parse_mcp_servers(&Value::Array(vec![value]), source) {
+                match acp_config::parse_mcp_servers(&Value::Array(vec![value]), source) {
                     Ok(servers) => {
                         outcome.servers.extend(servers.into_iter().map(PluginMcpDeclaration::Acp))
                     }

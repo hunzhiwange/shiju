@@ -16,7 +16,7 @@ fn missing_anchor_recovers_only_the_latest_matching_managed_generation() {
         let mut identity = launch.clone();
         identity.session = format!("{scoped}:claude");
         identity.provider = provider.into();
-        vw_acp::SessionIndexEntry {
+        acp_storage::SessionIndexEntry {
             file: format!("record-{generation}.json"),
             vwacp_record_id: format!("record-{generation}"),
             acp_session_id: format!("acp-{generation}"),
@@ -32,7 +32,7 @@ fn missing_anchor_recovers_only_the_latest_matching_managed_generation() {
         entry(2, "/other", "deepseek", false),
         entry(1, "/workspace", "deepseek", true),
     ];
-    let recover = |entries: &[vw_acp::SessionIndexEntry]| {
+    let recover = |entries: &[acp_storage::SessionIndexEntry]| {
         recover_from_index(
             entries,
             "local-session",

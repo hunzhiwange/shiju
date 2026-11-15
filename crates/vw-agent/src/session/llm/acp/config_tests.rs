@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use vw_acp::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
+use acp_types::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
 
 use super::*;
 use crate::app::agent::config;
@@ -144,7 +144,7 @@ fn lookup_acp_command_uses_model_preference_then_default() {
     let (fallback_name, fallback) =
         lookup_acp_command(&config::schema::Config::default(), &test_model("unknown"), &json!({}))
             .expect("default built-in agent should resolve");
-    assert_eq!(fallback_name, vw_acp::DEFAULT_AGENT_NAME);
+    assert_eq!(fallback_name, acp_agent_registry::DEFAULT_AGENT_NAME);
     assert!(!fallback.command.trim().is_empty());
 }
 

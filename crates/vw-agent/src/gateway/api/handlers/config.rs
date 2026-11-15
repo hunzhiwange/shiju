@@ -374,7 +374,7 @@ pub async fn handle_api_config_put(
         let builtin = config_agent::builtin_agent_spec(key).is_some()
             || key
                 .strip_prefix("acp-")
-                .is_some_and(|backend| vw_acp::built_in_agent_specs().contains_key(backend));
+                .is_some_and(|backend| acp_agent_registry::built_in_agent_specs().contains_key(backend));
         if builtin && !new_config.agents.contains_key(key) {
             return (
                 StatusCode::BAD_REQUEST,

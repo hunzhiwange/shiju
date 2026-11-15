@@ -205,7 +205,7 @@ fn plugin_mcp_servers_merge_after_user_config() {
             { "name": "plugin-only", "command": "plugin-only" }
         ]),
     );
-    let mut servers = vw_acp::parse_mcp_servers(
+    let mut servers = acp_config::parse_mcp_servers(
         &json!([
             { "name": "shared", "command": "user-shared" },
             { "name": "user-only", "command": "user-only" }

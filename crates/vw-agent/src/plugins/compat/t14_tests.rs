@@ -92,7 +92,7 @@ fn codex_plugin_compat_t14_preserves_isolation() {
     fs::write(workspace.join(".vibewindow/plugins/disabled-pack.disabled"), b"").unwrap();
     let before = hex::encode(Sha256::digest(fs::read(root.join(".mcp.json")).unwrap()));
     let mut servers =
-        vw_acp::parse_mcp_servers(&json!([{"name":"user","command":"user-command"}]), "fixture")
+        acp_config::parse_mcp_servers(&json!([{"name":"user","command":"user-command"}]), "fixture")
             .unwrap();
     let options = PluginDiscoveryOptions::new(
         workspace,
@@ -302,7 +302,7 @@ fn codex_plugin_compat_t14_keeps_rejected_inline_configs_out_of_runtime() {
         PluginsConfig::default(),
     );
     let mut servers =
-        vw_acp::parse_mcp_servers(&json!([{"name":"user","command":"fixture"}]), "fixture")
+        acp_config::parse_mcp_servers(&json!([{"name":"user","command":"fixture"}]), "fixture")
             .unwrap();
     let error = merge_enabled_plugin_mcp_servers(&mut servers, &options).unwrap_err();
     assert!(format!("{error:#}").contains("server 'bad'"));

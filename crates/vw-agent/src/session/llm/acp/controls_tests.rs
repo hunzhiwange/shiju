@@ -54,9 +54,9 @@ for line in sys.stdin:
     else: out['result']=result
     print(json.dumps(out),flush=True)
 "#).unwrap();
-    let client = vw_acp::AcpClient::new(
+    let client = acp_client::AcpClient::new(
         "fixture",
-        vw_acp::AcpAgentConfig {
+        acp_types::AcpAgentConfig {
             command: "python3".into(),
             args: vec![
                 script.to_string_lossy().into_owned(),
@@ -65,14 +65,14 @@ for line in sys.stdin:
             env: Default::default(),
         },
     )
-    .with_permission_mode(vw_acp::PermissionMode::DenyAll);
+    .with_permission_mode(acp_types::PermissionMode::DenyAll);
     assert!(client.session_capabilities("fixture-session").is_none());
     let info = client.create_session(temp.path()).await.unwrap();
     let options = native_advertised(client.session_capabilities(&info.session_id).unwrap());
     assert_eq!(options.options.len(), 3);
     assert_eq!(options.options[2].choices[1].name, "高");
-    let mut record = vw_acp::parse_session_record(&json!({
-        "schema": vw_acp::SESSION_RECORD_SCHEMA, "vwacp_record_id":"fixture-session",
+    let mut record = acp_storage::parse_session_record(&json!({
+        "schema": acp_types::SESSION_RECORD_SCHEMA, "vwacp_record_id":"fixture-session",
         "acp_session_id":"fixture-session", "agent_command":"python3", "cwd":temp.path(),
         "created_at":"2026-11-03T00:00:00Z", "last_used_at":"2026-11-03T00:00:00Z", "last_seq":0, "messages":[], "updated_at":"2026-11-03T00:00:00Z",
     })).unwrap();
@@ -88,17 +88,17 @@ for line in sys.stdin:
     assert!(has_saved_config_category(&record, SessionConfigOptionCategory::ThoughtLevel));
     assert!(!has_saved_config_category(&record, SessionConfigOptionCategory::Model));
     assert!(!temp.path().join("must-not-exist").exists());
-    let saved = vw_acp::serialize_session_record_for_disk(&record);
+    let saved = acp_storage::serialize_session_record_for_disk(&record);
     let file = temp.path().join("session.json");
     std::fs::write(&file, serde_json::to_vec(&saved).unwrap()).unwrap();
-    let loaded = vw_acp::parse_session_record(
+    let loaded = acp_storage::parse_session_record(
         &serde_json::from_slice(&std::fs::read(file).unwrap()).unwrap(),
     )
     .unwrap();
-    assert_eq!(vw_acp::get_desired_mode_id(loaded.vwacp.as_ref()).as_deref(), Some("code"));
-    assert_eq!(vw_acp::get_desired_model_id(loaded.vwacp.as_ref()).as_deref(), Some("large"));
+    assert_eq!(acp_access_policy::session_mode_preference::get_desired_mode_id(loaded.vwacp.as_ref()).as_deref(), Some("code"));
+    assert_eq!(acp_access_policy::session_mode_preference::get_desired_model_id(loaded.vwacp.as_ref()).as_deref(), Some("large"));
     assert_eq!(
-        vw_acp::get_desired_config_options(loaded.vwacp.as_ref()).get("effort").map(String::as_str),
+        acp_access_policy::session_mode_preference::get_desired_config_options(loaded.vwacp.as_ref()).get("effort").map(String::as_str),
         Some("high")
     );
     for value in ["reject", "unadvertised"] {
@@ -114,7 +114,7 @@ for line in sys.stdin:
             .await
             .is_err()
         );
-        assert_eq!(vw_acp::serialize_session_record_for_disk(&record), saved);
+        assert_eq!(acp_storage::serialize_session_record_for_disk(&record), saved);
         assert_eq!(
             native_advertised(client.session_capabilities(&info.session_id).unwrap()).options[2]
                 .current,
@@ -127,7 +127,7 @@ for line in sys.stdin:
 
 #[test]
 fn acp_session_options_follow_capabilities_config_categories_replace_legacy_selectors() {
-    let info = vw_acp::SessionCapabilities {
+    let info = acp_types::SessionCapabilities {
         session_id: "session".into(),
         modes: serde_json::from_value(json!({"currentModeId":"ask","availableModes":[{"id":"ask","name":"Ask"}]})).ok(),
         models: None,
@@ -175,7 +175,7 @@ async fn acp_session_options_follow_capabilities_isolate_tenant_connections() {
 
 #[test]
 fn acp_model_source_session_controls_managed_models_are_not_native_choices() {
-    let info = vw_acp::SessionCapabilities {
+    let info = acp_types::SessionCapabilities {
         session_id: "managed".into(), modes: None,
         models: serde_json::from_value(json!({"currentModelId":"native","availableModels":[{"modelId":"native","name":"Native"}]})).ok(),
         config_options: None,
@@ -189,7 +189,7 @@ fn acp_model_source_session_controls_managed_models_are_not_native_choices() {
 
 #[test]
 fn acp_model_source_session_controls_model_config_is_read_only_and_mode_is_private() {
-    let info = vw_acp::SessionCapabilities {
+    let info = acp_types::SessionCapabilities {
         session_id: "managed".into(), models: None, modes: None,
         config_options: Some(serde_json::from_value(json!([
             {"id":"llm","name":"Model","category":"model","type":"select","currentValue":"native","options":[{"value":"native","name":"Native"},{"value":"other","name":"Other"}]},
@@ -250,7 +250,7 @@ fn acp_model_source_session_controls_disconnected_keeps_provider_identity() {
 
 #[test]
 fn acp_public_permission_options_only_expose_host_modes() {
-    let mut info = vw_acp::SessionCapabilities {
+    let mut info = acp_types::SessionCapabilities {
         session_id: "public-controls".into(),
         modes: serde_json::from_value(json!({
             "currentModeId":"ask",

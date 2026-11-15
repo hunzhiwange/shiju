@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use serde_json::json;
 use tempfile::TempDir;
-use vw_acp::server::{
+use acp_server::server::{
     BackendCancelHandle, BackendEvent, BackendTermination, BackendToolStatus, PromptContent,
     SessionBackend,
 };

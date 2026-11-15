@@ -637,7 +637,7 @@ print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':{'protocolVersion':1,'ag
 for line in sys.stdin:
     raise RuntimeError('unexpected request')
 "#).unwrap();
-    let config = vw_acp::AcpAgentConfig {
+    let config = acp_types::AcpAgentConfig {
         command: "python3".into(),
         args: vec![script.to_string_lossy().into_owned(), "argument with spaces".into()],
         env: [("ACP_FIXTURE".into(), "draft value".into())].into(),
@@ -656,7 +656,7 @@ async fn acp_diagnostic_ignores_stale_results_gateway_cancels_and_cleans_up() {
     let probe = tokio::spawn(async move {
         acp_diagnostic_post(
             Path(probe_id),
-            Json(vw_acp::AcpAgentConfig {
+            Json(acp_types::AcpAgentConfig {
                 command: "python3".into(),
                 args: vec!["-c".into(), "import time; time.sleep(30)".into()],
                 env: Default::default(),

@@ -429,9 +429,9 @@ for line in sys.stdin:
     result = {'protocolVersion':1,'agentCapabilities':{},'authMethods':[]} if r['method']=='initialize' else {'sessionId':'defaults'} if r['method']=='session/new' else {}
     print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':result}),flush=True)
 "#).unwrap();
-    let client = vw_acp::AcpClient::new(
+    let client = acp_client::AcpClient::new(
         "defaults",
-        vw_acp::AcpAgentConfig {
+        acp_types::AcpAgentConfig {
             command: "python3".into(),
             args: vec![script.display().to_string(), capture.display().to_string()],
             env: Default::default(),
@@ -528,10 +528,10 @@ for line in sys.stdin:
     .unwrap()
     .unwrap();
     let selection =
-        vw_acp::SessionMountSelection { version: 1, skills: parsed.skill_mounts.clone() };
-    let client = vw_acp::AcpClient::new(
+        acp_types::SessionMountSelection { version: 1, skills: parsed.skill_mounts.clone() };
+    let client = acp_client::AcpClient::new(
         "protocol-error-peer",
-        vw_acp::AcpAgentConfig {
+        acp_types::AcpAgentConfig {
             command: "python3".into(),
             args: vec![script.display().to_string(), capture.display().to_string()],
             env: Default::default(),
@@ -539,7 +539,7 @@ for line in sys.stdin:
     )
     .with_skill_mounts(Some(selection), Some(view.0));
     let result = client
-        .run_prompt(vw_acp::PromptRequest::new(temp.path().to_path_buf(), prompt), &mut |_| {})
+        .run_prompt(acp_types::PromptRequest::new(temp.path().to_path_buf(), prompt), &mut |_| {})
         .await;
     assert!(result.is_err());
     client.close().await.unwrap();
@@ -550,7 +550,7 @@ for line in sys.stdin:
         .collect();
     let new = requests.iter().find(|request| request["method"] == "session/new").unwrap();
     assert_eq!(
-        new["params"]["_meta"][vw_acp::SESSION_SKILL_MOUNTS_META_KEY]["skills"][0]["name"],
+        new["params"]["_meta"][acp_types::SESSION_SKILL_MOUNTS_META_KEY]["skills"][0]["name"],
         "selected"
     );
     let first =
@@ -643,6 +643,6 @@ for line in sys.stdin:
     )
     .await
     .unwrap();
-    assert_eq!(parsed.permission_mode, Some(vw_acp::PermissionMode::DenyAll));
+    assert_eq!(parsed.permission_mode, Some(acp_types::PermissionMode::DenyAll));
     assert!(parsed.skill_mounts.is_empty());
 }

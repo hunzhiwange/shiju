@@ -15,7 +15,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum SessionContentCommands {
+pub enum SessionContentCommands {
     Messages {
         #[arg(value_parser = required)]
         session_id: String,
@@ -89,7 +89,7 @@ pub(super) enum SessionContentCommands {
 }
 
 impl SessionContentCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::PartUpdate { session_id, message_id, part_id, .. } => Some(format!(
                 "update session '{session_id}' message '{message_id}' part '{part_id}'"
@@ -116,7 +116,7 @@ impl SessionContentCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: SessionContentCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

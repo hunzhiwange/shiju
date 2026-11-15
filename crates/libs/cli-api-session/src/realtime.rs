@@ -22,7 +22,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum RealtimeCommands {
+pub enum RealtimeCommands {
     Agent {
         #[arg(long, value_parser = required)]
         input: String,
@@ -82,7 +82,7 @@ pub(super) enum RealtimeCommands {
 }
 
 impl RealtimeCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Agent { .. } => Some("run agent inference".to_string()),
             Self::Openai { .. } => Some("run OpenAI-compatible inference".to_string()),
@@ -101,7 +101,7 @@ impl RealtimeCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: RealtimeCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

@@ -17,7 +17,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum SessionCommands {
+pub enum SessionCommands {
     /// 列出会话。
     List,
     /// 读取会话运行状态表。
@@ -99,7 +99,7 @@ pub(super) enum SessionCommands {
 }
 
 impl SessionCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Create { .. } => Some("create session".to_string()),
             Self::Update { session_id, .. } => Some(format!("update session '{session_id}'")),
@@ -123,7 +123,7 @@ impl SessionCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: SessionCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

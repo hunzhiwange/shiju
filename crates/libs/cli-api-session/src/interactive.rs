@@ -7,14 +7,14 @@ use clap::{Subcommand, ValueEnum};
 use serde_json::{Value, json};
 use vw_gateway_client::{PendingPermissionReplyDto, PtyCreateRequest, PtyUpdateRequest};
 
-use super::ApiOutputFormat;
+use cli_api_core::ApiOutputFormat;
 use cli_api_core::context::ApiContext;
 use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 /// 权限、问题与 PTY 接口族。
 #[derive(Subcommand, Debug)]
-pub(super) enum InteractiveCommands {
+pub enum InteractiveCommands {
     /// 查询或回复待处理权限请求。
     Permission {
         #[command(subcommand)]
@@ -34,7 +34,7 @@ pub(super) enum InteractiveCommands {
 
 /// 权限请求操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum PermissionCommands {
+pub enum PermissionCommands {
     /// 列出待处理权限请求。
     List,
     /// 回复指定权限请求。
@@ -50,7 +50,7 @@ pub(super) enum PermissionCommands {
 
 /// 权限回复选项。
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub(super) enum PermissionReply {
+pub enum PermissionReply {
     Once,
     Always,
     Reject,
@@ -68,7 +68,7 @@ impl From<PermissionReply> for PendingPermissionReplyDto {
 
 /// 问题请求操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum QuestionCommands {
+pub enum QuestionCommands {
     /// 列出待处理问题。
     List,
     /// 从 JSON 输入提交分组回答。
@@ -88,7 +88,7 @@ pub(super) enum QuestionCommands {
 
 /// PTY 生命周期和连接操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum PtyCommands {
+pub enum PtyCommands {
     /// 列出 PTY 会话。
     List,
     /// 从 JSON 输入创建 PTY。
@@ -127,7 +127,7 @@ pub(super) enum PtyCommands {
 }
 
 impl InteractiveCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Permission { command: PermissionCommands::List }
             | Self::Question { command: QuestionCommands::List }
@@ -155,7 +155,7 @@ impl InteractiveCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: InteractiveCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

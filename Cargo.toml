@@ -31,6 +31,7 @@ members = [
   "crates/libs/cli-gateway-commands",
   "crates/libs/cli-api-core",
   "crates/libs/cli-api-workspace",
+  "crates/libs/cli-api-session",
   "crates/libs/app-catalog",
   "crates/libs/app-config-patch",
   "crates/libs/app-provider-validation",

@@ -1,5 +1,5 @@
 use super::GatewayClient;
-use vw_api_types::hermes_dashboard::*;
+use vw_api_hermes_dashboard::*;
 pub use gateway_hermes_memory::HermesDashboardError;
 
 impl GatewayClient {

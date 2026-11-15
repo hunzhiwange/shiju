@@ -2,7 +2,7 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_api_types::hermes_dashboard::*;
+use vw_api_hermes_dashboard::*;
 use gateway_hermes_memory::GatewayHermesMemoryClient;
 use vw_api_task::TaskStatus;
 

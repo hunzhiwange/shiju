@@ -1,7 +1,7 @@
 //! Dashboard actions preserve tenant context, project/host scope and HTTP errors.
 use super::GatewayHermesMemoryClient;
 use serde::de::DeserializeOwned;
-use vw_api_types::hermes_dashboard::*;
+use vw_api_hermes_dashboard::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum HermesDashboardError { Transport, InvalidInput, Decode, Http(u16) }

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/channel-runtime",
   "crates/libs/tool-cron",
   "crates/libs/task-plan-runner",
   "crates/libs/tool-computer",

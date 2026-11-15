@@ -1,0 +1,83 @@
+[package]
+name = "channel-runtime"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+tracing = "0.1"
+tokio = { version = "1", features = ["sync", "time", "macros", "rt", "fs"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+channel-types = { path = "../channel-types", version = "0.6.0" }
+channel-support = { path = "../channel-support", version = "0.6.0" }
+agent-async = { path = "../agent-async", version = "0.6.0" }
+agent-util = { path = "../agent-util", version = "0.6.0" }
+agent-health = { path = "../agent-health", version = "0.6.0" }
+
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-providers = { path = "../agent-providers", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+agent-loop = { path = "../agent-loop", version = "0.6.0" }
+
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+agent-memory = { path = "../agent-memory", version = "0.6.0" }
+agent-observability = { path = "../agent-observability", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+session-engine = { path = "../session-engine", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+config-channels = { path = "../config-channels", version = "0.6.0" }
+vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+async-trait = "0.1"
+serde_json = "1"
+toml = "0.9"
+clap = { version = "4", features = ["derive"] }
+
+[features]
+default = []
+channel-lark = ["dep:channel-lark"]
+whatsapp-web = ["dep:channel-whatsapp-web", "channel-whatsapp-web/whatsapp-web"]
+
+[dependencies.channel-clawdtalk]
+path = "../channel-clawdtalk"
+version = "0.6.0"
+
+[dependencies.channel-lark]
+path = "../channel-lark"
+version = "0.6.0"
+optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+channel-telegram = { path = "../channel-telegram", version = "0.6.0" }
+channel-discord = { path = "../channel-discord", version = "0.6.0" }
+channel-slack = { path = "../channel-slack", version = "0.6.0" }
+channel-mattermost = { path = "../channel-mattermost", version = "0.6.0" }
+channel-imessage = { path = "../channel-imessage", version = "0.6.0" }
+channel-signal = { path = "../channel-signal", version = "0.6.0" }
+channel-whatsapp = { path = "../channel-whatsapp", version = "0.6.0" }
+channel-wati = { path = "../channel-wati", version = "0.6.0" }
+channel-nextcloud-talk = { path = "../channel-nextcloud-talk", version = "0.6.0" }
+channel-email-channel = { path = "../channel-email-channel", version = "0.6.0" }
+channel-irc = { path = "../channel-irc", version = "0.6.0" }
+channel-linq = { path = "../channel-linq", version = "0.6.0" }
+channel-nostr = { path = "../channel-nostr", version = "0.6.0" }
+channel-dingtalk = { path = "../channel-dingtalk", version = "0.6.0" }
+channel-qq = { path = "../channel-qq", version = "0.6.0" }
+channel-wechat = { path = "../channel-wechat", version = "0.6.0" }
+channel-wecom = { path = "../channel-wecom", version = "0.6.0" }
+channel-whatsapp-web = { path = "../channel-whatsapp-web", version = "0.6.0", optional = true }
+
+[dev-dependencies]
+serde_json = "1"
+async-trait = "0.1"
+tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }

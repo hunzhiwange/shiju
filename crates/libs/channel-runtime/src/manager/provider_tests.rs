@@ -1,12 +1,12 @@
 // 本文件验证渠道运行时工具过滤与语言模型提供者缓存选择。
 
 use super::*;
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::AutonomyConfig;
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::NoopObserver;
+use agent_approval::ApprovalManager;
+use agent_config::runtime_schema::AutonomyConfig;
+use agent_memory::NoneMemory;
+use agent_observability::NoopObserver;
 use model_types::{ChatMessage, Provider};
-use crate::app::agent::tools::{ToolResult, ToolSpec};
+use tool_types::{Tool, ToolResult, ToolSpec};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -78,15 +78,15 @@ fn context(default_provider: &str) -> ChannelRuntimeContext {
         route_overrides: Arc::new(Mutex::new(HashMap::new())),
         api_key: None,
         api_url: Some("https://ctx.example.test".to_string()),
-        reliability: Arc::new(crate::app::agent::config::ReliabilityConfig::default()),
-        provider_runtime_options: crate::app::agent::providers::ProviderRuntimeOptions::default(),
+        reliability: Arc::new(agent_config::runtime_schema::ReliabilityConfig::default()),
+        provider_runtime_options: agent_providers::ProviderRuntimeOptions::default(),
         workspace_dir: Arc::new(PathBuf::from(".")),
         message_timeout_secs: 30,
         interrupt_on_new_message: false,
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime_schema::MultimodalConfig::default(),
         hooks: None,
         non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
-        query_classification: crate::app::agent::config::QueryClassificationConfig::default(),
+        query_classification: agent_config::runtime_schema::QueryClassificationConfig::default(),
         model_routes: Vec::new(),
         approval_manager: Arc::new(ApprovalManager::from_config(&AutonomyConfig::default())),
     }
@@ -197,8 +197,8 @@ async fn create_resilient_provider_nonblocking_returns_provider_for_supported_pr
         "openai",
         Some("key".to_string()),
         Some("https://example.test".to_string()),
-        crate::app::agent::config::ReliabilityConfig::default(),
-        crate::app::agent::providers::ProviderRuntimeOptions::default(),
+        agent_config::runtime_schema::ReliabilityConfig::default(),
+        agent_providers::ProviderRuntimeOptions::default(),
     )
     .await
     .unwrap();
@@ -212,8 +212,8 @@ async fn create_resilient_provider_nonblocking_returns_error_for_unknown_provide
         "__definitely_missing_provider__",
         None,
         None,
-        crate::app::agent::config::ReliabilityConfig::default(),
-        crate::app::agent::providers::ProviderRuntimeOptions::default(),
+        agent_config::runtime_schema::ReliabilityConfig::default(),
+        agent_providers::ProviderRuntimeOptions::default(),
     )
     .await
     {
@@ -230,10 +230,10 @@ async fn create_routed_provider_nonblocking_returns_provider_for_supported_provi
         "openai",
         None,
         None,
-        crate::app::agent::config::ReliabilityConfig::default(),
+        agent_config::runtime_schema::ReliabilityConfig::default(),
         Vec::new(),
         "gpt".to_string(),
-        crate::app::agent::providers::ProviderRuntimeOptions::default(),
+        agent_providers::ProviderRuntimeOptions::default(),
     )
     .await
     .unwrap();
@@ -247,10 +247,10 @@ async fn create_routed_provider_nonblocking_returns_error_for_unknown_provider()
         "__definitely_missing_provider__",
         None,
         None,
-        crate::app::agent::config::ReliabilityConfig::default(),
+        agent_config::runtime_schema::ReliabilityConfig::default(),
         Vec::new(),
         "model".to_string(),
-        crate::app::agent::providers::ProviderRuntimeOptions::default(),
+        agent_providers::ProviderRuntimeOptions::default(),
     )
     .await
     {

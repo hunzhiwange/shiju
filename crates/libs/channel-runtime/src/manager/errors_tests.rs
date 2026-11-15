@@ -1,8 +1,8 @@
 use super::*;
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::AutonomyConfig;
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::NoopObserver;
+use agent_approval::ApprovalManager;
+use agent_config::runtime_schema::AutonomyConfig;
+use agent_memory::NoneMemory;
+use agent_observability::NoopObserver;
 use model_types::Provider;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -47,15 +47,15 @@ fn context_with_exclusions(excluded: Vec<String>) -> ChannelRuntimeContext {
         route_overrides: Arc::new(Mutex::new(HashMap::new())),
         api_key: None,
         api_url: None,
-        reliability: Arc::new(crate::app::agent::config::ReliabilityConfig::default()),
-        provider_runtime_options: crate::app::agent::providers::ProviderRuntimeOptions::default(),
+        reliability: Arc::new(agent_config::runtime_schema::ReliabilityConfig::default()),
+        provider_runtime_options: agent_providers::ProviderRuntimeOptions::default(),
         workspace_dir: Arc::new(PathBuf::from(".")),
         message_timeout_secs: 30,
         interrupt_on_new_message: false,
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime_schema::MultimodalConfig::default(),
         hooks: None,
         non_cli_excluded_tools: Arc::new(Mutex::new(excluded)),
-        query_classification: crate::app::agent::config::QueryClassificationConfig::default(),
+        query_classification: agent_config::runtime_schema::QueryClassificationConfig::default(),
         model_routes: Vec::new(),
         approval_manager: Arc::new(ApprovalManager::from_config(&AutonomyConfig::default())),
     }

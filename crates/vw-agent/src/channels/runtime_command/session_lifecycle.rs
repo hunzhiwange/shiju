@@ -4,31 +4,7 @@ use super::session_commands::{effort_levels, handle_clear_session, handle_new_se
 use super::task_mode::set_sender_task_mode;
 
 /// 持久化当前已登记会话的模型选项，不为旧映射推断所有权。
-pub(crate) async fn persist_current_route(
-    ctx: &ChannelRuntimeContext,
-    route: &ChannelRouteSelection,
-) -> Result<()> {
-    let Some(snapshot) = &ctx.message_snapshot else { return Ok(()) };
-    let id = sender_session_store()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .get(&snapshot.scope)
-        .cloned();
-    if let Some(id) = id {
-        match channel_session_ownership(snapshot, &id).await {
-            Ok(_) => save_channel_session_route(snapshot, &id, route).await?,
-            Err(err)
-                if err.chain().any(|cause| {
-                    matches!(
-                        cause.downcast_ref::<crate::storage::Error>(),
-                        Some(crate::storage::Error::NotFound(_))
-                    )
-                }) => {}
-            Err(err) => return Err(err),
-        }
-    }
-    Ok(())
-}
+pub(crate) use channel_runtime::manager::persist_current_route;
 
 #[derive(Clone)]
 struct ArchiveConfirmation {
@@ -47,21 +23,7 @@ pub(super) fn invalidate_archive(snapshot: &ChannelMessageSnapshot) {
     super::history_commands::invalidate_history(snapshot);
 }
 
-pub(crate) fn is_session_lifecycle_command(command: &ChannelRuntimeCommand) -> bool {
-    matches!(
-        command,
-        ChannelRuntimeCommand::NewSession
-            | ChannelRuntimeCommand::ClearSession
-            | ChannelRuntimeCommand::ListSessions
-            | ChannelRuntimeCommand::ResumeSession(_)
-            | ChannelRuntimeCommand::ContinueSession
-            | ChannelRuntimeCommand::RenameSession(_)
-            | ChannelRuntimeCommand::ArchiveSession(_)
-            | ChannelRuntimeCommand::ForkSession(_)
-            | ChannelRuntimeCommand::CompactSession(_)
-            | ChannelRuntimeCommand::ResetSession(_)
-    )
-}
+pub(crate) use channel_runtime::manager::is_session_lifecycle_command;
 
 /// 在入站读锁之前取得聊天写锁，整个校验和提交期间拒绝新模型运行。
 pub(crate) async fn handle_session_lifecycle_command(

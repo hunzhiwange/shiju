@@ -96,8 +96,8 @@ impl Channel for ScriptedChannel {
     }
 }
 
-fn listener_health(component: &str) -> crate::app::agent::health::ComponentHealth {
-    crate::app::agent::health::snapshot()
+fn listener_health(component: &str) -> agent_health::ComponentHealth {
+    agent_health::snapshot()
         .components
         .get(component)
         .cloned()
@@ -213,7 +213,7 @@ async fn supervised_listener_records_errors_and_retries_with_minimum_backoff() {
 #[tokio::test(start_paused = true)]
 async fn supervised_listener_marks_health_while_listening() {
     let component = "channel:listener-health-tick";
-    crate::app::agent::health::mark_component_error(component, "previous failure");
+    agent_health::mark_component_error(component, "previous failure");
     let (channel, mut started_rx) =
         ScriptedChannel::new("listener-health-tick", [ListenOutcome::WaitForClosed]);
     let channel = Arc::new(channel);

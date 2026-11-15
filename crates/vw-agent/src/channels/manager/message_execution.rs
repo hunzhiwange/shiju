@@ -11,100 +11,7 @@
 //! - 返回结构化的 LLM 执行结果
 
 use super::*;
-
-fn channel_session_options(route: &ChannelRouteSelection, full_access: bool) -> serde_json::Value {
-    let mut options = serde_json::json!({ "full_access": full_access });
-    if let Some(effort) = &route.reasoning_effort {
-        options["reasoning_effort"] = serde_json::json!(effort);
-    }
-    options
-}
-
-fn channel_request_reliability(
-    ctx: &ChannelRuntimeContext,
-) -> crate::app::agent::config::ReliabilityConfig {
-    ctx.reliability.as_ref().clone()
-}
-
-// The channel calls the processor directly, bypassing PromptCancelHandle.
-// Reap explicitly here; dropping a response/wait future must not do this.
-fn reap_channel_shell_processes(
-    snapshot: &ChannelMessageSnapshot,
-    session: &str,
-) -> anyhow::Result<()> {
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(host) = crate::tools::shell::processes::ShellProcesses::existing() {
-        let scope = crate::tools::shell::processes::ShellProcessScope::new(
-            serde_json::to_string(&snapshot.scope.chat.tenant)?,
-            &snapshot.directory,
-            session.to_string(),
-        )?;
-        host.cancel_scope(&scope)?;
-    }
-    #[cfg(target_arch = "wasm32")]
-    let _ = (snapshot, session);
-    Ok(())
-}
-
-async fn stop_channel_execution(
-    execution: impl std::future::Future<Output = anyhow::Result<ChannelProcessorResponse>>,
-    abort: &CancellationToken,
-    snapshot: &ChannelMessageSnapshot,
-    session: &str,
-) -> anyhow::Result<()> {
-    abort.cancel();
-    let first_cleanup = reap_channel_shell_processes(snapshot, session);
-    // A full delta channel must not make the deadline wait forever. Dropping
-    // this receiver also stops event delivery from the blocking processor.
-    let _ = tokio::time::timeout(Duration::from_secs(5), execution).await;
-    // Catch a tool that crossed spawn concurrently with cancellation.
-    reap_channel_shell_processes(snapshot, session)?;
-    first_cleanup
-}
-
-/// 执行消息处理流程
-///
-/// 该函数是通道管理器中处理用户消息的核心入口点，负责将消息
-/// 提交给会话处理器进行 LLM 推理，并管理整个执行生命周期。
-///
-/// # 参数
-///
-/// * `ctx` - 通道运行时上下文，包含通道配置和状态信息
-/// * `msg` - 待处理的通道消息，包含用户输入内容
-/// * `route` - 通道路由选择，指定使用的模型和路由策略
-/// * `session_history` - 会话历史记录，用于上下文连续性
-/// * `delta_tx` - 可选的增量文本发送通道，用于流式输出
-/// * `timeout_budget_secs` - 执行超时预算（秒）
-/// * `cancellation_token` - 取消令牌，用于优雅中断执行
-///
-/// # 返回值
-///
-/// 返回 `LlmExecutionResult` 枚举，表示执行结果：
-/// - `Completed` - 执行完成，包含会话处理器的处理结果
-/// - `Cancelled` - 执行被取消
-///
-/// # 执行流程
-///
-/// 1. 解析或创建发送者的会话 ID
-/// 2. 确定通道的项目目录作为请求根目录
-/// 3. 使用 tokio::select! 同时监听取消信号和执行结果
-/// 4. 在超时限制内执行会话处理器
-/// 5. 返回执行结果
-///
-/// # 示例
-///
-/// ```ignore
-/// let result = run_message_execution(
-///     &ctx,
-///     &message,
-///     &route,
-///     history,
-///     Some(delta_channel),
-///     300,
-///     &cancel_token,
-/// ).await;
-/// ```
-#[allow(clippy::too_many_arguments)]
+pub(crate) use channel_runtime::manager::message_execution::*;
 pub(crate) async fn run_message_execution(
     ctx: &ChannelRuntimeContext,
     msg: &traits::ChannelMessage,
@@ -114,106 +21,15 @@ pub(crate) async fn run_message_execution(
     delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     timeout_budget_secs: u64,
     cancellation_token: &CancellationToken,
-) -> LlmExecutionResult {
-    if cancellation_token.is_cancelled() {
-        return LlmExecutionResult::Cancelled;
-    }
-    let session_id =
-        match resolve_or_create_sender_session_id(snapshot, msg, Some(route.clone())).await {
-            Ok(id) => id,
-            Err(err) => return LlmExecutionResult::Completed(Ok(Err(err))),
-        };
-    let options = match super::execution_binding::execution_options(
-        snapshot,
-        &session_id,
-        route,
-        channel_session_options(route, ctx.session_full_access),
-    )
-    .await
-    {
-        Ok(options) => options,
-        Err(error) => return LlmExecutionResult::Completed(Ok(Err(error))),
-    };
-    if let Err(err) = persist_current_route(ctx, route).await {
-        return LlmExecutionResult::Completed(Ok(Err(err)));
-    }
-    let request_root_dir = &snapshot.directory;
-    let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
-
-    let execution_started = tokio::time::Instant::now();
-    let processor_abort = cancellation_token.child_token();
-    let _abort_guard = processor_abort.clone().drop_guard();
-    // 使用 select! 同时监听取消信号和执行结果
-    // 优先响应取消信号，确保快速终止
-    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
-        let execution = collect_channel_response(
-                    // 构建会话处理器请求
-                    crate::app::agent::session::processor::Request {
-                        // 使用当前时间戳作为流标识
-                        stream: crate::app::agent::session::session::now_ms(),
-                        // 使用解析或创建的会话 ID
-                        session: session_id.clone(),
-                        // 用户消息内容
-                        query: msg.content.clone(),
-                        // 设置请求的工作目录
-                        root: Some(request_root_dir.to_string_lossy().to_string()),
-                        // 指定使用的模型
-                        model: Some(channel_model_request_model(&route.provider, &route.model)),
-                        reliability: channel_request_reliability(ctx),
-                        options,
-                        approval: Some(ctx.approval_manager.clone()),
-                        channel_name: Some(msg.channel.clone()),
-                        non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
-                            sender: msg.sender.clone(),
-                            reply_target: msg.reply_target.clone(),
-                            prompt_tx: approval_prompt_tx,
-                        }),
-                        assistant_message_id: None,
-                        // 传入会话历史以保持上下文连续性
-                        history: session_history,
-                        // 持久化会话工件（如日志、中间结果等）
-                        persist_app_session_artifacts: true,
-                        app_session_scope: Some(snapshot.scope.project.clone()),
-                        abort_token: Some(processor_abort.clone()),
-                        session_tools: crate::session::runtime::SessionToolset::default(),
-                        session_skills: Default::default(),
-                    },
-                    // 传入增量文本通道，用于流式输出
-                    delta_tx,
-                );
-        tokio::pin!(execution);
-        tokio::select! {
-            biased;
-            () = cancellation_token.cancelled() => {
-                match stop_channel_execution(execution, &processor_abort, snapshot, &session_id).await {
-                    Ok(()) => LlmExecutionResult::Cancelled,
-                    Err(error) => LlmExecutionResult::Completed(Ok(Err(error.context("channel user cancellation: shell cleanup failed")))),
-                }
-            }
-            () = tokio::time::sleep(Duration::from_secs(timeout_budget_secs)) => {
-                let elapsed_ms = execution_started.elapsed().as_millis();
-                let cleanup = stop_channel_execution(execution, &processor_abort, snapshot, &session_id).await;
-                let status = match cleanup {
-                    Ok(()) => "owned shell processes reaped; tail output retained for bash_wait".to_string(),
-                    Err(error) => format!("shell cleanup failed: {error}"),
-                };
-                LlmExecutionResult::Completed(Ok(Err(anyhow::anyhow!(
-                    "channel_message_timeout_budget exhausted: budget_secs={timeout_budget_secs}, elapsed_ms={elapsed_ms}; cancellation_reason=channel_deadline; {status}"
-                ))))
-            }
-            result = &mut execution => {
-                if cancellation_token.is_cancelled() {
-                    match stop_channel_execution(std::future::ready(result), &processor_abort, snapshot, &session_id).await {
-                        Ok(()) => LlmExecutionResult::Cancelled,
-                        Err(error) => LlmExecutionResult::Completed(Ok(Err(error.context("channel user cancellation: shell cleanup failed")))),
-                    }
-                } else { LlmExecutionResult::Completed(Ok(result)) }
-            }
-        }
-    })
-    .await
-}
-
+) -> LlmExecutionResult { channel_runtime::manager::message_execution::run_message_execution(&super::runtime_host::HOST, ctx, msg, route, snapshot, session_history, delta_tx, timeout_budget_secs, cancellation_token).await }
+pub(crate) async fn stop_channel_execution(
+    execution: impl std::future::Future<Output = anyhow::Result<ChannelProcessorResponse>>,
+    abort: &CancellationToken,
+    snapshot: &ChannelMessageSnapshot,
+    session: &str,
+) -> anyhow::Result<()> { channel_runtime::manager::message_execution::stop_channel_execution(&super::runtime_host::HOST, execution, abort, snapshot, session).await }
 #[cfg(test)]
-#[path = "message_execution_tests.rs"]
+fn reap_channel_shell_processes(snapshot: &ChannelMessageSnapshot, session: &str) -> Result<()> { channel_runtime::host::ChannelHost::reap_shell(&super::runtime_host::HOST, snapshot, session) }
+#[cfg(test)]
+#[path = "../../../../libs/channel-runtime/src/manager/message_execution_tests.rs"]
 mod message_execution_tests;

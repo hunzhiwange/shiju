@@ -194,7 +194,6 @@ use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::Tool;
 use crate::app::agent::util::truncate_with_ellipsis;
 use anyhow::{Context, Result};
-use clap::Subcommand;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -244,13 +243,6 @@ const CHANNEL_MIN_IN_FLIGHT_MESSAGES: usize = 8;
 /// 系统同时处理消息的上限，防止资源耗尽。
 const CHANNEL_MAX_IN_FLIGHT_MESSAGES: usize = 64;
 
-/// 打字指示器刷新间隔（秒）。
-/// 在长时间处理过程中，定期发送打字状态以保持用户连接。
-const CHANNEL_TYPING_REFRESH_INTERVAL_SECS: u64 = 4;
-
-/// 健康检查心跳间隔（秒）。
-/// 定期检查通道连接状态的频率。
-const CHANNEL_HEALTH_HEARTBEAT_SECS: u64 = 30;
 
 /// Hook 修改后的出站消息内容最大字符数。
 /// 防止 Hook 产生过长的输出内容。
@@ -280,35 +272,7 @@ const OPENRC_RESTART_ARGS: [&str; 2] = ["vibewindow", "restart"];
 // 结构体定义
 // ============================================================================
 
-/// 通道管理子命令枚举。
-///
-/// 与 CLI 枚举镜像，但避免 clap 依赖。
-/// 用于运行时动态处理通道相关的管理命令。
-#[derive(Debug, Clone, Subcommand)]
-pub enum ChannelCommands {
-    /// 列出所有已配置的通道
-    List,
-    /// 启动通道服务
-    Start,
-    /// 诊断通道配置问题
-    Doctor,
-    /// 添加新通道
-    ///
-    /// # 参数
-    /// - `channel_type`: 通道类型标识符（如 "telegram"、"discord"）
-    /// - `config`: 通道配置（JSON 格式字符串）
-    Add { channel_type: String, config: String },
-    /// 移除指定通道
-    ///
-    /// # 参数
-    /// - `name`: 要移除的通道名称
-    Remove { name: String },
-    /// 绑定 Telegram 身份
-    ///
-    /// # 参数
-    /// - `identity`: 身份标识符
-    BindTelegram { identity: String },
-}
+pub use channel_runtime::ChannelCommands;
 
 pub(crate) use channel_support::routing::ChannelRouteSelection;
 
@@ -320,74 +284,9 @@ pub use channel_support::runtime_state::ChannelRuntimeContext;
 
 pub(crate) use channel_support::scope::{InFlightSenderTaskState, InFlightTaskCompletion};
 
-/// 通道健康状态枚举。
-///
-/// 表示通道连接的健康检查结果。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ChannelHealthState {
-    /// 健康：通道正常工作
-    Healthy,
-    /// 不健康：通道存在问题
-    Unhealthy,
-    /// 超时：健康检查超时未响应
-    Timeout,
-}
+pub(crate) use channel_runtime::ChannelHealthState;
 
-/// 已配置的通道信息。
-///
-/// 包装通道实例及其人类可读的显示名称。
-#[derive(Clone)]
-pub(crate) struct ConfiguredChannel {
-    /// 稳定实例 ID，独立于显示名称。
-    pub(crate) instance_id: String,
-    /// 用于日志和 UI 显示的名称
-    pub(crate) display_name: String,
-    /// 通道实例
-    pub(crate) channel: Arc<dyn Channel>,
-}
-
-impl ConfiguredChannel {
-    pub(crate) fn with_instance_id(mut self, instance_id: &str) -> Self {
-        self.instance_id = instance_id.to_string();
-        self
-    }
-
-    pub(crate) fn stamp_inbound_message(&self, message: &mut traits::ChannelMessage) {
-        message.instance_id.clone_from(&self.instance_id);
-    }
-
-    /// 保持有界背压；监听退出前排空已接收消息，取消时不遗留转发任务。
-    pub(crate) async fn listen(
-        &self,
-        tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
-    ) -> Result<()> {
-        let (instance_tx, mut instance_rx) = tokio::sync::mpsc::channel(100);
-        let listen = self.channel.listen(instance_tx);
-        tokio::pin!(listen);
-        loop {
-            tokio::select! {
-                biased;
-                result = &mut listen => {
-                    while let Ok(mut message) = instance_rx.try_recv() {
-                        self.stamp_inbound_message(&mut message);
-                        if tx.send(message).await.is_err() { break; }
-                    }
-                    return result;
-                }
-                message = instance_rx.recv() => {
-                    let Some(mut message) = message else { return listen.await; };
-                    self.stamp_inbound_message(&mut message);
-                    if tx.send(message).await.is_err() { return Ok(()); }
-                }
-                _ = tx.closed() => return Ok(()),
-            }
-        }
-    }
-
-    pub(crate) fn new(display_name: impl Into<String>, channel: Arc<dyn Channel>) -> Self {
-        Self { display_name: display_name.into(), channel, instance_id: "default".into() }
-    }
-}
+pub(crate) use channel_runtime::ConfiguredChannel;
 
 // ============================================================================
 // 辅助函数
@@ -429,7 +328,7 @@ fn block_on_future<F: std::future::Future>(fut: F) -> F::Output {
 mod tests;
 
 #[cfg(test)]
-#[path = "manager/channels_config_tests.rs"]
+#[path = "../../../libs/channel-runtime/src/manager/channels_config_tests.rs"]
 mod channel_project_binding_tests;
 
 #[cfg(test)]
@@ -454,11 +353,11 @@ include!("channel_session_lifecycle_tests.rs");
 mod channel_session_history_tests;
 
 #[cfg(test)]
-#[path = "manager/dispatch_tests.rs"]
+#[path = "../../../libs/channel-runtime/src/manager/dispatch_tests.rs"]
 mod dispatch_tests;
 
 #[cfg(test)]
-#[path = "manager/dispatch_cancel_tests.rs"]
+#[path = "../../../libs/channel-runtime/src/manager/dispatch_cancel_tests.rs"]
 mod channel_command_cancel_dispatch_tests;
 
 #[cfg(test)]

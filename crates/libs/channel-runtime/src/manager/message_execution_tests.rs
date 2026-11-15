@@ -218,7 +218,7 @@ async fn shell_outer_timeout_explicit_budget_is_reported() {
         session,
     )
     .unwrap();
-    let host = ShellProcesses::shared().unwrap();
+    let host = ShellProcesses::shared::<crate::tools::context::AgentContextHost>().unwrap();
     let started = host
         .start(scope.clone(), || {
             let mut command = tokio::process::Command::new("sh");
@@ -295,7 +295,7 @@ async fn shell_outer_timeout_user_stop_preserves_other_sessions() {
     let foreign =
         ShellProcessScope::new(tenant, &snapshot.directory, "other-channel-session".into())
             .unwrap();
-    let host = ShellProcesses::shared().unwrap();
+    let host = ShellProcesses::shared::<crate::tools::context::AgentContextHost>().unwrap();
     let mut ids = Vec::new();
     for owner in [&scope, &foreign] {
         let started = host

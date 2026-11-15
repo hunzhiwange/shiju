@@ -1,7 +1,7 @@
 //! 环境配置运行时组合。
 use super::{Config, config::{apply_named_model_provider_profile, apply_workspace_override}, proxy};
 pub fn apply_env_overrides(config: &mut Config) {
-    agent_config::schema::config_env::apply_env_overrides(config, &agent_config::schema::config_env::EnvironmentHost {
+    crate::schema::config_env::apply_env_overrides(config, &crate::schema::config_env::EnvironmentHost {
         apply_named_profile: apply_named_model_provider_profile,
         apply_workspace: apply_workspace_override,
         validate_proxy: proxy::validate_proxy_config,

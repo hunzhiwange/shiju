@@ -5,13 +5,6 @@ use crate::global_database::GlobalDatabase;
 use anyhow::{Context, Result};
 use vw_api_transport::id::TenantScope;
 
-impl agent_config::schema::channel_reload::ChannelConfigStore for SystemConfigStore {
-    fn get(&self, tenant: &TenantScope) -> Result<Option<String>> { SystemConfigStore::get(self, tenant) }
-    fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> {
-        SystemConfigStore::get_project(self, tenant, project)
-    }
-}
-
 pub(crate) struct ChannelConfigWatcher {
     inner: agent_config::schema::channel_reload::ChannelConfigWatcher<SystemConfigStore>,
     #[cfg(test)]

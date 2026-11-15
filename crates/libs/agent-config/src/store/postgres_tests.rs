@@ -4,12 +4,12 @@ use anyhow::Result;
 use vw_api_transport::id::TenantScope;
 
 use super::PostgresSystemConfigStore;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 // 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn postgres_system_config_store_upserts_and_isolates_tenants() -> Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     let store = PostgresSystemConfigStore::new(fixture.database().clone())?;
     let tenant_a = TenantScope::new("platform-a", "company-a")?;
     let tenant_b = TenantScope::new("platform-a", "company-b")?;

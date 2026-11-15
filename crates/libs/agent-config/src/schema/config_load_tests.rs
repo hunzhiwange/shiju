@@ -5,8 +5,8 @@ use super::config_load::{
     load_config_from_json_root, load_config_from_toml_path,
 };
 use super::workspace::ConfigResolutionSource;
-use crate::app::agent::config::SystemConfigStore;
-use crate::global_database::GlobalDatabase;
+use crate::store::SystemConfigStore;
+use agent_database::GlobalDatabase;
 use serde_json::json;
 use vw_api_transport::id::TenantScope;
 

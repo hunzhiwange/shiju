@@ -13,33 +13,33 @@ use vw_api_transport::id::TenantScope;
 use config_aggregate::Config;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::SystemConfigStore;
+use crate::store::SystemConfigStore;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::migration::migrate_user_config;
-use crate::app::agent::config::schema::config_env::apply_env_overrides;
-use crate::app::agent::config::schema::config_helpers::config_dir_creation_error;
-use crate::app::agent::config::schema::config_validate::validate_config;
-use agent_config::schema::workspace::ConfigResolutionSource;
-use crate::app::agent::config::schema::{
+use crate::runtime_migration::migrate_user_config;
+use crate::runtime_schema::config_env::apply_env_overrides;
+use crate::runtime_schema::config_helpers::config_dir_creation_error;
+use crate::runtime_schema::config_validate::validate_config;
+use crate::schema::workspace::ConfigResolutionSource;
+use crate::runtime_schema::{
     default_config_and_workspace_dirs, resolve_runtime_config_dirs,
 };
 #[cfg(not(target_arch = "wasm32"))]
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
-pub(crate) use agent_config::schema::config_load::{config_json_path, is_retired_agent_tool_policy};
+pub use crate::schema::config_load::{config_json_path, is_retired_agent_tool_policy};
 
-pub(crate) async fn load_config_from_toml_path(config_path: &Path, workspace_dir: PathBuf, config_dir: &Path, source: ConfigResolutionSource) -> Result<Config> {
-    agent_config::schema::config_load::load_config_from_toml_path(config_path, workspace_dir, config_dir, source.as_str(), apply_env_overrides).await
+pub async fn load_config_from_toml_path(config_path: &Path, workspace_dir: PathBuf, config_dir: &Path, source: ConfigResolutionSource) -> Result<Config> {
+    crate::schema::config_load::load_config_from_toml_path(config_path, workspace_dir, config_dir, source.as_str(), apply_env_overrides).await
 }
-pub(crate) async fn load_config_from_json_root(config_path: &Path, workspace_dir: PathBuf, config_dir: &Path, source: ConfigResolutionSource) -> Result<Option<Config>> {
-    agent_config::schema::config_load::load_config_from_json_root(config_path, workspace_dir, config_dir, source.as_str(), apply_env_overrides).await
+pub async fn load_config_from_json_root(config_path: &Path, workspace_dir: PathBuf, config_dir: &Path, source: ConfigResolutionSource) -> Result<Option<Config>> {
+    crate::schema::config_load::load_config_from_json_root(config_path, workspace_dir, config_dir, source.as_str(), apply_env_overrides).await
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn load_config_for_tenant_from_store(store: &SystemConfigStore, tenant: &TenantScope, project_root: Option<&Path>, config_dir: &Path, workspace_dir: PathBuf, source: ConfigResolutionSource, apply_environment: impl Fn(&mut Config) + Send + 'static) -> Result<Config> {
-    agent_config::schema::config_load::load_config_for_tenant_from_store(store, tenant, project_root, config_dir, workspace_dir, source.as_str(), apply_environment).await
+pub async fn load_config_for_tenant_from_store(store: &SystemConfigStore, tenant: &TenantScope, project_root: Option<&Path>, config_dir: &Path, workspace_dir: PathBuf, source: ConfigResolutionSource, apply_environment: impl Fn(&mut Config) + Send + 'static) -> Result<Config> {
+    crate::schema::config_load::load_config_for_tenant_from_store(store, tenant, project_root, config_dir, workspace_dir, source.as_str(), apply_environment).await
 }
 #[cfg(not(target_arch = "wasm32"))]
-impl agent_config::schema::config_load::ConfigLoadStore for SystemConfigStore {
+impl crate::schema::config_load::ConfigLoadStore for SystemConfigStore {
     fn get(&self, tenant: &TenantScope) -> Result<Option<String>> { self.get(tenant) }
     fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> { self.get_project(tenant, project) }
     fn initialize_if_absent(&self, tenant: &TenantScope, payload: &str) -> Result<bool> { self.compare_and_swap(tenant, None, payload, None) }
@@ -47,8 +47,8 @@ impl agent_config::schema::config_load::ConfigLoadStore for SystemConfigStore {
 
 /// The same resolved store and paths are used for reads and optimistic updates.
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) struct TenantConfigSource {
-    pub(crate) store: SystemConfigStore,
+pub struct TenantConfigSource {
+    pub store: SystemConfigStore,
     config_dir: PathBuf,
     workspace_dir: PathBuf,
     resolution_source: ConfigResolutionSource,
@@ -56,9 +56,9 @@ pub(crate) struct TenantConfigSource {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl TenantConfigSource {
-    pub(crate) async fn open(tenant: &TenantScope, project_root: Option<&Path>) -> Result<Self> {
-        let home = agent_config::runtime_home::config_home()?;
-        #[cfg(test)]
+    pub async fn open(tenant: &TenantScope, project_root: Option<&Path>) -> Result<Self> {
+        let home = crate::runtime_home::config_home()?;
+        #[cfg(any(test, feature = "test-support"))]
         let home =
             std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT").map(PathBuf::from).unwrap_or(home);
 
@@ -69,8 +69,8 @@ impl TenantConfigSource {
             }
             SystemConfigStore::new(GlobalDatabase::for_home(home)?)
         };
-        #[cfg(test)]
-        let open_store = crate::global_database::inherit_test_database_context(open_store);
+        #[cfg(any(test, feature = "test-support"))]
+        let open_store = agent_database::inherit_test_database_context(open_store);
         let store = tokio::task::spawn_blocking(open_store)
             .await
             .context("join system config store initialization task")??;
@@ -92,11 +92,11 @@ impl TenantConfigSource {
     }
 
     /// Load the base and its exact persisted snapshot without initializing an absent row.
-    pub(crate) async fn read_for_patch(
+    pub async fn read_for_patch(
         &self,
         tenant: &TenantScope,
     ) -> Result<(Config, Option<String>)> {
-        agent_config::schema::config_load::read_for_patch(&self.store, tenant, &self.config_dir, &self.workspace_dir, apply_env_overrides).await
+        crate::schema::config_load::read_for_patch(&self.store, tenant, &self.config_dir, &self.workspace_dir, apply_env_overrides).await
     }
 }
 
@@ -141,7 +141,7 @@ pub async fn load_or_init_config_for_tenant(
     load_or_init_config_for_tenant_with_environment(tenant, project_root, apply_env_overrides).await
 }
 
-pub(crate) async fn load_or_init_config_for_tenant_without_env(
+pub async fn load_or_init_config_for_tenant_without_env(
     tenant: &TenantScope,
     project_root: Option<&Path>,
 ) -> Result<Config> {

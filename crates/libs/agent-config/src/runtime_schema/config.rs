@@ -3,9 +3,9 @@
 //! 本模块重新导出共享配置结构，并在 agent 侧为 `Config` 补齐加载、保存、校验和环境变量覆盖能力。
 //! 运行时归一化委托 agent-config，持久化入口暂由宿主组装。
 
-use crate::app::agent::config::schema::config_helpers::read_codex_openai_api_key;
-use crate::app::agent::config::schema::config_validate::normalize_wire_api;
-use agent_config::schema::workspace::resolve_config_dir_for_workspace;
+use crate::runtime_schema::config_helpers::read_codex_openai_api_key;
+use crate::runtime_schema::config_validate::normalize_wire_api;
+use crate::schema::workspace::resolve_config_dir_for_workspace;
 
 pub use config_aggregate::*;
 
@@ -40,25 +40,25 @@ pub trait ConfigExt {
 
 impl ConfigExt for Config {
     fn load_or_init() -> impl std::future::Future<Output = Result<Config>> + Send {
-        crate::app::agent::config::schema::config_load::load_or_init_config()
+        crate::runtime_schema::config_load::load_or_init_config()
     }
 
     fn save(&self) -> impl std::future::Future<Output = Result<()>> + Send {
-        crate::app::agent::config::schema::config_save::save_config(self)
+        crate::runtime_schema::config_save::save_config(self)
     }
 
     fn validate(&self) -> Result<()> {
-        crate::app::agent::config::schema::config_validate::validate_config(self)
+        crate::runtime_schema::config_validate::validate_config(self)
     }
 
     fn apply_env_overrides(&mut self) {
-        crate::app::agent::config::schema::config_env::apply_env_overrides(self);
+        crate::runtime_schema::config_env::apply_env_overrides(self);
     }
 }
 
-pub(crate) fn apply_named_model_provider_profile(config: &mut Config) {
-    agent_config::schema::config::apply_named_model_provider_profile(config, read_codex_openai_api_key, normalize_wire_api);
+pub fn apply_named_model_provider_profile(config: &mut Config) {
+    crate::schema::config::apply_named_model_provider_profile(config, read_codex_openai_api_key, normalize_wire_api);
 }
-pub(crate) fn apply_workspace_override(config: &mut Config, workspace: &str) {
-    agent_config::schema::config::apply_workspace_override(config, workspace, resolve_config_dir_for_workspace);
+pub fn apply_workspace_override(config: &mut Config, workspace: &str) {
+    crate::schema::config::apply_workspace_override(config, workspace, resolve_config_dir_for_workspace);
 }

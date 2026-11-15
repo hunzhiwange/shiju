@@ -4,9 +4,9 @@ use super::{
     Error, State, deduplicate_plugins, directories, load_from_path_without_env, merge_json_value,
     plugin_name, remove_global_provider, take_gateway_skeys_from_patch, update, update_global,
 };
-use crate::app::agent::security::gateway_skey_store::GatewaySkeyStore;
-use crate::app::agent::storage::{Error as StorageError, NotFoundError};
-use crate::global_database::GlobalDatabase;
+use secret_store::gateway_skey_store::GatewaySkeyStore;
+use storage_types::{Error as StorageError, NotFoundError};
+use agent_database::GlobalDatabase;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use std::path::PathBuf;

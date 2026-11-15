@@ -8,9 +8,9 @@ use anyhow::{Context, Result, bail};
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use vw_api_transport::id::TenantScope;
 
-use crate::app::agent::security::gateway_skey_store::GatewaySkeyReplacement;
-use crate::global_database::GlobalDatabase;
-use crate::global_database::config::DatabaseProvider;
+use secret_store::gateway_skey_store::GatewaySkeyReplacement;
+use agent_database::GlobalDatabase;
+use agent_database::config::DatabaseProvider;
 
 mod postgres;
 
@@ -242,4 +242,11 @@ fn current_timestamp_ms() -> Result<i64> {
         .duration_since(UNIX_EPOCH)
         .context("system clock is before Unix epoch")?;
     i64::try_from(elapsed.as_millis()).context("system timestamp exceeds database integer range")
+}
+
+impl crate::schema::channel_reload::ChannelConfigStore for SystemConfigStore {
+    fn get(&self, tenant: &TenantScope) -> Result<Option<String>> { SystemConfigStore::get(self, tenant) }
+    fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> {
+        SystemConfigStore::get_project(self, tenant, project)
+    }
 }

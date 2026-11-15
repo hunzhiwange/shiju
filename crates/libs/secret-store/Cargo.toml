@@ -14,3 +14,21 @@ tracing = "0.1"
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.11"
+hex = "0.4"
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }

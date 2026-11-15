@@ -7,7 +7,7 @@ use vw_api_transport::id::TenantScope;
 use config_gateway::GatewaySkey;
 
 use super::GatewaySkeyReplacement;
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const GATEWAY_SKEYS_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS gateway_skeys (

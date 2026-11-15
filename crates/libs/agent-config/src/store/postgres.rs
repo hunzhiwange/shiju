@@ -5,8 +5,8 @@
 use anyhow::{Context, Result, bail};
 use vw_api_transport::id::TenantScope;
 
-use crate::app::agent::security::gateway_skey_store::GatewaySkeyReplacement;
-use crate::global_database::GlobalDatabase;
+use secret_store::gateway_skey_store::GatewaySkeyReplacement;
+use agent_database::GlobalDatabase;
 
 const SYSTEM_CONFIGS_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS system_configs (

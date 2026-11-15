@@ -11,15 +11,15 @@ use vw_api_transport::id::TenantScope;
 use config_aggregate::Config;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::SystemConfigStore;
+use crate::store::SystemConfigStore;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_load::load_or_init_config_for_tenant;
+use crate::runtime_schema::config_load::load_or_init_config_for_tenant;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 #[cfg(not(target_arch = "wasm32"))]
 /// 校验并加密配置后写入指定租户；运行期 skey 永不落库。
-pub(super) fn save_config_to_store(
+pub fn save_config_to_store(
     config: &Config,
     tenant: &TenantScope,
     store: &SystemConfigStore,
@@ -37,18 +37,18 @@ pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Re
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let home = agent_config::runtime_home::config_home()?;
-        #[cfg(test)]
+        let home = crate::runtime_home::config_home()?;
+        #[cfg(any(test, feature = "test-support"))]
         {
             let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
             return save_config_to_store(config, tenant, &store);
         }
 
-        #[cfg(not(test))]
+        #[cfg(not(any(test, feature = "test-support")))]
         let config = config.clone();
-        #[cfg(not(test))]
+        #[cfg(not(any(test, feature = "test-support")))]
         let tenant = tenant.clone();
-        #[cfg(not(test))]
+        #[cfg(not(any(test, feature = "test-support")))]
         tokio::task::spawn_blocking(move || {
             let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
             save_config_to_store(&config, &tenant, &store)
@@ -64,54 +64,54 @@ pub async fn save_config(config: &Config) -> Result<()> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) use agent_config::schema::config_save::save_project_config_to_store;
+pub use crate::schema::config_save::save_project_config_to_store;
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn open_system_config_store() -> Result<SystemConfigStore> {
-    let home = agent_config::runtime_home::config_home()?;
+    let home = crate::runtime_home::config_home()?;
     let database = GlobalDatabase::for_home(home)?;
     tokio::task::spawn_blocking(move || SystemConfigStore::new(database))
         .await
         .context("join system config store initialization task")?
 }
 
-pub(crate) async fn update_project_config_for_tenant(tenant: &TenantScope, project: &Path, patch: Value) -> Result<Config> {
+pub async fn update_project_config_for_tenant(tenant: &TenantScope, project: &Path, patch: Value) -> Result<Config> {
     #[cfg(not(target_arch = "wasm32"))]
-    { agent_config::schema::config_save::update_project_config_for_tenant::<ProjectConfigHost>(tenant, project, patch).await }
+    { crate::schema::config_save::update_project_config_for_tenant::<ProjectConfigHost>(tenant, project, patch).await }
     #[cfg(target_arch = "wasm32")]
     { let _ = (tenant, project, patch); bail!("Project config overrides are not supported in WASM"); }
 }
-pub(crate) async fn update_project_config_from_configs(project: &Path, before: &Config, after: &Config) -> Result<Config> {
+pub async fn update_project_config_from_configs(project: &Path, before: &Config, after: &Config) -> Result<Config> {
     #[cfg(not(target_arch = "wasm32"))]
-    { agent_config::schema::config_save::update_project_config_from_configs::<ProjectConfigHost>(project, before, after).await }
+    { crate::schema::config_save::update_project_config_from_configs::<ProjectConfigHost>(project, before, after).await }
     #[cfg(target_arch = "wasm32")]
     { let before_value = serde_json::to_value(before).context("Failed to serialize previous config")?; let after_value = serde_json::to_value(after).context("Failed to serialize updated config")?; if merge_patch_between(&before_value, &after_value).is_none() { return Ok(after.clone()); } let _ = project; bail!("Project config overrides are not supported in WASM"); }
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) use agent_config::schema::config_save::encode_config_for_storage;
-#[cfg(test)]
-pub(crate) use agent_config::schema::config_save::{merge_raw_project_patch, select_override_shape};
+pub use crate::schema::config_save::encode_config_for_storage;
+#[cfg(any(test, feature = "test-support"))]
+pub use crate::schema::config_save::{merge_raw_project_patch, select_override_shape};
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) use agent_config::schema::config_save::merge_patch_between;
+pub use crate::schema::config_save::merge_patch_between;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn prepare_project_override(base: &Config, raw_override: Value, patch: Value) -> Result<Value> {
-    let catalog = crate::agent::catalog::merged_agent_catalog(&base.agents);
-    agent_config::schema::config_save::prepare_project_override(base, raw_override, patch, &catalog)
+pub fn prepare_project_override(base: &Config, raw_override: Value, patch: Value) -> Result<Value> {
+    let catalog = crate::catalog::merged_agent_catalog(&base.agents);
+    crate::schema::config_save::prepare_project_override(base, raw_override, patch, &catalog)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 /// 项目配置持久化的宿主组合。
 struct ProjectConfigHost;
 #[cfg(not(target_arch = "wasm32"))]
-impl agent_config::schema::config_save::ProjectConfigHost for ProjectConfigHost {
+impl crate::schema::config_save::ProjectConfigHost for ProjectConfigHost {
     type Store = SystemConfigStore;
     async fn open_store() -> Result<Self::Store> { open_system_config_store().await }
     async fn load(tenant: &TenantScope, project: Option<&Path>) -> Result<Config> { load_or_init_config_for_tenant(tenant, project).await }
-    fn catalog(config: &Config) -> std::collections::HashMap<String, config_agent::AgentDefinitionConfig> { crate::agent::catalog::merged_agent_catalog(&config.agents) }
+    fn catalog(config: &Config) -> std::collections::HashMap<String, config_agent::AgentDefinitionConfig> { crate::catalog::merged_agent_catalog(&config.agents) }
 }
 #[cfg(not(target_arch = "wasm32"))]
-impl agent_config::schema::config_save::ProjectConfigStore for SystemConfigStore {
+impl crate::schema::config_save::ProjectConfigStore for SystemConfigStore {
     fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> { self.get_project(tenant, project) }
     fn upsert_project(&self, tenant: &TenantScope, project: &str, payload: &str) -> Result<()> { self.upsert_project(tenant, project, payload) }
 }

@@ -12,9 +12,9 @@ use super::{
         update_project_config_from_configs,
     },
 };
-use crate::app::agent::config::SystemConfigStore;
-use crate::app::agent::security::SecretStore;
-use crate::global_database::GlobalDatabase;
+use crate::store::SystemConfigStore;
+use secret_store::secrets::SecretStore;
+use agent_database::GlobalDatabase;
 
 fn store(temp: &TempDir) -> SystemConfigStore {
     SystemConfigStore::new(

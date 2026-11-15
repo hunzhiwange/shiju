@@ -100,8 +100,7 @@ pub(crate) mod hosted_search;
 mod hosted_search_tests;
 
 pub(crate) mod search_citations;
-#[cfg(test)]
-mod search_citations_tests;
+// Search citation tests live in model-protocol.
 
 mod responses_chat_result;
 // responses_chat_result tests live in model-protocol.
@@ -135,8 +134,7 @@ pub(crate) mod xai_responses;
 mod xai_responses_tests;
 
 pub(crate) mod signature_rectify;
-#[cfg(test)]
-mod signature_rectify_tests;
+// Signature repair tests live in model-protocol.
 
 mod tool_media;
 mod tool_media_request;

@@ -67,7 +67,11 @@ mod responses_history_tests;
 mod responses_tests;
 pub mod responses_stream;
 pub mod search_citations;
+#[cfg(test)]
+mod search_citations_tests;
 pub mod signature_rectify;
+#[cfg(test)]
+mod signature_rectify_tests;
 pub mod tool_media;
 pub mod tool_media_request;
 pub mod tool_namespace;

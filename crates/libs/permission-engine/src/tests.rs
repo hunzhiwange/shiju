@@ -142,4 +142,3 @@ fn disabled_uses_the_last_permission_rule() {
     assert!(disabled.contains("write"));
     assert!(!disabled.contains("unknown"));
 }
-

@@ -1,11 +1,27 @@
+#[derive(PartialEq, Debug)]
+enum FocusArea { None, Terminal }
+struct TestApp {
+    terminal: super::TerminalState,
+    focus_area: FocusArea,
+}
+impl TestApp {
+    fn new() -> (Self, ()) { (Self { terminal: Default::default(), focus_area: FocusArea::None }, ()) }
+}
+fn update(app: &mut TestApp, message: super::TerminalMessage) -> iced::Task<super::TerminalMessage> {
+    let mut focused = app.focus_area == FocusArea::Terminal;
+    let mut effects = Vec::new();
+    let result = super::update(&mut app.terminal, &iced::Theme::Dark, None, &mut focused, &mut effects, message);
+    app.focus_area = if focused { FocusArea::Terminal } else { FocusArea::None };
+    result
+}
 // 验证终端标签选择、关闭、回收与上下文菜单状态。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
-use super::{TerminalMessage, update};
-use crate::app::{App, FocusArea, TerminalState};
+use super::TerminalMessage;
+use super::TerminalState;
 
-fn test_app_with_blank_terminal() -> App {
-    let mut app = App::new().0;
+fn test_app_with_blank_terminal() -> TestApp {
+    let mut app = TestApp::new().0;
     app.terminal = TerminalState::default();
     app
 }

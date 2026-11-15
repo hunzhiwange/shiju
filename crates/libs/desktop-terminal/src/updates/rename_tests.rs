@@ -1,7 +1,12 @@
+struct TestApp { terminal: super::TerminalState }
+impl TestApp { fn new() -> (Self, ()) { (Self { terminal: Default::default() }, ()) } }
+fn update(app: &mut TestApp, message: super::TerminalMessage) -> iced::Task<super::TerminalMessage> {
+    super::update(&mut app.terminal, config_ui::DesktopLocale::default(), message)
+}
 // 验证终端标签重命名草稿、缺失标签与菜单清理行为。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
-use crate::app::terminal::TerminalState;
+use super::TerminalState;
 
 fn terminal_with_context_menu() -> TerminalState {
     let mut terminal = TerminalState::default();
@@ -137,11 +142,11 @@ fn cancel_edit_discards_draft() {
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn public_update_for_missing_tab_still_applies_cancel_cleanup() {
-    let (mut app, _task) = crate::app::App::new();
+    let (mut app, _task) = TestApp::new();
     app.terminal.tab_context_menu_id = Some(31);
     app.terminal.tab_context_menu_pos = Some((4.0, 5.0));
 
-    let _task = super::update(&mut app, super::TerminalMessage::RenameCancel(u64::MAX));
+    let _task = update(&mut app, super::TerminalMessage::RenameCancel(u64::MAX));
 
     assert_eq!(app.terminal.tab_context_menu_id, None);
     assert_eq!(app.terminal.tab_context_menu_pos, None);

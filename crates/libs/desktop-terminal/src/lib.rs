@@ -1,4 +1,4 @@
-//! Terminal pane views and layout. Desktop owns Shell selection and cross-domain orchestration.
+//! Terminal state, local messages, updates and views; the host applies cross-domain effects.
 pub mod message;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod panes;
@@ -42,3 +42,7 @@ pub use state::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub mod local;
+
+pub mod shell;
+pub use shell::Shell;
+pub mod updates;

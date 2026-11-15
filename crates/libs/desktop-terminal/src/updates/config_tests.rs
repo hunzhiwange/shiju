@@ -1,3 +1,15 @@
+struct TestApp {
+    terminal: super::TerminalState,
+    terminal_config_persistence: super::super::config::ConfigPersistence,
+}
+impl TestApp {
+    fn new() -> (Self, ()) { (Self { terminal: Default::default(), terminal_config_persistence: Default::default() }, ()) }
+}
+fn update(app: &mut TestApp, message: super::TerminalMessage) -> iced::Task<super::TerminalMessage> {
+    let mut effects = Vec::new();
+    let result = super::update(&mut app.terminal, &mut app.terminal_config_persistence, &iced::Theme::Dark, &mut effects, message);
+    result
+}
 // 验证终端外观配置更新及稳定持久化键选择。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
@@ -10,14 +22,14 @@ fn test_module_is_wired() {
     assert!(module.ends_with("config_tests"));
 }
 
-fn terminal() -> crate::app::TerminalState {
-    crate::app::TerminalState::default()
+fn terminal() -> super::TerminalState {
+    super::TerminalState::default()
 }
 
 #[test]
 fn shell_selection_updates_state_and_returns_stable_config_key() {
     for (shell, expected_key) in
-        [(crate::app::Shell::Bash, "bash"), (crate::app::Shell::Zsh, "zsh")]
+        [(crate::Shell::Bash, "bash"), (crate::Shell::Zsh, "zsh")]
     {
         let mut terminal = terminal();
 
@@ -44,10 +56,10 @@ fn system_theme_selection_updates_state_and_returns_config_key() {
     let update = super::apply_update(
         &mut terminal,
         &iced::Theme::Dark,
-        super::TerminalMessage::ThemeSelected(crate::app::TerminalTheme::System),
+        super::TerminalMessage::ThemeSelected(crate::TerminalTheme::System),
     );
 
-    assert_eq!(terminal.theme, crate::app::TerminalTheme::System);
+    assert_eq!(terminal.theme, crate::TerminalTheme::System);
     assert!(matches!(update, Some(super::TerminalConfigUpdate::Theme("system"))));
 }
 
@@ -111,13 +123,13 @@ fn unrelated_message_leaves_terminal_unchanged_and_skips_persistence() {
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_with_unrelated_message_leaves_app_terminal_unchanged() {
-    let (mut app, _task) = crate::app::App::new();
+    let (mut app, _task) = TestApp::new();
     let original_shell = app.terminal.shell;
     let original_theme = app.terminal.theme;
     let original_family = app.terminal.font_family.clone();
     let original_size = app.terminal.font_size;
 
-    let _task = super::update(&mut app, super::TerminalMessage::DragStarted);
+    let _task = update(&mut app, super::TerminalMessage::DragStarted);
 
     assert_eq!(app.terminal.shell, original_shell);
     assert_eq!(app.terminal.theme, original_theme);
@@ -156,40 +168,40 @@ fn edits_during_save_wait_and_preserve_latest_value() {
 
 #[test]
 fn font_size_drag_updates_display_without_resizing_or_saving_until_release() {
-    let mut app = crate::app::App::new().0;
+    let mut app = TestApp::new().0;
     app.terminal.font_size = 13.0;
     for index in 0..1_000 {
         let size = 10.0 + (index % 9) as f32;
-        let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(size));
+        let _ = update(&mut app, super::TerminalMessage::FontSizePreview(size));
         assert_eq!(app.terminal.font_size, 13.0);
         assert_eq!(app.terminal_config_persistence.displayed_font_size(13.0), size);
         assert!(app.terminal_config_persistence.pending.is_empty());
     }
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(18.0));
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommit);
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreview(18.0));
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreviewCommit);
     assert_eq!(app.terminal.font_size, 18.0);
     assert_eq!(app.terminal_config_persistence.pending["terminal_font_size"], 18.0);
     let saved_generation = app.terminal_config_persistence.generation;
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommit);
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreviewCommit);
     assert_eq!(app.terminal_config_persistence.generation, saved_generation);
 }
 
 #[test]
 fn font_size_idle_commit_ignores_old_timers_and_supports_non_drag_input() {
-    let mut app = crate::app::App::new().0;
+    let mut app = TestApp::new().0;
     app.terminal.font_size = 13.0;
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(14.0));
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreview(14.0));
     let old_generation = app.terminal_config_persistence.font_size_generation;
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreview(16.0));
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreview(16.0));
     let latest = app.terminal_config_persistence.font_size_generation;
     let _ =
-        super::update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(old_generation));
+        update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(old_generation));
     assert_eq!(app.terminal.font_size, 13.0);
     assert!(app.terminal_config_persistence.pending.is_empty());
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(latest));
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(latest));
     assert_eq!(app.terminal.font_size, 16.0);
     assert_eq!(app.terminal_config_persistence.pending["terminal_font_size"], 16.0);
     let saved_generation = app.terminal_config_persistence.generation;
-    let _ = super::update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(latest));
+    let _ = update(&mut app, super::TerminalMessage::FontSizePreviewCommitDue(latest));
     assert_eq!(app.terminal_config_persistence.generation, saved_generation);
 }

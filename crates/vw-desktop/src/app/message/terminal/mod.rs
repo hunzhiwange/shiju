@@ -1,143 +1,65 @@
-//! 管理终端相关消息、配置和标签页状态更新。
-//!
-//! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
-//! 不改变任何运行时行为。
-
-use crate::app::{App, Message, Shell, TerminalTheme};
+//! Desktop orchestration for terminal-local updates.
+use crate::app::{App, Message, FocusArea};
 use iced::Task;
+pub use desktop_terminal::message::TerminalMessage;
 #[cfg(not(target_arch = "wasm32"))]
-use iced::widget::{
-    Id,
-    pane_grid::{Direction, Pane, ResizeEvent, Target},
-};
-
-/// config 子模块，拆分当前领域的局部职责。
+pub use desktop_terminal::message::ContentAction;
 pub mod config;
-#[cfg(not(target_arch = "wasm32"))]
-mod content_menu;
-/// event 子模块，拆分当前领域的局部职责。
 pub mod event;
-#[cfg(not(target_arch = "wasm32"))]
-mod panes;
-/// rename 子模块，拆分当前领域的局部职责。
 pub mod rename;
-/// tabs 子模块，拆分当前领域的局部职责。
 pub mod tabs;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use content_menu::ContentAction;
-
 pub(crate) use tabs::reap_retired_task;
 
-#[derive(Debug, Clone)]
-/// 描述 TerminalMessage 支持的离散状态或消息分支。
-pub enum TerminalMessage {
-    ThemeSelected(TerminalTheme),
-    FontSelected(String),
-    FontSizeChanged(f32),
-    FontSizePreview(f32),
-    FontSizePreviewCommit,
-    FontSizePreviewCommitDue(u64),
-    ShellSelected(Shell),
-    ConfigSaveDue(u64),
-    ConfigSaved(Result<(), String>),
-    Add,
-    #[cfg(not(target_arch = "wasm32"))]
-    AddToPane(Pane),
-    #[cfg(not(target_arch = "wasm32"))]
-    ToggleSplitMenu(Pane),
-    #[cfg(not(target_arch = "wasm32"))]
-    CloseSplitMenu,
-    #[cfg(not(target_arch = "wasm32"))]
-    Split(Id, Pane, Direction),
-    #[cfg(not(target_arch = "wasm32"))]
-    ResizePane(Id, ResizeEvent),
-    #[cfg(not(target_arch = "wasm32"))]
-    DockPane(Id, Pane, Target),
-    #[cfg(not(target_arch = "wasm32"))]
-    TogglePaneMaximized(Id, Pane),
-    Select(u64),
-    Close(u64),
-    /// Drop terminals retired after iced cancelled their subscriptions.
-    ReapRetired,
-    #[cfg(not(target_arch = "wasm32"))]
-    Event(iced_term::Event),
-    #[cfg(target_arch = "wasm32")]
-    Event(()),
-    RenameStart(u64),
-    RenameChanged(u64, String),
-    RenameSave(u64),
-    RenameCancel(u64),
-    TabContextOpen(u64, f32, f32),
-    TabContextClose,
-    #[cfg(not(target_arch = "wasm32"))]
-    ContentMenuOpen(u64, iced::Point),
-    #[cfg(not(target_arch = "wasm32"))]
-    ContentMenuClose,
-    #[cfg(not(target_arch = "wasm32"))]
-    ContentMenuAction(u64, ContentAction),
-    #[cfg(not(target_arch = "wasm32"))]
-    PasteResolved(iced::widget::Id, Option<String>),
-    DragStarted,
-    #[cfg(not(target_arch = "wasm32"))]
-    ToggleFullscreen,
-}
-
-/// 执行 update 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
-    #[cfg(not(target_arch = "wasm32"))]
-    let was_fullscreen = app.terminal.is_fullscreen;
-    let task = match message {
-        TerminalMessage::Add
-        | TerminalMessage::Select(_)
-        | TerminalMessage::Close(_)
-        | TerminalMessage::ReapRetired
-        | TerminalMessage::TabContextOpen(_, _, _)
-        | TerminalMessage::TabContextClose => tabs::update(app, message),
-
-        TerminalMessage::ThemeSelected(_)
-        | TerminalMessage::FontSelected(_)
-        | TerminalMessage::FontSizeChanged(_)
-        | TerminalMessage::FontSizePreview(_)
-        | TerminalMessage::FontSizePreviewCommit
-        | TerminalMessage::FontSizePreviewCommitDue(_)
-        | TerminalMessage::ShellSelected(_)
-        | TerminalMessage::ConfigSaveDue(_)
-        | TerminalMessage::ConfigSaved(_) => config::update(app, message),
-
-        TerminalMessage::RenameStart(_)
-        | TerminalMessage::RenameChanged(_, _)
-        | TerminalMessage::RenameSave(_)
-        | TerminalMessage::RenameCancel(_) => rename::update(app, message),
-
-        #[cfg(not(target_arch = "wasm32"))]
-        TerminalMessage::AddToPane(_)
-        | TerminalMessage::ToggleSplitMenu(_)
-        | TerminalMessage::CloseSplitMenu
-        | TerminalMessage::Split(..)
-        | TerminalMessage::ResizePane(..)
-        | TerminalMessage::DockPane(..)
-        | TerminalMessage::TogglePaneMaximized(..) => panes::update(app, message),
-        TerminalMessage::Event(_) | TerminalMessage::DragStarted => event::update(app, message),
-        #[cfg(not(target_arch = "wasm32"))]
-        TerminalMessage::ToggleFullscreen => event::update(app, message),
-        #[cfg(not(target_arch = "wasm32"))]
-        TerminalMessage::ContentMenuOpen(..)
-        | TerminalMessage::ContentMenuClose
-        | TerminalMessage::ContentMenuAction(..)
-        | TerminalMessage::PasteResolved(..) => content_menu::update(app, message),
-    };
-    #[cfg(not(target_arch = "wasm32"))]
-    if was_fullscreen != app.terminal.is_fullscreen {
-        return Task::batch([task, super::view::panel::sync_work_browser(app)]);
+    let fullscreen = app.terminal.is_fullscreen;
+    let mut focused = app.focus_area == FocusArea::Terminal;
+    let mut effects = Vec::new();
+    let task = desktop_terminal::updates::update(
+        &mut app.terminal, &mut app.terminal_config_persistence, &app.app_theme,
+        app.project_path.as_deref(), app.desktop_locale, app.cursor_position.y,
+        &mut focused, &mut effects, message,
+    ).map(Message::Terminal);
+    if focused { app.focus_area = FocusArea::Terminal; }
+    else if app.focus_area == FocusArea::Terminal { app.focus_area = FocusArea::None; }
+    let mut tasks = vec![task];
+    for effect in effects {
+        use desktop_terminal::updates::Effect;
+        tasks.push(match effect {
+            #[cfg(not(target_arch = "wasm32"))]
+            Effect::Focus => {
+                for tab in &mut app.preview_tabs { tab.editor.inner.lose_focus(); }
+                Task::none()
+            }
+            Effect::Delay(duration, message) => super::after(duration, Message::Terminal(message)),
+            Effect::SaveConfig(patch) => {
+                let client = crate::app::config::gateway_client();
+                Task::perform(async move {
+                    gateway_desktop_settings::GatewayDesktopSettingsClient::new(client?.transport().clone())
+                        .desktop_system_settings_patch(&patch).await
+                }, |result| Message::Terminal(TerminalMessage::ConfigSaved(result)))
+            }
+            Effect::Error(error) => app.show_error_toast(error),
+            Effect::SettingEdited(key) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                app.note_startup_setting_edit(key);
+                #[cfg(target_arch = "wasm32")]
+                let _ = key;
+                Task::none()
+            }
+            Effect::SplitFailed => app.show_localized_toast(crate::app::state::ToastKind::Error, "无法启动拆分终端", vec![]),
+            Effect::AppendChat(text) => {
+                let append = super::chat::update(app, super::ChatMessage::AppendText(text));
+                Task::batch([append, iced::widget::operation::focus(app.input_editor_id.clone())])
+            }
+        });
     }
-    task
+    #[cfg(not(target_arch = "wasm32"))]
+    if fullscreen != app.terminal.is_fullscreen { tasks.push(super::view::panel::sync_work_browser(app)); }
+    #[cfg(target_arch = "wasm32")]
+    let _ = fullscreen;
+    Task::batch(tasks)
 }
 #[cfg(test)]
 mod tests;
-
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod focus_tests;

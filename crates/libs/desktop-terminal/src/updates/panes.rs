@@ -1,16 +1,23 @@
+use crate::Shell;
+use super::{TerminalMessage, Effect};
+type TerminalState = crate::TerminalState<Shell>;
 use std::path::PathBuf;
+use crate::panes::SplitError;
 
 use iced::Task;
 
-use super::TerminalMessage;
-use crate::app::state::ToastKind;
-use crate::app::terminal::panes::SplitError;
-use crate::app::{App, FocusArea, Message};
 
-pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
+pub(super) fn update(
+    terminal: &mut TerminalState,
+    theme: &iced::Theme,
+    project_path: Option<&str>,
+    focused: &mut bool,
+    effects: &mut Vec<Effect>,
+    message: TerminalMessage,
+) -> Task<TerminalMessage> {
     match message {
         TerminalMessage::TogglePaneMaximized(instance, pane) => {
-            let terminal = &mut app.terminal;
+            let terminal = &mut *terminal;
             if !terminal.is_visible || terminal.panes.instance != instance {
                 return Task::none();
             }
@@ -25,64 +32,64 @@ pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             } else {
                 terminal.panes.grid.maximize(pane);
             }
-            super::event::focus_active_terminal(app)
+            super::event::focus_active_terminal(terminal, focused, effects)
         }
         TerminalMessage::ResizePane(instance, event) => {
-            let terminal = &mut app.terminal;
+            let terminal = &mut *terminal;
             if terminal.is_visible && terminal.panes.instance == instance {
                 terminal.panes.resize(event);
             }
             Task::none()
         }
         TerminalMessage::DockPane(instance, pane, target) => {
-            let terminal = &mut app.terminal;
+            let terminal = &mut *terminal;
             if terminal.is_visible && terminal.panes.instance == instance {
                 terminal.panes.dock(pane, target);
             }
             Task::none()
         }
         TerminalMessage::AddToPane(pane) => {
-            if app.terminal.is_visible {
-                super::tabs::add_to_pane(app, pane)
+            if terminal.is_visible {
+                super::tabs::add_to_pane(terminal, theme, project_path, focused, effects, pane)
             } else {
                 Task::none()
             }
         }
         TerminalMessage::ToggleSplitMenu(pane) => {
-            if app.terminal.is_visible
-                && app.terminal.panes.grid.get(pane).is_some_and(|pane| pane.active_id.is_some())
+            if terminal.is_visible
+                && terminal.panes.grid.get(pane).is_some_and(|pane| pane.active_id.is_some())
             {
-                let terminal = &mut app.terminal;
+                let terminal = &mut *terminal;
                 terminal.content_menu = None;
                 terminal.tab_context_menu_id = None;
                 terminal.tab_context_menu_pos = None;
                 terminal.panes.split_menu =
                     (terminal.panes.split_menu != Some(pane)).then_some(pane);
                 if terminal.panes.split_menu.is_none() {
-                    return restore_focus(app);
+                    return restore_focus(terminal, focused, effects);
                 }
             }
             Task::none()
         }
         TerminalMessage::CloseSplitMenu => {
-            app.terminal.panes.split_menu = None;
-            restore_focus(app)
+            terminal.panes.split_menu = None;
+            restore_focus(terminal, focused, effects)
         }
         TerminalMessage::Split(instance, pane, direction) => {
-            if !app.terminal.is_visible || app.terminal.panes.instance != instance {
+            if !terminal.is_visible || terminal.panes.instance != instance {
                 return Task::none();
             }
-            app.terminal.panes.split_menu = None;
-            let cwd = app.project_path.as_ref().map(PathBuf::from);
-            match app.terminal.split_terminal(pane, direction, cwd) {
+            terminal.panes.split_menu = None;
+            let cwd = project_path.map(PathBuf::from);
+            match terminal.split_terminal(pane, direction, cwd) {
                 Ok(()) => {
-                    app.terminal.apply_app_theme(&app.app_theme);
-                    super::event::focus_active_terminal(app)
+                    terminal.apply_app_theme(theme);
+                    super::event::focus_active_terminal(terminal, focused, effects)
                 }
-                Err(SplitError::MissingPane) => restore_focus(app),
+                Err(SplitError::MissingPane) => restore_focus(terminal, focused, effects),
                 Err(SplitError::Spawn) => Task::batch([
-                    app.show_localized_toast(ToastKind::Error, "无法启动拆分终端", vec![]),
-                    restore_focus(app),
+                    { effects.push(Effect::SplitFailed); Task::none() },
+                    restore_focus(terminal, focused, effects),
                 ]),
             }
         }
@@ -90,9 +97,9 @@ pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     }
 }
 
-fn restore_focus(app: &mut App) -> Task<Message> {
-    if app.focus_area == FocusArea::Terminal {
-        super::event::focus_active_terminal(app)
+fn restore_focus(terminal: &mut TerminalState, focused: &mut bool, effects: &mut Vec<Effect>) -> Task<TerminalMessage> {
+    if *focused {
+        super::event::focus_active_terminal(terminal, focused, effects)
     } else {
         Task::none()
     }

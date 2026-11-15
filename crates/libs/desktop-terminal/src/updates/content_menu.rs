@@ -1,42 +1,49 @@
+use crate::Shell;
+use super::{TerminalMessage, Effect};
+type TerminalState = crate::TerminalState<Shell>;
 use iced::Task;
-use iced::widget::{operation, pane_grid::Direction};
+use desktop_i18n::I18n;
 
-use crate::app::i18n::I18n;
-use crate::app::message::ChatMessage;
-use crate::app::{App, FocusArea, Message};
 
-use super::TerminalMessage;
 
-pub use desktop_terminal::message::ContentAction;
+pub use crate::message::ContentAction;
 
-pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
+pub(super) fn update(
+    terminal: &mut TerminalState,
+    theme: &iced::Theme,
+    project_path: Option<&str>,
+    locale: config_ui::DesktopLocale,
+    focused: &mut bool,
+    effects: &mut Vec<Effect>,
+    message: TerminalMessage,
+) -> Task<TerminalMessage> {
     match message {
         TerminalMessage::ContentMenuOpen(id, position) => {
-            if app.terminal.activate_visible_tab(id) {
-                app.terminal.panes.split_menu = None;
-                app.terminal.tab_context_menu_id = None;
-                app.terminal.tab_context_menu_pos = None;
-                app.terminal.content_menu = Some((id, position));
-                return super::event::focus_active_terminal(app);
+            if terminal.activate_visible_tab(id) {
+                terminal.panes.split_menu = None;
+                terminal.tab_context_menu_id = None;
+                terminal.tab_context_menu_pos = None;
+                terminal.content_menu = Some((id, position));
+                return super::event::focus_active_terminal(terminal, focused, effects);
             }
             Task::none()
         }
         TerminalMessage::ContentMenuClose => {
-            app.terminal.content_menu = None;
+            terminal.content_menu = None;
             Task::none()
         }
         TerminalMessage::ContentMenuAction(id, action) => {
-            if !app.terminal.content_menu.is_some_and(|(menu_id, _)| menu_id == id) {
+            if !terminal.content_menu.is_some_and(|(menu_id, _)| menu_id == id) {
                 return Task::none();
             }
-            app.terminal.content_menu = None;
-            run_action(app, id, action)
+            terminal.content_menu = None;
+            run_action(terminal, theme, project_path, locale, focused, effects, id, action)
         }
         TerminalMessage::PasteResolved(widget_id, text) => {
             if let Some(text) = text.filter(|text| !text.is_empty())
-                && app.terminal.is_visible
-                && let Some(tab) = app.terminal.tabs.iter_mut().find(|tab| {
-                    app.terminal.active_id == Some(tab.id)
+                && terminal.is_visible
+                && let Some(tab) = terminal.tabs.iter_mut().find(|tab| {
+                    terminal.active_id == Some(tab.id)
                         && tab.term.widget_id() == &widget_id
                         && tab.edit_title.is_none()
                 })
@@ -51,20 +58,20 @@ pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     }
 }
 
-fn run_action(app: &mut App, id: u64, action: ContentAction) -> Task<Message> {
-    if !app.terminal.is_visible || app.terminal.active_id != Some(id) {
+fn run_action(terminal: &mut TerminalState, theme: &iced::Theme, project_path: Option<&str>, locale: config_ui::DesktopLocale, focused: &mut bool, effects: &mut Vec<Effect>, id: u64, action: ContentAction) -> Task<TerminalMessage> {
+    if !terminal.is_visible || terminal.active_id != Some(id) {
         return Task::none();
     }
-    let Some(tab) = app.terminal.tabs.iter_mut().find(|tab| tab.id == id) else {
+    let Some(tab) = terminal.tabs.iter_mut().find(|tab| tab.id == id) else {
         return Task::none();
     };
 
     match action {
-        ContentAction::NewTerminal => super::tabs::update(app, TerminalMessage::Add),
+        ContentAction::NewTerminal => super::tabs::update(terminal, theme, project_path, focused, effects, TerminalMessage::Add),
         ContentAction::Split(direction) => {
-            let panes = &app.terminal.panes;
+            let panes = &terminal.panes;
             let message = TerminalMessage::Split(panes.instance.clone(), panes.focused, direction);
-            super::panes::update(app, message)
+            super::panes::update(terminal, theme, project_path, focused, effects, message)
         }
         ContentAction::Copy => {
             let text = tab.term.selected_text();
@@ -73,7 +80,7 @@ fn run_action(app: &mut App, id: u64, action: ContentAction) -> Task<Message> {
         ContentAction::Paste | ContentAction::PasteText => {
             let widget_id = tab.term.widget_id().clone();
             let resolve = move |text| {
-                Message::Terminal(TerminalMessage::PasteResolved(widget_id.clone(), text))
+                TerminalMessage::PasteResolved(widget_id.clone(), text)
             };
             if matches!(action, ContentAction::PasteText) {
                 return iced::clipboard::read().map(resolve);
@@ -97,7 +104,7 @@ fn run_action(app: &mut App, id: u64, action: ContentAction) -> Task<Message> {
         ContentAction::AskInChat | ContentAction::InsertInChat => {
             let selection = tab.term.selected_text();
             let text = if matches!(action, ContentAction::AskInChat) {
-                let prompt = I18n::new(app.desktop_locale).__("请帮我排查这个终端问题。");
+                let prompt = I18n::new(locale).__("请帮我排查这个终端问题。");
                 if selection.is_empty() {
                     prompt.to_string()
                 } else {
@@ -109,11 +116,11 @@ fn run_action(app: &mut App, id: u64, action: ContentAction) -> Task<Message> {
             if text.is_empty() {
                 return Task::none();
             }
-            app.focus_area = FocusArea::None;
-            let append = super::super::chat::update(app, ChatMessage::AppendText(text));
-            Task::batch([append, operation::focus(app.input_editor_id.clone())])
+            *focused = false;
+            effects.push(Effect::AppendChat(text));
+            Task::none()
         }
-        ContentAction::CloseTab => super::tabs::close_tab(app, id),
+        ContentAction::CloseTab => super::tabs::close_tab(terminal, focused, effects, id),
     }
 }
 

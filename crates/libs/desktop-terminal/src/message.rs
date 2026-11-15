@@ -1,3 +1,4 @@
+use crate::{Shell, TerminalTheme};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::widget::{Id, pane_grid::{Direction, Pane, ResizeEvent, Target}};
 #[cfg(not(target_arch = "wasm32"))]
@@ -16,7 +17,17 @@ pub enum ContentAction {
 }
 
 #[derive(Debug, Clone)]
+/// 描述 TerminalMessage 支持的离散状态或消息分支。
 pub enum TerminalMessage {
+    ThemeSelected(TerminalTheme),
+    FontSelected(String),
+    FontSizeChanged(f32),
+    FontSizePreview(f32),
+    FontSizePreviewCommit,
+    FontSizePreviewCommitDue(u64),
+    ShellSelected(Shell),
+    ConfigSaveDue(u64),
+    ConfigSaved(Result<(), String>),
     Add,
     #[cfg(not(target_arch = "wasm32"))]
     AddToPane(Pane),
@@ -34,6 +45,8 @@ pub enum TerminalMessage {
     TogglePaneMaximized(Id, Pane),
     Select(u64),
     Close(u64),
+    /// Drop terminals retired after iced cancelled their subscriptions.
+    ReapRetired,
     #[cfg(not(target_arch = "wasm32"))]
     Event(iced_term::Event),
     #[cfg(target_arch = "wasm32")]
@@ -50,6 +63,9 @@ pub enum TerminalMessage {
     ContentMenuClose,
     #[cfg(not(target_arch = "wasm32"))]
     ContentMenuAction(u64, ContentAction),
+    #[cfg(not(target_arch = "wasm32"))]
+    PasteResolved(iced::widget::Id, Option<String>),
+    DragStarted,
     #[cfg(not(target_arch = "wasm32"))]
     ToggleFullscreen,
 }

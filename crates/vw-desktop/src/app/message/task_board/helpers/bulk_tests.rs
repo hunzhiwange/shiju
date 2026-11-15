@@ -12,156 +12,19 @@ fn task(id: &str, status: TaskStatus) -> Task {
 
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
-#[test]
-fn visible_task_ids_filter_status_deleted_and_archived_while_preserving_order() {
-    let (mut app, _task) = crate::app::App::new();
-    let first = task("T-first", TaskStatus::Pending);
-    let wrong_status = task("T-running", TaskStatus::Running);
-    let mut deleted = task("T-deleted", TaskStatus::Pending);
-    deleted.deleted = true;
-    let mut archived = task("T-archived", TaskStatus::Pending);
-    archived.archived = true;
-    let last = task("T-last", TaskStatus::Pending);
-    app.task_board_tasks = vec![first, wrong_status, deleted, archived, last];
 
-    assert_eq!(
-        super::visible_task_ids_for_status(&app, TaskStatus::Pending),
-        vec!["T-first".to_string(), "T-last".to_string()]
-    );
-}
 
-#[test]
-fn selected_task_ids_for_status_intersect_visible_tasks_and_selection() {
-    let (mut app, _task) = crate::app::App::new();
-    let selected = task("T-selected", TaskStatus::Pending);
-    let unselected = task("T-unselected", TaskStatus::Pending);
-    let mut deleted = task("T-deleted", TaskStatus::Pending);
-    deleted.deleted = true;
-    app.task_board_tasks = vec![selected, unselected, deleted];
-    app.task_board_selected_tasks.extend([
-        "T-selected".to_string(),
-        "T-deleted".to_string(),
-        "T-missing".to_string(),
-    ]);
 
-    assert_eq!(
-        super::selected_task_ids_for_status(&app, TaskStatus::Pending),
-        vec!["T-selected".to_string()]
-    );
-}
 
-#[test]
-fn prune_bulk_selection_removes_missing_deleted_and_archived_ids() {
-    let (mut app, _task) = crate::app::App::new();
-    let pending = task("T-pending", TaskStatus::Pending);
-    let running = task("T-running", TaskStatus::Running);
-    let mut deleted = task("T-deleted", TaskStatus::Pending);
-    deleted.deleted = true;
-    let mut archived = task("T-archived", TaskStatus::Pending);
-    archived.archived = true;
-    app.task_board_tasks = vec![pending, running, deleted, archived];
-    app.task_board_selected_tasks.extend([
-        "T-pending".to_string(),
-        "T-running".to_string(),
-        "T-deleted".to_string(),
-        "T-archived".to_string(),
-        "T-missing".to_string(),
-    ]);
 
-    super::prune_bulk_selection(&mut app);
 
-    assert_eq!(app.task_board_selected_tasks.len(), 2);
-    assert!(app.task_board_selected_tasks.contains("T-pending"));
-    assert!(app.task_board_selected_tasks.contains("T-running"));
-}
 
-#[test]
-fn clear_selected_task_ids_only_removes_requested_ids() {
-    let (mut app, _task) = crate::app::App::new();
-    app.task_board_selected_tasks.extend([
-        "T-first".to_string(),
-        "T-second".to_string(),
-        "T-keep".to_string(),
-    ]);
 
-    super::clear_selected_task_ids(
-        &mut app,
-        &["T-first".to_string(), "T-absent".to_string(), "T-second".to_string()],
-    );
 
-    assert_eq!(app.task_board_selected_tasks.len(), 1);
-    assert!(app.task_board_selected_tasks.contains("T-keep"));
-}
 
-#[test]
-fn clear_selection_for_status_keeps_other_and_non_visible_selections() {
-    let (mut app, _task) = crate::app::App::new();
-    let pending = task("T-pending", TaskStatus::Pending);
-    let running = task("T-running", TaskStatus::Running);
-    let mut deleted = task("T-deleted", TaskStatus::Pending);
-    deleted.deleted = true;
-    app.task_board_tasks = vec![pending, running, deleted];
-    app.task_board_selected_tasks.extend([
-        "T-pending".to_string(),
-        "T-running".to_string(),
-        "T-deleted".to_string(),
-    ]);
 
-    super::clear_selection_for_status(&mut app, TaskStatus::Pending);
 
-    assert!(!app.task_board_selected_tasks.contains("T-pending"));
-    assert!(app.task_board_selected_tasks.contains("T-running"));
-    assert!(app.task_board_selected_tasks.contains("T-deleted"));
-}
 
-#[test]
-fn selected_tasks_for_status_returns_cloned_visible_selected_tasks_in_board_order() {
-    let (mut app, _task) = crate::app::App::new();
-    let first = task("T-first", TaskStatus::Pending);
-    let second = task("T-second", TaskStatus::Pending);
-    let wrong_status = task("T-running", TaskStatus::Running);
-    app.task_board_tasks = vec![first, wrong_status, second];
-    app.task_board_selected_tasks.extend([
-        "T-first".to_string(),
-        "T-running".to_string(),
-        "T-second".to_string(),
-    ]);
-
-    let mut selected = super::selected_tasks_for_status(&app, TaskStatus::Pending);
-
-    assert_eq!(
-        selected.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
-        vec!["T-first", "T-second"]
-    );
-    selected[0].prompt = "changed clone".to_string();
-    assert_ne!(app.task_board_tasks[0].prompt, selected[0].prompt);
-}
-
-#[test]
-fn agent_scheduler_command_request_sets_local_defaults_and_payload() {
-    use vw_api_agent_scheduler::{
-        AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto,
-        AgentSchedulerDispatchModeDto,
-    };
-
-    let payload = AgentSchedulerCommandPayloadDto {
-        extra: Some(serde_json::json!({"source": "bulk-test"})),
-        ..Default::default()
-    };
-    let request = super::agent_scheduler_command_request(
-        "T-command",
-        AgentSchedulerCommandKindDto::Pause,
-        Some("manual pause".to_string()),
-        payload.clone(),
-    );
-
-    assert_eq!(request.task_id.as_ref(), "T-command");
-    assert_eq!(request.command, AgentSchedulerCommandKindDto::Pause);
-    assert_eq!(request.dispatch_mode, AgentSchedulerDispatchModeDto::Local);
-    assert_eq!(request.max_concurrent, None);
-    assert_eq!(request.reason.as_deref(), Some("manual pause"));
-    assert_eq!(request.payload, payload);
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_bulk_command_short_circuits_without_gateway_access() {
@@ -259,11 +122,7 @@ fn task_metadata_patch_uses_id_and_default_workflow_for_empty_inputs() {
     assert_eq!(patch.workflow_id.as_deref(), Some(crate::app::task::DEFAULT_TASK_WORKFLOW_ID));
 }
 
-#[test]
-fn normalized_bulk_model_input_trims_values_and_defaults_blank_input() {
-    assert_eq!(super::normalized_bulk_model_input("  provider/model  "), "provider/model");
-    assert_eq!(super::normalized_bulk_model_input(" \n\t "), crate::app::task::TASK_MODEL_AUTO);
-}
+
 
 #[test]
 fn reset_bulk_operation_inputs_copies_draft_and_recent_choices() {

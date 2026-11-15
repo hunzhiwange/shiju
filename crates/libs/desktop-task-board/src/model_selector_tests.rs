@@ -4,8 +4,8 @@ use super::{
     TaskBoardModelSelectorKind, build_bulk_model_selector, build_model_icon, build_model_popover,
     build_model_selector, build_toggle_label,
 };
-use crate::app::message::TaskBoardMessage;
-use crate::app::state::{ModelSummary, ProviderModelsSummary};
+use super::SelectorMessage as TaskBoardMessage;
+use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary};
 use iced::Length;
 
 fn model(id: &str, name: &str, enabled: bool) -> ModelSummary {
@@ -33,19 +33,19 @@ fn test_module_is_wired() {
 
 #[test]
 fn selector_kind_reads_model_sources_and_open_flags() {
-    let mut app = crate::app::App::new().0;
-    app.task_board_draft.model = "openai/gpt-4.1".to_string();
+    let mut app = Fixture::default();
+    app.draft_model = "openai/gpt-4.1".to_string();
     app.task_board_bulk_model_input = "anthropic/claude".to_string();
     app.task_board_model_popover = true;
     app.task_board_bulk_model_popover = false;
 
-    assert_eq!(TaskBoardModelSelectorKind::Draft.current_model(&app), "openai/gpt-4.1");
-    assert_eq!(TaskBoardModelSelectorKind::Edit.current_model(&app), "openai/gpt-4.1");
-    assert_eq!(TaskBoardModelSelectorKind::Bulk.current_model(&app), "anthropic/claude");
+    assert_eq!(TaskBoardModelSelectorKind::Draft.current_model(app.view()), "openai/gpt-4.1");
+    assert_eq!(TaskBoardModelSelectorKind::Edit.current_model(app.view()), "openai/gpt-4.1");
+    assert_eq!(TaskBoardModelSelectorKind::Bulk.current_model(app.view()), "anthropic/claude");
 
-    assert!(TaskBoardModelSelectorKind::Draft.is_open(&app));
-    assert!(TaskBoardModelSelectorKind::Edit.is_open(&app));
-    assert!(!TaskBoardModelSelectorKind::Bulk.is_open(&app));
+    assert!(TaskBoardModelSelectorKind::Draft.is_open(app.view()));
+    assert!(TaskBoardModelSelectorKind::Edit.is_open(app.view()));
+    assert!(!TaskBoardModelSelectorKind::Bulk.is_open(app.view()));
 }
 
 #[test]
@@ -105,66 +105,66 @@ fn selector_kind_maps_toggle_close_select_and_input_messages() {
 
 #[test]
 fn toggle_label_resolves_auto_provider_model_bare_model_and_fallbacks() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     app.model_settings.providers = vec![provider(
         "openai",
         "OpenAI",
         vec![model("gpt-4.1", "GPT 4.1", true), model("o3", "OpenAI o3", true)],
     )];
 
-    assert_eq!(build_toggle_label(&app, true, "openai/gpt-4.1"), "自动模型");
-    assert_eq!(build_toggle_label(&app, false, "openai/gpt-4.1"), "GPT 4.1");
-    assert_eq!(build_toggle_label(&app, false, "gpt-4.1"), "GPT 4.1");
-    assert_eq!(build_toggle_label(&app, false, "missing/custom-model"), "custom-model");
-    assert_eq!(build_toggle_label(&app, false, "custom-model"), "custom-model");
+    assert_eq!(build_toggle_label(app.view(), true, "openai/gpt-4.1"), "自动模型");
+    assert_eq!(build_toggle_label(app.view(), false, "openai/gpt-4.1"), "GPT 4.1");
+    assert_eq!(build_toggle_label(app.view(), false, "gpt-4.1"), "GPT 4.1");
+    assert_eq!(build_toggle_label(app.view(), false, "missing/custom-model"), "custom-model");
+    assert_eq!(build_toggle_label(app.view(), false, "custom-model"), "custom-model");
 }
 
 #[test]
 fn toggle_label_keeps_provider_qualification_when_model_ids_overlap() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     app.model_settings.providers = vec![
         provider("first", "First", vec![model("shared", "First Shared", true)]),
         provider("second", "Second", vec![model("shared", "Second Shared", true)]),
     ];
 
-    assert_eq!(build_toggle_label(&app, false, "first/shared"), "First Shared");
-    assert_eq!(build_toggle_label(&app, false, "second/shared"), "Second Shared");
-    assert_eq!(build_toggle_label(&app, false, "missing/shared"), "shared");
-    assert_eq!(build_toggle_label(&app, false, "shared"), "First Shared");
+    assert_eq!(build_toggle_label(app.view(), false, "first/shared"), "First Shared");
+    assert_eq!(build_toggle_label(app.view(), false, "second/shared"), "Second Shared");
+    assert_eq!(build_toggle_label(app.view(), false, "missing/shared"), "shared");
+    assert_eq!(build_toggle_label(app.view(), false, "shared"), "First Shared");
 }
 
 #[test]
 fn toggle_label_falls_back_for_partial_or_extra_provider_qualified_ids() {
-    let app = crate::app::App::new().0;
+    let app = Fixture::default();
 
-    assert_eq!(build_toggle_label(&app, false, "provider/"), "");
-    assert_eq!(build_toggle_label(&app, false, "/model"), "model");
-    assert_eq!(build_toggle_label(&app, false, "provider/model/extra"), "model/extra");
+    assert_eq!(build_toggle_label(app.view(), false, "provider/"), "");
+    assert_eq!(build_toggle_label(app.view(), false, "/model"), "model");
+    assert_eq!(build_toggle_label(app.view(), false, "provider/model/extra"), "model/extra");
 }
 
 #[test]
 fn model_icon_builds_for_auto_provider_bare_model_and_unknown_model() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     app.model_settings.providers =
         vec![provider("openai", "OpenAI", vec![model("gpt-4.1", "GPT 4.1", true)])];
 
-    std::hint::black_box(build_model_icon(true, &app, "auto"));
-    std::hint::black_box(build_model_icon(false, &app, "openai/gpt-4.1"));
-    std::hint::black_box(build_model_icon(false, &app, "gpt-4.1"));
-    std::hint::black_box(build_model_icon(false, &app, "unknown-model"));
+    std::hint::black_box(build_model_icon(true, app.view(), "auto"));
+    std::hint::black_box(build_model_icon(false, app.view(), "openai/gpt-4.1"));
+    std::hint::black_box(build_model_icon(false, app.view(), "gpt-4.1"));
+    std::hint::black_box(build_model_icon(false, app.view(), "unknown-model"));
 }
 
 #[test]
 fn model_popover_renders_loading_empty_filtered_and_selected_states() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
 
     app.model_settings.loading = true;
-    let loading = build_model_popover(&app, TaskBoardModelSelectorKind::Draft, true, "auto");
+    let loading = build_model_popover(app.view(), TaskBoardModelSelectorKind::Draft, true, "auto");
     assert_eq!(loading.as_widget().size().width, Length::Fixed(320.0));
     drop(loading);
 
     app.model_settings.loading = false;
-    let empty = build_model_popover(&app, TaskBoardModelSelectorKind::Edit, false, "missing");
+    let empty = build_model_popover(app.view(), TaskBoardModelSelectorKind::Edit, false, "missing");
     assert_eq!(empty.as_widget().size().width, Length::Fixed(320.0));
     drop(empty);
 
@@ -182,36 +182,36 @@ fn model_popover_renders_loading_empty_filtered_and_selected_states() {
     ];
 
     let selected_provider_model =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Draft, false, "openai/gpt-4.1");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Draft, false, "openai/gpt-4.1");
     assert_eq!(selected_provider_model.as_widget().size().width, Length::Fixed(320.0));
     drop(selected_provider_model);
 
     let selected_bare_model =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Edit, false, "claude");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Edit, false, "claude");
     assert_eq!(selected_bare_model.as_widget().size().width, Length::Fixed(320.0));
     drop(selected_bare_model);
 
     app.model_settings.query = "OPEN".to_string();
     let provider_match =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Bulk, false, "openai/gpt-4.1");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Bulk, false, "openai/gpt-4.1");
     assert_eq!(provider_match.as_widget().size().width, Length::Fixed(320.0));
     drop(provider_match);
 
     app.model_settings.query = "sonnet".to_string();
     let model_name_match =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Draft, false, "anthropic/claude");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Draft, false, "anthropic/claude");
     assert_eq!(model_name_match.as_widget().size().width, Length::Fixed(320.0));
     drop(model_name_match);
 
     app.model_settings.query = "no-match".to_string();
     let no_match =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Bulk, false, "openai/gpt-4.1");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Bulk, false, "openai/gpt-4.1");
     assert_eq!(no_match.as_widget().size().width, Length::Fixed(320.0));
 }
 
 #[test]
 fn model_popover_filters_by_model_id_and_provider_id_while_catalog_exists() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     app.model_settings.loading = true;
     app.model_settings.providers = vec![
         ProviderModelsSummary {
@@ -232,35 +232,55 @@ fn model_popover_filters_by_model_id_and_provider_id_while_catalog_exists() {
 
     app.model_settings.query = "gpt-4.1".to_string();
     let model_id_match =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Draft, false, "openai/gpt-4.1");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Draft, false, "openai/gpt-4.1");
     assert_eq!(model_id_match.as_widget().size().width, Length::Fixed(320.0));
     drop(model_id_match);
 
     app.model_settings.query = "anthropic".to_string();
     let provider_id_match =
-        build_model_popover(&app, TaskBoardModelSelectorKind::Bulk, false, "anthropic/claude");
+        build_model_popover(app.view(), TaskBoardModelSelectorKind::Bulk, false, "anthropic/claude");
     assert_eq!(provider_id_match.as_widget().size().width, Length::Fixed(320.0));
 }
 
 #[test]
 fn public_builders_construct_draft_edit_and_bulk_selectors() {
-    let mut app = crate::app::App::new().0;
+    let mut app = Fixture::default();
     app.model_settings.providers =
         vec![provider("openai", "OpenAI", vec![model("gpt-4.1", "GPT 4.1", true)])];
 
-    app.task_board_draft.model = "  ".to_string();
+    app.draft_model = "  ".to_string();
     app.task_board_model_popover = true;
-    let draft = build_model_selector(&app, false);
+    let draft = build_model_selector(app.view(), false);
     std::hint::black_box(draft.as_widget().size());
     drop(draft);
 
-    app.task_board_draft.model = "openai/gpt-4.1".to_string();
-    let edit = build_model_selector(&app, true);
+    app.draft_model = "openai/gpt-4.1".to_string();
+    let edit = build_model_selector(app.view(), true);
     std::hint::black_box(edit.as_widget().size());
     drop(edit);
 
     app.task_board_bulk_model_input = "openai/gpt-4.1".to_string();
     app.task_board_bulk_model_popover = true;
-    let bulk = build_bulk_model_selector(&app);
+    let bulk = build_bulk_model_selector(app.view());
     std::hint::black_box(bulk.as_widget().size());
+}
+
+#[derive(Default)]
+struct Fixture {
+    draft_model: String,
+    task_board_bulk_model_input: String,
+    task_board_model_popover: bool,
+    task_board_bulk_model_popover: bool,
+    model_settings: desktop_settings_providers::state::ModelSettingsState,
+}
+impl Fixture {
+    fn view(&self) -> super::SelectorView<'_> {
+        super::SelectorView {
+            draft_model: &self.draft_model, bulk_model: &self.task_board_bulk_model_input,
+            task_board_model_popover: self.task_board_model_popover,
+            task_board_bulk_model_popover: self.task_board_bulk_model_popover,
+            desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+            model_settings: &self.model_settings,
+        }
+    }
 }

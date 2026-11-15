@@ -1,20 +1,20 @@
 //! 独立胶囊的点击区域不包含头像拖动处理器。
 use super::*;
 
-pub(super) fn toolbar(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+pub(super) fn toolbar<'a>(app: PetView<'a>) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let write = button(text(i18n.__("写消息")).size(13))
         .width(86)
         .height(34)
         .padding([6, 10])
         .style(action_style)
-        .on_press(Message::View(message::ViewMessage::TaskPetWriteMessage));
+        .on_press(Message::TaskPetWriteMessage);
     let expand = button(text(if app.task_pet_collapsed { "⌄" } else { "⌃" }).size(16))
         .width(34)
         .height(34)
         .padding(6)
         .style(action_style)
-        .on_press(Message::View(message::ViewMessage::TaskPetToggleCollapsed));
+        .on_press(Message::TaskPetToggleCollapsed);
     container(
         row![write, container(iced::widget::rule::vertical(1)).height(18), expand]
             .align_y(Alignment::Center),

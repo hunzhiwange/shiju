@@ -5,8 +5,8 @@ use iced::{Background, Border, Color, Theme};
 
 use crate::app::Message;
 use crate::app::components::system_settings_common::{
-    round_icon_btn_style, settings_muted_text_style, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_text_editor_style,
+    settings_muted_text_style, settings_panel_style,
+    settings_text_editor_style,
     settings_text_input_style,
 };
 use crate::app::task::SubTaskStatus;
@@ -37,22 +37,7 @@ pub(super) fn selector_trigger_style(
     status: button::Status,
     open: bool,
 ) -> button::Style {
-    use iced::widget::pick_list::Status;
-    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-    let status = if open {
-        Status::Opened { is_hovered: hovered }
-    } else if hovered {
-        Status::Hovered
-    } else {
-        Status::Active
-    };
-    let style = settings_pick_list_style(theme, status);
-    button::Style {
-        background: Some(style.background),
-        border: Border { radius: 10.0.into(), ..style.border },
-        text_color: style.text_color,
-        ..Default::default()
-    }
+    desktop_task_board::selector_styles::selector_trigger_style(theme, status, open)
 }
 
 pub(super) fn selector_option_style(
@@ -60,46 +45,18 @@ pub(super) fn selector_option_style(
     status: button::Status,
     selected: bool,
 ) -> button::Style {
-    let background = if matches!(status, button::Status::Hovered | button::Status::Pressed) {
-        Some(theme.palette().text.scale_alpha(0.08).into())
-    } else if selected {
-        Some(settings_pick_list_menu_style(theme).selected_background)
-    } else {
-        None
-    };
-    button::Style {
-        background,
-        border: Border { radius: 9.0.into(), ..Default::default() },
-        text_color: theme.palette().text,
-        ..Default::default()
-    }
+    desktop_task_board::selector_styles::selector_option_style(theme, status, selected)
 }
 
 pub fn popover_style(theme: &Theme) -> container::Style {
-    let menu = settings_pick_list_menu_style(theme);
-    container::Style {
-        background: Some(theme.extended_palette().background.base.color.into()),
-        border: menu.border,
-        shadow: menu.shadow,
-        ..Default::default()
-    }
+    desktop_task_board::selector_styles::popover_style(theme)
 }
 
 /// 构建或更新 tooltip dark style 相关行为。
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
 pub fn tooltip_dark_style(_theme: &Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(Color::from_rgba8(24, 24, 24, 0.96))),
-        text_color: Some(Color::WHITE),
-        border: Border { radius: 8.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(0.40),
-            offset: iced::Vector::new(0.0, 6.0),
-            blur_radius: 18.0,
-        },
-        ..Default::default()
-    }
+    desktop_task_board::selector_styles::tooltip_dark_style(_theme)
 }
 
 /// 构建或更新 square icon button style 相关行为。
@@ -110,12 +67,7 @@ pub fn square_icon_button_style(
     status: iced::widget::button::Status,
     enabled: bool,
 ) -> iced::widget::button::Style {
-    let mut style = round_icon_btn_style(theme, status);
-    if !enabled {
-        style.text_color = theme.extended_palette().background.weak.text;
-    }
-    style.border.radius = 12.0.into();
-    style
+    desktop_task_board::selector_styles::square_icon_button_style(theme, status, enabled)
 }
 
 /// 构建或更新 subtask card style 相关行为。

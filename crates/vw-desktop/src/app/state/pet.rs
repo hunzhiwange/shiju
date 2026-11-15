@@ -5,13 +5,11 @@ use crate::app::models::ChatRole;
 use std::cmp::Reverse;
 use std::path::Path;
 
-pub(crate) const TASK_PET_CARD_HEIGHT: f32 = 72.0;
-pub(crate) const TASK_PET_CARD_REPLY_HEIGHT: f32 = 120.0;
-pub(crate) const TASK_PET_CARD_SPACING: f32 = 8.0;
-pub(crate) const TASK_PET_LIST_HEIGHT: f32 =
-    TASK_PET_CARD_HEIGHT * 3.0 + TASK_PET_CARD_SPACING * 2.0;
-pub(crate) const TASK_PET_STACK_DEPTH: usize = 3;
-pub(crate) const TASK_PET_STACK_OFFSET: f32 = 8.0;
+pub use desktop_task_board::pet_state::TaskPetAvatarKind;
+pub(crate) use desktop_task_board::pet_state::{
+    TaskPetItem, TaskPetStatus, TASK_PET_CARD_HEIGHT, TASK_PET_CARD_REPLY_HEIGHT,
+    TASK_PET_CARD_SPACING, TASK_PET_LIST_HEIGHT, TASK_PET_STACK_DEPTH, TASK_PET_STACK_OFFSET,
+};
 
 const PET_PANEL_WIDTH: f32 = 360.0;
 const PET_PANEL_HEIGHT: f32 = 404.0;
@@ -21,47 +19,6 @@ const PET_MARGIN: f32 = 12.0;
 const PET_DOUBLE_CLICK_MS: u128 = 500;
 const PET_EXPAND_ANIMATION_STEP: f32 = 0.24;
 const PET_WALK_ANIMATION_MS: u64 = 360;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-/// 任务宠物可选择的头像类别；无头像仍保留窗口控件。
-pub enum TaskPetAvatarKind {
-    None,
-    Robot,
-    Beauty,
-    Handsome,
-}
-
-impl TaskPetAvatarKind {
-    fn next(self) -> Self {
-        match self {
-            Self::None => Self::Robot,
-            Self::Robot => Self::Beauty,
-            Self::Beauty => Self::Handsome,
-            Self::Handsome => Self::Robot,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// 任务宠物条目对应请求的执行状态。
-pub(crate) enum TaskPetStatus {
-    Running,
-    Completed,
-}
-
-#[derive(Debug, Clone)]
-/// 宠物窗口中单个代理请求的稳定展示快照。
-pub(crate) struct TaskPetItem {
-    pub(crate) request_id: u64,
-    pub(crate) session_id: String,
-    pub(crate) title: String,
-    pub(crate) detail: String,
-    pub(crate) detail_feedback: Option<crate::app::i18n::input::Feedback>,
-    pub(crate) project: Option<String>,
-    pub(crate) status: TaskPetStatus,
-    pub(crate) last_click_at: Option<web_time::Instant>,
-}
 
 #[derive(Debug, Clone)]
 struct TaskPetSnapshot {

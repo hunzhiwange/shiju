@@ -13,11 +13,7 @@ pub(crate) fn visible_task_ids_for_status(
     app: &crate::app::App,
     status: TaskStatus,
 ) -> Vec<String> {
-    app.task_board_tasks
-        .iter()
-        .filter(|task| task.status == status && !task.deleted && !task.archived)
-        .map(|task| task.id.clone())
-        .collect()
+    desktop_task_board::bulk::visible_task_ids_for_status(&app.task_board_tasks, status)
 }
 
 /// 执行 selected_task_ids_for_status 对应的领域操作。
@@ -28,10 +24,7 @@ pub(crate) fn selected_task_ids_for_status(
     app: &crate::app::App,
     status: TaskStatus,
 ) -> Vec<String> {
-    visible_task_ids_for_status(app, status)
-        .into_iter()
-        .filter(|task_id| app.task_board_selected_tasks.contains(task_id))
-        .collect()
+    desktop_task_board::bulk::selected_task_ids_for_status(&app.task_board_tasks, &app.task_board_selected_tasks, status)
 }
 
 /// 执行 prune_bulk_selection 对应的领域操作。
@@ -39,13 +32,7 @@ pub(crate) fn selected_task_ids_for_status(
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn prune_bulk_selection(app: &mut crate::app::App) {
-    let valid_ids = app
-        .task_board_tasks
-        .iter()
-        .filter(|task| !task.deleted && !task.archived)
-        .map(|task| task.id.as_str())
-        .collect::<std::collections::HashSet<_>>();
-    app.task_board_selected_tasks.retain(|task_id| valid_ids.contains(task_id.as_str()));
+    desktop_task_board::bulk::prune_bulk_selection(&app.task_board_tasks, &mut app.task_board_selected_tasks)
 }
 
 /// 执行 clear_selected_task_ids 对应的领域操作。
@@ -53,9 +40,7 @@ pub(crate) fn prune_bulk_selection(app: &mut crate::app::App) {
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn clear_selected_task_ids(app: &mut crate::app::App, task_ids: &[String]) {
-    for task_id in task_ids {
-        app.task_board_selected_tasks.remove(task_id);
-    }
+    desktop_task_board::bulk::clear_selected_task_ids(&mut app.task_board_selected_tasks, task_ids)
 }
 
 /// 执行 clear_selection_for_status 对应的领域操作。
@@ -63,8 +48,7 @@ pub(crate) fn clear_selected_task_ids(app: &mut crate::app::App, task_ids: &[Str
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn clear_selection_for_status(app: &mut crate::app::App, status: TaskStatus) {
-    let task_ids = visible_task_ids_for_status(app, status);
-    clear_selected_task_ids(app, &task_ids);
+    desktop_task_board::bulk::clear_selection_for_status(&app.task_board_tasks, &mut app.task_board_selected_tasks, status)
 }
 
 /// 执行 selected_tasks_for_status 对应的领域操作。
@@ -72,34 +56,10 @@ pub(crate) fn clear_selection_for_status(app: &mut crate::app::App, status: Task
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn selected_tasks_for_status(app: &crate::app::App, status: TaskStatus) -> Vec<Task> {
-    app.task_board_tasks
-        .iter()
-        .filter(|task| {
-            task.status == status
-                && !task.deleted
-                && !task.archived
-                && app.task_board_selected_tasks.contains(&task.id)
-        })
-        .cloned()
-        .collect()
+    desktop_task_board::bulk::selected_tasks_for_status(&app.task_board_tasks, &app.task_board_selected_tasks, status)
 }
 
-fn agent_scheduler_command_request(
-    task_id: &str,
-    command: vw_api_agent_scheduler::AgentSchedulerCommandKindDto,
-    reason: impl Into<Option<String>>,
-    payload: vw_api_agent_scheduler::AgentSchedulerCommandPayloadDto,
-) -> vw_api_agent_scheduler::AgentSchedulerCommandRequest {
-    vw_api_agent_scheduler::AgentSchedulerCommandRequest {
-        task_id: task_id.to_string().into(),
-        command,
-        dispatch_mode:
-            vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: reason.into(),
-        payload,
-    }
-}
+use desktop_task_board::bulk::agent_scheduler_command_request;
 
 async fn submit_agent_scheduler_bulk_command(
     project_path: &str,
@@ -133,42 +93,13 @@ fn task_metadata_patch_for_gateway(
     task: &Task,
     workflow_id: &str,
 ) -> vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
-    let status_key = agent_scheduler_status_key_for_task_status(task.status, workflow_id);
-    let status = agent_scheduler_status_for_task_status(task.status, workflow_id);
-    let status_role = agent_scheduler_status_role_for_task_status(task.status, workflow_id);
-    vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
-        title: Some(task.prompt.lines().next().unwrap_or(&task.id).chars().take(120).collect()),
-        status_key: Some(status_key),
-        status: Some(status),
-        priority: Some(task.priority),
-        order_no: Some(i64::from(task.order)),
-        model: Some(task.model.clone()),
-        agent: task.agent.clone(),
-        acp_agent: task.acp_agent.clone(),
-        reasoning_effort: task.reasoning_effort,
-        prompt: Some(task.prompt.clone()),
-        last_error: task.last_error.clone(),
-        pause_reason: task.pause_reason.clone(),
-        merge_source_branch: task.merge_source_branch.clone(),
-        merge_target_branch: task.merge_target_branch.clone(),
-        selected_worktree_path: task.selected_worktree_path.clone(),
-        selected_worktree_slot_id: task.selected_worktree_slot_id.clone(),
-        selected_worktree_branch: task.selected_worktree_branch.clone(),
-        workflow_id: Some(if workflow_id.trim().is_empty() {
-            crate::app::task::DEFAULT_TASK_WORKFLOW_ID.to_string()
-        } else {
-            workflow_id.trim().to_string()
-        }),
-        status_role,
-        metadata_merge: Some(serde_json::json!({
-            "assignee": &task.assignee,
-            "description": &task.description,
-            "subtasks": &task.subtasks,
-            "auto_promote_delay_ms": task.auto_promote_delay_ms,
-            "task_split_mode": task.task_split_mode.to_string_key(),
-        })),
-        metadata_remove_keys: Vec::new(),
-    }
+    desktop_task_board::bulk::task_metadata_patch_for_gateway(
+        task,
+        workflow_id,
+        agent_scheduler_status_key_for_task_status(task.status, workflow_id),
+        agent_scheduler_status_for_task_status(task.status, workflow_id),
+        agent_scheduler_status_role_for_task_status(task.status, workflow_id),
+    )
 }
 
 pub(crate) async fn persist_updated_tasks_via_gateway(
@@ -294,9 +225,7 @@ pub(crate) async fn move_tasks_to_status_via_gateway(
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn normalized_bulk_model_input(value: &str) -> String {
-    normalize_task_model_input(value)
-}
+pub(crate) use desktop_task_board::bulk::normalized_bulk_model_input;
 
 /// 执行 reset_bulk_operation_inputs 对应的领域操作。
 ///
@@ -327,33 +256,11 @@ pub(crate) fn deactivate_bulk_selection_mode(app: &mut crate::app::App) {
 }
 
 fn manual_merge_running(app: &crate::app::App) -> bool {
-    app.task_board_executor.running_tasks.iter().any(|task_id| {
-        app.task_board_tasks
-            .iter()
-            .find(|task| task.id == *task_id)
-            .is_some_and(|task| task.status == TaskStatus::PrSubmitted)
-    })
+    desktop_task_board::bulk::manual_merge_running(&app.task_board_tasks, &app.task_board_executor.running_tasks)
 }
 
 fn pop_next_manual_merge_task(app: &mut crate::app::App) -> Option<Task> {
-    while !app.task_board_manual_merge_queue.is_empty() {
-        let task_id = app.task_board_manual_merge_queue.remove(0);
-        if let Some(task) = app
-            .task_board_tasks
-            .iter()
-            .find(|task| {
-                task.id == task_id
-                    && !task.deleted
-                    && !task.archived
-                    && task.status == TaskStatus::PrSubmitted
-                    && !app.task_board_executor.running_tasks.contains(&task.id)
-            })
-            .cloned()
-        {
-            return Some(task);
-        }
-    }
-    None
+    desktop_task_board::bulk::pop_next_manual_merge_task(&app.task_board_tasks, &app.task_board_executor.running_tasks, &mut app.task_board_manual_merge_queue)
 }
 
 pub(crate) fn start_manual_merge_queue_task(

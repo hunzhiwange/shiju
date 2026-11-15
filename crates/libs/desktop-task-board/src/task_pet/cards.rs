@@ -1,16 +1,16 @@
 //! Mini task cards and their bounded collapsed stack.
-use crate::app::assets::{self, Icon};
-use crate::app::components::status_animation::spinner_frame;
-use crate::app::components::system_settings_common::{
+use desktop_assets::assets::{self, Icon};
+use desktop_ui_controls::status_animation::spinner_frame;
+use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_text_input_style,
 };
-use crate::app::state::{
+use crate::pet_state::{
     TASK_PET_CARD_HEIGHT as PET_CARD_HEIGHT, TASK_PET_CARD_REPLY_HEIGHT as PET_CARD_REPLY_HEIGHT,
     TASK_PET_CARD_SPACING as PET_CARD_SPACING, TASK_PET_LIST_HEIGHT as PET_LIST_HEIGHT,
     TASK_PET_STACK_DEPTH, TASK_PET_STACK_OFFSET, TaskPetItem, TaskPetStatus,
 };
-use crate::app::{App, Message, message};
+use crate::pet_view::{PetView, PetMessage as Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
     Space, button, column, container, mouse_area, row, scrollable, svg, text, text_input,
@@ -24,7 +24,7 @@ pub(super) const TASK_TITLE_SIZE: u32 = 15;
 pub(super) const TASK_DETAIL_SIZE: u32 = 13;
 
 /// Rear layers are paint-only containers; only the front card owns event handlers.
-pub(super) fn collapsed_stack(app: &App) -> Element<'_, Message> {
+pub(super) fn collapsed_stack<'a>(app: PetView<'a>) -> Element<'a, Message> {
     let Some(front) = app.task_pet_items.first() else {
         return Space::new().height(0).into();
     };
@@ -61,12 +61,11 @@ pub(super) fn collapsed_stack(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-pub(super) fn expanded_list(app: &App) -> Element<'_, Message> {
+pub(super) fn expanded_list<'a>(app: PetView<'a>) -> Element<'a, Message> {
     if app.task_pet_items.is_empty() {
         return Space::new().height(0).into();
     }
-    let cards = app
-        .task_pet_items
+    let cards = app.task_pet_items
         .iter()
         .fold(column![].spacing(PET_CARD_SPACING), |list, item| list.push(task_card(app, item)));
     let total = app.task_pet_items.len() as f32 * (PET_CARD_HEIGHT + PET_CARD_SPACING)
@@ -83,7 +82,7 @@ pub(super) fn expanded_list(app: &App) -> Element<'_, Message> {
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .into()
 }
-pub(super) fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, Message> {
+pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<'a, Message> {
     let status_icon = match item.status {
         TaskPetStatus::Running => running_status_icon(app.status_animation_frame),
         TaskPetStatus::Completed => completed_status_icon(),
@@ -103,7 +102,7 @@ pub(super) fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, 
     .height(Length::Fixed(15.0))
     .padding(0)
     .style(tiny_action_button_style)
-    .on_press(Message::View(message::ViewMessage::TaskPetRemove(request_id)));
+    .on_press(Message::TaskPetRemove(request_id));
 
     let body = row![
         column![
@@ -120,7 +119,7 @@ pub(super) fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, 
                     .detail_feedback
                     .as_ref()
                     .map(|feedback| feedback
-                        .render(crate::app::i18n::I18n::new(app.desktop_locale), &item.detail))
+                        .render(desktop_i18n::I18n::new(app.desktop_locale), &item.detail))
                     .unwrap_or_else(|| item.detail.clone())
             ),
         ]
@@ -149,7 +148,7 @@ pub(super) fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, 
                 .padding(iced::Padding::default().top(0).right(0).bottom(10).left(6)),
         )
         .push(
-            container(reply_button(crate::app::i18n::I18n::new(app.desktop_locale), request_id))
+            container(reply_button(desktop_i18n::I18n::new(app.desktop_locale), request_id))
                 .width(Length::Fill)
                 .height(Length::Fixed(PET_CARD_HEIGHT))
                 .align_x(iced::alignment::Horizontal::Right)
@@ -160,10 +159,10 @@ pub(super) fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, 
         card
     };
 
-    let content: Element<'_, Message> = if replying {
+    let content: Element<'a, Message> = if replying {
         column![
             container(card).height(Length::Fixed(PET_CARD_HEIGHT)),
-            reply_input(crate::app::i18n::I18n::new(app.desktop_locale), &app.task_pet_reply_input),
+            reply_input(desktop_i18n::I18n::new(app.desktop_locale), app.task_pet_reply_input),
         ]
         .spacing(6)
         .into()
@@ -173,14 +172,14 @@ pub(super) fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, 
     let height = if replying { PET_CARD_REPLY_HEIGHT } else { PET_CARD_HEIGHT };
 
     mouse_area(container(content).width(Length::Fill).height(Length::Fixed(height)))
-        .on_enter(Message::View(message::ViewMessage::TaskPetHover(Some(request_id))))
-        .on_exit(Message::View(message::ViewMessage::TaskPetHover(None)))
-        .on_press(Message::View(message::ViewMessage::TaskPetItemClicked(request_id)))
+        .on_enter(Message::TaskPetHover(Some(request_id)))
+        .on_exit(Message::TaskPetHover(None))
+        .on_press(Message::TaskPetItemClicked(request_id))
         .into()
 }
 
 pub(super) fn reply_button(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     request_id: u64,
 ) -> Element<'static, Message> {
     button(centered_button_label(i18n.__("回复"), 12))
@@ -188,15 +187,15 @@ pub(super) fn reply_button(
         .height(Length::Fixed(22.0))
         .padding(0)
         .style(reply_button_style)
-        .on_press(Message::View(message::ViewMessage::TaskPetReplyPressed(request_id)))
+        .on_press(Message::TaskPetReplyPressed(request_id))
         .into()
 }
 
-pub(super) fn reply_input(i18n: crate::app::i18n::I18n, value: &str) -> Element<'_, Message> {
+pub(super) fn reply_input(i18n: desktop_i18n::I18n, value: &str) -> Element<'a, Message> {
     row![
         text_input(i18n.__("继续说点什么..."), value)
-            .on_input(|next| Message::View(message::ViewMessage::TaskPetReplyInputChanged(next)))
-            .on_submit(Message::View(message::ViewMessage::TaskPetReplySubmit))
+            .on_input(|next| Message::TaskPetReplyInputChanged(next))
+            .on_submit(Message::TaskPetReplySubmit)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
@@ -206,7 +205,7 @@ pub(super) fn reply_input(i18n: crate::app::i18n::I18n, value: &str) -> Element<
             .height(Length::Fixed(30.0))
             .padding(0)
             .style(primary_action_btn_style)
-            .on_press(Message::View(message::ViewMessage::TaskPetReplySubmit)),
+            .on_press(Message::TaskPetReplySubmit),
     ]
     .spacing(6)
     .align_y(Alignment::Center)

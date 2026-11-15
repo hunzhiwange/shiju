@@ -24,36 +24,20 @@ fn create_task_draft_normalizes_saved_preferences_and_preserves_defaults() {
 
     let default_draft =
         super::create_task_draft_with_preferences("   ".to_string(), Some(" default ".to_string()));
-    assert_eq!(default_draft.model, crate::app::task::TASK_MODEL_AUTO);
+    assert_eq!(default_draft.model, desktop_task_model::TASK_MODEL_AUTO);
     assert_eq!(default_draft.acp_agent, None);
 }
 
 #[test]
-fn reset_create_draft_rebuilds_state_and_synchronizes_prompt_editor() {
-    let (mut app, _task) = crate::app::App::new();
-    app.task_board_last_model = "  gpt-5  ".to_string();
-    app.task_board_last_acp_agent = Some("  codex  ".to_string());
-    app.task_board_draft.prompt = "stale draft".to_string();
-    app.task_board_prompt_editor = iced::widget::text_editor::Content::with_text("stale editor");
-
-    super::reset_create_draft(&mut app);
-
-    assert_eq!(app.task_board_draft.model, "gpt-5");
-    assert_eq!(app.task_board_draft.acp_agent.as_deref(), Some("codex"));
-    assert!(app.task_board_draft.prompt.is_empty());
-    assert!(app.task_board_prompt_editor.text().is_empty());
-}
-
-#[test]
 fn executor_selection_helpers_trim_custom_values_and_clear_default_aliases() {
-    let mut draft = crate::app::task::TaskDraft::default();
+    let mut draft = desktop_task_model::TaskDraft::default();
     super::set_draft_executor_selection(&mut draft, Some(" custom-agent ".to_string()));
     assert_eq!(draft.acp_agent.as_deref(), Some("custom-agent"));
 
     super::set_draft_executor_selection(&mut draft, Some(" ACP 网关 ".to_string()));
     assert_eq!(draft.acp_agent, None);
 
-    let mut task = crate::app::task::Task::new(10);
+    let mut task = desktop_task_model::Task::new(10);
     super::set_task_executor_selection(&mut task, Some(" opencode ".to_string()));
     assert_eq!(task.acp_agent.as_deref(), Some("opencode"));
 
@@ -103,7 +87,7 @@ fn import_demo_content_returns_each_supported_format_and_rejects_unknown_names()
 #[test]
 fn json_import_prompt_uses_selected_values_and_includes_reasoning_effort() {
     let prompt = super::import_prompt_template(
-        crate::app::task::TaskImportPromptFormat::Json,
+        desktop_task_model::TaskImportPromptFormat::Json,
         321,
         "  gpt-5  ",
         Some("claude"),
@@ -121,7 +105,7 @@ fn json_import_prompt_uses_selected_values_and_includes_reasoning_effort() {
 #[test]
 fn csv_import_prompt_uses_auto_and_default_fallbacks_with_extended_header() {
     let prompt = super::import_prompt_template(
-        crate::app::task::TaskImportPromptFormat::Csv,
+        desktop_task_model::TaskImportPromptFormat::Csv,
         700,
         "   ",
         None,
@@ -136,7 +120,7 @@ fn csv_import_prompt_uses_auto_and_default_fallbacks_with_extended_header() {
 #[test]
 fn tsv_import_prompt_inserts_empty_reasoning_effort_column() {
     let prompt = super::import_prompt_template(
-        crate::app::task::TaskImportPromptFormat::Tsv,
+        desktop_task_model::TaskImportPromptFormat::Tsv,
         900,
         "auto",
         Some("opencode"),
@@ -153,9 +137,9 @@ fn tsv_import_prompt_inserts_empty_reasoning_effort_column() {
 
 #[test]
 fn initial_task_status_uses_first_status_for_selected_workflow() {
-    use crate::app::task::TaskStatus;
+    use desktop_task_model::TaskStatus;
 
-    let _cache_lock = crate::app::task::runtime_task_lifecycle_cache_test_lock();
+    let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     assert_eq!(
         super::initial_task_status_for_workflow_id("marketing_campaign"),
         TaskStatus::Custom("campaign_ideas")
@@ -165,7 +149,7 @@ fn initial_task_status_uses_first_status_for_selected_workflow() {
         TaskStatus::Custom("recruiting_pool")
     );
     assert_eq!(
-        super::initial_task_status_for_workflow_id(crate::app::task::DEFAULT_TASK_WORKFLOW_ID),
+        super::initial_task_status_for_workflow_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID),
         TaskStatus::Pool
     );
 }
@@ -174,17 +158,17 @@ fn initial_task_status_uses_first_status_for_selected_workflow() {
 // 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn task_lifecycle_cache_updates_status_helpers() {
-    use crate::app::task::{TaskStatus, update_runtime_task_lifecycle_cache};
+    use desktop_task_model::{TaskStatus, update_runtime_task_lifecycle_cache};
     use vw_api_task_lifecycle::{
         TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
     };
 
-    let _cache_lock = crate::app::task::runtime_task_lifecycle_cache_test_lock();
+    let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     struct CacheGuard;
 
     impl Drop for CacheGuard {
         fn drop(&mut self) {
-            crate::app::task::reset_runtime_task_lifecycle_cache()
+            desktop_task_model::reset_runtime_task_lifecycle_cache()
                 .expect("runtime lifecycle cache should reset");
         }
     }

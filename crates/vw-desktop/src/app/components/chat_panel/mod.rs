@@ -70,9 +70,6 @@ mod question_view_tests;
 #[path = "selectable_text_tests.rs"]
 mod selectable_text_tests;
 #[cfg(test)]
-#[path = "tool_names_tests.rs"]
-mod tool_names_tests;
-#[cfg(test)]
 #[path = "tool_renderer_tests.rs"]
 mod tool_renderer_tests;
 #[cfg(test)]

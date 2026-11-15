@@ -9,8 +9,7 @@ use super::tool_parse::{
     tool_output_text, tool_render_hint_metadata, tool_result_data, tool_status,
     tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
 };
-use crate::app::App;
-use crate::app::components::chat_panel::tools::types::ChangeFileSummary;
+use crate::tools::types::ChangeFileSummary;
 
 #[test]
 fn tool_name_and_call_id_are_read_from_raw_tool_block() {
@@ -230,12 +229,11 @@ fn output_path_and_error_text_handle_aliases() {
 
 #[test]
 fn resolve_output_path_joins_project_root_for_relative_values() {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/demo".to_string());
+    let project_root = Some("/tmp/demo");
 
-    assert_eq!(super::tool_parse::resolve_output_path(&app, "file:///tmp/out.rs"), "tmp/out.rs");
+    assert_eq!(super::tool_parse::resolve_output_path(project_root, "file:///tmp/out.rs"), "tmp/out.rs");
     assert_eq!(
-        super::tool_parse::resolve_output_path(&app, "logs/out.txt"),
+        super::tool_parse::resolve_output_path(project_root, "logs/out.txt"),
         "/tmp/demo/logs/out.txt"
     );
 }
@@ -500,11 +498,10 @@ fn tool_input_path_handles_invalid_and_plain_inputs() {
 
 #[test]
 fn resolve_output_path_handles_absolute_and_missing_project_root() {
-    let mut app = App::new().0;
-    app.project_path = None;
+    let project_root = None;
 
-    assert_eq!(super::tool_parse::resolve_output_path(&app, "/tmp/out.rs"), "/tmp/out.rs");
-    assert_eq!(super::tool_parse::resolve_output_path(&app, "logs/out.txt"), "logs/out.txt");
+    assert_eq!(super::tool_parse::resolve_output_path(project_root, "/tmp/out.rs"), "/tmp/out.rs");
+    assert_eq!(super::tool_parse::resolve_output_path(project_root, "logs/out.txt"), "logs/out.txt");
 }
 
 #[test]

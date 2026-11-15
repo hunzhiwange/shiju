@@ -100,19 +100,13 @@ mod skill_view_tests;
 #[cfg(test)]
 mod text_view_tests;
 #[cfg(test)]
-mod todo_parse_tests;
-#[cfg(test)]
 mod todo_views_tests;
 #[cfg(test)]
 mod tool_detail_dialog_tests;
 #[cfg(test)]
-mod tool_parse_tests;
-#[cfg(test)]
 mod tool_permission_tests;
 #[cfg(test)]
 mod tool_renderer_tests;
-#[cfg(test)]
-mod types_tests;
 #[cfg(test)]
 mod web_view_tests;
 

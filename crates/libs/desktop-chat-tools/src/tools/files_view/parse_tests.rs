@@ -5,13 +5,8 @@ use super::parse::{
     build_file_list_state, is_edit_like_tool, is_git_diff_tool, is_search_tool, parse_output_files,
     parse_read_range, should_skip_files_view,
 };
-use crate::app::App;
 
-fn test_app() -> App {
-    let mut app = App::new().0;
-    app.project_path = Some("/tmp/vibe-window".to_string());
-    app
-}
+fn test_app() -> Option<&'static str> { Some("/tmp/vibe-window") }
 
 #[test]
 fn tool_classification_is_explicit() {
@@ -116,7 +111,7 @@ fn parse_output_files_prefers_structured_changes_and_sorts_paths() {
         }
     });
 
-    let (changes, items) = parse_output_files(&app, "file_edit", "{}", "", &value);
+    let (changes, items) = parse_output_files(app, "file_edit", "{}", "", &value);
 
     assert_eq!(changes.len(), 2);
     assert_eq!(items[0].0, "src/a.rs");
@@ -125,7 +120,7 @@ fn parse_output_files_prefers_structured_changes_and_sorts_paths() {
 
 #[test]
 fn parse_output_files_keeps_unresolved_structured_change_path() {
-    let app = App::new().0;
+    let app = None;
     let value = serde_json::json!({
         "result": {
             "content": [{
@@ -135,7 +130,7 @@ fn parse_output_files_keeps_unresolved_structured_change_path() {
         }
     });
 
-    let (changes, items) = parse_output_files(&app, "file_edit", "{}", "", &value);
+    let (changes, items) = parse_output_files(app, "file_edit", "{}", "", &value);
 
     assert!(changes.contains_key("file:///"));
     assert_eq!(items, vec![("file:///".to_string(), "file:///".to_string())]);
@@ -146,7 +141,7 @@ fn parse_output_files_reads_path_lines_bullets_and_dedups() {
     let app = test_app();
     let output = "path: src/main.rs\n- src/main.rs\n- src/lib.rs";
 
-    let (_changes, items) = parse_output_files(&app, "grep", "{}", output, &serde_json::json!({}));
+    let (_changes, items) = parse_output_files(app, "grep", "{}", output, &serde_json::json!({}));
 
     assert_eq!(items.len(), 2);
     assert!(items.iter().any(|(display, abs)| {
@@ -159,11 +154,11 @@ fn parse_output_files_uses_file_link_and_tool_paths() {
     let app = test_app();
     let file_link = "<file_link>\nopen: /tmp/out.rs\npath: shown.rs\n</file_link>";
     let (_changes, items) =
-        parse_output_files(&app, "read", "{}", file_link, &serde_json::json!({}));
+        parse_output_files(app, "read", "{}", file_link, &serde_json::json!({}));
     assert_eq!(items, vec![("shown.rs".to_string(), "/tmp/out.rs".to_string())]);
 
     let value = serde_json::json!({"metadata":{"outputPath":"src/out.rs"}});
-    let (_changes, items) = parse_output_files(&app, "bash", "{}", "", &value);
+    let (_changes, items) = parse_output_files(app, "bash", "{}", "", &value);
     assert_eq!(
         items,
         vec![(
@@ -177,11 +172,11 @@ fn parse_output_files_uses_file_link_and_tool_paths() {
 fn parse_output_files_falls_back_to_read_and_edit_input_paths() {
     let app = test_app();
     let input = r#"{"file_path":"src/read.rs"}"#;
-    let (_changes, items) = parse_output_files(&app, "read", input, "", &serde_json::json!({}));
+    let (_changes, items) = parse_output_files(app, "read", input, "", &serde_json::json!({}));
     assert_eq!(items[0].1, "/tmp/vibe-window/src/read.rs");
 
     let input = r#"{"path":"src/write.rs"}"#;
-    let (_changes, items) = parse_output_files(&app, "write", input, "", &serde_json::json!({}));
+    let (_changes, items) = parse_output_files(app, "write", input, "", &serde_json::json!({}));
     assert_eq!(items[0].1, "/tmp/vibe-window/src/write.rs");
 }
 
@@ -189,7 +184,7 @@ fn parse_output_files_falls_back_to_read_and_edit_input_paths() {
 fn parse_output_files_falls_back_to_changes_block() {
     let app = test_app();
     let output = "<changes>\n{\"files\":[{\"path\":\"src/test.rs\",\"additions\":3,\"deletions\":1}]}\n</changes>";
-    let (changes, items) = parse_output_files(&app, "bash", "{}", output, &serde_json::json!({}));
+    let (changes, items) = parse_output_files(app, "bash", "{}", output, &serde_json::json!({}));
     assert_eq!(changes.len(), 1);
     assert_eq!(changes["src/test.rs"].path, "src/test.rs");
     assert_eq!(items[0].1, "/tmp/vibe-window/src/test.rs");
@@ -198,7 +193,7 @@ fn parse_output_files_falls_back_to_changes_block() {
 #[test]
 fn parse_output_files_falls_through_with_no_matches() {
     let app = test_app();
-    let (changes, items) = parse_output_files(&app, "bash", "echo hi", "", &serde_json::json!({}));
+    let (changes, items) = parse_output_files(app, "bash", "echo hi", "", &serde_json::json!({}));
     assert!(changes.is_empty());
     assert!(items.is_empty());
 }
@@ -207,7 +202,7 @@ fn parse_output_files_falls_through_with_no_matches() {
 fn parse_output_files_uses_file_link_open_without_path_line() {
     let app = test_app();
     let output = "<file_link>\nopen: /tmp/out.rs\n</file_link>";
-    let (_changes, items) = parse_output_files(&app, "read", "{}", output, &serde_json::json!({}));
+    let (_changes, items) = parse_output_files(app, "read", "{}", output, &serde_json::json!({}));
     assert_eq!(items, vec![("/tmp/out.rs".to_string(), "/tmp/out.rs".to_string())]);
 }
 
@@ -215,7 +210,7 @@ fn parse_output_files_uses_file_link_open_without_path_line() {
 fn parse_output_files_skips_file_link_with_non_absolute_open() {
     let app = test_app();
     let output = "<file_link>\nopen: relative/path.rs\n</file_link>";
-    let (_changes, items) = parse_output_files(&app, "read", "{}", output, &serde_json::json!({}));
+    let (_changes, items) = parse_output_files(app, "read", "{}", output, &serde_json::json!({}));
     assert!(items.is_empty());
 }
 
@@ -223,7 +218,7 @@ fn parse_output_files_skips_file_link_with_non_absolute_open() {
 fn parse_output_files_ignores_file_link_without_open() {
     let app = test_app();
     let output = "<file_link>\npath: shown.rs\n</file_link>";
-    let (_changes, items) = parse_output_files(&app, "read", "{}", output, &serde_json::json!({}));
+    let (_changes, items) = parse_output_files(app, "read", "{}", output, &serde_json::json!({}));
     assert!(items.is_empty());
 }
 

@@ -28,8 +28,6 @@ mod common_view_tests;
 #[cfg(test)]
 mod list_ui_tests;
 #[cfg(test)]
-mod parse_tests;
-#[cfg(test)]
 mod write_view_tests;
 
 use iced::widget::{Space, button, column, container, mouse_area};
@@ -61,18 +59,7 @@ struct FilesViewContext<'a> {
     read_range: Option<String>,
 }
 
-struct FileListState {
-    items_for_display: Vec<(String, String)>,
-    total_items: usize,
-    display_count: usize,
-    truncated_middle: bool,
-    middle_omitted: usize,
-    tail_omitted: usize,
-    filter_query: String,
-    is_empty_filtered: bool,
-    max_items: usize,
-    is_search: bool,
-}
+use desktop_chat_tools::tools::files_view::FileListState;
 
 /// 构建工具文件列表视图
 ///

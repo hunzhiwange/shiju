@@ -1,0 +1,12 @@
+[package]
+name = "desktop-chat-tools"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+diff-text = { path = "../diff-text", version = "0.6.0" }
+serde_json = "1"

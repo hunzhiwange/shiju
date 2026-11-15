@@ -1,0 +1,25 @@
+[package]
+name = "tool-services"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+tool-types = { path = "../tool-types", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+tool-files = { path = "../tool-files", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+agent-files = { path = "../agent-files", version = "0.6.0" }
+patch = { path = "../patch", version = "0.6.0" }
+plugin-install = { path = "../plugin-install", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+futures-util = "0.3"
+tokio = { version = "1", features = ["fs", "sync"] }

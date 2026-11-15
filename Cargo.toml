@@ -132,6 +132,7 @@ members = [
   "crates/libs/app-versions",
   "crates/libs/tool-types",
   "crates/libs/tool-context",
+  "crates/libs/tool-services",
   "crates/libs/tool-shell",
   "crates/libs/gateway-skill-market",
   "crates/libs/app-providers",

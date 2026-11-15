@@ -1,11 +1,11 @@
-//! apply_patch 工具的单元测试模块
-//!
-//! 本模块提供对 `ApplyPatchTool` 的全面测试覆盖，验证补丁应用功能的正确性。
-//! 主要测试场景包括：
-//! - 工具 schema 的正确性验证
-//! - 文件添加操作
-//!
-//! 测试使用临时目录进行隔离，确保不会影响实际工作空间。
+// apply_patch 工具的单元测试模块
+//
+// 本模块提供对 `ApplyPatchTool` 的全面测试覆盖，验证补丁应用功能的正确性。
+// 主要测试场景包括：
+// - 工具 schema 的正确性验证
+// - 文件添加操作
+//
+// 测试使用临时目录进行隔离，确保不会影响实际工作空间。
 
 use super::super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};

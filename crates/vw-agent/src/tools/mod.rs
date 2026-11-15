@@ -260,3 +260,12 @@ pub(crate) use toolset::discover_dynamic_mcp_tools;
 pub(crate) use toolset::mcp_connections_for_context;
 
 pub(crate) use toolset::execution_tools_for_context;
+
+// Typed adapters for the shared service tools; state stays with its original host.
+impl tool_services::BatchHost for context::AgentContextHost {
+    fn boxed_registry_from_arcs(
+        tools: Vec<std::sync::Arc<dyn traits::Tool>>,
+    ) -> Vec<Box<dyn traits::Tool>> {
+        toolset::boxed_registry_from_arcs(tools)
+    }
+}

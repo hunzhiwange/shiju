@@ -15,13 +15,11 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::agent_scheduler::store::AgentSchedulerStore;
-    use crate::app::agent::config::schema::{
+    use agent_config::schema::{
         DiscordConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig, LarkReceiveMode,
         MattermostConfig, SlackConfig, WebhookConfig,
     };
     use tempfile::TempDir;
-    use vw_api_transport::common::TimestampMs;
     use config_channel_services::{WeChatConfig, WeComConfig};
 
     /// 创建用于测试的配置对象
@@ -177,7 +175,7 @@ mod tests {
         let _ = handle.await;
 
         // 检查健康快照中的组件状态
-        let snapshot = crate::app::agent::health::snapshot_json();
+        let snapshot = agent_health::snapshot_json();
         let component = &snapshot["components"]["daemon-test-fail"];
         assert_eq!(component["status"], "error");
         // 重启计数应至少为 1
@@ -201,7 +199,7 @@ mod tests {
         let _ = handle.await;
 
         // 检查健康快照中的组件状态
-        let snapshot = crate::app::agent::health::snapshot_json();
+        let snapshot = agent_health::snapshot_json();
         let component = &snapshot["components"]["daemon-test-exit"];
         assert_eq!(component["status"], "error");
         // 重启计数应至少为 1
@@ -288,10 +286,10 @@ mod tests {
     fn detects_telegram_as_supervised_channel() {
         let mut config = Config::default();
         // 配置 Telegram 通道（仅需必填字段）
-        config.channels_config.telegram = Some(crate::app::agent::config::TelegramConfig {
+        config.channels_config.telegram = Some(agent_config::TelegramConfig {
             bot_token: "token".into(),
             allowed_users: vec![],
-            stream_mode: crate::app::agent::config::StreamMode::default(),
+            stream_mode: agent_config::StreamMode::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -308,7 +306,7 @@ mod tests {
     fn detects_dingtalk_as_supervised_channel() {
         let mut config = Config::default();
         // 配置钉钉通道（仅需必填字段）
-        config.channels_config.dingtalk = Some(crate::app::agent::config::schema::DingTalkConfig {
+        config.channels_config.dingtalk = Some(agent_config::schema::DingTalkConfig {
             client_id: "client_id".into(),
             client_secret: "client_secret".into(),
             allowed_users: vec!["*".into()],
@@ -324,7 +322,7 @@ mod tests {
         let mut config = Config::default();
         // 配置 Mattermost 通道（仅需必填字段）
         config.channels_config.mattermost =
-            Some(crate::app::agent::config::schema::MattermostConfig {
+            Some(agent_config::schema::MattermostConfig {
                 url: "https://mattermost.example.com".into(),
                 bot_token: "token".into(),
                 channel_id: Some("channel-id".into()),
@@ -343,11 +341,11 @@ mod tests {
     fn detects_qq_as_supervised_channel() {
         let mut config = Config::default();
         // 配置 QQ 通道（仅需必填字段）
-        config.channels_config.qq = Some(crate::app::agent::config::schema::QQConfig {
+        config.channels_config.qq = Some(agent_config::schema::QQConfig {
             app_id: "app-id".into(),
             app_secret: "app-secret".into(),
             allowed_users: vec!["*".into()],
-            receive_mode: crate::app::agent::config::schema::QQReceiveMode::Websocket,
+            receive_mode: agent_config::schema::QQReceiveMode::Websocket,
         });
         assert!(has_supervised_channels(&config));
     }
@@ -355,11 +353,11 @@ mod tests {
     #[test]
     fn detects_qq_webhook_as_gateway_only() {
         let mut config = Config::default();
-        config.channels_config.qq = Some(crate::app::agent::config::schema::QQConfig {
+        config.channels_config.qq = Some(agent_config::schema::QQConfig {
             app_id: "app-id".into(),
             app_secret: "app-secret".into(),
             allowed_users: vec!["*".into()],
-            receive_mode: crate::app::agent::config::schema::QQReceiveMode::Webhook,
+            receive_mode: agent_config::schema::QQReceiveMode::Webhook,
         });
 
         assert!(!has_supervised_channels(&config));
@@ -388,7 +386,7 @@ mod tests {
         let mut config = Config::default();
         // 配置 Nextcloud Talk 通道（仅需必填字段）
         config.channels_config.nextcloud_talk =
-            Some(crate::app::agent::config::schema::NextcloudTalkConfig {
+            Some(agent_config::schema::NextcloudTalkConfig {
                 base_url: "https://cloud.example.com".into(),
                 app_token: "app-token".into(),
                 webhook_secret: None,
@@ -549,10 +547,10 @@ mod tests {
         // 完整配置：target、to 和 telegram 通道配置
         config.heartbeat.target = Some("telegram".into());
         config.heartbeat.to = Some("123456".into());
-        config.channels_config.telegram = Some(crate::app::agent::config::TelegramConfig {
+        config.channels_config.telegram = Some(agent_config::TelegramConfig {
             bot_token: "bot-token".into(),
             allowed_users: vec![],
-            stream_mode: crate::app::agent::config::StreamMode::default(),
+            stream_mode: agent_config::StreamMode::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -670,7 +668,7 @@ mod tests {
             .expect("non-retryable gateway supervisor should finish")
             .unwrap();
 
-        let snapshot = crate::app::agent::health::snapshot_json();
+        let snapshot = agent_health::snapshot_json();
         let entry = &snapshot["components"][component];
         assert_eq!(entry["status"], "error");
         assert_eq!(entry["restart_count"].as_u64().unwrap_or(0), 0);
@@ -681,7 +679,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp);
         config.config_path = tmp.path().join("nested").join("vibewindow.json");
-        crate::app::agent::health::mark_component_ok("daemon-test-state-writer");
+        agent_health::mark_component_ok("daemon-test-state-writer");
 
         let handle = spawn_state_writer(config.clone());
         let path = state_file_path(&config);
@@ -709,10 +707,10 @@ mod tests {
         let mut config = Config::default();
         config.heartbeat.target = Some(" telegram ".into());
         config.heartbeat.to = Some(" 123456 ".into());
-        config.channels_config.telegram = Some(crate::app::agent::config::TelegramConfig {
+        config.channels_config.telegram = Some(agent_config::TelegramConfig {
             bot_token: "bot-token".into(),
             allowed_users: vec![],
-            stream_mode: crate::app::agent::config::StreamMode::default(),
+            stream_mode: agent_config::StreamMode::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,

@@ -11,7 +11,7 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::channels::discord::permissions;
+//! use channel_discord::permissions;
 //!
 //! // 用户权限验证
 //! let allowed_users = vec!["123456789".to_string(), "*".to_string()];

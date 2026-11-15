@@ -114,7 +114,7 @@ pub(super) async fn process_attachments(
 /// # 示例
 ///
 /// ```
-/// # use crate::app::agent::channels::discord::attachments::normalize_content_type;
+/// # use channel_discord::attachments::normalize_content_type;
 /// assert_eq!(normalize_content_type("Image/PNG"), "image/png");
 /// assert_eq!(normalize_content_type("audio/mpeg; charset=utf-8"), "audio/mpeg");
 /// assert_eq!(normalize_content_type(""), "");

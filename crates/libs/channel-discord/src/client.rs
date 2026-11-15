@@ -95,7 +95,7 @@ pub(super) async fn send_discord_message_json_to_url(
         let err =
             resp.text().await.unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
         // 对错误信息进行脱敏处理，避免泄露敏感数据
-        let sanitized = crate::app::agent::providers::sanitize_api_error(&err);
+        let sanitized = agent_providers::sanitize_api_error(&err);
         anyhow::bail!("Discord send message failed ({status}): {sanitized}");
     }
 
@@ -207,7 +207,7 @@ pub(super) async fn send_discord_message_with_files_to_url(
         let err =
             resp.text().await.unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
         // 对错误信息进行脱敏处理，避免泄露敏感数据
-        let sanitized = crate::app::agent::providers::sanitize_api_error(&err);
+        let sanitized = agent_providers::sanitize_api_error(&err);
         anyhow::bail!("Discord send message with files failed ({status}): {sanitized}");
     }
 

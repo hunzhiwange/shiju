@@ -51,7 +51,7 @@ pub(super) const DISCORD_MAX_MESSAGE_LENGTH: usize = 2000;
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::channels::discord::message_split::split_message_for_discord;
+/// use channel_discord::message_split::split_message_for_discord;
 ///
 /// // 短消息不分割
 /// let short = "Hello, Discord!";

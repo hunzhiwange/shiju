@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/onboarding/welcome.rs
+source: crates/libs/tui-onboarding/src/welcome_tests.rs
 expression: "format!(\"{buf:?}\")"
 ---
 Buffer {

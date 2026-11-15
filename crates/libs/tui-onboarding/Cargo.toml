@@ -1,0 +1,18 @@
+[package]
+name = "tui-onboarding"
+version = "0.6.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[lib]
+doctest = false
+
+[dependencies]
+ratatui = { version = "0.30.2", features = [
+    "unstable-backend-writer",
+    "unstable-rendered-line-info",
+    "unstable-widget-ref",
+] }
+
+[dev-dependencies]
+insta = "1.46.3"

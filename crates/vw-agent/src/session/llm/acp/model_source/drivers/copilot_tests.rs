@@ -73,7 +73,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
     std::fs::write(history.join("history-probe"), "no credentials").unwrap();
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
-    let identity = binding.identity.clone();
+    let identity = binding.identity().clone();
     drop(profile);
     assert!(!directory.exists());
     assert!(!binding.accepts(&token, &identity));

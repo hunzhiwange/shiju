@@ -99,7 +99,7 @@ fn acp_model_source_pi_rotates_token_and_model_without_losing_history() {
     let binding = first.binding.clone();
     let old_token = binding.bearer_token().to_owned();
     drop(first);
-    assert!(!binding.accepts(&old_token, &binding.identity));
+    assert!(!binding.accepts(&old_token, binding.identity()));
     let mut next = profile("second");
     next.state_root = Some(state.path().to_owned());
     configure_native(&mut next, "http://127.0.0.1:12346").unwrap();
@@ -112,7 +112,7 @@ fn acp_model_source_pi_rotates_token_and_model_without_losing_history() {
     assert!(!config.contains(next.binding.bearer_token()));
     let mut other = profile("second");
     other.binding = crate::model_relay::RelayBinding::new(
-        RelayIdentity { session: "other".into(), ..other.binding.identity.clone() },
+        RelayIdentity { session: "other".into(), ..other.binding.identity().clone() },
         std::time::Duration::from_secs(60),
     )
     .unwrap();
@@ -143,7 +143,7 @@ fn acp_model_source_pi_rejects_conflicting_config_and_unpatched_executable() {
             ..Default::default()
         };
         let mut candidate =
-            AcpLaunchProfile::new(&config, profile("selected").binding.identity.clone()).unwrap();
+            AcpLaunchProfile::new(&config, profile("selected").binding.identity().clone()).unwrap();
         assert!(configure_native(&mut candidate, "http://127.0.0.1:12345").is_err());
         assert_eq!(std::fs::read_dir(candidate.directory()).unwrap().count(), 0);
     }
@@ -153,7 +153,7 @@ fn acp_model_source_pi_rejects_conflicting_config_and_unpatched_executable() {
     let executable = candidate.write_config("unpatched", b"#!/bin/sh\nexit 0\n").unwrap();
     let cfg =
         AcpAgentConfig { command: executable.to_string_lossy().into_owned(), ..Default::default() };
-    let mut unpatched = AcpLaunchProfile::new(&cfg, candidate.binding.identity.clone()).unwrap();
+    let mut unpatched = AcpLaunchProfile::new(&cfg, candidate.binding.identity().clone()).unwrap();
     assert!(configure(&mut unpatched, "http://127.0.0.1:12345").is_err());
 }
 

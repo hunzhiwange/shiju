@@ -46,7 +46,7 @@ fn acp_model_source_gemini_private_configuration_routes_all_models() {
     let binding = profile.binding.clone();
     drop(profile);
     assert!(!directory.exists());
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
     let mut replacement = self::profile();
     configure(&mut replacement, "http://127.0.0.1:1234").unwrap();
     assert_ne!(replacement.directory(), directory);
@@ -72,7 +72,7 @@ async fn acp_model_source_gemini_subprocess_sends_private_key_to_bound_model() {
         post(
             move |headers: HeaderMap, axum::Json(body): axum::Json<serde_json::Value>| async move {
                 assert!(
-                    binding.accepts(headers["x-goog-api-key"].to_str().unwrap(), &binding.identity)
+                    binding.accepts(headers["x-goog-api-key"].to_str().unwrap(), binding.identity())
                 );
                 assert_eq!(body["contents"][0]["parts"][0]["text"], "private-child-probe");
                 axum::Json(serde_json::json!({"response":"PRIVATE_GEMINI_OK"}))
@@ -119,7 +119,7 @@ fn acp_model_source_gemini_rejects_configuration_conflicts_before_publication() 
             ..Default::default()
         };
         let fixture = profile();
-        let mut profile = AcpLaunchProfile::new(&config, fixture.binding.identity.clone()).unwrap();
+        let mut profile = AcpLaunchProfile::new(&config, fixture.binding.identity().clone()).unwrap();
         profile.model_api = fixture.model_api.clone();
         profile.model_supports_tool_call = fixture.model_supports_tool_call;
         let error = configure(&mut profile, "http://127.0.0.1:1234").unwrap_err().to_string();

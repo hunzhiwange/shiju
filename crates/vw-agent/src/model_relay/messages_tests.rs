@@ -411,7 +411,7 @@ mod http {
         }
         assert_eq!(received.lock().len(), 2);
         // Capability from another tenant/session cannot be replayed against this listener.
-        let mut other = binding.identity.clone();
+        let mut other = binding.identity().clone();
         other.tenant = vw_api_transport::TenantScope::new("other", "tenant").unwrap();
         let other = RelayBinding::new(other, Duration::from_secs(60)).unwrap();
         assert_eq!(

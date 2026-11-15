@@ -42,7 +42,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         .to_owned();
     // ACP history survives bearer rotation; route settings stay in the disposable root.
     use sha2::Digest;
-    let identity = &profile.binding.identity;
+    let identity = profile.binding.identity();
     let reference = hex::encode(sha2::Sha256::digest(serde_json::to_vec(&serde_json::json!({
         "tenant": identity.tenant, "project": identity.project, "session": identity.session,
         "source": "session_model", "driver": "iflow",

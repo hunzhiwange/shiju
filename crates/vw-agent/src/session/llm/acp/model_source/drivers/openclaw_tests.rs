@@ -84,7 +84,7 @@ fn acp_model_source_openclaw_reissue_preserves_history_without_persisting_creden
     let runtime = first.directory().to_owned();
     drop(first);
     assert!(!runtime.exists());
-    assert!(old_binding.cancelled.is_cancelled());
+    assert!(old_binding.cancelled().is_cancelled());
     let mut second = profile();
     second.state_root = Some(root.path().to_owned());
     second.model_alias = "switched-model".into();

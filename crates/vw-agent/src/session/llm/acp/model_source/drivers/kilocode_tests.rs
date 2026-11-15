@@ -32,7 +32,7 @@ fn acp_model_source_kilocode_creates_revocable_private_model_configuration() {
     let binding = profile.binding.clone();
     drop(profile);
     assert!(!directory.exists());
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
 }
 
 fn configured_profile(config: AcpAgentConfig) -> AcpLaunchProfile {
@@ -128,7 +128,7 @@ async fn acp_model_source_kilocode_subprocess_routes_primary_and_helper_to_priva
             async move {
                 let token =
                     headers["authorization"].to_str().unwrap().strip_prefix("Bearer ").unwrap();
-                assert!(binding.accepts(token, &binding.identity));
+                assert!(binding.accepts(token, binding.identity()));
                 assert_eq!(body["model"], "selected-model");
                 axum::Json(serde_json::json!({"accepted":true}))
             }

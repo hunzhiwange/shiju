@@ -48,7 +48,7 @@ fn acp_model_source_droid_rejects_native_model_and_environment_overrides() {
         ..Default::default()
     };
     config.env.insert("FACTORY_API_KEY".into(), "fixture-private".into());
-    let mut launch = AcpLaunchProfile::new(&config, profile().binding.identity.clone()).unwrap();
+    let mut launch = AcpLaunchProfile::new(&config, profile().binding.identity().clone()).unwrap();
     let error = configure(&mut launch, "http://127.0.0.1:12345").unwrap_err().to_string();
     assert!(error.contains("conflicting"));
     assert!(!error.contains("fixture-private"));

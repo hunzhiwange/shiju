@@ -24,7 +24,7 @@ fn acp_model_source_goose_child_environment_is_private_and_revocable() {
     configure(&mut profile, "http://127.0.0.1:12345").unwrap();
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
-    let identity = binding.identity.clone();
+    let identity = binding.identity().clone();
     let directory = profile.directory().to_owned();
     let output = std::process::Command::new("python3")
         .args(["-c", "import os,sys; assert os.environ['GOOSE_PROVIDER']=='openai'; assert os.environ['GOOSE_MODEL']=='selected-model-high'; assert os.environ['SHIJU_GOOSE_MODEL_LOCK']==os.environ['GOOSE_MODEL']; assert os.environ['OPENAI_HOST']=='http://127.0.0.1:12345'; assert os.environ['OPENAI_BASE_PATH']=='v1/chat/completions'; assert os.environ['OPENAI_CUSTOM_HEADERS']==''; assert os.path.isabs(os.environ['GOOSE_PATH_ROOT']); assert os.stat(os.environ['GOOSE_PATH_ROOT']).st_mode & 0o777 == 0o700; assert os.environ['OPENAI_API_KEY']; assert sys.argv[1:]==['acp','--shiju-model-source']; print('PRIVATE_GOOSE_LAUNCH_OK')"])

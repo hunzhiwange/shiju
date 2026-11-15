@@ -46,7 +46,7 @@ fn acp_model_source_vibe_private_binding_pins_primary_and_auxiliary_models() {
     assert_eq!(profile.config().env["VIBE_HOME"], profile.directory().to_string_lossy());
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
-    let identity = binding.identity.clone();
+    let identity = binding.identity().clone();
     drop(profile);
     assert!(!path.exists());
     assert!(!binding.accepts(&token, &identity));

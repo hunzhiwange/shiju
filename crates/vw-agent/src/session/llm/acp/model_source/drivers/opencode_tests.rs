@@ -102,7 +102,7 @@ print('ISOLATED')
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
     drop(profile);
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn acp_model_source_opencode_rotation_keeps_history_and_revokes_old_credentials(
     let binding = first.binding.clone();
     let token = binding.bearer_token().to_owned();
     drop(first);
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
     let mut next = profile();
     next.state_root = Some(state.path().to_owned());
     configure(&mut next, "http://127.0.0.1:12346").unwrap();

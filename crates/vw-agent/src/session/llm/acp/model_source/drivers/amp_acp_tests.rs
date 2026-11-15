@@ -46,7 +46,7 @@ fn acp_onboarding_amp_acp_model_binding_is_private_and_conflicts_fail_closed() {
     let mut config = profile(&[]).config().clone();
     config.env.remove(crate::session::llm::acp::model_source::profile::REFERENCE_ENV);
     config.env.insert("SHIJU_AMP_MODEL".into(), "other".into());
-    let identity = profile(&[]).binding.identity.clone();
+    let identity = profile(&[]).binding.identity().clone();
     let mut launch = AcpLaunchProfile::new(&config, identity).unwrap();
     launch.model_supports_tool_call = true;
     assert!(configure(&mut launch, "http://127.0.0.1:12345").is_err());

@@ -56,7 +56,7 @@ fn acp_model_source_claude_private_settings_revoke_and_reissue() {
     assert_eq!(launch.config().args, config.args);
     assert!(!launch.config().args.iter().any(|a| a.contains(&token)));
     let binding = launch.binding.clone();
-    let identity = binding.identity.clone();
+    let identity = binding.identity().clone();
     drop(launch);
     assert!(!std::path::Path::new(&path).exists());
     assert!(!binding.accepts(&token, &identity));
@@ -295,7 +295,7 @@ fn acp_model_source_claude_history_survives_credential_revocation_and_is_scoped(
     std::fs::write(state.join("history.jsonl"), b"private-history").unwrap();
     drop(first);
     assert!(!std::path::Path::new(&credentials).exists());
-    assert!(!binding.accepts(&bearer, &binding.identity));
+    assert!(!binding.accepts(&bearer, binding.identity()));
     let mut second = profile(&config);
     second.state_root = Some(root.path().to_path_buf());
     configure(&mut second, "http://127.0.0.1:12346").unwrap();
@@ -314,13 +314,13 @@ fn acp_model_source_claude_history_survives_credential_revocation_and_is_scoped(
     other.binding = crate::model_relay::RelayBinding::new(
         crate::model_relay::RelayIdentity {
             session: "different-session".into(),
-            ..other.binding.identity.clone()
+            ..other.binding.identity().clone()
         },
         std::time::Duration::from_secs(900),
     )
     .unwrap();
     // A different launch identity receives a different stable state namespace.
-    let mut other = AcpLaunchProfile::new(&config, other.binding.identity.clone()).unwrap();
+    let mut other = AcpLaunchProfile::new(&config, other.binding.identity().clone()).unwrap();
     other.state_root = Some(root.path().to_path_buf());
     assert_ne!(other.claude_state_directory().unwrap(), state);
 }

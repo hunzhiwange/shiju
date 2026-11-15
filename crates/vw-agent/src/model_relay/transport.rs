@@ -26,205 +26,22 @@ fn bearer(info: &provider::Info) -> Result<String, StatusCode> {
     credential(info, auth::get(&info.id))
 }
 
-pub(super) fn credential(
-    info: &provider::Info,
-    current_auth: Option<auth::Info>,
-) -> Result<String, StatusCode> {
-    let real_key = |key: &str| !key.trim().is_empty() && key.trim() != auth::OAUTH_DUMMY_KEY;
-    if let Some(key) = info.key.as_deref().filter(|v| {
-        real_key(v)
-            && matches!(
-                info.source,
-                provider::ProviderSource::Config | provider::ProviderSource::Custom
-            )
-    }) {
-        return Ok(key.trim().into());
-    }
-    for name in &info.env {
-        if let Some(key) = agent_env::get(name).filter(|v| real_key(v)) {
-            return Ok(key.trim().into());
-        }
-    }
-    match current_auth {
-        Some(auth::Info::Api(api)) if real_key(&api.key) => Ok(api.key.trim().into()),
-        Some(auth::Info::Oauth(oauth))
-            if real_key(&oauth.access) && oauth.expires > chrono::Utc::now().timestamp_millis() =>
-        {
-            Ok(oauth.access)
-        }
-        _ => Err(StatusCode::UNAUTHORIZED),
-    }
-}
+pub(super) use model_transport::credential::credential;
 
-pub(crate) fn chat_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCode> {
-    if !matches!(api.adapter.as_str(), "openai" | "openai-compatible") {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    let mut url =
-        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    if !matches!(url.scheme(), "http" | "https")
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    let path = url.path().trim_end_matches('/');
-    if path.ends_with("/messages")
-        || path.ends_with("/responses")
-        || path.ends_with(":generateContent")
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    if !path.ends_with("/chat/completions") {
-        let path = if path.is_empty() { "/v1" } else { path };
-        url.set_path(&format!("{path}/chat/completions"));
-    }
-    Ok(url)
-}
+pub(crate) use model_protocol::endpoint_urls::chat_url;
 
 #[cfg(test)]
 pub(super) use super::messages_thinking_config::configure_disabled as configure_messages_chat;
 
-/// The official DeepSeek Chat and Messages endpoints share model IDs and credentials.
-pub(crate) fn official_deepseek_messages_url(api: &provider::ApiInfo) -> Option<reqwest::Url> {
-    if !matches!(api.adapter.as_str(), "openai" | "openai-compatible")
-        || !matches!(api.id.as_str(), "deepseek-flash" | "deepseek-v4-pro")
-    {
-        return None;
-    }
-    let mut url = reqwest::Url::parse(api.url.trim()).ok()?;
-    if url.scheme() != "https"
-        || url.host_str() != Some("api.deepseek.com")
-        || url.port().is_some()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-        || !matches!(
-            url.path().trim_end_matches('/'),
-            "" | "/v1" | "/chat/completions" | "/v1/chat/completions"
-        )
-    {
-        return None;
-    }
-    url.set_path("/anthropic/v1/messages");
-    Some(url)
-}
+pub(crate) use model_protocol::endpoint_urls::official_deepseek_messages_url;
 
-/// Token Plan exposes both protocols on the same official origin and credentials.
-pub(crate) fn official_alibaba_messages_url(api: &provider::ApiInfo) -> Option<reqwest::Url> {
-    if !matches!(api.adapter.as_str(), "openai" | "openai-compatible") {
-        return None;
-    }
-    let mut url = reqwest::Url::parse(api.url.trim()).ok()?;
-    if url.scheme() != "https"
-        || !matches!(
-            url.host_str(),
-            Some(
-                "token-plan.cn-beijing.maas.aliyuncs.com"
-                    | "token-plan.ap-southeast-1.maas.aliyuncs.com"
-            )
-        )
-        || url.port().is_some()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-        || !matches!(
-            url.path().trim_end_matches('/'),
-            "/compatible-mode/v1" | "/compatible-mode/v1/chat/completions"
-        )
-    {
-        return None;
-    }
-    url.set_path("/apps/anthropic/v1/messages");
-    Some(url)
-}
+pub(crate) use model_protocol::endpoint_urls::official_alibaba_messages_url;
 
-pub(super) fn messages_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCode> {
-    let mut url =
-        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    if !matches!(url.scheme(), "http" | "https")
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-        || url.query().is_some()
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    let path = url.path().trim_end_matches('/');
-    if path.ends_with("/chat/completions")
-        || path.ends_with("/responses")
-        || path.contains(":generateContent")
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    if !path.ends_with("/messages") {
-        let path = if path.is_empty() { "/v1" } else { path };
-        url.set_path(&format!("{path}/messages"));
-    }
-    Ok(url)
-}
+pub(super) use model_protocol::endpoint_urls::messages_url;
 
-pub(super) fn responses_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCode> {
-    let mut url =
-        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    if !matches!(url.scheme(), "http" | "https")
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-        || url.query().is_some()
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    let path = url.path().trim_end_matches('/');
-    if path.ends_with("/messages")
-        || path.ends_with("/chat/completions")
-        || path.contains(":generateContent")
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    if !path.ends_with("/responses") {
-        let path = if path.is_empty() { "/v1" } else { path };
-        url.set_path(&format!("{path}/responses"));
-    }
-    Ok(url)
-}
+pub(super) use model_protocol::endpoint_urls::responses_url;
 
-pub(super) fn gemini_url(
-    api: &provider::ApiInfo,
-    streaming: bool,
-) -> Result<reqwest::Url, StatusCode> {
-    let mut url =
-        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-    if !matches!(url.scheme(), "http" | "https")
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    let path = url.path().trim_end_matches('/');
-    let base = if let Some((base, _)) = path.split_once("/models/") { base } else { path };
-    if !(base.is_empty() || base.ends_with("/v1beta") || base.ends_with("/v1")) {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    let base = if base.is_empty() { "/v1beta" } else { base };
-    let id = api.id.strip_prefix("models/").unwrap_or(&api.id);
-    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)) {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    url.set_path(&format!(
-        "{base}/models/{id}:{}",
-        if streaming { "streamGenerateContent" } else { "generateContent" }
-    ));
-    if streaming {
-        url.set_query(Some("alt=sse"));
-    }
-    Ok(url)
-}
+pub(super) use model_protocol::endpoint_urls::gemini_url;
 
 #[async_trait::async_trait]
 impl RelayBackend for ProviderRelayBackend {

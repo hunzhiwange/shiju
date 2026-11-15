@@ -206,7 +206,7 @@ pub(in crate::session::llm::acp) fn launch_route(
     let conversions = crate::model_relay::routing::relay_conversions(agent == "codex");
     crate::model_relay::routing::select_api(
         api,
-        &profile.binding.identity.provider,
+        &profile.binding.identity().provider,
         source,
         &required,
         available,

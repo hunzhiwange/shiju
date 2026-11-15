@@ -38,7 +38,7 @@ fn acp_model_source_kimi_child_reads_private_route_without_argv_credentials() {
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
     drop(profile);
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
 }
 
 #[test]

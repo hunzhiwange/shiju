@@ -1,0 +1,36 @@
+[package]
+name = "model-transport"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+model-relay-state = { path = "../model-relay-state", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+auth-types = { path = "../auth-types", version = "0.6.0" }
+agent-env = { path = "../agent-env", version = "0.6.0" }
+anyhow = "1"
+axum = { version = "0.8.8", default-features = false }
+chrono = "0.4"
+futures-util = "0.3.32"
+model-protocol = { path = "../model-protocol", version = "0.6.0" }
+getrandom = "0.4"
+hex = "0.4"
+reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+ring = "0.17.14"
+tokio = { version = "1", features = ["macros", "time"] }
+tokio-util = "0.7.18"
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-apps-usage = { path = "../api-apps-usage", version = "0.6.0" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+serde_json = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "time", "rt"] }

@@ -46,7 +46,7 @@ fn acp_model_source_snow_private_config_and_revocation() {
     assert_eq!(profile.config().args, config.args);
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
-    let identity = binding.identity.clone();
+    let identity = binding.identity().clone();
     drop(profile);
     assert!(!directory.exists());
     assert!(!binding.accepts(&token, &identity));

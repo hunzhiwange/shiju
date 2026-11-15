@@ -55,7 +55,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         },
     );
     let converted_thinking = profile.model_api.as_ref().is_some_and(|api| {
-        crate::model_relay::messages_thinking::supports(api, &profile.binding.identity.provider)
+        crate::model_relay::messages_thinking::supports(api, &profile.binding.identity().provider)
     });
     if !profile.model_supports_reasoning || !native_messages && !converted_thinking {
         // SDK 0.2.96 honors zero by omitting adaptive thinking/context edits.

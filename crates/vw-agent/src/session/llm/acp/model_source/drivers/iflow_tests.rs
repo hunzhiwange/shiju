@@ -91,7 +91,7 @@ fn acp_model_source_iflow_nonlocal_endpoint_and_sampling_fail_closed() {
 fn acp_model_source_iflow_history_survives_rotation_without_route_credentials() {
     let session = tempfile::tempdir().unwrap();
     let mut first = profile();
-    let mut identity = first.binding.identity.clone();
+    let mut identity = first.binding.identity().clone();
     identity.session = session.path().to_string_lossy().into_owned();
     let config = AcpAgentConfig {
         command: "iflow".into(),

@@ -72,7 +72,7 @@ fn acp_model_source_hermes_private_routes_revoke_and_reissue() {
     assert!(!launch.config().args.iter().any(|arg| arg.contains(&token)));
     drop(launch);
     assert!(!directory.exists());
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
     let mut reissued = profile(&original);
     configure(&mut reissued, "http://127.0.0.1:12345").unwrap();
     assert_ne!(reissued.directory(), directory);

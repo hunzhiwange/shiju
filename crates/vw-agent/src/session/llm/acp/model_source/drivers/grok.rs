@@ -30,7 +30,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
         let root = profile.state_root.as_deref().unwrap_or(profile.directory());
         anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid Grok Build state root");
-        let reference = super::super::profile::launch_reference(&profile.binding.identity)?;
+        let reference = super::super::profile::launch_reference(profile.binding.identity())?;
         let reference = reference.strip_prefix("vw-session-model:").unwrap();
         let mut home = root.to_path_buf();
         for component in ["acp-grok-state", reference] {

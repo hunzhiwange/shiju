@@ -46,7 +46,7 @@ fn acp_model_source_kiro_child_reads_private_model_without_persisted_credentials
     let binding = profile.binding.clone();
     let token = binding.bearer_token().to_owned();
     drop(profile);
-    assert!(!binding.accepts(&token, &binding.identity));
+    assert!(!binding.accepts(&token, binding.identity()));
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn acp_model_source_kiro_control_is_authenticated_bound_and_revocable() {
         .json(&serde_json::json!({"model":"selected","input":"hi","origin":"AI_EDITOR","metadata":{"kiro:conversation_id":"local"}}))
         .send().await.unwrap();
     assert_eq!(response.text().await.unwrap(), "MODEL_BOUND");
-    crate::config::update_project_for_tenant(&binding.identity.tenant, &root, serde_json::json!({"providers":{"kiro-fixture":{"models":{"selected":{"status":"disabled"}}}}})).await.unwrap();
+    crate::config::update_project_for_tenant(&binding.identity().tenant, &root, serde_json::json!({"providers":{"kiro-fixture":{"models":{"selected":{"status":"disabled"}}}}})).await.unwrap();
     assert_eq!(client.post(&url).bearer_auth(binding.bearer_token())
         .header("x-amz-target","KiroControlPlaneBearerService.ListAvailableModels")
         .json(&serde_json::json!({})).send().await.unwrap().status(),403);

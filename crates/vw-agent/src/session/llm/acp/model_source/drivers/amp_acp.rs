@@ -29,7 +29,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
         let root = profile.state_root.as_deref().unwrap_or(profile.directory());
         anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid Amp state root");
-        let reference = super::super::profile::launch_reference(&profile.binding.identity)?;
+        let reference = super::super::profile::launch_reference(profile.binding.identity())?;
         let reference = reference.strip_prefix("vw-session-model:").unwrap();
         let mut home = root.to_path_buf();
         for component in ["acp-amp-state", reference] {
@@ -53,7 +53,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     let mut env = HashMap::from([
         (
             "SHIJU_AMP_BINDING".into(),
-            super::super::profile::launch_reference(&profile.binding.identity)?,
+            super::super::profile::launch_reference(profile.binding.identity())?,
         ),
         ("SHIJU_AMP_MODEL".into(), profile.model_alias.clone()),
         ("SHIJU_AMP_OUTPUT_LIMIT".into(), profile.model_output_limit.to_string()),

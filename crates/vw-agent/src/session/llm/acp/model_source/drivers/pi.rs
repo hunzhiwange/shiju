@@ -81,7 +81,7 @@ fn configure_native(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::R
     );
     let root = profile.state_root.as_deref().unwrap_or(profile.directory());
     anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid Pi state root");
-    let identity = &profile.binding.identity;
+    let identity = profile.binding.identity();
     // Model rotation retains native history, while other sources/sessions never share it.
     let reference = hex::encode(Sha256::digest(serde_json::to_vec(&json!({
         "tenant": identity.tenant, "project": identity.project, "session": identity.session,

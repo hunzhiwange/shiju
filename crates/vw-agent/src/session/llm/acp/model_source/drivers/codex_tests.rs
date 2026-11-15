@@ -44,7 +44,7 @@ async fn acp_model_source_codex_child_uses_private_responses_configuration_and_r
                     assert_eq!(body["input"], "private-child-probe");
                     let auth =
                         headers["authorization"].to_str().unwrap().strip_prefix("Bearer ").unwrap();
-                    assert!(binding.accepts(auth, &binding.identity));
+                    assert!(binding.accepts(auth, binding.identity()));
                     axum::Json(serde_json::json!({"output_text":"PRIVATE_CODEX_LAUNCH_OK"}))
                 },
             ),
@@ -63,7 +63,7 @@ async fn acp_model_source_codex_child_uses_private_responses_configuration_and_r
     let token = binding.bearer_token().to_owned();
     let history = std::path::PathBuf::from(&profile.config().env["SHIJU_CODEX_HISTORY_HOME"]);
     assert_ne!(history, directory);
-    let identity = binding.identity.clone();
+    let identity = binding.identity().clone();
     let config = profile.config().clone();
     let output = tokio::task::spawn_blocking(move || {
         std::process::Command::new("python3")

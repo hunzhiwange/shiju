@@ -58,7 +58,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     let root = profile.state_root.as_deref().unwrap_or(profile.directory());
     anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid OpenCode state root");
     use sha2::Digest;
-    let identity = &profile.binding.identity;
+    let identity = profile.binding.identity();
     let reference = hex::encode(sha2::Sha256::digest(serde_json::to_vec(&json!({
         "tenant": identity.tenant, "project": identity.project, "session": identity.session,
         "source": "session_model",
@@ -84,7 +84,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     if npm == "@ai-sdk/openai-compatible" {
         // A reasoning boolean would otherwise make OpenCode infer Chat variants.
         model_config["reasoning_options"] = json!([]);
-        let provider = &profile.binding.identity.provider;
+        let provider = &profile.binding.identity().provider;
         if profile.model_supports_reasoning
             && let Some(declared) = profile.model_reasoning_options.as_deref()
             && reasoning_profile(&api.id, &api.adapter, provider, &api.url).format

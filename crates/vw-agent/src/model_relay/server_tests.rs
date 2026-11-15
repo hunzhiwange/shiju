@@ -438,7 +438,7 @@ async fn acp_model_source_relay_expiry_cancels_an_established_http_stream() {
     assert!(!cancel.is_cancelled());
     tokio::time::pause();
     tokio::time::advance(Duration::from_secs(61)).await;
-    tokio::time::timeout(Duration::from_secs(3), binding.cancelled.cancelled()).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(3), binding.cancelled().cancelled()).await.unwrap();
     assert!(!binding.accepts(binding.bearer_token(), &id));
     tokio::time::timeout(Duration::from_secs(3), cancel.cancelled()).await.unwrap();
     assert!(response.chunk().await.unwrap().is_none());

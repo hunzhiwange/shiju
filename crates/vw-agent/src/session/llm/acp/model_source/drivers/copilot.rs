@@ -68,7 +68,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     let model = &profile.model_alias;
     let mut native_model = json!({"id": model, "provider": "vibewindow", "wireModel": model,
         "maxOutputTokens": profile.model_output_limit});
-    let provider = &profile.binding.identity.provider;
+    let provider = &profile.binding.identity().provider;
     if profile.model_supports_reasoning
         && let Some(declared) = profile.model_reasoning_options.as_deref()
         && crate::model_relay::chat_url(api).is_ok()

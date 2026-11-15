@@ -1,7 +1,7 @@
 //! 验证指令包含语法的路径解析、递归展开与安全限制。
 
 use super::instruction_include;
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use std::path::Path;
 
 #[test]

@@ -10,30 +10,20 @@ use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::session::message;
 use crate::app::agent::util::filesystem;
 use crate::app::agent::util::log;
+pub use session_instructions::{Resolved, InstructionSource, State, agent_workspace_root, agent_workspace_identity, find};
+use session_instructions::{normalize_str, resolved_file};
+#[cfg(test)]
+use session_instructions::fetch_url;
 use serde_json::{Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::LazyLock;
-use tokio::sync::Mutex;
 
-#[path = "instruction_cache.rs"]
-mod instruction_cache;
-#[path = "instruction_include.rs"]
-mod instruction_include;
+#[cfg(test)]
 #[path = "instruction_rules.rs"]
 mod instruction_rules;
 
-#[cfg(test)]
-#[path = "instruction_cache_tests.rs"]
-mod instruction_cache_tests;
-
-#[cfg(test)]
-#[path = "instruction_include_tests.rs"]
-mod instruction_include_tests;
-#[cfg(test)]
-#[path = "instruction_rules_tests.rs"]
-mod instruction_rules_tests;
 
 #[cfg(test)]
 #[path = "claude_protocol_parity_tests.rs"]
@@ -47,16 +37,6 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-const WORKSPACE_IDENTITY_FILES: [&str; 7] =
-    ["AGENTS.md", "SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "HEARTBEAT.md", "MEMORY.md"];
-
-/// 单个项目实例内的指令加载状态。
-#[derive(Debug, Default)]
-struct State {
-    claims: Mutex<HashMap<String, HashSet<String>>>,
-    cache: Mutex<instruction_cache::InstructionCache>,
-}
-
 /// 获取项目实例级别的指令状态工厂。
 ///
 /// 返回的闭包按当前项目实例隔离状态，避免不同工作区之间共享“已声明”记录。
@@ -67,11 +47,6 @@ fn instance_state()
         || async { State::default() },
         None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
     )
-}
-
-/// 将路径规范化为可比较的字符串。
-fn normalize_str(p: impl AsRef<Path>) -> String {
-    filesystem::normalize_path(p).to_string_lossy().to_string()
 }
 
 /// 向上解析相对指令文件名。
@@ -102,44 +77,25 @@ fn resolve_relative(instruction: &str) -> Vec<PathBuf> {
     filesystem::glob_up(instruction, start.clone(), Some(start))
 }
 
-/// 判断某条消息是否已经声明过指定指令文件。
+/// Query the project-local claim state for host integration tests.
+#[cfg(test)]
 async fn is_claimed(message_id: &str, filepath: &str) -> bool {
-    let state = instance_state()().await;
-    let claims = state.claims.lock().await;
-    claims.get(message_id).is_some_and(|s| s.contains(filepath))
+    instance_state()().await.is_claimed(message_id, filepath).await
 }
 
-/// 标记某条消息已经声明指定指令文件。
+#[cfg(test)]
 async fn claim(message_id: &str, filepath: &str) {
-    let state = instance_state()().await;
-    let mut claims = state.claims.lock().await;
-    claims.entry(message_id.to_string()).or_default().insert(filepath.to_string());
+    instance_state()().await.claim(message_id, filepath).await;
 }
 
-/// 清理指定消息的指令声明记录。
-///
-/// `message_id` 是会话消息 ID。清理后，同一消息关联的文件可在后续流程重新声明。
+/// Clear this message's claims and instruction cache.
 pub async fn clear(message_id: &str) {
-    let state = instance_state()().await;
-    let mut claims = state.claims.lock().await;
-    claims.remove(message_id);
-    drop(claims);
-    state
-        .cache
-        .lock()
-        .await
-        .clear_session(&filesystem::normalize_path(instance::directory()), message_id);
+    instance_state()().await.clear(&filesystem::normalize_path(instance::directory()), message_id).await;
 }
 
-/// 让压缩后的会话在下次访问时重新读取所有已解析的指令。
+/// Reload instructions after compaction within the same project state.
 pub async fn reload_after_compaction(message_id: &str) {
-    let state = instance_state()().await;
-    state.claims.lock().await.remove(message_id);
-    state
-        .cache
-        .lock()
-        .await
-        .invalidate_for_compaction(&filesystem::normalize_path(instance::directory()), message_id);
+    instance_state()().await.reload_after_compaction(&filesystem::normalize_path(instance::directory()), message_id).await;
 }
 
 /// 查找当前系统级指令文件路径集合。
@@ -152,35 +108,6 @@ pub async fn system_paths() -> HashSet<String> {
         .filter(|source| source.kind != crate::session::instruction_discovery::SourceKind::Rule)
         .map(|source| normalize_str(source.filepath))
         .collect()
-}
-
-#[cfg(target_arch = "wasm32")]
-/// wasm 架构下的 URL 指令占位加载器。
-async fn fetch_url(_url: &str) -> String {
-    String::new()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 在非 wasm 环境中读取远程 URL 指令内容。
-///
-/// 网络请求放入阻塞线程并设置短超时；失败时返回空字符串，避免指令加载阻塞主会话。
-async fn fetch_url(url: &str) -> String {
-    let url = url.to_string();
-    tokio::task::spawn_blocking(move || {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .ok()?;
-        let res = client.get(url).send().ok()?;
-        if !res.status().is_success() {
-            return None;
-        }
-        res.text().ok()
-    })
-    .await
-    .ok()
-    .flatten()
-    .unwrap_or_default()
 }
 
 /// 读取系统级指令内容及其来源路径。
@@ -257,59 +184,6 @@ async fn project_agents_with_config(
     resolved_file(&filepath, &policy, Vec::new())
 }
 
-/// 返回指定委托代理的身份工作区根目录。
-pub fn agent_workspace_root(agent_key: Option<&str>) -> Option<PathBuf> {
-    let agent_key = agent_key.unwrap_or("main").trim();
-    let suffix = if agent_key.is_empty() || agent_key == "main" {
-        String::new()
-    } else {
-        format!("-{agent_key}")
-    };
-
-    if let Ok(workspace) = std::env::var("VIBEWINDOW_WORKSPACE") {
-        let workspace = workspace.trim();
-        if !workspace.is_empty() {
-            return Some(PathBuf::from(format!("{workspace}{suffix}")));
-        }
-    }
-
-    std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).map(
-        |home| config_runtime_paths::home_config_dir(home).join(format!("workspace{suffix}")),
-    )
-}
-
-/// 读取指定委托代理工作区中已启用、实际存在且非空的身份文件。
-pub fn agent_workspace_identity(
-    agent_key: Option<&str>,
-    enabled_identity_files: &[String],
-) -> Vec<Resolved> {
-    let Some(root) = agent_workspace_root(agent_key) else {
-        return Vec::new();
-    };
-
-    WORKSPACE_IDENTITY_FILES
-        .into_iter()
-        .filter(|filename| enabled_identity_files.iter().any(|enabled| enabled == filename))
-        .filter_map(|filename| {
-            let filepath = root.join(filename);
-            if !filesystem::exists(&filepath) {
-                return None;
-            }
-            let filepath = normalize_str(filepath);
-            let content = std::fs::read_to_string(&filepath).unwrap_or_default();
-            if content.trim().is_empty() {
-                return None;
-            }
-            Some(Resolved {
-                filepath: filepath.clone(),
-                content: format!("Instructions from: {}\n{}", filepath, content),
-                sources: vec![InstructionSource { filepath, parent: None, conditions: Vec::new() }],
-                diagnostics: Vec::new(),
-            })
-        })
-        .collect()
-}
-
 /// 从历史消息中提取已经加载过的指令路径。
 ///
 /// `messages` 是会话消息列表。返回集合只包含未被 compact 的 read/file_read 工具
@@ -339,68 +213,8 @@ pub fn loaded(messages: &[message::WithParts]) -> HashSet<String> {
     paths
 }
 
-/// 在指定目录查找优先级最高的 AGENTS 指令文件。
-///
-/// 返回规范化路径；如果目录下没有支持的文件，返回 `None`。
-pub async fn find(dir: &str) -> Option<String> {
-    crate::session::instruction_discovery::directory_sources(Path::new(dir))
-        .into_iter()
-        .next()
-        .map(|source| normalize_str(source.filepath))
-}
-
-/// 已解析出的附加指令文件。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Resolved {
-    /// 指令文件的规范化路径。
-    pub filepath: String,
-    /// 带来源头的指令内容。
-    pub content: String,
-    /// 展开后参与该指令的文件来源及父子关系。
-    pub sources: Vec<InstructionSource>,
-    /// 未授权、缺失或循环包含等明确诊断。
-    pub diagnostics: Vec<String>,
-}
-
-/// 展开后单个指令文本的来源和激活条件。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InstructionSource {
-    /// 规范化后的来源文件路径。
-    pub filepath: String,
-    /// 包含该文件的父文件；根来源为 `None`。
-    pub parent: Option<String>,
-    /// 激活该来源所需的路径条件。
-    pub conditions: Vec<String>,
-}
-
 fn instruction_policy(config: &config::Config, workspace: &Path) -> SecurityPolicy {
     SecurityPolicy::from_configs(&config.autonomy, &config.security, workspace)
-}
-
-fn resolved_file(
-    filepath: &Path,
-    policy: &SecurityPolicy,
-    conditions: Vec<String>,
-) -> Option<Resolved> {
-    let expanded = instruction_include::expand(filepath, policy);
-    if expanded.content.trim().is_empty() {
-        return None;
-    }
-    let filepath = normalize_str(filepath);
-    Some(Resolved {
-        filepath: filepath.clone(),
-        content: format!("Instructions from: {}\n{}", filepath, expanded.content),
-        sources: expanded
-            .sources
-            .into_iter()
-            .map(|source| InstructionSource {
-                filepath: source.filepath,
-                parent: source.parent,
-                conditions: conditions.clone(),
-            })
-            .collect(),
-        diagnostics: expanded.diagnostics,
-    })
 }
 
 /// 解析目标文件上级目录中的附加指令。
@@ -415,66 +229,13 @@ pub async fn resolve(
 ) -> Vec<Resolved> {
     let system = system_paths().await;
     let already = loaded(messages);
-    let mut results: Vec<Resolved> = Vec::new();
-
-    let target = normalize_str(filepath);
     let root = filesystem::normalize_path(instance::directory());
     let config = config::get().await;
     let policy = instruction_policy(&config, &root);
-    let mut current = PathBuf::from(&target)
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from(&target));
-
-    while current.starts_with(&root) {
-        for source in crate::session::instruction_discovery::directory_sources(&current) {
-            let found = normalize_str(&source.filepath);
-            if found != target
-                && !system.contains(&found)
-                && !already.contains(&found)
-                && !is_claimed(message_id, &found).await
-            {
-                // claim 必须在读取前完成，防止并发解析同一消息时重复注入相同指令。
-                claim(message_id, &found).await;
-                if source.kind == crate::session::instruction_discovery::SourceKind::Rule {
-                    let Some(rule) = instruction_rules::load_if_matches(
-                        &source.filepath,
-                        &root,
-                        Path::new(&target),
-                    ) else {
-                        continue;
-                    };
-                    results.push(Resolved {
-                        filepath: found.clone(),
-                        content: format!("Instructions from: {}\n{}", found, rule.content),
-                        sources: vec![InstructionSource {
-                            filepath: found.clone(),
-                            parent: None,
-                            conditions: rule.conditions,
-                        }],
-                        diagnostics: Vec::new(),
-                    });
-                } else {
-                    let state = instance_state()().await;
-                    let mut cache = state.cache.lock().await;
-                    let (resolved, _) = cache.load(&root, message_id, &source.filepath, || {
-                        resolved_file(&source.filepath, &policy, Vec::new())
-                    });
-                    if let Some(resolved) = resolved {
-                        results.push(resolved);
-                    }
-                }
-            }
-        }
-
-        if current == root {
-            break;
-        }
-        current = current.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| root.clone());
-    }
-
-    results
+    let state = instance_state()().await;
+    session_instructions::resolve(&state, &system, &already, filepath, message_id, root, &policy).await
 }
+
 #[cfg(test)]
 #[path = "instruction_tests.rs"]
 mod instruction_tests;

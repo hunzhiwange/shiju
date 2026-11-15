@@ -1,0 +1,24 @@
+[package]
+name = "session-instructions"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-security = { path = "../agent-security", version = "0.6.0" }
+agent-util = { path = "../agent-util", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+glob = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["sync", "rt"] }
+tracing = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["multipart", "stream", "socks", "blocking", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -3,27 +3,27 @@
 //! 只接受已知的文本文件，并在读取每个被包含文件前复用运行时的路径策略。包含内容
 //! 总在包含者之前输出，防止父级指令覆盖其依赖的细化约束。
 
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// 展开结果中单个文件的来源关系。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Source {
-    pub(crate) filepath: String,
-    pub(crate) parent: Option<String>,
+pub struct Source {
+    pub filepath: String,
+    pub parent: Option<String>,
 }
 
 /// 一次安全包含展开的结果。
 #[derive(Debug, Default)]
-pub(crate) struct Expanded {
-    pub(crate) content: String,
-    pub(crate) sources: Vec<Source>,
-    pub(crate) diagnostics: Vec<String>,
+pub struct Expanded {
+    pub content: String,
+    pub sources: Vec<Source>,
+    pub diagnostics: Vec<String>,
 }
 
 /// 安全地展开一个指令文件中的 `@path` 引用。
-pub(crate) fn expand(filepath: &Path, policy: &SecurityPolicy) -> Expanded {
+pub fn expand(filepath: &Path, policy: &SecurityPolicy) -> Expanded {
     let mut expanded = Expanded::default();
     let mut visiting = HashSet::new();
     expanded.content =

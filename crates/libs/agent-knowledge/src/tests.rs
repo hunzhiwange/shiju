@@ -1,11 +1,10 @@
 // 覆盖知识子系统的数据类型、配置与端到端组合行为。
 
 // 假向量存储与嵌入器让切块、索引和查询组合测试保持确定性。
-use super::SqliteKnowledgeStore;
-use super::chunker::chunk_text_with_limits;
-use crate::global_database::GlobalDatabase;
-use crate::memory::embeddings::EmbeddingProvider;
-use crate::workflow::{WorkflowKnowledgeProvider, WorkflowKnowledgeRequest};
+use crate::store::SqliteKnowledgeStore;
+use crate::chunker::chunk_text_with_limits;
+use agent_database::GlobalDatabase;
+use memory_types::memory::embeddings::EmbeddingProvider;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
@@ -232,48 +231,6 @@ async fn qa_dataset_retrieves_by_question_and_returns_answer() {
     assert_eq!(response.chunks[0].metadata["chunking_mode"], json!("qa"));
     assert!(response.chunks[0].title.contains("refunds"));
     assert!(response.chunks[0].content.contains("seven days"));
-}
-
-#[tokio::test]
-async fn workflow_provider_returns_chunks() {
-    let store = store();
-    let dataset = store
-        .create_dataset(dataset_request(
-            "Workflow KB",
-            KnowledgeIndexingMode::Economy,
-            KnowledgeRetrievalMode::FullText,
-            None,
-        ))
-        .await
-        .expect("dataset");
-    store
-        .create_document(
-            dataset.id.clone(),
-            KnowledgeDocumentCreateRequest {
-                name: "Menu setup".to_string(),
-                content: "Menu images can be configured on the product category page.".to_string(),
-                metadata: json!({ "scope": "menu" }),
-                enabled: true,
-            },
-        )
-        .await
-        .expect("document");
-
-    let chunks = WorkflowKnowledgeProvider::retrieve(
-        &store,
-        WorkflowKnowledgeRequest {
-            query: "product category".to_string(),
-            dataset_ids: vec![dataset.id],
-            top_k: 2,
-            score_threshold: None,
-            metadata_filter: None,
-        },
-    )
-    .await
-    .expect("workflow retrieve");
-
-    assert_eq!(chunks.len(), 1);
-    assert_eq!(chunks[0].title, "Menu setup");
 }
 
 #[tokio::test]

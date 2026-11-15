@@ -11,3 +11,6 @@ mod import_error;
 
 #[cfg(test)]
 mod import_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests;

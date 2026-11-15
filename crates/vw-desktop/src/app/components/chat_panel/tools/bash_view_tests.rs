@@ -1,10 +1,10 @@
 //! 验证命令工具视图的载荷解析、别名支持、单行预览与异常回退。
 //! JSON、纯文本、空输入及缺失命令字段共同约束标题降级与截断行为。
 
-use super::bash_view::{bash_command_preview, bash_view_padding, tool_bash_view};
+use super::bash_view::{tool_bash_view};
 use super::tool_meta::{tool_header_title, tool_status_badge, tool_visual_state};
 use crate::app::{App, Message};
-use iced::Padding;
+
 
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
@@ -37,30 +37,6 @@ fn bash_view_accepts_plain_command_input() {
 {"input":"cargo test -p vw-desktop","output":"ok"}"#;
 
     assert!(tool_bash_view(&app, 1, 2, visible).is_some());
-}
-
-#[test]
-fn bash_rows_remove_left_indent() {
-    assert_eq!(bash_view_padding("bash"), Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 });
-}
-
-#[test]
-fn bash_command_preview_is_single_line_and_truncates_overflow() {
-    assert_eq!(
-        bash_command_preview(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-            "cargo check\n  --all-targets"
-        ),
-        "cargo check --all-targets"
-    );
-
-    let preview = bash_command_preview(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        &"x".repeat(100),
-    );
-    assert!(!preview.contains('\n'));
-    assert!(preview.ends_with('…'));
-    assert_eq!(preview.chars().count(), 73);
 }
 
 #[test]

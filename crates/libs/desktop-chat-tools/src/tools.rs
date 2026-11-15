@@ -20,3 +20,11 @@ pub use tool_meta::localized_tool_inline_summary;
 mod advanced_view_tests;
 #[cfg(test)]
 mod tool_permission_tests;
+
+pub mod apply_patch_preview;
+pub mod apply_patch_view;
+pub mod bash_view;
+pub mod command_summary_view;
+pub mod config_view;
+pub mod file_link;
+mod apply_patch_card;

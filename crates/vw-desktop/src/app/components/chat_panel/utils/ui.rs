@@ -72,12 +72,7 @@ pub(super) fn copy_tooltip_style(_theme: &Theme) -> iced::widget::container::Sty
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn chat_context_target_key(msg_idx: usize, sub_idx: Option<usize>) -> u64 {
-    match sub_idx {
-        Some(sub_idx) => ((msg_idx as u64) << 32) | ((sub_idx as u64) + 1),
-        None => (msg_idx as u64) << 32,
-    }
-}
+pub use desktop_chat_tools::card_style::chat_context_target_key;
 
 /// 处理 chat context menu 对应的局部职责。
 ///

@@ -31,10 +31,7 @@ use super::super::tool_names::{is_compact_tool_call_trace, is_known_tool_name};
 pub use desktop_chat_view::presentation::truncate_chars;
 
 /// 将文本压缩为单行摘要，并按字符数截断。
-pub fn single_line_preview(s: &str, max_chars: usize) -> String {
-    let compact = s.split_whitespace().collect::<Vec<_>>().join(" ");
-    truncate_chars(&compact, max_chars)
-}
+pub use desktop_chat_tools::card_style::single_line_preview;
 
 /// 处理 truncate lines middle 对应的局部职责。
 ///

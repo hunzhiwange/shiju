@@ -97,3 +97,65 @@ pub fn simplified_code_block_style(theme: &Theme) -> iced::widget::container::St
         ..Default::default()
     }
 }
+
+use iced::{Element, Alignment};
+use iced::widget::{button as button_widget, text};
+pub fn file_button_style(
+    theme: &Theme,
+    // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let mut style = button_widget::secondary(theme, status);
+    style.border.radius = 10.0.into();
+    style
+}
+pub fn additions_pill<'a, Message: 'a>(count: usize) -> Element<'a, Message> {
+    let label = format!("+{}", count);
+    iced::widget::container(text(label).size(11))
+        .padding([2, 8])
+        .style(|theme: &Theme| {
+            let ext = theme.extended_palette();
+            let fg = ext.success.base.color;
+            let bg = fg.scale_alpha(0.16);
+            iced::widget::container::Style {
+                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                background: Some(Background::Color(bg)),
+                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+                // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                text_color: Some(fg),
+                ..Default::default()
+            }
+        })
+        .into()
+}
+pub fn deletions_pill<'a, Message: 'a>(count: usize) -> Element<'a, Message> {
+    let label = format!("-{}", count);
+    iced::widget::container(text(label).size(11))
+        .padding([2, 8])
+        .style(|theme: &Theme| {
+            let ext = theme.extended_palette();
+            let fg = ext.danger.base.color;
+            let bg = fg.scale_alpha(0.14);
+            iced::widget::container::Style {
+                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                background: Some(Background::Color(bg)),
+                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+                // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                text_color: Some(fg),
+                ..Default::default()
+            }
+        })
+        .into()
+}
+pub fn change_pills<'a, Message: 'a>(adds: usize, dels: usize) -> Element<'a, Message> {
+    // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+    iced::widget::row![additions_pill(adds), deletions_pill(dels)]
+        .spacing(6)
+        .align_y(Alignment::Center)
+        .into()
+}
+pub use crate::text_layout::truncate_lines_middle;
+pub fn single_line_preview(s: &str, max_chars: usize) -> String { let compact = s.split_whitespace().collect::<Vec<_>>().join(" "); truncate_chars(&compact, max_chars) }
+pub fn chat_context_target_key(msg_idx: usize, sub_idx: Option<usize>) -> u64 { match sub_idx { Some(idx) => ((msg_idx as u64) << 32) | (idx as u64 + 1), None => (msg_idx as u64) << 32 } }

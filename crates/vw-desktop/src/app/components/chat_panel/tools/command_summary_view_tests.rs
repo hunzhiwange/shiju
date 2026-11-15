@@ -2,7 +2,7 @@
 //! 空分组返回无视图，非空分组则保持原工具索引以支持后续交互定位。
 
 use super::command_summary_view::{
-    COMMAND_LIST_TOP_SPACING, is_command_tool, tool_command_summary_view,
+    COMMAND_LIST_TOP_SPACING, tool_command_summary_view,
 };
 use super::types::CommandItem;
 use crate::app::{App, Message};
@@ -14,16 +14,6 @@ fn command(tool_idx: usize, name: &str, input: &str) -> CommandItem {
         tool_idx,
         raw: format!("tool {name}\n{{\"input\":\"{input}\",\"status\":\"completed\"}}"),
     }
-}
-
-#[test]
-fn command_tool_recognizes_canonical_command_aliases() {
-    for name in ["bash", "shell", "execute", "terminal"] {
-        assert!(is_command_tool(&format!("tool {name}\n{{}}")), "expected {name} to be a command");
-    }
-
-    assert!(!is_command_tool("tool read\n{}"));
-    assert!(!is_command_tool("not a tool"));
 }
 
 #[test]

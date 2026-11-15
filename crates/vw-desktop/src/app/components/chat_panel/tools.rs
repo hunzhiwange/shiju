@@ -45,6 +45,7 @@
 //! - [`EXPLORE_GROUP_TOOL_IDX`]: 探索组工具的索引常量
 
 mod advanced_view;
+mod card_adapter;
 mod apply_patch_preview;
 mod apply_patch_view;
 mod bash_view;

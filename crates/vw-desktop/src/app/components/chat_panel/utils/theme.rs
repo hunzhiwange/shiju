@@ -5,9 +5,9 @@
 /// 重新导出 use iced::widget::svg::{self, Svg}，让上层模块通过稳定路径访问。
 use iced::widget::svg;
 /// 重新导出 use iced::widget::{button, text}，让上层模块通过稳定路径访问。
-use iced::widget::{button, text};
+use iced::widget::button;
 /// 重新导出 use iced::{Alignment, Background, Border, Color, Element, Theme}，让上层模块通过稳定路径访问。
-use iced::{Alignment, Background, Border, Color, Element, Theme};
+use iced::{Background, Border, Color, Element, Theme};
 
 /// 重新导出 use crate::app::Message，让上层模块通过稳定路径访问。
 use crate::app::Message;
@@ -314,15 +314,7 @@ pub fn pill_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn file_button_style(
-    theme: &Theme,
-    // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let mut style = button::secondary(theme, status);
-    style.border.radius = 10.0.into();
-    style
-}
+pub use desktop_chat_tools::card_style::file_button_style;
 
 /// 构建 weak file button style 控件，并绑定既有消息或样式。
 ///
@@ -385,26 +377,7 @@ pub fn weak_file_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn additions_pill<'a>(count: usize) -> Element<'a, Message> {
-    let label = format!("+{}", count);
-    iced::widget::container(text(label).size(11))
-        .padding([2, 8])
-        .style(|theme: &Theme| {
-            let ext = theme.extended_palette();
-            let fg = ext.success.base.color;
-            let bg = fg.scale_alpha(0.16);
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(bg)),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-                // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                text_color: Some(fg),
-                ..Default::default()
-            }
-        })
-        .into()
-}
+pub fn additions_pill<'a>(count: usize) -> Element<'a, Message> { desktop_chat_tools::card_style::additions_pill(count) }
 
 /// 处理 deletions pill 对应的局部职责。
 ///
@@ -419,26 +392,7 @@ pub fn additions_pill<'a>(count: usize) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn deletions_pill<'a>(count: usize) -> Element<'a, Message> {
-    let label = format!("-{}", count);
-    iced::widget::container(text(label).size(11))
-        .padding([2, 8])
-        .style(|theme: &Theme| {
-            let ext = theme.extended_palette();
-            let fg = ext.danger.base.color;
-            let bg = fg.scale_alpha(0.14);
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(bg)),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-                // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                text_color: Some(fg),
-                ..Default::default()
-            }
-        })
-        .into()
-}
+pub fn deletions_pill<'a>(count: usize) -> Element<'a, Message> { desktop_chat_tools::card_style::deletions_pill(count) }
 
 /// 处理 change pills 对应的局部职责。
 ///
@@ -453,10 +407,4 @@ pub fn deletions_pill<'a>(count: usize) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn change_pills<'a>(adds: usize, dels: usize) -> Element<'a, Message> {
-    // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    iced::widget::row![additions_pill(adds), deletions_pill(dels)]
-        .spacing(6)
-        .align_y(Alignment::Center)
-        .into()
-}
+pub fn change_pills<'a>(adds: usize, dels: usize) -> Element<'a, Message> { desktop_chat_tools::card_style::change_pills(adds, dels) }

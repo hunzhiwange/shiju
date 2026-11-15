@@ -2702,3 +2702,13 @@ app-session-gemini/src 唯一拥有 gemini.rs 与 gemini_document.rs，原 provi
 静态证据：两个迁移文件逐字对照 HEAD，仅基础库导入和必要可见性变化；时间戳函数原样移动。Python 3.9 无 tomllib，使用现有 pip._vendor.tomli 只读解析，核实 workspace 成员、门面直接路径依赖及五个生产依赖包路径存在、无环、无旧门面回依赖。导出、真实调用者、资源路径与无重复实现检索完成，git diff --check 通过。RustCodeGraph explore 已读取基线，最终接线以当前源码为准，未更新索引。Cargo.lock 未触碰。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：新包、基础包与直接调用者编译，Gemini JSON/JSONL、工具块、思考引用、usage/delete 定向测试，共享时间戳行为、三平台路径安全与清单/锁文件一致性。静态迁移不代表编译或行为验收通过。
+
+### 任务 48：Pi 会话解析迁移结果
+
+本节覆盖历史所有权表任务 48：`crates/libs/app-session-pi/src` 唯一拥有 pi.rs、pi_blocks.rs、pi_tree.rs；原 providers 对应模块仅重导出，lib.rs 的 sessions 导出及 providers/mod.rs 模块注册保持不变。共享 pi_jsonl.rs 已由任务 45 提前下沉 app-session-core，本任务继续直接引用该基础模块，原 providers/pi_jsonl.rs 保持基础库重导出，不重复搬迁。
+
+PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门面路径。PiTranscript 因 OpenClaw 真实使用最小公开；Dialect、load_messages_for、scan_files_for、verify_omp_session_id 因 OMP 真实使用最小公开；verify_pi_session_id 因删除服务使用最小公开。函数体保持不变，只调整基础库导入及上述跨包可见性。无独立测试、平台 cfg、include 或资源需搬迁。跨适配器分发仍由任务 54 接收，OpenClaw 与 OMP 由任务 50 接收；本任务无未闭合叶子实现。
+
+新包直接依赖 app-session-core、vw-api-external-session、serde（derive）及 serde_json（arbitrary_precision）。原包这些依赖仍有其它使用者，保留。静态证据：三份迁移源码与 HEAD 基线逐字比较，仅导入/可见性差异；标准库 TOML 读取（系统 Python 无 tomllib 时使用已有 pip._vendor.tomli）确认 workspace 注册、直接路径存在，五个传递生产路径清单无旧门面回边；源码检索新包无 vw-agent-apps/vw_agent_apps。git diff --check 通过。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：覆盖 app-session-pi、Pi 删除、OpenClaw 和 OMP 调用者编译及原平台行为。静态审阅不代表编译或行为验收；Cargo.lock 未触碰。

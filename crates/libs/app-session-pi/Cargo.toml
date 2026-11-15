@@ -1,0 +1,14 @@
+[package]
+name = "app-session-pi"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-session-core = { path = "../app-session-core" }
+vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }

@@ -15,7 +15,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
-use vw_shared::message::types as message;
+use message_types as message;
 use vw_shared::session::info as session_info;
 
 /// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。

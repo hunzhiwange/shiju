@@ -2,7 +2,7 @@
 
 use crate::app::{App, Message};
 use iced::Task;
-use vw_shared::message::types as message;
+use message_types as message;
 use vw_shared::session::info;
 
 use super::messages::SettingsMessage;

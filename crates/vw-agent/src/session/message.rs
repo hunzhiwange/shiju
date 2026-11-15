@@ -1,10 +1,10 @@
 //! 会话消息与消息片段的持久化入口。
 //!
-//! 本模块复用 `vw_shared` 中的消息类型，并负责把消息/part 写入本地 storage 后发布 bus
+//! 本模块复用 `message_types` 中的消息类型，并负责把消息/part 写入本地 storage 后发布 bus
 //! 事件。写入和事件发布保持分离：存储失败会返回错误，事件发布失败则不阻断主路径。
 
 /// 共享消息类型的本地再导出，供 session 子系统沿用既有路径引用。
-pub use vw_shared::message::types::*;
+pub use message_types::*;
 
 use crate::app::agent::bus;
 use crate::app::agent::project::instance;

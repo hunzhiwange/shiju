@@ -19,7 +19,7 @@ use std::time::Duration;
 use tracing::{debug, info};
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 use vw_shared::id;
-use vw_shared::message::types as agent_message;
+use message_types as agent_message;
 use vw_shared::session::info as session;
 
 /// 项目身份解析期间保留的首次发送内容。

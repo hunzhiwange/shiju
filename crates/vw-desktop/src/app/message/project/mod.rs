@@ -9,7 +9,7 @@ use crate::app::{
 };
 use iced::Task;
 use iced::widget::text_editor;
-use vw_shared::message::types as agent_message;
+use message_types as agent_message;
 
 mod basic;
 pub(crate) mod file_tree;

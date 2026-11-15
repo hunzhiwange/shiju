@@ -338,11 +338,11 @@ fn load_agent_configs(cfg: &Value) -> HashMap<String, DelegateAgentConfig> {
 
 pub fn resolve_model_ref(
     config: &DelegateAgentConfig,
-) -> Option<vw_shared::message::types::ModelRef> {
+) -> Option<message_types::ModelRef> {
     let provider_id = config.provider.trim();
     let model_id = config.model.trim();
     if !provider_id.is_empty() && !model_id.is_empty() {
-        return Some(vw_shared::message::types::ModelRef {
+        return Some(message_types::ModelRef {
             provider_id: provider_id.to_string(),
             model_id: model_id.to_string(),
         });
@@ -354,7 +354,7 @@ pub fn resolve_model_ref(
     }
 
     let parsed = provider::parse_model(combined);
-    Some(vw_shared::message::types::ModelRef {
+    Some(message_types::ModelRef {
         provider_id: parsed.provider_id,
         model_id: parsed.model_id,
     })

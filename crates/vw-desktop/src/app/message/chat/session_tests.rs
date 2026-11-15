@@ -83,8 +83,8 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
     }
 }
 
-fn persisted_user_message(id: &str) -> vw_shared::message::types::WithParts {
-    use vw_shared::message::types as message;
+fn persisted_user_message(id: &str) -> message_types::WithParts {
+    use message_types as message;
 
     message::WithParts {
         info: message::Info::User(Box::new(message::UserInfo {

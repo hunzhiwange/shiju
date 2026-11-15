@@ -10,7 +10,7 @@ use crate::app::message::project::helpers::{
 };
 use crate::app::{App, Message, models, state::ActiveSessionViewState};
 use serde_json::{Map, Value};
-use vw_shared::message::types as agent_message;
+use message_types as agent_message;
 use web_time::Instant;
 
 /// 幂等登记外部创建的会话，不触碰当前活动会话及聊天运行态。

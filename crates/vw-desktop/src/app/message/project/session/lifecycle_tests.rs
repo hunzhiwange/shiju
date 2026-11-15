@@ -7,7 +7,7 @@ use super::lifecycle::{
 };
 use crate::app::models::{ChatRenderCacheEntry, ChatRole};
 use serde_json::{Map, Value, json};
-use vw_shared::message::types as agent_message;
+use message_types as agent_message;
 
 fn app() -> crate::app::App {
     crate::app::App::new().0

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-misc",
   "crates/libs/gateway-git",
   "crates/libs/channel-wecom",
   "crates/libs/tool-files",

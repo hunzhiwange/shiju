@@ -1,0 +1,15 @@
+[package]
+name = "app-openclaw"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-provider-native = { path = "../app-provider-native" }
+app-openclaw-config-rules = { path = "../app-openclaw-config-rules" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+tempfile = "3"

@@ -1,4 +1,5 @@
-use crate::{openclaw_env::*, providers::live::{patch_json::object_value, write_guard::WriteError}};
+use crate::openclaw_env::*;
+use app_provider_native::providers::live::{patch_json::object_value, write_guard::WriteError};
 use serde_json::json;
 
 #[test]

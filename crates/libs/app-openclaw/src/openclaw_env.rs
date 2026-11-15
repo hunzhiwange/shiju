@@ -1,16 +1,14 @@
 //! Sensitive OpenClaw env section. Executor/config authorization belongs to the
 //! caller; raw reads additionally require its independent sensitive-read policy.
 //! Candidate edits preserve non-target bytes using the shared JSON5 token parser.
-use crate::{
-    openclaw_model::OpenClawWriteOutcome,
-    providers::{
-        live::{
-            commit::{AppState, ProviderTransactions},
-            patch_json5::{object_value, replace_member_preserving_trivia},
-            write_guard::WriteError,
-        },
-        openclaw::OpenClawFiles,
+use crate::openclaw_model::OpenClawWriteOutcome;
+use app_provider_native::providers::{
+    live::{
+        commit::{AppState, ProviderTransactions},
+        patch_json5::{object_value, replace_member_preserving_trivia},
+        write_guard::WriteError,
     },
+    openclaw::OpenClawFiles,
 };
 use serde_json::{Map, Value};
 use vw_api_transport::id::TenantScope;

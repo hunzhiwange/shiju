@@ -2574,3 +2574,11 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 真实调用者 vw-agent workspace_memory/hermes_memory handler 保持原门面路径，包括文件读写删除、列表搜索、配置开关；新库无门面回依赖。原包相关通用依赖仍有其它模块使用，保留。
 - 静态证据：14 个文件移动对照、导出与测试注册、cfg 与调用者检索、git diff --check。系统 Python 无 tomllib，使用现有 pip._vendor.tomli 只读解析清单并遍历传递生产路径，确认路径存在、无环及无门面回边；未安装工具。根 workspace 与直接路径依赖已注册，Cargo.lock 未修改。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：新库及直接调用者目标编译、迁移定向单测、三平台条件、原授权与事务行为。静态审阅不表示行为验收通过。
+
+### 任务 38 静态迁移结果
+
+`app-openclaw` 唯一拥有 openclaw_defaults.rs 的 set_agents_defaults，以及 openclaw_env/health/model/tools.rs 和对应四个独立测试文件（14 个既有测试）；原门面保留同名模块重导出。catalog 与 defaults 纯规则及六个测试继续归任务 74 的 app-openclaw-config-rules，defaults 发布模块重导出同一纯规则。此节覆盖历史逐文件所有权表中的任务 38 归属。
+
+直接依赖 app-provider-native（OpenClawFiles、live 事务与补丁/错误导出）、app-openclaw-config-rules、vw-api-transport、serde、serde_json arbitrary_precision；tempfile 仅供测试。全部依赖与实现保持 macOS cfg；无资源引用、跨包 path 或门面回依赖。真实消费者 vw-agent 的 openclaw_settings handler 及相邻测试仍由原门面取得同一类型和函数。原门面其它直接依赖仍有消费者，未删除。
+
+静态审阅涵盖模块/测试注册、路径清单、单一实现、授权回调与事务锁调用不变；没有留存编排或待移交符号。未运行 Cargo、单元及实机测试，统一验收待授权：新库与调用者编译、14 个迁移测试、macOS 文件权限/锁/冲突行为及其它平台条件编译。Cargo.lock 未修改。

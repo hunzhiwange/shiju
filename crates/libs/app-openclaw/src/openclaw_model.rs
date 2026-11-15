@@ -1,7 +1,7 @@
 //! Default-model section preparation. Publication uses the provider configuration
 //! lock and transaction; callers authorize the executor and configuration action.
 //! Shared JSON5 token edits retain non-target bytes and comments.
-use crate::providers::{
+use app_provider_native::providers::{
     live::{
         commit::{AppState, ProviderTransactions},
         patch_json5::{object_value, replace_object_preserving_trivia},

@@ -1,5 +1,5 @@
 use super::openclaw_tools::*;
-use crate::providers::live::patch_json::object_value;
+use app_provider_native::providers::live::patch_json::object_value;
 use serde_json::json;
 
 #[test]

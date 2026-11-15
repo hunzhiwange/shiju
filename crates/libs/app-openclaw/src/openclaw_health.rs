@@ -1,6 +1,6 @@
 //! Read-only configuration diagnostics. Callers authorize configuration access
 //! and supply the trusted execution host HOME; no ambient HOME fallback.
-use crate::providers::{live::{patch_json5::object_value, write_guard::WriteError}, openclaw};
+use app_provider_native::providers::{live::{patch_json5::object_value, write_guard::WriteError}, openclaw};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;

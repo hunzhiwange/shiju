@@ -1,6 +1,6 @@
 //! OpenClaw tools settings only; these values never grant ShiJu tool permissions.
 //! Callers authorize config access and the executor before opening OpenClawFiles.
-use crate::providers::{
+use app_provider_native::providers::{
     live::{
         commit::{AppState, ProviderTransactions},
         patch_json5::{object_value, replace_member_preserving_trivia},

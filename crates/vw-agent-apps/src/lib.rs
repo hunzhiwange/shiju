@@ -49,30 +49,22 @@ pub use app_workspace_memory::hermes_memory;
 pub use app_workspace_memory::daily_memory_files;
 
 #[cfg(target_os = "macos")]
-pub mod openclaw_model;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_model_tests;
+pub use app_openclaw::openclaw_model;
 
 #[cfg(target_os = "macos")]
 pub use app_openclaw_config_rules::catalog as openclaw_catalog;
 
 #[cfg(target_os = "macos")]
-pub mod openclaw_defaults;
+pub use app_openclaw::openclaw_defaults;
 
 #[cfg(target_os = "macos")]
-pub mod openclaw_env;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_env_tests;
+pub use app_openclaw::openclaw_env;
 
 #[cfg(target_os = "macos")]
-pub mod openclaw_tools;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_tools_tests;
+pub use app_openclaw::openclaw_tools;
 
 #[cfg(target_os = "macos")]
-pub mod openclaw_health;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_health_tests;
+pub use app_openclaw::openclaw_health;
 
 #[cfg(target_os = "macos")]
 pub use app_workspace_memory::hermes_dashboard;

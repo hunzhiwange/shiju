@@ -1,6 +1,6 @@
 //! OpenClaw defaults publication under the shared provider transaction.
 pub use app_openclaw_config_rules::defaults::*;
-use crate::providers::{
+use app_provider_native::providers::{
     live::{commit::{AppState, ProviderTransactions}, write_guard::WriteError},
     openclaw::OpenClawFiles,
 };

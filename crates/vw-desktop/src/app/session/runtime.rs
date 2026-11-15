@@ -89,7 +89,7 @@ impl App {
         let client = crate::app::gateway_client();
         iced::Task::perform(
             async move {
-                client.ok()?.session_ui_summary(&target, Some(&directory)).await.ok()?.full_access
+                gateway_session::GatewaySessionClient::new(client.ok()?.transport().clone()).session_ui_summary(&target, Some(&directory)).await.ok()?.full_access
             },
             move |result| {
                 result.map_or(crate::app::Message::None, |full_access| {

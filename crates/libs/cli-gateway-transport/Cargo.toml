@@ -9,6 +9,7 @@ doctest = false
 
 [dependencies]
 vw-api-session = { path = "../api-session", version = "0.6.0" }
+gateway-session = { path = "../gateway-session", version = "0.6.0" }
 question-types = { path = "../question-types", version = "0.6.0" }
 config-gateway = { path = "../config-gateway", version = "0.6.0" }
 gateway-project = { path = "../gateway-project", version = "0.6.0" }

@@ -14,6 +14,9 @@ pub mod background_task;
 pub mod editor;
 pub mod elicitation;
 pub mod git_workspace;
+pub mod input_edit;
+#[cfg(test)]
+mod input_edit_tests;
 pub mod integration;
 pub mod message_action;
 pub mod notification;

@@ -126,7 +126,7 @@ pub async fn run(
     let directory = context.directory();
     let response = match command {
         SessionContentCommands::Messages { session_id, limit } => {
-            client
+            gateway_session::GatewaySessionClient::new(client.transport().clone())
                 .session_messages_query::<Value>(
                     &session_id,
                     &GatewaySessionMessageListQuery {
@@ -138,11 +138,11 @@ pub async fn run(
                 .await
         }
         SessionContentCommands::Message { session_id, message_id } => {
-            client.session_message_get::<Value>(&session_id, &message_id, directory).await
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_message_get::<Value>(&session_id, &message_id, directory).await
         }
         SessionContentCommands::PartUpdate { session_id, message_id, part_id, input } => {
             let body = read_json_input(&input, stdin)?;
-            client
+            gateway_session::GatewaySessionClient::new(client.transport().clone())
                 .session_message_part_update::<_, Value>(
                     &session_id,
                     &message_id,
@@ -152,47 +152,47 @@ pub async fn run(
                 )
                 .await
         }
-        SessionContentCommands::PartDelete { session_id, message_id, part_id } => client
+        SessionContentCommands::PartDelete { session_id, message_id, part_id } => gateway_session::GatewaySessionClient::new(client.transport().clone())
             .session_message_part_delete(&session_id, &message_id, &part_id, directory)
             .await
             .map(|value| json!(value)),
         SessionContentCommands::UiPreviews => {
-            client.session_ui_previews(directory).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_previews(directory).await.map(|value| json!(value))
         }
         SessionContentCommands::ArchivedGet => {
-            client.session_archived_get(directory).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_archived_get(directory).await.map(|value| json!(value))
         }
         SessionContentCommands::ArchivedPut { input } => {
             let body = parse::<Vec<String>>(&input, stdin, "archived")?;
-            client.session_archived_put(directory, &body).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_archived_put(directory, &body).await.map(|value| json!(value))
         }
         SessionContentCommands::ScopeGet => {
-            client.session_scope_get(directory, None).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_get(directory, None).await.map(|value| json!(value))
         }
         SessionContentCommands::ScopePut { input } => {
             let body = parse::<GatewaySessionScopeBody>(&input, stdin, "scope")?;
-            client.session_scope_put(body.scope.as_deref()).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_put(body.scope.as_deref()).await.map(|value| json!(value))
         }
         SessionContentCommands::UiGet { session_id } => {
-            client.session_ui_get(&session_id, directory).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_get(&session_id, directory).await.map(|value| json!(value))
         }
         SessionContentCommands::UiSave { session_id, input } => {
             let body = parse::<ChatSession>(&input, stdin, "UI snapshot")?;
             if body.id != session_id {
                 anyhow::bail!("session UI body id does not match session id");
             }
-            client.session_ui_save(&session_id, directory, &body).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_save(&session_id, directory, &body).await.map(|value| json!(value))
         }
         SessionContentCommands::Preview { session_id } => {
-            client.session_preview_meta_get(&session_id, directory).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_preview_meta_get(&session_id, directory).await.map(|value| json!(value))
         }
         SessionContentCommands::Path { session_id } => {
-            client.session_path_get(&session_id, directory).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_path_get(&session_id, directory).await.map(|value| json!(value))
         }
         SessionContentCommands::Any { session_id } => {
-            client.session_ui_get_any(&session_id).await.map(|value| json!(value))
+            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_get_any(&session_id).await.map(|value| json!(value))
         }
-        SessionContentCommands::Raw { session_id, turn_id, step_index } => client
+        SessionContentCommands::Raw { session_id, turn_id, step_index } => gateway_session::GatewaySessionClient::new(client.transport().clone())
             .session_step_llm_raw_get(&session_id, &turn_id, step_index, directory)
             .await
             .map(|value| json!(value)),

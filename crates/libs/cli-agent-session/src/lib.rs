@@ -6,7 +6,6 @@
 //! # 模块结构
 //!
 //! - `interactive` - 交互式会话管理，处理多轮对话
-//! - `interactive_input` - 交互式输入处理，包括用户输入的读取和解析
 //! - `processor` - 消息处理器，处理代理的核心逻辑
 //! - `run` - 主运行入口，启动代理的执行循环
 //! - `session` - 会话管理，维护对话上下文和状态
@@ -19,10 +18,6 @@
 //! - `run` - 公开的运行入口函数，用于启动 CLI 代理
 
 pub(crate) mod interactive;
-pub(crate) mod interactive_input;
-#[cfg(test)]
-#[path = "interactive_input_tests.rs"]
-mod interactive_input_tests;
 pub(crate) mod processor;
 pub(crate) mod run;
 #[cfg(test)]

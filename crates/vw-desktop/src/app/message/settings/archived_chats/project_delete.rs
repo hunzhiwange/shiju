@@ -280,7 +280,7 @@ pub(super) async fn delete_checked(
     client: vw_gateway_client::GatewayClient,
     row: Info,
 ) -> Result<Option<Vec<String>>, String> {
-    let latest: Info = client.session_get(&row.id, Some(&row.directory)).await?;
+    let latest: Info = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get(&row.id, Some(&row.directory)).await?;
     if latest.id != row.id
         || latest.project_id != row.project_id
         || latest.directory != row.directory
@@ -289,5 +289,5 @@ pub(super) async fn delete_checked(
     {
         return Ok(None);
     }
-    client.session_delete_archived(&row.id, Some(&row.directory)).await.map(|r| Some(r.deleted_ids))
+    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete_archived(&row.id, Some(&row.directory)).await.map(|r| Some(r.deleted_ids))
 }

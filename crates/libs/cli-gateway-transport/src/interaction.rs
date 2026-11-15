@@ -41,7 +41,7 @@ impl GatewayUiRuntime {
             .filter(|request| request.session_id == session_id)
             .collect();
         let todos =
-            self.client().session_todo_get(session_id.as_str(), directory.as_deref()).await?;
+            gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_todo_get(session_id.as_str(), directory.as_deref()).await?;
         Ok(InteractionSnapshot { session_id, permissions, questions, todos })
     }
 

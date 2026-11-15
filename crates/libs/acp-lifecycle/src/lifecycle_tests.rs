@@ -4,11 +4,11 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::session_runtime::{
+use crate::{
     AgentLifecycleExit, AgentLifecycleSnapshot, apply_conversation,
     apply_lifecycle_snapshot_to_record, reconcile_agent_session_id, session_has_agent_messages,
 };
-use crate::{
+use acp_types::{
     SessionAgentContent, SessionAgentMessage, SessionConversation, SessionEventLog, SessionMessage,
     SessionRecord, SessionTokenUsage, SessionUserContent, SessionUserMessage,
 };

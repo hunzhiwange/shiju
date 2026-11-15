@@ -30,7 +30,7 @@ use crate::permissions::{
     PermissionDecision, classify_permission_decision, resolve_permission_request,
 };
 use crate::session_persistence::iso_now;
-use crate::session_runtime::AgentLifecycleSnapshot;
+use acp_lifecycle::AgentLifecycleSnapshot;
 use crate::spawn_command_options::build_spawn_command;
 use crate::terminal::{TerminalManager, TerminalManagerOptions};
 use crate::types::{

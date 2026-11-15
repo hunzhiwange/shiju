@@ -68,6 +68,7 @@ members = [
   "crates/libs/plugin-types",
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
+  "crates/libs/acp-lifecycle",
   "crates/libs/acp-agent-registry",
   "crates/libs/acp-config",
   "crates/libs/acp-queue",

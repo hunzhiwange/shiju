@@ -4,7 +4,7 @@
 //! 状态更新散落在 actor 调度逻辑中。
 
 use super::*;
-use crate::session_runtime::AgentLifecycleExit;
+use acp_lifecycle::AgentLifecycleExit;
 
 impl AcpClient {
     pub(super) fn invalidate_actor(&self) {

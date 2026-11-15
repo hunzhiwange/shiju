@@ -254,7 +254,7 @@ fn acp_model_source_claude_verified_effort_runtime_is_scoped() {
     let entry = directory.path().join("claude-agent-acp");
     std::fs::write(&entry, b"unreviewed adapter").unwrap();
     let command = entry.to_str().unwrap();
-    let error = vw_acp::verify_reviewed_agent_executable("claude", command).unwrap_err();
+    let error = acp_agent_registry::verify_reviewed_agent_executable("claude", command).unwrap_err();
     assert!(error.contains("installed verified ACP adapter"));
     for package in [
         "claude-agent-acp@0.31.0",

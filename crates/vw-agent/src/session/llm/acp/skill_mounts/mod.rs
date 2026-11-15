@@ -67,7 +67,7 @@ impl PartialEq for MountedSkills {
 impl Eq for MountedSkills {}
 impl MountedSkills {
     pub(super) fn prepare(
-        mounts: &[vw_acp::SessionSkillMount],
+        mounts: &[acp_types::SessionSkillMount],
         cwd: &std::path::Path,
         session: &str,
         security: &config_skills::SkillSecurityConfig,

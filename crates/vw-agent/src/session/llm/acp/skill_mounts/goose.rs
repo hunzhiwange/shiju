@@ -14,7 +14,7 @@ pub(super) fn configure(
     }
     let root = if let Some(view) = view {
         view.0.validate().map_err(super::super::to_api_error)?;
-        vw_acp::verify_reviewed_agent_executable("goose", &config.command)
+        acp_agent_registry::verify_reviewed_agent_executable("goose", &config.command)
             .map_err(super::super::to_api_error)?;
         // Older model-source-only Goose builds do not implement scanner isolation.
         let receipt = std::path::Path::new(&config.command)

@@ -11,14 +11,14 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub(super) struct Source {
     server: McpServer,
-    management: vw_acp::McpServerManagement,
+    management: acp_config::McpServerManagement,
     binding: Option<ToolCatalogBinding>,
 }
 impl McpSessionConnections {
     pub(crate) fn register_tool_source(
         &self,
         server: McpServer,
-        management: vw_acp::McpServerManagement,
+        management: acp_config::McpServerManagement,
     ) {
         let binding = self.tool_binding(&server);
         if binding.is_none() {
@@ -39,7 +39,7 @@ impl McpSessionConnections {
     pub(crate) async fn discover_catalog_tools(
         self: &Arc<Self>,
         server: &McpServer,
-        management: vw_acp::McpServerManagement,
+        management: acp_config::McpServerManagement,
         existing_ids: &[&str],
     ) -> Result<Vec<Arc<dyn Tool>>> {
         let discovered = crate::tools::discover_dynamic_mcp_tools(

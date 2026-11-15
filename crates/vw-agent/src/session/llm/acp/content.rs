@@ -1,6 +1,6 @@
 //! 将已归一化的聊天图片转换为 ACP 内联内容块。
 use serde_json::{Value, json};
-use vw_acp::PromptInput;
+use acp_types::PromptInput;
 
 use crate::app::agent::multimodal::parse_image_markers;
 
@@ -72,7 +72,7 @@ pub(super) fn build_request_content(
             .ok_or("ACP images must be normalized to base64 data URIs")?;
         blocks.push(json!({"type": "image", "mimeType": mime, "data": data}));
     }
-    vw_acp::parse_prompt_source(&Value::Array(blocks).to_string())
+    acp_types::parse_prompt_source(&Value::Array(blocks).to_string())
         .map_err(|_| "ACP image content contains invalid MIME type or base64 data".to_string())
 }
 

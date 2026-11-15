@@ -1172,7 +1172,7 @@ pub(crate) struct DiscoveredMcpTools {
 
 pub(crate) async fn discover_dynamic_mcp_tools(
     server: agent_client_protocol::McpServer,
-    management: vw_acp::McpServerManagement,
+    management: acp_config::McpServerManagement,
     existing_tool_ids: &[&str],
     connections: Arc<crate::plugins::McpSessionConnections>,
 ) -> anyhow::Result<DiscoveredMcpTools> {

@@ -5,7 +5,7 @@ use crate::session::processor::StreamEvent;
 use crate::session::ui_types::TokenUsage;
 use agent_client_protocol::SessionModelState;
 use serde_json::json;
-use vw_acp::server::{BackendEvent, PromptContent, SessionBackend};
+use acp_server::server::{BackendEvent, PromptContent, SessionBackend};
 use vw_api_transport::id::TenantScope;
 
 fn ids(state: &SessionModelState) -> Vec<&str> {

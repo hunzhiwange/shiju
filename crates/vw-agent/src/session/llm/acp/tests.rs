@@ -101,7 +101,7 @@ fn cached_acp_client_stores_client_lock_and_forwards_output() {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let client = Arc::new(AcpClient::new(
         "unit",
-        vw_acp::AcpAgentConfig {
+        acp_types::AcpAgentConfig {
             command: "unit-agent".to_string(),
             args: Vec::new(),
             env: Default::default(),
@@ -133,7 +133,7 @@ fn cached_acp_client_stores_client_lock_and_forwards_output() {
 fn cached_acp_client_entry_keeps_key_and_shared_client() {
     let client = Arc::new(AcpClient::new(
         "unit",
-        vw_acp::AcpAgentConfig {
+        acp_types::AcpAgentConfig {
             command: "unit-agent".to_string(),
             args: Vec::new(),
             env: Default::default(),

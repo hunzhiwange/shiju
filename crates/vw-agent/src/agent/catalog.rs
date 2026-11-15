@@ -9,7 +9,7 @@ pub fn merged_agent_catalog(
     configured: &HashMap<String, AgentDefinitionConfig>,
 ) -> HashMap<String, AgentDefinitionConfig> {
     let mut catalog = merged_agent_configs(configured);
-    for (backend, spec) in vw_acp::built_in_agent_specs() {
+    for (backend, spec) in acp_agent_registry::built_in_agent_specs() {
         let key = format!("acp-{backend}");
         let mut entry = configured.get(&key).cloned().unwrap_or_else(|| AgentDefinitionConfig {
             enabled: matches!(

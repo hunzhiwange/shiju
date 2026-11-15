@@ -504,7 +504,7 @@ async fn codex_run(mode: &str, effort_check: bool) {
         flow["restart"] = json!(codex_request(&input, &model, &info, prompt, false).await);
         flow["switch"] = json!(codex_request(&input, &switched, &info, prompt, false).await);
         flow["handshake"] = json!(
-            vw_acp::list_sessions()
+            acp_storage::list_sessions()
                 .await
                 .unwrap()
                 .iter()
@@ -561,7 +561,7 @@ async fn codex_effort_run(input: &Value, model: &provider::Model, info: &provide
     );
     let store = lifecycle::Store::open(&session, directory).unwrap();
     let anchor = store.read().unwrap().unwrap();
-    let native_id = vw_acp::resolve_session_record(&anchor.record_id).await.unwrap().acp_session_id;
+    let native_id = acp_storage::resolve_session_record(&anchor.record_id).await.unwrap().acp_session_id;
     let options = controls::read(&session, directory).await.unwrap();
     checkpoint(
         "managed_model",
@@ -615,7 +615,7 @@ async fn codex_effort_run(input: &Value, model: &provider::Model, info: &provide
     // request must restore both the original native thread and its saved effort.
     checkpoint("restored", codex_request(input, model, info, "ACP_EFFORT_RESTORED", false).await);
     let latest = store.read().unwrap().unwrap();
-    let record = vw_acp::resolve_session_record(&latest.record_id).await.unwrap();
+    let record = acp_storage::resolve_session_record(&latest.record_id).await.unwrap();
     checkpoint(
         "same_session",
         latest.record_id == anchor.record_id

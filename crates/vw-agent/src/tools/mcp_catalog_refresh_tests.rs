@@ -126,7 +126,7 @@ impl Fixture {
             .pool
             .discover_catalog_tools(
                 &self.server,
-                vw_acp::McpServerManagement::default_for_server("catalog"),
+                acp_config::McpServerManagement::default_for_server("catalog"),
                 &[],
             )
             .await
@@ -222,7 +222,7 @@ async fn dynamic_tools_mcp_refresh_unchanged_catalog_keeps_version() {
 async fn dynamic_tools_mcp_refresh_applies_current_server_authorization() {
     let fixture = Fixture::start().await;
     let catalog = fixture.catalog().await;
-    let mut management = vw_acp::McpServerManagement::default_for_server("catalog");
+    let mut management = acp_config::McpServerManagement::default_for_server("catalog");
     management.denied_tools.push("removed".into());
     fixture.pool.register_tool_source(fixture.server.clone(), management);
     fixture.pool.refresh_tool_catalog(&catalog).await.unwrap();
@@ -234,7 +234,7 @@ async fn dynamic_tools_mcp_refresh_applies_current_server_authorization() {
 async fn dynamic_tools_mcp_refresh_addition_requires_explicit_authorization() {
     let fixture = Fixture::start().await;
     let catalog = fixture.catalog().await;
-    let mut management = vw_acp::McpServerManagement::default_for_server("catalog");
+    let mut management = acp_config::McpServerManagement::default_for_server("catalog");
     management.allowed_tools = vec!["read".into(), "removed".into(), "added".into()];
     fixture.pool.register_tool_source(fixture.server.clone(), management);
     fixture.service.generation.store(1, Ordering::SeqCst);

@@ -5,12 +5,12 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 pub(crate) struct McpResourceTool {
-    config: vw_acp::ResolvedAcpxConfig,
+    config: acp_config::ResolvedAcpxConfig,
     connections: Arc<crate::plugins::McpSessionConnections>,
 }
 impl McpResourceTool {
     pub(crate) fn new(
-        config: vw_acp::ResolvedAcpxConfig,
+        config: acp_config::ResolvedAcpxConfig,
         connections: Arc<crate::plugins::McpSessionConnections>,
     ) -> Self {
         Self { config, connections }

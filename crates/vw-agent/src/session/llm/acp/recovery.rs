@@ -1,6 +1,7 @@
 //! Recover an ACP session whose selection lost its record ID.
 
-use vw_acp::{SessionIndexEntry, SessionRecord};
+use acp_storage::SessionIndexEntry;
+use acp_types::SessionRecord;
 
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
@@ -23,9 +24,9 @@ pub(super) async fn recover_session(
     generation: u64,
     launch: &Launch<'_>,
 ) -> anyhow::Result<Option<RecoveredSession>> {
-    let session_dir = vw_acp::default_session_base_dir()
-        .ok_or(vw_acp::SessionRepositoryError::HomeDirUnavailable)?;
-    let index = match vw_acp::load_or_rebuild_session_index(session_dir).await {
+    let session_dir = acp_types::default_session_base_dir()
+        .ok_or(acp_storage::SessionRepositoryError::HomeDirUnavailable)?;
+    let index = match acp_storage::load_or_rebuild_session_index(session_dir).await {
         Ok(index) => index,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(error.into()),
@@ -36,7 +37,7 @@ pub(super) async fn recover_session(
         return Ok(None);
     };
 
-    let record = vw_acp::resolve_session_record(&entry.vwacp_record_id).await?;
+    let record = acp_storage::resolve_session_record(&entry.vwacp_record_id).await?;
     anyhow::ensure!(
         record.vwacp_record_id == entry.vwacp_record_id
             && record.acp_session_id == entry.acp_session_id

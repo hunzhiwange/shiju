@@ -673,7 +673,7 @@ fn acp_onboarding_deepagents_builtin_profile_persists_and_runs() {
             None,
         ));
     let entry = std::env::var("SHIJU_DEEPAGENTS_TEST_ENTRY").unwrap();
-    vw_acp::verify_reviewed_agent_executable("deepagents", &entry).unwrap();
+    acp_agent_registry::verify_reviewed_agent_executable("deepagents", &entry).unwrap();
     let endpoint = std::env::var("SHIJU_DEEPAGENTS_TEST_ENDPOINT").unwrap();
     assert!(endpoint.starts_with("http://127.0.0.1:"));
     let previous = std::env::var_os("VW_RECOVERY_WINDOW_HTTP");

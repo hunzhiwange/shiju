@@ -52,7 +52,7 @@ pub(super) fn is_permission_config(option: &agent_client_protocol::SessionConfig
 
 fn reject_public_permission_selection(
     kind: &AcpOptionKind,
-    info: Option<&vw_acp::SessionCapabilities>,
+    info: Option<&acp_types::SessionCapabilities>,
 ) -> Result<(), String> {
     let permission = match kind {
         AcpOptionKind::Mode => true,
@@ -75,7 +75,7 @@ fn reject_public_permission_selection(
     Ok(())
 }
 
-fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+fn native_advertised(info: acp_types::SessionCapabilities) -> AcpSessionOptions {
     let mut options = Vec::new();
     let config_options = info.config_options.unwrap_or_default();
     let has_category =
@@ -131,7 +131,7 @@ fn native_advertised(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     AcpSessionOptions { connected: true, options, ..Default::default() }
 }
 
-fn public_advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+fn public_advertised(mut info: acp_types::SessionCapabilities) -> AcpSessionOptions {
     info.modes = None;
     if let Some(options) = info.config_options.as_mut() {
         options.retain(|option| !is_permission_config(option));
@@ -139,7 +139,7 @@ fn public_advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions
     native_advertised(info)
 }
 
-fn native_read_only(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+fn native_read_only(info: acp_types::SessionCapabilities) -> AcpSessionOptions {
     let model_options = info
         .config_options
         .iter()
@@ -162,7 +162,7 @@ fn native_read_only(info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
     options
 }
 
-fn advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
+fn advertised(mut info: acp_types::SessionCapabilities) -> AcpSessionOptions {
     info.models = None;
     if let Some(options) = info.config_options.as_mut() {
         options.retain(|option| !is_model_config(option));
@@ -171,7 +171,7 @@ fn advertised(mut info: vw_acp::SessionCapabilities) -> AcpSessionOptions {
 }
 
 fn project_options(
-    info: Option<vw_acp::SessionCapabilities>,
+    info: Option<acp_types::SessionCapabilities>,
     selection: Option<&super::lifecycle::Selection>,
 ) -> AcpSessionOptions {
     use vw_api_acp_model::acp_model_source::AcpModelSource;
@@ -227,10 +227,10 @@ pub(crate) fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str
 
 fn annotate_access(
     options: &mut AcpSessionOptions,
-    client: &vw_acp::AcpClient,
-    record: &vw_acp::SessionRecord,
+    client: &acp_client::AcpClient,
+    record: &acp_types::SessionRecord,
 ) {
-    use vw_acp::{AccessPolicyReason, FullAccessSupport};
+    use acp_access_policy::{AccessPolicyReason, FullAccessSupport};
     use vw_api_acp_model::acp_session::{AcpAccessStatus, AcpAccessSupport};
     let (requested, support, explanation) =
         match client.session_access_policy(&record.acp_session_id) {
@@ -276,9 +276,9 @@ async fn connected(
     session_id: &str,
     directory: &str,
     saved: Option<&super::lifecycle::Selection>,
-) -> Result<Option<(vw_acp::SessionRecord, Arc<CachedAcpClient>)>, String> {
+) -> Result<Option<(acp_types::SessionRecord, Arc<CachedAcpClient>)>, String> {
     let name = super::session::acp_session_name(session_id);
-    let records = vw_acp::list_sessions().await.map_err(|e| e.to_string())?;
+    let records = acp_storage::list_sessions().await.map_err(|e| e.to_string())?;
     let cache = ACP_CLIENT_CACHE.lock();
     for record in records {
         if saved
@@ -305,14 +305,14 @@ async fn connected(
 async fn parked_effort_record(
     saved: &super::lifecycle::Selection,
     directory: &str,
-) -> Result<Option<vw_acp::SessionRecord>, String> {
+) -> Result<Option<acp_types::SessionRecord>, String> {
     if !saved.has_started()
         || managed_effort_id(&saved.agent).is_none()
         || saved.model.source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
     {
         return Ok(None);
     }
-    let record = vw_acp::resolve_session_record(&saved.record_id)
+    let record = acp_storage::resolve_session_record(&saved.record_id)
         .await
         .map_err(|error| error.to_string())?;
     Ok((record.vwacp_record_id == saved.record_id
@@ -324,19 +324,19 @@ async fn parked_effort_record(
 
 fn stored_effort<'a>(
     agent: &str,
-    state: &'a vw_acp::SessionAcpxState,
+    state: &'a acp_types::SessionAcpxState,
 ) -> Option<&'a agent_client_protocol::SessionConfigOption> {
     state.config_options.iter().flatten().find(|option| is_managed_effort_config(agent, option))
 }
 
 fn parked_effort_options(
     saved: &super::lifecycle::Selection,
-    record: &vw_acp::SessionRecord,
+    record: &acp_types::SessionRecord,
 ) -> AcpSessionOptions {
     let mut projected = project_options(None, Some(saved));
     let Some(state) = &record.vwacp else { return projected };
     let Some(option) = stored_effort(&saved.agent, state) else { return projected };
-    let mut options = native_advertised(vw_acp::SessionCapabilities {
+    let mut options = native_advertised(acp_types::SessionCapabilities {
         session_id: record.acp_session_id.clone(),
         models: None,
         modes: None,
@@ -399,11 +399,11 @@ pub(crate) async fn select(
             .filter(|option| option.id.0.as_ref() == id)
             .ok_or("ACP option is unavailable for the current model source")?;
         let id =
-            vw_acp::resolve_config_value(Some(std::slice::from_ref(option)), id, &selection.value)?;
+            acp_access_policy::session_mode_preference::resolve_config_value(Some(std::slice::from_ref(option)), id, &selection.value)?;
         let original = record.clone();
-        vw_acp::set_desired_config_option(&mut record, &id, &selection.value);
-        if let Err(error) = vw_acp::write_session_record(&record).await {
-            if let Err(restore) = vw_acp::write_session_record(&original).await {
+        acp_access_policy::session_mode_preference::set_desired_config_option(&mut record, &id, &selection.value);
+        if let Err(error) = acp_storage::write_session_record(&record).await {
+            if let Err(restore) = acp_storage::write_session_record(&original).await {
                 return Err(format!(
                     "Failed to save ACP selection: {error}; could not restore its saved value: {restore}"
                 ));
@@ -418,7 +418,7 @@ pub(crate) async fn select(
         .map_err(|_| "ACP session is busy; retry after the current response")?;
     // Reload under the prompt lock so this write cannot overwrite a completed prompt's record.
     let mut record =
-        vw_acp::resolve_session_record(&record.vwacp_record_id).await.map_err(|e| e.to_string())?;
+        acp_storage::resolve_session_record(&record.vwacp_record_id).await.map_err(|e| e.to_string())?;
     let capabilities = client.client.session_capabilities(&record.acp_session_id);
     reject_public_permission_selection(&selection.kind, capabilities.as_ref())?;
     prepare_access_restore(&client.client, &mut record);
@@ -449,7 +449,7 @@ pub(crate) async fn select(
         .find(|option| option.kind == selection.kind)
         .map(|option| AcpSessionSelection { kind: option.kind, value: option.current });
     apply_selection(&client.client, &mut record, selection).await?;
-    if let Err(error) = vw_acp::write_session_record(&record).await {
+    if let Err(error) = acp_storage::write_session_record(&record).await {
         if let Some(previous) = previous
             && let Err(rollback) = apply_selection(&client.client, &mut record, previous).await
         {
@@ -458,7 +458,7 @@ pub(crate) async fn select(
             ));
         }
         // The repository may have replaced the record before its index write failed.
-        if let Err(restore) = vw_acp::write_session_record(&original_record).await {
+        if let Err(restore) = acp_storage::write_session_record(&original_record).await {
             return Err(format!(
                 "Failed to save ACP selection: {error}; could not restore its saved value: {restore}"
             ));
@@ -472,8 +472,8 @@ pub(crate) async fn select(
 }
 
 async fn apply_selection(
-    client: &vw_acp::AcpClient,
-    record: &mut vw_acp::SessionRecord,
+    client: &acp_client::AcpClient,
+    record: &mut acp_types::SessionRecord,
     selection: AcpSessionSelection,
 ) -> Result<(), String> {
     let directory = record.cwd.clone();
@@ -493,7 +493,7 @@ async fn apply_selection(
                 .set_session_mode(&record.acp_session_id, &directory, &selection.value)
                 .await
                 .map_err(|e| e.to_string())?;
-            vw_acp::set_desired_mode_id(record, Some(&selection.value));
+            acp_access_policy::session_mode_preference::set_desired_mode_id(record, Some(&selection.value));
             if let Some(state) = record.vwacp.as_mut() {
                 state.current_mode_id = Some(selection.value);
             }
@@ -503,8 +503,8 @@ async fn apply_selection(
                 .set_session_model(&record.acp_session_id, &directory, &selection.value)
                 .await
                 .map_err(|e| e.to_string())?;
-            vw_acp::set_desired_model_id(record, Some(&selection.value));
-            vw_acp::set_current_model_id(record, Some(&selection.value));
+            acp_access_policy::session_mode_preference::set_desired_model_id(record, Some(&selection.value));
+            acp_access_policy::session_mode_preference::set_current_model_id(record, Some(&selection.value));
         }
         AcpOptionKind::Config { id } => {
             let response = client
@@ -516,8 +516,8 @@ async fn apply_selection(
                 )
                 .await
                 .map_err(|e| e.to_string())?;
-            vw_acp::set_desired_config_option(record, &id, &selection.value);
-            vw_acp::sync_config_options(record, Some(response.config_options));
+            acp_access_policy::session_mode_preference::set_desired_config_option(record, &id, &selection.value);
+            acp_access_policy::session_mode_preference::sync_config_options(record, Some(response.config_options));
         }
     }
     Ok(())
@@ -525,7 +525,7 @@ async fn apply_selection(
 
 /// A confirmed config selector takes precedence over the legacy mode/model/effort fields.
 pub(super) fn has_saved_config_category(
-    record: &vw_acp::SessionRecord,
+    record: &acp_types::SessionRecord,
     category: SessionConfigOptionCategory,
 ) -> bool {
     let Some(state) = record.vwacp.as_ref() else {
@@ -547,8 +547,8 @@ mod tests;
 /// Keep a non-elevated baseline in desired preferences, separate from readback.
 /// Revocation also sanitizes legacy records that saved an elevated mode.
 pub(super) fn prepare_access_restore(
-    client: &vw_acp::AcpClient,
-    record: &mut vw_acp::SessionRecord,
+    client: &acp_client::AcpClient,
+    record: &mut acp_types::SessionRecord,
 ) {
     let Some(state) = record.vwacp.as_ref() else { return };
     let mode = state
@@ -561,7 +561,7 @@ pub(super) fn prepare_access_restore(
                 .as_ref()
                 .map(|value| client.restricted_permission_value("mode", value).to_owned())
         });
-    let mut desired = vw_acp::get_desired_config_options(Some(state));
+    let mut desired = acp_access_policy::session_mode_preference::get_desired_config_options(Some(state));
     for option in state.config_options.iter().flatten() {
         if (option.category == Some(SessionConfigOptionCategory::Mode)
             || matches!(option.id.0.as_ref(), "mode" | "edit_approval_policy"))
@@ -578,10 +578,10 @@ pub(super) fn prepare_access_restore(
         }
     }
     if let Some(mode) = mode {
-        vw_acp::set_desired_mode_id(record, Some(&mode));
+        acp_access_policy::session_mode_preference::set_desired_mode_id(record, Some(&mode));
     }
     for (id, value) in desired {
-        vw_acp::set_desired_config_option(
+        acp_access_policy::session_mode_preference::set_desired_config_option(
             record,
             &id,
             client.restricted_permission_value(&id, &value),

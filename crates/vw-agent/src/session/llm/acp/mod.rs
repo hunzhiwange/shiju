@@ -24,8 +24,12 @@ pub(crate) use updates::{
 
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
-use vw_acp::{
-    AcpClient, AcpJsonRpcMessage, AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy,
+use acp_client::AcpClient;
+use acp_types::{
+    AcpJsonRpcMessage,
+    AcpSessionOptions,
+    AuthPolicy,
+    NonInteractivePermissionPolicy,
     PermissionMode,
 };
 
@@ -55,7 +59,7 @@ static ACP_CLIENT_CACHE: LazyLock<Mutex<HashMap<String, Arc<CachedAcpClient>>>> 
 /// 同一个 ACP 代理进程会复用客户端连接；`prompt_lock` 用来串行化同一客户端上的 prompt，
 /// `output_tx` 则在请求运行期间临时接收 ACP JSON-RPC 输出回调。
 struct CachedAcpClient {
-    permission_confirmation: Arc<parking_lot::Mutex<Option<vw_acp::PermissionConfirmation>>>,
+    permission_confirmation: Arc<parking_lot::Mutex<Option<acp_host_io::permissions::PermissionConfirmation>>>,
     tenant: vw_api_transport::TenantScope,
     runtime_identity: Option<String>,
     client: Arc<AcpClient>,
@@ -84,7 +88,7 @@ pub(super) struct ParsedAcpOptions {
     pub(super) runtime_identity: Option<String>,
     /// Canonical workspace bound by the desktop turn context.
     pub(super) desktop_workspace: Option<std::path::PathBuf>,
-    pub(super) skill_mounts: Vec<vw_acp::SessionSkillMount>,
+    pub(super) skill_mounts: Vec<acp_types::SessionSkillMount>,
     pub(super) skill_view: Option<skill_mounts::MountedSkills>,
     pub(super) mcp_servers: Vec<agent_client_protocol::McpServer>,
     /// ACP 权限模式；未设置时由客户端构造逻辑选择默认策略。

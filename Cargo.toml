@@ -176,7 +176,6 @@ members = [
   "crates/libs/tui-chat",
   "crates/libs/tui-chat-state",
   "crates/libs/tui-exec-state",
-  "crates/libs/tui-chat",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-endpoint",

@@ -50,7 +50,7 @@ async fn acp_skill_mount_lifecycle_content_removal_and_session_change_identity()
     let v2 = v1.replace("version-one", "version-two");
     assert_eq!(v1.len(), v2.len());
     std::fs::write(&file, v1).unwrap();
-    let mounts = [vw_acp::SessionSkillMount {
+    let mounts = [acp_types::SessionSkillMount {
         name: "lifecycle".into(),
         path: source.to_str().unwrap().into(),
     }];

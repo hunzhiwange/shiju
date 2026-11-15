@@ -797,7 +797,7 @@ async fn global_acp_defaults_route_returns_builtin_launch_fields() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let defaults: HashMap<String, config::schema::AcpAgentConfig> =
         serde_json::from_slice(&body).unwrap();
-    let builtins = vw_acp::built_in_agent_specs();
+    let builtins = acp_agent_registry::built_in_agent_specs();
     assert_eq!(defaults.len(), builtins.len());
     for (name, spec) in builtins {
         assert_eq!(defaults[&name].command, spec.command);

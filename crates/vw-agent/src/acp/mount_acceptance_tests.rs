@@ -52,8 +52,8 @@ fn acp_server_mount_acceptance_tenant_and_same_directory_session_isolation() {
 #[tokio::test]
 async fn isolation_worker() {
     use super::VibeWindowBackend;
-    use vw_acp::server::{BackendMountRequest, SessionBackend};
-    use vw_acp::{SessionMountSelection, SessionSkillMount};
+    use acp_server::server::{BackendMountRequest, SessionBackend};
+    use acp_types::{SessionMountSelection, SessionSkillMount};
     let Some(root) = std::env::var_os("ACP_ACCEPTANCE_ISOLATION_ROOT") else { return };
     let root = std::path::PathBuf::from(root);
     let source = root.join("source");

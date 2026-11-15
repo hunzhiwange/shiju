@@ -4,10 +4,9 @@
 //! 会话选项。解析逻辑保持显式，便于在不同 agent 的兼容配置键之间做可审计映射。
 
 use serde_json::Value;
-use vw_acp::{
-    AcpSessionOptions, AuthPolicy, DEFAULT_AGENT_NAME, NonInteractivePermissionPolicy,
-    PermissionMode, resolve_agent_spec_with_overrides, resolve_compatible_config_id,
-};
+use acp_types::{AcpSessionOptions, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
+use acp_agent_registry::{DEFAULT_AGENT_NAME, resolve_agent_spec_with_overrides};
+use acp_cli_model::resolve_compatible_config_id;
 
 use crate::app::agent::config;
 use crate::app::agent::provider::provider;
@@ -33,7 +32,7 @@ pub(crate) fn normalize_acp_agent_config(
         return acp_cfg.clone();
     }
 
-    let Some(spec) = vw_acp::resolve_agent_spec(acp_agent_name) else {
+    let Some(spec) = acp_agent_registry::resolve_agent_spec(acp_agent_name) else {
         return acp_cfg.clone();
     };
 
@@ -70,13 +69,13 @@ pub(crate) fn build_acp_command_line(acp_cfg: &config::schema::AcpAgentConfig) -
 /// 将配置中的 ACP 覆盖项转换为 `vw_acp` 规格表。
 fn acp_override_specs(
     cfg: &config::schema::Config,
-) -> std::collections::HashMap<String, vw_acp::AgentCommandSpec> {
+) -> std::collections::HashMap<String, acp_agent_registry::AgentCommandSpec> {
     cfg.acp
         .iter()
         .map(|(name, spec)| {
             (
                 name.clone(),
-                vw_acp::AgentCommandSpec {
+                acp_agent_registry::AgentCommandSpec {
                     display_name: name.trim().to_string(),
                     command: spec.command.clone(),
                     args: spec.args.clone(),
@@ -88,7 +87,7 @@ fn acp_override_specs(
 }
 
 /// 将 `vw_acp` agent 规格转换为配置 schema 类型。
-fn to_schema_acp_config(spec: vw_acp::AgentCommandSpec) -> config::schema::AcpAgentConfig {
+fn to_schema_acp_config(spec: acp_agent_registry::AgentCommandSpec) -> config::schema::AcpAgentConfig {
     config::schema::AcpAgentConfig { command: spec.command, args: spec.args, env: spec.env }
 }
 
@@ -489,7 +488,7 @@ pub(super) async fn apply_agent_defaults(
         let directory = std::path::Path::new(source)
             .parent()
             .ok_or_else(|| acp_option_error("default skill has no directory"))?;
-        parsed.skill_mounts.push(vw_acp::SessionSkillMount {
+        parsed.skill_mounts.push(acp_types::SessionSkillMount {
             name: id.clone(),
             path: directory.to_string_lossy().into_owned(),
         });

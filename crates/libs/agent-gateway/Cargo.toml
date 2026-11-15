@@ -127,6 +127,20 @@ path = "../api-model-catalog"
 version = "0.6.0"
 [dependencies.sha2]
 version = "0.11"
-[dev-dependencies.vw-api-app-provider-profiles]
+[dependencies.vw-api-app-provider-profiles]
 path = "../api-app-provider-profiles"
 version = "0.6.0"
+
+[dependencies.app-routing-services]
+path = "../app-routing-services"
+version = "0.6.0"
+[dependencies.app-access-service]
+path = "../app-access-service"
+version = "0.6.0"
+[dependencies.vw-api-app-failover]
+path = "../api-app-failover"
+version = "0.6.0"
+[dependencies.thiserror]
+version = "2"
+[dependencies.toml]
+version = "0.9"

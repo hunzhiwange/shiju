@@ -6,3 +6,11 @@ pub mod agent;
 pub mod agent_apps_diagnostic_executors;
 #[cfg(test)]
 mod diagnostic_stream_fixtures;
+#[cfg(target_os = "macos")]
+pub mod agent_apps_high_availability_service;
+#[cfg(target_os = "macos")]
+pub mod publication_context;
+#[cfg(target_os = "macos")]
+pub mod aggregation_desktop_record;
+#[cfg(target_os = "macos")]
+pub mod aggregation_lifecycle;

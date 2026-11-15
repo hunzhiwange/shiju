@@ -1,0 +1,22 @@
+[package]
+name = "gateway-resumable-stream"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+futures-util = "0.3.32"
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.11"
+tokio = { version = "1", features = ["sync"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

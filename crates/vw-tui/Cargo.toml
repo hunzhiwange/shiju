@@ -21,40 +21,15 @@ tui-chat = { path = "../libs/tui-chat", version = "0.6.0" }
 tui-terminal-lifecycle = { path = "../libs/tui-terminal-lifecycle", version = "0.6.0" }
 tui-pager = { path = "../libs/tui-pager", version = "0.6.0" }
 tui-onboarding = { path = "../libs/tui-onboarding", version = "0.6.0" }
-tui-exec-state = { path = "../libs/tui-exec-state", version = "0.6.0" }
-tui-chat-state = { path = "../libs/tui-chat-state", version = "0.6.0" }
-tui-transcript = { path = "../libs/tui-transcript", version = "0.6.0" }
-tui-bottom-pane = { path = "../libs/tui-bottom-pane", version = "0.6.0" }
-tui-popups = { path = "../libs/tui-popups", version = "0.6.0" }
-tui-user-input = { path = "../libs/tui-user-input", version = "0.6.0" }
-tui-approval = { path = "../libs/tui-approval", version = "0.6.0" }
-tui-composer = { path = "../libs/tui-composer", version = "0.6.0" }
-tui-pickers = { path = "../libs/tui-pickers", version = "0.6.0" }
 tui-widgets = { path = "../libs/tui-widgets", version = "0.6.0" }
 tui-cells = { path = "../libs/tui-cells", version = "0.6.0" }
-tui-stream = { path = "../libs/tui-stream", version = "0.6.0" }
-tui-markdown = { path = "../libs/tui-markdown", version = "0.6.0" }
-tui-highlight = { path = "../libs/tui-highlight", version = "0.6.0" }
-tui-render = { path = "../libs/tui-render", version = "0.6.0" }
-tui-theme = { path = "../libs/tui-theme", version = "0.6.0" }
 tui-terminal = { path = "../libs/tui-terminal", version = "0.6.0" }
-tui-input = { path = "../libs/tui-input", version = "0.6.0" }
-tui-text = { path = "../libs/tui-text", version = "0.6.0" }
 tui-contracts = { path = "../libs/tui-contracts", version = "0.6.0" }
-tui-clipboard = { path = "../libs/tui-clipboard", version = "0.6.0" }
-crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
-pulldown-cmark = "0.13.4"
-ratatui = { version = "0.30.2", features = [
-    "unstable-backend-writer",
-    "unstable-rendered-line-info",
-    "unstable-widget-ref",
-] }
-textwrap = "0.16.2"
-unicode-segmentation = "1.12.0"
-unicode-width = "0.2"
 
 [dev-dependencies]
-tui-transcript = { path = "../libs/tui-transcript", version = "0.6.0", features = ["test-support"] }
 insta = "1.46.3"
+tui-markdown = { path = "../libs/tui-markdown", version = "0.6.0" }
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+ratatui = { version = "0.30.2", features = ["unstable-backend-writer", "unstable-rendered-line-info", "unstable-widget-ref"] }
 pretty_assertions = "1.4.1"
 vt100 = "0.16.2"

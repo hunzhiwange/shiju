@@ -4,8 +4,8 @@
 // VibeWindow adaptation: verifies the isolated v3 surface shell.
 // VibeWindow 适配：验证隔离后的 v3 界面外壳。
 
-use super::surface::V3Surface;
-use crate::bottom_pane::list_selection_view::ListSelectionView;
+use crate::V3Surface;
+use tui_widgets::list_selection_view::ListSelectionView;
 use crate::vibe::action::{V3_NON_SECURITY_SELECTION_SURFACES, V3Action, V3SelectionItem};
 use crossterm::event::{KeyCode, KeyEvent};
 

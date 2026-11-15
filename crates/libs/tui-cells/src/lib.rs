@@ -16,3 +16,5 @@ pub mod step;
 pub mod thread_transcript;
 
 pub use history_cell::{ExecHistoryCell, HistoryCell, history_cell_for, render_display_event};
+
+pub mod goal_display;

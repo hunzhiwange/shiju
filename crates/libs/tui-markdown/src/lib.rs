@@ -4,3 +4,7 @@ pub mod markdown;
 pub mod markdown_render;
 mod markdown_text_merge;
 pub mod table_detect;
+
+pub mod git_action_directives;
+
+pub mod copy_targets;

@@ -1,7 +1,7 @@
 //! 为复制来的历史单元格式化目标及步骤文本。
 //! Goal/step text formatting for the copied history cells.
 
-use crate::vibe::event::V3StepStatus;
+use tui_contracts::event::V3StepStatus;
 
 pub const GOAL_USAGE: &str = "Usage: /goal [<objective>|clear|edit|pause|resume]";
 
@@ -37,17 +37,8 @@ pub fn step_status_label(status: V3StepStatus) -> &'static str {
 }
 
 #[allow(unused_imports)]
-pub use tui_cells::step::{format_step, step_status_marker};
+pub use crate::step::{format_step, step_status_marker};
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    // 覆盖秒、小时和天的边界，确认状态行使用紧凑单位。
-    fn elapsed_time_uses_compact_units() {
-        assert_eq!(format_goal_elapsed_seconds(59), "59s");
-        assert_eq!(format_goal_elapsed_seconds(90 * 60), "1h 30m");
-        assert_eq!(format_goal_elapsed_seconds(24 * 60 * 60), "1d 0h 0m");
-    }
-}
+#[path = "goal_display_tests.rs"]
+mod tests;

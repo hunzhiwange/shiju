@@ -1,18 +1,18 @@
 //! Markdown 复制目标与上层指令解析接线。
 
-pub(crate) use tui_markdown::markdown::*;
+
 
 use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
 use std::ops::Range;
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum CopyTarget {
+pub enum CopyTarget {
     Code { language: Option<String>, content: Arc<str> },
     Quote(Arc<str>),
 }
 
-pub(crate) fn extract_copy_targets(markdown_source: &str) -> Vec<CopyTarget> {
+pub fn extract_copy_targets(markdown_source: &str) -> Vec<CopyTarget> {
     let mut targets = Vec::new();
     let mut quote: Option<(Range<usize>, usize, bool)> = None;
     let mut quote_depth = 0usize;

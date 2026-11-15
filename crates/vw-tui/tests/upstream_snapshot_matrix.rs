@@ -54,8 +54,8 @@ fn upstream_snapshot_matrix() {
 
     let lib = fs::read_to_string(crate_root.join("src/lib.rs"))
         .expect("v3 compilation root must be readable");
-    assert!(lib.contains("pub mod chatwidget;"));
-    assert!(lib.contains("pub use chatwidget::{ChatWidget, ChatWidgetConfig, V3ChatStatus};"));
+    assert!(lib.contains("pub use tui_chat::chatwidget;"));
+    assert!(lib.contains("pub use tui_chat::{ChatWidget, ChatWidgetConfig, V3ChatStatus};"));
 }
 
 fn named_snapshots(paths: &[PathBuf], prefix: &str) -> BTreeMap<String, PathBuf> {

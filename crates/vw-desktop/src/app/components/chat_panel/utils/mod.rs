@@ -13,22 +13,7 @@ mod ui;
 #[path = "app_state_tests.rs"]
 mod app_state_tests;
 #[cfg(test)]
-#[path = "path_tests.rs"]
-mod path_tests;
-#[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "text_tests.rs"]
-mod text_tests;
-#[cfg(test)]
-#[path = "theme_tests.rs"]
-mod theme_tests;
-#[cfg(test)]
-#[path = "time_tests.rs"]
-mod time_tests;
-#[cfg(test)]
-#[path = "ui_tests.rs"]
-mod ui_tests;
 
 pub use app_state::{
     current_branch_label, current_project_path_label, get_session_title, is_recent_copy,

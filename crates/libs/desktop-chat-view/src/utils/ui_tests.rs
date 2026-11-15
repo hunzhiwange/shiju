@@ -34,19 +34,19 @@ fn bold_font_is_configured() {
 fn menu_and_tooltip_build_only_when_requested() {
     assert!(
         chat_context_menu(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             false
         )
         .is_none()
     );
     assert!(
         chat_context_menu(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             true
         )
         .is_some()
     );
-    let _ = copy_tooltip_content("复制");
+    let _: iced::Element<'_, ()> = copy_tooltip_content("复制");
 }
 
 #[test]

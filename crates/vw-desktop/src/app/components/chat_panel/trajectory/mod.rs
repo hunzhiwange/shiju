@@ -182,8 +182,3 @@ fn raw_refresh_status<'a>(
     }
     Space::new().height(Length::Fixed(0.0)).into()
 }
-
-
-#[cfg(test)]
-#[path = "timeline_tests.rs"]
-mod timeline_tests;

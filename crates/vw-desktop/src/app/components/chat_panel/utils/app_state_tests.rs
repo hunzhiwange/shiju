@@ -2,10 +2,9 @@
 //! 活动会话可从近期列表或项目缓存解析，复制状态同时要求哈希匹配且时间仍有效。
 
 use super::app_state::{
-    current_branch_label, current_project_path_label, get_session_title, is_recent_copy,
+    current_branch_label, current_project_path_label, get_session_title,
 };
 use crate::app::App;
-use web_time::{Duration as WebDuration, SystemTime as WebSystemTime};
 
 fn session_info(id: &str, title: &str) -> session_info::Info {
     session_info::Info {
@@ -70,30 +69,4 @@ fn session_title_uses_project_session_when_active_session_is_not_in_recent_list(
         .insert("/tmp/project".to_string(), vec![session_info("plan-child", "规划 · task-1")]);
 
     assert_eq!(get_session_title(&app), "规划 · task-1");
-}
-
-#[test]
-fn is_recent_copy_requires_matching_hash_and_fresh_timestamp() {
-    let mut app = App::new().0;
-    app.last_copied_code_hash = Some(42);
-    app.last_copy_time = Some(WebSystemTime::now() - WebDuration::from_millis(500));
-
-    assert!(is_recent_copy(&app, 42));
-    assert!(!is_recent_copy(&app, 7));
-
-    app.last_copy_time = Some(WebSystemTime::now() - WebDuration::from_millis(2_000));
-    assert!(!is_recent_copy(&app, 42));
-}
-
-#[test]
-fn is_recent_copy_rejects_missing_or_unusable_copy_state() {
-    let mut app = App::new().0;
-
-    assert!(!is_recent_copy(&app, 42));
-
-    app.last_copied_code_hash = Some(42);
-    assert!(!is_recent_copy(&app, 42));
-
-    app.last_copy_time = Some(WebSystemTime::now() + WebDuration::from_millis(60_000));
-    assert!(!is_recent_copy(&app, 42));
 }

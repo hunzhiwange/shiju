@@ -5,7 +5,13 @@ use super::time::{
     format_chat_time_label, project_last_modified_ms, relative_modified_label,
     relative_time_bucket, relative_time_label, relative_time_label_for_bucket,
 };
-use crate::app::App;
+#[derive(Default)]
+struct ProjectFixture {
+    project_path: Option<String>,
+    project_updated_at_ms: Option<u64>,
+}
+impl ProjectFixture { fn new() -> (Self,) { (Self::default(),) } }
+
 
 // ── relative_time_bucket ──
 
@@ -132,7 +138,7 @@ fn relative_time_label_zero_returns_just_now() {
 
 #[test]
 fn relative_time_label_recent_offset_returns_just_now() {
-    let now = crate::app::time::now_ms();
+    let now = runtime_time::now_ms();
     assert_eq!(relative_time_label(now.saturating_sub(5_000)), "刚刚");
 }
 
@@ -140,56 +146,56 @@ fn relative_time_label_recent_offset_returns_just_now() {
 
 #[test]
 fn project_last_modified_ms_with_positive_updated_at_returns_it() {
-    let mut app = App::new().0;
+    let mut app = ProjectFixture::new().0;
     app.project_updated_at_ms = Some(42);
-    assert_eq!(project_last_modified_ms(&app), Some(42));
+    assert_eq!(project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()), Some(42));
 }
 
 #[test]
 fn project_last_modified_ms_with_zero_updated_at_falls_through() {
-    let mut app = App::new().0;
+    let mut app = ProjectFixture::new().0;
     app.project_updated_at_ms = Some(0);
-    assert_eq!(project_last_modified_ms(&app), None);
+    assert_eq!(project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()), None);
 }
 
 #[test]
 fn project_last_modified_ms_with_no_path_and_no_updated_at_returns_none() {
-    let app = App::new().0;
-    assert_eq!(project_last_modified_ms(&app), None);
+    let app = ProjectFixture::new().0;
+    assert_eq!(project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()), None);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn project_last_modified_ms_with_missing_path_returns_none() {
     let root = tempfile::tempdir().expect("temporary root should be created");
-    let mut app = App::new().0;
+    let mut app = ProjectFixture::new().0;
     app.project_path = Some(root.path().join("missing").to_string_lossy().into_owned());
 
-    assert_eq!(project_last_modified_ms(&app), None);
+    assert_eq!(project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()), None);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn project_last_modified_ms_with_directory_uses_filesystem_modified_time() {
     let project = tempfile::tempdir().expect("temporary project directory should be created");
-    let mut app = App::new().0;
+    let mut app = ProjectFixture::new().0;
     app.project_path = Some(project.path().to_string_lossy().into_owned());
 
-    assert!(project_last_modified_ms(&app).is_some());
+    assert!(project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()).is_some());
 }
 
 // ── relative_modified_label ──
 
 #[test]
 fn relative_modified_label_no_modified_shows_fallback() {
-    let app = App::new().0;
-    assert_eq!(relative_modified_label(&app), "最后修改 暂无");
+    let app = ProjectFixture::new().0;
+    assert_eq!(relative_modified_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()), runtime_time::now_ms()), "最后修改 暂无");
 }
 
 #[test]
 fn relative_modified_label_recent_modified_time_shows_minutes() {
-    let mut app = App::new().0;
-    app.project_updated_at_ms = Some(crate::app::time::now_ms().saturating_sub(120_000));
+    let mut app = ProjectFixture::new().0;
+    app.project_updated_at_ms = Some(runtime_time::now_ms().saturating_sub(120_000));
 
-    assert_eq!(relative_modified_label(&app), "最后修改 2 分钟前");
+    assert_eq!(relative_modified_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), project_last_modified_ms(app.project_updated_at_ms, app.project_path.as_deref()), runtime_time::now_ms()), "最后修改 2 分钟前");
 }

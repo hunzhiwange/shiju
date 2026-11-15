@@ -8,8 +8,8 @@ use super::theme::{
     is_dark_theme, mix_color, muted_icon_color, pill_button_style, simplified_block_style,
     simplified_code_block_style, weak_file_button_style,
 };
-use crate::app::Message;
-use crate::app::assets::Icon;
+type Message = ();
+use desktop_assets::Icon;
 use iced::widget::{button, scrollable, svg};
 use iced::{Background, Color, Element, Theme, theme::Palette};
 
@@ -220,9 +220,9 @@ fn weak_file_button_style_covers_status_and_theme_backgrounds() {
 
 #[test]
 fn change_pill_elements_build_expected_widget_trees() {
-    let additions = additions_pill(3);
-    let deletions = deletions_pill(2);
-    let changes = change_pills(3, 2);
+    let additions = additions_pill::<Message>(3);
+    let deletions = deletions_pill::<Message>(2);
+    let changes = change_pills::<Message>(3, 2);
 
     assert_eq!(child_count(&additions), 0);
     assert_eq!(child_count(&deletions), 0);

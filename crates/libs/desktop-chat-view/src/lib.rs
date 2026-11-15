@@ -39,3 +39,5 @@ pub mod selectable_text;
 mod selectable_text_tests;
 
 pub mod chat_ui;
+
+pub mod utils;

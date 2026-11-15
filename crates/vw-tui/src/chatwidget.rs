@@ -30,12 +30,10 @@ use ratatui::text::Line;
 mod command_lifecycle;
 mod constructor;
 use tui_exec_state as exec_state;
-mod input_queue;
 mod input_submission;
 mod interrupts;
 mod rendering;
 mod selection_overlay;
-mod status_state;
 mod status_surfaces;
 mod streaming;
 mod tool_lifecycle;
@@ -58,10 +56,9 @@ mod selection_overlay_tests;
 mod input_queue_tests;
 
 pub use constructor::ChatWidgetConfig;
-pub use status_state::V3ChatStatus;
+pub use tui_contracts::presentation::V3ChatStatus;
 
-use input_queue::InputQueueState;
-use status_state::StatusState;
+use tui_chat_state::{InputQueueState, StatusState};
 use tui_transcript::{TranscriptMouseAction, TranscriptState};
 use tui_contracts::presentation::UserMessage;
 

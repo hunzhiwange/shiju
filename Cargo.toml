@@ -155,6 +155,7 @@ members = [
   "crates/libs/tui-bottom-pane",
   "crates/libs/tui-transcript",
   "crates/libs/tui-exec-state",
+  "crates/libs/tui-chat-state",
   "crates/libs/tui-exec-state",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",

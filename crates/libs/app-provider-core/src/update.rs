@@ -1,11 +1,10 @@
 //! Catalog-only update; native re-projection is owned by application adapters.
 use super::{validate_identity, validate_profile};
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_base::update::AppProviderUpdate;
-
 use vw_api_app_identity::{AppId};
+
 /// Read only the established profile fields; retain opaque stored metadata on update.
 pub fn profile(stored: &serde_json::Value) -> Result<AppProviderWrite, String> {
     let mut fields = serde_json::Map::new();

@@ -1,5 +1,4 @@
 use super::update::update;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_base::update::AppProviderUpdate;
 use vw_api_app_identity::{AppId};

@@ -1,6 +1,5 @@
 //! Catalog-only copy. The tenant store remains the sole persistence owner.
 use super::{update::profile, validate_identity, validate_profile};
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_edit::duplicate::AppProviderDuplicate;
 use vw_api_app_identity::{AppId};

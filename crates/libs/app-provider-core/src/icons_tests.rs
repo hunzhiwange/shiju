@@ -12,7 +12,7 @@ fn image(w: u32, h: u32) -> String {
     }
     format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
 }
-use crate::icons::library;
+use app_icons::library;
 use vw_api_app_identity::{CustomIconEntry};
 fn add(data: &str) -> CustomIconEntry {
     library::add_icon(&[], "Icon", data, "fixture", 1).unwrap().0.icon

@@ -1,6 +1,5 @@
 //! Universal catalog rules. Never writes native application configuration.
 use super::{validate_identity, validate_profile};
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
@@ -67,7 +66,7 @@ fn validate(config: &UniversalConfig, secret: &str) -> Result<(), String> {
         }
     }
     if let Some(icon) = &config.icon
-        && !crate::icons::validation::is_valid_custom_icon(icon)
+        && !app_icons::validation::is_valid_custom_icon(icon)
     {
         // Built-in icon names are inert identifiers, never paths, SVG or remote URLs.
         validate_identity(icon)?;

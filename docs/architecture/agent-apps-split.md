@@ -2099,3 +2099,15 @@ workspace_paths → providers
 - `grok_form.rs` 调用 preview::editor_category，依历史符号切口由任务 24 接纯叶子、任务 29 收剩余表单编排；`desktop_mapping.rs/desktop_mapping/catalog.rs/desktop_mapping_tests.rs` 依赖 claude_desktop::settings 和 aggregation::model_ids，任务 24 梳理、任务 28 在任务 27 完成后接收整个映射边界。相邻测试原注册保留，随最终所有者迁移。
 - 原包 serde_json/toml/toml_edit/tempfile 仍有其他真实使用者，不能删除。新包直接依赖仅 patch、validation、preview 契约、serde_json（arbitrary_precision）、toml、toml_edit；tempfile 仅测试。
 - 静态证据：差异空白检查、移动内容/路径与导出审阅、TOML 路径审阅、新包无旧门面引用；后续统一验收须覆盖新包和 preview/codex_catalog/原生适配器编译、迁移测试及三平台条件。静态审阅不代表行为通过。
+
+
+## 任务 11 迁移结果（2026-11-15）
+
+静态拆分完成；未运行 Cargo、单元及实机测试，统一验收待授权。
+
+- 本节覆盖历史所有权表：basic/create/duplicate/icons/presentation/snippets/universal/update 的实现移入 app-provider-core/src；create/duplicate/icons/presentation/universal/update 的独立测试同移，editor_merge 的 merge/MergeError/at/placeholder 及整个独立测试同移。snippets 的四个纯规则测试同移，macOS preview 集成测试继续独立注册在门面，任务 29 接收。所有既有测试保留，未新增或执行。
+- failover::ProviderAuth/ProviderSnapshot 下沉并由原模块重导出；snapshot/classify/codex_auth/grok_auth/has_saved_key 仍依赖 claude/gemini/grok/codex_catalog，任务 29 接收分类编排。高可用 queue/selection 沿用同一重导出类型。
+- universal_sync::validate_request/child_id 下沉；project/object_field 依赖 Claude 原生 patch/settings，保留原位置及 universal_sync_tests，任务 29 接收。models/preset_catalog_tests 的 native_projection 集成断言随之由任务 29 接收，不引入 core 对 native 的反依赖。
+- catalog::{read,observe,read_file}、delete::ensure_unreferenced 及各自测试保留原位，任务 29 接收（依赖任务 24 原生适配器）。editor_merge::ClaudeFile 原生访问/提交由任务 24 接收；project/display 依赖 preview 分发，由任务 29 接收。其余叶子已单独下沉，未复制业务实现。
+- 公共入口仍由 providers 模块逐项重导出，lib.rs 的 providers 注册无需改动；snippets::sensitive 仅因 aggregation/omo_read 的真实调用而公开。图标规则直接依赖 app-icons，JSON 编辑依赖 app-config-patch，字段分类依赖 app-provider-projection；无旧门面回依赖，无资源 include 路径。原包已有依赖仍被其它模块使用，未删除。
+- 静态证据：TOML 标准库解析、所有直接路径存在、workspace 注册、模块和独立测试注册、源码引用与迁移函数集合对照、git diff --check。Cargo.lock 未触碰；新包目标编译、迁移单测、原生服务集成及三平台条件留待授权统一验收，静态结果不表示行为通过。

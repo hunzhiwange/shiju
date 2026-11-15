@@ -7,35 +7,23 @@ mod catalog_tests;
 
 pub mod failover;
 
-pub mod create;
-#[cfg(test)]
-mod create_tests;
+pub use app_provider_core::create;
 
-pub mod update;
-#[cfg(test)]
-mod update_tests;
+pub use app_provider_core::update;
 
 pub mod delete;
 #[cfg(all(test, target_os = "macos"))]
 mod delete_tests;
 
-pub mod duplicate;
-#[cfg(test)]
-mod duplicate_tests;
+pub use app_provider_core::duplicate;
 
-pub mod presentation;
-#[cfg(test)]
-mod presentation_tests;
+pub use app_provider_core::presentation;
 
 pub use app_provider_validation::endpoints;
 
-pub mod icons;
-#[cfg(test)]
-mod icons_tests;
+pub use app_provider_core::icons;
 
-pub mod universal;
-#[cfg(test)]
-mod universal_tests;
+pub use app_provider_core::universal;
 
 pub mod universal_sync;
 #[cfg(test)]
@@ -57,11 +45,9 @@ pub use app_provider_validation::validation;
 mod validation_tests;
 
 pub mod editor_merge;
-#[cfg(test)]
-mod editor_merge_tests;
 
-pub mod snippets;
-#[cfg(test)]
+pub use app_provider_core::snippets;
+#[cfg(all(test, target_os = "macos"))]
 mod snippets_tests;
 
 pub mod claude;
@@ -184,7 +170,7 @@ pub mod operations;
 #[cfg(test)]
 mod operations_tests;
 
-pub mod basic;
+pub use app_provider_core::basic;
 
 pub use app_provider_validation::request_options;
 

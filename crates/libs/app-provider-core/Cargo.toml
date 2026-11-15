@@ -1,0 +1,22 @@
+[package]
+name = "app-provider-core"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-config-patch = { path = "../app-config-patch" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-provider-projection = { path = "../app-provider-projection" }
+app-icons = { path = "../app-icons" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+toml = "0.9"
+
+[dev-dependencies]
+base64 = "0.23"
+tempfile = "3"
+png = "0.18"

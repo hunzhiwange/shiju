@@ -1,6 +1,5 @@
 //! Credential-free projection of one saved provider for queue eligibility.
 use serde_json::Value;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
@@ -11,18 +10,7 @@ use vw_api_app_provider_extended::grok::GrokConfig;
 use vw_api_app_provider_extended::grok::GrokProfile;
 use vw_api_app_identity::{AppId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProviderAuth {
-    ThirdParty,
-    OfficialAccount,
-    Unknown,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ProviderSnapshot {
-    pub provider: AppProviderSummary,
-    pub auth: ProviderAuth,
-}
+pub use app_provider_core::failover::{ProviderAuth, ProviderSnapshot};
 
 /// The storage owner supplies the application, ID and record from the same scoped read.
 pub fn snapshot(

@@ -1,6 +1,5 @@
 //! Provider consumption of the shared icon library; no second library or storage owner.
-use crate::icons::validation::is_valid_custom_icon;
-use vw_api_types::agent_apps::CustomIconEntry;
+use app_icons::validation::is_valid_custom_icon;
 use vw_api_app_provider_edit::icons::AppProviderIcon;
 use vw_api_app_provider_edit::icons::AppProviderIconChange;
 use vw_api_app_identity::{CustomIconEntry};

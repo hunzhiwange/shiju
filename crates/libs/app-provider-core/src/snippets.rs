@@ -45,7 +45,7 @@ fn encode(app: AppId, mut value: Value) -> Result<ConfigSnippet, String> {
     }
     scrub(&mut value, 0)?;
     let root = value.as_object_mut().ok_or("invalid snippet")?;
-    use super::projection::fields;
+    use app_provider_projection::projection::fields;
     match app {
         AppId::Claude => {
             root.retain(|key, _| {
@@ -161,7 +161,7 @@ fn scrub(value: &mut Value, depth: usize) -> Result<(), String> {
     }
     Ok(())
 }
-pub(crate) fn sensitive(key: &str) -> bool {
+pub fn sensitive(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
     [
         "APIKEY",

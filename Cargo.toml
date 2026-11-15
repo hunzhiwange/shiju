@@ -192,6 +192,7 @@ members = [
   "crates/libs/app-config-patch",
   "crates/libs/app-provider-validation",
   "crates/libs/app-provider-projection",
+  "crates/libs/app-provider-core",
   "crates/libs/app-config-paths",
   "crates/libs/app-icons",
   "crates/libs/app-model-catalog",

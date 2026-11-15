@@ -128,7 +128,7 @@ mod endpoints_tests;
 #[path = "app_providers/icons.rs"]
 mod icons;
 #[cfg(test)]
-#[path = "app_providers/icons_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/icons_tests.rs"]
 mod icons_tests;
 
 mod universal;
@@ -199,6 +199,7 @@ mod desktop_mapping_tests;
 
 mod hermes;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/hermes_tests.rs"]
 mod hermes_tests;
 mod openclaw;
 #[cfg(all(test, target_os = "macos"))]
@@ -220,10 +221,12 @@ mod omp_tests;
 
 mod mcode;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/mcode_tests.rs"]
 mod mcode_tests;
 
 mod kimi;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/kimi_tests.rs"]
 mod kimi_tests;
 
 mod dsh;
@@ -235,14 +238,17 @@ pub(super) mod agy;
 
 mod import;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/import_tests.rs"]
 mod import_tests;
 
 mod mode_state;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/mode_state_tests.rs"]
 mod mode_state_tests;
 
 pub(crate) mod mode_apply;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/mode_apply_tests.rs"]
 mod mode_apply_tests;
 
 mod env_diagnose;

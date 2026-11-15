@@ -27,6 +27,13 @@ pub mod env_diagnose;
 pub mod env_restore;
 pub mod gemini;
 pub mod grok;
+pub mod hermes;
+pub mod icons;
+pub mod import;
+pub mod kimi;
+pub mod mcode;
+pub mod mode_state;
+pub mod mode_apply;
 pub fn error(message: &str) -> Response {
     let (status, safe) = match message {
         "application provider is referenced" => {

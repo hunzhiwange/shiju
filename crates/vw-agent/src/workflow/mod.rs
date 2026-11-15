@@ -22,8 +22,6 @@ pub use runner::{
 };
 
 #[cfg(test)]
-mod dsml_tests;
-#[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
 

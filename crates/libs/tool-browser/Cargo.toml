@@ -25,7 +25,7 @@ agent-security = { path = "../agent-security", version = "0.6.0" }
 agent-config = { path = "../agent-config", version = "0.6.0" }
 tool-types = { path = "../tool-types", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
-shell-command = { path = "../shell-command", version = "0.6.0" }
+shell-command = { path = "../shell-command", version = "0.6.0", features = ["shell-tokio"] }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 
 [target.'cfg(unix)'.dependencies]

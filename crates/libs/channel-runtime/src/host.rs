@@ -30,7 +30,7 @@ pub struct ChannelExecutionInput {
 
 #[cfg_attr(target_arch="wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch="wasm32"), async_trait::async_trait)]
-pub trait ChannelHost: Send + Sync {
+pub trait ChannelHost: crate::command_host::CommandHost + Send + Sync {
     fn now_ms(&self) -> u64;
     fn scrub_credentials(&self, text: &str) -> String;
     fn draft_sentinels(&self) -> (&'static str, &'static str, &'static str);

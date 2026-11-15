@@ -1,13 +1,13 @@
 // 本文件验证审批配置的持久化、互斥列表调整与 JSON 兼容处理。
 
 use super::*;
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::{AutonomyConfig, ReliabilityConfig};
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::NoopObserver;
+use agent_approval::ApprovalManager;
+use agent_config::runtime_schema::{AutonomyConfig, ReliabilityConfig};
+use agent_memory::NoneMemory;
+use agent_observability::NoopObserver;
 use model_types::{ChatMessage, Provider};
-use crate::app::agent::providers::ProviderRuntimeOptions;
-use crate::app::agent::tools::Tool;
+use agent_providers::ProviderRuntimeOptions;
+use tool_types::Tool;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -82,12 +82,12 @@ fn context(
         workspace_dir: Arc::new(PathBuf::from(workspace_dir)),
         message_timeout_secs: 30,
         interrupt_on_new_message: false,
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime_schema::MultimodalConfig::default(),
         hooks: None,
         non_cli_excluded_tools: Arc::new(Mutex::new(
             excluded_tools.iter().map(|tool| (*tool).to_string()).collect(),
         )),
-        query_classification: crate::app::agent::config::QueryClassificationConfig::default(),
+        query_classification: agent_config::runtime_schema::QueryClassificationConfig::default(),
         model_routes: Vec::new(),
         approval_manager: Arc::new(ApprovalManager::from_config(&autonomy)),
     }

@@ -12,7 +12,7 @@ use serde_json::Value;
 #[cfg(test)]
 use crate::project::instance;
 pub use agent_provider::provider::*;
-fn ensure_host() {
+pub(crate) fn ensure_host() {
     install_host(Host {
         current_tenant_scope: crate::session::ui_store::current_tenant_scope,
         read_catalogs: |config| Box::pin(async move { super::model_catalog::read(&config).await }),

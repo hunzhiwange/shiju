@@ -43,14 +43,14 @@ pub async fn process_channel_message_inner(
                 | ChannelRuntimeCommand::SelectProject(_)
         )
     ) {
-        host.runtime_command(ctx.as_ref(), &msg, target_channel.as_ref()).await;
+        crate::runtime_command::handler::handle_runtime_command_if_needed(host, ctx.as_ref(), &msg, target_channel.as_ref()).await;
         return;
     }
     if parse_runtime_command(&msg.channel, &msg.content)
         .as_ref()
         .is_some_and(is_session_lifecycle_command)
     {
-        host.runtime_command(ctx.as_ref(), &msg, target_channel.as_ref()).await;
+        crate::runtime_command::handler::handle_runtime_command_if_needed(host, ctx.as_ref(), &msg, target_channel.as_ref()).await;
         return;
     }
     let snapshot = match resolve_channel_message_snapshot(ctx.as_ref(), &msg).await {
@@ -75,7 +75,7 @@ pub async fn process_channel_message_inner(
     let scope_snapshot = snapshot.clone();
     host.in_scope(&scope_snapshot, Box::pin(async {
     // 运行时命令需要优先截获，避免 `/approve`、`/model` 等控制指令进入模型上下文。
-    if host.runtime_command(ctx.as_ref(), &msg, target_channel.as_ref()).await {
+    if crate::runtime_command::handler::handle_runtime_command_if_needed(host, ctx.as_ref(), &msg, target_channel.as_ref()).await {
         return;
     }
 

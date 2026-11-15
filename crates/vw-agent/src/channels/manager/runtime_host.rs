@@ -62,6 +62,69 @@ impl ChannelHost for RuntimeHost {
     async fn retry_reply(&self, snapshot: &ChannelMessageSnapshot, session: &str, msg: &traits::ChannelMessage, reply: String) -> Result<()> { super::super::session_turn::mark_channel_reply_retryable(snapshot, session, msg, reply).await }
 }
 
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl channel_runtime::command_host::CommandHost for RuntimeHost {
+    fn command_tenant(&self) -> vw_api_transport::id::TenantScope { crate::session::ui_store::current_tenant_scope() }
+    fn prepare_catalog(&self) { crate::provider::provider::ensure_host(); }
+    fn command_now_ms(&self) -> u64 { crate::session::session::now_ms() }
+    fn session_activity(&self, id: &str) -> session_port::SessionStatus { crate::session::status::get(id) }
+    async fn in_project_scope(&self, snapshot: &ChannelMessageSnapshot, operation: ScopedFuture<'_>) {
+        let context = crate::project::instance::Context { directory: snapshot.directory.to_string_lossy().into_owned(), worktree: snapshot.project.worktree.clone(), project: snapshot.project.clone() };
+        crate::project::instance::provide_context(context, operation).await;
+    }
+    async fn in_session_scope(&self, snapshot: &ChannelMessageSnapshot, operation: ScopedFuture<'_>) {
+        <Self as ChannelHost>::in_scope(self, snapshot, operation).await;
+    }
+    fn get_session<'a>(&'a self, id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<session_info::Info, session_info::Error>> + Send + 'a>> { Box::pin(crate::session::session::get_any(id)) }
+    async fn get_scoped_session(&self, id: &str) -> Result<session_info::Info, session_info::Error> { crate::session::session::get(id).await }
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn reserve_session(&self, snapshot: &ChannelMessageSnapshot) -> Result<session_info::Info> {
+        let directory = snapshot.directory.to_string_lossy().to_string();
+        let context = crate::project::instance::Context { directory: directory.clone(), worktree: snapshot.project.worktree.clone(), project: snapshot.project.clone() };
+        Ok(crate::project::instance::provide_context(context, crate::session::session::reserve_next(crate::session::session::CreateInput { parent_id: None, title: None, directory, permission: None })).await?)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn discard_session(&self, snapshot: &ChannelMessageSnapshot, info: session_info::Info) -> Result<()> {
+        let tenant = snapshot.scope.chat.tenant.clone();
+        let project = info.project_id;
+        let id = info.id;
+        crate::global_database::run_isolated(move || crate::session::ui_store::discard_pending_session(&tenant, &project, &id)).await??;
+        Ok(())
+    }
+    async fn set_session_title(&self, id: &str, title: &str) -> Result<()> {
+        crate::session::session::update_any(id, |info| info.title = title.into()).await?; Ok(())
+    }
+    async fn set_session_archived(&self, id: &str, archived: Option<u64>) -> Result<()> {
+        crate::session::session::update_any(id, |info| info.time.archived = archived).await?; Ok(())
+    }
+    async fn fork_session(&self, id: &str, anchor: Option<&str>) -> Result<session_info::Info> { Ok(crate::session::session::fork(id, anchor).await?) }
+    async fn remove_session(&self, id: &str) -> Result<()> { Ok(crate::session::session::remove_any(id).await?) }
+    async fn revert_session(&self, id: &str, message: &str, part: Option<&str>) -> Result<session_info::Info> {
+        Ok(crate::session::revert::revert(crate::session::revert::RevertInput { session_id: id.into(), message_id: message.into(), part_id: part.map(Into::into) }).await?)
+    }
+    async fn cleanup_revert(&self, info: &session_info::Info) -> Result<()> { Ok(crate::session::revert::cleanup(info).await?) }
+    async fn compact_session(&self, id: &str, anchor: &str, auto: bool) -> Result<session_engine::compaction::CompactionOutcome> { Ok(Box::pin(crate::session::compaction::process_session(id, anchor, auto)).await?) }
+    async fn load_ui_session(&self, snapshot: &ChannelMessageSnapshot, id: &str) -> Result<Option<session_port::ui_types::ChatSession>> {
+        let tenant = snapshot.scope.chat.tenant.clone(); let project = snapshot.scope.project.clone(); let id = id.to_owned();
+        #[cfg(not(target_arch = "wasm32"))]
+        { crate::global_database::run_isolated(move || crate::session::ui_store::load_session_scoped_for_tenant_fallible(&tenant, &id, Some(&project))).await? }
+        #[cfg(target_arch = "wasm32")]
+        { Ok(crate::session::ui_store::load_session_scoped_for_tenant(&tenant, &id, Some(&project))) }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn load_session_preview(&self, snapshot: &ChannelMessageSnapshot, id: &str) -> Result<Option<String>> {
+        let tenant = snapshot.scope.chat.tenant.clone(); let project = snapshot.scope.project.clone(); let id = id.to_owned();
+        crate::global_database::run_isolated(move || Ok(crate::session::ui_store::load_session_meta_scoped_for_tenant(&tenant, &id, Some(&project))?.and_then(|meta| meta.last_content))).await?
+    }
+    fn create_task(&self, project: &str, priority: u32, model: Option<&str>, prompt: &str) -> std::io::Result<String> {
+        let mut task = crate::app::task::Task::new(priority);
+        task.prompt = prompt.into(); if let Some(model) = model { task.model = model.into(); }
+        crate::app::task::create_task(project, task).map(|task| task.id)
+    }
+}
+
 impl channel_runtime::startup_host::ChannelStartupHost for RuntimeHost {
     fn tenant(&self) -> vw_api_transport::id::TenantScope {
         crate::session::ui_store::current_tenant_scope()

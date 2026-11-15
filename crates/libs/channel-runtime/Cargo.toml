@@ -41,6 +41,12 @@ config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
 config-channels = { path = "../config-channels", version = "0.6.0" }
 vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
+sha2 = "0.10"
+hex = "0.4"
 async-trait = "0.1"
 serde_json = "1"
 toml = "0.9"
@@ -48,6 +54,7 @@ clap = { version = "4", features = ["derive"] }
 
 [features]
 default = []
+test-support = []
 channel-lark = ["dep:channel-lark"]
 whatsapp-web = ["dep:channel-whatsapp-web", "channel-whatsapp-web/whatsapp-web"]
 
@@ -81,6 +88,8 @@ channel-wecom = { path = "../channel-wecom", version = "0.6.0" }
 channel-whatsapp-web = { path = "../channel-whatsapp-web", version = "0.6.0", optional = true }
 
 [dev-dependencies]
+agent-approval = { path = "../agent-approval", version = "0.6.0", features = ["test-support"] }
+tempfile = "3"
 channel-cli = { path = "../channel-cli", version = "0.6.0" }
 serde_json = "1"
 async-trait = "0.1"

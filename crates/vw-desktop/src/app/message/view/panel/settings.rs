@@ -928,7 +928,7 @@ async fn stop_shutdown_streams(requests: Vec<ShutdownStreamRequest>) {
         stops.spawn(async move {
             match request.kind {
                 ShutdownStreamKind::Chat => {
-                    let _ = gateway_session::GatewaySessionClient::new(client.transport().clone()).chat_stream_stop(&request.request_id).await;
+                    let _ = client.chat_stream_stop(&request.request_id).await;
                 }
                 ShutdownStreamKind::TaskPlanRun => {
                     let _ = client.task_plan_run_stream_stop(&request.request_id).await;

@@ -33,7 +33,7 @@ use config_reliability::ReliabilityConfig;
 use config_routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig};
 use config_runtime::RuntimeConfig;
 use crate::security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityConfig};
-use crate::skills::SkillsConfig;
+use config_skills::SkillsConfig;
 use crate::tools::{
     BrowserConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig, WebSearchConfig,
 };

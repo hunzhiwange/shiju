@@ -14,7 +14,7 @@ use regex::Regex;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 /// 文本文件的最大允许字节数（512 KB）
 ///

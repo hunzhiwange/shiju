@@ -5,7 +5,7 @@ use regex::Regex;
 use std::fs;
 use std::path::{Component, Path};
 use std::sync::OnceLock;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 use super::report::SkillAuditReport;
 use super::risk::detect_high_risk_snippet;

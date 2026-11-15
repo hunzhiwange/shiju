@@ -132,46 +132,46 @@ pub async fn run(
     let client = context.client();
     let directory = context.directory();
     let response = match command {
-        SessionCommands::List => gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list::<Value>(directory).await,
-        SessionCommands::Status => gateway_session::GatewaySessionClient::new(client.transport().clone()).session_status::<Value>(directory).await,
+        SessionCommands::List => client.session_list::<Value>(directory).await,
+        SessionCommands::Status => client.session_status::<Value>(directory).await,
         SessionCommands::Create { input } => {
             let directory = directory.context("api session create requires --directory")?;
             let body = parse::<GatewaySessionCreateBody>(&input, stdin, "create")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_create::<Value>(directory, &Some(body)).await
+            client.session_create::<Value>(directory, &Some(body)).await
         }
         SessionCommands::Detail { session_id } => {
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Value>(&session_id, directory).await
+            client.session_get::<Value>(&session_id, directory).await
         }
         SessionCommands::Update { session_id, input } => {
             let body = parse::<GatewaySessionPatchBody>(&input, stdin, "update")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_update::<Value>(&session_id, directory, &body).await
+            client.session_update::<Value>(&session_id, directory, &body).await
         }
         SessionCommands::Delete { session_id } => {
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete(&session_id, directory).await.map(|()| Value::Null)
+            client.session_delete(&session_id, directory).await.map(|()| Value::Null)
         }
         SessionCommands::Children { session_id } => {
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_children::<Value>(&session_id, directory).await
+            client.session_children::<Value>(&session_id, directory).await
         }
         SessionCommands::TodoGet { session_id } => {
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_todo_get(&session_id, directory).await.map(|value| json!(value))
+            client.session_todo_get(&session_id, directory).await.map(|value| json!(value))
         }
         SessionCommands::TodoPut { session_id, input } => {
             let body = parse::<GatewaySessionTodoPutBody>(&input, stdin, "todo update")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone())
+            client
                 .session_todo_update(&session_id, directory, &body)
                 .await
                 .map(|value| json!(value))
         }
         SessionCommands::Fork { session_id, input } => {
             let body = parse::<GatewaySessionForkBody>(&input, stdin, "fork")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_fork::<Value>(&session_id, directory, &Some(body)).await
+            client.session_fork::<Value>(&session_id, directory, &Some(body)).await
         }
         SessionCommands::Reset { session_id, input } => {
             let body = parse::<GatewaySessionResetBody>(&input, stdin, "reset")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_reset::<Value>(&session_id, directory, &body).await
+            client.session_reset::<Value>(&session_id, directory, &body).await
         }
         SessionCommands::Diff { session_id, message_id } => {
-            gateway_session::GatewaySessionClient::new(client.transport().clone())
+            client
                 .session_diff::<Value>(
                     &session_id,
                     &GatewaySessionDiffQuery {
@@ -183,11 +183,11 @@ pub async fn run(
         }
         SessionCommands::Summarize { session_id, input } => {
             let body = parse::<GatewaySessionSummarizeBody>(&input, stdin, "summarize")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_summarize(&session_id, directory, &body).await.map(|value| json!(value))
+            client.session_summarize(&session_id, directory, &body).await.map(|value| json!(value))
         }
         SessionCommands::Title { session_id, input } => {
             let body = parse::<GatewaySessionTitleGenerateBody>(&input, stdin, "title")?;
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_title_generate(&session_id, &body).await.map(|value| json!(value))
+            client.session_title_generate(&session_id, &body).await.map(|value| json!(value))
         }
     }
     .map_err(anyhow::Error::msg)?;

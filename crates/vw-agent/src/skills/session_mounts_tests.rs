@@ -3,7 +3,7 @@ mod supported {
     use super::super::session_mounts::*;
     use std::{fs, path::Path};
     use vw_acp::SessionSkillMount;
-    use vw_config_types::skills::SkillSecurityConfig;
+    use config_skills::SkillSecurityConfig;
 
     fn binding(project: &Path, session: &str) -> SessionSkillBinding {
         SessionSkillBinding {

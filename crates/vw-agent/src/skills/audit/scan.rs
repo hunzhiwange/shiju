@@ -8,7 +8,7 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 use super::MAX_TEXT_FILE_BYTES;
 use super::manifest::audit_manifest_file;

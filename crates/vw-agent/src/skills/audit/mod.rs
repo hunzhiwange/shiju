@@ -39,7 +39,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::Path;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 mod manifest;
 mod markdown;

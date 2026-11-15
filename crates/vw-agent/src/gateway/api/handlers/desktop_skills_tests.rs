@@ -225,7 +225,7 @@ fn create_new_skill_scaffold_writes_template() {
 
     let path = super::create_new_skill_scaffold(
         project.path(),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("create skill");
     let skill_dir = std::path::PathBuf::from(path);
@@ -244,7 +244,7 @@ fn create_new_skill_scaffold_uses_next_available_name() {
 
     let path = super::create_new_skill_scaffold(
         project.path(),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("create second skill");
     let skill_dir = std::path::PathBuf::from(path);
@@ -307,7 +307,7 @@ fn resolve_skill_detail_returns_personal_toml_skill_and_missing_errors() {
     let detail = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
         "custom-skill",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("personal detail");
 
@@ -324,7 +324,7 @@ fn resolve_skill_detail_returns_personal_toml_skill_and_missing_errors() {
     let missing = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
         "missing-skill",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect_err("missing detail");
     assert!(missing.contains("未找到技能"));
@@ -336,7 +336,7 @@ fn resolve_skill_detail_returns_built_in_and_local_variants() {
     let built_in_result = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
         "create-task-plans",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     );
 
     if let Ok(built_in) = built_in_result {
@@ -359,7 +359,7 @@ fn resolve_skill_detail_returns_built_in_and_local_variants() {
     let local = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
         "create-task-plans",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("local detail");
 
@@ -386,7 +386,7 @@ fn resolve_skill_detail_reports_disabled_local_skill_capabilities() {
     let detail = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
         "disabled-detail",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("disabled local detail");
 
@@ -406,18 +406,18 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
     let first = super::install_built_in_skill(
         project.path(),
         "create-task-plans",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("install built-in");
     let second = super::install_built_in_skill(
         project.path(),
         "create-task-plans",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("install built-in again");
     let catalog = super::collect_catalog_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
     let entry = catalog.iter().find(|item| item.id == "create-task-plans").expect("catalog entry");
@@ -432,7 +432,7 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
         super::install_built_in_skill(
             project.path(),
             "missing-skill",
-            vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+            config_skills::SkillsDirectoryProvider::Vibewindow,
         )
         .is_err()
     );
@@ -459,7 +459,7 @@ fn installed_skills_preserve_market_source_metadata() {
 
     let catalog = super::collect_catalog_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
     let installed = catalog
@@ -481,7 +481,7 @@ fn install_built_in_skill_copies_nested_resources() {
     let path = super::install_built_in_skill(
         project.path(),
         "rustcodegraph",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("install nested built-in");
     let skill_dir = std::path::PathBuf::from(path);
@@ -501,7 +501,7 @@ fn collect_catalog_skills_includes_personal_items_and_preserves_bundled_defaults
 
     let catalog = super::collect_catalog_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
 
@@ -531,7 +531,7 @@ fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
 
     let catalog = super::collect_catalog_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
     let entry = catalog.iter().find(|item| item.id == "create-task-plans").expect("catalog entry");
@@ -562,7 +562,7 @@ fn collect_catalog_skills_orders_personal_items_by_title_then_id() {
 
     let catalog = super::collect_catalog_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
     let selected_ids = catalog
@@ -595,7 +595,7 @@ fn discover_local_skills_reads_workspace_skills_and_deduplicates() {
 
     let skills = super::discover_local_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("discover local skills");
 
@@ -624,7 +624,7 @@ fn discover_local_skills_ignores_non_skills_and_reports_disabled_state() {
 
     let skills = super::discover_local_skills(
         Some(project.path().to_str().expect("utf8 path")),
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("discover local skills");
     let disabled = skills.iter().find(|skill| skill.id == "disabled-demo").expect("disabled skill");
@@ -651,7 +651,7 @@ fn set_local_skill_enabled_toggles_disabled_marker() {
         Some(project.path().to_str().expect("utf8 path")),
         "demo",
         false,
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("disable skill");
 
@@ -665,7 +665,7 @@ fn set_local_skill_enabled_toggles_disabled_marker() {
         Some(project.path().to_str().expect("utf8 path")),
         "demo",
         true,
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("enable skill");
     assert!(!marker.exists());
@@ -681,7 +681,7 @@ fn set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill(
         Some(project.path().to_str().expect("utf8 path")),
         "demo",
         true,
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("enable already enabled skill");
 
@@ -692,7 +692,7 @@ fn set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill(
         Some(project.path().to_str().expect("utf8 path")),
         "demo",
         false,
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("disable already disabled skill");
     assert!(marker.is_file());
@@ -701,7 +701,7 @@ fn set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill(
         Some(project.path().to_str().expect("utf8 path")),
         "missing",
         true,
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect_err("missing skill");
     assert!(missing.contains("未找到可管理的本地技能"));
@@ -722,7 +722,7 @@ fn delete_local_skill_removes_directory() {
     let deleted = super::delete_local_skill(
         Some(project.path().to_str().expect("utf8 path")),
         "demo",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("delete skill");
 
@@ -737,7 +737,7 @@ fn delete_local_skill_errors_for_missing_skill() {
     let missing = super::delete_local_skill(
         Some(project.path().to_str().expect("utf8 path")),
         "missing",
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+        config_skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect_err("missing skill");
 
@@ -819,7 +819,7 @@ fn cp12_plugin_merge_rejects_without_side_effects() {
     let skill = directory.path().join("skills/owned");
     write_markdown_skill(&skill, "Owned", "Plugin skill");
     let original = std::fs::read(skill.join("SKILL.md")).expect("document");
-    let provider = vw_config_types::skills::SkillsDirectoryProvider::default();
+    let provider = config_skills::SkillsDirectoryProvider::default();
     let project = directory.path().to_str();
     assert!(super::set_local_skill_enabled(project, "plugin:owner/skill", true, provider).is_err());
     assert!(super::delete_local_skill(project, "plugin:owner/skill", provider).is_err());

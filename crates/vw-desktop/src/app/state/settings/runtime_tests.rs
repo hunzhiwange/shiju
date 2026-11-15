@@ -87,11 +87,11 @@ fn skills_enums_and_default_state_are_stable() {
     assert!(state.auto_load_project_skills);
     assert_eq!(
         state.directory_provider,
-        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow
+        config_skills::SkillsDirectoryProvider::Vibewindow
     );
     assert_eq!(
         state.prompt_injection_mode,
-        vw_config_types::skills::SkillsPromptInjectionMode::Compact
+        config_skills::SkillsPromptInjectionMode::Compact
     );
     assert_eq!(state.active_tab, SkillsSettingsTab::Skills);
     assert_eq!(state.directory_scope, SkillsDirectoryScope::Project);

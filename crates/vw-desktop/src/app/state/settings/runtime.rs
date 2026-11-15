@@ -182,9 +182,9 @@ pub(crate) struct SkillsSettingsState {
     /// 是否让委托代理默认加载项目及父级技能
     pub(crate) auto_load_project_skills: bool,
     /// 技能目录提供方
-    pub(crate) directory_provider: vw_config_types::skills::SkillsDirectoryProvider,
+    pub(crate) directory_provider: config_skills::SkillsDirectoryProvider,
     /// 提示注入模式
-    pub(crate) prompt_injection_mode: vw_config_types::skills::SkillsPromptInjectionMode,
+    pub(crate) prompt_injection_mode: config_skills::SkillsPromptInjectionMode,
     /// 当前激活的技能设置页签
     pub(crate) active_tab: SkillsSettingsTab,
     /// 技能搜索关键词
@@ -241,8 +241,8 @@ impl Default for SkillsSettingsState {
             storage: Default::default(),
             claude_config: Default::default(),
             auto_load_project_skills: true,
-            directory_provider: vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
-            prompt_injection_mode: vw_config_types::skills::SkillsPromptInjectionMode::Compact,
+            directory_provider: config_skills::SkillsDirectoryProvider::Vibewindow,
+            prompt_injection_mode: config_skills::SkillsPromptInjectionMode::Compact,
             active_tab: SkillsSettingsTab::Skills,
             query: String::new(),
             directory_scope: SkillsDirectoryScope::Project,

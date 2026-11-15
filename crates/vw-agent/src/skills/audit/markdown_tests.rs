@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 #[test]
 fn markdown_audit_flags_unsafe_links() {

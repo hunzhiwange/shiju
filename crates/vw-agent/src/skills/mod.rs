@@ -30,7 +30,7 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use vw_config_types::skills::SkillsDirectoryProvider;
+use config_skills::SkillsDirectoryProvider;
 
 mod agent_metadata;
 mod audit;
@@ -307,7 +307,7 @@ pub fn load_skills(workspace_dir: &Path) -> Vec<Skill> {
         workspace_dir,
         types::SkillLoadMode::Full,
         SkillsDirectoryProvider::Vibewindow,
-        &vw_config_types::skills::SkillSecurityConfig::default(),
+        &config_skills::SkillSecurityConfig::default(),
         None,
     )
 }
@@ -370,7 +370,7 @@ fn load_skills_with_provider(
     workspace_dir: &Path,
     load_mode: types::SkillLoadMode,
     directory_provider: SkillsDirectoryProvider,
-    security: &vw_config_types::skills::SkillSecurityConfig,
+    security: &config_skills::SkillSecurityConfig,
     config: Option<&crate::app::agent::config::Config>,
 ) -> Vec<Skill> {
     let mut skills = Vec::new();
@@ -409,7 +409,7 @@ fn load_workspace_skills(
     workspace_dir: &Path,
     load_mode: types::SkillLoadMode,
     directory_provider: SkillsDirectoryProvider,
-    security: &vw_config_types::skills::SkillSecurityConfig,
+    security: &config_skills::SkillSecurityConfig,
 ) -> Vec<Skill> {
     discover_local_skill_source_dirs_with_provider(Some(workspace_dir), directory_provider)
         .into_iter()

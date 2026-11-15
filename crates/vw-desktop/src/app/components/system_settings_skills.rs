@@ -29,7 +29,7 @@ use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row};
 use iced::{Alignment, Element, Length};
-use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 
 fn field_row<'a>(
     app: &App,

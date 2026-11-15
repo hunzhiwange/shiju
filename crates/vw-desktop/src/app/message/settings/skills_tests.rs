@@ -5,7 +5,7 @@ use super::*;
 use crate::app::App;
 use crate::app::message::settings::AgentsMessage;
 use crate::app::state::{SkillsDirectoryScope, SkillsSettingsTab};
-use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 use vw_gateway_client::{
     DesktopPluginCatalogEntryDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto,
 };

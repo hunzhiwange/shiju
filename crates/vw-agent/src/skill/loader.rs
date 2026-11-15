@@ -21,7 +21,7 @@ use crate::app::agent::skill::types::{
 use anyhow::Result;
 use std::io::BufRead;
 use std::path::Path;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 /// 从工作区技能目录加载所有技能
 ///

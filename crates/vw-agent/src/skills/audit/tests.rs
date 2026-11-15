@@ -16,7 +16,7 @@
 //! - Markdown 链接有效性验证
 
 use super::*;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 fn write_audit_policy_fixture(skill_dir: &std::path::Path) {
     std::fs::create_dir_all(skill_dir).unwrap();

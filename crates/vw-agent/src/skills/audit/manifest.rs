@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 use super::report::SkillAuditReport;
 use super::risk::{contains_shell_chaining, detect_high_risk_snippet};

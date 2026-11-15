@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 #[test]
 // 危险命令串联与缺失命令分别报告，避免一个诊断掩盖另一处清单问题。

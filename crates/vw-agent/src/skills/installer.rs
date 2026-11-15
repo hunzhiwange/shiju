@@ -35,7 +35,7 @@ use crate::app::agent::skills::source::{
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 /// 确保内置预加载技能已安装到指定路径
 ///

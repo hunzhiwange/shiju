@@ -52,13 +52,13 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         let mut options = match draft_options {
                             Some(options) => options,
                             None => {
-                                gateway_session::GatewaySessionClient::new(client.transport().clone())
+                                client
                                     .acp_session_options(&session_id, directory.as_deref())
                                     .await?
                             }
                         };
                         if options.model_source_capabilities.is_empty() {
-                            let capabilities = gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_model_source_capabilities(&agent).await?;
+                            let capabilities = client.acp_model_source_capabilities(&agent).await?;
                             if options.selected_model.is_none() && !options.connected {
                                 options.acp_model_source = capabilities.acp_model_source;
                             }
@@ -251,7 +251,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         let client = crate::app::gateway_client()?;
                         match selection {
                             Some(selection) => {
-                                gateway_session::GatewaySessionClient::new(client.transport().clone())
+                                client
                                     .acp_session_select(
                                         &session_id,
                                         directory.as_deref(),
@@ -260,7 +260,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                     .await
                             }
                             None => {
-                                gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_session_options(&session_id, directory.as_deref()).await
+                                client.acp_session_options(&session_id, directory.as_deref()).await
                             }
                         }
                     }
@@ -322,7 +322,7 @@ pub(super) fn select_source(
                 let directory = directory.as_deref().ok_or("请先选择项目目录")?;
                 if let Some(mut options) = draft_options {
                     if options.model_source_capabilities.is_empty() {
-                        let capabilities = gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_model_source_capabilities(&update.agent).await?;
+                        let capabilities = client.acp_model_source_capabilities(&update.agent).await?;
                         options.model_source_capabilities = capabilities.model_source_capabilities;
                         options.verified_cli_release = capabilities.verified_cli_release;
                         options.verified_platform = capabilities.verified_platform;
@@ -336,7 +336,7 @@ pub(super) fn select_source(
                     options.selected_model = Some(update.selection.clone());
                     return Ok(options);
                 }
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).acp_session_model_source(&session_id, Some(directory), &update).await
+                client.acp_session_model_source(&session_id, Some(directory), &update).await
             }
             .await;
             ChatMessage::AcpModelSourceSaved {

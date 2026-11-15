@@ -2,7 +2,7 @@
 //! 扫描按确定性深度优先顺序收集，符号链接和超大文件在读取正文前即被拒绝。
 
 use super::*;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 #[test]
 fn depth_first_collection_is_deterministic() {

@@ -11,7 +11,7 @@ use crate::app::agent::config::SkillsPromptInjectionMode;
 use std::fs;
 use std::path::PathBuf;
 use config_runtime_paths::home_config_dir;
-use vw_config_types::skills::SkillsDirectoryProvider;
+use config_skills::SkillsDirectoryProvider;
 
 fn load_workspace_only(workspace_dir: &std::path::Path) -> Vec<Skill> {
     let _lock = env_var_lock().lock().unwrap();

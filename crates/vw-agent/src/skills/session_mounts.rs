@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use vw_acp::SessionSkillMount;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionSkillBinding {

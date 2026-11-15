@@ -281,17 +281,17 @@ impl App {
                 // Scope reads and writes belong to the endpoint selected when this load began.
                 let client =
                     vw_gateway_client::GatewayClient::new(endpoint).map_err(anyhow::Error::msg)?;
-                let scope_id = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let scope_id = client
                     .session_scope_get(path_clone.as_deref(), project_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?;
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_put(scope_id.as_deref()).await.map_err(anyhow::Error::msg)?;
+                client.session_scope_put(scope_id.as_deref()).await.map_err(anyhow::Error::msg)?;
 
-                let previews = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let previews = client
                     .session_ui_previews(scope_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?;
-                let archived_session_ids = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let archived_session_ids = client
                     .session_archived_get(scope_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -321,7 +321,7 @@ impl App {
                     .await
                     .map_err(anyhow::Error::msg)?
                 } else {
-                    gateway_session::GatewaySessionClient::new(client.transport().clone())
+                    client
                         .session_list::<Vec<vw_shared::session::info::Info>>(None)
                         .await
                         .map_err(anyhow::Error::msg)?

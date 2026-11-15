@@ -217,4 +217,4 @@ pub fn sanitize_integration_text(text: &str) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
-use vw_config_types::skills::SkillsDirectoryProvider;
+use config_skills::SkillsDirectoryProvider;

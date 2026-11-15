@@ -70,7 +70,7 @@ impl MountedSkills {
         mounts: &[vw_acp::SessionSkillMount],
         cwd: &std::path::Path,
         session: &str,
-        security: &vw_config_types::skills::SkillSecurityConfig,
+        security: &config_skills::SkillSecurityConfig,
     ) -> Result<Option<Self>, Error> {
         if mounts.is_empty() {
             return Ok(None);

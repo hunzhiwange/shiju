@@ -49,7 +49,7 @@ use crate::app::agent::skill::types::{SkillCommands, SkillRuntimeConfig};
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 /// 快照技能目录的子目录列表
 ///

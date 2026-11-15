@@ -11,6 +11,7 @@ use config_reliability::ReliabilityConfig;
 use config_runtime::RuntimeConfig;
 use iced::Task;
 use std::collections::{BTreeMap, HashMap};
+use config_skills::SkillsConfig;
 use vw_config_types::{
     agent::DelegateAgentConfig,
     channels::ChannelsConfig,
@@ -21,7 +22,6 @@ use vw_config_types::{
     reliability::ReliabilityConfig,
     routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig},
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},
-    skills::SkillsConfig,
     tools::{BrowserConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},
 };
 

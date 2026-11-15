@@ -21,7 +21,7 @@ use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length};
-use vw_config_types::skills::SkillsDirectoryProvider;
+use config_skills::SkillsDirectoryProvider;
 use vw_config_types::ui::DesktopLocale;
 
 #[derive(Clone, Copy)]

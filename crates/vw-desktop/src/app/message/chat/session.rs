@@ -352,7 +352,7 @@ fn recover_reset_message_ids_task(
                 let client = vw_gateway_client::GatewayClient::new(
                     gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
                 )?;
-                let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let msgs = client
                     .session_messages::<Vec<agent_message::WithParts>>(
                         &session_id,
                         directory.as_deref(),
@@ -425,7 +425,7 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
             let boundary = boundary.ok_or_else(|| "无法重置到不存在的消息".to_string())?;
             let seq_no = seq_base + history_len.saturating_sub(1) as u64;
             let client = crate::app::gateway_client()?;
-            let stored = gateway_session::GatewaySessionClient::new(client.transport().clone())
+            let stored = client
                 .session_ui_get_without_raw(&session_id, root.as_deref())
                 .await?
                 .ok_or_else(|| "会话历史不存在".to_string())?
@@ -446,7 +446,7 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
                 upserts: Vec::new(),
                 truncate_after: Some(seq_no),
             };
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_message_delta(&session_id, root.as_deref(), &delta).await.map(|_| ())
+            client.session_message_delta(&session_id, root.as_deref(), &delta).await.map(|_| ())
         },
         |result| {
             Message::Chat(match result {
@@ -492,7 +492,7 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
         return Task::perform(
             async move {
                 let result = async {
-                    let loaded = gateway_session::GatewaySessionClient::new(crate::app::gateway_client()?.transport().clone())
+                    let loaded = crate::app::gateway_client()?
                         .session_ui_get_without_raw(&session_id, Some(&directory))
                         .await?
                         .ok_or_else(|| "会话历史不存在，未发送消息".to_string())?;
@@ -664,7 +664,7 @@ fn compact_session(
         async move {
             let result = async {
                 let client = crate::app::gateway_client()?;
-                let messages = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let messages = client
                     .session_messages::<Vec<agent_message::WithParts>>(
                         &session_id,
                         Some(&project_path),
@@ -672,7 +672,7 @@ fn compact_session(
                     .await?;
                 let message_id = latest_persisted_user_message_id(&messages)
                     .ok_or_else(|| "当前会话没有可用于压缩的用户消息".to_string())?;
-                gateway_session::GatewaySessionClient::new(client.transport().clone())
+                client
                     .session_summarize(
                         &session_id,
                         Some(&project_path),
@@ -1706,7 +1706,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                 GatewaySessionForkTarget::Worktree { name: None }
                             }
                         };
-                        let info = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                        let info = client
                             .session_fork::<session::Info>(
                                 &anchor.session_id,
                                 Some(&anchor.directory),
@@ -1841,7 +1841,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
                     ) {
                         Ok(client) => {
-                            gateway_session::GatewaySessionClient::new(client.transport().clone())
+                            client
                                 .session_reset::<session::Info>(
                                     &session_id,
                                     root.as_deref(),

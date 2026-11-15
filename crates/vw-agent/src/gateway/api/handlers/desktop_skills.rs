@@ -20,7 +20,7 @@ use crate::app::agent::skills::{
     LocalSkillSourceKind, discover_local_skill_source_dirs_with_provider, is_local_skill_disabled,
     local_skill_disabled_marker_path, read_markdown_skill_metadata, workspace_skills_dir,
 };
-use vw_config_types::skills::SkillsDirectoryProvider;
+use config_skills::SkillsDirectoryProvider;
 
 static BUILT_IN_SKILLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/skills");
 static RECOMMENDED_SKILL_IDS: &[&str] = &["create-task-plans", "do-task-plans", "rustcodegraph"];

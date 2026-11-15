@@ -27,13 +27,12 @@ impl App {
                         client.endpoint().tenant_scope().clone(),
                         project_id.into(),
                     );
-                    let session_client = gateway_session::GatewaySessionClient::new(client.transport().clone());
                     let (project, summary) = tokio::join!(
                         async {
                             let scope = scope.map_err(|error| error.to_string())?;
                             gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope).await
                         },
-                        session_client.session_ui_summary(&session_id, Some(&directory)),
+                        client.session_ui_summary(&session_id, Some(&directory)),
                     );
                     if let Ok(response) = project
                         && response.project.git.is_repo

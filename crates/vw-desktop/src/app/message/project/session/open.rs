@@ -268,7 +268,7 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
                 !info.directory.trim().is_empty() && info.fork_execution_started.is_none()
             }) {
                 Some(info) => info,
-                None => gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Info>(&id, directory.as_deref()).await.ok()?,
+                None => client.session_get::<Info>(&id, directory.as_deref()).await.ok()?,
             };
             if info.id != id || !info.is_user_navigable() || info.directory.trim().is_empty() {
                 return None;
@@ -447,7 +447,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 if loaded.current_branch.is_some() {
                     app.selected_branch = loaded.current_branch;
                 }
-                app.project_is_git_repo = matches!(info.vcs, Some(project_types::Vcs::Git));
+                app.project_is_git_repo = matches!(info.vcs, Some(vw_shared::project::Vcs::Git));
                 if !app.project_is_git_repo {
                     app.task_board_worktree_snapshot = None;
                     app.task_board_worktree_snapshot_loading = false;

@@ -127,8 +127,8 @@ fn skills_root(project: &Path) -> PathBuf {
     project.join(".shiju").join("skills")
 }
 
-fn default_security() -> vw_config_types::skills::SkillSecurityConfig {
-    vw_config_types::skills::SkillSecurityConfig::default()
+fn default_security() -> config_skills::SkillSecurityConfig {
+    config_skills::SkillSecurityConfig::default()
 }
 
 fn assert_no_staging_residue(skills_root: &Path) {
@@ -202,7 +202,7 @@ fn market_skill_install_applies_configured_static_audit() {
 
     let rejecting_project = tempfile::tempdir().expect("rejecting-policy project");
     let rejecting_root = skills_root(rejecting_project.path());
-    let reject_scripts = vw_config_types::skills::SkillSecurityConfig {
+    let reject_scripts = config_skills::SkillSecurityConfig {
         reject_script_files: true,
         ..Default::default()
     };

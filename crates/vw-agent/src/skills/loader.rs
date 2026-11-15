@@ -25,7 +25,7 @@ use crate::app::agent::skills::types::{
 use anyhow::Result;
 use serde::Deserialize;
 use std::path::Path;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]

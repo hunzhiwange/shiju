@@ -12,6 +12,7 @@ members = [
   "crates/libs/snapshot-types",
   "crates/libs/config-gateway",
   "crates/libs/config-memory",
+  "crates/libs/config-skills",
   "crates/libs/config-runtime",
   "crates/libs/provider-auth-reader",
   "crates/libs/api-acp-model",

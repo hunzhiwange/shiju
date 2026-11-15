@@ -14,7 +14,7 @@ use ring::signature::{ED25519, UnparsedPublicKey};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tempfile::Builder;
-use vw_config_types::skills::SkillSecurityConfig;
+use config_skills::SkillSecurityConfig;
 use vw_gateway_client::SkillMarketCoordinateDto;
 use zip::ZipArchive;
 

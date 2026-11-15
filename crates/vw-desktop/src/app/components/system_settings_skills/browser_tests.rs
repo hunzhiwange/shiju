@@ -20,7 +20,7 @@ use crate::app::state::{
 };
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::advanced::widget::Tree;
-use vw_config_types::skills::SkillsDirectoryProvider;
+use config_skills::SkillsDirectoryProvider;
 
 fn app() -> App {
     App::new().0

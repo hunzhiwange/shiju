@@ -8,7 +8,7 @@ use super::{
 use std::ffi::OsString;
 use std::path::Path;
 use std::sync::MutexGuard;
-use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
+use config_skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 
 const CONFIG_ENV_KEYS: &[&str] = &[
     "VIBEWINDOW_API_KEY",

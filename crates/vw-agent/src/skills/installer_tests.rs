@@ -40,12 +40,12 @@ fn write_skill(parent: &std::path::Path, name: &str, markdown: &str) -> std::pat
     dir
 }
 
-fn default_security() -> vw_config_types::skills::SkillSecurityConfig {
-    vw_config_types::skills::SkillSecurityConfig::default()
+fn default_security() -> config_skills::SkillSecurityConfig {
+    config_skills::SkillSecurityConfig::default()
 }
 
-fn reject_unsafe_content() -> vw_config_types::skills::SkillSecurityConfig {
-    vw_config_types::skills::SkillSecurityConfig {
+fn reject_unsafe_content() -> config_skills::SkillSecurityConfig {
+    config_skills::SkillSecurityConfig {
         detect_high_risk_content: true,
         detect_shell_chaining: true,
         ..Default::default()
@@ -440,7 +440,7 @@ fn configured_skill_security_controls_loading_and_install_audit() {
     assert!(loaded.iter().any(|skill| skill.name == "load-risk"));
 
     let default_security = config.skills.security.clone();
-    let reject_scripts = vw_config_types::skills::SkillSecurityConfig {
+    let reject_scripts = config_skills::SkillSecurityConfig {
         reject_script_files: true,
         ..Default::default()
     };

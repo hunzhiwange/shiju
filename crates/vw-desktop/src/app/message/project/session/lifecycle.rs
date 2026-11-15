@@ -856,7 +856,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::perform(
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                    gateway_session::GatewaySessionClient::new(client.transport().clone())
+                    client
                         .session_update::<vw_shared::session::info::Info>(
                             &id,
                             project_path.as_deref(),
@@ -910,10 +910,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 Ok(client) => client,
                                 Err(err) => return Err(err),
                             };
-                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                            let msgs = client
                                 .session_messages::<Vec<agent_message::WithParts>>(&next_id, None)
                                 .await;
-                            let info = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                            let info = client
                                 .session_get::<vw_shared::session::info::Info>(&next_id, None)
                                 .await;
                             match (msgs, info) {
@@ -954,7 +954,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             Ok(client) => client,
                             Err(err) => return Err(err.to_string()),
                         };
-                        gateway_session::GatewaySessionClient::new(client.transport().clone())
+                        client
                             .session_update::<vw_shared::session::info::Info>(
                                 &id,
                                 project_path.as_deref(),
@@ -1021,7 +1021,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 Ok(client) => client,
                                 Err(err) => return Err(err),
                             };
-                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                            let msgs = client
                                 .session_messages::<Vec<agent_message::WithParts>>(&next_id, None)
                                 .await;
                             match msgs {
@@ -1057,7 +1057,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 iced::Task::perform(
                     async move {
                         let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete(&id, project_path.as_deref()).await
+                        client.session_delete(&id, project_path.as_deref()).await
                     },
                     |_| Message::None,
                 ),
@@ -1069,7 +1069,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::perform(
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                    gateway_session::GatewaySessionClient::new(client.transport().clone())
+                    client
                         .session_fork::<vw_shared::session::info::Info>(
                             &id,
                             project_path.as_deref(),

@@ -49,7 +49,7 @@ fn load_skills_from_directory_skips_disabled_and_missing_directories() {
         load_skills_from_directory(
             &missing,
             SkillLoadMode::Full,
-            &vw_config_types::skills::SkillSecurityConfig::default(),
+            &config_skills::SkillSecurityConfig::default(),
         )
         .is_empty()
     );
@@ -64,7 +64,7 @@ fn load_skills_from_directory_skips_disabled_and_missing_directories() {
         load_skills_from_directory(
             dir.path(),
             SkillLoadMode::Full,
-            &vw_config_types::skills::SkillSecurityConfig::default(),
+            &config_skills::SkillSecurityConfig::default(),
         )
         .is_empty()
     );
@@ -93,7 +93,7 @@ fn directory_loader_rejects_file_path_as_skills_directory() {
         load_skills_from_directory(
             &file,
             SkillLoadMode::Full,
-            &vw_config_types::skills::SkillSecurityConfig::default(),
+            &config_skills::SkillSecurityConfig::default(),
         )
         .is_empty()
     );

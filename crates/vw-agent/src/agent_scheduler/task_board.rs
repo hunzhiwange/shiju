@@ -25,8 +25,8 @@ const DEFAULT_IMPORT_MODEL: &str = "auto";
 pub fn create_native_task(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
-    mut task: vw_shared::task::Task,
-) -> Result<vw_shared::task::Task> {
+    mut task: task_types::Task,
+) -> Result<task_types::Task> {
     task.id = next_native_task_id(store, context, &task.id)?;
     let task_id = TaskId::new(task.id.clone())?;
     let metadata = native_task_metadata(&task)?;
@@ -91,7 +91,7 @@ pub fn load_native_task(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
     task_id: &TaskId,
-) -> Result<Option<vw_shared::task::Task>> {
+) -> Result<Option<task_types::Task>> {
     store
         .load_task(context, task_id)?
         .map(|stored| stored_native_task(store, context, stored))
@@ -102,7 +102,7 @@ pub fn load_native_task(
 pub fn list_native_tasks(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
-) -> Result<Vec<vw_shared::task::Task>> {
+) -> Result<Vec<task_types::Task>> {
     store
         .list_tasks(context, super::store::tasks::AgentTaskFilter::default())?
         .into_iter()
@@ -132,7 +132,7 @@ fn next_native_task_id(
     bail!("native task id sequence exhausted for prefix {prefix}")
 }
 
-fn native_task_title(task: &vw_shared::task::Task) -> String {
+fn native_task_title(task: &task_types::Task) -> String {
     [&task.description, &task.prompt, &task.id]
         .into_iter()
         .find(|value| !value.trim().is_empty())
@@ -140,7 +140,7 @@ fn native_task_title(task: &vw_shared::task::Task) -> String {
         .unwrap_or_else(|| task.id.clone())
 }
 
-fn native_task_metadata(task: &vw_shared::task::Task) -> Result<Value> {
+fn native_task_metadata(task: &task_types::Task) -> Result<Value> {
     Ok(json!({
         "task_board.status_key": task.status.to_string_key(),
         "priority": task.priority,
@@ -171,7 +171,7 @@ fn stored_native_task(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
     stored: StoredAgentTask,
-) -> Result<vw_shared::task::Task> {
+) -> Result<task_types::Task> {
     let fields = stored.metadata.pointer("/legacy_task_pool/fields").unwrap_or(&stored.metadata);
     let status_key = stored
         .metadata
@@ -181,34 +181,34 @@ fn stored_native_task(
     let logs = store
         .list_task_logs(context, &stored.id)?
         .into_iter()
-        .map(|log| vw_shared::task::TaskLogEntry {
+        .map(|log| task_types::TaskLogEntry {
             timestamp_ms: u64::try_from(log.timestamp_ms.0).unwrap_or_default(),
             status_from: log
                 .from_status_key
                 .as_deref()
-                .and_then(vw_shared::task::TaskStatus::parse_key),
+                .and_then(task_types::TaskStatus::parse_key),
             status_to: log
                 .to_status_key
                 .as_deref()
-                .and_then(vw_shared::task::TaskStatus::parse_key),
+                .and_then(task_types::TaskStatus::parse_key),
             message: log.message,
         })
         .collect();
-    Ok(vw_shared::task::Task {
+    Ok(task_types::Task {
         id: stored.id.as_str().to_string(),
         priority: metadata_u32(fields, "priority"),
         assignee: metadata_string_or(fields, "assignee", "agent"),
         model: metadata_string_or(fields, "model", DEFAULT_IMPORT_MODEL),
         executor: metadata_string(fields, "executor_id")
             .or_else(|| metadata_string(fields, "acp_agent"))
-            .and_then(vw_shared::task::TaskExecutorBackend::from_id)
-            .unwrap_or(vw_shared::task::TaskExecutorBackend::Internal),
+            .and_then(task_types::TaskExecutorBackend::from_id)
+            .unwrap_or(task_types::TaskExecutorBackend::Internal),
         description: metadata_string(fields, "description")
             .unwrap_or(stored.title.as_str())
             .to_string(),
         prompt: metadata_string_or(fields, "prompt", ""),
-        status: vw_shared::task::TaskStatus::parse_key(status_key)
-            .unwrap_or(vw_shared::task::TaskStatus::Pool),
+        status: task_types::TaskStatus::parse_key(status_key)
+            .unwrap_or(task_types::TaskStatus::Pool),
         created_at_ms: u64::try_from(stored.created_at_ms.0).unwrap_or_default(),
         updated_at_ms: u64::try_from(stored.updated_at_ms.0).unwrap_or_default(),
         logs,
@@ -223,7 +223,7 @@ fn stored_native_task(
             .context("parse native task subtasks from scheduler metadata")?
             .unwrap_or_default(),
         task_split_mode: metadata_string(fields, "task_split_mode")
-            .and_then(vw_shared::task::TaskSplitMode::parse_key)
+            .and_then(task_types::TaskSplitMode::parse_key)
             .unwrap_or_default(),
         auto_promote_delay_ms: metadata_u64_optional(fields, "auto_promote_delay_ms"),
         last_error: metadata_owned_string(fields, "last_error"),

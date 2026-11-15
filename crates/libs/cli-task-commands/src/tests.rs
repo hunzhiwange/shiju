@@ -4,7 +4,7 @@
 
 use std::fs;
 
-use vw_shared::task::Task;
+use task_types::Task;
 
 use super::{
     first_non_empty_line, print_task_json, print_tasks_json, resolve_project_dir,

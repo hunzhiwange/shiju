@@ -7,7 +7,7 @@ use vw_agent::agent_scheduler::store::AgentSchedulerStore;
 use vw_agent::agent_scheduler::task_board::{
     create_native_task, list_native_tasks, load_native_task,
 };
-use vw_shared::task::{SubTask, Task, TaskExecutorBackend, TaskSplitMode, TaskStatus};
+use task_types::{SubTask, Task, TaskExecutorBackend, TaskSplitMode, TaskStatus};
 
 /// 执行本地项目任务命令。
 pub fn handle_command(project_dir: &str, task_command: TaskCommands) -> Result<()> {

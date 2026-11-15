@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+task-types = { path = "../libs/task-types", version = "0.6.0" }
 ordered-id = { path = "../libs/ordered-id", version = "0.6.0" }
 session-text = { path = "../libs/session-text", version = "0.6.0" }
 session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }

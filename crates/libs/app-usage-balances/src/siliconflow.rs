@@ -11,7 +11,8 @@ use serde::{Deserialize, Deserializer, de};
 use vw_api_apps_usage::apps_usage::{UsageNumber, UsageQueryErrorCode, UsageWallet};
 use provider_model_discovery::is_real_bearer;
 
-use crate::{providers::validation::header_value, usage::detect::BalanceProvider};
+use app_provider_validation::validation::header_value;
+use app_usage_core::detect::BalanceProvider;
 
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use vw_api_apps_usage::apps_usage::{UsageNumber, UsageQueryErrorCode, UsageWallet};
 use provider_model_discovery::is_real_bearer;
 
-use crate::providers::validation::header_value;
+use app_provider_validation::validation::header_value;
 
 const ORIGIN: &str = "https://api.novita.ai";
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;

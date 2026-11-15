@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use super::{client_builder, endpoint, query_at, query_siliconflow};
-use crate::usage::detect::BalanceProvider::{DeepSeek, SiliconFlowCn, SiliconFlowGlobal};
+use app_usage_core::detect::BalanceProvider::{DeepSeek, SiliconFlowCn, SiliconFlowGlobal};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,

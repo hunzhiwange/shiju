@@ -1159,8 +1159,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/balances/siliconflow_tests.rs` | 155 | 57 |
 | `usage/balances/stepfun.rs` | 101 | 57 |
 | `usage/balances/stepfun_tests.rs` | 111 | 57 |
-| `usage/balances/zhipu.rs` | 70 | 57 |
-| `usage/balances/zhipu_tests.rs` | 172 | 57 |
+| `usage/balances/zhipu.rs` | 70 | 58（任务57移交） |
+| `usage/balances/zhipu_tests.rs` | 172 | 58（任务57移交） |
 | `crates/libs/app-usage-core/src/binding.rs` | 100 | 55 |
 | `crates/libs/app-usage-core/src/binding_tests.rs` | 225 | 55 |
 | `usage/cache.rs` → `app-usage-store/src/cache.rs` | 120 | 56 |
@@ -2789,3 +2789,16 @@ import_store 的两项函数因 data_management/usage 的真实跨包调用最�
 cache_tests.rs 依赖 subscriptions::codex_tests::replay_with_usage 的 HTTP 回放及认证夹具，保持原 all(test, target_os = "macos") 注册和三个测试不变，作为跨适配器集成测试交由任务59接收，避免账本包依赖订阅或旧门面；其它迁移文件无相邻独立测试注册。
 
 静态证据：14 文件逐一源码对照，模块与路径清单经 Python 3.12 标准库 TOML 读取审阅，递归路径依赖无环且不依赖 vw-agent-apps；成员及直接路径依赖检索存在，反向依赖检索无匹配，git diff --check 无空白错误。系统 Python 3.9 无 tomllib，改用已有 Python 3.12，未安装工具。未触碰 Cargo.lock，未运行 Cargo、单元及实机测试，统一验收待授权：新包与调用者编译、账本/缓存/价格/限额定向测试、平台行为及锁文件一致性。
+
+
+### 任务 57：用量余额查询迁移
+
+app-usage-balances/src 唯一拥有 deepseek、novita、openrouter、siliconflow、stepfun 五项 HTTP 实现及各自独立测试，共十个文件。原 balances/mod.rs 重导出上述模块，usage/mod.rs 原有非 wasm 条件和 lib.rs 的 usage 声明保持；网关 usage_native 的 query_deepseek_with_transport 调用路径不变。新包模块和依赖保留非 wasm 边界，测试使用 tokio 的 macros/rt/io-util/net/time 特性。
+
+仅将 header_value 导入改为 app-provider-validation::validation、BalanceProvider 改为 app-usage-core::detect；公共函数签名、15秒超时、响应大小限制、敏感头标记、错误分类及函数体均未改变。原门面 coding、subscriptions 等仍使用 reqwest、serde、serde_json、provider-model-discovery，保留其直接依赖。
+
+任务58必须接收仍在原 balances 目录的 zhipu.rs、zhipu_tests.rs 与模块声明：query_zhipu_balance 先调用 usage::coding::zhipu 的 query_personal_plan，且共享包内 authorization/client_builder/get_json/personal_origin/transport_error，故随套餐实现内聚迁移，避免余额包反向依赖尚在门面的套餐实现。所有权表以此移交结果为准。
+
+静态证据：十个文件逐一与 HEAD 对照，除上述导入外完全一致，五项相邻测试注册保留，无新增资源引用；Python 3.12 标准库 TOML 审阅61个递归路径清单，路径存在、无循环、无门面回依赖；workspace及门面直接依赖已注册。反向依赖检索无匹配，git diff --check 无空白错误。RustCodeGraph 旧索引无源码且保留已迁走路径，本轮按规则未更新索引，以源码检索核实实际接线。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、五家迁移单测、非 wasm 平台行为及清单/锁文件一致性；Cargo.lock 未触碰。静态审阅不代表编译或行为验收通过。

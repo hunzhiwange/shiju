@@ -36,6 +36,7 @@ members = [
   "crates/libs/command-arity",
   "crates/libs/canary-guard",
   "crates/libs/content-guard",
+  "crates/libs/plugin-types",
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
   "crates/libs/acp-access-policy",

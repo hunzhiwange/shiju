@@ -1,0 +1,23 @@
+[package]
+name = "tool-cron"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-cron = { path = "../agent-cron", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "fs"] }

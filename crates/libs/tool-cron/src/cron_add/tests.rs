@@ -23,10 +23,13 @@
 //! - 速率限制防止滥用
 //! - 中等风险操作需要显式批准
 
-use super::super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::cron::{add_job, list_jobs};
-use crate::app::agent::security::AutonomyLevel;
+use crate::*;
+use agent_security::SecurityPolicy;
+use std::sync::Arc;
+use tool_types::Tool;
+use agent_config::runtime::Config;
+use agent_cron::{add_job, list_jobs};
+use agent_security::AutonomyLevel;
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -480,7 +483,7 @@ async fn wb_schedule_tool_creates_biweekly_with_anchor() {
     assert!(result.success, "{:?}", result.error);
     let jobs = list_jobs(&cfg).unwrap();
     assert_eq!(jobs.len(), 1);
-    assert!(matches!(jobs[0].schedule, crate::app::agent::cron::Schedule::Biweekly { .. }));
+    assert!(matches!(jobs[0].schedule, agent_cron::Schedule::Biweekly { .. }));
     assert_eq!(jobs[0].next_run.to_rfc3339(), "2096-01-02T01:00:00+00:00");
 }
 

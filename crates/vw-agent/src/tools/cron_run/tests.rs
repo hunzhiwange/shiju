@@ -4,6 +4,7 @@
 //! 速率限制，确保计划任务不会绕过通用安全策略。
 
 use super::super::*;
+use super::execute_job_now;
 use crate::app::agent::config::Config;
 use crate::app::agent::cron::{add_job, list_runs, record_run};
 use crate::app::agent::security::AutonomyLevel;
@@ -29,7 +30,7 @@ async fn force_runs_job_and_records_history() {
     let tmp = TempDir::new().unwrap();
     let cfg = test_config(&tmp).await;
     let job = add_job(&cfg, "*/5 * * * *", "echo run-now").unwrap();
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg));
+    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
     let result = tool.execute(json!({ "job_id": job.id })).await.unwrap();
     assert!(result.success, "{:?}", result.error);
@@ -42,7 +43,7 @@ async fn force_runs_job_and_records_history() {
 async fn errors_for_missing_job() {
     let tmp = TempDir::new().unwrap();
     let cfg = test_config(&tmp).await;
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg));
+    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
     let result = tool.execute(json!({ "job_id": "missing-job-id" })).await.unwrap();
     assert!(!result.success);
@@ -61,7 +62,7 @@ async fn blocks_run_in_read_only_mode() {
     std::fs::create_dir_all(&config.workspace_dir).unwrap();
     let cfg = Arc::new(config);
     let job = add_job(&cfg, "*/5 * * * *", "echo run-now").unwrap();
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg));
+    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
     let result = tool.execute(json!({ "job_id": job.id })).await.unwrap();
     assert!(!result.success);
@@ -82,7 +83,7 @@ async fn shell_run_requires_approval_for_medium_risk() {
     std::fs::create_dir_all(&config.workspace_dir).unwrap();
     let cfg = Arc::new(config);
     let job = add_job(&cfg, "*/5 * * * *", "touch cron-run-approval").unwrap();
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg));
+    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
     let denied = tool.execute(json!({ "job_id": job.id })).await.unwrap();
     assert!(!denied.success);
@@ -106,7 +107,7 @@ async fn blocks_run_when_rate_limited() {
     std::fs::create_dir_all(&config.workspace_dir).unwrap();
     let cfg = Arc::new(config);
     let job = add_job(&cfg, "*/5 * * * *", "echo run-now").unwrap();
-    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg));
+    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
 
     let result = tool.execute(json!({ "job_id": job.id })).await.unwrap();
     assert!(!result.success);
@@ -128,7 +129,7 @@ async fn cron_history_manual_run_is_visible_until_completion() {
     let (listener, command) = shell_barrier().await;
     let job = crate::app::agent::cron::add_job(&config, "*/5 * * * *", &command).unwrap();
     let config = Arc::new(config);
-    let tool = CronRunTool::new(config.clone(), test_security(&config));
+    let tool = CronRunTool::new(config.clone(), test_security(&config), execute_job_now);
     let execution = tool.execute(json!({"job_id": job.id, "approved": true}));
     let mut execution = Box::pin(execution);
     let stream = tokio::select! {
@@ -159,7 +160,7 @@ async fn cron_history_cancelled_manual_run_leaves_no_history() {
     let (listener, command) = shell_barrier().await;
     let job = add_job(&config, "*/5 * * * *", &command).unwrap();
     let config = Arc::new(config);
-    let tool = CronRunTool::new(config.clone(), test_security(&config));
+    let tool = CronRunTool::new(config.clone(), test_security(&config), execute_job_now);
     let mut execution = Box::pin(tool.execute(json!({"job_id": job.id, "approved": true})));
     let _stream = tokio::select! {
         accepted = listener.accept() => accepted.unwrap().0,

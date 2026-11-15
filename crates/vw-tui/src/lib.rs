@@ -47,8 +47,6 @@ pub(crate) use tui_markdown::markdown_render;
 use tui_cells::motion;
 #[allow(dead_code)]
 pub mod onboarding;
-#[allow(dead_code)]
-mod pager_overlay;
 #[allow(dead_code, unused_imports)]
 mod render;
 #[allow(unused_imports)]
@@ -108,7 +106,7 @@ pub use history_cell::{ExecHistoryCell, HistoryCell, history_cell_for, render_di
 pub use insert_history::{
     HistoryLineWrapPolicy, insert_history_lines, insert_history_lines_with_wrap_policy,
 };
-pub use pager_overlay::TranscriptPager;
+pub use tui_pager::TranscriptPager;
 pub use resize_reflow_cap::{ResizeReflowCap, resize_reflow_max_rows};
 pub use status::{StatusHistoryCell, V3SessionDisplayData, V3TokenUsage};
 pub use transcript_reflow::{TranscriptReflowState, TranscriptWidthChange};

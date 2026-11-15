@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/pager_overlay.rs
+source: crates/libs/tui-pager/src/tests.rs
 expression: output
 ---
 --- narrow ---

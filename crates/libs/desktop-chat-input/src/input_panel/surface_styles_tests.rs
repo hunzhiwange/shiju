@@ -1,7 +1,7 @@
 //! 验证输入面板容器、按钮与弹窗在各主题和交互状态下的样式。
 //! 精确比较背景、边框和透明度，覆盖禁用态复用基础样式的约定。
 
-use super::styles::*;
+use super::surface_styles::*;
 use iced::widget::{button, text_editor};
 use iced::{Background, Color, Theme};
 
@@ -367,7 +367,7 @@ fn popover_style_maps_dark_and_light_surfaces() {
 #[test]
 fn input_card_style_blends_primary_color_only_during_drop_hover() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
-        let base = crate::app::theme_catalog::input_surface_color(
+        let base = desktop_theme::theme_catalog::input_surface_color(
             &theme,
             if is_dark { 0.96 } else { 1.0 },
         );
@@ -414,7 +414,7 @@ fn input_surface_shadow_is_subtle_and_skin_overrides_survive() {
         assert_eq!(style.border.radius, 16.0.into());
     }
 
-    let chrome = crate::app::theme_catalog::ChromeStyleOverrides {
+    let chrome = desktop_theme::theme_catalog::ChromeStyleOverrides {
         input_bg: Some(Color::from_rgb8(0x11, 0x22, 0x33)),
         input_border: Some(Color::from_rgb8(0x44, 0x55, 0x66)),
         radius_px: Some(11.0),
@@ -515,7 +515,7 @@ fn input_panel_style_falls_back_without_active_chrome() {
         let with_empty = input_card_style(
             &theme,
             false,
-            Some(&crate::app::theme_catalog::ChromeStyleOverrides::default()),
+            Some(&desktop_theme::theme_catalog::ChromeStyleOverrides::default()),
         );
         assert_color(
             background_color(&with_none.background),
@@ -529,7 +529,7 @@ fn input_panel_style_falls_back_without_active_chrome() {
             &theme,
             text_editor::Status::Active,
             false,
-            Some(&crate::app::theme_catalog::ChromeStyleOverrides::default()),
+            Some(&desktop_theme::theme_catalog::ChromeStyleOverrides::default()),
         );
         assert_color(editor_none.value, editor_empty.value);
     }
@@ -538,13 +538,13 @@ fn input_panel_style_falls_back_without_active_chrome() {
 #[test]
 fn input_card_style_applies_chrome_input_background() {
     let theme = Theme::Dark;
-    let chrome = crate::app::theme_catalog::resolve_chrome_style(
-        &crate::app::theme_catalog::ThemeChrome {
+    let chrome = desktop_theme::theme_catalog::resolve_chrome_style(
+        &desktop_theme::theme_catalog::ThemeChrome {
             input_bg: Some("#112233".to_string()),
             input_border: Some("#445566".to_string()),
             radius_px: Some(12),
             panel_alpha: Some(255),
-            ..crate::app::theme_catalog::ThemeChrome::default()
+            ..desktop_theme::theme_catalog::ThemeChrome::default()
         },
         &theme.palette(),
     );
@@ -558,7 +558,7 @@ fn input_card_style_applies_chrome_input_background() {
 fn input_card_style_more_transparent_with_wallpaper_chrome() {
     use std::path::PathBuf;
 
-    use crate::app::theme_catalog::{ActiveThemeSkin, ThemeChrome, resolve_chrome_style_from_skin};
+    use desktop_theme::theme_catalog::{ActiveThemeSkin, ThemeChrome, resolve_chrome_style_from_skin};
 
     let theme = Theme::Dark;
     let baseline = input_card_style(&theme, false, None);

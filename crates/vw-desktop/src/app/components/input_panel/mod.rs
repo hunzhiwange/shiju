@@ -86,9 +86,6 @@ mod send_controls_tests;
 #[path = "slash_palette_tests.rs"]
 mod slash_palette_tests;
 #[cfg(test)]
-#[path = "styles_tests.rs"]
-mod styles_tests;
-#[cfg(test)]
 #[path = "task_mode_tests.rs"]
 mod task_mode_tests;
 #[cfg(test)]

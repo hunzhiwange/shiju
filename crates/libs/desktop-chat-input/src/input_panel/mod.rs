@@ -42,3 +42,12 @@ pub mod reasoning_message;
 
 #[cfg(test)]
 mod reasoning_selector_tests;
+
+pub mod send_message;
+pub mod send_controls;
+pub mod slash_palette;
+pub mod surface_styles;
+#[cfg(test)]
+mod send_controls_tests;
+#[cfg(test)]
+mod surface_styles_tests;

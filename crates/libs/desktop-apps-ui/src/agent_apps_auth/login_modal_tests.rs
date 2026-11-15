@@ -1,7 +1,5 @@
-use crate::app::{
-    message::agent_apps_auth::flow::{Update, run},
-    state::agent_apps_auth::{Connection, LoginPhase, LoginTarget, Scope, State},
-};
+use super::{flow::{Update, run}, test_state::State};
+use desktop_settings_account::types::{Connection, LoginPhase, LoginTarget, Scope};
 use iced::futures::{StreamExt, channel::mpsc};
 use serde_json::{Value, json};
 use std::{
@@ -23,7 +21,7 @@ const NEXT: &str = "7cb10748-4eb9-4424-a67d-d4ec08509645";
 const PRINCIPAL: &str = "fixture-agent-apps-auth-principal-token";
 const DEADLINE: i64 = 7_100;
 
-pub(in crate::app) struct Exchange {
+pub(super) struct Exchange {
     method: &'static str,
     suffix: String,
     request: Option<Value>,
@@ -55,7 +53,7 @@ impl Exchange {
         }
     }
 
-    pub(in crate::app) fn claude_start(
+    pub(super) fn claude_start(
         flow: &str,
         method: &str,
         url: &str,
@@ -74,7 +72,7 @@ impl Exchange {
         }
     }
 
-    pub(in crate::app) fn paste(flow: &str, pasted: &str, accepted: bool) -> Self {
+    pub(super) fn paste(flow: &str, pasted: &str, accepted: bool) -> Self {
         Self {
             method: "POST",
             suffix: format!("/{flow}/paste"),
@@ -87,7 +85,7 @@ impl Exchange {
         }
     }
 
-    pub(in crate::app) fn poll(response: Value) -> Self {
+    pub(super) fn poll(response: Value) -> Self {
         Self {
             method: "GET",
             suffix: format!("/{FLOW}"),
@@ -98,7 +96,7 @@ impl Exchange {
         }
     }
 
-    pub(in crate::app) fn cancel(flow: &'static str) -> Self {
+    pub(super) fn cancel(flow: &'static str) -> Self {
         Self {
             method: "DELETE",
             suffix: format!("/{flow}"),
@@ -110,7 +108,7 @@ impl Exchange {
     }
 }
 
-pub(in crate::app) fn gateway(
+pub(super) fn gateway(
     service: &'static str,
     exchanges: Vec<Exchange>,
 ) -> (GatewayClient, Connection, std::thread::JoinHandle<()>) {
@@ -197,7 +195,7 @@ pub(in crate::app) fn gateway(
     (GatewayClient::new(endpoint).unwrap(), connection, server)
 }
 
-pub(in crate::app) async fn next(updates: &mut mpsc::Receiver<Update>) -> Update {
+pub(super) async fn next(updates: &mut mpsc::Receiver<Update>) -> Update {
     tokio::time::timeout(Duration::from_secs(8), updates.next())
         .await
         .expect("device update timed out")

@@ -49,6 +49,10 @@ vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
 gateway-aggregation = { path = "../gateway-aggregation", version = "0.6.0" }
 vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+toml_edit = "0.22"
+tempfile = "3"
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+gateway-mcp-probe = { path = "../gateway-mcp-probe", version = "0.6.0" }
 [dev-dependencies]
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 serde_json = "1"

@@ -1,7 +1,7 @@
 use gateway_app_auth::{AgentAppsAuthCredentials, AgentAppsAuthReadError};
 use desktop_settings_account::types::ServiceAccounts;
 use vw_gateway_client::GatewayClient;
-use vw_api_app_auth::{AuthService, AuthErrorCode};
+use vw_api_app_auth::{AuthService, AuthErrorCode, AuthAccount};
 pub const SERVICES: [AuthService; 7] = [
     AuthService::ClaudeOfficial,
     AuthService::CodexOauth,
@@ -70,3 +70,78 @@ pub fn read_error_label(error: AgentAppsAuthReadError) -> &'static str {
         AgentAppsAuthReadError::Transport => "无法连接管理网关，请重试",
     }
 }
+
+pub mod flow;
+pub mod browser;
+
+pub mod state;
+pub mod actions;
+use desktop_settings_account::types::{LoginTarget, Scope};
+use browser::LinkAction;
+#[derive(Clone)]
+pub enum Event {
+    AccountAction(actions::ActionEvent),
+    OpenBinding {
+        provider_id: String,
+        provider_generation: u64,
+    },
+    LoadBinding(u64),
+    BindingLoaded(u64, Result<Vec<AuthAccount>, &'static str>),
+    SelectBinding(u64, String),
+    SaveBinding(u64),
+    BindingSaved(u64, Result<(), &'static str>),
+    CloseBinding(u64),
+    Open,
+    Close,
+    Host(String),
+    Username(String),
+    Password(String),
+    Token(String),
+    Connect,
+    Refresh,
+    RetryService(AuthService),
+    OpenBrowserPreference(bool),
+    StartLogin(LoginTarget),
+    RetryLogin,
+    CloseLogin,
+    LoginTick,
+    LoginLink(u64, LinkAction),
+    PasteInput(u64, String),
+    PasteSubmit(u64),
+    LoginUpdated {
+        scope: Scope,
+        generation: u64,
+        update: flow::Update,
+    },
+    LocalReady {
+        scope: Scope,
+        generation: u64,
+        result: Result<local_app_auth::Credentials, String>,
+    },
+    Loaded {
+        scope: Scope,
+        generation: u64,
+        rows: Vec<ServiceAccounts>,
+    },
+}
+
+impl std::fmt::Debug for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("AgentAppsAuthEvent")
+    }
+}
+
+
+fn message(event: Event) -> Event { event }
+
+pub mod binding;
+
+#[cfg(test)]
+mod test_state {
+    #[derive(Default)]
+    pub struct Usage;
+    impl super::state::Usage for Usage { fn clear(&mut self) {} }
+    pub type State = super::state::State<Usage>;
+}
+#[cfg(test)] mod login_modal_tests;
+#[cfg(test)] mod browser_tests;

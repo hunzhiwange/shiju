@@ -9,9 +9,6 @@ mod actions_tests;
 pub(in crate::app) mod binding;
 #[path = "agent_apps_auth_browser.rs"]
 pub(in crate::app) mod browser;
-#[cfg(test)]
-#[path = "agent_apps_auth_browser_tests.rs"]
-mod browser_tests;
 pub(in crate::app) mod flow;
 
 use crate::app::{
@@ -22,62 +19,11 @@ use crate::app::{
 };
 use browser::LinkAction;
 use iced::Task;
-use {vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthAccount, AuthService}};
+use {vw_gateway_client::GatewayClient, vw_api_app_auth::AuthService};
 
 pub(crate) use desktop_apps_ui::agent_apps_auth::SERVICES;
 
-#[derive(Clone)]
-pub enum Event {
-    AccountAction(actions::ActionEvent),
-    OpenBinding {
-        provider_id: String,
-        provider_generation: u64,
-    },
-    LoadBinding(u64),
-    BindingLoaded(u64, Result<Vec<AuthAccount>, &'static str>),
-    SelectBinding(u64, String),
-    SaveBinding(u64),
-    BindingSaved(u64, Result<(), &'static str>),
-    CloseBinding(u64),
-    Open,
-    Close,
-    Host(String),
-    Username(String),
-    Password(String),
-    Token(String),
-    Connect,
-    Refresh,
-    RetryService(AuthService),
-    OpenBrowserPreference(bool),
-    StartLogin(LoginTarget),
-    RetryLogin,
-    CloseLogin,
-    LoginTick,
-    LoginLink(u64, LinkAction),
-    PasteInput(u64, String),
-    PasteSubmit(u64),
-    LoginUpdated {
-        scope: Scope,
-        generation: u64,
-        update: flow::Update,
-    },
-    LocalReady {
-        scope: Scope,
-        generation: u64,
-        result: Result<local_app_auth::Credentials, String>,
-    },
-    Loaded {
-        scope: Scope,
-        generation: u64,
-        rows: Vec<ServiceAccounts>,
-    },
-}
-
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("AgentAppsAuthEvent")
-    }
-}
+pub use desktop_apps_ui::agent_apps_auth::Event;
 
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::AgentAppsAuth(event))
@@ -402,11 +348,11 @@ pub(in crate::app) fn update_at(
 }
 
 fn deliver_link(app: &mut App, action: LinkAction, url: reqwest::Url) -> Task<Message> {
-    match action.deliver(&url) {
+    match browser::deliver(action, &url) {
         Ok(()) if matches!(action, LinkAction::Copy) => app.show_success_toast("已复制授权链接"),
         Ok(()) => Task::none(),
         Err(error) => app.show_error_toast(error),
     }
 }
 
-pub(crate) use desktop_apps_ui::agent_apps_auth::{load, load_service, read_error_label};
+pub(crate) use desktop_apps_ui::agent_apps_auth::{load, load_service};

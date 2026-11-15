@@ -5,8 +5,6 @@ use desktop_settings_account::{self as account, Event};
 use iced::Element;
 #[cfg(test)]
 mod binding_modal_tests;
-#[cfg(test)]
-pub(in crate::app) mod login_modal_tests;
 fn state(app: &App) -> account::State<'_> { project(&app.agent_apps_auth) }
 fn project(s: &crate::app::state::agent_apps_auth::State) -> account::State<'_> {
     account::State {

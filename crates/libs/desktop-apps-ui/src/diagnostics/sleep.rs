@@ -1,4 +1,4 @@
-pub(super) async fn sleep(duration: std::time::Duration) {
+pub(crate) async fn sleep(duration: std::time::Duration) {
     #[cfg(target_arch = "wasm32")]
     {
         use wasm_bindgen::{JsCast, JsValue, closure::Closure};

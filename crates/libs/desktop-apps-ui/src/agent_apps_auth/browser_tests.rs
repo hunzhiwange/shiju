@@ -2,10 +2,8 @@ use super::{
     browser::{LinkAction, edit_paste, read_preference, save_preference, submit_paste},
     flow::{Update, run},
 };
-use crate::app::{
-    components::system_settings_auth::login_modal_tests::{Exchange, gateway, next},
-    state::agent_apps_auth::{LoginPhase, LoginTarget, Scope, State, now},
-};
+use super::{login_modal_tests::{Exchange, gateway, next}, test_state::State};
+use desktop_settings_account::types::{LoginPhase, LoginTarget, Scope, now};
 use iced::futures::channel::mpsc;
 use serde_json::json;
 use std::cell::Cell;
@@ -82,10 +80,10 @@ async fn auth6_ui_browser_commits_expected_scoped_result() {
     assert!(copied.get());
 
     state.login_mut(generation).unwrap().phase = LoginPhase::Pending(challenge);
-    edit_paste(&mut state, generation, PASTE.to_owned());
-    submit_paste(&mut state, generation).unwrap();
+    edit_paste(state.login_mut(generation), PASTE.to_owned());
+    submit_paste(state.login_mut(generation)).unwrap();
     assert!(state.login_mut(generation).unwrap().paste_input.is_empty());
-    assert!(submit_paste(&mut state, generation).is_err(), "in-flight paste cannot be sent twice");
+    assert!(submit_paste(state.login_mut(generation)).is_err(), "in-flight paste cannot be sent twice");
     assert!(matches!(next(&mut updates).await, Update::PasteFinished(Ok(()))));
     assert!(matches!(next(&mut updates).await, Update::Approved));
     task.await.unwrap();
@@ -139,14 +137,14 @@ async fn auth6_ui_browser_rejects_invalid_or_stale_input() {
     let Update::Started(challenge) = next(&mut updates).await else { panic!("expected challenge") };
     state.login_mut(generation).unwrap().phase = LoginPhase::Pending(challenge);
 
-    edit_paste(&mut state, old, PASTE.to_owned());
+    edit_paste(state.login_mut(old), PASTE.to_owned());
     assert!(
-        submit_paste(&mut state, old).is_err(),
+        submit_paste(state.login_mut(old)).is_err(),
         "a replaced login must reject stale paste events"
     );
-    assert!(submit_paste(&mut state, generation).is_err(), "empty current paste must be rejected");
-    edit_paste(&mut state, generation, "different-code#different-state".into());
-    submit_paste(&mut state, generation).unwrap();
+    assert!(submit_paste(state.login_mut(generation)).is_err(), "empty current paste must be rejected");
+    edit_paste(state.login_mut(generation), "different-code#different-state".into());
+    submit_paste(state.login_mut(generation)).unwrap();
     assert!(matches!(
         next(&mut updates).await,
         Update::PasteFinished(Err("执行主机拒绝了回填，请检查授权码或回调地址"))
@@ -155,7 +153,7 @@ async fn auth6_ui_browser_rejects_invalid_or_stale_input() {
         Scope { gateway: "http://127.0.0.1:1".into(), ..Scope::from(client.endpoint()) };
     state.select(different);
     assert!(
-        submit_paste(&mut state, generation).is_err(),
+        submit_paste(state.login_mut(generation)).is_err(),
         "scope switch discards the old paste route"
     );
     task.await.unwrap();

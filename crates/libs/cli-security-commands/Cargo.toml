@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
 anyhow = "1"
 cli-command-schema = { path = "../cli-command-schema", version = "0.6.0" }
 dialoguer = "0.11"

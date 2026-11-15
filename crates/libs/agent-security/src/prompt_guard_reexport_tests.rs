@@ -1,4 +1,4 @@
-use super::{GuardAction, GuardResult, PromptGuard};
+use super::prompt_guard::{GuardAction, GuardResult, PromptGuard};
 
 #[test]
 fn prompt_guard_reexport_preserves_identity_and_decision() {

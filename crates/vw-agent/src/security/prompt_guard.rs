@@ -1,5 +1,3 @@
-pub use content_guard::prompt_guard::*;
+//! 提示防护领域包的兼容入口。
 
-#[cfg(test)]
-#[path = "prompt_guard_reexport_tests.rs"]
-mod reexport_tests;
+pub use agent_security::prompt_guard::*;

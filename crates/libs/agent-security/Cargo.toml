@@ -8,6 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-memory = { path = "../agent-memory", version = "0.6.0" }
+sha2 = "0.11"
+hex = "0.4"
 directories = "5"
 glob = "0.3"
 regex = "1"
@@ -30,10 +34,14 @@ tracing = "0.1"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["fs"] }
 rand = "0.10.3"
 ring = "0.17.14"
 
 [dev-dependencies]
+async-trait = "0.1.89"
+axum = { version = "0.8.8", features = ["json"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
 tempfile = "3"
 
 [features]

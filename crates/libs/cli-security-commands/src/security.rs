@@ -4,8 +4,8 @@
 use anyhow::Result;
 
 use cli_command_schema::SecurityCommands;
-use vw_agent::config::Config;
-use vw_agent::security;
+use agent_config::runtime::Config;
+use agent_security as security;
 
 fn guard_corpus_update_report_lines(report: &security::GuardCorpusUpdateReport) -> [String; 6] {
     [

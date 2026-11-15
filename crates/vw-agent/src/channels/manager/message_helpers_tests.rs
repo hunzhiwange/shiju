@@ -362,7 +362,7 @@ async fn block_semantic_guard_message_records_warning_in_thread() {
     let channel = Arc::new(RecordingChannel::default());
     let target_channel: Arc<dyn Channel> = channel.clone();
     let msg = channel_message("dangerous prompt");
-    let detection = crate::security::semantic_guard::SemanticMatch {
+    let detection = agent_security::semantic_guard::SemanticMatch {
         score: 0.91,
         key: "attack-1".to_string(),
         category: "prompt-leak".to_string(),

@@ -27,3 +27,11 @@ pub use secrets::SecretStore;
 pub mod policy;
 pub mod shell;
 pub use policy::{AutonomyLevel, SecurityPolicy, ShellRedirectPolicy};
+
+pub use content_guard::prompt_guard;
+pub mod semantic_guard;
+pub use semantic_guard::{GuardCorpusUpdateReport, SemanticGuard, SemanticGuardStartupStatus};
+
+#[cfg(test)]
+#[path = "prompt_guard_reexport_tests.rs"]
+mod prompt_guard_reexport_tests;

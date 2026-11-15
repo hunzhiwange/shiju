@@ -207,7 +207,7 @@ pub(crate) async fn apply_semantic_guard(
 
     // 执行语义检测
     if semantic_enabled {
-        let semantic_guard = crate::app::agent::security::SemanticGuard::from_config(
+        let semantic_guard = agent_security::SemanticGuard::from_config(
             &memory_cfg,
             semantic_enabled,
             semantic_collection.as_str(),
@@ -235,7 +235,7 @@ pub(crate) async fn apply_semantic_guard(
 pub(crate) async fn block_semantic_guard_message(
     msg: &traits::ChannelMessage,
     target_channel: Option<&Arc<dyn Channel>>,
-    detection: &crate::security::semantic_guard::SemanticMatch,
+    detection: &agent_security::semantic_guard::SemanticMatch,
     semantic_threshold: f64,
     semantic_collection: &str,
 ) {

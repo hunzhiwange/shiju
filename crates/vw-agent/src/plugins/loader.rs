@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 use super::compat::discovery::is_plugin_candidate;
 use super::compat::identity::read_install_metadata;

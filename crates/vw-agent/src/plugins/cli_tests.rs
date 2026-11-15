@@ -5,7 +5,7 @@ use crate::config::Config;
 use serde_json::json;
 use std::fs;
 use std::path::Path;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 // 临时工作区与配置目录必须分离，避免命令测试读写真实用户配置。
 fn config_for(dir: &tempfile::TempDir) -> Config {

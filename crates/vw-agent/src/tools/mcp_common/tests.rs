@@ -27,7 +27,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 fn env_lock() -> std::sync::MutexGuard<'static, ()> {
     crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())

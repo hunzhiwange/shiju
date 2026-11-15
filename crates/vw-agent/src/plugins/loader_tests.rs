@@ -5,7 +5,7 @@ use serde_json::json;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 // 每个来源使用独立清单夹具，以便验证来源排序和名称冲突。
 fn write_plugin_manifest(plugin_root: &Path, name: &str) {

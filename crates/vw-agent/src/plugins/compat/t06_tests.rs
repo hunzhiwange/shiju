@@ -8,7 +8,7 @@ use crate::plugins::install::{
 use crate::plugins::{PluginDiscoveryOptions, PluginIdentity, discover_plugins};
 use std::fs;
 use std::path::Path;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 const PACKAGE: &[u8] = include_bytes!("../../../testdata/plugin_compat/t06/plugin.json");
 

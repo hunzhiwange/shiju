@@ -14,7 +14,7 @@ use tokio::{
     net::TcpListener,
     sync::mpsc,
 };
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 pub(super) fn write(path: &Path, value: Value) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();

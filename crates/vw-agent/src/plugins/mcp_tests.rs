@@ -10,7 +10,7 @@ use agent_client_protocol::McpServer;
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 // MCP 路径由插件清单间接引用，夹具刻意分开写入两类文件。
 fn write_plugin_manifest(plugin_root: &Path, name: &str, mcp_path: &str) {

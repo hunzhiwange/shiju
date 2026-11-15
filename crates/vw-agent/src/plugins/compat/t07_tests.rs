@@ -3,7 +3,7 @@
 use crate::plugins::{PluginDiscoveryOptions, discover_plugins, install_plugin_from_marketplace};
 use std::fs;
 use std::path::{Path, PathBuf};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 const NATIVE: &[u8] = include_bytes!("../../../testdata/plugin_compat/t07/native.json");
 const LEGACY: &[u8] = include_bytes!("../../../testdata/plugin_compat/t07/legacy.json");

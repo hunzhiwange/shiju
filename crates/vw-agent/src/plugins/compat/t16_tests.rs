@@ -7,7 +7,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 const SCHEMA: &str = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 fn write(path: &Path, value: Value) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();

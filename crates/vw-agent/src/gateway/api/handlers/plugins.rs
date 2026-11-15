@@ -6,7 +6,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 use vw_gateway_client::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
     DesktopPluginPathDto,

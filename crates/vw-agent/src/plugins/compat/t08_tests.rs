@@ -201,7 +201,7 @@ fn codex_plugin_compat_t08_rebases_audited_paths_and_preserves_provenance() {
     let found = discover_plugins(&PluginDiscoveryOptions::new(
         temp.path().join("workspace"),
         config,
-        vw_config_types::plugins::PluginsConfig::default(),
+        config_plugins::PluginsConfig::default(),
     ))
     .unwrap();
     assert_eq!(found.installed.len(), 1);
@@ -322,7 +322,7 @@ fn codex_plugin_compat_t08_keeps_staging_out_of_plugin_discovery() {
         let found = discover_plugins(&PluginDiscoveryOptions::new(
             workspace,
             config,
-            vw_config_types::plugins::PluginsConfig::default(),
+            config_plugins::PluginsConfig::default(),
         ))
         .unwrap();
         assert!(found.installed.is_empty(), "staging cannot masquerade as an installed plugin");

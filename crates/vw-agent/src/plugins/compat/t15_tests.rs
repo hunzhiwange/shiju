@@ -10,7 +10,7 @@ use agent_client_protocol::McpServer;
 use serde_json::{Map, Value, json};
 use std::fs;
 use std::path::{Path, PathBuf};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 const SCHEMA: &str = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 

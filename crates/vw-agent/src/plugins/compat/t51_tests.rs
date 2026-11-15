@@ -2,7 +2,7 @@
 use crate::plugins::install::{remove_installed_plugin, set_plugin_enabled};
 use crate::plugins::{PluginDiscoveryOptions, discover_plugins, install_plugin_from_marketplace};
 use std::{fs, path::Path};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 const MANIFEST: &[u8] = br#"{"name":"fixture","version":"1.2.3"}"#;
 fn package(root: &Path) {
     fs::create_dir_all(root.join(".codex-plugin")).unwrap();

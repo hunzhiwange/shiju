@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::subscriber::Interest;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 // 夹具先写入精确钩子摘要再注册，用来区分受信执行与未审查跳过。
 fn register_trusted_plugin_hooks(

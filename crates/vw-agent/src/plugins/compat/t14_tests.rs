@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 fn write(path: &Path, value: &Value) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();

@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tower::util::ServiceExt;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 struct StaticProvider;
 

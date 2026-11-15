@@ -373,3 +373,11 @@ fn config_debug_impl_shows_providers_count() {
     let debug_str = format!("{:?}", config);
     assert!(debug_str.contains("providers_count: 1"));
 }
+
+// 顶层默认配置保持插件候选范围为空。
+#[test]
+fn config_defaults_leave_plugins_empty() {
+    let default_config = super::Config::default();
+    assert!(default_config.plugins.enabled.is_empty());
+    assert!(default_config.plugins.sources.is_empty());
+}

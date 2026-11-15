@@ -6,6 +6,7 @@ repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
 description = "Runtime agent engine for VibeWindow"
 license = "MIT"
+config-plugins = { path = "../libs/config-plugins", version = "0.6.0" }
 autotests = false
 
 [lib]

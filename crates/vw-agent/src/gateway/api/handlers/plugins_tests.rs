@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::json;
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 use axum::Json;
 use axum::extract::Query;

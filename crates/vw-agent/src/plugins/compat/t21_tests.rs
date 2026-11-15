@@ -201,7 +201,7 @@ async fn codex_plugin_compat_t21_distinguishes_call_timeout_from_tool_failure() 
     let options = crate::plugins::PluginDiscoveryOptions::new(
         root.path().join("workspace"),
         root.path().join("config"),
-        vw_config_types::plugins::PluginsConfig::default(),
+        config_plugins::PluginsConfig::default(),
     );
     let package = options.workspace_dir.join(".vibewindow/plugins/timeout");
     let _ = server(&package, "timeout");

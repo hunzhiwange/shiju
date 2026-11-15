@@ -4,7 +4,7 @@ use crate::plugins::{PluginDiscoveryOptions, merge_enabled_plugin_mcp_servers};
 use agent_client_protocol::{McpServer, McpServerStdio};
 use serde_json::json;
 use std::{fs, path::Path, time::Duration};
-use vw_config_types::plugins::PluginsConfig;
+use config_plugins::PluginsConfig;
 
 fn server(root: &Path, name: &str) -> McpServer {
     let script = root.join("server.py");

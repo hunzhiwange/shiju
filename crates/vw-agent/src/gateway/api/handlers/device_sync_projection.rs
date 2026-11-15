@@ -91,3 +91,22 @@ pub(super) async fn refresh(database: &GlobalDatabase, policy: Option<&Path>, he
     // installs their new fingerprints atomically with the configuration transaction.
     if failed { Err(()) } else { Ok(()) }
 }
+
+struct ProjectionHost(Option<super::app_routing::RoutingControl>);
+impl gateway_device_sync::device_sync_projection::ProjectionHost for ProjectionHost {
+    fn refresh<'a>(&'a self, database: &'a GlobalDatabase, policy: Option<&'a Path>,
+        headers: &'a HeaderMap, target: &'a DataManagementTarget, selection: &'a SnapshotSelection,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), ()>> + Send + 'a>> {
+        Box::pin(refresh(database, policy, headers, target, selection, self.0.as_ref()))
+    }
+}
+
+pub(super) async fn inject(
+    control: Option<axum::Extension<super::app_routing::RoutingControl>>,
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    request.extensions_mut().insert(gateway_device_sync::device_sync_projection::DownloadRouting(
+        std::sync::Arc::new(ProjectionHost(control.map(|axum::Extension(c)| c)))));
+    next.run(request).await
+}

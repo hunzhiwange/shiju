@@ -15,8 +15,8 @@ use {
 };
 
 /// Explicit selection; empty collections never select all objects.
-#[derive(Default, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default, Clone, Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeviceSyncSelection {
     pub providers: Vec<(AppId, String)>,
     pub mcp: Vec<String>,

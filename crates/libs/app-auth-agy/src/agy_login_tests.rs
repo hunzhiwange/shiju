@@ -1,6 +1,6 @@
 use super::{
     agy_login::{AgyLogin, MANAGED_SERVICE},
-    copilot_tests::oauth_server,
+    test_support::oauth_server,
     flow::{AuthAccountScope, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};

@@ -19,13 +19,7 @@ use vw_api_app_identity::{AppId};
 const DSH_LOGOUT_PATH: &str = "/auth-api/v0/users/logout";
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
-/// Resolve a logout target within the authorized service and owner scope.
-#[derive(Clone, Copy)]
-pub enum LogoutSelection<'a> {
-    Account(&'a str),
-    Default,
-    All,
-}
+pub use app_auth_core::logout::LogoutSelection;
 
 /// Only the DSH protocol provides confirmed upstream revocation.
 pub fn check_revocation_support(scope: AuthAccountScope<'_>) -> Result<(), AuthErrorCode> {

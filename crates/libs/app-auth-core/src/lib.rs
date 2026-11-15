@@ -10,3 +10,5 @@ mod keychain_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod response;
+
+pub mod logout;

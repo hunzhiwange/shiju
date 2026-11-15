@@ -20,7 +20,7 @@ pub struct AgyNativeTarget<'a> {
 
 /// Read only the selected managed account's unexpired access token.
 #[cfg(target_os = "macos")]
-pub(crate) fn query_access_token(
+pub fn query_access_token(
     scope: AuthAccountScope<'_>,
     account_id: &str,
     now: vw_api_transport::TimestampMs,
@@ -34,7 +34,7 @@ pub(crate) fn query_access_token(
         .credential
         .pointer("/token/access_token")
         .and_then(serde_json::Value::as_str)
-        .filter(|token| super::copilot::valid_token(token));
+        .filter(|token| super::response::valid_token(token));
     Ok(token
         .filter(|_| {
             macos::expiry(&record.credential)
@@ -45,7 +45,7 @@ pub(crate) fn query_access_token(
 
 /// Reserve the authorized native login for a read-only CLI query.
 #[cfg(target_os = "macos")]
-pub(crate) fn lock_native_usage(
+pub fn lock_native_usage(
     scope: AuthAccountScope<'_>,
     native: AgyNativeTarget<'_>,
 ) -> Result<std::fs::File, AuthErrorCode> {
@@ -168,13 +168,11 @@ pub(super) use macos::{checkout_account_in, with_provider_account_in};
 mod macos {
     use super::{AgyNativeTarget, AuthAccountScope, AuthErrorCode, KeychainEntry, Path};
     use crate::{
-        auth::{
-            agy_login::{KEYCHAIN_ITEM_NOT_FOUND, MANAGED_SERVICE, account_id_for, token_identity},
-            copilot::valid_token,
-            keychain::EntryError,
-        },
-        providers::paths::open_beneath,
+        agy_login::{KEYCHAIN_ITEM_NOT_FOUND, MANAGED_SERVICE, account_id_for, token_identity},
+        response::valid_token,
+        keychain::EntryError,
     };
+    use app_config_paths::open_beneath;
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use chrono::{DateTime, FixedOffset};
     use security_framework::os::macos::{
@@ -193,14 +191,14 @@ mod macos {
     const KEYRING_PREFIX: &str = "go-keyring-base64:";
 
     #[derive(Deserialize, Serialize)]
-    pub(in crate::auth) struct ManagedRecord {
-        pub(in crate::auth) account: AuthAccount,
-        pub(in crate::auth) credential: Value,
+    pub(crate) struct ManagedRecord {
+        pub(crate) account: AuthAccount,
+        pub(crate) credential: Value,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub(in crate::auth) signed_out_owner: Option<String>,
+        pub(crate) signed_out_owner: Option<String>,
     }
 
-    pub(in crate::auth) fn switch_account_in(
+    pub(crate) fn switch_account_in(
         scope: AuthAccountScope<'_>,
         account_id: &str,
         native: AgyNativeTarget<'_>,
@@ -209,7 +207,7 @@ mod macos {
         checkout_account_in(scope, account_id, native, entry, || Ok(())).map(drop)
     }
 
-    pub(in crate::auth) fn with_provider_account_in<T>(
+    pub(crate) fn with_provider_account_in<T>(
         scope: AuthAccountScope<'_>,
         account_id: Option<&str>,
         native: AgyNativeTarget<'_>,
@@ -232,7 +230,7 @@ mod macos {
         operation(active)
     }
 
-    pub(in crate::auth) fn checkout_account_in(
+    pub(crate) fn checkout_account_in(
         scope: AuthAccountScope<'_>,
         account_id: &str,
         native: AgyNativeTarget<'_>,
@@ -279,7 +277,7 @@ mod macos {
         Ok(lock)
     }
 
-    pub(in crate::auth) fn remove_managed_account_in(
+    pub(crate) fn remove_managed_account_in(
         scope: AuthAccountScope<'_>,
         account_id: &str,
         native: AgyNativeTarget<'_>,
@@ -309,7 +307,7 @@ mod macos {
         }
     }
 
-    pub(in crate::auth) fn validate_scope(
+    pub(crate) fn validate_scope(
         scope: AuthAccountScope<'_>,
     ) -> Result<(), AuthErrorCode> {
         scope.validate()?;
@@ -319,7 +317,7 @@ mod macos {
         Ok(())
     }
 
-    pub(in crate::auth) fn validate_account_id(account_id: &str) -> Result<(), AuthErrorCode> {
+    pub(crate) fn validate_account_id(account_id: &str) -> Result<(), AuthErrorCode> {
         if account_id.len() != 43
             || !account_id.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"-_".contains(&byte))
         {
@@ -328,13 +326,13 @@ mod macos {
         Ok(())
     }
 
-    pub(in crate::auth) fn execution_home() -> Result<std::path::PathBuf, AuthErrorCode> {
+    pub(crate) fn execution_home() -> Result<std::path::PathBuf, AuthErrorCode> {
         std::env::var_os("HOME")
             .and_then(|path| std::fs::canonicalize(path).ok())
             .ok_or(AuthErrorCode::KeychainUnavailable)
     }
 
-    pub(in crate::auth) fn native_home(
+    pub(crate) fn native_home(
         scope: AuthAccountScope<'_>,
         native: AgyNativeTarget<'_>,
     ) -> Result<std::path::PathBuf, AuthErrorCode> {
@@ -349,7 +347,7 @@ mod macos {
         Ok(home)
     }
 
-    pub(in crate::auth) fn locked_keychain(
+    pub(crate) fn locked_keychain(
         home: &Path,
     ) -> Result<(File, SecKeychain), AuthErrorCode> {
         let lock = lock_keychain(home)?;
@@ -360,7 +358,7 @@ mod macos {
 
     // Shared by sign-in and switching. All logical scopes using the same local
     // keychain user contend on the same physical directory, even across processes.
-    pub(in crate::auth) fn lock_keychain(home: &Path) -> Result<File, AuthErrorCode> {
+    pub(crate) fn lock_keychain(home: &Path) -> Result<File, AuthErrorCode> {
         lock_keychain_directory(home, libc::LOCK_EX)
     }
 
@@ -393,7 +391,7 @@ mod macos {
         Ok(directory)
     }
 
-    pub(in crate::auth) fn managed(
+    pub(crate) fn managed(
         keychain: &SecKeychain,
         scope: AuthAccountScope<'_>,
         id: &str,
@@ -437,7 +435,7 @@ mod macos {
         Ok((record, item, Sha256::digest(&*bytes).into()))
     }
 
-    pub(in crate::auth) fn decode(raw: &[u8]) -> Option<Value> {
+    pub(crate) fn decode(raw: &[u8]) -> Option<Value> {
         let raw = std::str::from_utf8(raw).ok()?.trim();
         match raw.strip_prefix(KEYRING_PREFIX) {
             Some(encoded) => serde_json::from_slice(&STANDARD.decode(encoded).ok()?).ok(),
@@ -445,7 +443,7 @@ mod macos {
         }
     }
 
-    pub(in crate::auth) fn credential_account_id(
+    pub(crate) fn credential_account_id(
         scope: AuthAccountScope<'_>,
         value: &Value,
     ) -> Option<String> {
@@ -456,7 +454,7 @@ mod macos {
         account_id_for(scope, &identity.sub).ok()
     }
 
-    pub(in crate::auth) fn save_managed(
+    pub(crate) fn save_managed(
         keychain: &SecKeychain,
         record: ManagedRecord,
         mut item: SecKeychainItem,
@@ -472,7 +470,7 @@ mod macos {
         Ok(())
     }
 
-    pub(in crate::auth) fn rotation_is_newer(
+    pub(crate) fn rotation_is_newer(
         live: &Value,
         managed: &Value,
     ) -> Result<bool, AuthErrorCode> {
@@ -495,7 +493,7 @@ mod macos {
         DateTime::parse_from_rfc3339(value.pointer("/token/expiry")?.as_str()?).ok()
     }
 
-    pub(in crate::auth) fn keychain_error(error: EntryError) -> AuthErrorCode {
+    pub(crate) fn keychain_error(error: EntryError) -> AuthErrorCode {
         match error {
             EntryError::Conflict => AuthErrorCode::Conflict,
             _ => AuthErrorCode::KeychainUnavailable,

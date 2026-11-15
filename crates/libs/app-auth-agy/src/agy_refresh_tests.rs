@@ -1,7 +1,7 @@
 use super::{
     agy_account_tests::{Fixture, credential, encode, scope},
     agy_refresh::{reconcile_in, refresh_with},
-    copilot_tests::oauth_server,
+    test_support::oauth_server,
     keychain::KeychainEntry,
 };
 use reqwest::{Client, Url};
@@ -101,7 +101,7 @@ async fn auth6_agy_refresh_rejects_invalid_or_stale_input() {
         .args([
             "--ignored",
             "--exact",
-            "auth::agy_refresh_tests::agy_writeback_fixture_process",
+            "agy_refresh_tests::agy_writeback_fixture_process",
             "--nocapture",
         ])
         .env("SHIJU_AGY_TEST_SERVICE", &fixture.native_service)

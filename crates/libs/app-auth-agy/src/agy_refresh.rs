@@ -7,7 +7,7 @@ use super::{
         validate_account_id, validate_scope,
     },
     agy_login::{post_token, token_client, token_expiry, token_identity},
-    copilot::{utc_now, valid_token},
+    response::{utc_now, valid_token},
     flow::AuthAccountScope,
     keychain::KeychainEntry,
 };

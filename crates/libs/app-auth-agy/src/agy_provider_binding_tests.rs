@@ -1,5 +1,5 @@
 use super::*;
-use crate::auth::agy_account::{checkout_account_in, with_provider_account_in};
+use crate::agy_account::{checkout_account_in, with_provider_account_in};
 use std::os::fd::AsRawFd;
 
 #[test]

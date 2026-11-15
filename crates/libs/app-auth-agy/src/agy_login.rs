@@ -3,7 +3,7 @@
 use super::{
     agy_account::{execution_home, lock_keychain},
     browser_callback::{CallbackChallenge, CallbackCode, LoopbackCallback},
-    copilot::{read_json_limited, utc_now, valid_token},
+    response::{read_json_limited, utc_now, valid_token},
     flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};

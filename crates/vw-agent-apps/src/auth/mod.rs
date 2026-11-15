@@ -97,19 +97,13 @@ pub(crate) mod kimi_account_tests;
 mod claude_snapshot_tests;
 
 #[cfg(target_os = "macos")]
-pub mod agy_login;
-#[cfg(all(test, target_os = "macos"))]
-mod agy_login_tests;
+pub use app_auth_agy::agy_login;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod agy_account;
-#[cfg(all(test, target_os = "macos"))]
-mod agy_account_tests;
+pub use app_auth_agy::agy_account;
 
 #[cfg(target_os = "macos")]
-pub mod agy_refresh;
-#[cfg(all(test, target_os = "macos"))]
-mod agy_refresh_tests;
+pub use app_auth_agy::agy_refresh;
 
 #[cfg(target_os = "macos")]
 pub mod dsh_login;

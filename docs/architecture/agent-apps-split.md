@@ -2281,3 +2281,31 @@ workspace 成员审阅、cfg 和测试注册核对、任务差异无空白错误
 无 tomllib，使用标准库读取清单并核实路径，未声称 TOML 解析成功。
 未运行 Cargo、单元及实机测试，统一验收待授权：新包及调用者编译、迁移
 定向测试、三平台条件、OAuth/绑定拒绝语义、锁文件一致性。
+
+
+## 任务 19 静态迁移结果
+
+`app-auth-agy` 接收所有权表任务 19 的八个文件（agy_account、其 logout、
+agy_login、agy_refresh 及四个独立测试文件），原 auth 模块按原 cfg 重导出。
+原 lib.rs 已公开 auth，故无需额外导出。AGY 账户与原生槽位能力不依赖门面；
+open_beneath 直接来自 app-config-paths，回调、时钟、有界响应、令牌检查和
+KeychainEntry 直接来自 app-auth-core，原错误、授权和锁语义保持。
+共享 LogoutSelection 数据类型移至 app-auth-core::logout，旧 logout 路径
+重导出同一类型，跨适配器注销编排继续归任务 22。
+
+accounts_tests 的 AGY 默认切换断言与移除场景、logout_tests 的 AGY 注销/
+刷新竞争场景随所有者迁移，保留所有断言。共享的小型 HTTP 测试夹具在新包
+测试私有模块中局部复用，不公开生产测试接口，不复制业务实现或新增行为测试。
+原测试 cfg 保持 macOS；嵌套 provider binding 测试路径保持相邻，刷新子进程
+精确过滤路径更新为新测试模块名。无 include/静态资源迁移或遗漏符号。
+仅真实用量调用者需要的 query_access_token、lock_native_usage 从 crate 私有
+提升公开；其余账户内部和测试访问保持新包私有，不批量公开。
+
+直接依赖按非 wasm/macOS 分区；serde_json 保留 arbitrary_precision，reqwest
+保留 form/rustls，tokio 按运行时和测试需求分配特性。原包依赖仍有其它调用者，
+保留。静态证据：八文件移动及函数体/测试断言对照、重导出/调用者检索、依赖
+路径和 cfg 审阅、10 个本地清单递归核对无门面回依赖、git diff --check；
+迁移前后 72 个 assert!、188 个 assert_eq!、1 个 assert_ne! 均保留。
+系统 Python 无 tomllib，使用标准库读取清单及路径核对，未执行 TOML 解析。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、
+迁移定向测试（含子进程过滤）、macOS/Windows/Linux 条件及锁文件一致性。

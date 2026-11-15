@@ -1,0 +1,27 @@
+[package]
+name = "app-auth-agy"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+app-auth-core = { path = "../app-auth-core" }
+vw-api-app-auth = { path = "../api-app-auth" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-config-paths = { path = "../app-config-paths" }
+vw-api-transport = { path = "../api-transport" }
+base64 = "0.23"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+reqwest = { version = "0.13", default-features = false, features = ["form", "rustls"] }
+security-framework = "3.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+sha2 = "0.11"
+tokio = { version = "1", features = ["rt", "sync"] }
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "io-util", "net", "process", "time"] }
+uuid = { version = "1.11", features = ["v4"] }

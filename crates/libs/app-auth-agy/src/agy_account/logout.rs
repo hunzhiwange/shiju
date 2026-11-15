@@ -3,7 +3,7 @@ use super::{
     macos::{managed_record, read_keychain, same_grant},
     native_home, running, save_managed, validate_account_id,
 };
-use crate::auth::{
+use crate::{
     agy_login::{KEYCHAIN_ITEM_NOT_FOUND, MANAGED_SERVICE, account_id_for},
     flow::{AuthAccountScope, AuthFlows},
     logout::LogoutSelection,
@@ -25,7 +25,7 @@ pub fn logout_accounts(
     logout_accounts_in(flows, scope, selection, native, &entry)
 }
 
-pub(in crate::auth) fn logout_accounts_in(
+pub(crate) fn logout_accounts_in(
     flows: &AuthFlows,
     scope: AuthAccountScope<'_>,
     selection: LogoutSelection<'_>,
@@ -126,7 +126,7 @@ pub fn require_account(
     managed_record(&keychain, scope, id).map(|_| ())
 }
 
-pub(in crate::auth) fn read_accounts_in(
+pub(crate) fn read_accounts_in(
     scope: AuthAccountScope<'_>,
     native: AgyNativeTarget<'_>,
     entry: &KeychainEntry<'_>,

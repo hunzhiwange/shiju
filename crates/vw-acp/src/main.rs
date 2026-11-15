@@ -1,4 +1,4 @@
-//! ACP 二进制运行时入口。
+//! ACP 二进制启动壳：设置 Tokio 环境，传递原包元数据并调用 acp-cli-app。
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

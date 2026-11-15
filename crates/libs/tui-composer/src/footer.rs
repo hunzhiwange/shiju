@@ -11,9 +11,9 @@
 //! The footer receives a read-only [`V3FooterData`] snapshot.  It does not query a model,
 //! permission store, directory state, context tracker, Gateway, or runtime handle.
 
-use crate::key_hint;
-use crate::render::renderable::Renderable;
-use crate::vibe::action::V3FooterData;
+use tui_input::key_hint;
+use tui_render::renderable::Renderable;
+use tui_contracts::action::V3FooterData;
 use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -25,7 +25,7 @@ use unicode_width::UnicodeWidthStr;
 const INDENT: &str = "  ";
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) enum FooterMode {
+pub enum FooterMode {
     #[default]
     ComposerEmpty,
     ComposerHasDraft,
@@ -34,11 +34,11 @@ pub(crate) enum FooterMode {
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct FooterProps {
-    pub(crate) mode: FooterMode,
-    pub(crate) data: V3FooterData,
-    pub(crate) queued_count: usize,
-    pub(crate) attachment_count: usize,
+pub struct FooterProps {
+    pub mode: FooterMode,
+    pub data: V3FooterData,
+    pub queued_count: usize,
+    pub attachment_count: usize,
 }
 
 fn compact_tokens(tokens: u64) -> String {
@@ -140,7 +140,7 @@ fn fallback_line(props: &FooterProps, width: u16) -> Line<'static> {
     Line::from("Enter send")
 }
 
-pub(crate) fn footer_height(props: &FooterProps, width: u16) -> u16 {
+pub fn footer_height(props: &FooterProps, width: u16) -> u16 {
     if width < 12 {
         0
     } else if matches!(props.mode, FooterMode::ShortcutOverlay) {
@@ -150,7 +150,7 @@ pub(crate) fn footer_height(props: &FooterProps, width: u16) -> u16 {
     }
 }
 
-pub(crate) fn render_footer(props: &FooterProps, area: Rect, buf: &mut Buffer) {
+pub fn render_footer(props: &FooterProps, area: Rect, buf: &mut Buffer) {
     if area.is_empty() || footer_height(props, area.width) == 0 {
         return;
     }
@@ -171,7 +171,8 @@ pub(crate) fn render_footer(props: &FooterProps, area: Rect, buf: &mut Buffer) {
     }
 }
 
-pub(crate) fn footer_line(props: &FooterProps, width: u16) -> Line<'static> {
+#[cfg(test)]
+fn footer_line(props: &FooterProps, width: u16) -> Line<'static> {
     fallback_line(props, width)
 }
 
@@ -186,28 +187,5 @@ impl Renderable for FooterProps {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // 验证 `footer_collapses_for_narrow_widths` 场景的触发条件与预期结果。
-    #[test]
-    fn footer_collapses_for_narrow_widths() {
-        let props = FooterProps {
-            mode: FooterMode::ComposerHasDraft,
-            data: V3FooterData {
-                model: Some("model".into()),
-                permission: Some("workspace".into()),
-                directory: Some("/tmp/project".into()),
-                context_window_percent: Some(42),
-                context_window_used_tokens: Some(12_345),
-                is_task_running: true,
-            },
-            queued_count: 2,
-            attachment_count: 1,
-        };
-        assert!(footer_line(&props, 40).width() <= 40);
-        assert!(footer_line(&props, 80).width() <= 80);
-        assert!(footer_line(&props, 120).width() <= 120);
-        assert_eq!(footer_height(&props, 10), 0);
-    }
-}
+#[path = "footer_tests.rs"]
+mod tests;

@@ -42,10 +42,7 @@ pub(crate) mod command_popup;
 mod file_search_integration_tests;
 #[path = "file_search_popup.rs"]
 pub(crate) mod file_search_popup;
-#[path = "footer.rs"]
-mod footer;
-#[path = "chat_composer/footer_state.rs"]
-mod footer_state;
+use tui_composer::{footer, footer_state};
 pub(crate) use tui_widgets::list_selection_view;
 #[path = "request_user_input/mod.rs"]
 pub(crate) mod request_user_input;

@@ -82,8 +82,11 @@ impl ChatComposer {
     pub(crate) fn replace_text(&mut self, text: &str) {
         self.textarea.set_text_clearing_elements(text);
         self.textarea.set_cursor(text.len());
-        self.footer.mode =
-            if text.is_empty() { FooterMode::ComposerEmpty } else { FooterMode::ComposerHasDraft };
+        self.footer.set_mode(if text.is_empty() {
+            FooterMode::ComposerEmpty
+        } else {
+            FooterMode::ComposerHasDraft
+        });
     }
 
     /// Returns the editable file-search query immediately before the cursor.
@@ -99,7 +102,7 @@ impl ChatComposer {
         };
         let normalized_path = path.replace('\\', "/");
         self.textarea.replace_range(range, &format!("@{normalized_path} "));
-        self.footer.mode = FooterMode::ComposerHasDraft;
+        self.footer.set_mode(FooterMode::ComposerHasDraft);
         true
     }
 
@@ -157,8 +160,8 @@ impl ChatComposer {
     pub(crate) fn clear(&mut self) {
         self.textarea.set_text_clearing_elements("");
         self.attachments.clear();
-        self.footer.mode = FooterMode::ComposerEmpty;
-        self.footer.shortcuts_visible = false;
+        self.footer.set_mode(FooterMode::ComposerEmpty);
+        self.footer.set_shortcuts_visible(false);
     }
 
     /// 本地处理粘贴。粘贴的内容没有业务影响。
@@ -166,7 +169,7 @@ impl ChatComposer {
     pub(crate) fn handle_paste(&mut self, pasted: String) -> V3Action {
         if !pasted.is_empty() {
             self.textarea.insert_str(&pasted);
-            self.footer.mode = FooterMode::ComposerHasDraft;
+            self.footer.set_mode(FooterMode::ComposerHasDraft);
         }
         V3Action::None
     }
@@ -182,7 +185,7 @@ impl ChatComposer {
         self.history.record_local_submission(HistoryEntry::new(text.clone()));
         let attachments = std::mem::take(&mut self.attachments);
         self.textarea.set_text_clearing_elements("");
-        self.footer.mode = FooterMode::ComposerEmpty;
+        self.footer.set_mode(FooterMode::ComposerEmpty);
         if queue {
             V3Action::Queue { text, attachments }
         } else {
@@ -237,7 +240,7 @@ impl ChatComposer {
                 .intersects(KeyModifiers::SHIFT | KeyModifiers::CONTROL | KeyModifiers::ALT)
             {
                 self.textarea.input(event);
-                self.footer.mode = FooterMode::ComposerHasDraft;
+                self.footer.set_mode(FooterMode::ComposerHasDraft);
                 return V3Action::InsertNewline;
             }
             return self.submit_or_queue(false);
@@ -249,30 +252,30 @@ impl ChatComposer {
             && self.textarea.cursor() == 0
             && self.restore_history_previous()
         {
-            self.footer.mode = FooterMode::ComposerHasDraft;
+            self.footer.set_mode(FooterMode::ComposerHasDraft);
             return V3Action::HistoryPrevious;
         }
         if event.code == KeyCode::Down
             && self.textarea.cursor() == self.textarea.text().len()
             && self.restore_history_next()
         {
-            self.footer.mode = if self.is_empty() {
+            self.footer.set_mode(if self.is_empty() {
                 FooterMode::ComposerEmpty
             } else {
                 FooterMode::ComposerHasDraft
-            };
+            });
             return V3Action::HistoryNext;
         }
         if event.code == KeyCode::Char('?')
             && !event.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
             && self.is_empty()
         {
-            self.footer.shortcuts_visible = !self.footer.shortcuts_visible;
-            self.footer.mode = if self.footer.shortcuts_visible {
+            self.footer.set_shortcuts_visible(!self.footer.shortcuts_visible());
+            self.footer.set_mode(if self.footer.shortcuts_visible() {
                 FooterMode::ShortcutOverlay
             } else {
                 FooterMode::ComposerEmpty
-            };
+            });
             return V3Action::ToggleShortcuts;
         }
         if event.code == KeyCode::Char('g') && event.modifiers.contains(KeyModifiers::CONTROL) {
@@ -284,9 +287,9 @@ impl ChatComposer {
 
         self.textarea.input(event);
         if !self.is_empty() {
-            self.footer.mode = FooterMode::ComposerHasDraft;
-        } else if !self.footer.shortcuts_visible {
-            self.footer.mode = FooterMode::ComposerEmpty;
+            self.footer.set_mode(FooterMode::ComposerHasDraft);
+        } else if !self.footer.shortcuts_visible() {
+            self.footer.set_mode(FooterMode::ComposerEmpty);
         }
         V3Action::None
     }
@@ -296,7 +299,7 @@ impl ChatComposer {
             mode: if self.footer_data.is_task_running && self.is_empty() {
                 FooterMode::Working
             } else {
-                self.footer.mode
+                self.footer.mode()
             },
             data: self.footer_data.clone(),
             queued_count: self.queued_count,

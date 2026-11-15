@@ -14,7 +14,7 @@ pub(super) use super::components;
 pub(super) use super::config;
 pub(super) use super::models;
 pub(super) use super::state;
-pub(super) use super::state::{ConventionalCommitType, ExternalOpenApp};
+pub(super) use super::state::ConventionalCommitType;
 pub(super) use super::{
     App, AppTab, CookieConfig, DiffTheme, FocusArea, Message, RecentProjectMeta, Screen,
     SettingsTab, Shell, TerminalState, TerminalTheme, load_recent_projects,

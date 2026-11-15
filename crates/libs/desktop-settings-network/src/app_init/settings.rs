@@ -206,3 +206,33 @@ pub fn build_tunnel_settings(
         save_error: None,
     }
 }
+
+/// 构造本机网关连接编辑状态，保留旧凭据回退规则。
+pub fn build_gateway_client_settings(
+    gateway_client_cfg: &config_ui::GatewayClientSystemSettingsConfig,
+) -> crate::state::GatewayClientSettingsState {
+    crate::state::GatewayClientSettingsState {
+        selected_server_id: gateway_client_cfg.active_server().id.clone(),
+        name_input: gateway_client_cfg.active_server().name.clone(),
+        servers: gateway_client_cfg
+            .normalized_servers()
+            .iter()
+            .map(crate::state::GatewayClientServerDraft::from_config)
+            .collect(),
+        health: std::collections::HashMap::new(),
+        host_input: {
+            let value = gateway_client_cfg.active_server().host.trim().to_string();
+            if value.is_empty() { "127.0.0.1".to_string() } else { value }
+        },
+        port: gateway_client_cfg.active_server().port.clamp(1, u16::MAX),
+        platform_id_input: gateway_client_cfg.active_server().platform_id.clone(),
+        company_id_input: gateway_client_cfg.active_server().company_id.clone(),
+        skey_input: {
+            let active = gateway_client_cfg.active_server();
+            if active.skey.trim().is_empty() { active.bearer_token } else { active.skey }
+        },
+        pending_remove_server_id: None,
+        show_help_modal: false,
+        save_error: None,
+    }
+}

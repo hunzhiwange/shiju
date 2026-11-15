@@ -40,3 +40,5 @@ mod extended_channels_tests;
 pub mod update;
 
 pub mod save_feedback;
+
+pub mod app_init;

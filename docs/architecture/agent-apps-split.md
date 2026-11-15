@@ -1937,3 +1937,153 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 `pub(in crate::auth)` 集中在 credential_file/host、agy_account、kimi_account 等认证子模块，随内聚模块迁移后重定向到新包内祖先模块，不得全部公开。解析器的私有 blocks、JSONL、tree 与 messages 同包迁移。跨包真实使用的 Lease、LoginHost、JWT 解析和 StackState 仅对实际消费者开放；测试访问优先保持同包独立文件。
 
 `super::universal_sync::projected_endpoint` 所在文件还含 update 分发；任务 4 只接收纯端点规则，任务 11 保留同步编排。`mode_apply::{observe_claude_route,ModeApplyError,ClientEndpoint}` 接收任务 29，依赖任务 12 的事务及任务 24 的 ClaudeFile；不能随写入叶子下沉整个模式服务。
+
+## 系统任务 28 补充审计（2026-11-15）
+
+本次仅补齐实施计划，不表示应用代码拆分完成。原逐文件表为任务 1 历史基线；当前归属以本节覆盖，未覆盖行继续沿用原表。原 plan.md 保持只读；唯一入口仍为 `.plans/2026-11-14-应用底层全面拆分/prompt.md`。
+
+RustCodeGraph status 有索引；explore 超时取消，无结果，不依赖旧索引作结论。已通过 rg 枚举包文件、全部模块声明、crate 引用和 include 资源，按当前工作树复核。工作区有大量其它会话变更，本次不提交或覆盖它们。
+
+### 完成证据与现有契约
+
+任务 1—9 卡已删除：1=489091f28、2=e76d80a70、3=15a0e4a4f、4=98bc27aaa、5=81168c6de、6=cd64526aa、7=833b86ef6、8=2c9adf1cf、9=fa17fb142。对应架构清单及 app-icons/config-paths/provider-validation/config-patch/catalog/availability-core/routing-policy/model-catalog 产物存在，原 Cargo.toml 已直接引用。不得重建这些任务。已核实导出：paths 全量 re-export；patch_{dotenv,json,json5,toml,yaml}；catalog/acp_projection/preferences/wsl；circuit_breaker/health/retry；routing::supports_app；models::validate/codex_projection。任务 10—74 的新目标均为计划依赖，非已存在接口。
+
+### 本次具体缺口与唯一归属覆盖
+
+| 来源 | 唯一接收任务 | 原因 |
+| --- | --- | --- |
+| workspace_paths.rs、workspace_paths_tests.rs | 73 app-workspace-paths | 安全描述符 IO 边界应早于记忆业务；需要 3 的 paths 与 12 的目录锁 |
+| openclaw_catalog.rs、openclaw_catalog_tests.rs | 74 app-openclaw-config-rules | 无 IO 的 JSON5 投影，复用 5 与 12，不需原生适配 |
+| openclaw_defaults.rs | 74 纯类型/解析/prepare/form；38 set_agents_defaults | 纯规则与事务发布拆符号，不按品牌整体搬包 |
+| openclaw_defaults_tests.rs | 74 | 三个现有测试均测试纯规则 |
+| models/preset_omp_tests.rs | 25 | 9 保留的环境集成断言 |
+| models/codex_template_tests.rs | 24 | 9 保留的 prepare_provider 集成断言 |
+| models/preset_catalog_tests.rs | 11 | 9 保留的 native_projection 集成断言 |
+
+任务 37/38、13 与 prompt 已同步，执行顺序 10→11→12→73→74→13…72。plan.md 的数字顺序由此具体补充覆盖。共享 workspace/Cargo 清单及架构文档必须串行写。
+
+当前 src 共 788 文件，按原表加上述覆盖归属，遗漏 0。所有超过 500 行文件继续按该任务的内聚子模块边界拆分，不以文件大小创建库；根模块/跨域文件的符号切口见“具体拆边与延后接收”。非源码根文件包括 Cargo.toml（72 清单）、LICENSE 与来源/隔离验收说明、来源文件.json、包外引用.json（72 保留发布溯源），无 build.rs、无显式 features 段或自定义 lib/bin 入口；lib.rs 为真实入口，upstream 不在模块树中。
+
+### 候选包的实际外依赖线索与直接消费者
+
+源路径及职责沿用上表，目标均为 crates/libs/<目标名>。下表从当前源路径限定匹配直接引用；这是依赖审计证据，不是可复制的 Cargo 清单。保留原 target cfg/features，执行时读取限定符别名和 super 引用闭合实际导出。外部 crate 仅列当前清单中有源码命中的项。
+
+| 任务 | 外依赖源码命中 | 门面内直接消费者（领域） |
+| --- | --- | --- |
+| 4 | serde_json, vw-api-app-identity, vw-api-app-provider-base, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, routing, sessions, skills, usage, workspace_paths |
+| 8 | app-model-catalog, app-routing-policy, serde_json, vw-api-app-identity | aggregation |
+| 10 | reqwest, serde_json, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, routing, sessions, skills, usage, workspace_paths |
+| 11 | app-provider-validation, reqwest, serde_json, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, providers, routing, sessions, skills, usage, workspace_paths |
+| 12 | app-config-patch, serde, serde_json, vw-api-app-auth, vw-api-app-identity, vw-api-transport, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, routing, sessions, skills, usage, workspace_paths |
+| 13 | reqwest, serde, serde_json, tokio, uuid, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 14 | chrono, reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 15 | reqwest, serde_json, tokio, uuid, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 16 | reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-transport | apps, providers, usage |
+| 17 | reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-transport | apps, providers, usage |
+| 18 | reqwest, serde_json, tokio, uuid, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 19 | chrono, reqwest, serde, serde_json, tokio, uuid, vw-api-app-auth, vw-api-transport | apps, providers, usage |
+| 20 | reqwest, serde, serde_json, tokio, uuid, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 21 | reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 22 | reqwest, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-transport | apps, providers, usage |
+| 23 | serde, serde_json, vw-api-app-identity, vw-api-transport | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, routing, sessions, skills, usage, workspace_paths |
+| 24 | reqwest, serde_json, vw-api-app-auth, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, providers, routing, sessions, skills, usage, workspace_paths |
+| 25 | serde, serde_json, vw-api-app-identity, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, providers, routing, sessions, skills, usage, workspace_paths |
+| 26 | app-model-catalog, model-reasoning, provider-model-cache, provider-model-catalog, provider-model-discovery, reqwest, serde, serde_json, tokio, vw-api-app-identity, vw-api-app-provider-base, vw-api-model-catalog, vw-api-transport, vw-api-types | aggregation, providers, usage |
+| 27 | serde, serde_json, vw-api-app-auth, vw-api-app-identity, vw-api-chat-identity, vw-api-model-catalog, vw-api-transport, vw-api-types | providers, routing, sessions |
+| 28 | serde, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-chat-identity, vw-api-model-catalog, vw-api-transport, vw-api-types | providers, routing, sessions |
+| 29 | app-provider-validation, reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-app-provider-base, vw-api-model-catalog, vw-api-task, vw-api-transport, vw-api-types | aggregation, apps, auth, data_management, device_sync, diagnostics, hermes_memory_limits, high_availability, mcp, models, openclaw_catalog, openclaw_catalog_tests, openclaw_defaults, openclaw_defaults_tests, openclaw_health, openclaw_model, openclaw_tools, openclaw_tools_tests, project_profiles, prompts, routing, sessions, skills, usage, workspace_paths |
+| 30 | app-availability-core, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport, vw-api-types | 同域 super/self 或门面导出 |
+| 31 | reqwest, serde_json, tokio, vw-api-app-identity, vw-api-types | auth, data_management, models, prompts, providers, sessions, skills, usage |
+| 32 | app-catalog, vw-api-app-identity, vw-api-types | auth, data_management, models, prompts, providers, sessions, skills, usage |
+| 33 | reqwest, serde_json, tokio, vw-api-app-identity, vw-api-task, vw-api-types | auth, data_management, models, prompts, providers, sessions, skills, usage |
+| 34 | serde_json, tokio, vw-api-app-identity, vw-api-types | auth, data_management, models, prompts, providers, sessions, skills, usage |
+| 35 | serde_json, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport, vw-api-types | auth, data_management, models, prompts, providers, sessions, skills, usage |
+| 36 | app-catalog | auth, data_management, models, prompts, providers, sessions, skills, usage |
+| 37 | reqwest, tokio, vw-api-transport, vw-api-types | 同域 super/self 或门面导出 |
+| 38 | serde, serde_json, vw-api-transport | 同域 super/self 或门面导出 |
+| 39 | reqwest, serde_json, vw-api-types | data_management |
+| 40 | serde, serde_json, vw-api-app-auth, vw-api-app-identity, vw-api-transport, vw-api-types | data_management |
+| 41 | serde, serde_json, uuid, vw-api-app-identity, vw-api-transport, vw-api-types | data_management |
+| 42 | reqwest, serde, serde_json, tokio, uuid, vw-api-app-identity, vw-api-transport, vw-api-types, zip | data_management, device_sync |
+| 43 | reqwest, serde, serde_json, tokio, vw-api-app-identity, vw-api-transport, vw-api-types, zip | data_management, device_sync |
+| 44 | serde_json, vw-api-transport, vw-api-types | usage |
+| 45 | chrono, rusqlite, serde, serde_json, uuid, vw-api-types | usage |
+| 46 | chrono, serde, serde_json, vw-api-types | usage |
+| 47 | serde_json, vw-api-types | usage |
+| 48 | chrono, serde, serde_json, vw-api-types | usage |
+| 49 | chrono, rusqlite, serde_json, vw-api-types | usage |
+| 50 | chrono, reqwest, rusqlite, serde, serde_json, vw-api-types | usage |
+| 51 | vw-api-types | usage |
+| 52 | rusqlite, serde, serde_json, vw-api-app-identity, vw-api-transport, vw-api-types | usage |
+| 53 | reqwest, rusqlite, serde, serde_json, vw-api-transport, vw-api-types | usage |
+| 54 | rusqlite, serde_json, tokio, uuid, vw-api-app-identity, vw-api-transport, vw-api-types | usage |
+| 55 | chrono, reqwest, rusqlite, rust_decimal, serde, serde_json, vw-api-app-auth, vw-api-app-identity, vw-api-transport, vw-api-types | data_management |
+| 56 | chrono, rusqlite, rust_decimal, serde, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-transport, vw-api-types | data_management |
+| 57 | provider-model-discovery, reqwest, serde, serde_json, tokio, vw-api-types | data_management |
+| 58 | chrono, provider-model-discovery, reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-transport, vw-api-types | data_management |
+| 59 | chrono, reqwest, serde, serde_json, tokio, vw-api-app-auth, vw-api-app-identity, vw-api-transport, vw-api-types | data_management |
+| 60 | reqwest, rquickjs, serde, serde_json, tokio, vw-api-types | data_management |
+| 61 | chrono, rusqlite, serde_json, uuid, vw-api-transport, vw-api-types | data_management |
+| 62 | chrono, rusqlite, rust_decimal, serde, serde_json, uuid, vw-api-transport, vw-api-types | data_management |
+| 63 | chrono, provider-model-cache, provider-model-catalog, rusqlite, serde, serde_json, tokio, uuid, vw-api-transport, vw-api-types | data_management |
+| 64 | chrono, reqwest, serde, serde_json, zip | 同域 super/self 或门面导出 |
+| 65 | chrono, reqwest, tokio | 同域 super/self 或门面导出 |
+| 66 | reqwest, rusqlite, serde, serde_json, uuid, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport | 同域 super/self 或门面导出 |
+| 67 | rusqlite, serde, serde_json, uuid, vw-api-transport, vw-api-types, zip | 同域 super/self 或门面导出 |
+| 68 | rusqlite, rust_decimal, serde, serde_json, uuid, vw-api-app-identity, vw-api-app-provider-base, vw-api-transport, vw-api-types | 同域 super/self 或门面导出 |
+| 69 | rusqlite, serde_json, vw-api-task, vw-api-transport, vw-api-types | 同域 super/self 或门面导出 |
+| 70 | uuid, vw-api-transport, vw-api-types | 同域 super/self 或门面导出 |
+| 71 | serde_json, vw-api-app-identity, vw-api-types | 同域 super/self 或门面导出 |
+| 72 | std / 同包规则；以实现时签名核实 | 同域 super/self 或门面导出 |
+| 73 | vw-api-app-identity | daily_memory_files, daily_memory_list, hermes_memory, hermes_memory_tests, workspace_files |
+| 74 | serde, serde_json | 同域 super/self 或门面导出 |
+
+### 依赖方向、排序和共享状态
+
+箭头为消费者→依赖。显式 crate 路径的领域图如下（含测试，保守上界；super/self 的同域边及符号环切口继续见前表，不将此图误作最终 Cargo 图）。
+
+```text
+aggregation → models, providers, routing
+apps → auth, providers
+auth → apps, providers
+daily_memory_files → workspace_paths
+daily_memory_list → workspace_paths
+data_management → apps, mcp, prompts, providers, skills, usage
+device_sync → providers, skills
+diagnostics → providers
+hermes_memory → workspace_paths
+hermes_memory_limits → providers
+hermes_memory_tests → workspace_paths
+high_availability → providers
+mcp → providers
+models → apps, providers
+openclaw_catalog → providers
+openclaw_catalog_tests → providers
+openclaw_defaults → providers
+openclaw_defaults_tests → providers
+openclaw_health → providers
+openclaw_model → providers
+openclaw_tools → providers
+openclaw_tools_tests → providers
+project_profiles → providers
+prompts → apps, providers
+providers → aggregation, apps, auth, icons, models
+routing → aggregation, providers
+sessions → aggregation, apps, providers
+skills → apps, providers
+usage → apps, auth, models, providers, sessions
+workspace_files → workspace_paths
+workspace_paths → providers
+```
+
+按依赖深度先规则（2—9 已实施），再状态/投影（10—12），再安全 IO/纯 OpenClaw 规则（73/74），再认证协议/原生适配，最后事务发布和扫描编排。无领域运行时依赖的 JSON/类型规则优先；同层按上述实际外依赖集合数量审查后推进，不按行数排序。provider/auth、apps discovery/lifecycle/uninstall、aggregation/provider 均有环：前表逐符号切口是强制前置，不能把目录图直接搬成 crate 图。73/74 深度为 paths/patch→write_guard→规则与安全 IO，38 的发布还依赖 24 原生实现。
+
+共享可变状态：providers/live/write_guard.rs 的 OnceLock<(Mutex<HashSet<LockKey>>,Condvar)> 必须仅留任务 12；73、38 与所有原生写入复用同一锁表。auth/kimi.rs 的异步 StartSlot 与 grant 锁随 18 内聚迁移，跨账户编排由 22 接收。claude_login_files.rs 的 AtomicU64 临时名和 AtomicBool 停止信号随 15 内聚，不能拆出第二份状态。高可用 circuit_breaker/health 已同属 7，30 依赖同一实例；设备传输配置/快照由 64 契约→65 传输，数据恢复由 66 格式→67/68→69，不能反依赖编排。
+
+### 后续验收与保留原因
+
+37 保留记忆与 dashboard 业务，38 保留 OpenClaw 发布及 model/env/tools/health，原门面只保留 cfg 和兼容导出（现有调用路径）；不允许以门面继续拉入全部依赖而声称消费者隔离完成，72 逐调用方改用职责库。每领域现有卡末节的目标编译、原单测与平台行为仍未验证。重点包括安装/卸载权限、认证过期与轮换、路由载荷、会话格式和迁移、MCP/技能原生落盘、账本幂等、设备归档验签与传输、HA 状态共享、恢复回滚；本轮均不执行。
+
+静态完成条件：全部当前源文件有归属，新增两卡与既有 10—72 入口存在，已删除 1—9 有提交与产物；既有资源表涵盖 presets/fixture/include，迁移时按实际相对路径复核，不复制资源。没有修改业务源码、Cargo.toml、Cargo.lock 或 plan.md。
+
+同深度的外依赖数量排序证据（源码命中数，不能替代 Cargo 图）：72=0；36=1；51=1；73=1；47=2；74=2；32=3；38=3；39=3；44=3；65=3；70=3；71=3；4=4；8=4；23=4；25=4；34=4；37=4；46=4；48=4；49=4；30=5；31=5；35=5；64=5；69=5；10=6；16=6；17=6；22=6；33=6；40=6；41=6；45=6；50=6；52=6；53=6；57=6；60=6；61=6；11=7；12=7；15=7；18=7；21=7；24=7；54=7；67=7；13=8；14=8；19=8；20=8；27=8；43=8；62=8；66=8；28=9；42=9；58=9；59=9；68=9；55=10；56=10；63=10；29=12；26=14。依赖方向优先于该次序，串行入口以 prompt 为准。

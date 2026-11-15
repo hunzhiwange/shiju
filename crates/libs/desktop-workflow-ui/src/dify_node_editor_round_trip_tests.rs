@@ -1,7 +1,9 @@
 //! Dify 全节点编辑、导出、重载与实际暗色渲染回归。
 
-use super::{model, state::WorkflowState, view};
-use crate::app::Message;
+use crate::{message::WorkflowMessage, view};
+use desktop_workflow_model as model;
+use desktop_workflow_state::state::{WorkflowNodeEditorTab, WorkflowNodeVisualDraft, WorkflowState};
+type Message = Option<WorkflowMessage>;
 use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
 use iced::{Color, Element, Font, Pixels, Size, Theme, mouse};
 use serde_yaml::{Mapping, Value};
@@ -203,6 +205,32 @@ fn data_unknown_is_preserved(state: &WorkflowState) {
     }
 }
 
+// Compose the same domain panels as the desktop adapter using local messages.
+fn workflow_view(i18n: desktop_i18n::I18n, state: &WorkflowState) -> Element<'_, Message> {
+    // This fixture exercises the quick-insert menu and node editor, not the app form.
+    assert!(state.app_editor.is_none());
+    let node_editor = state.node_editor.as_ref()
+        .filter(|_| state.active_app_id.is_some())
+        .map(|editor| {
+            let visual = if editor.active_tab == WorkflowNodeEditorTab::Visual {
+                match editor.visual_draft.as_ref() {
+                    Some(WorkflowNodeVisualDraft::Start { variables }) => Some(
+                        view::start_panel::build_start_visual_section(
+                            i18n, state, variables, &editor.validation,
+                        ),
+                    ),
+                    _ => view::node_visual::build_node_visual_section(i18n, editor),
+                }
+            } else {
+                None
+            };
+            view::node_editor::build_node_editor_modal(
+                i18n, state, visual.map(|element| element.map(Some)), Some,
+            )
+        });
+    view::view(i18n, state, None, node_editor, Some, None)
+}
+
 async fn assert_dark_element_draws(mut element: Element<'_, Message>) {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
@@ -296,7 +324,7 @@ async fn dify_node_editor_full_round_trip_and_render() {
         config_ui::DesktopLocale::TraditionalChinese,
         config_ui::DesktopLocale::English,
     ] {
-        assert_dark_element_draws(view::view(crate::app::i18n::I18n::new(locale), &state)).await;
+        assert_dark_element_draws(workflow_view(desktop_i18n::I18n::new(locale), &state)).await;
     }
     state.quick_insert_panel_open = false;
     state
@@ -308,6 +336,6 @@ async fn dify_node_editor_full_round_trip_and_render() {
         config_ui::DesktopLocale::TraditionalChinese,
         config_ui::DesktopLocale::English,
     ] {
-        assert_dark_element_draws(view::view(crate::app::i18n::I18n::new(locale), &state)).await;
+        assert_dark_element_draws(workflow_view(desktop_i18n::I18n::new(locale), &state)).await;
     }
 }

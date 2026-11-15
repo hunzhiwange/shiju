@@ -2,6 +2,8 @@
 
 mod events;
 pub mod llm_raw;
+mod gateway_session;
+pub use gateway_session::{CompactionStats, CompactionOutcome, Info as SessionStatus};
 mod prompt;
 pub mod ui_types;
 

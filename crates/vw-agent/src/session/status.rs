@@ -26,7 +26,7 @@
 
 use crate::app::agent::bus;
 use crate::app::agent::project::instance;
-use serde::{Deserialize, Serialize};
+// Status serialization derives live with the shared contract.
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -61,31 +61,7 @@ pub mod event {
 /// - `Idle` - 会话处于空闲状态，没有正在执行的任务
 /// - `Retry` - 会话正在重试某个操作，包含重试次数、错误信息和下次重试时间
 /// - `Busy` - 会话正在处理任务，当前忙碌
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum Info {
-    /// 空闲状态，会话当前无任务执行
-    Idle,
-
-    /// 重试状态，会话正在重试某个失败的操作
-    ///
-    /// # 字段说明
-    ///
-    /// - `attempt` - 当前重试次数（从1开始）
-    /// - `message` - 导致重试的错误信息或描述
-    /// - `next` - 下次重试的 Unix 时间戳（秒）
-    Retry {
-        /// 当前重试次数
-        attempt: u64,
-        /// 错误描述信息
-        message: String,
-        /// 下次重试的 Unix 时间戳（秒）
-        next: u64,
-    },
-
-    /// 忙碌状态，会话正在处理任务
-    Busy,
-}
+pub use session_port::SessionStatus as Info;
 
 /// 全局会话状态存储
 ///

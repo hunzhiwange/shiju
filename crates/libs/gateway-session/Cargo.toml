@@ -22,6 +22,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+snapshot-types = { path = "../snapshot-types", version = "0.6.0" }
+permission-types = { path = "../permission-types", version = "0.6.0" }
+storage-types = { path = "../storage-types", version = "0.6.0" }
+worktree-core = { path = "../worktree-core", version = "0.6.0" }
+tokio = { version = "1", features = ["rt", "sync"] }
+tracing = "0.1"
+config-agent = { path = "../config-agent", version = "0.6.0" }
 gateway-types = { path = "../gateway-types", version = "0.6.0" }
 gateway-instance = { path = "../gateway-instance", version = "0.6.0" }
 session-engine = { path = "../session-engine", version = "0.6.0" }

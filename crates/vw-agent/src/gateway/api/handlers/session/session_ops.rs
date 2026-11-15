@@ -1,423 +1,132 @@
-//! 会话生命周期、分支、重置和元数据 API。
-//!
-//! 本模块实现桌面网关的会话列表、状态、创建、更新、删除、fork、reset、diff、
-//! summarize 和标题生成入口。涉及项目目录的操作都会进入实例上下文，跨实例查询则
-//! 只在未显式指定目录的兼容路径上使用。
-
-use std::collections::HashMap;
-
-use axum::Json;
-use axum::extract::Path;
-use axum::extract::Query;
-use axum::extract::State;
-use axum::http::HeaderMap;
-use vw_api_session::session::{
-    GatewaySessionDiffQuery, GatewaySessionForkBody, GatewaySessionForkTarget,
-    GatewaySessionPatchBody, GatewaySessionResetBody, GatewaySessionSummarizeBody,
-    GatewaySessionTitleGenerateBody, GatewaySessionTitleGenerateResponse,
-    GatewaySessionTodoPutBody,
-};
-
-use super::shared::{
-    UiSessionCreateBody, UiSessionListQuery, has_explicit_directory, lifecycle_api_error,
-    session_api_error, with_tenant_instance,
-};
-use crate::app::agent::gateway::ApiError;
-use crate::app::agent::gateway::AppState;
-use crate::app::agent::gateway::chat::{
-    fork_session_query_engine, invalidate_session_query_engine,
-};
-use crate::app::agent::gateway::instance::InstanceQuery;
-use crate::app::agent::gateway::instance::resolve_directory;
-use crate::app::agent::project::{self, instance};
-use crate::app::agent::session as agent_session;
-use crate::app::agent::snapshot;
-use crate::session::runtime::{CreateSessionInput, SessionScope, create_session, load_session};
-use crate::session::ui_store;
-
-fn task_session_summary_needs_refresh(session: &agent_session::session::Info) -> bool {
-    if !session.id.starts_with("task-board-") {
-        return false;
-    }
-
-    session.summary.as_ref().is_none_or(|summary| {
-        summary.files == 0 && summary.additions == 0 && summary.deletions == 0
-    })
+//! Raw session service assembly and typed HTTP forwarding.
+use session_info::Info;
+use session_port::{CreateSessionInput, SessionScope, SessionSnapshot, LifecycleError};
+use vw_api_transport::TenantScope;
+use std::{future::Future, collections::HashMap};
+use axum::{Json, extract::{Path, Query, State}, http::HeaderMap};
+use crate::gateway::{ApiError, AppState, instance::InstanceQuery};
+use super::message_ops::Host;
+use super::shared::{UiSessionCreateBody, UiSessionListQuery};
+use vw_api_session::session::*;
+use crate::session as agent_session;
+use crate::snapshot;
+pub(super) struct PreparedFork(crate::session::session::TurnFork);
+impl gateway_session::session_host::PreparedTurnFork for PreparedFork {
+    fn source_directory(&self) -> &str { self.0.source_directory() }
+    async fn persist(self) -> Result<Info, session_info::Error> { self.0.persist().await }
 }
-
-async fn refresh_task_session_summaries(sessions: &mut [agent_session::session::Info]) {
-    for session in sessions.iter_mut().filter(|session| task_session_summary_needs_refresh(session))
-    {
-        if let Ok(summary) = agent_session::summary::refresh_session_diff_summary(&session.id).await
-            && (summary.files > 0 || session.summary.is_none())
-        {
-            session.summary = Some(summary);
-        }
-    }
+impl gateway_session::session_host::SessionHost for Host {
+    type State = AppState;
+    type Fork = PreparedFork;
+    async fn with_tenant_scope<T: Send>(tenant: TenantScope, future: impl Future<Output = T> + Send) -> T { crate::session::ui_store::with_tenant_scope(tenant, future).await }
+    fn status_list() -> std::collections::HashMap<String, session_port::SessionStatus> { crate::session::status::list() }
+    fn is_successful_finish_reason(reason: Option<&str>) -> bool { crate::session::runtime::is_successful_finish_reason(reason) }
+    fn first_response_source(content: &str) -> String { crate::session::title::first_response_source(content) }
+    fn resolve_scope(tenant: &TenantScope, directory: Option<&str>, project: Option<&str>) -> Option<String> { crate::session::ui_store::resolve_session_scope_id_for_tenant(tenant, directory, project) }
+    fn has_committed_first_response(tenant: &TenantScope, project: &str, id: &str) -> anyhow::Result<bool> { crate::session::ui_store::has_committed_first_response(tenant, project, id) }
+    fn deletion_candidates(tenant: &TenantScope) -> anyhow::Result<Vec<Info>> { crate::session::ui_store::load_agent_deletion_candidates(tenant) }
+    fn ensure_ready(directory: &str) -> Result<(), String> { crate::worktree::environment::ensure_ready(directory).map_err(|error| error.to_string()) }
+    async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot, LifecycleError> { crate::session::runtime::create_session(input).await }
+    async fn reserve_session(input: CreateSessionInput) -> Result<SessionSnapshot, LifecycleError> { crate::session::runtime::reserve_session(input).await }
+    async fn load_session(scope: SessionScope, id: &str) -> Result<SessionSnapshot, LifecycleError> { crate::session::runtime::load_session(scope, id).await }
+    async fn get(id: &str) -> Result<Info, session_info::Error> { crate::session::session::get(id).await }
+    async fn get_any(id: &str) -> Result<Info, session_info::Error> { crate::session::session::get_any(id).await }
+    async fn children(id: &str) -> Result<Vec<Info>, session_info::Error> { crate::session::session::children(id).await }
+    async fn remove(id: &str) -> Result<(), session_info::Error> { crate::session::session::remove(id).await }
+    async fn remove_any(id: &str) -> Result<(), session_info::Error> { crate::session::session::remove_any(id).await }
+    async fn list_all() -> Result<Vec<Info>, session_info::Error> { crate::session::session::list_all().await }
+    async fn list_for_project(project: String) -> Result<Vec<Info>, session_info::Error> { crate::session::session::list_for_project(project).await }
+    async fn remove_archived_locked(info: Info) -> Result<(), session_info::Error> { crate::session::session::remove_archived_locked(info).await }
+    async fn update(id: &str, action: impl FnOnce(&mut Info) + Send) -> Result<Info, session_info::Error> { crate::session::session::update(id, action).await }
+    async fn update_any(id: &str, action: impl FnOnce(&mut Info) + Send) -> Result<Info, session_info::Error> { crate::session::session::update_any(id, action).await }
+    async fn fork(id: &str, message: Option<&str>) -> Result<Info, session_info::Error> { crate::session::session::fork(id, message).await }
+    async fn refresh_summary(id: &str) -> Result<session_info::Summary, String> { crate::session::summary::refresh_session_diff_summary(id).await.map_err(|error| error.to_string()) }
+    async fn todo_get(id: &str) -> Vec<vw_api_session::session::GatewaySessionTodoItem> { crate::session::todo::get(id).await }
+    async fn todo_update(session_id: String, todos: Vec<vw_api_session::session::GatewaySessionTodoItem>) -> Result<(), String> { crate::session::todo::update(crate::session::todo::UpdateInput { session_id, todos }).await.map_err(|error| error.to_string()) }
+    async fn cleanup_after_message(id: &str, message: &str) -> Result<(), String> { crate::session::revert::cleanup_after_message(id, message).await.map_err(|error| error.to_string()) }
+    async fn diff(session_id: String, message_id: Option<String>) -> Vec<snapshot_types::FileDiff> { crate::session::summary::diff(crate::session::summary::DiffInput { session_id, message_id }).await }
+    async fn process_session(id: &str, parent: &str, auto: bool) -> Result<session_port::CompactionOutcome, session_info::Error> { crate::session::compaction::process_session(id, parent, auto).await }
+    async fn generate_title(session_id: String, content: String, preferred_model: Option<String>, acp_agent: Option<String>) -> Result<String, String> { crate::session::title::generate_from_content(session_id, content, preferred_model, acp_agent).await }
+    async fn resolve_full_access(project: &str, id: &str, value: Option<bool>, inherited: bool) -> anyhow::Result<bool> { crate::session::agent_binding::resolve_full_access_scoped(project, id, value, inherited).await }
+    async fn invalidate_engine(state: &Self::State, id: &str) -> () { crate::gateway::chat::invalidate_session_query_engine(state, id).await }
+    async fn fork_engine(state: &Self::State, source: &str, target: &str) -> anyhow::Result<()> { crate::gateway::chat::fork_session_query_engine(state, source, target).await }
+    async fn prepare_fork(id: &str, boundary: &str) -> Result<Self::Fork, session_info::Error> { crate::session::session::TurnFork::prepare(id, boundary).await.map(PreparedFork) }
+    async fn create_checkout(name: Option<&str>) -> Result<worktree_core::Info, String> { crate::worktree::create_fork_checkout(name).await.map_err(|error| error.to_string()) }
+    async fn remove_checkout(directory: String) -> Result<(), String> { crate::worktree::remove_fork_checkout(directory).await.map_err(|error| error.to_string()) }
+    async fn metadata_lock(tenant: &TenantScope) -> tokio::sync::OwnedMutexGuard<()> { crate::session::session::lock_metadata_writes(tenant).await }
 }
-
-/// 列出 UI 会话。
-///
-/// # 参数
-///
-/// * `query` - 目录、根会话、更新时间、搜索和数量限制过滤条件。
-///
-/// # 返回值
-///
-/// 返回过滤后的会话信息列表。
 pub(super) async fn ui_session_list(
     Query(query): Query<UiSessionListQuery>,
     _headers: HeaderMap,
 ) -> Result<Json<Vec<agent_session::session::Info>>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let UiSessionListQuery { directory, project_id, roots, start, search, limit } = query;
-    let directory = directory.filter(|d| !d.trim().is_empty());
-    let term = search.map(|s| s.to_ascii_lowercase());
-    let limit = limit.unwrap_or(usize::MAX);
-
-    let mut sessions = if let Some(project_id) = project_id {
-        if project_id.as_ref().trim().is_empty() {
-            return Err(ApiError::bad_request("projectID cannot be blank"));
-        }
-        ui_store::with_tenant_scope(tenant, agent_session::session::list_for_project(project_id.0))
-            .await
-    } else {
-        ui_store::with_tenant_scope(tenant, agent_session::session::list_all()).await
-    }
-    .map_err(|e| ApiError::bad_request(e.to_string()))?;
-
-    if let Some(directory) = directory.as_deref() {
-        sessions.retain(|s| s.directory == directory);
-    }
-
-    if roots == Some(true) {
-        sessions.retain(|s| s.parent_id.is_none());
-    }
-
-    if let Some(start) = start {
-        sessions.retain(|s| s.time.updated >= start);
-    }
-
-    if let Some(term) = term.as_deref() {
-        sessions.retain(|s| s.title.to_ascii_lowercase().contains(term));
-    }
-
-    sessions.truncate(limit);
-    refresh_task_session_summaries(&mut sessions).await;
-    Ok(Json(sessions))
+    gateway_session::session_ops::ui_session_list::<Host>(Query(query), _headers).await
 }
-
-/// 获取 UI 会话状态表。
-///
-/// # 参数
-///
-/// * `query` - 可选目录过滤。
-///
-/// # 返回值
-///
-/// 返回会话 id 到运行状态的映射；没有运行态记录的会话补为 `Idle`。
 pub(super) async fn ui_session_status(
     Query(query): Query<InstanceQuery>,
     _headers: HeaderMap,
 ) -> Result<Json<HashMap<String, agent_session::status::Info>>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let directory = query.directory.filter(|d| !d.trim().is_empty());
-
-    let mut sessions = ui_store::with_tenant_scope(tenant, agent_session::session::list_all())
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
-
-    if let Some(directory) = directory.as_deref() {
-        sessions.retain(|s| s.directory == directory);
-    }
-
-    let mut map = agent_session::status::list();
-    for session in sessions {
-        map.entry(session.id).or_insert(agent_session::status::Info::Idle);
-    }
-
-    Ok(Json(map))
+    gateway_session::session_ops::ui_session_status::<Host>(Query(gateway_instance::host::InstanceQuery { directory: query.directory }), _headers).await
 }
-
-/// 获取单个会话信息。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-/// * `query` - 可选实例目录。
-/// * `headers` - 可携带实例目录 header。
-///
-/// # 返回值
-///
-/// 返回会话元信息。
-///
-/// # 错误处理
-///
-/// 显式目录请求只在该实例内查询；未显式目录时使用兼容的全局查询，找不到时返回 404。
 pub(super) async fn ui_session_get(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    if has_explicit_directory(&query, &headers) {
-        let dir = resolve_directory(&query, &headers);
-        let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
-        let snapshot = load_session(scope, &session_id).await.map_err(lifecycle_api_error)?;
-        return Ok(Json(snapshot.info));
-    }
-
-    let session = ui_store::with_tenant_scope(tenant, agent_session::session::get_any(&session_id))
-        .await
-        .map_err(session_api_error)?;
-    Ok(Json(session))
+    gateway_session::session_ops::ui_session_get::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers).await
 }
-
-/// 保存当前会话的权限选择。
 pub(super) async fn session_full_access_put(
     path: Path<String>,
     query: Query<InstanceQuery>,
     headers: HeaderMap,
     Json(full_access): Json<bool>,
 ) -> Result<Json<bool>, ApiError> {
-    let Json(session) = ui_session_get(path, query, headers).await?;
-    crate::session::agent_binding::resolve_full_access_scoped(
-        &session.project_id,
-        &session.id,
-        Some(full_access),
-        false,
-    )
-    .await
-    .map(Json)
-    .map_err(|error| ApiError::internal(error.to_string()))
+    gateway_session::session_ops::session_full_access_put::<Host>(path, Query(gateway_instance::host::InstanceQuery { directory: query.0.directory }), headers, Json(full_access)).await
 }
-
-/// 创建一个 UI 会话。
-///
-/// # 参数
-///
-/// * `query` - 目标实例目录。
-/// * `headers` - 可携带实例目录 header。
-/// * `body` - 可选创建参数和权限规则。
-///
-/// # 返回值
-///
-/// 返回新建会话信息。
 pub(super) async fn ui_session_create(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(body): Json<Option<UiSessionCreateBody>>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    let body =
-        body.unwrap_or(UiSessionCreateBody { session: Default::default(), permission: None });
-    let UiSessionCreateBody { session, permission } = body;
-    let vw_api_session::session::GatewaySessionCreateBody { parent_id, title } = session;
-
-    let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
-    let title = title.filter(|title| !title.trim().is_empty());
-    let named = title.is_some();
-    let input = CreateSessionInput { scope, parent_id, title, permission };
-    let created = if named {
-        create_session(input).await
-    } else {
-        crate::session::runtime::reserve_session(input).await
-    }
-    .map_err(lifecycle_api_error)?;
-    Ok(Json(created.info))
+    gateway_session::session_ops::ui_session_create::<Host>(Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
-
-/// 更新会话标题或归档时间。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-/// * `body` - patch 字段。
-///
-/// # 返回值
-///
-/// 返回更新后的会话信息。
 pub(super) async fn ui_session_patch(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(body): Json<GatewaySessionPatchBody>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let title = body.title.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-    let archived = body.time.and_then(|time| time.archived);
-
-    let update_fn = move |session: &mut agent_session::session::Info| {
-        if let Some(title) = title.clone() {
-            session.title = title;
-        }
-        if let Some(archived) = archived {
-            // `0` 作为清除归档时间的协议值，避免为 patch 语义再增加额外字段。
-            if archived == 0 {
-                session.time.archived = None;
-            } else {
-                session.time.archived = Some(archived);
-            }
-        }
-    };
-
-    let updated = if has_explicit_directory(&query, &headers) {
-        let dir = resolve_directory(&query, &headers);
-        with_tenant_instance(tenant, dir, move || {
-            Box::pin(async move {
-                agent_session::session::update(&session_id, update_fn)
-                    .await
-                    .map_err(session_api_error)
-            })
-        })
-        .await?
-    } else {
-        ui_store::with_tenant_scope(
-            tenant,
-            agent_session::session::update_any(&session_id, update_fn),
-        )
-        .await
-        .map_err(session_api_error)?
-    };
-
-    Ok(Json(updated))
+    gateway_session::session_ops::ui_session_patch::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
-
-/// 删除一个会话并清理相关查询引擎缓存。
-///
-/// # 参数
-///
-/// * `state` - 网关状态，用于失效查询引擎。
-/// * `session_id` - 目标会话 id。
-///
-/// # 返回值
-///
-/// 删除成功时返回 `true`。
 pub(super) async fn ui_session_delete(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<bool>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    if has_explicit_directory(&query, &headers) {
-        let dir = resolve_directory(&query, &headers);
-        let session_id_for_remove = session_id.clone();
-        with_tenant_instance(tenant, dir, move || {
-            Box::pin(async move {
-                agent_session::session::remove(&session_id_for_remove)
-                    .await
-                    .map_err(session_api_error)?;
-                Ok(())
-            })
-        })
-        .await?;
-    } else {
-        ui_store::with_tenant_scope(tenant, agent_session::session::remove_any(&session_id))
-            .await
-            .map_err(session_api_error)?;
-    }
-
-    invalidate_session_query_engine(&state, &session_id).await;
-
-    Ok(Json(true))
+    gateway_session::session_ops::ui_session_delete::<Host>(State(state), Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers).await
 }
-
-/// 获取会话子分支。
-///
-/// # 参数
-///
-/// * `session_id` - 父会话 id。
-///
-/// # 返回值
-///
-/// 返回子会话列表。
 pub(super) async fn session_children(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<agent_session::session::Info>>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    let children = with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            agent_session::session::children(&session_id)
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))
-        })
-    })
-    .await?;
-    Ok(Json(children))
+    gateway_session::session_ops::session_children::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers).await
 }
-
-/// 获取会话 TODO 列表。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-///
-/// # 返回值
-///
-/// 返回该会话保存的 TODO 项。
 pub(super) async fn session_todo_get(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<vw_api_session::session::GatewaySessionTodoItem>>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    let todos = with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move { Ok(agent_session::todo::get(&session_id).await) })
-    })
-    .await?;
-    Ok(Json(todos))
+    gateway_session::session_ops::session_todo_get::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers).await
 }
-
-/// 覆盖保存会话 TODO 列表。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-/// * `body` - 完整 TODO 列表。
-///
-/// # 返回值
-///
-/// 保存成功时返回 `true`。
 pub(super) async fn session_todo_put(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(body): Json<GatewaySessionTodoPutBody>,
 ) -> Result<Json<bool>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            agent_session::todo::update(agent_session::todo::UpdateInput {
-                session_id,
-                todos: body.todos,
-            })
-            .await
-            .map_err(|e| ApiError::bad_request(e.to_string()))?;
-            Ok(())
-        })
-    })
-    .await?;
-    Ok(Json(true))
+    gateway_session::session_ops::session_todo_put::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
-
-/// 从现有会话创建分支。
-///
-/// # 参数
-///
-/// * `state` - 网关状态，用于复制查询引擎上下文。
-/// * `session_id` - 源会话 id。
-/// * `body` - 可选截止消息 id。
-///
-/// # 返回值
-///
-/// 返回新分支会话信息。
 pub(super) async fn session_fork(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
@@ -425,58 +134,8 @@ pub(super) async fn session_fork(
     headers: HeaderMap,
     Json(body): Json<Option<GatewaySessionForkBody>>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    let body = body.unwrap_or_default();
-    if let Some(boundary) = body.before_turn_id {
-        if body.message_id.is_some() {
-            return Err(ApiError::bad_request("beforeTurnId and messageID are mutually exclusive"));
-        }
-        if boundary.trim().is_empty() {
-            return Err(ApiError::bad_request("beforeTurnId must be a persisted user message ID"));
-        }
-        let directory = has_explicit_directory(&query, &headers).then_some(dir);
-        let target = body.target.unwrap_or(GatewaySessionForkTarget::SameDirectory);
-        // A disconnected HTTP client must not cancel the operation between writes and cleanup.
-        let result = tokio::spawn(ui_store::with_tenant_scope(
-            tenant.clone(),
-            fork_before_turn(tenant, directory, session_id, boundary, target),
-        ))
-        .await
-        .map_err(|error| ApiError::internal(error.to_string()))??;
-        return Ok(Json(result));
-    }
-    if body.target.is_some() {
-        return Err(ApiError::bad_request("a fork target requires beforeTurnId"));
-    }
-    let session_id_for_fork = session_id.clone();
-
-    let result = with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            agent_session::session::fork(&session_id_for_fork, body.message_id.as_deref())
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))
-        })
-    })
-    .await?;
-
-    fork_session_query_engine(&state, &session_id, &result.id)
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
-    Ok(Json(result))
+    gateway_session::session_ops::session_fork::<Host>(State(state), Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
-
-/// 将会话历史截断到指定消息。
-///
-/// # 参数
-///
-/// * `state` - 网关状态，用于失效查询引擎缓存。
-/// * `session_id` - 目标会话 id。
-/// * `body` - 重置目标消息。
-///
-/// # 返回值
-///
-/// 返回重置后的会话信息。
 pub(super) async fn session_reset(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
@@ -484,257 +143,34 @@ pub(super) async fn session_reset(
     headers: HeaderMap,
     Json(body): Json<GatewaySessionResetBody>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    let session_id_for_reset = session_id.clone();
-    let result = with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            agent_session::revert::cleanup_after_message(&session_id_for_reset, &body.message_id)
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))?;
-            agent_session::session::get(&session_id_for_reset)
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))
-        })
-    })
-    .await?;
-
-    invalidate_session_query_engine(&state, &session_id).await;
-    Ok(Json(result))
+    gateway_session::session_ops::session_reset::<Host>(State(state), Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
-
-/// 获取会话相对指定消息的文件差异。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-/// * `query` - 目录与可选消息 id。
-///
-/// # 返回值
-///
-/// 返回文件 diff 列表。
 pub(super) async fn session_diff(
     Path(session_id): Path<String>,
     Query(query): Query<GatewaySessionDiffQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<snapshot::FileDiff>>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&InstanceQuery { directory: query.directory }, &headers);
-    let diffs = with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            Ok(agent_session::summary::diff(agent_session::summary::DiffInput {
-                session_id,
-                message_id: query.message_id,
-            })
-            .await)
-        })
-    })
-    .await?;
-    Ok(Json(diffs))
+    gateway_session::session_ops::session_diff::<Host>(Path(session_id), Query(query), headers).await
 }
-
-/// 对指定用户消息之前的会话历史执行手动压缩。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-/// * `body` - 目标消息 id。
-///
-/// # 返回值
-///
-/// 返回值表示是否真的替换了历史；无法生成摘要时返回可诊断错误，且保留原历史。
 pub(super) async fn session_summarize(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(body): Json<GatewaySessionSummarizeBody>,
 ) -> Result<Json<bool>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let dir = resolve_directory(&query, &headers);
-    with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            let outcome =
-                agent_session::compaction::process_session(&session_id, &body.message_id, false)
-                    .await
-                    .map_err(|error| ApiError::bad_request(error.to_string()))?;
-            match outcome {
-                agent_session::compaction::CompactionOutcome::Compacted { .. } => Ok(true),
-                agent_session::compaction::CompactionOutcome::NotNeeded { .. } => Ok(false),
-                agent_session::compaction::CompactionOutcome::Failed { error, .. } => {
-                    Err(ApiError::bad_request(error))
-                }
-            }
-        })
-    })
-    .await
-    .map(Json)
+    gateway_session::session_ops::session_summarize::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
-
-/// 根据内容生成会话标题。
-///
-/// # 参数
-///
-/// * `session_id` - 目标会话 id。
-/// * `body` - 旧客户端的兼容请求及可选模型信息。
-///
-/// # 返回值
-///
-/// 返回生成的标题。
 pub(super) async fn session_title_generate(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(body): Json<GatewaySessionTitleGenerateBody>,
 ) -> Result<Json<GatewaySessionTitleGenerateResponse>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let directory = if has_explicit_directory(&query, &headers) {
-        resolve_directory(&query, &headers)
-    } else {
-        agent_session::session::get_any(&session_id).await.map_err(session_api_error)?.directory
-    };
-    let scope = SessionScope::new(tenant.clone(), directory).map_err(lifecycle_api_error)?;
-    let directory = scope.directory().to_string_lossy().into_owned();
-    with_tenant_instance(tenant.clone(), directory, move || {
-        Box::pin(async move {
-            let info = agent_session::session::get(&session_id).await.map_err(session_api_error)?;
-            let recorded_directory = std::fs::canonicalize(&info.directory)
-                .map_err(|_| ApiError::not_found("session directory is unavailable"))?;
-            if recorded_directory != scope.directory() {
-                return Err(ApiError::not_found("session is outside the title directory"));
-            }
-            if info.is_first_response_pending() {
-                return Err(ApiError::conflict("session has no committed first response"));
-            }
-
-            let committed = crate::global_database::run_isolated(move || {
-                ui_store::has_committed_first_response(&tenant, &info.project_id, &info.id)
-                    .map(|committed| committed.then_some(info.title))
-            })
-            .await
-            .map_err(|error| ApiError::internal(error.to_string()))?
-            .map_err(|error| ApiError::internal(error.to_string()))?;
-            if let Some(title) = committed {
-                if title.is_empty() {
-                    return Err(ApiError::conflict("the committed session has no generated title"));
-                }
-                return Ok(Json(GatewaySessionTitleGenerateResponse { title }));
-            }
-
-            // Legacy sessions must prove a successful native turn before invoking a model.
-            let history = agent_session::message::messages(&session_id, None)
-                .await
-                .map_err(|error| ApiError::internal(error.to_string()))?;
-            let content = legacy_successful_title_source(&history)
-                .ok_or_else(|| ApiError::conflict("session has no successful turn with text"))?;
-            let title = agent_session::title::generate_from_content(
-                session_id,
-                content,
-                body.preferred_model,
-                body.acp_agent,
-            )
-            .await
-            .map_err(ApiError::bad_request)?;
-            Ok(Json(GatewaySessionTitleGenerateResponse { title }))
-        })
-    })
-    .await
+    gateway_session::session_ops::session_title_generate::<Host>(Path(session_id), Query(gateway_instance::host::InstanceQuery { directory: query.directory }), headers, Json(body)).await
 }
 
-fn legacy_successful_title_source(history: &[agent_session::message::WithParts]) -> Option<String> {
-    use agent_session::message::{Info, Part};
-
-    let text = |entry: &agent_session::message::WithParts| {
-        entry.parts.iter().find_map(|part| match part {
-            Part::Text(part) if part.synthetic != Some(true) && part.ignored != Some(true) => {
-                let text = agent_session::title::first_response_source(&part.text);
-                (!text.is_empty()).then_some(text)
-            }
-            _ => None,
-        })
-    };
-    history.iter().find_map(|entry| {
-        let Info::Assistant(assistant) = &entry.info else { return None };
-        if assistant.error.is_some()
-            || assistant.time.completed.is_none()
-            || !super::stream::is_successful_finish_reason(assistant.finish.as_deref())
-        {
-            return None;
-        }
-        text(entry)?;
-        history.iter().find_map(|user| match &user.info {
-            Info::User(info) if info.id == assistant.parent_id => text(user),
-            _ => None,
-        })
-    })
-}
-
-async fn fork_before_turn(
-    tenant: vw_api_transport::TenantScope,
-    directory: Option<String>,
-    session_id: String,
-    boundary: String,
-    target: GatewaySessionForkTarget,
-) -> Result<agent_session::session::Info, ApiError> {
-    let directory = match directory {
-        Some(directory) => directory,
-        None => {
-            agent_session::session::get_any(&session_id).await.map_err(session_api_error)?.directory
-        }
-    };
-    let (project, worktree) = project::from_directory(&tenant, &directory)
-        .await
-        .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    let context = instance::Context { directory, worktree, project };
-    instance::provide_context(context.clone(), async move {
-        let fork = agent_session::session::TurnFork::prepare(&session_id, &boundary)
-            .await
-            .map_err(|error| ApiError::bad_request(error.to_string()))?;
-        match target {
-            GatewaySessionForkTarget::SameDirectory => {
-                #[cfg(not(target_arch = "wasm32"))]
-                crate::worktree::environment::ensure_ready(fork.source_directory())
-                    .map_err(|error| ApiError::conflict(error.to_string()))?;
-                let context = instance::Context { directory: fork.source_directory().to_owned(), ..context };
-                instance::provide_context(context, fork.persist())
-                    .await
-                    .map_err(|error| ApiError::internal(error.to_string()))
-            }
-            GatewaySessionForkTarget::Worktree { name } => {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    let _ = name;
-                    Err(ApiError::bad_request("worktree targets are unavailable on WASM"))
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    use crate::worktree;
-
-                    let checkout = worktree::create_fork_checkout(name.as_deref())
-                        .await
-                        .map_err(|error| ApiError::bad_request(error.to_string()))?;
-                    let result = async {
-                        let (project, worktree) = project::from_directory(&tenant, &checkout.directory)
-                            .await
-                            .map_err(|error| ApiError::internal(error.to_string()))?;
-                        let context = instance::Context { directory: worktree.clone(), worktree, project };
-                        instance::provide_context(context, fork.persist())
-                            .await
-                            .map_err(|error| ApiError::internal(error.to_string()))
-                    }
-                    .await;
-                    if result.is_err()
-                        && let Err(error) = worktree::remove_fork_checkout(checkout.directory).await
-                    {
-                        tracing::warn!(%error, "failed to remove worktree after session fork failure");
-                    }
-                    result
-                }
-            }
-        }
-    })
-    .await
-}
-
+#[cfg(test)]
+use gateway_session::session_ops::task_session_summary_needs_refresh;
 #[cfg(test)]
 #[path = "session_ops_tests.rs"]
 mod session_ops_tests;

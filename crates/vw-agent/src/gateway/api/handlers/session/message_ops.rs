@@ -16,7 +16,7 @@ use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
 use crate::app::agent::session as agent_session;
 
-struct Host;
+pub(super) struct Host;
 impl gateway_session::message_host::MessageHost for Host {
     fn current_tenant_scope() -> vw_api_transport::TenantScope {
         crate::session::ui_store::current_tenant_scope()

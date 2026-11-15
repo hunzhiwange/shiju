@@ -310,19 +310,7 @@ pub(crate) struct InternalCompactionRequest {
     pub(crate) tools: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct CompactionStats {
-    pub covered_messages: usize,
-    pub covered_parts: usize,
-    pub summary_chars: usize,
-}
-
-#[derive(Debug, Clone)]
-pub enum CompactionOutcome {
-    NotNeeded { history: Vec<message::WithParts> },
-    Compacted { history: Vec<message::WithParts>, stats: CompactionStats },
-    Failed { history: Vec<message::WithParts>, error: String },
-}
+pub use session_port::{CompactionStats, CompactionOutcome};
 
 fn compaction_boundary(input: &ProcessInput) -> Option<usize> {
     let boundary =

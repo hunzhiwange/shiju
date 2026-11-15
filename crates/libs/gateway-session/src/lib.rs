@@ -28,3 +28,20 @@ pub mod raw_commit;
 pub mod message_host;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod message_ops;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod acp_host;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod acp_options;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod shared;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod session_host;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod session_ops;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod archived_routes;

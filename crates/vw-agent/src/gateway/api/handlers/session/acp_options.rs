@@ -1,129 +1,44 @@
-//! Session-scoped ACP controls. Reads never start an agent or send a prompt.
+//! ACP host composition and typed route forwarding.
+use vw_api_acp_model::{acp_session::{AcpSessionOptions, AcpSessionSelection}, acp_model_source::AcpModelSourceUpdate};
+use session_engine::agent_binding::AgentBinding;
+use axum::{Json, extract::{Path, Query}, http::HeaderMap};
 use crate::gateway::{ApiError, instance::InstanceQuery};
-use crate::session::llm::{read_acp_session_options, select_acp_session_option};
-use axum::{
-    Json,
-    extract::{Path, Query},
-    http::HeaderMap,
-};
-use vw_api_acp_model::acp_session::{AcpSessionOptions, AcpSessionSelection};
-
-pub(super) async fn get(
-    path: Path<String>,
-    query: Query<InstanceQuery>,
-    headers: HeaderMap,
-) -> Result<Json<AcpSessionOptions>, ApiError> {
-    let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
-    let mut options = read_acp_session_options(&session.id, &session.directory)
-        .await
-        .map_err(ApiError::bad_request)?;
-    if options.model_source_capabilities.is_empty()
-        && let Some(binding) =
-            crate::session::agent_binding::load_scoped(&session.project_id, &session.id)
-                .await
-                .map_err(|error| ApiError::bad_request(error.to_string()))?
-        && let Some(agent) = binding.identity().acp_agent
-    {
-        crate::session::llm::annotate_acp_model_source(&mut options, &agent);
+use super::message_ops::Host;
+impl gateway_session::acp_host::AcpHost for Host {
+    fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str) {
+        crate::session::llm::annotate_acp_model_source(options, agent);
     }
-    Ok(Json(options))
-}
-
-pub(super) async fn set(
-    path: Path<String>,
-    query: Query<InstanceQuery>,
-    headers: HeaderMap,
-    Json(selection): Json<AcpSessionSelection>,
-) -> Result<Json<AcpSessionOptions>, ApiError> {
-    let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
-    select_acp_session_option(&session.id, &session.directory, selection)
-        .await
-        .map(Json)
-        .map_err(ApiError::bad_request)
-}
-
-pub(super) async fn set_source(
-    path: Path<String>,
-    query: Query<InstanceQuery>,
-    headers: HeaderMap,
-    Json(update): Json<vw_api_acp_model::acp_model_source::AcpModelSourceUpdate>,
-) -> Result<Json<AcpSessionOptions>, ApiError> {
-    let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
-    let _guard = crate::session::message::lock_stream_prompt(
-        &crate::session::ui_store::current_tenant_scope(),
-        &session.project_id,
-        &session.id,
-    )
-    .await;
-    let fork_state = crate::session::fork_execution::load_scoped(&session.project_id, &session.id)
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
-    let fork_selectable = fork_state.as_ref().is_some_and(|state| !state.started);
-    if fork_state.is_some_and(|state| state.started)
-        || (!fork_selectable && !session.is_first_response_pending())
-    {
-        return Err(ApiError::bad_request("changing a session model requires a new session"));
+    async fn read_options(session: &str, directory: &str) -> Result<AcpSessionOptions, String> {
+        crate::session::llm::read_acp_session_options(session, directory).await
     }
-    let previous_binding =
-        crate::session::agent_binding::load_scoped(&session.project_id, &session.id)
-            .await
-            .map_err(|e| ApiError::bad_request(e.to_string()))?;
-    if !fork_selectable
-        && let Some(binding) = previous_binding.as_ref()
-        && binding.identity().acp_agent.as_deref() != Some(update.agent.as_str())
-    {
-        return Err(ApiError::bad_request("ACP agent does not match the session binding"));
+    async fn select_option(session: &str, directory: &str, selection: AcpSessionSelection) -> Result<AcpSessionOptions, String> {
+        crate::session::llm::select_acp_session_option(session, directory, selection).await
     }
-    super::shared::with_tenant_instance(
-        crate::session::ui_store::current_tenant_scope(),
-        session.directory.clone(),
-        move || {
-            Box::pin(async move {
-                let preference = if fork_selectable {
-                    let inherited = previous_binding.filter(|binding| {
-                        binding.identity().acp_agent.as_deref() == Some(update.agent.as_str())
-                    });
-                    let agent = inherited
-                        .as_ref()
-                        .map(|binding| binding.agent.clone())
-                        .unwrap_or_else(|| format!("acp-{}", update.agent));
-                    let definition = crate::agent::get(&agent).await.ok_or_else(|| {
-                        ApiError::bad_request(format!("unknown or disabled agent: {agent}"))
-                    })?;
-                    Some(inherited.unwrap_or_else(|| {
-                        crate::session::agent_binding::AgentBinding::from_definition(
-                            agent,
-                            &definition,
-                        )
-                    }))
-                } else {
-                    None
-                };
-                let options = crate::session::llm::select_acp_model_source(
-                    &session.id,
-                    &session.directory,
-                    update,
-                )
-                .await
-                .map_err(ApiError::bad_request)?;
-                if let Some(preference) = preference {
-                    crate::session::agent_binding::save_scoped(
-                        &session.project_id,
-                        &session.id,
-                        &preference,
-                    )
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
-                }
-                Ok(Json(options))
-            })
-        },
-    )
-    .await
+    async fn select_model_source(session: &str, directory: &str, update: AcpModelSourceUpdate) -> Result<AcpSessionOptions, String> {
+        crate::session::llm::select_acp_model_source(session, directory, update).await
+    }
+    async fn load_binding(project: &str, session: &str) -> anyhow::Result<Option<AgentBinding>> {
+        crate::session::agent_binding::load_scoped(project, session).await
+    }
+    async fn save_binding(project: &str, session: &str, binding: &AgentBinding) -> anyhow::Result<()> {
+        crate::session::agent_binding::save_scoped(project, session, binding).await
+    }
+    async fn fork_started(project: &str, session: &str) -> anyhow::Result<Option<bool>> {
+        crate::session::fork_execution::load_scoped(project, session).await.map(|state| state.map(|state| state.started))
+    }
+    async fn agent(name: &str) -> Option<config_agent::DelegateAgentConfig> {
+        crate::agent::get(name).await
+    }
 }
-
-pub(super) async fn source_capabilities(Path(agent): Path<String>) -> Json<AcpSessionOptions> {
-    let mut options = AcpSessionOptions::default();
-    crate::session::llm::annotate_acp_model_source(&mut options, &agent);
-    Json(options)
+pub(super) async fn get(path: Path<String>, query: Query<InstanceQuery>, headers: HeaderMap) -> Result<Json<AcpSessionOptions>, ApiError> {
+    gateway_session::acp_options::get::<Host>(path, Query(gateway_instance::host::InstanceQuery { directory: query.0.directory }), headers).await
+}
+pub(super) async fn set(path: Path<String>, query: Query<InstanceQuery>, headers: HeaderMap, body: Json<AcpSessionSelection>) -> Result<Json<AcpSessionOptions>, ApiError> {
+    gateway_session::acp_options::set::<Host>(path, Query(gateway_instance::host::InstanceQuery { directory: query.0.directory }), headers, body).await
+}
+pub(super) async fn set_source(path: Path<String>, query: Query<InstanceQuery>, headers: HeaderMap, body: Json<AcpModelSourceUpdate>) -> Result<Json<AcpSessionOptions>, ApiError> {
+    gateway_session::acp_options::set_source::<Host>(path, Query(gateway_instance::host::InstanceQuery { directory: query.0.directory }), headers, body).await
+}
+pub(super) async fn source_capabilities(path: Path<String>) -> Json<AcpSessionOptions> {
+    gateway_session::acp_options::source_capabilities::<Host>(path).await
 }

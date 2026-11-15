@@ -19,7 +19,7 @@
 //!
 //! 运行所有测试：
 //! ```bash
-//! cargo test --package vibe-agent --lib agent::channels::imessage::tests
+//! python3 scripts/cargo_slot.py cargo test -p channel-imessage --lib tests
 //! ```
 
 use super::*;

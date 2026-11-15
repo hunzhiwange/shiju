@@ -86,6 +86,7 @@ members = [
   "crates/libs/session-port",
   "crates/libs/app-operations",
   "crates/libs/channel-types",
+  "crates/libs/channel-imessage",
   "crates/libs/channel-clawdtalk",
   "crates/libs/channel-cli",
   "crates/libs/channel-support",

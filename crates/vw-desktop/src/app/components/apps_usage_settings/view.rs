@@ -5,7 +5,7 @@ use iced::{
 
 use super::{Draft, Event, Field, Kind, Phase, live_scope, send};
 use crate::app::{App, Message, components::system_settings_common::*};
-use gateway_app_usage::AppsUsageDisplay;
+use vw_gateway_client::AppsUsageDisplay;
 
 pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(modal) = app

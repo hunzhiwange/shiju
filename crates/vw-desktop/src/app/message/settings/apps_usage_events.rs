@@ -3,10 +3,10 @@
 use std::time::Duration;
 
 use {
-    gateway_app_usage::AppsUsageOperation,
-    gateway_app_usage::AppsUsageOperationItem,
-    gateway_app_usage::AppsUsageReadError,
-    gateway_app_usage::AppsUsageWriteError,
+    vw_gateway_client::AppsUsageOperation,
+    vw_gateway_client::AppsUsageOperationItem,
+    vw_gateway_client::AppsUsageReadError,
+    vw_gateway_client::AppsUsageWriteError,
     vw_gateway_client::GatewayClient,
     vw_api_app_auth::AuthErrorCode,
     vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
@@ -23,7 +23,7 @@ pub(crate) async fn read_snapshot(
     selection: &UsageSnapshotQuery,
     token: &str,
 ) -> Result<UsageSnapshotResponse, Failure> {
-    gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(selection, token).await.map_err(|error| match error {
+    client.apps_usage_snapshot(selection, token).await.map_err(|error| match error {
         AppsUsageReadError::Http { status, error } => {
             Failure::gateway(status, error.map(|error| error.code))
         }
@@ -64,7 +64,7 @@ pub(crate) async fn refresh_one(
     selection: &UsageSnapshotQuery,
     token: &str,
 ) -> Result<(), Failure> {
-    let operation = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(selection, token).await.map_err(write_failure)?;
+    let operation = client.apps_usage_refresh(selection, token).await.map_err(write_failure)?;
     let status = wait_operation(
         client,
         &selection.project_id,
@@ -95,7 +95,7 @@ pub(crate) async fn refresh_batch(
     token: &str,
 ) -> Result<Vec<CardSnapshot>, Failure> {
     let operation =
-        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh_all(project, host, token).await.map_err(write_failure)?;
+        client.apps_usage_refresh_all(project, host, token).await.map_err(write_failure)?;
     let status =
         wait_operation(client, project, host, &operation.operation_id, token, |_| true).await?;
     if status.items.is_empty() {
@@ -145,7 +145,7 @@ async fn wait_operation(
                 }
                 TaskStatus::Queued | TaskStatus::Running => {}
             }
-            status = match gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_events(host, id, token).await {
+            status = match client.apps_usage_operation_events(host, id, token).await {
                 Ok(status) => status,
                 Err(AppsUsageWriteError::Transport) => {
                     // Recover the same operation after an event connection drops.
@@ -168,7 +168,7 @@ async fn read_status(
     token: &str,
 ) -> Result<AppsUsageOperation, Failure> {
     loop {
-        match gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation(host, id, token).await {
+        match client.apps_usage_operation(host, id, token).await {
             Err(AppsUsageWriteError::Transport) => tokio::time::sleep(Duration::from_secs(1)).await,
             result => return result.map_err(write_failure),
         }

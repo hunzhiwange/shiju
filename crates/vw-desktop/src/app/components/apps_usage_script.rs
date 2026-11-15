@@ -1,6 +1,5 @@
 //! Transient script trials for the provider usage settings modal.
 
-use gateway_app_usage::{AppsUsageCredentialRefs, AppsUsageScriptTrial, AppsUsageTemplate, AppsUsageWriteError};
 use std::fmt;
 
 use iced::{
@@ -9,6 +8,7 @@ use iced::{
     widget::text_editor::{Action, Content},
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    AppsUsageCredentialRefs, AppsUsageScriptTrial, AppsUsageTemplate, AppsUsageWriteError,
     GatewayClient, vw_api_types::{
         apps_usage::{
             UsageQueryErrorCode, UsageScriptPackage, UsageSnapshotQuery,
@@ -214,7 +214,7 @@ pub(super) async fn run_trial(
     token: String,
 ) -> TrialResult {
     let result =
-        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_script_test(&request, &token).await.map_err(Failure::from_gateway)?;
+        client.apps_usage_script_test(&request, &token).await.map_err(Failure::from_gateway)?;
     if result.is_empty() { Err(Failure::InvalidResponse) } else { Ok(result) }
 }
 
@@ -258,7 +258,7 @@ impl Editor {
         ticket: u64,
     ) -> Task<Message> {
         Task::perform(
-            async move { gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_templates(&selection, &token).await.ok() },
+            async move { client.apps_usage_templates(&selection, &token).await.ok() },
             move |result| send(Event::Loaded(ticket, result)),
         )
     }

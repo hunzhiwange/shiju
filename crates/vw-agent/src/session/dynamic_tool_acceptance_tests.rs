@@ -12,7 +12,7 @@ use vw_api_types::{
     },
 };
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 
 struct Fixture {
     directory: tempfile::TempDir,
@@ -54,7 +54,7 @@ impl Fixture {
         });
         let client = GatewayClient::new(
             GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant).with_auth(
-                vw_gateway_client::GatewayAuth { skey: Some("dynamic-acceptance-skey".into()) },
+                gateway_endpoint::GatewayAuth { skey: Some("dynamic-acceptance-skey".into()) },
             ),
         )
         .unwrap();

@@ -13,7 +13,7 @@ use vw_api_types::{
     id::TenantScope,
     model_catalog::*,
 };
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 
 const TOKEN: &str = "model-catalog-test-application-credential";
 const EDITOR_TOKEN: &str = "model-catalog-test-editor-credential";

@@ -48,7 +48,7 @@ async fn check_server(client: &reqwest::Client, server: &GatewayClientServerDraf
             .ok()
             .and_then(|url| url.host_str().map(str::to_owned))
             .unwrap_or_default();
-        if vw_gateway_client::GatewayEndpoint::new(host, server.port).is_loopback() {
+        if gateway_endpoint::GatewayEndpoint::new(host, server.port).is_loopback() {
             match reqwest::Client::builder()
                 .no_proxy()
                 .timeout(std::time::Duration::from_secs(4))

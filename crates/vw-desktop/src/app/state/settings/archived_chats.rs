@@ -75,7 +75,7 @@ impl std::fmt::Debug for ArchivedChatsIdentity {
 }
 
 impl ArchivedChatsIdentity {
-    pub(crate) fn from_endpoint(endpoint: &vw_gateway_client::GatewayEndpoint) -> Self {
+    pub(crate) fn from_endpoint(endpoint: &gateway_endpoint::GatewayEndpoint) -> Self {
         use sha2::{Digest, Sha256};
         let auth = endpoint.auth.as_ref().and_then(|auth| auth.skey.as_deref()).unwrap_or("");
         Self {

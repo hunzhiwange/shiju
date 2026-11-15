@@ -90,8 +90,8 @@ fn server(
         }
         requests
     });
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)
-        .with_auth(vw_gateway_client::GatewayAuth { skey: Some("gateway-key".into()) });
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some("gateway-key".into()) });
     (GatewayClient::new(endpoint).unwrap(), handle)
 }
 fn catalog() -> serde_json::Value {

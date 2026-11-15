@@ -3,7 +3,7 @@ use axum::{Router, middleware};
 use vw_api_types::{agent_apps::AppId, app_providers::preview::*, id::TenantScope};
 #[tokio::test]
 async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let directory = root.path().join(".codex");
     std::fs::create_dir(&directory).unwrap();

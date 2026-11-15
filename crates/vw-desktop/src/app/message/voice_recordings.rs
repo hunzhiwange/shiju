@@ -8,7 +8,7 @@ use crate::app::voice::{
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 #[derive(Default)]
 pub(crate) struct State {
     pub entries: Vec<Entry>,

@@ -8,7 +8,7 @@ use vw_api_types::{
     id::TenantScope,
     model_catalog::{CodexNativeModel, SavedCodexCatalog},
 };
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-codex-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,

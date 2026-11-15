@@ -25,7 +25,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
 use vw_api_types::agent_apps::*;
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-agy-authorized-token-32-characters";
 fn terminal(
     _: Option<&str>,

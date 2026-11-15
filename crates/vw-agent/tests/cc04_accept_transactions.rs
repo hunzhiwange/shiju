@@ -16,7 +16,7 @@ use vw_api_types::{
     app_providers::{claude::*, codex_catalog::*, editor_merge::*, mode_state::*},
     id::TenantScope,
 };
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 
 const HOST: &str = "host";
 const TOKEN: &str = "fixture-transaction-writer-token-at-least-32";

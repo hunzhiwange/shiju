@@ -28,9 +28,8 @@ use vw_api_types::{
     },
     id::TenantScope,
 };
-use vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient, GatewayEndpoint,
-};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient}};
 
 const ACCESS: &str = "auth55-private-access";
 const REFRESH: &str = "auth55-private-refresh";

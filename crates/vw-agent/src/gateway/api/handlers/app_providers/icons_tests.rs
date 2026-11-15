@@ -133,7 +133,7 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
         axum::serve(listener, app).await.unwrap();
     });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", addr.port())
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();
@@ -161,7 +161,7 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
             .unwrap();
         assert_eq!(selected.data.as_deref(), Some(IMAGE));
         let other = vw_gateway_client::GatewayClient::new(
-            vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())
+            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", addr.port())
                 .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
         )
         .unwrap();

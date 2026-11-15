@@ -119,7 +119,7 @@ fn aggregation_t60_errors_preserve_draft_and_require_refresh() {
 #[tokio::test]
 async fn aggregation_t60_form_calls_sdk_with_scope_revision_and_clear_values() {
     use std::io::{Read, Write};
-    use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();

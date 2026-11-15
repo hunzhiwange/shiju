@@ -110,7 +110,7 @@ async fn cc04_endpoints_sdk_api_persistence_and_isolation() {
         axum::serve(listener, app).await.unwrap();
     });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", addr.port())
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();

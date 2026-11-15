@@ -1277,8 +1277,8 @@ fn take_next_workflow_stream_payload_handles_lf_crlf_and_multiline_data() {
 #[test]
 fn apply_workflow_auth_sends_skey_as_bearer() {
     let client = reqwest::Client::new();
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1)
-        .with_auth(vw_gateway_client::GatewayAuth { skey: Some(" key ".to_string()) });
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some(" key ".to_string()) });
 
     let request = super::apply_workflow_auth(client.post("http://127.0.0.1/"), &endpoint)
         .build()
@@ -1295,7 +1295,7 @@ fn apply_workflow_auth_sends_skey_as_bearer() {
 #[test]
 fn apply_workflow_auth_leaves_request_untouched_without_auth() {
     let client = reqwest::Client::new();
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1);
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1);
 
     let request = super::apply_workflow_auth(client.post("http://127.0.0.1/"), &endpoint)
         .build()
@@ -1367,7 +1367,7 @@ fn parse_usage_supports_gateway_and_desktop_shapes() {
 fn spawn_workflow_stream_response(
     status: &'static str,
     body: String,
-) -> (vw_gateway_client::GatewayEndpoint, std::thread::JoinHandle<String>) {
+) -> (gateway_endpoint::GatewayEndpoint, std::thread::JoinHandle<String>) {
     use std::io::{Read, Write};
     use std::net::TcpListener;
 
@@ -1409,7 +1409,7 @@ fn spawn_workflow_stream_response(
         String::from_utf8_lossy(&request).to_string()
     });
 
-    (vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port()), handle)
+    (gateway_endpoint::GatewayEndpoint::new("127.0.0.1", addr.port()), handle)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1424,7 +1424,7 @@ async fn stream_workflow_chat_messages_sends_auth_query_and_parses_events() {
     .to_string();
     let (endpoint, handle) = spawn_workflow_stream_response("200 OK", stream_body);
     let endpoint =
-        endpoint.with_auth(vw_gateway_client::GatewayAuth { skey: Some("skey-value".to_string()) });
+        endpoint.with_auth(gateway_endpoint::GatewayAuth { skey: Some("skey-value".to_string()) });
     let mut events = Vec::new();
 
     let result = super::stream_workflow_chat_messages(
@@ -2150,8 +2150,8 @@ fn workflow_event_defaults_and_incomplete_frames_are_safe() {
 #[test]
 fn apply_workflow_auth_ignores_blank_skey() {
     let client = reqwest::Client::new();
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1)
-        .with_auth(vw_gateway_client::GatewayAuth { skey: Some("   ".to_string()) });
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some("   ".to_string()) });
     let request = super::apply_workflow_auth(client.post("http://127.0.0.1/"), &endpoint)
         .build()
         .expect("request should build");

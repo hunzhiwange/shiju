@@ -2,13 +2,12 @@
 use super::{Selection, current, message as list_message};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    AggregationApiError, GatewayAuth, GatewayClient,
+use {gateway_endpoint::{GatewayAuth}, vw_gateway_client::{
+    AggregationApiError, GatewayClient,
     vw_api_types::{
         agent_apps::aggregation::*, app_providers::operations::ProviderOperationProgress,
         task::TaskStatus,
-    },
-};
+    }}};
 
 #[derive(Clone, Default)]
 pub(crate) struct Session {

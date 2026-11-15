@@ -41,7 +41,7 @@ mod execution {
         app_providers::{env_clean::*, env_diagnose::*, env_restore::*},
         id::TenantScope,
     };
-    use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
     const TOKEN: &str = "fixture-config-cleaner-token-over-32-chars";
     fn policy(home: &Path, private: &Path) -> std::path::PathBuf {
         fs::set_permissions(home, fs::Permissions::from_mode(0o700)).unwrap();

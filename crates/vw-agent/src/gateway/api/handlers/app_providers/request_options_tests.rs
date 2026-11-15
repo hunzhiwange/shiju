@@ -11,7 +11,7 @@ use vw_api_types::{
     app_providers::{claude::*, codex_catalog::*, request_options::*},
     id::TenantScope,
 };
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-options-token-with-at-least-32-characters";
 struct Fixture {
     root: tempfile::TempDir,

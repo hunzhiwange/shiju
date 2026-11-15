@@ -161,7 +161,7 @@ fn aggregation_t59_exit_rejects_duplicate_stale_and_inconsistent_results() {
 async fn aggregation_t59_exit_without_revision_sends_no_write() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
-    let client = GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         listener.local_addr().unwrap().port(),
     ))

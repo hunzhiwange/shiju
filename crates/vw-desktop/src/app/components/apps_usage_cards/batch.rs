@@ -2,7 +2,7 @@ use super::{Cards, Event, Scope, linked_scope, message_event, read_linked_provid
 use crate::app::message::settings::apps_usage_events::refresh_batch;
 use crate::app::{App, Message, components::system_settings::SystemTab};
 use iced::Task;
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 impl Cards {
     pub(crate) fn batch_pending(&self, scope: &Scope) -> bool {

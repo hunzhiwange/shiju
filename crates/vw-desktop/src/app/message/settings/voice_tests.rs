@@ -29,7 +29,7 @@ fn voice_task_13_late_load_cannot_reopen_cancelled_form() {
 fn voice_task_13_connection_identity_includes_tenant_and_auth() {
     let endpoint = GatewayEndpoint::new("localhost", 1234);
     let changed =
-        endpoint.clone().with_auth(vw_gateway_client::GatewayAuth { skey: Some("fixture".into()) });
+        endpoint.clone().with_auth(gateway_endpoint::GatewayAuth { skey: Some("fixture".into()) });
     assert!(!same_endpoint(&endpoint, &changed));
     assert!(same_endpoint(&endpoint, &endpoint.clone()));
 }

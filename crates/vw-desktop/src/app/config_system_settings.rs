@@ -7,7 +7,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value};
 use vw_config_types::ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 
 use super::desktop::{PreferencesScope, preferences_scope};
 use super::gateway::{

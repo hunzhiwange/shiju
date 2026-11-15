@@ -115,7 +115,7 @@ async fn cc04_create_sdk_api_persists_without_native_file_changes() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
         .with_tenant_scope(TenantScope::new("p", "a").unwrap());
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
     assert_eq!(

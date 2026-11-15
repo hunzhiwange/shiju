@@ -102,7 +102,7 @@ fn cc_apps_desktop_catalog_state_damaged_runnable_unverified() {
 #[tokio::test]
 async fn cc_apps_desktop_catalog_state_sdk_fourteen_concurrent_ordered_and_partial_failure() {
     use std::io::{Read, Write};
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let ids = [

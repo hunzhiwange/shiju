@@ -23,10 +23,9 @@ use vw_api_types::{
     id::{ModelId, TenantScope},
     model_catalog::*,
 };
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayAuth, GatewayChatStreamEvent, GatewayChatStreamRequest,
-    GatewayClient, GatewayEndpoint,
-};
+use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
+    AgentAppsReadError, GatewayChatStreamEvent, GatewayChatStreamRequest,
+    GatewayClient}};
 
 use crate::{
     app_providers::AppProviderStore, config, gateway, global_database::GlobalDatabase, project,

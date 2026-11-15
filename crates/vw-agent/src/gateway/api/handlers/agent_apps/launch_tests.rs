@@ -189,7 +189,7 @@ async fn identity_roundtrip(
         agent_apps::*,
         app_providers::{AppProviderWrite, ProviderProtocol},
     };
-    use vw_gateway_client::{AgentAppsSettingsError, GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsSettingsError, GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let bin = root.path().join("bin");

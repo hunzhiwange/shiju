@@ -17,7 +17,7 @@ use std::sync::{Mutex, OnceLock};
 use vw_config_types::agent::AgentDefinitionConfig;
 use vw_config_types::config::Config;
 use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 
 #[test]
 fn interactive_config_paths_reject_blocking_gateway_wrappers() {

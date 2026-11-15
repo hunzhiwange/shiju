@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use vw_config_types::config::Config;
 #[cfg(target_arch = "wasm32")]
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 /// 项目配置覆盖文件名。
 const CONFIG_OVERRIDE_FILENAME: &str = ".vibewindow.json";

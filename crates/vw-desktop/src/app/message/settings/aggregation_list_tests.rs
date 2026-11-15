@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::state::AgentAppsContext;
-use vw_gateway_client::{GatewayEndpoint, vw_api_types::id::TenantScope};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{vw_api_types::id::TenantScope}};
 fn selection() -> Selection {
     Selection {
         scope: Scope {
@@ -70,7 +70,7 @@ fn server(
     });
     (
         GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port).with_auth(
-            vw_gateway_client::GatewayAuth { skey: Some("fixture-gateway-key".into()) },
+            gateway_endpoint::GatewayAuth { skey: Some("fixture-gateway-key".into()) },
         ))
         .unwrap(),
         handle,

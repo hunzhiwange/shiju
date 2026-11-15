@@ -130,9 +130,8 @@ async fn aggregation_t64_sdk_uses_variant_scope_revision_and_provider_reference(
     use super::{Action, Context, request};
     use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
     use std::io::{Read, Write};
-    use vw_gateway_client::{
-        GatewayAuth, GatewayClient, GatewayEndpoint, vw_api_types::agent_apps::AppId,
-    };
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
+        GatewayClient, vw_api_types::agent_apps::AppId}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let worker = std::thread::spawn(move || {

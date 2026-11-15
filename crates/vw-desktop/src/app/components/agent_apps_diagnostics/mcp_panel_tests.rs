@@ -237,7 +237,7 @@ async fn protocol_roundtrip(context: &Context) {
         net::TcpListener,
         time::Duration,
     };
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())

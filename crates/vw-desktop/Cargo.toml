@@ -26,6 +26,7 @@ path = "src/main.rs"
 
 [dependencies]
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
+gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }
 desktop-git = { path = "../libs/desktop-git", version = "0.6.0" }

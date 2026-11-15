@@ -9,7 +9,7 @@ use vw_api_types::{
     id::TenantScope,
     task::TaskStatus,
 };
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";
 fn write(home: &Path, name: &str, bytes: &[u8]) {
     let file = home.join(name);

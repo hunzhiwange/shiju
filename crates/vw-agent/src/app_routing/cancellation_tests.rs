@@ -11,7 +11,7 @@ use vw_api_types::{
     agent_apps::AppId,
     id::{ProjectScope, TenantScope},
 };
-use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 const GUARD: Duration = Duration::from_secs(3);
 const REQUEST: &str = r#"{"model":"fixture","stream":true}"#;

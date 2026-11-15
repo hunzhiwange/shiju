@@ -251,7 +251,7 @@ fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant()
         vw_gateway_client::vw_api_types::id::TenantScope::new("fixture-platform", "other-company")
             .unwrap();
     assert!(directory(&other, &credentials.token, None).is_none());
-    let remote = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let remote = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "remote.example",
         42617,
     ))

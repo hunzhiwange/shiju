@@ -50,7 +50,7 @@ pub enum EnvironmentMessage {
 fn message(event: EnvironmentMessage) -> Message {
     Message::Settings(SettingsMessage::Worktrees(WorktreeSettingsMessage::Environment(event)))
 }
-pub(crate) fn can_add(endpoint: &vw_gateway_client::GatewayEndpoint) -> bool {
+pub(crate) fn can_add(endpoint: &gateway_endpoint::GatewayEndpoint) -> bool {
     cfg!(not(target_arch = "wasm32")) && endpoint.is_loopback()
 }
 fn scope(client: &GatewayClient, project: &ProjectDto) -> Result<ProjectScope, String> {

@@ -3,15 +3,13 @@
 use std::collections::{HashMap, HashSet};
 
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayClient, GatewayEndpoint,
-    vw_api_types::{
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayClient, vw_api_types::{
         agent_apps::AppId,
         agent_apps_auth::{AuthCredentialState, AuthErrorCode, AuthService},
         apps_usage::{UsageQueryKind, UsageSnapshotQuery, UsageSnapshotResponse},
         id::ProjectId,
-    },
-};
+    }}};
 
 use super::system_settings::SystemTab;
 #[path = "apps_usage_cards/batch.rs"]

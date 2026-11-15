@@ -115,7 +115,7 @@ async fn cc04_update_sdk_api_preserves_metadata_and_native_files() {
         axum::serve(listener, app).await.unwrap();
     });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
             .with_tenant_scope(tenant("a")),
     )
     .unwrap();

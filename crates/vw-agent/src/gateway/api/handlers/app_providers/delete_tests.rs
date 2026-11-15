@@ -75,7 +75,7 @@ async fn cc04_delete_sdk_http_rejects_members_and_deletes_only_unused_rows() {
         axum::serve(listener, Router::new().nest("/v1", app)).await.unwrap();
     });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant("a")),
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant("a")),
     )
     .unwrap();
     let request = AppProviderDelete { target_host_id: "host".into() };

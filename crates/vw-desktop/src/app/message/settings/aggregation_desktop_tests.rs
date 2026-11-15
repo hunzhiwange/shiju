@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 use vw_gateway_client::vw_api_types::{
     agent_apps::aggregation::*, app_providers::desktop_mapping::DesktopModelRoute,
 };
-use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::agent_apps::AppId};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_types::agent_apps::AppId}};
 fn fixture(
     path: &'static str,
     status: u16,
@@ -21,7 +21,7 @@ fn fixture_sequence(
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
-            .with_auth(vw_gateway_client::GatewayAuth { skey: Some("fake-host-token".into()) }),
+            .with_auth(gateway_endpoint::GatewayAuth { skey: Some("fake-host-token".into()) }),
     )
     .unwrap();
     let scope = Scope {

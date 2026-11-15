@@ -5,7 +5,7 @@ use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 
 #[path = "voice_screen.rs"]
 mod screen;

@@ -92,7 +92,7 @@ fn worktree_environment_ui_clear_failure_retry_and_stale_response() {
 #[test]
 fn worktree_environment_ui_rejects_remote_picker_and_deduplicates_additions() {
     use crate::app::message::settings::worktrees::environment::{can_add, update};
-    assert!(!can_add(&vw_gateway_client::GatewayEndpoint::new("192.0.2.1", 8080)));
+    assert!(!can_add(&gateway_endpoint::GatewayEndpoint::new("192.0.2.1", 8080)));
     let mut app = crate::app::App::new().0;
     let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
     for _ in 0..2 {
@@ -184,7 +184,7 @@ async fn worktree_environment_ui_paginates_and_sends_only_project_patch() {
     use crate::app::message::settings::worktrees::environment::{load_projects, save_command};
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         listener.local_addr().unwrap().port(),
     ))

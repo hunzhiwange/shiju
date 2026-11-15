@@ -62,8 +62,8 @@ pub(super) fn server(
         }
         requests
     });
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)
-        .with_auth(vw_gateway_client::GatewayAuth { skey: Some("gateway-key".into()) });
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some("gateway-key".into()) });
     (GatewayClient::new(endpoint).unwrap(), handle)
 }
 
@@ -225,7 +225,7 @@ async fn aggregation_t58_unconfirmed_execute_sends_no_publication() {
     use vw_gateway_client::vw_api_types::agent_apps::AppId;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
-    let client = GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         listener.local_addr().unwrap().port(),
     ))

@@ -33,7 +33,7 @@ async fn cc04_universal_sync_sdk_api_persistence_and_partial_failure() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port());
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", addr.port());
     let client =
         vw_gateway_client::GatewayClient::new(endpoint.clone().with_tenant_scope(tenant.clone()))
             .unwrap();

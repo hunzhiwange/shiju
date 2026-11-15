@@ -7,7 +7,7 @@ use vw_api_types::{
     app_providers::{basic::ProviderBasic, create::ProviderSecretWrite, pi::*},
     id::TenantScope,
 };
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 const TOKEN: &str = "fixture-pi-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,

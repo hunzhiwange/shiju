@@ -157,10 +157,9 @@ async fn shiju_knowledge_reader_walks_local_http_pages_and_chinese_chunks() {
         thread,
         time::Duration,
     };
-    use vw_gateway_client::{
-        GatewayClient, GatewayEndpoint, ShijuCredential, ShijuKnowledgeReadRequest,
-        ShijuKnowledgeSearchRequest,
-    };
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+        GatewayClient, ShijuCredential, ShijuKnowledgeReadRequest,
+        ShijuKnowledgeSearchRequest}};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();

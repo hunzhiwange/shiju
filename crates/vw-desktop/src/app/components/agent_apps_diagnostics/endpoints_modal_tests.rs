@@ -426,7 +426,7 @@ fn diagnostic_desktop_endpoint_selection_requires_save_other_forms() {
         host: "host".into(),
         app: AppId::Codex,
     };
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         1,
     ))

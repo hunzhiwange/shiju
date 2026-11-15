@@ -65,7 +65,7 @@ fn codex_plugin_compat_t64_real_macos_mcp_page() {
     let resource = request("resources/read", json!({"uri":"ui://panel/view"}), 4);
     let app = json!({"server":"panel-qa","tool":"show","execution_binding":"t64-local-ui-only",
         "resource_uri":"ui://panel/view","resource":resource});
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         1,
     ))

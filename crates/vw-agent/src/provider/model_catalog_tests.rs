@@ -352,8 +352,8 @@ async fn catalog_resolver_projection_keeps_gateway_picker_in_tenant() {
     let directory = dir.path().to_str().unwrap();
     for (tenant, alias) in [(fixture.tenant, ALIAS), (other.tenant, "另一租户的展示名")] {
         let client = vw_gateway_client::GatewayClient::new(
-            vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)
-                .with_auth(vw_gateway_client::GatewayAuth {
+            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
+                .with_auth(gateway_endpoint::GatewayAuth {
                     skey: Some("dynamic-acceptance-skey".into()),
                 })
                 .with_tenant_scope(tenant),
@@ -376,10 +376,8 @@ async fn catalog_execution_gate_rejects_gateway_image_before_ocr() {
         Arc,
         atomic::{AtomicUsize, Ordering},
     };
-    use vw_gateway_client::{
-        GatewayAuth, GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient,
-        GatewayEndpoint,
-    };
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
+        GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient}};
 
     if run_isolated("catalog_execution_gate_rejects_gateway_image_before_ocr").await {
         return;

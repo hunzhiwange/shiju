@@ -350,7 +350,7 @@ fn recover_reset_message_ids_task(
         async move {
             let result = async {
                 let client = vw_gateway_client::GatewayClient::new(
-                    vw_gateway_client::GatewayEndpoint::new(endpoint.0, endpoint.1),
+                    gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
                 )?;
                 let msgs = client
                     .session_messages::<Vec<agent_message::WithParts>>(
@@ -1838,7 +1838,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let gateway_task = Task::perform(
                 async move {
                     let result = match vw_gateway_client::GatewayClient::new(
-                        vw_gateway_client::GatewayEndpoint::new(endpoint.0, endpoint.1),
+                        gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
                     ) {
                         Ok(client) => {
                             client

@@ -55,7 +55,7 @@ async fn aggregation_t65_sdk_wire_and_conflict_preserve_draft_without_replay() {
         io::{BufRead, BufReader, Read, Write},
         net::TcpListener,
     };
-    use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = std::thread::spawn(move || {

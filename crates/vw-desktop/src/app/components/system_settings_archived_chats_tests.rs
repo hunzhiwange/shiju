@@ -435,7 +435,7 @@ mod rendering {
         }
         let locale = DesktopLocale::SimplifiedChinese;
         let current =
-            Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));
+            Identity::from_endpoint(&gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1));
         let mut ui = UserInterface::build(
             page(&state, locale),
             Size::new(860.0, 620.0),
@@ -553,7 +553,7 @@ mod rendering {
                 .await
                 .unwrap();
         let current =
-            Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));
+            Identity::from_endpoint(&gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1));
         for (theme_name, theme) in [("dark", Theme::Dark), ("light", Theme::Light)] {
             for width in [320_u32, 860] {
                 for pending in [false, true] {
@@ -696,7 +696,7 @@ mod rendering {
                 .await
                 .unwrap();
         let current =
-            Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));
+            Identity::from_endpoint(&gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1));
         for (theme_name, theme) in [("dark", Theme::Dark), ("light", Theme::Light)] {
             for width in [320_u32, 860] {
                 for pending in [false, true] {

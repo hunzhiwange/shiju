@@ -13,15 +13,13 @@ use crate::app::{
     },
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient, GatewayEndpoint,
-    vw_api_types::{
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient, vw_api_types::{
         agent_apps::AppId,
         agent_apps_auth::{
             AuthAccount, AuthCredentialState, AuthErrorCode, AuthRegion, AuthService,
         },
-    },
-};
+    }}};
 
 pub(crate) fn entry(form: &EditForm, app: AppId, provider_generation: u64) -> Option<Message> {
     service(form, app)?;

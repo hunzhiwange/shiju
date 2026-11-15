@@ -11,7 +11,7 @@ use vw_api_types::{
     file::{LocalImportRequest, MoveFileRequest},
     id::{ProjectScope, TenantScope},
 };
-use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]

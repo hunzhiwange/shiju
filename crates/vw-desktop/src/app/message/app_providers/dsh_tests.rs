@@ -13,13 +13,11 @@ use std::{
     net::TcpListener,
     time::{Duration, Instant},
 };
-use vw_gateway_client::{
-    GatewayClient, GatewayEndpoint,
-    vw_api_types::{
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    GatewayClient, vw_api_types::{
         agent_apps::AppId,
         app_providers::{basic::ProviderBasic, dsh::DshLiveResult},
-    },
-};
+    }}};
 
 const INVALID: &str = "models:\n  - id: \"\"\n    name: 中文模型";
 

@@ -10,7 +10,7 @@ use vw_config_types::{
     config::Config, security::IdentityConfig, ui::GatewayClientSystemSettingsConfig,
 };
 use vw_gateway_client::vw_api_types::id::TenantScope;
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 use super::system_settings::load_gateway_client_bootstrap_config;
 
@@ -161,9 +161,9 @@ pub(super) fn gateway_client_endpoint_from_config(
     } else {
         active.skey.trim().to_string()
     };
-    let auth = vw_gateway_client::GatewayAuth {
+    let auth = gateway_endpoint::GatewayAuth {
         skey: Some(skey).filter(|value| !value.is_empty()),
-        ..vw_gateway_client::GatewayAuth::default()
+        ..gateway_endpoint::GatewayAuth::default()
     };
     let tenant_scope = TenantScope::new(active.platform_id.trim(), active.company_id.trim())
         .expect("gateway client tenant IDs are validated before persistence");

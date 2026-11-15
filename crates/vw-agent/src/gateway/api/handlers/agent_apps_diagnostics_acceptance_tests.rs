@@ -37,7 +37,7 @@ use vw_api_types::{
     id::{ProjectScope, TenantScope},
     mcp_management::{McpCatalogScope, McpConnectionDefinition, McpRecordId},
 };
-use vw_gateway_client::{AgentAppsSettingsError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsSettingsError, GatewayClient}};
 
 const TOKEN: &str = "fixture-macos-diagnostic-member-00001";
 

@@ -2,7 +2,11 @@
 //!
 //! 这些测试锁定客户端构造阶段的作用域来源，不涉及实际网络连接。
 
-use vw_api_types::id::{DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, TenantScope};
+use {
+    vw_api_types::id::DEFAULT_COMPANY_ID,
+    vw_api_types::id::DEFAULT_PLATFORM_ID,
+    vw_api_types::id::TenantScope,
+};
 
 #[test]
 fn gateway_endpoint_defaults_to_platform_tenant() {

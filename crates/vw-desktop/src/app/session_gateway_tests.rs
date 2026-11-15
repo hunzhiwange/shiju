@@ -34,7 +34,7 @@ async fn stop_stub(
         String::from_utf8(request).expect("stop request should be utf8")
     });
     let endpoint =
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant);
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant);
     let client = vw_gateway_client::GatewayClient::new(endpoint).expect("stop client should build");
     (client, handle)
 }
@@ -74,7 +74,7 @@ async fn session_open_requests_summary_and_latest_page_only() {
         }
         requests
     });
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         port,
     ))
@@ -183,7 +183,7 @@ async fn task_plan_run_stop_gateway_boundary_surfaces_unknown_and_cross_tenant_e
         std::net::TcpListener::bind("127.0.0.1:0").expect("unused stop port should bind");
     let unused_port = unused_listener.local_addr().expect("unused stop address").port();
     drop(unused_listener);
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         unused_port,
     ))
@@ -502,7 +502,7 @@ async fn session_message_delta_refreshes_count_for_conflict_and_gap() {
             requests
         });
         let client = vw_gateway_client::GatewayClient::new(
-            vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port),
+            gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port),
         )
         .unwrap();
         let delta = vw_shared::session::ui_types::SessionMessageDelta {

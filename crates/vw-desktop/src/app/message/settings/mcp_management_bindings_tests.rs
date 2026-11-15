@@ -158,7 +158,7 @@ async fn cc_mcp_t46_single_and_bulk_use_sdk_with_revisions_and_preserve_each_tar
     };
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_tenant_scope(
                 vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),
             ),

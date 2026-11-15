@@ -25,7 +25,7 @@ fn policy(root: &Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("custom")).unwrap();
     let path = root.path().join("custom/models.yaml");

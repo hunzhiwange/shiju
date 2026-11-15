@@ -11,7 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 use vw_config_types::voice::VoiceName;
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 
 #[test]
 fn voice_task_19_voice_acceptance_cancel_has_no_external_write() {

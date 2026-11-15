@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 use vw_gateway_client::vw_api_types::voice::{TranscriptionRequest, VoiceCounter, VoiceId};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 #[derive(Clone)]
 pub(super) enum Route {

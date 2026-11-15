@@ -191,7 +191,7 @@ fn server(
         inputs
     });
     (
-        GatewayClient::new(vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)).unwrap(),
+        GatewayClient::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap(),
         handle,
     )
 }
@@ -253,7 +253,7 @@ async fn aggregation_t62_sdk_ack_restart_and_progress_use_exact_scope() {
 async fn aggregation_t62_sdk_rejects_unconfirmed_and_foreign_intent_without_request() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
-    let client = GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         listener.local_addr().unwrap().port(),
     ))

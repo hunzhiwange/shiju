@@ -101,7 +101,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 pub(in crate::app) fn update_at(
     app: &mut App,
     event: Event,
-    endpoint: vw_gateway_client::GatewayEndpoint,
+    endpoint: gateway_endpoint::GatewayEndpoint,
 ) -> Task<Message> {
     let scope = Scope::from(&endpoint);
     let visible = app.show_system_settings && app.system_settings_tab == SystemTab::Auth;

@@ -63,7 +63,7 @@ async fn cc04_ui_edit_sdk_basic_create_update_copy_preserves_executor_fields() {
     let server = tokio::spawn(async move {
         axum::serve(listener, axum::Router::new().nest("/v1", routes)).await.unwrap();
     });
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
         .with_tenant_scope(tenant.clone());
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
     let mut request = input();

@@ -578,11 +578,11 @@ impl App {
             } else {
                 active.skey.trim().to_string()
             };
-            let auth = vw_gateway_client::GatewayAuth {
+            let auth = gateway_endpoint::GatewayAuth {
                 skey: Some(skey).filter(|value| !value.is_empty()),
-                ..vw_gateway_client::GatewayAuth::default()
+                ..gateway_endpoint::GatewayAuth::default()
             };
-            vw_gateway_client::GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX))
+            gateway_endpoint::GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX))
                 .with_auth(auth)
         });
 

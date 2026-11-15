@@ -7,17 +7,15 @@ use iced::{
     task::Handle,
     widget::text_editor::{Action, Content},
 };
-use vw_gateway_client::{
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
     AppsUsageCredentialRefs, AppsUsageScriptTrial, AppsUsageTemplate, AppsUsageWriteError,
-    GatewayClient, GatewayEndpoint,
-    vw_api_types::{
+    GatewayClient, vw_api_types::{
         agent_apps_auth::AuthErrorCode,
         apps_usage::{
             UsageQueryErrorCode, UsageScriptPackage, UsageSnapshotQuery,
             settings::UsageCredentialId,
         },
-    },
-};
+    }}};
 
 use super::apps_usage_settings::{self, Event as SettingsEvent};
 use crate::app::Message;

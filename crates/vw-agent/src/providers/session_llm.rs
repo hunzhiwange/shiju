@@ -39,9 +39,9 @@ impl SessionLlmProvider {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn gateway_endpoint() -> vw_gateway_client::GatewayEndpoint {
+    fn gateway_endpoint() -> gateway_endpoint::GatewayEndpoint {
         let config = crate::app::agent::config::get_blocking();
-        vw_gateway_client::GatewayEndpoint::new(config.gateway.host, config.gateway.port)
+        gateway_endpoint::GatewayEndpoint::new(config.gateway.host, config.gateway.port)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

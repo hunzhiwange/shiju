@@ -8,10 +8,8 @@ use crate::app::state::{
 };
 use iced::widget::text_editor::Content;
 use std::io::{BufRead, BufReader, Read, Write};
-use vw_gateway_client::{
-    GatewayClient, GatewayEndpoint,
-    vw_api_types::{agent_apps::AppId, app_providers::snippets::ConfigSnippet},
-};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    GatewayClient, vw_api_types::{agent_apps::AppId, app_providers::snippets::ConfigSnippet}}};
 
 const INVALID: &str = "{ 中文草稿";
 const TOKEN: &str = "fixture-host-token";

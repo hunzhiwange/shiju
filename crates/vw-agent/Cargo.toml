@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
+gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 provider-errors = { path = "../libs/provider-errors", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }

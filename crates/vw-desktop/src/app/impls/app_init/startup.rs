@@ -74,7 +74,7 @@ mod native {
     use serde_json::Value;
     use std::collections::HashSet;
     use vw_config_types::{config::Config, gateway::GatewayConfig, ui::AppSystemSettingsConfig};
-    use vw_gateway_client::{ExternalAppsStateDto, GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{ExternalAppsStateDto, GatewayClient}};
 
     #[derive(Default, Clone, Copy)]
     struct Loaded {

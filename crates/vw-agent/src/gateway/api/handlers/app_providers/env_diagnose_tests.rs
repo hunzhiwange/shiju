@@ -25,7 +25,7 @@ fn policy(root: &Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn cc04_env_diagnose_sdk_api_execution_home_and_permission_boundary() {
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join(".zshrc");
     std::fs::write(&path, "export ANTHROPIC_API_KEY=fixture-secret\n").unwrap();

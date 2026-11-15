@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 use vw_config_types::voice::VoiceName;
-use vw_gateway_client::GatewayEndpoint;
+use gateway_endpoint::GatewayEndpoint;
 
 #[test]
 fn voice_task_13_voice_preview_does_not_capture_microphone() {

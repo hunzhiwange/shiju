@@ -18,7 +18,7 @@ use vw_api_types::{
     id::{ProjectScope, TaskId, TenantScope},
     task::TaskStatus,
 };
-use vw_gateway_client::{AppsUsageOperation, AppsUsageWriteError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppsUsageOperation, AppsUsageWriteError, GatewayClient}};
 
 use super::{
     FIXTURE_CA, FIXTURE_CERT, FIXTURE_KEY, Fixture, NativeTransport, OTHER_TOKEN, TOKEN,

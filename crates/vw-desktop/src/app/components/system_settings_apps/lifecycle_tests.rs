@@ -40,7 +40,7 @@ async fn cc_apps_desktop_lifecycle_state_authorized_preview_submit_disconnect_re
     use crate::app::message::settings::apps_lifecycle::{LifecycleResult, Work, execute};
     use serde_json::json;
     use std::io::{Read, Write};
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let request = AppActionPreviewRequest {
         app_id: AppId::Codex,
         action: AppLifecycleAction::Update,

@@ -1,6 +1,6 @@
 use super::*;
 use std::future::ready;
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 const ORIGIN: &str = "https://links.example.test:8443";
 const URL: &str = "https://links.example.test:8443/report?q=demo#section";

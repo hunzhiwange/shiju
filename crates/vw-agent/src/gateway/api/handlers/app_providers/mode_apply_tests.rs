@@ -11,7 +11,7 @@ use std::{
 };
 use vw_agent_apps::providers::{live::commit::*, mode_apply::*};
 use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*, id::TenantScope};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-mode-authorized-token-32-characters";
 fn tenant() -> TenantScope {
     TenantScope::new("p", "a").unwrap()

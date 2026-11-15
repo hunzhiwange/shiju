@@ -3,9 +3,8 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
 };
-use vw_gateway_client::{
-    GatewayClient, GatewayEndpoint, vw_api_types::agent_apps::aggregation::AggregationQuery,
-};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    GatewayClient, vw_api_types::agent_apps::aggregation::AggregationQuery}};
 
 #[tokio::test]
 async fn aggregation_t66_aggregation_omp_preserves_contract() {

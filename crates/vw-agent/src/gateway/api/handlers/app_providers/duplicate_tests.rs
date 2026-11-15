@@ -126,7 +126,7 @@ async fn cc04_duplicate_sdk_api_sqlite_preserves_source_and_native_files() {
     });
     let tenant = TenantScope::new("p", "a").unwrap();
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();

@@ -5,14 +5,13 @@ use crate::app::{
     state::app_providers::list::Scope,
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsSettingsError, GatewayAuth, GatewayClient,
+use {gateway_endpoint::{GatewayAuth}, vw_gateway_client::{
+    AgentAppsSettingsError, GatewayClient,
     vw_api_types::{
         ReasoningEffortDto,
         agent_apps::{AppId, aggregation::*},
         id::ProjectId,
-    },
-};
+    }}};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Context {
     pub scope: Scope,

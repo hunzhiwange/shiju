@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 use vw_api_types::{app_routing::RoutingState, id::TenantScope};
-use vw_gateway_client::{AppRoutingError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppRoutingError, GatewayClient}};
 
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";
 const GATEWAY_LINE: &str = "VibeWindow Gateway listening on http://127.0.0.1:";

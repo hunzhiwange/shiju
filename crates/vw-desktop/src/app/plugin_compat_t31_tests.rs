@@ -35,7 +35,7 @@ fn codex_plugin_compat_t31_destroys_app_after_session_close() {
     std::fs::write(&helper,"#!/usr/bin/env python3\nimport sys,json,os,time\nv=json.loads(sys.stdin.readline())\nopen(v['html'],'w').write(str(os.getpid()))\nwhile True: time.sleep(1)\n").unwrap();
     std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700)).unwrap();
     let pidfile = dir.path().join("pid");
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         1,
     ))
@@ -108,7 +108,7 @@ fn codex_plugin_compat_t31_real_local_mcp_page() {
     app["resource_uri"] = raw["contents"][0]["uri"].clone();
     app["resource"] = raw;
     let helper = std::env::var("VW_T31_HELPER").unwrap();
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         1,
     ))
@@ -159,7 +159,7 @@ fn codex_plugin_compat_t31_limits_network_to_exact_https_origins() {
 
 #[test]
 fn codex_plugin_compat_t31_reports_missing_helper() {
-    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+    let client = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
         "127.0.0.1",
         1,
     ))

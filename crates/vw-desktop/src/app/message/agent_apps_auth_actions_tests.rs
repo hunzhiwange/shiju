@@ -16,13 +16,11 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use vw_gateway_client::{
-    GatewayEndpoint,
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
     vw_api_types::{
         agent_apps_auth::{AuthAccount, AuthCredentialState, AuthService},
         id::TenantScope,
-    },
-};
+    }}};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 const BINDINGS: &str = "GET /v1/agent-apps/auth/bindings?host_id=fixture-mac&service=codex_oauth&account_id=account-a HTTP/1.1";

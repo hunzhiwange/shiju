@@ -8,7 +8,7 @@ use vw_api_types::{
     id::{TaskId, TenantScope},
     task::TaskStatus,
 };
-use vw_gateway_client::{AgentAppsLifecycleError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsLifecycleError, GatewayClient}};
 fn terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {
     let result = std::process::Command::new(&material.program)
         .args(&material.args)

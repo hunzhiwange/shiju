@@ -8,7 +8,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
 use vw_config_types::voice::{RecognitionLanguage, VoiceConfig, VoiceName};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 #[path = "voice_io.rs"]
 mod io;

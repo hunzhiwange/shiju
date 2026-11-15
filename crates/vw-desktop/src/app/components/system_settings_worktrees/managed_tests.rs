@@ -281,7 +281,7 @@ async fn worktree_managed_ui_paginates_all_projects_and_keeps_partial_failure() 
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint =
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
     let server = std::thread::spawn(move || {
         listener.set_nonblocking(true).unwrap();

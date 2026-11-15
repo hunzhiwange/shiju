@@ -15,7 +15,7 @@ use vw_api_types::{
     id::{TaskId, TenantScope},
     model_catalog::*,
 };
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 
 const TOKEN: &str = "model-discovery-application-credential";
 const OTHER_TOKEN: &str = "model-discovery-different-principal";

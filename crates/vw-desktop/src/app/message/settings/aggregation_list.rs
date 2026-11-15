@@ -229,7 +229,7 @@ pub(crate) async fn load(
     let endpoint = client
         .endpoint()
         .clone()
-        .with_auth(vw_gateway_client::GatewayAuth { skey: Some(token.clone()) });
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some(token.clone()) });
     let aggregation_client =
         GatewayClient::new(endpoint).map_err(AggregationApiError::Transport)?;
     let state = aggregation_client
@@ -337,7 +337,7 @@ pub(crate) async fn mutate(
     let endpoint = client
         .endpoint()
         .clone()
-        .with_auth(vw_gateway_client::GatewayAuth { skey: Some(token.clone()) });
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some(token.clone()) });
     let writer = match GatewayClient::new(endpoint) {
         Ok(writer) => writer,
         Err(error) => {

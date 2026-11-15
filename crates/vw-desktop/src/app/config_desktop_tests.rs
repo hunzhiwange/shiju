@@ -1049,7 +1049,7 @@ fn mini_companion_failed_save_keeps_edit_and_can_retry() {
 #[test]
 fn mini_companion_old_endpoint_snapshot_cannot_restore_visibility() {
     use crate::app::{App, Message, impls::StartupGatewaySnapshot};
-    use vw_gateway_client::GatewayEndpoint;
+    use gateway_endpoint::GatewayEndpoint;
     let (_lock, _home, _guard) = temp_home();
     let mut app = App::new().0;
     let _load = app.startup_configuration.load();

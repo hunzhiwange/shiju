@@ -1,0 +1,8 @@
+[package]
+name = "gateway-endpoint"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }

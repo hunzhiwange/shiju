@@ -7,17 +7,15 @@ use crate::app::state::{
     },
 };
 use std::io::{BufRead, BufReader, Read, Write};
-use vw_gateway_client::{
-    GatewayClient, GatewayEndpoint,
-    vw_api_types::{
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    GatewayClient, vw_api_types::{
         agent_apps::AppId,
         app_providers::{
             env_clean::EnvCleanSelection,
             env_diagnose::{EnvDiagnostic, EnvSource, SystemShellFile, UserShellFile},
             env_restore::EnvRestoreStatus,
         },
-    },
-};
+    }}};
 
 #[test]
 fn cc04_ui_env_readonly_source_has_no_delete() {

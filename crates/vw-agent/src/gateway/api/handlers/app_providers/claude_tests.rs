@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 use vw_api_types::{agent_apps::AppId, app_providers::claude::*, id::TenantScope};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-claude-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,

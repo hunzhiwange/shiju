@@ -153,7 +153,7 @@ async fn cc_mcp_t45_real_sdk_writes_identical_dto_and_keeps_conflict_draft() {
     };
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_tenant_scope(TenantScope::new("10000", "100000001").unwrap()),
     )
     .unwrap();

@@ -147,7 +147,7 @@ mod host_reads {
     }
     #[tokio::test]
     async fn cc04_catalog_sdk_http_reads_native_files_without_writes() {
-        use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+        use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
         let root = tempfile::tempdir().unwrap();
         std::fs::create_dir(root.path().join(".kimi-code")).unwrap();
         let path = root.path().join(".kimi-code/config.toml");

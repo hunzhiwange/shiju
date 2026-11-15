@@ -1777,7 +1777,7 @@ fn plan_run_tool_block(
 #[allow(dead_code)]
 fn apply_workflow_auth(
     builder: reqwest::RequestBuilder,
-    endpoint: &vw_gateway_client::GatewayEndpoint,
+    endpoint: &gateway_endpoint::GatewayEndpoint,
 ) -> reqwest::RequestBuilder {
     let Some(auth) = endpoint.auth.as_ref() else {
         return builder;
@@ -1874,7 +1874,7 @@ fn parse_workflow_chat_messages_event(payload: serde_json::Value) -> WorkflowCha
 
 #[allow(dead_code)]
 async fn stream_workflow_chat_messages(
-    endpoint: &vw_gateway_client::GatewayEndpoint,
+    endpoint: &gateway_endpoint::GatewayEndpoint,
     directory: Option<&str>,
     body: &serde_json::Value,
     mut on_event: impl FnMut(WorkflowChatMessagesEvent) -> bool,
@@ -1978,7 +1978,7 @@ fn build_task_plan_run_request(
 
 #[cfg(test)]
 async fn stream_task_plan_run(
-    endpoint: &vw_gateway_client::GatewayEndpoint,
+    endpoint: &gateway_endpoint::GatewayEndpoint,
     body: &vw_api_types::task::TaskPlanRunRequest,
     on_event: impl FnMut(vw_api_types::task::TaskPlanRunStreamEventDto) -> bool,
 ) -> Result<(), String> {
@@ -1992,7 +1992,7 @@ async fn stream_task_plan_run(
 }
 
 async fn stream_task_plan_run_resumable(
-    endpoint: &vw_gateway_client::GatewayEndpoint,
+    endpoint: &gateway_endpoint::GatewayEndpoint,
     body: &vw_api_types::task::TaskPlanRunRequest,
     resume: &vw_gateway_client::GatewayStreamResume,
     on_event: impl FnMut(

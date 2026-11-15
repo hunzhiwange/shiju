@@ -214,7 +214,7 @@ async fn cc_apps_desktop_uninstall_state_http_selected_instance_stale_submit_and
     use crate::app::message::settings::apps_lifecycle::{LifecycleResult, Work, execute};
     use serde_json::json;
     use std::io::{Read, Write};
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let request = AppActionPreviewRequest {
         app_id: AppId::Codex,
         action: AppLifecycleAction::Uninstall,

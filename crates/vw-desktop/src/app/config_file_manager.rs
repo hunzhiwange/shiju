@@ -2,7 +2,7 @@
 
 /// 不对远端网关路径做本机探测或系统调用。
 pub(crate) async fn reveal_gateway_path_locally(
-    endpoint: &vw_gateway_client::GatewayEndpoint,
+    endpoint: &gateway_endpoint::GatewayEndpoint,
     path: &str,
 ) -> Result<(), String> {
     if !endpoint.is_loopback() {

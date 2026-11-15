@@ -98,7 +98,7 @@ async fn cc04_presentation_sdk_api_reload_isolated_and_native_unchanged() {
         axum::serve(listener, app).await.unwrap();
     });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();

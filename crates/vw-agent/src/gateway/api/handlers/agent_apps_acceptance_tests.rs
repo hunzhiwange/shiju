@@ -323,7 +323,7 @@ impl Server {
         company: &str,
         authenticated: bool,
     ) -> anyhow::Result<vw_gateway_client::GatewayClient> {
-        use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
+        use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
         GatewayClient::new(
             GatewayEndpoint::new("127.0.0.1", self.addr.port())
                 .with_tenant_scope(TenantScope::new(platform, company)?)

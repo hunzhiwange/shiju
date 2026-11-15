@@ -170,7 +170,7 @@ async fn archived_chats_restore_http_persists_only_target_and_retries_failure() 
     std::fs::write(&path, serde_json::to_vec(&rows).unwrap()).unwrap();
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint =
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_tenant_scope(TenantScope::new("10000", "100000001").unwrap());
     let current = Identity::from_endpoint(&endpoint);
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
@@ -584,7 +584,7 @@ async fn archived_chats_browse_task_reads_all_projects_over_http() {
         stream.write_all(&body).unwrap();
         String::from_utf8(bytes).unwrap()
     });
-    let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
         .with_tenant_scope(TenantScope::new("10000", "100000001").unwrap());
     let current = Identity::from_endpoint(&endpoint);
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
@@ -757,7 +757,7 @@ async fn archived_chats_delete_http_failure_retains_confirmation_then_retry_dele
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint =
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
     let current = Identity::from_endpoint(&endpoint);
     let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
     let fixture = tempfile::tempdir().unwrap();
@@ -1226,7 +1226,7 @@ async fn archived_chats_project_delete_rechecks_archive_before_restricted_http_d
             }
             requests
         });
-        let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)
+        let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
             .with_tenant_scope(TenantScope::new("10000", "100000001").unwrap());
         let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
         let result = tokio::time::timeout(

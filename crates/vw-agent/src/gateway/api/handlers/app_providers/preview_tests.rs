@@ -25,7 +25,7 @@ pub(super) fn policy(root: &Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join(".claude")).unwrap();
     let config = root.path().join(".claude/settings.json");
@@ -123,7 +123,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
     use vw_agent_apps::providers::live::commit::{
         AppState, ExecutionHostId, ProviderTransactions, ScopedProvider,
     };
-    use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let private = root.path().join("private");
     std::fs::create_dir(&private).unwrap();

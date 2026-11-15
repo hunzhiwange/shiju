@@ -2,8 +2,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, oneshot};
-use vw_gateway_client::{
-    GatewayEndpoint,
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
     vw_api_types::{
         TimestampMs,
         agent_apps_auth::{
@@ -11,8 +10,7 @@ use vw_gateway_client::{
             AuthStartRequest,
         },
         id::TenantScope,
-    },
-};
+    }}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scope {

@@ -5,7 +5,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value, json};
 use std::collections::{HashMap, hash_map::Entry};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 pub type ChatModelPreferences = (String, bool, Option<String>);
 

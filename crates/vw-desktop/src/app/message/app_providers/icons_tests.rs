@@ -5,13 +5,11 @@ use std::{
     net::TcpListener,
     sync::atomic::{AtomicBool, Ordering},
 };
-use vw_gateway_client::{
-    GatewayClient, GatewayEndpoint,
-    vw_api_types::{
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
+    GatewayClient, vw_api_types::{
         agent_apps::{AddCustomIconRequest, AppId, CustomIconEntry},
         app_providers::icons::{AppProviderIcon, AppProviderIconChange},
-    },
-};
+    }}};
 
 const IMAGE: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 const INVALID: &str = "data:image/png;base64,bm90IGEgcG5n";

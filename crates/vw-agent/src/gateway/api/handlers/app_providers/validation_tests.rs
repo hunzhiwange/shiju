@@ -24,7 +24,7 @@ async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mut
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();
@@ -190,7 +190,7 @@ async fn cc04_validation_preview_checks_permission_before_options_and_never_writ
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", address.port())
             .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
     )
     .unwrap();

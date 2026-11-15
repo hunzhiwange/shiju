@@ -8,7 +8,7 @@ use std::{
 };
 use tokio::sync::watch;
 use vw_config_types::voice::VoiceName;
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 pub(crate) struct Preview {
     stop: watch::Sender<bool>,

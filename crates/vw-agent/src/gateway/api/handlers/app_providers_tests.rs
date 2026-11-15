@@ -88,7 +88,7 @@ async fn cc_apps_provider_launch_isolation_api_write_read_auth_and_redaction() {
 async fn cc_apps_provider_launch_isolation_sdk_http_sqlite_projection_process_roundtrip() {
     use axum::{Extension, Router, middleware};
     use vw_api_types::{agent_apps::*, app_providers::ProviderLaunchRequest, id::TenantScope};
-    use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let home = tempfile::tempdir().unwrap();
     let database = GlobalDatabase::for_home(home.path()).unwrap();
     let router = Router::new()

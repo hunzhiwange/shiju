@@ -34,9 +34,7 @@ impl GatewayAppProviderClient {
     ) -> Result<ClaudeDesktopResult, Error> {
         self.claude_desktop_request(id, "POST", "/reapply", body, token).await
     }
-    /// Shared request path for the legacy desktop model-mapping facade.
-    #[doc(hidden)]
-    pub async fn claude_desktop_request<
+    pub(super) async fn claude_desktop_request<
         B: serde::Serialize,
         R: serde::de::DeserializeOwned,
     >(

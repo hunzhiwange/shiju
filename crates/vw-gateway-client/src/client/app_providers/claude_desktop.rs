@@ -38,18 +38,4 @@ impl GatewayClient {
         gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
             .claude_desktop_provider_reapply(id, body, token).await
     }
-    pub(super) async fn claude_desktop_request<
-        B: serde::Serialize,
-        R: serde::de::DeserializeOwned,
-    >(
-        &self,
-        id: &str,
-        method: &str,
-        action: &str,
-        body: &B,
-        token: &str,
-    ) -> Result<R, Error> {
-        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
-            .claude_desktop_request(id, method, action, body, token).await
-    }
 }

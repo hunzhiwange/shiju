@@ -235,3 +235,9 @@ mod grok;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/grok_tests.rs"]
 mod grok_tests;
+
+#[path = "app_providers/desktop_mapping.rs"]
+mod desktop_mapping;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/desktop_mapping_tests.rs"]
+mod desktop_mapping_tests;

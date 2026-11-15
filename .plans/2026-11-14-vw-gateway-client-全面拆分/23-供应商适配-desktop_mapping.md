@@ -32,3 +32,11 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-app-provider crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## Static review
+
+- All four desktop_mapping methods and both SDK tests moved to gateway-app-provider/app_providers/desktop_mapping*.rs; no private helper in source.
+- Reused task 21 request helper, reduced visibility to pub(super), removed generic facade helper. Legacy facade keeps explicit forwarding and identity rejection coverage.
+- Desktop consumers and agent handler test fixture now use domain client. No calls in CLI or provider-resolver. Existing workspace and dependency wiring reused. Prerequisites: cab51e84f and bf488d917.
+- Scoped git diff --check passed. No reverse dependency introduced. Global whitespace failures belong to unrelated files.
+- No Cargo, tests, native verification or final regression run, per explicit user instructions. Future verification remains separately authorized.

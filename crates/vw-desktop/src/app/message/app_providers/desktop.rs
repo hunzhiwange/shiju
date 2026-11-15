@@ -29,7 +29,7 @@ pub(crate) async fn save(
     form: Form,
     token: String,
 ) -> Result<String, String> {
-    let result = client
+    let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .claude_desktop_mapping_save(
             &form.id,
             &DesktopMappingWrite { target_host_id: scope.host, mapping: form.mapping },
@@ -47,7 +47,7 @@ pub(crate) async fn import(
     scope: Scope,
     token: String,
 ) -> Result<String, String> {
-    let result = client
+    let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .claude_desktop_import_claude(&ClaudeDesktopTarget { target_host_id: scope.host }, &token)
         .await
         .map_err(error)?;
@@ -158,7 +158,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 let request = ClaudeDesktopTarget { target_host_id: scope.host.clone() };
                 return Task::perform(
                     async move {
-                        client.claude_desktop_form_read(&id, &request, &token).await.map_err(error)
+                        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).claude_desktop_form_read(&id, &request, &token).await.map_err(error)
                     },
                     move |result| {
                         message(Event::Loaded { scope: scope.clone(), generation, result })
@@ -245,7 +245,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if matches!(event, Event::Defaults) {
                 return Task::perform(
                     async move {
-                        client.claude_desktop_default_routes(&request, &token).await.map_err(error)
+                        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).claude_desktop_default_routes(&request, &token).await.map_err(error)
                     },
                     move |result| {
                         message(Event::DefaultsLoaded { scope: scope.clone(), generation, result })

@@ -17,6 +17,7 @@ members = [
   "crates/libs/gateway-desktop-settings",
   "crates/libs/app-versions",
   "crates/libs/tool-types",
+  "crates/libs/tool-context",
   "crates/libs/gateway-skill-market",
   "crates/libs/app-providers",
   "crates/libs/gateway-shiju-skill",

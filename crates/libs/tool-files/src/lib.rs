@@ -9,6 +9,7 @@ pub mod glob_search;
 pub mod grep;
 pub mod image_asset_read;
 pub mod ls;
+pub mod pdf_read;
 
 /// 宿主技能目录状态；每次检查时读取当前真实状态。
 pub trait FileToolHost: tool_context::host::ContextHost {

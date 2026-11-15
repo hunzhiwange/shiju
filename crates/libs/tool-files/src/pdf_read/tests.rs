@@ -12,8 +12,8 @@
 //! 2. **安全测试**：验证各种安全边界和防护机制
 //! 3. **提取测试**（需 rag-pdf feature）：验证 PDF 文本提取功能
 
-use super::super::*;
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use super::*;
+use agent_security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use tempfile::TempDir;
 

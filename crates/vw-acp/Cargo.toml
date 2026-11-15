@@ -13,6 +13,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+acp-lease = { path = "../libs/acp-lease", version = "0.6.0" }
 config-acp-install = { path = "../libs/config-acp-install", version = "0.6.0" }
 acp-metrics = { path = "../libs/acp-metrics", version = "0.6.0" }
 acp-access-policy = { path = "../libs/acp-access-policy", version = "0.6.0" }

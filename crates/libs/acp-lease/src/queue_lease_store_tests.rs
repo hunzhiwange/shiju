@@ -12,10 +12,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-use crate::queue_paths::{
-    TEST_HOME_ENV_LOCK, queue_base_dir, queue_lock_file_path, queue_socket_base_dir,
-    queue_socket_path,
+use acp_paths::queue_paths::{
+    queue_base_dir, queue_lock_file_path, queue_socket_base_dir, queue_socket_path,
 };
+
+static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 static NEXT_TEMP_ID: AtomicUsize = AtomicUsize::new(1);
 

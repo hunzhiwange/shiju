@@ -47,7 +47,7 @@ mod queue_ipc;
 mod queue_ipc_health;
 mod queue_ipc_server;
 mod queue_ipc_transport;
-mod queue_lease_store;
+use acp_lease::queue_lease_store;
 mod queue_messages;
 mod queue_owner_env;
 mod queue_owner_turn_controller;

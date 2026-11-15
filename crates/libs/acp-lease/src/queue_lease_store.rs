@@ -18,7 +18,7 @@ use tokio::fs;
 use tokio::fs::OpenOptions;
 use tokio::time::sleep;
 
-use crate::queue_paths::{
+use acp_paths::queue_paths::{
     default_home_dir, queue_base_dir, queue_lock_file_path, queue_socket_base_dir,
     queue_socket_path,
 };

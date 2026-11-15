@@ -4,6 +4,37 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[lib]
+doctest = false
+
+[features]
+test-support = []
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0" }
+agent-files = { path = "../agent-files", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+worktree-core = { path = "../worktree-core", version = "0.6.0" }
+git-discovery = { path = "../git-discovery", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+app-project-profiles = { path = "../app-project-profiles", version = "0.6.0" }
+app-operations = { path = "../app-operations", version = "0.6.0" }
+app-data-format = { path = "../app-data-format", version = "0.6.0" }
+app-data-projection = { path = "../app-data-projection", version = "0.6.0" }
+vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+axum = "0.8.8"
+base64 = "0.23"
+anyhow = "1"
+chrono = "0.4"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
+git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+
+
 [dependencies]
 vw-api-git = { path = "../api-git", version = "0.6.0" }
 vw-api-project = { path = "../api-project", version = "0.6.0" }

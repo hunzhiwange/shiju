@@ -1,4 +1,10 @@
 use super::*;
+use axum::Json;
+use vw_api_transport::{TimestampMs, ProjectId, ProjectScope, TenantScope};
+use vw_api_project::{ListProjectsRequest, ProjectStatus, ResolveProjectRequest, ListProjectChangeRecordsRequest, UpdateProjectRequest};
+use vw_api_worktree::{CreateWorktreeRequest, DeleteWorktreeRequest, ResetWorktreeRequest, ResetMode};
+use crate::project;
+use agent_files as file;
 use axum::body::Body;
 use axum::extract::{Extension, Path, Query};
 use axum::http::{Request, StatusCode};
@@ -220,7 +226,7 @@ fn map_project_uses_sandbox_directory_and_path_name_fallback() {
     let info =
         project_info("project-map", String::new(), vec![directory.to_string_lossy().to_string()]);
 
-    let dto = map_project(&info);
+    let dto = map_project(&info, project_host());
 
     assert_eq!(dto.id.0, "project-map");
     assert_eq!(dto.name, "alpha-project");
@@ -239,7 +245,7 @@ fn map_project_uses_explicit_non_blank_name() {
         project_info("project-named", temp.path().to_string_lossy().to_string(), Vec::new());
     info.name = Some("Named Project".to_string());
 
-    let dto = map_project(&info);
+    let dto = map_project(&info, project_host());
 
     assert_eq!(dto.name, "Named Project");
     assert_eq!(dto.directory, temp.path().to_string_lossy());
@@ -254,7 +260,7 @@ fn map_project_ignores_blank_explicit_name() {
         project_info("project-blank-name", directory.to_string_lossy().to_string(), Vec::new());
     info.name = Some(" \t ".to_string());
 
-    let dto = map_project(&info);
+    let dto = map_project(&info, project_host());
 
     assert_eq!(dto.name, "fallback-name");
 }
@@ -263,7 +269,7 @@ fn map_project_ignores_blank_explicit_name() {
 fn map_project_falls_back_to_directory_when_no_name_component_exists() {
     let info = project_info("project-empty-directory", String::new(), Vec::new());
 
-    let dto = map_project(&info);
+    let dto = map_project(&info, project_host());
 
     assert_eq!(dto.name, "");
     assert_eq!(dto.directory, "");
@@ -388,7 +394,7 @@ fn map_project_reports_git_branch_and_dirty_state() {
     let mut info = project_info("project-git", temp.path().to_string_lossy().to_string(), vec![]);
     info.vcs = Some(project::Vcs::Git);
 
-    let dto = map_project(&info);
+    let dto = map_project(&info, project_host());
 
     assert!(dto.git.is_repo);
     assert!(dto.git.has_uncommitted_changes);
@@ -415,7 +421,7 @@ fn gateway_git_metadata_works_without_git_executable() {
 
     let _path = PathGuard::without_git();
 
-    let dto = map_project(&info);
+    let dto = map_project(&info, project_host());
     assert!(dto.git.is_repo);
     assert!(dto.git.has_uncommitted_changes);
     let branch = dto.current_branch.expect("current branch should resolve without git CLI");
@@ -480,12 +486,12 @@ async fn project_get_and_update_round_trip_storage() {
     let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
     store_project(&info);
 
-    let Json(response) = project_get_v1(default_tenant_scope(), local_project_path(id.clone()))
+    let Json(response) = project_get_v1(Extension(project_host()), default_tenant_scope(), local_project_path(id.clone()))
         .await
         .expect("project should get");
     assert_eq!(response.project.id.0, id);
 
-    let Json(response) = project_update_v1(
+    let Json(response) = project_update_v1(Extension(project_host()),
         default_tenant_scope(),
         local_project_path(id.clone()),
         Json(UpdateProjectRequest {
@@ -509,7 +515,7 @@ async fn project_get_and_update_round_trip_storage() {
 
 #[tokio::test]
 async fn project_get_missing_project_returns_not_found() {
-    let error = project_get_v1(
+    let error = project_get_v1(Extension(project_host()),
         default_tenant_scope(),
         local_project_path(format!("handler-project-get-missing-{}", Uuid::new_v4())),
     )
@@ -537,11 +543,11 @@ async fn project_routes_do_not_cross_tenant_for_same_project_id() {
     store.create(&second_tenant, &second).expect("second project");
 
     let Json(first_response) =
-        project_get_v1(Extension(first_tenant.clone()), Path(project_id.clone()))
+        project_get_v1(Extension(project_host()), Extension(first_tenant.clone()), Path(project_id.clone()))
             .await
             .expect("first response");
     let Json(second_response) =
-        project_get_v1(Extension(second_tenant.clone()), Path(project_id.clone()))
+        project_get_v1(Extension(project_host()), Extension(second_tenant.clone()), Path(project_id.clone()))
             .await
             .expect("second response");
 
@@ -559,7 +565,7 @@ async fn project_routes_do_not_cross_tenant_for_same_project_id() {
 
 #[tokio::test]
 async fn project_update_missing_project_returns_bad_request() {
-    let err = project_update_v1(
+    let err = project_update_v1(Extension(project_host()),
         default_tenant_scope(),
         local_project_path(format!("handler-project-missing-{}", Uuid::new_v4())),
         Json(UpdateProjectRequest::default()),
@@ -589,7 +595,7 @@ async fn project_list_filters_sorts_limits_and_cursors() {
     store_project(&alpha);
     store_project(&beta);
 
-    let Json(page) = project_list_v1(
+    let Json(page) = project_list_v1(Extension(project_host()),
         default_tenant_scope(),
         Query(ListProjectsRequest {
             cursor: None,
@@ -604,7 +610,7 @@ async fn project_list_filters_sorts_limits_and_cursors() {
     assert_eq!(page.items[0].id.0, beta_id);
     assert_eq!(page.next_cursor.as_deref(), Some(beta_id.as_str()));
 
-    let Json(next_page) = project_list_v1(
+    let Json(next_page) = project_list_v1(Extension(project_host()),
         default_tenant_scope(),
         Query(ListProjectsRequest {
             cursor: page.next_cursor,
@@ -628,7 +634,7 @@ async fn project_list_handles_missing_cursor_blank_query_and_status_miss() {
     let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
     store_project(&info);
 
-    let Json(page) = project_list_v1(
+    let Json(page) = project_list_v1(Extension(project_host()),
         default_tenant_scope(),
         Query(ListProjectsRequest {
             cursor: Some("missing-cursor".to_string()),
@@ -671,7 +677,7 @@ async fn project_list_uses_name_directory_and_id_tie_breakers() {
         store_project(&info);
     }
 
-    let Json(page) = project_list_v1(
+    let Json(page) = project_list_v1(Extension(project_host()),
         default_tenant_scope(),
         Query(ListProjectsRequest {
             cursor: None,
@@ -710,7 +716,7 @@ async fn project_list_searches_directory_case_insensitively() {
     info.name = Some("Neutral Project".to_string());
     store_project(&info);
 
-    let Json(page) = project_list_v1(
+    let Json(page) = project_list_v1(Extension(project_host()),
         default_tenant_scope(),
         Query(ListProjectsRequest {
             cursor: None,
@@ -781,7 +787,7 @@ async fn project_change_records_rejects_blank_and_unowned_directory() {
 async fn project_resolve_and_change_records_handle_plain_directory() {
     let temp = TempDir::new().expect("tempdir");
 
-    let Json(resolved) = project_resolve_v1(
+    let Json(resolved) = project_resolve_v1(Extension(project_host()),
         default_tenant_scope(),
         Json(ResolveProjectRequest {
             directory: temp.path().to_string_lossy().to_string(),
@@ -811,7 +817,7 @@ async fn project_resolve_without_create_does_not_persist_missing_directory() {
     let temp = TempDir::new().expect("tempdir");
     let directory = temp.path().to_string_lossy().to_string();
 
-    let error = project_resolve_v1(
+    let error = project_resolve_v1(Extension(project_host()),
         default_tenant_scope(),
         Json(ResolveProjectRequest { directory: directory.clone(), create_if_missing: false }),
     )
@@ -831,7 +837,7 @@ async fn project_resolve_without_create_returns_registered_project() {
     let id = format!("handler-project-resolve-existing-{}", Uuid::new_v4());
     store_project(&project_info(&id, directory.clone(), Vec::new()));
 
-    let Json(resolved) = project_resolve_v1(
+    let Json(resolved) = project_resolve_v1(Extension(project_host()),
         default_tenant_scope(),
         Json(ResolveProjectRequest { directory, create_if_missing: false }),
     )
@@ -880,7 +886,7 @@ async fn project_worktrees_return_empty_for_non_git_project() {
     store_project(&info);
 
     let Json(response) =
-        project_worktrees_v1(default_tenant_scope(), local_project_path(id.clone()))
+        project_worktrees_v1(Extension(project_host()), default_tenant_scope(), local_project_path(id.clone()))
             .await
             .expect("worktrees should list");
 
@@ -898,7 +904,7 @@ async fn project_worktrees_list_git_project_primary_worktree() {
     let (info, _) = project::from_directory(&tenant, temp.path()).await.expect("project discover");
 
     let Json(response) =
-        project_worktrees_v1(default_tenant_scope(), local_project_path(info.id.clone()))
+        project_worktrees_v1(Extension(project_host()), default_tenant_scope(), local_project_path(info.id.clone()))
             .await
             .expect("worktrees should list");
     let expected_directory =
@@ -921,7 +927,7 @@ async fn project_store_rejects_project_without_directory() {
     let info = project_info(&id, missing.to_string_lossy().to_string(), Vec::new());
     store_project(&info);
 
-    let err = project_worktree_create_v1(
+    let err = project_worktree_create_v1(Extension(project_host()),
         default_tenant_scope(),
         local_project_path(id.clone()),
         Json(CreateWorktreeRequest {
@@ -945,7 +951,7 @@ async fn project_worktree_create_rejects_non_git_project() {
     let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
     store_project(&info);
 
-    let err = project_worktree_create_v1(
+    let err = project_worktree_create_v1(Extension(project_host()),
         default_tenant_scope(),
         local_project_path(id.clone()),
         Json(CreateWorktreeRequest {
@@ -1017,7 +1023,7 @@ async fn worktree_handlers_reject_directory_outside_project() {
     assert_eq!(get_error.status, axum::http::StatusCode::NOT_FOUND);
     assert_eq!(get_error.message, "worktree not found");
 
-    let delete_error = worktree_delete_v1(
+    let delete_error = worktree_delete_v1(Extension(project_host()),
         default_tenant_scope(),
         local_worktree_path(id.clone(), unrelated_id.clone()),
         Json(DeleteWorktreeRequest { force: false }),
@@ -1027,7 +1033,7 @@ async fn worktree_handlers_reject_directory_outside_project() {
     assert_eq!(delete_error.status, axum::http::StatusCode::NOT_FOUND);
     assert_eq!(delete_error.message, "worktree not found");
 
-    let reset_error = worktree_reset_v1(
+    let reset_error = worktree_reset_v1(Extension(project_host()),
         default_tenant_scope(),
         local_worktree_path(id.clone(), unrelated_id),
         Json(ResetWorktreeRequest {
@@ -1045,7 +1051,7 @@ async fn worktree_handlers_reject_directory_outside_project() {
 
 #[tokio::test]
 async fn worktree_delete_and_reset_reject_invalid_ids_before_project_lookup() {
-    let delete_err = worktree_delete_v1(
+    let delete_err = worktree_delete_v1(Extension(project_host()),
         default_tenant_scope(),
         local_worktree_path("missing", "invalid!"),
         Json(DeleteWorktreeRequest { force: true }),
@@ -1054,7 +1060,7 @@ async fn worktree_delete_and_reset_reject_invalid_ids_before_project_lookup() {
     .expect_err("invalid delete id should fail");
     assert_eq!(delete_err.status, axum::http::StatusCode::NOT_FOUND);
 
-    let reset_err = worktree_reset_v1(
+    let reset_err = worktree_reset_v1(Extension(project_host()),
         default_tenant_scope(),
         local_worktree_path("missing", "invalid!"),
         Json(ResetWorktreeRequest { mode: ResetMode::Hard, target_ref: Some("HEAD".to_string()) }),
@@ -1072,7 +1078,7 @@ async fn worktree_delete_and_reset_reject_non_git_project_after_lookup() {
     store_project(&info);
     let worktree_id = worktree_id_from_directory(&temp.path().to_string_lossy());
 
-    let delete_err = worktree_delete_v1(
+    let delete_err = worktree_delete_v1(Extension(project_host()),
         default_tenant_scope(),
         local_worktree_path(id.clone(), worktree_id.clone()),
         Json(DeleteWorktreeRequest { force: true }),
@@ -1081,7 +1087,7 @@ async fn worktree_delete_and_reset_reject_non_git_project_after_lookup() {
     .expect_err("non git delete should fail");
     assert_eq!(delete_err.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let reset_err = worktree_reset_v1(
+    let reset_err = worktree_reset_v1(Extension(project_host()),
         default_tenant_scope(),
         local_worktree_path(id.clone(), worktree_id),
         Json(ResetWorktreeRequest { mode: ResetMode::Soft, target_ref: Some("HEAD".to_string()) }),
@@ -1108,7 +1114,7 @@ async fn worktree_environment_ui_project_command_roundtrip_and_clear() {
     ));
     store_project(&project_info(&id, temp.path().to_string_lossy().into_owned(), vec![]));
     for start in [Some("echo 中文\ncargo build".to_string()), None] {
-        let Json(updated) = project_update_v1(
+        let Json(updated) = project_update_v1(Extension(project_host()),
             default_tenant_scope(),
             local_project_path(id.clone()),
             Json(UpdateProjectRequest {
@@ -1120,10 +1126,10 @@ async fn worktree_environment_ui_project_command_roundtrip_and_clear() {
         .unwrap();
         assert_eq!(updated.commands.and_then(|c| c.start), start);
         let Json(loaded) =
-            project_get_v1(default_tenant_scope(), local_project_path(id.clone())).await.unwrap();
+            project_get_v1(Extension(project_host()), default_tenant_scope(), local_project_path(id.clone())).await.unwrap();
         assert_eq!(loaded.commands.and_then(|c| c.start), start);
         let Json(other) =
-            project_get_v1(default_tenant_scope(), local_project_path(other_id.clone()))
+            project_get_v1(Extension(project_host()), default_tenant_scope(), local_project_path(other_id.clone()))
                 .await
                 .unwrap();
         assert!(other.commands.is_none());

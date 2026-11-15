@@ -84,10 +84,10 @@ async fn run(
         // Reload policy on every request, including result and cancellation. A
         // previously authorized operation ID can never act as a capability.
         let executor = if matches!(&action, Action::Apply(..) | Action::Cancel(_)) {
-            super::super::agent_apps::authorize_project_profiles_maintenance(
+            (policy.1.maintenance)(
                 policy.0.as_deref(), &headers, &project, &context.target_host_id)
         } else {
-            super::super::agent_apps::authorize_project_profiles(
+            (policy.1.read_or_create)(
                 policy.0.as_deref(), &headers, &project, &context.target_host_id, false)
         }.map_err(|status| (status, "profile_access_denied"))?;
         if let Action::Operation(id) | Action::Cancel(id) = &action {

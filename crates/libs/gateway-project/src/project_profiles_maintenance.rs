@@ -86,7 +86,7 @@ async fn run(
             .map_err(|_| (StatusCode::BAD_REQUEST, "invalid_project"))?;
         vw_agent_apps::providers::validate_identity(&context.target_host_id)
             .map_err(|_| (StatusCode::BAD_REQUEST, "invalid_host"))?;
-        let executor = super::super::agent_apps::authorize_project_profiles_maintenance(
+        let executor = (policy.1.maintenance)(
             policy.0.as_deref(), &headers, &project, &context.target_host_id,
         ).map_err(|status| (status, "profile_access_denied"))?;
         let store = ProjectProfileStore::new(

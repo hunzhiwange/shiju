@@ -1,5 +1,23 @@
 //! 项目与工作树的网关领域客户端。
 
+#[cfg(not(target_arch = "wasm32"))]
+mod host;
+#[cfg(not(target_arch = "wasm32"))]
+mod routes;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod project_profiles;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod profile_store;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod profile_operations;
+#[cfg(not(target_arch = "wasm32"))]
+pub use host::ProjectHost;
+#[cfg(not(target_arch = "wasm32"))]
+pub use routes::{router, load_project, project_scope, project_context_directory};
+#[cfg(all(not(target_arch = "wasm32"), feature = "test-support"))]
+#[doc(hidden)]
+pub mod testing { pub use super::routes::*; }
+
 mod project_api;
 mod git_api;
 mod worktree_management_api;

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-project = { path = "../gateway-project", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0" }
 app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
 app-project-profiles = { path = "../app-project-profiles", version = "0.6.0" }

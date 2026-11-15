@@ -1,0 +1,24 @@
+[package]
+name = "desktop-settings-skills"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+config-ui = { path = "../config-ui", version = "0.6.0" }
+config-skills = { path = "../config-skills", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+gateway-app-prompts = { path = "../gateway-app-prompts", version = "0.6.0" }
+gateway-app-prompt-resources = { path = "../gateway-app-prompt-resources", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+vw-api-app-skills = { path = "../api-app-skills", version = "0.6.0" }
+iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
+desktop-platform = { path = "../desktop-platform", version = "0.6.0" }

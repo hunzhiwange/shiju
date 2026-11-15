@@ -1,6 +1,3 @@
-//! 记忆算法包的兼容入口。
+//! 记忆领域包的兼容入口。
 
-pub use memory_algorithms::chunker::*;
-
-#[cfg(test)]
-mod reexport_tests;
+pub use agent_memory::chunker::*;

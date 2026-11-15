@@ -1,5 +1,3 @@
-//! 记忆运行时数据目录的派生与隔离规则。
+//! 记忆数据路径的兼容入口。
 
-pub(crate) use project_storage_paths::paths::{
-    project_data_dir, project_data_dir_best_effort, workspace_data_dir,
-};
+pub(crate) use agent_memory::paths::*;

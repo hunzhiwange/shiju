@@ -16,7 +16,7 @@
 // 通过模拟不同时间点的文件创建，验证时间相关逻辑的正确性。
 
 use super::*;
-use crate::app::agent::memory::{Memory, MemoryCategory, SqliteMemory};
+use crate::{Memory, MemoryCategory, SqliteMemory};
 use tempfile::TempDir;
 
 /// 创建默认的内存配置

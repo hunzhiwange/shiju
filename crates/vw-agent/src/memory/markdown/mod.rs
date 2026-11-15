@@ -1,3 +1,3 @@
-//! Markdown 记忆后端的兼容入口。
+//! 记忆领域包的兼容入口。
 
-pub use memory_markdown::memory::markdown::*;
+pub use agent_memory::markdown::*;

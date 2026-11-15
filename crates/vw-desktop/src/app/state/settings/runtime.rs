@@ -3,58 +3,7 @@ use super::*;
 /// 技能设置面板状态
 ///
 /// 管理技能系统的配置，包括开放技能目录和提示注入模式。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SkillsSettingsTab {
-    Skills,
-    DiscoveryOrder,
-    SystemConfig,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SkillsDirectoryScope {
-    Project,
-    Ancestor,
-    Global,
-    Bundled,
-    All,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SkillsCatalogKind {
-    Recommended,
-    System,
-    Personal,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SkillsSelectedDetail {
-    pub(crate) id: String,
-    pub(crate) title: String,
-    pub(crate) description: String,
-    pub(crate) kind: SkillsCatalogKind,
-    pub(crate) installed: bool,
-    pub(crate) enabled: bool,
-    pub(crate) source: String,
-    pub(crate) source_path: Option<String>,
-    pub(crate) document_name: String,
-    pub(crate) document_content: String,
-    pub(crate) can_install: bool,
-    pub(crate) can_toggle: bool,
-    pub(crate) can_delete: bool,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SkillsCatalogItem {
-    pub(crate) id: String,
-    pub(crate) title: String,
-    pub(crate) description: String,
-    pub(crate) kind: SkillsCatalogKind,
-    pub(crate) resource_count: usize,
-    pub(crate) installed: bool,
-    pub(crate) enabled: bool,
-    pub(crate) source: String,
-    pub(crate) source_path: Option<String>,
-}
+pub use desktop_settings_skills::types::{SkillsSettingsTab, SkillsDirectoryScope, SkillsCatalogKind, SkillsSelectedDetail, SkillsCatalogItem};
 
 #[derive(Debug, Clone)]
 pub(crate) struct PluginCatalogItem {

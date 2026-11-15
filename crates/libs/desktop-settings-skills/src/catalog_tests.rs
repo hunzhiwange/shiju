@@ -9,9 +9,7 @@ use super::catalog::{
     catalog_group_section, catalog_item, catalog_item_button_style, catalog_matches_query,
     catalog_skill_initials, section_card_style, section_copy, skill_badge, source_label,
 };
-use crate::app::state::{
-    SkillsCatalogItem as CatalogSkillMeta, SkillsCatalogKind as CatalogSkillKind,
-};
+use crate::types::{SkillsCatalogItem as CatalogSkillMeta, SkillsCatalogKind as CatalogSkillKind};
 
 fn skill(
     id: &str,
@@ -89,31 +87,19 @@ fn catalog_matches_query_searches_all_visible_fields_case_insensitively() {
 
     for query in ["", "RUST", "review", "RISKY", "WORKSPACE", "VIBEWINDOW"] {
         assert!(
-            catalog_matches_query(
-                config_ui::DesktopLocale::SimplifiedChinese,
-                &item,
-                query
-            ),
+            catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, query),
             "query should match: {query}"
         );
     }
 
-    assert!(!catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "browser"
-    ));
+    assert!(!catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "browser"));
 }
 
 #[test]
 fn catalog_matches_query_handles_missing_source_path() {
     let item = skill("id", "Title", "Description", "bundled", None);
 
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "bundle"
-    ));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "bundle"));
     assert!(!catalog_matches_query(
         config_ui::DesktopLocale::SimplifiedChinese,
         &item,
@@ -176,41 +162,13 @@ fn catalog_matches_query_matches_each_field_individually() {
         true,
     );
 
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "rust"
-    ));
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "code"
-    ));
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "risky"
-    ));
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "workspace"
-    ));
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "review"
-    ));
-    assert!(catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        ""
-    ));
-    assert!(!catalog_matches_query(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        &item,
-        "no-match"
-    ));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "rust"));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "code"));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "risky"));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "workspace"));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "review"));
+    assert!(catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, ""));
+    assert!(!catalog_matches_query(config_ui::DesktopLocale::SimplifiedChinese, &item, "no-match"));
 }
 
 #[test]
@@ -303,11 +261,7 @@ fn catalog_item_variants_cover_all_kinds_resources_and_states() {
         false,
         false,
     );
-    let _ = catalog_item(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        personal_not_installed,
-        true,
-    );
+    let _ = catalog_item(config_ui::DesktopLocale::SimplifiedChinese, personal_not_installed, true);
 }
 
 #[test]
@@ -324,12 +278,8 @@ fn catalog_group_section_variants_cover_sources_and_empty_skills() {
         true,
     );
 
-    let _ = catalog_group_section(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        "bundled",
-        vec![],
-        None,
-    );
+    let _ =
+        catalog_group_section(config_ui::DesktopLocale::SimplifiedChinese, "bundled", vec![], None);
     let _ = catalog_group_section(
         config_ui::DesktopLocale::SimplifiedChinese,
         "global",
@@ -342,12 +292,8 @@ fn catalog_group_section_variants_cover_sources_and_empty_skills() {
         vec![],
         None,
     );
-    let _ = catalog_group_section(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        "unknown",
-        vec![],
-        None,
-    );
+    let _ =
+        catalog_group_section(config_ui::DesktopLocale::SimplifiedChinese, "unknown", vec![], None);
 }
 
 #[test]

@@ -1,3 +1,3 @@
-//! 记忆none 的独立包入口。
+//! 记忆领域包的兼容入口。
 
-pub use memory_types::memory::none::*;
+pub use agent_memory::none::*;

@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+agent-memory = { path = "../libs/agent-memory", version = "0.6.0" }
 agent-multimodal = { path = "../libs/agent-multimodal", version = "0.6.0" }
 computer-control = { path = "../libs/computer-control", version = "0.6.0" }
 agent-mcp = { path = "../libs/agent-mcp", version = "0.6.0" }
@@ -362,8 +363,8 @@ firecrawl = []
 "web-fetch-html2md" = []
 "web-fetch-plaintext" = []
 probe = ["dep:probe-rs"]
-memory-postgres = ["dep:memory-postgres"]
-memory-mariadb = ["dep:memory-mariadb"]
+memory-postgres = ["dep:memory-postgres", "agent-memory/memory-postgres"]
+memory-mariadb = ["dep:memory-mariadb", "agent-memory/memory-mariadb"]
 observability-otel = ["agent-observability/observability-otel"]
 sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap", "agent-security/sandbox-bubblewrap"]
 sandbox-landlock = ["process-sandbox/sandbox-landlock", "agent-security/sandbox-landlock"]

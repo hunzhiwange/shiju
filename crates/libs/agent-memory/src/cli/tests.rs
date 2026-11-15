@@ -4,8 +4,8 @@
 //! 这些测试验证了内存分类解析和内容截断的正确性。
 
 use super::*;
-use crate::app::agent::config::{Config, StorageProviderConfig};
-use crate::app::agent::memory::MemoryEntry;
+use agent_config::runtime::{Config, StorageProviderConfig};
+use crate::MemoryEntry;
 use std::sync::Mutex;
 
 #[derive(Debug, clap::Parser)]

@@ -34,7 +34,7 @@ impl AlibabaEmbedding {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client("memory.embeddings.alibaba")
+        agent_config::schema::build_runtime_proxy_client("memory.embeddings.alibaba")
     }
 }
 

@@ -1,3 +1,3 @@
-//! MariaDB 记忆后端的兼容导出。
+//! 记忆领域包的兼容入口。
 
-pub use memory_mariadb::memory::mariadb::*;
+pub use agent_memory::mariadb::*;

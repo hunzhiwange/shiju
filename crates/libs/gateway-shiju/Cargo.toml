@@ -1,0 +1,26 @@
+[package]
+name = "gateway-shiju"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+shiju-client = { path = "../shiju-client", version = "0.6.0" }
+gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
+gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
+gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
+gateway-shiju-connector = { path = "../gateway-shiju-connector", version = "0.6.0" }
+gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+shiju-client = { path = "../shiju-client", version = "0.6.0", features = ["test-support"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }
+tower = { version = "0.5", features = ["util"] }
+reqwest = { version = "0.13", default-features = false }

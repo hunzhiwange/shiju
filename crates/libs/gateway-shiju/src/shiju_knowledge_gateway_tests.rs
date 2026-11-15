@@ -1,5 +1,5 @@
 //! 真实穿过账户路由、凭据提取和知识库适配的本地 HTTP 验收。
-use crate::shiju::account::ShijuAccountClient;
+use shiju_client::account::ShijuAccountClient;
 use axum::{
     Router,
     body::{Body, to_bytes},

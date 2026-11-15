@@ -34,6 +34,7 @@ tool-shell = { path = "../libs/tool-shell", version = "0.6.0" }
 skill-forge = { path = "../libs/skill-forge", version = "0.6.0" }
 skill-core = { path = "../libs/skill-core", version = "0.6.0" }
 shiju-client = { path = "../libs/shiju-client", version = "0.6.0" }
+gateway-shiju = { path = "../libs/gateway-shiju", version = "0.6.0" }
 session-instructions = { path = "../libs/session-instructions", version = "0.6.0" }
 agent-service = { path = "../libs/agent-service", version = "0.6.0" }
 tool-agents = { path = "../libs/tool-agents", version = "0.6.0" }

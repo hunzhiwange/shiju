@@ -126,7 +126,7 @@ fn request_with_body(
 // 本地上游夹具记录实际请求并返回预设响应，既验证转发参数也避免依赖外部服务。
 #[tokio::test]
 async fn shiju_app_routes_require_credentials_and_valid_installation_ids() {
-    let client = crate::shiju::apps::ShijuAppClient::with_base_urls(
+    let client = shiju_client::apps::ShijuAppClient::with_base_urls(
         "http://127.0.0.1:9/app-platform/api/",
         "http://127.0.0.1:9/iam/api/v1/",
     )
@@ -241,7 +241,7 @@ async fn shiju_app_routes_map_catalog_apps_and_launch() {
         },
     ]);
     let client =
-        crate::shiju::apps::ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+        shiju_client::apps::ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
     let app = super::router_with_client::<()>(client);
 
     let (status, catalog) =
@@ -293,7 +293,7 @@ async fn shiju_app_route_redacts_upstream_errors() {
     let (app_base, iam_base, requests) =
         fixture(vec![FixtureResponse { status: 500, headers: Vec::new(), body: sensitive }]);
     let client =
-        crate::shiju::apps::ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+        shiju_client::apps::ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
 
     let (status, body) = response(
         super::router_with_client::<()>(client),
@@ -346,7 +346,7 @@ async fn shiju_app_binding_routes_map_get_keys_and_put() {
         FixtureResponse { status: 204, headers: Vec::new(), body: String::new() },
     ]);
     let client =
-        crate::shiju::apps::ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+        shiju_client::apps::ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
     let app = super::router_with_client::<()>(client);
 
     let (status, binding) = response(

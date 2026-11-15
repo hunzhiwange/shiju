@@ -8,7 +8,7 @@ use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 
 async fn response(request: Request<Body>) -> (StatusCode, Value) {
     let response = super::router_with_client::<()>(
-        crate::shiju::account::ShijuAccountClient::with_base_urls(
+        shiju_client::account::ShijuAccountClient::with_base_urls(
             "http://127.0.0.1:9",
             "http://127.0.0.1:9",
         )
@@ -220,7 +220,7 @@ async fn shiju_monthly_quota_uses_employee_key_and_converts_upstream_budget() {
     let base = format!("http://{}", listener.local_addr().unwrap());
     let upstream_task = tokio::spawn(async move { serve(listener, upstream).await.unwrap() });
     let client =
-        crate::shiju::account::ShijuAccountClient::with_base_urls(&base, &format!("{base}/sj/"))
+        shiju_client::account::ShijuAccountClient::with_base_urls(&base, &format!("{base}/sj/"))
             .unwrap();
     let gateway = super::router_with_client::<()>(client);
     for (credential, status, limit, remaining) in [

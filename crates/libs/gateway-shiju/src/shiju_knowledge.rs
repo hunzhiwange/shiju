@@ -1,6 +1,7 @@
 //! 只读云端知识库路由，复用识矩账户凭据和上游客户端。
 use super::shiju_account::{credential_from_headers, upstream_error};
-use crate::{gateway::ApiError, shiju::account::ShijuAccountClient};
+use gateway_types::ApiError;
+use shiju_client::account::ShijuAccountClient;
 use axum::{
     Json, Router,
     extract::{

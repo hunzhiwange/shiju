@@ -1,6 +1,7 @@
 //! 当前用户连接器接口，复用账户路由的凭证提取和客户端扩展。
 use super::shiju_account::{credential_from_headers, upstream_error};
-use crate::{gateway::ApiError, shiju::account::ShijuAccountClient};
+use gateway_types::ApiError;
+use shiju_client::account::ShijuAccountClient;
 use axum::{
     Json, Router,
     extract::Extension,

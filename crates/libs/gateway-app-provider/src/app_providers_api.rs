@@ -272,3 +272,9 @@ mod omp;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/omp_tests.rs"]
 mod omp_tests;
+
+#[path = "app_providers/mcode.rs"]
+mod mcode;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/mcode_tests.rs"]
+mod mcode_tests;

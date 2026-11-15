@@ -18,7 +18,7 @@
 //! # 示例
 //!
 //! ```rust
-//! use vibe_agent::util::defer::defer;
+//! use agent_context::defer::defer;
 //!
 //! fn process_file() -> Result<(), std::io::Error> {
 //!     let file = std::fs::File::create("temp.txt")?;
@@ -46,7 +46,7 @@
 /// ## 基本用法
 ///
 /// ```rust
-/// use vibe_agent::util::defer::Defer;
+/// use agent_context::defer::Defer;
 ///
 /// {
 ///     let _guard = Defer::new(|| {
@@ -60,7 +60,7 @@
 ///
 /// ```rust
 /// use std::sync::Mutex;
-/// use vibe_agent::util::defer::Defer;
+/// use agent_context::defer::Defer;
 ///
 /// let lock = Mutex::new(0);
 /// let guard = lock.lock().unwrap();
@@ -74,7 +74,7 @@
 /// ## 条件取消执行
 ///
 /// ```rust
-/// use vibe_agent::util::defer::Defer;
+/// use agent_context::defer::Defer;
 ///
 /// fn process(success: bool) {
 ///     let guard = Defer::new(|| {
@@ -113,7 +113,7 @@ impl<F: FnOnce()> Defer<F> {
     /// # 示例
     ///
     /// ```rust
-    /// use vibe_agent::util::defer::Defer;
+    /// use agent_context::defer::Defer;
     ///
     /// let _cleanup = Defer::new(|| {
     ///     // 清理代码
@@ -136,7 +136,7 @@ impl<F: FnOnce()> Defer<F> {
     /// # 示例
     ///
     /// ```rust
-    /// use vibe_agent::util::defer::Defer;
+    /// use agent_context::defer::Defer;
     ///
     /// fn transfer_money() -> Result<(), ()> {
     ///     // 设置回滚
@@ -195,7 +195,7 @@ impl<F: FnOnce()> Drop for Defer<F> {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_agent::util::defer::defer;
+/// use agent_context::defer::defer;
 ///
 /// fn example() {
 ///     let _guard = defer(|| {
@@ -210,7 +210,7 @@ impl<F: FnOnce()> Drop for Defer<F> {
 /// ## 与显式锁释放对比
 ///
 /// ```rust
-/// use vibe_agent::util::defer::defer;
+/// use agent_context::defer::defer;
 /// use std::sync::Mutex;
 ///
 /// fn with_lock() {

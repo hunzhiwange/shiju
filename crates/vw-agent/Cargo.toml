@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+agent-context = { path = "../libs/agent-context", version = "0.6.0" }
 agent-text = { path = "../libs/agent-text", version = "0.6.0" }
 agent-identity = { path = "../libs/agent-identity", version = "0.6.0" }
 goal-engine = { path = "../libs/goal-engine", version = "0.6.0" }

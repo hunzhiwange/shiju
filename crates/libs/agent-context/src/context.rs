@@ -13,7 +13,7 @@
 //! # 使用示例
 //!
 //! ```rust
-//! use vibe_agent::app::agent::util::context;
+//! use agent_context::context;
 //!
 //! // 创建一个字符串类型的上下文
 //! let ctx = context::create::<String>("app_name");

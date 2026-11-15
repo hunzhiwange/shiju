@@ -4,7 +4,7 @@
 //! 这样测试或局部执行上下文可以注入确定性的变量集合，同时默认路径仍使用启动时
 //! 捕获的进程环境。
 
-use crate::app::agent::util::context;
+use agent_context::context;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::sync::Mutex;

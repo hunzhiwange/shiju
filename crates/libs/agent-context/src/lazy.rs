@@ -36,7 +36,7 @@ struct State<T> {
 /// # 示例
 ///
 /// ```rust,ignore
-/// use app::agent::util::lazy::Lazy;
+/// use agent_context::lazy::Lazy;
 ///
 /// // 创建一个惰性求值的昂贵计算
 /// let lazy_value = Lazy::new(|| {

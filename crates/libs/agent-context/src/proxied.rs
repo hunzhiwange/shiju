@@ -11,7 +11,7 @@
 //! # 示例
 //!
 //! ```rust
-//! use app::agent::util::proxied::proxied;
+//! use agent_context::proxied::proxied;
 //!
 //! if proxied() {
 //!     println!("系统已配置代理");
@@ -35,7 +35,7 @@
 /// # 示例
 ///
 /// ```rust
-/// use app::agent::util::proxied::proxied;
+/// use agent_context::proxied::proxied;
 ///
 /// // 检查是否配置了代理
 /// if proxied() {

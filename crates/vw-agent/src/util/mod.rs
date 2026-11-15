@@ -29,25 +29,19 @@
 //! - `token` - 令牌与计数工具
 //! - `wildcard` - 通配符匹配工具
 
+pub use agent_context::{context, defer, r#fn, iife, lazy, proxied, scrap};
 pub use agent_text::{color, keybind, token, wildcard};
 
 pub mod abort;
 pub mod archive;
-pub mod context;
-pub mod defer;
 pub mod eventloop;
 pub mod filesystem;
-pub mod r#fn;
 pub mod format;
-pub mod iife;
-pub mod lazy;
 pub mod locale;
 pub mod lock;
 pub mod log;
-pub mod proxied;
 pub mod queue;
 pub mod rpc;
-pub mod scrap;
 pub mod signal;
 pub mod task_set;
 pub mod timeout;
@@ -59,26 +53,11 @@ mod abort_tests;
 #[path = "archive_tests.rs"]
 mod archive_tests;
 #[cfg(test)]
-#[path = "context_tests.rs"]
-mod context_tests;
-#[cfg(test)]
-#[path = "defer_tests.rs"]
-mod defer_tests;
-#[cfg(test)]
 #[path = "eventloop_tests.rs"]
 mod eventloop_tests;
 #[cfg(test)]
 #[path = "filesystem_tests.rs"]
 mod filesystem_tests;
-#[cfg(test)]
-#[path = "fn_tests.rs"]
-mod fn_tests;
-#[cfg(test)]
-#[path = "iife_tests.rs"]
-mod iife_tests;
-#[cfg(test)]
-#[path = "lazy_tests.rs"]
-mod lazy_tests;
 #[cfg(test)]
 #[path = "locale_tests.rs"]
 mod locale_tests;
@@ -86,17 +65,11 @@ mod locale_tests;
 #[path = "lock_tests.rs"]
 mod lock_tests;
 #[cfg(test)]
-#[path = "proxied_tests.rs"]
-mod proxied_tests;
-#[cfg(test)]
 #[path = "queue_tests.rs"]
 mod queue_tests;
 #[cfg(test)]
 #[path = "rpc_tests.rs"]
 mod rpc_tests;
-#[cfg(test)]
-#[path = "scrap_tests.rs"]
-mod scrap_tests;
 #[cfg(test)]
 #[path = "signal_tests.rs"]
 mod signal_tests;

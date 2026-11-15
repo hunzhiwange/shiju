@@ -42,7 +42,7 @@ pub const BAR: i32 = 123;
 /// # 示例
 ///
 /// ```ignore
-/// use app::agent::util::scrap::dummy_function;
+/// use agent_context::scrap::dummy_function;
 ///
 /// dummy_function(); // 输出: This is a dummy function
 /// ```
@@ -68,7 +68,7 @@ pub fn dummy_function() {
 /// # 示例
 ///
 /// ```ignore
-/// use app::agent::util::scrap::random_helper;
+/// use agent_context::scrap::random_helper;
 ///
 /// let result = random_helper();
 /// println!("Random boolean: {}", result);

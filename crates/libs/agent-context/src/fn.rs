@@ -35,7 +35,7 @@ use std::marker::PhantomData;
 /// # 示例
 ///
 /// ```ignore
-/// use app::agent::util::fn::{fn_wrap, FnWrap};
+/// use agent_context::r#fn::{fn_wrap, FnWrap};
 ///
 /// // 解析函数：验证字符串是否为有效数字
 /// fn parse_number(s: String) -> Result<i32, String> {

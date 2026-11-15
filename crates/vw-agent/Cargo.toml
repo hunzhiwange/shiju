@@ -398,6 +398,10 @@ path = "tests/model_protocol_015_messages.rs"
 name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
 
+[[test]]
+name = "gateway_legacy_handlers"
+path = "tests/gateway_legacy_handlers.rs"
+
 [dev-dependencies]
 agent-provider = { path = "../libs/agent-provider", version = "0.6.0", features = ["test-support"] }
 agent-project = { path = "../libs/agent-project", version = "0.6.0", features = ["test-support"] }

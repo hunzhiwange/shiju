@@ -13,9 +13,9 @@ use self::control::{ControlCommands, ProviderCommands};
 use self::desktop::DesktopCommands;
 use self::extensions::ExtensionCommands;
 use self::interactive::InteractiveCommands;
-use self::knowledge::KnowledgeCommands;
+use cli_api_workspace::knowledge::{self, KnowledgeCommands};
 use self::operations::OperationsCommands;
-use self::project::ProjectCommands;
+use cli_api_workspace::project::{self, ProjectCommands};
 use self::realtime::RealtimeCommands;
 use self::scheduler::SchedulerCommands;
 use self::session::SessionCommands;
@@ -25,16 +25,14 @@ use self::skill_market::SkillMarketCommands;
 use self::task_lifecycle::TaskLifecycleCommands;
 use self::task_pool::TaskPoolCommands;
 use self::workflow::WorkflowCommands;
-use self::workspace::WorkspaceCommands;
+use cli_api_workspace::workspace::{self, WorkspaceCommands};
 
 mod config;
 mod control;
 mod desktop;
 mod extensions;
 mod interactive;
-mod knowledge;
 mod operations;
-mod project;
 mod realtime;
 mod scheduler;
 mod session;
@@ -45,7 +43,6 @@ mod system;
 mod task_lifecycle;
 mod task_pool;
 mod workflow;
-mod workspace;
 
 use self::system::SystemCommands;
 

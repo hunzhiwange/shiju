@@ -22,7 +22,7 @@ use cli_api_core::output;
 
 /// 项目与 worktree 接口族。
 #[derive(Subcommand, Debug)]
-pub(super) enum ProjectCommands {
+pub enum ProjectCommands {
     /// 分页列出项目。
     List {
         #[arg(long)]
@@ -64,7 +64,7 @@ pub(super) enum ProjectCommands {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub(super) enum ProjectStatusArg {
+pub enum ProjectStatusArg {
     Ready,
     Indexing,
     Error,
@@ -82,7 +82,7 @@ impl From<ProjectStatusArg> for ProjectStatus {
 
 /// Worktree 生命周期操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum WorktreeCommands {
+pub enum WorktreeCommands {
     /// 列出项目 worktree。
     List {
         #[arg(value_parser = parse_required_value)]
@@ -123,7 +123,7 @@ pub(super) enum WorktreeCommands {
 }
 
 impl ProjectCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Update { project_id, .. } => Some(format!("update project '{project_id}'")),
             Self::Worktree { command: WorktreeCommands::Create { project_id, .. } } => {
@@ -146,7 +146,7 @@ impl ProjectCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: ProjectCommands,
     context: &ApiContext,
     yes: bool,
@@ -168,7 +168,7 @@ pub(super) async fn run(
         ProjectCommands::Resolve { input } => {
             let request = parse_input::<ResolveProjectRequest>(&input, stdin, "project resolve")?;
             if request.create_if_missing {
-                super::ensure_confirmed(
+                cli_api_core::ensure_confirmed(
                     yes,
                     &format!("resolve and create project for '{}'", request.directory),
                 )?;

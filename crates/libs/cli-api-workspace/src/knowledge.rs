@@ -17,7 +17,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum KnowledgeCommands {
+pub enum KnowledgeCommands {
     /// 查询知识库运行状态。
     Status,
     /// 查询或测试嵌入配置。
@@ -53,7 +53,7 @@ pub(super) enum KnowledgeCommands {
 }
 
 #[derive(Subcommand, Debug)]
-pub(super) enum EmbeddingCommands {
+pub enum EmbeddingCommands {
     Status,
     Presets,
     Test {
@@ -63,7 +63,7 @@ pub(super) enum EmbeddingCommands {
 }
 
 #[derive(Subcommand, Debug)]
-pub(super) enum DatasetCommands {
+pub enum DatasetCommands {
     List,
     Create {
         #[arg(long, value_parser = required)]
@@ -80,7 +80,7 @@ pub(super) enum DatasetCommands {
 }
 
 #[derive(Subcommand, Debug)]
-pub(super) enum DocumentCommands {
+pub enum DocumentCommands {
     List {
         #[arg(value_parser = required)]
         dataset_id: String,
@@ -132,7 +132,7 @@ pub(super) enum DocumentCommands {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub(super) enum DocumentStatusArg {
+pub enum DocumentStatusArg {
     Pending,
     Processing,
     Completed,
@@ -155,7 +155,7 @@ impl From<DocumentStatusArg> for KnowledgeDocumentStatus {
 }
 
 impl KnowledgeCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Embedding { command: EmbeddingCommands::Test { .. } } => {
                 Some("test knowledge embedding configuration".to_string())
@@ -183,7 +183,7 @@ impl KnowledgeCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: KnowledgeCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

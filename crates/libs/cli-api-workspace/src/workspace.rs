@@ -15,7 +15,7 @@ use cli_api_core::output;
 
 /// 工作区文件、搜索与 Git 接口族。
 #[derive(Subcommand, Debug)]
-pub(super) enum WorkspaceCommands {
+pub enum WorkspaceCommands {
     /// 在文件内容中搜索文本模式。
     FindText {
         /// 搜索模式；按原样转发给 Gateway。
@@ -90,7 +90,7 @@ pub(super) enum WorkspaceCommands {
 
 /// 工作区 Git 副作用操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum WorkspaceGitCommands {
+pub enum WorkspaceGitCommands {
     /// 从 JSON 输入创建 Git 提交。
     Commit {
         /// JSON 来源：文件、`-` stdin 或 `env:NAME`。
@@ -132,7 +132,7 @@ struct DirectoryWriteInput {
     create_if_missing: bool,
 }
 
-pub(super) async fn run<R: Read, W: Write>(
+pub async fn run<R: Read, W: Write>(
     command: WorkspaceCommands,
     context: &ApiContext,
     yes: bool,
@@ -174,7 +174,7 @@ pub(super) async fn run<R: Read, W: Write>(
         WorkspaceCommands::Write { input } => {
             let request = parse_input::<DirectoryWriteInput>(&input, stdin, "workspace write")?;
             let directory = request.directory.as_deref().or(context.directory());
-            super::ensure_confirmed(
+            cli_api_core::ensure_confirmed(
                 yes,
                 &format!("write file '{}' in workspace '{}'", request.path, workspace(directory)),
             )?;
@@ -193,7 +193,7 @@ pub(super) async fn run<R: Read, W: Write>(
         }
         WorkspaceCommands::Move { input } => {
             let request = parse_input::<MoveFileRequest>(&input, stdin, "workspace move")?;
-            super::ensure_confirmed(
+            cli_api_core::ensure_confirmed(
                 yes,
                 &format!(
                     "move '{}' to '{}' in {}",
@@ -209,7 +209,7 @@ pub(super) async fn run<R: Read, W: Write>(
         }
         WorkspaceCommands::Copy { input } => {
             let request = parse_input::<CopyFileRequest>(&input, stdin, "workspace copy")?;
-            super::ensure_confirmed(
+            cli_api_core::ensure_confirmed(
                 yes,
                 &format!(
                     "copy '{}' to '{}' in {}",
@@ -225,7 +225,7 @@ pub(super) async fn run<R: Read, W: Write>(
         }
         WorkspaceCommands::Delete { input } => {
             let request = parse_input::<DeleteFileRequest>(&input, stdin, "workspace delete")?;
-            super::ensure_confirmed(
+            cli_api_core::ensure_confirmed(
                 yes,
                 &format!(
                     "delete '{}' in {}",
@@ -241,7 +241,7 @@ pub(super) async fn run<R: Read, W: Write>(
         WorkspaceCommands::Git { command } => match command {
             WorkspaceGitCommands::Commit { input } => {
                 let request = parse_input::<GitCommitRequest>(&input, stdin, "git commit")?;
-                super::ensure_confirmed(
+                cli_api_core::ensure_confirmed(
                     yes,
                     &format!(
                         "commit changes in {}",
@@ -255,7 +255,7 @@ pub(super) async fn run<R: Read, W: Write>(
             }
             WorkspaceGitCommands::Command { input } => {
                 let request = parse_input::<GitCommandRequest>(&input, stdin, "git command")?;
-                super::ensure_confirmed(
+                cli_api_core::ensure_confirmed(
                     yes,
                     &format!(
                         "run git command '{}' in workspace '{}'",
@@ -267,7 +267,7 @@ pub(super) async fn run<R: Read, W: Write>(
             }
             WorkspaceGitCommands::Merge { input } => {
                 let request = parse_input::<GitMergeRequest>(&input, stdin, "git merge")?;
-                super::ensure_confirmed(
+                cli_api_core::ensure_confirmed(
                     yes,
                     &format!(
                         "merge '{}' into '{}' in project '{}'",

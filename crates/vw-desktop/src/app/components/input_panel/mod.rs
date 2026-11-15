@@ -65,14 +65,8 @@ mod agent_sessions_tests;
 #[path = "drop_area_tests.rs"]
 mod drop_area_tests;
 #[cfg(test)]
-#[path = "file_references_tests.rs"]
-mod file_references_tests;
-#[cfg(test)]
 #[path = "file_search_tests.rs"]
 mod file_search_tests;
-#[cfg(test)]
-#[path = "icons_tests.rs"]
-mod icons_tests;
 #[cfg(test)]
 #[path = "input_editor_tests.rs"]
 mod input_editor_tests;
@@ -808,4 +802,35 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },
     )
     .into()
+}
+
+fn slice_message(message: desktop_chat_input::input_panel::slice_message::Message) -> Message {
+    use desktop_chat_input::input_panel::slice_message::Message as Local;
+    Message::Chat(match message {
+        Local::RemoveFileReference(v) => message::ChatMessage::RemoveFileReference(v),
+        Local::FileReferenceHoverChanged(v) => message::ChatMessage::FileReferenceHoverChanged(v),
+        Local::FileSearchSelect(v) => message::ChatMessage::FileSearchSelect(v),
+        Local::SlashPaletteNavigateUp => message::ChatMessage::SlashPaletteNavigateUp,
+        Local::SlashPaletteNavigateDown => message::ChatMessage::SlashPaletteNavigateDown,
+        Local::SlashPaletteSelectCurrent => message::ChatMessage::SlashPaletteSelectCurrent,
+        Local::SlashPaletteClosed => message::ChatMessage::SlashPaletteClosed,
+        Local::FileSearchNavigateUp => message::ChatMessage::FileSearchNavigateUp,
+        Local::FileSearchNavigateDown => message::ChatMessage::FileSearchNavigateDown,
+        Local::FileSearchSelectCurrent => message::ChatMessage::FileSearchSelectCurrent,
+        Local::FileSearchInputChanged(v) => message::ChatMessage::FileSearchInputChanged(v),
+        Local::PasteIntoInput => message::ChatMessage::PasteIntoInput,
+        Local::SendPressed => message::ChatMessage::SendPressed,
+        Local::InputEditorAction(v) => message::ChatMessage::InputEditorAction(v),
+        Local::OpenInputContextMenu { x, y } => message::ChatMessage::OpenInputContextMenu { x, y },
+        Local::CloseInputContextMenu => message::ChatMessage::CloseInputContextMenu,
+        Local::CopyInputSelection => message::ChatMessage::CopyInputSelection,
+        Local::CutInputSelection => message::ChatMessage::CutInputSelection,
+        Local::SelectAllInput => message::ChatMessage::SelectAllInput,
+        Local::QueueGuide(v) => message::ChatMessage::QueueGuide(v),
+        Local::QueueEdit(v) => message::ChatMessage::QueueEdit(v),
+        Local::QueueCopy(v) => message::ChatMessage::QueueCopy(v),
+        Local::QueueUp(v) => message::ChatMessage::QueueUp(v),
+        Local::QueueDown(v) => message::ChatMessage::QueueDown(v),
+        Local::QueueRemove(v) => message::ChatMessage::QueueRemove(v),
+    })
 }

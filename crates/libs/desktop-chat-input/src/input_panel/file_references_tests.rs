@@ -6,7 +6,7 @@ use super::file_references::{
     format_reference_location, format_reference_location_compact, parse_file_reference,
     render_file_references, tooltip_dark_style,
 };
-use crate::app::Message;
+type Message = super::slice_message::Message;
 use iced::{Background, Color, Element, Length, Theme};
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {
@@ -136,7 +136,7 @@ fn formats_reference_locations_for_tooltip_and_compact_badge() {
     for (location, verbose, compact) in cases {
         assert_eq!(
             format_reference_location(
-                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 location
             ),
             verbose
@@ -228,21 +228,21 @@ fn file_reference_styles_keep_theme_text_and_dark_tooltip_contracts() {
 #[test]
 fn file_reference_card_and_list_render_expected_outer_shapes() {
     let card = file_reference_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "src/main.rs:10".to_string(),
         false,
     );
     assert_size(&card, Length::Shrink, Length::Shrink);
 
     let hovered = file_reference_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "src/main.rs:10".to_string(),
         true,
     );
     assert_size(&hovered, Length::Shrink, Length::Shrink);
 
     let empty = render_file_references(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &[],
         None,
     );
@@ -250,7 +250,7 @@ fn file_reference_card_and_list_render_expected_outer_shapes() {
 
     let mentions = vec!["src/main.rs:10".to_string(), "README.md".to_string()];
     let rendered = render_file_references(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &mentions,
         Some(1),
     );
@@ -260,7 +260,7 @@ fn file_reference_card_and_list_render_expected_outer_shapes() {
 #[test]
 fn file_reference_cards_accept_empty_paths_and_out_of_range_hover_indices() {
     let empty_path = file_reference_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         String::new(),
         true,
     );
@@ -268,7 +268,7 @@ fn file_reference_cards_accept_empty_paths_and_out_of_range_hover_indices() {
 
     let mentions = vec!["README.md".to_string(), "src/lib.rs:0:0".to_string()];
     let rendered = render_file_references(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &mentions,
         Some(mentions.len()),
     );
@@ -286,7 +286,7 @@ fn extract_file_mentions_keeps_all_five_files_with_chinese_and_spaces() {
     ];
     let input = paths
         .iter()
-        .map(|path| crate::app::components::input_mention_highlighter::file_mention(path))
+        .map(|path| desktop_editor::components::input_mention_highlighter::file_mention(path))
         .collect::<Vec<_>>()
         .join(" ");
     assert_eq!(extract_file_mentions(&input), paths);
@@ -295,7 +295,7 @@ fn extract_file_mentions_keeps_all_five_files_with_chinese_and_spaces() {
 #[test]
 fn extract_file_mentions_decodes_quoted_special_characters() {
     let path = "目录/文件 \"副本\".txt";
-    let mention = crate::app::components::input_mention_highlighter::file_mention(path);
+    let mention = desktop_editor::components::input_mention_highlighter::file_mention(path);
     assert_eq!(extract_file_mentions(&mention), vec![path]);
     assert!(extract_file_mentions(r#"@"" @"未闭合"#).is_empty());
 }

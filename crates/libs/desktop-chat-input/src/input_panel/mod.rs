@@ -17,3 +17,19 @@ pub mod model_views;
 pub mod icons;
 pub mod agent_children;
 pub mod agent_sessions;
+
+pub mod slice_message;
+pub mod file_references;
+#[cfg(test)]
+mod file_references_tests;
+pub mod file_search;
+#[cfg(test)]
+mod file_search_tests;
+pub mod queue_panel;
+#[cfg(test)]
+mod queue_panel_tests;
+pub mod input_editor;
+#[cfg(test)]
+mod input_editor_tests;
+#[cfg(test)]
+mod icons_tests;

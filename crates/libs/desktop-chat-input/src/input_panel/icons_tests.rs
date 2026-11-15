@@ -6,8 +6,8 @@ use super::icons::{
     normalize_acp_agent_icon_name, provider_logo_handle, raw_svg_handle, svg_icon,
     themed_svg_handle,
 };
-use crate::app::Message;
-use crate::app::assets::{self, Icon};
+type Message = ();
+use desktop_assets::assets::{self, Icon};
 use iced::{Element, Length, Theme};
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {

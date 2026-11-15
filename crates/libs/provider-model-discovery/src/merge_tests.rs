@@ -125,7 +125,7 @@ fn model_protocol_010_discovery_requires_unambiguous_deployment() {
         }
     }))
     .unwrap();
-    let provider = vw_shared::provider::state::from_models_dev_provider(raw);
+    let provider = model_state::from_models_dev_provider(raw);
     assert_eq!(crate::resolve_api_base(&provider, None), None);
     assert_eq!(crate::resolve_api_base(&provider, Some("")), None);
     assert_eq!(
@@ -147,7 +147,7 @@ async fn model_protocol_010_remote_discovery_preserves_explicit_protocols_and_st
         "models":{"m":{"id":"m","protocols":[]}}
     }))
     .unwrap();
-    let mut provider = vw_shared::provider::state::from_models_dev_provider(raw);
+    let mut provider = model_state::from_models_dev_provider(raw);
     provider.models.get_mut("m").unwrap().status = "disabled".into();
     let explicit = HashSet::from(["m".to_string()]);
     assert_eq!(
@@ -177,7 +177,7 @@ async fn model_protocol_010_dedicated_sdk_skips_bearer_discovery() {
         "api":"https://never-request.example", "models":{"m":{"id":"m"}}
     }))
     .unwrap();
-    let mut provider = vw_shared::provider::state::from_models_dev_provider(raw);
+    let mut provider = model_state::from_models_dev_provider(raw);
     assert_eq!(
         crate::discover_and_merge_provider(
             &mut provider,

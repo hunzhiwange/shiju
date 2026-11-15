@@ -1,8 +1,8 @@
-//! State-dependent model capability tests retained until model-state migration.
+//! Model capability projection and serialization tests.
 
 #[test]
 fn native_tool_search_capability_ordinary_toolcall_does_not_enable_native_search() {
-    let capabilities = super::super::state::default_model_capabilities();
+    let capabilities = super::default_model_capabilities();
     let mut value = serde_json::to_value(capabilities).unwrap();
     value.as_object_mut().unwrap().remove("native_tool_search");
     let parsed: super::Capabilities = serde_json::from_value(value).unwrap();
@@ -11,7 +11,7 @@ fn native_tool_search_capability_ordinary_toolcall_does_not_enable_native_search
 
 #[test]
 fn native_tool_search_capability_explicit_override_and_inheritance() {
-    use super::super::state::resolve_model_capabilities;
+    use super::resolve_model_capabilities;
     let enabled =
         resolve_model_capabilities(&serde_json::json!({"native_tool_search": true}), None, false);
     assert!(enabled.native_tool_search);

@@ -1,0 +1,11 @@
+[package]
+name = "model-state"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+model-catalog-types = { path = "../model-catalog-types", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+serde_json = "1"
+tracing = "0.1"

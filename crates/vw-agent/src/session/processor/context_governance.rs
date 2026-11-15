@@ -44,7 +44,7 @@ pub(crate) struct ContextCompactionDecision {
 ///
 /// 显式输入限制优先；没有输入限制时，从总窗口中预留最大输出空间。
 pub(crate) fn effective_input_window(limit: &ModelLimit) -> u64 {
-    vw_shared::provider::state::effective_input_window(limit)
+    model_state::effective_input_window(limit)
 }
 
 /// Unknown windows use the existing runtime fallback, not a claimed provider capability.
@@ -55,7 +55,7 @@ pub(crate) fn compaction_context_window(limit: &ModelLimit) -> u64 {
         limit
             .input
             .filter(|input| *input > 0)
-            .unwrap_or(vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT)
+            .unwrap_or(model_state::DEFAULT_MODEL_CONTEXT_LIMIT)
     }
 }
 
@@ -64,7 +64,7 @@ pub(crate) fn summary_output_budget(limit: &ModelLimit) -> u64 {
     let output = if limit.output > 0 {
         limit.output
     } else {
-        vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
+        model_state::DEFAULT_MODEL_OUTPUT_LIMIT
     };
     output.min(20_000).min((compaction_context_window(limit) / 4).max(1))
 }

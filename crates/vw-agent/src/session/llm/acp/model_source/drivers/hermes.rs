@@ -93,7 +93,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     let mut main = route.clone();
     main["default"] = serde_json::json!(profile.model_alias);
     main["max_tokens"] = serde_json::json!(if profile.model_output_limit == 0 {
-        vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
+        model_state::DEFAULT_MODEL_OUTPUT_LIMIT
     } else {
         profile.model_output_limit
     });

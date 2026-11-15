@@ -102,7 +102,7 @@ pub(crate) fn build_task_graph(
 
 fn list_task_dependencies_with_connection(
     connection: &Connection,
-    scope: &vw_api_types::agent_scheduler::AgentSchedulerScope,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
 ) -> Result<Vec<AgentTaskDependency>> {
     let (platform_id, company_id, project_id) = scope_params(scope);
     let mut statement = connection.prepare(
@@ -139,7 +139,7 @@ fn dependency_task_ids(
 
 fn load_task_snapshots(
     connection: &Connection,
-    scope: &vw_api_types::agent_scheduler::AgentSchedulerScope,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
     task_ids: &BTreeSet<String>,
 ) -> Result<BTreeMap<String, TaskGraphTaskSnapshot>> {
     let (platform_id, company_id, project_id) = scope_params(scope);
@@ -225,7 +225,7 @@ fn predecessors_by_successor(
 
 fn replace_task_dependencies_with_connection(
     transaction: &Transaction<'_>,
-    scope: &vw_api_types::agent_scheduler::AgentSchedulerScope,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
     dependencies: &[AgentTaskDependency],
 ) -> Result<()> {
     let (platform_id, company_id, project_id) = scope_params(scope);

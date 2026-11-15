@@ -4,7 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::*;
-use vw_gateway_client::vw_api_types::agent_scheduler::{
+use vw_api_agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerWakeResponse,
 };
 use vw_api_transport::common::TimestampMs;
@@ -52,7 +52,7 @@ fn wake_agent_scheduler_after_registering_pending(
             let response = client
                 .agent_scheduler_wake(
                     &scope,
-                    &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeRequest {
+                    &vw_api_agent_scheduler::AgentSchedulerWakeRequest {
                         now_ms: TimestampMs(i64::try_from(now_ms).unwrap_or(i64::MAX)),
                         dispatch_mode,
                         max_concurrent,

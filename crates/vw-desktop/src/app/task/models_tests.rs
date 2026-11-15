@@ -376,7 +376,7 @@ fn task_board_settings_sanitizes_workflow_id() {
     assert_eq!(legacy.workflow_id, crate::app::task::DEFAULT_TASK_WORKFLOW_ID);
     assert_eq!(
         legacy.agent_scheduler_dispatch_mode,
-        vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto::Local
+        vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local
     );
     let encoded = serde_json::to_value(&legacy).expect("legacy settings should serialize");
     assert!(encoded.get("auto_execute").is_none());

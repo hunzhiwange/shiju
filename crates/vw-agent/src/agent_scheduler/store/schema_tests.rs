@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use rusqlite::{Connection, params};
-use vw_api_types::agent_scheduler::AgentSchedulerScope;
+use vw_api_agent_scheduler::AgentSchedulerScope;
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

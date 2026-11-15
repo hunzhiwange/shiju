@@ -2,7 +2,7 @@
 
 //! 验证代理调度器 DTO 的线协议、作用域校验及新旧载荷兼容性。
 
-use super::agent_scheduler::{
+use crate::{
     AgentCapabilityDto, AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto,
     AgentOutboxMessageDto, AgentOutboxMessageStatusDto, AgentResourceLeaseDto,
     AgentResourceLeaseStatusDto, AgentRunDto, AgentRunStatusDto, AgentSchedulerBulkCommandRequest,
@@ -26,12 +26,12 @@ use super::agent_scheduler::{
     AgentTaskStatusDto, TaskDependencyNodeDto,
 };
 use vw_api_chat_identity::ReasoningEffortDto;
-use super::common::TimestampMs;
-use super::id::{
+use vw_api_transport::common::TimestampMs;
+use vw_api_transport::id::{
     CompanyId, DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, PlatformId, ProjectId, ProjectScope,
     TenantScope,
 };
-use super::task::{
+use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
 };
 use serde_json::json;
@@ -160,7 +160,7 @@ fn tenant_and_project_scopes_require_non_empty_ids() {
 #[test]
 fn task_pool_workspace_serializes_without_git_metadata() {
     let value = serde_json::json!({"path": "/registered/project"});
-    let workspace: super::agent_scheduler::AgentSchedulerWorkspaceContextDto =
+    let workspace: crate::AgentSchedulerWorkspaceContextDto =
         serde_json::from_value(value.clone()).unwrap();
     assert_eq!(serde_json::to_value(workspace).unwrap(), value);
 }

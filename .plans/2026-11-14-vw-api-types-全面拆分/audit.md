@@ -2691,3 +2691,9 @@
 - `apps_usage/presentation/credits.rs` → `super::tiers::QuotaTone`。
 
 补充：chat.rs 主体归任务10，其中 ReasoningEffortDto 与 SessionAgentIdentity 先由任务2提取；agent_apps/mod.rs 的共享顶层类型归任务3，其余模块注册在各领域完成后逐步改为门面。app_providers.rs 的四个顶层类型归任务24，子模块注册由后续卡逐步重导出。测试含跨域断言时按定义分离，不复制断言或删除覆盖。
+
+## 任务19落地（静态审查）
+
+调度器55个公开类型迁入 `api-agent-scheduler`，按任务/运行、能力/lease、事件/outbox、命令/任务板分文件；旧模块明确重导出，四项既有测试随库迁移。依赖仅 transport、task、chat-identity、serde、serde_json，无旧门面或聊天流依赖。实际消费者 vw-agent、vw-desktop、vw-gateway-client 以及 CLI api-automation/api-session/gateway-automation/gateway-transport/interaction/interaction-model 均改用新库并更新清单。CLI 已拆库，故以实际所在包替代候选 vw-cli。
+
+本次仅静态核对定义、测试、serde 辅助路径及依赖接线，未运行 Cargo、测试及实机验证；未来验收沿任务19原列行为入口。

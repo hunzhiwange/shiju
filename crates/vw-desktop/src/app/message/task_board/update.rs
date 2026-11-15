@@ -57,9 +57,9 @@ fn task_status_from_agent_scheduler_key(status_key: &str) -> Option<TaskStatus> 
 }
 
 fn task_status_from_agent_scheduler_status(
-    status: vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto,
+    status: vw_api_agent_scheduler::AgentTaskStatusDto,
 ) -> TaskStatus {
-    use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;
+    use vw_api_agent_scheduler::AgentTaskStatusDto;
 
     match status {
         AgentTaskStatusDto::Draft => TaskStatus::Pool,
@@ -78,9 +78,9 @@ fn task_status_from_agent_scheduler_status(
 }
 
 fn task_status_from_agent_scheduler_snapshot_status(
-    status: vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto,
+    status: vw_api_agent_scheduler::AgentTaskStatusDto,
 ) -> TaskStatus {
-    use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;
+    use vw_api_agent_scheduler::AgentTaskStatusDto;
 
     match status {
         AgentTaskStatusDto::Submitted => TaskStatus::CodeComplete,
@@ -100,7 +100,7 @@ fn run_stage_is_running(run_stage: Option<&str>) -> bool {
 }
 
 fn task_status_from_agent_scheduler_snapshot(
-    snapshot: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto,
+    snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
 ) -> TaskStatus {
     let agent_status =
         snapshot.status.clone().map(task_status_from_agent_scheduler_snapshot_status);
@@ -123,7 +123,7 @@ fn task_status_from_agent_scheduler_snapshot(
 
 fn task_status_from_agent_scheduler_log(
     status_key: Option<&str>,
-    status: Option<vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto>,
+    status: Option<vw_api_agent_scheduler::AgentTaskStatusDto>,
 ) -> Option<TaskStatus> {
     status_key
         .map(str::trim)
@@ -137,7 +137,7 @@ fn timestamp_ms_to_u64(timestamp_ms: vw_api_transport::TimestampMs) -> u64 {
 }
 
 fn task_log_entry_from_agent_scheduler(
-    log: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogDto,
+    log: &vw_api_agent_scheduler::AgentSchedulerTaskLogDto,
 ) -> TaskLogEntry {
     TaskLogEntry {
         localized_message: None,
@@ -163,7 +163,7 @@ fn task_log_entry_matches(left: &TaskLogEntry, right: &TaskLogEntry) -> bool {
 
 fn merge_agent_scheduler_task_logs(
     task: &mut Task,
-    logs: &[vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogDto],
+    logs: &[vw_api_agent_scheduler::AgentSchedulerTaskLogDto],
 ) -> bool {
     let mut changed = false;
     for log in logs {
@@ -240,7 +240,7 @@ fn runtime_order_no_to_task_order(order_no: i64) -> u32 {
 
 fn apply_agent_scheduler_task_snapshot(
     task: &mut Task,
-    snapshot: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto,
+    snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
 ) {
     let next_status = task_status_from_agent_scheduler_snapshot(snapshot);
     if task.status != next_status {
@@ -292,7 +292,7 @@ fn apply_agent_scheduler_task_snapshot(
 }
 
 fn task_from_agent_scheduler_snapshot(
-    snapshot: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto,
+    snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
 ) -> Task {
     let mut task = Task::default();
     task.id = snapshot.task_id.as_ref().to_string();
@@ -322,7 +322,7 @@ fn task_from_agent_scheduler_snapshot(
 
 fn apply_agent_scheduler_status(
     app: &mut crate::app::App,
-    response: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
+    response: vw_api_agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
 ) -> Vec<Task> {
     let mut updated_tasks = Vec::new();
     let mut updated_task_ids = Vec::new();
@@ -378,7 +378,7 @@ fn apply_agent_scheduler_status(
 fn apply_agent_scheduler_logs(
     app: &mut crate::app::App,
     responses: Vec<
-        vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse,
+        vw_api_agent_scheduler::AgentSchedulerTaskLogsResponse,
     >,
 ) -> Vec<Task> {
     let mut updated_tasks = Vec::new();

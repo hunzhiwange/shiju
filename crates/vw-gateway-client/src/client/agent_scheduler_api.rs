@@ -1,4 +1,4 @@
-use vw_api_types::agent_scheduler::{
+use vw_api_agent_scheduler::{
     AgentSchedulerBulkCommandRequest, AgentSchedulerBulkCommandResponse,
     AgentSchedulerCommandRequest, AgentSchedulerCommandResponse, AgentSchedulerCreateTaskRequest,
     AgentSchedulerCreateTaskResponse, AgentSchedulerLegacyImportRequest,

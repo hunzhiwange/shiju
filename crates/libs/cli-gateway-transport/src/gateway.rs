@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use vw_config_types::config::AcpAgentConfig;
-use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectScope;
 use {
     vw_api_transport::id::SessionId,

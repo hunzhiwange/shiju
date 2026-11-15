@@ -1,11 +1,11 @@
 //! 知识库视图测试，覆盖数据集、文档、分块、检索配置和各类弹窗组件。
 //! 标签格式、分页边界与明暗主题状态需同时反映网关能力和当前编辑草稿。
 
-use crate::app::message::{KnowledgeToolMessage, knowledge_tool};
-use crate::app::state::{
+use crate::message::knowledge_tool::{self, KnowledgeToolMessage};
+use crate::state::{
     KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeFileImportDraft,
 };
-use crate::app::{App, Message};
+use super::{Message, ViewInput};
 use iced::advanced::widget::operation::{Focusable, Operation, Scrollable, TextInput};
 use iced::advanced::{
     Layout, clipboard, layout, mouse, renderer,
@@ -52,8 +52,24 @@ use super::{
 };
 use {vw_api_knowledge::KnowledgeCapabilitiesDto, vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkType, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeMatchType, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRuntimeStatus};
 
+struct App {
+    knowledge: crate::state::KnowledgeUiState,
+    desktop_locale: DesktopLocale,
+    app_theme: Theme,
+}
+impl App {
+    fn input(&self) -> ViewInput<'_> {
+        ViewInput { knowledge: &self.knowledge, desktop_locale: self.desktop_locale,
+            app_theme: &self.app_theme, files_dragging: false, last_copied_code_hash: None }
+    }
+}
 fn test_app() -> App {
-    App::new().0
+    App { knowledge: Default::default(), desktop_locale: DesktopLocale::SimplifiedChinese, app_theme: Theme::Light }
+}
+fn update(app: &mut App, message: KnowledgeToolMessage) -> iced::Task<crate::Event> {
+    let mut input = crate::KnowledgeUpdate { knowledge: &mut app.knowledge,
+        gateway: || Err("view fixture has no gateway".into()), dropped_paths: Vec::new(), feedback: None };
+    knowledge_tool::update(&mut input, message)
 }
 
 fn keep_element(element: Element<'_, Message>) {
@@ -138,14 +154,14 @@ fn runtime_status(vector: bool, rerank: bool) -> KnowledgeRuntimeStatus {
 fn knowledge_labels_match_ui_copy() {
     assert_eq!(
         indexing_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexingMode::Economy
         ),
         "经济"
     );
     assert_eq!(
         indexing_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexingMode::HighQuality
         ),
         "高质量"
@@ -153,56 +169,56 @@ fn knowledge_labels_match_ui_copy() {
     assert_eq!(chunking_label(&KnowledgeChunkingMode::General), "General");
     assert_eq!(
         chunk_type_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeChunkType::ParentText
         ),
         "父块"
     );
     assert_eq!(
         retrieval_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeRetrievalMode::Hybrid
         ),
         "混合检索"
     );
     assert_eq!(
         document_status_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeDocumentStatus::Failed
         ),
         "失败"
     );
     assert_eq!(
         match_type_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeMatchType::Hybrid
         ),
         "混合"
     );
     assert_eq!(
         support_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             true
         ),
         "可用"
     );
     assert_eq!(
         support_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             false
         ),
         "不可用"
     );
     assert_eq!(
         enabled_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             true
         ),
         "启用"
     );
     assert_eq!(
         enabled_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             false
         ),
         "关闭"
@@ -211,17 +227,17 @@ fn knowledge_labels_match_ui_copy() {
 
 #[test]
 fn detail_tab_titles_match_ui_copy() {
-    assert_eq!(crate::app::state::KnowledgeDetailTab::Documents.title(), "文档");
-    assert_eq!(crate::app::state::KnowledgeDetailTab::AddDocument.title(), "添加文档");
-    assert_eq!(crate::app::state::KnowledgeDetailTab::Retrieval.title(), "召回测试");
-    assert_eq!(crate::app::state::KnowledgeDetailTab::Settings.title(), "设置");
+    assert_eq!(crate::state::KnowledgeDetailTab::Documents.title(), "文档");
+    assert_eq!(crate::state::KnowledgeDetailTab::AddDocument.title(), "添加文档");
+    assert_eq!(crate::state::KnowledgeDetailTab::Retrieval.title(), "召回测试");
+    assert_eq!(crate::state::KnowledgeDetailTab::Settings.title(), "设置");
 }
 
 #[test]
 fn dataset_embedding_label_uses_resolved_global_config() {
     let mut app = test_app();
     let existing = dataset("existing");
-    assert_eq!(dataset_embedding_model_label(&app, &existing), "跟随记忆配置/嵌入路由");
+    assert_eq!(dataset_embedding_model_label(app.input(), &existing), "跟随记忆配置/嵌入路由");
 
     app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
         provider_id: "alibaba-cn".to_string(),
@@ -234,7 +250,7 @@ fn dataset_embedding_label_uses_resolved_global_config() {
         retrieval_modes: vec![KnowledgeRetrievalMode::FullText, KnowledgeRetrievalMode::Hybrid],
         notes: BTreeMap::new(),
     });
-    assert_eq!(dataset_embedding_model_label(&app, &existing), "text-embedding-v4 / 1024维");
+    assert_eq!(dataset_embedding_model_label(app.input(), &existing), "text-embedding-v4 / 1024维");
 }
 
 #[test]
@@ -252,7 +268,7 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
     };
     assert_eq!(
         embedding_status_provider_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "alibaba-cn"
@@ -282,14 +298,14 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
     };
     assert_eq!(
         embedding_preset_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &alibaba
         ),
         "阿里百炼/DashScope · text-embedding-v4 / 1024维"
     );
     assert_eq!(
         embedding_preset_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &doubao
         ),
         "豆包/火山方舟 · doubao-embedding-text-240715 / 2048维"
@@ -306,7 +322,7 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
     };
     assert_eq!(
         embedding_test_result_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&result)
         ),
         "通过 · 1024 维 · 50 ms"
@@ -320,7 +336,7 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     enabled.score_threshold = 0.2;
     assert_eq!(
         score_threshold_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &enabled
         ),
         "0.20"
@@ -329,7 +345,7 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     let disabled = dataset("disabled");
     assert_eq!(
         score_threshold_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &disabled
         ),
         "关闭"
@@ -339,14 +355,14 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     assert_ne!(format_dataset_time(42), "--");
     assert_eq!(
         dataset_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "  "
         ),
         "未命名知识库"
     );
     assert_eq!(
         dataset_description(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "  "
         ),
         "暂无描述"
@@ -405,88 +421,88 @@ fn style_helpers_cover_light_dark_active_disabled_states() {
 #[test]
 fn view_builds_empty_and_notification_states() {
     let mut app = test_app();
-    keep_element(super::view(&app));
-    keep_element(build_workspace(&app, Size::new(1280.0, 800.0)));
-    keep_element(build_workspace(&app, Size::new(720.0, 640.0)));
-    keep_element(build_dataset_catalog_view(&app));
-    keep_element(build_dataset_catalog_header(&app));
-    keep_element(build_dataset_search_input(&app));
-    keep_element(build_dataset_list_panel(&app));
-    keep_element(build_detail(&app, Size::new(1280.0, 800.0)));
-    keep_element(build_create_dataset_modal(&app, None));
+    keep_element(super::view(app.input()));
+    keep_element(build_workspace(app.input(), Size::new(1280.0, 800.0)));
+    keep_element(build_workspace(app.input(), Size::new(720.0, 640.0)));
+    keep_element(build_dataset_catalog_view(app.input()));
+    keep_element(build_dataset_catalog_header(app.input()));
+    keep_element(build_dataset_search_input(app.input()));
+    keep_element(build_dataset_list_panel(app.input()));
+    keep_element(build_detail(app.input(), Size::new(1280.0, 800.0)));
+    keep_element(build_create_dataset_modal(app.input(), None));
 
     app.knowledge.datasets = vec![dataset("dataset-a")];
     app.knowledge.selected_dataset_id = Some("dataset-a".to_string());
     app.knowledge.show_dataset_detail();
-    keep_element(build_workspace(&app, Size::new(720.0, 640.0)));
+    keep_element(build_workspace(app.input(), Size::new(720.0, 640.0)));
     app.knowledge.show_dataset_list();
-    keep_element(build_workspace(&app, Size::new(720.0, 640.0)));
+    keep_element(build_workspace(app.input(), Size::new(720.0, 640.0)));
 
     app.knowledge.notification = Some("ok".to_string());
-    keep_element(super::view(&app));
+    keep_element(super::view(app.input()));
     app.knowledge.notification_is_error = true;
-    keep_element(super::view(&app));
+    keep_element(super::view(app.input()));
     app.knowledge.create_dataset_modal_open = true;
-    keep_element(super::view(&app));
+    keep_element(super::view(app.input()));
 }
 
 #[test]
 fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
     let mut app = test_app();
     app.knowledge.loading_datasets = true;
-    keep_element(build_dataset_catalog_view(&app));
-    keep_element(build_dataset_list_panel(&app));
-    keep_element(build_create_dataset_panel(&app));
-    keep_element(build_create_dataset_card(crate::app::i18n::I18n::new(
+    keep_element(build_dataset_catalog_view(app.input()));
+    keep_element(build_dataset_list_panel(app.input()));
+    keep_element(build_create_dataset_panel(app.input()));
+    keep_element(build_create_dataset_card(desktop_i18n::I18n::new(
         config_ui::DesktopLocale::SimplifiedChinese,
     )));
     keep_element(knowledge_header_button(
         "刷新",
-        Some(crate::app::message::KnowledgeToolMessage::Refresh),
+        Some(crate::message::knowledge_tool::KnowledgeToolMessage::Refresh),
     ));
 
     app.knowledge.loading_datasets = false;
-    keep_element(build_dataset_list_panel(&app));
+    keep_element(build_dataset_list_panel(app.input()));
     app.knowledge.datasets = vec![dataset("dataset-a")];
     app.knowledge.dataset_search_query = "missing".to_string();
-    keep_element(build_dataset_catalog_view(&app));
-    keep_element(build_dataset_list_panel(&app));
-    keep_element(build_no_dataset_result_card(crate::app::i18n::I18n::new(
+    keep_element(build_dataset_catalog_view(app.input()));
+    keep_element(build_dataset_list_panel(app.input()));
+    keep_element(build_no_dataset_result_card(desktop_i18n::I18n::new(
         config_ui::DesktopLocale::SimplifiedChinese,
     )));
 
     app.knowledge.dataset_search_query = "DATASET".to_string();
     app.knowledge.selected_dataset_id = Some("dataset-a".to_string());
-    keep_element(build_dataset_catalog_view(&app));
-    keep_element(build_dataset_list_panel(&app));
-    keep_element(dataset_item(&app, &app.knowledge.datasets[0]));
+    keep_element(build_dataset_catalog_view(app.input()));
+    keep_element(build_dataset_list_panel(app.input()));
+    keep_element(dataset_item(app.input(), &app.knowledge.datasets[0]));
     keep_element(dataset_tag("知识库"));
 }
 
 #[test]
 fn create_dataset_controls_build_for_vector_and_rerank_capabilities() {
     let mut app = test_app();
-    app.knowledge.create_dataset_tab = crate::app::state::KnowledgeCreateDatasetTab::Indexing;
-    keep_element(build_create_dataset_panel(&app));
+    app.knowledge.create_dataset_tab = crate::state::KnowledgeCreateDatasetTab::Indexing;
+    keep_element(build_create_dataset_panel(app.input()));
     app.knowledge.runtime_status = Some(runtime_status(false, false));
     app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::Economy;
     app.knowledge.dataset_rerank_enabled = true;
-    keep_element(build_indexing_mode_section(&app));
-    keep_element(build_retrieval_mode_section(&app));
-    keep_element(build_dataset_param_section(&app));
-    keep_element(build_rerank_toggle(&app));
+    keep_element(build_indexing_mode_section(app.input()));
+    keep_element(build_retrieval_mode_section(app.input()));
+    keep_element(build_dataset_param_section(app.input()));
+    keep_element(build_rerank_toggle(app.input()));
 
     app.knowledge.runtime_status = Some(runtime_status(true, true));
     app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::HighQuality;
     app.knowledge.dataset_retrieval_mode = KnowledgeRetrievalMode::Hybrid;
-    keep_element(build_indexing_mode_section(&app));
-    keep_element(build_retrieval_mode_section(&app));
-    keep_element(build_dataset_param_section(&app));
-    keep_element(build_embedding_model_section(&app));
-    keep_element(build_embedding_model_picker(&app));
+    keep_element(build_indexing_mode_section(app.input()));
+    keep_element(build_retrieval_mode_section(app.input()));
+    keep_element(build_dataset_param_section(app.input()));
+    keep_element(build_embedding_model_section(app.input()));
+    keep_element(build_embedding_model_picker(app.input()));
 
-    app.knowledge.create_dataset_tab = crate::app::state::KnowledgeCreateDatasetTab::Retrieval;
-    keep_element(build_create_dataset_panel(&app));
+    app.knowledge.create_dataset_tab = crate::state::KnowledgeCreateDatasetTab::Retrieval;
+    keep_element(build_create_dataset_panel(app.input()));
 }
 
 #[test]
@@ -507,26 +523,26 @@ fn detail_builds_all_tabs_and_responsive_document_layouts() {
     app.knowledge.selected_document_id = Some("document-a".to_string());
     app.knowledge.loaded_chunks = vec![chunk("chunk-a", None)];
 
-    app.knowledge.active_tab = crate::app::state::KnowledgeDetailTab::Documents;
-    keep_element(build_detail(&app, Size::new(1280.0, 800.0)));
-    keep_element(build_documents_tab(&app, Size::new(1280.0, 800.0)));
-    keep_element(build_documents_tab(&app, Size::new(900.0, 800.0)));
+    app.knowledge.active_tab = crate::state::KnowledgeDetailTab::Documents;
+    keep_element(build_detail(app.input(), Size::new(1280.0, 800.0)));
+    keep_element(build_documents_tab(app.input(), Size::new(1280.0, 800.0)));
+    keep_element(build_documents_tab(app.input(), Size::new(900.0, 800.0)));
 
-    app.knowledge.active_tab = crate::app::state::KnowledgeDetailTab::AddDocument;
-    keep_element(build_detail(&app, Size::new(1280.0, 800.0)));
-    keep_element(build_add_document_tab(&app));
-    keep_element(build_document_input_tabs(&app));
-    keep_element(build_upload_panel(&app));
-    app.knowledge.document_input_tab = crate::app::state::KnowledgeDocumentInputTab::Text;
-    keep_element(build_text_document_panel(&app));
-    keep_element(build_upload_panel(&app));
+    app.knowledge.active_tab = crate::state::KnowledgeDetailTab::AddDocument;
+    keep_element(build_detail(app.input(), Size::new(1280.0, 800.0)));
+    keep_element(build_add_document_tab(app.input()));
+    keep_element(build_document_input_tabs(app.input()));
+    keep_element(build_upload_panel(app.input()));
+    app.knowledge.document_input_tab = crate::state::KnowledgeDocumentInputTab::Text;
+    keep_element(build_text_document_panel(app.input()));
+    keep_element(build_upload_panel(app.input()));
 
-    app.knowledge.active_tab = crate::app::state::KnowledgeDetailTab::Retrieval;
-    keep_element(build_detail(&app, Size::new(1280.0, 800.0)));
+    app.knowledge.active_tab = crate::state::KnowledgeDetailTab::Retrieval;
+    keep_element(build_detail(app.input(), Size::new(1280.0, 800.0)));
 
-    app.knowledge.active_tab = crate::app::state::KnowledgeDetailTab::Settings;
-    keep_element(build_detail(&app, Size::new(1280.0, 800.0)));
-    keep_element(build_settings_tab(&app, app.knowledge.selected_dataset().unwrap()));
+    app.knowledge.active_tab = crate::state::KnowledgeDetailTab::Settings;
+    keep_element(build_detail(app.input(), Size::new(1280.0, 800.0)));
+    keep_element(build_settings_tab(app.input(), app.knowledge.selected_dataset().unwrap()));
 }
 
 #[test]
@@ -534,7 +550,7 @@ fn upload_panel_builds_file_import_states() {
     let mut app = test_app();
     app.knowledge.selected_dataset_id = Some("dataset-a".to_string());
 
-    keep_element(build_file_import_panel(&app));
+    keep_element(build_file_import_panel(app.input()));
 
     app.knowledge.file_imports = vec![KnowledgeFileImportDraft {
         filename: "guide.md".to_string(),
@@ -545,14 +561,14 @@ fn upload_panel_builds_file_import_states() {
 
     assert_eq!(
         file_import_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             app.knowledge.file_imports.first().unwrap()
         ),
         "1.5 KB · text/markdown"
     );
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &app.knowledge.file_imports
         ),
         "1.5 KB · text/markdown"
@@ -565,21 +581,21 @@ fn upload_panel_builds_file_import_states() {
     });
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &app.knowledge.file_imports
         ),
         "3.5 KB · 2 个文件"
     );
     assert_eq!(format_file_size(12), "12 B");
     assert_eq!(format_file_size(1_048_576), "1.0 MB");
-    keep_element(build_file_import_panel(&app));
+    keep_element(build_file_import_panel(app.input()));
 
     app.knowledge.importing_file = true;
-    keep_element(build_file_import_panel(&app));
-    keep_element(build_upload_panel(&app));
+    keep_element(build_file_import_panel(app.input()));
+    keep_element(build_upload_panel(app.input()));
 
     app.knowledge.importing_file = false;
-    app.knowledge.import_polling_jobs = vec![crate::app::state::KnowledgeImportPollingJob {
+    app.knowledge.import_polling_jobs = vec![crate::state::KnowledgeImportPollingJob {
         job_id: "job-a".to_string(),
         dataset_id: "dataset-a".to_string(),
         document_id: "document-a".to_string(),
@@ -588,40 +604,40 @@ fn upload_panel_builds_file_import_states() {
     }];
     assert_eq!(
         import_job_status_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexJobStatus::Queued
         ),
         "入队"
     );
     assert_eq!(
         import_job_status_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexJobStatus::Processing
         ),
         "索引中"
     );
     assert_eq!(
         import_job_status_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexJobStatus::Failed
         ),
         "失败"
     );
     keep_element(build_import_polling_panel(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.import_polling_jobs,
     ));
-    keep_element(build_file_import_panel(&app));
+    keep_element(build_file_import_panel(app.input()));
 }
 
 #[test]
 fn documents_table_builds_loading_empty_filtered_and_row_states() {
     let mut app = test_app();
     app.knowledge.loading_documents = true;
-    keep_element(build_documents_table(&app));
+    keep_element(build_documents_table(app.input()));
 
     app.knowledge.loading_documents = false;
-    keep_element(build_documents_table(&app));
+    keep_element(build_documents_table(app.input()));
 
     let mut disabled = document("document-b");
     disabled.enabled = false;
@@ -629,22 +645,22 @@ fn documents_table_builds_loading_empty_filtered_and_row_states() {
     app.knowledge.selected_document_id = Some("document-a".to_string());
     app.knowledge.loaded_chunks = vec![chunk("chunk-a", None)];
     app.knowledge.document_search_query = "missing".to_string();
-    keep_element(build_documents_table(&app));
+    keep_element(build_documents_table(app.input()));
 
     app.knowledge.document_search_query = "DOCUMENT".to_string();
-    keep_element(build_documents_table(&app));
-    keep_element(document_row(&app, &app.knowledge.documents[0]));
+    keep_element(build_documents_table(app.input()));
+    keep_element(document_row(app.input(), &app.knowledge.documents[0]));
 
     app.knowledge.deleting = true;
-    keep_element(document_row(&app, &app.knowledge.documents[1]));
+    keep_element(document_row(app.input(), &app.knowledge.documents[1]));
     app.knowledge.loading_chunks = true;
-    keep_element(super::build_chunks_panel(&app));
-    keep_element(build_document_preview_drawer(&app));
+    keep_element(super::build_chunks_panel(app.input()));
+    keep_element(build_document_preview_drawer(app.input()));
     app.knowledge.loading_chunks = false;
-    keep_element(super::build_chunks_panel(&app));
-    keep_element(build_document_preview_drawer(&app));
+    keep_element(super::build_chunks_panel(app.input()));
+    keep_element(build_document_preview_drawer(app.input()));
     keep_element(chunk_preview_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.loaded_chunks[0],
         true,
     ));
@@ -654,9 +670,9 @@ fn documents_table_builds_loading_empty_filtered_and_row_states() {
     app.knowledge.document_search_query.clear();
     app.knowledge.document_page = 2;
     app.knowledge.document_page_size = 10;
-    keep_element(build_documents_table(&app));
+    keep_element(build_documents_table(app.input()));
     keep_element(build_document_pagination(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         2,
         3,
         25,
@@ -691,14 +707,14 @@ fn documents_table_filters_status_and_builds_bulk_toolbar() {
     app.knowledge.rename_document_id = Some("doc-completed".to_string());
     app.knowledge.rename_document_name_input = "Guide alpha renamed".to_string();
 
-    let filtered = filtered_documents_page(&app);
+    let filtered = filtered_documents_page(app.input());
     assert_eq!(filtered.total_matches, 1);
     assert_eq!(filtered.documents.len(), 1);
     assert_eq!(filtered.documents[0].id, "doc-completed");
 
-    keep_element(build_documents_table(&app));
-    keep_element(build_document_bulk_toolbar(&app, &filtered.documents));
-    keep_element(build_document_rename_modal(&app, None));
+    keep_element(build_documents_table(app.input()));
+    keep_element(build_document_bulk_toolbar(app.input(), &filtered.documents));
+    keep_element(build_document_rename_modal(app.input(), None));
 }
 
 #[test]
@@ -709,7 +725,7 @@ fn filtered_documents_page_clamps_out_of_range_page_and_preserves_row_offset() {
     app.knowledge.document_page_size = 10;
     app.knowledge.document_page = 99;
 
-    let filtered = filtered_documents_page(&app);
+    let filtered = filtered_documents_page(app.input());
 
     assert_eq!(filtered.total_matches, 13);
     assert_eq!(filtered.total_pages, 2);
@@ -720,7 +736,7 @@ fn filtered_documents_page_clamps_out_of_range_page_and_preserves_row_offset() {
     assert_eq!(filtered.documents[0].id, "document-10");
 
     app.knowledge.document_page = 0;
-    let filtered = filtered_documents_page(&app);
+    let filtered = filtered_documents_page(app.input());
     assert_eq!(filtered.current_page, 1);
     assert_eq!(filtered.start_index, 0);
     assert_eq!(filtered.documents[0].id, "document-00");
@@ -731,8 +747,8 @@ fn document_toolbar_status_menu_and_pagination_controls_build_for_filter_states(
     let mut app = test_app();
     app.knowledge.documents = vec![document("doc-a"), document("doc-b")];
 
-    keep_element(build_documents_toolbar(&app));
-    keep_element(build_document_status_menu(&app));
+    keep_element(build_documents_toolbar(app.input()));
+    keep_element(build_document_status_menu(app.input()));
     keep_element(document_page_size_selector(20));
     keep_element(document_page_nav_button("上一页", None));
     keep_element(document_page_nav_button("下一页", Some(2)));
@@ -740,12 +756,12 @@ fn document_toolbar_status_menu_and_pagination_controls_build_for_filter_states(
     app.knowledge.document_status_menu_open = true;
     app.knowledge.document_status_filter =
         [KnowledgeDocumentStatus::Completed, KnowledgeDocumentStatus::Pending].into();
-    keep_element(build_documents_table(&app));
-    keep_element(build_documents_toolbar(&app));
-    keep_element(build_document_status_menu(&app));
+    keep_element(build_documents_table(app.input()));
+    keep_element(build_documents_toolbar(app.input()));
+    keep_element(build_document_status_menu(app.input()));
 
     app.knowledge.document_status_filter = [KnowledgeDocumentStatus::Archived].into();
-    keep_element(build_documents_toolbar(&app));
+    keep_element(build_documents_toolbar(app.input()));
 }
 
 #[test]
@@ -755,33 +771,33 @@ fn document_modals_and_preview_drawer_cover_missing_busy_and_delete_states() {
     app.knowledge.selected_dataset_id = Some("dataset-a".to_string());
     app.knowledge.documents = vec![document("document-a")];
 
-    keep_element(build_document_rename_modal(&app, None));
+    keep_element(build_document_rename_modal(app.input(), None));
     app.knowledge.rename_document_id = Some("missing-document".to_string());
     app.knowledge.rename_document_name_input = "  ".to_string();
-    keep_element(build_document_rename_modal(&app, None));
+    keep_element(build_document_rename_modal(app.input(), None));
 
     app.knowledge.rename_document_id = Some("document-a".to_string());
     app.knowledge.rename_document_name_input = "Renamed document".to_string();
     app.knowledge.updating_document_id = Some("document-a".to_string());
-    keep_element(build_document_rename_modal(&app, None));
+    keep_element(build_document_rename_modal(app.input(), None));
 
     app.knowledge.pending_delete_document_id = Some("document-a".to_string());
-    keep_element(build_delete_confirm_modal(&app, None));
+    keep_element(build_delete_confirm_modal(app.input(), None));
     app.knowledge.pending_delete_document_id = None;
     app.knowledge.pending_delete_dataset_id = Some("dataset-a".to_string());
     app.knowledge.deleting = true;
-    keep_element(build_delete_confirm_modal(&app, None));
+    keep_element(build_delete_confirm_modal(app.input(), None));
 
     app.knowledge.document_preview_open = true;
     app.knowledge.selected_document_id = None;
-    keep_element(build_document_preview_drawer(&app));
+    keep_element(build_document_preview_drawer(app.input()));
     app.knowledge.selected_document_id = Some("document-a".to_string());
     app.knowledge.loading_chunks = true;
-    keep_element(build_document_preview_drawer(&app));
+    keep_element(build_document_preview_drawer(app.input()));
     app.knowledge.loading_chunks = false;
     app.knowledge.loaded_chunks = vec![chunk("chunk-a", Some(0.42))];
     app.knowledge.selected_chunk_id = Some("chunk-a".to_string());
-    keep_element(build_document_preview_drawer(&app));
+    keep_element(build_document_preview_drawer(app.input()));
 }
 
 #[test]
@@ -842,18 +858,18 @@ fn document_page_size_accepts_supported_values_and_rejects_others() {
     let mut app = test_app();
     for supported in [10, 20, 30, 40, 50, 100] {
         app.knowledge.document_page_size = supported;
-        assert_eq!(document_page_size(&app), supported);
+        assert_eq!(document_page_size(app.input()), supported);
     }
 
     app.knowledge.document_page_size = 0;
-    assert_eq!(document_page_size(&app), 10);
+    assert_eq!(document_page_size(app.input()), 10);
     app.knowledge.document_page_size = 25;
-    assert_eq!(document_page_size(&app), 10);
+    assert_eq!(document_page_size(app.input()), 10);
 }
 
 #[test]
 fn document_status_helpers_preserve_archives_and_override_disabled_documents() {
-    let options = document_status_filter_options(crate::app::i18n::I18n::new(
+    let options = document_status_filter_options(desktop_i18n::I18n::new(
         config_ui::DesktopLocale::SimplifiedChinese,
     ));
     assert_eq!(
@@ -944,7 +960,7 @@ fn document_styles_and_badges_cover_status_and_interaction_states() {
         keep_element(document_status_badge(
             &value,
             document_status_label(
-                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &status,
             ),
         ));
@@ -966,7 +982,7 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     value.content = "first line\nsecond line".to_string();
     assert_eq!(
         chunk_preview_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value
         ),
         "Explicit title"
@@ -975,7 +991,7 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     value.title = "  ".to_string();
     assert_eq!(
         chunk_preview_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value
         ),
         "first line"
@@ -985,7 +1001,7 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     value.ordinal = 7;
     assert_eq!(
         chunk_preview_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value
         ),
         "分段 7"
@@ -995,18 +1011,18 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
 #[test]
 fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
     let mut app = test_app();
-    assert!(!embedding_vector_available(&app));
-    assert!(!embedding_hybrid_available(&app));
-    assert_eq!(dataset_embedding_options(&app).len(), 1);
+    assert!(!embedding_vector_available(app.input()));
+    assert!(!embedding_hybrid_available(app.input()));
+    assert_eq!(dataset_embedding_options(app.input()).len(), 1);
 
-    keep_element(build_embedding_model_picker(&app));
+    keep_element(build_embedding_model_picker(app.input()));
     app.knowledge.loading_embedding_presets = true;
-    keep_element(build_embedding_model_picker(&app));
+    keep_element(build_embedding_model_picker(app.input()));
     app.knowledge.loading_embedding_presets = false;
 
     app.knowledge.runtime_status = Some(runtime_status(true, true));
-    assert!(embedding_vector_available(&app));
-    assert!(embedding_hybrid_available(&app));
+    assert!(embedding_vector_available(app.input()));
+    assert!(embedding_hybrid_available(app.input()));
 
     let status = KnowledgeEmbeddingStatusDto {
         provider_id: "  ".to_string(),
@@ -1020,46 +1036,46 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
         notes: BTreeMap::new(),
     };
     app.knowledge.embedding_status = Some(status.clone());
-    assert!(!embedding_vector_available(&app));
-    assert!(!embedding_hybrid_available(&app));
+    assert!(!embedding_vector_available(app.input()));
+    assert!(!embedding_hybrid_available(app.input()));
     assert_eq!(
         embedding_status_provider_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "检测中"
     );
     assert_eq!(
         embedding_status_model_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "检测中"
     );
     assert_eq!(
         embedding_status_dimensions_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "768 维"
     );
     assert_eq!(
         embedding_status_route_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "默认"
     );
     assert_eq!(
         embedding_status_dimensions_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             None
         ),
         "检测中"
     );
     assert_eq!(
         embedding_status_route_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             None
         ),
         "默认"
@@ -1075,7 +1091,7 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
         api_key_env_vars: vec![],
         description: "custom".to_string(),
     }];
-    keep_element(build_embedding_model_picker(&app));
+    keep_element(build_embedding_model_picker(app.input()));
 
     app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
         provider_id: "custom".to_string(),
@@ -1088,7 +1104,7 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
         retrieval_modes: vec![KnowledgeRetrievalMode::Vector, KnowledgeRetrievalMode::Hybrid],
         notes: BTreeMap::new(),
     });
-    let options = dataset_embedding_options(&app);
+    let options = dataset_embedding_options(app.input());
     assert_eq!(options.len(), 2);
     assert!(options[1].label.contains("锁定当前"));
     assert!(options[1].label.contains("custom-embedding"));
@@ -1104,7 +1120,7 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
     };
     assert_eq!(
         embedding_test_result_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&failed)
         ),
         "失败 · missing API key · 耗时未知"
@@ -1115,7 +1131,7 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
 fn file_import_summary_covers_empty_and_unknown_mime_states() {
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[]
         ),
         "等待选择"
@@ -1128,14 +1144,14 @@ fn file_import_summary_covers_empty_and_unknown_mime_states() {
     };
     assert_eq!(
         file_import_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &file
         ),
         "1.0 KB · 未知类型"
     );
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[file]
         ),
         "1.0 KB · 未知类型"
@@ -1145,7 +1161,7 @@ fn file_import_summary_covers_empty_and_unknown_mime_states() {
 #[test]
 fn retrieval_tab_builds_empty_and_result_states() {
     let mut app = test_app();
-    keep_element(build_retrieval_tab(&app));
+    keep_element(build_retrieval_tab(app.input()));
 
     let mut debug = chunk("scored", Some(0.1234));
     debug.match_type = KnowledgeMatchType::Hybrid;
@@ -1153,18 +1169,18 @@ fn retrieval_tab_builds_empty_and_result_states() {
     debug.context = Some("nearby context".to_string());
     app.knowledge.retrieve_include_context = true;
     app.knowledge.retrieve_results = vec![debug, chunk("unscored", None)];
-    keep_element(build_retrieval_tab(&app));
+    keep_element(build_retrieval_tab(app.input()));
     keep_element(chunk_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.retrieve_results[0],
     ));
     keep_element(chunk_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.retrieve_results[1],
     ));
 
     app.knowledge.retrieving = true;
-    keep_element(build_retrieval_tab(&app));
+    keep_element(build_retrieval_tab(app.input()));
 }
 
 #[test]
@@ -1178,26 +1194,26 @@ fn knowledge_scrollbar_reserves_requested_gutter() {
 fn small_element_helpers_build_without_panicking() {
     keep_element(section_header("title", "description"));
     keep_element(compact_input_row("Top K", "10", |_| {
-        Message::Knowledge(crate::app::message::KnowledgeToolMessage::RetrieveTopKChanged(
+        Message::Knowledge(crate::message::knowledge_tool::KnowledgeToolMessage::RetrieveTopKChanged(
             "10".to_string(),
         ))
     }));
     keep_element(option_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "高质量",
         "生成向量索引。",
-        crate::app::assets::Icon::Speedometer2,
+        desktop_assets::assets::Icon::Speedometer2,
         true,
         true,
         true,
-        Message::Knowledge(crate::app::message::KnowledgeToolMessage::CreateDataset),
+        Message::Knowledge(crate::message::knowledge_tool::KnowledgeToolMessage::CreateDataset),
     ));
     keep_element(segment_button(
         "设置",
         true,
-        Message::Knowledge(crate::app::message::KnowledgeToolMessage::ClearNotification),
+        Message::Knowledge(crate::message::knowledge_tool::KnowledgeToolMessage::ClearNotification),
     ));
-    keep_element(icon_badge(crate::app::assets::Icon::Journals, true));
+    keep_element(icon_badge(desktop_assets::assets::Icon::Journals, true));
     keep_element(empty_hint("暂无文档"));
 }
 
@@ -1400,7 +1416,7 @@ async fn form_renderer() -> Renderer {
     use renderer::Headless;
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -1409,13 +1425,7 @@ async fn form_renderer() -> Renderer {
         .expect("headless renderer")
 }
 
-fn form_test_app() -> App {
-    let root = tempfile::tempdir().unwrap();
-    crate::app::theme_catalog::set_test_themes_root(Some(root.path().to_path_buf()));
-    let app = test_app();
-    crate::app::theme_catalog::set_test_themes_root(None);
-    app
-}
+fn form_test_app() -> App { test_app() }
 
 #[tokio::test]
 async fn knowledge_form_controls_use_shared_embedding_and_page_size_select() {
@@ -1437,11 +1447,11 @@ async fn knowledge_form_controls_use_shared_embedding_and_page_size_select() {
 
     for locale in FORM_LOCALES {
         app.desktop_locale = locale;
-        let i18n = crate::app::i18n::I18n::new(locale);
+        let i18n = desktop_i18n::I18n::new(locale);
         for theme in [Theme::Light, Theme::Dark] {
             for width in [420, 960] {
                 let mut modal =
-                    FormUi::new(build_create_dataset_modal(&app, None), &mut renderer, width);
+                    FormUi::new(build_create_dataset_modal(app.input(), None), &mut renderer, width);
                 // Panel → scrollable → indexing row → right column → embedding section → picker.
                 let trigger = modal.bounds(&[MODAL_CONTENT, &[1, 1, 0, 1, 1, 0, 1]].concat());
                 assert!(matches!(
@@ -1508,13 +1518,13 @@ async fn knowledge_form_controls_preserve_dataset_input_messages() {
                         ["12", "6", "0.2", "fixture-rerank"].map(str::to_owned).to_vec(),
                     ),
                 ] {
-                    let _ = knowledge_tool::update(
+                    let _ = update(
                         &mut app,
                         KnowledgeToolMessage::SelectCreateDatasetTab(tab),
                     );
                     let changes = {
                         let mut ui = FormUi::new(
-                            build_create_dataset_modal(&app, None),
+                            build_create_dataset_modal(app.input(), None),
                             &mut renderer,
                             width,
                         );
@@ -1538,7 +1548,7 @@ async fn knowledge_form_controls_preserve_dataset_input_messages() {
                         changes
                     };
                     for change in changes {
-                        let _ = knowledge_tool::update(&mut app, change);
+                        let _ = update(&mut app, change);
                     }
                 }
 
@@ -1549,12 +1559,12 @@ async fn knowledge_form_controls_preserve_dataset_input_messages() {
                 assert_eq!(app.knowledge.dataset_score_threshold_input, "0.21");
                 assert_eq!(app.knowledge.dataset_rerank_model_input, "fixture-rerank1");
 
-                let _ = knowledge_tool::update(
+                let _ = update(
                     &mut app,
                     KnowledgeToolMessage::SelectCreateDatasetTab(KnowledgeCreateDatasetTab::Basic),
                 );
                 let mut modal =
-                    FormUi::new(build_create_dataset_modal(&app, None), &mut renderer, width);
+                    FormUi::new(build_create_dataset_modal(app.input(), None), &mut renderer, width);
                 modal.draw(&mut renderer, &theme);
                 assert_eq!(modal.probe(&renderer).inputs[0].0, format!("{title}1"));
                 let cancel = modal.bounds(&[MODAL_CONTENT, &[2, 1]].concat()).center();
@@ -1616,7 +1626,7 @@ fn check_form_help(
     description: &str,
     index: usize,
 ) -> Point {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let title = i18n.__(title);
     let description = i18n.__(description);
     let probe = ui.probe(renderer);
@@ -1674,7 +1684,7 @@ fn form_actions(mut messages: Vec<Message>) -> Vec<Message> {
 }
 
 fn check_help_menu(ui: &mut FormUi<'_>, renderer: &mut Renderer, icon: Point, description: &str) {
-    use crate::app::message::ViewMessage;
+    use super::ViewMessage;
 
     assert!(ui.click(renderer, icon).is_empty());
     let body = Point::new(icon.x + 29.0, icon.y + 5.0);
@@ -1723,10 +1733,10 @@ async fn help_rollout_22_renders_contextual_help() {
     for (locale, theme, width) in HELP_LAYOUTS {
         app.desktop_locale = locale;
         app.app_theme = theme;
-        let i18n = crate::app::i18n::I18n::new(locale);
+        let i18n = desktop_i18n::I18n::new(locale);
 
         app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Basic;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         let intro = "按模块完成基础信息、索引与检索配置。";
         let icon = check_form_help(&mut ui, &mut renderer, &app, "创建知识库", intro, 0);
         if width == 640 {
@@ -1753,14 +1763,14 @@ async fn help_rollout_22_renders_contextual_help() {
         ));
         drop(ui);
         app.knowledge.creating_dataset = true;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         let busy = ui.probe(&renderer).label(i18n.__("创建中"), 0).center();
         assert!(ui.click(&mut renderer, busy).is_empty());
         drop(ui);
         app.knowledge.creating_dataset = false;
 
         app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Indexing;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         check_form_help(&mut ui, &mut renderer, &app, "分段模式", "选择文档入库结构。", 0);
         check_form_help(
             &mut ui,
@@ -1783,7 +1793,7 @@ async fn help_rollout_22_renders_contextual_help() {
         drop(ui);
 
         app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Retrieval;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         check_form_help(
             &mut ui,
             &mut renderer,
@@ -1799,7 +1809,7 @@ async fn help_rollout_22_renders_contextual_help() {
 
 #[tokio::test]
 async fn help_rollout_22_document_forms_render_contextual_help() {
-    use crate::app::state::{KnowledgeDetailTab, KnowledgeDocumentInputTab};
+    use crate::state::{KnowledgeDetailTab, KnowledgeDocumentInputTab};
 
     if !isolated_help_test("help_rollout_22_document_forms_render_contextual_help") {
         return;
@@ -1827,10 +1837,10 @@ async fn help_rollout_22_document_forms_render_contextual_help() {
         app.desktop_locale = locale;
         app.app_theme = theme;
         app.knowledge.notification_is_error = locale == DesktopLocale::English;
-        let i18n = crate::app::i18n::I18n::new(locale);
+        let i18n = desktop_i18n::I18n::new(locale);
         app.knowledge.active_tab = KnowledgeDetailTab::AddDocument;
         app.knowledge.document_input_tab = KnowledgeDocumentInputTab::Files;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         check_form_help(
             &mut ui,
             &mut renderer,
@@ -1856,7 +1866,7 @@ async fn help_rollout_22_document_forms_render_contextual_help() {
         ));
         drop(ui);
         app.knowledge.document_input_tab = KnowledgeDocumentInputTab::Text;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         check_form_help(
             &mut ui,
             &mut renderer,
@@ -1871,7 +1881,7 @@ async fn help_rollout_22_document_forms_render_contextual_help() {
         drop(ui);
 
         app.knowledge.active_tab = KnowledgeDetailTab::Settings;
-        let mut ui = FormUi::new(super::view(&app), &mut renderer, width);
+        let mut ui = FormUi::new(super::view(app.input()), &mut renderer, width);
         check_form_help(
             &mut ui,
             &mut renderer,

@@ -36,3 +36,5 @@ pub mod public_skills;
 pub mod upgrade_actions;
 pub mod shiju_apps;
 #[cfg(test)] mod public_skills_tests;
+
+pub mod knowledge_workspace;

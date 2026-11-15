@@ -23,7 +23,6 @@ cli-command-schema = { path = "../libs/cli-command-schema", version = "0.6.0" }
 cli-gateway-process = { path = "../libs/cli-gateway-process", version = "0.6.0" }
 cli-agent-session = { path = "../libs/cli-agent-session", version = "0.6.0" }
 cli-interaction = { path = "../libs/cli-interaction", version = "0.6.0" }
-cli-gateway-runtime = { path = "../libs/cli-gateway-runtime", version = "0.6.0" }
 cli-interaction-state = { path = "../libs/cli-interaction-state", version = "0.6.0" }
 cli-interaction-model = { path = "../libs/cli-interaction-model", version = "0.6.0" }
 cli-gateway-commands = { path = "../libs/cli-gateway-commands", version = "0.6.0" }

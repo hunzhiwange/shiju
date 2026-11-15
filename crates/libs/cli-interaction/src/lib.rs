@@ -65,3 +65,6 @@ mod plan_goal_tests;
 pub(crate) fn build_surface() -> V3Surface {
     V3Surface::new()
 }
+
+#[cfg(test)]
+mod gateway_composition_tests;

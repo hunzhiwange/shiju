@@ -327,4 +327,3 @@ impl Default for ShijuInstallGuideState {
         }
     }
 }
-

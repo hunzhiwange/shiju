@@ -569,4 +569,3 @@ impl ShijuPackageStatus {
         self.refresh = ShijuPackageRefreshState::Idle;
     }
 }
-

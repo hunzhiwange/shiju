@@ -30,7 +30,7 @@ use crate::queue_owner_turn_controller::QueueOwnerTurnController;
 #[cfg(test)]
 use crate::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerTurnControllerOptions};
 use crate::session_runtime::prompt_runner::{ClientAvailableCallback, ClientClosedCallback};
-use crate::session_runtime::queue_owner_process::{
+use acp_owner_process::{
     QueueOwnerRuntimeOptions, QueueOwnerRuntimeSendOptions, queue_owner_runtime_options_from_send,
     spawn_queue_owner_process,
 };

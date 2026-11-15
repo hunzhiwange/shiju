@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use super::queue_owner_process::resolve_queue_owner_spawn_args_with_override;
-use crate::session_runtime::{
+use crate::{
     QUEUE_OWNER_PROCESS_MARKER, QueueOwnerProcessError, QueueOwnerRuntimeOptions,
     QueueOwnerRuntimeSendOptions, build_queue_owner_arg_override,
     queue_owner_runtime_options_from_send, resolve_queue_owner_spawn_command,
     sanitize_queue_owner_exec_argv, spawn_queue_owner_process,
 };
-use crate::{AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
+use acp_types::{AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
 
 #[test]
 fn sanitize_queue_owner_exec_argv_removes_test_and_inspect_flags() {

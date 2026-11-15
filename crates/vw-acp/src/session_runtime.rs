@@ -8,7 +8,7 @@
 pub use acp_session_connect::connect_load;
 pub mod lifecycle;
 pub mod prompt_runner;
-pub mod queue_owner_process;
+pub use acp_owner_process::queue_owner_process;
 pub mod runtime;
 
 pub use crate::queue_owner_env::{
@@ -43,7 +43,5 @@ pub use runtime::{
     ensure_session, run_once, send_session, send_session_direct,
 };
 
-#[cfg(test)]
-mod queue_owner_process_tests;
 // #[cfg(test)]
 // mod runtime_tests;

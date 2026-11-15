@@ -9,7 +9,7 @@ use crate::session_runtime::prompt_runner::{
     RunSessionSetModelDirectOptions, queue_control_task, run_session_set_config_option_direct,
     run_session_set_mode_direct, run_session_set_model_direct,
 };
-use crate::session_runtime::queue_owner_process::QueueOwnerRuntimeOptions;
+use acp_owner_process::QueueOwnerRuntimeOptions;
 use acp_async_control::with_timeout;
 use crate::types::OutputErrorOrigin;
 

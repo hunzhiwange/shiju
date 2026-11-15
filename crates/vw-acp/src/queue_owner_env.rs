@@ -7,7 +7,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::mcp_servers::parse_optional_mcp_servers;
-use crate::session_runtime::queue_owner_process::{
+use acp_owner_process::{
     QUEUE_OWNER_PAYLOAD_ENV, QueueOwnerRuntimeOptions,
 };
 use crate::session_runtime::runtime::{SessionRuntimeError, run_session_queue_owner};

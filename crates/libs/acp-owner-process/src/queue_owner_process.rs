@@ -10,7 +10,7 @@ use agent_client_protocol::McpServer;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::types::{AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
+use acp_types::{AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
 
 pub const QUEUE_OWNER_ARGS_ENV: &str = "VWACP_QUEUE_OWNER_ARGS";
 pub const QUEUE_OWNER_PAYLOAD_ENV: &str = "VWACP_QUEUE_OWNER_PAYLOAD";

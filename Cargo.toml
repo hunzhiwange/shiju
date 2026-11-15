@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/acp-owner-process",
   "crates/libs/todo-types",
   "crates/libs/api-session",
   "crates/libs/project-types",

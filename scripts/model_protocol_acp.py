@@ -229,7 +229,7 @@ def turn(binary, entry, account, root, thinking_mode="request_default", upstream
     env = environment(root)
     # Existing application-managed installations are not always on the login PATH.
     managed = [path / 'apps/bin' for path in (Path.home() / '.shiju-harness', Path.home() / '.shiju-harness-dev')]
-    contracts = json.loads((Path(__file__).resolve().parents[1] / 'crates/vw-acp/src/managed_runtime/contracts.json').read_text())
+    contracts = json.loads((Path(__file__).resolve().parents[1] / 'crates/libs/acp-agent-registry/src/managed_runtime/contracts.json').read_text())
     if backend in contracts:
         release = contracts[backend]['version']
         runtime = Path.home() / '.local/share/shiju/acp-runtime' / (backend + '-' + release + '-model-source-v1')

@@ -22,7 +22,7 @@ async fn acp_model_source_session_controls_real_reviewed_installer_and_registry(
     let root = std::env::var("VW_ACP_INSTALL_ACCEPTANCE_ROOT")
         .expect("explicit isolated installation root required");
     assert!(Path::new(&root).is_absolute());
-    let _lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
     let original = std::env::var_os("VIBEWINDOW_CONFIG_DIR");
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", &root);
@@ -51,7 +51,7 @@ async fn acp_model_source_session_controls_real_reviewed_installer_and_registry(
 async fn acp_onboarding_deepagents_reviewed_install_and_discovery() {
     let directory = std::env::var("VW_ACP_INSTALL_ACCEPTANCE_ROOT").unwrap();
     assert!(Path::new(&directory).is_absolute());
-    let _lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
+    let _lock = crate::TEST_HOME_ENV_LOCK.lock().await;
     struct Restore(Option<std::ffi::OsString>);
     impl Drop for Restore {
         fn drop(&mut self) {

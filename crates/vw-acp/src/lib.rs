@@ -27,16 +27,15 @@ use acp_types::{
 
 use acp_access_policy::{access_policy, codex_compat, session_mode_preference};
 pub use access_policy::{AccessPolicy, AccessPolicyReason, FullAccessSupport};
-mod agent_registry;
+use acp_agent_registry::agent_registry;
 pub mod cli;
 mod cli_core;
 mod cli_public;
 mod client;
 mod config;
 use acp_host_io::filesystem;
-mod managed_runtime;
 mod mcp_servers;
-pub use managed_runtime::{reviewed_agent_command, verify_reviewed_agent_executable};
+pub use acp_agent_registry::{reviewed_agent_command, verify_reviewed_agent_executable};
 use acp_output::{output, output_json_formatter, read_output_suppression};
 use acp_metrics::{perf_metrics, perf_metrics_capture};
 use acp_host_io::permission_prompt;
@@ -269,5 +268,4 @@ pub use version::{
     ResolveAcpxVersionParams, UNKNOWN_VERSION, get_vwacp_version, resolve_vwacp_version,
 };
 
-mod install;
-pub use install::install_builtin_agent;
+pub use acp_agent_registry::install_builtin_agent;

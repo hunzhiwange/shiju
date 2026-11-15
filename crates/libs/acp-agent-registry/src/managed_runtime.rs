@@ -169,8 +169,8 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
     if agent == "claude" {
         let command = command.trim();
         return if Path::new(command).is_absolute()
-            && (crate::access_policy::claude::verified_entry(command, &[])
-                || crate::access_policy::claude::verified_effort_entry(command))
+            && (acp_access_policy::access_policy::claude::verified_entry(command, &[])
+                || acp_access_policy::access_policy::claude::verified_effort_entry(command))
         {
             Ok(())
         } else {
@@ -266,130 +266,130 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
         ("install.py", include_str!("managed_runtime/install.py")),
         (
             "sigit.patch",
-            include_str!("../../../patches/acp-model-source/sigit/host-boundary.patch"),
+            include_str!("../../../../patches/acp-model-source/sigit/host-boundary.patch"),
         ),
-        ("amp-acp/apply.py", include_str!("../../../patches/acp-model-source/amp-acp/apply.py")),
-        ("amp-acp/local.mjs", include_str!("../../../patches/acp-model-source/amp-acp/local.mjs")),
+        ("amp-acp/apply.py", include_str!("../../../../patches/acp-model-source/amp-acp/apply.py")),
+        ("amp-acp/local.mjs", include_str!("../../../../patches/acp-model-source/amp-acp/local.mjs")),
         ("deepagents-lock.json", include_str!("managed_runtime/deepagents-lock.json")),
         (
             "deepagents/apply.py",
-            include_str!("../../../patches/acp-model-source/deepagents/apply.py"),
+            include_str!("../../../../patches/acp-model-source/deepagents/apply.py"),
         ),
         (
             "deepagents/guard.mjs",
-            include_str!("../../../patches/acp-model-source/deepagents/guard.mjs"),
+            include_str!("../../../../patches/acp-model-source/deepagents/guard.mjs"),
         ),
-        ("trae/apply.py", include_str!("../../../patches/acp-model-source/trae/apply.py")),
-        ("trae/launcher.py", include_str!("../../../patches/acp-model-source/trae/launcher.py")),
-        ("cursor/apply.py", include_str!("../../../patches/acp-model-source/cursor/apply.py")),
-        ("cursor/patch.json", include_str!("../../../patches/acp-model-source/cursor/patch.json")),
+        ("trae/apply.py", include_str!("../../../../patches/acp-model-source/trae/apply.py")),
+        ("trae/launcher.py", include_str!("../../../../patches/acp-model-source/trae/launcher.py")),
+        ("cursor/apply.py", include_str!("../../../../patches/acp-model-source/cursor/apply.py")),
+        ("cursor/patch.json", include_str!("../../../../patches/acp-model-source/cursor/patch.json")),
         (
             "cursor/session-model.cjs",
-            include_str!("../../../patches/acp-model-source/cursor/session-model.cjs"),
+            include_str!("../../../../patches/acp-model-source/cursor/session-model.cjs"),
         ),
-        ("qoder/apply.py", include_str!("../../../patches/acp-model-source/qoder/apply.py")),
-        ("qoder/patch.json", include_str!("../../../patches/acp-model-source/qoder/patch.json")),
+        ("qoder/apply.py", include_str!("../../../../patches/acp-model-source/qoder/apply.py")),
+        ("qoder/patch.json", include_str!("../../../../patches/acp-model-source/qoder/patch.json")),
         (
             "qoder/session-model.mjs",
-            include_str!("../../../patches/acp-model-source/qoder/session-model.mjs"),
+            include_str!("../../../../patches/acp-model-source/qoder/session-model.mjs"),
         ),
-        ("auggie/apply.py", include_str!("../../../patches/acp-model-source/auggie/apply.py")),
-        ("auggie/patch.json", include_str!("../../../patches/acp-model-source/auggie/patch.json")),
+        ("auggie/apply.py", include_str!("../../../../patches/acp-model-source/auggie/apply.py")),
+        ("auggie/patch.json", include_str!("../../../../patches/acp-model-source/auggie/patch.json")),
         (
             "auggie/session-model.mjs",
-            include_str!("../../../patches/acp-model-source/auggie/session-model.mjs"),
+            include_str!("../../../../patches/acp-model-source/auggie/session-model.mjs"),
         ),
-        ("openclaw/apply.py", include_str!("../../../patches/acp-model-source/openclaw/apply.py")),
+        ("openclaw/apply.py", include_str!("../../../../patches/acp-model-source/openclaw/apply.py")),
         (
             "openclaw/patch.json",
-            include_str!("../../../patches/acp-model-source/openclaw/patch.json"),
+            include_str!("../../../../patches/acp-model-source/openclaw/patch.json"),
         ),
         (
             "opencode/apply-skills.py",
-            include_str!("../../../patches/acp-model-source/opencode/apply-skills.py"),
+            include_str!("../../../../patches/acp-model-source/opencode/apply-skills.py"),
         ),
         (
             "opencode/skill-patch.json",
-            include_str!("../../../patches/acp-model-source/opencode/skill-patch.json"),
+            include_str!("../../../../patches/acp-model-source/opencode/skill-patch.json"),
         ),
-        ("kilocode/apply.py", include_str!("../../../patches/acp-model-source/kilocode/apply.py")),
+        ("kilocode/apply.py", include_str!("../../../../patches/acp-model-source/kilocode/apply.py")),
         (
             "kilocode/patch.json",
-            include_str!("../../../patches/acp-model-source/kilocode/patch.json"),
+            include_str!("../../../../patches/acp-model-source/kilocode/patch.json"),
         ),
-        ("snow/apply.py", include_str!("../../../patches/acp-model-source/snow/apply.py")),
-        ("snow/patch.json", include_str!("../../../patches/acp-model-source/snow/patch.json")),
-        ("copilot/apply.py", include_str!("../../../patches/acp-model-source/copilot/apply.py")),
+        ("snow/apply.py", include_str!("../../../../patches/acp-model-source/snow/apply.py")),
+        ("snow/patch.json", include_str!("../../../../patches/acp-model-source/snow/patch.json")),
+        ("copilot/apply.py", include_str!("../../../../patches/acp-model-source/copilot/apply.py")),
         (
             "copilot/patch.json",
-            include_str!("../../../patches/acp-model-source/copilot/patch.json"),
+            include_str!("../../../../patches/acp-model-source/copilot/patch.json"),
         ),
-        ("kiro/apply.py", include_str!("../../../patches/acp-model-source/kiro/apply.py")),
-        ("kiro/patch.json", include_str!("../../../patches/acp-model-source/kiro/patch.json")),
-        ("kiro/launcher.py", include_str!("../../../patches/acp-model-source/kiro/launcher.py")),
+        ("kiro/apply.py", include_str!("../../../../patches/acp-model-source/kiro/apply.py")),
+        ("kiro/patch.json", include_str!("../../../../patches/acp-model-source/kiro/patch.json")),
+        ("kiro/launcher.py", include_str!("../../../../patches/acp-model-source/kiro/launcher.py")),
         ("contracts.json", CONTRACTS),
         ("iflow-lock.json", include_str!("managed_runtime/iflow-lock.json")),
         (
             "vibe/apply_patch.py",
-            include_str!("../../../docs/shiju/acp-model-source/evidence/vibe/apply_patch.py"),
+            include_str!("../../../../docs/shiju/acp-model-source/evidence/vibe/apply_patch.py"),
         ),
         (
             "vibe/upstream-hashes.json",
-            include_str!("../../../docs/shiju/acp-model-source/evidence/vibe/upstream-hashes.json"),
+            include_str!("../../../../docs/shiju/acp-model-source/evidence/vibe/upstream-hashes.json"),
         ),
         (
             "vibe/mistral-vibe-3.0.4-session-binding.patch",
             include_str!(
-                "../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-session-binding.patch"
+                "../../../../docs/shiju/acp-model-source/evidence/vibe/mistral-vibe-3.0.4-session-binding.patch"
             ),
         ),
         (
             "hermes/apply_patch.py",
-            include_str!("../../../docs/shiju/acp-model-source/evidence/hermes/apply_patch.py"),
+            include_str!("../../../../docs/shiju/acp-model-source/evidence/hermes/apply_patch.py"),
         ),
         (
             "hermes/patch.json",
-            include_str!("../../../docs/shiju/acp-model-source/evidence/hermes/patch.json"),
+            include_str!("../../../../docs/shiju/acp-model-source/evidence/hermes/patch.json"),
         ),
         (
             "hermes/hermes-agent-0.19.0-session-state.patch",
             include_str!(
-                "../../../docs/shiju/acp-model-source/evidence/hermes/hermes-agent-0.19.0-session-state.patch"
+                "../../../../docs/shiju/acp-model-source/evidence/hermes/hermes-agent-0.19.0-session-state.patch"
             ),
         ),
         (
             "goose.patch",
             include_str!(
-                "../../../docs/shiju/acp-model-source/evidence/goose/v1.57.0-model-lock.patch"
+                "../../../../docs/shiju/acp-model-source/evidence/goose/v1.57.0-model-lock.patch"
             ),
         ),
         (
             "codex.patch",
             include_str!(
-                "../../../patches/acp-model-source/codex/codex-acp-2.5.0-model-source.patch"
+                "../../../../patches/acp-model-source/codex/codex-acp-2.5.0-model-source.patch"
             ),
         ),
         (
             "gemini.patch",
             include_str!(
-                "../../../patches/acp-model-source/gemini/gemini-cli-0.66.0-history.patch"
+                "../../../../patches/acp-model-source/gemini/gemini-cli-0.66.0-history.patch"
             ),
         ),
         (
             "pi.patch",
-            include_str!("../../../patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch"),
+            include_str!("../../../../patches/acp-model-source/pi/pi-acp-0.0.22-state-dir.patch"),
         ),
-        ("iflow/apply.py", include_str!("../../../patches/acp-model-source/iflow/apply.py")),
+        ("iflow/apply.py", include_str!("../../../../patches/acp-model-source/iflow/apply.py")),
         (
             "codebuddy/apply.py",
-            include_str!("../../../patches/acp-model-source/codebuddy/apply.py"),
+            include_str!("../../../../patches/acp-model-source/codebuddy/apply.py"),
         ),
         (
             "codebuddy/patch.json",
-            include_str!("../../../patches/acp-model-source/codebuddy/patch.json"),
+            include_str!("../../../../patches/acp-model-source/codebuddy/patch.json"),
         ),
-        ("qwen/apply.py", include_str!("../../../patches/acp-model-source/qwen/apply.py")),
-        ("qwen/patch.json", include_str!("../../../patches/acp-model-source/qwen/patch.json")),
+        ("qwen/apply.py", include_str!("../../../../patches/acp-model-source/qwen/apply.py")),
+        ("qwen/patch.json", include_str!("../../../../patches/acp-model-source/qwen/patch.json")),
     ] {
         let path = assets.join(name);
         std::fs::create_dir_all(path.parent().ok_or("Invalid ACP asset path")?)

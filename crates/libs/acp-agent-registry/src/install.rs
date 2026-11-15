@@ -99,7 +99,7 @@ pub(super) async fn run_installer(
     args: &[&str],
     deadline: tokio::time::Instant,
 ) -> Result<(), String> {
-    let mut command = crate::build_spawn_command(program, &Default::default());
+    let mut command = acp_host_io::spawn_command_options::build_spawn_command(program, &Default::default());
     #[cfg(unix)]
     command.process_group(0);
     let mut child = command

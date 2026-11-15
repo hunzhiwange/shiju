@@ -13,7 +13,7 @@ def locate_codex(entry, env):
     if not command:
         raise Unavailable('fixed Codex adapter is not installed')
     bundle = Path(command).resolve()
-    contract = json.loads((ROOT / 'crates/vw-acp/src/managed_runtime/contracts.json').read_text())['codex']
+    contract = json.loads((ROOT / 'crates/libs/acp-agent-registry/src/managed_runtime/contracts.json').read_text())['codex']
     if entry.get('underlying', {}).get('release') != contract['engine_version']:
         raise Unavailable('Codex launch manifest and reviewed engine pin differ')
     package = json.loads((bundle.parent.parent / 'package.json').read_text())

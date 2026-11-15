@@ -79,7 +79,7 @@ class CopilotIdentity(unittest.TestCase):
             addon = embedded / "runtime.node"
             entry.write_bytes(b"synthetic entry; never executed")
             addon.write_bytes(b"synthetic addon; never loaded")
-            contracts = root / "crates/vw-acp/src/managed_runtime/contracts.json"
+            contracts = root / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json"
             contracts.parent.mkdir(parents=True)
             contracts.write_text(json.dumps({"copilot": {"package": "@github/copilot", "version": "1.0.105",
                 "files": {str(p.relative_to(package)): hashlib.sha256(p.read_bytes()).hexdigest() for p in (entry, addon)}}}))

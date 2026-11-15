@@ -276,7 +276,7 @@ for line in sys.stdin:
         }
         let contracts: Value = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../vw-acp/src/managed_runtime/contracts.json"
+            "/../libs/acp-agent-registry/src/managed_runtime/contracts.json"
         )))
         .unwrap();
         std::fs::write(

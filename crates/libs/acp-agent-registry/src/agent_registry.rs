@@ -10,7 +10,7 @@ use std::{
 };
 use vw_shared::shell::{resolve_executable, shell_profile_env_var};
 
-use crate::types::AcpAgentConfig;
+use acp_types::types::AcpAgentConfig;
 
 /// 默认代理名称。
 ///
@@ -580,7 +580,7 @@ fn alias_target(name: &str) -> Option<&'static str> {
     AGENT_ALIASES.iter().find_map(|(alias, target)| (*alias == name).then_some(*target))
 }
 
-pub(crate) fn desktop_permission_agent(name: &str) -> Option<&'static str> {
+pub fn desktop_permission_agent(name: &str) -> Option<&'static str> {
     let name = normalize_agent_name(name);
     if name == "claude-legacy" {
         return Some("claude");

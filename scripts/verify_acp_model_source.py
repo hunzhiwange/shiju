@@ -171,7 +171,7 @@ def copilot_native_executable(executable, release, env):
     if path.name == "index.js" and path.parent.name == "embedded":
         # Managed installation: the entry and all reviewed executable inputs are
         # checked against the repository contract, not its self-reported version.
-        contract = json.loads((ROOT / "crates/vw-acp/src/managed_runtime/contracts.json").read_text())["copilot"]
+        contract = json.loads((ROOT / "crates/libs/acp-agent-registry/src/managed_runtime/contracts.json").read_text())["copilot"]
         package = path.parent.parent
         metadata = json.loads((package / "package.json").read_text())
         if (metadata.get("name"), metadata.get("version")) != (contract["package"], release) or contract["version"] != release:

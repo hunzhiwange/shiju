@@ -12,7 +12,7 @@ use std::{
     },
 };
 
-use crate::types::AcpAgentConfig;
+use acp_types::types::AcpAgentConfig;
 
 use super::*;
 
@@ -27,7 +27,7 @@ struct AgentRegistryEnvTestGuard {
 fn agent_registry_env_test_lock() -> AgentRegistryEnvTestGuard {
     let registry =
         AGENT_REGISTRY_ENV_TEST_LOCK.lock().expect("agent registry env test lock should acquire");
-    let process_env = crate::queue_paths::TEST_HOME_ENV_LOCK.blocking_lock();
+    let process_env = crate::TEST_HOME_ENV_LOCK.blocking_lock();
     AgentRegistryEnvTestGuard { _registry: registry, _process_env: process_env }
 }
 

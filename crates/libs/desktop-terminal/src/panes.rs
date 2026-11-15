@@ -114,3 +114,5 @@ fn same_arrangement(first: &Node, second: &Node) -> bool {
         _ => false,
     }
 }
+
+pub use crate::state::SplitError;

@@ -1,17 +1,12 @@
-//! Desktop spawning adapter for terminal pane layout.
-use std::path::PathBuf;
-use iced::widget::pane_grid::{Axis, Direction, Pane};
-use super::TerminalState;
-pub(crate) use desktop_terminal::panes::*;
-
+use super::*;
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum SplitError {
+pub enum SplitError {
     MissingPane,
     Spawn,
 }
 
-impl TerminalState {
-    pub(crate) fn split_terminal(
+impl<S: Copy + Into<&'static str>> TerminalState<S> {
+    pub fn split_terminal(
         &mut self,
         pane: Pane,
         direction: Direction,

@@ -1,0 +1,561 @@
+//! State and native runtime assertions; Shell is a desktop-owned test input.
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+enum Shell {
+    #[default]
+    Bash,
+    Zsh,
+}
+
+impl From<Shell> for &'static str {
+    fn from(shell: Shell) -> Self {
+        match shell {
+            Shell::Bash => "/bin/bash",
+            Shell::Zsh => "/bin/zsh",
+        }
+    }
+}
+
+type TerminalState = super::TerminalState<Shell>;
+
+#[test]
+fn truncate_string_preserves_utf8_boundary() {
+    assert_eq!(super::truncate_string_to_limit("abc", 4), "abc");
+    assert_eq!(super::truncate_string_to_limit("a你好b", 5), "好b");
+    assert_eq!(super::truncate_string_to_limit("🙂abc", 4), "abc");
+    assert_eq!(super::truncate_string_to_limit("abcdef", 0), "");
+}
+
+#[test]
+fn truncate_string_drops_a_partial_multibyte_prefix_for_tiny_limits() {
+    assert_eq!(super::truncate_string_to_limit("界", 1), "");
+    assert_eq!(super::truncate_string_to_limit("a界", 2), "");
+    assert_eq!(super::truncate_string_to_limit("a界", 3), "界");
+}
+
+#[test]
+fn truncate_terminal_content_keeps_last_four_thousand_bytes() {
+    let mut content = iced::widget::text_editor::Content::with_text(&format!(
+        "{}{}",
+        "x".repeat(10),
+        "y".repeat(4_000)
+    ));
+
+    super::truncate_terminal_content(&mut content);
+
+    let text = content.text();
+    assert_eq!(text.len(), 4_000);
+    assert!(text.chars().all(|ch| ch == 'y'));
+}
+
+#[test]
+fn truncate_terminal_content_leaves_content_at_or_below_limit_unchanged() {
+    for original in ["short terminal output".to_string(), "x".repeat(4_000)] {
+        let mut content = iced::widget::text_editor::Content::with_text(&original);
+
+        super::truncate_terminal_content(&mut content);
+
+        assert_eq!(content.text(), original);
+    }
+}
+
+#[test]
+fn truncate_terminal_content_drops_partial_leading_utf8_character() {
+    let mut content =
+        iced::widget::text_editor::Content::with_text(&format!("{}{}", "🙂", "x".repeat(3_999)));
+
+    super::truncate_terminal_content(&mut content);
+
+    assert_eq!(content.text(), "x".repeat(3_999));
+}
+
+#[test]
+fn default_terminal_state_uses_expected_settings() {
+    let state = TerminalState::default();
+
+    assert!(!state.is_visible);
+    assert!(state.tabs.is_empty());
+    assert_eq!(state.active_id, None);
+    assert_eq!(state.next_id, 1);
+    assert_eq!(state.height, 200.0);
+    assert_eq!(state.shell, Shell::Bash);
+    assert_eq!(state.theme, super::TerminalTheme::System);
+    assert_eq!(state.font_family, "JetBrains Mono");
+    assert_eq!(state.font_size, 15.0);
+}
+
+#[test]
+fn blank_with_settings_preserves_preferences_and_gates_visibility() {
+    let mut state = TerminalState::blank_with_settings(
+        true,
+        Shell::Zsh,
+        super::TerminalTheme::System,
+        "Fira Code".into(),
+        16.0,
+        240.0,
+    );
+
+    assert_eq!(state.is_visible, !cfg!(target_arch = "wasm32"));
+    state.set_visible(false);
+    assert!(!state.is_visible);
+    state.set_visible(true);
+    assert_eq!(state.is_visible, !cfg!(target_arch = "wasm32"));
+    assert_eq!(state.shell, Shell::Zsh);
+    assert_eq!(state.font_family, "Fira Code");
+    assert_eq!(state.font_size, 16.0);
+    assert_eq!(state.height, 240.0);
+    assert!(state.tabs.is_empty());
+    assert_eq!(state.active_id, None);
+    assert_eq!(state.next_id, 1);
+    assert!(!state.is_dragging);
+    assert_eq!(state.drag_anchor_y, None);
+    assert_eq!(state.drag_start_height, 0.0);
+    assert_eq!(state.tab_context_menu_id, None);
+    assert_eq!(state.tab_context_menu_pos, None);
+}
+
+#[test]
+fn selecting_unknown_terminal_preserves_selection_and_visibility() {
+    let mut state = TerminalState::default();
+    state.height = 120.0;
+
+    assert!(!state.select_terminal(99));
+
+    assert_eq!(state.active_id, None);
+    assert!(!state.is_visible);
+    assert_eq!(state.height, 120.0);
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn selecting_terminal_preserves_height_at_minimum_boundary() {
+    let mut state = TerminalState::default();
+    state.height = 160.0;
+    assert!(state.add_terminal(Some(std::env::temp_dir())));
+    let id = state.tabs[0].id;
+
+    assert!(state.select_terminal(id));
+
+    assert_eq!(state.active_id, Some(id));
+    assert!(state.is_visible);
+    assert_eq!(state.height, 160.0);
+}
+
+#[test]
+fn empty_terminal_state_accepts_display_setting_updates() {
+    let mut state = TerminalState::default();
+
+    state.set_font_family("Fira Code".to_string());
+    state.set_font_size(18.0);
+    state.set_theme(super::TerminalTheme::System);
+
+    assert_eq!(state.font_family, "Fira Code");
+    assert_eq!(state.font_size, 18.0);
+    assert_eq!(state.theme, super::TerminalTheme::System);
+    assert!(state.tabs.is_empty());
+}
+
+#[test]
+fn close_and_rename_unknown_terminal_are_noops_for_empty_state() {
+    let mut state = TerminalState::default();
+
+    state.close_terminal(1);
+    state.start_rename(1);
+    state.update_rename(1, "renamed".into());
+    state.save_rename(1);
+    state.cancel_rename(1);
+
+    assert!(state.tabs.is_empty());
+    assert_eq!(state.active_id, None);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn color_channels_are_clamped_before_hex_conversion() {
+    assert_eq!(super::color_channel_to_u8(-1.0), 0);
+    assert_eq!(super::color_channel_to_u8(2.0), 255);
+    assert_eq!(super::to_hex(iced::Color::from_rgb(1.0, 0.5, 0.0)), "#ff8000");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn color_channel_conversion_rounds_midpoints_and_ignores_alpha() {
+    assert_eq!(super::color_channel_to_u8(0.0), 0);
+    assert_eq!(super::color_channel_to_u8(0.5), 128);
+    assert_eq!(super::color_channel_to_u8(1.0), 255);
+    assert_eq!(super::to_hex(iced::Color::from_rgba(0.25, 0.75, 1.0, 0.0)), "#40bfff");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn palette_uses_extended_theme_colors_for_each_terminal_role() {
+    let theme = iced::Theme::Dark;
+    let extended = theme.extended_palette();
+
+    let palette = super::build_palette(&theme);
+
+    assert_eq!(palette.background, super::to_hex(extended.background.base.color));
+    assert_eq!(palette.foreground, super::to_hex(extended.background.base.text));
+    assert_eq!(palette.black, super::to_hex(extended.background.weak.color));
+    assert_eq!(palette.white, super::to_hex(extended.background.strong.color));
+    assert_eq!(
+        palette.bright_black,
+        super::to_hex(extended.background.weak.color.scale_alpha(0.85))
+    );
+    assert_eq!(
+        palette.bright_white,
+        super::to_hex(extended.background.strong.color.scale_alpha(0.85))
+    );
+    assert_eq!(palette.red, super::to_hex(extended.danger.base.color));
+    assert_eq!(palette.bright_red, super::to_hex(extended.danger.strong.color));
+    assert_eq!(palette.green, super::to_hex(extended.success.base.color));
+    assert_eq!(palette.bright_green, super::to_hex(extended.success.strong.color));
+    assert_eq!(palette.yellow, super::to_hex(extended.warning.base.color));
+    assert_eq!(palette.bright_yellow, super::to_hex(extended.warning.strong.color));
+    assert_eq!(palette.blue, super::to_hex(extended.primary.base.color));
+    assert_eq!(palette.bright_blue, super::to_hex(extended.primary.strong.color));
+    assert_eq!(palette.magenta, super::to_hex(extended.secondary.base.color));
+    assert_eq!(palette.bright_magenta, super::to_hex(extended.secondary.strong.color));
+    assert_eq!(palette.cyan, super::to_hex(extended.secondary.base.color));
+    assert_eq!(palette.bright_cyan, super::to_hex(extended.secondary.strong.color));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn terminal_typography_uses_real_size_and_fixed_line_height() {
+    for size in [12.0, 15.0, 20.0] {
+        let font = super::build_font_settings("JetBrains Mono", size);
+        assert_eq!(font.size, size);
+        assert_eq!(font.scale_factor, 1.4);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn font_settings_default_blank_family_and_trim_custom_family() {
+    let blank = super::build_font_settings("   ", 13.0);
+    let custom = super::build_font_settings("  Fira Code  ", 26.0);
+
+    assert_eq!(blank.font_type, iced::Font::with_name("JetBrains Mono"));
+    assert_eq!(blank.scale_factor, 1.4);
+    assert_eq!(custom.font_type, iced::Font::with_name("Fira Code"));
+    assert_eq!(custom.scale_factor, 1.4);
+}
+
+#[test]
+fn new_hidden_terminal_state_does_not_spawn_pty_tabs() {
+    let state = TerminalState::new(
+        false,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        None,
+    );
+
+    assert!(!state.is_visible);
+    assert!(state.tabs.is_empty());
+    assert_eq!(state.active_id, None);
+    assert_eq!(state.next_id, 1);
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn ensure_default_terminal_creates_first_tab_once() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut state = TerminalState::new(
+        false,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        None,
+    );
+
+    assert!(state.ensure_default_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.tabs.len(), 1);
+    assert_eq!(state.active_id, Some(1));
+    assert!(!state.ensure_default_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.tabs.len(), 1);
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn new_visible_terminal_state_lazily_spawns_default_tab() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let state = TerminalState::new(
+        true,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+
+    assert!(state.is_visible);
+    assert_eq!(state.tabs.len(), 1);
+    assert_eq!(state.active_id, Some(1));
+    assert_eq!(state.tabs[0].title, "终端 1");
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn terminal_state_with_backend_manages_tabs_renames_and_display_updates() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut state = TerminalState::new(
+        true,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+
+    assert!(state.is_visible);
+    assert_eq!(state.active_id, Some(1));
+    assert_eq!(state.next_id, 2);
+    assert_eq!(state.height, 200.0);
+    assert_eq!(state.tabs.first().map(|tab| tab.title.as_str()), Some("终端 1"));
+
+    state.start_rename(1);
+    assert_eq!(state.tabs[0].edit_title.as_deref(), Some("终端 1"));
+    state.update_rename(1, "   ".to_string());
+    state.save_rename(1);
+    assert_eq!(state.tabs[0].title, "终端 1");
+
+    state.start_rename(1);
+    state.update_rename(1, " Dev Shell ".to_string());
+    state.save_rename(1);
+    assert_eq!(state.tabs[0].title, "Dev Shell");
+
+    state.start_rename(1);
+    state.cancel_rename(1);
+    assert_eq!(state.tabs[0].edit_title, None);
+
+    assert!(state.add_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.active_id, Some(2));
+    assert_eq!(state.tabs.len(), 2);
+
+    state.select_terminal(1);
+    assert_eq!(state.active_id, Some(1));
+    state.set_font_family("Fira Code".to_string());
+    state.set_font_size(18.0);
+    state.set_theme(super::TerminalTheme::System);
+    state.apply_app_theme(&iced::Theme::Dark);
+    state.apply_palette(super::build_palette(&iced::Theme::Light));
+    assert_eq!(state.font_family, "Fira Code");
+    assert_eq!(state.font_size, 18.0);
+
+    state.close_terminal(1);
+    assert_eq!(state.active_id, Some(2));
+    state.close_terminal(2);
+    assert_eq!(state.active_id, None);
+    assert!(state.tabs.is_empty());
+    assert!(state.has_retired());
+    state.reap_retired();
+    assert!(!state.has_retired());
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn terminal_input_stays_responsive_when_backend_event_queue_is_full() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let settings = iced_term::settings::Settings {
+        backend: iced_term::settings::BackendSettings {
+            program: "/bin/sh".to_string(),
+            args: vec![
+                "-c".to_string(),
+                concat!(
+                    "i=0; ",
+                    "while [ \"$i\" -lt 256 ]; do ",
+                    "printf '\\033]0;%s\\007' \"$i\"; ",
+                    "i=$((i + 1)); ",
+                    "done; ",
+                    "sleep 5"
+                )
+                .to_string(),
+            ],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let terminal = iced_term::Terminal::new(9_999, settings).expect("terminal");
+
+    std::thread::sleep(Duration::from_millis(500));
+
+    let (finished_tx, finished_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut terminal = terminal;
+        let _ = terminal.handle(iced_term::Command::ProxyToBackend(
+            iced_term::BackendCommand::Write(b"x".to_vec()),
+        ));
+        let _ = finished_tx.send(());
+    });
+
+    assert!(
+        finished_rx.recv_timeout(Duration::from_secs(1)).is_ok(),
+        "terminal input blocked after the backend event queue filled"
+    );
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn command_and_init_terminals_append_tabs_with_requested_titles() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut state = TerminalState::blank_with_settings(
+        true,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        200.0,
+    );
+
+    let command_id = state
+        .add_terminal_with_command(
+            "Command".to_string(),
+            Some(tmp.path().to_path_buf()),
+            "printf command".to_string(),
+        )
+        .expect("command terminal");
+    let bash_id = state
+        .add_bash_terminal_with_init(
+            "Init".to_string(),
+            Some(tmp.path().to_path_buf()),
+            "printf init".to_string(),
+        )
+        .expect("bash init terminal");
+    let tool_id = state
+        .add_tool_terminal_with_init(
+            "Tool".to_string(),
+            Some(tmp.path().to_path_buf()),
+            "printf tool".to_string(),
+        )
+        .expect("tool init terminal");
+
+    assert_eq!(state.tabs.iter().map(|tab| tab.title.as_str()).collect::<Vec<_>>(), {
+        vec!["Command", "Init", "Tool"]
+    });
+    assert_eq!(state.active_id, Some(tool_id));
+    assert_eq!([command_id, bash_id, tool_id], [1, 2, 3]);
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn spawn_pty_terminal_collects_shell_output_for_selected_cwd() {
+    use std::io::Write;
+    use std::time::{Duration, Instant};
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let runtime =
+        super::spawn_pty_terminal(Some(tmp.path().to_string_lossy().as_ref()), Shell::Bash.into())
+            .expect("pty terminal");
+
+    {
+        let mut writer = runtime.writer.lock().expect("writer lock");
+        writer.write_all(b"pwd\nexit\n").expect("write command");
+        writer.flush().expect("flush command");
+    }
+
+    let _ = runtime.child.lock().expect("child lock").wait();
+    let started = Instant::now();
+    let output = loop {
+        let bytes = runtime.output.lock().expect("output lock").iter().copied().collect::<Vec<_>>();
+        let text = String::from_utf8_lossy(&bytes).to_string();
+        if text.contains(tmp.path().to_string_lossy().as_ref())
+            || started.elapsed() > Duration::from_secs(2)
+        {
+            break text;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+
+    assert!(output.contains(tmp.path().to_string_lossy().as_ref()), "{output}");
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn close_terminal_defers_drop_until_reap_to_avoid_iced_term_channel_panic() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut state = TerminalState::new(
+        true,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+    assert!(state.add_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.tabs.len(), 2);
+
+    // Keep a live subscription stream (same as App::subscription) while closing.
+    let subscription = state.tabs[0].term.subscription();
+    let closed_id = state.tabs[0].id;
+    assert!(state.close_terminal(closed_id));
+    assert!(state.has_retired());
+    assert!(state.tabs.iter().all(|tab| tab.id != closed_id));
+
+    // Dropping the subscription future first mirrors iced cancelling recipes on
+    // rebuild; only then is it safe to drop the retired Terminal.
+    drop(subscription);
+    state.reap_retired();
+    assert!(!state.has_retired());
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn absorb_replaced_defers_live_tabs_from_previous_terminal_state() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let old = TerminalState::new(
+        true,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+    assert!(!old.tabs.is_empty());
+
+    let mut next = TerminalState::blank_with_settings(
+        false,
+        Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        200.0,
+    );
+    next.absorb_replaced(old);
+    assert!(next.tabs.is_empty());
+    assert!(next.has_retired());
+    next.reap_retired();
+    assert!(!next.has_retired());
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn terminal_split_spawn_failure_preserves_existing_panes() {
+    use iced::widget::pane_grid::Direction;
+
+    let project = tempfile::tempdir().unwrap();
+    let cwd = project.path().to_path_buf();
+    let mut terminal = TerminalState::default();
+    assert!(terminal.add_terminal(Some(cwd.clone())));
+    let first = terminal.panes.focused;
+    terminal.split_terminal(first, Direction::Right, Some(cwd.clone())).unwrap();
+    let focused = terminal.panes.focused;
+    let active = terminal.active_id;
+    let next_id = terminal.next_id;
+    let widget_ids: Vec<_> = terminal.tabs.iter().map(|tab| tab.term.widget_id().clone()).collect();
+    let layout = format!("{:?}", terminal.panes.grid);
+
+    assert_eq!(
+        terminal.split_terminal(first, Direction::Down, Some(cwd.join("missing"))),
+        Err(super::SplitError::Spawn)
+    );
+    assert_eq!(format!("{:?}", terminal.panes.grid), layout);
+    assert_eq!(terminal.panes.focused, focused);
+    assert_eq!(terminal.active_id, active);
+    assert_eq!(terminal.next_id, next_id);
+    assert!(terminal.tabs.iter().map(|tab| tab.term.widget_id()).eq(widget_ids.iter()));
+}

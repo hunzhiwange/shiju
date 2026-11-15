@@ -1,4 +1,4 @@
-//! Terminal pane views and layout. Desktop owns process orchestration and Shell configuration.
+//! Terminal pane views and layout. Desktop owns Shell selection and cross-domain orchestration.
 pub mod message;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod panes;
@@ -35,3 +35,10 @@ pub struct ViewInput<'a> {
     #[cfg(not(target_arch = "wasm32"))]
     pub is_fullscreen: bool,
 }
+
+pub mod state;
+pub use state::{
+    TerminalState, TerminalTheme, build_palette, truncate_string_to_limit, truncate_terminal_content,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub mod local;

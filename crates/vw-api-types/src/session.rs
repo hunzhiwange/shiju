@@ -16,7 +16,7 @@
 
 use crate::common::{JsonMap, PaginatedResponse, TimestampMs};
 use crate::id::{MessageId, ProjectId, RequestId, SessionId, WorktreeId};
-use crate::todo::{TodoPriority, TodoStatus};
+use vw_api_todo::todo::{TodoPriority, TodoStatus};
 use serde::{Deserialize, Serialize};
 
 /// IDs actually removed by the restricted archived-chat deletion endpoint.

@@ -19,7 +19,7 @@ use vw_api_types::session::{
     GatewaySessionCreateBody, GatewaySessionPatchBody, GatewaySessionPatchTime,
     GatewaySessionTodoItem, GatewaySessionTodoPutBody,
 };
-use vw_api_types::todo::{TodoPriority, TodoStatus};
+use vw_api_todo::todo::{TodoPriority, TodoStatus};
 
 struct StaticProvider;
 

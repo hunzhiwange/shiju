@@ -13,7 +13,7 @@ use vw_api_types::session::{
     GatewaySessionMessagePageQuery, GatewaySessionScopeBody, GatewaySessionTodoItem,
     GatewaySessionTodoPutBody,
 };
-use vw_api_types::todo::{TodoPriority, TodoStatus};
+use vw_api_todo::todo::{TodoPriority, TodoStatus};
 use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 
 static TEST_HOME: Once = Once::new();

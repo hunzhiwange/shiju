@@ -9,7 +9,7 @@ use vw_api_types::session::{
     GatewaySessionPatchTime, GatewaySessionResetBody, GatewaySessionSummarizeBody,
     GatewaySessionTitleGenerateBody, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
 };
-use vw_api_types::todo::{TodoPriority, TodoStatus};
+use vw_api_todo::todo::{TodoPriority, TodoStatus};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_shared::session::ui_types::{SessionMessageDelta, SessionMessageRecord};
 

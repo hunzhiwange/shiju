@@ -5,9 +5,9 @@ use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Component, Path};
 use serde_json::Value;
 use vw_api_external_session::*;
-use super::pi_blocks::PiTranscript;
-use super::pi_jsonl::{for_each_jsonl_value, parse_timestamp_to_ms};
-use crate::sessions::utils::{extract_text, truncate_summary};
+use app_session_pi::pi_blocks::PiTranscript;
+use app_session_core::pi_jsonl::{for_each_jsonl_value, parse_timestamp_to_ms};
+use app_session_core::utils::{extract_text, truncate_summary};
 const TITLE_MAX_CHARS: usize = 80;
 
 fn strip_message_id_suffix(text: &str) -> &str {
@@ -100,7 +100,7 @@ fn load_display_names(sessions_dir: &Path) -> HashMap<String, String> {
     map
 }
 
-pub(crate) fn parse_session(
+pub fn parse_session(
     path: &Path,
     display_names: Option<&HashMap<String, String>>,
     identity: &ExternalSessionIdentity,

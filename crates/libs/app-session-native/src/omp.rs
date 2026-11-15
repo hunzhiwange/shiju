@@ -2,8 +2,8 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use vw_api_external_session::*;
-use super::pi::{SessionLayout, SessionRootResolution};
-use super::pi_tree::{self, Dialect};
+use app_session_pi::pi::{SessionLayout, SessionRootResolution};
+use app_session_pi::pi_tree::{self, Dialect};
 
 const OMP: Dialect = Dialect { label: "Oh My Pi", title_slot: true, model_selector: true };
 
@@ -126,4 +126,4 @@ pub fn load_messages(context: &OmpSessionContext<'_>, path: &Path) -> Result<Vec
     pi_tree::load_messages_for(&OMP, path)
 }
 
-pub(crate) use super::pi_tree::verify_omp_session_id;
+pub use app_session_pi::pi_tree::verify_omp_session_id;

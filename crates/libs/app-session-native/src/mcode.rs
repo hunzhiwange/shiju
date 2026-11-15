@@ -35,7 +35,7 @@ pub fn database_path(root: &Path) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-pub(crate) fn open_database(root: &Path) -> Result<Option<Connection>, String> {
+pub fn open_database(root: &Path) -> Result<Option<Connection>, String> {
     let path = database_path(root)?;
     match std::fs::metadata(&path) {
         Ok(meta) if !meta.is_file() => return Err("Invalid MCode database".into()),
@@ -116,7 +116,7 @@ fn read_messages(conn: &Connection, id: &str) -> rusqlite::Result<Vec<SessionMes
                 .map(|time| time.floor() as i64)
         });
         // 只暴露展示行，没有执行过程：只有 Text
-        let text = crate::sessions::utils::extract_text(&value["msg_content"]);
+        let text = app_session_core::utils::extract_text(&value["msg_content"]);
         let blocks = if text.trim().is_empty() {
             Vec::new()
         } else {
@@ -141,4 +141,3 @@ fn read_messages(conn: &Connection, id: &str) -> rusqlite::Result<Vec<SessionMes
     }
     Ok(messages)
 }
-

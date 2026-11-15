@@ -2,7 +2,7 @@
 use std::{fs, path::{Path, PathBuf}};
 use serde_json::Value;
 use vw_api_external_session::*;
-use crate::sessions::{blocks, utils};
+use app_session_core::{blocks, utils};
 use super::kimi_requests::RequestIndex;
 
 /// Trusted instance resolution supplies KIMI_CODE_HOME, never the gateway's HOME.
@@ -55,8 +55,8 @@ pub fn scan_sessions(data_dir: &Path, identity: &ExternalSessionIdentity) -> Res
                 title: state["title"].as_str().map(str::to_owned),
                 summary: state["lastPrompt"].as_str().map(|s| s.chars().take(200).collect()),
                 project_dir: state.get("cwd").or_else(|| state.get("workDir")).or_else(|| state.pointer("/custom/cwd")).and_then(Value::as_str).map(str::to_owned),
-                created_at: state.get("createdAt").and_then(super::pi_jsonl::parse_timestamp_to_ms),
-                last_active_at: state.get("updatedAt").and_then(super::pi_jsonl::parse_timestamp_to_ms),
+                created_at: state.get("createdAt").and_then(app_session_core::pi_jsonl::parse_timestamp_to_ms),
+                last_active_at: state.get("updatedAt").and_then(app_session_core::pi_jsonl::parse_timestamp_to_ms),
                 source_path: Some(wire.to_string_lossy().into_owned()),
             });
         }
@@ -71,7 +71,7 @@ struct BranchSegment {
     base: Option<(String, usize)>,
 }
 
-fn active_records(records: &[(super::pi_jsonl::JsonlSpan, Value)]) -> Result<Vec<usize>, String> {
+fn active_records(records: &[(app_session_core::pi_jsonl::JsonlSpan, Value)]) -> Result<Vec<usize>, String> {
     let switches: Vec<_> = records
         .iter()
         .enumerate()
@@ -105,7 +105,7 @@ fn active_records(records: &[(super::pi_jsonl::JsonlSpan, Value)]) -> Result<Vec
             record
                 .pointer("/base/line")
                 .and_then(Value::as_u64)
-                .ok_or("Invalid Kimi branch line")? try_into().map_err(|_| "Invalid Kimi branch line")?,
+                .ok_or("Invalid Kimi branch line")?.try_into().map_err(|_| "Invalid Kimi branch line")?,
         ));
         start = index + 1;
     }
@@ -145,7 +145,7 @@ pub fn load_messages(path: &Path) -> Result<Vec<SessionMessage>, String> {
     if fs::metadata(path).map_err(|_| "Unable to inspect Kimi wire")?.len() > 128 * 1024 * 1024 { return Err("Kimi wire exceeds read limit".into()); }
     let mut records = Vec::new();
     let file = fs::File::open(path).map_err(|error| error.to_string())?;
-    let mut lines = super::pi_jsonl::LineSpans::new(std::io::BufReader::new(file));
+    let mut lines = app_session_core::pi_jsonl::LineSpans::new(std::io::BufReader::new(file));
     while let Some(line) = lines.next_line().map_err(|error| error.to_string())? {
         // Keep physical line positions for agent.switched base.line, including malformed tails.
         records.push((
@@ -240,7 +240,7 @@ pub fn load_messages(path: &Path) -> Result<Vec<SessionMessage>, String> {
         }
         let mut message = SessionMessage::from_blocks(
             role,
-            record.get("time").and_then(super::pi_jsonl::parse_timestamp_to_ms),
+            record.get("time").and_then(app_session_core::pi_jsonl::parse_timestamp_to_ms),
             message_blocks,
         );
         let meta = &entry["meta"];

@@ -2,6 +2,7 @@
 members = [
   "crates/libs/app-settings-store",
   "crates/libs/app-session-core",
+  "crates/libs/app-session-native",
   "crates/libs/app-session-sqlite",
   "crates/libs/app-session-codex",
   "crates/libs/app-session-claude",

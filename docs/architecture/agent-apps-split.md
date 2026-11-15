@@ -1047,7 +1047,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/migration/state_db.rs` | 244 | 52 |
 | `sessions/migration/unify.rs` | 348 | 52 |
 | `sessions/mod.rs` | 43 | 54 |
-| `sessions/providers/agy.rs` | 301 | 50 |
+| `sessions/providers/agy.rs` | 301 | 50 → `crates/libs/app-session-native/src/agy.rs` |
 | `sessions/providers/claude.rs` | 320 | 46 → `crates/libs/app-session-claude/src/claude.rs` |
 | `sessions/providers/claude_blocks.rs` | 407 | 46 → `crates/libs/app-session-claude/src/claude_blocks.rs` |
 | `sessions/providers/claude_jsonl.rs` | 104 | 46 → `crates/libs/app-session-claude/src/claude_jsonl.rs` |
@@ -1060,18 +1060,18 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/providers/codex_parser_2.rs` | 391 | 45 |
 | `sessions/providers/codex_parser_3.rs` | 240 | 45 |
 | `sessions/providers/codex_parser_4.rs` | 268 | 45 |
-| `sessions/providers/dsh.rs` | 276 | 50 |
+| `sessions/providers/dsh.rs` | 276 | 50 → `crates/libs/app-session-native/src/dsh.rs` |
 | `sessions/providers/gemini.rs` | 431 | 47 → `crates/libs/app-session-gemini/src/gemini.rs` |
 | `sessions/providers/gemini_document.rs` | 93 | 47 → `crates/libs/app-session-gemini/src/gemini_document.rs` |
-| `sessions/providers/grokbuild.rs` | 175 | 50 |
+| `sessions/providers/grokbuild.rs` | 175 | 50 → `crates/libs/app-session-native/src/grokbuild.rs` |
 | `sessions/providers/hermes.rs` | 332 | 49（已迁入 app-session-sqlite） |
 | `sessions/providers/hermes_sqlite.rs` | 403 | 49（已迁入 app-session-sqlite） |
-| `sessions/providers/kimi.rs` | 287 | 50 |
-| `sessions/providers/kimi_requests.rs` | 175 | 50 |
-| `sessions/providers/mcode.rs` | 144 | 50 |
-| `sessions/providers/mod.rs` | 39 | 50 |
-| `sessions/providers/omp.rs` | 129 | 50 |
-| `sessions/providers/openclaw.rs` | 271 | 50 |
+| `sessions/providers/kimi.rs` | 287 | 50 → `crates/libs/app-session-native/src/kimi.rs` |
+| `sessions/providers/kimi_requests.rs` | 175 | 50 → `crates/libs/app-session-native/src/kimi_requests.rs` |
+| `sessions/providers/mcode.rs` | 144 | 50 → `crates/libs/app-session-native/src/mcode.rs` |
+| `sessions/providers/mod.rs` | 39 | 50（叶子声明改为重导出；适配器编排归 54） |
+| `sessions/providers/omp.rs` | 129 | 50 → `crates/libs/app-session-native/src/omp.rs` |
+| `sessions/providers/openclaw.rs` | 271 | 50 → `crates/libs/app-session-native/src/openclaw.rs` |
 | `sessions/providers/opencode.rs` | 131 | 49（已迁入 app-session-sqlite） |
 | `sessions/providers/opencode_blocks.rs` | 433 | 49（已迁入 app-session-sqlite） |
 | `sessions/providers/opencode_sqlite.rs` | 267 | 49（已迁入 app-session-sqlite） |
@@ -2720,3 +2720,11 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 - `hermes::parse_jsonl_session` 因原 delete/hermes 的真实调用、`opencode_sqlite::open` 因 usage/opencode 的真实调用最小公开；其它签名不变。OpenCode 时间解析继续来自 app-session-core，块映射在包内共享。网关和现有调用者继续经原门面使用扫描及消息加载。
 - 静态证据：五文件与 HEAD 逐字对照，仅有基础包导入和上述两处可见性变化；原文件均无测试注册、cfg 或 include 资源，无相邻独立解析测试。workspace 成员、原包路径依赖及模块导出已接线，无重复实现；新包无门面反向依赖，git diff --check 通过。
 - 跨适配器分发仍留上层，由任务 54 收口；内容、用量编排分别归任务 53、62，无未闭合叶子符号。未运行 Cargo、单元及实机测试，统一验收待授权：新增库和直接调用者编译、解析行为及 macOS/Windows/Linux 平台行为。Cargo.lock 未修改。
+
+### 任务 50：其它应用会话解析迁移结果
+
+- `crates/libs/app-session-native/src` 唯一拥有 agy.rs、dsh.rs、grokbuild.rs、kimi.rs、kimi_requests.rs、mcode.rs、omp.rs、openclaw.rs。原 providers/mod.rs 重导出七个公开适配器及 crate 内 Kimi 请求模块，原实现文件删除；lib.rs 已通过 sessions 提供原调用路径，无需重复接线。迁移源无独立测试、测试注册、平台 cfg、include 或外部资源路径，既有用量集成测试仍走原门面。
+- 依实际调用修正“只依赖会话基础和低层路径”的预估：OMP 使用 app-session-pi 的布局与树解析，OpenClaw 使用其 PiTranscript。沿用任务 48 已公开的共享能力，单向依赖 Pi → core 的既有层次，无跨适配器分发或反向依赖，不复制解析器。其余直接依赖为 app-session-core、vw-api-external-session、chrono（std）、reqwest（禁用默认特性，仅使用 Url）、rusqlite（bundled/hooks/limits）、serde（derive）、serde_json（arbitrary_precision）、zstd。原包仍有直接使用者，保留相关依赖。
+- 为真实跨包调用最小公开 agy::{checked_path, records, timestamp}、mcode::open_database、openclaw::parse_session、omp::verify_omp_session_id，以及 kimi_requests::{RequestInfo, RequestIndex, timestamp_ms} 和 RequestIndex::for_agent；分别供 usage/agy、usage/agy_native、usage/mcode、delete/openclaw、delete/omp、usage/kimi 使用。dsh::read_session 保持包内可见；其它签名不变。迁移静态审阅发现 Kimi 分支行号转换原有 `? try_into()` 缺少方法访问点，最小修正为 `?.try_into()`，保持原转换与错误语义；无其它函数体变化。
+- 静态证据：八文件与 HEAD 源码逐行对照，除导入、上述可见性、Kimi 方法访问点及两个 EOF 空行外一致；源码检索无旧门面回依赖。当前 Python 3.9 无 tomllib，使用环境已有 pip._vendor.tomli 读取 TOML，再以标准库核对 workspace 注册、原包直接路径、新包九项直接依赖与六个传递本地生产清单，路径存在且无环；本任务路径的 git diff --check 通过。全局检查另发现并行 UI 任务的 system_settings_common/mod.rs 与 toast_tests.rs 末尾空行，未修改这些无关文件。网关 external_sessions/{scan,messages}、用量及删除调用者保持原 providers 路径。
+- providers/mod.rs 无叶子根函数或分发实现遗留。跨适配器与会话操作由任务 54 收口，内容编排归任务 53、用量编排归任务 62，无未闭合叶子符号。未运行 Cargo、单元及实机测试，统一验收待授权：app-session-native、Pi 共享依赖与直接调用者编译、迁移解析与用量集成测试及 macOS/Windows/Linux 平台行为。静态证据不代表编译或行为通过；Cargo.lock 未修改。

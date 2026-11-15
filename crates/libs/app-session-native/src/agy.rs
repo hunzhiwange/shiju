@@ -2,8 +2,8 @@
 use serde_json::Value;
 use std::{collections::BTreeMap, fs, io::{BufRead, BufReader}, path::{Component, Path, PathBuf}};
 use vw_api_external_session::*;
-use crate::sessions::utils::truncate_summary;
-use super::pi_jsonl::parse_timestamp_to_ms;
+use app_session_core::utils::truncate_summary;
+use app_session_core::pi_jsonl::parse_timestamp_to_ms;
 
 struct IndexEntry {
     session_id: String, title: Option<String>, summary: Option<String>,
@@ -56,7 +56,7 @@ pub fn delete_session(_path: &Path) -> Result<(), String> {
     Err("Antigravity session deletion is unsupported".into())
 }
 
-pub(crate) fn checked_path(path: &Path) -> Result<(), String> {
+pub fn checked_path(path: &Path) -> Result<(), String> {
     if !path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
         return Err("Invalid Antigravity host path".into());
     }
@@ -73,7 +73,7 @@ pub(crate) fn checked_path(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn records(path: &Path) -> Result<Vec<Value>, String> {
+pub fn records(path: &Path) -> Result<Vec<Value>, String> {
     checked_path(path)?;
     let file =
         fs::File::open(path).map_err(|e| { let _ = e; "Cannot read Antigravity transcript".to_string() })?;
@@ -245,7 +245,7 @@ fn user_request(content: &str) -> &str {
         .unwrap_or(content)
 }
 
-pub(crate) fn timestamp(value: &Value) -> Option<i64> {
+pub fn timestamp(value: &Value) -> Option<i64> {
     parse_timestamp_to_ms(&value["created_at"])
 }
 
@@ -298,4 +298,3 @@ pub fn load_messages(path: &Path) -> Result<Vec<SessionMessage>, String> {
     }
     Ok(messages)
 }
-

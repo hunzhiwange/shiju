@@ -18,18 +18,18 @@ pub(crate) mod pi_blocks;
 pub(crate) mod pi_jsonl;
 mod pi_tree;
 
-pub mod grokbuild;
+pub use app_session_native::grokbuild;
 
 
-pub mod openclaw;
+pub use app_session_native::openclaw;
 
-pub mod kimi;
-pub(crate) mod kimi_requests;
+pub use app_session_native::kimi;
+pub(crate) use app_session_native::kimi_requests;
 
-pub mod mcode;
+pub use app_session_native::mcode;
 
-pub mod omp;
+pub use app_session_native::omp;
 
-pub mod dsh;
+pub use app_session_native::dsh;
 
-pub mod agy;
+pub use app_session_native::agy;

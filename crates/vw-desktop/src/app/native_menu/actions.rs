@@ -30,8 +30,8 @@ impl NativeMenuSnapshot {
             locale: app.desktop_locale,
             is_project: matches!(app.screen, Screen::Project),
             workspace_mode: app.workspace_mode,
-            show_file_manager: app.show_file_manager,
-            file_manager_show_changes: app.file_manager_show_changes,
+            show_file_manager: app.file_manager.show_file_manager,
+            file_manager_show_changes: app.file_manager.file_manager_show_changes,
             open_window_tabs: window_tab_entries(app),
         }
     }

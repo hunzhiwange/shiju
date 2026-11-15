@@ -169,7 +169,7 @@ fn base_layout_builds_with_tool_detail_overlay() {
 fn work_layout_code_builder_still_accepts_code_panel_state() {
     let mut app = test_app();
     app.show_diff = true;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.terminal.is_visible = true;
 
     let element = super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 6.0, 0.0);
@@ -190,7 +190,7 @@ fn drag_badge_layer_builds_empty_layer() {
 fn drag_badge_layer_builds_active_badge() {
     let mut app = test_app();
     app.project_path = Some("/tmp/project".to_string());
-    app.dragging_file_paths =
+    app.file_tree_interaction.dragging_file_paths =
         vec!["/tmp/project/src/main.rs".to_string(), "/tmp/project/README.md".to_string()];
     app.cursor_position = iced::Point::new(9_999.0, -20.0);
     app.window_size = (180.0, 36.0);

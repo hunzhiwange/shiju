@@ -264,17 +264,17 @@ fn knowledge_file_import_enqueues_jobs_and_tracks_polling_state() {
 fn knowledge_drag_drop_upload_starts_file_loading_and_clears_global_buffers() {
     let mut app = test_app();
     app.knowledge.selected_dataset_id = Some("ds".to_string());
-    app.pending_drop_file_paths = vec!["/tmp/guide.md".to_string(), "/tmp/spec.pdf".to_string()];
-    app.pending_drop_file_position = Some((3, 4));
+    app.file_tree_interaction.pending_drop_file_paths = vec!["/tmp/guide.md".to_string(), "/tmp/spec.pdf".to_string()];
+    app.file_tree_interaction.pending_drop_file_position = Some((3, 4));
     app.knowledge.file_drop_hovered = true;
 
     let _ = update(&mut app, KnowledgeToolMessage::ImportDroppedFiles);
 
     assert!(app.knowledge.selecting_import_file);
     assert!(!app.knowledge.file_drop_hovered);
-    assert!(app.pending_drop_file_paths.is_empty());
-    assert_eq!(app.pending_drop_file_position, None);
-    assert!(app.dragging_file_paths.is_empty());
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
+    assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
 }
 
 #[test]

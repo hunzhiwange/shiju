@@ -490,12 +490,12 @@ impl App {
             dragging_file_manager: false,
             file_manager_drag_anchor_x: None,
             file_manager_start_width: cfg_file_manager_width,
-            file_manager_show_changes: cfg_file_manager_show_changes,
-            file_manager_refresh_frame: 0,
+            file_manager: desktop_workspace::file_manager::FileManagerState {
+                file_manager_show_changes: cfg_file_manager_show_changes,
+                show_file_manager: cfg_show_file_manager,
+                ..Default::default()
+            },
             status_animation_frame: 0,
-            file_manager_changes_refreshing: false,
-            file_manager_file_tree_refreshing: false,
-            show_file_manager: cfg_show_file_manager,
 
             // ========== 弹出菜单和Popover ==========
             show_model_popover: false,
@@ -1486,22 +1486,12 @@ impl App {
             // ========== 文件树状态 ==========
             file_tree_expanded: cfg_file_tree_expanded.clone(),
             file_tree_expanded_set: cfg_file_tree_expanded.into_iter().collect(),
-            file_tree_selection: Default::default(),
-            file_tree_menu_path,
-            file_tree_menu_anchor,
-            file_tree_menu_source,
-            file_tree_clipboard: None,
-            dragging_file_paths: Vec::new(),
-            file_tree_drag_source: None,
-            file_tree_drop_target: None,
-            file_tree_operation_in_progress: false,
-            dragging_file_position: None,
-            pending_drop_file_paths: Vec::new(),
-            pending_drop_file_position: None,
-            input_drop_hovered: false,
-            file_tree_rename_path: None,
-            file_tree_rename_value: String::new(),
-            file_tree_pending_delete: None,
+            file_tree_interaction: desktop_workspace::interaction::InteractionState {
+                file_tree_menu_path,
+                file_tree_menu_anchor,
+                file_tree_menu_source,
+                ..Default::default()
+            },
 
             // ========== 文件搜索 ==========
             file_search_query: String::new(),

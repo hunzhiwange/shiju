@@ -278,13 +278,13 @@ fn edit_menu_renders_project_when_menu_is_closed() {
 fn view_menu_renders_panel_and_mode_toggle_states() {
     let mut app = test_app(Screen::Project);
     app.active_menu = Some(MenuType::View);
-    app.show_file_manager = false;
-    app.file_manager_show_changes = false;
+    app.file_manager.show_file_manager = false;
+    app.file_manager.file_manager_show_changes = false;
     let _element = view_menu(&app);
     drop(_element);
 
-    app.show_file_manager = true;
-    app.file_manager_show_changes = true;
+    app.file_manager.show_file_manager = true;
+    app.file_manager.file_manager_show_changes = true;
     let _element = view_menu(&app);
 }
 

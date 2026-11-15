@@ -94,7 +94,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 iced::widget::text_editor::Content::with_text(&after);
             app.active_preview_path = None;
             app.show_diff = true;
-            app.file_manager_show_changes = true;
+            app.file_manager.file_manager_show_changes = true;
             Task::none()
         }
         GitMessage::CloseChatTextDiff => {

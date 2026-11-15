@@ -2,7 +2,6 @@
 use crate::app::message::ProjectMessage;
 use crate::app::{App, Message};
 use iced::Task;
-use std::path::{Component, Path};
 use vw_api_file::file::LocalImportResponse;
 
 pub(super) fn submit(
@@ -13,10 +12,7 @@ pub(super) fn submit(
 ) -> Task<Message> {
     super::move_drop::clear_drag(app);
     if app.project_path.as_ref() != Some(&root)
-        || !Path::new(&source).is_absolute()
-        || !Path::new(&directory).starts_with(&root)
-        || Path::new(&directory).components().any(|part| part == Component::ParentDir)
-        || app.files.contains(&directory)
+        || !desktop_workspace::file_tree::valid_external_drop(&root, &source, &directory, &app.files)
     {
         return Task::none();
     }
@@ -45,25 +41,10 @@ pub(super) fn complete(
     source: String,
     result: Result<LocalImportResponse, String>,
 ) -> Task<Message> {
-    let name = super::path_display_name(&source);
-    let (kind, detail) = match result {
-        Ok(response) if response.items.len() == 1 && response.items[0].source_path == source => {
-            let item = &response.items[0];
-            if item.ok {
-                (crate::app::state::ToastKind::Success, format!("已导入: {name}"))
-            } else {
-                (
-                    crate::app::state::ToastKind::Error,
-                    format!("导入失败: {name}: {}", item.error.as_deref().unwrap_or("未知错误")),
-                )
-            }
-        }
-        // Transport failure can occur after publication. Never retry automatically.
-        Err(error) => (
-            crate::app::state::ToastKind::Error,
-            format!("导入失败或结果未知，请刷新确认: {name}: {error}"),
-        ),
-        Ok(_) => (crate::app::state::ToastKind::Error, format!("导入结果未知，请刷新确认: {name}")),
+    let (kind, detail) = desktop_workspace::file_tree::import_feedback(&source, result);
+    let kind = match kind {
+        desktop_workspace::file_tree::FeedbackKind::Success => crate::app::state::ToastKind::Success,
+        desktop_workspace::file_tree::FeedbackKind::Error => crate::app::state::ToastKind::Error,
     };
     let toast = app.show_localized_toast(kind, "%s", vec![detail.into()]);
     let current = app.project_path.as_ref() == Some(&root);

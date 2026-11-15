@@ -766,7 +766,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 Task::none()
             } else if app.show_system_settings {
                 crate::app::components::system_settings::traverse_select_focus(reverse)
-            } else if app.file_manager_show_changes
+            } else if app.file_manager.file_manager_show_changes
                 && app.show_git_diff_summary
                 && !app.show_git_commit_help_modal
                 && !app.show_git_filter_help_modal

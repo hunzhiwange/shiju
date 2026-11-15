@@ -50,7 +50,7 @@ impl Acceptance {
         for tab in &mut app.preview_tabs {
             tab.editor.set_theme(Theme::Light);
         }
-        app.file_manager_show_changes = false;
+        app.file_manager.file_manager_show_changes = false;
         app.editor_popover = Some(EditorPopover::Settings);
         Self { app }
     }

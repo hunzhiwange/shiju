@@ -70,9 +70,9 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
                         Icon::LayoutSidebarReverse,
                         crate::app::i18n::I18n::new(app.desktop_locale).__("切换文件树"),
                         TooltipPosition::Bottom,
-                        app.show_file_manager,
+                        app.file_manager.show_file_manager,
                         Message::View(message::ViewMessage::FileManagerPanelVisible(
-                            !app.show_file_manager,
+                            !app.file_manager.show_file_manager,
                         )),
                     ));
             }

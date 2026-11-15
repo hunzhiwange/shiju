@@ -395,7 +395,7 @@ fn find_in_project_creates_active_find_tab_and_open_tab() {
     assert_eq!(app.find_results_tabs.len(), 1);
     assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project");
     assert_eq!(app.active_find_results_tab_id, Some(app.find_results_tabs[0].id.clone()));
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.show_file_manager);
     assert!(app.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
     assert!(matches!(app.screen, crate::app::Screen::Project));
 }
@@ -657,7 +657,7 @@ fn tab_selected_existing_open_tab_keeps_the_active_workspace() {
 
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("a"));
     assert_eq!(app.active_tab_id, active_tab_id);
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.show_file_manager);
 }
 
 #[test]
@@ -674,7 +674,7 @@ fn tab_selected_without_open_tab_preserves_active_open_tab() {
 
     assert_eq!(app.active_find_results_tab_id.as_deref(), Some("missing"));
     assert_eq!(app.active_tab_id, active_tab_id);
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.show_file_manager);
 }
 
 #[test]

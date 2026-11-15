@@ -158,7 +158,7 @@ fn content_shows_empty_selection_message_when_project_changes_are_hidden() {
     let mut app = app();
     app.screen = Screen::Project;
     app.active_preview_path = None;
-    app.file_manager_show_changes = false;
+    app.file_manager.file_manager_show_changes = false;
 
     let tree = content_tree(&app);
 
@@ -169,7 +169,7 @@ fn content_shows_empty_selection_message_when_project_changes_are_hidden() {
 fn content_uses_git_panel_when_changes_view_is_enabled() {
     let mut app = app();
     app.active_preview_path = None;
-    app.file_manager_show_changes = true;
+    app.file_manager.file_manager_show_changes = true;
     app.screen = Screen::Project;
 
     let tree = content_tree(&app);

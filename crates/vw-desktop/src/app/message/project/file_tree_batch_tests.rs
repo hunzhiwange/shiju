@@ -37,8 +37,8 @@ fn selected_context_preserves_multi_selection_and_single_actions_use_first_visib
     let mut app = selected_app();
     assert_eq!(menu_paths(&app), ["/project/a.txt", "/project/z.txt"]);
     action(&mut app, FileTreeAction::Rename);
-    assert_eq!(app.file_tree_rename_path.as_deref(), Some("/project/a.txt"));
-    assert_eq!(app.file_tree_selection.paths.len(), 2);
+    assert_eq!(app.file_tree_interaction.file_tree_rename_path.as_deref(), Some("/project/a.txt"));
+    assert_eq!(app.file_tree_interaction.file_tree_selection.paths.len(), 2);
     right_click(&mut app, "/project/z.txt", "changes-file");
     assert_eq!(menu_paths(&app), ["/project/z.txt"]);
 }
@@ -52,7 +52,7 @@ fn right_clicking_unselected_item_replaces_selection() {
     );
     right_click(&mut app, "/project/b.txt", "tree-file");
     assert_eq!(menu_paths(&app), ["/project/b.txt"]);
-    assert_eq!(app.file_tree_selection.paths.len(), 1);
+    assert_eq!(app.file_tree_interaction.file_tree_selection.paths.len(), 1);
 }
 
 #[test]
@@ -60,12 +60,12 @@ fn batch_delete_confirmation_captures_all_paths_and_cancel_preserves_files() {
     let mut app = selected_app();
     let files = app.files.clone();
     action(&mut app, FileTreeAction::Delete);
-    let (root, paths) = app.file_tree_pending_delete.as_ref().unwrap();
+    let (root, paths) = app.file_tree_interaction.file_tree_pending_delete.as_ref().unwrap();
     assert_eq!(root, "/project");
     assert_eq!(paths, &["/project/a.txt", "/project/z.txt"]);
     assert_eq!(app.files, files);
     let _ = super::super::handle(&mut app, ProjectMessage::FileTreeDeleteCanceled);
-    assert!(app.file_tree_pending_delete.is_none());
+    assert!(app.file_tree_interaction.file_tree_pending_delete.is_none());
     assert_eq!(app.files, files);
 }
 
@@ -76,7 +76,7 @@ fn copy_cut_and_chat_actions_include_all_selected_items() {
         right_click(&mut app, "/project/z.txt", "tree-file");
         action(&mut app, operation);
         assert_eq!(
-            app.file_tree_clipboard.as_ref().unwrap().src_paths,
+            app.file_tree_interaction.file_tree_clipboard.as_ref().unwrap().src_paths,
             ["/project/a.txt", "/project/z.txt"]
         );
     }
@@ -88,32 +88,10 @@ fn copy_cut_and_chat_actions_include_all_selected_items() {
 }
 
 #[test]
-fn recursive_batches_remove_descendants_without_matching_sibling_prefixes() {
-    let paths = ["/project/src/a.txt", "/project/src-old/b.txt", "/project/src", "/project/src"]
-        .into_iter()
-        .map(str::to_string)
-        .collect();
-    assert_eq!(top_level_paths(paths), ["/project/src-old/b.txt", "/project/src"]);
-}
-
-#[test]
-fn paste_reserves_distinct_targets_for_same_named_sources() {
-    let mut app = selected_app();
-    app.files.push("/project/dst/a.txt".into());
-    let targets = paste_targets(
-        &app,
-        "/project/dst",
-        &["/project/one/a.txt".into(), "/project/two/a.txt".into()],
-    );
-    assert_eq!(targets[0].1, "/project/dst/a copy.txt");
-    assert_eq!(targets[1].1, "/project/dst/a copy 2.txt");
-}
-
-#[test]
 fn partial_cut_completion_keeps_failed_sources_and_does_not_clear_new_clipboard() {
     let mut app = selected_app();
     action(&mut app, FileTreeAction::Cut);
-    let clipboard = app.file_tree_clipboard.clone().unwrap();
+    let clipboard = app.file_tree_interaction.file_tree_clipboard.clone().unwrap();
     let complete = ProjectMessage::FileTreePasteCompleted {
         project_path: "/project".into(),
         clipboard: clipboard.clone(),
@@ -121,14 +99,14 @@ fn partial_cut_completion_keeps_failed_sources_and_does_not_clear_new_clipboard(
         result: Err("z failed".into()),
     };
     let _ = super::super::handle(&mut app, complete.clone());
-    assert_eq!(app.file_tree_clipboard.as_ref().unwrap().src_paths, ["/project/z.txt"]);
+    assert_eq!(app.file_tree_interaction.file_tree_clipboard.as_ref().unwrap().src_paths, ["/project/z.txt"]);
     let replacement = FileTreeClipboard {
         mode: FileTreeClipboardMode::Copy,
         src_paths: vec!["/project/new.txt".into()],
     };
-    app.file_tree_clipboard = Some(replacement.clone());
+    app.file_tree_interaction.file_tree_clipboard = Some(replacement.clone());
     let _ = super::super::handle(&mut app, complete);
-    assert_eq!(app.file_tree_clipboard, Some(replacement));
+    assert_eq!(app.file_tree_interaction.file_tree_clipboard, Some(replacement));
 }
 
 #[test]
@@ -141,13 +119,13 @@ fn partial_delete_completion_only_clears_successful_selection_in_original_projec
     };
     let _ = super::super::handle(&mut app, complete.clone());
     assert_eq!(
-        app.file_tree_selection.paths.iter().cloned().collect::<Vec<_>>(),
+        app.file_tree_interaction.file_tree_selection.paths.iter().cloned().collect::<Vec<_>>(),
         ["/project/z.txt"]
     );
     app.project_path = Some("/other".into());
-    let selection = app.file_tree_selection.paths.clone();
+    let selection = app.file_tree_interaction.file_tree_selection.paths.clone();
     let _ = super::super::handle(&mut app, complete);
-    assert_eq!(app.file_tree_selection.paths, selection);
+    assert_eq!(app.file_tree_interaction.file_tree_selection.paths, selection);
 }
 
 #[tokio::test]
@@ -253,7 +231,7 @@ async fn batch_delete_http_attempts_every_root_once_and_reports_partial_failure(
     app.project_path = Some(root.clone());
     let paths = ["src", "src/a.txt", "b.txt", "c.txt"].map(|path| format!("{root}/{path}"));
     app.files = paths[1..].to_vec();
-    app.file_tree_pending_delete = Some((root.clone(), paths.to_vec()));
+    app.file_tree_interaction.file_tree_pending_delete = Some((root.clone(), paths.to_vec()));
     let task = super::super::handle(&mut app, ProjectMessage::FileTreeDeleteConfirmed).unwrap();
     let mut outputs = Vec::new();
     if let Some(mut stream) = iced_runtime::task::into_stream(task) {

@@ -31,7 +31,7 @@ use crate::app::message::project::helpers::{
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::{
     App, AppTab, Message, Screen,
-    state::{FileTreeClipboard, FileTreeClipboardMode, FindInFolderTab},
+    state::{FileTreeClipboardMode, FindInFolderTab},
 };
 #[path = "file_tree_batch.rs"]
 mod batch;
@@ -40,71 +40,15 @@ mod external_drop;
 #[path = "file_tree_move_drop.rs"]
 mod move_drop;
 
+#[cfg(test)]
+use crate::app::state::FileTreeClipboard;
 use iced::Point;
-use std::collections::HashSet;
-
-fn is_directory_path(path: &str, files: &[String]) -> bool {
-    let prefix = format!("{path}/");
-    if files.iter().any(|item| item.starts_with(&prefix)) {
-        return true;
-    }
-    !files.iter().any(|item| item == path)
-}
-
-fn remove_local_file_tree_path(files: &mut Vec<String>, path: &str, recursive: bool) {
-    let descendant_prefix = format!("{path}/");
-    files.retain(|item| item != path && (!recursive || !item.starts_with(&descendant_prefix)));
-}
+use desktop_workspace::file_tree::{is_directory_path, replace_path_prefix, path_display_name};
 
 #[cfg(test)]
 #[path = "file_tree_tests.rs"]
 mod file_tree_tests;
 
-fn unique_name_for_target(
-    dst_dir: &std::path::Path,
-    name: &str,
-    existing: &HashSet<String>,
-) -> String {
-    let original = dst_dir.join(name).to_string_lossy().to_string();
-    if !existing.contains(&original) {
-        return original;
-    }
-    let path = std::path::Path::new(name);
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
-    let ext = path.extension().and_then(|s| s.to_str());
-    for i in 1..=999 {
-        let suffix = if i == 1 { "copy".to_string() } else { format!("copy {}", i) };
-        let candidate_name = if let Some(ext) = ext {
-            format!("{stem} {suffix}.{ext}")
-        } else {
-            format!("{stem} {suffix}")
-        };
-        let candidate = dst_dir.join(candidate_name).to_string_lossy().to_string();
-        if !existing.contains(&candidate) {
-            return candidate;
-        }
-    }
-    original
-}
-
-fn replace_path_prefix(target: &str, old_path: &str, new_path: &str) -> Option<String> {
-    if target == old_path {
-        return Some(new_path.to_string());
-    }
-    let old_prefix = format!("{old_path}/");
-    target.strip_prefix(&old_prefix).map(|rest| format!("{new_path}/{}", rest))
-}
-
-// 生成文件树节点的显示名称。
-
-fn path_display_name(path: &str) -> String {
-    std::path::Path::new(path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .filter(|name| !name.is_empty())
-        .unwrap_or(path)
-        .to_string()
-}
 ///
 /// 该函数是文件树消息的中央处理器，根据不同的消息类型执行相应的操作，
 /// 并返回可选的 Iced Task 用于执行异步命令或 UI 更新。
@@ -147,19 +91,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             let visible =
                 crate::app::components::file_tree::selection::visible_paths(app, &project_path);
-            if !visible.contains(&path) {
-                return Some(iced::Task::none());
-            }
-            app.file_tree_rename_path = None;
-            app.file_tree_rename_value.clear();
-            app.file_tree_selection.select(
-                &project_path,
-                path.clone(),
-                modifiers.command(),
-                modifiers.shift(),
-                &visible,
-            );
-            if modifiers.command() || modifiers.shift() {
+            if !app.file_tree_interaction.select(&project_path, &path, modifiers.command(), modifiers.shift(), &visible) {
                 return Some(iced::Task::none());
             }
             if directory {
@@ -175,88 +107,44 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         // 处理右键点击事件：记录点击位置、源和坐标，用于显示上下文菜单
         ProjectMessage::FileTreeRightClicked(path, source, x, y) => {
-            if matches!(source.as_str(), "tree-file" | "tree-dir")
-                && let Some(root) = app.project_path.clone()
-                && !app.file_tree_selection.contains(&root, &path)
-            {
-                let visible =
-                    crate::app::components::file_tree::selection::visible_paths(app, &root);
-                app.file_tree_selection.select(&root, path.clone(), false, false, &visible);
-            }
-            // 保存被右键点击的文件路径
-            app.file_tree_menu_path = Some(path);
-            // 保存点击来源（文件树还是其他位置）
-            app.file_tree_menu_source = Some(source);
-            // 保存菜单显示的锚点坐标
-            app.file_tree_menu_anchor = Some(Point::new(x, y));
+            let visible = app.project_path.as_deref().map(|root| {
+                crate::app::components::file_tree::selection::visible_paths(app, root)
+            }).unwrap_or_default();
+            app.file_tree_interaction.right_click(app.project_path.as_deref(), path, source, Point::new(x, y), &visible);
             Some(iced::Task::none())
         }
         // 关闭文件树上下文菜单：清空所有菜单相关的状态
         ProjectMessage::FileTreeMenuClose => {
-            app.file_tree_menu_path = None;
-            app.file_tree_menu_source = None;
-            app.file_tree_menu_anchor = None;
+            app.file_tree_interaction.close_menu();
             Some(iced::Task::none())
         }
         // 重命名输入框内容变化：更新重命名输入值
         ProjectMessage::FileTreeRenameChanged(v) => {
-            app.file_tree_rename_value = v;
+            app.file_tree_interaction.file_tree_rename_value = v;
             Some(iced::Task::none())
         }
         // 取消重命名操作：清空重命名相关状态
         ProjectMessage::FileTreeRenameCancel => {
-            app.file_tree_rename_path = None;
-            app.file_tree_rename_value.clear();
+            app.file_tree_interaction.cancel_rename();
             Some(iced::Task::none())
         }
         ProjectMessage::FileTreeInternalDragStart { project_path, source_path } => {
-            if app.file_tree_operation_in_progress
+            if app.file_tree_interaction.file_tree_operation_in_progress
                 || app.project_path.as_ref() != Some(&project_path)
             {
                 return Some(iced::Task::none());
             }
             let visible =
                 crate::app::components::file_tree::selection::visible_paths(app, &project_path);
-            let paths = if app.file_tree_selection.contains(&project_path, &source_path) {
-                visible
-                    .iter()
-                    .filter(|path| app.file_tree_selection.contains(&project_path, path))
-                    .cloned()
-                    .collect::<Vec<_>>()
-            } else {
-                if visible.contains(&source_path) {
-                    app.file_tree_selection.select(
-                        &project_path,
-                        source_path.clone(),
-                        false,
-                        false,
-                        &visible,
-                    );
-                }
-                vec![source_path.clone()]
-            };
-            // Freeze the complete gesture before later selection or release messages.
-            let task = handle(app, ProjectMessage::FileTreeDragStart(source_path.clone(), None));
-            app.dragging_file_paths =
-                if paths.is_empty() { vec![source_path.clone()] } else { paths };
-            app.file_tree_drag_source = Some((project_path, source_path));
-            task
+            app.file_tree_interaction.start_internal_drag(project_path, source_path, &visible);
+            Some(iced::Task::none())
         }
         ProjectMessage::FileTreeDropTargetChanged(target) => {
-            app.file_tree_drop_target = if app
-                .file_tree_drag_source
-                .as_ref()
-                .is_some_and(|(root, _)| app.project_path.as_ref() == Some(root))
-                && !app.file_tree_operation_in_progress
-            {
-                target
-            } else {
-                None
-            };
+            app.file_tree_interaction.set_drop_target(app.project_path.as_deref(), target);
             Some(iced::Task::none())
         }
         ProjectMessage::FileTreeDropTargetReleased { project_path, target_directory } => {
-            let Some((root, source)) = app.file_tree_drag_source.clone() else {
+            let Some((root, source)) = app.file_tree_interaction.file_tree_drag_source.clone() else {
                 return Some(iced::Task::none());
             };
             if root != project_path {
@@ -290,17 +178,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         // 开始拖拽：记录被拖拽的文件路径和位置，清空放置相关状态
         ProjectMessage::FileTreeDragStart(path, position) => {
-            app.file_tree_drag_source = None;
-            app.file_tree_drop_target = None;
-            // 记录正在拖拽的文件路径
-            app.dragging_file_paths = vec![path];
-            // 记录拖拽起始位置
-            app.dragging_file_position = position;
-            // 清空待放置状态
-            app.pending_drop_file_paths.clear();
-            app.pending_drop_file_position = None;
-            // 重置输入框拖拽悬停状态
-            app.input_drop_hovered = false;
+            app.file_tree_interaction.start_drag(path, position);
             Some(iced::Task::none())
         }
         // 结束拖拽：将拖拽中的文件转移到待放置状态，清空拖拽状态
@@ -308,53 +186,21 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(task) = move_drop::release(app) {
                 return Some(task);
             }
-            if app.dragging_file_paths.is_empty() {
-                return Some(iced::Task::none());
-            }
-            // 将拖拽的文件转移到待放置状态
-            app.pending_drop_file_paths = app.dragging_file_paths.clone();
-            app.pending_drop_file_position = app.dragging_file_position;
-            // 清空拖拽状态
-            app.dragging_file_paths.clear();
-            app.dragging_file_position = None;
+            app.file_tree_interaction.end_chat_drag();
             Some(iced::Task::none())
         }
         // 保存重命名结果：执行文件/文件夹重命名操作
         ProjectMessage::FileTreeRenameSave => {
-            let Some(old_path) = app.file_tree_rename_path.clone() else {
-                return Some(iced::Task::none());
+            let rename = match app.file_tree_interaction.prepare_rename(app.project_path.as_deref(), &app.files) {
+                Ok(Some(rename)) => rename,
+                Ok(None) => return Some(iced::Task::none()),
+                Err(_) => return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Error, "文件名不合法", vec![],
+                )),
             };
-            let new_name = app.file_tree_rename_value.trim().to_string();
-            if new_name.is_empty()
-                || new_name == "."
-                || new_name == ".."
-                || new_name.contains('/')
-                || new_name.contains('\\')
-            {
-                return Some(app.show_localized_toast(
-                    crate::app::state::ToastKind::Error,
-                    "文件名不合法",
-                    vec![],
-                ));
-            }
-            let old = std::path::PathBuf::from(&old_path);
-            let Some(parent) = old.parent() else {
-                return Some(iced::Task::none());
-            };
-            if old.file_name().and_then(|name| name.to_str()) == Some(new_name.as_str()) {
-                app.file_tree_rename_path = None;
-                app.file_tree_rename_value.clear();
-                return Some(iced::Task::none());
-            }
-            let existing = app.files.iter().cloned().collect::<HashSet<_>>();
-            let new_path = unique_name_for_target(parent, &new_name, &existing);
-            let Some(project_path) = app.project_path.clone() else {
-                return Some(iced::Task::none());
-            };
+            let desktop_workspace::interaction::Rename { root: project_path, source: old_path, target: new_path } = rename;
             let old_path_for_task = old_path.clone();
             let old_path_for_msg = old_path.clone();
-            app.file_tree_rename_path = None;
-            app.file_tree_rename_value.clear();
             Some(iced::Task::perform(
                 async move {
                     gateway_move_path(&project_path, &old_path_for_task, &new_path)
@@ -405,7 +251,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理文件树上下文菜单操作
         // 首先获取菜单操作的目标路径，如果没有则直接返回
         ProjectMessage::FileTreeAction(action) => {
-            if app.file_tree_operation_in_progress
+            if app.file_tree_interaction.file_tree_operation_in_progress
                 && matches!(
                     action,
                     FileTreeAction::Delete | FileTreeAction::Paste | FileTreeAction::Duplicate
@@ -419,9 +265,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
 
             // 清空菜单相关状态
-            app.file_tree_menu_path = None;
-            app.file_tree_menu_source = None;
-            app.file_tree_menu_anchor = None;
+            app.file_tree_interaction.close_menu();
 
             match action {
                 // 打开文件：发送预览消息打开文件
@@ -533,7 +377,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.active_find_results_tab_id = Some(tab_id.clone());
 
                     // 显示文件管理器面板
-                    app.show_file_manager = true;
+                    app.file_manager.show_file_manager = true;
 
                     // 创建并打开查找结果标签页
                     let open_tab_id = format!("find:{}", tab_id);
@@ -556,10 +400,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 // 剪切：将文件/文件夹路径保存到剪贴板，模式为剪切
                 FileTreeAction::Cut => {
-                    app.file_tree_clipboard = Some(FileTreeClipboard {
-                        mode: FileTreeClipboardMode::Cut,
-                        src_paths: batch::top_level_paths(paths),
-                    });
+                    app.file_tree_interaction.set_clipboard(FileTreeClipboardMode::Cut, paths);
                     return Some(app.show_localized_toast(
                         crate::app::state::ToastKind::Success,
                         "已剪切到文件树剪贴板",
@@ -568,10 +409,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 // 复制：将文件/文件夹路径保存到剪贴板，模式为复制
                 FileTreeAction::Copy => {
-                    app.file_tree_clipboard = Some(FileTreeClipboard {
-                        mode: FileTreeClipboardMode::Copy,
-                        src_paths: batch::top_level_paths(paths),
-                    });
+                    app.file_tree_interaction.set_clipboard(FileTreeClipboardMode::Copy, paths);
                     return Some(app.show_localized_toast(
                         crate::app::state::ToastKind::Success,
                         "已复制到文件树剪贴板",
@@ -612,14 +450,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 FileTreeAction::Rename => {
                     let directory = is_directory_path(&path, app.current_file_index());
-                    app.file_tree_rename_path = Some(path.clone());
-                    app.file_tree_rename_value = std::path::Path::new(&path)
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("")
-                        .to_string();
+                    app.file_tree_interaction.begin_rename(path.clone());
                     let end = crate::app::components::file_tree::inline_rename::selection_end(
-                        &app.file_tree_rename_value,
+                        &app.file_tree_interaction.file_tree_rename_value,
                         directory,
                     );
                     let id = crate::app::components::file_tree::inline_rename::INPUT_ID;
@@ -630,7 +463,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 FileTreeAction::Delete => {
                     if let Some(project_path) = app.project_path.clone() {
-                        app.file_tree_pending_delete =
+                        app.file_tree_interaction.file_tree_pending_delete =
                             Some((project_path, batch::top_level_paths(paths)));
                     }
                 }
@@ -643,14 +476,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             completed_sources,
             result,
         } => {
-            app.file_tree_operation_in_progress = false;
-            if matches!(clipboard.mode, FileTreeClipboardMode::Cut)
-                && app.file_tree_clipboard.as_ref() == Some(&clipboard)
-            {
-                let mut remaining = clipboard;
-                remaining.src_paths.retain(|path| !completed_sources.contains(path));
-                app.file_tree_clipboard = (!remaining.src_paths.is_empty()).then_some(remaining);
-            }
+            app.file_tree_interaction.complete_paste(clipboard, &completed_sources);
             let refresh = if app.project_path.as_ref() == Some(&project_path) {
                 refresh_file_index(app)
             } else {
@@ -671,7 +497,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::batch([refresh, feedback]))
         }
         ProjectMessage::FileTreeDuplicateCompleted { project_path, result } => {
-            app.file_tree_operation_in_progress = false;
+            app.file_tree_interaction.file_tree_operation_in_progress = false;
             let refresh = if app.project_path.as_deref() == Some(project_path.as_str()) {
                 refresh_file_index(app)
             } else {
@@ -692,19 +518,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::batch([refresh, feedback]))
         }
         ProjectMessage::FileTreeDeleteCanceled => {
-            app.file_tree_pending_delete = None;
+            app.file_tree_interaction.file_tree_pending_delete = None;
             Some(iced::Task::none())
         }
         ProjectMessage::FileTreeDeleteConfirmed => Some(batch::delete(app)),
         ProjectMessage::FileTreeDeleteCompleted { project_path, deleted_paths, result } => {
-            app.file_tree_operation_in_progress = false;
-            if app.project_path.as_ref() == Some(&project_path) {
-                app.file_tree_selection.paths.retain(|path| {
-                    !deleted_paths
-                        .iter()
-                        .any(|deleted| std::path::Path::new(path).starts_with(deleted))
-                });
-            }
+            app.file_tree_interaction.complete_delete(app.project_path.as_ref() == Some(&project_path), &deleted_paths);
             let feedback = match result {
                 Ok(()) => app.show_localized_toast(
                     crate::app::state::ToastKind::Success,

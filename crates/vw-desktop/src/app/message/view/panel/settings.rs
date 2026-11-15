@@ -711,7 +711,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             save
         }
         ViewMessage::FileManagerPanelVisible(b) => {
-            app.show_file_manager = b;
+            app.file_manager.show_file_manager = b;
             if !b {
                 app.dragging_file_manager = false;
                 app.file_manager_drag_anchor_x = None;

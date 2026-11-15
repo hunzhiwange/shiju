@@ -59,7 +59,7 @@ pub fn main_area(
     if app.chat_panel_half_fullscreen {
         let mut r = row![chat_panel].spacing(spacing);
 
-        if app.show_file_manager {
+        if app.file_manager.show_file_manager {
             let file_manager_divider = mouse_area(HResizeHandle)
                 .on_press(Message::View(message::ViewMessage::FileManagerDragStarted));
             let file_manager_panel = container(file_tree::view_file_manager(app))
@@ -83,7 +83,7 @@ pub fn main_area(
     if app.git_diff_half_fullscreen {
         let mut r = row![diff_panel].spacing(spacing);
 
-        if app.show_file_manager {
+        if app.file_manager.show_file_manager {
             let file_manager_divider = mouse_area(HResizeHandle)
                 .on_press(Message::View(message::ViewMessage::FileManagerDragStarted));
             let file_manager_panel = container(file_tree::view_file_manager(app))
@@ -112,7 +112,7 @@ pub fn main_area(
         row![chat_panel].spacing(spacing)
     };
 
-    if app.show_file_manager {
+    if app.file_manager.show_file_manager {
         let file_manager_divider = mouse_area(HResizeHandle)
             .on_press(Message::View(message::ViewMessage::FileManagerDragStarted));
         let file_manager_panel = container(file_tree::view_file_manager(app))

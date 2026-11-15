@@ -3,21 +3,14 @@ use super::{gateway_move_path, replace_path_prefix};
 use crate::app::message::ProjectMessage;
 use crate::app::{App, Message, PreviewTab};
 use iced::Task;
-use std::path::{Component, Path};
 
 pub(super) fn clear_drag(app: &mut App) {
-    app.file_tree_drag_source = None;
-    app.file_tree_drop_target = None;
-    app.dragging_file_paths.clear();
-    app.dragging_file_position = None;
-    app.pending_drop_file_paths.clear();
-    app.pending_drop_file_position = None;
-    app.input_drop_hovered = false;
+    app.file_tree_interaction.clear_drag();
 }
 
 pub(super) fn release(app: &mut App) -> Option<Task<Message>> {
-    let (root, source) = app.file_tree_drag_source.clone()?;
-    let target = app.file_tree_drop_target.clone()?;
+    let (root, source) = app.file_tree_interaction.file_tree_drag_source.clone()?;
+    let target = app.file_tree_interaction.file_tree_drop_target.clone()?;
     Some(submit(app, root, source, target))
 }
 
@@ -27,47 +20,24 @@ pub(super) fn submit(
     source: String,
     directory: String,
 ) -> Task<Message> {
-    if app.file_tree_operation_in_progress
-        || app.file_tree_drag_source.as_ref() != Some(&(root.clone(), source.clone()))
+    if app.file_tree_interaction.file_tree_operation_in_progress
+        || app.file_tree_interaction.file_tree_drag_source.as_ref() != Some(&(root.clone(), source.clone()))
     {
         return Task::none();
     }
-    let sources = super::batch::top_level_paths(app.dragging_file_paths.clone());
+    let sources = super::batch::top_level_paths(app.file_tree_interaction.dragging_file_paths.clone());
     // Consume even rejected tree targets, so the release cannot also reach chat.
     clear_drag(app);
     if app.project_path.as_ref() != Some(&root) {
         return Task::none();
     }
-    let directory_path = Path::new(&directory);
-    let root_path = Path::new(&root);
-    if !directory_path.starts_with(root_path)
-        || directory_path.components().any(|part| part == Component::ParentDir)
-        || app.files.contains(&directory)
-        || sources.iter().any(|source| {
-            let path = Path::new(source);
-            !path.starts_with(root_path)
-                || path == root_path
-                || directory_path.starts_with(path)
-                || path.components().any(|part| part == Component::ParentDir)
-        })
-    {
+    let Some(moves) = desktop_workspace::file_tree::plan_move(&root, &directory, &app.files, sources) else {
         return Task::none();
-    }
-    let moves = sources
-        .into_iter()
-        .filter_map(|source| {
-            let path = Path::new(&source);
-            if path.parent() == Some(directory_path) {
-                return None;
-            }
-            let target = directory_path.join(path.file_name()?).to_string_lossy().into_owned();
-            Some((source, target))
-        })
-        .collect::<Vec<_>>();
+    };
     if moves.is_empty() {
         return Task::none();
     }
-    app.file_tree_operation_in_progress = true;
+    app.file_tree_interaction.file_tree_operation_in_progress = true;
     Task::perform(
         async move {
             if moves.len() == 1 {
@@ -80,14 +50,12 @@ pub(super) fn submit(
                     result,
                 };
             }
-            let mut moved_paths = Vec::new();
-            let mut errors = Vec::new();
-            for (source, target) in moves {
-                match gateway_move_path(&root, &source, &target).await {
-                    Ok(()) => moved_paths.push((source, target)),
-                    Err(error) => errors.push(format!("{source}: {error}")),
-                }
-            }
+            let effects = moves.iter().map(|(source, target)| desktop_workspace::operations::Operation::Move {
+                root: root.clone(), source: source.clone(), target: target.clone(),
+            }).collect();
+            let result = desktop_workspace::operations::run(effects, super::batch::execute).await;
+            let moved_paths = moves.into_iter().filter(|(source, _)| result.completed.contains(source)).collect();
+            let errors = result.errors;
             ProjectMessage::FileTreeBatchMoveCompleted { project_path: root, moved_paths, errors }
         },
         Message::Project,
@@ -124,7 +92,7 @@ pub(super) fn complete_batch(
     moved_paths: Vec<(String, String)>,
     errors: Vec<String>,
 ) -> Task<Message> {
-    app.file_tree_operation_in_progress = false;
+    app.file_tree_interaction.file_tree_operation_in_progress = false;
     let feedback = if errors.is_empty() {
         Task::none()
     } else {
@@ -155,18 +123,7 @@ pub(super) fn complete_batch(
             {
                 *path = updated;
             }
-            app.file_tree_selection.relocate(&root, &source, &target);
-            if let (Ok(old), Ok(new)) =
-                (Path::new(&source).strip_prefix(&root), Path::new(&target).strip_prefix(&root))
-            {
-                let old = old.to_string_lossy();
-                let new = new.to_string_lossy();
-                for key in &mut app.file_tree_expanded {
-                    if let Some(updated) = replace_path_prefix(key, &old, &new) {
-                        *key = updated;
-                    }
-                }
-            }
+            app.file_tree_interaction.relocate(&root, &source, &target, &mut app.file_tree_expanded);
         }
     }
     if current {

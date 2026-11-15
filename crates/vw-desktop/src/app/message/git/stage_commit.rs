@@ -293,8 +293,8 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             };
 
             app.git_commit_in_progress = true;
-            let animation_tick = (!app.file_manager_changes_refreshing
-                && !app.file_manager_file_tree_refreshing)
+            let animation_tick = (!app.file_manager.file_manager_changes_refreshing
+                && !app.file_manager.file_manager_file_tree_refreshing)
                 .then(schedule_commit_button_animation_tick);
             let Some(path) = git_context_path_for_app(app) else {
                 app.git_commit_in_progress = false;

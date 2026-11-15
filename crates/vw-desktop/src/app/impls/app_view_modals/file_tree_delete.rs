@@ -13,7 +13,7 @@ pub(crate) fn with_file_tree_delete_confirm<'a>(
     app: &'a App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some((_, paths)) = &app.file_tree_pending_delete else {
+    let Some((_, paths)) = &app.file_tree_interaction.file_tree_pending_delete else {
         return root_content;
     };
     let i18n = I18n::new(app.desktop_locale);

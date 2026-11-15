@@ -12,7 +12,7 @@ fn input(app: &App) -> domain::Input<'_> {
         git_commit_message: &app.git_commit_message,
         git_commit_description_editor: &app.git_commit_description_editor,
         git_commit_in_progress: app.git_commit_in_progress,
-        file_manager_refresh_frame: app.file_manager_refresh_frame,
+        file_manager_refresh_frame: app.file_manager.file_manager_refresh_frame,
         any_selected: has_selected_changes(app)
     }
 }

@@ -941,10 +941,10 @@ fn handle_import_dropped_files(app: &mut App) -> Task<Message> {
         clear_drag_drop_buffers(app);
         return Task::none();
     }
-    let paths = if !app.dragging_file_paths.is_empty() {
-        app.dragging_file_paths.clone()
+    let paths = if !app.file_tree_interaction.dragging_file_paths.is_empty() {
+        app.file_tree_interaction.dragging_file_paths.clone()
     } else {
-        app.pending_drop_file_paths.clone()
+        app.file_tree_interaction.pending_drop_file_paths.clone()
     };
     clear_drag_drop_buffers(app);
     if paths.is_empty() {
@@ -1103,10 +1103,10 @@ fn refresh_import_polling_documents(app: &mut App, job: &KnowledgeIndexJobDto) -
 }
 
 fn clear_drag_drop_buffers(app: &mut App) {
-    app.dragging_file_paths.clear();
-    app.dragging_file_position = None;
-    app.pending_drop_file_paths.clear();
-    app.pending_drop_file_position = None;
+    app.file_tree_interaction.dragging_file_paths.clear();
+    app.file_tree_interaction.dragging_file_position = None;
+    app.file_tree_interaction.pending_drop_file_paths.clear();
+    app.file_tree_interaction.pending_drop_file_position = None;
 }
 
 fn retrieve(app: &mut App) -> Task<Message> {

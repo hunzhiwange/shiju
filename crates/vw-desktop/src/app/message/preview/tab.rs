@@ -202,12 +202,12 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 record_trace_before_jump(app, &(pending_path, line, col));
             }
             let mut fields = Map::new();
-            if app.file_manager_show_changes {
-                app.file_manager_show_changes = false;
+            if app.file_manager.file_manager_show_changes {
+                app.file_manager.file_manager_show_changes = false;
                 fields.insert("file_manager_show_changes".into(), Value::Bool(false));
             }
-            if !app.show_file_manager {
-                app.show_file_manager = true;
+            if !app.file_manager.show_file_manager {
+                app.file_manager.show_file_manager = true;
                 fields.insert("show_file_manager".into(), Value::Bool(true));
             }
             let save_task = app.save_desktop_preferences(fields);

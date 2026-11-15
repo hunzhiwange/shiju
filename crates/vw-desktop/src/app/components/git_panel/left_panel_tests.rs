@@ -144,7 +144,7 @@ fn view_builds_in_progress_commit_state() {
     app.staged_hunks_selected.push(("src/lib.rs".to_string(), 1));
 
     app.git_commit_in_progress = true;
-    app.file_manager_refresh_frame = 2;
+    app.file_manager.file_manager_refresh_frame = 2;
     let _element = super::left_panel::view(&app);
 }
 
@@ -415,7 +415,7 @@ async fn git_commit_form_preserves_messages_and_validation() {
     let mut renderer = form_renderer().await;
     let mut app = test_app();
     app.show_git_diff_summary = true;
-    app.file_manager_show_changes = true;
+    app.file_manager.file_manager_show_changes = true;
     app.git_commit_type = None;
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.staged_files_selected.push("src/example.rs".into());

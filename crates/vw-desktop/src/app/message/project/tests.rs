@@ -69,9 +69,9 @@ fn update_dispatches_file_tree_message() {
         ),
     );
 
-    assert_eq!(app.file_tree_menu_path.as_deref(), Some("/tmp/project/src/main.rs"));
-    assert_eq!(app.file_tree_menu_source.as_deref(), Some("tree"));
-    assert_eq!(app.file_tree_menu_anchor, Some(iced::Point::new(12.0, 24.0)));
+    assert_eq!(app.file_tree_interaction.file_tree_menu_path.as_deref(), Some("/tmp/project/src/main.rs"));
+    assert_eq!(app.file_tree_interaction.file_tree_menu_source.as_deref(), Some("tree"));
+    assert_eq!(app.file_tree_interaction.file_tree_menu_anchor, Some(iced::Point::new(12.0, 24.0)));
 }
 
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。

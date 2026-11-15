@@ -39,12 +39,12 @@ fn preview_tab(title: &str) -> PreviewTab {
 fn viewport_width_accounts_for_file_manager_and_diff_split() {
     let mut app = test_app();
     app.window_size = (1000.0, 700.0);
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.show_diff = false;
 
     assert_eq!(estimate_preview_tabs_viewport_width(&app), 982.0);
 
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.file_manager_width = 240.0;
     assert_eq!(estimate_preview_tabs_viewport_width(&app), 734.0);
 
@@ -59,17 +59,17 @@ fn viewport_width_accounts_for_file_manager_and_diff_split() {
 #[test]
 fn viewport_width_clamps_small_layouts_and_diff_ratio() {
     let mut app = test_app();
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.show_diff = false;
     app.window_size = (0.0, 700.0);
     assert_eq!(estimate_preview_tabs_viewport_width(&app), 1.0);
 
     app.window_size = (1000.0, 700.0);
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.file_manager_width = 2000.0;
     assert_eq!(estimate_preview_tabs_viewport_width(&app), 1.0);
 
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.show_diff = true;
     app.split_ratio = 2.0;
     assert_close(estimate_preview_tabs_viewport_width(&app), 180.4);
@@ -97,7 +97,7 @@ fn scrollbar_visibility_tracks_estimated_tab_widths() {
 #[test]
 fn scrollbar_visibility_uses_strict_boundary_and_tab_spacing() {
     let mut app = test_app();
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.show_diff = false;
     app.preview_tabs = vec![preview_tab("")];
 

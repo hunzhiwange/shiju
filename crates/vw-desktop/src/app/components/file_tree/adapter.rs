@@ -2,17 +2,17 @@ use crate::app::{App, Message};
 use crate::app::message::ProjectMessage;
 pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
     desktop_file_tree::FileTreeView {
-        file_tree_drop_target: &app.file_tree_drop_target,
-        file_tree_operation_in_progress: app.file_tree_operation_in_progress,
-        file_tree_selection: &app.file_tree_selection,
+        file_tree_drop_target: &app.file_tree_interaction.file_tree_drop_target,
+        file_tree_operation_in_progress: app.file_tree_interaction.file_tree_operation_in_progress,
+        file_tree_selection: &app.file_tree_interaction.file_tree_selection,
         file_tree_expanded_set: &app.file_tree_expanded_set,
         git_changed_files: &app.git_changed_files,
         git_changed_files_loading: app.git_changed_files_loading,
         git_focused_file: &app.git_focused_file,
-        file_manager_refresh_frame: app.file_manager_refresh_frame,
-        file_manager_changes_refreshing: app.file_manager_changes_refreshing,
-        file_manager_file_tree_refreshing: app.file_manager_file_tree_refreshing,
-        file_manager_show_changes: app.file_manager_show_changes,
+        file_manager_refresh_frame: app.file_manager.file_manager_refresh_frame,
+        file_manager_changes_refreshing: app.file_manager.file_manager_changes_refreshing,
+        file_manager_file_tree_refreshing: app.file_manager.file_manager_file_tree_refreshing,
+        file_manager_show_changes: app.file_manager.file_manager_show_changes,
         file_index: app.current_file_index(),
         file_tree_model: app.current_file_tree_model(),
         desktop_locale: app.desktop_locale,
@@ -21,12 +21,12 @@ pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
         active_find_results_tab_id: &app.active_find_results_tab_id,
         find_results_tab_menu_id: &app.find_results_tab_menu_id,
         find_results_tab_menu_pos: app.find_results_tab_menu_pos,
-        file_tree_rename_value: &app.file_tree_rename_value,
-        file_tree_rename_path: &app.file_tree_rename_path,
-        file_tree_menu_path: &app.file_tree_menu_path,
-        file_tree_menu_source: &app.file_tree_menu_source,
-        file_tree_menu_anchor: app.file_tree_menu_anchor,
-        can_paste: app.file_tree_clipboard.is_some(),
+        file_tree_rename_value: &app.file_tree_interaction.file_tree_rename_value,
+        file_tree_rename_path: &app.file_tree_interaction.file_tree_rename_path,
+        file_tree_menu_path: &app.file_tree_interaction.file_tree_menu_path,
+        file_tree_menu_source: &app.file_tree_interaction.file_tree_menu_source,
+        file_tree_menu_anchor: app.file_tree_interaction.file_tree_menu_anchor,
+        can_paste: app.file_tree_interaction.file_tree_clipboard.is_some(),
     }
 }
 pub(super) fn map(message: desktop_file_tree::Message) -> Message {

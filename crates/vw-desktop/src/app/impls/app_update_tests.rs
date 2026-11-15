@@ -214,7 +214,7 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     assert!(app.show_settings);
     assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
     assert!(!app.work_sidebar_collapsed);
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.show_file_manager);
     assert_eq!(app.file_manager_width, 600.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
     assert_eq!(app.file_tree_expanded, ["src", "crates"]);
@@ -292,8 +292,8 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
     assert_eq!(app.acp_agent.as_deref(), Some("existing-agent"));
     assert!(app.auto_max_mode);
     assert!(app.show_settings);
-    assert!(app.show_file_manager);
-    assert!(app.file_manager_show_changes);
+    assert!(app.file_manager.show_file_manager);
+    assert!(app.file_manager.file_manager_show_changes);
     assert!(app.terminal.is_visible);
     assert_eq!(app.file_manager_width, 180.0);
     assert_eq!(app.file_manager_start_width, 180.0);

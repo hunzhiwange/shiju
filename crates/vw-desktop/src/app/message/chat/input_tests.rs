@@ -618,7 +618,7 @@ fn simple_input_flags_update_directly() {
     let (mut app, _) = crate::app::App::new();
 
     let _ = super::update(&mut app, ChatMessage::InputAreaDragHoverChanged(true));
-    assert!(app.input_drop_hovered);
+    assert!(app.file_tree_interaction.input_drop_hovered);
     let _ = super::update(&mut app, ChatMessage::FileReferenceHoverChanged(Some(2)));
     assert_eq!(app.file_ref_hovered_index, Some(2));
     let _ = super::update(&mut app, ChatMessage::ToolFilesFilterChanged("rs".to_string()));

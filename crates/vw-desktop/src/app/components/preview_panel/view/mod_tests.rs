@@ -58,7 +58,7 @@ fn app_view_builds_preview_settings_overlay_when_enabled() {
 fn view_builds_changes_layout_without_preview_header() {
     let mut app = app();
     app.screen = Screen::Project;
-    app.file_manager_show_changes = true;
+    app.file_manager.file_manager_show_changes = true;
 
     keep(view(&app));
 }
@@ -68,7 +68,7 @@ fn view_builds_preview_without_an_active_file() {
     let mut app = app();
     app.screen = Screen::Preview;
     app.active_preview_path = None;
-    app.file_manager_show_changes = false;
+    app.file_manager.file_manager_show_changes = false;
 
     keep(view(&app));
 }

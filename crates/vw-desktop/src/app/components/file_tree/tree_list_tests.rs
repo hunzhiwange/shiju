@@ -35,9 +35,9 @@ fn tree_list_builds_fallback_model_with_expanded_selection_and_file_menu() {
     app.file_tree_expanded_set.insert("src".to_string());
     app.file_tree_expanded_set.insert("src/nested".to_string());
     app.active_preview_path = Some("/tmp/demo/src/main.rs".to_string());
-    app.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
-    app.file_tree_menu_source = Some("tree-file".to_string());
-    app.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("tree-file".to_string());
+    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
 
     let _ = build_file_tree_list(&app);
 }
@@ -50,8 +50,8 @@ fn tree_list_builds_cached_model_with_directory_menu() {
     app.file_tree_model_cache
         .insert("/tmp/demo".to_string(), build_file_tree_model("/tmp/demo", &files));
     app.file_tree_expanded_set.insert("src".to_string());
-    app.file_tree_menu_path = Some("/tmp/demo/src".to_string());
-    app.file_tree_menu_source = Some("tree-dir".to_string());
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("tree-dir".to_string());
 
     let _ = build_file_tree_list(&app);
 }
@@ -77,9 +77,9 @@ fn changes_list_builds_root_and_nested_files_with_directory_menu() {
         vec!["README.md".to_string(), "src/main.rs".to_string(), "src/nested/lib.rs".to_string()];
     app.file_tree_expanded_set.insert("chg:src".to_string());
     app.git_focused_file = Some("src/main.rs".to_string());
-    app.file_tree_menu_path = Some("/tmp/demo/src/nested".to_string());
-    app.file_tree_menu_source = Some("changes-dir".to_string());
-    app.file_tree_menu_anchor = Some(iced::Point::new(8.0, 16.0));
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src/nested".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("changes-dir".to_string());
+    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(8.0, 16.0));
 
     let _ = build_changes_list(&app);
 }
@@ -91,8 +91,8 @@ fn changes_list_builds_expanded_file_menu_for_selected_file() {
     app.git_changed_files = vec!["src/main.rs".to_string()];
     app.file_tree_expanded_set.insert("chg:src".to_string());
     app.git_focused_file = Some("src/main.rs".to_string());
-    app.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
-    app.file_tree_menu_source = Some("changes-file".to_string());
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("changes-file".to_string());
 
     let _ = build_changes_list(&app);
 }
@@ -102,9 +102,9 @@ fn changes_list_builds_root_file_menu_without_project_path() {
     let mut app = App::new().0;
     app.git_changed_files = vec!["README.md".to_string()];
     app.git_focused_file = Some("README.md".to_string());
-    app.file_tree_menu_path = Some("README.md".to_string());
-    app.file_tree_menu_source = Some("changes-file".to_string());
-    app.file_tree_menu_anchor = Some(iced::Point::new(4.0, 6.0));
+    app.file_tree_interaction.file_tree_menu_path = Some("README.md".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("changes-file".to_string());
+    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(4.0, 6.0));
 
     let element = build_changes_list(&app);
 
@@ -118,14 +118,14 @@ fn tree_lists_build_collapsed_directories_and_ignore_mismatched_menu_sources() {
     let files = vec!["/tmp/demo/src/nested/lib.rs".to_string()];
     app.file_tree_model_cache
         .insert("/tmp/demo".to_string(), build_file_tree_model("/tmp/demo", &files));
-    app.file_tree_menu_path = Some("/tmp/demo/src".to_string());
-    app.file_tree_menu_source = Some("changes-dir".to_string());
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/demo/src".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("changes-dir".to_string());
 
     let _collapsed_tree = build_file_tree_list(&app);
     drop(_collapsed_tree);
 
     app.git_changed_files = vec!["src/nested/lib.rs".to_string()];
-    app.file_tree_menu_source = Some("tree-dir".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("tree-dir".to_string());
 
     let _collapsed_changes = build_changes_list(&app);
 }
@@ -147,7 +147,7 @@ fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
             &mut app,
             ProjectMessage::FileTreeDropTargetChanged(Some("/project/target".into())),
         );
-        assert_eq!(app.file_tree_drop_target.as_deref(), Some("/project/target"));
+        assert_eq!(app.file_tree_interaction.file_tree_drop_target.as_deref(), Some("/project/target"));
         let request = ProjectMessage::FileTreeDropRequested {
             project_path: "/project".into(),
             source_path: "/project/source".into(),
@@ -160,11 +160,11 @@ fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
             let _ = project::update(&mut app, request);
             let _ = project::update(&mut app, ProjectMessage::FileTreeDragEnd);
         }
-        assert!(app.file_tree_drag_source.is_none());
-        assert!(app.file_tree_drop_target.is_none());
-        assert!(app.dragging_file_paths.is_empty());
-        assert!(app.pending_drop_file_paths.is_empty());
-        assert!(app.file_tree_operation_in_progress);
+        assert!(app.file_tree_interaction.file_tree_drag_source.is_none());
+        assert!(app.file_tree_interaction.file_tree_drop_target.is_none());
+        assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
+        assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+        assert!(app.file_tree_interaction.file_tree_operation_in_progress);
     }
 }
 
@@ -179,9 +179,9 @@ fn file_tree_drop_chat_sources_and_busy_operations_do_not_enable_move_state() {
         &mut app,
         ProjectMessage::FileTreeDropTargetChanged(Some("/project".into())),
     );
-    assert!(app.file_tree_drag_source.is_none());
-    assert!(app.file_tree_drop_target.is_none());
-    app.file_tree_operation_in_progress = true;
+    assert!(app.file_tree_interaction.file_tree_drag_source.is_none());
+    assert!(app.file_tree_interaction.file_tree_drop_target.is_none());
+    app.file_tree_interaction.file_tree_operation_in_progress = true;
     let _ = project::update(
         &mut app,
         ProjectMessage::FileTreeInternalDragStart {
@@ -189,7 +189,7 @@ fn file_tree_drop_chat_sources_and_busy_operations_do_not_enable_move_state() {
             source_path: "/project/file".into(),
         },
     );
-    assert!(app.file_tree_drag_source.is_none());
+    assert!(app.file_tree_interaction.file_tree_drag_source.is_none());
 }
 
 pub(super) struct RowScene<'a> {

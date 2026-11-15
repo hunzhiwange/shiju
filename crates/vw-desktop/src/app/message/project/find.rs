@@ -404,7 +404,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_find_results_tab_id = Some(tab_id.clone());
 
             // 确保文件管理器可见
-            app.show_file_manager = true;
+            app.file_manager.show_file_manager = true;
 
             // 生成打开标签页的 ID（格式：find:{tab_id}）
             let open_tab_id = format!("find:{}", tab_id);
@@ -493,7 +493,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_find_results_tab_id = Some(tab_id.clone());
 
             // 确保文件管理器可见
-            app.show_file_manager = true;
+            app.file_manager.show_file_manager = true;
 
             // 如果打开标签页列表中不存在此标签页，则添加
             if !app.open_tabs.iter().any(|t| t.id == open_tab_id) {
@@ -535,7 +535,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 app.active_find_results_tab_id = Some(id);
 
                 // 点击搜索标签时文件管理器已可见；避免在 UI 主线程同步读写配置文件。
-                app.show_file_manager = true;
+                app.file_manager.show_file_manager = true;
             }
             Some(iced::Task::none())
         }

@@ -7,7 +7,7 @@ use crate::app::App;
 
 fn layout(app: &App) -> PreviewTabsLayout {
     PreviewTabsLayout {
-        window_width: app.window_size.0, show_file_manager: app.show_file_manager,
+        window_width: app.window_size.0, show_file_manager: app.file_manager.show_file_manager,
         file_manager_width: app.file_manager_width, show_diff: app.show_diff, split_ratio: app.split_ratio,
     }
 }

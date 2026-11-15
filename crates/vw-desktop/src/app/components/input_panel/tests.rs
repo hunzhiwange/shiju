@@ -372,8 +372,8 @@ fn input_panel_view_renders_default_task_queue_and_overlay_states() {
 #[test]
 fn input_panel_view_renders_drag_hover_and_send_mode_state() {
     let mut app = crate::app::App::new().0;
-    app.dragging_file_paths = vec!["src/main.rs".to_string()];
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.dragging_file_paths = vec!["src/main.rs".to_string()];
+    app.file_tree_interaction.input_drop_hovered = true;
     app.show_send_mode_popover = true;
     app.chat_send_behavior = ChatSendBehavior::StopAndSend;
 
@@ -388,8 +388,8 @@ fn input_panel_view_renders_app_level_acp_history_and_pending_drop_hover() {
     app.acp_agent = Some("codex".to_string());
     app.acp_history_mode = AcpHistoryReplayMode::Recent;
     app.acp_recent_count = 7;
-    app.pending_drop_file_paths = vec!["src/lib.rs".to_string()];
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.pending_drop_file_paths = vec!["src/lib.rs".to_string()];
+    app.file_tree_interaction.input_drop_hovered = true;
     app.chat_todo_session_id = Some("other-session".to_string());
     app.chat_todo_items = vec![todo("1", "pending", "hidden because session differs")];
     app.input_editor = iced::widget::text_editor::Content::with_text("hello");

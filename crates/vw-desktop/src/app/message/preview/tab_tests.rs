@@ -226,8 +226,8 @@ fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
     let mut app = app();
     app.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.show_file_manager = true;
-    app.file_manager_show_changes = false;
+    app.file_manager.show_file_manager = true;
+    app.file_manager.file_manager_show_changes = false;
     app.screen = Screen::Project;
 
     let task = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
@@ -245,8 +245,8 @@ fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
 fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
     let mut app = app();
     app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
-    app.show_file_manager = true;
-    app.file_manager_show_changes = false;
+    app.file_manager.show_file_manager = true;
+    app.file_manager.file_manager_show_changes = false;
     app.screen = Screen::Home;
 
     let _ = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
@@ -266,8 +266,8 @@ fn open_new_instant_preview_creates_tab_and_only_schedules_preferences_save() {
     let mut app = app();
     app.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.screen = Screen::Project;
-    app.show_file_manager = false;
-    app.file_manager_show_changes = true;
+    app.file_manager.show_file_manager = false;
+    app.file_manager.file_manager_show_changes = true;
 
     let task = update(&mut app, PreviewMessage::Open("/tmp/image.png".to_string()));
 
@@ -275,8 +275,8 @@ fn open_new_instant_preview_creates_tab_and_only_schedules_preferences_save() {
     assert_eq!(app.preview_tabs[0].path, "/tmp/image.png");
     assert_eq!(app.preview_tabs[0].title, "image.png");
     assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/image.png"));
-    assert!(app.show_file_manager);
-    assert!(!app.file_manager_show_changes);
+    assert!(app.file_manager.show_file_manager);
+    assert!(!app.file_manager.file_manager_show_changes);
     assert!(app.show_diff);
     assert_eq!(task.units(), 1);
 }

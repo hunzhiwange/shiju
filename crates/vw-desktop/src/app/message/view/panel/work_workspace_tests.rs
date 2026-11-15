@@ -22,7 +22,7 @@ struct CodeLayoutSnapshot {
 fn code_layout_snapshot(app: &App) -> CodeLayoutSnapshot {
     CodeLayoutSnapshot {
         show_diff: app.show_diff,
-        show_file_manager: app.show_file_manager,
+        show_file_manager: app.file_manager.show_file_manager,
         split_ratio: app.split_ratio,
         chat_panel_fullscreen: app.chat_panel_fullscreen,
         chat_panel_half_fullscreen: app.chat_panel_half_fullscreen,
@@ -39,7 +39,7 @@ fn code_layout_snapshot(app: &App) -> CodeLayoutSnapshot {
 fn work_workspace_messages_preserve_code_layout_preferences() {
     let mut app = App::new().0;
     app.show_diff = false;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
     app.chat_panel_half_fullscreen = true;

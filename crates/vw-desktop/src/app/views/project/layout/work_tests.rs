@@ -21,7 +21,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
     let mut app = App::new().0;
     app.show_settings = true;
     app.show_diff = false;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.terminal.is_visible = false;
     app.chat_panel_fullscreen = false;
     app.git_diff_fullscreen = false;
@@ -32,7 +32,7 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
     };
 
     app.show_diff = true;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.chat_panel_fullscreen = true;
     app.git_diff_fullscreen = true;
 

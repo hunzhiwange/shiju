@@ -713,7 +713,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::InputAreaDragDrop => file_search::handle_input_area_drag_drop(app),
         ChatMessage::InputAreaDragHoverChanged(value) => {
-            app.input_drop_hovered = value;
+            app.file_tree_interaction.input_drop_hovered = value;
             Task::none()
         }
         ChatMessage::OpenMessageContextMenu { target, x, y, text } => {

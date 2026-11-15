@@ -138,7 +138,7 @@ fn chat_text_diff_open_and_close_update_panel_state() {
     assert_eq!(app.git_custom_diff_before_editor.text(), "a");
     assert_eq!(app.git_custom_diff_after_editor.text(), "b");
     assert!(app.show_diff);
-    assert!(app.file_manager_show_changes);
+    assert!(app.file_manager.file_manager_show_changes);
     assert!(app.active_preview_path.is_none());
 
     let _ = update(&mut app, GitMessage::CloseChatTextDiff);

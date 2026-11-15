@@ -255,7 +255,7 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
     app.dragging_file_manager = true;
     app.file_manager_drag_anchor_x = Some(42.0);
     let _ = super::update(&mut app, ViewMessage::FileManagerPanelVisible(false));
-    assert!(!app.show_file_manager);
+    assert!(!app.file_manager.show_file_manager);
     assert!(!app.dragging_file_manager);
     assert_eq!(app.file_manager_drag_anchor_x, None);
 

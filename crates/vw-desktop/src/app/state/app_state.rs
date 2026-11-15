@@ -397,18 +397,9 @@ pub struct App {
     pub(crate) file_manager_drag_anchor_x: Option<f32>,
     /// 文件管理器面板拖动起始宽度
     pub(crate) file_manager_start_width: f32,
-    /// 文件管理器是否显示变更
-    pub(crate) file_manager_show_changes: bool,
-    /// 文件管理器刷新动画帧
-    pub(crate) file_manager_refresh_frame: usize,
+    pub(crate) file_manager: desktop_workspace::file_manager::FileManagerState,
     /// 通用状态动画帧
     pub(crate) status_animation_frame: usize,
-    /// 文件管理器 Git 更改列表是否正在手动刷新
-    pub(crate) file_manager_changes_refreshing: bool,
-    /// 文件管理器文件树是否正在手动刷新
-    pub(crate) file_manager_file_tree_refreshing: bool,
-    /// 是否显示文件管理器
-    pub(crate) show_file_manager: bool,
     /// 是否显示模型选择弹出框
     pub(crate) show_model_popover: bool,
     /// 是否显示模式选择弹出框
@@ -925,36 +916,7 @@ pub struct App {
     pub(crate) file_tree_expanded: Vec<String>,
     /// 展开的文件树路径集合（用于快速查询）
     pub(crate) file_tree_expanded_set: HashSet<String>,
-    /// 当前项目的文件树多选与连选锚点
-    pub(crate) file_tree_selection: crate::app::components::file_tree::selection::FileTreeSelection,
-    /// 文件树右键菜单的目标路径
-    pub(crate) file_tree_menu_path: Option<String>,
-    /// 文件树右键菜单的锚点位置
-    pub(crate) file_tree_menu_anchor: Option<Point>,
-    /// 文件树右键菜单的来源（如 "tree"、"tab" 等）
-    pub(crate) file_tree_menu_source: Option<String>,
-    /// 文件树剪贴板内容
-    pub(crate) file_tree_clipboard: Option<FileTreeClipboard>,
-    /// 正在拖动的文件路径列表
-    pub(crate) dragging_file_paths: Vec<String>,
-    /// 普通树的移动来源，与搜索/变更列表的聊天拖入分离。
-    pub(crate) file_tree_drag_source: Option<(String, String)>,
-    pub(crate) file_tree_drop_target: Option<String>,
-    pub(crate) file_tree_operation_in_progress: bool,
-    /// 正在拖动文件的插入位置（兄弟索引，子索引）
-    pub(crate) dragging_file_position: Option<(usize, usize)>,
-    /// 待放置的文件路径列表
-    pub(crate) pending_drop_file_paths: Vec<String>,
-    /// 待放置文件的插入位置
-    pub(crate) pending_drop_file_position: Option<(usize, usize)>,
-    /// 输入框是否有文件悬停（用于拖放高亮）
-    pub(crate) input_drop_hovered: bool,
-    /// 正在重命名的文件路径
-    pub(crate) file_tree_rename_path: Option<String>,
-    /// 文件重命名输入值
-    pub(crate) file_tree_rename_value: String,
-    /// 等待确认删除的项目路径和目标路径。
-    pub(crate) file_tree_pending_delete: Option<(String, Vec<String>)>,
+    pub(crate) file_tree_interaction: desktop_workspace::interaction::InteractionState,
     /// 文件搜索查询文本
     pub(crate) file_search_query: String,
     /// 是否显示文件搜索面板

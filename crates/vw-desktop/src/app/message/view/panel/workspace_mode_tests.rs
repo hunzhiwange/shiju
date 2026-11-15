@@ -10,7 +10,7 @@ fn workspace_mode_message_preserves_code_panel_preferences() {
     app.workspace_mode = WorkspaceMode::Code;
     app.show_workspace_mode_popover = true;
     app.show_diff = true;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.terminal.is_visible = true;
     let file_manager_width = app.file_manager_width;
     let terminal_height = app.terminal.height;
@@ -21,7 +21,7 @@ fn workspace_mode_message_preserves_code_panel_preferences() {
     assert_eq!(app.workspace_mode, WorkspaceMode::Work);
     assert!(!app.show_workspace_mode_popover);
     assert!(app.show_diff);
-    assert!(!app.show_file_manager);
+    assert!(!app.file_manager.show_file_manager);
     assert!(app.terminal.is_visible);
     assert_eq!(app.file_manager_width, file_manager_width);
 
@@ -29,7 +29,7 @@ fn workspace_mode_message_preserves_code_panel_preferences() {
 
     assert_eq!(app.workspace_mode, WorkspaceMode::Code);
     assert!(app.show_diff);
-    assert!(!app.show_file_manager);
+    assert!(!app.file_manager.show_file_manager);
     assert!(app.terminal.is_visible);
     assert_eq!(app.file_manager_width, file_manager_width);
     assert_eq!(app.terminal.height, terminal_height);

@@ -413,7 +413,7 @@ fn changed_files_ready_updates_files_and_clears_selection() {
     let (mut app, _task) = crate::app::App::new();
     app.git_changed_files_repo_path = Some("/repo".to_string());
     app.git_changed_files_loading = true;
-    app.file_manager_changes_refreshing = true;
+    app.file_manager.file_manager_changes_refreshing = true;
     app.git_diff_selected_lines.push(crate::app::state::GitDiffSelectedLine {
         file: "old.rs".to_string(),
         line: 1,
@@ -446,7 +446,7 @@ fn changed_files_ready_updates_files_and_clears_selection() {
 
     assert_eq!(app.git_changed_files, vec!["src/main.rs"]);
     assert!(!app.git_changed_files_loading);
-    assert!(!app.file_manager_changes_refreshing);
+    assert!(!app.file_manager.file_manager_changes_refreshing);
     assert!(app.git_diff_selected_lines.is_empty());
     assert!(app.git_diff_selected_range.is_none());
     assert!(app.git_diff_comment_draft.is_none());
@@ -460,8 +460,8 @@ fn changed_files_ready_updates_files_and_clears_selection() {
 fn changed_files_ready_expands_change_list_dirs_when_showing_changes() {
     let (mut app, _task) = crate::app::App::new();
     app.git_changed_files_repo_path = Some("/repo".to_string());
-    app.file_manager_show_changes = true;
-    app.file_manager_changes_refreshing = false;
+    app.file_manager.file_manager_show_changes = true;
+    app.file_manager.file_manager_changes_refreshing = false;
 
     let _task = super::refresh::update(
         &mut app,
@@ -480,7 +480,7 @@ fn changed_files_ready_expands_change_list_dirs_when_showing_changes() {
 fn changed_files_ready_without_manual_refresh_does_not_create_toast() {
     let (mut app, _task) = crate::app::App::new();
     app.git_changed_files_repo_path = Some("/repo".to_string());
-    app.file_manager_changes_refreshing = false;
+    app.file_manager.file_manager_changes_refreshing = false;
     app.active_toast = None;
 
     let _task = super::refresh::update(

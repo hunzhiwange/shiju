@@ -457,14 +457,14 @@ impl App {
         }
         self.show_settings =
             cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.show_settings);
-        self.show_file_manager = cfg
+        self.file_manager.show_file_manager = cfg
             .get("show_file_manager")
             .and_then(|v| v.as_bool())
-            .unwrap_or(self.show_file_manager);
-        self.file_manager_show_changes = cfg
+            .unwrap_or(self.file_manager.show_file_manager);
+        self.file_manager.file_manager_show_changes = cfg
             .get("file_manager_show_changes")
             .and_then(|v| v.as_bool())
-            .unwrap_or(self.file_manager_show_changes);
+            .unwrap_or(self.file_manager.file_manager_show_changes);
         if let Some(visible) = cfg.get("show_terminal").and_then(|v| v.as_bool()) {
             self.terminal.set_visible(visible);
         }

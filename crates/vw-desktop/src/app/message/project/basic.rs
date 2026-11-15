@@ -52,10 +52,10 @@ fn ensure_file_manager_changes_expanded(
     app: &mut App,
     extra_paths: impl IntoIterator<Item = String>,
 ) -> iced::Task<Message> {
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     let mut fields = Map::from_iter([("show_file_manager".into(), Value::Bool(true))]);
-    if !app.file_manager_show_changes {
-        app.file_manager_show_changes = true;
+    if !app.file_manager.file_manager_show_changes {
+        app.file_manager.file_manager_show_changes = true;
         fields.insert("file_manager_show_changes".into(), Value::Bool(true));
     }
     let mut paths = app.git_changed_files.clone();
@@ -104,20 +104,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理"打开文件"按钮点击事件
         // 在非 wasm32 平台上弹出文件选择对话框，选择后打开预览
         ProjectMessage::OpenFilePressed => Some(iced::Task::perform(
-            async {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let handle = rfd::AsyncFileDialog::new().pick_file().await;
-                    if let Some(file) = handle {
-                        return Some(file.path().to_string_lossy().to_string());
-                    }
-                    None
-                }
-                #[cfg(target_arch = "wasm32")]
-                {
-                    None
-                }
-            },
+            desktop_workspace::basic::pick_file(),
             |opt| {
                 if let Some(path) = opt {
                     Message::Preview(crate::app::message::PreviewMessage::Open(path))
@@ -130,8 +117,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 在非 wasm32 平台上弹出文件夹选择对话框，选择后打开项目并建立索引
         ProjectMessage::OpenFolderPressed => {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(dir) = rfd::FileDialog::new().pick_folder()
-                && let Some(path) = dir.to_str()
+            if let Some(path) = desktop_workspace::basic::pick_folder()
             {
                 return Some(app.open_project_and_index(path.to_string()));
             }
@@ -140,15 +126,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理"打开项目"按钮点击事件
         // 如果输入框为空则使用当前目录，否则使用输入的路径
         ProjectMessage::OpenProjectPressed => {
-            if app.project_path_input.is_empty() {
-                #[cfg(not(target_arch = "wasm32"))]
-                if let Ok(cd) = std::env::current_dir()
-                    && let Some(path) = cd.to_str()
-                {
-                    return Some(app.open_project_and_index(path.to_string()));
-                }
-            } else {
-                return Some(app.open_project_and_index(app.project_path_input.clone()));
+            if let Some(path) = desktop_workspace::basic::project_path_to_open(&app.project_path_input) {
+                return Some(app.open_project_and_index(path));
             }
             Some(iced::Task::none())
         }
@@ -179,14 +158,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             #[cfg(not(target_arch = "wasm32"))]
             {
                 Some(iced::Task::perform(
-                    async move {
-                        rfd::AsyncFileDialog::new().pick_files().await.map(|handles| {
-                            handles
-                                .into_iter()
-                                .map(|file| file.path().to_string_lossy().to_string())
-                                .collect::<Vec<_>>()
-                        })
-                    },
+                    desktop_workspace::basic::pick_attachments(),
                     |picked| Message::Project(ProjectMessage::AttachmentFilesPicked(picked)),
                 ))
             }
@@ -244,8 +216,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if app.project_path.as_deref() != Some(project_path.as_str()) {
                 return Some(iced::Task::none());
             }
-            if app.file_manager_file_tree_refreshing {
-                app.file_manager_file_tree_refreshing = false;
+            if app.file_manager.complete_tree_refresh() {
                 return Some(app.show_localized_toast(
                     crate::app::state::ToastKind::Success,
                     "文件树已刷新",
@@ -260,8 +231,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(path) = app.project_path.clone() {
                 app.set_file_index(&path, files);
             }
-            if app.file_manager_file_tree_refreshing {
-                app.file_manager_file_tree_refreshing = false;
+            if app.file_manager.complete_tree_refresh() {
                 return Some(app.show_localized_toast(
                     crate::app::state::ToastKind::Success,
                     "文件树已刷新",
@@ -280,14 +250,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 处理文件管理器显示模式切换事件
         // 切换文件管理器在"文件浏览"和"Git 变更"模式之间
         ProjectMessage::FileManagerShowChanges(b) => {
-            app.file_manager_show_changes = b;
+            app.file_manager.select_changes(b);
             app.active_find_results_tab_id = None;
             if b {
                 // 当切换到"变更"模式时，清除活动预览选择，
                 // 以便右侧面板可以渲染 Git diff 面板而不是停留在已打开的预览标签页
                 app.active_preview_path = None;
             }
-            app.show_file_manager = true;
             let mut fields = Map::from_iter([
                 ("file_manager_show_changes".into(), Value::Bool(b)),
                 ("show_file_manager".into(), Value::Bool(true)),
@@ -313,37 +282,31 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             })
         }
         ProjectMessage::FileManagerRefreshChanges => {
-            if app.git_changed_files_loading || app.file_manager_changes_refreshing {
+            let Some(refresh) = app.file_manager.begin_changes_refresh(app.git_changed_files_loading) else {
                 return Some(iced::Task::none());
-            }
-            app.file_manager_changes_refreshing = true;
+            };
             let mut tasks = vec![iced::Task::done(Message::Git(
                 crate::app::message::GitMessage::RefreshGitPanelData,
             ))];
-            if !app.file_manager_file_tree_refreshing {
+            if refresh.schedule_tick {
                 tasks.push(schedule_file_manager_refresh_tick());
             }
             Some(iced::Task::batch(tasks))
         }
         ProjectMessage::FileManagerRefreshFileTree => {
-            if app.file_manager_file_tree_refreshing {
+            let Some(refresh) = app.file_manager.begin_tree_refresh() else {
                 return Some(iced::Task::none());
-            }
-            app.file_manager_file_tree_refreshing = true;
+            };
             let mut tasks = vec![crate::app::message::project::helpers::refresh_file_index(app)];
-            if !app.file_manager_changes_refreshing {
+            if refresh.schedule_tick {
                 tasks.push(schedule_file_manager_refresh_tick());
             }
             Some(iced::Task::batch(tasks))
         }
         ProjectMessage::FileManagerRefreshAnimationTick => {
-            if !app.file_manager_changes_refreshing
-                && !app.file_manager_file_tree_refreshing
-                && !app.git_commit_in_progress
-            {
+            if !app.file_manager.tick(app.git_commit_in_progress) {
                 return Some(iced::Task::none());
             }
-            app.file_manager_refresh_frame = app.file_manager_refresh_frame.wrapping_add(1);
             Some(schedule_file_manager_refresh_tick())
         }
         // 处理打开 Git 变更文件事件
@@ -364,12 +327,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 在聊天输入框的光标位置插入文件引用（格式：@相对路径:行号:列号）
         ProjectMessage::FileTreeAddToChat { path, line, column } => {
             if let Some(root) = &app.project_path
-                && let Ok(rel_path) = std::path::Path::new(&path).strip_prefix(root)
+                && let Some(mention) = desktop_workspace::basic::file_mention(root, &path, line, column)
             {
-                // 将路径转换为相对路径并统一使用正斜杠
-                let rel = rel_path.to_string_lossy().replace('\\', "/");
-                // 构建文件引用格式的字符串
-                let mention = format!("@{}:{}:{} ", rel, line, column);
                 // 关闭文件搜索弹窗
                 app.show_file_search = false;
                 app.file_search_query.clear();

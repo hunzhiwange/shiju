@@ -135,7 +135,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 app.git_changed_files.clear();
                 app.git_changed_files_loading = false;
                 app.git_changed_files_repo_path = None;
-                app.file_manager_changes_refreshing = false;
+                app.file_manager.file_manager_changes_refreshing = false;
                 return Task::none();
             };
 
@@ -204,13 +204,13 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             }
             app.git_changed_files = files;
             app.git_changed_files_loading = false;
-            let was_manual_refresh = app.file_manager_changes_refreshing;
-            app.file_manager_changes_refreshing = false;
+            let was_manual_refresh = app.file_manager.file_manager_changes_refreshing;
+            app.file_manager.file_manager_changes_refreshing = false;
             app.git_diff_selected_lines.clear();
             app.git_diff_selected_range = None;
             app.git_diff_comment_draft = None;
 
-            let save_task = if app.file_manager_show_changes {
+            let save_task = if app.file_manager.file_manager_show_changes {
                 for key in crate::app::components::file_tree::change_list_expand_keys(
                     app.git_changed_files.iter().map(String::as_str),
                 ) {

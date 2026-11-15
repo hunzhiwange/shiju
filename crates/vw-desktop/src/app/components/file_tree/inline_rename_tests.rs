@@ -7,7 +7,7 @@ use iced_runtime::user_interface::{Cache, UserInterface};
 async fn inline_editor_renders_chinese_and_submits_without_row_actions() {
     let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
     let (mut app, _) = App::new();
-    app.file_tree_rename_value = "原始视频.mov—用于检查中文与超长名称的原位编辑".into();
+    app.file_tree_interaction.file_tree_rename_value = "原始视频.mov—用于检查中文与超长名称的原位编辑".into();
     for theme in [Theme::Light, Theme::Dark] {
         for directory in [false, true] {
             let mut ui = UserInterface::build(
@@ -70,8 +70,8 @@ async fn inline_editor_preserves_tree_row_alignment() {
                 let icon = original.icon(name).clone();
                 let label = original.label(name);
                 drop(original);
-                app.file_tree_rename_path = Some(format!("/tree-fixture/{path}"));
-                app.file_tree_rename_value = name.into();
+                app.file_tree_interaction.file_tree_rename_path = Some(format!("/tree-fixture/{path}"));
+                app.file_tree_interaction.file_tree_rename_value = name.into();
                 let renamed = RowScene::new(build(&app), &mut renderer, &theme);
                 assert_eq!(renamed.inputs.len(), 1);
                 let input = renamed.inputs[0];
@@ -103,8 +103,8 @@ async fn inline_editor_keeps_original_tree_height() {
         let mut tree = Tree::new(&element);
         element.as_widget_mut().layout(&mut tree, &renderer, &limits).size()
     };
-    app.file_tree_rename_path = Some("/tree/中文.md".into());
-    app.file_tree_rename_value = "中文.md".into();
+    app.file_tree_interaction.file_tree_rename_path = Some("/tree/中文.md".into());
+    app.file_tree_interaction.file_tree_rename_value = "中文.md".into();
     let mut element = build_file_tree_list(&app);
     let mut tree = Tree::new(&element);
     let renamed = element.as_widget_mut().layout(&mut tree, &renderer, &limits).size();
@@ -135,8 +135,8 @@ async fn tree_gutter_remains_continuous_through_inline_rename() {
             for (path, name) in [("sp7/.shiju", ".shiju"), ("sp7/.shiju/配置.json", "配置.json")]
             {
                 let mut app = alignment_app();
-                app.file_tree_rename_path = Some(format!("/tree-fixture/{path}"));
-                app.file_tree_rename_value = name.into();
+                app.file_tree_interaction.file_tree_rename_path = Some(format!("/tree-fixture/{path}"));
+                app.file_tree_interaction.file_tree_rename_value = name.into();
                 let build = if changes { build_changes_list } else { build_file_tree_list };
                 let scene = RowScene::new(build(&app), &mut renderer, &theme);
                 let input = scene.inputs[0];

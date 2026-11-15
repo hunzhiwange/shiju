@@ -139,7 +139,7 @@ fn project_view_tools_builds_project_controls_when_panels_are_hidden() {
     app.show_settings = false;
     app.terminal.is_visible = false;
     app.show_diff = false;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
 
     let element = controls::project_view_tools(&app);
 
@@ -154,7 +154,7 @@ fn project_view_tools_builds_project_controls_when_panels_are_visible() {
     app.show_settings = true;
     app.terminal.is_visible = true;
     app.show_diff = true;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.task_pet_window_id = Some(iced::window::Id::unique());

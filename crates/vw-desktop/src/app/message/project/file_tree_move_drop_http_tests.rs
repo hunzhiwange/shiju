@@ -129,7 +129,7 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
             &mut app,
             P::FileTreeDropTargetChanged(Some(format!("{root}/dst"))),
         );
-        app.input_drop_hovered = true;
+        app.file_tree_interaction.input_drop_hovered = true;
         let task = if scenario == 0 {
             let task =
                 crate::app::message::view::update(&mut app, ViewMessage::GlobalMouseReleased);
@@ -185,8 +185,8 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
         if scenario == 2 {
             assert!(app.active_toast.as_ref().unwrap().message.contains("destination exists"));
         }
-        assert!(!app.file_tree_operation_in_progress);
-        assert!(app.pending_drop_file_paths.is_empty());
+        assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
+        assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     }
     let mut app = App::new().0;
     app.project_path = Some(root.clone());
@@ -211,7 +211,7 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
             source_path: sources[1].clone(),
         },
     );
-    assert_eq!(app.dragging_file_paths, sources);
+    assert_eq!(app.file_tree_interaction.dragging_file_paths, sources);
     let _ =
         super::super::handle(&mut app, P::FileTreeDropTargetChanged(Some(format!("{root}/dst"))));
     let task = crate::app::message::view::update(&mut app, ViewMessage::GlobalMouseReleased);
@@ -226,12 +226,12 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
     assert_eq!(errors.len(), 1);
     assert!(errors[0].contains("b.txt"));
     let _ = super::super::handle(&mut app, reply);
-    assert!(app.file_tree_selection.contains(&root, &format!("{root}/dst/a.txt")));
-    assert!(app.file_tree_selection.contains(&root, &sources[1]));
-    assert!(app.file_tree_selection.contains(&root, &format!("{root}/dst/c.txt")));
+    assert!(app.file_tree_interaction.file_tree_selection.contains(&root, &format!("{root}/dst/a.txt")));
+    assert!(app.file_tree_interaction.file_tree_selection.contains(&root, &sources[1]));
+    assert!(app.file_tree_interaction.file_tree_selection.contains(&root, &format!("{root}/dst/c.txt")));
     assert!(app.active_toast.as_ref().unwrap().message.contains("destination exists"));
-    assert!(!app.file_tree_operation_in_progress);
-    assert!(app.pending_drop_file_paths.is_empty());
+    assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     let requests = server.join().unwrap();
     assert_eq!(requests.len(), 12);
     assert_eq!(requests.iter().filter(|(resolve, _)| !resolve).count(), 6);

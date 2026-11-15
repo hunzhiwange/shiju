@@ -37,7 +37,7 @@ fn work_resource_header_uses_direction_and_fullscreen_icons() {
 fn code_panel_snapshot(app: &App) -> (bool, bool, f32, bool, bool, bool) {
     (
         app.show_diff,
-        app.show_file_manager,
+        app.file_manager.show_file_manager,
         app.split_ratio,
         app.chat_panel_fullscreen,
         app.git_diff_fullscreen,
@@ -84,7 +84,7 @@ fn work_resource_files_reuse_existing_file_manager_without_mutating_code_flags()
     app.project_path = Some(project.path().to_string_lossy().into_owned());
     app.work_resource_mode = WorkResourceMode::WorkspaceFiles;
     app.show_diff = false;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.split_ratio = 0.37;
     app.chat_panel_fullscreen = true;
     app.git_diff_fullscreen = true;

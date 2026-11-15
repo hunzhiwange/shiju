@@ -19,10 +19,10 @@ use crate::app::{App, Message};
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn drag_badge_layer(app: &App) -> Element<'_, Message> {
-    if let Some(path) = app.dragging_file_paths.first() {
+    if let Some(path) = app.file_tree_interaction.dragging_file_paths.first() {
         let display_path = display_drag_path(path, app.project_path.as_deref());
         let (x, y) = clamp_badge_position(app.cursor_position, app.window_size);
-        let extra_text = drag_extra_count_text(app.dragging_file_paths.len());
+        let extra_text = drag_extra_count_text(app.file_tree_interaction.dragging_file_paths.len());
         let badge = container(
             row![
                 text("@").size(12).style(badge_marker_text_style),

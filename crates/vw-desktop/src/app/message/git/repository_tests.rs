@@ -130,7 +130,7 @@ fn non_git_project_skips_repository_requests_and_clears_history_error() {
     app.git_repository.history = true;
     app.git_repository.loading = true;
     app.git_repository.error = Some("not a repository".into());
-    app.file_manager_changes_refreshing = true;
+    app.file_manager.file_manager_changes_refreshing = true;
     let task = super::update(
         &mut app,
         GitMessage::OpenChatTextDiff {
@@ -161,7 +161,7 @@ fn non_git_project_skips_repository_requests_and_clears_history_error() {
     assert!(!app.git_repository.remote_busy);
     assert!(app.git_repository.error.is_none());
     assert!(!app.git_changed_files_loading);
-    assert!(!app.file_manager_changes_refreshing);
+    assert!(!app.file_manager.file_manager_changes_refreshing);
     assert!(!app.git_diff_file_metas_loading);
     assert!(app.show_git_custom_diff_modal);
     assert_eq!(app.git_custom_diff_after_editor.text(), "555\n");

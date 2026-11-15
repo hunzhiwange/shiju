@@ -265,7 +265,7 @@ fn file_index_loaded_requests_refresh_when_project_exists_and_index_is_stale() {
 fn file_index_ready_sets_index_and_stops_refreshing() {
     let mut app = app();
     app.project_path = Some("/tmp/project".to_string());
-    app.file_manager_file_tree_refreshing = true;
+    app.file_manager.file_manager_file_tree_refreshing = true;
 
     let task = super::handle(
         &mut app,
@@ -276,14 +276,14 @@ fn file_index_ready_sets_index_and_stops_refreshing() {
 
     assert!(task.is_some());
     assert_eq!(app.current_file_index(), &["/tmp/project/src/main.rs".to_string()]);
-    assert!(!app.file_manager_file_tree_refreshing);
+    assert!(!app.file_manager.file_manager_file_tree_refreshing);
 }
 
 #[test]
 fn file_index_ready_without_active_refresh_only_sets_index() {
     let mut app = app();
     app.project_path = Some("/tmp/project".to_string());
-    app.file_manager_file_tree_refreshing = false;
+    app.file_manager.file_manager_file_tree_refreshing = false;
 
     let task = super::handle(
         &mut app,
@@ -294,7 +294,7 @@ fn file_index_ready_without_active_refresh_only_sets_index() {
 
     assert!(task.is_some());
     assert_eq!(app.current_file_index(), &["/tmp/project/src/lib.rs".to_string()]);
-    assert!(!app.file_manager_file_tree_refreshing);
+    assert!(!app.file_manager.file_manager_file_tree_refreshing);
 }
 
 #[test]
@@ -318,7 +318,7 @@ fn toggle_tree_dir_toggles_expanded_state() {
 fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs() {
     let mut app = app();
     app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.git_changed_files =
         vec!["src/main.rs".to_string(), "src/nested/lib.rs".to_string(), "README.md".to_string()];
 
@@ -327,9 +327,9 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
         crate::app::message::project::ProjectMessage::FileManagerShowChanges(true),
     );
 
-    assert!(app.file_manager_show_changes);
+    assert!(app.file_manager.file_manager_show_changes);
     assert!(app.active_preview_path.is_none());
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.show_file_manager);
     assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
     assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
     assert!(!app.file_tree_expanded.contains(&"src".to_string()));
@@ -351,7 +351,7 @@ async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
     )
     .expect("task");
 
-    assert!(app.file_manager_show_changes);
+    assert!(app.file_manager.file_manager_show_changes);
     assert!(app.work_resources_visible);
     assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
     assert!(!app.work_chat_fullscreen);
@@ -370,7 +370,7 @@ fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection()
     let mut app = app();
     app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
     app.active_find_results_tab_id = Some("find-results".to_string());
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
 
     let task = super::handle(
         &mut app,
@@ -378,17 +378,17 @@ fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection()
     );
 
     assert!(task.is_some());
-    assert!(!app.file_manager_show_changes);
+    assert!(!app.file_manager.file_manager_show_changes);
     assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/project/src/main.rs"));
     assert!(app.active_find_results_tab_id.is_none());
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.show_file_manager);
 }
 
 #[test]
 fn file_manager_refresh_changes_ignores_refresh_while_git_files_are_loading() {
     let mut app = app();
     app.git_changed_files_loading = true;
-    app.file_manager_changes_refreshing = false;
+    app.file_manager.file_manager_changes_refreshing = false;
 
     let task = super::handle(
         &mut app,
@@ -396,14 +396,14 @@ fn file_manager_refresh_changes_ignores_refresh_while_git_files_are_loading() {
     );
 
     assert!(task.is_some());
-    assert!(!app.file_manager_changes_refreshing);
+    assert!(!app.file_manager.file_manager_changes_refreshing);
 }
 
 #[test]
 fn file_manager_refresh_changes_ignores_duplicate_refresh() {
     let mut app = app();
     app.git_changed_files_loading = false;
-    app.file_manager_changes_refreshing = true;
+    app.file_manager.file_manager_changes_refreshing = true;
 
     let task = super::handle(
         &mut app,
@@ -411,15 +411,15 @@ fn file_manager_refresh_changes_ignores_duplicate_refresh() {
     );
 
     assert!(task.is_some());
-    assert!(app.file_manager_changes_refreshing);
-    assert_eq!(app.file_manager_refresh_frame, 0);
+    assert!(app.file_manager.file_manager_changes_refreshing);
+    assert_eq!(app.file_manager.file_manager_refresh_frame, 0);
 }
 
 #[test]
 fn file_manager_refresh_changes_marks_refreshing_when_idle() {
     let mut app = app();
     app.git_changed_files_loading = false;
-    app.file_manager_changes_refreshing = false;
+    app.file_manager.file_manager_changes_refreshing = false;
 
     let task = super::handle(
         &mut app,
@@ -427,7 +427,7 @@ fn file_manager_refresh_changes_marks_refreshing_when_idle() {
     );
 
     assert!(task.is_some());
-    assert!(app.file_manager_changes_refreshing);
+    assert!(app.file_manager.file_manager_changes_refreshing);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -435,7 +435,7 @@ fn file_manager_refresh_changes_marks_refreshing_when_idle() {
 #[test]
 fn file_manager_refresh_file_tree_ignores_duplicate_refresh() {
     let mut app = app();
-    app.file_manager_file_tree_refreshing = true;
+    app.file_manager.file_manager_file_tree_refreshing = true;
 
     let task = super::handle(
         &mut app,
@@ -443,14 +443,14 @@ fn file_manager_refresh_file_tree_ignores_duplicate_refresh() {
     );
 
     assert!(task.is_some());
-    assert!(app.file_manager_file_tree_refreshing);
+    assert!(app.file_manager.file_manager_file_tree_refreshing);
 }
 
 #[test]
 fn file_manager_refresh_file_tree_marks_refreshing_when_idle() {
     let mut app = app();
     app.project_path = None;
-    app.file_manager_file_tree_refreshing = false;
+    app.file_manager.file_manager_file_tree_refreshing = false;
 
     let task = super::handle(
         &mut app,
@@ -458,15 +458,15 @@ fn file_manager_refresh_file_tree_marks_refreshing_when_idle() {
     );
 
     assert!(task.is_some());
-    assert!(app.file_manager_file_tree_refreshing);
+    assert!(app.file_manager.file_manager_file_tree_refreshing);
 }
 
 #[test]
 fn file_manager_refresh_animation_tick_stops_when_all_work_is_idle() {
     let mut app = app();
-    app.file_manager_refresh_frame = 7;
-    app.file_manager_changes_refreshing = false;
-    app.file_manager_file_tree_refreshing = false;
+    app.file_manager.file_manager_refresh_frame = 7;
+    app.file_manager.file_manager_changes_refreshing = false;
+    app.file_manager.file_manager_file_tree_refreshing = false;
     app.git_commit_in_progress = false;
 
     let task = super::handle(
@@ -475,14 +475,14 @@ fn file_manager_refresh_animation_tick_stops_when_all_work_is_idle() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.file_manager_refresh_frame, 7);
+    assert_eq!(app.file_manager.file_manager_refresh_frame, 7);
 }
 
 #[test]
 fn file_manager_refresh_animation_tick_wraps_frame_while_work_is_active() {
     let mut app = app();
-    app.file_manager_refresh_frame = usize::MAX;
-    app.file_manager_changes_refreshing = true;
+    app.file_manager.file_manager_refresh_frame = usize::MAX;
+    app.file_manager.file_manager_changes_refreshing = true;
 
     let task = super::handle(
         &mut app,
@@ -490,7 +490,7 @@ fn file_manager_refresh_animation_tick_wraps_frame_while_work_is_active() {
     );
 
     assert!(task.is_some());
-    assert_eq!(app.file_manager_refresh_frame, 0);
+    assert_eq!(app.file_manager.file_manager_refresh_frame, 0);
 }
 
 #[test]
@@ -505,7 +505,7 @@ fn open_changed_file_without_project_returns_none_task_only() {
 
     assert!(task.is_some());
     assert!(app.project_path.is_none());
-    assert!(app.file_manager_show_changes);
+    assert!(app.file_manager.file_manager_show_changes);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -517,8 +517,8 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
     app.work_resources_visible = false;
     app.work_resource_mode = crate::app::state::WorkResourceMode::Overview;
     app.work_chat_fullscreen = true;
-    app.file_manager_show_changes = false;
-    app.show_file_manager = false;
+    app.file_manager.file_manager_show_changes = false;
+    app.file_manager.show_file_manager = false;
     app.git_changed_files = vec!["src/nested/lib.rs".to_string(), "README.md".to_string()];
 
     let task = super::handle(
@@ -532,8 +532,8 @@ async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_fi
     assert!(app.work_resources_visible);
     assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
     assert!(!app.work_chat_fullscreen);
-    assert!(app.file_manager_show_changes);
-    assert!(app.show_file_manager);
+    assert!(app.file_manager.file_manager_show_changes);
+    assert!(app.file_manager.show_file_manager);
     assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
     assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
 
@@ -563,8 +563,8 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
     app.project_path = Some("/workspace/project".to_string());
     app.work_resources_visible = true;
     app.work_resource_mode = crate::app::state::WorkResourceMode::WorkspaceFiles;
-    app.file_manager_show_changes = true;
-    app.show_file_manager = true;
+    app.file_manager.file_manager_show_changes = true;
+    app.file_manager.show_file_manager = true;
     app.git_changed_files = vec!["src/nested/lib.rs".to_string()];
     app.file_tree_expanded.clear();
     app.file_tree_expanded_set.clear();
@@ -576,7 +576,7 @@ fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view(
         ),
     );
 
-    assert!(app.file_manager_show_changes);
+    assert!(app.file_manager.file_manager_show_changes);
     assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
     assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
 }
@@ -718,7 +718,7 @@ fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_at
     let mut app = app();
     app.project_path = Some("/project".into());
     app.files = vec!["/attached.txt".into()];
-    app.file_manager_file_tree_refreshing = true;
+    app.file_manager.file_manager_file_tree_refreshing = true;
     let _ = super::handle(
         &mut app,
         ProjectMessage::FileTreeSnapshotReady {
@@ -726,7 +726,7 @@ fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_at
             snapshot: empty_directory_snapshot("/project", "empty"),
         },
     );
-    assert!(!app.file_manager_file_tree_refreshing);
+    assert!(!app.file_manager.file_manager_file_tree_refreshing);
     assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
     assert_eq!(app.current_file_index(), ["/project/readme.txt"]);
     assert_eq!(app.search_panel_file_cache_results, ["/project/readme.txt"]);
@@ -757,7 +757,7 @@ fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
     let mut app = app();
     app.project_path = Some("/current".into());
     app.set_file_index("/current", vec!["/current/file.txt".into()]);
-    app.file_manager_file_tree_refreshing = true;
+    app.file_manager.file_manager_file_tree_refreshing = true;
     let results = app.search_panel_file_cache_results.clone();
     let _ = super::handle(
         &mut app,
@@ -768,7 +768,7 @@ fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
     );
     assert_eq!(app.current_file_index(), ["/current/file.txt"]);
     assert_eq!(app.search_panel_file_cache_results, results);
-    assert!(app.file_manager_file_tree_refreshing);
+    assert!(app.file_manager.file_manager_file_tree_refreshing);
     assert!(!app.current_file_tree_model().unwrap().children.contains_key("empty"));
     app.project_path = Some("/old".into());
     assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
@@ -839,9 +839,9 @@ fn project_file_preferences_update_before_gateway_reply() {
             assert_eq!(fields, expected);
         };
 
-        app.show_file_manager = false;
+        app.file_manager.show_file_manager = false;
         let first = update(&mut app, ProjectMessage::FileManagerShowChanges(true));
-        assert!(app.show_file_manager && app.file_manager_show_changes);
+        assert!(app.file_manager.show_file_manager && app.file_manager.file_manager_show_changes);
         assert!(requests.try_recv().is_err(), "the update already contacted Gateway");
 
         let first = runtime.spawn(collect_task_messages(first));
@@ -857,7 +857,7 @@ fn project_file_preferences_update_before_gateway_reply() {
         assert!(app.file_tree_expanded.is_empty());
         assert!(iced_runtime::task::into_stream(collapsed).is_none());
         let files = update(&mut app, ProjectMessage::FileManagerShowChanges(false));
-        assert!(!app.file_manager_show_changes);
+        assert!(!app.file_manager.file_manager_show_changes);
         assert!(iced_runtime::task::into_stream(files).is_none());
 
         responses.send(Some("{}".into())).unwrap();

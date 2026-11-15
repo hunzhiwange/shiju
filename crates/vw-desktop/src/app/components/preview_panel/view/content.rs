@@ -7,7 +7,7 @@ pub fn build_content_base(app: &App) -> Element<'_, Message> {
         path: &tab.path, editor: &tab.editor, scroll_id: tab.scroll_id.clone(), truncated: tab.truncated,
         message: app.preview_messages.get(&tab.path).map(|message| message.render(i18n).expect("preview template")),
     });
-    let empty: Element<'_, Message> = if matches!(app.screen, crate::app::Screen::Preview) || !app.file_manager_show_changes || app.active_preview_path.is_some() {
+    let empty: Element<'_, Message> = if matches!(app.screen, crate::app::Screen::Preview) || !app.file_manager.file_manager_show_changes || app.active_preview_path.is_some() {
         iced::widget::container(iced::widget::text(i18n.__("未选择文件"))).width(Length::Fill).height(Length::Fill)
             .align_x(iced::alignment::Horizontal::Center).align_y(iced::alignment::Vertical::Center).into()
     } else { crate::app::components::git_panel::view(app) };

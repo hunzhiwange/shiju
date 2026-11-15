@@ -303,34 +303,34 @@ fn hovered_file_paths_are_unique_and_blocked_during_internal_drag() {
     let mut app = test_app();
 
     let _task = super::update(&mut app, super::ViewMessage::HoveredFilePath("first.rs".to_owned()));
-    app.pending_drop_file_position = Some((2, 3));
+    app.file_tree_interaction.pending_drop_file_position = Some((2, 3));
     let _task = super::update(&mut app, super::ViewMessage::HoveredFilePath("first.rs".to_owned()));
-    app.dragging_file_paths.push("internal.rs".to_owned());
+    app.file_tree_interaction.dragging_file_paths.push("internal.rs".to_owned());
     let _task =
         super::update(&mut app, super::ViewMessage::HoveredFilePath("blocked.rs".to_owned()));
 
-    assert_eq!(app.pending_drop_file_paths, vec!["first.rs"]);
-    assert_eq!(app.pending_drop_file_position, Some((2, 3)));
+    assert_eq!(app.file_tree_interaction.pending_drop_file_paths, vec!["first.rs"]);
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, Some((2, 3)));
 }
 
 #[test]
 fn hovered_files_left_clears_external_hover_but_preserves_internal_drag() {
     let mut app = test_app();
-    app.pending_drop_file_paths = vec!["external.rs".to_owned()];
-    app.pending_drop_file_position = Some((1, 2));
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.pending_drop_file_paths = vec!["external.rs".to_owned()];
+    app.file_tree_interaction.pending_drop_file_position = Some((1, 2));
+    app.file_tree_interaction.input_drop_hovered = true;
 
     let _task = super::update(&mut app, super::ViewMessage::HoveredFilesLeft);
-    assert!(app.pending_drop_file_paths.is_empty());
-    assert_eq!(app.pending_drop_file_position, None);
-    assert!(!app.input_drop_hovered);
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
+    assert!(!app.file_tree_interaction.input_drop_hovered);
 
-    app.dragging_file_paths = vec!["internal.rs".to_owned()];
-    app.pending_drop_file_paths = vec!["kept.rs".to_owned()];
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.dragging_file_paths = vec!["internal.rs".to_owned()];
+    app.file_tree_interaction.pending_drop_file_paths = vec!["kept.rs".to_owned()];
+    app.file_tree_interaction.input_drop_hovered = true;
     let _task = super::update(&mut app, super::ViewMessage::HoveredFilesLeft);
-    assert_eq!(app.pending_drop_file_paths, vec!["kept.rs"]);
-    assert!(app.input_drop_hovered);
+    assert_eq!(app.file_tree_interaction.pending_drop_file_paths, vec!["kept.rs"]);
+    assert!(app.file_tree_interaction.input_drop_hovered);
 }
 
 #[test]
@@ -377,18 +377,18 @@ fn global_release_resets_active_drag_state_without_file_manager_persistence() {
 #[test]
 fn global_release_transfers_internal_files_to_hovered_input() {
     let mut app = test_app();
-    app.dragging_file_paths = vec!["src/main.rs".to_owned()];
-    app.dragging_file_position = Some((4, 5));
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.dragging_file_paths = vec!["src/main.rs".to_owned()];
+    app.file_tree_interaction.dragging_file_position = Some((4, 5));
+    app.file_tree_interaction.input_drop_hovered = true;
     app.focus_area = crate::app::FocusArea::Preview;
 
     let _task = super::update(&mut app, super::ViewMessage::GlobalMouseReleased);
 
-    assert!(app.dragging_file_paths.is_empty());
-    assert_eq!(app.dragging_file_position, None);
-    assert_eq!(app.pending_drop_file_paths, vec!["src/main.rs"]);
-    assert_eq!(app.pending_drop_file_position, Some((4, 5)));
-    assert!(!app.input_drop_hovered);
+    assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.dragging_file_position, None);
+    assert_eq!(app.file_tree_interaction.pending_drop_file_paths, vec!["src/main.rs"]);
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, Some((4, 5)));
+    assert!(!app.file_tree_interaction.input_drop_hovered);
     assert_eq!(app.focus_area, crate::app::FocusArea::None);
 }
 
@@ -425,7 +425,7 @@ fn file_tree_move_drop_global_release_submits_once_without_chat_delivery() {
             &mut app,
             P::FileTreeDropTargetChanged(Some("/project/dst".into())),
         );
-        app.input_drop_hovered = true;
+        app.file_tree_interaction.input_drop_hovered = true;
         if global_first {
             let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
             let _ = crate::app::message::project::update(&mut app, P::FileTreeDragEnd);
@@ -434,10 +434,10 @@ fn file_tree_move_drop_global_release_submits_once_without_chat_delivery() {
             let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
         }
         let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
-        assert!(app.file_tree_operation_in_progress);
-        assert!(app.file_tree_drag_source.is_none());
-        assert!(app.pending_drop_file_paths.is_empty());
-        assert!(!app.input_drop_hovered);
+        assert!(app.file_tree_interaction.file_tree_operation_in_progress);
+        assert!(app.file_tree_interaction.file_tree_drag_source.is_none());
+        assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+        assert!(!app.file_tree_interaction.input_drop_hovered);
     }
 }
 
@@ -455,9 +455,9 @@ fn file_tree_move_drop_cursor_leave_cancels_without_pending_chat_files() {
     );
     let _ = super::update(&mut app, ViewMessage::GlobalCursorLeft);
     let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
-    assert!(!app.file_tree_operation_in_progress);
-    assert!(app.file_tree_drag_source.is_none());
-    assert!(app.pending_drop_file_paths.is_empty());
+    assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
+    assert!(app.file_tree_interaction.file_tree_drag_source.is_none());
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -474,7 +474,7 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
                 source_path: "/project/a.txt".into(),
             },
         );
-        app.input_drop_hovered = true;
+        app.file_tree_interaction.input_drop_hovered = true;
         if !global_first {
             let _ = crate::app::message::project::update(&mut app, P::FileTreeDragEnd);
         }
@@ -490,8 +490,8 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
                 crate::app::message::chat::ChatMessage::InputAreaDragDrop
             )))
         ));
-        assert_eq!(app.pending_drop_file_paths, ["/project/a.txt"]);
-        assert!(!app.file_tree_operation_in_progress);
+        assert_eq!(app.file_tree_interaction.pending_drop_file_paths, ["/project/a.txt"]);
+        assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
     }
 }
 
@@ -500,7 +500,7 @@ fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_pat
     use crate::app::message::ViewMessage as V;
     let mut app = test_app();
     app.project_path = Some("/project".into());
-    app.dragging_file_paths = vec!["/stale-internal-drag".into()];
+    app.file_tree_interaction.dragging_file_paths = vec!["/stale-internal-drag".into()];
     for message in [
         V::HoveredFilePath("/tmp/hover-only".into()),
         V::HoveredFilesLeft,
@@ -509,9 +509,9 @@ fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_pat
     ] {
         let _ = super::update(&mut app, message);
     }
-    assert!(app.pending_drop_file_paths.is_empty());
-    assert!(app.dragging_file_paths.is_empty());
-    assert!(!app.file_tree_operation_in_progress);
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+    assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
+    assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
 }
 
 #[test]

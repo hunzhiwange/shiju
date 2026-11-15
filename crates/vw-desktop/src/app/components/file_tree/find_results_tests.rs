@@ -163,9 +163,9 @@ fn find_results_list_builds_matches_highlight_fallback_and_menu_overlay() {
         find_match("/tmp/project/src/lib.rs", 11, 2, "éclair", 2),
     ];
 
-    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
-    app.file_tree_menu_source = Some("find:/tmp/project/src/main.rs:8:4".to_string());
-    app.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("find:/tmp/project/src/main.rs:8:4".to_string());
+    app.file_tree_interaction.file_tree_menu_anchor = Some(iced::Point::new(12.0, 24.0));
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 
@@ -184,9 +184,9 @@ fn find_results_list_builds_zero_length_and_out_of_range_previews_without_menu_a
         find_match("/tmp/project/src/unicode.rs", 3, 2, "éclair", 1),
     ];
 
-    app.file_tree_menu_path = Some("/tmp/project/src/empty.rs".to_string());
-    app.file_tree_menu_source = Some("find:/tmp/project/src/empty.rs:1:1".to_string());
-    app.file_tree_menu_anchor = None;
+    app.file_tree_interaction.file_tree_menu_path = Some("/tmp/project/src/empty.rs".to_string());
+    app.file_tree_interaction.file_tree_menu_source = Some("find:/tmp/project/src/empty.rs:1:1".to_string());
+    app.file_tree_interaction.file_tree_menu_anchor = None;
     app.active_find_results_tab_id = Some(tab.id.clone());
     app.find_results_tabs.push(tab);
 

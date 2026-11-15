@@ -1,16 +1,17 @@
 //! Executor preview and result use the shared themed, scrolling settings modal.
-use crate::app::{Message, message::project_profiles::{Event, ApplyEvent, message}, state::project_profiles::{State, PreviewAction}};
-use crate::app::components::system_settings_common::*;
+use crate::project_profiles::{State, PreviewAction};
+use super::{Event, ApplyEvent};
+use desktop_ui_controls::system_settings_common::*;
 use iced::{Element, widget::{button, column, row, text}};
 use vw_api_project_profiles::*;
 
-pub(super) fn action(profile: &ProjectProfile, scope: ProjectProfileScope, enabled: bool) -> Element<'_, Message> {
+pub(super) fn action(profile: &ProjectProfile, scope: ProjectProfileScope, enabled: bool) -> Element<'_, Event> {
     button(text("预览并应用")).padding([8, 12]).style(primary_action_btn_style)
-        .on_press_maybe(enabled.then(|| message(Event::Apply(scope, ApplyEvent::Open(profile.id.clone(), profile.version))))).into()
+        .on_press_maybe(enabled.then(|| Event::Apply(scope, ApplyEvent::Open(profile.id.clone(), profile.version)))).into()
 }
-pub(super) fn overlay<'a>(state: &'a State, scope: ProjectProfileScope, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn overlay<'a, Identity>(state: &'a State<Identity>, scope: ProjectProfileScope, base: Element<'a, Event>) -> Element<'a, Event> {
     let Some(form) = state.application.as_ref().filter(|f| f.scope == scope) else { return base; };
-    let close = message(Event::Apply(scope, ApplyEvent::Close));
+    let close = Event::Apply(scope, ApplyEvent::Close);
     let header = settings_modal_header(text("预览与一键应用").size(20), settings_close_button(close.clone()));
     let mut body = column![text(&form.name)].spacing(10);
     if form.loading { body = body.push(text(if form.submitted { "等待执行主机确认，尚未声明成功" } else { "正在读取执行主机预览" })); }
@@ -38,12 +39,12 @@ pub(super) fn overlay<'a>(state: &'a State, scope: ProjectProfileScope, base: El
     }
     let actions = row![
         button(text("查询进度")).padding([8, 14]).style(rounded_action_btn_style)
-            .on_press_maybe((!form.loading && form.operation_id.is_some() && form.result.is_none()).then(|| message(Event::Apply(scope, ApplyEvent::Recover)))),
+            .on_press_maybe((!form.loading && form.operation_id.is_some() && form.result.is_none()).then(|| Event::Apply(scope, ApplyEvent::Recover))),
         button(text("取消操作")).padding([8, 14]).style(rounded_action_btn_style)
-            .on_press_maybe((!form.loading && !form.cancelling && form.operation_id.is_some() && form.result.is_none()).then(|| message(Event::Apply(scope, ApplyEvent::Cancel)))),
+            .on_press_maybe((!form.loading && !form.cancelling && form.operation_id.is_some() && form.result.is_none()).then(|| Event::Apply(scope, ApplyEvent::Cancel))),
         button(text("关闭")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe((!form.loading && (!form.submitted || form.result.is_some())).then_some(close.clone())),
         button(text("确认应用一次")).padding([8, 14]).style(primary_action_btn_style)
-            .on_press_maybe((!form.loading && !form.submitted && form.preview.is_some()).then(|| message(Event::Apply(scope, ApplyEvent::Confirm))))
+            .on_press_maybe((!form.loading && !form.submitted && form.preview.is_some()).then(|| Event::Apply(scope, ApplyEvent::Confirm)))
     ].spacing(10);
     let card = settings_modal_layout(header, body, Some(actions.into())).width(620).height(520);
     settings_modal_overlay(Some(base), close, card)

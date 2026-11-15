@@ -173,7 +173,7 @@ fn drag_badge_layer_builds_empty_layer_without_paths() {
 fn drag_badge_layer_builds_badge_for_dragging_paths() {
     let (mut app, _task) = crate::app::App::new();
     app.project_path = Some("/workspace/app".to_string());
-    app.dragging_file_paths =
+    app.file_tree_interaction.dragging_file_paths =
         vec!["/workspace/app/src/main.rs".to_string(), "/workspace/app/README.md".to_string()];
     app.cursor_position = Point::new(360.0, 220.0);
     app.window_size = (960.0, 640.0);

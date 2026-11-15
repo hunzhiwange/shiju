@@ -1010,7 +1010,7 @@ async fn ui_refresh_32_preserves_values_and_disabled_states() {
     app.chat.clear();
     app.active_session_id = None;
     app.chat_reset_menu_idx = Some(1);
-    app.file_tree_rename_path = None;
+    app.file_tree_interaction.file_tree_rename_path = None;
     app.session_rename_id = None;
     for view in [
         with_chat_fork_dialog(&app, root()),
@@ -1036,8 +1036,8 @@ async fn ui_refresh_32_escape_cancels_only_the_visible_modal() {
     }
     let mut app = fixture();
     prepare_chat(&mut app);
-    app.file_tree_rename_path = Some("/fixture/original.txt".into());
-    app.file_tree_rename_value = DRAFT.into();
+    app.file_tree_interaction.file_tree_rename_path = Some("/fixture/original.txt".into());
+    app.file_tree_interaction.file_tree_rename_value = DRAFT.into();
     app.session_rename_id = Some("session-fixture".into());
     app.session_rename_value = DRAFT.into();
     let mut renderer = renderer().await;
@@ -1072,7 +1072,7 @@ async fn file_tree_delete_confirmation_draws_and_routes_actions() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let path = "/fixture/项目/待删除的文件.txt";
-    app.file_tree_pending_delete =
+    app.file_tree_interaction.file_tree_pending_delete =
         Some(("/fixture/项目".into(), vec![path.into(), "/fixture/项目/另一个文件.txt".into()]));
     let i18n = I18n::new(app.desktop_locale);
     let mut renderer = renderer().await;
@@ -1114,8 +1114,8 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
     }
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::English;
-    app.file_tree_rename_path = Some("/fixture/original.txt".into());
-    app.file_tree_rename_value = "../wrong".into();
+    app.file_tree_interaction.file_tree_rename_path = Some("/fixture/original.txt".into());
+    app.file_tree_interaction.file_tree_rename_value = "../wrong".into();
     let mut renderer = renderer().await;
     app.project_path = Some("/fixture".into());
     app.file_index_cache.insert("/fixture".into(), vec!["/fixture/original.txt".into()]);
@@ -1129,8 +1129,8 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
         panic!("expected exactly one save message");
     };
     let _ = app.update(message.clone());
-    assert_eq!(app.file_tree_rename_path.as_deref(), Some("/fixture/original.txt"));
-    assert_eq!(app.file_tree_rename_value, "../wrong");
+    assert_eq!(app.file_tree_interaction.file_tree_rename_path.as_deref(), Some("/fixture/original.txt"));
+    assert_eq!(app.file_tree_interaction.file_tree_rename_value, "../wrong");
     let toast = app.active_toast.as_ref().expect("invalid file name must be visible");
     assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
     let theme = Theme::Dark;

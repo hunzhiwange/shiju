@@ -1,0 +1,20 @@
+[package]
+name = "desktop-workspace"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = { version = "0.14", features = ["advanced"] }
+unicode-width = "0.2"
+serde = { version = "1", features = ["derive"] }
+vw-api-file = { path = "../api-file", version = "0.6.0" }
+vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" }
+desktop-file-tree = { path = "../desktop-file-tree", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rfd = { version = "0.17", features = ["file-handle-inner"] }

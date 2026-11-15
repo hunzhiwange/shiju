@@ -370,7 +370,7 @@ pub(super) fn view_menu(app: &App) -> Element<'_, Message> {
     );
     let view_content = menu_container(menu_entries(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        view_menu_entries(app.workspace_mode, app.show_file_manager, app.file_manager_show_changes),
+        view_menu_entries(app.workspace_mode, app.file_manager.show_file_manager, app.file_manager.file_manager_show_changes),
     ));
 
     BelowOverlay::new(view_btn, view_content)

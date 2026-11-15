@@ -35,7 +35,7 @@ fn main_area_builds_chat_fullscreen() {
 fn main_area_builds_chat_half_fullscreen_without_file_manager() {
     let mut app = test_app();
     app.chat_panel_half_fullscreen = true;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
 
     render_main_area(&app);
 }
@@ -44,7 +44,7 @@ fn main_area_builds_chat_half_fullscreen_without_file_manager() {
 fn main_area_builds_chat_half_fullscreen_with_file_manager() {
     let mut app = test_app();
     app.chat_panel_half_fullscreen = true;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.file_manager_width = 240.0;
 
     render_main_area(&app);
@@ -64,7 +64,7 @@ fn main_area_builds_git_diff_fullscreen() {
 fn main_area_builds_git_diff_half_fullscreen_without_file_manager() {
     let mut app = test_app();
     app.git_diff_half_fullscreen = true;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
 
     render_main_area(&app);
 }
@@ -73,7 +73,7 @@ fn main_area_builds_git_diff_half_fullscreen_without_file_manager() {
 fn main_area_builds_git_diff_half_fullscreen_with_file_manager() {
     let mut app = test_app();
     app.git_diff_half_fullscreen = true;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.file_manager_width = 300.0;
 
     render_main_area(&app);
@@ -83,7 +83,7 @@ fn main_area_builds_git_diff_half_fullscreen_with_file_manager() {
 fn main_area_builds_split_diff_with_file_manager() {
     let mut app = test_app();
     app.show_diff = true;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.split_ratio = 0.6;
     app.file_manager_width = 260.0;
 
@@ -94,7 +94,7 @@ fn main_area_builds_split_diff_with_file_manager() {
 fn main_area_builds_split_diff_with_tiny_left_ratio() {
     let mut app = test_app();
     app.show_diff = true;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.split_ratio = 0.0;
 
     render_main_area(&app);
@@ -104,7 +104,7 @@ fn main_area_builds_split_diff_with_tiny_left_ratio() {
 fn main_area_builds_chat_only_without_file_manager() {
     let mut app = test_app();
     app.show_diff = false;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
 
     render_main_area(&app);
 }
@@ -113,7 +113,7 @@ fn main_area_builds_chat_only_without_file_manager() {
 fn main_area_builds_chat_only_with_file_manager() {
     let mut app = test_app();
     app.show_diff = false;
-    app.show_file_manager = true;
+    app.file_manager.show_file_manager = true;
     app.file_manager_width = 180.0;
 
     render_main_area(&app);
@@ -123,7 +123,7 @@ fn main_area_builds_chat_only_with_file_manager() {
 fn main_area_builds_split_diff_without_file_manager() {
     let mut app = test_app();
     app.show_diff = true;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.split_ratio = 0.6;
 
     render_main_area(&app);
@@ -133,7 +133,7 @@ fn main_area_builds_split_diff_without_file_manager() {
 fn main_area_builds_split_diff_with_full_right_ratio() {
     let mut app = test_app();
     app.show_diff = true;
-    app.show_file_manager = false;
+    app.file_manager.show_file_manager = false;
     app.split_ratio = 1.0;
 
     render_main_area(&app);

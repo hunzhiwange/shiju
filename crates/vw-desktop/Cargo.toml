@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-workspace = { path = "../libs/desktop-workspace", version = "0.6.0" }
 desktop-provider-apps = { path = "../libs/desktop-provider-apps", version = "0.6.0" }
 desktop-apps-ui = { path = "../libs/desktop-apps-ui", version = "0.6.0" }
 desktop-usage = { path = "../libs/desktop-usage", version = "0.6.0" }

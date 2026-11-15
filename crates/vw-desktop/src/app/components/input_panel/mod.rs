@@ -746,7 +746,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 检测是否有文件树项正在被拖拽
     let dragging_any_tree_item =
-        !app.dragging_file_paths.is_empty() || !app.pending_drop_file_paths.is_empty();
+        !app.file_tree_interaction.dragging_file_paths.is_empty() || !app.file_tree_interaction.pending_drop_file_paths.is_empty();
 
     // 包装主内容为拖放区域，支持文件拖拽添加
     let drop_area: Element<'_, Message> = Element::new(
@@ -767,7 +767,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     );
 
     // 检测输入区域是否处于拖拽悬停状态
-    let input_drop_hovered = app.input_drop_hovered && dragging_any_tree_item;
+    let input_drop_hovered = app.file_tree_interaction.input_drop_hovered && dragging_any_tree_item;
     let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
         app.active_theme_skin.as_ref(),
         &app.app_theme,

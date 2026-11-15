@@ -374,48 +374,48 @@ fn input_area_drag_drop_inserts_mentions_and_clears_state() {
 
     let mut app = test_app();
     app.project_path = Some(temp.path().to_string_lossy().to_string());
-    app.pending_drop_file_paths = vec![file_path.to_string_lossy().to_string()];
-    app.pending_drop_file_position = Some((9, 2));
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.pending_drop_file_paths = vec![file_path.to_string_lossy().to_string()];
+    app.file_tree_interaction.pending_drop_file_position = Some((9, 2));
+    app.file_tree_interaction.input_drop_hovered = true;
 
     handle_input_area_drag_drop(&mut app);
 
     assert_eq!(app.current_session_runtime().input_editor.text(), "@main.rs:9:2 ");
-    assert!(app.pending_drop_file_paths.is_empty());
-    assert_eq!(app.pending_drop_file_position, None);
-    assert!(!app.input_drop_hovered);
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
+    assert!(!app.file_tree_interaction.input_drop_hovered);
     assert_eq!(app.focus_area, FocusArea::None);
 }
 
 #[test]
 fn input_area_drag_drop_clears_empty_pending_drop_without_inserting() {
     let mut app = test_app();
-    app.pending_drop_file_paths.clear();
-    app.pending_drop_file_position = Some((1, 1));
-    app.input_drop_hovered = true;
+    app.file_tree_interaction.pending_drop_file_paths.clear();
+    app.file_tree_interaction.pending_drop_file_position = Some((1, 1));
+    app.file_tree_interaction.input_drop_hovered = true;
 
     handle_input_area_drag_drop(&mut app);
 
     assert_eq!(app.current_session_runtime().input_editor.text(), "");
-    assert_eq!(app.pending_drop_file_position, None);
-    assert!(!app.input_drop_hovered);
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
+    assert!(!app.file_tree_interaction.input_drop_hovered);
 }
 
 #[test]
 fn input_area_drag_drop_prefers_active_drag_paths_over_pending_paths() {
     let mut app = test_app();
-    app.dragging_file_paths = vec!["dragged.rs".to_string()];
-    app.dragging_file_position = Some((3, 7));
-    app.pending_drop_file_paths = vec!["pending.rs".to_string()];
-    app.pending_drop_file_position = Some((8, 9));
+    app.file_tree_interaction.dragging_file_paths = vec!["dragged.rs".to_string()];
+    app.file_tree_interaction.dragging_file_position = Some((3, 7));
+    app.file_tree_interaction.pending_drop_file_paths = vec!["pending.rs".to_string()];
+    app.file_tree_interaction.pending_drop_file_position = Some((8, 9));
 
     handle_input_area_drag_drop(&mut app);
 
     assert_eq!(app.current_session_runtime().input_editor.text(), "@dragged.rs:3:7 ");
-    assert!(app.dragging_file_paths.is_empty());
-    assert_eq!(app.dragging_file_position, None);
-    assert!(app.pending_drop_file_paths.is_empty());
-    assert_eq!(app.pending_drop_file_position, None);
+    assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.dragging_file_position, None);
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
 }
 
 #[test]
@@ -428,15 +428,15 @@ fn input_area_drag_drop_ignores_single_position_for_multiple_paths() {
 
     let mut app = test_app();
     app.project_path = Some(temp.path().to_string_lossy().to_string());
-    app.pending_drop_file_paths =
+    app.file_tree_interaction.pending_drop_file_paths =
         vec![file_path.to_string_lossy().to_string(), directory_path.to_string_lossy().to_string()];
-    app.pending_drop_file_position = Some((9, 2));
+    app.file_tree_interaction.pending_drop_file_position = Some((9, 2));
 
     handle_input_area_drag_drop(&mut app);
 
     assert_eq!(app.current_session_runtime().input_editor.text(), "@main.rs @assets/ ");
-    assert!(app.pending_drop_file_paths.is_empty());
-    assert_eq!(app.pending_drop_file_position, None);
+    assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
+    assert_eq!(app.file_tree_interaction.pending_drop_file_position, None);
 }
 
 #[test]

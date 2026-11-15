@@ -179,7 +179,7 @@ pub(super) fn handle_remove_file_reference(app: &mut App, file_path: String) -> 
 /// 模块内可见函数，执行 handle_input_area_drag_drop 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_input_area_drag_drop(app: &mut App) -> Task<Message> {
-    app.input_drop_hovered = false;
+    app.file_tree_interaction.input_drop_hovered = false;
     let mentions = drop_mention_paths(app);
     if !mentions.is_empty() {
         let runtime = app.current_session_runtime_mut();
@@ -194,8 +194,8 @@ pub(super) fn handle_input_area_drag_drop(app: &mut App) -> Task<Message> {
         return focus_input_editor(app);
     }
 
-    app.pending_drop_file_paths.clear();
-    app.pending_drop_file_position = None;
+    app.file_tree_interaction.pending_drop_file_paths.clear();
+    app.file_tree_interaction.pending_drop_file_position = None;
     Task::none()
 }
 
@@ -287,7 +287,7 @@ fn drop_mention_paths(app: &App) -> Vec<String> {
     }
 
     let drop_position = if dropped_paths.len() == 1 {
-        app.dragging_file_position.or(app.pending_drop_file_position)
+        app.file_tree_interaction.dragging_file_position.or(app.file_tree_interaction.pending_drop_file_position)
     } else {
         None
     };
@@ -304,10 +304,10 @@ pub(super) struct DroppedPath {
 }
 
 fn collect_dropped_paths(app: &App) -> Vec<DroppedPath> {
-    let source_paths = if !app.dragging_file_paths.is_empty() {
-        &app.dragging_file_paths
+    let source_paths = if !app.file_tree_interaction.dragging_file_paths.is_empty() {
+        &app.file_tree_interaction.dragging_file_paths
     } else {
-        &app.pending_drop_file_paths
+        &app.file_tree_interaction.pending_drop_file_paths
     };
 
     source_paths
@@ -359,10 +359,10 @@ fn join_drop_mentions(mentions: &[String]) -> String {
 }
 
 fn clear_drag_drop_state(app: &mut App) {
-    app.dragging_file_paths.clear();
-    app.dragging_file_position = None;
-    app.pending_drop_file_paths.clear();
-    app.pending_drop_file_position = None;
+    app.file_tree_interaction.dragging_file_paths.clear();
+    app.file_tree_interaction.dragging_file_position = None;
+    app.file_tree_interaction.pending_drop_file_paths.clear();
+    app.file_tree_interaction.pending_drop_file_position = None;
 }
 
 fn clear_file_search_state(app: &mut App) {

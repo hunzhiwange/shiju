@@ -66,7 +66,7 @@ async fn ecp07_popover_layout_is_stable_across_sizes() {
     let mut renderer =
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut app = App::new().0;
-    app.file_manager_show_changes = false;
+    app.file_manager.file_manager_show_changes = false;
     app.screen = crate::app::Screen::Project;
     app.preview_tabs = vec![tab("/tmp/a.rs", None)];
     app.active_preview_path = Some("/tmp/a.rs".into());

@@ -245,22 +245,22 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::HoveredFilePath(path) => {
-            if app.dragging_file_paths.is_empty()
-                && !app.pending_drop_file_paths.iter().any(|existing| existing == &path)
+            if app.file_tree_interaction.dragging_file_paths.is_empty()
+                && !app.file_tree_interaction.pending_drop_file_paths.iter().any(|existing| existing == &path)
             {
-                app.pending_drop_file_paths.push(path);
-                app.pending_drop_file_position = None;
+                app.file_tree_interaction.pending_drop_file_paths.push(path);
+                app.file_tree_interaction.pending_drop_file_position = None;
             }
             Task::none()
         }
         ViewMessage::DroppedFilePath(path) => {
-            app.file_tree_drag_source = None;
-            app.file_tree_drop_target = None;
-            app.dragging_file_paths.clear();
-            app.dragging_file_position = None;
-            app.pending_drop_file_paths = vec![path];
-            app.pending_drop_file_position = None;
-            if app.input_drop_hovered {
+            app.file_tree_interaction.file_tree_drag_source = None;
+            app.file_tree_interaction.file_tree_drop_target = None;
+            app.file_tree_interaction.dragging_file_paths.clear();
+            app.file_tree_interaction.dragging_file_position = None;
+            app.file_tree_interaction.pending_drop_file_paths = vec![path];
+            app.file_tree_interaction.pending_drop_file_position = None;
+            if app.file_tree_interaction.input_drop_hovered {
                 return crate::app::message::chat::update(
                     app,
                     crate::app::message::ChatMessage::InputAreaDragDrop,
@@ -272,14 +272,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     crate::app::message::knowledge_tool::KnowledgeToolMessage::ImportDroppedFiles,
                 );
             }
-            app.pending_drop_file_paths.clear();
+            app.file_tree_interaction.pending_drop_file_paths.clear();
             Task::none()
         }
         ViewMessage::HoveredFilesLeft => {
-            if app.dragging_file_paths.is_empty() {
-                app.pending_drop_file_paths.clear();
-                app.pending_drop_file_position = None;
-                app.input_drop_hovered = false;
+            if app.file_tree_interaction.dragging_file_paths.is_empty() {
+                app.file_tree_interaction.pending_drop_file_paths.clear();
+                app.file_tree_interaction.pending_drop_file_position = None;
+                app.file_tree_interaction.input_drop_hovered = false;
             }
             Task::none()
         }
@@ -337,24 +337,24 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     )),
                 ]);
             }
-            if app.file_tree_drag_source.is_some() && app.file_tree_drop_target.is_some() {
+            if app.file_tree_interaction.file_tree_drag_source.is_some() && app.file_tree_interaction.file_tree_drop_target.is_some() {
                 return Task::batch([
                     save,
                     crate::app::message::project::file_tree::release_tree_drop(app),
                 ]);
             }
-            app.file_tree_drag_source = None;
-            app.file_tree_drop_target = None;
-            if !app.dragging_file_paths.is_empty() {
-                app.pending_drop_file_paths = app.dragging_file_paths.clone();
-                app.pending_drop_file_position = app.dragging_file_position;
-                app.dragging_file_paths.clear();
-                app.dragging_file_position = None;
+            app.file_tree_interaction.file_tree_drag_source = None;
+            app.file_tree_interaction.file_tree_drop_target = None;
+            if !app.file_tree_interaction.dragging_file_paths.is_empty() {
+                app.file_tree_interaction.pending_drop_file_paths = app.file_tree_interaction.dragging_file_paths.clone();
+                app.file_tree_interaction.pending_drop_file_position = app.file_tree_interaction.dragging_file_position;
+                app.file_tree_interaction.dragging_file_paths.clear();
+                app.file_tree_interaction.dragging_file_position = None;
             }
-            let input_drop_hovered = app.input_drop_hovered;
-            app.input_drop_hovered = false;
+            let input_drop_hovered = app.file_tree_interaction.input_drop_hovered;
+            app.file_tree_interaction.input_drop_hovered = false;
 
-            if input_drop_hovered && !app.pending_drop_file_paths.is_empty() {
+            if input_drop_hovered && !app.file_tree_interaction.pending_drop_file_paths.is_empty() {
                 app.focus_area = FocusArea::None;
                 return Task::batch([
                     save,
@@ -364,13 +364,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 ]);
             }
 
-            app.pending_drop_file_paths.clear();
-            app.pending_drop_file_position = None;
+            app.file_tree_interaction.pending_drop_file_paths.clear();
+            app.file_tree_interaction.pending_drop_file_position = None;
 
             save
         }
         ViewMessage::GlobalCursorLeft => {
-            if app.file_tree_drag_source.is_some() {
+            if app.file_tree_interaction.file_tree_drag_source.is_some() {
                 let _ = crate::app::message::project::update(
                     app,
                     crate::app::message::ProjectMessage::FileTreeDragCancel,

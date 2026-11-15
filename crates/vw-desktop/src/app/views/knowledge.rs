@@ -1345,7 +1345,7 @@ fn build_file_import_panel(app: &App) -> Element<'_, Message> {
     let selected_count = selected.len();
     let has_selection = selected_count > 0;
     let dragging_any_file =
-        !app.dragging_file_paths.is_empty() || !app.pending_drop_file_paths.is_empty();
+        !app.file_tree_interaction.dragging_file_paths.is_empty() || !app.file_tree_interaction.pending_drop_file_paths.is_empty();
     let drop_hovered = app.knowledge.file_drop_hovered && dragging_any_file;
     let drop_title = match selected {
         [] if drop_hovered => {

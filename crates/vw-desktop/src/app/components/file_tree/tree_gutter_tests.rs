@@ -194,7 +194,7 @@ async fn tree_gutter_remains_visible_on_selected_and_hovered_rows() {
             let mut app = alignment_app();
             app.git_focused_file = Some("sp6/原始视频.mov".into());
             let selected = "/tree-fixture/sp6/原始视频.mov".to_string();
-            app.file_tree_selection.select(
+            app.file_tree_interaction.file_tree_selection.select(
                 "/tree-fixture",
                 selected.clone(),
                 false,

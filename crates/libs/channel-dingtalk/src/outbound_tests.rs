@@ -1,5 +1,5 @@
 use super::*;
-use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;

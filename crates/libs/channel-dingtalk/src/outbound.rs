@@ -1,9 +1,9 @@
 //! Preflight every Markdown payload before sending an acknowledged prefix.
 
 use super::*;
-use crate::app::agent::channels::markdown_chunk::split_markdown;
-use crate::app::agent::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
-use crate::app::agent::channels::outbound_format::normalize_chat_markdown;
+use channel_support::markdown_chunk::split_markdown;
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_format::normalize_chat_markdown;
 use anyhow::Context;
 use std::time::Duration;
 
@@ -68,11 +68,11 @@ impl DingTalkChannel {
         let webhook_url = webhook_url
             .ok_or_else(|| delivery_error(0, total, 0, DeliveryFailureKind::NotSent))
             .context("未找到会话 webhook，用户必须先发送消息以建立会话")?;
-        let builder = crate::channels::http::client_builder()
+        let builder = channel_support::http::client_builder()
             .retry(reqwest::retry::never())
             .redirect(reqwest::redirect::Policy::none());
         let client =
-            crate::app::agent::config::apply_runtime_proxy_to_builder(builder, "channel.dingtalk")
+            agent_config::schema::apply_runtime_proxy_to_builder(builder, "channel.dingtalk")
                 .build()
                 .map_err(|_| delivery_error(0, total, 0, DeliveryFailureKind::NotSent))?;
         self.deliver_webhook_payloads(&client, &webhook_url, payloads, REQUEST_TIMEOUT).await

@@ -130,7 +130,7 @@ mod tests {
     client_secret = "secret_456"
     allowed_users = ["user1", "*"]
     "#;
-        let config: crate::app::agent::config::schema::DingTalkConfig =
+        let config: config_channel_services::DingTalkConfig =
             toml::from_str(toml_str).unwrap();
         assert_eq!(config.client_id, "app_id_123");
         assert_eq!(config.client_secret, "secret_456");
@@ -147,7 +147,7 @@ mod tests {
     client_id = "id"
     client_secret = "secret"
     "#;
-        let config: crate::app::agent::config::schema::DingTalkConfig =
+        let config: config_channel_services::DingTalkConfig =
             toml::from_str(toml_str).unwrap();
         assert!(config.allowed_users.is_empty());
     }

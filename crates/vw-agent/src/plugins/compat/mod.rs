@@ -33,17 +33,11 @@ pub(super) mod transaction_install;
 #[path = "t02_tests.rs"]
 mod t02_tests;
 
-#[cfg(test)]
-#[path = "t03_tests.rs"]
-mod t03_tests;
+// t03 tests follow their implementation in agent-plugins.
 
-#[cfg(test)]
-#[path = "t04_tests.rs"]
-mod t04_tests;
+// t04 tests follow their implementation in agent-plugins.
 
-#[cfg(test)]
-#[path = "t05_tests.rs"]
-mod t05_tests;
+// t05 tests follow their implementation in agent-plugins.
 
 #[cfg(test)]
 #[path = "t06_tests.rs"]
@@ -196,14 +190,12 @@ pub(crate) mod t44_tests;
 
 #[cfg(test)]
 mod t45_tests;
-#[cfg(test)]
-mod t46_tests;
+// t46 tests follow their implementation in agent-plugins.
 
 pub(crate) mod hook_trust_content;
 
 pub(crate) mod marketplace;
-#[cfg(test)]
-mod t47_tests;
+// Marketplace tests live in plugin-install.
 
 pub(crate) mod git_source;
 #[cfg(test)]

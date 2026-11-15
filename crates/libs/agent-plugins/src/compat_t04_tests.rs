@@ -1,4 +1,4 @@
-use crate::plugins::{PluginHookSource, PluginMcpServers, load_plugin_manifest};
+use crate::{PluginHookSource, PluginMcpServers, load_plugin_manifest};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::Path;
@@ -14,7 +14,7 @@ fn write_json(root: &Path, path: &str, value: &Value) {
 fn package(root: &Path) -> Value {
     fs::create_dir_all(root.join("skills")).unwrap();
     fs::write(root.join("mcp.json"), "{\"mcpServers\":{}}\n").unwrap();
-    serde_json::from_str(include_str!("../../../testdata/plugin_compat/t04/portable.json")).unwrap()
+    serde_json::from_str(include_str!("../../../vw-agent/testdata/plugin_compat/t04/portable.json")).unwrap()
 }
 
 #[test]

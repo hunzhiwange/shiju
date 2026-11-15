@@ -1,5 +1,5 @@
-use crate::plugins::load_plugin_manifest;
-use crate::plugins::{PluginHookSource, PluginMcpServers};
+use crate::load_plugin_manifest;
+use crate::{PluginHookSource, PluginMcpServers};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::Path;
@@ -11,7 +11,7 @@ fn write_manifest(root: &Path, directory: &str, value: &Value) {
 }
 
 fn fixture() -> Value {
-    serde_json::from_str(include_str!("../../../testdata/plugin_compat/t03/legacy.json"))
+    serde_json::from_str(include_str!("../../../vw-agent/testdata/plugin_compat/t03/legacy.json"))
         .expect("legacy fixture")
 }
 

@@ -1,4 +1,4 @@
-use crate::plugins::{CodexHooksManifest, PluginHookTrustStore};
+use crate::{CodexHooksManifest, PluginHookTrustStore};
 fn manifest() -> CodexHooksManifest {
     serde_json::from_value(serde_json::json!({"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"sh script.sh"}]}]}})).unwrap()
 }

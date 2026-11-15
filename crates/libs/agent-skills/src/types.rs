@@ -237,6 +237,45 @@ pub struct PluginSkillSource {
 }
 
 impl Skill {
+    /// 市场身份属于调用键；原始 frontmatter 名称及文件字节保持不变。
+    pub fn invocation_name(&self) -> String {
+        match &self.plugin_source {
+            Some(source) => format!("{}:{}", source.plugin_id, self.name),
+            None => self.name.clone(),
+        }
+    }
+
+    pub fn invocation_aliases(&self) -> Vec<String> {
+        let mut names = vec![self.invocation_name()];
+        let alias = match &self.plugin_source {
+            Some(source) => Some(format!("{}:{}", source.namespace, self.name)),
+            None => self.file_id(),
+        };
+        if let Some(alias) = alias
+            && !names.iter().any(|name| name.eq_ignore_ascii_case(&alias))
+        {
+            names.push(alias);
+        }
+        names
+    }
+
+    /// 只有本地技能保留裸文件别名，插件文件名不能跨来源匹配。
+    pub fn file_id(&self) -> Option<String> {
+        if self.plugin_source.is_some() {
+            return None;
+        }
+        let location = self.location.as_ref()?;
+        let name = location.file_name()?.to_str()?;
+        if name.eq_ignore_ascii_case("SKILL.md") || name.eq_ignore_ascii_case("SKILL.toml") {
+            location.parent()?.file_name()?.to_str().map(ToOwned::to_owned)
+        } else {
+            location.file_stem()?.to_str().map(ToOwned::to_owned)
+        }
+    }
+}
+
+
+impl Skill {
     /// 返回技能是否适用于给定的工作区相对路径。
     pub fn applies_to_path(&self, path: &Path) -> bool {
         self.paths.is_empty()

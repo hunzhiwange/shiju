@@ -13,6 +13,7 @@ plugin-mcp = { path = "../plugin-mcp", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 plugin-types = { path = "../plugin-types", version = "0.6.0" }
 anyhow = "1"
+regex = "1"
 config-skills = { path = "../config-skills", version = "0.6.0" }
 sha2 = "0.10"
 hex = "0.4"

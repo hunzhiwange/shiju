@@ -1,4 +1,4 @@
-use crate::plugins::{PluginHookSource, PluginMcpServers, load_plugin_manifest};
+use crate::{PluginHookSource, PluginMcpServers, load_plugin_manifest};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::Path;
@@ -46,7 +46,7 @@ fn codex_plugin_compat_t05_rejects_component_escape() {
 fn codex_plugin_compat_t05_rejects_invalid_input() {
     let temp = tempfile::tempdir().unwrap();
     let cases: Vec<String> =
-        serde_json::from_str(include_str!("../../../testdata/plugin_compat/t05/root_aliases.json"))
+        serde_json::from_str(include_str!("../../../vw-agent/testdata/plugin_compat/t05/root_aliases.json"))
             .unwrap();
     for format in ["legacy", "portable", "native"] {
         let root = temp.path().join(format);

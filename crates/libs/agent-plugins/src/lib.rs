@@ -9,6 +9,14 @@ mod hooks_tests;
 
 pub mod hook_trust;
 pub mod manifest;
+#[cfg(test)]
+mod compat_t46_tests;
+#[cfg(test)]
+mod compat_t05_tests;
+#[cfg(test)]
+mod compat_t04_tests;
+#[cfg(test)]
+mod compat_t03_tests;
 pub mod loader;
 pub mod legacy_manifest;
 pub mod portable_manifest;
@@ -51,6 +59,7 @@ mod upgrade_tests;
 
 pub mod cli;
 pub mod onboarding;
+pub mod session_snapshot;
 pub use agent_cli_types::PluginCommands;
 pub use plugin_types::CodexHooksManifest;
 pub use plugin_install::marketplace::{add_plugin_marketplace, list_plugin_marketplaces, registered_plugin_entry, read_registered_marketplace};

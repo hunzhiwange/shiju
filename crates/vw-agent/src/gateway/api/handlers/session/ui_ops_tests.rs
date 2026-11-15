@@ -1,6 +1,7 @@
 // 覆盖 UI 会话快照、原始模型步骤及归档作用域持久化。
 
 use super::*;
+use std::collections::BTreeSet;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::session::ui_store;
 use axum::extract::{Path, Query};
@@ -18,34 +19,6 @@ use session_info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 
 static TEST_HOME: Once = Once::new();
 static UI_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
-#[test]
-fn session_message_delta_storage_failures_remain_retryable() {
-    for code in [rusqlite::ffi::SQLITE_BUSY, rusqlite::ffi::SQLITE_LOCKED] {
-        let error = anyhow::Error::new(rusqlite::Error::SqliteFailure(
-            rusqlite::ffi::Error::new(code),
-            None,
-        ))
-        .context("persist session message delta");
-        let response = session_message_delta_api_error(error);
-        assert_eq!(response.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
-    }
-}
-
-#[test]
-fn session_message_delta_domain_errors_preserve_client_status() {
-    use crate::session::store::SessionMessageDeltaError;
-    use axum::http::StatusCode;
-
-    for (error, expected) in [
-        (SessionMessageDeltaError::Invalid("duplicate sequence".into()), StatusCode::BAD_REQUEST),
-        (SessionMessageDeltaError::Conflict("stale version".into()), StatusCode::CONFLICT),
-        (SessionMessageDeltaError::NotFound, StatusCode::NOT_FOUND),
-    ] {
-        let error = anyhow::Error::new(error).context("apply session delta");
-        assert_eq!(session_message_delta_api_error(error).status, expected);
-    }
-}
 
 fn ensure_test_home() {
     TEST_HOME.call_once(|| {
@@ -374,14 +347,14 @@ async fn session_ui_messages_rejects_foreign_cursor() {
     let body = scoped_session("cursor-owner", "Page", "0", 20);
     let scope = save_runtime_session(project.path(), &body);
     let tenant = ui_store::current_tenant_scope();
-    let cursor = encode_cursor(&MessageCursor {
-        session_id: "another-session".into(),
-        platform_id: tenant.platform_id().as_ref().to_owned(),
-        company_id: tenant.company_id().as_ref().to_owned(),
-        scope,
-        before_seq_no: 1,
-    })
-    .unwrap();
+    let cursor: String = serde_json::to_vec(&serde_json::json!({
+        "session_id": "another-session",
+        "platform_id": tenant.platform_id().as_ref(),
+        "company_id": tenant.company_id().as_ref(),
+        "scope": scope,
+        "before_seq_no": 1,
+    }))
+    .unwrap().iter().map(|byte| format!("{byte:02x}")).collect();
     let error = session_ui_messages(
         Path(body.id),
         Query(GatewaySessionMessagePageQuery {

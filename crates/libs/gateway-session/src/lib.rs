@@ -50,3 +50,11 @@ pub mod archived_routes;
 pub mod stream;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod stream_host;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ui_host;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ui_ops;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod stream_value_tests;

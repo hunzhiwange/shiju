@@ -1,0 +1,12 @@
+[package]
+name = "storage-types"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+serde_json = "1"
+tokio = { version = "1", features = ["rt"] }

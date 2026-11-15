@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use serde_json::json;
 
-use super::prompt::start_prompt_with_runner;
+use super::start_prompt_with_runner;
 use super::{PromptEvent, PromptTermination, types::PromptCancelHandle};
 use crate::session::processor::{Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 use crate::session::ui_types::{ChatMessage, TokenUsage};

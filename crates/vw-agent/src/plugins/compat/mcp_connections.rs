@@ -53,7 +53,7 @@ impl State {
     }
 }
 #[derive(Default)]
-pub(crate) struct McpSessionConnections {
+pub struct McpSessionConnections {
     pub(super) state: Mutex<State>,
     pub(super) tool_refresh: AsyncMutex<()>,
     pub(crate) form_owner: Option<super::mcp_elicitation::FormOwner>,

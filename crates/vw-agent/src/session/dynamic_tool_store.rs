@@ -3,12 +3,11 @@
 use std::sync::Arc;
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
 use vw_api_transport::id::ProjectScope;
 
 use super::store::SessionStore;
 use crate::tools::catalog::{ToolCatalog, ToolCatalogSnapshot};
-use crate::tools::{Tool, ToolSpec};
+use crate::tools::Tool;
 
 /// Runtime-owned policy. External requests and model input cannot grant this permission.
 #[derive(Debug, Clone, Copy, Default)]
@@ -27,13 +26,7 @@ impl PersistentToolPolicy {
     }
 }
 
-/// Complete persisted replacement, including an explicitly empty tool collection.
-/// Executors, connection credentials and pending calls are deliberately absent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedDynamicTools {
-    pub version: u64,
-    pub specs: Vec<ToolSpec>,
-}
+pub use session_port::PersistedDynamicTools;
 
 // Both backends use the same scoped key and JSON representation. A session must already exist.
 pub(super) const SCHEMA: &str = r#"

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/storage-types",
   "crates/libs/app-mcp-catalog",
   "crates/libs/app-workspace-memory",
   "crates/libs/session-port",

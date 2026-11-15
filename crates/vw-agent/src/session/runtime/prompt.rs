@@ -5,11 +5,11 @@ use std::sync::{Arc, mpsc};
 
 use tokio_util::sync::CancellationToken;
 
-use crate::session::processor::{self, Request, StreamEvent};
+use crate::session::processor::{Request, StreamEvent};
 
 use super::types::{PromptCancelHandle, PromptEvent, PromptTermination, PromptTurn};
 
-pub(crate) type EventSink = Box<dyn FnMut(StreamEvent) -> bool + Send>;
+pub(crate) type EventSink = session_port::EventSink<StreamEvent>;
 
 fn map_non_terminal(event: StreamEvent) -> Option<PromptEvent> {
     match event {
@@ -51,11 +51,6 @@ impl Drop for WorkerCompletion {
     }
 }
 
-/// 启动一个真实处理器提示轮次。
-pub fn start_prompt(request: Request) -> PromptTurn {
-    start_prompt_with_runner(request, |request, emit| processor::run(request, emit))
-}
-
 pub(crate) fn start_prompt_with_runner<R>(mut request: Request, runner: R) -> PromptTurn
 where
     R: FnOnce(Request, EventSink) + Send + 'static,
@@ -80,15 +75,15 @@ where
     request.abort_token = Some(token.clone());
     let terminal = Arc::new(AtomicBool::new(false));
     let (events_tx, events_rx) = mpsc::channel();
-    let cancel = PromptCancelHandle {
-        explicit: Arc::new(AtomicBool::new(false)),
-        shell_cutoff: Arc::new(std::sync::Mutex::new(None)),
-        #[cfg(not(target_arch = "wasm32"))]
-        shell_scope,
-        token: token.clone(),
-        terminal: Arc::clone(&terminal),
-        events: events_tx.clone(),
-    };
+    let cancel = PromptCancelHandle::new(
+        token.clone(),
+        Arc::clone(&terminal),
+        events_tx.clone(),
+        Arc::new(super::host::ShellCleanup {
+            #[cfg(not(target_arch = "wasm32"))]
+            scope: shell_scope,
+        }),
+    );
 
     let finished = Arc::new(AtomicBool::new(false));
     if let Some(external) = external {
@@ -172,7 +167,7 @@ where
             }
         });
         // A tool may have crossed spawn just as explicit stop arrived.
-        if cleanup.explicit.load(Ordering::Acquire)
+        if cleanup.is_explicit()
             && let Err(error) = cleanup.reap_shell_processes()
         {
             send_terminal(

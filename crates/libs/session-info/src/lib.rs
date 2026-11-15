@@ -3,3 +3,6 @@
 mod info;
 
 pub use info::{Info, RevertInfo, ShareInfo, Summary, TimeInfo};
+
+mod error;
+pub use error::Error;

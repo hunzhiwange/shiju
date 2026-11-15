@@ -24,7 +24,7 @@ pub(crate) use compat::mcp_connection_sessions::{
     close_session as close_session_mcp_connections, connections as mcp_session_connections,
 };
 pub(crate) use compat::mcp_connection_settings::settings as plugin_mcp_connection_settings;
-pub(crate) use compat::mcp_connections::McpSessionConnections;
+pub use compat::mcp_connections::McpSessionConnections;
 pub(crate) use compat::mcp_content::{normalize_mcp_tool_result, preserve_mcp_wire_result};
 pub(crate) use compat::mcp_elicitation;
 pub(crate) use compat::mcp_notifications::{McpCatalogs, ToolCatalogBinding};

@@ -3,3 +3,6 @@
 mod project;
 
 pub use project::*;
+
+mod error;
+pub use error::Error;

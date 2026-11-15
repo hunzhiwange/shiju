@@ -1,7 +1,7 @@
 //! Codex supplier rows in the existing provider namespace, never model catalog persistence.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 impl AppProviderStore {
     pub(crate) fn codex_record(
         &self,

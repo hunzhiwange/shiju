@@ -2,7 +2,7 @@
 use super::*;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vw_api_types::app_providers::agy::*;
+use vw_api_app_provider_profiles::agy::*;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 fn view(row: &Value) -> Result<AgyFormView, String> {

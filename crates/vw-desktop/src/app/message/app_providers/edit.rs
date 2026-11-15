@@ -11,7 +11,7 @@ pub(crate) async fn save(
             client
                 .agy_form_delete(
                     &form.id,
-                    &vw_gateway_client::vw_api_types::app_providers::agy::AgyTarget {
+                    &vw_api_app_provider_profiles::agy::AgyTarget {
                         target_host_id: scope.host,
                     },
                     &token,
@@ -53,12 +53,12 @@ use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
 use vw_api_app_provider_base::claude::ClaudeFormView;
 use vw_api_app_provider_base::claude::ClaudeLiveResult;
-use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexFormView;
-use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexLiveResult;
+use vw_api_app_provider_profiles::codex_catalog::CodexFormView;
+use vw_api_app_provider_profiles::codex_catalog::CodexLiveResult;
 use vw_gateway_client::vw_api_types::app_providers::dsh::DshFormView;
 use vw_gateway_client::vw_api_types::app_providers::dsh::DshLiveResult;
-use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormView;
-use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiLiveResult;
+use vw_api_app_provider_profiles::gemini::GeminiFormView;
+use vw_api_app_provider_profiles::gemini::GeminiLiveResult;
 use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormView;
 use vw_gateway_client::vw_api_types::app_providers::grok::GrokLiveResult;
 use vw_gateway_client::vw_api_types::app_providers::hermes::HermesFormView;
@@ -147,7 +147,7 @@ pub enum EditMessage {
         scope: Scope,
         generation: u64,
         id: String,
-        result: Result<vw_gateway_client::vw_api_types::app_providers::agy::AgyFormView, String>,
+        result: Result<vw_api_app_provider_profiles::agy::AgyFormView, String>,
     },
     Agy(agy::Field),
     AgySaved {

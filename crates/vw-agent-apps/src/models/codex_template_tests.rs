@@ -2,7 +2,7 @@ use super::codex_template::codex_custom_template;
 use crate::providers::codex_catalog::form;
 use toml_edit::{DocumentMut, value};
 use vw_api_app_provider_base::basic::ProviderBasic;
-use vw_api_types::app_providers::codex_catalog::CodexFormWrite;
+use vw_api_app_provider_profiles::codex_catalog::CodexFormWrite;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 #[test]

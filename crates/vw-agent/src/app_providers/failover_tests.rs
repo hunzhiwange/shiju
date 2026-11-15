@@ -8,7 +8,7 @@ use vw_api_app_identity::AppId::Codex;
 use vw_api_app_identity::AppId::Pi;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
-use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 use vw_api_transport::id::ProjectScope;
 
 #[test]

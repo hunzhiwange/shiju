@@ -1,5 +1,6 @@
 use super::*;
-use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 #[tokio::test]
 async fn cc04_desktop_mapping_sdk_scopes_import_and_discards_error_payload() {
     let server = super::super::test_support::server_with_tenant_scope(

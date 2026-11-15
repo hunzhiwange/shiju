@@ -34,11 +34,11 @@ fn aggregation_t46_desktop_project_publish_and_recovery() {
     .unwrap();
     drop(files);
     let before = tx.state(app).unwrap();
-    let mapping = vw_api_types::app_providers::desktop_mapping::DesktopMapping {
-        mode: vw_api_types::app_providers::desktop_mapping::DesktopMappingMode::Proxy,
+    let mapping = vw_api_app_provider_profiles::desktop_mapping::DesktopMapping {
+        mode: vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode::Proxy,
         routes: [(
             "claude-sonnet-5".into(),
-            vw_api_types::app_providers::desktop_mapping::DesktopModelRoute {
+            vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute {
                 model: "upstream-model".into(),
                 label_override: None,
                 supports_1m: false,

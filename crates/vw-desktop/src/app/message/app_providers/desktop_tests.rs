@@ -73,7 +73,7 @@ async fn cc04_ui_desktop_mapping_validation_is_visible() {
     let mut form = Form::new("fixture".into());
     form.mapping.routes.insert(
         "bad-route".into(),
-        vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopModelRoute {
+        vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute {
             model: "invalid model".into(),
             label_override: Some("中文动态标签".into()),
             supports_1m: false,

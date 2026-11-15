@@ -1,7 +1,7 @@
 //! Fixed Claude Desktop operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::claude_desktop::*;
+use vw_api_app_provider_profiles::claude_desktop::*;
 impl GatewayAppProviderClient {
     pub async fn claude_desktop_provider_import_live(
         &self,

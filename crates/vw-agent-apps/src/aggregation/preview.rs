@@ -3,12 +3,10 @@ use super::codex_catalog::CodexCatalogRow;
 use crate::providers::live::commit::AppState;
 use serde_json::{Map, Value};
 use toml_edit::DocumentMut;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthService,
-    vw_api_types::app_providers::desktop_mapping::DesktopMapping,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_auth::AuthService;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMapping;
+use vw_api_transport::id::TenantScope;
 
 pub enum Catalog<'a> {
     Claude(&'a Value),

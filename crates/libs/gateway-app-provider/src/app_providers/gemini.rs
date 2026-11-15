@@ -1,7 +1,7 @@
 //! Fixed Gemini operations with sensitive headers and payload-free errors.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::gemini::*;
+use vw_api_app_provider_profiles::gemini::*;
 impl GatewayAppProviderClient {
     pub async fn gemini_provider_save(
         &self,

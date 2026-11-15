@@ -2,13 +2,11 @@ use super::list::{self, ListMessage};
 use crate::app::state::app_providers::{desktop::Form, list::Scope};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{claude_desktop::*, desktop_mapping::*},
-    },
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 
 fn error(value: AgentAppsReadError) -> String {
     match value {

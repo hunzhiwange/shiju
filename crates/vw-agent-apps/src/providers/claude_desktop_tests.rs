@@ -4,11 +4,9 @@ use super::{
 };
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::claude_desktop::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_transport::id::TenantScope;
 fn third(token: &str) -> ClaudeDesktopProfile {
     ClaudeDesktopProfile {
         name: "Fixture".into(),

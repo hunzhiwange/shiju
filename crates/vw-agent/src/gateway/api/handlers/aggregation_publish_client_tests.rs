@@ -14,7 +14,7 @@ pub(super) fn client(app: AppId, name: &str) -> Fixture {
     for (id, model) in [("alpha", "first"), ("beta", "second")] {
         if app == AppId::Codex {
             crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap().codex_save(&tenant(), id,
-                &vw_api_types::app_providers::codex_catalog::CodexProfile {
+                &vw_api_app_provider_profiles::codex_catalog::CodexProfile {
                     name:id.into(), config:format!("model='{model}'\nmodel_provider='relay'\n[model_providers.relay]\nbase_url='https://fixture.invalid/v1'\nwire_api='responses'\n"),
                     api_key:Some("synthetic-private-key".into()), preserve_login:false,
                 }, None, None).unwrap();

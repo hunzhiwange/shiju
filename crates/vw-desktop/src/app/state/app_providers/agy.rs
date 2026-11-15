@@ -1,4 +1,4 @@
-use vw_gateway_client::vw_api_types::app_providers::agy::AgyFormView;
+use vw_api_app_provider_profiles::agy::AgyFormView;
 #[derive(Clone, Default)]
 pub(crate) struct Draft {
     pub model: String,

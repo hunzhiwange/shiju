@@ -57,24 +57,16 @@ mod snippets_tests;
 mod codex_tests;
 
 pub mod codex_catalog;
-#[cfg(test)]
-mod codex_catalog_tests;
 
 pub mod gemini;
-#[cfg(test)]
-mod gemini_tests;
 
 pub mod claude_desktop;
 pub mod grok;
 #[cfg(test)]
 mod grok_tests;
 
-#[cfg(test)]
-mod claude_desktop_tests;
 
 pub mod desktop_mapping;
-#[cfg(test)]
-mod desktop_mapping_tests;
 
 pub mod hermes;
 #[cfg(test)]
@@ -107,8 +99,6 @@ pub mod dsh;
 mod dsh_tests;
 
 pub mod agy;
-#[cfg(test)]
-mod agy_tests;
 
 pub mod import;
 #[cfg(test)]

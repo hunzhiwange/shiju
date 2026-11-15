@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vw_api_app_provider_base::claude::*;
-use vw_api_types::app_providers::gemini::*;
+use vw_api_app_provider_profiles::gemini::*;
 use vw_api_app_identity::{AppId};
 use super::{preview::{self, Decision, ImportPreview, PreviewCandidate, PreviewError}, source::*};
 
@@ -162,7 +162,7 @@ fn normalize(app: AppId, name: &str, settings: &Value, before: Option<&Value>) -
         let mut profile = crate::providers::codex_catalog::import(Some(config.as_bytes()), None).map_err(|_| PreviewError::InvalidCandidate)?;
         profile.name = name.into();
         if let Some(existing) = before.and_then(|v| v.get("codex")) {
-            let existing: vw_api_types::app_providers::codex_catalog::CodexProfile = serde_json::from_value(existing.clone()).map_err(|_| PreviewError::InvalidCandidate)?;
+            let existing: vw_api_app_provider_profiles::codex_catalog::CodexProfile = serde_json::from_value(existing.clone()).map_err(|_| PreviewError::InvalidCandidate)?;
             profile.api_key = existing.api_key;
         }
         return Ok(json!({"name":name,"codex":profile,"settingsConfig":crate::providers::codex_catalog::settings(&profile)}));

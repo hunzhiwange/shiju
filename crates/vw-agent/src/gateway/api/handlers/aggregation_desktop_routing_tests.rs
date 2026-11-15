@@ -17,10 +17,11 @@ async fn aggregation_t46_desktop_discovery_and_messages_use_one_scoped_listener(
         desktop_mapping::catalog::{DesktopMappingMember, DesktopModelCatalog},
         mode_state::StackState,
     };
-    use vw_api_types::app_providers::{
-        claude_desktop::{ClaudeDesktopConfig, ClaudeDesktopProfile},
-        desktop_mapping::{DesktopMapping, DesktopMappingMode, DesktopModelRoute},
-    };
+    use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopConfig;
+use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMapping;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
     let f = Fixture::new();
     let (send, mut received) = tokio::sync::mpsc::unbounded_channel();
     let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

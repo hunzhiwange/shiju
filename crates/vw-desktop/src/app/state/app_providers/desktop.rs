@@ -1,4 +1,4 @@
-use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 #[derive(Clone)]
 pub(crate) struct Form {
     pub aggregation: Option<crate::app::message::settings::aggregation_desktop::Session>,

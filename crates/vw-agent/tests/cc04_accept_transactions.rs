@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::claude::*;
-use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_app_provider_profiles::codex_catalog::*;
 use vw_api_types::app_providers::editor_merge::*;
 use vw_api_types::app_providers::mode_state::*;
 use vw_api_transport::id::TenantScope;

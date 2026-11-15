@@ -1,4 +1,4 @@
-use vw_api_types::app_providers::agy::*;
+use vw_api_app_provider_profiles::agy::*;
 #[tokio::test]
 async fn cc04_agy_sdk_scopes_card_and_discards_error_payload() {
     let server = super::super::test_support::server_with_tenant_scope(

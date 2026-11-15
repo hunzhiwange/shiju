@@ -80,11 +80,9 @@ use crate::{
         live::commit::{AppState, HOOK, Phase},
     },
 };
-use vw_api_types::{
-    app_providers::desktop_mapping::DesktopMapping,
-    app_providers::desktop_mapping::DesktopMappingMode,
-    app_providers::desktop_mapping::DesktopModelRoute,
-};
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMapping;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
 use vw_api_app_identity::{AppDesktopObservation};
 
 const APP: AppId = AppId::ClaudeDesktop;

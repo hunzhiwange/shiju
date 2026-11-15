@@ -1,8 +1,8 @@
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormConfig;
-use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormKind;
-use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormWrite;
+use vw_api_app_provider_profiles::gemini::GeminiFormConfig;
+use vw_api_app_provider_profiles::gemini::GeminiFormKind;
+use vw_api_app_provider_profiles::gemini::GeminiFormWrite;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kind {

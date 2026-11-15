@@ -121,7 +121,7 @@ impl EditForm {
     pub fn gemini_request(
         &self,
         host: String,
-    ) -> Option<vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormWrite> {
+    ) -> Option<vw_api_app_provider_profiles::gemini::GeminiFormWrite> {
         let draft = self.gemini.as_ref()?;
         draft.request(
             host,

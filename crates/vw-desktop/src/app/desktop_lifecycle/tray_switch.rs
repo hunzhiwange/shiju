@@ -7,9 +7,9 @@ use vw_gateway_client::vw_api_types::agent_apps::AppId;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
 use vw_api_app_provider_base::claude::ClaudeLiveResult;
 use vw_api_app_provider_base::claude::ClaudeTarget;
-use vw_gateway_client::vw_api_types::app_providers::claude_desktop::ClaudeDesktopTarget;
-use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexTarget;
-use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiTarget;
+use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopTarget;
+use vw_api_app_provider_profiles::codex_catalog::CodexTarget;
+use vw_api_app_provider_profiles::gemini::GeminiTarget;
 use vw_gateway_client::vw_api_types::app_providers::grok::GrokTarget;
 
 pub(super) fn supports(app: AppId) -> bool {

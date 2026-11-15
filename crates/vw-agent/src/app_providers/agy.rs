@@ -1,7 +1,7 @@
 //! Agy rows share the existing tenant store and conditional update contract.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::agy::AgyProfile;
+use vw_api_app_provider_profiles::agy::AgyProfile;
 impl AppProviderStore {
     pub(crate) fn agy_record(&self, t: &TenantScope, id: &str) -> Result<Option<Value>, String> {
         self.settings

@@ -4,7 +4,7 @@ use super::live::{
     write_guard::WriteError,
 };
 use serde_json::{Map, Value, json};
-use vw_api_types::app_providers::claude_desktop::*;
+use vw_api_app_provider_profiles::claude_desktop::*;
 
 pub const PROFILE_ID: &str = "00000000-0000-4000-8000-000000157210";
 const PROFILE_NAME: &str = "CC Switch";

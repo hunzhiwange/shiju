@@ -9,7 +9,7 @@ use iced::{
     Alignment, Element, Length,
     widget::{button, checkbox, column, container, row, text, text_input},
 };
-use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopMappingMode;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
 pub(crate) fn overlay<'a>(
     form: &'a Form,
     help: Help<'_>,

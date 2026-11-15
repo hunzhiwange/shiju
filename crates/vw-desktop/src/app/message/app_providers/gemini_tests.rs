@@ -118,7 +118,7 @@ async fn cc04_ui_gemini_validation_failure_preserves_draft() {
 
 #[test]
 fn cc04_ui_gemini_stale_response_is_ignored() {
-    use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiLiveResult;
+    use vw_api_app_provider_profiles::gemini::GeminiLiveResult;
     let (_, scope) = client_scope(1);
     let mut state = ListState::default();
     let old_generation = state.begin(scope.clone());

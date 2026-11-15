@@ -351,7 +351,7 @@ async fn aggregation_t39_rejects_unknown_preview_fields_and_non_codex_catalog_po
 
 #[tokio::test]
 async fn aggregation_t39_codex_preview_uses_saved_profile_without_publishing_catalog() {
-    use vw_api_types::app_providers::codex_catalog::CodexProfile;
+    use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
     let f = Fixture::new();
     let profile = CodexProfile { name: "Codex relay".into(), config: "model='main'\nmodel_provider='relay'\n[model_providers.relay]\nbase_url='https://fixture.invalid/v1'\nwire_api='responses'\n".into(), api_key: Some("synthetic-private-key".into()), preserve_login: false };
     crate::app_providers::AppProviderStore::new(f.db.clone())

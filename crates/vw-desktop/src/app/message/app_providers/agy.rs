@@ -4,7 +4,7 @@ use crate::app::state::app_providers::{
 };
 use vw_gateway_client::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::app_providers::agy::*;
+use vw_api_app_provider_profiles::agy::*;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 #[derive(Clone)]
 pub enum Field {

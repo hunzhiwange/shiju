@@ -439,7 +439,7 @@ impl AppProviderStore {
         if app == AppId::Codex {
             if let Some(row) = self.codex_record(tenant, id)? {
                 if let Some(profile) = row.get("codex") {
-                    let profile: vw_api_types::app_providers::codex_catalog::CodexProfile =
+                    let profile: vw_api_app_provider_profiles::codex_catalog::CodexProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -454,7 +454,7 @@ impl AppProviderStore {
         if app == AppId::Gemini {
             if let Some(row) = self.gemini_record(tenant, id)? {
                 if let Some(profile) = row.get("gemini") {
-                    let profile: vw_api_types::app_providers::gemini::GeminiProfile =
+                    let profile: vw_api_app_provider_profiles::gemini::GeminiProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {
@@ -589,7 +589,7 @@ impl AppProviderStore {
         if app == AppId::ClaudeDesktop {
             if let Some(row) = self.claude_desktop_record(tenant, id)? {
                 if let Some(profile) = row.get("claude_desktop") {
-                    let profile: vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile =
+                    let profile: vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile =
                         serde_json::from_value(profile.clone())
                             .map_err(|_| "invalid provider record")?;
                     return Ok(AppProviderSummary {

@@ -1,7 +1,8 @@
 //! Catalog mapping operations; response never asserts a running proxy.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 impl GatewayClient {
     pub async fn claude_desktop_form_read(
         &self,

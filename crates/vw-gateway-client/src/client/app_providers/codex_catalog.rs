@@ -1,7 +1,7 @@
 //! Fixed Codex operations with sensitive headers and payload-free errors.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_app_provider_profiles::codex_catalog::*;
 impl GatewayClient {
     pub async fn codex_provider_save(
         &self,

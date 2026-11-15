@@ -11,7 +11,7 @@ use tokio::sync::Notify;
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
-use vw_api_types::app_providers::agy::AgyProfile;
+use vw_api_app_provider_profiles::agy::AgyProfile;
 use vw_api_types::app_providers::opencode::OpenCodeProfile;
 use vw_api_transport::id::TaskId;
 use vw_api_transport::id::TenantScope;
@@ -303,7 +303,7 @@ async fn catalog_api_discovery_http_uses_the_selected_native_codex_provider() {
     let f = Fixture::new(false, false).await;
     let store = AppProviderStore::new(f.database.clone()).unwrap();
     let before = store.codex_record(&f.tenant, "saved").unwrap().unwrap();
-    let profile = vw_api_types::app_providers::codex_catalog::CodexProfile {
+    let profile = vw_api_app_provider_profiles::codex_catalog::CodexProfile {
         name: "Saved".into(),
         config: format!(
             "model_provider = \"native\"\n[model_providers.native]\nname = \"Native\"\nbase_url = \"{}\"\nwire_api = \"responses\"\n",

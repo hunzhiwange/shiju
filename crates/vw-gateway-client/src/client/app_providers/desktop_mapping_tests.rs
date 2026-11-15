@@ -1,5 +1,6 @@
 use super::*;
-use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 #[tokio::test]
 async fn cc04_desktop_mapping_facade_rejects_path_identity() {
     let client = GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();

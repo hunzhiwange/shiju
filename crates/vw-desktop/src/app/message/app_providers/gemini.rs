@@ -2,10 +2,11 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::app_providers::gemini::{GeminiFormView, GeminiLiveResult, GeminiTarget},
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_provider_profiles::gemini::GeminiFormView;
+use vw_api_app_provider_profiles::gemini::GeminiLiveResult;
+use vw_api_app_provider_profiles::gemini::GeminiTarget;
 
 #[derive(Clone)]
 pub enum Field {

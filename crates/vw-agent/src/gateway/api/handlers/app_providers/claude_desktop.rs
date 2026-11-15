@@ -5,7 +5,7 @@ use axum::{
     routing::{post, put},
 };
 use std::path::PathBuf;
-use vw_api_types::app_providers::claude_desktop::*;
+use vw_api_app_provider_profiles::claude_desktop::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(super) fn router() -> Router {

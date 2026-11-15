@@ -35,7 +35,7 @@ use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderCatalog;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderCatalogRow;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
-use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopModelRoute;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
 
 async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();

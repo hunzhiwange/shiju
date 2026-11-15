@@ -1,10 +1,8 @@
 use super::agy::*;
 use crate::apps::launch::request::LaunchMaterial;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-use {
-    vw_api_types::app_providers::agy::AgyProfile,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_provider_profiles::agy::AgyProfile;
+use vw_api_transport::id::TenantScope;
 fn profile() -> AgyProfile {
     AgyProfile {
         name: "Relay".into(),

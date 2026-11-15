@@ -1,7 +1,7 @@
 //! Agy domain SDK; launch selection uses the existing agent-apps terminal endpoint.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::agy::*;
+use vw_api_app_provider_profiles::agy::*;
 impl GatewayClient {
     pub async fn agy_form_delete(
         &self,

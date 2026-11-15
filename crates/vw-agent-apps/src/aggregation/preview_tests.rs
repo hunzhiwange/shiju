@@ -207,9 +207,9 @@ fn aggregation_t13_codex_uses_native_catalog_and_preserve_notice() {
 
 #[test]
 fn aggregation_t13_desktop_collision_keeps_native_first_winner() {
-    use vw_api_types::app_providers::desktop_mapping::{
-        DesktopMapping, DesktopMappingMode, DesktopModelRoute,
-    };
+    use vw_api_app_provider_profiles::desktop_mapping::DesktopMapping;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
     let tenant = TenantScope::new("platform", "company").unwrap();
     let mut state = state(&tenant);
     state.stack.members = vec!["primary".into(), "relay-a".into(), "relay-b".into()];

@@ -212,7 +212,7 @@ async fn cc04_import_existing_nondefault_official_card_blocks_startup() {
         .agy_save(
             &tenant(),
             "saved",
-            &vw_api_types::app_providers::agy::AgyProfile {
+            &vw_api_app_provider_profiles::agy::AgyProfile {
                 name: "Existing native login".into(),
                 model: None,
                 api_key: None,

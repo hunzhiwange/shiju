@@ -477,7 +477,7 @@ fn diagnostic_desktop_endpoint_selection_requires_save_other_forms() {
     );
     form.codex = None;
     form.gemini = Some(gemini::Draft::from_view(
-        vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormKind::ThirdParty {
+        vw_api_app_provider_profiles::gemini::GeminiFormKind::ThirdParty {
             base_url: "https://gemini.example".into(),
         },
         None,

@@ -3,12 +3,10 @@ use super::{
     live::{commit::*, recovery::RecoveryOutcome, write_guard::WriteError},
 };
 use std::{fs, os::unix::fs::PermissionsExt};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::codex_catalog::*,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::*,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_profiles::codex_catalog::*;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::*;
 fn profile(name: &str) -> CodexProfile {
     CodexProfile {
         name: name.into(),

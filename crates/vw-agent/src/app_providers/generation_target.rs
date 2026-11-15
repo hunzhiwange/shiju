@@ -7,8 +7,8 @@ use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_base::claude::ClaudeConfig;
 use vw_api_app_provider_base::claude::ClaudeProfile;
-use vw_api_types::app_providers::gemini::GeminiConfig;
-use vw_api_types::app_providers::gemini::GeminiProfile;
+use vw_api_app_provider_profiles::gemini::GeminiConfig;
+use vw_api_app_provider_profiles::gemini::GeminiProfile;
 use vw_api_transport::id::ProviderId;
 
 #[derive(Clone, Copy)]

@@ -1,13 +1,11 @@
-use {
-    vw_api_app_identity::AppId::Claude,
-    vw_api_app_identity::AppId::ClaudeDesktop,
-    vw_api_app_identity::AppId::Codex,
-    vw_api_app_identity::AppId::Gemini,
-    vw_api_types::app_providers::desktop_mapping::DesktopMapping,
-    vw_api_types::app_providers::desktop_mapping::DesktopMappingMode,
-    vw_api_types::app_providers::desktop_mapping::DesktopModelRoute,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId::Claude;
+use vw_api_app_identity::AppId::ClaudeDesktop;
+use vw_api_app_identity::AppId::Codex;
+use vw_api_app_identity::AppId::Gemini;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMapping;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
+use vw_api_transport::id::TenantScope;
 
 use crate::providers::{
     desktop_mapping::catalog::{DesktopMappingMember, DesktopModelCatalog},

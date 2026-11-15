@@ -5,7 +5,8 @@ use axum::{
     routing::{post, put},
 };
 use std::path::PathBuf;
-use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 enum FormRequest {

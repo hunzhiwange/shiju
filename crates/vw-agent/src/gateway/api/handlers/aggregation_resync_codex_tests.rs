@@ -17,14 +17,12 @@ use tower::ServiceExt;
 use vw_agent_apps::providers::{
     codex_catalog::CodexFiles, live::commit::*, mode_state::StackState,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::codex_catalog::CodexProfile,
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
+use vw_api_transport::id::COMPANY_ID_HEADER;
+use vw_api_transport::id::PLATFORM_ID_HEADER;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 const TOKEN: &str = "aggregation-task16-codex-manager-credential";
 fn profile(endpoint: &str, id: &str, model: &str) -> CodexProfile {
     CodexProfile {

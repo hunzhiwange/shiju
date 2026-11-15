@@ -1,4 +1,4 @@
-use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_app_provider_profiles::codex_catalog::*;
 #[tokio::test]
 async fn cc04_codex_catalog_sdk_rejects_path_identity_without_request() {
     let client = crate::test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();

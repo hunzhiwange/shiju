@@ -241,13 +241,13 @@ pub struct DesktopMappingChange {
     pub target_host_id: String,
     pub project_id: ProjectId,
     pub expected_revision: String,
-    pub mapping: crate::app_providers::desktop_mapping::DesktopMapping,
+    pub mapping: vw_api_app_provider_profiles::desktop_mapping::DesktopMapping,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DesktopMappingView {
     pub revision: String,
-    pub form: crate::app_providers::desktop_mapping::DesktopFormView,
+    pub form: vw_api_app_provider_profiles::desktop_mapping::DesktopFormView,
 }
 
 /// Optional scope for existing provider-write routes. Active aggregation requires

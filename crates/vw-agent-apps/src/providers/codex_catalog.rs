@@ -8,12 +8,10 @@ use super::live::{
 };
 use serde_json::{Value, json};
 use std::{ffi::OsStr, path::Path};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::codex_catalog::CodexProfile,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::*,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::*;
 pub const CATALOG_FILENAME: &str = "shiju-model-catalog.json";
 pub fn settings(profile: &CodexProfile) -> Value {
     json!({"config":profile.config,"auth":{"OPENAI_API_KEY":profile.api_key}})

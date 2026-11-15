@@ -137,9 +137,8 @@ pub(crate) fn load(
                         && identity(host, id, &profile).is_ok()
                 }),
                 AppId::ClaudeDesktop => {
-                    use vw_api_types::app_providers::claude_desktop::{
-                        ClaudeDesktopConfig, ClaudeDesktopProfile,
-                    };
+                    use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopConfig;
+use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile;
                     serde_json::from_value::<ClaudeDesktopProfile>(row["claude_desktop"].clone())
                         .is_ok_and(|profile| {
                             matches!(&profile.config, ClaudeDesktopConfig::ThirdParty { .. })

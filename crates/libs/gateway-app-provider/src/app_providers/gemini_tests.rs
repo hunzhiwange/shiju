@@ -1,5 +1,5 @@
 use crate::test_support;
-use vw_api_types::app_providers::gemini::*;
+use vw_api_app_provider_profiles::gemini::*;
 #[tokio::test]
 async fn cc04_gemini_sdk_rejects_path_identity_without_request() {
     let client = test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();

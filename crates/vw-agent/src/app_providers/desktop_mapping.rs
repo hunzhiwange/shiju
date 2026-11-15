@@ -2,7 +2,7 @@
 use super::*;
 use serde_json::Value;
 use vw_agent_apps::providers::desktop_mapping;
-use vw_api_types::app_providers::desktop_mapping::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 impl AppProviderStore {
     pub(crate) fn desktop_import_claude(&self, tenant: &TenantScope) -> Result<usize, String> {
         let prefix = format!("{}:", serde_json::to_string(&AppId::Claude).unwrap());

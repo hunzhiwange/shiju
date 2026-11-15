@@ -4,9 +4,8 @@ use crate::app::state::{
     app_providers::{desktop::Form, list::Scope},
 };
 use std::io::{Read, Write};
-use vw_gateway_client::vw_api_types::{
-    agent_apps::aggregation::*, app_providers::desktop_mapping::DesktopModelRoute,
-};
+use vw_gateway_client::vw_api_types::agent_apps::aggregation::*;
+use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_app_identity::AppId}};
 fn fixture(
     path: &'static str,
@@ -140,7 +139,7 @@ fn scoped_form(scope: Scope) -> Form {
     form.aggregation = Some(session);
     form.mapping_editable = true;
     form.mapping.mode =
-        vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopMappingMode::Proxy;
+        vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode::Proxy;
     form.create = false;
     form.name = "中文模型供应商".into();
     form.mapping.routes.insert(
@@ -438,7 +437,7 @@ async fn aggregation_t63_refresh_and_save_accept_only_gateway_revisions() {
     let status = form.aggregation.as_ref().unwrap().status.clone().unwrap();
     let view = DesktopMappingView {
         revision: "mapping-r2".into(),
-        form: vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopFormView {
+        form: vw_api_app_provider_profiles::desktop_mapping::DesktopFormView {
             name: "新中文档案".into(),
             base_url: "https://example.invalid".into(),
             official: false,

@@ -1,6 +1,6 @@
 use super::desktop_mapping::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::desktop_mapping::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 fn row(model: &str) -> Value {
     json!({"name":"Fixture","settingsConfig":{"env":{"ANTHROPIC_BASE_URL":"https://fixture.test","ANTHROPIC_AUTH_TOKEN":"fake-secret","ANTHROPIC_MODEL":model}},"notes":"keep","inFailoverQueue":true})
 }

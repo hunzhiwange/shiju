@@ -2,7 +2,7 @@ use crate::{
     aggregation::{codex_catalog::*, codex_publish},
     providers::{codex, codex_catalog},
 };
-use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 #[test]
 fn aggregation_t16_codex_plan_composes_with_native_projection() {
     let profile=CodexProfile{name:"alpha".into(),config:"model='model-a'\nmodel_provider='vendor'\n[model_providers.vendor]\nname='Fixture'\nbase_url='http://127.0.0.1:7/v1'\nwire_api='responses'\n".into(),api_key:Some("fixture-key".into()),preserve_login:false};

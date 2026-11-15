@@ -6,7 +6,7 @@ use axum::{
 };
 use std::path::PathBuf;
 use vw_api_app_provider_base::claude::ClaudeActivation;
-use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_app_provider_profiles::codex_catalog::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 

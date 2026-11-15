@@ -1,4 +1,4 @@
-use vw_api_types::app_providers::claude_desktop::*;
+use vw_api_app_provider_profiles::claude_desktop::*;
 #[tokio::test]
 async fn cc04_claude_desktop_sdk_rejects_path_identity_without_request() {
     let client = crate::test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();

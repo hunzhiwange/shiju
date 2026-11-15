@@ -2,7 +2,7 @@
 pub mod catalog;
 
 use serde_json::Value;
-use vw_api_types::app_providers::desktop_mapping::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 pub fn defaults() -> Vec<DesktopDefaultRoute> {
     [
         ("claude-sonnet-5", "ANTHROPIC_DEFAULT_SONNET_MODEL"),
@@ -69,12 +69,12 @@ pub fn validate(mapping: &DesktopMapping) -> Result<(), String> {
 fn compatible_source(
     source: &Value,
 ) -> Result<
-    Option<(Value, vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile)>,
+    Option<(Value, vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile)>,
     String,
 > {
     use serde_json::json;
 use vw_api_app_provider_base::AppProviderWrite;
-    use vw_api_types::app_providers::claude_desktop::*;
+    use vw_api_app_provider_profiles::claude_desktop::*;
     let mut source = source.clone();
     if !source.is_object() {
         return Err("invalid provider record".into());
@@ -278,7 +278,7 @@ pub fn form_view(row: &Value) -> Result<DesktopFormView, String> {
         .cloned()
         .map(
             serde_json::from_value::<
-                vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile,
+                vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile,
             >,
         )
         .transpose()
@@ -286,7 +286,7 @@ pub fn form_view(row: &Value) -> Result<DesktopFormView, String> {
     let official = native.as_ref().is_some_and(|p| {
         matches!(
             p.config,
-            vw_api_types::app_providers::claude_desktop::ClaudeDesktopConfig::Official {}
+            vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopConfig::Official {}
         )
     });
     let managed = row.pointer("/meta/authBinding").is_some()

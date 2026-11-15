@@ -12,7 +12,7 @@ use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
 use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
 use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
-use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;
 

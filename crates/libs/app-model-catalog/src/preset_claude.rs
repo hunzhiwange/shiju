@@ -1,3 +1,4 @@
+use vw_api_app_provider_profiles::desktop_mapping::{DesktopMappingMode, DesktopModelRoute};
 //! Read-only model defaults and deployment hints for the two Claude applications.
 
 use super::preset_search::{PresetPlan, PresetRegion};
@@ -5,7 +6,6 @@ use serde::Deserialize;
 use vw_api_types::{
     agent_apps::AppId,
     app_providers::{
-        desktop_mapping::{DesktopMappingMode, DesktopModelRoute},
         universal::ClaudeModels,
 use vw_api_app_identity::{AppId};
     },

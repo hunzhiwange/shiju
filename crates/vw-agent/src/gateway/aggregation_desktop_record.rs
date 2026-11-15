@@ -185,9 +185,9 @@ pub(crate) fn replace(
         rows.iter().filter(|(id, _)| id != default).map(target).collect::<Result<Vec<_>, _>>()?,
     )?;
     routing.publish_desktop(publication, previous.as_deref(), |address, token| {
-        let gateway = vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile {
+        let gateway = vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile {
             name: "Gateway".into(),
-            config: vw_api_types::app_providers::claude_desktop::ClaudeDesktopConfig::ThirdParty {
+            config: vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopConfig::ThirdParty {
                 base_url: format!("http://{address}/claude-desktop"),
                 auth_token: token.into(),
             },

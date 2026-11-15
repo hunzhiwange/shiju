@@ -5,11 +5,9 @@ use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::agy::AgyProfile,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_profiles::agy::AgyProfile;
+use vw_api_transport::id::TenantScope;
 #[path = "agy_files.rs"]
 mod files;
 pub(crate) use files::Lease;

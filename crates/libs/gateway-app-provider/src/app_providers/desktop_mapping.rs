@@ -1,7 +1,8 @@
 //! Catalog mapping operations; response never asserts a running proxy.
 use crate::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
+use vw_api_app_provider_profiles::claude_desktop::*;
+use vw_api_app_provider_profiles::desktop_mapping::*;
 impl GatewayAppProviderClient {
     pub async fn claude_desktop_form_read(
         &self,

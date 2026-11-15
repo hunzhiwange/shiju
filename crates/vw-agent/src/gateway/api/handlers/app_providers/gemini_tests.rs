@@ -3,10 +3,8 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use {
-    vw_api_types::app_providers::gemini::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_provider_profiles::gemini::*;
+use vw_api_transport::id::TenantScope;
 use gateway_endpoint::GatewayEndpoint;
 use gateway_app_provider::GatewayAppProviderClient;
 const TOKEN: &str = "fixture-gemini-token-with-at-least-32-chars";

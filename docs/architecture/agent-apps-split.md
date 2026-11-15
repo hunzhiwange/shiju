@@ -2208,3 +2208,26 @@ refresh_tests 的 apps::launch 集成场景留给任务 22/32 编排验收。当
 未运行 Cargo、单元及实机测试，统一验收待授权：新包与调用者编译、迁移单测、
 三平台条件、身份不匹配/轮换代际拒绝和锁文件一致性。本节完成仅指独立规则迁移，
 适配器延期由任务 22 接收，不能视为整个 Codex 运行时已经下沉。
+
+## 任务 16 静态迁移结果
+
+`app-auth-copilot` 唯一拥有 canonical_authority、PUBLIC_AUTHORITY、Endpoints
+和 session_endpoint，非 wasm 条件保持；直接依赖 reqwest、serde、api-app-auth。
+共用 read_json/read_json_limited/read_body_limited/valid_token/utc_now 移至
+app-auth-core::response，保持原大小限制、时钟和错误语义，旧 copilot 路径重导出。
+Copilot 会话的身份校验直接接入 app-provider-validation。lib.rs 经 auth 的既有
+公开路径保持，原有直接依赖尚有其它消费者，未删除；无 include 或资源路径。
+
+覆盖基线所有权表的延期：任务 15 后 CredentialFileStore/租约仍依赖门面 Claude
+编排，CopilotAuth 与 session 的固有方法共享 client/sessions，不能跨包添加固有
+实现。任务 22 必须在凭据存储闭环后将 copilot.rs/copilot_token.rs 剩余设备流程、
+会话缓存、CopilotSubscription、CopilotSession 与两个独立测试整体归入本库。
+测试仍按原 test/unix/非 wasm 条件注册；copilot_tests 的 oauth_server/read_request
+被其它认证及 usage 测试共享，任务 22 同时收拢夹具，usage 编排测试由任务 59 接收。
+不新增测试、不复制实现、不新增回调或门面回依赖。
+
+静态证据：源码提取前后函数体对照、导出及真实调用者检索、清单文本及路径
+审阅（当前 Python 无 tomllib，未作 TOML 解析）、workspace/直接路径依赖核对及 git diff --check；清单无反向依赖。
+未运行 Cargo、单元及实机测试，统一验收待授权：新库和调用者编译、现有定向
+测试、三平台条件、域名及端点拒绝、授权轮询/缓存/代际一致性、锁文件一致性。
+本任务完成仅指已闭合规则下沉，完整运行时接收责任归任务 22。

@@ -6,6 +6,7 @@ use super::{
     credential_file::{AccountCredential, CredentialFileStore},
     flow::AuthAccountScope,
 };
+use app_auth_copilot::{Endpoints, session_endpoint};
 use reqwest::{Request, Response, StatusCode, Url, header};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -67,10 +68,6 @@ struct Discovery {
     endpoints: Option<Endpoints>,
 }
 
-#[derive(Deserialize)]
-struct Endpoints {
-    api: String,
-}
 
 impl CopilotAuth {
     /// Resolve an explicit managed account. The authorized host supplies the authority
@@ -106,7 +103,7 @@ impl CopilotAuth {
         if scope.service != AuthService::GithubCopilot || !cfg!(unix) {
             return Err(AuthErrorCode::Unsupported);
         }
-        crate::providers::validate_identity(account_id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        app_provider_validation::validate_identity(account_id).map_err(|_| AuthErrorCode::InvalidInput)?;
         let authority = canonical_authority(Some(authority))?;
         let key = SessionKey {
             tenant: scope.tenant.clone(),
@@ -194,28 +191,4 @@ impl CopilotAuth {
             _ => Err(AuthErrorCode::UpstreamFailure),
         }
     }
-}
-
-fn session_endpoint(authority: &str, discovered: Option<Endpoints>) -> Result<Url, AuthErrorCode> {
-    let default = if authority == PUBLIC_AUTHORITY {
-        "https://api.githubcopilot.com".to_owned()
-    } else {
-        format!("https://copilot-api.{authority}")
-    };
-    let endpoint = match discovered.as_ref() {
-        Some(Endpoints { api }) => api.strip_suffix('/').unwrap_or(api),
-        None => default.as_str(),
-    };
-    let allowed = endpoint == default
-        || (authority == PUBLIC_AUTHORITY
-            && matches!(
-                endpoint,
-                "https://api.individual.githubcopilot.com"
-                    | "https://api.business.githubcopilot.com"
-                    | "https://api.enterprise.githubcopilot.com"
-            ));
-    if !allowed {
-        return Err(AuthErrorCode::UpstreamFailure);
-    }
-    Url::parse(endpoint).map_err(|_| AuthErrorCode::UpstreamFailure)
 }

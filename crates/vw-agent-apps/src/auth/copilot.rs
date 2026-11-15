@@ -5,8 +5,8 @@ use super::{
     flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use reqwest::{Client, Request, Response, StatusCode, Url, header};
-use serde::{Deserialize, de::DeserializeOwned};
+use reqwest::{Client, Request, StatusCode, header};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
     sync::{Arc, Mutex},
@@ -24,13 +24,12 @@ use {
     vw_api_app_auth::AuthStartResponse,
 };
 
-pub(super) const PUBLIC_AUTHORITY: &str = "github.com";
+pub(super) use app_auth_copilot::PUBLIC_AUTHORITY;
 const PUBLIC_CLIENT_ID: &str = "Iv1.b507a08c87ecfe98";
 const ENTERPRISE_CLIENT_ID: &str = "Ov23li8tweQw6odWQebz";
 const USER_AGENT: &str = "GitHubCopilotChat/0.38.2";
 const EDITOR_VERSION: &str = "vscode/1.110.1";
 const PLUGIN_VERSION: &str = "copilot-chat/0.38.2";
-const MAX_RESPONSE_BYTES: usize = 16 * 1024;
 
 pub struct CopilotAuth {
     pub(crate) client: Client,
@@ -408,46 +407,9 @@ impl CopilotAuth {
     }
 }
 
-pub(super) async fn read_json<T: DeserializeOwned>(response: Response) -> Result<T, AuthErrorCode> {
-    read_json_limited(response, MAX_RESPONSE_BYTES).await
-}
-
-pub(super) async fn read_json_limited<T: DeserializeOwned>(
-    response: Response,
-    max_bytes: usize,
-) -> Result<T, AuthErrorCode> {
-    let body = read_body_limited(response, max_bytes).await?;
-    serde_json::from_slice(&body).map_err(|_| AuthErrorCode::UpstreamFailure)
-}
-
-pub(super) async fn read_body_limited(
-    mut response: Response,
-    max_bytes: usize,
-) -> Result<Vec<u8>, AuthErrorCode> {
-    let mut body = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| AuthErrorCode::UpstreamFailure)? {
-        if chunk.len() > max_bytes - body.len() {
-            return Err(AuthErrorCode::UpstreamFailure);
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
-}
-
-pub(crate) fn valid_token(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= MAX_RESPONSE_BYTES
-        && value.bytes().all(|byte| byte.is_ascii_graphic())
-}
-
-pub(super) fn utc_now() -> Result<TimestampMs, AuthErrorCode> {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .and_then(|elapsed| i64::try_from(elapsed.as_millis()).ok())
-        .map(TimestampMs)
-        .ok_or(AuthErrorCode::ExecutionHostUnavailable)
-}
+pub(crate) use app_auth_core::response::{
+    read_json, read_json_limited, read_body_limited, valid_token, utc_now,
+};
 
 fn copilot_account(
     scope: AuthAccountScope<'_>,
@@ -478,31 +440,4 @@ fn copilot_account(
     })
 }
 
-pub(super) fn canonical_authority(input: Option<&str>) -> Result<String, AuthErrorCode> {
-    let input = input.unwrap_or(PUBLIC_AUTHORITY).trim();
-    let (host, port) = input.split_once(':').unwrap_or((input, "443"));
-    if !port.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(AuthErrorCode::InvalidInput);
-    }
-    let port =
-        port.parse::<u16>().ok().filter(|port| *port != 0).ok_or(AuthErrorCode::InvalidInput)?;
-    if !host.contains('.')
-        || host.len() > 253
-        || host.split('.').any(|label| {
-            label.is_empty()
-                || label.len() > 63
-                || label.starts_with('-')
-                || label.ends_with('-')
-                || !label.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-        })
-    {
-        return Err(AuthErrorCode::InvalidInput);
-    }
-    let host = host.to_ascii_lowercase();
-    let url =
-        Url::parse(&format!("https://{host}:{port}/")).map_err(|_| AuthErrorCode::InvalidInput)?;
-    if url.domain() != Some(host.as_str()) || (host == PUBLIC_AUTHORITY && port != 443) {
-        return Err(AuthErrorCode::InvalidInput);
-    }
-    if port == 443 { Ok(host) } else { Ok(format!("{host}:{port}")) }
-}
+pub(super) use app_auth_copilot::canonical_authority;

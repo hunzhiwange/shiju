@@ -15,6 +15,9 @@ use super::{
     spawn_session_bootstrap,
 };
 
+mod directory;
+mod workflow;
+
 impl ActiveRunner {
     /// 非阻塞汇集本地副作与 Gateway 流消息，并在流结束后尝试启动排队输入。
     pub(crate) fn drain(&mut self, app: &mut V3GatewayApp) -> bool {
@@ -89,50 +92,9 @@ impl ActiveRunner {
                     recovery_draft,
                     result,
                 }) => {
-                    if generation != self.directory_switch_generation {
-                        continue;
-                    }
-                    self.directory_switch_source = None;
-                    if app.runtime().directory() != source_directory {
-                        continue;
-                    }
-                    match result {
-                        Ok(bootstrap) => {
-                            self.file_search_generation =
-                                self.file_search_generation.wrapping_add(1);
-                            self.file_search_query = None;
-                            self.session_diff_generation =
-                                self.session_diff_generation.wrapping_add(1);
-                            self.doctor_generation = self.doctor_generation.wrapping_add(1);
-                            self.cron_generation = self.cron_generation.wrapping_add(1);
-                            self.task_detail_generation =
-                                self.task_detail_generation.wrapping_add(1);
-                            self.workspace_files_generation =
-                                self.workspace_files_generation.wrapping_add(1);
-                            self.hooks_generation = self.hooks_generation.wrapping_add(1);
-                            self.memory_generation = self.memory_generation.wrapping_add(1);
-                            self.memory_mutation_generation = None;
-                            self.memory_snapshot_directory = None;
-                            self.memory_snapshot_query = None;
-                            self.hook_catalog_directory = None;
-                            self.hook_catalog = None;
-                            self.workflow_run = None;
-                            let directory = bootstrap.runtime.directory().display().to_string();
-                            app.commit_directory_switch(*bootstrap);
-                            app.widget_mut().push_history(V3DisplayEvent::System {
-                                text: format!("工作目录已切换到 {directory}"),
-                            });
-                        }
-                        Err(error) => {
-                            if app.widget().draft().is_empty() {
-                                app.widget_mut().replace_draft(recovery_draft.as_str());
-                            }
-                            push_runner_error(
-                                app,
-                                format!("failed to switch working directory: {error}"),
-                            );
-                        }
-                    }
+                    self.finish_directory_switch(
+                        app, generation, source_directory, recovery_draft, result,
+                    );
                 }
                 Ok(HostMessage::EditorFinished(result)) => {
                     self.editor_in_flight = false;
@@ -206,47 +168,7 @@ impl ActiveRunner {
                     }
                 }
                 Ok(HostMessage::WorkflowResumeFinished { pause_request_id, result }) => {
-                    self.interaction_in_flight = false;
-                    match result {
-                        Ok(response) => {
-                            let projected = self
-                                .workflow_run
-                                .as_mut()
-                                .ok_or_else(|| "workflow resume has no owned run state".to_string())
-                                .and_then(|ownership| {
-                                    if ownership.pause_request_id().as_deref()
-                                        != Some(pause_request_id.as_str())
-                                    {
-                                        return Err(
-                                            "workflow resume result does not match the current pause"
-                                                .to_string(),
-                                        );
-                                    }
-                                    let events = ownership.project_resume_response(*response)?;
-                                    let question = ownership.pause_question()?;
-                                    Ok((events, question))
-                                });
-                            match projected {
-                                Ok((events, question)) => {
-                                    for event in events {
-                                        app.accept_runtime_event(event);
-                                    }
-                                    app.replace_workflow_pause_question(question);
-                                    if let Err(error) = app.persist_session_snapshot() {
-                                        push_runner_error(
-                                            app,
-                                            format!("session save failed: {error}"),
-                                        );
-                                    }
-                                }
-                                Err(error) => app.record_interaction_error(error),
-                            }
-                        }
-                        Err(error) => app.record_interaction_error(format!(
-                            "failed to resume Workflow pause {pause_request_id}: {error}"
-                        )),
-                    }
-                    app.show_next_interaction();
+                    self.finish_workflow_resume(app, pause_request_id, result);
                 }
                 Ok(HostMessage::FileSearchFinished { generation, query, result }) => {
                     if generation != self.file_search_generation

@@ -4,7 +4,7 @@ use crate::app::config::update_embedding_routes_config_async;
 use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{App, Message, state::EmbeddingRouteDraft};
 use iced::Task;
-use vw_config_types::routing::EmbeddingRouteConfig;
+use config_routing::EmbeddingRouteConfig;
 
 use super::messages::{EmbeddingRoutesMessage, SettingsMessage};
 

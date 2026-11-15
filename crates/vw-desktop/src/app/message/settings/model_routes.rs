@@ -7,7 +7,7 @@ use crate::app::{
     state::{ModelRoute, QueryClassificationRuleInput},
 };
 use iced::Task;
-use vw_config_types::routing::{ClassificationRule, ModelRouteConfig};
+use config_routing::{ClassificationRule, ModelRouteConfig};
 
 #[cfg(test)]
 #[path = "model_routes_tests.rs"]

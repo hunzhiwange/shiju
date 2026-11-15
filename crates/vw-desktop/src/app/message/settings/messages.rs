@@ -86,8 +86,8 @@ pub enum ModelRoutesMessage {
         u64,
         Result<
             (
-                Vec<vw_config_types::routing::ModelRouteConfig>,
-                vw_config_types::routing::QueryClassificationConfig,
+                Vec<config_routing::ModelRouteConfig>,
+                config_routing::QueryClassificationConfig,
             ),
             String,
         >,

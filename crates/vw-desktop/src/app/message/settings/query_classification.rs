@@ -3,7 +3,7 @@ use super::messages::{QueryClassificationMessage, SettingsMessage};
 use super::routing_persistence;
 use crate::app::{App, Message, state::QueryClassificationRuleInput};
 use iced::Task;
-use vw_config_types::routing::ClassificationRule;
+use config_routing::ClassificationRule;
 
 fn rules_for_config(app: &App) -> Vec<ClassificationRule> {
     app.query_classification_settings

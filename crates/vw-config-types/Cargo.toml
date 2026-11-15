@@ -8,6 +8,7 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+config-routing = { path = "../libs/config-routing", version = "0.6.0" }
 config-provider = { path = "../libs/config-provider", version = "0.6.0" }
 config-acp-install = { path = "../libs/config-acp-install", version = "0.6.0" }
 config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }

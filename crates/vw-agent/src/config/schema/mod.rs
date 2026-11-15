@@ -57,7 +57,7 @@ pub use vw_config_types::hooks;
 pub use vw_config_types::memory;
 pub use vw_config_types::observability;
 pub use vw_config_types::reliability;
-pub use vw_config_types::routing;
+pub use config_routing as routing;
 pub use vw_config_types::runtime;
 
 // Re-export types for backward compatibility and ease of use

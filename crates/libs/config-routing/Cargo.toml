@@ -1,0 +1,9 @@
+[package]
+name = "config-routing"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+schemars = "1.2"
+serde = { version = "1", features = ["derive"] }

@@ -49,13 +49,7 @@ pub use desktop_chat_tools::card_style::single_line_preview;
 pub use desktop_chat_tools::text_layout::truncate_lines_middle;
 
 /// 拆出 Markdown 围栏及其后缀，供正文清理和代码块解析使用。
-pub(crate) fn markdown_code_fence(line: &str) -> Option<(&str, &str)> {
-    let line = line.trim_start();
-    let marker @ ('`' | '~') = line.chars().next()? else { return None };
-    let suffix = line.trim_start_matches(marker);
-    let fence = &line[..line.len() - suffix.len()];
-    (fence.len() >= 3).then_some((fence, suffix))
-}
+pub(crate) use desktop_chat_view::message_view::markdown::markdown_code_fence;
 
 /// 归一化 display text，让后续路径或文本比较保持确定性。
 ///

@@ -27,3 +27,10 @@ mod assistant_body_tests;
 mod assistant_error_tests;
 
 pub mod layout;
+
+pub mod markdown;
+pub mod markdown_code;
+pub mod markdown_links;
+pub mod markdown_rich;
+#[cfg(test)]
+mod markdown_tests;

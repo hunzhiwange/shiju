@@ -2,11 +2,9 @@
 //! 入口测试还用无运行时会话和不同视口宽度守住聊天列对齐与安全回退。
 
 use super::{
-    bottom_bar_round_toggle, popover_item_style, reasoning_effort_selector, selected_context_card,
-    selected_context_summary, session_tool_tab_buttons, skill_title, summarize_names, view,
+    reasoning_effort_selector, selected_context_card,
+    selected_context_summary, session_tool_tab_buttons, skill_title, view,
 };
-use crate::app::assets::Icon;
-use crate::app::components::input_panel::icons::icon_svg;
 use crate::app::state::{
     AcpHistoryReplayMode, ChatSendBehavior, SkillsCatalogItem, SkillsCatalogKind,
 };
@@ -72,42 +70,12 @@ fn todo(id: &str, status: &str, content: &str) -> Todo {
 }
 
 #[test]
-fn summarize_names_lists_up_to_three_names_and_hidden_count() {
-    assert_eq!(summarize_names(&[]), "");
-    assert_eq!(summarize_names(&["a".into(), "b".into()]), "a、b");
-    assert_eq!(summarize_names(&["a".into(), "b".into(), "c".into()]), "a、b、c");
-    assert_eq!(summarize_names(&["a".into(), "b".into(), "c".into(), "d".into()]), "a、b、c +1");
-}
-
-#[test]
 fn skill_title_uses_catalog_title_and_falls_back_to_id() {
     let mut app = crate::app::App::new().0;
     app.skills_settings.catalog = vec![catalog_skill("review", "代码审查")];
 
     assert_eq!(skill_title(&app, "review"), "代码审查");
     assert_eq!(skill_title(&app, "missing"), "missing");
-}
-
-#[test]
-fn popover_item_style_delegates_selected_and_unselected_states() {
-    let selected = popover_item_style(&Theme::Dark, iced::widget::button::Status::Hovered, true);
-    let unselected = popover_item_style(&Theme::Dark, iced::widget::button::Status::Active, false);
-
-    assert_ne!(selected.background, unselected.background);
-}
-
-#[test]
-fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
-    let icon: Element<'_, Message> = icon_svg(Icon::Sliders, 14.0).into();
-    let element = bottom_bar_round_toggle(
-        icon,
-        "toggle",
-        Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(
-            crate::app::state::SessionToolSelectorTab::Agent,
-        )),
-    );
-
-    assert_eq!(element.as_widget().children().len(), 2);
 }
 
 #[test]

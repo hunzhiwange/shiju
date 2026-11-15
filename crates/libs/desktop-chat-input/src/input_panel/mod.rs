@@ -72,3 +72,8 @@ mod usage_button_tests;
 pub mod voice_controls;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod voice_controls_tests;
+
+pub mod panel;
+#[cfg(test)]
+mod panel_tests;
+pub mod layout;

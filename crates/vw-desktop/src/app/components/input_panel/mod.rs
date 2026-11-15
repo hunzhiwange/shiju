@@ -100,7 +100,6 @@ mod usage_button_tests;
 #[path = "usage_tests.rs"]
 mod usage_tests;
 
-use crate::app::assets::Icon;
 use crate::app::components::chat_panel::{
     conversation_reading_column, tool_selector::session_tool_selector_popover,
 };
@@ -110,52 +109,13 @@ use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use drop_area::DropArea;
 use file_references::{extract_file_mentions, render_file_references};
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, text};
-use iced::{Alignment, Color, Element, Length, Padding, Theme};
-use icons::icon_svg;
+use iced::widget::{Space, column, container};
+use iced::{Element, Length, Padding};
 use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
     bottom_bar, cancel_button, full_access_button, pool_button, send_button, workflow_mode_button,
 };
 use task_mode::task_mode_form;
-
-#[cfg(test)]
-pub(super) fn popover_item_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-    selected: bool,
-) -> iced::widget::button::Style {
-    styles::selectable_list_button_style(theme, status, selected)
-}
-
-pub(super) fn bottom_bar_round_toggle<'a>(
-    icon: Element<'a, Message>,
-    tooltip_label: impl Into<String>,
-    on_press: Message,
-) -> Element<'a, Message> {
-    let button_content = container(icon)
-        .width(Length::Fixed(styles::BOTTOM_BAR_ICON_BUTTON_SIZE))
-        .height(Length::Fixed(styles::BOTTOM_BAR_ICON_BUTTON_SIZE))
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    let toggle = button(button_content)
-        .padding(0)
-        .style(|theme: &Theme, status| styles::round_icon_button_style(theme, status, true))
-        .on_press(on_press);
-
-    Tooltip::new(toggle, dark_tooltip_content(tooltip_label), TooltipPosition::Top).gap(6.0).into()
-}
-
-fn session_tool_tab_icon(tab: crate::app::state::SessionToolSelectorTab) -> Icon {
-    // 与 slash 面板语义对齐：技能=星标、工具=终端；代理用六边形身份标记，避免像聊天气泡。
-    match tab {
-        crate::app::state::SessionToolSelectorTab::Agent => Icon::Hexagon,
-        crate::app::state::SessionToolSelectorTab::Tools => Icon::Terminal,
-        crate::app::state::SessionToolSelectorTab::Skills => Icon::Star,
-    }
-}
 
 pub(super) fn session_tool_tab_button<'a>(
     app: &'a App,
@@ -176,45 +136,13 @@ pub(super) fn session_tool_tab_button<'a>(
             }
         };
 
-    let icon: Element<'_, Message> =
-        icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
-            .style(move |theme: &Theme, _| iced::widget::svg::Style {
-                color: Some(styles::selector_text_color(theme, highlight)),
-            })
-            .into();
-    let on_press = Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab));
-    let toggle = if tab == crate::app::state::SessionToolSelectorTab::Agent {
-        let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
-        let label = runtime
-            .agent_label
-            .clone()
-            .or_else(|| {
-                app.agents_settings
-                    .entries
-                    .iter()
-                    .find(|entry| entry.key == key)
-                    .map(|entry| entry.label.clone())
-            })
-            .unwrap_or_else(|| key.to_string());
-        let icon = runtime
-            .acp_agent
-            .as_deref()
-            .map(|backend| icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE))
-            .unwrap_or(icon);
-        button(
-            row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
-                .spacing(6)
-                .align_y(Alignment::Center),
-        )
-        .padding([4, 10])
-        .style(move |theme: &Theme, status| {
-            styles::selector_pill_button_style(theme, status, highlight)
-        })
-        .on_press(on_press)
-        .into()
-    } else {
-        bottom_bar_round_toggle(icon, tab.label(), on_press)
-    };
+    let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
+    let label = runtime.agent_label.clone().or_else(|| app.agents_settings.entries.iter()
+        .find(|entry| entry.key == key).map(|entry| entry.label.clone())).unwrap_or_else(|| key.to_string());
+    let toggle = desktop_chat_input::input_panel::panel::session_tool_tab_toggle(
+        tab, highlight, label, runtime.acp_agent.as_deref(),
+        Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab)),
+    );
 
     if popover_open && active_tab == tab {
         AboveOverlay::new(toggle, session_tool_selector_popover(app))
@@ -242,35 +170,6 @@ pub(super) fn session_tool_tab_buttons<'a>(
     )
 }
 
-pub(super) fn dark_tooltip_content<'a>(label: impl Into<String>) -> Element<'a, Message> {
-    container(
-        text(label.into())
-            .size(12)
-            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
-    )
-    .style(styles::tooltip_dark_style)
-    .padding([6, 8])
-    .into()
-}
-
-pub(super) fn session_lock_tooltip<'a>(
-    content: impl Into<Element<'a, Message>>,
-    i18n: crate::app::i18n::I18n,
-    locked: bool,
-) -> Element<'a, Message> {
-    if locked {
-        Tooltip::new(
-            content,
-            dark_tooltip_content(i18n.__("会话开始后无法更改。如需更换，请新建会话。")),
-            TooltipPosition::Top,
-        )
-        .gap(6)
-        .into()
-    } else {
-        content.into()
-    }
-}
-
 pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
     app.skills_settings
         .catalog
@@ -291,82 +190,15 @@ pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
         .unwrap_or_else(|| skill_id.to_string())
 }
 
-pub(super) fn summarize_names(names: &[String]) -> String {
-    const MAX_VISIBLE_NAMES: usize = 3;
-    let mut preview = names.iter().take(MAX_VISIBLE_NAMES).cloned().collect::<Vec<_>>().join("、");
-    let hidden_count = names.len().saturating_sub(MAX_VISIBLE_NAMES);
-    if hidden_count > 0 {
-        preview.push_str(&format!(" +{hidden_count}"));
-    }
-    preview
-}
-
-pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Message>> {
+pub(super) fn selected_context_card(app: &App) -> Option<Element<'_, Message>> {
     let summary = selected_context_summary(app)?;
-
-    let icon: Element<'_, Message> = icon_svg(Icon::Sliders, 14.0)
-        .style(|theme: &Theme, _| iced::widget::svg::Style {
-            color: Some(theme.palette().primary.scale_alpha(0.92)),
-        })
-        .into();
-    let content = row![
-        icon,
-        column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选工具与技能"))
-                .size(12)
-                .style(|theme: &Theme| {
-                    iced::widget::text::Style {
-                        color: Some(theme.palette().text.scale_alpha(0.92)),
-                    }
-                }),
-            text(summary)
-                .size(11)
-                .width(Length::Fill)
-                .wrapping(iced::widget::text::Wrapping::Word)
-                .style(|theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.68)),
-                }),
-        ]
-        .spacing(2)
-        .width(Length::Fill),
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("调整")).size(11).style(
-            |theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().primary.scale_alpha(0.88)),
-            }
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-
-    let selected_expert = app
-        .current_session_runtime()
-        .tool_selector
-        .selected_manual_skills()
-        .into_iter()
-        .find(|id| id.contains("--skillset--"));
-    let mut controls = row![
-        button(content)
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(styles::manual_context_card_button_style)
-            .on_press(Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover))
-    ]
-    .align_y(Alignment::Center);
-    if let Some(id) = selected_expert {
-        controls = controls.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消专家")).size(11))
-                .padding([8, 10])
-                .style(styles::manual_context_card_button_style)
-                .on_press(Message::Chat(message::ChatMessage::SessionSkillSelected(id))),
-        );
-    }
-    Some(
-        container(controls)
-            .padding(0)
-            .width(Length::Fill)
-            .style(styles::manual_context_card_style)
-            .into(),
-    )
+    let cancel = app.current_session_runtime().tool_selector.selected_manual_skills().into_iter()
+        .find(|id| id.contains("--skillset--"))
+        .map(|id| Message::Chat(message::ChatMessage::SessionSkillSelected(id)));
+    Some(desktop_chat_input::input_panel::panel::selected_context_card(
+        crate::app::i18n::I18n::new(app.desktop_locale), summary,
+        Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover), cancel,
+    ))
 }
 
 pub(super) fn selected_context_summary(app: &App) -> Option<String> {
@@ -397,82 +229,13 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
     let skill_names =
         selected_skills.iter().map(|skill_id| skill_title(app, skill_id)).collect::<Vec<_>>();
 
-    let mut lines = Vec::new();
-    if !tool_names.is_empty() {
-        lines.push(
-            crate::__!(
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                "工具 %u：%s",
-                tool_names.len(),
-                summarize_names(&tool_names)
-            )
-            .expect("valid context template"),
-        );
-    }
-    if !skill_names.is_empty() {
-        lines.push(
-            crate::__!(
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                "技能 %u：%s",
-                skill_names.len(),
-                summarize_names(&skill_names)
-            )
-            .expect("valid context template"),
-        );
-    }
-    if !selected_shiju_skills.is_empty() {
-        let names = selected_shiju_skills
-            .iter()
-            .map(|selection| selection.display_name().to_string())
-            .collect::<Vec<_>>();
-        lines.push(
-            crate::__!(
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                "识矩 %u：%s",
-                names.len(),
-                summarize_names(&names)
-            )
-            .expect("valid skill context template"),
-        );
-    }
-
-    (!lines.is_empty()).then(|| lines.join("  /  "))
+    let shiju_names = selected_shiju_skills.iter().map(|selection| selection.display_name().to_string()).collect::<Vec<_>>();
+    desktop_chat_input::input_panel::panel::selected_context_summary(
+        crate::app::i18n::I18n::new(app.desktop_locale), &tool_names, &skill_names, &shiju_names,
+    )
 }
 
-/// 构建并渲染输入面板的完整UI视图
-///
-/// 这是输入面板模块的主入口函数，负责组装所有子组件并构建最终的用户界面。
-/// 该函数会根据当前应用状态动态生成不同的UI布局，包括：
-///
-/// - 普通输入模式：标准输入框和控制按钮
-/// - 任务模式：带有任务配置表单的高级模式
-/// - 队列模式：显示待处理消息队列
-/// - TODO模式：当有待办事项时显示TODO面板
-///
-/// # 参数
-///
-/// * `app` - 应用程序状态的不可变引用，包含所有必要的UI状态信息
-///
-/// # 返回值
-///
-/// 返回一个 `Element<'a, Message>` 类型的UI元素，代表完整的输入面板组件
-///
-/// # 布局结构
-///
-/// 输入面板的典型布局从上到下包括：
-/// 1. 队列面板（如果有待处理消息）
-/// 2. 文件引用列表（如果输入中包含文件引用）
-/// 3. 任务模式表单（如果启用了任务模式）
-/// 4. 输入编辑器
-/// 5. 底部控制栏（模型选择、使用量、附件、发送/取消按钮）
-/// 6. TODO面板（如果有待办事项）
-///
-/// # 示例
-///
-/// ```rust,ignore
-/// let input_panel = input_panel::view(&app);
-/// // 将 input_panel 添加到更大的UI布局中
-/// ```
+/// 投影桌面状态并装配各领域的输入面板子视图。
 pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // ========== 从应用状态中提取当前会话的运行时信息 ==========
     // 获取当前会话的运行时引用，如果不存在则使用 None
@@ -654,57 +417,18 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         &[]
     };
 
-    // ========== 构建主要内容区域 ==========
-    // 根据不同状态选择不同的布局：
-    // 1. 有TODO项：显示TODO面板
-    // 2. 队列为空或任务模式启用：标准布局
-    // 3. 队列非空且非任务模式：显示队列面板
-    let show_input_todo =
-        !todo_items.is_empty() && app.chat_todo_placement == TodoPanelPlacement::InputBottom;
-
-    let content = if show_input_todo {
-        // 有待办事项时，将 TODO 面板紧贴输入框上方
-        let todo_panel = todo_panel::todo_panel(
-            app,
-            todo_items,
-            submit_anim,
-            todo_panel::TodoPanelSurface::InputBottom,
-        );
-        let mut input_block = column![todo_panel].spacing(0);
-        if let Some(context_card) = selected_context_card(app) {
-            input_block = input_block.push(context_card);
-        }
-        input_block = input_block.push(input).push(divider).push(bottom_bar);
-
-        column![attachment_strip, file_refs, task_mode_form, input_block].spacing(3)
-    } else if queue.is_empty() || task_mode_enabled {
-        // 标准布局：文件引用 + 任务模式表单 + 输入框 + 底部栏
-        let mut standard = column![attachment_strip, file_refs, task_mode_form].spacing(6);
-        if let Some(context_card) = selected_context_card(app) {
-            standard = standard.push(context_card);
-        }
-        standard.push(input).push(divider).push(bottom_bar)
-    } else {
-        // 队列布局：队列面板 + 标准内容
-        let queue = queue_panel::queue_panel(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            queue,
-            is_requesting,
-        );
-
-        let mut queued = column![
-            queue,
-            Space::new().height(Length::Fixed(4.0)),
-            attachment_strip,
-            file_refs,
-            task_mode_form
-        ]
-        .spacing(6);
-        if let Some(context_card) = selected_context_card(app) {
-            queued = queued.push(context_card);
-        }
-        queued.push(input).push(divider).push(bottom_bar)
-    };
+    let show_input_todo = !todo_items.is_empty() && app.chat_todo_placement == TodoPanelPlacement::InputBottom;
+    let todo_panel = show_input_todo.then(|| todo_panel::todo_panel(
+        app, todo_items, submit_anim, todo_panel::TodoPanelSurface::InputBottom,
+    ));
+    let queue_panel = (!show_input_todo && !queue.is_empty() && !task_mode_enabled).then(||
+        queue_panel::queue_panel(crate::app::i18n::I18n::new(app.desktop_locale), queue, is_requesting));
+    let content = desktop_chat_input::input_panel::layout::content(
+        desktop_chat_input::input_panel::layout::Content {
+            attachment_strip, file_refs, task_mode_form, input, divider, bottom_bar,
+            context_card: selected_context_card(app), todo_panel, queue_panel,
+        },
+    );
 
     // 构建文件搜索覆盖层
     let file_search_content: Element<'_, Message> = if app.show_file_search {

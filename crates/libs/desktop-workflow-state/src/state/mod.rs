@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 mod app_ui;
 mod canvas_ops;
 mod core;
+mod document_types;
 mod draft_build;
 mod history;
 mod ids;
@@ -26,9 +27,11 @@ mod node_ops;
 mod node_validation;
 mod run_preview;
 mod run_prompt;
+mod run_types;
 mod saved_apps;
 mod start_variable_drafts;
 mod start_variable_validation;
+mod variable_types;
 mod variables;
 pub mod video_edit;
 mod visual_sync;
@@ -94,148 +97,13 @@ use yaml_helpers::*;
 #[path = "tests.rs"]
 mod tests;
 
+pub use document_types::*;
+pub use run_types::*;
+pub use variable_types::*;
+
 const WORKFLOW_HISTORY_LIMIT: usize = 50;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct WorkflowHistorySnapshot {
-    pub meta: WorkflowAppMeta,
-    pub document: WorkflowDocument,
-    pub environment_variables: Vec<WorkflowEnvironmentVariable>,
-    pub conversation_variables: Vec<WorkflowConversationVariable>,
-    pub pan: Vector,
-    pub zoom: f32,
-    pub selected_node_id: Option<String>,
-    pub selected_edge_id: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct WorkflowAppEntry {
-    pub id: String,
-    pub local_uuid: Option<String>,
-    pub meta: WorkflowAppMeta,
-    pub source_path: Option<String>,
-    pub raw_root: Value,
-    pub document: WorkflowDocument,
-    pub environment_variables: Vec<WorkflowEnvironmentVariable>,
-    pub conversation_variables: Vec<WorkflowConversationVariable>,
-    pub pan: Vector,
-    pub zoom: f32,
-    pub selected_node_id: Option<String>,
-    pub selected_edge_id: Option<String>,
-    pub connection_draft: Option<WorkflowConnectionDraft>,
-    pub is_dirty: bool,
-    pub undo_stack: Vec<WorkflowHistorySnapshot>,
-    pub redo_stack: Vec<WorkflowHistorySnapshot>,
-    pub saved_snapshot: WorkflowHistorySnapshot,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorkflowSavedAppSummary {
-    pub uuid: String,
-    pub name: String,
-    pub description: String,
-    pub created_at_ms: u64,
-    pub updated_at_ms: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct WorkflowRunSubscriptionRequest {
-    pub uuid: String,
-    pub query: String,
-    pub inputs: BTreeMap<String, serde_json::Value>,
-    pub user: String,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct WorkflowRunPromptDraft {
-    pub uuid: String,
-    pub query: String,
-    pub loading: bool,
-    pub inputs: Vec<WorkflowRunInputDraft>,
-    pub error: Option<desktop_i18n::workflow::Feedback>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct WorkflowRunInputDraft {
-    pub name: String,
-    pub label: String,
-    pub input_type: String,
-    pub required: bool,
-    pub hidden: bool,
-    pub options: Vec<String>,
-    pub value: String,
-    pub placeholder: String,
-    pub hint: String,
-    pub max_length_input: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WorkflowRunStatus {
-    Running,
-    Succeeded,
-    Failed,
-    Canceled,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct WorkflowRunPreview {
-    pub uuid: String,
-    pub run_id: Option<String>,
-    pub status: WorkflowRunStatus,
-    pub nodes: Vec<WorkflowRunNodePreview>,
-    pub text_output: String,
-    pub error: Option<WorkflowRunErrorPreview>,
-    pub is_finished: bool,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct WorkflowRunNodePreview {
-    pub id: String,
-    pub title: String,
-    pub status: Option<String>,
-    pub data: serde_json::Value,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorkflowRunErrorPreview {
-    pub status: u32,
-    pub code: String,
-    pub message: String,
-}
-
-/// 运行预览中“查看详细”弹窗的状态：保存标题与可滚动、可选中复制的完整内容。
-#[derive(Debug, Default)]
-pub struct WorkflowRunDetailDialog {
-    pub title: String,
-    pub title_source: Option<&'static str>,
-    pub content: text_editor::Content,
-}
-
 pub use crate::drafts::*;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum WorkflowVariablePanelKind {
-    System,
-    Environment,
-    Conversation,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum WorkflowVariableEditorMode {
-    CreateEnvironment,
-    EditEnvironment(String),
-    CreateConversation,
-    EditConversation(String),
-}
-
-#[derive(Debug)]
-pub struct WorkflowVariableEditorDraft {
-    pub mode: WorkflowVariableEditorMode,
-    pub name: String,
-    pub description: String,
-    pub value_type: String,
-    pub raw_value_editor: text_editor::Content,
-}
 
 pub use crate::app_ui::{WorkflowCanvasContextMenu, WorkflowCanvasContextMenuTarget};
 

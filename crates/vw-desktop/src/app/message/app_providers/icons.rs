@@ -50,20 +50,21 @@ pub(crate) async fn execute(
     provider: String,
     operation: Operation,
 ) -> Result<Outcome, String> {
+    let icons = gateway_app_read::GatewayAppReadClient::new(client.transport().clone());
     let deleted = match operation {
         Operation::Refresh => None,
         Operation::Delete(id) => {
-            client.custom_icon_delete(&id).await?;
+            icons.custom_icon_delete(&id).await?;
             Some(id)
         }
         Operation::Upload(request) => {
-            return client
+            return icons
                 .custom_icon_add(&request)
                 .await
                 .map(|result| Outcome::Uploaded(result.icon));
         }
         Operation::Rename { id, request } => {
-            return client.custom_icon_rename(&id, &request).await.map(Outcome::Renamed);
+            return icons.custom_icon_rename(&id, &request).await.map(Outcome::Renamed);
         }
         Operation::Save(request) => {
             return client
@@ -74,7 +75,7 @@ pub(crate) async fn execute(
     };
     // Both reads matter after deletion: the row is gone, but saved provider images are copies.
     let (rows, current) =
-        tokio::join!(client.custom_icons_list(), client.app_provider_icon(app, &provider));
+        tokio::join!(icons.custom_icons_list(), client.app_provider_icon(app, &provider));
     Ok(Outcome::Refreshed { rows, current, deleted })
 }
 

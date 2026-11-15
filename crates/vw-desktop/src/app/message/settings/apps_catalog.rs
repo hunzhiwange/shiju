@@ -98,6 +98,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let host = app.apps_catalog.host.clone();
             let token = app.apps_catalog.token.clone();
             return Task::perform(async move {
+                let client = gateway_app_read::GatewayAppReadClient::new(client.transport().clone());
                 let result = client.agent_apps_installations_authorized(&host, id, &token).await;
                 Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::ObservationLoaded {
                     context, host, generation, id, result,

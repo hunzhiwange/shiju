@@ -139,15 +139,16 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
             .with_tenant_scope(tenant.clone()),
     )
     .unwrap();
+    let icons = gateway_app_read::GatewayAppReadClient::new(client.transport().clone());
     let result = std::panic::AssertUnwindSafe(async {
-        let added = client
+        let added = icons
             .custom_icon_add(&AddCustomIconRequest { name: "  Icon  ".into(), data: IMAGE.into() })
             .await
             .unwrap();
         assert_eq!(added.icon.name, "Icon");
         assert!(!added.existed);
         assert!(
-            client
+            icons
                 .custom_icon_add(&AddCustomIconRequest { name: "Other".into(), data: IMAGE.into() })
                 .await
                 .unwrap()
@@ -180,15 +181,15 @@ async fn cc04_icons_sdk_api_persistence_and_reference_copies() {
         );
 
         assert_eq!(
-            client
+            icons
                 .custom_icon_rename(&added.icon.id, &RenameCustomIconRequest { name: "New".into() })
                 .await
                 .unwrap()
                 .name,
             "New"
         );
-        client.custom_icon_delete(&added.icon.id).await.unwrap();
-        assert!(client.custom_icons_list().await.unwrap().is_empty());
+        icons.custom_icon_delete(&added.icon.id).await.unwrap();
+        assert!(icons.custom_icons_list().await.unwrap().is_empty());
         assert_eq!(client.app_provider_icon(AppId::Claude, "fixture").await.unwrap(), selected);
         let store = AppProviderStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
         assert_eq!(store.get_icon(&tenant, AppId::Claude, "fixture").unwrap(), selected);

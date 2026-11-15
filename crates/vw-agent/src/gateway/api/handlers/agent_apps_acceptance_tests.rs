@@ -323,9 +323,9 @@ impl Server {
         platform: &str,
         company: &str,
         authenticated: bool,
-    ) -> anyhow::Result<vw_gateway_client::GatewayClient> {
-        use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
-        GatewayClient::new(
+    ) -> anyhow::Result<gateway_app_read::GatewayAppReadClient> {
+        use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
+        gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", self.addr.port())
                 .with_tenant_scope(TenantScope::new(platform, company)?)
                 .with_auth(GatewayAuth {
@@ -336,6 +336,7 @@ impl Server {
                     }),
                 }),
         )
+        .map(gateway_app_read::GatewayAppReadClient::new)
         .map_err(anyhow::Error::msg)
     }
 

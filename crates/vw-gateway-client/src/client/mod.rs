@@ -45,11 +45,8 @@ mod agent_apps_high_availability_api_tests;
 mod agent_apps_read_api;
 pub use agent_apps_read_api::AgentAppsReadError;
 mod agent_apps_api;
-#[cfg(test)]
-#[path = "agent_apps_api_tests.rs"]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod agent_apps_api_tests;
-#[cfg(test)]
-mod agent_apps_read_api_tests;
 mod agent_scheduler_api;
 #[cfg(test)]
 #[path = "agent_scheduler_api_tests.rs"]

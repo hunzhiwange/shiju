@@ -1,5 +1,5 @@
-use super::{AgentAppsReadError, GatewayClient, test_support};
-use crate::endpoint::{GatewayAuth, GatewayEndpoint};
+use super::{AgentAppsReadError, test_support};
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
 use serde_json::json;
 use {
     vw_api_app_identity::AppId,
@@ -22,10 +22,10 @@ async fn cc_apps_read_sdk_roundtrip_success_and_query_encoding() {
         ],
         TenantScope::new("p", "c").unwrap(),
     );
-    let client = GatewayClient::new(
+    let client = test_support::client(
         server
             .client()
-            .endpoint()
+            .transport.endpoint()
             .clone()
             .with_auth(GatewayAuth { skey: Some("read-token".into()) }),
     )
@@ -97,7 +97,7 @@ async fn cc_apps_read_sdk_roundtrip_rejects_invalid_payload_and_unreachable_gate
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     drop(listener);
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+    let client = test_support::client(GatewayEndpoint::new("127.0.0.1", port)).unwrap();
     assert!(matches!(
         client.agent_apps_installations("remote", AppId::Codex).await,
         Err(AgentAppsReadError::Transport(_))

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-app-read = { path = "../libs/gateway-app-read", version = "0.6.0" }
 runtime-time = { path = "../libs/runtime-time", version = "0.6.0" }
 vw-api-file = { path = "../libs/api-file", version = "0.6.0" }
 config-voice = { path = "../libs/config-voice", version = "0.6.0" }

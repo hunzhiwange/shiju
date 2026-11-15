@@ -20,6 +20,7 @@ pub(crate) async fn load(
     host: String,
     token: String,
 ) -> Result<Vec<CatalogRow>, AgentAppsReadError> {
+    let client = gateway_app_read::GatewayAppReadClient::new(client.transport().clone());
     let catalog = client.agent_apps_catalog_authorized(&host, &token).await?;
     // Version probes can take seconds; bound host load without serializing every app.
     // buffered preserves catalog order even when requests finish out of order.

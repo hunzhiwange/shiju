@@ -6,8 +6,8 @@
 
 pub use config_channels::{ChannelsConfig, default_channel_message_timeout_secs};
 
-use crate::app::agent::config::traits::ChannelConfig;
-use crate::app::agent::config::traits::ConfigHandle;
+use crate::traits::ChannelConfig;
+use crate::traits::ConfigHandle;
 use config_channel_services::other::QQReceiveMode;
 use config_channel_services::{WeChatConfig, WeComConfig};
 
@@ -195,5 +195,14 @@ impl<T: ChannelConfig> ConfigHandle for ConfigWrapper<T> {
 
     fn desc(&self) -> &'static str {
         T::desc()
+    }
+}
+
+impl ChannelConfig for config_channel_services::ClawdTalkConfig {
+    fn name() -> &'static str {
+        "ClawdTalk"
+    }
+    fn desc() -> &'static str {
+        "ClawdTalk Channel"
     }
 }

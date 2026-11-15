@@ -1,7 +1,7 @@
 // 覆盖渠道密钥的加解密往返、可选字段与错误上下文。
 
 use super::{ChannelsConfig, decrypt_channel_secrets, encrypt_channel_secrets};
-use crate::app::agent::security::SecretStore;
+use secret_store::secrets::SecretStore;
 
 // 启用与禁用加密的夹具并列存在，用于确认明文模式不会被意外改写。
 #[test]

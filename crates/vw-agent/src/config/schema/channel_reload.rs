@@ -1,20 +1,22 @@
-//! 仅在数据库内容变化时加载通道配置；支持网关与通道运行于不同进程。
-
-use super::{ChannelsConfig, Config, apply_env_overrides, config_io::merge_config_payload};
-use crate::app::agent::config::SystemConfigStore;
-use crate::app::agent::security::SecretStore;
+//! 通道配置监听器的宿主组合：数据库初始化与当前租户捕获。
+use super::{ChannelsConfig, Config};
+use crate::config::SystemConfigStore;
 use crate::global_database::GlobalDatabase;
-use anyhow::{Context, Result, bail};
-use serde_json::Value;
+use anyhow::{Context, Result};
 use vw_api_transport::id::TenantScope;
 
-pub(crate) struct ChannelConfigWatcher {
-    store: SystemConfigStore,
-    tenant: TenantScope,
-    project: Option<String>,
-    last_payload: Option<Value>,
+impl agent_config::schema::channel_reload::ChannelConfigStore for SystemConfigStore {
+    fn get(&self, tenant: &TenantScope) -> Result<Option<String>> { SystemConfigStore::get(self, tenant) }
+    fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> {
+        SystemConfigStore::get_project(self, tenant, project)
+    }
 }
 
+pub(crate) struct ChannelConfigWatcher {
+    inner: agent_config::schema::channel_reload::ChannelConfigWatcher<SystemConfigStore>,
+    #[cfg(test)]
+    store: SystemConfigStore,
+}
 impl ChannelConfigWatcher {
     pub(crate) async fn new(config: &Config, include_project: bool) -> Result<Self> {
         let home = agent_config::runtime_home::config_home()?;
@@ -27,97 +29,19 @@ impl ChannelConfigWatcher {
         Self::from_store(store, config, include_project)
     }
 
-    pub(crate) fn from_store(
-        store: SystemConfigStore,
-        config: &Config,
-        include_project: bool,
-    ) -> Result<Self> {
-        let project = if include_project {
-            Some(config.workspace_dir.to_str().context("Project root must be UTF-8")?.to_owned())
-        } else {
-            None
-        };
-        Ok(Self {
-            store,
-            tenant: crate::session::ui_store::current_tenant_scope(),
-            project,
-            last_payload: None,
-        })
+    pub(crate) fn from_store(store: SystemConfigStore, config: &Config, include_project: bool) -> Result<Self> {
+        let inner = agent_config::schema::channel_reload::ChannelConfigWatcher::from_store(
+            store.clone(), config, include_project, crate::session::ui_store::current_tenant_scope(),
+            super::apply_env_overrides, super::validate_config, super::config_io::merge_config_payload)?;
+        Ok(Self { inner, #[cfg(test)] store })
     }
-
-    /// 读取创建时捕获租户的持久化配置；读取或校验失败时不推进快照；渠道解密失败只隔离故障实例。
     pub(crate) async fn poll(&mut self, current: &Config) -> Result<Option<ChannelsConfig>> {
-        self.poll_inner(current, false).await
+        self.inner.poll(current).await
     }
-
-    /// 投递必须有持久化配置；记录删除或读取失败不能继续使用启动时的凭据。
     pub(crate) async fn load_for_delivery(&mut self, current: &Config) -> Result<ChannelsConfig> {
-        Ok(self.poll_inner(current, true).await?.unwrap_or_else(|| current.channels_config.clone()))
-    }
-
-    async fn poll_inner(
-        &mut self,
-        current: &Config,
-        required: bool,
-    ) -> Result<Option<ChannelsConfig>> {
-        let store = self.store.clone();
-        let project = self.project.clone();
-        let tenant = self.tenant.clone();
-        let payload = tokio::task::spawn_blocking(move || {
-            let Some(raw) = store.get(&tenant)? else {
-                if required {
-                    bail!("Persisted channel configuration is missing");
-                }
-                return Ok::<_, anyhow::Error>(None);
-            };
-            let mut payload: Value = serde_json::from_str(&raw)?;
-            if !payload.is_object() {
-                bail!("System config root must be an object");
-            }
-            if let Some(project) = project
-                && let Some(raw) = store.get_project(&tenant, &project)?
-            {
-                let patch: Value = serde_json::from_str(&raw)?;
-                if !patch.is_object() {
-                    bail!("Project config root must be an object");
-                }
-                merge_config_payload(&mut payload, patch);
-            }
-            // 其它设置和随机加密后的非通道密钥不触发通道重连。
-            Ok(Some(serde_json::json!({
-                "channels_config": payload.get("channels_config"),
-                "encrypt": payload.pointer("/secrets/encrypt"),
-            })))
-        })
-        .await
-        .context("join channel config read")??;
-        let Some(payload) = payload else { return Ok(None) };
-        if self.last_payload.as_ref() == Some(&payload) {
-            return Ok(None);
-        }
-
-        let mut next = current.clone();
-        next.channels_config = match payload.get("channels_config").filter(|value| !value.is_null())
-        {
-            Some(value) => serde_json::from_value(value.clone())?,
-            None => ChannelsConfig::default(),
-        };
-        let config_dir = current.config_path.parent().context("Config path must have a parent")?;
-        let encrypt =
-            payload.get("encrypt").and_then(Value::as_bool).unwrap_or(current.secrets.encrypt);
-        let secrets = SecretStore::new(config_dir, encrypt);
-        super::channels::decrypt_channel_secrets_isolated(&secrets, &mut next.channels_config)?;
-        apply_env_overrides(&mut next);
-        super::validate_config(&next)?;
-        let changed = next.channels_config.unavailable_channels
-            != current.channels_config.unavailable_channels
-            || serde_json::to_value(&next.channels_config)?
-                != serde_json::to_value(&current.channels_config)?;
-        self.last_payload = Some(payload);
-        Ok(changed.then_some(next.channels_config))
+        self.inner.load_for_delivery(current).await
     }
 }
-
 #[cfg(test)]
 #[path = "channel_reload_tests.rs"]
 mod tests;

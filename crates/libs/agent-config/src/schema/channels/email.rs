@@ -5,7 +5,7 @@
 
 pub use config_channel_services::email::*;
 
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 impl ChannelConfig for EmailConfig {
     fn name() -> &'static str {

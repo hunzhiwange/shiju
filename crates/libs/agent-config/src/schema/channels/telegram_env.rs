@@ -4,8 +4,8 @@
 //! 解析时会校验环境变量名、拒绝空值，并支持 JSON 数组或逗号分隔列表，避免把未解析或格式错误的
 //! 授权列表带入运行时。
 
-use crate::app::agent::config::schema::ChannelsConfig;
-use crate::app::agent::config::schema::channels::helpers::is_valid_env_var_name;
+use crate::schema::ChannelsConfig;
+use crate::schema::channels::helpers::is_valid_env_var_name;
 use anyhow::{Context, Result};
 
 fn parse_telegram_allowed_users_env_value(

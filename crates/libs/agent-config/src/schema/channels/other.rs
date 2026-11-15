@@ -5,7 +5,7 @@
 
 pub use config_channel_services::other::*;
 
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 /// 为 Signal 渠道配置提供展示名称和说明。
 impl ChannelConfig for SignalConfig {

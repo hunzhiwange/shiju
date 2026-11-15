@@ -4,7 +4,7 @@ use super::other::{
     DingTalkConfig, IrcConfig, LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
     SignalConfig, WatiConfig, WhatsAppConfig,
 };
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 #[test]
 fn whatsapp_backend_helpers_distinguish_cloud_web_and_ambiguous_configs() {

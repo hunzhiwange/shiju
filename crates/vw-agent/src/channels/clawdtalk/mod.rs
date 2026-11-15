@@ -19,7 +19,6 @@
 
 pub use config_channel_services::clawdtalk::ClawdTalkConfig;
 
-use crate::app::agent::config::traits::ChannelConfig;
 
 use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
@@ -49,14 +48,6 @@ pub struct ClawdTalkChannel {
     webhook_secret: Option<String>,
 }
 
-impl ChannelConfig for ClawdTalkConfig {
-    fn name() -> &'static str {
-        "ClawdTalk"
-    }
-    fn desc() -> &'static str {
-        "ClawdTalk Channel"
-    }
-}
 
 impl ClawdTalkChannel {
     /// 创建新的 ClawdTalk 通道实例

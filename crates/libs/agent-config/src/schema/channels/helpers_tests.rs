@@ -4,7 +4,7 @@ use super::helpers::{
     decrypt_optional_secret, decrypt_secret, encrypt_optional_secret, encrypt_secret,
     is_valid_env_var_name,
 };
-use crate::app::agent::security::SecretStore;
+use secret_store::secrets::SecretStore;
 
 #[test]
 fn env_var_names_follow_shell_safe_subset() {

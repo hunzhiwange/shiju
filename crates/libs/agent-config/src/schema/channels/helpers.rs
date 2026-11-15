@@ -14,7 +14,7 @@
 //! 所有涉及密钥的函数都使用 `SecretStore` 进行安全处理，确保敏感信息
 //! 在配置文件中以加密形式存储。
 
-use crate::app::agent::security::SecretStore;
+use secret_store::secrets::SecretStore;
 use anyhow::{Context, Result};
 
 /// 验证环境变量名称是否合法
@@ -34,7 +34,7 @@ use anyhow::{Context, Result};
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::config::schema::channels::helpers::is_valid_env_var_name;
+/// use crate::schema::channels::helpers::is_valid_env_var_name;
 ///
 /// assert!(is_valid_env_var_name("API_KEY"));      // 合法
 /// assert!(is_valid_env_var_name("_SECRET"));      // 合法
@@ -74,15 +74,15 @@ pub(crate) fn is_valid_env_var_name(name: &str) -> bool {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::security::SecretStore;
-/// use crate::app::agent::config::schema::channels::helpers::decrypt_optional_secret;
+/// use secret_store::secrets::SecretStore;
+/// use crate::schema::channels::helpers::decrypt_optional_secret;
 ///
 /// let store = SecretStore::new("encryption_key")?;
 /// let mut value = Some("encrypted:abc123".to_string());
 /// decrypt_optional_secret(&store, &mut value, "api_key")?;
 /// // value 现在包含解密后的明文
 /// ```
-pub(crate) fn decrypt_optional_secret(
+pub fn decrypt_optional_secret(
     store: &SecretStore,
     value: &mut Option<String>,
     field_name: &str,
@@ -117,15 +117,15 @@ pub(crate) fn decrypt_optional_secret(
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::security::SecretStore;
-/// use crate::app::agent::config::schema::channels::helpers::decrypt_secret;
+/// use secret_store::secrets::SecretStore;
+/// use crate::schema::channels::helpers::decrypt_secret;
 ///
 /// let store = SecretStore::new("encryption_key")?;
 /// let mut value = "encrypted:abc123".to_string();
 /// decrypt_secret(&store, &mut value, "password")?;
 /// // value 现在包含解密后的明文
 /// ```
-pub(crate) fn decrypt_secret(
+pub fn decrypt_secret(
     store: &SecretStore,
     value: &mut String,
     field_name: &str,
@@ -157,15 +157,15 @@ pub(crate) fn decrypt_secret(
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::security::SecretStore;
-/// use crate::app::agent::config::schema::channels::helpers::encrypt_optional_secret;
+/// use secret_store::secrets::SecretStore;
+/// use crate::schema::channels::helpers::encrypt_optional_secret;
 ///
 /// let store = SecretStore::new("encryption_key")?;
 /// let mut value = Some("my_secret_password".to_string());
 /// encrypt_optional_secret(&store, &mut value, "password")?;
 /// // value 现在包含加密后的密文
 /// ```
-pub(crate) fn encrypt_optional_secret(
+pub fn encrypt_optional_secret(
     store: &SecretStore,
     value: &mut Option<String>,
     field_name: &str,
@@ -200,15 +200,15 @@ pub(crate) fn encrypt_optional_secret(
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::security::SecretStore;
-/// use crate::app::agent::config::schema::channels::helpers::encrypt_secret;
+/// use secret_store::secrets::SecretStore;
+/// use crate::schema::channels::helpers::encrypt_secret;
 ///
 /// let store = SecretStore::new("encryption_key")?;
 /// let mut value = "my_api_key".to_string();
 /// encrypt_secret(&store, &mut value, "api_key")?;
 /// // value 现在包含加密后的密文
 /// ```
-pub(crate) fn encrypt_secret(
+pub fn encrypt_secret(
     store: &SecretStore,
     value: &mut String,
     field_name: &str,

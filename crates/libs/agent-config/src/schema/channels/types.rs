@@ -5,7 +5,7 @@
 
 pub use config_channel_types::*;
 
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 /// 为 Telegram Bot 配置提供渠道展示元数据。
 impl ChannelConfig for TelegramConfig {

@@ -5,7 +5,7 @@
 
 pub use config_channel_services::lark::*;
 
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 /// 为 Lark Bot 配置提供渠道展示元数据。
 impl ChannelConfig for LarkConfig {

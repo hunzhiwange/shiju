@@ -1,7 +1,7 @@
 // 本文件验证 Lark 与飞书配置元数据、默认值及群聊回复辅助规则。
 
 use super::lark::{FeishuConfig, LarkConfig};
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 #[test]
 // 两种平台外形相近，但元数据须独立以选择正确端点。

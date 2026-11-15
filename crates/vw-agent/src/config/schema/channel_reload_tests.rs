@@ -11,12 +11,7 @@ fn fixture() -> (TempDir, Config, ChannelConfigWatcher) {
     let mut config = Config::default();
     config.config_path = temp.path().join("vibewindow.json");
     config.workspace_dir = temp.path().to_path_buf();
-    let source = ChannelConfigWatcher {
-        store,
-        tenant: TenantScope::default(),
-        project: None,
-        last_payload: None,
-    };
+    let source = ChannelConfigWatcher::from_store(store, &config, false).unwrap();
     (temp, config, source)
 }
 
@@ -72,8 +67,10 @@ async fn channel_reload_ignores_other_tenants_and_respects_project_overrides() {
     assert!(source.poll(&config).await.unwrap().is_none());
     set_telegram(&mut saved, "global-token");
     save(&source, &saved);
-    source.project = Some(config.workspace_dir.to_str().unwrap().to_owned());
-    source.store.upsert_project(&TenantScope::default(), source.project.as_ref().unwrap(),
+    let store = source.store.clone();
+    source = ChannelConfigWatcher::from_store(store, &config, true).unwrap();
+    let project = config.workspace_dir.to_str().unwrap();
+    source.store.upsert_project(&TenantScope::default(), project,
         r#"{"channels_config":{"telegram":{"bot_token":"project-token","allowed_users":["project-user"]}}}"#).unwrap();
     let channels = source.poll(&config).await.unwrap().unwrap();
     assert_eq!(channels.telegram.unwrap().bot_token, "project-token");

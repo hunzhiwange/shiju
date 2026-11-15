@@ -1,7 +1,7 @@
 // 本文件验证邮件渠道元数据及 TLS、端口和收件箱默认值。
 
 use super::email::EmailConfig;
-use crate::app::agent::config::traits::ChannelConfig;
+use crate::traits::ChannelConfig;
 
 #[test]
 fn email_channel_metadata_is_stable() {

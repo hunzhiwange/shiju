@@ -1,10 +1,10 @@
 //! 运行期按渠道实例隔离解密失败，源配置保留密文以便修复和再次保存。
 
 use super::{ChannelsConfig, decrypt_channel_secrets};
-use crate::app::agent::security::SecretStore;
+use secret_store::secrets::SecretStore;
 use anyhow::Result;
 
-pub(crate) fn decrypt_channel_secrets_isolated(
+pub fn decrypt_channel_secrets_isolated(
     store: &SecretStore,
     channels: &mut ChannelsConfig,
 ) -> Result<()> {

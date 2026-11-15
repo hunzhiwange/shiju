@@ -6,3 +6,6 @@ pub mod runtime_home;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod runtime_home_tests;
+
+pub mod schema;
+pub mod traits;

@@ -33,11 +33,11 @@
 //! - 敏感字段使用可选加密/解密，支持空值处理
 //! - 每个字段都有唯一的配置路径标识，用于错误追踪
 
-use crate::app::agent::config::schema::ChannelsConfig;
-use crate::app::agent::config::schema::channels::helpers::{
+use crate::schema::ChannelsConfig;
+use crate::schema::channels::helpers::{
     decrypt_optional_secret, decrypt_secret, encrypt_optional_secret, encrypt_secret,
 };
-use crate::app::agent::security::SecretStore;
+use secret_store::secrets::SecretStore;
 use anyhow::Result;
 
 fn channel_instance_secret_path(channel_type: &str, instance_id: &str, field_name: &str) -> String {
@@ -67,8 +67,8 @@ fn channel_instance_secret_path(channel_type: &str, instance_id: &str, field_nam
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::security::SecretStore;
-/// use crate::app::agent::config::schema::ChannelsConfig;
+/// use secret_store::secrets::SecretStore;
+/// use crate::schema::ChannelsConfig;
 ///
 /// let store = SecretStore::new(encryption_key);
 /// let mut config: ChannelsConfig = load_config()?;
@@ -312,8 +312,8 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::security::SecretStore;
-/// use crate::app::agent::config::schema::ChannelsConfig;
+/// use secret_store::secrets::SecretStore;
+/// use crate::schema::ChannelsConfig;
 ///
 /// let store = SecretStore::new(encryption_key);
 /// let mut config: ChannelsConfig = load_config()?;

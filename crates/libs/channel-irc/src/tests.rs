@@ -472,7 +472,7 @@ mod tests {
     /// 并能从 TOML 字符串正确反序列化，保持数据完整性。
     #[test]
     fn irc_config_serde_roundtrip() {
-        use crate::app::agent::config::schema::IrcConfig;
+        use config_channel_services::IrcConfig;
 
         let config = IrcConfig {
             server: "irc.example.com".into(),
@@ -507,7 +507,7 @@ mod tests {
     /// 缺失的可选字段应使用默认值。
     #[test]
     fn irc_config_minimal_toml() {
-        use crate::app::agent::config::schema::IrcConfig;
+        use config_channel_services::IrcConfig;
 
         let toml_str = r#"
     server = "irc.example.com"
@@ -531,7 +531,7 @@ mod tests {
     /// 验证从 JSON 解析配置时，未指定的 port 字段使用默认值 6697（IRC over TLS）。
     #[test]
     fn irc_config_default_port() {
-        use crate::app::agent::config::schema::IrcConfig;
+        use config_channel_services::IrcConfig;
 
         let json = r#"{"server":"irc.test","nickname":"bot"}"#;
         let parsed: IrcConfig = serde_json::from_str(json).unwrap();

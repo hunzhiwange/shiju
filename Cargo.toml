@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/channel-irc",
   "crates/libs/task-scheduler-core",
   "crates/libs/device-sync",
   "crates/libs/session-store",

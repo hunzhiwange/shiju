@@ -4,7 +4,7 @@ use reqwest::Request;
 use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_app_auth::AuthErrorCode,
 };
 
 use super::{

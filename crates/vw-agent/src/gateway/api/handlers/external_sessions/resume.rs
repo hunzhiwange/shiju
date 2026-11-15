@@ -78,7 +78,7 @@ fn execute(policy: Policy, headers: HeaderMap, request: SessionResumeRequest, pr
     let agy = if id.provider == SessionProvider::Agy {
         let db = crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         let store = crate::app_providers::AppProviderStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: id.scope.tenant_scope(), principal: &principal, host: &host.id, service: vw_api_types::agent_apps_auth::AuthService::AgyOauth };
+        let scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: id.scope.tenant_scope(), principal: &principal, host: &host.id, service: vw_api_app_auth::AuthService::AgyOauth };
         Some(store.prepare_agy_launch(scope, vw_agent_apps::auth::agy_account::AgyNativeTarget { home: &host.home, exclusive_owner: agy_owner.then_some(scope) }, settings.agy_provider_id.as_deref().ok_or(StatusCode::PRECONDITION_FAILED)?, host.credential_root.as_deref().ok_or(StatusCode::PRECONDITION_FAILED)?, LaunchMaterial { program: plan.program().into(), cwd: plan.cwd().into(), args: vec![], skip_permissions: false }).map_err(|_| StatusCode::FORBIDDEN)?)
     } else { None };
     let credentials = |_: &ExternalSessionIdentity, command: &mut std::process::Command| {

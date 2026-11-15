@@ -13,8 +13,8 @@ use vw_agent_apps::auth::credential_file::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthRegion,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthRegion,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 

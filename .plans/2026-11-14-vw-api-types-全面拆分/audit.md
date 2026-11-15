@@ -2697,3 +2697,9 @@
 调度器55个公开类型迁入 `api-agent-scheduler`，按任务/运行、能力/lease、事件/outbox、命令/任务板分文件；旧模块明确重导出，四项既有测试随库迁移。依赖仅 transport、task、chat-identity、serde、serde_json，无旧门面或聊天流依赖。实际消费者 vw-agent、vw-desktop、vw-gateway-client 以及 CLI api-automation/api-session/gateway-automation/gateway-transport/interaction/interaction-model 均改用新库并更新清单。CLI 已拆库，故以实际所在包替代候选 vw-cli。
 
 本次仅静态核对定义、测试、serde 辅助路径及依赖接线，未运行 Cargo、测试及实机验证；未来验收沿任务19原列行为入口。
+
+## 任务22落地（静态审查）
+
+14 个应用认证类型及两项既有 DTO 测试迁入 `api-app-auth`，保留凭证状态、validate_for、serde 与脱敏 Debug。新库仅生产依赖 api-transport 的 TimestampMs 和 serde，serde_json 为测试依赖；旧模块明确重导出同一类型。实际消费者 vw-agent、vw-agent-apps、vw-desktop、vw-gateway-client 及已拆出的 gateway-app-auth 均直接依赖新库并迁移导入；门面 MCP 与 Kimi 字段也使用同源类型。SDK 测试中原有重复门面前缀的 TenantScope 导入修正为 transport 的真实路径。
+
+已静态核对清单、单向依赖、测试注册及源码迁移差异，git diff --check 通过。未运行 Cargo、测试及实机验证；未来验收仍需编译新库和消费者，并运行 auth6_dto_commits_expected_scoped_result、auth6_dto_rejects_invalid_or_stale_input 及直接消费者的授权边界测试。

@@ -2,7 +2,7 @@
 
 use reqwest::{Method, RequestBuilder, StatusCode};
 use serde::Serialize;
-use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 use super::agent_apps_auth_flow::send_auth_request;
 use super::{AgentAppsAuthCredentials, AgentAppsAuthError, GatewayAppAuthClient};

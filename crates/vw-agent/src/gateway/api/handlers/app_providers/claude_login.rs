@@ -11,7 +11,7 @@ use vw_agent_apps::{
         live::{commit::ClaudeManagedLogin, write_guard::WriteError},
     },
 };
-use vw_api_types::agent_apps_auth::AuthService;
+use vw_api_app_auth::AuthService;
 impl super::Host {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn apply(

@@ -29,7 +29,7 @@ pub(crate) struct EditForm {
     pub kimi: Option<super::kimi::Draft>,
     pub kimi_config_unavailable: bool,
     #[cfg(not(target_arch = "wasm32"))]
-    pub kimi_auth_region: Option<vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion>,
+    pub kimi_auth_region: Option<vw_api_app_auth::AuthRegion>,
     pub agy: Option<super::agy::Draft>,
     pub dsh: Option<super::dsh::Draft>,
     pub dsh_config_unavailable: bool,

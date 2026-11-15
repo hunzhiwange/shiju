@@ -1,11 +1,11 @@
 use gateway_endpoint::GatewayAuth;
-use vw_api_types::agent_apps_auth::*;
+use vw_api_app_auth::*;
 use super::test_support;
 use crate::{AgentAppsAuthCredentials, AgentAppsAuthReadError};
 use serde_json::json;
 use {
-    vw_api_types::agent_apps_auth::AuthCredentialState,
-    vw_api_types::agent_apps_auth::vw_api_types::agent_apps_auth::vw_api_transport::id::TenantScope,
+    vw_api_app_auth::AuthCredentialState,
+    vw_api_transport::id::TenantScope,
 };
 
 const HOST: &str = "mac-local";

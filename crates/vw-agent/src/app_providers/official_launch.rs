@@ -2,7 +2,7 @@
 use super::*;
 use crate::agent_apps::auth_accounts::{AuthAccountLaunch, AuthAccountScope, AuthAccountStore};
 use vw_agent_apps::apps::launch::request::LaunchMaterial;
-use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 impl AppProviderStore {
     pub(crate) fn prepare_bound_official_launch(

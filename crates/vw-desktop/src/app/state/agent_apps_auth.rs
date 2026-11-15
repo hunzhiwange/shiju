@@ -5,12 +5,12 @@ use tokio::sync::{mpsc, oneshot};
 use {
     gateway_endpoint::GatewayEndpoint,
     vw_api_transport::TimestampMs,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthAccount,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthLoginMethod,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthPasteRequest,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_app_auth::AuthAccount,
+    vw_api_app_auth::AuthLoginMethod,
+    vw_api_app_auth::AuthPasteRequest,
+    vw_api_app_auth::AuthRegion,
+    vw_api_app_auth::AuthService,
+    vw_api_app_auth::AuthStartRequest,
     vw_api_transport::id::TenantScope,
 };
 

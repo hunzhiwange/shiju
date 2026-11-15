@@ -136,8 +136,8 @@ mod execution {
     use vw_agent_apps::auth::{codex_refresh::CodexRefresh, xai_refresh::XaiRefresh};
     use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
     vw_api_types::mcp_management::McpCatalogRecord,
     vw_api_types::mcp_management::McpCredentialRef,
     vw_api_types::mcp_management::McpTransport,

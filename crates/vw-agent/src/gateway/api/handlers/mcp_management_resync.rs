@@ -199,7 +199,7 @@ async fn run(
         mcp::import::NativeMcpSource,
         providers::live::commit::{ExecutionHostId, ProviderTransactions},
     };
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
     let work = async {
         let principal = authorize(&policy, &headers, &job.scope, &job.tenant, &job.host)
             .map_err(|e| e.1.0.code)?;

@@ -13,7 +13,7 @@ use std::{ffi::CStr, fs::File, os::fd::AsRawFd, sync::Mutex};
 #[cfg(unix)]
 use vw_api_app_identity::{AppId};
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::agent_apps_auth::AuthErrorCode;
+use vw_api_app_auth::AuthErrorCode;
 #[cfg(target_os = "macos")]
 use {
     super::claude_login_files::Directory,
@@ -210,7 +210,7 @@ impl CredentialLease {
         &self,
         keychain: &dyn super::claude_keychain::ClaudeKeychain,
         identity_sha256: [u8; 32],
-    ) -> Result<(), vw_api_types::agent_apps_auth::AuthErrorCode> {
+    ) -> Result<(), vw_api_app_auth::AuthErrorCode> {
         use super::credential_file::{managed_config_path, remove_account_directory};
         use crate::providers::{
             claude_login::{LoginMaterial, lock_account},
@@ -218,7 +218,7 @@ impl CredentialLease {
         };
         use sha2::{Digest, Sha256};
         use std::os::unix::fs::MetadataExt;
-        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        use vw_api_app_auth::AuthErrorCode;
         let storage = |_| AuthErrorCode::StorageUnavailable;
         if !matches!(self.kind, CredentialKind::App(AppId::Claude)) {
             return Err(AuthErrorCode::Unsupported);

@@ -6,7 +6,7 @@ use super::{
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use vw_agent_apps::auth::credential_file::AccountCredential;
-use vw_api_types::agent_apps_auth::{AuthAccount, AuthCredentialState};
+use vw_api_app_auth::{AuthAccount, AuthCredentialState};
 
 impl AuthAccountStore {
     pub(crate) fn scoped_account_rows(

@@ -14,7 +14,7 @@ use {
     gateway_endpoint::GatewayEndpoint,
     vw_gateway_client::GatewayClient,
     vw_api_transport::TimestampMs,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_app_auth::AuthRegion,
     vw_api_transport::id::TenantScope,
 };
 

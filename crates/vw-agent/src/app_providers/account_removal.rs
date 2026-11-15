@@ -6,7 +6,7 @@ use vw_agent_apps::auth::{
     agy_account::{AgyNativeTarget, remove_managed_account},
     dsh_account::DshAccount,
 };
-use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 /// The execution host supplies any native target from trusted host policy.
 #[derive(Clone, Copy)]

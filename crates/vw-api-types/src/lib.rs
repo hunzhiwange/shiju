@@ -95,8 +95,6 @@ mod acp_model_source_tests;
 mod mcp_management_tests;
 
 #[cfg(test)]
-mod agent_apps_auth_tests;
-#[cfg(test)]
 mod agent_apps_diagnostics_tests;
 #[cfg(test)]
 mod agent_apps_high_availability_tests;

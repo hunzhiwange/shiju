@@ -12,7 +12,7 @@ use security_framework::{
     item::{ItemClass, ItemSearchOptions, Limit},
     os::macos::keychain::SecKeychain,
 };
-use vw_api_types::agent_apps_auth::{AuthAccount, AuthCredentialState, AuthErrorCode};
+use vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthErrorCode};
 
 /// Invalidate the owned AGY records and any matching native login.
 pub fn logout_accounts(

@@ -133,9 +133,9 @@ legacy_sse = { type = "sse", url = "https://example.invalid/events" }
 #[test]
 fn cc_mcp_t14_grokbuild_rejects_lossy_transport_and_unresolved_values() {
     use vw_api_types::{
-        agent_apps_auth::AuthService,
         mcp_management::{McpConfigValue, McpCredentialRef},
     };
+    use vw_api_app_auth::AuthService;
 
     let fixture = Fixture::new(Some(EXISTING));
     let sse = McpConnectionDefinition::Sse {

@@ -5,7 +5,7 @@ use tokio::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_app_auth::AuthRegion,
     vw_api_types::apps_usage::UsageCredentialState,
     vw_api_types::apps_usage::UsageQueryData,
     vw_api_types::apps_usage::UsageQueryErrorCode,

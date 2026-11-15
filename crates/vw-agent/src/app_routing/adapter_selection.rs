@@ -96,10 +96,10 @@ pub async fn gemini_auth_headers(
     refresh: &vw_agent_apps::auth::gemini_refresh::GeminiRefresh,
     scope: vw_agent_apps::auth::gemini_refresh::GeminiScope<'_>,
     account: &str,
-) -> Result<HeaderMap, vw_api_types::agent_apps_auth::AuthErrorCode> {
+) -> Result<HeaderMap, vw_api_app_auth::AuthErrorCode> {
     let token = store.gemini_access_token(refresh, scope, account).await?;
     auth_headers(ProviderType::GeminiCli, &token)
-        .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::ReauthRequired)
+        .map_err(|_| vw_api_app_auth::AuthErrorCode::ReauthRequired)
 }
 
 /// Resolve a target without accepting credential-bearing or ambiguous URLs.
@@ -165,7 +165,7 @@ impl AccountAdapter {
     /// Initialize once when publishing a target, never for every request.
     pub fn new(
         provider: ProviderType,
-    ) -> Result<Self, vw_api_types::agent_apps_auth::AuthErrorCode> {
+    ) -> Result<Self, vw_api_app_auth::AuthErrorCode> {
         use std::sync::Arc;
         use vw_agent_apps::auth::{
             codex_refresh::CodexRefresh, copilot::CopilotAuth, gemini_refresh::GeminiRefresh,
@@ -181,7 +181,7 @@ impl AccountAdapter {
             | ProviderType::Codex
             | ProviderType::Gemini
             | ProviderType::OpenRouter => {
-                return Err(vw_api_types::agent_apps_auth::AuthErrorCode::Unsupported);
+                return Err(vw_api_app_auth::AuthErrorCode::Unsupported);
             }
         })
     }
@@ -201,9 +201,9 @@ pub async fn managed_target(
     scope: vw_agent_apps::auth::gemini_refresh::GeminiScope<'_>,
     account: &str,
     endpoint: &str,
-) -> Result<SelectedTarget, vw_api_types::agent_apps_auth::AuthErrorCode> {
+) -> Result<SelectedTarget, vw_api_app_auth::AuthErrorCode> {
     use vw_agent_apps::auth::flow::AuthAccountScope;
-    use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+    use vw_api_app_auth::{AuthErrorCode, AuthService};
     let provider = account_adapter.provider_type();
     let auth_scope = |service| AuthAccountScope {
         tenant: scope.tenant,
@@ -284,7 +284,7 @@ impl ManagedCredential {
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<
-                    Output = Result<SelectedTarget, vw_api_types::agent_apps_auth::AuthErrorCode>,
+                    Output = Result<SelectedTarget, vw_api_app_auth::AuthErrorCode>,
                 > + Send
                 + '_,
         >,
@@ -294,21 +294,21 @@ impl ManagedCredential {
             let provider = self.account_adapter.provider_type();
             if provider == ProviderType::CodexOAuth {
                 let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
                 crate::model_relay::codex_oauth_transport::validate_url(&url)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
             }
             if provider == ProviderType::GeminiCli {
                 let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
                 crate::model_relay::gemini_oauth_transport::validate_url(&url)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
             }
             if provider == ProviderType::XaiOAuth {
                 let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
                 crate::model_relay::xai_oauth_transport::validate_url(&url)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
             }
             let mut selected = managed_target(
                 &self.owner,
@@ -324,9 +324,9 @@ impl ManagedCredential {
             .await?;
             if let Some(base) = &self.base {
                 let url = target_url(provider, Some(base.as_str()), &self.endpoint)
-                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                    .map_err(|_| vw_api_app_auth::AuthErrorCode::InvalidInput)?;
                 if provider == ProviderType::GitHubCopilot && url != selected.url {
-                    return Err(vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput);
+                    return Err(vw_api_app_auth::AuthErrorCode::InvalidInput);
                 }
                 selected.url = url;
             }

@@ -134,7 +134,8 @@ fn cc_mcp_t15_same_name_keeps_user_configuration() {
 
 #[test]
 fn cc_mcp_t15_unrepresentable_fields_and_unresolved_credentials_leave_file_unchanged() {
-    use vw_api_types::{agent_apps_auth::AuthService, mcp_management::McpCredentialRef};
+    use vw_api_types::{ mcp_management::McpCredentialRef};
+    use vw_api_app_auth::AuthService;
 
     let fixture = Fixture::new();
     let http = McpConnectionDefinition::StreamableHttp {

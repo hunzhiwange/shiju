@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vw_agent_apps::auth::agy_account::{AgyNativeTarget, with_provider_account};
 use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthService},
     app_providers::agy::AgyProfile,
 };
+use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 const FIELD: &str = "managedAgyLogin";
 

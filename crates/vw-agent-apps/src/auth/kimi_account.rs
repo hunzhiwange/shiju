@@ -32,9 +32,9 @@ use toml_edit::{DocumentMut, value};
 use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthRegion,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthRegion,
+    vw_api_app_auth::AuthService,
 };
 
 /// The scoped metadata verified when the managed account signed in.

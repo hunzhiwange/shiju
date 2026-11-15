@@ -456,8 +456,8 @@ async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected()
     use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
 };
 
     let f = Fixture::new().await;

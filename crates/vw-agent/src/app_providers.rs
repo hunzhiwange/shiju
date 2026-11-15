@@ -370,8 +370,8 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-    ) -> Result<serde_json::Value, vw_api_types::agent_apps_auth::AuthErrorCode> {
-        use vw_api_types::agent_apps_auth::AuthErrorCode;
+    ) -> Result<serde_json::Value, vw_api_app_auth::AuthErrorCode> {
+        use vw_api_app_auth::AuthErrorCode;
         let key = Self::key(app, id).map_err(|_| AuthErrorCode::InvalidInput)?;
         let raw = GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &key)
             .map_err(|_| AuthErrorCode::StorageUnavailable)?

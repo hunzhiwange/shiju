@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
-use vw_api_types::agent_apps_auth::AuthErrorCode;
+use vw_api_app_auth::AuthErrorCode;
 
 const MAX_REQUEST_BYTES: usize = 8192;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);

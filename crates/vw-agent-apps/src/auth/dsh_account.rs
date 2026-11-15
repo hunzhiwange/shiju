@@ -22,11 +22,11 @@ use std::path::Path;
 use uuid::Uuid;
 use vw_api_types::{
     agent_apps::AppId,
-    agent_apps_auth::{
+};
+use vw_api_app_auth::{
         AuthAccount, AuthCredentialState, AuthErrorCode, AuthFlow, AuthService, AuthStartRequest,
         AuthStartResponse,
-    },
-};
+    };
 
 const DEVICE_RECORD: &str = "deepseek-account-platform/device";
 use vw_api_app_identity::{AppId};

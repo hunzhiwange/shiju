@@ -208,9 +208,9 @@ fn cc_mcp_t19_rejects_bad_maps_and_preserves_source_bytes() {
 #[test]
 fn cc_mcp_t19_rejects_unresolved_credentials_and_failed_preflight() {
     use vw_api_types::{
-        agent_apps_auth::AuthService,
         mcp_management::{McpConfigValue, McpCredentialRef},
     };
+    use vw_api_app_auth::AuthService;
 
     let fixture = Fixture::new(Some("{}"));
     let connection = McpConnectionDefinition::Stdio {

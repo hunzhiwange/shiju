@@ -203,7 +203,7 @@ fn execute(
         },
     };
     use {
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::ProjectScope,
 };
     let invalid = || Failure(StatusCode::BAD_REQUEST, "invalid_request");

@@ -16,12 +16,12 @@ use {
     gateway_app_auth::AgentAppsAuthError,
     vw_gateway_client::GatewayClient,
     vw_api_transport::TimestampMs,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthFlow,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthFlowId,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthPasteRequest,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthFlow,
+    vw_api_app_auth::AuthFlowId,
+    vw_api_app_auth::AuthPasteRequest,
+    vw_api_app_auth::AuthService,
+    vw_api_app_auth::AuthStartResponse,
 };
 
 #[derive(Clone)]

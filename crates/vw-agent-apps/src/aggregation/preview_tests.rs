@@ -267,7 +267,7 @@ fn aggregation_t13_missing_default_and_invalid_catalog_are_blocking() {
 
 #[test]
 fn aggregation_t13_official_default_requires_native_catalog_and_restore_proof() {
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
     let tenant = TenantScope::new("platform", "company").unwrap();
     let state = state(&tenant);
     let config = toml_edit::DocumentMut::new();

@@ -2,7 +2,7 @@ use super::*;
 use crate::app::state::AgentAppsContext;
 use {
     vw_api_transport::TenantScope,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
 };
 fn context() -> catalog::Context {
     catalog::Context {

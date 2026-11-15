@@ -112,7 +112,7 @@ async fn execute(
             providers::live::commit::{ExecutionHostId, ProviderTransactions},
         };
         use vw_api_app_identity::AppId;
-        use vw_api_types::agent_apps_auth::AuthService;
+        use vw_api_app_auth::AuthService;
         let (env, root) = agent_apps::authorize_mcp_native_write(
             policy.0.as_deref(),
             &headers,

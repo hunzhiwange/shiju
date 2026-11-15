@@ -1,4 +1,5 @@
-use crate::{TimestampMs, agent_apps_auth::*};
+use crate::agent_apps_auth::*;
+use vw_api_transport::TimestampMs;
 use serde_json::{Value, from_value, json, to_value};
 
 #[test]

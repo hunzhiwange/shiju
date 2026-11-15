@@ -19,8 +19,8 @@ use std::{
 };
 use uuid::Uuid;
 use {
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 
@@ -260,7 +260,7 @@ mod provider_binding_tests;
 #[test]
 fn auth6_agy_read_filters_real_keychain_and_reports_native_default() {
     use super::agy_account::{lock_keychain, read_accounts_in, require_account};
-    use vw_api_types::agent_apps_auth::AuthCredentialState;
+    use vw_api_app_auth::AuthCredentialState;
 
     let mut fixture = Fixture::new();
     let mut foreign = Fixture::new();

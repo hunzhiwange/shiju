@@ -5,7 +5,7 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
-use vw_gateway_client::vw_api_types::agent_apps_auth::AuthPasteRequest;
+use vw_api_app_auth::AuthPasteRequest;
 
 #[derive(Clone, Copy)]
 pub enum LinkAction {

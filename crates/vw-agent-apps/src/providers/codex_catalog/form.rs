@@ -5,11 +5,11 @@ use serde_json::Value;
 use toml_edit::{DocumentMut, Item, Table, TableLike, value};
 use vw_api_types::{
     agent_apps::AppId,
-    agent_apps_auth::AuthErrorCode,
     app_providers::{codex_catalog::*, create::ProviderSecretWrite},
     model_catalog::{CodexNativeModel, SavedCodexCatalog},
 };
 
+use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_identity::{AppId};
 type Result<T> = std::result::Result<T, &'static str>;
 const INVALID: &str = "invalid or unsupported Codex editor configuration";

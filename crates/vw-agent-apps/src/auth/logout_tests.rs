@@ -10,9 +10,9 @@ use serde_json::json;
 use std::time::{Duration, Instant};
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthFlow,
-    vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthFlow,
+    vw_api_app_auth::AuthStartResponse,
 };
 
 const INIT: &str = "/auth-api/v0/dsh/auth_init";
@@ -119,12 +119,12 @@ async fn auth6_logout_rejects_invalid_or_stale_input() {
     assert_eq!(fixture.read(), initial);
 
     for service in [
-        vw_api_types::agent_apps_auth::AuthService::AgyOauth,
-        vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial,
-        vw_api_types::agent_apps_auth::AuthService::CodexOauth,
-        vw_api_types::agent_apps_auth::AuthService::GithubCopilot,
-        vw_api_types::agent_apps_auth::AuthService::KimiOauth,
-        vw_api_types::agent_apps_auth::AuthService::XaiOauth,
+        vw_api_app_auth::AuthService::AgyOauth,
+        vw_api_app_auth::AuthService::ClaudeOfficial,
+        vw_api_app_auth::AuthService::CodexOauth,
+        vw_api_app_auth::AuthService::GithubCopilot,
+        vw_api_app_auth::AuthService::KimiOauth,
+        vw_api_app_auth::AuthService::XaiOauth,
     ] {
         assert_eq!(
             super::logout::check_revocation_support(AuthAccountScope { service, ..scope }),
@@ -133,7 +133,7 @@ async fn auth6_logout_rejects_invalid_or_stale_input() {
     }
     let id = super::dsh_login::account(
         scope,
-        vw_api_types::agent_apps_auth::AuthCredentialState::Ready,
+        vw_api_app_auth::AuthCredentialState::Ready,
         None,
     )
     .unwrap()
@@ -285,7 +285,7 @@ async fn auth6_logout_kimi_only_clears_the_matching_native_grant() {
         credential_file::AccountCredential,
         kimi_account_tests::{ACCOUNT, CONFIG, Fixture, native_tokens},
     };
-    use vw_api_types::agent_apps_auth::AuthRegion;
+    use vw_api_app_auth::AuthRegion;
 
     let fixture = Fixture::new();
     let native = fixture.native();

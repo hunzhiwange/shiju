@@ -12,7 +12,7 @@ use crate::app::{
 use iced::Task;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
        GatewayClient,
-    vw_api_types::agent_apps_auth::{AuthAccount, AuthCredentialState, AuthErrorCode, AuthService}}};
+    vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthErrorCode, AuthService}}};
 
 #[derive(Clone)]
 pub enum ActionEvent {

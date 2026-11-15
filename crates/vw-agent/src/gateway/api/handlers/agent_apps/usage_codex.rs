@@ -7,9 +7,9 @@ use vw_agent_apps::{
     usage::{binding::UsageAccount, cache::UsageCacheKey},
 };
 use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthService},
     apps_usage::UsageQueryKind,
 };
+use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 use crate::{
     agent_apps::{

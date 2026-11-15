@@ -12,8 +12,8 @@ use super::{
 use reqwest::Request;
 use vw_api_types::{
     agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthRegion, AuthService},
 };
+use vw_api_app_auth::{AuthErrorCode, AuthRegion, AuthService};
 
 use vw_api_app_identity::{AppId};
 const DSH_LOGOUT_PATH: &str = "/auth-api/v0/users/logout";

@@ -5,7 +5,7 @@ use gateway_http::apply_request_context;
 use reqwest::header::{CACHE_CONTROL, HeaderValue};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use vw_api_types::agent_apps_auth::{AuthAccount, AuthError, AuthService, AuthStatus};
+use vw_api_app_auth::{AuthAccount, AuthError, AuthService, AuthStatus};
 
 /// A trusted principal token and optional Basic credentials for managed gateways.
 pub struct AgentAppsAuthCredentials<'a> {

@@ -6,8 +6,8 @@ use serde_json::Value;
 use std::path::Path;
 use vw_agent_apps::auth::kimi_account::KimiNativeTarget;
 use {
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 

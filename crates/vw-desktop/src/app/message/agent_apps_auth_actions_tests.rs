@@ -18,9 +18,9 @@ use std::{
 };
 use {
     gateway_endpoint::GatewayEndpoint,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthAccount,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthCredentialState,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthAccount,
+    vw_api_app_auth::AuthCredentialState,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 

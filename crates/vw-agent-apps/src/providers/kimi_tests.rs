@@ -209,7 +209,7 @@ fn cc04_kimi_input_and_external_file_conflicts_do_not_publish() {
 #[cfg(target_os = "macos")]
 #[test]
 fn kimi_binding_form_projects_only_the_compatible_region() {
-    use vw_api_types::agent_apps_auth::AuthRegion;
+    use vw_api_app_auth::AuthRegion;
     for (api, oauth_host, expected) in [
         ("https://api.kimi.com/coding/v1", "https://auth.kimi.com", AuthRegion::MainlandCn),
         ("https://api.kimi.ai/coding/v1", "https://auth.kimi.ai", AuthRegion::Global),

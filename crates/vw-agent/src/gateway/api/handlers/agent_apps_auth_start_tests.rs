@@ -13,7 +13,7 @@ use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::A
 use tokio::{net::TcpListener, task::JoinHandle};
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 
@@ -103,7 +103,7 @@ impl Gateway {
                 )
                 .unwrap();
             let mut kimi = AuthAccountMetadata::new("fixture-kimi", TimestampMs(1)).unwrap();
-            kimi.region = Some(vw_api_types::agent_apps_auth::AuthRegion::MainlandCn);
+            kimi.region = Some(vw_api_app_auth::AuthRegion::MainlandCn);
             store
                 .insert_metadata(
                     &AuthAccountScope {

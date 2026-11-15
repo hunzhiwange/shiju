@@ -194,7 +194,7 @@ async fn usage_usage_script_cancellation_disconnects_the_sdk_request() {
 fn usage_usage_script_hides_gateway_error_details() {
     use vw_gateway_client::{
         AppsUsageWriteError,
-        vw_api_types::agent_apps_auth::{AuthError, AuthErrorCode},
+        vw_api_app_auth::{AuthError, AuthErrorCode},
     };
 
     let failure = Failure::from_gateway(AppsUsageWriteError::Http {

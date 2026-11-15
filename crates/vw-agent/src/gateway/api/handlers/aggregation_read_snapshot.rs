@@ -220,7 +220,7 @@ pub(crate) fn project(
             id,
             name: row["name"].as_str().unwrap_or(id),
             official_service: (row["category"] == "official")
-                .then_some(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial),
+                .then_some(vw_api_app_auth::AuthService::ClaudeOfficial),
             catalog: match app {
                 AppId::Claude => native::Catalog::Claude(row),
                 AppId::Codex => native::Catalog::Codex(CodexCatalogRow {

@@ -5,12 +5,12 @@ use iced::{
 };
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
-    agent_apps_auth::AuthService,
     apps_usage::{
         UsageCredentialState, UsageNumber, UsageQueryData, UsageQueryOutcome,
         UsageSnapshotResponse, UsageSource,
     },
 };
+use vw_api_app_auth::AuthService;
 
 use super::{Cards, Event, Failure, ListMessage, Message, Scope, Target, message};
 use crate::app::components::{

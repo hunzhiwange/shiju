@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use toml_edit::DocumentMut;
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
     vw_api_types::app_providers::desktop_mapping::DesktopMapping,
     vw_api_transport::id::TenantScope,
 };

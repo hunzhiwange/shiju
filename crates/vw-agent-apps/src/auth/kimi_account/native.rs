@@ -18,7 +18,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::task::JoinHandle;
-use vw_api_types::agent_apps_auth::AuthErrorCode;
+use vw_api_app_auth::AuthErrorCode;
 
 const MAX_BYTES: u64 = 100_000;
 

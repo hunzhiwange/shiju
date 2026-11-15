@@ -378,8 +378,8 @@ async fn cc04_kimi_bound_official_connection_survives_gateway_edits() {
     };
     use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthRegion,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthRegion,
+    vw_api_app_auth::AuthService,
 };
     const ID: &str = "managed:kimi-code";
     const ACCOUNT: &str = "fixture-account";

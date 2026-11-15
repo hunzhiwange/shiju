@@ -10,7 +10,7 @@ use {
     vw_api_app_identity::AppId,
     vw_api_app_identity::AppInstallation,
     vw_api_app_identity::AppInstallationId,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
     vw_api_types::mcp_management::McpAppTarget,
     vw_api_types::mcp_management::McpCatalogScope,
     vw_api_types::mcp_management::McpConfigValue,

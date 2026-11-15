@@ -18,7 +18,7 @@ use std::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_app_auth::AuthRegion,
     vw_api_transport::id::TenantScope,
 };
 

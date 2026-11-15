@@ -2,7 +2,7 @@
 
 use super::flow::AuthAccountScope;
 use std::path::Path;
-use vw_api_types::agent_apps_auth::AuthErrorCode;
+use vw_api_app_auth::AuthErrorCode;
 
 #[cfg(target_os = "macos")]
 mod logout;
@@ -188,7 +188,7 @@ mod macos {
         fs::File,
         os::{fd::AsRawFd, unix::fs::MetadataExt},
     };
-    use vw_api_types::agent_apps_auth::{AuthAccount, AuthCredentialState, AuthService};
+    use vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthService};
 
     const KEYRING_PREFIX: &str = "go-keyring-base64:";
 

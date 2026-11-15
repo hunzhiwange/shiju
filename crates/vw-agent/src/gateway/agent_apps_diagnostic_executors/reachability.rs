@@ -12,8 +12,8 @@ use vw_agent_apps::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
     vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
     vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
     vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,

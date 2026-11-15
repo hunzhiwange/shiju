@@ -215,11 +215,11 @@ pub(super) fn authorize_auth_account_read(
     headers: &axum::http::HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    service: vw_api_types::agent_apps_auth::AuthService,
+    service: vw_api_app_auth::AuthService,
     bindings: bool,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
     let authorized =
         access::authorize_auth_account_read(path, headers, tenant, target, service, bindings)?;
     let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
@@ -234,10 +234,10 @@ pub(super) fn authorize_auth_binding(
     headers: &axum::http::HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    service: vw_api_types::agent_apps_auth::AuthService,
+    service: vw_api_app_auth::AuthService,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
 
     let authorized = access::authorize_auth_binding(path, headers, tenant, target, service)?;
     let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
@@ -252,7 +252,7 @@ pub(super) fn authorize_auth_default(
     headers: &axum::http::HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    service: vw_api_types::agent_apps_auth::AuthService,
+    service: vw_api_app_auth::AuthService,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     let authorized = access::authorize_auth_default(path, headers, tenant, target, service)?;
     let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
@@ -264,10 +264,10 @@ pub(super) fn authorize_auth_account_delete(
     headers: &axum::http::HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    service: vw_api_types::agent_apps_auth::AuthService,
+    service: vw_api_app_auth::AuthService,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
 
     let authorized = access::authorize_auth_account_delete(path, headers, tenant, target, service)?;
     let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
@@ -282,11 +282,11 @@ pub(super) fn authorize_auth_account_termination(
     headers: &axum::http::HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    service: vw_api_types::agent_apps_auth::AuthService,
+    service: vw_api_app_auth::AuthService,
     action: AccountTermination,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
 
     let authorized =
         access::authorize_auth_account_termination(path, headers, tenant, target, service, action)?;
@@ -335,10 +335,10 @@ pub(super) fn authorize_auth_flow_start(
     headers: &axum::http::HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    service: vw_api_types::agent_apps_auth::AuthService,
+    service: vw_api_app_auth::AuthService,
 ) -> Result<AuthStartHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
-    use vw_api_types::agent_apps_auth::AuthService;
+    use vw_api_app_auth::AuthService;
 
     let authorized = access::authorize_auth_flow_start(path, headers, tenant, target, service)?;
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount)
@@ -498,7 +498,7 @@ pub(super) fn claude_editor_authorization(
 {
     let authorization = access::authorize_provider_editor(path, headers, tenant, target, true)?;
     let owns_slot = authorization
-        .native_login_owner(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial)
+        .native_login_owner(vw_api_app_auth::AuthService::ClaudeOfficial)
         .map(|owns| owns && path.is_some());
     let host = authorization.host;
     let root = host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;

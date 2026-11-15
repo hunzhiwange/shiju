@@ -5,7 +5,7 @@ use std::fmt;
 use reqwest::header::{CACHE_CONTROL, HeaderValue};
 use reqwest::{Method, RequestBuilder, Response, StatusCode, Url};
 use serde::de::DeserializeOwned;
-use vw_api_types::agent_apps_auth::{
+use vw_api_app_auth::{
     AuthError, AuthErrorCode, AuthFlow, AuthFlowId, AuthPasteRequest, AuthService,
     AuthStartRequest, AuthStartResponse,
 };

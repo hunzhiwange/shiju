@@ -20,7 +20,7 @@ use iced::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_app_auth::AuthRegion,
 };
 
 impl LoginChallenge {

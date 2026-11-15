@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use std::{fs, os::unix::fs::DirBuilderExt, path::Path, process::Command};
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_app_auth::AuthCredentialState,
     vw_api_transport::id::TenantScope,
 };
 

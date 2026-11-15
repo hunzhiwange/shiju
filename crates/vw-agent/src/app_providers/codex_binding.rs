@@ -8,7 +8,7 @@ use vw_agent_apps::auth::{
     codex_device::managed_identity, credential_file::AccountCredential,
     credential_lease::CredentialLease,
 };
-use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 use vw_agent_apps::providers::codex_catalog::form::official_binding_model;
 

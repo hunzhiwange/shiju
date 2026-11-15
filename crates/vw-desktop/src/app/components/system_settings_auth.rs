@@ -25,7 +25,7 @@ use crate::app::{
 };
 use iced::widget::{button, checkbox, column, container, responsive, row, scrollable, svg, text};
 use iced::{Alignment, Element, Length, Theme};
-use vw_gateway_client::vw_api_types::agent_apps_auth::{
+use vw_api_app_auth::{
     AuthAccount, AuthCredentialState, AuthRegion, AuthService,
 };
 

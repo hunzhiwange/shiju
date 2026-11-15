@@ -34,12 +34,12 @@ use vw_agent_apps::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthAccount,
-    vw_api_types::agent_apps_auth::AuthCapabilities,
-    vw_api_types::agent_apps_auth::AuthError,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
-    vw_api_types::agent_apps_auth::AuthStatus,
+    vw_api_app_auth::AuthAccount,
+    vw_api_app_auth::AuthCapabilities,
+    vw_api_app_auth::AuthError,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
+    vw_api_app_auth::AuthStatus,
     vw_api_transport::id::TenantScope,
 };
 

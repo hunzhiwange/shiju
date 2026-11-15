@@ -12,8 +12,8 @@ use axum::{
 };
 use vw_agent_apps::providers::validate_identity;
 use {
-    vw_api_types::agent_apps_auth::AuthError,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_app_auth::AuthError,
+    vw_api_app_auth::AuthErrorCode,
     vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_api_types::apps_usage::UsageSnapshotResponse,
     vw_api_transport::id::ProjectScope,
@@ -165,8 +165,8 @@ pub(super) fn usage_account_host(
     app: vw_api_app_identity::AppId,
     authorization: &super::access::Authorization,
     explicit_policy: bool,
-) -> Result<(super::AuthAccountHost, vw_api_types::agent_apps_auth::AuthService), AuthErrorCode> {
-    use vw_api_types::{agent_apps_auth::AuthService};
+) -> Result<(super::AuthAccountHost, vw_api_app_auth::AuthService), AuthErrorCode> {
+    use vw_api_app_auth::AuthService;
     use vw_api_app_identity::{AppId};
 
     let service = match app {

@@ -127,7 +127,7 @@ impl Draft {
         Ok(connection)
     }
     pub(crate) fn edit_values(&mut self, event: FormMessage) -> Result<(), String> {
-        use vw_gateway_client::vw_api_types::agent_apps_auth::AuthService;
+        use vw_api_app_auth::AuthService;
         let mut values: BTreeMap<String, McpConfigValue> = parse(&self.values)?;
         match event {
             FormMessage::ValueAdd => {

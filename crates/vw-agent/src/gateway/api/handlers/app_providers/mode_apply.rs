@@ -260,7 +260,7 @@ fn prepare_proxy_route(
             mode_apply::observe_claude_route,
         },
     };
-    use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+    use vw_api_app_auth::{AuthErrorCode, AuthService};
 
     if scope.app != AppId::Claude {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);

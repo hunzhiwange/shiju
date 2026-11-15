@@ -1,5 +1,5 @@
 use gateway_endpoint::GatewayAuth;
-use vw_api_types::agent_apps_auth::*;
+use vw_api_app_auth::*;
 use super::test_support;
 use crate::{
     AgentAppsAuthCredentials, AgentAppsAuthFlowError, };

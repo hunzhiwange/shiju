@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthRegion,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthRegion,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 
@@ -456,10 +456,10 @@ impl CredentialFileStore {
         scope: AuthAccountScope<'_>,
         id: &str,
         keychain: &dyn super::claude_keychain::ClaudeKeychain,
-    ) -> Result<(), vw_api_types::agent_apps_auth::AuthErrorCode> {
+    ) -> Result<(), vw_api_app_auth::AuthErrorCode> {
         use crate::providers::claude_login::LoginMaterial;
         use sha2::{Digest, Sha256};
-        use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+        use vw_api_app_auth::{AuthErrorCode, AuthService};
         scope.validate()?;
         if scope.service != AuthService::ClaudeOfficial {
             return Err(AuthErrorCode::Unsupported);
@@ -484,7 +484,7 @@ impl CredentialFileStore {
         &self,
         scope: AuthAccountScope<'_>,
         id: &str,
-    ) -> Result<Option<[u8; 32]>, vw_api_types::agent_apps_auth::AuthErrorCode> {
+    ) -> Result<Option<[u8; 32]>, vw_api_app_auth::AuthErrorCode> {
         self.codex_usage_file(scope, id, |_, _, _, version| Ok(version))
     }
 
@@ -494,9 +494,9 @@ impl CredentialFileStore {
         &self,
         scope: AuthAccountScope<'_>,
         id: &str,
-    ) -> Result<Option<(serde_json::Value, [u8; 32])>, vw_api_types::agent_apps_auth::AuthErrorCode>
+    ) -> Result<Option<(serde_json::Value, [u8; 32])>, vw_api_app_auth::AuthErrorCode>
     {
-        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        use vw_api_app_auth::AuthErrorCode;
         self.codex_usage_file(scope, id, |directory, path, bytes, version| {
             let AccountCredential::CodexAuth(auth) =
                 decode_credential(directory, path, CredentialKind::App(AppId::Codex), bytes)
@@ -518,10 +518,10 @@ impl CredentialFileStore {
             &Path,
             Vec<u8>,
             [u8; 32],
-        ) -> Result<T, vw_api_types::agent_apps_auth::AuthErrorCode>,
-    ) -> Result<Option<T>, vw_api_types::agent_apps_auth::AuthErrorCode> {
+        ) -> Result<T, vw_api_app_auth::AuthErrorCode>,
+    ) -> Result<Option<T>, vw_api_app_auth::AuthErrorCode> {
         use std::os::unix::fs::MetadataExt;
-        use vw_api_types::agent_apps_auth::AuthErrorCode;
+        use vw_api_app_auth::AuthErrorCode;
 
         scope.validate()?;
         if scope.service != AuthService::CodexOauth {
@@ -555,8 +555,8 @@ impl CredentialFileStore {
         &self,
         scope: AuthAccountScope<'_>,
         id: &str,
-    ) -> Result<Option<AccountCredential>, vw_api_types::agent_apps_auth::AuthErrorCode> {
-        use vw_api_types::agent_apps_auth::AuthErrorCode;
+    ) -> Result<Option<AccountCredential>, vw_api_app_auth::AuthErrorCode> {
+        use vw_api_app_auth::AuthErrorCode;
         scope.validate()?;
         validate_account_location(scope.host, id).map_err(|_| AuthErrorCode::InvalidInput)?;
         #[cfg(unix)]

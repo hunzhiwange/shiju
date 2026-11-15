@@ -3,8 +3,8 @@
 use crate::{
     ProjectId, ProjectScope, SessionId, TaskId, TenantScope,
     agent_apps::{AppId, AppInstallationId},
-    agent_apps_auth::AuthService,
 };
+use vw_api_app_auth::AuthService;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

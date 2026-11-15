@@ -13,11 +13,11 @@ use serde_json::{Value, json};
 use std::{fs, path::Path, sync::Arc, time::Instant};
 use vw_agent_apps::auth::claude_keychain::{ClaudeKeychain, MacOsKeychain};
 use {
-    vw_api_types::agent_apps_auth::AuthAccount,
-    vw_api_types::agent_apps_auth::AuthCredentialState,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthFlowId,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthAccount,
+    vw_api_app_auth::AuthCredentialState,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthFlowId,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 

@@ -14,8 +14,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthService,
 };
 
 const REFRESH_BUFFER_MS: i64 = 60_000;

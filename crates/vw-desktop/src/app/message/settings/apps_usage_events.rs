@@ -8,7 +8,7 @@ use {
     vw_gateway_client::AppsUsageReadError,
     vw_gateway_client::AppsUsageWriteError,
     vw_gateway_client::GatewayClient,
-    vw_gateway_client::vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_app_auth::AuthErrorCode,
     vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotResponse,
     vw_api_transport::id::ProjectId,

@@ -10,7 +10,7 @@ use vw_api_app_identity::{
     AppInstallationSource,
     LaunchRequest,
 };
-use vw_api_types::agent_apps_auth::AuthService;
+use vw_api_app_auth::AuthService;
 
 const ACCOUNT_ID: &str = "managed-account";
 const EXTERNAL_IDENTITY: &str = "fixture-external-identity";
@@ -525,7 +525,7 @@ fn cc_apps_launch_identity_list_official_host_tenant_and_missing_material() {
 
 #[cfg(unix)]
 fn copilot_account() -> AuthAccount {
-    use vw_api_types::agent_apps_auth::AuthCredentialState;
+    use vw_api_app_auth::AuthCredentialState;
 
     AuthAccount {
         account_id: ACCOUNT_ID.into(),
@@ -1082,7 +1082,7 @@ fn assert_kimi_device_commit(open: impl Fn() -> GlobalDatabase) {
         account_id: ACCOUNT_ID.into(),
         service: scope.service,
         label: "Kimi User".into(),
-        credential_state: vw_api_types::agent_apps_auth::AuthCredentialState::Ready,
+        credential_state: vw_api_app_auth::AuthCredentialState::Ready,
         is_default: false,
         authenticated_at: Some(TimestampMs(100)),
         login_expires_at: None,
@@ -1428,7 +1428,7 @@ fn auth6_logout_store_postgres() {
 fn assert_scoped_logout(open: impl Fn() -> GlobalDatabase) {
     use std::time::{Duration, Instant};
     use vw_agent_apps::auth::{flow::AuthFlowTiming, logout::LogoutSelection};
-    use vw_api_types::agent_apps_auth::AuthLoginMethod;
+    use vw_api_app_auth::AuthLoginMethod;
 
     let credentials = private_credentials_root();
     let tenant = TenantScope::new("platform", "company").unwrap();

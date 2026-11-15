@@ -12,7 +12,7 @@ use tokio::{
     process::Command,
     time::timeout,
 };
-use vw_api_types::agent_apps_auth::AuthErrorCode;
+use vw_api_app_auth::AuthErrorCode;
 
 fn client() -> Client {
     Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap()

@@ -45,7 +45,7 @@ fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::R
                     "TOKEN".into(),
                     McpConfigValue::Credential {
                         reference: vw_api_types::mcp_management::McpCredentialRef {
-                            service: vw_api_types::agent_apps_auth::AuthService::CodexOauth,
+                            service: vw_api_app_auth::AuthService::CodexOauth,
                             account_id: "ungranted-account".into(),
                         },
                     },

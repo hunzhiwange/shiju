@@ -247,12 +247,12 @@ fn native_preview(
         mcp::import::{NativeMcpSource, read},
     };
     use vw_api_types::{
-        agent_apps_auth::{AuthErrorCode, AuthService},
         mcp_management::{
             McpAppTarget, McpConnectionDefinition, McpNativePreviewEntry, McpNativeStatus,
             McpTransport,
         },
     };
+    use vw_api_app_auth::{AuthErrorCode, AuthService};
 
     let target = McpAppTarget {
         app_id: query.app_id,

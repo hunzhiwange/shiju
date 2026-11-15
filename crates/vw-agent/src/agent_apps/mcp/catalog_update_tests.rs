@@ -2,7 +2,7 @@ use std::{net::TcpListener, sync::Barrier};
 
 use serde_json::Value;
 use {
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
     vw_api_types::mcp_management::McpCatalogScope,

@@ -10,7 +10,7 @@ use tokio::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_app_auth::AuthErrorCode,
     vw_api_types::app_providers::AppProviderWrite,
     vw_api_types::app_providers::ProviderProtocol,
     vw_api_types::apps_usage::UsageQueryData,

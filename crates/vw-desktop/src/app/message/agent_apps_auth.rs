@@ -25,7 +25,7 @@ use browser::LinkAction;
 use iced::Task;
 use vw_gateway_client::{
       GatewayClient,
-    vw_api_types::agent_apps_auth::{AuthAccount, AuthErrorCode, AuthService},
+    vw_api_app_auth::{AuthAccount, AuthErrorCode, AuthService},
 };
 
 pub(crate) const SERVICES: [AuthService; 7] = [

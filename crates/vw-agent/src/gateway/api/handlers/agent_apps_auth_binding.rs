@@ -33,9 +33,9 @@ use vw_agent_apps::{
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
 #[cfg(target_os = "macos")]
-use vw_api_types::agent_apps_auth::AuthService;
+use vw_api_app_auth::AuthService;
 use {
-    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_app_auth::AuthErrorCode,
     vw_api_transport::id::TenantScope,
 };
 

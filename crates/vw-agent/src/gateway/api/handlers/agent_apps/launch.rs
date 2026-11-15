@@ -68,15 +68,15 @@ async fn launch(
         if let Some(id) = &request.account_id && !authorization.permits(request.launch.app_id, vw_api_app_identity::LaunchIdentityKind::OfficialAccount, id) { return Err(StatusCode::FORBIDDEN); }
         // An explicitly scoped native slot must not be reachable through ordinary launch.
         let native_service = match request.launch.app_id {
-            vw_api_app_identity::AppId::Claude => Some(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial),
-            vw_api_app_identity::AppId::Agy => Some(vw_api_types::agent_apps_auth::AuthService::AgyOauth),
+            vw_api_app_identity::AppId::Claude => Some(vw_api_app_auth::AuthService::ClaudeOfficial),
+            vw_api_app_identity::AppId::Agy => Some(vw_api_app_auth::AuthService::AgyOauth),
             _ => None,
         };
         if native_service.is_some_and(|service| authorization.native_login_owner(service) == Some(false)) {
             return Err(StatusCode::FORBIDDEN);
         }
         #[cfg(target_os="macos")]
-        let agy_owner = context.policy.is_some() && authorization.native_login_owner(vw_api_types::agent_apps_auth::AuthService::AgyOauth) == Some(true);
+        let agy_owner = context.policy.is_some() && authorization.native_login_owner(vw_api_app_auth::AuthService::AgyOauth) == Some(true);
         let host = authorization.host; let principal = authorization.principal;
         let cwd = PathBuf::from(&request.launch.cwd);
         let root = host.home.canonicalize().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -127,8 +127,8 @@ async fn launch(
                     let bound = match request.launch.app_id {
                         vw_api_app_identity::AppId::Claude | vw_api_app_identity::AppId::Codex => {
                             let service = match request.launch.app_id {
-                                vw_api_app_identity::AppId::Claude => vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial,
-                                _ => vw_api_types::agent_apps_auth::AuthService::CodexOauth,
+                                vw_api_app_identity::AppId::Claude => vw_api_app_auth::AuthService::ClaudeOfficial,
+                                _ => vw_api_app_auth::AuthService::CodexOauth,
                             };
                             let binding_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service };
                             let material = validate_launch_request(&request.launch,&host.id,&observed.installations,std::slice::from_ref(&root),false)
@@ -149,7 +149,7 @@ async fn launch(
                     #[cfg(target_os="macos")]
                     let agy=if request.launch.app_id==vw_api_app_identity::AppId::Agy {
                         let material=validate_launch_request(&request.launch,&host.id,&observed.installations,std::slice::from_ref(&root),false).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?;
-                        let account_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service: vw_api_types::agent_apps_auth::AuthService::AgyOauth };
+                        let account_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service: vw_api_app_auth::AuthService::AgyOauth };
                         let native = vw_agent_apps::auth::agy_account::AgyNativeTarget { home: &host.home, exclusive_owner: agy_owner.then_some(account_scope) };
                         Some(store.prepare_agy_launch(account_scope,native,&provider_id,host.credential_root.as_deref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?,material).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?)
                     }else{None};

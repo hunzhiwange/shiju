@@ -31,7 +31,7 @@ use vw_agent_apps::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_app_auth::AuthErrorCode,
     vw_api_types::app_providers::AppProviderWrite,
     vw_api_types::apps_usage::UsageCredentialState,
     vw_api_types::apps_usage::UsageQueryData,
@@ -529,7 +529,7 @@ impl UsageRefresh {
         if operation.is_cancelled() {
             return Err(RefreshError::Revoked);
         }
-        if let Some((vw_api_types::agent_apps_auth::AuthService::CodexOauth,
+        if let Some((vw_api_app_auth::AuthService::CodexOauth,
             vw_agent_apps::usage::binding::UsageAccount::Managed(account))) = &query.key.account
         {
             crate::model_relay::quota_gate::publish(

@@ -17,8 +17,8 @@ use vw_agent_apps::{
 use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthRegion,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthRegion,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 

@@ -1,6 +1,6 @@
 //! 应用授权兼容门面，行为由 gateway-app-auth 拥有。
 use super::{GatewayClient, AgentAppsAuthCredentials, AgentAppsAuthError};
-use vw_api_types::agent_apps_auth::*;
+use vw_api_app_auth::*;
 pub use gateway_app_auth::{AgentAppsAuthLogout};
 
 impl GatewayClient {

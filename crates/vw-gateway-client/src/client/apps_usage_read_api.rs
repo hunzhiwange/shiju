@@ -5,9 +5,9 @@ use crate::http::apply_request_context;
 use reqwest::header::{CACHE_CONTROL, HeaderValue};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use vw_api_types::{
-    agent_apps_auth::AuthError,
     apps_usage::{UsageSnapshotQuery, UsageSnapshotResponse},
 };
+use vw_api_app_auth::AuthError;
 
 /// Read failure with the HTTP status and the typed gateway error when available.
 #[derive(Debug, Clone, PartialEq, Eq)]

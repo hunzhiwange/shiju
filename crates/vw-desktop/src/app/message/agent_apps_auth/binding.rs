@@ -18,10 +18,10 @@ use iced::Task;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
       GatewayClient, vw_api_types::{
         agent_apps::AppId,
-        agent_apps_auth::{
-            AuthAccount, AuthCredentialState, AuthErrorCode, AuthRegion, AuthService,
-        },
     }}};
+use vw_api_app_auth::{
+            AuthAccount, AuthCredentialState, AuthErrorCode, AuthRegion, AuthService,
+        };
 
 pub(crate) fn entry(form: &EditForm, app: AppId, provider_generation: u64) -> Option<Message> {
     service(form, app)?;

@@ -170,7 +170,7 @@ pub use stream::{
 /// 方便上层从单一依赖入口访问完整的接口类型集合。
 pub use vw_api_types;
 #[cfg(not(target_arch = "wasm32"))]
-pub use vw_api_types::agent_apps_auth::{
+pub use vw_api_app_auth::{
     AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod, AuthPasteRequest, AuthRegion,
     AuthService, AuthStartRequest, AuthStartResponse,
 };

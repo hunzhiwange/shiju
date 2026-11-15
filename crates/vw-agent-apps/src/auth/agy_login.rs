@@ -14,14 +14,14 @@ use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps_auth::AuthAccount,
-    vw_api_types::agent_apps_auth::AuthCredentialState,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthFlow,
-    vw_api_types::agent_apps_auth::AuthFlowId,
-    vw_api_types::agent_apps_auth::AuthService,
-    vw_api_types::agent_apps_auth::AuthStartRequest,
-    vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_app_auth::AuthAccount,
+    vw_api_app_auth::AuthCredentialState,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthFlow,
+    vw_api_app_auth::AuthFlowId,
+    vw_api_app_auth::AuthService,
+    vw_api_app_auth::AuthStartRequest,
+    vw_api_app_auth::AuthStartResponse,
 };
 
 const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";

@@ -4,7 +4,7 @@ use vw_agent_apps::auth::{
     credential_file::AccountCredential,
     gemini_refresh::{GeminiRefresh, GeminiScope},
 };
-use vw_api_types::{agent_apps_auth::AuthErrorCode};
+use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_identity::{AppId};
 
 fn key(scope: GeminiScope<'_>, account: &str) -> Result<String, AuthErrorCode> {

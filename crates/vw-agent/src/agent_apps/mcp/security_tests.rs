@@ -189,7 +189,7 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
         use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
 };
         let tenant = TenantScope::new("p", company).unwrap();
         let private = root.join(company).join("private");

@@ -14,8 +14,8 @@ use axum::{
 };
 use std::{sync::Arc, time::Instant};
 use {
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_app_auth::AuthErrorCode,
+    vw_api_app_auth::AuthFlowId,
     vw_api_transport::id::TenantScope,
 };
 
@@ -40,7 +40,7 @@ pub(super) async fn cancel(
         let result = runtime.flows.cancel(scope, &id, Instant::now);
         #[cfg(target_os = "macos")]
         if result == Err(AuthErrorCode::ExecutionHostUnavailable)
-            && scope.service == vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial
+            && scope.service == vw_api_app_auth::AuthService::ClaudeOfficial
         {
             // Wait for the async CLI supervisor outside the flow's cleanup lock.
             worker.block_on(runtime.wait_for_claude_cleanup(&id))?;

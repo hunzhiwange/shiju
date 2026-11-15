@@ -10,7 +10,7 @@ use std::{cell::Cell, fs, os::unix::fs::PermissionsExt};
 use tempfile::TempDir;
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,
 };
 

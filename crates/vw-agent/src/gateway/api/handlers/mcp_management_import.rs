@@ -180,7 +180,8 @@ fn import_source(
     use vw_agent_apps::{
         apps::discovery::read::resolve_cli_installation, mcp::import::NativeMcpSource,
     };
-    use vw_api_types::{agent_apps_auth::AuthErrorCode, agent_apps_auth::AuthService};
+    use vw_api_app_auth::AuthErrorCode;
+    use vw_api_app_auth::AuthService;
     use vw_api_app_identity::{AppId};
     let target = source.target;
     if target.installation_id.0.is_empty()

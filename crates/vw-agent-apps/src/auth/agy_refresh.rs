@@ -15,7 +15,7 @@ use reqwest::{Client, Request};
 use security_framework::os::macos::keychain::SecKeychain;
 use serde_json::{Value, json};
 use std::{fs::File, path::Path};
-use vw_api_types::agent_apps_auth::{AuthCredentialState, AuthErrorCode};
+use vw_api_app_auth::{AuthCredentialState, AuthErrorCode};
 
 /// Refresh a managed AGY account on its authorized macOS execution host.
 /// The returned access token is private host material.

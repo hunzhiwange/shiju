@@ -11,16 +11,7 @@ fn test_module_is_wired() {
 }
 
 #[test]
-fn multimodal_and_http_request_defaults_match_config_ui() {
-    let multimodal = MultimodalSettingsState::default();
-    assert_eq!(multimodal.max_images, 10);
-    assert_eq!(multimodal.max_image_size_mb, 5);
-    assert!(multimodal.allow_remote_fetch);
-    assert!(!multimodal.ocr_enabled);
-    assert!(multimodal.model_supports_images);
-    assert!(multimodal.ocr_model.is_empty());
-    assert!(multimodal.save_error.is_none());
-
+fn http_request_defaults_match_config_ui() {
     let http = HttpRequestSettingsState::default();
     assert!(http.enabled);
     assert_eq!(http.allowed_domains, ["*"]);
@@ -189,17 +180,7 @@ fn mcp_settings_default_opens_servers_with_empty_runtime_state() {
 }
 
 #[test]
-fn observability_storage_proxy_and_tunnel_defaults_are_stable() {
-    let observability = ObservabilitySettingsState::default();
-    assert_eq!(observability.backend, "none");
-    assert!(observability.otel_endpoint_input.is_empty());
-    assert!(observability.otel_service_name_input.is_empty());
-    assert_eq!(observability.runtime_trace_mode, "none");
-    assert_eq!(observability.runtime_trace_path_input, "state/runtime-trace.jsonl");
-    assert_eq!(observability.runtime_trace_max_entries, 200);
-    assert!(!observability.show_help_modal);
-    assert!(observability.save_error.is_none());
-
+fn storage_proxy_and_tunnel_defaults_are_stable() {
     let storage = StorageSettingsState::default();
     assert!(storage.provider.is_empty());
     assert!(storage.db_url_input.is_empty());

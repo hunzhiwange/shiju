@@ -19,5 +19,8 @@ config-routing = { path = "../config-routing", version = "0.6.0" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
 config-observability = { path = "../config-observability", version = "0.6.0" }
 
+config-runtime = { path = "../config-runtime", version = "0.6.0" }
+config-reliability = { path = "../config-reliability", version = "0.6.0" }
+
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -1,6 +1,6 @@
 //! CLI 工作区状态与项目信息。
 
-use vw_agent::shell::git_std_command;
+use vw_shared::shell::git_std_command;
 use cli_interaction_model::GitWorkspaceStatus;
 use std::fmt::Write;
 use std::path::Path;
@@ -34,7 +34,7 @@ const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// let info = build_project_info(Path::new("/projects/myapp"));
 /// // 可能返回: "/projects/myapp:main • ShiJu 1.0.0"
 /// ```
-pub(crate) fn build_project_info(worktree: &Path) -> String {
+pub fn build_project_info(worktree: &Path) -> String {
     let base = worktree.display().to_string();
     let branch = current_branch(worktree);
 
@@ -70,7 +70,7 @@ pub(crate) fn build_project_info(worktree: &Path) -> String {
 /// let modified = collect_modified_files(Path::new("/projects/myapp"));
 /// // 可能返回: ["Cargo.toml", "src/main.rs", "src/lib.rs"]
 /// ```
-pub(crate) fn collect_modified_files(worktree: &Path) -> Vec<String> {
+pub fn collect_modified_files(worktree: &Path) -> Vec<String> {
     collect_git_workspace_status(worktree).modified_files().to_vec()
 }
 
@@ -78,7 +78,7 @@ pub(crate) fn collect_modified_files(worktree: &Path) -> Vec<String> {
 ///
 /// 该函数显式区分 clean / dirty / unavailable，避免上层继续把“空列表”同时解释为
 /// “没有变更”和“Git 不可用”。
-pub(crate) fn collect_git_workspace_status(worktree: &Path) -> GitWorkspaceStatus {
+pub fn collect_git_workspace_status(worktree: &Path) -> GitWorkspaceStatus {
     let output = git_std_command()
         .args(["-c", "core.quotepath=false", "status", "--porcelain", "--untracked-files=all"])
         .current_dir(worktree)

@@ -53,6 +53,7 @@ members = [
   "crates/libs/cli-interaction-state",
   "crates/libs/cli-interaction",
   "crates/libs/cli-agent-session",
+  "crates/libs/cli-workspace-git",
   "crates/libs/cli-command-schema",
   "crates/libs/cli-gateway-automation",
   "crates/libs/cli-gateway-capabilities",

@@ -83,3 +83,6 @@ impl NetworkTabDescriptor {
 pub mod system_settings_search;
 
 pub mod save_feedback;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod startup;

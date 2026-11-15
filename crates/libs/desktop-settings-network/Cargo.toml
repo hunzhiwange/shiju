@@ -43,3 +43,14 @@ version = "0.6.0"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
+desktop-settings-agents = { path = "../desktop-settings-agents", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+gateway-config = { path = "../gateway-config", version = "0.6.0" }
+gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt"] }

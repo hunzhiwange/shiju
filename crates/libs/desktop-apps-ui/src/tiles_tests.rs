@@ -1,28 +1,26 @@
 //! 应用中心磁贴测试，验证响应式列数、筛选匹配和内置操作布局。
 //! 极窄或退化尺寸至少保留一列，完整行与尾行都不得丢失书签磁贴。
 
-use crate::app::App;
-use crate::app::state::WebBookmark;
-
-fn test_app() -> App {
-    let mut app = App::new().0;
-    app.apps_search_query.clear();
-    app.web_bookmarks.clear();
-    app
+struct App { window_size: (f32, f32), apps_search_query: String, web_bookmarks: Vec<WebBookmark> }
+struct WebBookmark { title: String, url: String, width: Option<i32>, height: Option<i32> }
+fn test_app() -> App { App { window_size: (800.0, 700.0), apps_search_query: String::new(), web_bookmarks: vec![] } }
+fn render_tiles_grid(app: &App, blocked: bool) -> iced::Element<'static, super::Event> {
+    super::render_tiles_grid(app.window_size.0, &app.apps_search_query, desktop_i18n::I18n::new(Default::default()), app.web_bookmarks.iter().map(|bm| super::Bookmark { title: &bm.title, url: &bm.url, width: bm.width, height: bm.height }), blocked)
 }
-
+fn render_header(app: &App, blocked: bool) -> iced::Element<'static, super::Event> {
+    super::render_header(&app.apps_search_query, desktop_i18n::I18n::new(Default::default()), blocked)
+}
 fn bookmark(title: &str, url: &str) -> WebBookmark {
     WebBookmark {
         title: title.to_string(),
         url: url.to_string(),
         width: Some(900),
         height: Some(700),
-        cookie_configs: None,
     }
 }
 
 fn grid_row_tile_counts(app: &App, blocked: bool) -> Vec<usize> {
-    super::render_tiles_grid(app, blocked)
+    render_tiles_grid(app, blocked)
         .as_widget()
         .children()
         .into_iter()
@@ -31,14 +29,14 @@ fn grid_row_tile_counts(app: &App, blocked: bool) -> Vec<usize> {
 }
 
 fn clear_control_child_count(app: &App, blocked: bool) -> usize {
-    let header_children = super::render_header(app, blocked).as_widget().children();
+    let header_children = render_header(app, blocked).as_widget().children();
     let search_box = &header_children[2];
     let clear_overlay = &search_box.children[1];
     clear_overlay.children.len()
 }
 
 fn first_tile_action_count(app: &App) -> usize {
-    let grid_children = super::render_tiles_grid(app, false).as_widget().children();
+    let grid_children = render_tiles_grid(app, false).as_widget().children();
     let tile_button = &grid_children[0].children[0];
     let tile_content = &tile_button.children[0];
     tile_content.children[2].children.len()
@@ -50,7 +48,7 @@ fn compute_tile_columns_clamps_widths_below_one_tile_to_one() {
 
     for width in [-100.0, 0.0, 47.0, 100.0, 215.0] {
         app.window_size = (width, 700.0);
-        assert_eq!(super::compute_tile_columns(&app, 168.0, 20.0), 1);
+        assert_eq!(super::compute_tile_columns(app.window_size.0, 168.0, 20.0), 1);
     }
 }
 
@@ -59,10 +57,10 @@ fn compute_tile_columns_changes_at_exact_three_column_threshold() {
     let mut app = test_app();
 
     app.window_size = (591.9, 700.0);
-    assert_eq!(super::compute_tile_columns(&app, 168.0, 20.0), 2);
+    assert_eq!(super::compute_tile_columns(app.window_size.0, 168.0, 20.0), 2);
 
     app.window_size = (592.0, 700.0);
-    assert_eq!(super::compute_tile_columns(&app, 168.0, 20.0), 3);
+    assert_eq!(super::compute_tile_columns(app.window_size.0, 168.0, 20.0), 3);
 }
 
 #[test]
@@ -70,7 +68,7 @@ fn compute_tile_columns_clamps_degenerate_dimensions_to_one() {
     let mut app = test_app();
     app.window_size = (0.0, 700.0);
 
-    assert_eq!(super::compute_tile_columns(&app, 0.0, 0.0), 1);
+    assert_eq!(super::compute_tile_columns(app.window_size.0, 0.0, 0.0), 1);
 }
 
 #[test]

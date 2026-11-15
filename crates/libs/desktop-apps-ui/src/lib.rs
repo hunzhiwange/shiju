@@ -36,3 +36,6 @@ pub mod shiju_apps;
 pub mod bookmark_modals;
 pub mod apps_view;
 pub mod catalog_state;
+
+pub mod apps_tiles;
+pub mod apps_ui;

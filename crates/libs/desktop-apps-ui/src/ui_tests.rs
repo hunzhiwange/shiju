@@ -20,8 +20,8 @@ fn test_module_is_wired() {
 
 #[test]
 fn icon_svg_uses_requested_square_size() {
-    let element: Element<'_, crate::app::Message> =
-        super::icon_svg(crate::app::assets::Icon::X, 14.0).into();
+    let element: Element<'_, ()> =
+        super::icon_svg(desktop_assets::assets::Icon::X, 14.0).into();
     let size = element.as_widget().size();
 
     assert_eq!(size.width, Length::Fixed(14.0));
@@ -30,7 +30,7 @@ fn icon_svg_uses_requested_square_size() {
 
 #[test]
 fn action_icon_maps_every_supported_label_and_falls_back_for_other_text() {
-    use crate::app::assets::Icon;
+    use desktop_assets::assets::Icon;
 
     let cases = [
         ("打开", Icon::ChevronRight),
@@ -203,8 +203,8 @@ fn input_style_delegates_all_statuses_to_shared_settings_style() {
 
 #[test]
 fn tooltip_helpers_wrap_exactly_one_content_widget() {
-    let text_tooltip: Element<'_, crate::app::Message> = super::tooltip_bubble("tip").into();
-    let rich_tooltip: Element<'_, crate::app::Message> =
+    let text_tooltip: Element<'_, ()> = super::tooltip_bubble("tip").into();
+    let rich_tooltip: Element<'_, ()> =
         super::tooltip_bubble_el(iced::widget::text("rich").into()).into();
 
     assert!(text_tooltip.as_widget().children().is_empty());
@@ -214,20 +214,20 @@ fn tooltip_helpers_wrap_exactly_one_content_widget() {
 #[test]
 fn tile_keeps_empty_and_multiple_action_rows_in_its_component_tree() {
     let empty = super::tile(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        crate::app::assets::Icon::LayoutTextWindow,
+        desktop_i18n::I18n::new(Default::default()),
+        desktop_assets::assets::Icon::LayoutTextWindow,
         "Empty actions".to_string(),
         Color::from_rgb8(1, 2, 3),
         vec![],
-        crate::app::Message::None,
+        (),
     );
     let populated = super::tile(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        crate::app::assets::Icon::LayoutTextWindow,
+        desktop_i18n::I18n::new(Default::default()),
+        desktop_assets::assets::Icon::LayoutTextWindow,
         "Two actions".to_string(),
         Color::from_rgb8(3, 2, 1),
-        vec![("打开", crate::app::Message::None), ("未知操作", crate::app::Message::None)],
-        crate::app::Message::None,
+        vec![("打开", ()), ("未知操作", ())],
+        (),
     );
 
     let empty_button_children = empty.as_widget().children();

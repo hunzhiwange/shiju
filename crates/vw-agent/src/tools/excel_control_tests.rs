@@ -1,4 +1,9 @@
 use super::excel_control::*;
+
+fn local_user() -> String {
+    format!("uid:{}", unsafe { libc::geteuid() })
+}
+
 use super::{Tool, ToolUseContext, execute_tool_from_registry};
 use crate::computer_control::{
     office::{sessions::OfficeSurface, transport::OfficeTransport},
@@ -94,7 +99,7 @@ impl Fixture {
     }
     async fn pair(&self, document: &str, capabilities: &[&str]) -> Client {
         self.runtime
-            .policy
+            .control_policy()
             .write()
             .set_grant(
                 &local_user(),
@@ -168,12 +173,12 @@ async fn cc_control_14_switch_and_document_grant_both_gate_execution() {
     let f = Fixture::new().await;
     let mut socket = f.pair("book", &["excel_read_range"]).await;
     let request = f.request("book", read());
-    f.runtime.policy.write().set_enabled(&local_user(), ControlFeature::Excel, false).unwrap();
+    f.runtime.control_policy().write().set_enabled(&local_user(), ControlFeature::Excel, false).unwrap();
     assert!(f.call(request.clone()).await.is_err());
-    f.runtime.policy.write().set_enabled(&local_user(), ControlFeature::Excel, true).unwrap();
+    f.runtime.control_policy().write().set_enabled(&local_user(), ControlFeature::Excel, true).unwrap();
     for grant in [None, Some(GrantDecision::Deny)] {
         f.runtime
-            .policy
+            .control_policy()
             .write()
             .set_grant(&local_user(), GrantScope::ExcelDocument("book".into()), grant)
             .unwrap();
@@ -273,7 +278,7 @@ async fn cc_control_14_revocation_during_command_discards_result() {
     let runtime = f.runtime.clone();
     let responder = tokio::spawn(async move {
         let command = receive(&mut socket).await;
-        runtime.policy.write().set_enabled(&local_user(), ControlFeature::Excel, false).unwrap();
+        runtime.control_policy().write().set_enabled(&local_user(), ControlFeature::Excel, false).unwrap();
         socket.send(Message::text(json!({"type":"result","sequence":1,"request_id":command["request_id"],"value":{"values":[[42]]}}).to_string())).await.unwrap();
         let _ = socket.next().await;
         socket
@@ -389,7 +394,7 @@ async fn cc_control_14_document_approval_is_scoped_and_explicit_deny_is_preserve
     let _socket = f.pair("book", &["excel_read_range"]).await;
     let request = f.request("book", read());
     f.runtime
-        .policy
+        .control_policy()
         .write()
         .set_grant(&local_user(), GrantScope::ExcelDocument("book".into()), None)
         .unwrap();
@@ -404,11 +409,11 @@ async fn cc_control_14_document_approval_is_scoped_and_explicit_deny_is_preserve
     assert_eq!(seen.lock()[0].0, "excel_control.document");
     assert_eq!(seen.lock()[0].1["document_id"], "book");
     assert_eq!(
-        f.runtime.policy.read().config().users[&local_user()].excel_documents["book"],
+        f.runtime.control_policy().read().config().users[&local_user()].excel_documents["book"],
         GrantDecision::Allow
     );
     f.runtime
-        .policy
+        .control_policy()
         .write()
         .set_grant(
             &local_user(),

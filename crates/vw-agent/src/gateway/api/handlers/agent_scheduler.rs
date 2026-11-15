@@ -1,21 +1,16 @@
 //! Agent Scheduler API 路由。
 
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use async_trait::async_trait;
+#[cfg(test)]
 use axum::extract::{Extension, Path as AxumPath, Query};
-use axum::response::{
-    Sse,
-    sse::{Event, KeepAlive},
-};
-use axum::routing::{patch, post};
-use axum::{Json, Router};
-use futures_util::stream;
-use serde::{Deserialize, Serialize};
+use axum::Router;
+#[cfg(test)]
+use axum::Json;
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_chat_identity::ReasoningEffortDto;
@@ -30,7 +25,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerLegacyImportResponse,
     AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
-    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope, AgentSchedulerTaskArtifactDto,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskArtifactDto,
     AgentSchedulerTaskArtifactsResponse, AgentSchedulerTaskBoardEventDto,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardSnapshotReadModelDto,
     AgentSchedulerTaskBoardStatusResponse, AgentSchedulerTaskBoardTaskDto,
@@ -44,12 +39,11 @@ use vw_api_agent_scheduler::{
     AgentSchedulerWorkspaceContextDto, AgentTaskDto, AgentTaskKindDto, AgentTaskStatusDto,
     TaskDependencyNodeDto,
 };
+#[cfg(test)]
+use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
-use {
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+#[cfg(test)]
+use vw_api_transport::id::{ProjectId, ProjectScope, TenantScope};
 use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use crate::agent_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
@@ -99,6 +93,7 @@ use crate::agent_scheduler::task_graph::{
     AgentTaskDependency, TaskGraph, TaskGraphReadiness, TaskGraphTaskSnapshot,
 };
 use crate::app::agent::gateway::ApiError;
+#[cfg(test)]
 use crate::app::agent::project;
 
 const DEFAULT_EVENT_LIMIT: usize = 100;
@@ -123,63 +118,9 @@ fn router_with_gateway<S>(gateway: SharedAgentSchedulerGateway) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    let router = Router::new()
-        .route(
-            "/agent-scheduler/projects/{project_id}/commands",
-            post(agent_scheduler_project_command),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/commands/bulk",
-            post(agent_scheduler_project_bulk_command),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/workflow",
-            axum::routing::get(agent_scheduler_project_workflow),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks",
-            axum::routing::get(agent_scheduler_project_tasks)
-                .post(agent_scheduler_project_create_task),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/task-graph",
-            axum::routing::get(agent_scheduler_project_task_graph)
-                .put(agent_scheduler_project_replace_task_graph),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata",
-            patch(agent_scheduler_project_update_task_metadata),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/legacy-import",
-            post(agent_scheduler_project_legacy_import),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/logs",
-            axum::routing::get(agent_scheduler_project_logs),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/artifacts",
-            axum::routing::get(agent_scheduler_project_artifacts),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/events",
-            axum::routing::get(agent_scheduler_project_events),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/events/stream",
-            axum::routing::get(agent_scheduler_project_events_stream),
-        )
-        .route("/agent-scheduler/projects/{project_id}/wake", post(agent_scheduler_project_wake))
-        .route(
-            "/agent-scheduler/projects/{project_id}/outbox/drain",
-            post(agent_scheduler_project_drain_outbox),
-        )
-        .layer(Extension(gateway));
-
+    let router = gateway_agent_scheduler::router_with_gateway(gateway);
     #[cfg(test)]
     let router = router.layer(axum::middleware::from_fn(test_default_tenant_scope));
-
     router
 }
 
@@ -194,95 +135,9 @@ async fn test_default_tenant_scope(
     next.run(request).await
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentSchedulerTasksQuery {
-    pub project_path: String,
-}
+pub(crate) use gateway_agent_scheduler::*;
 
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct AgentSchedulerTasksResponse {
-    pub tasks: Vec<AgentTaskDto>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentSchedulerWakeRequest {
-    pub project_path: String,
-    pub now_ms: TimestampMs,
-    #[serde(default, skip_serializing_if = "is_default_dispatch_mode")]
-    pub dispatch_mode: AgentSchedulerDispatchModeDto,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_concurrent: Option<u32>,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub auto_promote_pool_tasks: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct AgentSchedulerWakeResponse {
-    pub dispatched: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub run_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub outbox_message_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentSchedulerRecoveryRequest {
-    pub project_path: String,
-    pub now_ms: TimestampMs,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct AgentSchedulerRecoveryResponse {
-    pub graced_run_ids: Vec<String>,
-    pub recovered_run_ids: Vec<String>,
-    pub released_resource_lease_ids: Vec<String>,
-    pub tainted_resource_lease_ids: Vec<String>,
-    pub drifted_worker_ids: Vec<String>,
-    pub slept_worker_ids: Vec<String>,
-    pub outbox_message_ids: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentSchedulerEventsQuery {
-    pub project_path: String,
-    #[serde(default)]
-    pub after_cursor: Option<i64>,
-    #[serde(default)]
-    pub limit: Option<usize>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct AgentSchedulerEventsResponse {
-    pub cursor: i64,
-    pub events: Vec<AgentEventDto>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentSchedulerOutboxDrainRequest {
-    pub project_path: String,
-    pub now_ms: TimestampMs,
-    #[serde(default)]
-    pub limit: Option<usize>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct AgentSchedulerOutboxDrainResponse {
-    pub claimed: usize,
-    pub messages: Vec<AgentOutboxMessageDto>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentSchedulerProjectEventsQuery {
-    #[serde(default)]
-    pub after_cursor: Option<i64>,
-    #[serde(default)]
-    pub limit: Option<usize>,
-}
-
+#[cfg(test)]
 async fn agent_scheduler_create_task(
     Json(body): Json<AgentSchedulerCreateTaskRequest>,
 ) -> Result<Json<AgentSchedulerCreateTaskResponse>, ApiError> {
@@ -290,6 +145,7 @@ async fn agent_scheduler_create_task(
     agent_scheduler_create_task_with_gateway(&gateway, body).await.map(Json)
 }
 
+#[cfg(test)]
 async fn agent_scheduler_list_tasks(
     Query(query): Query<AgentSchedulerTasksQuery>,
 ) -> Result<Json<AgentSchedulerTasksResponse>, ApiError> {
@@ -297,6 +153,7 @@ async fn agent_scheduler_list_tasks(
     gateway.list_tasks(query).await.map(Json)
 }
 
+#[cfg(test)]
 async fn agent_scheduler_wake(
     Json(body): Json<AgentSchedulerWakeRequest>,
 ) -> Result<Json<AgentSchedulerWakeResponse>, ApiError> {
@@ -304,6 +161,7 @@ async fn agent_scheduler_wake(
     agent_scheduler_wake_with_gateway(&gateway, body).await.map(Json)
 }
 
+#[cfg(test)]
 async fn agent_scheduler_recovery(
     Json(body): Json<AgentSchedulerRecoveryRequest>,
 ) -> Result<Json<AgentSchedulerRecoveryResponse>, ApiError> {
@@ -311,6 +169,7 @@ async fn agent_scheduler_recovery(
     gateway.recover(body).await.map(Json)
 }
 
+#[cfg(test)]
 async fn agent_scheduler_list_events(
     Query(query): Query<AgentSchedulerEventsQuery>,
 ) -> Result<Json<AgentSchedulerEventsResponse>, ApiError> {
@@ -318,6 +177,7 @@ async fn agent_scheduler_list_events(
     agent_scheduler_list_events_with_gateway(&gateway, query).await.map(Json)
 }
 
+#[cfg(test)]
 async fn agent_scheduler_drain_outbox(
     Json(body): Json<AgentSchedulerOutboxDrainRequest>,
 ) -> Result<Json<AgentSchedulerOutboxDrainResponse>, ApiError> {
@@ -325,157 +185,7 @@ async fn agent_scheduler_drain_outbox(
     agent_scheduler_drain_outbox_with_gateway(&gateway, body).await.map(Json)
 }
 
-async fn agent_scheduler_project_command(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerProjectCommandRequest>,
-) -> Result<Json<AgentSchedulerProjectCommandResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.command(project_id, project_path, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_bulk_command(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerBulkCommandRequest>,
-) -> Result<Json<AgentSchedulerBulkCommandResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.bulk_command(project_id, project_path, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_workflow(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerTaskBoardWorkflowResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.task_board_workflow(project_id, project_path).await.map(Json)
-}
-
-async fn agent_scheduler_project_tasks(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerTaskBoardStatusResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.task_board_status(project_id, project_path).await.map(Json)
-}
-
-async fn agent_scheduler_project_create_task(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerCreateTaskRequest>,
-) -> Result<Json<AgentSchedulerCreateTaskResponse>, ApiError> {
-    let context = resolve_project_context(tenant, &project_id).await?;
-    gateway.create_task_scoped(context, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_task_graph(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerTaskGraphResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.task_graph(project_id, project_path).await.map(Json)
-}
-
-async fn agent_scheduler_project_replace_task_graph(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerReplaceTaskGraphRequest>,
-) -> Result<Json<AgentSchedulerTaskGraphResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.replace_task_graph(project_id, project_path, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_update_task_metadata(
-    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerTaskMetadataUpdateRequest>,
-) -> Result<Json<AgentSchedulerTaskMetadataUpdateResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.update_task_metadata(project_id, project_path, task_id, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_legacy_import(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerLegacyImportRequest>,
-) -> Result<Json<AgentSchedulerLegacyImportResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.import_legacy_tasks(project_id, project_path, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_logs(
-    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerTaskLogsResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.task_logs(project_path, task_id).await.map(Json)
-}
-
-async fn agent_scheduler_project_artifacts(
-    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerTaskArtifactsResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.task_artifacts(project_path, task_id).await.map(Json)
-}
-
-async fn agent_scheduler_project_events(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Query(query): Query<AgentSchedulerProjectEventsQuery>,
-) -> Result<Json<AgentSchedulerTaskBoardEventsResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.task_board_events(project_id, project_path, query).await.map(Json)
-}
-
-async fn agent_scheduler_project_events_stream(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Query(query): Query<AgentSchedulerProjectEventsQuery>,
-) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    let response = gateway.task_board_events(project_id, project_path, query).await?;
-    let events = response.events;
-    let stream = stream::iter(events.into_iter().map(|event| {
-        let data = serde_json::to_string(&event).unwrap_or_else(|_| "{}".to_string());
-        Ok(Event::default().event("agent_scheduler").data(data))
-    }));
-    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
-}
-
-async fn agent_scheduler_project_wake(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerProjectWakeRequest>,
-) -> Result<Json<AgentSchedulerProjectWakeResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.wake_project(project_id, project_path, body).await.map(Json)
-}
-
-async fn agent_scheduler_project_drain_outbox(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerProjectOutboxDrainRequest>,
-) -> Result<Json<AgentSchedulerProjectOutboxDrainResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.drain_project_outbox(project_path, body).await.map(Json)
-}
-
+#[cfg(test)]
 async fn agent_scheduler_create_task_with_gateway<G>(
     gateway: &G,
     request: AgentSchedulerCreateTaskRequest,
@@ -486,6 +196,7 @@ where
     gateway.create_task(request).await
 }
 
+#[cfg(test)]
 async fn agent_scheduler_wake_with_gateway<G>(
     gateway: &G,
     request: AgentSchedulerWakeRequest,
@@ -496,6 +207,7 @@ where
     gateway.wake(request).await
 }
 
+#[cfg(test)]
 async fn agent_scheduler_list_events_with_gateway<G>(
     gateway: &G,
     query: AgentSchedulerEventsQuery,
@@ -506,6 +218,7 @@ where
     gateway.list_events(query).await
 }
 
+#[cfg(test)]
 async fn agent_scheduler_drain_outbox_with_gateway<G>(
     gateway: &G,
     request: AgentSchedulerOutboxDrainRequest,
@@ -514,163 +227,6 @@ where
     G: AgentSchedulerGateway + ?Sized,
 {
     gateway.drain_outbox(request).await
-}
-
-#[async_trait]
-pub(crate) trait AgentSchedulerGateway: Send + Sync {
-    async fn create_task(
-        &self,
-        request: AgentSchedulerCreateTaskRequest,
-    ) -> Result<AgentSchedulerCreateTaskResponse, ApiError>;
-
-    async fn create_task_scoped(
-        &self,
-        _context: AgentSchedulerContext,
-        request: AgentSchedulerCreateTaskRequest,
-    ) -> Result<AgentSchedulerCreateTaskResponse, ApiError> {
-        self.create_task(request).await
-    }
-
-    async fn list_tasks(
-        &self,
-        query: AgentSchedulerTasksQuery,
-    ) -> Result<AgentSchedulerTasksResponse, ApiError>;
-
-    async fn wake(
-        &self,
-        _request: AgentSchedulerWakeRequest,
-    ) -> Result<AgentSchedulerWakeResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler wake gateway is not configured"))
-    }
-
-    async fn recover(
-        &self,
-        _request: AgentSchedulerRecoveryRequest,
-    ) -> Result<AgentSchedulerRecoveryResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler recovery gateway is not configured"))
-    }
-
-    async fn list_events(
-        &self,
-        query: AgentSchedulerEventsQuery,
-    ) -> Result<AgentSchedulerEventsResponse, ApiError>;
-
-    async fn drain_outbox(
-        &self,
-        request: AgentSchedulerOutboxDrainRequest,
-    ) -> Result<AgentSchedulerOutboxDrainResponse, ApiError>;
-
-    async fn command(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerProjectCommandRequest,
-    ) -> Result<AgentSchedulerProjectCommandResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler command gateway is not configured"))
-    }
-
-    async fn bulk_command(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerBulkCommandRequest,
-    ) -> Result<AgentSchedulerBulkCommandResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler bulk command gateway is not configured"))
-    }
-
-    async fn task_board_workflow(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerTaskBoardWorkflowResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler task board workflow gateway is not configured"))
-    }
-
-    async fn task_board_status(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerTaskBoardStatusResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler task board gateway is not configured"))
-    }
-
-    async fn task_graph(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler task graph gateway is not configured"))
-    }
-
-    async fn replace_task_graph(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerReplaceTaskGraphRequest,
-    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler task graph gateway is not configured"))
-    }
-
-    async fn update_task_metadata(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _task_id: String,
-        _request: AgentSchedulerTaskMetadataUpdateRequest,
-    ) -> Result<AgentSchedulerTaskMetadataUpdateResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler task board metadata gateway is not configured"))
-    }
-
-    async fn import_legacy_tasks(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerLegacyImportRequest,
-    ) -> Result<AgentSchedulerLegacyImportResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler legacy import gateway is not configured"))
-    }
-
-    async fn task_logs(
-        &self,
-        _project_path: AgentSchedulerContext,
-        _task_id: String,
-    ) -> Result<AgentSchedulerTaskLogsResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler log gateway is not configured"))
-    }
-
-    async fn task_artifacts(
-        &self,
-        _project_path: AgentSchedulerContext,
-        _task_id: String,
-    ) -> Result<AgentSchedulerTaskArtifactsResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler artifact gateway is not configured"))
-    }
-
-    async fn task_board_events(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _query: AgentSchedulerProjectEventsQuery,
-    ) -> Result<AgentSchedulerTaskBoardEventsResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler event gateway is not configured"))
-    }
-
-    async fn wake_project(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerProjectWakeRequest,
-    ) -> Result<AgentSchedulerProjectWakeResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler project wake gateway is not configured"))
-    }
-
-    async fn drain_project_outbox(
-        &self,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerProjectOutboxDrainRequest,
-    ) -> Result<AgentSchedulerProjectOutboxDrainResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler project outbox gateway is not configured"))
-    }
 }
 
 type ProjectDispatchLock = Arc<AsyncMutex<()>>;
@@ -1924,20 +1480,6 @@ fn recovery_response_from_outcome(outcome: RecoveryOutcome) -> AgentSchedulerRec
     }
 }
 
-async fn resolve_project_context(
-    tenant: TenantScope,
-    project_id: &str,
-) -> Result<AgentSchedulerContext, ApiError> {
-    let project_scope = ProjectScope::new(tenant, ProjectId::from(project_id))
-        .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    let project = project::get(&project_scope)
-        .await
-        .map_err(|error| ApiError::bad_request(error.to_string()))?
-        .ok_or_else(|| ApiError::not_found("project not found"))?;
-    AgentSchedulerContext::new(AgentSchedulerScope::new(project_scope), project.worktree)
-        .map_err(map_scheduler_error)
-}
-
 fn owned_scheduler_context(
     context: &(impl AgentSchedulerStorageContext + ?Sized),
 ) -> Result<AgentSchedulerContext, ApiError> {
@@ -1973,14 +1515,6 @@ fn dispatch_mode_from_dto(dispatch_mode: AgentSchedulerDispatchModeDto) -> Dispa
         AgentSchedulerDispatchModeDto::Local => DispatchMode::Local,
         AgentSchedulerDispatchModeDto::Auto => DispatchMode::Auto,
     }
-}
-
-fn is_default_dispatch_mode(dispatch_mode: &AgentSchedulerDispatchModeDto) -> bool {
-    *dispatch_mode == AgentSchedulerDispatchModeDto::default()
-}
-
-fn is_false(value: &bool) -> bool {
-    !*value
 }
 
 fn append_command_event(

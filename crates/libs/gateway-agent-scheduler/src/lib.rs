@@ -1,0 +1,15 @@
+//! Agent Scheduler HTTP 路由与服务注入契约。
+
+mod types;
+pub use types::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod gateway;
+#[cfg(not(target_arch = "wasm32"))]
+pub use gateway::AgentSchedulerGateway;
+#[cfg(not(target_arch = "wasm32"))]
+mod routes;
+#[cfg(not(target_arch = "wasm32"))]
+pub use routes::{router_with_gateway, agent_scheduler_project_task_graph,
+    agent_scheduler_project_replace_task_graph, agent_scheduler_project_create_task,
+    agent_scheduler_project_drain_outbox};

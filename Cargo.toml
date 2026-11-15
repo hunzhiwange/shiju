@@ -14,6 +14,7 @@ members = [
   "crates/libs/cli-interaction-model",
   "crates/libs/cli-interaction-state",
   "crates/libs/cli-interaction",
+  "crates/libs/cli-agent-session",
   "crates/libs/cli-gateway-runtime",
   "crates/libs/cli-stdio",
   "crates/libs/cli-gateway-commands",

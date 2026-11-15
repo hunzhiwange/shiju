@@ -4,7 +4,7 @@ use super::*;
 use crate::app::agent::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::hooks::build_hook_runtime;
 use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::tools::ToolResult;
 use axum::body::{Body, to_bytes};

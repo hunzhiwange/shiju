@@ -6,7 +6,8 @@ use super::{
 };
 use crate::app::agent::config::{self, Config};
 use crate::app::agent::memory::{self, Memory};
-use crate::app::agent::providers::{self, Provider};
+use model_types::Provider;
+use crate::app::agent::providers;
 use crate::app::agent::runtime as agent_runtime;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::security::pairing::{PairingGuard, is_public_bind};

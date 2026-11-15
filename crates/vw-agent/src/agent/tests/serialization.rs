@@ -15,7 +15,7 @@
 //! 采用往返测试（roundtrip test）策略：将消息序列化为 JSON 字符串，
 //! 再反序列化回消息对象，验证序列化前后数据一致。
 
-use crate::app::agent::providers::{ChatMessage, ConversationMessage, ToolCall, ToolResultMessage};
+use model_types::{ChatMessage, ConversationMessage, ToolCall, ToolResultMessage};
 
 /// 测试对话消息的序列化/反序列化往返一致性
 ///

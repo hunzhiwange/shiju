@@ -5,7 +5,8 @@
 
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::config::DelegateAgentConfig;
-use crate::app::agent::providers::{Provider, ProviderRuntimeOptions};
+use model_types::Provider;
+use crate::app::agent::providers::ProviderRuntimeOptions;
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde_json::json;

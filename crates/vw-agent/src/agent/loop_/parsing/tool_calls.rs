@@ -19,7 +19,7 @@
 //! LLM 有意发出的工具调用才会被执行。
 
 use super::deepseek_dsml::{contains_deepseek_dsml_markup, parse_deepseek_dsml_calls};
-use crate::app::agent::providers::ToolCall;
+use model_types::ToolCall;
 use regex::Regex;
 use std::sync::LazyLock;
 

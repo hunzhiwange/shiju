@@ -3,6 +3,7 @@
 //! 本模块复用多模态图片归一化，把用户图片逐一交给受控图片模型，仅保留有界 OCR/视觉摘要文本。
 //! 输出始终作为不可信附件数据写回原消息，不允许重新解释为图片控制标记。
 
+use model_types::ProviderBounds;
 use super::analysis::{
     RawImageAnalysis, analysis_system_prompt, analysis_user_prompt_with_image,
     bound_analysis_result, format_analysis_attachment_parts, parse_analysis_model_output,
@@ -13,9 +14,8 @@ use super::{
 };
 use crate::app::agent::config::MultimodalConfig;
 use crate::app::agent::provider::provider as model_catalog;
-use crate::app::agent::providers::{
-    ChatMessage, Provider, session_llm::SessionLlmProvider, traits::ProviderBounds,
-};
+use model_types::{ChatMessage, Provider};
+use crate::app::agent::providers::{session_llm::SessionLlmProvider};
 use async_trait::async_trait;
 
 /// 单张图片允许进入主模型的最大 OCR 字符数。

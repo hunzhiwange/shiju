@@ -1,5 +1,5 @@
 use super::*;
-use crate::providers::traits::TokenUsage;
+use model_types::TokenUsage;
 use serde_json::{Value, json};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
@@ -769,10 +769,10 @@ impl Provider for ExplicitModelStreamProvider {
         _: StreamOptions,
     ) -> futures_util::stream::BoxStream<
         'static,
-        crate::providers::traits::StreamResult<crate::providers::traits::StreamChunk>,
+        model_types::StreamResult<model_types::StreamChunk>,
     > {
         self.calls.lock().unwrap().push(model.to_string());
-        Box::pin(futures_util::stream::iter(vec![Ok(crate::providers::traits::StreamChunk {
+        Box::pin(futures_util::stream::iter(vec![Ok(model_types::StreamChunk {
             delta: "unknown model".to_string(),
             is_final: true,
             token_count: 0,

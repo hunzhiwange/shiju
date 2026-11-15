@@ -8,7 +8,8 @@ use crate::app::agent::config::{
 };
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::{ChatMessage, Provider, ProviderRuntimeOptions};
+use model_types::{ChatMessage, Provider};
+use crate::app::agent::providers::ProviderRuntimeOptions;
 use crate::app::agent::tools::Tool;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

@@ -17,7 +17,7 @@
 //! 3. 在 OpenRouter 等提供商中重建原生的工具调用消息结构
 
 use super::super::parsing::ParsedToolCall;
-use crate::app::agent::providers::ToolCall;
+use model_types::ToolCall;
 use crate::app::agent::tools::Tool;
 use uuid::Uuid;
 
@@ -159,7 +159,7 @@ pub(crate) fn build_native_assistant_history(
                 "name": tc.name,
                 "arguments": tc.arguments,
             });
-            if tc.kind != crate::providers::ToolCallKind::Function {
+            if tc.kind != model_types::ToolCallKind::Function {
                 call["kind"] = serde_json::json!(tc.kind);
             }
             if let Some(namespace) = &tc.namespace {

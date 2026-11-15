@@ -14,7 +14,7 @@
 //! - 使用 LLM 智能总结以保留关键信息
 //! - 摘要失败时保留原始历史
 
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use anyhow::Result;
 
 #[cfg(test)]
@@ -37,7 +37,7 @@ use std::fmt::Write;
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::providers::ChatMessage;
+/// use model_types::ChatMessage;
 ///
 /// let mut history = vec![
 ///     ChatMessage::system("You are a helpful assistant."),

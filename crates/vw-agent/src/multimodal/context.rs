@@ -17,7 +17,7 @@ use super::{
     parse_image_markers,
 };
 use crate::app::agent::config::MultimodalConfig;
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use anyhow::Result;
 
 const DATA_IMAGE_PREFIX: &str = "data:image";

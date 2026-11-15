@@ -1029,7 +1029,7 @@ mod tests {
         use crate::app::agent::config::MemoryConfig;
         use crate::app::agent::memory::{self, Memory};
         use crate::app::agent::observability::{NoopObserver, Observer};
-        use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+        use model_types::{ChatMessage, ChatRequest, ChatResponse, Provider};
         use std::sync::{Arc, Mutex};
 
         /// 共享请求记录类型
@@ -1126,7 +1126,7 @@ mod tests {
     #[tokio::test]
     async fn e2e_agent_file_read_pdf_extraction() {
         use crate::app::agent::agent::agent::Agent;
-        use crate::app::agent::providers::{ChatResponse, Provider, ToolCall};
+        use model_types::{ChatResponse, Provider, ToolCall};
         use e2e_helpers::*;
 
         // ── 设置包含 PDF 测试文件的工作区 ──
@@ -1219,7 +1219,7 @@ mod tests {
     #[tokio::test]
     async fn e2e_agent_file_read_lossy_binary() {
         use crate::app::agent::agent::agent::Agent;
-        use crate::app::agent::providers::{ChatResponse, Provider, ToolCall};
+        use model_types::{ChatResponse, Provider, ToolCall};
         use e2e_helpers::*;
 
         // ── 设置包含二进制文件的工作区 ──

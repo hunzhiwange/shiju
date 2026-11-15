@@ -2,7 +2,7 @@
 //! 队列式供应商精确控制每轮响应，验证重试次数和迭代耗尽的停止位置。
 
 use super::*;
-use crate::providers::traits::ProviderCapabilities;
+use model_types::ProviderCapabilities;
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -12,7 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 struct StaticProvider {
     completion: Option<(String, String)>,
-    responses: Mutex<VecDeque<crate::app::agent::providers::ChatResponse>>,
+    responses: Mutex<VecDeque<model_types::ChatResponse>>,
     calls: Arc<AtomicUsize>,
     requested_tools: Arc<Mutex<Vec<Vec<String>>>>,
 }
@@ -20,7 +20,7 @@ struct StaticProvider {
 impl StaticProvider {
     fn from_text(response: &'static str, calls: Arc<AtomicUsize>) -> Self {
         Self::from_responses(
-            vec![crate::app::agent::providers::ChatResponse {
+            vec![model_types::ChatResponse {
                 text: Some(response.to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -31,7 +31,7 @@ impl StaticProvider {
     }
 
     fn from_responses(
-        responses: Vec<crate::app::agent::providers::ChatResponse>,
+        responses: Vec<model_types::ChatResponse>,
         calls: Arc<AtomicUsize>,
     ) -> Self {
         Self {
@@ -66,10 +66,10 @@ impl Provider for StaticProvider {
 
     async fn chat(
         &self,
-        request: crate::app::agent::providers::ChatRequest<'_>,
+        request: model_types::ChatRequest<'_>,
         _model: &str,
         _temperature: f64,
-    ) -> anyhow::Result<crate::app::agent::providers::ChatResponse> {
+    ) -> anyhow::Result<model_types::ChatResponse> {
         let call = self.calls.fetch_add(1, Ordering::SeqCst);
         if let Some((root, child)) = &self.completion {
             if call == 0 {
@@ -215,9 +215,9 @@ async fn run_tool_call_loop_exits_before_provider_call_when_cancelled() {
 async fn run_tool_call_loop_reports_exhausted_after_last_tool_iteration() {
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_responses(
-        vec![crate::app::agent::providers::ChatResponse {
+        vec![model_types::ChatResponse {
             text: Some("calling tool".to_string()),
-            tool_calls: vec![crate::app::agent::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: "call-1".to_string(),
@@ -269,13 +269,13 @@ async fn run_tool_call_loop_retries_empty_final_response_until_text_arrives() {
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some(" \n\t".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("verified result".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -322,13 +322,13 @@ async fn run_tool_call_loop_reports_exhausted_when_all_final_responses_are_empty
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: None,
                 tool_calls: Vec::new(),
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("\n".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -410,7 +410,7 @@ async fn run_tool_call_loop_retries_once_when_completion_claim_lacks_tool_call()
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some(
                     "Done. I have created the file in the current working directory.".to_string(),
                 ),
@@ -418,7 +418,7 @@ async fn run_tool_call_loop_retries_once_when_completion_claim_lacks_tool_call()
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("final answer after retry".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -477,13 +477,13 @@ async fn run_tool_call_loop_retries_once_when_tool_payload_cannot_be_parsed() {
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("<tool_call>{\"name\":\"echo_tool\"".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("final answer after parse retry".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -530,13 +530,13 @@ async fn run_tool_call_loop_errors_when_completion_claim_repeats_without_tool_ca
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("Done. I have created the file in the workspace.".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some(
                     "Finished successfully. I wrote the file to the workspace path.".to_string(),
                 ),
@@ -586,7 +586,7 @@ async fn agcollab_channel_integrates_child_results() {
     let mut provider = StaticProvider::from_responses(
         ["premature answer", "integrated answer"]
             .into_iter()
-            .map(|text| crate::providers::ChatResponse {
+            .map(|text| model_types::ChatResponse {
                 text: Some(text.into()),
                 tool_calls: vec![],
                 usage: None,

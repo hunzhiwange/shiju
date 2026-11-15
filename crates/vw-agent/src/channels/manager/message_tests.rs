@@ -6,7 +6,7 @@ use crate::app::agent::config::AutonomyConfig;
 use crate::app::agent::hooks::{HookHandler, HookResult};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};

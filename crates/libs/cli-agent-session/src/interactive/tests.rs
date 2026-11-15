@@ -6,7 +6,7 @@ use super::run_interactive;
 use vw_agent::config::Config;
 use vw_agent::memory::NoneMemory;
 use vw_agent::observability::NoopObserver;
-use vw_agent::providers::Provider;
+use model_types::Provider;
 use std::sync::Arc;
 
 use super::super::setup::CliSetup;

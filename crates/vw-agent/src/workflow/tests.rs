@@ -7,7 +7,7 @@ use super::runner::{
 };
 use super::template::render_template;
 use super::variables::VariablePool;
-use crate::providers::{ChatRequest, ChatResponse, Provider};
+use model_types::{ChatRequest, ChatResponse, Provider};
 use anyhow::{Result, anyhow};
 use axum::{Json, Router, extract::Query, http::HeaderMap, routing::get};
 use serde_json::{Value, json};

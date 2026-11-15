@@ -50,7 +50,7 @@ pub(crate) async fn build(
     #[cfg(test)]
     let injected = super::entry_test_transport::get(&request.session, context);
     #[cfg(not(test))]
-    let injected: Option<(Arc<dyn VideoEntryCloud>, Arc<dyn crate::providers::Provider>)> = None;
+    let injected: Option<(Arc<dyn VideoEntryCloud>, Arc<dyn model_types::Provider>)> = None;
     let (cloud, provider) = if let Some(external) = injected {
         external
     } else {
@@ -64,7 +64,7 @@ pub(crate) async fn build(
         (
             Arc::new(cloud) as Arc<dyn VideoEntryCloud>,
             Arc::new(crate::providers::session_llm::SessionLlmProvider::new())
-                as Arc<dyn crate::providers::Provider>,
+                as Arc<dyn model_types::Provider>,
         )
     };
     let model =

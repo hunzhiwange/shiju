@@ -18,7 +18,7 @@
 //! ## 扩展点
 //!
 //! 本模块采用 trait 驱动架构，核心扩展点包括：
-//! - [`providers::Provider`] — 模型提供者接口
+//! - [`model_types::Provider`] — 模型提供者接口
 //! - [`channels::Channel`] — 通道接口
 //! - [`tools::Tool`] — 工具接口
 //! - [`memory::Memory`] — 记忆存储接口

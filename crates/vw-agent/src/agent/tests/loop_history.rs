@@ -11,7 +11,7 @@
 //! - 历史清理：重置对话并确保系统提示正确重新注入
 
 use crate::app::agent::agent::dispatcher::NativeToolDispatcher;
-use crate::app::agent::providers::{ChatMessage, ToolCall};
+use model_types::{ChatMessage, ToolCall};
 use config_agent::AgentDefinitionConfig;
 
 use super::helpers::{

@@ -3,7 +3,7 @@ use super::assets::{ImageAssetId, ImageAssetScope, ImageAssetStore};
 use super::context::{ImageTurnContext, TrackedImage, content_contains_image_bytes};
 use super::ocr::ImageTextExtractor;
 use crate::app::agent::config::MultimodalConfig;
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

@@ -244,7 +244,7 @@ struct CloudFixtureProvider {
 }
 
 #[async_trait::async_trait]
-impl crate::providers::Provider for CloudFixtureProvider {
+impl model_types::Provider for CloudFixtureProvider {
     async fn chat_with_system(
         &self,
         _: Option<&str>,
@@ -256,10 +256,10 @@ impl crate::providers::Provider for CloudFixtureProvider {
     }
     async fn chat(
         &self,
-        request: crate::providers::ChatRequest<'_>,
+        request: model_types::ChatRequest<'_>,
         _: &str,
         _: f64,
-    ) -> anyhow::Result<crate::providers::ChatResponse> {
+    ) -> anyhow::Result<model_types::ChatResponse> {
         let prompt = &request.messages[0].content;
         let text = if prompt.contains("Return only a short brief") {
             "brief".to_string()
@@ -274,7 +274,7 @@ impl crate::providers::Provider for CloudFixtureProvider {
             ])
             .to_string()
         };
-        Ok(crate::providers::ChatResponse {
+        Ok(model_types::ChatResponse {
             text: Some(text),
             tool_calls: vec![],
             usage: None,

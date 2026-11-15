@@ -516,7 +516,7 @@ async fn child_agent_failure_persists_child_history() {
 #[tokio::test(flavor = "current_thread")]
 async fn agcollab_child_snapshot_is_immutable_and_none_keeps_task_separate() {
     use super::child_agent::{ForkTurns, create_with_fork, run_created_with_stream_executor};
-    use crate::providers::ChatMessage;
+    use model_types::ChatMessage;
     use crate::tools::{ToolUseContext, scope_tool_use_context};
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().to_string_lossy().to_string();

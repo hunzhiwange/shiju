@@ -14,7 +14,7 @@ use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::message;
 use crate::app::agent::tools;
-pub use crate::providers::traits::ToolCallKind;
+pub use model_types::ToolCallKind;
 use crate::session::ui_types as models;
 use serde_json::Value;
 use std::collections::HashMap;

@@ -32,10 +32,10 @@ use super::*;
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
 
 // 引入聊天消息和工具调用类型，用于构建测试输入
-use crate::app::agent::providers::{ChatMessage, ToolCall};
+use model_types::{ChatMessage, ToolCall};
 
 // 引入聊天请求和提供者 trait，用于模拟 Provider 交互
-use crate::app::agent::providers::{ChatRequest, Provider};
+use model_types::{ChatRequest, Provider};
 
 // 引入工具 trait，用于测试工具注册和执行
 use crate::app::agent::tools::Tool;

@@ -342,7 +342,7 @@ async fn fork_history_ui_reads_the_persisted_prefix() {
     source_engine
         .lock()
         .await
-        .replace_history(vec![crate::providers::ChatMessage::user("source cached future")]);
+        .replace_history(vec![model_types::ChatMessage::user("source cached future")]);
 
     for (boundary, expected) in [(&second, 2), (&first, 0)] {
         let (status, body) = fork(&source, json!({"beforeTurnId": boundary})).await;

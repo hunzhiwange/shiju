@@ -5,7 +5,7 @@ use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};
 use crate::app::agent::observability::traits::{Observer, ObserverEvent, ObserverMetric};
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use axum::Router;
 use axum::body::{Body, to_bytes};

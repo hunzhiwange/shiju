@@ -3,7 +3,7 @@
 
 use serde_json::json;
 
-use crate::app::agent::providers::ToolCall;
+use model_types::ToolCall;
 
 use super::{
     contains_deepseek_dsml_markup, detect_tool_call_parse_issue, parse_structured_tool_calls,

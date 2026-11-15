@@ -22,7 +22,7 @@ pub(crate) use detection::looks_like_unverified_action_completion_without_tool_c
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::hooks::HookRunner;
 use crate::app::agent::observability::{Observer, runtime_trace};
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::{Tool, ToolUseContext};
 use crate::app::agent::util::truncate_with_ellipsis;

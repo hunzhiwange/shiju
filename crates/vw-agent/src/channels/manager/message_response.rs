@@ -472,7 +472,7 @@ pub(crate) async fn handle_llm_result(
 
                 // 检查是否为视觉能力错误，如果是则考虑回滚用户回合
                 let should_rollback_user_turn = e
-                    .downcast_ref::<crate::app::agent::providers::ProviderCapabilityError>()
+                    .downcast_ref::<model_types::ProviderCapabilityError>()
                     .is_some_and(|capability| capability.capability.eq_ignore_ascii_case("vision"));
 
                 let rolled_back = should_rollback_user_turn

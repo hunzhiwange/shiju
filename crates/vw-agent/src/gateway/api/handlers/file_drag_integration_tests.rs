@@ -1,8 +1,9 @@
 //! HTTP regression coverage using production authentication, tenant and connection middleware.
+use model_types::Provider;
 use crate::app::agent::gateway::{self, AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::project;
 use crate::app::agent::{
-    config::Config, memory::NoneMemory, providers::Provider, security::pairing::PairingGuard,
+    config::Config, memory::NoneMemory, security::pairing::PairingGuard,
 };
 use base64::Engine;
 use parking_lot::Mutex;

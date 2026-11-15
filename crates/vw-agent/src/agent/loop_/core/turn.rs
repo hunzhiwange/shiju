@@ -18,7 +18,7 @@
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::hooks::HookRunner;
 use crate::app::agent::observability::Observer;
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::Tool;
 use anyhow::Result;

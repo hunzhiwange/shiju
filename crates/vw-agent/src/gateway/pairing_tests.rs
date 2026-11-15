@@ -7,7 +7,7 @@ use crate::app::agent::config::SystemConfigStore;
 use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use axum::body::to_bytes;
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};

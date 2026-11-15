@@ -28,7 +28,7 @@ use crate::app::agent::agent::loop_::{
     DRAFT_CLEAR_SENTINEL, DRAFT_PROGRESS_SENTINEL, DRAFT_WS_EVENT_SENTINEL, run_tool_call_loop,
 };
 use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use crate::app::agent::security::SecurityPolicy;
 use axum::{
     extract::{

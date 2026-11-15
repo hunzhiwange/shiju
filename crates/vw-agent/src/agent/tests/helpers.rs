@@ -20,7 +20,7 @@ use crate::app::agent::agent::dispatcher::{ToolDispatcher, ToolExecutionResult};
 use crate::app::agent::config::MemoryConfig;
 use crate::app::agent::memory::{self, Memory};
 use crate::app::agent::observability::{NoopObserver, Observer};
-use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider, ToolCall};
+use model_types::{ChatMessage, ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::tools::{Tool, ToolResult};
 use anyhow::Result;
 use async_trait::async_trait;

@@ -10,7 +10,7 @@
 
 use crate::app::agent::multimodal;
 use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
-use crate::app::agent::providers::{ChatMessage, ProviderCapabilityError, ToolCall, ToolCallKind};
+use model_types::{ChatMessage, ProviderCapabilityError, ToolCall, ToolCallKind};
 use crate::app::agent::tools::Tool;
 use crate::app::agent::util::truncate_with_ellipsis;
 use crate::project::{self, instance};

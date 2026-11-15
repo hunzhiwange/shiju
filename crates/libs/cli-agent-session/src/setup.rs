@@ -22,7 +22,7 @@ use vw_agent::approval::ApprovalManager;
 use vw_agent::config::Config;
 use vw_agent::memory::{self, Memory};
 use vw_agent::observability::{self, Observer, ObserverEvent};
-use vw_agent::providers::Provider;
+use model_types::Provider;
 use vw_agent::runtime;
 use vw_agent::security::SecurityPolicy;
 use anyhow::Result;

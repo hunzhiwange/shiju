@@ -9,8 +9,8 @@ use super::model::{
 use super::template::{render_jinja_value_template, render_template, value_to_text};
 use super::variables::{VariablePool, selector_from_value};
 use crate::agent::loop_::parsing::contains_deepseek_dsml_markup;
-use crate::providers::traits::{StreamOptions, TokenUsage};
-use crate::providers::{ChatMessage, ChatRequest, Provider};
+use model_types::{StreamOptions, TokenUsage};
+use model_types::{ChatMessage, ChatRequest, Provider};
 use futures_util::StreamExt;
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -1215,7 +1215,7 @@ async fn run_llm_chat_with_model_fallback(
     runtime: &WorkflowRuntime,
     messages: &[ChatMessage],
     requested_model: &str,
-) -> Result<crate::providers::ChatResponse, String> {
+) -> Result<model_types::ChatResponse, String> {
     let _permit = runtime.video_edit_budget.acquire().await?;
     let first = runtime
         .provider

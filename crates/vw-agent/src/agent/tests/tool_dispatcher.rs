@@ -18,9 +18,7 @@
 use crate::app::agent::agent::dispatcher::{
     NativeToolDispatcher, ToolDispatcher, XmlToolDispatcher,
 };
-use crate::app::agent::providers::{
-    ChatMessage, ChatResponse, ConversationMessage, ToolCall, ToolResultMessage,
-};
+use model_types::{ChatMessage, ChatResponse, ConversationMessage, ToolCall, ToolResultMessage};
 
 use super::helpers::{EchoTool, ScriptedProvider, build_tool_execution_result, text_response};
 

@@ -6,7 +6,7 @@ use super::run::{run, run_with_agent_factory};
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::{Observer, ObserverEvent};
-use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+use model_types::{ChatMessage, ChatRequest, ChatResponse, Provider};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::any::Any;

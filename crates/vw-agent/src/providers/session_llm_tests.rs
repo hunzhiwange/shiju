@@ -3,7 +3,7 @@
 //! 这些测试聚焦 provider 和 gateway 边界的数据转换，避免直接依赖真实 gateway 进程。
 
 use super::SessionLlmProvider;
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
@@ -419,10 +419,10 @@ fn native_tool_search_core_loop_gateway_preserves_kind_and_namespace() {
     calls.push(&event).unwrap();
     let calls = calls.finish();
     assert_eq!(calls.len(), 2);
-    assert_eq!(calls[0].kind, crate::providers::ToolCallKind::Search);
+    assert_eq!(calls[0].kind, model_types::ToolCallKind::Search);
     assert_eq!(calls[0].id, "search-id");
     assert_eq!(calls[1].namespace.as_deref(), Some("fixture"));
-    assert_eq!(calls[1].kind, crate::providers::ToolCallKind::Function);
+    assert_eq!(calls[1].kind, model_types::ToolCallKind::Function);
 }
 
 #[test]

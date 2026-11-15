@@ -58,7 +58,7 @@ async fn full_access_loads_model_selected_skill_without_permission_prompt() {
 
 #[tokio::test]
 async fn full_access_continuation_loads_skills_after_missing_skill_without_reselection() {
-    use crate::app::agent::providers::ChatMessage;
+    use model_types::ChatMessage;
 
     let (workspace, config) = expert_package_fixture();
     let tool = SkillTool::new_with_runtime_config(

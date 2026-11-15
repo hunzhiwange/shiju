@@ -28,7 +28,7 @@
 //! 验证 Agent 在各种边界条件下的行为符合预期。
 
 use crate::app::agent::agent::dispatcher::NativeToolDispatcher;
-use crate::app::agent::providers::{ChatResponse, ToolCall};
+use model_types::{ChatResponse, ToolCall};
 use config_agent::AgentDefinitionConfig;
 
 use super::helpers::{

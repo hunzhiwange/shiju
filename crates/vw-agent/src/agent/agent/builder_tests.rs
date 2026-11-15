@@ -11,7 +11,7 @@ use crate::app::agent::config::{
 };
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::{Tool, ToolResult};

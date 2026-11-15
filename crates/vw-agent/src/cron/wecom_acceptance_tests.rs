@@ -2,7 +2,7 @@
 use super::*;
 use crate::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::memory::NoneMemory;
-use crate::providers::Provider;
+use model_types::Provider;
 use crate::security::pairing::PairingGuard;
 use axum::{
     Router,

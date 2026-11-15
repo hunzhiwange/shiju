@@ -1,7 +1,7 @@
 use super::core::Agent;
 use crate::agent::loop_::core::run_tool_call_loop_with_skills;
 use crate::app::agent::memory::MemoryCategory;
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use anyhow::Result;
 
 impl Agent {

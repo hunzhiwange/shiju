@@ -1,5 +1,5 @@
 use super::*;
-use crate::providers::{ChatMessage, ChatRequest, ChatResponse};
+use model_types::{ChatMessage, ChatRequest, ChatResponse};
 use serde_json::json;
 
 struct Echo;
@@ -361,10 +361,10 @@ impl Provider for Streaming {
         messages: &[ChatMessage],
         _: &str,
         _: f64,
-        _: crate::providers::traits::StreamOptions,
+        _: model_types::StreamOptions,
     ) -> futures_util::stream::BoxStream<
         'static,
-        crate::providers::traits::StreamResult<crate::providers::traits::StreamChunk>,
+        model_types::StreamResult<model_types::StreamChunk>,
     > {
         let inner = self.0.clone();
         let messages = messages.to_vec();
@@ -372,12 +372,12 @@ impl Provider for Streaming {
             inner
                 .chat(ChatRequest { messages: &messages, tools: None }, "test", 0.0)
                 .await
-                .map(|r| crate::providers::traits::StreamChunk {
+                .map(|r| model_types::StreamChunk {
                     delta: r.text.unwrap(),
                     is_final: false,
                     token_count: 1,
                 })
-                .map_err(|e| crate::providers::traits::StreamError::Provider(e.to_string()))
+                .map_err(|e| model_types::StreamError::Provider(e.to_string()))
         }))
     }
 }

@@ -14,8 +14,8 @@ use super::{
     merge_tests::{effect, source},
     planning::{VideoPlanningContext, plan_video_edit},
 };
+use model_types::{ChatRequest, ChatResponse, Provider};
 use crate::{
-    providers::{ChatRequest, ChatResponse, Provider},
     workflow::WorkflowRuntime,
 };
 use std::sync::Arc;

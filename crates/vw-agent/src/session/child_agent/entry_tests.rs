@@ -29,9 +29,9 @@ struct ParentModel {
     root: String,
 }
 #[async_trait::async_trait]
-impl crate::providers::Provider for ParentModel {
-    fn capabilities(&self) -> crate::providers::traits::ProviderCapabilities {
-        crate::providers::traits::ProviderCapabilities {
+impl model_types::Provider for ParentModel {
+    fn capabilities(&self) -> model_types::ProviderCapabilities {
+        model_types::ProviderCapabilities {
             native_tool_search: false,
             native_tool_calling: true,
             vision: false,
@@ -48,21 +48,21 @@ impl crate::providers::Provider for ParentModel {
     }
     async fn chat(
         &self,
-        request: crate::providers::ChatRequest<'_>,
+        request: model_types::ChatRequest<'_>,
         _: &str,
         _: f64,
-    ) -> anyhow::Result<crate::providers::ChatResponse> {
+    ) -> anyhow::Result<model_types::ChatResponse> {
         assert!(request.tools.unwrap_or_default().iter().any(|t| t.id == "AgentTool"));
         let tasks = crate::session::child_agent::coordinator::global_child_agent_coordinator()
             .snapshots(&self.root, &[])?;
-        let call = |id: &str, args: Value| crate::providers::ToolCall {
+        let call = |id: &str, args: Value| model_types::ToolCall {
             kind: Default::default(),
             namespace: None,
             id: id.into(),
             name: "AgentTool".into(),
             arguments: args.to_string(),
         };
-        let mut response = crate::providers::ChatResponse {
+        let mut response = model_types::ChatResponse {
             text: None,
             tool_calls: vec![],
             usage: None,

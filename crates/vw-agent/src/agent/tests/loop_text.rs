@@ -13,7 +13,7 @@
 //! 分别测试 `NativeToolDispatcher` 和 `XmlToolDispatcher` 两种分发器实现。
 
 use crate::app::agent::agent::dispatcher::{NativeToolDispatcher, XmlToolDispatcher};
-use crate::app::agent::providers::ChatResponse;
+use model_types::ChatResponse;
 
 use super::helpers::{
     EchoTool, ScriptedProvider, build_agent_with, text_response, xml_tool_response,

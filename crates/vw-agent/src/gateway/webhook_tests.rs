@@ -5,7 +5,7 @@ use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore, hash_webhook_secret};
 use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use axum::Json;
 use axum::Router;

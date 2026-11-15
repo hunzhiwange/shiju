@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 
 use crate::provider::provider;
-use crate::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+use model_types::{ChatMessage, ChatRequest, ChatResponse, Provider};
 use crate::session::llm::StreamEvent;
 use crate::tools::{Tool, ToolSpec};
 
@@ -171,7 +171,7 @@ struct HttpProvider {
 }
 #[async_trait]
 impl Provider for HttpProvider {
-    fn capabilities(&self) -> crate::providers::traits::ProviderCapabilities {
+    fn capabilities(&self) -> model_types::ProviderCapabilities {
         provider::resolve_native_search_capabilities(
             &self.model.capabilities,
             "openai-responses",
@@ -232,7 +232,7 @@ impl Provider for HttpProvider {
                 StreamEvent::Delta(text) => response.text.as_mut().unwrap().push_str(&text),
                 StreamEvent::ToolCalls(calls) => {
                     response.tool_calls.extend(calls.into_iter().map(|c| {
-                        crate::providers::ToolCall {
+                        model_types::ToolCall {
                             kind: c.kind,
                             namespace: c.namespace,
                             id: c.id,

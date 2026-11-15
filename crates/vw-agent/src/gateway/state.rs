@@ -22,7 +22,7 @@ use crate::app::agent::channels::{
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::Memory;
 use crate::app::agent::observability::Observer;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::tools::Tool;
 use crate::app::agent::tools::traits::ToolSpec;

@@ -6,9 +6,8 @@
 use crate::app::agent::multimodal;
 use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
 use crate::app::agent::observability::{Observer, ObserverEvent, runtime_trace};
-use crate::app::agent::providers::{
-    ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall, sanitize_api_error,
-};
+use model_types::{ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall};
+use crate::app::agent::providers::sanitize_api_error;
 use crate::app::agent::tools::ToolSpec;
 use crate::app::agent::util::truncate_with_ellipsis;
 use anyhow::Result;
@@ -221,7 +220,7 @@ async fn run_llm_round_with_extractor(
             if resp
                 .tool_calls
                 .iter()
-                .any(|call| call.kind == crate::providers::ToolCallKind::Search)
+                .any(|call| call.kind == model_types::ToolCallKind::Search)
             {
                 let mut ids = std::collections::HashSet::new();
                 anyhow::ensure!(
@@ -232,7 +231,7 @@ async fn run_llm_round_with_extractor(
                 );
             }
             for call in &resp.tool_calls {
-                if call.kind == crate::providers::ToolCallKind::Search {
+                if call.kind == model_types::ToolCallKind::Search {
                     anyhow::ensure!(
                         use_native_tools && provider.capabilities().native_tool_search,
                         "native tool search is not authorized for this provider request"

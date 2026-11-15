@@ -3,7 +3,7 @@
 use super::*;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::gateway_skey_store::GatewaySkeyStore;
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::global_database::GlobalDatabase;

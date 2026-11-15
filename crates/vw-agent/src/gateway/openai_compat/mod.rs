@@ -9,7 +9,7 @@
 //! library, `curl`, Aura) to send chat requests through the gateway.
 
 use super::AppState;
-use crate::app::agent::providers::traits::{ChatMessage, StreamOptions};
+use model_types::{ChatMessage, StreamOptions};
 use axum::{
     body::Body,
     extract::{ConnectInfo, State},

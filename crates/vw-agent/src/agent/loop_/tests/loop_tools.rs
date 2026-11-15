@@ -13,8 +13,8 @@ use std::time::Duration;
 
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::ChatResponse;
-use crate::app::agent::providers::traits::ProviderCapabilities;
+use model_types::ChatResponse;
+use model_types::ProviderCapabilities;
 
 mod approvals;
 mod multimodal;

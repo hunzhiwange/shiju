@@ -439,9 +439,9 @@ impl HookHandler for CommandPluginHookHandler {
 
     async fn before_llm_call(
         &self,
-        messages: Vec<crate::providers::ChatMessage>,
+        messages: Vec<model_types::ChatMessage>,
         model: String,
-    ) -> HookResult<(Vec<crate::providers::ChatMessage>, String)> {
+    ) -> HookResult<(Vec<model_types::ChatMessage>, String)> {
         if self.codex_protocol || self.hook.event != PluginHookEvent::BeforeLlmCall {
             return HookResult::Continue((messages, model));
         }
@@ -1005,9 +1005,9 @@ impl HookHandler for OrderedCodexHooks {
     }
     async fn before_llm_call(
         &self,
-        mut messages: Vec<crate::providers::ChatMessage>,
+        mut messages: Vec<model_types::ChatMessage>,
         mut model: String,
-    ) -> HookResult<(Vec<crate::providers::ChatMessage>, String)> {
+    ) -> HookResult<(Vec<model_types::ChatMessage>, String)> {
         for handler in &self.handlers {
             match handler.before_llm_call(messages, model).await {
                 HookResult::Continue(value) => (messages, model) = value,

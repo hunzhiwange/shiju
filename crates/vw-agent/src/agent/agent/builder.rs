@@ -4,7 +4,7 @@ use crate::app::agent::agent::prompt::SystemPromptBuilder;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::memory::Memory;
 use crate::app::agent::observability::Observer;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::Tool;
 use anyhow::Result;

@@ -6,11 +6,11 @@ use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
 use crate::app::agent::observability::{NoopObserver, Observer, ObserverEvent};
-use crate::app::agent::providers::traits::TokenUsage;
-use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+use model_types::TokenUsage;
+use model_types::{ChatMessage, ChatRequest, ChatResponse, Provider};
 use crate::app::agent::tools::ToolResult;
 use crate::observability::traits::ObserverMetric;
-use crate::providers::traits::ProviderCapabilities;
+use model_types::ProviderCapabilities;
 use std::any::Any;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -224,7 +224,7 @@ fn chat_text(text: &str, usage: Option<TokenUsage>) -> ChatResponse {
 fn chat_tool_call(id: &str) -> ChatResponse {
     ChatResponse {
         text: None,
-        tool_calls: vec![crate::app::agent::providers::ToolCall {
+        tool_calls: vec![model_types::ToolCall {
             kind: Default::default(),
             namespace: None,
             id: id.to_string(),
@@ -341,7 +341,7 @@ async fn codex_discovery_core_query_engine_loads_and_resets_tools_between_user_t
     let call = |id: &str, name: &str, input: serde_json::Value| {
         ProviderStep::Response(ChatResponse {
             text: None,
-            tool_calls: vec![crate::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: id.into(),

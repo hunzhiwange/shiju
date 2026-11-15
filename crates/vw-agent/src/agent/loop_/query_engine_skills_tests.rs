@@ -105,7 +105,7 @@ async fn codex_skills_core_query_engine_restores_tool_sources_and_rewind_drops_f
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(ChatResponse {
             text: None,
-            tool_calls: vec![crate::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: "query-skill-call".into(),

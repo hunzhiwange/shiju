@@ -4,7 +4,7 @@ use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use async_trait::async_trait;
 use axum::body::to_bytes;

@@ -494,7 +494,7 @@ async fn worktree_cleanup_flow_cancelled_host_does_not_start_deletion() {
 
 struct LeaseProbeProvider(registry::Record);
 #[async_trait::async_trait]
-impl crate::providers::Provider for LeaseProbeProvider {
+impl model_types::Provider for LeaseProbeProvider {
     async fn chat_with_system(
         &self,
         _system: Option<&str>,
@@ -515,7 +515,7 @@ async fn legacy_turn(record: &registry::Record) -> anyhow::Result<String> {
         workspace_dir: record.directory.clone(),
         ..Default::default()
     });
-    let mut history = vec![crate::providers::ChatMessage::user("hello")];
+    let mut history = vec![model_types::ChatMessage::user("hello")];
     crate::agent::loop_::core::run_tool_call_loop(
         &provider,
         &mut history,

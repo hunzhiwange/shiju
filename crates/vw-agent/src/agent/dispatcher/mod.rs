@@ -20,9 +20,7 @@
 //! 3. 执行工具并生成结果
 //! 4. 调度器格式化工具结果，准备下一轮对话
 
-use crate::app::agent::providers::{
-    ChatMessage, ChatResponse, ConversationMessage, ToolResultMessage,
-};
+use model_types::{ChatMessage, ChatResponse, ConversationMessage, ToolResultMessage};
 use crate::app::agent::tools::{Tool, ToolSpec};
 use serde_json::Value;
 use std::fmt::Write;

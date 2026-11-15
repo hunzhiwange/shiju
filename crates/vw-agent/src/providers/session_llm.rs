@@ -5,7 +5,7 @@
 //! 返回错误，避免表现为半可用的 provider。
 
 use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
-use crate::app::agent::providers::traits::{
+use model_types::{
     ChatMessage, ChatRequest, ChatResponse, Provider, ProviderCapabilities, StreamChunk,
     StreamOptions, TokenUsage, ToolsPayload,
 };
@@ -321,7 +321,7 @@ impl Provider for SessionLlmProvider {
         model: &str,
         _temperature: f64,
         options: StreamOptions,
-    ) -> stream::BoxStream<'static, crate::app::agent::providers::traits::StreamResult<StreamChunk>>
+    ) -> stream::BoxStream<'static, model_types::StreamResult<StreamChunk>>
     {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -368,13 +368,13 @@ impl Provider for SessionLlmProvider {
                                     }
                                     Err(error) => {
                                         let _ = tx
-                                            .send(Err(super::traits::StreamError::Provider(error)));
+                                            .send(Err(model_types::StreamError::Provider(error)));
                                     }
                                 }
                                 return false;
                             }
                             gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
-                                let _ = tx.send(Err(super::traits::StreamError::Provider(error)));
+                                let _ = tx.send(Err(model_types::StreamError::Provider(error)));
                                 return false;
                             }
                             gateway_chat_stream::GatewayChatStreamEvent::Other(_) => {}
@@ -384,7 +384,7 @@ impl Provider for SessionLlmProvider {
                 );
 
                 if let Err(err) = result {
-                    let _ = tx.send(Err(super::traits::StreamError::Provider(err)));
+                    let _ = tx.send(Err(model_types::StreamError::Provider(err)));
                 }
             });
 
@@ -409,7 +409,7 @@ impl Provider for SessionLlmProvider {
         model: &str,
         _temperature: f64,
         options: StreamOptions,
-    ) -> stream::BoxStream<'static, crate::app::agent::providers::traits::StreamResult<StreamChunk>>
+    ) -> stream::BoxStream<'static, model_types::StreamResult<StreamChunk>>
     {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -455,13 +455,13 @@ impl Provider for SessionLlmProvider {
                                     }
                                     Err(error) => {
                                         let _ = tx
-                                            .send(Err(super::traits::StreamError::Provider(error)));
+                                            .send(Err(model_types::StreamError::Provider(error)));
                                     }
                                 }
                                 return false;
                             }
                             gateway_chat_stream::GatewayChatStreamEvent::Error(error) => {
-                                let _ = tx.send(Err(super::traits::StreamError::Provider(error)));
+                                let _ = tx.send(Err(model_types::StreamError::Provider(error)));
                                 return false;
                             }
                             gateway_chat_stream::GatewayChatStreamEvent::Other(_) => {}
@@ -471,7 +471,7 @@ impl Provider for SessionLlmProvider {
                 );
 
                 if let Err(err) = result {
-                    let _ = tx.send(Err(super::traits::StreamError::Provider(err)));
+                    let _ = tx.send(Err(model_types::StreamError::Provider(err)));
                 }
             });
 

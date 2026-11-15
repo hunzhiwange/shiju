@@ -1,7 +1,7 @@
 //! The core entry points reuse the processor's trusted catalog and source replay.
 
 use crate::config::Config;
-use crate::providers::ChatMessage;
+use model_types::ChatMessage;
 use crate::skills::{Skill, SkillListingSessionState};
 use crate::tools::{ToolSpec, ToolUseContext};
 use anyhow::{Result, bail};

@@ -22,7 +22,7 @@ use crate::app::agent::gateway::state::AppState;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::tools::ToolCallError;
 use crate::global_database::GlobalDatabase;
@@ -1199,10 +1199,10 @@ impl Provider for TalkingHeadApiProvider {
 
     async fn chat(
         &self,
-        request: crate::providers::ChatRequest<'_>,
+        request: model_types::ChatRequest<'_>,
         model: &str,
         _: f64,
-    ) -> anyhow::Result<crate::providers::ChatResponse> {
+    ) -> anyhow::Result<model_types::ChatResponse> {
         assert_eq!(request.messages.len(), 1);
         assert!(request.tools.is_none());
         let prompt = &request.messages[0].content;
@@ -1233,7 +1233,7 @@ impl Provider for TalkingHeadApiProvider {
                 ]).to_string()
             }
         };
-        Ok(crate::providers::ChatResponse {
+        Ok(model_types::ChatResponse {
             text: Some(text),
             tool_calls: vec![],
             usage: None,

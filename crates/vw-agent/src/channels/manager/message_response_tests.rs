@@ -6,7 +6,7 @@ use crate::app::agent::config::AutonomyConfig;
 use crate::app::agent::hooks::{HookHandler, HookResult, HookRunner};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::tools::{Tool, ToolResult};
 use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 
@@ -674,7 +674,7 @@ async fn vision_capability_error_rolls_back_orphan_user_turn_and_finalizes_draft
         Some(&channel_dyn),
         &route(),
         LlmExecutionResult::Completed(Ok(Err(anyhow::Error::new(
-            crate::app::agent::providers::ProviderCapabilityError {
+            model_types::ProviderCapabilityError {
                 provider: "provider".to_string(),
                 capability: "vision".to_string(),
                 message: "disabled".to_string(),

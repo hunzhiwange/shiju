@@ -3,7 +3,8 @@
 
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
-use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ProviderRuntimeOptions};
+use model_types::{ChatRequest, ChatResponse, Provider};
+use crate::app::agent::providers::ProviderRuntimeOptions;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use anyhow::anyhow;
 use async_trait::async_trait;

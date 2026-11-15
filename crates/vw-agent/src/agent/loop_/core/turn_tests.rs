@@ -2,7 +2,7 @@
 //! 任务局部变量在有无回复目标和审批上下文时分别验证，防止跨轮泄漏。
 
 use super::*;
-use crate::providers::traits::ProviderCapabilities;
+use model_types::ProviderCapabilities;
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct RecordingProvider {
-    responses: Mutex<VecDeque<crate::app::agent::providers::ChatResponse>>,
+    responses: Mutex<VecDeque<model_types::ChatResponse>>,
     calls: Arc<AtomicUsize>,
     requests: Arc<Mutex<Vec<RecordedRequest>>>,
 }
@@ -25,7 +25,7 @@ struct RecordedRequest {
 
 impl RecordingProvider {
     fn from_responses(
-        responses: Vec<crate::app::agent::providers::ChatResponse>,
+        responses: Vec<model_types::ChatResponse>,
         calls: Arc<AtomicUsize>,
     ) -> Self {
         Self { responses: Mutex::new(responses.into()), calls, requests: Arc::default() }
@@ -33,7 +33,7 @@ impl RecordingProvider {
 
     fn from_text(response: &str, calls: Arc<AtomicUsize>) -> Self {
         Self::from_responses(
-            vec![crate::app::agent::providers::ChatResponse {
+            vec![model_types::ChatResponse {
                 text: Some(response.to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -67,10 +67,10 @@ impl Provider for RecordingProvider {
 
     async fn chat(
         &self,
-        request: crate::app::agent::providers::ChatRequest<'_>,
+        request: model_types::ChatRequest<'_>,
         model: &str,
         temperature: f64,
-    ) -> anyhow::Result<crate::app::agent::providers::ChatResponse> {
+    ) -> anyhow::Result<model_types::ChatResponse> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         let tools = request.tools.unwrap_or_default().iter().map(|tool| tool.id.clone()).collect();
         let message_roles = request.messages.iter().map(|message| message.role.clone()).collect();
@@ -183,9 +183,9 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_approval_and_re
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = RecordingProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("capture approval context".to_string()),
-                tool_calls: vec![crate::app::agent::providers::ToolCall {
+                tool_calls: vec![model_types::ToolCall {
                     kind: Default::default(),
                     namespace: None,
                     id: "call-1".to_string(),
@@ -195,7 +195,7 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_approval_and_re
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("done".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -255,9 +255,9 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_none_when_conte
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = RecordingProvider::from_responses(
         vec![
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("capture absent approval context".to_string()),
-                tool_calls: vec![crate::app::agent::providers::ToolCall {
+                tool_calls: vec![model_types::ToolCall {
                     kind: Default::default(),
                     namespace: None,
                     id: "call-1".to_string(),
@@ -267,7 +267,7 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_none_when_conte
                 usage: None,
                 reasoning_content: None,
             },
-            crate::app::agent::providers::ChatResponse {
+            model_types::ChatResponse {
                 text: Some("done".to_string()),
                 tool_calls: Vec::new(),
                 usage: None,
@@ -321,7 +321,7 @@ async fn codex_plugin_compat_t44_actual_turn_continues_after_stop_block() {
     let state = tempfile::tempdir().unwrap();
     let runner = crate::plugins::t44_tests::runner(root.path(), state.path());
     let calls = Arc::new(AtomicUsize::new(0));
-    let response = crate::providers::ChatResponse {
+    let response = model_types::ChatResponse {
         text: Some("finished".into()),
         tool_calls: Vec::new(),
         usage: None,

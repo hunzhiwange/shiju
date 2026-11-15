@@ -82,7 +82,7 @@ mod tests {
         let response = ChatResponse {
             text: Some("ok".into()),
             // 模拟 Provider 返回的工具调用结构
-            tool_calls: vec![crate::app::agent::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: "tc1".into(),
@@ -188,7 +188,7 @@ mod tests {
         // 构造包含推理内容的助手工具调用消息
         let history = vec![ConversationMessage::AssistantToolCalls {
             text: Some("answer".into()),
-            tool_calls: vec![crate::app::agent::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: "tc_1".into(),
@@ -240,7 +240,7 @@ mod tests {
         // 构造不包含推理内容的助手工具调用消息
         let history = vec![ConversationMessage::AssistantToolCalls {
             text: Some("answer".into()),
-            tool_calls: vec![crate::app::agent::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: "tc_1".into(),
@@ -285,7 +285,7 @@ mod tests {
         // 构造包含推理内容的消息（应被忽略）
         let history = vec![ConversationMessage::AssistantToolCalls {
             text: Some("answer".into()),
-            tool_calls: vec![crate::app::agent::providers::ToolCall {
+            tool_calls: vec![model_types::ToolCall {
                 kind: Default::default(),
                 namespace: None,
                 id: "tc_1".into(),

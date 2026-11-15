@@ -5,7 +5,7 @@ use super::*;
 use crate::hooks::{HookHandler, HookRunner};
 use crate::multimodal::ocr::ImageTextExtractor;
 use crate::observability::traits::ObserverMetric;
-use crate::providers::traits::{ChatResponse, ProviderCapabilities, TokenUsage};
+use model_types::{ChatResponse, ProviderCapabilities, TokenUsage};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

@@ -42,7 +42,7 @@ pub(crate) use crate::app::agent::channels::{
 };
 pub(crate) use crate::app::agent::config::Config;
 pub(crate) use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
-pub(crate) use crate::app::agent::providers::Provider;
+pub(crate) use model_types::Provider;
 pub(crate) use crate::app::agent::security::pairing::PairingGuard;
 pub(crate) use crate::app::agent::tools::Tool;
 use async_trait::async_trait;

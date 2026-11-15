@@ -19,7 +19,7 @@
 //! - `EchoTool`：简单的回显工具，返回输入值
 
 use super::super::*;
-use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
+use model_types::{ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use anyhow::anyhow;
 use async_trait::async_trait;

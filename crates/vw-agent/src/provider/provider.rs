@@ -779,8 +779,8 @@ pub fn resolve_native_search_capabilities(
     model: &Capabilities,
     adapter: &str,
     request_path: &str,
-) -> crate::providers::traits::ProviderCapabilities {
-    crate::providers::traits::ProviderCapabilities {
+) -> model_types::ProviderCapabilities {
+    model_types::ProviderCapabilities {
         native_tool_calling: model.toolcall,
         native_tool_search: model.toolcall
             && model.native_tool_search

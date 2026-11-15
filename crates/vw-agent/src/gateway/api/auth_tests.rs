@@ -4,7 +4,7 @@ use super::{extract_bearer_token, require_auth};
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use parking_lot::Mutex;

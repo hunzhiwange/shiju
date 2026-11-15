@@ -1,7 +1,7 @@
 //! Request-level discovery regressions using scripted models and real local files.
 
 use super::*;
-use crate::providers::traits::ProviderCapabilities;
+use model_types::ProviderCapabilities;
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -79,7 +79,7 @@ type DiscoveryRequest = (Vec<ChatMessage>, Vec<String>);
 
 #[derive(Clone)]
 struct DiscoveryProvider {
-    responses: Arc<Mutex<VecDeque<crate::providers::ChatResponse>>>,
+    responses: Arc<Mutex<VecDeque<model_types::ChatResponse>>>,
     requests: Arc<Mutex<Vec<DiscoveryRequest>>>,
     native: bool,
     search: bool,
@@ -92,7 +92,7 @@ impl DiscoveryProvider {
         for calls in calls {
             let calls: Vec<_> = calls
                 .into_iter()
-                .map(|(id, name, input)| crate::providers::ToolCall {
+                .map(|(id, name, input)| model_types::ToolCall {
                     kind: Default::default(),
                     namespace: None,
                     id: id.to_string(),
@@ -111,14 +111,14 @@ impl DiscoveryProvider {
                     })
                     .collect::<String>()
             });
-            responses.push_back(crate::providers::ChatResponse {
+            responses.push_back(model_types::ChatResponse {
                 text,
                 tool_calls: if native { calls } else { Vec::new() },
                 usage: None,
                 reasoning_content: None,
             });
         }
-        responses.push_back(crate::providers::ChatResponse {
+        responses.push_back(model_types::ChatResponse {
             text: Some("final answer".to_string()),
             tool_calls: Vec::new(),
             usage: None,
@@ -160,10 +160,10 @@ impl Provider for DiscoveryProvider {
 
     async fn chat(
         &self,
-        request: crate::providers::ChatRequest<'_>,
+        request: model_types::ChatRequest<'_>,
         _: &str,
         _: f64,
-    ) -> anyhow::Result<crate::providers::ChatResponse> {
+    ) -> anyhow::Result<model_types::ChatResponse> {
         self.requests.lock().unwrap().push((
             request.messages.to_vec(),
             request.tools.unwrap_or_default().iter().map(|spec| spec.id.clone()).collect(),
@@ -645,7 +645,7 @@ fn native_search_provider(calls: Vec<Vec<(&str, &str, serde_json::Value)>>) -> D
     for response in provider.responses.lock().unwrap().iter_mut() {
         for call in &mut response.tool_calls {
             if call.name == "tool_search" {
-                call.kind = crate::providers::ToolCallKind::Search;
+                call.kind = model_types::ToolCallKind::Search;
             }
         }
     }

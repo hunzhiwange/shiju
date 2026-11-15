@@ -246,7 +246,7 @@ async fn build_context_ignores_legacy_assistant_autosave_entries() {
 /// 且历史记录应保持为空。
 #[test]
 fn trim_history_empty_history() {
-    let mut history: Vec<crate::app::agent::providers::ChatMessage> = vec![];
+    let mut history: Vec<model_types::ChatMessage> = vec![];
     trim_history(&mut history, 10);
     assert!(history.is_empty());
 }
@@ -257,7 +257,7 @@ fn trim_history_empty_history() {
 /// trim_history 函数应保留该系统提示，不进行任何移除。
 #[test]
 fn trim_history_system_only() {
-    let mut history = vec![crate::app::agent::providers::ChatMessage::system("system prompt")];
+    let mut history = vec![model_types::ChatMessage::system("system prompt")];
     trim_history(&mut history, 10);
     assert_eq!(history.len(), 1);
     assert_eq!(history[0].role, "system");
@@ -270,9 +270,9 @@ fn trim_history_system_only() {
 #[test]
 fn trim_history_exactly_at_limit() {
     let mut history = vec![
-        crate::app::agent::providers::ChatMessage::system("system"),
-        crate::app::agent::providers::ChatMessage::user("msg 1"),
-        crate::app::agent::providers::ChatMessage::assistant("reply 1"),
+        model_types::ChatMessage::system("system"),
+        model_types::ChatMessage::user("msg 1"),
+        model_types::ChatMessage::assistant("reply 1"),
     ];
     trim_history(&mut history, 2); // 2 non-system messages = exactly at limit
     assert_eq!(history.len(), 3, "should not trim when exactly at limit");
@@ -285,11 +285,11 @@ fn trim_history_exactly_at_limit() {
 #[test]
 fn trim_history_removes_oldest_non_system() {
     let mut history = vec![
-        crate::app::agent::providers::ChatMessage::system("system"),
-        crate::app::agent::providers::ChatMessage::user("old msg"),
-        crate::app::agent::providers::ChatMessage::assistant("old reply"),
-        crate::app::agent::providers::ChatMessage::user("new msg"),
-        crate::app::agent::providers::ChatMessage::assistant("new reply"),
+        model_types::ChatMessage::system("system"),
+        model_types::ChatMessage::user("old msg"),
+        model_types::ChatMessage::assistant("old reply"),
+        model_types::ChatMessage::user("new msg"),
+        model_types::ChatMessage::assistant("new reply"),
     ];
     trim_history(&mut history, 2);
     assert_eq!(history.len(), 3); // system + 2 kept

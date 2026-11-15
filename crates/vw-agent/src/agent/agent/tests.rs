@@ -45,8 +45,8 @@ mod tests {
     use super::super::Agent;
     use crate::app::agent::memory::Memory;
     use crate::app::agent::observability::Observer;
-    use crate::app::agent::providers::ChatRequest;
-    use crate::app::agent::providers::Provider;
+    use model_types::ChatRequest;
+    use model_types::Provider;
     use crate::app::agent::tools::Tool;
     use anyhow::Result;
 
@@ -95,7 +95,7 @@ mod tests {
         ///
         /// 每次调用 `chat` 方法时，从此队列前端移除并返回一个响应。
         /// 队列为空时返回默认响应（text="done", tool_calls=[]）。
-        responses: Mutex<Vec<crate::app::agent::providers::ChatResponse>>,
+        responses: Mutex<Vec<model_types::ChatResponse>>,
     }
 
     #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -169,14 +169,14 @@ mod tests {
             _request: ChatRequest<'_>,
             _model: &str,
             _temperature: f64,
-        ) -> Result<crate::app::agent::providers::ChatResponse> {
+        ) -> Result<model_types::ChatResponse> {
             // 获取响应队列的互斥锁
             let mut guard = self.responses.lock();
 
             // 检查队列是否为空
             if guard.is_empty() {
                 // 返回默认响应，表示对话结束
-                return Ok(crate::app::agent::providers::ChatResponse {
+                return Ok(model_types::ChatResponse {
                     text: Some("done".into()),
                     tool_calls: vec![],
                     usage: None,
@@ -230,7 +230,7 @@ mod tests {
         /// 预设的响应队列，按 FIFO 顺序消费
         ///
         /// 行为与 `MockProvider::responses` 完全相同
-        responses: Mutex<Vec<crate::app::agent::providers::ChatResponse>>,
+        responses: Mutex<Vec<model_types::ChatResponse>>,
 
         /// 记录所有调用中传入的模型名称
         ///
@@ -297,7 +297,7 @@ mod tests {
             _request: ChatRequest<'_>,
             model: &str,
             _temperature: f64,
-        ) -> Result<crate::app::agent::providers::ChatResponse> {
+        ) -> Result<model_types::ChatResponse> {
             // 在处理响应前先捕获模型名称，确保即使后续操作失败也能记录
             self.seen_models.lock().push(model.to_string());
 
@@ -306,7 +306,7 @@ mod tests {
 
             // 队列为空时返回默认响应
             if guard.is_empty() {
-                return Ok(crate::app::agent::providers::ChatResponse {
+                return Ok(model_types::ChatResponse {
                     text: Some("done".into()),
                     tool_calls: vec![],
                     usage: None,
@@ -460,7 +460,7 @@ mod tests {
     async fn turn_without_tools_returns_text() {
         // 创建返回纯文本响应的 Mock Provider
         let provider = Box::new(MockProvider {
-            responses: Mutex::new(vec![crate::app::agent::providers::ChatResponse {
+            responses: Mutex::new(vec![model_types::ChatResponse {
                 text: Some("hello".into()),
                 tool_calls: vec![], // 无工具调用
                 usage: None,
@@ -567,9 +567,9 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![
                 // 第一轮响应：触发工具调用
-                crate::app::agent::providers::ChatResponse {
+                model_types::ChatResponse {
                     text: Some(String::new()), // 文本为空，表示需要工具调用
-                    tool_calls: vec![crate::app::agent::providers::ToolCall {
+                    tool_calls: vec![model_types::ToolCall {
                         kind: Default::default(),
                         namespace: None,
                         id: "tc1".into(),
@@ -580,7 +580,7 @@ mod tests {
                     reasoning_content: None,
                 },
                 // 第二轮响应：返回最终结果
-                crate::app::agent::providers::ChatResponse {
+                model_types::ChatResponse {
                     text: Some("done".into()), // 最终文本响应
                     tool_calls: vec![],        // 无更多工具调用，结束循环
                     usage: None,
@@ -691,7 +691,7 @@ mod tests {
 
         // 创建捕获 Provider
         let provider = Box::new(ModelCaptureProvider {
-            responses: Mutex::new(vec![crate::app::agent::providers::ChatResponse {
+            responses: Mutex::new(vec![model_types::ChatResponse {
                 text: Some("classified".into()),
                 tool_calls: vec![],
                 usage: None,

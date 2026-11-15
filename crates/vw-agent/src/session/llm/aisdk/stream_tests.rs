@@ -1052,7 +1052,7 @@ async fn native_tool_search_request_namespace_calls_resolve_stable_ids_and_rejec
 
 #[tokio::test]
 async fn native_tool_search_event_stream_deduplicates_and_preserves_function_namespace() {
-    use crate::providers::traits::ToolCallKind;
+    use model_types::ToolCallKind;
     use aisdk::core::{ToolSearchCall, ToolSearchExecution};
     let search = ToolSearchCall {
         id: Some("search-item".into()),

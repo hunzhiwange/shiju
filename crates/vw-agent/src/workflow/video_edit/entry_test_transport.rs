@@ -4,8 +4,8 @@ use super::{
     apply::*, assets::*, entry::VideoEntryCloud, manifest::*, planning::*, prepare::*, preview::*,
     transcript::*,
 };
+use model_types::{ChatRequest, ChatResponse, Provider};
 use crate::{
-    providers::{ChatRequest, ChatResponse, Provider},
     tools::ToolRuntimeContext,
 };
 use anyhow::Result;

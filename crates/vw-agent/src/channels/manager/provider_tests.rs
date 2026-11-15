@@ -5,7 +5,7 @@ use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::tools::{ToolResult, ToolSpec};
 use std::collections::HashMap;
 use std::path::PathBuf;

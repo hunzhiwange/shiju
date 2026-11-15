@@ -6,9 +6,9 @@ use crate::app::agent::config::{ClassificationRule, ModelRouteConfig, QueryClass
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
 use crate::app::agent::provider::provider;
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::tools::{Tool, ToolResult};
-use crate::providers::traits::ProviderCapabilities;
+use model_types::ProviderCapabilities;
 use crate::session::llm::{
     AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model,
 };

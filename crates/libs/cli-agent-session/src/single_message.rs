@@ -20,7 +20,7 @@
 use vw_agent::approval::ApprovalManager;
 use vw_agent::config::Config;
 use vw_agent::memory::MemoryCategory;
-use vw_agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use vw_agent::security::SecurityPolicy;
 use anyhow::Result;
 use std::sync::Arc;

@@ -5,10 +5,10 @@ use super::*;
 
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
+use model_types::{ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::tools::{Tool, ToolResult};
-use crate::providers::traits::ProviderCapabilities;
+use model_types::ProviderCapabilities;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, Request, StatusCode, header};

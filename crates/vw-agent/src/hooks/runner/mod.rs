@@ -38,7 +38,7 @@ use std::panic::AssertUnwindSafe;
 use tracing::info;
 
 use crate::app::agent::channels::traits::ChannelMessage;
-use crate::app::agent::providers::traits::{ChatMessage, ChatResponse};
+use model_types::{ChatMessage, ChatResponse};
 use crate::app::agent::tools::traits::ToolResult;
 
 use super::traits::{HookHandler, HookResult};

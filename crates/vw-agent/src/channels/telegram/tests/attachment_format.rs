@@ -265,7 +265,7 @@ fn markdown_attachment_not_detected_by_multimodal_image_markers() {
         "notes.md",
         std::path::Path::new("/tmp/ws/notes.md"),
     );
-    let messages = vec![crate::app::agent::providers::ChatMessage::user(content)];
+    let messages = vec![model_types::ChatMessage::user(content)];
     assert_eq!(
         crate::app::agent::multimodal::count_image_markers(&messages),
         0,
@@ -303,7 +303,7 @@ fn is_image_extension_recognizes_images() {
 #[test]
 fn photo_image_marker_detected_by_multimodal() {
     let photo_content = "[IMAGE:/tmp/workspace/photo_1_2.jpg]";
-    let messages = vec![crate::app::agent::providers::ChatMessage::user(photo_content.to_string())];
+    let messages = vec![model_types::ChatMessage::user(photo_content.to_string())];
     let count = crate::app::agent::multimodal::count_image_markers(&messages);
     assert_eq!(count, 1, "multimodal should detect exactly one image marker");
 }
@@ -322,7 +322,7 @@ fn photo_image_marker_with_caption() {
 
     assert_eq!(content, "[IMAGE:/tmp/workspace/photo_1_2.jpg]\n\nLook at this screenshot");
 
-    let messages = vec![crate::app::agent::providers::ChatMessage::user(content)];
+    let messages = vec![model_types::ChatMessage::user(content)];
     assert_eq!(crate::app::agent::multimodal::count_image_markers(&messages), 1);
 }
 
@@ -353,7 +353,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
         doc_content.starts_with("[Document: report.pdf]"),
         "document label format mismatch: {doc_content}"
     );
-    let doc_msgs = vec![crate::app::agent::providers::ChatMessage::user(doc_content)];
+    let doc_msgs = vec![model_types::ChatMessage::user(doc_content)];
     assert_eq!(
         crate::app::agent::multimodal::count_image_markers(&doc_msgs),
         0,
@@ -373,7 +373,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
     );
     assert!(photo_content.ends_with(']'), "photo marker must close with ]: {photo_content}");
 
-    let photo_msgs = vec![crate::app::agent::providers::ChatMessage::user(photo_content.clone())];
+    let photo_msgs = vec![model_types::ChatMessage::user(photo_content.clone())];
     assert_eq!(
         crate::app::agent::multimodal::count_image_markers(&photo_msgs),
         1,
@@ -383,7 +383,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
     let mut captioned = photo_content;
     use std::fmt::Write;
     let _ = write!(captioned, "\n\nCheck this out");
-    let cap_msgs = vec![crate::app::agent::providers::ChatMessage::user(captioned.clone())];
+    let cap_msgs = vec![model_types::ChatMessage::user(captioned.clone())];
     assert_eq!(
         crate::app::agent::multimodal::count_image_markers(&cap_msgs),
         1,
@@ -397,7 +397,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
     let md_content =
         format_attachment_content(IncomingAttachmentKind::Photo, md_filename, &md_path);
     assert!(!md_content.contains("[IMAGE:"), "markdown must not get [IMAGE:] marker: {md_content}");
-    let md_msgs = vec![crate::app::agent::providers::ChatMessage::user(md_content)];
+    let md_msgs = vec![model_types::ChatMessage::user(md_content)];
     assert_eq!(
         crate::app::agent::multimodal::count_image_markers(&md_msgs),
         0,
@@ -416,15 +416,15 @@ fn e2e_attachment_saves_file_and_formats_content() {
 /// 实际的错误处理在运行时层面进行。
 #[test]
 fn groq_provider_rejects_photo_with_vision_error() {
-    use crate::app::agent::providers::Provider;
+    use model_types::Provider;
 
     /// 模拟不支持视觉功能的 Provider（类似 Groq）
     struct GroqLikeProvider;
 
     #[async_trait::async_trait]
-    impl crate::app::agent::providers::Provider for GroqLikeProvider {
-        fn capabilities(&self) -> crate::app::agent::providers::traits::ProviderCapabilities {
-            crate::app::agent::providers::traits::ProviderCapabilities {
+    impl model_types::Provider for GroqLikeProvider {
+        fn capabilities(&self) -> model_types::ProviderCapabilities {
+            model_types::ProviderCapabilities {
                 native_tool_search: false,
                 native_tool_calling: true,
                 vision: false,
@@ -446,7 +446,7 @@ fn groq_provider_rejects_photo_with_vision_error() {
 
     assert!(!groq.supports_vision(), "Groq provider must not support vision");
 
-    let messages = vec![crate::app::agent::providers::ChatMessage::user(
+    let messages = vec![model_types::ChatMessage::user(
         "[IMAGE:/tmp/photo.jpg]\n\nDescribe this image".to_string(),
     )];
     let marker_count = crate::app::agent::multimodal::count_image_markers(&messages);

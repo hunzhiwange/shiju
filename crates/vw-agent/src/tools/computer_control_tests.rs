@@ -129,7 +129,7 @@ async fn cc_control_07_observation_maps_image_for_model() {
     let message = &result.extra_messages[0];
     assert_eq!(message.role, "user");
     let prepared = crate::multimodal::prepare_messages_for_provider(
-        &[crate::providers::ChatMessage::user(message.content.as_str().unwrap())],
+        &[model_types::ChatMessage::user(message.content.as_str().unwrap())],
         &Default::default(),
     )
     .await
@@ -364,7 +364,7 @@ async fn cc_control_07_live_registry_input_and_image_reach_model() {
     .result;
     let image_message = &observed.extra_messages[0];
     let prepared = crate::multimodal::prepare_messages_for_provider(
-        &[crate::providers::ChatMessage::user(image_message.content.as_str().unwrap())],
+        &[model_types::ChatMessage::user(image_message.content.as_str().unwrap())],
         &Default::default(),
     )
     .await

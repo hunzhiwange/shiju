@@ -2151,7 +2151,7 @@ fn build_image_turn_context_for_request(
     use crate::app::agent::multimodal::context::ImageTurnContext;
     use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
     use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
-    use crate::app::agent::providers::ChatMessage;
+    use model_types::ChatMessage;
 
     // OCR itself is routed through the local gateway. Its nested request still
     // contains the image marker, so it must reach the configured vision model

@@ -17,7 +17,7 @@ use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::hooks::HookRunner;
 use crate::app::agent::multimodal::assets::{ImageAssetId, ImageAssetScope};
 use crate::app::agent::observability::Observer;
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use crate::app::agent::security::SecurityPolicy;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;

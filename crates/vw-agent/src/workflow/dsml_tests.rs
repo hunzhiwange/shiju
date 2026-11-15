@@ -1,7 +1,7 @@
 //! Plain LLM nodes retry DSML responses and only publish recovered task results.
 use super::*;
-use crate::providers::traits::{StreamChunk, StreamOptions, StreamResult, TokenUsage};
-use crate::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+use model_types::{StreamChunk, StreamOptions, StreamResult, TokenUsage};
+use model_types::{ChatMessage, ChatRequest, ChatResponse, Provider};
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicUsize, Ordering},

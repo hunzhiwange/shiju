@@ -29,7 +29,7 @@
 use super::*;
 use crate::app::agent::memory::{Memory, MemoryCategory, SqliteMemory};
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::tools::{Tool, ToolResult};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

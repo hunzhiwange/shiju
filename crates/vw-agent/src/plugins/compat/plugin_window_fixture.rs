@@ -1,7 +1,8 @@
 //! Explicit real gateway process for native desktop plugin acceptance.
+use model_types::Provider;
 use crate::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::{
-    config::Config, memory::NoneMemory, providers::Provider, security::pairing::PairingGuard,
+    config::Config, memory::NoneMemory, security::pairing::PairingGuard,
 };
 use axum::Router;
 use parking_lot::Mutex;

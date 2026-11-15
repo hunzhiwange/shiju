@@ -5,7 +5,8 @@
 
 use super::super::traits::ToolResult;
 use super::{DELEGATE_TIMEOUT_SECS, DelegateTool};
-use crate::app::agent::providers::{Provider, ProviderRuntimeOptions};
+use model_types::Provider;
+use crate::app::agent::providers::ProviderRuntimeOptions;
 use crate::app::agent::security::policy::ToolOperation;
 use std::time::Duration;
 

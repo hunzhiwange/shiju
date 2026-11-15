@@ -9,7 +9,7 @@ use vw_agent::config::Config;
 use vw_agent::memory::{Memory, MemoryCategory, MemoryEntry};
 use vw_agent::observability::traits::ObserverMetric;
 use vw_agent::observability::{Observer, ObserverEvent};
-use vw_agent::providers::Provider;
+use model_types::Provider;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 

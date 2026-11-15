@@ -4,7 +4,7 @@
 //! 顺序/并行调度，以及为下一轮 LLM 构造工具结果消息。
 
 use crate::app::agent::observability::{Observer, runtime_trace};
-use crate::app::agent::providers::{ChatMessage, ToolCall};
+use model_types::{ChatMessage, ToolCall};
 use crate::app::agent::tools::{
     PendingToolCall, ScheduledToolBatchMode, Tool, ToolResultHistoryEntry, ToolUseContext,
     build_tool_result_history_messages, schedule_tool_calls,
@@ -71,7 +71,7 @@ pub(super) async fn execute_tool_calls_and_update_history(
     );
     #[cfg(target_arch = "wasm32")]
     anyhow::ensure!(
-        native_tool_calls.iter().all(|call| call.kind == crate::providers::ToolCallKind::Function),
+        native_tool_calls.iter().all(|call| call.kind == model_types::ToolCallKind::Function),
         "native tool search requires a non-wasm target"
     );
     #[cfg(not(target_arch = "wasm32"))]
@@ -81,7 +81,7 @@ pub(super) async fn execute_tool_calls_and_update_history(
         let mut native_calls = Vec::new();
         for call in native_tool_calls
             .iter()
-            .filter(|call| call.kind == crate::providers::ToolCallKind::Search)
+            .filter(|call| call.kind == model_types::ToolCallKind::Search)
         {
             anyhow::ensure!(
                 !excluded_tools.contains(&call.name),
@@ -326,7 +326,7 @@ pub(super) async fn execute_tool_calls_and_update_history(
     if !native_calls.is_empty() {
         let ordinary_calls: Vec<_> = native_tool_calls
             .iter()
-            .filter(|call| call.kind == crate::providers::ToolCallKind::Function)
+            .filter(|call| call.kind == model_types::ToolCallKind::Function)
             .cloned()
             .collect();
         let mut assistant: serde_json::Value = serde_json::from_str(&assistant_history_content)?;

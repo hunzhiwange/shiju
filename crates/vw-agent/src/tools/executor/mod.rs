@@ -2,7 +2,7 @@ use super::context::{ToolUseContext, scope_tool_use_context};
 use super::decision::finalize_tool_input;
 use super::hooks::{PostToolHook, PreToolHook};
 use super::{Tool, ToolCallResult, ToolRenderHint, ToolSpec, is_web_fetch_tool_id};
-use crate::app::agent::providers::{ChatMessage, ToolCall};
+use model_types::{ChatMessage, ToolCall};
 use crate::app::agent::tools::FileSnapshot;
 use serde_json::Value;
 use std::fmt;

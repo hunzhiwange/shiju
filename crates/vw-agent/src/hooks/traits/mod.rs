@@ -35,7 +35,7 @@ use serde_json::Value;
 use std::time::Duration;
 
 use crate::app::agent::channels::traits::ChannelMessage;
-use crate::app::agent::providers::traits::{ChatMessage, ChatResponse};
+use model_types::{ChatMessage, ChatResponse};
 use crate::app::agent::tools::traits::ToolResult;
 
 /// 修改型钩子的执行结果

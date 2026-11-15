@@ -5,7 +5,7 @@
 //! 白名单校验，避免在模型请求阶段隐式扩大文件读取或网络下载能力。
 
 use crate::app::agent::config::{MultimodalConfig, build_runtime_proxy_client_with_timeouts};
-use crate::app::agent::providers::ChatMessage;
+use model_types::ChatMessage;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use reqwest::Client;
 use std::path::Path;

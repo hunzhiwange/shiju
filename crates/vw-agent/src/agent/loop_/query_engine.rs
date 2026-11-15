@@ -11,7 +11,7 @@
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::{self, Memory};
 use crate::app::agent::observability::{self, Observer, ObserverEvent};
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::runtime;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::Tool;

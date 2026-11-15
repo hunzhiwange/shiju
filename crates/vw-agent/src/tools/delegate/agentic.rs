@@ -11,7 +11,7 @@ use crate::app::agent::agent::loop_::run_tool_call_loop;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::DelegateAgentConfig;
 use crate::app::agent::hooks::HookRunner;
-use crate::app::agent::providers::{ChatMessage, Provider};
+use model_types::{ChatMessage, Provider};
 use crate::app::agent::tools::current_tool_use_context;
 use std::sync::Arc;
 use std::time::Duration;

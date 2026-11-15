@@ -6,7 +6,7 @@ use crate::app::agent::config::AutonomyConfig;
 use crate::app::agent::hooks::{HookHandler, HookResult};
 use crate::app::agent::memory::{MemoryCategory, MemoryEntry};
 use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::Provider;
+use model_types::Provider;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Debug)]

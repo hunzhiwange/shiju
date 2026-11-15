@@ -24,7 +24,7 @@ pub(super) async fn with_test_provider_init_error<T>(
 async fn get_or_create_session_provider(
     ctx: &ChannelRuntimeContext,
     provider_name: &str,
-) -> anyhow::Result<std::sync::Arc<dyn crate::app::agent::providers::Provider>> {
+) -> anyhow::Result<std::sync::Arc<dyn model_types::Provider>> {
     #[cfg(test)]
     if let Ok(Some(err)) = TEST_PROVIDER_INIT_ERROR.try_with(Clone::clone) {
         anyhow::bail!(err);

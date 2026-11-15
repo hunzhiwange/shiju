@@ -2,25 +2,10 @@
 use super::aggregation_resync::RecordPublicationContext;
 use agent_gateway::publication_context::{PublicationContext, PublicationHost};
 use axum::http::StatusCode;
-use app_provider_services::AppProviderStore;
-use vw_agent_apps::providers::live::{commit::*, record_publication::ProviderRecordChange};
+// Native file publication remains with the library executor.
 use serde_json::Value;
 pub(super) struct Host;
-pub(super) fn frozen(context: &RecordPublicationContext) -> PublicationContext {
-    PublicationContext {
-        database: context.database.clone(),
-        project: context.project.clone(),
-        host: context.host.clone(),
-        app: context.app.clone(),
-        home: context.home.clone(),
-        root: context.root.clone(),
-        routing: context.routing.clone(),
-        expected: context.expected.clone(),
-        principal: context.principal.clone(),
-        revision: context.revision.clone(),
-        failure: context.failure.clone(),
-    }
-}
+// The context is shared directly with agent-gateway.
 fn native(context: &PublicationContext) -> RecordPublicationContext {
     RecordPublicationContext {
         database: context.database.clone(),
@@ -48,10 +33,4 @@ impl PublicationHost for Host {
         native(context).publish_aggregation(default, policy, row)
     }
 }
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn replace(context: &RecordPublicationContext, tx: &ProviderTransactions,
-    store: &AppProviderStore, state: &AppState, candidate: &AppState, rows: &[(String, Value)],
-    change: &ProviderRecordChange, target: PendingTarget, active: bool) -> Result<bool, StatusCode> {
-    agent_gateway::aggregation_desktop_record::replace(&frozen(context), &Host, tx, store, state,
-        candidate, rows, change, target, active)
-}
+// Desktop record execution is called directly by agent-gateway.

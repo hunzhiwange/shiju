@@ -36,19 +36,7 @@ impl PublishHost for SnapshotHost {
         }
     }
 }
-#[cfg(target_os = "macos")]
-impl gateway_aggregation::publish_host::PublishContext for crate::gateway::aggregation_resync::RecordPublicationContext {
-    fn home(&self) -> &std::path::PathBuf { &self.home }
-    fn principal(&self) -> &String { &self.principal }
-    fn publish_aggregation(&self, default: &str,
-        policy: vw_agent_apps::aggregation::codex_publish::CatalogPolicy, record: &serde_json::Value)
-        -> Result<bool, axum::http::StatusCode> {
-        self.publish_aggregation(default, policy, record)
-    }
-    fn published_state(&self) -> Result<vw_api_app_aggregation::AggregationState, axum::http::StatusCode> {
-        self.published_state()
-    }
-}
+// PublishContext is implemented by the agent-gateway context owner.
 
 pub(super) fn router() -> axum::Router { gateway_aggregation::aggregation_publish::router(SnapshotHost) }
 

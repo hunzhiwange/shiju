@@ -134,6 +134,17 @@ version = "0.6.0"
 [dependencies.app-routing-services]
 path = "../app-routing-services"
 version = "0.6.0"
+[target.'cfg(target_os = "macos")'.dependencies.gateway-aggregation]
+path = "../gateway-aggregation"
+version = "0.6.0"
+[target.'cfg(target_os = "macos")'.dependencies.vw-api-app-aggregation]
+path = "../api-app-aggregation"
+version = "0.6.0"
+[target.'cfg(target_os = "macos")'.dependencies.hex]
+version = "0.4"
+[target.'cfg(target_os = "macos")'.dependencies.toml_edit]
+version = "0.23"
+
 [dependencies.app-access-service]
 path = "../app-access-service"
 version = "0.6.0"

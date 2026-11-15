@@ -1,6 +1,6 @@
 //! Single-target publication using the same scoped provider-record transaction.
 use super::*;
-use crate::app_routing::provider_publication::PublishedProvider;
+use app_routing_services::provider_publication::PublishedProvider;
 use vw_api_app_failover::FailoverQueueScope;
 
 impl RecordPublicationContext {
@@ -30,7 +30,7 @@ impl RecordPublicationContext {
             default,
         )?;
         let selected = &publication.default.target;
-        crate::model_relay::upstream::validate_target(
+        model_transport::upstream::validate_target(
             &selected.url,
             &reqwest::Request::new(reqwest::Method::POST, selected.url.clone()),
         )?;
@@ -125,7 +125,7 @@ impl RecordPublicationContext {
                             target,
                             change,
                             store,
-                            || self.validate_inputs(),
+                            || self.validate_record_inputs(),
                         )
                         .map_err(|failure| error(commit_status(failure)))?;
                         if file
@@ -240,7 +240,7 @@ impl RecordPublicationContext {
                             target,
                             change,
                             store,
-                            || self.validate_inputs(),
+                            || self.validate_record_inputs(),
                         )
                         .map_err(|failure| error(commit_status(failure)))?;
                         if files

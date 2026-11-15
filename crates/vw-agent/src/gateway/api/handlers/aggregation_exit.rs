@@ -36,16 +36,5 @@ impl ExitHost for SnapshotHost {
         }
     }
 }
-#[cfg(target_os = "macos")]
-impl gateway_aggregation::exit_host::ExitContext for crate::gateway::aggregation_resync::RecordPublicationContext {
-    fn home(&self) -> &std::path::PathBuf { &self.home }
-    fn root(&self) -> &std::path::PathBuf { &self.root }
-    fn principal(&self) -> &String { &self.principal }
-    fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), axum::http::StatusCode> {
-        self.exit_aggregation(authorized)
-    }
-    fn exited_state(&self) -> Result<vw_api_app_aggregation::AggregationState, axum::http::StatusCode> {
-        self.exited_state()
-    }
-}
+// ExitContext is implemented by the agent-gateway context owner.
 pub(super) fn router() -> axum::Router { gateway_aggregation::aggregation_exit::router(SnapshotHost) }

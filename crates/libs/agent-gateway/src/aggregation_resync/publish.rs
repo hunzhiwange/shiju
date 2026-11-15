@@ -3,7 +3,7 @@ use super::*;
 impl RecordPublicationContext {
     /// First attachment uses the same record/file journal and listener as
     /// subsequent edits. The preview caller owns authorization and intent checks.
-    pub(crate) fn publish_aggregation(
+    pub fn publish_aggregation(
         &self,
         default: &str,
         policy: codex_publish::CatalogPolicy,
@@ -60,10 +60,10 @@ impl RecordPublicationContext {
     }
     /// Return the same scoped public state used by the read API, after the
     /// journal and listener have both settled. No private record enters results.
-    pub(crate) fn published_state(
+    pub fn published_state(
         &self,
     ) -> Result<vw_api_app_aggregation::AggregationState, StatusCode> {
-        use crate::gateway::api::handlers::aggregation_read_snapshot as snapshot;
+        use gateway_aggregation::aggregation_read_snapshot as snapshot;
         use vw_api_app_aggregation::AggregationMode;
 use vw_api_app_aggregation::AggregationState;
 use vw_api_app_aggregation::RecoveryState;
@@ -115,5 +115,18 @@ use vw_api_app_aggregation::RecoveryState;
             notices: projected.notices,
             recovery: RecoveryState::None,
         })
+    }
+}
+
+impl gateway_aggregation::publish_host::PublishContext for RecordPublicationContext {
+    fn home(&self) -> &std::path::PathBuf { &self.home }
+    fn principal(&self) -> &String { &self.principal }
+    fn publish_aggregation(&self, default: &str,
+        policy: vw_agent_apps::aggregation::codex_publish::CatalogPolicy, record: &serde_json::Value)
+        -> Result<bool, axum::http::StatusCode> {
+        self.publish_aggregation(default, policy, record)
+    }
+    fn published_state(&self) -> Result<vw_api_app_aggregation::AggregationState, axum::http::StatusCode> {
+        self.published_state()
     }
 }

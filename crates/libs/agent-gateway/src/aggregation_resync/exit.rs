@@ -5,7 +5,7 @@ use vw_api_app_aggregation::AggregationMode;
 use vw_api_app_aggregation::AggregationState;
 use vw_api_app_aggregation::RecoveryState;
 impl RecordPublicationContext {
-    pub(crate) fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), StatusCode> {
+    pub fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), StatusCode> {
         let routing = self.routing.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let tx = ProviderTransactions::open_existing(
             &self.root,
@@ -31,7 +31,7 @@ impl RecordPublicationContext {
         tx: &ProviderTransactions,
         authorized: &impl Fn() -> bool,
     ) -> Result<(), StatusCode> {
-        let unchanged = || authorized() && self.validate_inputs().is_ok();
+        let unchanged = || authorized() && self.validate_record_inputs().is_ok();
         if !unchanged() {
             return Err(StatusCode::CONFLICT);
         }
@@ -145,7 +145,7 @@ impl RecordPublicationContext {
                 let deployment =
                     vw_agent_apps::providers::codex_catalog::identity(&self.host, id, &profile)
                         .map_err(failed)?;
-                let catalog = crate::model_catalog::ModelCatalogStore::read_existing(
+                let catalog = model_catalog::ModelCatalogStore::read_existing(
                     &self.database,
                     self.project.tenant_scope(),
                     &deployment,
@@ -178,8 +178,8 @@ impl RecordPublicationContext {
             _ => StatusCode::UNPROCESSABLE_ENTITY,
         })
     }
-    pub(crate) fn exited_state(&self) -> Result<AggregationState, StatusCode> {
-        use crate::gateway::api::handlers::aggregation_read_snapshot as snapshot;
+    pub fn exited_state(&self) -> Result<AggregationState, StatusCode> {
+        use gateway_aggregation::aggregation_read_snapshot as snapshot;
         let _guard = vw_agent_apps::providers::live::write_guard::lock_app(self.app, &self.home)
             .map_err(failed)?;
         let tx = ProviderTransactions::open_existing(
@@ -233,5 +233,17 @@ impl RecordPublicationContext {
                 RecoveryState::None
             },
         })
+    }
+}
+
+impl gateway_aggregation::exit_host::ExitContext for RecordPublicationContext {
+    fn home(&self) -> &std::path::PathBuf { &self.home }
+    fn root(&self) -> &std::path::PathBuf { &self.root }
+    fn principal(&self) -> &String { &self.principal }
+    fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), axum::http::StatusCode> {
+        self.exit_aggregation(authorized)
+    }
+    fn exited_state(&self) -> Result<vw_api_app_aggregation::AggregationState, axum::http::StatusCode> {
+        self.exited_state()
     }
 }

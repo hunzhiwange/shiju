@@ -41,7 +41,7 @@ impl RecordPublicationContext {
                     .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
             );
             catalogs.push(
-                crate::model_catalog::ModelCatalogStore::read_existing(
+                model_catalog::ModelCatalogStore::read_existing(
                     &self.database,
                     self.project.tenant_scope(),
                     &deployment,
@@ -215,7 +215,7 @@ impl RecordPublicationContext {
                     target,
                     change,
                     store,
-                    || self.validate_inputs(),
+                    || self.validate_record_inputs(),
                 )
                 .map_err(|error| RouteCommitError {
                     status: commit_status(error),

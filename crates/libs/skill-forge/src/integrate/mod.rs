@@ -45,8 +45,8 @@ use super::scout::ScoutResult;
 /// # 示例
 ///
 /// ```no_run
-/// use vibe_agent::skillforge::integrate::Integrator;
-/// use vibe_agent::skillforge::scout::ScoutResult;
+/// use skill_forge::integrate::Integrator;
+/// use skill_forge::scout::ScoutResult;
 ///
 /// let integrator = Integrator::new("./skills".to_string());
 /// let scout_result = ScoutResult {
@@ -105,8 +105,8 @@ impl Integrator {
     /// # 示例
     ///
     /// ```no_run
-    /// use vibe_agent::skillforge::integrate::Integrator;
-    /// use vibe_agent::skillforge::scout::ScoutResult;
+    /// use skill_forge::integrate::Integrator;
+    /// use skill_forge::scout::ScoutResult;
     ///
     /// let integrator = Integrator::new("./skills".to_string());
     /// let candidate = ScoutResult {
@@ -307,7 +307,7 @@ Review before enabling in production.
 /// # 示例
 ///
 /// ```
-/// use vibe_agent::skillforge::integrate::escape_toml;
+/// use skill_forge::integrate::escape_toml;
 ///
 /// let input = r#"Hello "World" with \ and newline
 /// here"#;
@@ -356,7 +356,7 @@ fn escape_toml(s: &str) -> String {
 /// # 示例
 ///
 /// ```
-/// use vibe_agent::skillforge::integrate::sanitize_path_component;
+/// use skill_forge::integrate::sanitize_path_component;
 ///
 /// // 正常名称
 /// assert_eq!(sanitize_path_component("my-skill").unwrap(), "my-skill");

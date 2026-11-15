@@ -19,7 +19,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::skillforge::scout::{ScoutResult, ScoutSource};
+    use crate::scout::{ScoutResult, ScoutSource};
     use std::fs;
 
     /// 创建用于测试的示例候选技能数据
@@ -182,15 +182,15 @@ mod tests {
     }
 }
 
-fn candidate_with_missing_optional_fields() -> crate::skillforge::scout::ScoutResult {
-    crate::skillforge::scout::ScoutResult {
+fn candidate_with_missing_optional_fields() -> crate::scout::ScoutResult {
+    crate::scout::ScoutResult {
         name: "quoted\"skill".into(),
         url: "https://github.com/user/quoted".into(),
         description: "Line one\nLine two".into(),
         stars: 7,
         language: None,
         updated_at: None,
-        source: crate::skillforge::scout::ScoutSource::GitHub,
+        source: crate::scout::ScoutSource::GitHub,
         owner: "user".into(),
         has_license: false,
     }

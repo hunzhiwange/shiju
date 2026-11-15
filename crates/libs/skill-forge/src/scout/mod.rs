@@ -18,7 +18,7 @@
 //! ## 使用示例
 //!
 //! ```ignore
-//! use vibe_agent::skillforge::scout::{GitHubScout, Scout};
+//! use skill_forge::scout::{GitHubScout, Scout};
 //!
 //! async fn discover_skills() -> anyhow::Result<()> {
 //!     let scout = GitHubScout::new(None);
@@ -53,7 +53,7 @@ use tracing::{debug, warn};
 ///
 /// ```ignore
 /// use std::str::FromStr;
-/// use vibe_agent::skillforge::scout::ScoutSource;
+/// use skill_forge::scout::ScoutSource;
 ///
 /// let source: ScoutSource = "github".parse().unwrap();
 /// assert_eq!(source, ScoutSource::GitHub);
@@ -113,7 +113,7 @@ impl std::str::FromStr for ScoutSource {
 /// # 示例
 ///
 /// ```ignore
-/// use vibe_agent::skillforge::scout::{ScoutResult, ScoutSource};
+/// use skill_forge::scout::{ScoutResult, ScoutSource};
 /// use chrono::{DateTime, Utc};
 ///
 /// let result = ScoutResult {
@@ -199,7 +199,7 @@ impl<T> ScoutBounds for T {}
 ///
 /// ```ignore
 /// use async_trait::async_trait;
-/// use vibe_agent::skillforge::scout::{Scout, ScoutResult};
+/// use skill_forge::scout::{Scout, ScoutResult};
 ///
 /// struct MyScout;
 ///
@@ -233,7 +233,7 @@ pub trait Scout: ScoutBounds {
     /// # 示例
     ///
     /// ```ignore
-    /// use vibe_agent::skillforge::scout::{GitHubScout, Scout};
+    /// use skill_forge::scout::{GitHubScout, Scout};
     ///
     /// async fn find_skills() -> anyhow::Result<()> {
     ///     let scout = GitHubScout::new(None);
@@ -272,7 +272,7 @@ pub trait Scout: ScoutBounds {
 /// # 示例
 ///
 /// ```ignore
-/// use vibe_agent::skillforge::scout::{GitHubScout, Scout};
+/// use skill_forge::scout::{GitHubScout, Scout};
 ///
 /// // 无认证令牌
 /// let scout = GitHubScout::new(None);
@@ -538,7 +538,7 @@ impl Scout for GitHubScout {
 /// # 示例
 ///
 /// ```ignore
-/// use vibe_agent::skillforge::scout::urlencoding;
+/// use skill_forge::scout::urlencoding;
 ///
 /// assert_eq!(urlencoding("vibewindow skill"), "vibewindow+skill");
 /// assert_eq!(urlencoding("rust&web"), "rust%26web");
@@ -569,7 +569,7 @@ fn urlencoding(s: &str) -> String {
 /// # 示例
 ///
 /// ```ignore
-/// use vibe_agent::skillforge::scout::{ScoutResult, ScoutSource, dedup};
+/// use skill_forge::scout::{ScoutResult, ScoutSource, dedup};
 ///
 /// let mut results = vec![
 ///     ScoutResult {

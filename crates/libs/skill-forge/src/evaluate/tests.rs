@@ -17,7 +17,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::skillforge::scout::{ScoutResult, ScoutSource};
+    use crate::scout::{ScoutResult, ScoutSource};
 
     /// 创建测试用的技能候选项
     ///
@@ -170,15 +170,15 @@ fn candidate_for_boundaries(
     stars: u64,
     language: Option<&str>,
     has_license: bool,
-) -> crate::skillforge::scout::ScoutResult {
-    crate::skillforge::scout::ScoutResult {
+) -> crate::scout::ScoutResult {
+    crate::scout::ScoutResult {
         name: "boundary-skill".into(),
         url: "https://github.com/test/boundary-skill".into(),
         description: "A boundary test skill".into(),
         stars,
         language: language.map(String::from),
         updated_at: Some(chrono::Utc::now()),
-        source: crate::skillforge::scout::ScoutSource::GitHub,
+        source: crate::scout::ScoutSource::GitHub,
         owner: "test".into(),
         has_license,
     }

@@ -19,8 +19,8 @@
 //! ## 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::skillforge::evaluate::Evaluator;
-//! use crate::app::agent::skillforge::scout::ScoutResult;
+//! use skill_forge::evaluate::Evaluator;
+//! use skill_forge::scout::ScoutResult;
 //!
 //! // 创建评估器，设置自动集成的最低分数阈值为 0.7
 //! let evaluator = Evaluator::new(0.7);

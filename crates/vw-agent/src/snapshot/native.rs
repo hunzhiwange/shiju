@@ -1,7 +1,7 @@
 //! 快照清理任务的宿主调度适配。
 
 use agent_snapshot::cleanup;
-use crate::app::agent::scheduler;
+use agent_scheduler_core as scheduler;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;

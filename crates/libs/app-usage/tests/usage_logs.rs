@@ -1,6 +1,7 @@
 //! Deferred verification: these tests have not been executed by task 37.
 use rusqlite::Connection;
-use vw_agent_apps::usage::{logs::*, store::*};
+use app_usage::logs::*;
+use app_usage_store::store::*;
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

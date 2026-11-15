@@ -18,7 +18,7 @@ pub use app_usage_core::detect;
 pub use app_usage_import::gemini;
 pub use app_usage_import::grokbuild;
 pub use app_usage_store::limits;
-pub mod logs;
+pub use app_usage::logs;
 pub use app_usage_core::exchange;
 pub use app_usage_store::exchange_store;
 pub use app_usage_core::tokens;
@@ -61,14 +61,14 @@ pub(crate) use app_usage_store::import_store;
 pub use app_usage_store::pricing_batch;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod models_selection;
+pub use app_usage::models_selection;
 
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod models_sync;
+pub use app_usage::models_sync;
 
-pub mod scan_jobs;
+pub use app_usage::scan_jobs;
 
-pub mod scan_schedule;
+pub use app_usage::scan_schedule;
 
-pub mod snapshot_scan;
+pub use app_usage::snapshot_scan;

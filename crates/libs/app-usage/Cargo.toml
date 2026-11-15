@@ -1,0 +1,26 @@
+[package]
+name = "app-usage"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-usage-core = { path = "../app-usage-core" }
+app-usage-store = { path = "../app-usage-store" }
+app-usage-codex = { path = "../app-usage-codex" }
+app-usage-import = { path = "../app-usage-import" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-usage = { path = "../api-usage" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+sha2 = "0.11"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+provider-model-catalog = { path = "../provider-model-catalog" }
+provider-model-cache = { path = "../provider-model-cache" }
+tokio = { version = "1", features = ["sync", "time"] }

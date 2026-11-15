@@ -1204,12 +1204,12 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/import_store.rs` → `app-usage-store/src/import_store.rs` | 46 | 56 |
 | `crates/libs/app-usage-import/src/kimi.rs` | 217 | 62 |
 | `usage/limits.rs` → `app-usage-store/src/limits.rs` | 266 | 56 |
-| `usage/logs.rs` | 244 | 63 |
+| `crates/libs/app-usage/src/logs.rs` | 244 | 63 |
 | `crates/libs/app-usage-import/src/mcode.rs` | 172 | 62 |
 | `usage/mod.rs` | 82 | 63 |
 | `crates/libs/app-usage-core/src/model_names.rs` | 239 | 55 |
-| `usage/models_selection.rs` | 156 | 63 |
-| `usage/models_sync.rs` | 163 | 63 |
+| `crates/libs/app-usage/src/models_selection.rs` | 156 | 63 |
+| `crates/libs/app-usage/src/models_sync.rs` | 163 | 63 |
 | `crates/libs/app-usage-import/src/omp.rs` | 74 | 62 |
 | `crates/libs/app-usage-import/src/opencode.rs` | 319 | 62 |
 | `crates/libs/app-usage-import/src/pi.rs` | 233 | 62 |
@@ -1225,8 +1225,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/pricing_batch.rs` → `app-usage-store/src/pricing_batch.rs` | 109 | 56 |
 | `crates/libs/app-usage-core/src/ranges.rs` | 120 | 55 |
 | `usage/retention.rs` → `app-usage-store/src/retention.rs` | 266 | 56 |
-| `usage/scan_jobs.rs` | 199 | 63 |
-| `usage/scan_schedule.rs` | 127 | 63 |
+| `crates/libs/app-usage/src/scan_jobs.rs` | 199 | 63 |
+| `crates/libs/app-usage/src/scan_schedule.rs` | 127 | 63 |
 | `usage/scripts/config.rs` → `app-usage-scripts/src/config.rs` | 313 | 60 |
 | `usage/scripts/config_tests.rs` → `app-usage-scripts/src/config_tests.rs` | 134 | 60 |
 | `usage/scripts/extract.rs` → `app-usage-scripts/src/extract.rs` | 84 | 60 |
@@ -1239,7 +1239,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/scripts/runtime.rs` → `app-usage-scripts/src/runtime.rs` | 182 | 60 |
 | `usage/scripts/runtime_tests.rs` → `app-usage-scripts/src/runtime_tests.rs` | 113 | 60 |
 | `usage/series.rs` → `app-usage-store/src/series.rs` | 193 | 56 |
-| `usage/snapshot_scan.rs` | 109 | 63 |
+| `crates/libs/app-usage/src/snapshot_scan.rs` | 109 | 63 |
 | `usage/source_settings.rs` → `app-usage-store/src/source_settings.rs` | 175 | 56 |
 | `usage/store.rs` → `app-usage-store/src/store.rs` | 221 | 56 |
 | `usage/subscriptions/agy.rs` → `app-usage-subscriptions/src/agy.rs` | 428 | 59 |
@@ -2855,3 +2855,12 @@ app-usage-import 唯一拥有 agy、agy_native、claude、claude_scan、dsh、ge
 任务61记录中的 snapshot_scan 编排接收编号更正为任务63，与该任务文件范围一致；logs、scan_jobs、scan_schedule、snapshot_scan、models_selection/models_sync 留原位由任务63接收，本任务无未闭合叶子符号。网关 external_sessions/usage_scan 及 snapshot_scan 继续使用原门面路径。
 
 静态审阅：差异无空白错误；workspace 和门面路径已注册；新包无 vw-agent-apps 回依赖；清单路径和递归依赖闭包经 Python 标准库审阅。未运行 Cargo、单元及实机测试，统一验收待授权：新包和直接调用者目标编译、八个迁移测试、三平台行为及清单/锁文件一致性。Cargo.lock 未修改。
+
+
+### 任务63：用量扫描编排迁移与静态证据
+
+app-usage 唯一拥有 logs、models_selection、models_sync、scan_jobs、scan_schedule、snapshot_scan 六个实现模块及 tests/usage_logs.rs 两个既有测试。实现逐字迁移，测试仅改所有者导入；无资源/include 路径。usage/mod.rs 原位置重导出，lib.rs 既有 pub mod usage 继续提供入口；根模块其它叶子重导出及 balances 薄门面保持原所有者，无待后继接收符号。
+
+新包通过私有模块别名引用 core、store、codex、import 的真实所有者，叶子包不依赖扫描编排；models_selection/models_sync 和模型目录、缓存、Tokio 依赖保持非 wasm 条件。移除旧门面已无调用的 provider-model-cache/catalog 直接依赖，其余依赖仍有调用而保留。网关 external_sessions/usage_scan、usage/scan、usage/prices 和日志处理继续通过原 usage 路径调用，授权、事务、取消与错误语义保持。
+
+静态验收：git diff --check、迁移函数体对照、源码所有权/调用者检索及 Python 3.13 标准库 TOML 路径与72份清单依赖闭包审阅；无旧门面回依赖或循环。RustCodeGraph status/query 可读，ScanSchedule 仍指向迁移前位置；当前调用者以源码检索核实，不更新索引。未运行 Cargo、单元及实机测试，统一验收待授权；后续覆盖 app-usage、网关调用目标、迁移日志测试和各平台条件。

@@ -25,6 +25,9 @@ pub use runner::{run_workflow, run_workflow_with_events, resume_workflow};
 #[cfg(test)]
 mod dsml_tests;
 
+#[cfg(test)]
+mod tests;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_agent;
 

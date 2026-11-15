@@ -469,14 +469,14 @@ impl RealtimeSession {
             event,
         })
     }
-    pub(crate) fn take_handoffs(&mut self) -> Vec<super::realtime_handoff::HandoffCall> {
+    pub fn take_handoffs(&mut self) -> Vec<super::realtime_handoff::HandoffCall> {
         self.handoffs.take()
     }
-    pub(crate) fn responding(&self) -> bool {
+    pub fn responding(&self) -> bool {
         self.response.is_some()
     }
     /// A result is sent once on this socket, never replayed after reconnection.
-    pub(crate) async fn handoff_result(
+    pub async fn handoff_result(
         &mut self,
         call: &super::realtime_handoff::HandoffCall,
         status: HandoffStatus,

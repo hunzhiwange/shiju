@@ -1,6 +1,6 @@
 //! Gateway adapters for public voice services.
 pub mod realtime;
-pub(crate) mod realtime_handoff;
+pub mod realtime_handoff;
 #[cfg(test)]
 mod realtime_tests;
 pub mod transcription;
@@ -20,9 +20,9 @@ impl TranscriptionProvider {
             return Err(TranscriptionError::Service(VoiceErrorCode::UnsupportedCapability));
         }
         let (base, key) = voice_credentials(config).await?;
-        let builder = crate::model_relay::upstream::upstream_http_client_builder();
-        let builder = crate::config::apply_runtime_proxy_to_builder(builder, "provider.openai");
-        Self::connect(&base, &key, builder, crate::model_relay::upstream::REQUEST_TIMEOUT)
+        let builder = model_http_client::upstream_http_client_builder();
+        let builder = agent_config::schema::apply_runtime_proxy_to_builder(builder, "provider.openai");
+        Self::connect(&base, &key, builder, model_http_client::REQUEST_TIMEOUT)
     }
 }
 
@@ -31,7 +31,7 @@ mod transcription_tests;
 
 impl realtime::RealtimeSession {
     /// A fresh no-tool session, without chat history or input audio.
-    pub(crate) async fn preview_from_config(config: &VoiceConfig) -> Result<Self, VoiceErrorCode> {
+    pub async fn preview_from_config(config: &VoiceConfig) -> Result<Self, VoiceErrorCode> {
         let (base, key) =
             voice_credentials(config).await.map_err(|_| VoiceErrorCode::ProviderAuth)?;
         let provider = config
@@ -44,8 +44,8 @@ impl realtime::RealtimeSession {
             .to_string()
             .try_into()
             .map_err(|_| VoiceErrorCode::InvalidRequest)?;
-        let builder = crate::config::apply_runtime_proxy_to_builder(
-            crate::model_relay::upstream::upstream_http_client_builder(),
+        let builder = agent_config::schema::apply_runtime_proxy_to_builder(
+            model_http_client::upstream_http_client_builder(),
             "provider.openai",
         );
         Self::connect_preview(&base, &key, builder, config, provider, id).await
@@ -70,8 +70,8 @@ impl realtime::RealtimeSession {
             .ok_or(VoiceErrorCode::ProviderAuth)?
             .try_into()
             .map_err(|_| VoiceErrorCode::InvalidRequest)?;
-        let builder = crate::model_relay::upstream::upstream_http_client_builder();
-        let builder = crate::config::apply_runtime_proxy_to_builder(builder, "provider.openai");
+        let builder = model_http_client::upstream_http_client_builder();
+        let builder = agent_config::schema::apply_runtime_proxy_to_builder(builder, "provider.openai");
         Self::connect(&base, &key, builder, config, provider_id, voice_session_id, mode).await
     }
 }
@@ -80,7 +80,7 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
         .provider_id
         .as_deref()
         .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
-    let provider = super::provider::get_provider(id)
+    let provider = crate::provider::get_provider(id)
         .await
         .map_err(|_| TranscriptionError::Service(VoiceErrorCode::ProviderUnavailable))?
         .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;

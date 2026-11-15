@@ -33,7 +33,7 @@ pub mod provider;
 pub mod transform;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod voice;
+pub use agent_provider::voice;
 
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

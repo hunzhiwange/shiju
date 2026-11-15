@@ -222,6 +222,7 @@ members = [
   "crates/libs/model-protocols",
   "crates/libs/model-protocol",
   "crates/libs/model-transport",
+  "crates/libs/model-http-client",
   "crates/libs/model-relay-state",
   "crates/libs/app-routing-services",
   "crates/libs/session-paths",

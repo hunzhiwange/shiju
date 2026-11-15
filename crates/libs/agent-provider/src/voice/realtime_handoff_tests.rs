@@ -1,5 +1,5 @@
 use super::*;
-use crate::provider::voice::realtime::RealtimeSession;
+use crate::voice::realtime::RealtimeSession;
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::tungstenite::Message;
 use vw_api_voice::*;

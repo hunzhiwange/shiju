@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+model-http-client = { path = "../model-http-client", version = "0.6.0" }
 agent-provider = { path = "../agent-provider", version = "0.6.0" }
 agent-auth = { path = "../agent-auth", version = "0.6.0" }
 vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }

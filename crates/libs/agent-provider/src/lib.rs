@@ -7,3 +7,6 @@ pub mod error;
 pub mod models;
 #[cfg(test)]
 mod tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice;

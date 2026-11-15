@@ -10,7 +10,7 @@ pub(crate) fn tools() -> Value {
     json!([{"type":"function","name":"shiju_handoff","description":"交给当前 ShiJu 会话执行用户工作，沿用权限审批。","parameters":{"type":"object","properties":{"instruction":{"type":"string"}},"required":["instruction"],"additionalProperties":false}}])
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct HandoffCall {
+pub struct HandoffCall {
     pub call_id: VoiceId,
     pub item_id: VoiceId,
     pub response_id: VoiceId,

@@ -7,7 +7,7 @@ use super::text::{
     should_prefer_plain_think_body, should_segment_text_block, split_session_control_selection,
     split_text_segments, think_text_body,
 };
-use crate::app::App;
+
 use iced::Color;
 use iced::widget::text_editor;
 
@@ -167,40 +167,40 @@ fn estimate_message_height_rough_counts_wrapping_and_each_bonus() {
 
 #[test]
 fn message_editor_body_requires_matching_editor_content() {
-    let mut app = App::new().0;
+    let mut editors = Vec::new();
 
-    assert!(message_editor_body(&app, 0, Color::WHITE).is_none());
+    assert!(message_editor_body(&editors, 0, Color::WHITE).is_none());
 
-    app.chat_message_editors.push(text_editor::Content::with_text("message"));
-    assert!(message_editor_body(&app, 0, Color::WHITE).is_some());
-    assert!(message_editor_body(&app, 1, Color::WHITE).is_none());
+    editors.push(text_editor::Content::with_text("message"));
+    assert!(message_editor_body(&editors, 0, Color::WHITE).is_some());
+    assert!(message_editor_body(&editors, 1, Color::WHITE).is_none());
 }
 
 #[test]
 fn think_text_body_constructs_editor_and_plain_text_fallbacks() {
-    let mut app = App::new().0;
+    let mut editors = std::collections::HashMap::new();
     let msg_idx = 2;
     let think_idx = 3;
     let scroll_key = ((msg_idx as u64) << 32) | think_idx as u64;
-    app.chat_think_editors
+    editors
         .insert(scroll_key, text_editor::Content::with_text("selectable think text"));
 
     let _editor =
-        think_text_body(&app, msg_idx, think_idx, "selectable think text".to_string(), false);
+        think_text_body(&editors, msg_idx, think_idx, "selectable think text".to_string(), false);
     let _preferred_plain =
-        think_text_body(&app, msg_idx, think_idx, "selectable think text".to_string(), true);
+        think_text_body(&editors, msg_idx, think_idx, "selectable think text".to_string(), true);
     let _missing_editor =
-        think_text_body(&app, msg_idx, think_idx + 1, "fallback".to_string(), false);
+        think_text_body(&editors, msg_idx, think_idx + 1, "fallback".to_string(), false);
 }
 
 #[test]
 fn think_text_body_constructs_preview_and_segmented_fallbacks() {
-    let mut app = App::new().0;
+    let mut editors = std::collections::HashMap::new();
     let preview = "x".repeat(2_001);
-    app.chat_think_editors.insert(0, text_editor::Content::with_text(&preview));
+    editors.insert(0, text_editor::Content::with_text(&preview));
 
-    let _preview = think_text_body(&app, 0, 0, preview, false);
-    let _segmented = think_text_body(&app, 1, 0, "line\n".repeat(120), true);
+    let _preview = think_text_body(&editors, 0, 0, preview, false);
+    let _segmented = think_text_body(&editors, 1, 0, "line\n".repeat(120), true);
 }
 
 #[test]
@@ -208,7 +208,7 @@ fn text_and_session_cards_construct_for_segmented_and_empty_inputs() {
     let _ = message_text_body("line\n".repeat(120), false);
     let _ = message_text_body(String::new(), true);
     let _ = session_control_selection_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         SessionControlSelection {
             tools: vec!["read".to_string()],
             skills: vec!["testing".to_string()],
@@ -216,7 +216,7 @@ fn text_and_session_cards_construct_for_segmented_and_empty_inputs() {
         },
     );
     let _ = session_control_selection_card(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         SessionControlSelection { tools: Vec::new(), skills: Vec::new(), shiju_skills: Vec::new() },
     );
 }

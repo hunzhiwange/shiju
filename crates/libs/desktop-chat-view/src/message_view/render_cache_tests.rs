@@ -6,8 +6,8 @@ use super::render_cache::{
     assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,
     resolve_visible_text_and_copy_hash,
 };
-use crate::app::App;
-use crate::app::models::ParsedChatBlock;
+
+use super::ParsedChatBlock;
 
 #[test]
 fn build_render_cache_entry_marks_special_blocks() {
@@ -60,7 +60,7 @@ fn build_render_cache_entry_merges_explore_across_hidden_think() {
 
     assert_eq!(entry.explore_summary_text_blocks.len(), 1);
     assert_eq!(
-        entry.explore_summary_text_blocks[0].1.render(crate::app::i18n::I18n::new(
+        entry.explore_summary_text_blocks[0].1.render(desktop_i18n::I18n::new(
             config_ui::DesktopLocale::SimplifiedChinese
         )),
         "2 次读取"
@@ -102,7 +102,7 @@ fn build_render_cache_entry_collects_text_and_tool_card_blocks() {
         entry
             .tool_card_text_blocks
             .iter()
-            .flat_map(|source| source.render(crate::app::i18n::I18n::new(
+            .flat_map(|source| source.render(desktop_i18n::I18n::new(
                 config_ui::DesktopLocale::SimplifiedChinese
             )))
             .any(|text| text == "pwd")
@@ -216,15 +216,14 @@ fn assistant_render_blocks_rebuilds_stale_blocks() {
 
 #[test]
 fn resolve_visible_text_uses_fresh_cache_and_recomputes_stale_content() {
-    let mut app = App::new().0;
-    app.chat_visible_text_cache = vec![Some("cached visible".to_string())];
-    app.chat_copy_hash_cache = vec![Some(42)];
+    let visible = Some("cached visible");
+    let hash = Some(42);
     let cached_content = "<think>secret</think>cached body";
     let cache = build_render_cache_entry(cached_content, "cached body", 42, true);
 
     let (cached_visible, cached_hash) = resolve_visible_text_and_copy_hash(
-        &app,
-        0,
+        visible,
+        hash,
         cached_content,
         hash_chat_content(cached_content),
         &cache,
@@ -234,8 +233,8 @@ fn resolve_visible_text_uses_fresh_cache_and_recomputes_stale_content() {
 
     let stale_content = "<think>new secret</think>new body";
     let (recomputed_visible, recomputed_hash) = resolve_visible_text_and_copy_hash(
-        &app,
-        0,
+        visible,
+        hash,
         stale_content,
         hash_chat_content(stale_content),
         &cache,
@@ -246,14 +245,13 @@ fn resolve_visible_text_uses_fresh_cache_and_recomputes_stale_content() {
 
 #[test]
 fn resolve_visible_text_recomputes_when_fresh_cache_lacks_visible_text_or_hash() {
-    let mut app = App::new().0;
-    app.chat_visible_text_cache = vec![None];
-    app.chat_copy_hash_cache = vec![None];
+    let visible = None;
+    let hash = None;
     let content = "<think>secret</think>body";
     let cache = build_render_cache_entry(content, "body", hash_chat_content("body"), true);
 
     let (visible, copy_hash) =
-        resolve_visible_text_and_copy_hash(&app, 0, content, hash_chat_content(content), &cache);
+        resolve_visible_text_and_copy_hash(visible, hash, content, hash_chat_content(content), &cache);
 
     assert!(matches!(visible, std::borrow::Cow::Owned(ref text) if text == "body"));
     assert_eq!(copy_hash, hash_chat_content("body"));

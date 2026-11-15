@@ -34,3 +34,24 @@ pub mod markdown_links;
 pub mod markdown_rich;
 #[cfg(test)]
 mod markdown_tests;
+
+pub mod styles;
+pub mod text;
+pub mod text_normalize;
+#[cfg(test)]
+mod styles_tests;
+#[cfg(test)]
+mod text_tests;
+
+pub mod markdown_selection;
+pub mod selection_menu;
+
+pub mod tool_summaries;
+pub mod cache_text_support;
+pub mod render_cache;
+
+mod cache_tools;
+#[cfg(test)]
+mod render_cache_tests;
+#[cfg(test)]
+mod tool_summaries_tests;

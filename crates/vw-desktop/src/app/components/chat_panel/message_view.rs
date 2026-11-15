@@ -44,15 +44,7 @@ mod message_view_tests;
 #[cfg(test)]
 mod parse_tests;
 #[cfg(test)]
-mod render_cache_tests;
-#[cfg(test)]
-mod styles_tests;
-#[cfg(test)]
-mod text_tests;
-#[cfg(test)]
 mod think_block_tests;
-#[cfg(test)]
-mod tool_summaries_tests;
 
 use iced::widget::{button, column, container, row, text as iced_text};
 use iced::{Alignment, Element, Length, Theme};

@@ -29,7 +29,7 @@ use {
 };
 
 use session_paths as path;
-use vw_shared::session::ui_store;
+use session_artifact_store as ui_store;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::global_database::GlobalDatabase;

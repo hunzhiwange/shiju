@@ -20,8 +20,8 @@ const VIEWPORT: Size = Size::new(320.0, 800.0);
 fn set_thread_pinned_round_trip_and_project_order() {
     let temp = tempfile::tempdir().unwrap();
     let project = "project";
-    vw_shared::session::ui_store::set_thread_pinned(temp.path(), project, "older", true).unwrap();
-    let pinned = vw_shared::session::ui_store::load_pinned_threads(temp.path(), project).unwrap();
+    session_artifact_store::set_thread_pinned(temp.path(), project, "older", true).unwrap();
+    let pinned = session_artifact_store::load_pinned_threads(temp.path(), project).unwrap();
     assert!(pinned.contains("older"));
     let older = session("older", "Older", "/workspace/project", 10);
     let newer = session("newer", "Newer", "/workspace/project", 20);
@@ -44,8 +44,8 @@ fn set_thread_pinned_round_trip_and_project_order() {
         )
         .is_gt()
     );
-    vw_shared::session::ui_store::set_thread_pinned(temp.path(), project, "older", false).unwrap();
-    let unpinned = vw_shared::session::ui_store::load_pinned_threads(temp.path(), project).unwrap();
+    session_artifact_store::set_thread_pinned(temp.path(), project, "older", false).unwrap();
+    let unpinned = session_artifact_store::load_pinned_threads(temp.path(), project).unwrap();
     assert!(!unpinned.contains("older"));
     assert!(
         work_sidebar::compare_sessions(

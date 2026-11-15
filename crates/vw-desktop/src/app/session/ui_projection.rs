@@ -123,7 +123,7 @@ impl App {
                     Some((|| {
                         let data_dir = pins_data_dir()?;
                         let scope = pins_scope(&project_id);
-                        vw_shared::session::ui_store::set_thread_pinned(
+                        session_artifact_store::set_thread_pinned(
                             &data_dir, &scope, &id, pinned,
                         )
                         .map_err(|error| error.to_string())?;
@@ -254,7 +254,7 @@ fn pins_data_dir() -> Result<std::path::PathBuf, String> {
 
 fn pins_scope(project: &str) -> String {
     let tenant = vw_api_transport::TenantScope::default();
-    vw_shared::session::ui_store::pinned_threads_scope(
+    session_artifact_store::pinned_threads_scope(
         tenant.platform_id().as_ref(),
         tenant.company_id().as_ref(),
         project,
@@ -266,7 +266,7 @@ fn load_pins(projects: HashSet<String>) -> Result<HashSet<(String, String)>, Str
     let mut pinned = HashSet::new();
     for project in projects {
         let scope = pins_scope(&project);
-        let ids = vw_shared::session::ui_store::load_pinned_threads(&data_dir, &scope)
+        let ids = session_artifact_store::load_pinned_threads(&data_dir, &scope)
             .map_err(|error| error.to_string())?;
         pinned.extend(ids.into_iter().map(|id| (project.clone(), id)));
     }

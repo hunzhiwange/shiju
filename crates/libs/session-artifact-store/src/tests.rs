@@ -1,7 +1,7 @@
 //! 网关客户端测试模块，覆盖端点拼接、SSE 分帧和流式事件归一化行为。
 
 use super::ui_store::{load_session_scoped, save_session_scoped};
-use super::ui_types::{ChatMessage, ChatRole, ChatSession};
+use session_ui_types::{ChatMessage, ChatRole, ChatSession};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 

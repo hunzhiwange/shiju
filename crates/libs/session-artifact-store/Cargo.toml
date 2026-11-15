@@ -1,0 +1,16 @@
+[package]
+name = "session-artifact-store"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+session-paths = { path = "../session-paths", version = "0.6.0" }
+session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
+serde_json = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+session-info = { path = "../session-info", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"

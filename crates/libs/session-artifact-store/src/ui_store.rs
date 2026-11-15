@@ -6,7 +6,7 @@ use std::io;
 
 #[cfg(target_arch = "wasm32")]
 use session_info::Info;
-pub use crate::session::ui_types::{
+pub use session_ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
     ThinkTiming, TokenUsage,
 };

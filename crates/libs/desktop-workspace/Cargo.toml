@@ -16,5 +16,28 @@ vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" 
 desktop-file-tree = { path = "../desktop-file-tree", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+directories = "5"
+sha2 = "0.11"
+hex = "0.4"
+regex = "1"
+
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-project = { path = "../api-project", version = "0.6.0" }
+vw-api-worktree = { path = "../api-worktree", version = "0.6.0" }
+gateway-project = { path = "../gateway-project", version = "0.6.0" }
+gateway-files = { path = "../gateway-files", version = "0.6.0" }
+gateway-session = { path = "../gateway-session", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+runtime-time = { path = "../runtime-time", version = "0.6.0" }
+
+project-types = { path = "../project-types", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rfd = { version = "0.17", features = ["file-handle-inner"] }
+image = "0.25.9"

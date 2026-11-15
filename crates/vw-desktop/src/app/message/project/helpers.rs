@@ -4,262 +4,17 @@
 
 use crate::app::i18n::project::ProjectFeedback;
 use crate::app::message::project::ProjectMessage;
-use crate::app::{App, Message, state::FindInFolderMatch};
+use crate::app::{App, Message};
 use iced::Task;
-#[cfg(not(target_arch = "wasm32"))]
-use image::{ImageFormat, RgbaImage};
-use regex::RegexBuilder;
-use sha2::{Digest, Sha256};
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use vw_api_file::file::{
-    CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
-    ListFilesRequest, MoveFileRequest,
-};
-use {
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::WorktreeId,
-};
-use vw_api_project::{
-    ListProjectsRequest, ProjectDto, ResolveProjectRequest,
-};
-use vw_api_worktree::{
-    CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, ResetWorktreeRequest, WorktreeDto,
-};
+use vw_api_file::file::ListFilesRequest;
+use vw_api_project::ProjectDto;
 
-/// is_supported_image_attachment 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) fn is_supported_image_attachment(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| {
-            matches!(
-                ext.to_ascii_lowercase().as_str(),
-                "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp"
-            )
-        })
-        .unwrap_or(false)
-}
-
-const CHAT_IMAGE_ATTACHMENT_DIR: &str = "chat_image_attachments";
-
-fn chat_image_attachment_dir() -> Option<PathBuf> {
-    directories::UserDirs::new().map(|dirs| {
-        config_runtime_paths::home_config_dir(dirs.home_dir()).join(CHAT_IMAGE_ATTACHMENT_DIR)
-    })
-}
-
-fn path_within_dir(path: &Path, dir: &Path) -> bool {
-    match (path.canonicalize(), dir.canonicalize()) {
-        (Ok(canonical_path), Ok(canonical_dir)) => canonical_path.starts_with(&canonical_dir),
-        _ => false,
-    }
-}
-
-fn sanitize_attachment_stem(path: &Path) -> String {
-    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("image");
-    let sanitized = stem
-        .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' { ch } else { '-' })
-        .collect::<String>()
-        .trim_matches('-')
-        .to_string();
-
-    if sanitized.is_empty() { "image".to_string() } else { sanitized }
-}
-
-fn build_image_attachment_snapshot_path(
-    source: &Path,
-    metadata: &std::fs::Metadata,
-    snapshot_dir: &Path,
-) -> PathBuf {
-    let mut hasher = Sha256::new();
-    hasher.update(source.to_string_lossy().as_bytes());
-    hasher.update(metadata.len().to_le_bytes());
-    if let Ok(modified) = metadata.modified()
-        && let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH)
-    {
-        hasher.update(duration.as_secs().to_le_bytes());
-        hasher.update(duration.subsec_nanos().to_le_bytes());
-    }
-
-    let digest = hex::encode(hasher.finalize());
-    let short_digest = &digest[..16];
-    let stem = sanitize_attachment_stem(source);
-    let extension = source.extension().and_then(|value| value.to_str()).unwrap_or("img");
-    snapshot_dir.join(format!("{stem}-{short_digest}.{extension}"))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn build_clipboard_image_attachment_path(
-    width: u32,
-    height: u32,
-    rgba_bytes: &[u8],
-    snapshot_dir: &Path,
-) -> PathBuf {
-    let mut hasher = Sha256::new();
-    hasher.update(width.to_le_bytes());
-    hasher.update(height.to_le_bytes());
-    hasher.update(rgba_bytes);
-
-    let digest = hex::encode(hasher.finalize());
-    snapshot_dir.join(format!("clipboard-{}.png", &digest[..16]))
-}
-
-fn stabilize_image_attachment(
-    source: &Path,
-    metadata: &std::fs::Metadata,
-    project_root: Option<&Path>,
-    snapshot_dir: &Path,
-) -> Result<PathBuf, ProjectFeedback> {
-    if project_root.is_some_and(|root| path_within_dir(source, root))
-        || path_within_dir(source, snapshot_dir)
-    {
-        return Ok(source.to_path_buf());
-    }
-
-    std::fs::create_dir_all(snapshot_dir).map_err(|error| {
-        ProjectFeedback::new(
-            "创建图片附件目录失败：%s（%s）",
-            vec![snapshot_dir.display().to_string().into(), error.to_string().into()],
-        )
-    })?;
-
-    let target = build_image_attachment_snapshot_path(source, metadata, snapshot_dir);
-    if !target.exists() {
-        std::fs::copy(source, &target).map_err(|error| {
-            ProjectFeedback::new(
-                "复制图片附件失败：%s（%s）",
-                vec![source.display().to_string().into(), error.to_string().into()],
-            )
-        })?;
-    }
-
-    Ok(target)
-}
-
-fn attachment_name(path: &Path) -> String {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .map(ToOwned::to_owned)
-        .unwrap_or_else(|| path.display().to_string())
-}
-
-/// collect_local_attachments 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) fn collect_local_attachments(
-    app: &App,
-    picked: Vec<String>,
-) -> (Vec<String>, Vec<ProjectFeedback>) {
-    let max_images = app.multimodal_settings.max_images.clamp(1, 16) as usize;
-    let max_bytes =
-        (app.multimodal_settings.max_image_size_mb.clamp(1, 20) as u64).saturating_mul(1024 * 1024);
-    let mut seen = app.files.iter().cloned().collect::<HashSet<_>>();
-    let project_root = app.project_path.as_deref().map(Path::new);
-    let snapshot_dir = chat_image_attachment_dir();
-    let mut image_count =
-        app.files.iter().filter(|path| is_supported_image_attachment(Path::new(path))).count();
-    let mut accepted = Vec::new();
-    let mut errors = Vec::new();
-
-    for raw in picked {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let source = Path::new(trimmed);
-        let resolved = match source.canonicalize() {
-            Ok(path) => path,
-            Err(error) => {
-                errors.push(ProjectFeedback::new(
-                    "读取失败：%s（%s）",
-                    vec![source.display().to_string().into(), error.to_string().into()],
-                ));
-                continue;
-            }
-        };
-
-        if !resolved.is_file() {
-            errors.push(ProjectFeedback::new(
-                "不支持文件夹：%s",
-                vec![resolved.display().to_string().into()],
-            ));
-            continue;
-        }
-
-        if is_supported_image_attachment(&resolved) {
-            let metadata = match std::fs::metadata(&resolved) {
-                Ok(metadata) => metadata,
-                Err(error) => {
-                    errors.push(ProjectFeedback::new(
-                        "读取大小失败：%s（%s）",
-                        vec![resolved.display().to_string().into(), error.to_string().into()],
-                    ));
-                    continue;
-                }
-            };
-
-            if metadata.len() > max_bytes {
-                errors.push(ProjectFeedback::new(
-                    "图片过大：%s（超过 %u MB）",
-                    vec![
-                        attachment_name(&resolved).into(),
-                        app.multimodal_settings.max_image_size_mb.clamp(1, 20).into(),
-                    ],
-                ));
-                continue;
-            }
-
-            if image_count >= max_images {
-                errors.push(ProjectFeedback::new(
-                    "已达图片上限：%s（最多 %u 张）",
-                    vec![attachment_name(&resolved).into(), max_images.into()],
-                ));
-                continue;
-            }
-
-            let Some(snapshot_dir) = snapshot_dir.as_deref() else {
-                errors.push(ProjectFeedback::new("无法确定图片附件目录", vec![]));
-                continue;
-            };
-
-            let stable_path = match stabilize_image_attachment(
-                &resolved,
-                &metadata,
-                project_root,
-                snapshot_dir,
-            ) {
-                Ok(path) => path,
-                Err(error) => {
-                    errors.push(error);
-                    continue;
-                }
-            };
-
-            let normalized = stable_path.to_string_lossy().to_string();
-            if !seen.insert(normalized.clone()) {
-                continue;
-            }
-
-            image_count += 1;
-            accepted.push(normalized);
-            continue;
-        }
-
-        let normalized = resolved.to_string_lossy().to_string();
-        if !seen.insert(normalized.clone()) {
-            continue;
-        }
-
-        accepted.push(normalized);
-    }
-
-    (accepted, errors)
+pub(crate) use desktop_workspace::project_message::attachments::is_supported_image_attachment;
+pub(crate) fn collect_local_attachments(app: &App, picked: Vec<String>) -> (Vec<String>, Vec<ProjectFeedback>) {
+    desktop_workspace::project_message::attachments::collect_local_attachments(
+        &app.files, app.project_path.as_deref(), app.multimodal_settings.max_images,
+        app.multimodal_settings.max_image_size_mb, picked,
+    )
 }
 
 /// append_local_attachments 处理当前模块对应的消息或状态转换。
@@ -291,56 +46,9 @@ pub(crate) fn append_local_attachments(app: &mut App, picked: Vec<String>) {
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn persist_clipboard_image_attachment(
-    width: u32,
-    height: u32,
-    rgba_bytes: &[u8],
-) -> Result<String, ProjectFeedback> {
-    let Some(snapshot_dir) = chat_image_attachment_dir() else {
-        return Err(ProjectFeedback::new("无法确定图片附件目录", vec![]));
-    };
+pub(crate) use desktop_workspace::project_message::attachments::persist_clipboard_image_attachment;
 
-    std::fs::create_dir_all(&snapshot_dir).map_err(|error| {
-        ProjectFeedback::new(
-            "创建图片附件目录失败：%s（%s）",
-            vec![snapshot_dir.display().to_string().into(), error.to_string().into()],
-        )
-    })?;
-
-    let target = build_clipboard_image_attachment_path(width, height, rgba_bytes, &snapshot_dir);
-    if !target.exists() {
-        let image = RgbaImage::from_raw(width, height, rgba_bytes.to_vec())
-            .ok_or_else(|| ProjectFeedback::new("剪贴板图片数据无效", vec![]))?;
-        image.save_with_format(&target, ImageFormat::Png).map_err(|error| {
-            ProjectFeedback::new(
-                "保存剪贴板图片失败：%s（%s）",
-                vec![target.display().to_string().into(), error.to_string().into()],
-            )
-        })?;
-    }
-
-    Ok(target.to_string_lossy().to_string())
-}
-
-/// 网关刷新同时发布纯文件索引和保留空目录的树模型。
-#[derive(Debug, Clone)]
-pub struct FileTreeIndexSnapshot {
-    pub(crate) files: Vec<String>,
-    pub(crate) tree: crate::app::components::file_tree::model::FileTreeNode,
-}
-
-impl FileTreeIndexSnapshot {
-    pub(crate) fn from_dto(base_directory: &str, root: &FileNodeDto) -> Self {
-        let mut files = Vec::new();
-        collect_gateway_file_paths(base_directory, root, &mut files);
-        files.sort();
-        let tree = crate::app::components::file_tree::model::build_file_tree_model_from_dto(
-            base_directory,
-            root,
-        );
-        Self { files, tree }
-    }
-}
+pub use desktop_workspace::project_message::data::FileTreeIndexSnapshot;
 
 /// refresh_file_index 处理当前模块对应的消息或状态转换。
 ///
@@ -401,58 +109,14 @@ async fn refresh_local_file_index(project_path: &str) -> Vec<String> {
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) fn unique_name_in_dir(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
-    let original = dir.join(name);
-    if !original.exists() {
-        return original;
-    }
-
-    let p = std::path::Path::new(name);
-    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
-    let ext = p.extension().and_then(|s| s.to_str());
-
-    for i in 1..=999 {
-        let suffix = if i == 1 { "copy".to_string() } else { format!("copy {}", i) };
-        let candidate_name = if let Some(ext) = ext {
-            format!("{stem} {suffix}.{ext}")
-        } else {
-            format!("{stem} {suffix}")
-        };
-        let candidate = dir.join(candidate_name);
-        if !candidate.exists() {
-            return candidate;
-        }
-    }
-
-    original
-}
+pub(crate) use desktop_workspace::project_message::paths::unique_name_in_dir;
 
 #[allow(dead_code)]
 /// copy_recursively 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) fn copy_recursively(
-    src: &std::path::Path,
-    dst: &std::path::Path,
-) -> std::io::Result<()> {
-    if src.is_dir() {
-        std::fs::create_dir_all(dst)?;
-        for entry in std::fs::read_dir(src)? {
-            let entry = entry?;
-            let from = entry.path();
-            let to = dst.join(entry.file_name());
-            copy_recursively(&from, &to)?;
-        }
-        Ok(())
-    } else {
-        if let Some(parent) = dst.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::copy(src, dst)?;
-        Ok(())
-    }
-}
+pub(crate) use desktop_workspace::project_message::paths::copy_recursively;
 
 /// find_session_project_path 处理当前模块对应的消息或状态转换。
 ///
@@ -479,15 +143,7 @@ fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
     crate::app::gateway_client()
 }
 
-#[derive(Debug, Clone)]
-/// GatewayFileContext 保存该流程中跨函数传递的结构化数据。
-///
-/// 使用具名字段保留领域含义，避免在消息链路中传递松散的动态数据。
-pub(crate) struct GatewayFileContext {
-    pub(crate) project_id: ProjectId,
-    pub(crate) worktree_id: Option<WorktreeId>,
-    pub(crate) base_directory: String,
-}
+pub(crate) use desktop_workspace::project_message::gateway::GatewayFileContext;
 
 /// resolve_gateway_file_context 处理当前模块对应的消息或状态转换。
 ///
@@ -496,37 +152,7 @@ pub(crate) struct GatewayFileContext {
 pub(crate) async fn resolve_gateway_file_context(
     project_path: &str,
 ) -> Result<GatewayFileContext, String> {
-    let project = resolve_gateway_project(project_path).await?;
-    let current_directory = normalize_path(project_path);
-    let project_directory = normalize_path(&project.directory);
-    if current_directory == project_directory {
-        return Ok(GatewayFileContext {
-            project_id: project.id,
-            worktree_id: None,
-            base_directory: project.directory,
-        });
-    }
-
-    let client = gateway_client()?;
-    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let maybe_worktree = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope)
-        .await?
-        .items
-        .into_iter()
-        .find(|worktree| normalize_path(&worktree.directory) == current_directory);
-    if let Some(worktree) = maybe_worktree {
-        return Ok(GatewayFileContext {
-            project_id: project.id,
-            worktree_id: Some(worktree.id),
-            base_directory: worktree.directory,
-        });
-    }
-
-    Ok(GatewayFileContext {
-        project_id: project.id,
-        worktree_id: None,
-        base_directory: project_path.to_string(),
-    })
+    desktop_workspace::project_message::gateway::resolve_gateway_file_context(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path).await
 }
 
 async fn refresh_gateway_file_index(project_path: &str) -> Result<FileTreeIndexSnapshot, String> {
@@ -543,53 +169,15 @@ async fn refresh_gateway_file_index(project_path: &str) -> Result<FileTreeIndexS
     Ok(FileTreeIndexSnapshot::from_dto(&context.base_directory, &response.root))
 }
 
-fn collect_gateway_file_paths(base_directory: &str, node: &FileNodeDto, output: &mut Vec<String>) {
-    match node.kind {
-        FileNodeKind::File => {
-            output.push(resolve_absolute_gateway_path(base_directory, &node.path));
-        }
-        FileNodeKind::Directory => {
-            if let Some(children) = node.children.as_ref() {
-                for child in children {
-                    collect_gateway_file_paths(base_directory, child, output);
-                }
-            }
-        }
-    }
-}
 
-fn resolve_absolute_gateway_path(base_directory: &str, relative_path: &str) -> String {
-    let relative = relative_path.trim();
-    if relative.is_empty() || relative == "." {
-        return base_directory.to_string();
-    }
-    std::path::PathBuf::from(base_directory).join(relative).to_string_lossy().to_string()
-}
 
-fn normalize_path(value: &str) -> String {
-    value.replace('\\', "/").trim_end_matches('/').to_string()
-}
 
-fn map_timestamp(value: i64) -> u64 {
-    value.max(0) as u64
-}
 
-fn map_gateway_project(project: ProjectDto) -> project_types::Info {
-    project_types::Info {
-        id: project.id.0,
-        worktree: project.directory.clone(),
-        vcs: project.git.is_repo.then_some(project_types::Vcs::Git),
-        name: Some(project.name),
-        icon: None,
-        commands: None,
-        time: project_types::TimeInfo {
-            created: map_timestamp(project.created_at_ms.0),
-            updated: map_timestamp(project.updated_at_ms.0),
-            initialized: None,
-        },
-        sandboxes: vec![project.directory],
-    }
-}
+
+
+
+
+use desktop_workspace::project_message::data::map_gateway_project;
 
 pub(crate) fn map_loaded_project_info(
     project_path: String,
@@ -606,21 +194,9 @@ pub(crate) fn map_loaded_project_info(
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) async fn load_gateway_recent_projects()
 -> Result<Vec<crate::app::RecentProjectMeta>, String> {
-    let mut projects = gateway_project::GatewayProjectClient::new(gateway_client()?.transport().clone()).project_list(
-            &crate::app::session_gateway::active_tenant_scope(),
-            &ListProjectsRequest { cursor: None, limit: Some(100), query: None, status: None },
-        )
-        .await?
-        .items;
-    projects.sort_by(|left, right| {
-        right
-            .updated_at_ms
-            .0
-            .cmp(&left.updated_at_ms.0)
-            .then_with(|| left.name.cmp(&right.name))
-            .then_with(|| left.directory.cmp(&right.directory))
-            .then_with(|| left.id.0.cmp(&right.id.0))
-    });
+    let projects = desktop_workspace::project_message::gateway::load_recent_projects(
+        &gateway_client()?, &crate::app::session_gateway::active_tenant_scope(),
+    ).await?;
 
     Ok(projects
         .into_iter()
@@ -644,46 +220,23 @@ pub(crate) async fn load_gateway_recent_projects()
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(crate) async fn resolve_gateway_project(project_path: &str) -> Result<ProjectDto, String> {
-    resolve_gateway_project_with_client(&gateway_client()?, project_path, true).await
+    desktop_workspace::project_message::gateway::resolve_gateway_project(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path).await
 }
 
-async fn resolve_gateway_project_with_client(
-    client: &vw_gateway_client::GatewayClient,
-    project_path: &str,
-    create_if_missing: bool,
-) -> Result<ProjectDto, String> {
-    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
-            client.endpoint().tenant_scope(),
-            &ResolveProjectRequest { directory: project_path.to_string(), create_if_missing },
-        )
-        .await
-        .map(|response| response.project)
-}
+
 
 pub(crate) async fn list_gateway_project_sessions(
     client: &vw_gateway_client::GatewayClient,
     project_path: &str,
 ) -> Result<Vec<session_info::Info>, String> {
-    let Ok(project) = resolve_gateway_project_with_client(client, project_path, false).await else {
-        return gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list(Some(project_path)).await;
-    };
-    let mut sessions: Vec<session_info::Info> =
-        gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list_for_project(&project.id).await?;
-    // Older gateways may ignore the project query parameter.
-    sessions.retain(|info| info.project_id == project.id.0);
-    Ok(sessions)
+    desktop_workspace::project_message::gateway::list_gateway_project_sessions(client, project_path).await
 }
 
 pub(crate) async fn gateway_session_project_path(
     client: &vw_gateway_client::GatewayClient,
     info: &session_info::Info,
 ) -> Result<String, String> {
-    let scope = vw_api_transport::ProjectScope::new(
-        client.endpoint().tenant_scope().clone(),
-        info.project_id.as_str().into(),
-    )
-    .map_err(|error| error.to_string())?;
-    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope).await.map(|response| response.project.directory)
+    desktop_workspace::project_message::gateway::gateway_session_project_path(client, info).await
 }
 
 /// load_project_info_task 处理当前模块对应的消息或状态转换。
@@ -708,39 +261,7 @@ pub(crate) fn load_project_info_task(project_path: String) -> Task<Message> {
 pub(crate) async fn load_project_worktree_picker_options(
     project_path: &str,
 ) -> Result<Vec<(String, String)>, String> {
-    let client = gateway_client()?;
-    let project = resolve_gateway_project(project_path).await?;
-    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let mut worktrees = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope).await?.items;
-    worktrees.sort_by(|left, right| {
-        left.name.cmp(&right.name).then(left.directory.cmp(&right.directory))
-    });
-
-    let mut options = vec![(project.directory.clone(), "主工作区".to_string())];
-    let mut seen = std::collections::HashSet::new();
-    seen.insert(normalize_path(&project.directory));
-
-    for worktree in worktrees {
-        let key = normalize_path(&worktree.directory);
-        if seen.contains(&key) {
-            continue;
-        }
-        seen.insert(key);
-        let label = if worktree.name.trim().is_empty() {
-            let name = std::path::Path::new(&worktree.directory)
-                .file_name()
-                .and_then(|value| value.to_str())
-                .filter(|value| !value.trim().is_empty())
-                .unwrap_or_default();
-            name.to_owned()
-        } else {
-            worktree.name
-        };
-        options.push((worktree.directory, label));
-    }
-
-    options.push(("__create_worktree__".to_string(), "创建新的独立工作区".to_string()));
-    Ok(options)
+    desktop_workspace::project_message::gateway::load_project_worktree_picker_options(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path).await
 }
 
 /// create_gateway_session_worktree 处理当前模块对应的消息或状态转换。
@@ -751,35 +272,10 @@ pub(crate) async fn create_gateway_session_worktree(
     project_path: String,
     requested_name: String,
 ) -> Result<String, String> {
-    let client = gateway_client()?;
-    let project = resolve_gateway_project(&project_path).await?;
-    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let worktree = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktree_create(
-            &project_scope,
-            &CreateWorktreeRequest {
-                name: requested_name.clone(),
-                branch: format!("shiju/{requested_name}"),
-                from_ref: None,
-                checkout: true,
-            },
-        )
-        .await?
-        .worktree;
-    Ok(worktree.directory)
+    desktop_workspace::project_message::gateway::create_gateway_session_worktree(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, requested_name).await
 }
 
-async fn find_gateway_worktree(project_path: &str, directory: &str) -> Result<WorktreeDto, String> {
-    let client = gateway_client()?;
-    let project = resolve_gateway_project(project_path).await?;
-    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let target = normalize_path(directory);
-    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope)
-        .await?
-        .items
-        .into_iter()
-        .find(|worktree| normalize_path(&worktree.directory) == target)
-        .ok_or_else(|| "工作区不存在".to_string())
-}
+
 
 /// delete_gateway_worktree 处理当前模块对应的消息或状态转换。
 ///
@@ -790,17 +286,7 @@ pub(crate) async fn delete_gateway_worktree(
     directory: &str,
     force: bool,
 ) -> Result<(), String> {
-    let client = gateway_client()?;
-    let worktree = find_gateway_worktree(project_path, directory).await?;
-    let project_scope =
-        crate::app::session_gateway::active_project_scope(worktree.project_id.clone())?;
-    let ack = gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_delete(&project_scope, &worktree.id.0, &DeleteWorktreeRequest { force })
-        .await?;
-    if ack.ok {
-        Ok(())
-    } else {
-        Err(ack.message.unwrap_or_else(|| "删除工作区失败".to_string()))
-    }
+    desktop_workspace::project_message::gateway::delete_gateway_worktree(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, directory, force).await
 }
 
 /// reset_gateway_worktree 处理当前模块对应的消息或状态转换。
@@ -811,64 +297,15 @@ pub(crate) async fn reset_gateway_worktree(
     project_path: &str,
     directory: &str,
 ) -> Result<(), String> {
-    let client = gateway_client()?;
-    let worktree = find_gateway_worktree(project_path, directory).await?;
-    let project_scope =
-        crate::app::session_gateway::active_project_scope(worktree.project_id.clone())?;
-    let ack = gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_reset(
-            &project_scope,
-            &worktree.id.0,
-            &ResetWorktreeRequest { mode: ResetMode::Hard, target_ref: None },
-        )
-        .await?;
-    if ack.ok {
-        Ok(())
-    } else {
-        Err(ack.message.unwrap_or_else(|| "重置工作区失败".to_string()))
-    }
+    desktop_workspace::project_message::gateway::reset_gateway_worktree(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, directory).await
 }
 
-fn is_word_byte(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_'
-}
 
 /// relative_to_project 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
-pub(crate) fn relative_to_project(project_root: &str, path: &str) -> Option<String> {
-    let root = std::path::Path::new(project_root);
-    let target = std::path::Path::new(path);
-
-    let normalize = |p: &std::path::Path| {
-        let s = p.to_string_lossy().replace('\\', "/");
-        if s.is_empty() { ".".to_string() } else { s }
-    };
-
-    if let Ok(rel) = target.strip_prefix(root) {
-        return Some(normalize(rel));
-    }
-
-    if let (Ok(root_canon), Ok(target_canon)) =
-        (std::fs::canonicalize(root), std::fs::canonicalize(target))
-        && let Ok(rel) = target_canon.strip_prefix(root_canon)
-    {
-        return Some(normalize(rel));
-    }
-
-    let root_norm = project_root.replace('\\', "/");
-    let root_norm = root_norm.trim_end_matches('/');
-    let target_norm = path.replace('\\', "/");
-    if target_norm == root_norm {
-        return Some(".".to_string());
-    }
-    let prefix = format!("{}/", root_norm);
-    if let Some(rel) = target_norm.strip_prefix(&prefix) {
-        return Some(if rel.is_empty() { ".".to_string() } else { rel.to_string() });
-    }
-
-    None
-}
+pub(crate) use desktop_workspace::project_message::paths::relative_to_project;
 
 /// 复制外部本机路径，所有源内容读取和递归写入都由网关负责。
 pub(crate) async fn gateway_import_local_paths(
@@ -876,21 +313,7 @@ pub(crate) async fn gateway_import_local_paths(
     target_directory: &str,
     source_paths: Vec<String>,
 ) -> Result<vw_api_file::file::LocalImportResponse, String> {
-    let client = gateway_client()?;
-    if !client.endpoint().is_loopback() {
-        return Err("本机导入不支持远程网关".into());
-    }
-    let context = resolve_gateway_file_context(project_path).await?;
-    let directory = relative_to_project(&context.base_directory, target_directory)
-        .ok_or_else(|| "无法定位目标目录".to_string())?;
-    gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_import_local(&vw_api_file::file::LocalImportRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            target_directory: if directory == "." { String::new() } else { directory },
-            source_paths,
-        })
-        .await
+    desktop_workspace::project_message::gateway::gateway_import_local_paths(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, target_directory, source_paths).await
 }
 
 /// gateway_move_path 处理当前模块对应的消息或状态转换。
@@ -902,26 +325,7 @@ pub(crate) async fn gateway_move_path(
     from_path: &str,
     to_path: &str,
 ) -> Result<(), String> {
-    let client = gateway_client()?;
-    let context = resolve_gateway_file_context(project_path).await?;
-    let from_relative = relative_to_project(&context.base_directory, from_path)
-        .ok_or_else(|| "无法定位源路径".to_string())?;
-    let to_relative = relative_to_project(&context.base_directory, to_path)
-        .ok_or_else(|| "无法定位目标路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_move(&MoveFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            from_path: from_relative,
-            to_path: to_relative,
-            overwrite: false,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "移动失败".to_string()))
-    }
+    desktop_workspace::project_message::gateway::gateway_move_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, from_path, to_path).await
 }
 
 /// gateway_copy_path 处理当前模块对应的消息或状态转换。
@@ -933,45 +337,11 @@ pub(crate) async fn gateway_copy_path(
     from_path: &str,
     to_path: &str,
 ) -> Result<(), String> {
-    let client = gateway_client()?;
-    let context = resolve_gateway_file_context(project_path).await?;
-    let from_relative = relative_to_project(&context.base_directory, from_path)
-        .ok_or_else(|| "无法定位源路径".to_string())?;
-    let to_relative = relative_to_project(&context.base_directory, to_path)
-        .ok_or_else(|| "无法定位目标路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_copy(&CopyFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            from_path: from_relative,
-            to_path: to_relative,
-            overwrite: false,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
-    }
+    desktop_workspace::project_message::gateway::gateway_copy_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, from_path, to_path).await
 }
 
 pub(super) async fn gateway_duplicate_path(project_path: &str, path: &str) -> Result<(), String> {
-    let client = gateway_client()?;
-    let context = resolve_gateway_file_context(project_path).await?;
-    let path = relative_to_project(&context.base_directory, path)
-        .ok_or_else(|| "无法定位路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_duplicate(&DuplicateFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            path,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
-    }
+    desktop_workspace::project_message::gateway::gateway_duplicate_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, path).await
 }
 
 /// gateway_delete_path 处理当前模块对应的消息或状态转换。
@@ -983,23 +353,7 @@ pub(crate) async fn gateway_delete_path(
     path: &str,
     recursive: bool,
 ) -> Result<(), String> {
-    let client = gateway_client()?;
-    let context = resolve_gateway_file_context(project_path).await?;
-    let relative = relative_to_project(&context.base_directory, path)
-        .ok_or_else(|| "无法定位路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_delete(&DeleteFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            path: relative,
-            recursive,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "删除失败".to_string()))
-    }
+    desktop_workspace::project_message::gateway::gateway_delete_path(&gateway_client()?, &crate::app::session_gateway::active_tenant_scope(), project_path, path, recursive).await
 }
 
 /// run_find_task 处理当前模块对应的消息或状态转换。
@@ -1017,7 +371,6 @@ pub(crate) fn run_find_task(
     use_regex: bool,
     files: Vec<String>,
 ) -> Task<Message> {
-    const MAX_FIND_RESULTS: usize = 3000;
     let tab_id_for_msg = tab_id.clone();
     let title_for_msg = title.clone();
     let scope_for_msg = scope_path.clone();
@@ -1027,109 +380,9 @@ pub(crate) fn run_find_task(
     Task::perform(
         async move {
             crate::app::message::spawn_blocking_opt(move || {
-                let mut out = Vec::<FindInFolderMatch>::new();
-                let mut error: Option<crate::app::i18n::input::Feedback> = None;
-                let mut limit_reached = false;
-                let mut compiled_regex = None;
-
-                if use_regex {
-                    let mut pattern = query.clone();
-                    if whole_word {
-                        pattern = format!(r"\b(?:{})\b", pattern);
-                    }
-                    let mut builder = RegexBuilder::new(&pattern);
-                    builder.case_insensitive(!case_sensitive);
-                    match builder.build() {
-                        Ok(re) => compiled_regex = Some(re),
-                        Err(e) => {
-                            error = Some(crate::app::i18n::input::Feedback::new(
-                                "正则表达式错误: %s",
-                                vec![e.to_string().into()],
-                            ));
-                        }
-                    }
-                }
-
-                if error.is_none() {
-                    let scope = std::path::Path::new(&scope_path);
-                    let scope_prefix = scope.to_string_lossy().to_string();
-                    let plain_query =
-                        if case_sensitive { query.clone() } else { query.to_ascii_lowercase() };
-
-                    'files: for path in files {
-                        if !(path == scope_prefix
-                            || path.starts_with(&(scope_prefix.clone() + "/")))
-                        {
-                            continue;
-                        }
-                        let Ok(content) = std::fs::read_to_string(&path) else {
-                            continue;
-                        };
-
-                        for (li, line) in content.lines().enumerate() {
-                            if let Some(re) = &compiled_regex {
-                                for m in re.find_iter(line) {
-                                    out.push(FindInFolderMatch {
-                                        path: path.clone(),
-                                        line: li + 1,
-                                        column: m.start() + 1,
-                                        preview: line.trim().to_string(),
-                                        match_len: m.end().saturating_sub(m.start()),
-                                    });
-                                    if out.len() >= MAX_FIND_RESULTS {
-                                        limit_reached = true;
-                                        break 'files;
-                                    }
-                                }
-                                continue;
-                            }
-
-                            if plain_query.is_empty() {
-                                continue;
-                            }
-
-                            let (line_cmp, needle) = if case_sensitive {
-                                (line.to_string(), plain_query.as_str())
-                            } else {
-                                (line.to_ascii_lowercase(), plain_query.as_str())
-                            };
-
-                            let mut start = 0usize;
-                            while start <= line_cmp.len() {
-                                let Some(pos) = line_cmp[start..].find(needle) else {
-                                    break;
-                                };
-                                let st = start + pos;
-                                let ed = st + needle.len();
-
-                                if whole_word {
-                                    let bytes = line_cmp.as_bytes();
-                                    let left_ok = st == 0 || !is_word_byte(bytes[st - 1]);
-                                    let right_ok = ed >= bytes.len() || !is_word_byte(bytes[ed]);
-                                    if !(left_ok && right_ok) {
-                                        start = st + needle.len();
-                                        continue;
-                                    }
-                                }
-
-                                out.push(FindInFolderMatch {
-                                    path: path.clone(),
-                                    line: li + 1,
-                                    column: st + 1,
-                                    preview: line.trim().to_string(),
-                                    match_len: needle.len(),
-                                });
-                                if out.len() >= MAX_FIND_RESULTS {
-                                    limit_reached = true;
-                                    break 'files;
-                                }
-                                start = st + needle.len();
-                            }
-                        }
-                    }
-                }
-
-                Some((out, error, limit_reached))
+                Some(desktop_workspace::project_message::search::search(
+                    scope_path, query, case_sensitive, whole_word, use_regex, files,
+                ))
             })
             .await
             .unwrap_or((

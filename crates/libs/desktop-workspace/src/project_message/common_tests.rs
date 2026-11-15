@@ -1,0 +1,67 @@
+// 验证会话配置数值钳制与可选文本规范化辅助函数。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
+#[test]
+fn test_module_is_wired() {
+    let module = module_path!();
+
+    assert!(module.ends_with("common_tests"));
+}
+
+#[test]
+fn parse_clamped_u32_accepts_trimmed_values_and_applies_bounds() {
+    assert_eq!(super::parse_clamped_u32(" 42 ", 7, 1, 100), 42);
+    assert_eq!(super::parse_clamped_u32("0", 7, 1, 100), 1);
+    assert_eq!(super::parse_clamped_u32("999", 7, 1, 100), 100);
+}
+
+#[test]
+fn parse_clamped_u32_clamps_fallback_for_invalid_input() {
+    assert_eq!(super::parse_clamped_u32("nope", 0, 3, 9), 3);
+    assert_eq!(super::parse_clamped_u32("", 99, 3, 9), 9);
+}
+
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
+#[test]
+fn parse_clamped_u32_handles_type_extremes_and_overflow() {
+    assert_eq!(super::parse_clamped_u32("4294967295", 7, 0, u32::MAX), u32::MAX);
+    assert_eq!(super::parse_clamped_u32("4294967296", 7, 0, 10), 7);
+}
+
+#[test]
+fn parse_clamped_u64_accepts_trimmed_values_and_applies_bounds() {
+    assert_eq!(super::parse_clamped_u64(" 123 ", 7, 10, 200), 123);
+    assert_eq!(super::parse_clamped_u64("9", 7, 10, 200), 10);
+    assert_eq!(super::parse_clamped_u64("201", 7, 10, 200), 200);
+}
+
+#[test]
+fn parse_clamped_u64_clamps_fallback_for_invalid_input() {
+    assert_eq!(super::parse_clamped_u64("nan", 1, 5, 8), 5);
+    assert_eq!(super::parse_clamped_u64("nan", 99, 5, 8), 8);
+}
+
+#[test]
+fn parse_clamped_u64_handles_type_extremes_and_overflow() {
+    assert_eq!(super::parse_clamped_u64("18446744073709551615", 7, 0, u64::MAX), u64::MAX);
+    assert_eq!(super::parse_clamped_u64("18446744073709551616", 7, 0, 10), 7);
+}
+
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
+#[test]
+fn trim_to_option_discards_surrounding_whitespace_and_empty_values() {
+    assert_eq!(super::trim_to_option("  value  ".to_string()), Some("value".to_string()));
+    assert_eq!(super::trim_to_option("\n\t ".to_string()), None);
+}
+
+#[test]
+fn trim_to_option_trims_unicode_boundaries_and_preserves_internal_whitespace() {
+    assert_eq!(
+        super::trim_to_option("\u{2003}two  words\u{2003}".to_string()),
+        Some("two  words".to_string())
+    );
+}

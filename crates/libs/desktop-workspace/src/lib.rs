@@ -6,3 +6,5 @@ pub mod basic;
 pub mod interaction;
 pub mod operations;
 pub mod file_manager;
+
+pub mod project_message;

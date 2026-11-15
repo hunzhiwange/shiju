@@ -1,6 +1,6 @@
 //! 用量视图的数据与展示行为测试，覆盖聚合结果和边界输入。
 
-use super::data::UsageData;
+use super::data::from_app;
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, ChatSessionStep, TokenUsage};
 use serde_json::json;
@@ -43,7 +43,7 @@ fn usage_data_counts_tool_messages_separately() {
         },
     ];
 
-    let usage = UsageData::from_app(&app);
+    let usage = from_app(&app);
 
     assert_eq!(usage.message_count, 4);
     assert_eq!(usage.user_msgs, 1);
@@ -92,7 +92,7 @@ fn usage_data_exposes_active_steps_and_raw_calls() {
         tool_timings: Vec::new(),
     }];
 
-    let usage = UsageData::from_app(&app);
+    let usage = from_app(&app);
 
     assert_eq!(usage.call_count, 1);
     assert_eq!(usage.last_step_total_tokens, 30);

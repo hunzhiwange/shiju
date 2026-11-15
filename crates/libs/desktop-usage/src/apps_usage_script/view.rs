@@ -16,7 +16,7 @@ pub fn modal_view<'a>(
 ) -> Element<'a, Message> {
     modal_view_with_base(editor, selection, base, |event| event)
 }
-pub fn modal_view_with_base<'a, M: Clone + 'a>(editor: &'a Editor, selection: &UsageSnapshotQuery, base: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+pub fn modal_view_with_base<'a, M: Clone + 'a>(editor: &'a Editor, selection: &UsageSnapshotQuery, base: Element<'a, M>, map: impl Fn(Message) -> M + Copy + 'a) -> Element<'a, M> {
     let close = Message::Close;
     let header = settings_modal_header(
         settings_page_heading("查询脚本试运行", "在当前执行主机试运行草稿。结果仅在此弹窗显示。"),

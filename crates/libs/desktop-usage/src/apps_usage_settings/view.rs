@@ -3,31 +3,28 @@ use iced::{
     widget::{Space, button, checkbox, column, container, row, text},
 };
 
-use super::{Draft, Event, Field, Kind, Phase, live_scope, send};
-use crate::app::{App, Message, components::system_settings_common::*};
+use super::{Draft, Event, Field, Kind, Phase, Editor, Scope, send};
+use super::Message;
+use desktop_ui_controls::system_settings_common::*;
 use gateway_app_usage::AppsUsageDisplay;
 
-pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    let Some(modal) = app
-        .app_providers
-        .usage
-        .settings
-        .modal
+pub fn overlay<'a, M: Clone + 'a>(editor: &'a Editor, scope: Option<Scope>, base: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+    let Some(modal) = editor.modal
         .as_ref()
-        .filter(|modal| live_scope(app).as_ref() == Some(&modal.scope))
+        .filter(|modal| scope.as_ref() == Some(&modal.scope))
     else {
         return base;
     };
-    modal_view(&modal.phase, &modal.selection, base)
+    modal_view(&modal.phase, &modal.selection, base, map)
 }
 
-pub(super) fn modal_view<'a>(
+pub(super) fn modal_view<'a, M: Clone + 'a>(
     phase: &'a Phase,
     selection: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, M>, map: fn(Message) -> M,
+) -> Element<'a, M> {
     if let Phase::Script(script) = phase {
-        return super::apps_usage_script::modal_view(script, selection, base);
+        return super::apps_usage_script::modal_view_with_base(script, selection, base, move |e| map(super::script_message(e)));
     }
     let close = send(Event::Close);
     let (content, save, saving): (Element<'_, Message>, _, _) = match phase {
@@ -81,7 +78,7 @@ pub(super) fn modal_view<'a>(
         .width(Length::Fill)
         .max_width(560)
         .height(550);
-    settings_modal_overlay(Some(base), close, container(card).padding(12))
+    settings_modal_overlay(Some(base), map(close), container(Element::from(card).map(map)).padding(12))
 }
 
 fn fields(draft: &Draft, saving: bool) -> iced::widget::Column<'_, Message> {

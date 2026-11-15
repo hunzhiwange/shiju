@@ -70,7 +70,7 @@ fn from_app_prefers_loaded_session_metadata_and_latest_step_usage() {
         ),
     ];
 
-    let usage = super::UsageData::from_app(&app);
+    let usage = super::from_app(&app);
     let session = usage.session.as_ref().expect("active session should be projected");
 
     assert_eq!(usage.session_title, "Loaded");
@@ -94,7 +94,7 @@ fn from_app_sums_total_usage_and_counts_message_roles() {
         message(ChatRole::Tool),
     ];
 
-    let usage = super::UsageData::from_app(&app);
+    let usage = super::from_app(&app);
 
     assert_eq!(usage.total_tokens, 40);
     assert_eq!(usage.message_count, 5);
@@ -108,7 +108,7 @@ fn from_app_sums_total_usage_and_counts_message_roles() {
 fn from_app_defaults_without_active_session() {
     let (app, _task) = App::new();
 
-    let usage = super::UsageData::from_app(&app);
+    let usage = super::from_app(&app);
 
     assert!(usage.session.is_none());
     assert_eq!(usage.session_id, "暂无");
@@ -130,7 +130,7 @@ fn from_app_falls_back_to_project_metadata_for_active_session() {
         vec![session_info("project-session", "Project Session", 500, 600)],
     );
 
-    let usage = super::UsageData::from_app(&app);
+    let usage = super::from_app(&app);
     let session = usage.session.as_ref().expect("project session should be projected");
 
     assert_eq!(usage.session_title, "Project Session");
@@ -147,7 +147,7 @@ fn from_app_uses_active_view_updated_time_when_metadata_is_missing() {
         TokenUsage { input_tokens: 4, output_tokens: 5, cached_tokens: 6, reasoning_tokens: 7 },
     )];
 
-    let usage = super::UsageData::from_app(&app);
+    let usage = super::from_app(&app);
     let session = usage.session.as_ref().expect("active session should still be projected");
 
     assert_eq!(usage.session_id, "missing-metadata");
@@ -177,7 +177,7 @@ fn from_app_preserves_reported_usage_while_next_step_is_pending() {
         step(2, TokenUsage::default()),
     ];
     app.active_session_view_state.steps[1].finished_ms = None;
-    let usage = super::UsageData::from_app(&app);
+    let usage = super::from_app(&app);
     assert_eq!(usage.last_step_input_tokens, 300);
     assert_eq!(usage.last_step_total_tokens, 320);
 }

@@ -13,3 +13,8 @@ pub struct Identity {
 }
 #[cfg(test)]
 mod apps_usage_details_tests;
+
+pub mod center;
+pub mod apps_usage_settings;
+pub mod components;
+pub mod data;

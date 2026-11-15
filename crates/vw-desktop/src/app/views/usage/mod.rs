@@ -50,7 +50,7 @@ mod utils;
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
     // 从应用状态中提取使用数据
-    let usage_data = data::UsageData::from_app(app);
+    let usage_data = data::from_app(app);
     // 使用提取的数据构建完整的使用统计视图布局
     let content: Element<'_, Message> = iced::widget::column![
         center::view(app),

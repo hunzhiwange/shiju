@@ -64,11 +64,8 @@ fn usage_usage_settings_rejects_invalid_input() {
 
 #[tokio::test]
 async fn usage_usage_settings_save_button_requires_team_project() {
-    use crate::app::{
-        Message,
-        components::apps_usage_details_tests::{Scene, renderer},
-        message::{SettingsMessage, app_providers::list::ListMessage},
-    };
+    use super::Message;
+    use crate::apps_usage_details_tests::{Scene, renderer};
     use iced::{Event as IcedEvent, Length, mouse, widget::Space};
     use vw_api_types::agent_apps::AppId;
     use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
@@ -87,7 +84,7 @@ async fn usage_usage_settings_save_button_requires_team_project() {
     let mut draft = Draft::new(None);
     draft.select(Kind::ZhipuTeam);
     draft.edit(Field::Organization, "org-a".into());
-    let click = |scene: &mut Scene<'_>, renderer: &mut iced::Renderer| {
+    let click = |scene: &mut Scene<'_, Message>, renderer: &mut iced::Renderer| {
         let position = scene.bounds("保存").unwrap().center();
         scene.send(
             renderer,
@@ -101,21 +98,19 @@ async fn usage_usage_settings_save_button_requires_team_project() {
     };
     let base = || Space::new().width(Length::Fill).height(Length::Fill).into();
     let incomplete = Phase::Editing { draft: draft.clone(), saving: false };
-    let view = modal_view(&incomplete, &selection, base());
+    let view = modal_view(&incomplete, &selection, base(), |e| e);
     let mut scene = Scene::new(view, &mut renderer);
     assert!(click(&mut scene, &mut renderer).is_empty());
 
     draft.edit(Field::Project, "team-project".into());
     let complete = Phase::Editing { draft, saving: false };
-    let view = modal_view(&complete, &selection, base());
+    let view = modal_view(&complete, &selection, base(), |e| e);
     let mut scene = Scene::new(view, &mut renderer);
     let messages = click(&mut scene, &mut renderer);
     assert!(
         matches!(
             messages.as_slice(),
-            [Message::Settings(SettingsMessage::AppProviders(ListMessage::UsageSettings(
-                Event::Save
-            )))]
+            [Message::Event(Event::Save)]
         ),
         "{messages:?}"
     );

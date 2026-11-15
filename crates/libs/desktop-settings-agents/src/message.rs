@@ -1,6 +1,24 @@
 use iced::widget::text_editor;
 #[derive(Debug, Clone)]
 pub enum AgentsMessage {
+AddAgentRequested,
+AddAgentKeyChanged(String),
+ProfileCancel,
+ProfileDelete,
+ProfileSave,
+AllowedToolToggled(String, String, bool),
+ToolsListTabSelected(String),
+AllowedToolsApplyPreset(String, String),
+AllowedToolsSelectAll(String),
+AllowedToolsInvertSelection(String),
+SkillPolicyChanged(String, config_agent::DelegateCapabilityPolicy),
+SkillDirectoryScopeChanged(desktop_settings_skills::types::SkillsDirectoryScope),
+AllowedSkillToggled(String, String, bool),
+SkillDirectorySelected(Option<String>),
+SkillCatalogRefresh,
+AllowedSkillsSelectAll(String, desktop_settings_skills::types::SkillsDirectoryScope),
+AllowedSkillsInvertSelection(String, desktop_settings_skills::types::SkillsDirectoryScope),
+
 CatalogTabSelected(bool),
 CatalogQueryChanged(String),
 CatalogToggle(String, bool),
@@ -73,4 +91,4 @@ SetEnabled {
     }
 }
 #[derive(Debug, Clone)]
-pub enum Event { CopyText(String), Agents(AgentsMessage), Acp(AcpMessage), RefreshMcp, OpenMcp, None }
+pub enum Event { CopyText(String), Agents(AgentsMessage), Acp(AcpMessage), RefreshMcp, OpenMcp, OpenSkills, None }

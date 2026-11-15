@@ -16,6 +16,7 @@ mod mcp;
 mod profile_modal;
 mod shared;
 mod skills;
+#[cfg(test)]
 mod tools;
 
 #[cfg(test)]
@@ -278,8 +279,7 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
     }
 }
 
-const AGENT_CONFIGURATION_HELP: &str =
-    "全局管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。";
+use desktop_settings_agents::profile_modal::AGENT_CONFIGURATION_HELP;
 
 fn agents_view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;

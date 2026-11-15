@@ -94,3 +94,7 @@ pub fn entry_kind_label(entry: &DelegateAgentSettingsEntry) -> &'static str {
         AgentSettingsEntryKind::Custom => "自定义",
     }
 }
+
+pub fn section_card<'a>(title: &'a str, description: &'a str) -> iced::widget::Container<'a, Event> { desktop_ui_controls::system_settings_common::settings_section_card(title, description) }
+pub fn selected_entry<'a>(draft: Option<&'a DelegateAgentSettingsEntry>, entries: &'a [DelegateAgentSettingsEntry], selected: &str) -> Option<&'a DelegateAgentSettingsEntry> { draft.or_else(|| entries.iter().find(|entry| entry.key == selected).or_else(|| entries.first())) }
+pub fn detail_tab_button<'a>(label: &'a str, key: &'a str, active_key: &'a str) -> iced::Element<'a, Event> { agent_tab_button(label, key == active_key, Event::Agents(crate::message::AgentsMessage::DetailTabSelected(key.to_string()))).into() }

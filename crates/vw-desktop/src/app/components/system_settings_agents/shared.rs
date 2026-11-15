@@ -7,7 +7,6 @@ use crate::app::components::system_settings_common::{
     settings_section_card as shared_settings_section_card, settings_tab_button,
     settings_text_editor_style,
 };
-use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
 use iced::widget::{Button, text_editor};
@@ -50,10 +49,7 @@ pub(super) fn editor_style(theme: &Theme, status: text_editor::Status) -> text_e
     settings_text_editor_style(theme, status)
 }
 
-#[cfg(test)]
-pub(super) use desktop_settings_agents::shared::{
-    is_dark_theme, agent_sidebar_button_style, entry_kind_label,
-};
+
 
 /// 构建或处理 `selected_entry` 对应的界面片段与交互数据。
 ///
@@ -69,13 +65,7 @@ pub(super) use desktop_settings_agents::shared::{
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn selected_entry(app: &App) -> Option<&DelegateAgentSettingsEntry> {
-    app.agents_settings.profile_modal.as_ref().or_else(|| {
-        app.agents_settings
-            .entries
-            .iter()
-            .find(|entry| entry.key == app.agents_settings.selected_agent)
-            .or_else(|| app.agents_settings.entries.first())
-    })
+    desktop_settings_agents::shared::selected_entry(app.agents_settings.profile_modal.as_ref(), &app.agents_settings.entries, &app.agents_settings.selected_agent)
 }
 
 pub(super) fn agent_tab_button(
@@ -104,12 +94,5 @@ pub(super) fn detail_tab_button<'a>(
     key: &'a str,
     active_key: &'a str,
 ) -> Element<'a, Message> {
-    agent_tab_button(
-        label,
-        key == active_key,
-        Message::Settings(SettingsMessage::Agents(AgentsMessage::DetailTabSelected(
-            key.to_string(),
-        ))),
-    )
-    .into()
+    desktop_settings_agents::shared::detail_tab_button(label, key, active_key).map(super::domain::event)
 }

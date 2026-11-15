@@ -5,7 +5,7 @@ use std::future::Future;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 use std::time::Instant;
 
-use crate::types::{PerfMetricSummary, PerfMetricsSnapshot};
+use acp_types::{PerfMetricSummary, PerfMetricsSnapshot};
 
 #[derive(Debug, Clone, Default)]
 struct TimingBucket {

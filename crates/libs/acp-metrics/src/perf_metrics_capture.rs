@@ -12,7 +12,7 @@ use time::format_description::well_known::Rfc3339;
 
 use crate::get_perf_metrics_snapshot;
 use crate::reset_perf_metrics;
-use crate::types::PerfMetricsSnapshot;
+use acp_types::PerfMetricsSnapshot;
 
 pub const PERF_METRICS_FILE_ENV: &str = "VWACP_PERF_METRICS_FILE";
 

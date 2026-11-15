@@ -178,7 +178,7 @@ fn snapshot_has_data_detects_each_metric_group() {
 
     snapshot.timings.insert(
         "prompt".to_string(),
-        crate::types::PerfMetricSummary { count: 1, total_ms: 1.0, max_ms: 1.0 },
+        acp_types::PerfMetricSummary { count: 1, total_ms: 1.0, max_ms: 1.0 },
     );
     assert!(snapshot_has_data(&snapshot));
 }

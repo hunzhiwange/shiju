@@ -24,7 +24,7 @@ use cli_interaction_model::{
     UiQuestionPrompt, UiTurnTerminal,
 };
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 #[test]
 fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {

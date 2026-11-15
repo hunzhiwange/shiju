@@ -26,8 +26,8 @@ use cli_interaction_model::{PermissionMode, UiMessage, UiOverlay};
 use super::runtime::gateway::GatewayUiRuntime;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::runtime::stream_adapter::adapt_gateway_stream_event;
-use super::state::selectors::select_status_summary;
-use super::state::{TuiAction, TuiState, apply_runtime_event, reduce_tui_state};
+use cli_interaction_state::selectors::select_status_summary;
+use cli_interaction_state::{TuiAction, TuiState, apply_runtime_event, reduce_tui_state};
 
 /// 为产品中立事件语汇分配 turn ID，并跟踪工具输出增量的有状态适配器。
 #[derive(Debug, Default)]

@@ -1,0 +1,15 @@
+[package]
+name = "cli-interaction-state"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+cli-interaction-model = { path = "../cli-interaction-model", version = "0.6.0" }
+serde_json = "1"
+unicode-width = "0.2"
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-shared = { path = "../../vw-shared", version = "0.6.0" }

@@ -24,7 +24,7 @@ use cli_interaction_model::{
     UiQuestionPrompt, UiTurnTerminal,
 };
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 const SIZES: [(u16, u16); 3] = [(40, 18), (80, 24), (120, 40)];
 const SCENARIOS: [&str; 10] = [

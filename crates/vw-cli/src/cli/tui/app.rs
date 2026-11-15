@@ -3,6 +3,7 @@
 //! 本模块负责终端生命周期、会话恢复、流式请求启动和事件循环；
 //! Gateway 事件到界面事件的语义转换留在 `bridge`，不在主循环中重复。
 
+use cli_interaction_state::snapshots::{CronDetailView, CronJobSnapshot, OrchestrationSnapshot};
 use super::runtime::stream_adapter::terminal_from_error_message;
 use crate::app::agent::config::Config;
 use crate::cli::setup::CliSetup;
@@ -59,7 +60,7 @@ use cli_interaction_model::{
 use cli_interaction_model::paste::{PromptAttachment, PromptAttachmentKind};
 use super::runtime::capabilities::load_session_capabilities_blocking;
 use super::runtime::cron::{
-    CronDetailView, CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
+    CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
 use super::runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
@@ -75,7 +76,7 @@ use super::runtime::integrations::{
 };
 use super::runtime::interaction::InteractionSnapshot;
 use super::runtime::orchestration::{
-    OrchestrationSnapshot, control_owned_task_blocking, load_orchestration_blocking,
+    control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
 };
 use super::runtime::plan_run::{
@@ -92,7 +93,7 @@ use super::runtime::workspace_files::{
     WorkspaceFileListing, WorkspaceFileText, load_workspace_files_blocking,
     read_workspace_file_blocking,
 };
-use super::state::{TuiAction, TuiState, reduce_tui_state};
+use cli_interaction_state::{TuiAction, TuiState, reduce_tui_state};
 
 type V3Terminal = CustomTerminal<CrosstermBackend<io::Stdout>>;
 const SESSION_HISTORY_DISPLAY_LIMIT: usize = 100;

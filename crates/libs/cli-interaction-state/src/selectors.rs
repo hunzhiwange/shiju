@@ -19,20 +19,20 @@ use unicode_width::UnicodeWidthChar;
 
 /// 状态线可直接消费的汇总结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiStatusSummary {
-    pub(crate) session_id: Option<String>,
-    pub(crate) title: String,
-    pub(crate) provider_name: Option<String>,
-    pub(crate) model_name: Option<String>,
-    pub(crate) message_count: usize,
-    pub(crate) assistant_message_count: usize,
-    pub(crate) step_count: usize,
-    pub(crate) pending_questions: usize,
-    pub(crate) todo_count: usize,
-    pub(crate) overlay_depth: usize,
-    pub(crate) prompt_busy: bool,
-    pub(crate) turn_terminal: UiTurnTerminal,
-    pub(crate) token_usage: UiTokenUsage,
+pub struct TuiStatusSummary {
+    pub session_id: Option<String>,
+    pub title: String,
+    pub provider_name: Option<String>,
+    pub model_name: Option<String>,
+    pub message_count: usize,
+    pub assistant_message_count: usize,
+    pub step_count: usize,
+    pub pending_questions: usize,
+    pub todo_count: usize,
+    pub overlay_depth: usize,
+    pub prompt_busy: bool,
+    pub turn_terminal: UiTurnTerminal,
+    pub token_usage: UiTokenUsage,
 }
 
 /// renderer 可直接消费的 transcript 顶层项。
@@ -1008,7 +1008,7 @@ pub(crate) fn derive_transcript_projection_cache(
 }
 
 /// 汇总当前状态线关心的统计信息。
-pub(crate) fn select_status_summary(state: &TuiState) -> TuiStatusSummary {
+pub fn select_status_summary(state: &TuiState) -> TuiStatusSummary {
     let mut assistant_message_count = 0usize;
     let mut step_count = 0usize;
     let mut step_usage = UiTokenUsage::default();

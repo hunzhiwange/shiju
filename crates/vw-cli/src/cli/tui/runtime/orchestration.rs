@@ -6,17 +6,16 @@ use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerTaskGraphResponse, AgentSchedulerTaskLogsResponse, AgentTaskStatusDto,
 };
 
-use super::cron::CronJobSnapshot;
+use cli_interaction_state::snapshots::{CronJobSnapshot, OrchestrationSnapshot};
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use cli_interaction_model::agent_view::AgentViewState;
 use cli_interaction_model::background_task::{
-    BackgroundTask, BackgroundTaskKind, BackgroundTaskPanel, BackgroundTaskStatus,
+    BackgroundTask, BackgroundTaskKind, BackgroundTaskStatus,
     CanonicalTaskStatus, TaskArtifactSummary, TaskControlAction, TaskDetailView,
     TaskGraphNodeSummary, TaskLogSummary,
 };
 use cli_interaction_model::integration::sanitize_integration_text;
-use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
-use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
+use cli_interaction_model::schedule_panel::SchedulePanelItem;
+use cli_interaction_model::workflow_panel::WorkflowPanelItem;
 
 const MAX_TASK_ID_CHARS: usize = 160;
 const MAX_TASK_LABEL_CHARS: usize = 160;
@@ -24,17 +23,6 @@ const MAX_TASK_DETAIL_CHARS: usize = 512;
 const MAX_TASK_DEPENDENCIES: usize = 12;
 const MAX_TASK_LOGS: usize = 20;
 const MAX_TASK_ARTIFACTS: usize = 20;
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub(crate) struct OrchestrationSnapshot {
-    pub(crate) scope: Option<AgentSchedulerScopeDto>,
-    pub(crate) workflows: WorkflowPanel,
-    pub(crate) schedules: SchedulePanel,
-    pub(crate) cron_jobs: Vec<CronJobSnapshot>,
-    pub(crate) agents: AgentViewState,
-    pub(crate) tasks: BackgroundTaskPanel,
-    pub(crate) warnings: Vec<String>,
-}
 
 /// Workflow 详情中允许进入 TUI transcript 的净化字段。
 #[derive(Debug, Clone, PartialEq, Eq)]

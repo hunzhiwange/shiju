@@ -10,7 +10,6 @@ pub(crate) mod bridge;
 pub(crate) mod commands;
 pub(crate) mod controller;
 pub(crate) mod runtime;
-pub(crate) mod state;
 
 #[cfg(not(test))]
 pub(crate) use app::run_tui;

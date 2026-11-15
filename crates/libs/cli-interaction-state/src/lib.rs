@@ -31,9 +31,10 @@ use cli_interaction_model::{
 };
 use cli_interaction_model::GitWorkspaceStatus;
 
-pub(crate) mod reducer;
+mod reducer;
 mod runtime_pipeline;
-pub(crate) mod selectors;
+pub mod selectors;
+pub mod snapshots;
 
 use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache, TuiTranscriptMeasurements};
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};
@@ -69,24 +70,24 @@ fn reasoning_visible_content(content: Option<String>) -> Option<String> {
     })
 }
 
-pub(crate) use reducer::{
+pub use reducer::{
     TuiAction, TuiTerminalUpdate, TuiToolCallUpdate, TuiToolResultUpdate, reduce_tui_state,
 };
-pub(crate) use runtime_pipeline::apply_runtime_event;
+pub use runtime_pipeline::apply_runtime_event;
 /// 滚动窗口的最小状态。
 ///
 /// 当前滚动状态保留“消息索引锚点”，同时记录 viewport 行高与宽度，
 /// 让 selectors 能按真实 wrap/height cache 推导稳定窗口。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiScrollState {
-    pub(crate) top_message: usize,
-    pub(crate) viewport_messages: usize,
-    pub(crate) viewport_height: u16,
-    pub(crate) viewport_width: u16,
-    pub(crate) overscan: usize,
-    pub(crate) follow_tail: bool,
-    pub(crate) sticky_message: Option<usize>,
-    pub(crate) last_seen_message: Option<usize>,
+pub struct TuiScrollState {
+    pub top_message: usize,
+    pub viewport_messages: usize,
+    pub viewport_height: u16,
+    pub viewport_width: u16,
+    pub overscan: usize,
+    pub follow_tail: bool,
+    pub sticky_message: Option<usize>,
+    pub last_seen_message: Option<usize>,
 }
 
 impl Default for TuiScrollState {
@@ -188,13 +189,13 @@ fn anchor_index_for_message(anchors: &[usize], message_index: usize) -> usize {
 ///
 /// 这里不直接存放渲染后的文案，只保留后续 status selector 会稳定消费的源数据。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiStatusState {
-    pub(crate) session_title: String,
-    pub(crate) provider_name: Option<String>,
-    pub(crate) model_name: Option<String>,
-    pub(crate) turn_terminal: UiTurnTerminal,
-    pub(crate) last_error: Option<String>,
-    pub(crate) verbose: bool,
+pub struct TuiStatusState {
+    pub session_title: String,
+    pub provider_name: Option<String>,
+    pub model_name: Option<String>,
+    pub turn_terminal: UiTurnTerminal,
+    pub last_error: Option<String>,
+    pub verbose: bool,
 }
 
 impl Default for TuiStatusState {
@@ -215,12 +216,12 @@ impl Default for TuiStatusState {
 /// Phase 2 先让状态层直接承接已经在 overlay 模型中定义好的内部镜像类型，
 /// 后续 reducer/renderer 可直接复用，不需要再次接触共享层原始载荷。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct TuiTaskState {
-    pub(crate) pending_questions: Vec<UiQuestionOverlay>,
+pub struct TuiTaskState {
+    pub pending_questions: Vec<UiQuestionOverlay>,
     /// 当前 Workflow pause 的本地 typed question ID；不包含恢复 token。
-    pub(crate) workflow_pause_request_id: Option<String>,
-    pub(crate) todo_overlay: Option<UiTodoOverlay>,
-    pub(crate) sync_error: Option<String>,
+    pub workflow_pause_request_id: Option<String>,
+    pub todo_overlay: Option<UiTodoOverlay>,
+    pub sync_error: Option<String>,
 }
 
 /// 单条持久化消息在内部状态里的附属元数据。
@@ -229,11 +230,11 @@ pub(crate) struct TuiTaskState {
 /// - `raw_message_id`：与 `ChatSession.message_ids` 对齐的原始 ID
 /// - `think_timing`：当前共享快照仍挂在 assistant 文本消息上的时间片数据
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct TuiPersistedMessage {
-    pub(crate) raw_message_id: Option<String>,
-    pub(crate) think_timing: Vec<UiThinkingTiming>,
-    pub(crate) tool_payload: Option<String>,
-    pub(crate) assistant_payload: Option<String>,
+pub struct TuiPersistedMessage {
+    pub raw_message_id: Option<String>,
+    pub think_timing: Vec<UiThinkingTiming>,
+    pub tool_payload: Option<String>,
+    pub assistant_payload: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -321,13 +322,13 @@ fn serialize_tool_result_message(message: &UiToolResult) -> String {
 
 /// 会话预览的内部镜像结构。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiSessionPreview {
-    pub(crate) id: String,
-    pub(crate) title: String,
-    pub(crate) updated_ms: u64,
-    pub(crate) message_count: usize,
-    pub(crate) call_count: usize,
-    pub(crate) last_content: Option<String>,
+pub struct TuiSessionPreview {
+    pub id: String,
+    pub title: String,
+    pub updated_ms: u64,
+    pub message_count: usize,
+    pub call_count: usize,
+    pub last_content: Option<String>,
 }
 
 impl From<ChatSessionMeta> for TuiSessionPreview {
@@ -358,7 +359,7 @@ impl From<&ChatSessionMeta> for TuiSessionPreview {
 
 impl TuiSessionPreview {
     /// 从完整快照推导一份轻量预览。
-    pub(crate) fn from_chat_session(session: &ChatSession) -> Self {
+    pub fn from_chat_session(session: &ChatSession) -> Self {
         Self {
             id: session.id.clone(),
             title: session.title.clone(),
@@ -374,27 +375,27 @@ impl TuiSessionPreview {
 
 /// 当前会话的持久化元信息。
 #[derive(Debug, Clone, PartialEq, Default)]
-pub(crate) struct TuiSessionState {
-    pub(crate) session_id: Option<String>,
-    pub(crate) title: String,
-    pub(crate) first_response_preview: Option<String>,
-    pub(crate) created_ms: u64,
-    pub(crate) updated_ms: u64,
-    pub(crate) scope: Option<String>,
+pub struct TuiSessionState {
+    pub session_id: Option<String>,
+    pub title: String,
+    pub first_response_preview: Option<String>,
+    pub created_ms: u64,
+    pub updated_ms: u64,
+    pub scope: Option<String>,
     /// session_ui snapshot 对应的持久化文件路径，不是当前 workspace root。
-    pub(crate) path: Option<PathBuf>,
-    pub(crate) preview: Option<TuiSessionPreview>,
-    pub(crate) persisted_calls: Vec<Value>,
-    pub(crate) persisted_messages: Vec<TuiPersistedMessage>,
+    pub path: Option<PathBuf>,
+    pub preview: Option<TuiSessionPreview>,
+    pub persisted_calls: Vec<Value>,
+    pub persisted_messages: Vec<TuiPersistedMessage>,
 }
 
 /// 当前工作区与本地项目上下文的内部镜像。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct TuiProjectContextState {
-    pub(crate) workspace_root: Option<PathBuf>,
-    pub(crate) info: String,
-    pub(crate) git_status: GitWorkspaceStatus,
-    pub(crate) memory_evidence: Option<UiMemoryEntry>,
+pub struct TuiProjectContextState {
+    pub workspace_root: Option<PathBuf>,
+    pub info: String,
+    pub git_status: GitWorkspaceStatus,
+    pub memory_evidence: Option<UiMemoryEntry>,
 }
 
 /// TUI 可消费的轻量模型目录项。
@@ -402,11 +403,11 @@ pub(crate) struct TuiProjectContextState {
 /// 这里不直接复用 provider resolver 的完整模型结构，避免把配置态与 UI suggestion
 /// 表面强耦合在一起。当前只保留 slash command 选择模型所需的最小字段。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiModelCatalogEntry {
-    pub(crate) provider_id: String,
-    pub(crate) provider_name: String,
-    pub(crate) model_id: String,
-    pub(crate) model_name: String,
+pub struct TuiModelCatalogEntry {
+    pub provider_id: String,
+    pub provider_name: String,
+    pub model_id: String,
+    pub model_name: String,
 }
 
 impl TuiModelCatalogEntry {
@@ -445,44 +446,44 @@ impl TuiModelCatalogEntry {
 /// 这些字段不会进入 snapshot，也不会跨 turn 保留；
 /// 它们仅用于把 transport 层分块文本稳定规整为 `UiMessage`。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct TuiRuntimeState {
-    pub(crate) active_plan_run_request_id: Option<String>,
-    pub(crate) active_plan_run_task_id: Option<String>,
-    pub(crate) thinking_open: bool,
-    pub(crate) thinking_depth: u32,
-    pub(crate) thinking_redacted: bool,
-    pub(crate) event_time_ms: Option<u64>,
-    pub(crate) last_event_time_ms: Option<u64>,
+pub struct TuiRuntimeState {
+    pub active_plan_run_request_id: Option<String>,
+    pub active_plan_run_task_id: Option<String>,
+    pub thinking_open: bool,
+    pub thinking_depth: u32,
+    pub thinking_redacted: bool,
+    pub event_time_ms: Option<u64>,
+    pub last_event_time_ms: Option<u64>,
 }
 
 /// TUI 的顶层状态容器。
 #[derive(Debug, Clone, PartialEq, Default)]
-pub(crate) struct TuiState {
-    pub(crate) messages: Vec<UiMessage>,
-    pub(crate) unseen_baseline_id: Option<UiMessageId>,
+pub struct TuiState {
+    pub messages: Vec<UiMessage>,
+    pub unseen_baseline_id: Option<UiMessageId>,
     pub(crate) search_index: TuiSearchTextCache,
     pub(crate) transcript: TuiTranscriptProjectionCache,
     pub(crate) transcript_layout: TuiTranscriptLayoutCache,
-    pub(crate) scroll: TuiScrollState,
-    pub(crate) status: TuiStatusState,
-    pub(crate) tasks: TuiTaskState,
-    pub(crate) prompt: PromptState,
-    pub(crate) overlays: OverlayState,
-    pub(crate) project: TuiProjectContextState,
-    pub(crate) session: TuiSessionState,
-    pub(crate) runtime: TuiRuntimeState,
-    pub(crate) model_catalog: Vec<TuiModelCatalogEntry>,
-    pub(crate) transcript_mode: TranscriptModeState,
-    pub(crate) message_actions: MessageActionState,
-    pub(crate) session_options: cli_interaction_model::SessionOptions,
-    pub(crate) session_capabilities: cli_interaction_model::SessionCapabilityMatrix,
-    pub(crate) settings_warnings: Vec<String>,
-    pub(crate) integration_catalog: Vec<cli_interaction_model::integration::IntegrationItem>,
-    pub(crate) integration_warnings: Vec<String>,
-    pub(crate) orchestration: super::runtime::orchestration::OrchestrationSnapshot,
-    pub(crate) theme_name: String,
-    pub(crate) agent_view: cli_interaction_model::agent_view::AgentViewState,
-    pub(crate) notifications: cli_interaction_model::notification::NotificationStore,
+    pub scroll: TuiScrollState,
+    pub status: TuiStatusState,
+    pub tasks: TuiTaskState,
+    pub prompt: PromptState,
+    pub overlays: OverlayState,
+    pub project: TuiProjectContextState,
+    pub session: TuiSessionState,
+    pub runtime: TuiRuntimeState,
+    pub model_catalog: Vec<TuiModelCatalogEntry>,
+    pub transcript_mode: TranscriptModeState,
+    pub message_actions: MessageActionState,
+    pub session_options: cli_interaction_model::SessionOptions,
+    pub session_capabilities: cli_interaction_model::SessionCapabilityMatrix,
+    pub settings_warnings: Vec<String>,
+    pub integration_catalog: Vec<cli_interaction_model::integration::IntegrationItem>,
+    pub integration_warnings: Vec<String>,
+    pub orchestration: snapshots::OrchestrationSnapshot,
+    pub theme_name: String,
+    pub agent_view: cli_interaction_model::agent_view::AgentViewState,
+    pub notifications: cli_interaction_model::notification::NotificationStore,
 }
 
 impl TuiState {
@@ -492,7 +493,7 @@ impl TuiState {
     /// - 文本消息进入 `UiMessage`
     /// - `message_ids`/`think_timing`/`calls` 保存在 session metadata，供 round-trip 使用
     /// - `steps` 转成 `UiMessage::Step`，为后续 grouped/collapsed 渲染铺底
-    pub(crate) fn from_chat_session(session: &ChatSession) -> Self {
+    pub fn from_chat_session(session: &ChatSession) -> Self {
         let mut state = Self::default();
         let active_terminal = terminal_from_snapshot(session);
         let last_assistant_index = session
@@ -628,7 +629,7 @@ impl TuiState {
     ///
     /// 其他更细粒度的 thinking/tool-call UI 消息会继续留在内部状态里，等待后续子任务
     /// 决定持久化策略。
-    pub(crate) fn to_chat_session(&self) -> ChatSession {
+    pub fn to_chat_session(&self) -> ChatSession {
         let mut messages = Vec::new();
         let mut message_ids = Vec::new();
         let mut steps = Vec::new();
@@ -676,7 +677,7 @@ impl TuiState {
     }
 
     /// 向状态尾部追加一条新消息，并同步 session preview。
-    pub(crate) fn append_message(&mut self, mut message: UiMessage) {
+    pub fn append_message(&mut self, mut message: UiMessage) {
         attach_session_id(self.session.session_id.as_deref(), &mut message);
 
         if let Some(metadata) = persisted_message_from_ui_message(&message) {
@@ -827,7 +828,7 @@ impl TuiState {
     }
 }
 
-pub(super) fn message_base_mut(message: &mut UiMessage) -> &mut UiMessageBase {
+pub(crate) fn message_base_mut(message: &mut UiMessage) -> &mut UiMessageBase {
     match message {
         UiMessage::User(message) => &mut message.base,
         UiMessage::Assistant(message) => &mut message.base,
@@ -844,7 +845,7 @@ pub(super) fn message_base_mut(message: &mut UiMessage) -> &mut UiMessageBase {
     }
 }
 
-pub(super) fn is_persistable_chat_message(message: &UiMessage) -> bool {
+pub(crate) fn is_persistable_chat_message(message: &UiMessage) -> bool {
     match message {
         UiMessage::User(_)
         | UiMessage::Assistant(_)
@@ -858,7 +859,7 @@ pub(super) fn is_persistable_chat_message(message: &UiMessage) -> bool {
     }
 }
 
-pub(super) fn persisted_slot_index_for_message_index(
+pub(crate) fn persisted_slot_index_for_message_index(
     messages: &[UiMessage],
     message_index: usize,
 ) -> Option<usize> {
@@ -879,7 +880,7 @@ pub(super) fn persisted_slot_index_for_message_index(
     None
 }
 
-pub(super) fn raw_message_id_from_ui_message(message: &UiMessage) -> Option<String> {
+pub(crate) fn raw_message_id_from_ui_message(message: &UiMessage) -> Option<String> {
     message.id().as_str().strip_prefix("gateway:").map(ToOwned::to_owned)
 }
 

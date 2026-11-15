@@ -25,7 +25,7 @@ use cli_interaction_model::{
 
 /// assistant turn 终态更新时附带的补充元数据。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiTerminalUpdate {
+pub struct TuiTerminalUpdate {
     pub(crate) terminal: UiTurnTerminal,
     pub(crate) usage: Option<UiTokenUsage>,
     pub(crate) message_id: Option<String>,
@@ -34,7 +34,7 @@ pub(crate) struct TuiTerminalUpdate {
 
 /// tool 调用消息的状态更新输入。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiToolCallUpdate {
+pub struct TuiToolCallUpdate {
     pub(crate) tool_name: String,
     pub(crate) summary: Option<String>,
     pub(crate) arguments: Option<String>,
@@ -45,14 +45,14 @@ pub(crate) struct TuiToolCallUpdate {
 
 /// tool 结果消息的最小载荷。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TuiToolResultUpdate {
+pub struct TuiToolResultUpdate {
     pub(crate) content: String,
     pub(crate) is_error: bool,
 }
 
 /// TUI 状态层统一消费的动作枚举。
 #[derive(Debug, Clone)]
-pub(crate) enum TuiAction {
+pub enum TuiAction {
     ReplaceFromSnapshot {
         snapshot: ChatSession,
         scope: Option<String>,
@@ -111,7 +111,7 @@ pub(crate) enum TuiAction {
 }
 
 /// 原地更新一份 `TuiState`。
-pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
+pub fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
     match action {
         TuiAction::ReplaceFromSnapshot { snapshot, scope, path } => {
             let mut project = state.project.clone();
@@ -730,7 +730,7 @@ fn refresh_thinking_block(block: &mut UiThinkingBlock, updated_ms: u64) {
     block.summary = thinking_summary(&block.content);
 }
 
-pub(super) fn thinking_summary(content: &str) -> Option<String> {
+pub(crate) fn thinking_summary(content: &str) -> Option<String> {
     let first_line = content.lines().map(str::trim).find(|line| !line.is_empty())?;
 
     Some(truncate_summary(first_line, 96))

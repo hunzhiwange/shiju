@@ -22,7 +22,7 @@ use cli_interaction_model::{
 };
 use super::runtime::capabilities::load_session_capabilities_blocking;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 fn spawn_json_sequence_server(
     responses: Vec<&'static str>,

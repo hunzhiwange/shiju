@@ -17,7 +17,7 @@ use cli_interaction_model::integration::{IntegrationItem, IntegrationKind};
 use cli_interaction_model::{UiConfirmIntent, UiOverlay};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::runtime::integrations::{delete_integration_blocking, load_integrations_blocking};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 fn runtime(port: u16, root: PathBuf) -> GatewayUiRuntime {
     GatewayUiRuntime::new(

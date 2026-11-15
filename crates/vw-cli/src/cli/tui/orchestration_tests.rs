@@ -1,3 +1,4 @@
+use cli_interaction_state::snapshots::CronJobSnapshot;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -18,7 +19,7 @@ use super::commands::{
 use cli_interaction_model::UiOverlay;
 use cli_interaction_model::background_task::{CanonicalTaskStatus, TaskControlAction};
 use super::runtime::cron::{
-    CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
+    CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime, block_on_gateway};
@@ -27,7 +28,7 @@ use super::runtime::orchestration::{
     load_owned_workflow_detail_blocking,
 };
 use super::runtime::workflow_run::WorkflowRunOwnership;
-use super::state::{TuiAction, TuiState, reduce_tui_state};
+use cli_interaction_state::{TuiAction, TuiState, reduce_tui_state};
 
 fn runtime(port: u16) -> GatewayUiRuntime {
     GatewayUiRuntime::new(
@@ -46,15 +47,15 @@ fn scope() -> AgentSchedulerScopeDto {
 
 fn task_snapshot(
     scope: Option<AgentSchedulerScopeDto>,
-) -> super::runtime::orchestration::OrchestrationSnapshot {
+) -> cli_interaction_state::snapshots::OrchestrationSnapshot {
     task_snapshot_with_status(scope, CanonicalTaskStatus::Running)
 }
 
 fn task_snapshot_with_status(
     scope: Option<AgentSchedulerScopeDto>,
     canonical_status: CanonicalTaskStatus,
-) -> super::runtime::orchestration::OrchestrationSnapshot {
-    super::runtime::orchestration::OrchestrationSnapshot {
+) -> cli_interaction_state::snapshots::OrchestrationSnapshot {
+    cli_interaction_state::snapshots::OrchestrationSnapshot {
         scope,
         tasks: cli_interaction_model::background_task::BackgroundTaskPanel {
             tasks: vec![cli_interaction_model::background_task::BackgroundTask {
@@ -136,7 +137,7 @@ fn orchestration_panels_render_gateway_snapshots() {
 fn orchestration_controls_require_owned_stable_ids() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("fixture");
     let port = listener.local_addr().expect("address").port();
-    let snapshot = super::runtime::orchestration::OrchestrationSnapshot {
+    let snapshot = cli_interaction_state::snapshots::OrchestrationSnapshot {
         scope: Some(scope()),
         tasks: cli_interaction_model::background_task::BackgroundTaskPanel {
             tasks: vec![cli_interaction_model::background_task::BackgroundTask {
@@ -558,7 +559,7 @@ fn workflow_detail_renders_safe_summary_and_isolates_errors() {
         }
         requests
     });
-    let snapshot = super::runtime::orchestration::OrchestrationSnapshot {
+    let snapshot = cli_interaction_state::snapshots::OrchestrationSnapshot {
         workflows: cli_interaction_model::workflow_panel::WorkflowPanel {
             items: vec![
                 cli_interaction_model::workflow_panel::WorkflowPanelItem {

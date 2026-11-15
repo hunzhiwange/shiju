@@ -46,12 +46,12 @@ fn find_earliest_tag(haystack: &str, tags: &[&str]) -> Option<(usize, usize)> {
 }
 
 /// 将单个 runtime 事件应用到状态层，并返回是否需要由宿主异步刷新交互请求。
-pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) -> bool {
+pub fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) -> bool {
     apply_runtime_event_at(state, event, wall_clock_ms())
 }
 
 /// 使用调用方提供的确定时间应用 runtime 事件。
-pub(crate) fn apply_runtime_event_at(
+pub fn apply_runtime_event_at(
     state: &mut TuiState,
     event: UiRuntimeEvent,
     event_time_ms: u64,

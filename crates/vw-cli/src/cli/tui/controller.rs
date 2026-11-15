@@ -9,7 +9,7 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers}
 
 use super::commands::CommandRoute;
 use cli_interaction_model::{PermissionDecision, PromptSubmission, UiConfirmIntent, UiQuestionOverlay};
-use super::state::{TuiAction, TuiState, reduce_tui_state};
+use cli_interaction_state::{TuiAction, TuiState, reduce_tui_state};
 
 /// 控制器可接收的时钟或终端事件。
 #[derive(Debug)]

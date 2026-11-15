@@ -26,9 +26,9 @@ use cli_interaction_model::background_task::{
 };
 use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
-use super::runtime::cron::CronJobSnapshot;
+use cli_interaction_state::snapshots::CronJobSnapshot;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 #[test]
 fn active_runner_drain_yields_after_stream_budget() {

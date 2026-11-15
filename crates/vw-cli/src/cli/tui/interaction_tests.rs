@@ -15,7 +15,7 @@ use cli_interaction_model::UiOverlay;
 use cli_interaction_model::permission::PermissionRequest;
 use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 #[test]
 fn task_state_change_refreshes_current_interactions() {

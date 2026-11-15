@@ -8,6 +8,7 @@ members = [
   "crates/libs/cli-terminal",
   "crates/libs/cli-transcript",
   "crates/libs/cli-interaction-model",
+  "crates/libs/cli-interaction-state",
   "crates/libs/cli-stdio",
   "crates/libs/cli-gateway-commands",
   "crates/libs/app-catalog",

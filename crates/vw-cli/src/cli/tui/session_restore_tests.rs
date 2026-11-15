@@ -17,7 +17,7 @@ use super::app::{
 use super::bridge::GatewayV3Bridge;
 use super::commands::{CommandRoute, SESSION_RESUME_SURFACE, route_selection};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 #[test]
 fn resume_candidates_exclude_archived_and_sort_latest_first() {

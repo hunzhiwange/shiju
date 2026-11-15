@@ -20,11 +20,11 @@ use cli_interaction_model::background_task::{
 use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 use cli_interaction_model::{UiConfirmIntent, UiOverlay};
-use super::runtime::cron::CronJobSnapshot;
+use cli_interaction_state::snapshots::CronJobSnapshot;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::runtime::orchestration::OrchestrationSnapshot;
+use cli_interaction_state::snapshots::OrchestrationSnapshot;
 use super::runtime::workflow_run::workflow_run_request;
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 #[test]
 fn selected_command_is_never_silently_ignored() {

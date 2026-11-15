@@ -16,7 +16,7 @@ use cli_interaction_model::UiQuestionOverlay;
 use cli_interaction_model::overlay::workflow_action_label;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use super::orchestration::OrchestrationSnapshot;
+use cli_interaction_state::snapshots::OrchestrationSnapshot;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::stream_adapter::adapt_gateway_workflow_stream_event;
 

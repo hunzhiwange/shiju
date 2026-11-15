@@ -7,7 +7,7 @@ use vw_tui::{V3Action, V3Attachment, V3AttachmentKind};
 
 use super::app::{ActiveRunner, V3GatewayApp};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::state::TuiState;
+use cli_interaction_state::TuiState;
 
 fn test_app(root: PathBuf) -> V3GatewayApp {
     let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 9)).expect("client");

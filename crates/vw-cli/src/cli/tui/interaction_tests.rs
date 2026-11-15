@@ -14,7 +14,7 @@ use super::app::{ActiveRunner, V3GatewayApp};
 use cli_interaction_model::UiOverlay;
 use cli_interaction_model::permission::PermissionRequest;
 use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 #[test]

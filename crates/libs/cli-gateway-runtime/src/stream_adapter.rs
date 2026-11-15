@@ -18,7 +18,7 @@ use cli_interaction_model::{
 };
 
 /// 基于错误文本归类统一终态语义。
-pub(crate) fn terminal_from_error_message(error: String) -> UiRuntimeTerminalEvent {
+pub fn terminal_from_error_message(error: String) -> UiRuntimeTerminalEvent {
     let message = normalize_optional_string(Some(error))
         .unwrap_or_else(|| "gateway stream failed".to_string());
 
@@ -39,7 +39,7 @@ pub(crate) fn terminal_from_error_message(error: String) -> UiRuntimeTerminalEve
 }
 
 /// 将计划运行事件投影到既有 TUI 消息与终态管线。
-pub(crate) fn adapt_task_plan_run_event(event: TaskPlanRunStreamEventDto) -> Vec<UiRuntimeEvent> {
+pub fn adapt_task_plan_run_event(event: TaskPlanRunStreamEventDto) -> Vec<UiRuntimeEvent> {
     match event {
         TaskPlanRunStreamEventDto::PlanningStarted { task_id, plan_dir, session_id } => vec![
             UiRuntimeEvent::PlanRunTaskStarted { task_id: task_id.clone() },
@@ -391,7 +391,7 @@ fn plan_run_progress(
 }
 
 /// 将 gateway 原始流事件规整为 CLI 内部事件。
-pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRuntimeEvent {
+pub fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRuntimeEvent {
     if let GatewayChatStreamEvent::Other(value) = &event
         && value.get("type").and_then(Value::as_str) == Some("chat.content")
     {

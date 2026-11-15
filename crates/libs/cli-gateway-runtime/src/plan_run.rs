@@ -10,7 +10,7 @@ use cli_interaction_model::UiRuntimeEvent;
 use super::stream_adapter::adapt_task_plan_run_event;
 
 /// 构造真实 task-plan-run 请求；计划与持续目标共享 Gateway 的目标运行语义。
-pub(crate) fn plan_run_request(
+pub fn plan_run_request(
     query: &str,
     root: &Path,
     model: Option<String>,
@@ -35,7 +35,7 @@ pub(crate) fn plan_run_request(
 }
 
 /// 在后台线程中运行一次带稳定 request ID 的 plan-run SSE，并适配到统一事件管线。
-pub(crate) fn stream_plan_run_resumable_blocking(
+pub fn stream_plan_run_resumable_blocking(
     runtime: &GatewayUiRuntime,
     request: &TaskPlanRunRequest,
     request_id: &str,
@@ -65,7 +65,7 @@ pub(crate) fn stream_plan_run_resumable_blocking(
 }
 
 /// 校验停止目标同时匹配当前 TUI 保存的 request ID 与 task ID。
-pub(crate) fn validate_owned_plan_run(
+pub fn validate_owned_plan_run(
     owned_request_id: Option<&str>,
     owned_task_id: Option<&str>,
     request_id: &str,
@@ -81,7 +81,7 @@ pub(crate) fn validate_owned_plan_run(
 }
 
 /// 精确停止当前 TUI 拥有的流请求与其后台任务。
-pub(crate) fn stop_owned_plan_run_blocking(
+pub fn stop_owned_plan_run_blocking(
     runtime: &GatewayUiRuntime,
     owned_request_id: Option<&str>,
     owned_task_id: Option<&str>,

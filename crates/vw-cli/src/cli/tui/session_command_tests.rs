@@ -12,7 +12,7 @@ use vw_tui::{V3Action, V3ApprovalDecision};
 use super::app::{ActiveRunner, V3GatewayApp};
 use super::commands::{CommandRoute, route_slash_submission};
 use cli_interaction_model::{UiConfirmIntent, UiOverlay};
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 #[test]

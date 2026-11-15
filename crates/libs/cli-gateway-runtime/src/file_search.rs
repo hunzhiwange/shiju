@@ -9,7 +9,7 @@ use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 const FILE_SEARCH_LIMIT: usize = 20;
 
-pub(crate) fn search_files_blocking(
+pub fn search_files_blocking(
     runtime: &GatewayUiRuntime,
     query: &str,
 ) -> Result<Vec<V3FileSearchMatch>, String> {

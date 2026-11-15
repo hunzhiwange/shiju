@@ -8,7 +8,7 @@ use vw_tui::V3SelectionItem;
 use cli_interaction_model::background_task::TaskControlAction;
 use cli_interaction_model::integration::{IntegrationItem, IntegrationKind};
 use cli_interaction_model::{PermissionMode, ReasoningEffort};
-use super::runtime::workspace_files::normalize_workspace_relative_path;
+use cli_gateway_runtime::workspace_files::normalize_workspace_relative_path;
 
 pub(crate) const COMMAND_PALETTE_SURFACE: &str = "command_palette";
 pub(crate) const SESSION_RESUME_SURFACE: &str = "session_resume";

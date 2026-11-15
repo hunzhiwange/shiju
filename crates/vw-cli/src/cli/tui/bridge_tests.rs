@@ -23,7 +23,7 @@ use cli_interaction_model::{
     PermissionMode, UiMessage, UiOverlay, UiPermissionOverlay, UiQuestionOption, UiQuestionOverlay,
     UiQuestionPrompt, UiTurnTerminal,
 };
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 #[test]

@@ -16,19 +16,19 @@ use cli_interaction_model::UiQuestionOverlay;
 use cli_interaction_model::overlay::workflow_action_label;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use cli_interaction_state::snapshots::OrchestrationSnapshot;
+use cli_interaction_model::snapshots::OrchestrationSnapshot;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::stream_adapter::adapt_gateway_workflow_stream_event;
 
 /// 已通过当前 Workflow snapshot 校验的运行请求。
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct OwnedWorkflowRunRequest {
-    pub(crate) uuid: String,
-    pub(crate) body: GatewayWorkflowStreamRequest,
+pub struct OwnedWorkflowRunRequest {
+    pub uuid: String,
+    pub body: GatewayWorkflowStreamRequest,
 }
 
 /// 构造仅指向当前目录已加载 Workflow 的流式请求。
-pub(crate) fn workflow_run_request(
+pub fn workflow_run_request(
     snapshot: &OrchestrationSnapshot,
     session_id: Option<&str>,
     uuid: &str,
@@ -60,7 +60,7 @@ pub(crate) fn workflow_run_request(
 }
 
 /// 在后台线程中运行真实 Workflow SSE，并保留调用方提前停止语义。
-pub(crate) fn stream_workflow_run_blocking(
+pub fn stream_workflow_run_blocking(
     runtime: &GatewayUiRuntime,
     request: &OwnedWorkflowRunRequest,
     mut on_event: impl FnMut(GatewayWorkflowStreamEvent) -> bool,
@@ -84,7 +84,7 @@ pub(crate) fn stream_workflow_run_blocking(
 }
 
 /// 使用原始 pause token 恢复同一个 Workflow run；请求体不会进入 UI 状态。
-pub(crate) fn resume_workflow_run_blocking(
+pub fn resume_workflow_run_blocking(
     runtime: &GatewayUiRuntime,
     request: &WorkflowResumeRequest,
 ) -> Result<WorkflowRunResponse, String> {
@@ -93,7 +93,7 @@ pub(crate) fn resume_workflow_run_blocking(
 
 /// 独立于 chat/plan-run 的 Workflow 请求、运行、会话与暂停归属。
 #[derive(Clone, PartialEq)]
-pub(crate) struct WorkflowRunOwnership {
+pub struct WorkflowRunOwnership {
     request_id: String,
     workflow_uuid: String,
     session_id: String,
@@ -125,7 +125,7 @@ impl fmt::Debug for WorkflowRunOwnership {
 }
 
 impl WorkflowRunOwnership {
-    pub(crate) fn new_for_session(
+    pub fn new_for_session(
         request_id: String,
         workflow_uuid: String,
         session_id: String,
@@ -145,7 +145,7 @@ impl WorkflowRunOwnership {
     }
 
     /// 更新稳定归属字段，并保证一个 Workflow stream 只投影一个终态。
-    pub(crate) fn project_event(
+    pub fn project_event(
         &mut self,
         event: GatewayWorkflowStreamEvent,
     ) -> Vec<UiRuntimeEvent> {
@@ -205,38 +205,38 @@ impl WorkflowRunOwnership {
         }
     }
 
-    pub(crate) fn request_id(&self) -> &str {
+    pub fn request_id(&self) -> &str {
         self.request_id.as_str()
     }
 
-    pub(crate) fn workflow_uuid(&self) -> &str {
+    pub fn workflow_uuid(&self) -> &str {
         self.workflow_uuid.as_str()
     }
 
-    pub(crate) fn task_id(&self) -> Option<&str> {
+    pub fn task_id(&self) -> Option<&str> {
         self.task_id.as_deref()
     }
 
-    pub(crate) fn workflow_run_id(&self) -> Option<&str> {
+    pub fn workflow_run_id(&self) -> Option<&str> {
         self.workflow_run_id.as_deref()
     }
 
-    pub(crate) fn conversation_id(&self) -> Option<&str> {
+    pub fn conversation_id(&self) -> Option<&str> {
         self.conversation_id.as_deref()
     }
 
-    pub(crate) fn pause(&self) -> Option<&WorkflowPauseDto> {
+    pub fn pause(&self) -> Option<&WorkflowPauseDto> {
         self.pause.as_ref()
     }
 
-    pub(crate) fn pause_request_id(&self) -> Option<String> {
+    pub fn pause_request_id(&self) -> Option<String> {
         self.pause.as_ref()?;
         self.workflow_run_id.as_ref()?;
         Some(format!("workflow-pause-{}-{}", self.request_id, self.pause_generation))
     }
 
     /// 返回仅含表单展示信息的 pause question，不复制恢复 token。
-    pub(crate) fn pause_question(&self) -> Result<Option<UiQuestionOverlay>, String> {
+    pub fn pause_question(&self) -> Result<Option<UiQuestionOverlay>, String> {
         let Some(pause) = self.pause.as_ref() else {
             return Ok(None);
         };
@@ -250,7 +250,7 @@ impl WorkflowRunOwnership {
     }
 
     /// 只允许当前会话对当前 pause 生成一次精确恢复请求。
-    pub(crate) fn resume_request(
+    pub fn resume_request(
         &self,
         current_session_id: Option<&str>,
         question: &UiQuestionOverlay,
@@ -296,7 +296,7 @@ impl WorkflowRunOwnership {
     }
 
     /// 原子投影 resume 响应：完成/失败清理 pause，再次暂停则替换其所有权。
-    pub(crate) fn project_resume_response(
+    pub fn project_resume_response(
         &mut self,
         response: WorkflowRunResponse,
     ) -> Result<Vec<UiRuntimeEvent>, String> {
@@ -359,11 +359,11 @@ impl WorkflowRunOwnership {
         Ok(events)
     }
 
-    pub(crate) fn terminal_events(&self) -> usize {
+    pub fn terminal_events(&self) -> usize {
         self.terminal_events
     }
 
-    pub(crate) fn project_local_terminal(
+    pub fn project_local_terminal(
         &mut self,
         terminal: UiRuntimeTerminalEvent,
     ) -> Option<UiRuntimeEvent> {

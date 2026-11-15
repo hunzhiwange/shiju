@@ -16,28 +16,28 @@ const MAX_TOOL_NAME_CHARS: usize = 96;
 const MAX_ERROR_CHARS: usize = 320;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HookCatalogItem {
-    pub(crate) plugin_id: String,
-    pub(crate) event: String,
-    pub(crate) mode: String,
-    pub(crate) hook_hash: String,
-    pub(crate) trusted: bool,
+pub struct HookCatalogItem {
+    pub plugin_id: String,
+    pub event: String,
+    pub mode: String,
+    pub hook_hash: String,
+    pub trusted: bool,
 }
 
 /// 仅保存后续信任操作所需稳定凭据及可安全展示的声明字段。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HookCatalogView {
+pub struct HookCatalogView {
     items: Vec<HookCatalogItem>,
     malformed_count: usize,
     truncated: bool,
 }
 
 impl HookCatalogView {
-    pub(crate) fn find(&self, plugin_id: &str, hook_hash: &str) -> Option<&HookCatalogItem> {
+    pub fn find(&self, plugin_id: &str, hook_hash: &str) -> Option<&HookCatalogItem> {
         self.items.iter().find(|item| item.plugin_id == plugin_id && item.hook_hash == hook_hash)
     }
 
-    pub(crate) fn into_selection_items(self) -> Vec<V3SelectionItem> {
+    pub fn into_selection_items(self) -> Vec<V3SelectionItem> {
         let mut items = self
             .items
             .into_iter()
@@ -85,9 +85,9 @@ impl HookCatalogView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HookMutationRefresh {
-    pub(crate) catalog: HookCatalogView,
-    pub(crate) audit: HookAuditView,
+pub struct HookMutationRefresh {
+    pub catalog: HookCatalogView,
+    pub audit: HookAuditView,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,14 +100,14 @@ struct HookAuditItem {
 
 /// 只保留 Gateway bounded audit DTO 的安全字段。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HookAuditView {
+pub struct HookAuditView {
     items: Vec<HookAuditItem>,
     malformed_count: usize,
     truncated: bool,
 }
 
 impl HookAuditView {
-    pub(crate) fn render_text(&self) -> String {
+    pub fn render_text(&self) -> String {
         let mut lines = vec!["Hook audit".to_string()];
         if self.items.is_empty() {
             lines.push("未发现 Hook 审计记录".to_string());
@@ -131,7 +131,7 @@ impl HookAuditView {
     }
 }
 
-pub(crate) fn load_hook_catalog_blocking(
+pub fn load_hook_catalog_blocking(
     runtime: &GatewayUiRuntime,
 ) -> Result<HookCatalogView, String> {
     block_on_gateway(async {
@@ -144,7 +144,7 @@ pub(crate) fn load_hook_catalog_blocking(
     })
 }
 
-pub(crate) fn load_hook_audit_blocking(
+pub fn load_hook_audit_blocking(
     runtime: &GatewayUiRuntime,
 ) -> Result<HookAuditView, String> {
     block_on_gateway(async {
@@ -157,7 +157,7 @@ pub(crate) fn load_hook_audit_blocking(
     })
 }
 
-pub(crate) fn mutate_hook_and_refresh_blocking(
+pub fn mutate_hook_and_refresh_blocking(
     runtime: &GatewayUiRuntime,
     plugin_id: &str,
     hook_hash: &str,

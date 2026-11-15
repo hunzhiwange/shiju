@@ -2,21 +2,21 @@
 //!
 //! 子模块将网络 DTO 和阻塞包装限制在运行时层，不让渲染与纯状态模型依赖传输细节。
 
-pub(crate) mod capabilities;
-pub(crate) mod cron;
-pub(crate) mod diagnostics;
-pub(crate) mod file_search;
-pub(crate) mod gateway;
-pub(crate) mod hooks;
-pub(crate) mod integrations;
-pub(crate) mod interaction;
-pub(crate) mod orchestration;
-pub(crate) mod plan_run;
-pub(crate) mod session_diff;
+pub mod capabilities;
+pub mod cron;
+pub mod diagnostics;
+pub mod file_search;
+pub mod gateway;
+pub mod hooks;
+pub mod integrations;
+pub mod interaction;
+pub mod orchestration;
+pub mod plan_run;
+pub mod session_diff;
 mod session_store;
-pub(crate) mod stream_adapter;
-pub(crate) mod workflow_run;
-pub(crate) mod workspace_files;
+pub mod stream_adapter;
+pub mod workflow_run;
+pub mod workspace_files;
 
 #[cfg(test)]
 mod diagnostics_tests;

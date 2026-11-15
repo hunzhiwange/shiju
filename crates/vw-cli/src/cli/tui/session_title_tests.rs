@@ -9,7 +9,7 @@ fn tui_initial_title_uses_input_until_matching_llm_title_arrives() {
             9,
         ))
         .unwrap(),
-        super::super::runtime::gateway::GatewaySessionSeed::new(directory.clone()),
+        cli_gateway_runtime::gateway::GatewaySessionSeed::new(directory.clone()),
     );
     let state = initial_tui_state(&runtime);
     let mut app = V3GatewayApp::new(runtime, state);
@@ -59,7 +59,7 @@ fn tui_published_preview_and_resume_list_use_first_non_empty_line() {
             9,
         ))
         .unwrap(),
-        super::super::runtime::gateway::GatewaySessionSeed::new(directory),
+        cli_gateway_runtime::gateway::GatewaySessionSeed::new(directory),
     );
     let state = initial_tui_state(&runtime);
     let mut app = V3GatewayApp::new(runtime, state);
@@ -90,7 +90,7 @@ fn tui_first_response_title_applies_only_to_the_matching_request_and_unnamed_ses
             9,
         ))
         .unwrap(),
-        super::super::runtime::gateway::GatewaySessionSeed::new(directory.clone()),
+        cli_gateway_runtime::gateway::GatewaySessionSeed::new(directory.clone()),
     );
     let state = initial_tui_state(&runtime);
     let mut app = V3GatewayApp::new(runtime, state);

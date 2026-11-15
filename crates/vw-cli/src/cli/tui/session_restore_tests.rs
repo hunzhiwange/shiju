@@ -16,7 +16,7 @@ use super::app::{
 };
 use super::bridge::GatewayV3Bridge;
 use super::commands::{CommandRoute, SESSION_RESUME_SURFACE, route_selection};
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 #[test]

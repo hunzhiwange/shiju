@@ -12,44 +12,44 @@ const MAX_DIRECTORY_ENTRIES: usize = 200;
 const MAX_FILE_DISPLAY_CHARS: usize = 16_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct WorkspaceFileListing {
+pub struct WorkspaceFileListing {
     path: String,
     items: Vec<V3SelectionItem>,
 }
 
 impl WorkspaceFileListing {
-    pub(crate) fn path(&self) -> &str {
+    pub fn path(&self) -> &str {
         self.path.as_str()
     }
 
-    pub(crate) fn items(&self) -> &[V3SelectionItem] {
+    pub fn items(&self) -> &[V3SelectionItem] {
         self.items.as_slice()
     }
 
-    pub(crate) fn into_items(self) -> Vec<V3SelectionItem> {
+    pub fn into_items(self) -> Vec<V3SelectionItem> {
         self.items
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct WorkspaceFileText {
+pub struct WorkspaceFileText {
     path: String,
     content: String,
     truncated: bool,
 }
 
 impl WorkspaceFileText {
-    pub(crate) fn path(&self) -> &str {
+    pub fn path(&self) -> &str {
         self.path.as_str()
     }
 
-    pub(crate) fn render_text(&self) -> String {
+    pub fn render_text(&self) -> String {
         let suffix = if self.truncated { "\n\n[内容已截断]" } else { "" };
         format!("{}\n\n{}{}", self.path, self.content, suffix)
     }
 }
 
-pub(crate) fn load_workspace_files_blocking(
+pub fn load_workspace_files_blocking(
     runtime: &GatewayUiRuntime,
     path: &str,
 ) -> Result<WorkspaceFileListing, String> {
@@ -63,7 +63,7 @@ pub(crate) fn load_workspace_files_blocking(
     })
 }
 
-pub(crate) fn read_workspace_file_blocking(
+pub fn read_workspace_file_blocking(
     runtime: &GatewayUiRuntime,
     path: &str,
 ) -> Result<WorkspaceFileText, String> {
@@ -83,7 +83,7 @@ pub(crate) fn read_workspace_file_blocking(
     })
 }
 
-pub(crate) fn normalize_workspace_relative_path(value: &str) -> Result<String, String> {
+pub fn normalize_workspace_relative_path(value: &str) -> Result<String, String> {
     let normalized = value.trim().replace('\\', "/");
     if normalized.is_empty() || normalized == "." {
         return Ok(".".to_string());

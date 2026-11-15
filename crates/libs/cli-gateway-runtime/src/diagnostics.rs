@@ -19,7 +19,7 @@ struct GatewayDiagnosticItem {
 
 /// 只保留 Gateway doctor 公共结果字段的展示快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct GatewayDiagnosticsReport {
+pub struct GatewayDiagnosticsReport {
     items: Vec<GatewayDiagnosticItem>,
     ok_count: usize,
     warning_count: usize,
@@ -27,7 +27,7 @@ pub(crate) struct GatewayDiagnosticsReport {
 }
 
 impl GatewayDiagnosticsReport {
-    pub(crate) fn render_text(&self) -> String {
+    pub fn render_text(&self) -> String {
         let mut lines = vec![
             "Gateway diagnostics".to_string(),
             format!(
@@ -44,7 +44,7 @@ impl GatewayDiagnosticsReport {
     }
 }
 
-pub(crate) fn load_gateway_diagnostics_blocking(
+pub fn load_gateway_diagnostics_blocking(
     runtime: &GatewayUiRuntime,
 ) -> Result<GatewayDiagnosticsReport, String> {
     block_on_gateway(async {

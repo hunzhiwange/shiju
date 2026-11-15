@@ -150,7 +150,7 @@ impl GatewayUiRuntime {
     }
 
     /// Read the published preview in this directory; pending sessions have no public preview.
-    pub(crate) fn session_publication_blocking(&self) -> Result<Option<ChatSessionMeta>, String> {
+    pub fn session_publication_blocking(&self) -> Result<Option<ChatSessionMeta>, String> {
         let session_id = self.resolve_session_id(None)?;
         let directory = self.directory_value();
         let preview = block_on_gateway(
@@ -163,12 +163,12 @@ impl GatewayUiRuntime {
     }
 
     /// 在当前目录约束下加载完整会话快照，并拒绝空 ID、缺失快照或响应 ID 失配。
-    pub(crate) fn session_ui_load_blocking(&self, session_id: &str) -> Result<ChatSession, String> {
+    pub fn session_ui_load_blocking(&self, session_id: &str) -> Result<ChatSession, String> {
         block_on_gateway(self.session_ui_load(session_id))
     }
 
     /// Restore a user-selected session after verifying its persisted source.
-    pub(crate) fn session_ui_resume_blocking(
+    pub fn session_ui_resume_blocking(
         &self,
         session_id: &str,
     ) -> Result<ChatSession, String> {
@@ -176,7 +176,7 @@ impl GatewayUiRuntime {
     }
 
     /// 将完整 UI 会话快照同步保存到 Gateway。
-    pub(crate) fn session_ui_save_blocking(&self, session: &ChatSession) -> Result<(), String> {
+    pub fn session_ui_save_blocking(&self, session: &ChatSession) -> Result<(), String> {
         block_on_gateway(self.session_ui_save(session))
     }
 
@@ -186,34 +186,34 @@ impl GatewayUiRuntime {
     }
 
     /// 返回当前目录下按最近更新时间倒序排列的非归档会话。
-    pub(crate) fn session_resume_candidates_blocking(
+    pub fn session_resume_candidates_blocking(
         &self,
     ) -> Result<Vec<ChatSessionMeta>, String> {
         block_on_gateway(self.session_resume_candidates())
     }
 
     /// 重命名当前绑定会话；响应 ID 必须仍指向当前会话。
-    pub(crate) fn session_rename_blocking(&self, title: &str) -> Result<(), String> {
+    pub fn session_rename_blocking(&self, title: &str) -> Result<(), String> {
         block_on_gateway(self.session_rename(title))
     }
 
     /// 从当前会话末尾或指定持久化消息分叉，并返回 Gateway 分配的新会话 ID。
-    pub(crate) fn session_fork_blocking(&self, message_id: Option<&str>) -> Result<String, String> {
+    pub fn session_fork_blocking(&self, message_id: Option<&str>) -> Result<String, String> {
         block_on_gateway(self.session_fork_from(message_id))
     }
 
     /// 将当前会话及代码变更回退到指定持久化消息。
-    pub(crate) fn session_reset_blocking(&self, message_id: &str) -> Result<(), String> {
+    pub fn session_reset_blocking(&self, message_id: &str) -> Result<(), String> {
         block_on_gateway(self.session_reset_to(message_id))
     }
 
     /// 从指定持久化消息触发上下文压缩，返回 Gateway 是否执行了压缩。
-    pub(crate) fn session_compact_blocking(&self, message_id: &str) -> Result<bool, String> {
+    pub fn session_compact_blocking(&self, message_id: &str) -> Result<bool, String> {
         block_on_gateway(self.session_compact_from(message_id))
     }
 
     /// 在当前目录作用域的归档集合中加入当前会话。
-    pub(crate) fn session_archive_blocking(&self) -> Result<(), String> {
+    pub fn session_archive_blocking(&self) -> Result<(), String> {
         block_on_gateway(self.session_archive_current())
     }
 }

@@ -9,24 +9,24 @@ use cli_interaction_model::integration::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct LoadedIntegrationCatalog {
-    pub(crate) items: Vec<IntegrationItem>,
-    pub(crate) warnings: Vec<String>,
+pub struct LoadedIntegrationCatalog {
+    pub items: Vec<IntegrationItem>,
+    pub warnings: Vec<String>,
 }
 
-pub(crate) enum MemoryMutation {
+pub enum MemoryMutation {
     Store { key: String, content: String },
     Delete { key: String },
 }
 
 impl MemoryMutation {
-    pub(crate) fn key(&self) -> &str {
+    pub fn key(&self) -> &str {
         match self {
             Self::Store { key, .. } | Self::Delete { key } => key,
         }
     }
 
-    pub(crate) fn action_name(&self) -> &'static str {
+    pub fn action_name(&self) -> &'static str {
         match self {
             Self::Store { .. } => "store",
             Self::Delete { .. } => "delete",
@@ -115,7 +115,7 @@ pub(crate) async fn load_integrations(runtime: &GatewayUiRuntime) -> LoadedInteg
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_integrations_blocking(runtime: &GatewayUiRuntime) -> LoadedIntegrationCatalog {
+pub fn load_integrations_blocking(runtime: &GatewayUiRuntime) -> LoadedIntegrationCatalog {
     block_on_gateway(async { Ok(load_integrations(runtime).await) }).unwrap_or_else(|error| {
         LoadedIntegrationCatalog {
             items: Vec::new(),
@@ -125,7 +125,7 @@ pub(crate) fn load_integrations_blocking(runtime: &GatewayUiRuntime) -> LoadedIn
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn query_memory_blocking(
+pub fn query_memory_blocking(
     runtime: &GatewayUiRuntime,
     query: Option<&str>,
 ) -> Result<Vec<IntegrationItem>, String> {
@@ -136,7 +136,7 @@ pub(crate) fn query_memory_blocking(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn mutate_memory_and_refresh_blocking(
+pub fn mutate_memory_and_refresh_blocking(
     runtime: &GatewayUiRuntime,
     mutation: &MemoryMutation,
     query: Option<&str>,
@@ -163,7 +163,7 @@ pub(crate) fn mutate_memory_and_refresh_blocking(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn set_integration_enabled_blocking(
+pub fn set_integration_enabled_blocking(
     runtime: &GatewayUiRuntime,
     item: &IntegrationItem,
     enabled: bool,
@@ -187,7 +187,7 @@ pub(crate) fn set_integration_enabled_blocking(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn delete_integration_blocking(
+pub fn delete_integration_blocking(
     runtime: &GatewayUiRuntime,
     item: &IntegrationItem,
 ) -> Result<(), String> {

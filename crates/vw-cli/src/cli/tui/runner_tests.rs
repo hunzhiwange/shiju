@@ -26,8 +26,8 @@ use cli_interaction_model::background_task::{
 };
 use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
-use cli_interaction_state::snapshots::CronJobSnapshot;
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_interaction_model::snapshots::CronJobSnapshot;
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 #[test]

@@ -15,8 +15,8 @@ use super::commands::{
 use super::controller::TuiControllerCommand;
 use cli_interaction_model::integration::{IntegrationItem, IntegrationKind};
 use cli_interaction_model::{UiConfirmIntent, UiOverlay};
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use super::runtime::integrations::{delete_integration_blocking, load_integrations_blocking};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::integrations::{delete_integration_blocking, load_integrations_blocking};
 use cli_interaction_state::TuiState;
 
 fn runtime(port: u16, root: PathBuf) -> GatewayUiRuntime {

@@ -468,8 +468,8 @@ pub(crate) fn setup_cli(
 /// 将代理配置转换为网关运行时所需的地址和请求目录。
 pub(crate) fn setup_gateway_runtime(
     config: &Config,
-) -> std::result::Result<super::tui::runtime::gateway::GatewayUiRuntime, String> {
-    use super::tui::runtime::gateway::{
+) -> std::result::Result<cli_gateway_runtime::gateway::GatewayUiRuntime, String> {
+    use cli_gateway_runtime::gateway::{
         GatewayClientBootstrapConfig, GatewaySessionSeed, GatewayUiRuntime,
     };
 

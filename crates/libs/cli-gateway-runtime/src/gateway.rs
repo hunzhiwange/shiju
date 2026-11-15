@@ -52,7 +52,7 @@ const GATEWAY_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(150);
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum GatewayPreflightOutcome {
+pub enum GatewayPreflightOutcome {
     Ready,
     Started,
 }
@@ -70,17 +70,17 @@ impl GatewayPreflightOutcome {
 /// 字段来源为桌面端维护的 `gateway-client-bootstrap.json` 启动缓存，
 /// 不把它当作完整系统配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct GatewayClientBootstrapConfig {
+pub struct GatewayClientBootstrapConfig {
     /// 目标网关主机名或 IP。
-    pub(crate) host: String,
+    pub host: String,
     /// 目标网关端口。
-    pub(crate) port: u16,
+    pub port: u16,
     /// 可选 skey，会作为 Bearer token 发送。
-    pub(crate) skey: Option<String>,
+    pub skey: Option<String>,
     /// 请求所属的平台租户 ID。
-    pub(crate) platform_id: String,
+    pub platform_id: String,
     /// 请求所属的公司租户 ID。
-    pub(crate) company_id: String,
+    pub company_id: String,
 }
 
 impl Default for GatewayClientBootstrapConfig {
@@ -100,7 +100,7 @@ impl GatewayClientBootstrapConfig {
     ///
     /// 读取失败时会回退到默认值，而不是让 legacy CLI 因配置缺失直接中断。
     /// 这样可以保证 S1-1 先把依赖边界与 runtime 骨架接好，后续再继续补齐真实切换路径。
-    pub(crate) fn load(config_path: &Path) -> Self {
+    pub fn load(config_path: &Path) -> Self {
         let mut bootstrap = Self::default();
 
         let Some(config_dir) = config_path.parent() else {
@@ -136,7 +136,7 @@ impl GatewayClientBootstrapConfig {
     }
 
     /// 将引导配置转换为 `GatewayEndpoint`。
-    pub(crate) fn endpoint(&self) -> GatewayEndpoint {
+    pub fn endpoint(&self) -> GatewayEndpoint {
         let tenant_scope = TenantScope::new(self.platform_id.clone(), self.company_id.clone())
             .expect("CLI gateway bootstrap tenant IDs must not be empty");
         let mut endpoint =
@@ -196,7 +196,7 @@ impl GatewayClientBootstrapConfig {
 ///
 /// 后续 slice 会继续围绕该结构补齐 session snapshot、restore 和状态线所需信息。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct GatewaySessionSeed {
+pub struct GatewaySessionSeed {
     id: Option<String>,
     directory: PathBuf,
     scope: Option<String>,
@@ -205,38 +205,38 @@ pub(crate) struct GatewaySessionSeed {
 
 impl GatewaySessionSeed {
     /// 使用请求目录创建新的会话上下文。
-    pub(crate) fn new(directory: PathBuf) -> Self {
+    pub fn new(directory: PathBuf) -> Self {
         Self { id: None, directory, scope: None, title: None }
     }
 
     /// 返回当前 runtime 绑定的会话 ID（如果已设置）。
-    pub(crate) fn id(&self) -> Option<&str> {
+    pub fn id(&self) -> Option<&str> {
         self.id.as_deref()
     }
 
     /// 返回当前 runtime 绑定的请求目录。
-    pub(crate) fn directory(&self) -> &Path {
+    pub fn directory(&self) -> &Path {
         &self.directory
     }
 
     /// 返回会话 scope（如果已设置）。
-    pub(crate) fn scope(&self) -> Option<&str> {
+    pub fn scope(&self) -> Option<&str> {
         self.scope.as_deref()
     }
 
     /// 返回会话标题（如果已设置）。
-    pub(crate) fn title(&self) -> Option<&str> {
+    pub fn title(&self) -> Option<&str> {
         self.title.as_deref()
     }
 
     /// 用新的会话 ID 覆盖当前种子。
-    pub(crate) fn with_id(mut self, id: Option<String>) -> Self {
+    pub fn with_id(mut self, id: Option<String>) -> Self {
         self.id = normalize_optional_string(id);
         self
     }
 
     /// 用新的 scope 覆盖当前种子。
-    pub(crate) fn with_scope(mut self, scope: Option<String>) -> Self {
+    pub fn with_scope(mut self, scope: Option<String>) -> Self {
         self.scope = normalize_optional_string(scope);
         self
     }
@@ -254,19 +254,19 @@ impl GatewaySessionSeed {
 /// 1. 持有统一的 `GatewayClient`，作为后续 stream/session/question/todo 请求入口。
 /// 2. 持有会话种子信息，为后续 session_ui 与状态层接线提供稳定上下文。
 #[derive(Debug, Clone)]
-pub(crate) struct GatewayUiRuntime {
+pub struct GatewayUiRuntime {
     client: GatewayClient,
     session: GatewaySessionSeed,
 }
 
 impl GatewayUiRuntime {
     /// 基于外部已创建好的 client 与会话种子构造 runtime。
-    pub(crate) fn new(client: GatewayClient, session: GatewaySessionSeed) -> Self {
+    pub fn new(client: GatewayClient, session: GatewaySessionSeed) -> Self {
         Self { client, session }
     }
 
     /// 基于已解析的网关地址与会话种子创建 runtime。
-    pub(crate) fn from_endpoint(
+    pub fn from_endpoint(
         endpoint: GatewayEndpoint,
         session: GatewaySessionSeed,
     ) -> Result<Self, String> {
@@ -275,42 +275,42 @@ impl GatewayUiRuntime {
     }
 
     /// 返回统一的 gateway client 引用。
-    pub(crate) fn client(&self) -> &GatewayClient {
+    pub fn client(&self) -> &GatewayClient {
         &self.client
     }
 
     /// 返回当前 runtime 绑定的 gateway endpoint。
-    pub(crate) fn endpoint(&self) -> &GatewayEndpoint {
+    pub fn endpoint(&self) -> &GatewayEndpoint {
         self.client.endpoint()
     }
 
     /// 返回当前 runtime 的会话种子。
-    pub(crate) fn session(&self) -> &GatewaySessionSeed {
+    pub fn session(&self) -> &GatewaySessionSeed {
         &self.session
     }
 
     /// 返回当前请求目录。
-    pub(crate) fn directory(&self) -> &Path {
+    pub fn directory(&self) -> &Path {
         self.session.directory()
     }
 
     /// 返回当前会话 scope。
-    pub(crate) fn scope(&self) -> Option<&str> {
+    pub fn scope(&self) -> Option<&str> {
         self.session.scope()
     }
 
     /// 返回当前会话标题。
-    pub(crate) fn title(&self) -> Option<&str> {
+    pub fn title(&self) -> Option<&str> {
         self.session.title()
     }
 
     /// 返回当前会话 ID。
-    pub(crate) fn session_id(&self) -> Option<&str> {
+    pub fn session_id(&self) -> Option<&str> {
         self.session.id()
     }
 
     /// 用当前 UI 已确认的 session 元信息覆盖 runtime seed，保持后续默认回退一致。
-    pub(crate) fn bind_session_seed(
+    pub fn bind_session_seed(
         &mut self,
         session_id: Option<String>,
         scope: Option<String>,
@@ -320,7 +320,7 @@ impl GatewayUiRuntime {
     }
 
     /// 绑定本地可规范化目录，并清空旧目录的会话身份与作用域。
-    pub(crate) fn rebind_validated_directory(&mut self, path: &Path) -> Result<PathBuf, String> {
+    pub fn rebind_validated_directory(&mut self, path: &Path) -> Result<PathBuf, String> {
         let canonical = path
             .canonicalize()
             .map_err(|error| format!("cannot resolve directory {}: {error}", path.display()))?;
@@ -346,7 +346,7 @@ impl GatewayUiRuntime {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn resolve_project_directory_blocking(
+    pub fn resolve_project_directory_blocking(
         &self,
         directory: &Path,
         create_if_missing: bool,
@@ -407,7 +407,7 @@ impl GatewayUiRuntime {
     ///
     /// 返回值始终是统一的终态控制事件，用于让上层明确区分
     /// done、cancel、timeout 与 error。
-    pub(crate) async fn stream_chat(
+    pub async fn stream_chat(
         &self,
         body: &GatewayChatStreamRequest,
         mut on_event: impl FnMut(UiRuntimeEvent) -> bool,
@@ -476,7 +476,7 @@ impl GatewayUiRuntime {
 
     /// Reconnect once using the original request and its last delivered SSE sequence.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn stream_chat_resumable_blocking(
+    pub fn stream_chat_resumable_blocking(
         &self,
         body: &GatewayChatStreamRequest,
         request_id: &str,
@@ -529,13 +529,13 @@ impl GatewayUiRuntime {
 
     /// Stops exactly one resumable chat stream by its stable request ID.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn chat_stream_stop_blocking(&self, request_id: &str) -> Result<bool, String> {
+    pub fn chat_stream_stop_blocking(&self, request_id: &str) -> Result<bool, String> {
         block_on_gateway(self.client.chat_stream_stop(request_id))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     /// 在进入 tui 前预检 gateway；若 endpoint 指向本地 loopback，则自动尝试拉起。
-    pub(crate) fn ensure_local_gateway_ready_blocking(
+    pub fn ensure_local_gateway_ready_blocking(
         &self,
     ) -> Result<GatewayPreflightOutcome, String> {
         if gateway_health_ready(self.endpoint()) {
@@ -596,7 +596,7 @@ fn resolve_enabled_acp_backend_keys(
 
 #[cfg(not(target_arch = "wasm32"))]
 /// 以最小依赖方式在 CLI runtime 中阻塞等待 gateway 异步请求。
-pub(crate) fn block_on_gateway<F, T>(future: F) -> Result<T, String>
+pub fn block_on_gateway<F, T>(future: F) -> Result<T, String>
 where
     F: Future<Output = Result<T, String>>,
 {
@@ -656,7 +656,7 @@ fn looks_like_gateway_transport_error(message: &str) -> bool {
 }
 
 /// 将可选字符串引用归一化为“空白即无值”。
-pub(crate) fn normalize_optional_str_ref(value: Option<&str>) -> Option<&str> {
+pub fn normalize_optional_str_ref(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
 }
 

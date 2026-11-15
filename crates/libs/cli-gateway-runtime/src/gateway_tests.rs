@@ -122,7 +122,7 @@ fn model_picker_excludes_disabled_models_and_preserves_namespaced_ids() {
         ("200 OK", "{}"),
         ("200 OK", "{}"),
     ]);
-    let loaded = crate::cli::tui::runtime::capabilities::load_session_capabilities_blocking(
+    let loaded = crate::capabilities::load_session_capabilities_blocking(
         &runtime_for_port(port),
     );
     server.join().expect("join capability fixture");

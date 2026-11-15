@@ -11,10 +11,10 @@ use cli_interaction_model::{
 
 /// Gateway 能力加载结果；失败来源保留为可展示警告，矩阵使用安全最小值。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LoadedSessionCapabilities {
-    pub(crate) matrix: SessionCapabilityMatrix,
-    pub(crate) default_model: Option<String>,
-    pub(crate) warnings: Vec<String>,
+pub struct LoadedSessionCapabilities {
+    pub matrix: SessionCapabilityMatrix,
+    pub default_model: Option<String>,
+    pub warnings: Vec<String>,
 }
 
 /// 分别读取 provider、目录配置与 ACP 配置，单个来源失败不会扩大可用能力。
@@ -94,7 +94,7 @@ pub(crate) async fn load_session_capabilities(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_session_capabilities_blocking(
+pub fn load_session_capabilities_blocking(
     runtime: &GatewayUiRuntime,
 ) -> LoadedSessionCapabilities {
     match block_on_gateway(async { Ok(load_session_capabilities(runtime).await) }) {

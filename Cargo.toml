@@ -10,6 +10,7 @@ members = [
   "crates/libs/cli-transcript",
   "crates/libs/cli-interaction-model",
   "crates/libs/cli-interaction-state",
+  "crates/libs/cli-gateway-runtime",
   "crates/libs/cli-stdio",
   "crates/libs/cli-gateway-commands",
   "crates/libs/app-catalog",

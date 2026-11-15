@@ -7,7 +7,7 @@ use vw_tui::{V3FileChange, V3FileDiff, V3FileDiffEntry};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
-pub(crate) fn load_session_diff_blocking(runtime: &GatewayUiRuntime) -> Result<V3FileDiff, String> {
+pub fn load_session_diff_blocking(runtime: &GatewayUiRuntime) -> Result<V3FileDiff, String> {
     block_on_gateway(async {
         let session_id = runtime.resolve_session_id(None)?.to_string();
         let directory = runtime

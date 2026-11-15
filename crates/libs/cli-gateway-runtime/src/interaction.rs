@@ -10,11 +10,11 @@ use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 /// Gateway 中与一个确定会话关联的待处理交互快照。
 #[derive(Debug, Clone)]
-pub(crate) struct InteractionSnapshot {
-    pub(crate) session_id: String,
-    pub(crate) permissions: Vec<PendingPermissionRequestDto>,
-    pub(crate) questions: Vec<question::Request>,
-    pub(crate) todos: Vec<Todo>,
+pub struct InteractionSnapshot {
+    pub session_id: String,
+    pub permissions: Vec<PendingPermissionRequestDto>,
+    pub questions: Vec<question::Request>,
+    pub todos: Vec<Todo>,
 }
 
 impl GatewayUiRuntime {
@@ -45,7 +45,7 @@ impl GatewayUiRuntime {
     }
 
     /// 阻塞包装仅供后台工作线程调用，不允许从 reducer 或渲染路径直接使用。
-    pub(crate) fn interaction_snapshot_blocking(
+    pub fn interaction_snapshot_blocking(
         &self,
         session_id: Option<&str>,
     ) -> Result<InteractionSnapshot, String> {
@@ -67,7 +67,7 @@ impl GatewayUiRuntime {
         }
     }
 
-    pub(crate) fn permission_reply_blocking(
+    pub fn permission_reply_blocking(
         &self,
         request_id: &str,
         reply: PendingPermissionReplyDto,
@@ -89,7 +89,7 @@ impl GatewayUiRuntime {
         }
     }
 
-    pub(crate) fn question_reply_blocking(
+    pub fn question_reply_blocking(
         &self,
         request_id: &str,
         answers: Vec<Vec<String>>,
@@ -106,7 +106,7 @@ impl GatewayUiRuntime {
         }
     }
 
-    pub(crate) fn question_reject_blocking(&self, request_id: &str) -> Result<(), String> {
+    pub fn question_reject_blocking(&self, request_id: &str) -> Result<(), String> {
         block_on_gateway(self.question_reject(request_id))
     }
 }

@@ -79,3 +79,5 @@ pub use runtime_event::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 #[cfg(test)]
 mod git_workspace_tests;
+
+pub mod snapshots;

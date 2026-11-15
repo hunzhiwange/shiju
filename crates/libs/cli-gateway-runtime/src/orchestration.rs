@@ -6,7 +6,7 @@ use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerTaskGraphResponse, AgentSchedulerTaskLogsResponse, AgentTaskStatusDto,
 };
 
-use cli_interaction_state::snapshots::{CronJobSnapshot, OrchestrationSnapshot};
+use cli_interaction_model::snapshots::{CronJobSnapshot, OrchestrationSnapshot};
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskStatus,
@@ -26,7 +26,7 @@ const MAX_TASK_ARTIFACTS: usize = 20;
 
 /// Workflow 详情中允许进入 TUI transcript 的净化字段。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct WorkflowDetailSummary {
+pub struct WorkflowDetailSummary {
     name: String,
     description: String,
     updated_at_ms: u64,
@@ -35,7 +35,7 @@ pub(crate) struct WorkflowDetailSummary {
 }
 
 impl WorkflowDetailSummary {
-    pub(crate) fn render_text(&self) -> String {
+    pub fn render_text(&self) -> String {
         let description = if self.description.trim().is_empty() {
             "（无描述）"
         } else {
@@ -48,7 +48,7 @@ impl WorkflowDetailSummary {
     }
 }
 
-pub(crate) async fn load_orchestration(
+pub async fn load_orchestration(
     runtime: &GatewayUiRuntime,
     scope: Option<AgentSchedulerScopeDto>,
 ) -> OrchestrationSnapshot {
@@ -141,7 +141,7 @@ pub(crate) async fn load_orchestration(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_orchestration_blocking(runtime: &GatewayUiRuntime) -> OrchestrationSnapshot {
+pub fn load_orchestration_blocking(runtime: &GatewayUiRuntime) -> OrchestrationSnapshot {
     let (scope, scope_warning) = match runtime.agent_scheduler_scope_blocking() {
         Ok(scope) => (Some(scope), None),
         Err(error) => (None, Some(format!("project scope: {error}"))),
@@ -158,7 +158,7 @@ pub(crate) fn load_orchestration_blocking(runtime: &GatewayUiRuntime) -> Orchest
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_owned_workflow_detail_blocking(
+pub fn load_owned_workflow_detail_blocking(
     runtime: &GatewayUiRuntime,
     snapshot: &OrchestrationSnapshot,
     uuid: &str,
@@ -186,7 +186,7 @@ pub(crate) fn load_owned_workflow_detail_blocking(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn control_owned_task_blocking(
+pub fn control_owned_task_blocking(
     runtime: &GatewayUiRuntime,
     snapshot: &OrchestrationSnapshot,
     task_id: &str,
@@ -231,7 +231,7 @@ fn task_control_command(action: TaskControlAction) -> AgentSchedulerCommandKindD
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_owned_task_detail_blocking(
+pub fn load_owned_task_detail_blocking(
     runtime: &GatewayUiRuntime,
     snapshot: &OrchestrationSnapshot,
     task_id: &str,

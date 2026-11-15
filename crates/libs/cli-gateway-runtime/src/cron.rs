@@ -1,7 +1,7 @@
 //! Cron 快照详情与受限运行历史投影。
 
 use vw_gateway_client::{CronJobDto, CronUpdateRequest};
-use cli_interaction_state::snapshots::{
+use cli_interaction_model::snapshots::{
     CronJobSnapshot, CronDetailView, CronRunSummary, bounded_text,
     MAX_DETAIL_CHARS, MAX_HISTORY_RUNS,
 };
@@ -10,15 +10,15 @@ use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CronMutation {
+pub enum CronMutation {
     SetEnabled(bool),
     Delete,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub(crate) struct CronSourceRefresh {
-    pub(crate) schedules: SchedulePanel,
-    pub(crate) cron_jobs: Vec<CronJobSnapshot>,
+pub struct CronSourceRefresh {
+    pub schedules: SchedulePanel,
+    pub cron_jobs: Vec<CronJobSnapshot>,
 }
 
 impl CronSourceRefresh {
@@ -46,7 +46,7 @@ impl CronSourceRefresh {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_owned_cron_detail_blocking(
+pub fn load_owned_cron_detail_blocking(
     runtime: &GatewayUiRuntime,
     snapshot: &[CronJobSnapshot],
     job_id: &str,
@@ -73,7 +73,7 @@ pub(crate) fn load_owned_cron_detail_blocking(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn mutate_owned_cron_and_refresh_blocking(
+pub fn mutate_owned_cron_and_refresh_blocking(
     runtime: &GatewayUiRuntime,
     snapshot: &[CronJobSnapshot],
     job_id: &str,

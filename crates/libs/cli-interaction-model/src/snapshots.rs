@@ -1,12 +1,12 @@
-//! 交互状态持有的编排快照与安全 Cron 投影。
+//! 交互层共享的编排快照与安全 Cron 投影。
 
 use vw_gateway_client::{CronJobDto, CronRunDto};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
-use cli_interaction_model::{
+use crate::{
     agent_view::AgentViewState, background_task::BackgroundTaskPanel,
     schedule_panel::SchedulePanel, workflow_panel::WorkflowPanel,
 };
-use cli_interaction_model::integration::sanitize_integration_text;
+use crate::integration::sanitize_integration_text;
 
 const MAX_ID_CHARS: usize = 160;
 const MAX_LABEL_CHARS: usize = 160;

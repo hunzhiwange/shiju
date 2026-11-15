@@ -20,8 +20,8 @@ use cli_interaction_model::{
     AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort,
     SessionCapabilityMatrix, UiOverlay,
 };
-use super::runtime::capabilities::load_session_capabilities_blocking;
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::capabilities::load_session_capabilities_blocking;
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 fn spawn_json_sequence_server(

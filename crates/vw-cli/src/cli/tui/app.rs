@@ -3,8 +3,8 @@
 //! 本模块负责终端生命周期、会话恢复、流式请求启动和事件循环；
 //! Gateway 事件到界面事件的语义转换留在 `bridge`，不在主循环中重复。
 
-use cli_interaction_state::snapshots::{CronDetailView, CronJobSnapshot, OrchestrationSnapshot};
-use super::runtime::stream_adapter::terminal_from_error_message;
+use cli_interaction_model::snapshots::{CronDetailView, CronJobSnapshot, OrchestrationSnapshot};
+use cli_gateway_runtime::stream_adapter::terminal_from_error_message;
 use crate::app::agent::config::Config;
 use crate::cli::setup::CliSetup;
 use anyhow::{Result, anyhow};
@@ -58,38 +58,38 @@ use cli_interaction_model::{
     UiOverlay, UiPermissionOverlay, UiStepState, UiTodoOverlay, UiTurnTerminal, UiUserMessage,
 };
 use cli_interaction_model::paste::{PromptAttachment, PromptAttachmentKind};
-use super::runtime::capabilities::load_session_capabilities_blocking;
-use super::runtime::cron::{
+use cli_gateway_runtime::capabilities::load_session_capabilities_blocking;
+use cli_gateway_runtime::cron::{
     CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
-use super::runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
-use super::runtime::file_search::search_files_blocking;
-use super::runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
-use super::runtime::hooks::{
+use cli_gateway_runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
+use cli_gateway_runtime::file_search::search_files_blocking;
+use cli_gateway_runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
+use cli_gateway_runtime::hooks::{
     HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh, load_hook_audit_blocking,
     load_hook_catalog_blocking, mutate_hook_and_refresh_blocking,
 };
-use super::runtime::integrations::{
+use cli_gateway_runtime::integrations::{
     MemoryMutation, delete_integration_blocking, load_integrations_blocking,
     mutate_memory_and_refresh_blocking, query_memory_blocking, set_integration_enabled_blocking,
 };
-use super::runtime::interaction::InteractionSnapshot;
-use super::runtime::orchestration::{
+use cli_gateway_runtime::interaction::InteractionSnapshot;
+use cli_gateway_runtime::orchestration::{
     control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
 };
-use super::runtime::plan_run::{
+use cli_gateway_runtime::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
-use super::runtime::session_diff::load_session_diff_blocking;
+use cli_gateway_runtime::session_diff::load_session_diff_blocking;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
-use super::runtime::workflow_run::{
+use cli_gateway_runtime::workflow_run::{
     OwnedWorkflowRunRequest, WorkflowRunOwnership, resume_workflow_run_blocking,
     stream_workflow_run_blocking, workflow_run_request,
 };
-use super::runtime::workspace_files::{
+use cli_gateway_runtime::workspace_files::{
     WorkspaceFileListing, WorkspaceFileText, load_workspace_files_blocking,
     read_workspace_file_blocking,
 };
@@ -4115,7 +4115,7 @@ fn spawn_stream(
             |event| {
                 if matches!(&event, GatewayChatStreamEvent::Done { .. }) {
                     done = matches!(
-                        super::runtime::stream_adapter::adapt_gateway_stream_event(event.clone()),
+                        cli_gateway_runtime::stream_adapter::adapt_gateway_stream_event(event.clone()),
                         UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Done { .. })
                     );
                 }

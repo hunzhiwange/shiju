@@ -34,7 +34,7 @@ use cli_interaction_model::GitWorkspaceStatus;
 mod reducer;
 mod runtime_pipeline;
 pub mod selectors;
-pub mod snapshots;
+use cli_interaction_model::snapshots;
 
 use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache, TuiTranscriptMeasurements};
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};

@@ -1,27 +1,19 @@
-pub mod model_ids;
+pub use app_aggregation_catalog::model_ids;
 
-#[cfg(test)]
-mod model_ids_tests;
 
-pub mod omo_read;
+pub use app_aggregation_catalog::omo_read;
 
-#[cfg(test)]
-mod omo_read_tests;
 
 pub mod member_keys;
 
 #[cfg(all(test, target_os = "macos"))]
 mod member_keys_tests;
 
-pub mod codex_review;
+pub use app_aggregation_catalog::codex_review;
 
-#[cfg(test)]
-mod codex_review_tests;
 
-pub mod codex_classic;
+pub use app_aggregation_catalog::codex_classic;
 
-#[cfg(test)]
-mod codex_classic_tests;
 
 pub mod member_validation;
 
@@ -48,20 +40,14 @@ pub mod membership;
 #[cfg(all(test, target_os = "macos"))]
 mod membership_tests;
 
-pub mod codex_catalog;
+pub use app_aggregation_catalog::codex_catalog;
 
-#[cfg(test)]
-mod codex_catalog_tests;
 
-pub mod codex_subagent;
+pub use app_aggregation_catalog::codex_subagent;
 
-#[cfg(test)]
-mod codex_subagent_tests;
 
-pub mod claude_catalog;
+pub use app_aggregation_catalog::claude_catalog;
 
-#[cfg(test)]
-mod claude_catalog_tests;
 
 #[cfg(target_os = "macos")]
 pub mod resolve;

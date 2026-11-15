@@ -20,6 +20,7 @@ pub mod usage;
 
 pub mod routing;
 
+// Catalog rules are owned by app-aggregation-catalog; this module retains service orchestration.
 pub mod aggregation;
 
 pub mod mcp;

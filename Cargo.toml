@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-aggregation-catalog",
   "crates/libs/gateway-shiju-connector",
   "crates/libs/app-models",
   "crates/libs/gateway-shiju-app",

@@ -3,7 +3,13 @@ use serde_json::{Map, Value};
 use std::path::Path;
 
 #[cfg(target_os = "macos")]
-use crate::providers::{live::patch_json::object_value, paths, snippets, validate_identity};
+use app_config_patch::patch_json::object_value;
+#[cfg(target_os = "macos")]
+use app_config_paths as paths;
+#[cfg(target_os = "macos")]
+use app_provider_core::snippets;
+#[cfg(target_os = "macos")]
+use app_provider_validation::validate_identity;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum OmoReadError {
@@ -77,7 +83,7 @@ pub fn read(
 }
 
 #[cfg(target_os = "macos")]
-pub(super) fn take_object(
+pub fn take_object(
     config: &mut Map<String, Value>,
     key: &str,
 ) -> Result<Option<Map<String, Value>>, OmoReadError> {
@@ -124,7 +130,7 @@ fn read_first(
 }
 
 #[cfg(target_os = "macos")]
-pub(super) fn read_candidate(home: &Path, path: &Path) -> Result<Option<Vec<u8>>, OmoReadError> {
+pub fn read_candidate(home: &Path, path: &Path) -> Result<Option<Vec<u8>>, OmoReadError> {
     use std::io::Read;
 use vw_api_app_provider_environment::paths::ConfigPathState;
 

@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-aggregation-catalog = { path = "../libs/app-aggregation-catalog" }
 app-models = { path = "../libs/app-models" }
 app-provider-environment = { path = "../libs/app-provider-environment" }
 app-provider-native = { path = "../libs/app-provider-native" }

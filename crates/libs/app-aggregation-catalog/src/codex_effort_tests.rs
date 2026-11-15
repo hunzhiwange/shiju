@@ -4,10 +4,10 @@ use vw_api_chat_identity::ReasoningEffortDto::{High, Low};
 use vw_api_model_catalog::SavedCodexCatalog;
 
 use super::plan_codex_subagent;
-use crate::aggregation::codex_catalog::{
+use crate::codex_catalog::{
     CodexCatalogDefault, CodexCatalogMember, CodexCatalogRow, plan_codex_stack_catalog,
 };
-use crate::providers::live::patch_toml::TomlPatch;
+use app_config_patch::patch_toml::TomlPatch;
 
 #[test]
 fn aggregation_t22_codex_effort_preserves_contract() {

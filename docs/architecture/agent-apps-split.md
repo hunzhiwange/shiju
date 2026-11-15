@@ -341,24 +341,24 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `aggregation/catalog_ack_tests.rs` | 222 | 28 |
 | `aggregation/catalog_generation.rs` | 223 | 28 |
 | `aggregation/catalog_generation_tests.rs` | 198 | 28 |
-| `aggregation/claude_catalog.rs` | 200 | 27 |
-| `aggregation/claude_catalog_tests.rs` | 107 | 27 |
+| `crates/libs/app-aggregation-catalog/src/claude_catalog.rs` | 200 | 27 |
+| `crates/libs/app-aggregation-catalog/src/claude_catalog_tests.rs` | 107 | 27 |
 | `aggregation/claude_publish.rs` | 258 | 28 |
 | `aggregation/claude_publish_tests.rs` | 359 | 28 |
 | `aggregation/claude_refresh_tests.rs` | 140 | 28 |
-| `aggregation/codex_catalog.rs` | 236 | 27 |
-| `aggregation/codex_catalog_tests.rs` | 154 | 27 |
-| `aggregation/codex_classic.rs` | 49 | 27 |
-| `aggregation/codex_classic_tests.rs` | 99 | 27 |
-| `aggregation/codex_effort_tests.rs` | 86 | 28 |
+| `crates/libs/app-aggregation-catalog/src/codex_catalog.rs` | 236 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_catalog_tests.rs` | 154 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_classic.rs` | 49 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_classic_tests.rs` | 99 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_effort_tests.rs` | 86 | 28 |
 | `aggregation/codex_publish.rs` | 213 | 28 |
 | `aggregation/codex_publish_tests.rs` | 348 | 28 |
 | `aggregation/codex_resync_tests.rs` | 26 | 28 |
-| `aggregation/codex_review.rs` | 52 | 27 |
-| `aggregation/codex_review_tests.rs` | 70 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_review.rs` | 52 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_review_tests.rs` | 70 | 27 |
 | `aggregation/codex_settings.rs` | 175 | 27 |
-| `aggregation/codex_subagent.rs` | 127 | 27 |
-| `aggregation/codex_subagent_tests.rs` | 94 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_subagent.rs` | 127 | 27 |
+| `crates/libs/app-aggregation-catalog/src/codex_subagent_tests.rs` | 94 | 27 |
 | `aggregation/daemon_restart.rs` | 415 | 28 |
 | `aggregation/daemon_restart_desktop_tests.rs` | 145 | 28 |
 | `aggregation/daemon_restart_tests.rs` | 319 | 28 |
@@ -376,10 +376,10 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `aggregation/membership.rs` | 205 | 28 |
 | `aggregation/membership_tests.rs` | 220 | 28 |
 | `aggregation/mod.rs` | 134 | 28 |
-| `aggregation/model_ids.rs` | 118 | 27 |
-| `aggregation/model_ids_tests.rs` | 71 | 27 |
-| `aggregation/omo_read.rs` | 162 | 27 |
-| `aggregation/omo_read_tests.rs` | 109 | 27 |
+| `crates/libs/app-aggregation-catalog/src/model_ids.rs` | 118 | 27 |
+| `crates/libs/app-aggregation-catalog/src/model_ids_tests.rs` | 71 | 27 |
+| `crates/libs/app-aggregation-catalog/src/omo_read.rs` | 162 | 27 |
+| `crates/libs/app-aggregation-catalog/src/omo_read_tests.rs` | 109 | 27 |
 | `aggregation/omo_scope.rs` | 64 | 28 |
 | `aggregation/omo_slim.rs` | 293 | 28 |
 | `aggregation/omo_slim_tests.rs` | 313 | 28 |
@@ -1343,7 +1343,7 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `aggregation/claude_publish.rs` | `crate::providers::claude_login::configuration_has_pending_login`<br>`crate::providers::{     claude::patch_with_residue,     live::{         commit::*,         stage::FileChange,         write_guard::{FilePrivacy, WriteError}` |
 | `aggregation/claude_publish_tests.rs` | `crate::providers::live::write_guard::WriteError`<br>`crate::providers::live::write_guard::WriteError::Conflict`<br>`crate::providers::live::{         commit::{HOOK, Phase}`<br>`crate::providers::{     claude::ClaudeFile, live::commit::*, mode_apply::*, mode_state::StackState, }` |
 | `aggregation/claude_refresh_tests.rs` | `crate::providers::{     claude::ClaudeFile, live::commit::*, mode_apply::*, mode_state::StackState, }` |
-| `aggregation/codex_effort_tests.rs` | `crate::providers::live::patch_toml::TomlPatch` |
+| `crates/libs/app-aggregation-catalog/src/codex_effort_tests.rs` | `crate::providers::live::patch_toml::TomlPatch` |
 | `aggregation/codex_publish.rs` | `crate::providers::{     codex_catalog::{CATALOG_FILENAME, CodexFiles}` |
 | `aggregation/codex_publish_tests.rs` | `crate::providers::{     codex_catalog::{CATALOG_FILENAME, CodexFiles}` |
 | `aggregation/codex_settings.rs` | `crate::providers::codex_catalog::CATALOG_FILENAME`<br>`crate::providers::live::{     commit::{AppState, Mode}` |
@@ -1361,7 +1361,7 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `aggregation/member_validation.rs` | `crate::providers::live::commit::{AppState, Mode}` |
 | `aggregation/member_validation_tests.rs` | `crate::providers::{     live::commit::{AppState, Mode, ModeState}` |
 | `aggregation/membership.rs` | `crate::providers::{     live::{         commit::{AppState, Mode, ModeState, PendingTarget, ProviderTransactions}` |
-| `aggregation/omo_read.rs` | `crate::providers::{live::patch_json::object_value, paths, snippets, validate_identity}` |
+| `crates/libs/app-aggregation-catalog/src/omo_read.rs` | `crate::providers::{live::patch_json::object_value, paths, snippets, validate_identity}` |
 | `aggregation/omo_scope.rs` | `crate::providers::live::write_guard::lock_app`<br>`crate::providers::live::{     commit::{AppState, OmoSelection, PendingTarget, ProviderTransactions}` |
 | `aggregation/omo_slim.rs` | `crate::providers::{     live::{         commit::ProviderTransactions,         patch_json::{object_value, replace_object_preserving_trivia}` |
 | `aggregation/omo_slim_tests.rs` | `crate::providers::live::{     commit::{ExecutionHostId, HOOK, Phase, ProviderTransactions}` |
@@ -2474,3 +2474,13 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 
 待授权统一验收：新增库与直接调用者目标编译、迁移单测及 macOS/Windows/Linux
 行为。未运行 Cargo、单元及实机测试，Cargo.lock 未修改；静态审阅不代表行为通过。
+
+
+### 任务 27：聚合目录规则迁移（静态审阅完成）
+
+- app-aggregation-catalog 拥有 Claude/Codex 目录、classic/review/subagent 投影、model_ids、OMO 只读安全读取及七组独立测试。codex_effort_tests 随 subagent 的 #[path] 注册一并迁移，所有文件保持单一所有者。
+- member_keys 的键分配实现改为接收现有 BTreeMap；门面仅传递 StackState.keys。member_validation 的身份/角色规则下沉，成员移除状态校验留在门面。没有引入 providers 模式应用依赖。
+- 任务 28 必须接收：member_keys 的 StackState 适配与 member_keys_tests（含事务持久化）；member_validation::validate_member_removal 与 member_validation_tests（含 AppState）；codex_settings::{plan, SettingsPlan, SettingsError}（应用状态、目录路径、配置投影编排）。这些测试仍在原模块注册，未复制或删除。
+- 原 aggregation 模块逐项重导出；membership、preview、publish、resolve、providers/desktop_mapping 及 gateway 调用者保持既有路径。omo_slim 跨包实际使用的 take_object/read_candidate 最小公开，保持 macOS cfg；其它 cfg 与错误语义保留，无资源 include 路径变动。
+- 直接依赖按实际 import 声明；OMO 的配置补丁、路径、脱敏和身份验证依赖仅在 macOS；测试使用 app-config-patch/tempfile。不依赖 vw-agent-apps 或 app-auth，无反向依赖；旧门面依赖仍由其它模块使用。
+- 静态证据：Python tomllib 校验直接路径与包名；源码检索导出、调用者、测试注册；git diff --check 与 diff --stat。未运行 Cargo、单元及实机测试，统一验收待授权；届时覆盖新增库与调用者编译、迁移测试和平台行为。Cargo.lock 未修改。

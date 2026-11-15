@@ -1,0 +1,25 @@
+[package]
+name = "app-aggregation-catalog"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+toml_edit = "0.22"
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-chat-identity = { path = "../api-chat-identity" }
+vw-api-model-catalog = { path = "../api-model-catalog" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-config-patch = { path = "../app-config-patch" }
+app-config-paths = { path = "../app-config-paths" }
+app-provider-core = { path = "../app-provider-core" }
+app-provider-validation = { path = "../app-provider-validation" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+
+[dev-dependencies]
+app-config-patch = { path = "../app-config-patch" }
+tempfile = "3"

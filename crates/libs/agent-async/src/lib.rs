@@ -4,6 +4,7 @@ pub mod abort;
 pub mod eventloop;
 pub mod lock;
 pub mod queue;
+pub mod signal;
 pub mod task_set;
 pub mod timeout;
 
@@ -19,3 +20,6 @@ mod queue_tests;
 mod task_set_tests;
 #[cfg(test)]
 mod timeout_tests;
+
+#[cfg(test)]
+mod signal_tests;

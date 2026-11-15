@@ -277,6 +277,7 @@ members = [
   "crates/libs/agent-identity-loader",
   "crates/libs/agent-log",
   "crates/libs/agent-paths",
+  "crates/libs/agent-util",
   "crates/libs/agent-runtime",
   "crates/libs/agent-pty",
   "crates/libs/permission-runtime",

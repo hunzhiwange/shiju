@@ -5,7 +5,7 @@
 //! - 已知值的接受（大小写不敏感）
 //! - 无效值的拒绝
 
-use crate::app::agent::cron::JobType;
+use crate::JobType;
 
 /// 测试 `JobType::try_from` 接受已知值（大小写不敏感）
 ///

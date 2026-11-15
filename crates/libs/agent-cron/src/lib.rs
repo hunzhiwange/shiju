@@ -29,6 +29,10 @@ mod schedule_acceptance_tests;
 mod commands_acceptance_tests;
 
 #[cfg(test)]
+#[path = "tests/types.rs"]
+mod types_acceptance_tests;
+
+#[cfg(test)]
 mod active_runs_tests;
 
 #[cfg(test)]

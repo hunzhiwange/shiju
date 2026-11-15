@@ -1,4 +1,4 @@
-use model_catalog_types::{self as models, Model as RawModel, Provider as RawProvider};
+use super::models::{self, Model as RawModel, Provider as RawProvider};
 use super::types::*;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};

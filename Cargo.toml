@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "crates/libs/model-catalog-types",
+  "crates/libs/api-task-lifecycle",
   "crates/libs/model-reasoning",
   "crates/libs/acp-cli-app",
   "crates/libs/acp-cli-app",

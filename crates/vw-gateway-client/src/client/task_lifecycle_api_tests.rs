@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::COMPANY_ID_HEADER,
     vw_api_transport::id::PLATFORM_ID_HEADER,
 };
-use vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
     TaskLifecycleWorkflowUpsertBody,
 };

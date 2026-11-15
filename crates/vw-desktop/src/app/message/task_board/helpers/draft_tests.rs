@@ -175,7 +175,7 @@ fn initial_task_status_uses_first_status_for_selected_workflow() {
 #[test]
 fn task_lifecycle_cache_updates_status_helpers() {
     use crate::app::task::{TaskStatus, update_runtime_task_lifecycle_cache};
-    use vw_gateway_client::vw_api_types::task_lifecycle::{
+    use vw_api_task_lifecycle::{
         TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
     };
 
@@ -237,12 +237,12 @@ fn task_lifecycle_cache_updates_status_helpers() {
 fn lifecycle_status(
     key: &str,
     label: &str,
-    role: vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto,
+    role: vw_api_task_lifecycle::TaskLifecycleStatusRoleDto,
     next: Option<&str>,
-) -> vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusDto {
-    use vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto;
+) -> vw_api_task_lifecycle::TaskLifecycleStatusDto {
+    use vw_api_task_lifecycle::TaskLifecycleStatusRoleDto;
 
-    vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusDto {
+    vw_api_task_lifecycle::TaskLifecycleStatusDto {
         key: key.to_string(),
         label: label.to_string(),
         role,

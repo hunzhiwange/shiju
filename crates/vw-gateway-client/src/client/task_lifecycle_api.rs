@@ -1,4 +1,4 @@
-use vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleWorkflowDeleteResponse, TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
 };
 

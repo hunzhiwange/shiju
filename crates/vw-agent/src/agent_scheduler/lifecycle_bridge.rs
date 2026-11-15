@@ -27,40 +27,40 @@ pub fn builtin_task_workflow_snapshot() -> TaskPoolWorkflowSnapshotDto {
                 key: status.key,
                 label: status.label,
                 role: match status.role {
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Backlog => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Backlog => {
                         TaskPoolWorkflowStatusRoleDto::Backlog
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Queued => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Queued => {
                         TaskPoolWorkflowStatusRoleDto::Queued
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Planning => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Planning => {
                         TaskPoolWorkflowStatusRoleDto::Planning
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Executing => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Executing => {
                         TaskPoolWorkflowStatusRoleDto::Executing
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Failed => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Failed => {
                         TaskPoolWorkflowStatusRoleDto::Failed
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Paused => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Paused => {
                         TaskPoolWorkflowStatusRoleDto::Paused
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::ReviewReady => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::ReviewReady => {
                         TaskPoolWorkflowStatusRoleDto::ReviewReady
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Review => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Review => {
                         TaskPoolWorkflowStatusRoleDto::Review
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Merging => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Merging => {
                         TaskPoolWorkflowStatusRoleDto::Merging
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Done => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Done => {
                         TaskPoolWorkflowStatusRoleDto::Done
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Archived => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Archived => {
                         TaskPoolWorkflowStatusRoleDto::Archived
                     }
-                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Custom => {
+                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Custom => {
                         TaskPoolWorkflowStatusRoleDto::Custom
                     }
                 },

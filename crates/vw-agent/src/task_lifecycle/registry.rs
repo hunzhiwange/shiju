@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Result, bail};
-use vw_api_types::task_lifecycle::{TaskLifecycleStatusDto, TaskLifecycleWorkflowDto};
+use vw_api_task_lifecycle::{TaskLifecycleStatusDto, TaskLifecycleWorkflowDto};
 
 use super::builtin::{built_in_workflow_by_id, built_in_workflows, is_built_in_workflow_id};
 

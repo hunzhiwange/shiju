@@ -5,7 +5,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use vw_gateway_client::vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto,
 };

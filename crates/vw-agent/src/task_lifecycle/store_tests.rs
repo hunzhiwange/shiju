@@ -4,7 +4,7 @@
 use super::*;
 
 use rusqlite::{Connection, params};
-use vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
     TaskLifecycleWorkflowUpsertBody,
 };

@@ -88,9 +88,6 @@ mod knowledge_tests;
 #[path = "question_tests.rs"]
 mod question_tests;
 #[cfg(test)]
-#[path = "task_lifecycle_tests.rs"]
-mod task_lifecycle_tests;
-#[cfg(test)]
 #[path = "task_tests.rs"]
 mod task_tests;
 #[cfg(test)]

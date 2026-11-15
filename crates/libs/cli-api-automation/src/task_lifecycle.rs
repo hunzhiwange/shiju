@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::json;
-use vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleWorkflowUpsertBody;
+use vw_api_task_lifecycle::TaskLifecycleWorkflowUpsertBody;
 
 use cli_api_core::context::ApiContext;
 use cli_api_core::input::read_json_input;

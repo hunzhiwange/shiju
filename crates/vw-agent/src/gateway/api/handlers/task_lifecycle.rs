@@ -11,7 +11,7 @@ use axum::{
     routing::{get, post},
 };
 use vw_api_transport::TenantScope;
-use vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleWorkflowDeleteResponse, TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
 };
 

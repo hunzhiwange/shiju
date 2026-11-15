@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle", version = "0.6.0" }
 acp-types = { path = "../libs/acp-types", version = "0.6.0" }
 acp-storage = { path = "../libs/acp-storage", version = "0.6.0" }
 acp-server = { path = "../libs/acp-server", version = "0.6.0" }

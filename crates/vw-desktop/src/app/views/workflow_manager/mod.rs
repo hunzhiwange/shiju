@@ -24,7 +24,7 @@ use crate::app::task::{
     update_runtime_task_lifecycle_cache,
 };
 use crate::app::{App, Message};
-use vw_gateway_client::vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
 };

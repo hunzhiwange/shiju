@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use vw_api_transport::TenantScope;
-use vw_api_types::task_lifecycle::TaskLifecycleWorkflowDto;
+use vw_api_task_lifecycle::TaskLifecycleWorkflowDto;
 
 use super::StoredWorkflow;
 use crate::global_database::GlobalDatabase;

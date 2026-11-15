@@ -219,7 +219,7 @@ fn bundled_shiju_definition_controls_visible_effort_choices() {
         "/../libs/provider-model-catalog/assets/model/shiju.json"
     )))
     .unwrap();
-    let raw: model_catalog_types::Provider =
+    let raw: vw_shared::provider::models::Provider =
         serde_json::from_value(data["shiju"].clone()).unwrap();
     let (mut app, _) = crate::app::App::new();
     app.model_settings.providers = vec![ProviderModelsSummary {

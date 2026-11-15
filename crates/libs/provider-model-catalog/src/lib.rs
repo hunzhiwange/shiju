@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tracing::debug;
 
-pub use model_catalog_types::{
+pub use vw_shared::provider::models::{
     Model, ModelCost, ModelCostOver200k, ModelInterleaved, ModelLimit, ModelModalities,
     ModelProviderInfo, Provider,
 };

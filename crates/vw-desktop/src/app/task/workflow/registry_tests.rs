@@ -10,7 +10,7 @@ use super::{
 };
 use crate::app::task::models::TaskStatus;
 use crate::app::task::{TaskStateMachine, TaskTransitionIntent};
-use vw_gateway_client::vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto,
 };

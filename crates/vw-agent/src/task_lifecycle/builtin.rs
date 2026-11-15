@@ -1,6 +1,6 @@
 //! 内置任务生命周期工作流的静态定义与 DTO 构建。
 
-use vw_api_types::task_lifecycle::{
+use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto,
 };

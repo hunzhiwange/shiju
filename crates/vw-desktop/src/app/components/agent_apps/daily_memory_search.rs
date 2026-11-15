@@ -8,10 +8,8 @@ use iced::{
     Element, Task,
     widget::{button, column, row, text},
 };
-use vw_gateway_client::{
-    GatewayClient, WorkspaceMemoryScope,
-    vw_api_types::{ workspace_memory::DailyMemorySearchResult},
-};
+use gateway_workspace_memory::{GatewayWorkspaceMemoryClient, WorkspaceMemoryScope};
+use vw_api_types::workspace_memory::DailyMemorySearchResult;
 use vw_api_task::TaskStatus;
 
 #[derive(Clone, Default)]
@@ -106,7 +104,7 @@ pub(super) fn results(state: &State, busy: bool) -> Element<'_, Message> {
 pub(super) fn update(
     state: &mut State,
     event: Event,
-    client: GatewayClient,
+    client: GatewayWorkspaceMemoryClient,
     scope: Scope,
     query: WorkspaceMemoryScope,
     token: String,

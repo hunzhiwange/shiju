@@ -2,7 +2,8 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Length, Task, widget::{button, column, container, row, text, text_editor}};
-use vw_gateway_client::{WorkspaceMemoryScope, vw_api_types::workspace_memory::*};
+use gateway_workspace_memory::{GatewayWorkspaceMemoryClient, WorkspaceMemoryScope};
+use vw_api_types::workspace_memory::*;
 
 #[derive(Clone, Default)]
 pub(crate) struct State {
@@ -107,6 +108,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     let scope = Scope { context, host: app.apps_catalog.host.clone(), project: project.to_string(), catalog: app.apps_catalog.generation, generation: state.generation };
     let query = WorkspaceMemoryScope { project_id: project.into(), target_host_id: scope.host.clone() };
+    let client = GatewayWorkspaceMemoryClient::new(client.transport().clone());
     let token = app.apps_catalog.token.clone();
     if let Event::Search(event) = event.clone() {
         if !state.open { return Task::none(); }

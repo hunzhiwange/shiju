@@ -19,6 +19,7 @@ members = [
   "crates/libs/gateway-app-prompts",
   "crates/libs/gateway-app-prompt-resources",
   "crates/libs/gateway-external-session",
+  "crates/libs/gateway-workspace-memory",
   "crates/libs/api-app-provider-edit",
   "crates/libs/api-app-provider-extended",
   "crates/libs/runtime-log",

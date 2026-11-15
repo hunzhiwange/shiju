@@ -402,7 +402,7 @@ pub use openclaw_settings_api::{OpenClawSettingsError, OpenClawSettingsScope};
 mod openclaw_settings_api_tests;
 
 mod workspace_memory_api;
-pub use workspace_memory_api::{WorkspaceMemoryScope, WorkspaceMemoryError, WorkspaceSearch, WorkspaceSearchResponse};
+pub use gateway_workspace_memory::{WorkspaceMemoryScope, WorkspaceMemoryError, WorkspaceSearch, WorkspaceSearchResponse};
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod workspace_memory_api_tests;
 

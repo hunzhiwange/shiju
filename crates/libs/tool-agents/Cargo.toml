@@ -1,0 +1,30 @@
+[package]
+name = "tool-agents"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1.89"
+futures-util = "0.3.32"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros", "net"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+tool-types = { path = "../tool-types", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+session-text = { path = "../session-text", version = "0.6.0" }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }
+agent-providers = { path = "../agent-providers", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+observer-types = { path = "../observer-types", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-chat = { path = "../api-chat", version = "0.6.0" }

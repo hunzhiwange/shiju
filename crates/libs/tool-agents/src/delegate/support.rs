@@ -1,7 +1,7 @@
-use crate::app::agent::observability::traits::{Observer, ObserverEvent, ObserverMetric};
+use observer_types::{Observer, ObserverEvent, ObserverMetric};
 
 /// 空操作观察器
-pub(super) struct NoopObserver;
+pub struct NoopObserver;
 
 impl Observer for NoopObserver {
     fn record_event(&self, _event: &ObserverEvent) {}
@@ -16,6 +16,8 @@ impl Observer for NoopObserver {
         self
     }
 }
+
+
 #[cfg(test)]
 #[path = "support_tests.rs"]
 mod support_tests;

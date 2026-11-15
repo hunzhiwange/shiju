@@ -634,7 +634,7 @@ async fn child_first_response_launch_returns_running_and_wait_observes_publicati
     assert_eq!(wait_body["tasks"][0]["state"], "succeeded");
     assert_eq!(wait_body["tasks"][0]["output"], "background complete");
     assert_child_publication(&directory, &child_session_id, true).await;
-    controller.coordinator.cancel(&parent.id, &child_session_id).unwrap();
+    controller.coordinator().cancel(&parent.id, &child_session_id).unwrap();
 }
 
 #[tokio::test]
@@ -1289,7 +1289,7 @@ fn agcollab_execution_guard_drop_releases_and_cancels_task() {
     coordinator.register("root", "child", "writer", "cleanup").unwrap();
     let capacity = coordinator.team_capacity("root");
     let guard = ChildExecutionGuard::new(
-        coordinator.clone(),
+        coordinator.clone().into(),
         "root".into(),
         "child".into(),
         capacity.clone().try_acquire_owned().unwrap(),
@@ -1394,7 +1394,7 @@ async fn child_first_response_followup_publishes_failed_launch_on_same_id() {
         let body: Value = serde_json::from_str(&launched.output).unwrap();
         let child = body["child_session_id"].as_str().unwrap().to_string();
         let first = tool
-            .coordinator
+            .coordinator()
             .wait(
                 &parent.id,
                 std::slice::from_ref(&child),
@@ -1427,7 +1427,7 @@ async fn child_first_response_followup_publishes_failed_launch_on_same_id() {
         assert!(followed.success);
         tokio::time::timeout(Duration::from_secs(10), second_started.notified()).await.unwrap();
         let outcome = tool
-            .coordinator
+            .coordinator()
             .wait(
                 &parent.id,
                 std::slice::from_ref(&child),
@@ -1451,7 +1451,7 @@ async fn child_first_response_followup_publishes_failed_launch_on_same_id() {
             )
             .is_none()
         );
-        tool.coordinator.cancel(&parent.id, &child).unwrap();
+        tool.coordinator().cancel(&parent.id, &child).unwrap();
     })
     .await;
 }

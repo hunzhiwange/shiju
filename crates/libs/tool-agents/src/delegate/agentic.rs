@@ -4,16 +4,13 @@
 //! 工具能力由共享策略解析，并显式排除再次调用 `delegate`，避免子 agent 递归委派
 //! 导致不可控的执行树。
 
-use super::super::traits::ToolResult;
+use crate::ports::DelegateHost;
+use tool_types::ToolResult;
 use super::support::NoopObserver;
 use super::{DELEGATE_AGENTIC_TIMEOUT_SECS, DelegateTool};
-use crate::app::agent::agent::loop_::run_tool_call_loop;
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::DelegateAgentConfig;
-use crate::app::agent::hooks::HookRunner;
+use config_agent::DelegateAgentConfig;
 use model_types::{ChatMessage, Provider};
-use crate::app::agent::tools::current_tool_use_context;
-use std::sync::Arc;
+use tool_context::context::current_tool_use_context;
 use std::time::Duration;
 
 /// 以 agentic 模式执行委派 agent。
@@ -37,8 +34,9 @@ use std::time::Duration;
 ///
 /// 仅在调用底层工具循环发生不可恢复错误传播时返回 `Err`；常见业务失败会被
 /// 包装成 `ToolResult { success: false, ... }`。
-pub(super) async fn execute_agentic(
-    tool: &DelegateTool,
+#[doc(hidden)]
+pub async fn execute_agentic<H: DelegateHost>(
+    tool: &DelegateTool<H>,
     agent_name: &str,
     agent_config: &DelegateAgentConfig,
     provider: &dyn Provider,
@@ -49,7 +47,7 @@ pub(super) async fn execute_agentic(
     let trusted_user_selected_skills = current_tool_use_context()
         .map(|context| context.trusted_user_selected_skills().iter().cloned().collect::<Vec<_>>())
         .unwrap_or_default();
-    let sub_tools = crate::app::agent::tools::delegated_tools::build_agentic_tools(
+    let sub_tools = H::tools(
         &tool.parent_tools,
         agent_config,
         &trusted_user_selected_skills,
@@ -75,7 +73,7 @@ pub(super) async fn execute_agentic(
     let noop_observer = NoopObserver;
     let result = tokio::time::timeout(
         Duration::from_secs(DELEGATE_AGENTIC_TIMEOUT_SECS),
-        run_tool_call_loop(
+        H::run_loop(
             provider,
             &mut history,
             &sub_tools,
@@ -83,16 +81,9 @@ pub(super) async fn execute_agentic(
             &agent_config.provider,
             &agent_config.model,
             temperature,
-            true,
-            Option::<Arc<ApprovalManager>>::None,
-            "delegate",
             &tool.multimodal_config,
             agent_config.max_iterations,
-            None,
-            None,
-            Option::<Arc<HookRunner>>::None,
-            Some(tool.security.clone()),
-            &[],
+            tool.security.clone(),
         ),
     )
     .await;
@@ -126,6 +117,3 @@ pub(super) async fn execute_agentic(
         }),
     }
 }
-#[cfg(test)]
-#[path = "agentic_tests.rs"]
-mod agentic_tests;

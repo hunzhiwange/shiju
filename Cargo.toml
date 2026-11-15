@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/tool-agents",
   "crates/libs/agent-scheduler-core",
   "crates/libs/desktop-search",
   "crates/libs/desktop-workspace",

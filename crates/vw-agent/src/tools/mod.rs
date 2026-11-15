@@ -25,6 +25,7 @@
 //! 2. 在 [`all_tools_with_runtime`] 函数中注册该工具
 //! 3. 参见 `AGENTS.md` 第 7.3 节获取完整的变更手册
 
+mod agent_hosts;
 pub mod agent_tool;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(target_arch = "wasm32"))]

@@ -3,19 +3,20 @@
 //! 本模块负责校验委派参数、执行安全策略、创建模型 provider，并根据代理配置
 //! 选择普通聊天或 agentic 执行路径。
 
-use super::super::traits::ToolResult;
+use crate::ports::DelegateHost;
+use tool_types::ToolResult;
 use super::{DELEGATE_TIMEOUT_SECS, DelegateTool};
 use model_types::Provider;
-use crate::app::agent::providers::ProviderRuntimeOptions;
-use crate::app::agent::security::policy::ToolOperation;
+use agent_providers::ProviderRuntimeOptions;
+use agent_security::policy::ToolOperation;
 use std::time::Duration;
 
-pub(super) async fn execute(
-    tool: &DelegateTool,
+pub async fn execute<H: DelegateHost>(
+    tool: &DelegateTool<H>,
     args: serde_json::Value,
 ) -> anyhow::Result<ToolResult> {
     execute_with_provider_factory(tool, args, &|provider, credential, options| {
-        crate::app::agent::providers::create_provider_with_options(provider, credential, options)
+        agent_providers::create_provider_with_options(provider, credential, options)
     })
     .await
 }
@@ -25,8 +26,9 @@ type ProviderFactory<'a> = dyn Fn(&str, Option<&str>, &ProviderRuntimeOptions) -
     + Sync
     + 'a;
 
-async fn execute_with_provider_factory(
-    tool: &DelegateTool,
+#[doc(hidden)]
+pub async fn execute_with_provider_factory<H: DelegateHost>(
+    tool: &DelegateTool<H>,
     args: serde_json::Value,
     create_provider: &ProviderFactory<'_>,
 ) -> anyhow::Result<ToolResult> {
@@ -194,6 +196,3 @@ async fn execute_with_provider_factory(
         }
     }
 }
-#[cfg(test)]
-#[path = "execution_tests.rs"]
-mod execution_tests;

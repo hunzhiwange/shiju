@@ -18,7 +18,7 @@
 //! - `FailingProvider`：始终返回错误（用于测试错误传播）
 //! - `EchoTool`：简单的回显工具，返回输入值
 
-use super::super::*;
+use super::*;
 use model_types::{ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use anyhow::anyhow;
@@ -722,7 +722,7 @@ async fn delegate_empty_context_omits_prefix() {
 #[test]
 fn delegate_depth_construction() {
     let tool = DelegateTool::with_depth(sample_agents(), None, test_security(), 5);
-    assert_eq!(tool.depth, 5);
+    assert_eq!(tool.depth(), 5);
 }
 
 #[test]
@@ -774,9 +774,9 @@ fn delegate_builders_store_multimodal_config() {
     let tool = DelegateTool::new(sample_agents(), None, test_security())
         .with_multimodal_config(multimodal);
 
-    assert_eq!(tool.multimodal_config.max_images, 7);
-    assert_eq!(tool.multimodal_config.max_image_size_mb, 9);
-    assert!(tool.multimodal_config.allow_remote_fetch);
+    assert_eq!(tool.multimodal_config().max_images, 7);
+    assert_eq!(tool.multimodal_config().max_image_size_mb, 9);
+    assert!(tool.multimodal_config().allow_remote_fetch);
 }
 
 /// 测试无代理配置时的执行错误

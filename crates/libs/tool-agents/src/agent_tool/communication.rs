@@ -1,8 +1,8 @@
 //! Action-specific validation and adapters to the shared team runtime.
 use super::*;
-use crate::session::child_agent::coordinator::mailbox::{TeamActivity, TeamMessageKind};
+use session_port::child_agent::{TeamActivity, TeamMessageKind};
 
-impl AgentTool {
+impl<H: AgentHost> AgentTool<H> {
     pub(super) fn validate_action_fields(
         &self,
         args: &Value,
@@ -72,7 +72,7 @@ impl AgentTool {
             .ok_or_else(|| anyhow::anyhow!("'{key}' must be a non-empty string"))
     }
 
-    fn communication_context(&self) -> anyhow::Result<Arc<super::super::context::ToolUseContext>> {
+    fn communication_context(&self) -> anyhow::Result<Arc<tool_context::context::ToolUseContext>> {
         let context = current_tool_use_context()
             .ok_or_else(|| anyhow::anyhow!("Team operations require tool runtime context"))?;
         if context.session() != self.parent_session_id()? {

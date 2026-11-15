@@ -68,6 +68,9 @@ mod task_board_execution_worktree_gateway_runner {
     use std::net::{TcpListener, TcpStream};
     use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 
+    static ENDPOINT: std::sync::Mutex<Option<vw_gateway_client::GatewayEndpoint>> = std::sync::Mutex::new(None);
+    fn endpoint() -> vw_gateway_client::GatewayEndpoint { ENDPOINT.lock().unwrap().clone().expect("endpoint") }
+
     #[derive(Debug)]
     struct RecordedRequest {
         path: String,
@@ -175,6 +178,7 @@ mod task_board_execution_worktree_gateway_runner {
             }],
             "runner".to_string(),
         );
+        *ENDPOINT.lock().unwrap() = Some(desktop_config::config_gateway::gateway_client_endpoint_from_config(&config));
         let path =
             config_runtime_paths::home_config_dir(home).join("gateway-client-bootstrap.json");
         std::fs::create_dir_all(path.parent().expect("config parent")).expect("config dir");
@@ -229,12 +233,12 @@ mod task_board_execution_worktree_gateway_runner {
         let project_dir = tempfile::tempdir().expect("project");
         let project_path = project_dir.path().to_str().expect("utf8");
         let gateway = TestGateway::start(project_path.to_string());
-        let mut task = crate::app::task::Task::new(1);
+        let mut task = desktop_task_model::Task::new(1);
         task.id = "T-runner-lock".to_string();
 
         {
             let _guard =
-                super::super::lock_merge_target_via_gateway(project_path, &task, "main", None)
+                super::super::lock_merge_target_via_gateway(endpoint, project_path, &task, "main", None)
                     .expect("lock");
         }
 
@@ -689,16 +693,16 @@ fn spawn_failure_then_idle_timeout_falls_through_to_continue_retry() {
 #[test]
 fn write_task_plan_files_uses_task_folder_with_subtask_files() {
     let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T20260529.0001".to_string();
     task.prompt = "Implement task pool split".to_string();
 
-    let mut first = crate::app::task::SubTask::new("Create plan structure".to_string());
+    let mut first = desktop_task_model::SubTask::new("Create plan structure".to_string());
     first.id = "SUB-one".to_string();
     first.boundary = "Only plan file layout".to_string();
     first.acceptance_criteria = vec!["plan.md exists".to_string()];
     first.target_files = vec!["crates/vw-desktop/src/app/task/executor/runner.rs".to_string()];
-    let mut second = crate::app::task::SubTask::new("Execute subtask request".to_string());
+    let mut second = desktop_task_model::SubTask::new("Execute subtask request".to_string());
     second.id = "SUB-two".to_string();
     task.subtasks = vec![first, second];
 
@@ -801,7 +805,7 @@ fn sanitize_task_plan_file_part_removes_unsafe_characters() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn subtask_plan_file_name_uses_one_based_index_and_sanitized_id() {
-    let mut subtask = crate::app::task::SubTask::new("Do work".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("Do work".to_string());
     subtask.id = "SUB.001/unsafe".to_string();
 
     assert_eq!(super::subtask_plan_file_name(0, &subtask), "001-SUB-001unsafe.md");
@@ -818,7 +822,7 @@ fn format_task_plan_duration_handles_none_seconds_and_minutes() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn subtask_status_label_covers_all_statuses() {
-    use crate::app::task::SubTaskStatus;
+    use desktop_task_model::SubTaskStatus;
 
     assert_eq!(super::subtask_status_label(SubTaskStatus::Pending), "pending");
     assert_eq!(super::subtask_status_label(SubTaskStatus::Running), "running");
@@ -839,12 +843,12 @@ fn format_markdown_list_uses_empty_text_or_trimmed_items() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn build_task_plan_markdown_lists_subtasks_and_metadata() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T1".to_string();
     task.description = "Test plan".to_string();
     task.prompt = "Original prompt".to_string();
-    task.status = crate::app::task::TaskStatus::Planning;
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    task.status = desktop_task_model::TaskStatus::Planning;
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
     subtask.boundary = "Only first".to_string();
     subtask.target_files = vec!["src/lib.rs".to_string()];
@@ -862,15 +866,15 @@ fn build_task_plan_markdown_lists_subtasks_and_metadata() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn task_plan_markdown_includes_subtask_batches() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T1".to_string();
     task.prompt = "Prompt".to_string();
 
-    let mut first = crate::app::task::SubTask::new("First".to_string());
+    let mut first = desktop_task_model::SubTask::new("First".to_string());
     first.id = "SUB-one".to_string();
     first.batch = 1;
 
-    let mut second = crate::app::task::SubTask::new("Second".to_string());
+    let mut second = desktop_task_model::SubTask::new("Second".to_string());
     second.id = "SUB-two".to_string();
     second.batch = 2;
     second.depends_on_batches = vec![1];
@@ -894,10 +898,10 @@ fn task_plan_markdown_includes_subtask_batches() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn build_subtask_plan_markdown_uses_defaults_for_empty_fields() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T1".to_string();
     task.prompt = "Prompt".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
 
     let markdown = super::build_subtask_plan_markdown(&task, &subtask, 0, 1);
@@ -913,10 +917,10 @@ fn build_subtask_plan_markdown_uses_defaults_for_empty_fields() {
 #[test]
 fn write_task_plan_files_removes_stale_markdown_files() {
     let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T-stale".to_string();
     task.prompt = "Prompt".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask];
     let task_dir = task_plan_root_path(home.path()).join("task-T-stale");
@@ -933,7 +937,7 @@ fn write_task_plan_files_removes_stale_markdown_files() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_output_dir() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T1".to_string();
     task.description = "Build tests".to_string();
     task.prompt = "Need coverage".to_string();
@@ -983,7 +987,7 @@ fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_out
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn task_split_plan_dir_name_is_deterministic_from_task_id() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T20260628.0001".to_string();
 
     let name = super::task_split_plan_dir_name(&task);
@@ -1029,10 +1033,10 @@ fn subtask_dependency_batch_labels_preserve_order_and_empty_state() {
 #[test]
 fn read_plan_context_falls_back_to_generated_markdown() {
     let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T-fallback".to_string();
     task.prompt = "Prompt".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask.clone()];
 
@@ -1047,10 +1051,10 @@ fn read_plan_context_falls_back_to_generated_markdown() {
 fn task_plan_reads_ignore_legacy_project_cache() {
     let home = tempfile::TempDir::new().expect("temp home should be created");
     let project = tempfile::TempDir::new().expect("temp project should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T.legacy/中文".to_string();
     task.prompt = "Current prompt".to_string();
-    let mut subtask = crate::app::task::SubTask::new("Current subtask".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("Current subtask".to_string());
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask.clone()];
 
@@ -1092,10 +1096,10 @@ fn task_plan_reads_ignore_legacy_project_cache() {
 #[test]
 fn persist_subtask_status_updates_matching_subtask_and_writes_plan() {
     let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T-status".to_string();
     task.prompt = "Prompt".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask];
 
@@ -1109,7 +1113,7 @@ fn persist_subtask_status_updates_matching_subtask_and_writes_plan() {
         None,
     );
 
-    assert_eq!(task.subtasks[0].status, crate::app::task::SubTaskStatus::Completed);
+    assert_eq!(task.subtasks[0].status, desktop_task_model::SubTaskStatus::Completed);
     assert!(task_plan_root_path(home.path()).join("task-T-status").join("plan.md").exists());
 }
 
@@ -1117,10 +1121,10 @@ fn persist_subtask_status_updates_matching_subtask_and_writes_plan() {
 #[test]
 fn persist_subtask_status_ignores_missing_subtask_without_writing_plan() {
     let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T-missing-status".to_string();
     task.prompt = "Prompt".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask];
 
@@ -1134,7 +1138,7 @@ fn persist_subtask_status_ignores_missing_subtask_without_writing_plan() {
         None,
     );
 
-    assert_eq!(task.subtasks[0].status, crate::app::task::SubTaskStatus::Pending);
+    assert_eq!(task.subtasks[0].status, desktop_task_model::SubTaskStatus::Pending);
     assert!(
         !task_plan_root_path(home.path()).join("task-T-missing-status").join("plan.md").exists()
     );
@@ -1143,9 +1147,9 @@ fn persist_subtask_status_ignores_missing_subtask_without_writing_plan() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn build_subtask_execution_prompt_combines_contexts() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.prompt = "Original".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.batch = 1;
 
     let prompt =
@@ -1159,9 +1163,9 @@ fn build_subtask_execution_prompt_combines_contexts() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn build_subtask_execution_prompt_embeds_do_task_plans_batches_without_install_requirement() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.prompt = "Original".to_string();
-    let mut subtask = crate::app::task::SubTask::new("Second".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("Second".to_string());
     subtask.batch = 2;
     subtask.depends_on_batches = vec![1];
 
@@ -1194,9 +1198,9 @@ fn build_subtask_execution_prompt_embeds_do_task_plans_batches_without_install_r
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn build_subtask_execution_prompt_shows_empty_depends_on_batches_as_none() {
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.prompt = "Original".to_string();
-    let mut subtask = crate::app::task::SubTask::new("First".to_string());
+    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
     subtask.batch = 1;
 
     let prompt = super::build_subtask_execution_prompt(&task, &subtask, "plan", "subtask");
@@ -1211,8 +1215,8 @@ fn batch_subtask(
     batch: u32,
     depends_on_batches: Vec<u32>,
     target_files: Vec<&str>,
-) -> crate::app::task::SubTask {
-    let mut subtask = crate::app::task::SubTask::new(id.to_string());
+) -> desktop_task_model::SubTask {
+    let mut subtask = desktop_task_model::SubTask::new(id.to_string());
     subtask.id = id.to_string();
     subtask.batch = batch;
     subtask.depends_on_batches = depends_on_batches;
@@ -1314,7 +1318,7 @@ fn parse_create_task_plans_prompt_rejects_empty_prompt() {
 #[test]
 fn execute_task_plan_reports_missing_prompt_md_explicitly() {
     let home = tempfile::tempdir().expect("临时 home");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.prompt = "Original".to_string();
 
     // 计划目录存在但缺少 prompt.md：必须返回包含 prompt.md 路径的明确错误，
@@ -1606,7 +1610,7 @@ fn parse_create_task_plans_prompt_rejects_unclosed_or_empty_code_blocks() {
 #[test]
 fn read_task_plan_prompt_md_returns_exact_generated_content() {
     let home = tempfile::tempdir().expect("temporary home should be created");
-    let mut task = crate::app::task::Task::new(1);
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "T-read-plan".to_string();
     let plan_dir = super::task_split_plan_abs_dir(home.path(), &task);
     std::fs::create_dir_all(&plan_dir).expect("plan directory should be created");
@@ -1617,4 +1621,80 @@ fn read_task_plan_prompt_md_returns_exact_generated_content() {
         super::read_task_plan_prompt_md(home.path(), &task).expect("prompt should be read");
 
     assert_eq!(content, "# generated\n\ncontent\n");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+mod agent_routing {
+use super::super::{resolve_task_execution_acp_agent, resolve_task_execution_delegate_agent};
+use desktop_task_model::Task;
+#[test]
+fn resolve_task_execution_acp_agent_prefers_selected_agent() {
+    let mut task = Task::default();
+    task.acp_agent = Some("claude".to_string());
+
+    let acp_agent = resolve_task_execution_acp_agent(&task);
+
+    assert_eq!(acp_agent.as_deref(), Some("claude"));
+}
+
+#[test]
+fn resolve_task_execution_acp_agent_keeps_unknown_agent() {
+    let mut task = Task::default();
+    task.acp_agent = Some("custom-acp".to_string());
+
+    let acp_agent = resolve_task_execution_acp_agent(&task);
+
+    assert_eq!(acp_agent.as_deref(), Some("custom-acp"));
+}
+
+#[test]
+fn resolve_task_execution_acp_agent_respects_explicit_internal_selection() {
+    let mut task = Task::default();
+    task.acp_agent = Some("internal".to_string());
+
+    let acp_agent = resolve_task_execution_acp_agent(&task);
+
+    assert_eq!(acp_agent, None);
+}
+
+#[test]
+fn resolve_task_execution_acp_agent_does_not_fallback_when_missing() {
+    let task = Task::default();
+
+    let acp_agent = resolve_task_execution_acp_agent(&task);
+
+    assert_eq!(acp_agent, None);
+}
+
+#[test]
+fn resolve_task_execution_delegate_agent_drops_default_main_for_acp_agent() {
+    let mut task = Task::default();
+    task.agent = Some(desktop_task_model::TASK_AGENT_MAIN.to_string());
+    task.acp_agent = Some("codex".to_string());
+
+    let delegate_agent = resolve_task_execution_delegate_agent(&task);
+
+    assert_eq!(delegate_agent, None);
+}
+
+#[test]
+fn resolve_task_execution_delegate_agent_keeps_explicit_agent_for_acp_agent() {
+    let mut task = Task::default();
+    task.agent = Some("reviewer-agent".to_string());
+    task.acp_agent = Some("codex".to_string());
+
+    let delegate_agent = resolve_task_execution_delegate_agent(&task);
+
+    assert_eq!(delegate_agent.as_deref(), Some("reviewer-agent"));
+}
+
+#[test]
+fn resolve_task_execution_delegate_agent_uses_main_without_acp_agent() {
+    let task = Task::default();
+
+    let delegate_agent = resolve_task_execution_delegate_agent(&task);
+
+    assert_eq!(delegate_agent.as_deref(), Some(desktop_task_model::TASK_AGENT_MAIN));
+}
+
 }

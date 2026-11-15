@@ -60,7 +60,7 @@ fn simulate_task_execution_step_covers_all_status_transitions() {
 #[test]
 fn simulate_task_execution_step_uses_state_machine() {
     use super::TaskStatus;
-    use crate::app::task::{TaskStateMachine, TaskTransitionIntent};
+    use desktop_task_model::{TaskStateMachine, TaskTransitionIntent};
 
     let machine = TaskStateMachine::default_lifecycle();
 

@@ -7,7 +7,6 @@ use super::programs::{
     ExecutorCommand, claude_binary_name, select_claude_program,
     select_opencode_program_and_prefix_args,
 };
-use super::runner::{resolve_task_execution_acp_agent, resolve_task_execution_delegate_agent};
 use super::worktree_admin::assign_task_execution_worktree;
 use super::worktree_admin::resolve_task_execution_workspace;
 use super::{
@@ -230,76 +229,6 @@ fn build_task_commit_message_uses_fallback_when_title_unavailable() {
     task.prompt = String::new();
 
     assert_eq!(build_task_commit_message(&task, "fallback message"), "fallback message");
-}
-
-#[test]
-fn resolve_task_execution_acp_agent_prefers_selected_agent() {
-    let mut task = Task::default();
-    task.acp_agent = Some("claude".to_string());
-
-    let acp_agent = resolve_task_execution_acp_agent(&task);
-
-    assert_eq!(acp_agent.as_deref(), Some("claude"));
-}
-
-#[test]
-fn resolve_task_execution_acp_agent_keeps_unknown_agent() {
-    let mut task = Task::default();
-    task.acp_agent = Some("custom-acp".to_string());
-
-    let acp_agent = resolve_task_execution_acp_agent(&task);
-
-    assert_eq!(acp_agent.as_deref(), Some("custom-acp"));
-}
-
-#[test]
-fn resolve_task_execution_acp_agent_respects_explicit_internal_selection() {
-    let mut task = Task::default();
-    task.acp_agent = Some("internal".to_string());
-
-    let acp_agent = resolve_task_execution_acp_agent(&task);
-
-    assert_eq!(acp_agent, None);
-}
-
-#[test]
-fn resolve_task_execution_acp_agent_does_not_fallback_when_missing() {
-    let task = Task::default();
-
-    let acp_agent = resolve_task_execution_acp_agent(&task);
-
-    assert_eq!(acp_agent, None);
-}
-
-#[test]
-fn resolve_task_execution_delegate_agent_drops_default_main_for_acp_agent() {
-    let mut task = Task::default();
-    task.agent = Some(crate::app::task::TASK_AGENT_MAIN.to_string());
-    task.acp_agent = Some("codex".to_string());
-
-    let delegate_agent = resolve_task_execution_delegate_agent(&task);
-
-    assert_eq!(delegate_agent, None);
-}
-
-#[test]
-fn resolve_task_execution_delegate_agent_keeps_explicit_agent_for_acp_agent() {
-    let mut task = Task::default();
-    task.agent = Some("reviewer-agent".to_string());
-    task.acp_agent = Some("codex".to_string());
-
-    let delegate_agent = resolve_task_execution_delegate_agent(&task);
-
-    assert_eq!(delegate_agent.as_deref(), Some("reviewer-agent"));
-}
-
-#[test]
-fn resolve_task_execution_delegate_agent_uses_main_without_acp_agent() {
-    let task = Task::default();
-
-    let delegate_agent = resolve_task_execution_delegate_agent(&task);
-
-    assert_eq!(delegate_agent.as_deref(), Some(crate::app::task::TASK_AGENT_MAIN));
 }
 
 #[test]

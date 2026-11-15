@@ -7,12 +7,12 @@ use {
     vw_api_types::app_providers::claude_desktop::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-claude_desktop-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -48,11 +48,11 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
-        .unwrap();
+        .unwrap());
         Self { root, db, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -180,7 +180,7 @@ async fn cc04_claude_desktop_denial_and_generic_import_leave_files_and_catalog_u
     );
     assert!(f.record("denied").is_none());
     let error = f.client.claude_desktop_provider_import_live(&f.target(), TOKEN).await.unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }));
+    assert!(matches!(error, gateway_app_provider::AgentAppsReadError::Http { status: 422, .. }));
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert!(f.record("live").is_none());
     let path = f.root.path().join("access.json");

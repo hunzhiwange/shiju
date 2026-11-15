@@ -63,7 +63,7 @@ pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
                         .await
                 }
                 AppId::ClaudeDesktop => {
-                    client
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                         .claude_desktop_provider_switch(
                             &worker_id,
                             &ClaudeDesktopTarget { target_host_id: host },

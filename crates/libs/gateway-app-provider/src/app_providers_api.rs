@@ -223,3 +223,9 @@ mod gemini;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/gemini_tests.rs"]
 mod gemini_tests;
+
+#[path = "app_providers/claude_desktop.rs"]
+mod claude_desktop;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/claude_desktop_tests.rs"]
+mod claude_desktop_tests;

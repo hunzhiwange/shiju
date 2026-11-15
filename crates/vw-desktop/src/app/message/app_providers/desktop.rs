@@ -258,7 +258,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     match event {
                         Event::Import => import(client, worker_scope, token).await,
                         Event::SaveMapping => save(client, worker_scope, form, token).await,
-                        Event::Activate => client
+                        Event::Activate => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                             .claude_desktop_provider_switch(&form.id, &request, &token)
                             .await
                             .map_err(error)
@@ -279,7 +279,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                             } else {
                                 ClaudeDesktopActivation::IfCurrent
                             };
-                            client
+                            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                                 .claude_desktop_provider_save(
                                     &form.id,
                                     &ClaudeDesktopWrite {

@@ -137,7 +137,7 @@ async fn cc04_desktop_mapping_sdk_api_import_validates_and_never_activates() {
     request.mapping.routes.values_mut().next().unwrap().model = "bad\nmodel".into();
     assert!(f.client.claude_desktop_mapping_save("one", &request, TOKEN).await.is_err());
     assert_eq!(f.record("one").unwrap(), saved);
-    assert!(f.client.claude_desktop_provider_switch("one", &f.target(), TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_switch("one", &f.target(), TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert!(!f.root.path().join("private/provider-live").exists());
 }
@@ -169,7 +169,7 @@ async fn cc04_desktop_mapping_imported_native_profile_reaches_transactional_file
         1
     );
     let result =
-        f.client.claude_desktop_provider_switch("native", &f.target(), TOKEN).await.unwrap();
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_switch("native", &f.target(), TOKEN).await.unwrap();
     assert_eq!(result.live, ClaudeDesktopLiveResult::Applied);
     let profile = f.root.path().join(format!(
         "Library/Application Support/Claude-3p/configLibrary/{}.json",
@@ -222,7 +222,7 @@ async fn cc04_ui_desktop_form_read_is_redacted_and_permission_checked() {
         },
         activation: ClaudeDesktopActivation::CatalogOnly,
     };
-    f.client.claude_desktop_provider_save("form", &write, TOKEN).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_desktop_provider_save("form", &write, TOKEN).await.unwrap();
     let before = f.record("form").unwrap();
     let view = f.client.claude_desktop_form_read("form", &f.target(), TOKEN).await.unwrap();
     assert_eq!(view.name, "中文直连");

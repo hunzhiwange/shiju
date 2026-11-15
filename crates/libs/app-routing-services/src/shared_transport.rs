@@ -1,0 +1,456 @@
+#[cfg(target_os = "macos")]
+use super::outbound_system::{self, SystemProxy};
+#[cfg(target_os = "macos")]
+use super::transport_security::{check_origin, proxy_is_listener};
+use super::{
+    header_wire::HeaderWire,
+    outbound_custom,
+    transport_security::{connect_tls, tls_connector},
+};
+use model_transport::upstream;
+use axum::{
+    body::Body,
+    http::{HeaderValue, Request, StatusCode, Uri, header},
+    response::Response,
+};
+use futures_util::StreamExt;
+use hyper::body::Incoming;
+#[cfg(not(target_os = "macos"))]
+use hyper_util::client::proxy::matcher::Matcher;
+use hyper_util::{client::proxy::matcher::Intercept, rt::TokioIo};
+use std::net::SocketAddr;
+#[cfg(target_os = "macos")]
+use std::sync::Arc;
+use tokio::{
+    io::{AsyncRead, AsyncWrite, AsyncWriteExt, join, sink, split},
+    net::TcpStream,
+    task::JoinSet,
+    time::{Instant, timeout_at},
+};
+use tokio_util::{either::Either, sync::CancellationToken};
+
+/// Only a transport-observed connect failure proves that no provider request was sent.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AttemptFailure {
+    pub(crate) status: StatusCode,
+    pub(crate) before_send: bool,
+}
+
+impl From<StatusCode> for AttemptFailure {
+    fn from(status: StatusCode) -> Self {
+        Self { status, before_send: false }
+    }
+}
+
+impl AttemptFailure {
+    fn connect() -> Self {
+        Self { status: StatusCode::BAD_GATEWAY, before_send: true }
+    }
+}
+
+enum Egress {
+    #[cfg(not(target_os = "macos"))]
+    System(Matcher),
+    #[cfg(target_os = "macos")]
+    System(Arc<SystemProxy>),
+    Custom {
+        intercept: Intercept,
+        #[cfg(target_os = "macos")]
+        proxy: Box<reqwest::Proxy>,
+    },
+}
+
+/// HTTP transport for the application router, independent of session relay bindings.
+pub struct SharedTransport {
+    client: reqwest::Client,
+    encoded_client: reqwest::Client,
+    egress: Egress,
+    #[cfg(target_os = "macos")]
+    direct: DirectClients,
+}
+
+#[cfg(target_os = "macos")]
+struct DirectClients {
+    client: reqwest::Client,
+    encoded: reqwest::Client,
+}
+
+#[cfg(target_os = "macos")]
+impl DirectClients {
+    fn new() -> Result<Self, reqwest::Error> {
+        Ok(Self {
+            client: upstream::upstream_http_client_builder().no_proxy().build()?,
+            encoded: encoded_client_builder().no_proxy().build()?,
+        })
+    }
+}
+
+impl SharedTransport {
+    /// Build an explicit egress for publication with an authorized route.
+    pub fn with_custom_proxy(proxy_url: &str) -> anyhow::Result<Self> {
+        let (proxy, intercept) = outbound_custom::parse(proxy_url)?;
+        Self::build_custom_proxy(proxy, intercept)
+            .map_err(|_| anyhow::anyhow!("could not build outbound proxy transport"))
+    }
+
+    pub(crate) fn build_custom_proxy(
+        proxy: reqwest::Proxy,
+        intercept: Intercept,
+    ) -> Result<Self, reqwest::Error> {
+        Ok(Self {
+            client: upstream::upstream_http_client_builder()
+                .retry(reqwest::retry::never())
+                .no_proxy()
+                .proxy(proxy.clone())
+                .build()?,
+            encoded_client: encoded_client_builder().no_proxy().proxy(proxy.clone()).build()?,
+            egress: Egress::Custom {
+                intercept,
+                #[cfg(target_os = "macos")]
+                proxy: Box::new(proxy),
+            },
+            #[cfg(target_os = "macos")]
+            direct: DirectClients::new()?,
+        })
+    }
+
+    pub fn new() -> Result<Self, reqwest::Error> {
+        #[cfg(target_os = "macos")]
+        {
+            Self::with_system_proxy(SystemProxy::read())
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        Ok(Self {
+            client: upstream::upstream_http_client()?,
+            encoded_client: encoded_client_builder().build()?,
+            egress: Egress::System(Matcher::from_system()),
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn with_system_proxy(system: SystemProxy) -> Result<Self, reqwest::Error> {
+        let system = Arc::new(system);
+        let proxy = reqwest::Proxy::custom({
+            let system = Arc::clone(&system);
+            move |target| system.url(target).cloned()
+        });
+        Ok(Self {
+            client: upstream::upstream_http_client_builder().proxy(proxy.clone()).build()?,
+            encoded_client: encoded_client_builder().proxy(proxy).build()?,
+            egress: Egress::System(system),
+            direct: DirectClients::new()?,
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn probe_client(
+        &self,
+        target: &reqwest::Url,
+        listener: Option<SocketAddr>,
+    ) -> Result<Option<reqwest::Client>, StatusCode> {
+        let (intercept, proxy) = match &self.egress {
+            Egress::Custom { intercept, proxy } => (intercept, proxy.as_ref().clone()),
+            Egress::System(system) => {
+                let (Some(intercept), Some(url)) = (system.intercept(target), system.url(target))
+                else {
+                    return Ok(None);
+                };
+                let proxy =
+                    reqwest::Proxy::all(url.clone()).map_err(|_| StatusCode::BAD_GATEWAY)?;
+                (intercept, proxy)
+            }
+        };
+        if let Some(listener) = listener
+            && (target.port_or_known_default() == Some(listener.port())
+                || proxy_is_listener(intercept.uri(), listener)?)
+        {
+            return Err(StatusCode::BAD_GATEWAY);
+        }
+        upstream::upstream_http_client_builder_without_total_timeout()
+            .https_only(true)
+            .retry(reqwest::retry::never())
+            .no_proxy()
+            .proxy(proxy)
+            .pool_max_idle_per_host(0)
+            .build()
+            .map(Some)
+            .map_err(|_| StatusCode::BAD_GATEWAY)
+    }
+
+    /// Send a prepared request to the exact target authorized by the application router.
+    ///
+    /// The caller supplies provider credentials in the prepared request. The returned
+    /// status and headers are upstream data and must be filtered before returning them
+    /// to an application client.
+    pub async fn forward(
+        &self,
+        authorized_target: &reqwest::Url,
+        request: reqwest::Request,
+        cancel: CancellationToken,
+    ) -> Result<Response, StatusCode> {
+        #[cfg(target_os = "macos")]
+        if authorized_target.host_str().is_some_and(outbound_system::is_loopback) {
+            return forward_with_client(&self.direct.client, authorized_target, request, cancel)
+                .await;
+        }
+        forward_with_client(&self.client, authorized_target, request, cancel).await
+    }
+
+    pub(crate) async fn forward_ordered(
+        &self,
+        authorized_target: &reqwest::Url,
+        request: reqwest::Request,
+        wire: HeaderWire,
+        cancel: CancellationToken,
+        listener: SocketAddr,
+    ) -> Result<Response, StatusCode> {
+        self.forward_attempt(authorized_target, request, wire, cancel, listener)
+            .await
+            .map_err(|error| error.status)
+    }
+
+    pub(crate) async fn forward_attempt(
+        &self,
+        authorized_target: &reqwest::Url,
+        mut request: reqwest::Request,
+        wire: HeaderWire,
+        cancel: CancellationToken,
+        listener: SocketAddr,
+    ) -> Result<Response, AttemptFailure> {
+        upstream::validate_target(authorized_target, &request)?;
+        let uri: Uri = authorized_target.as_str().parse().map_err(|_| StatusCode::BAD_GATEWAY)?;
+        // Leave decoding to the JSON handler so it can enforce the wire and
+        // decoded budgets before sending a success status.
+        request
+            .headers_mut()
+            .entry(header::ACCEPT_ENCODING)
+            .or_insert(HeaderValue::from_static("zstd,gzip,deflate,br"));
+        #[cfg(target_os = "macos")]
+        let (client, proxy) = {
+            if uri.host().is_some_and(outbound_system::is_loopback) {
+                (&self.direct.encoded, None)
+            } else {
+                match &self.egress {
+                    Egress::System(system) => match system.intercept(authorized_target) {
+                        Some(proxy) if !proxy_is_listener(proxy.uri(), listener)? => {
+                            (&self.encoded_client, Some(proxy))
+                        }
+                        _ => (&self.direct.encoded, None),
+                    },
+                    Egress::Custom { intercept: proxy, .. } => {
+                        if proxy_is_listener(proxy.uri(), listener)? {
+                            return Err(StatusCode::BAD_GATEWAY.into());
+                        }
+                        (&self.encoded_client, Some(proxy))
+                    }
+                }
+            }
+        };
+        #[cfg(not(target_os = "macos"))]
+        let (client, proxy) = {
+            let _ = listener;
+            match &self.egress {
+                Egress::System(matcher) if matcher.intercept(&uri).is_some() => {
+                    return forward_with_evidence(
+                        &self.encoded_client,
+                        authorized_target,
+                        request,
+                        cancel,
+                    )
+                    .await;
+                }
+                Egress::System(_) => (&self.encoded_client, None),
+                Egress::Custom { intercept, .. } => (&self.encoded_client, Some(intercept)),
+            }
+        };
+        #[cfg(target_os = "macos")]
+        let resolved = tokio::select! {
+            biased;
+            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT.into()),
+            result = timeout_at(
+                Instant::now() + upstream::CONNECT_TIMEOUT,
+                check_origin(authorized_target, listener, proxy.is_some()),
+            ) => result.map_err(|_| StatusCode::BAD_GATEWAY)??,
+        };
+        #[cfg(not(target_os = "macos"))]
+        let resolved: Option<Vec<SocketAddr>> = None;
+        if wire.is_empty()
+            || proxy
+                .is_some_and(|proxy| !matches!(proxy.uri().scheme_str(), Some("http" | "https")))
+        {
+            #[cfg(target_os = "macos")]
+            if let Some(addresses) = &resolved {
+                // Reuse the checked addresses without changing Host or TLS identity.
+                let host = authorized_target.host_str().ok_or(StatusCode::BAD_GATEWAY)?;
+                let pinned = encoded_client_builder()
+                    .no_proxy()
+                    .resolve_to_addrs(host, addresses)
+                    .build()
+                    .map_err(|_| StatusCode::BAD_GATEWAY)?;
+                return forward_with_evidence(&pinned, authorized_target, request, cancel).await;
+            }
+            return forward_with_evidence(client, authorized_target, request, cancel).await;
+        }
+        let method = request.method().clone();
+        let mut headers = std::mem::take(request.headers_mut());
+        headers.entry(header::ACCEPT).or_insert(HeaderValue::from_static("*/*"));
+        let body = request.body_mut().take().ok_or(StatusCode::BAD_GATEWAY)?;
+        let mut outgoing = Request::new(body);
+        *outgoing.method_mut() = method;
+        *outgoing.uri_mut() = uri;
+        *outgoing.headers_mut() = headers;
+
+        tokio::select! {
+            biased;
+            () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT.into()),
+            result = send_ordered(outgoing, wire, proxy, resolved.as_deref(), cancel.clone()) => result,
+        }
+    }
+}
+
+fn encoded_client_builder() -> reqwest::ClientBuilder {
+    upstream::upstream_http_client_builder_without_total_timeout()
+        .retry(reqwest::retry::never())
+        .no_gzip()
+        .no_brotli()
+        .no_deflate()
+        .no_zstd()
+}
+
+async fn forward_with_evidence(
+    client: &reqwest::Client,
+    authorized_target: &reqwest::Url,
+    request: reqwest::Request,
+    cancel: CancellationToken,
+) -> Result<Response, AttemptFailure> {
+    upstream::validate_target(authorized_target, &request)?;
+    let mut response = tokio::select! {
+        biased;
+        () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT.into()),
+        response = client.execute(request) => response.map_err(|error| {
+            if error.is_connect() { AttemptFailure::connect() }
+            else { StatusCode::BAD_GATEWAY.into() }
+        })?,
+    };
+    let status = response.status();
+    let headers = std::mem::take(response.headers_mut());
+    let mut result = Response::new(upstream::response_body(response, cancel));
+    *result.status_mut() = status;
+    *result.headers_mut() = headers;
+    Ok(result)
+}
+
+async fn forward_with_client(
+    client: &reqwest::Client,
+    authorized_target: &reqwest::Url,
+    request: reqwest::Request,
+    cancel: CancellationToken,
+) -> Result<Response, StatusCode> {
+    let mut upstream = upstream::execute(client, authorized_target, request, &cancel).await?;
+    let status = upstream.status();
+    let headers = std::mem::take(upstream.headers_mut());
+    let mut response = Response::new(upstream::response_body(upstream, cancel));
+    *response.status_mut() = status;
+    *response.headers_mut() = headers;
+    Ok(response)
+}
+
+async fn send_ordered(
+    request: Request<reqwest::Body>,
+    wire: HeaderWire,
+    tunnel: Option<&Intercept>,
+    resolved: Option<&[SocketAddr]>,
+    cancel: CancellationToken,
+) -> Result<Response, AttemptFailure> {
+    let (parts, body) = request.into_parts();
+    let body = body.as_bytes().ok_or(StatusCode::BAD_GATEWAY)?;
+    let authority = parts.uri.authority().ok_or(StatusCode::BAD_GATEWAY)?;
+    let host = authority.host().trim_start_matches('[').trim_end_matches(']');
+    let https = parts.uri.scheme_str() == Some("https");
+    let port = authority.port_u16().unwrap_or(if https { 443 } else { 80 });
+    let path = parts.uri.path_and_query().map_or("/", |path| path.as_str());
+    let mut head = format!(
+        "{} {path} HTTP/1.1\r\nHost: {authority}\r\nContent-Length: {}\r\nConnection: close\r\n",
+        parts.method,
+        body.len(),
+    )
+    .into_bytes();
+    wire.write(&parts.headers, &mut head);
+    head.extend_from_slice(b"\r\n");
+
+    let connect_deadline = Instant::now() + upstream::CONNECT_TIMEOUT;
+    let socket = timeout_at(connect_deadline, async {
+        if let Some(proxy) = tunnel {
+            outbound_custom::connect_tunnel(proxy, &parts.uri, tls_connector()?).await
+        } else {
+            let socket = match resolved {
+                Some(addresses) => TcpStream::connect(addresses).await,
+                None => TcpStream::connect((host, port)).await,
+            };
+            socket.map(Either::Left).map_err(|_| StatusCode::BAD_GATEWAY)
+        }
+    })
+    .await
+    .map_err(|_| AttemptFailure::connect())?
+    .map_err(|_| AttemptFailure::connect())?;
+    let mut driver = JoinSet::new();
+    let response = if https {
+        let socket = timeout_at(connect_deadline, connect_tls(tls_connector()?, host, socket))
+            .await
+            .map_err(|_| AttemptFailure::connect())?
+            .map_err(|_| AttemptFailure::connect())?;
+        exchange(socket, &head, body, parts.method, &mut driver).await?
+    } else {
+        exchange(socket, &head, body, parts.method, &mut driver).await?
+    };
+    Ok(response.map(|body| {
+        Body::from_stream(futures_util::stream::unfold(
+            (Body::new(body).into_data_stream(), driver, cancel),
+            |(mut stream, driver, cancel)| async move {
+                let chunk = tokio::select! {
+                    biased;
+                    () = cancel.cancelled() => return None,
+                    chunk = stream.next() => chunk,
+                };
+                chunk.map(|chunk| (chunk, (stream, driver, cancel)))
+            },
+        ))
+    }))
+}
+
+async fn exchange(
+    socket: impl AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    head: &[u8],
+    body: &[u8],
+    method: axum::http::Method,
+    driver: &mut JoinSet<()>,
+) -> Result<axum::http::Response<Incoming>, StatusCode> {
+    let (reader, mut writer) = split(socket);
+    // Hyper parses the response, while the real request uses the ordered
+    // wire head. Poll reads during writes so an early response can stop upload.
+    let (mut sender, connection) =
+        hyper::client::conn::http1::handshake(TokioIo::new(join(reader, sink())))
+            .await
+            .map_err(|_| StatusCode::BAD_GATEWAY)?;
+    driver.spawn(async move {
+        let _ = connection.await;
+    });
+    let mut request = Request::new(Body::empty());
+    *request.method_mut() = method;
+    let response = sender.send_request(request);
+    tokio::pin!(response);
+    tokio::select! {
+        biased;
+        response = &mut response => response,
+        result = async {
+            writer.write_all(head).await?;
+            writer.write_all(body).await?;
+            writer.flush().await
+        } => {
+            result.map_err(|_| StatusCode::BAD_GATEWAY)?;
+            response.await
+        }
+    }
+    .map_err(|_| StatusCode::BAD_GATEWAY)
+}

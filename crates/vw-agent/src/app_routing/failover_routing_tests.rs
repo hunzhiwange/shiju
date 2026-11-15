@@ -118,7 +118,7 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
         stack_tenant: Some(tenant.clone()),
         ..Default::default()
     };
-    let listener = RoutingListener::default();
+    let listener = RoutingListener::with_database(crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap());
     let address = listener.start(0).unwrap();
     let native = tempfile::tempdir().unwrap();
     let mut guard = lock_app(AppId::Codex, native.path()).unwrap();
@@ -273,7 +273,7 @@ async fn aggregation_t12_queue_publication_rejects_unauthorized_scope() {
     });
     std::fs::write(&path, policy.to_string()).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-    let listener = Arc::new(RoutingListener::default());
+    let listener = Arc::new(RoutingListener::with_database(crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap()));
     let (send, mut receive) = mpsc::unbounded_channel();
     let router = configure_with_policy(
         Router::new().route(

@@ -1,0 +1,14 @@
+[package]
+name = "model-relay-state"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+http = "1"
+parking_lot = "0.12"
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }

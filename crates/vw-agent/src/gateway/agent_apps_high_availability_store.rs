@@ -1,2 +1,2 @@
-//! Compatibility exports for the application settings storage owner.
-pub use app_settings_store::agent_apps_high_availability_store::*;
+//! Queue state retains its existing settings-store owner through routing composition.
+pub use app_routing_services::failover_store::*;

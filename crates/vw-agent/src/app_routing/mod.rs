@@ -1,99 +1,16 @@
+//! Application routing composition; runtime and state belong to app-routing-services.
+pub use app_routing_services::{ListenerError, RoutingListener, SharedTransport};
 #[cfg(target_os = "macos")]
-pub(crate) mod aggregation_routing;
-mod body_limits;
-mod browser_guard;
-mod cancellation;
-mod capacity;
+pub use app_routing_services::adapter_selection;
+pub(crate) use app_routing_services::{dispatch, reference_scope, request_status};
 #[cfg(target_os = "macos")]
-pub(crate) mod config_apply;
-mod decode_request;
-mod decode_response;
-pub(crate) mod dispatch;
+pub(crate) use app_routing_services::{
+    aggregation_routing, config_apply, desktop_routing, failover_routing,
+    outbound_config, provider_publication, RouteCommitError, RouteRevocation, VerifiedRouteBinding,
+};
 pub(crate) mod gateway_owner;
-mod header_wire;
-mod listener;
-#[cfg(target_os = "macos")]
-pub(crate) mod outbound_config;
-mod outbound_custom;
-#[cfg(target_os = "macos")]
-mod outbound_system;
-mod override_apply;
-mod protocol_errors;
-pub(crate) mod reference_scope;
-mod route_auth;
-mod shared_transport;
-mod shutdown;
-mod timeouts;
-mod transport_security;
-pub use listener::{ListenerError, RoutingListener};
-#[cfg(target_os = "macos")]
-pub(crate) use route_auth::{RouteCommitError, RouteRevocation, VerifiedRouteBinding};
-pub use shared_transport::SharedTransport;
-
-#[cfg(all(test, target_os = "macos"))]
-mod body_limits_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod config_apply_tests;
-
-#[cfg(test)]
-mod listener_tests;
-
-#[cfg(test)]
-mod shared_transport_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod outbound_config_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod outbound_custom_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod outbound_system_tests;
-
-#[cfg(test)]
-mod reference_scope_tests;
-
-#[cfg(test)]
-mod shutdown_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod gateway_owner_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod timeouts_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod cancellation_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod capacity_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod protocol_errors_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod transport_security_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod compaction_tests;
-
-#[cfg(target_os = "macos")]
-pub(crate) mod failover_routing;
-
 #[cfg(all(test, target_os = "macos"))]
 mod failover_routing_tests;
-
-#[cfg(target_os = "macos")]
-pub(crate) mod provider_publication;
-
-#[cfg(target_os = "macos")]
-pub(crate) mod desktop_routing;
-
-#[cfg(target_os = "macos")]
-pub mod adapter_selection;
-
-#[cfg(target_os = "macos")]
-mod failover_execution;
-
-pub(crate) mod request_status;

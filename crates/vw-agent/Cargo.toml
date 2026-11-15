@@ -295,6 +295,7 @@ agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usag
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 model-protocol = { path = "../libs/model-protocol", version = "0.6.0" }
+app-routing-services = { path = "../libs/app-routing-services", version = "0.6.0" }
 gateway-types = { path = "../libs/gateway-types", version = "0.6.0" }
 gateway-agent-scheduler = { path = "../libs/gateway-agent-scheduler", version = "0.6.0" }
 gateway-auth = { path = "../libs/gateway-auth", version = "0.6.0" }

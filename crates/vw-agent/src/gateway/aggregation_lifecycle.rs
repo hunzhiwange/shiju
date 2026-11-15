@@ -32,11 +32,7 @@ pub(crate) struct AggregationLifecycle {
     pub(crate) host: String,
 }
 
-#[derive(Default)]
-pub(crate) struct DetachResult {
-    pub(crate) retired: Vec<FailoverQueueScope>,
-    pub(crate) failure: Option<StatusCode>,
-}
+pub(crate) use app_routing_services::lifecycle_host::DetachResult;
 
 fn unavailable(_: impl Sized) -> StatusCode {
     StatusCode::SERVICE_UNAVAILABLE
@@ -361,5 +357,14 @@ impl AggregationLifecycle {
             }
         }
         result
+    }
+}
+
+impl app_routing_services::lifecycle_host::AggregationLifecycleHost for AggregationLifecycle {
+    fn resume(&self, routing: Arc<RoutingListener>) -> Result<(), StatusCode> {
+        AggregationLifecycle::resume(self, routing)
+    }
+    fn detach(&self) -> DetachResult {
+        AggregationLifecycle::detach(self)
     }
 }

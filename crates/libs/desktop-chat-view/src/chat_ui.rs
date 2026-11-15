@@ -400,3 +400,24 @@ mod schedule;
 mod cache;
 mod update;
 use editors::sync_chat_aux_text_editors_for_message;
+
+/// Accept selection updates only for the active session and matching text block.
+pub fn update_markdown_selection(selection: &mut Option<ChatMarkdownSelection>, active_session_id: Option<&str>, session_id: String, message_idx: usize, text_idx: usize, text: Option<String>) {
+    if active_session_id == Some(session_id.as_str()) {
+        if let Some(text) = text {
+            *selection =
+                Some(ChatMarkdownSelection {
+                    session_id,
+                    message_idx,
+                    text_idx,
+                    text,
+                });
+        } else if selection.as_ref().is_some_and(|selection| {
+            selection.session_id == session_id
+                && selection.message_idx == message_idx
+                && selection.text_idx == text_idx
+        }) {
+            *selection = None;
+        }
+    }
+}

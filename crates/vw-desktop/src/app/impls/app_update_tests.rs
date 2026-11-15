@@ -23,74 +23,11 @@ fn startup_cli_service_result_controls_main_interface_gate() {
     assert_eq!(app.startup_state, crate::app::state::NativeStartupState::Ready);
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn startup_retry_interval_slows_after_each_elapsed_threshold() {
-    assert_eq!(startup_retry_interval(Duration::ZERO), Duration::from_secs(2));
-    assert_eq!(startup_retry_interval(Duration::from_secs(299)), Duration::from_secs(2));
-    assert_eq!(startup_retry_interval(Duration::from_secs(300)), Duration::from_secs(10));
-    assert_eq!(startup_retry_interval(Duration::from_secs(3_599)), Duration::from_secs(10));
-    assert_eq!(startup_retry_interval(Duration::from_secs(3_600)), Duration::from_secs(20));
-    assert_eq!(startup_retry_interval(Duration::from_secs(86_399)), Duration::from_secs(20));
-    assert_eq!(startup_retry_interval(Duration::from_secs(86_400)), Duration::from_secs(60));
-}
-
 #[test]
 fn sort_acp_agent_names_keeps_codex_first_and_sorts_remaining_names() {
     let names = vec!["zeta".to_string(), "codex".to_string(), "alpha".to_string()];
 
     assert_eq!(sort_acp_agent_names(names), ["codex", "alpha", "zeta"]);
-}
-
-#[test]
-fn parse_external_open_app_accepts_known_stable_ids() {
-    assert_eq!(App::parse_external_open_app("finder"), Some(ExternalOpenApp::Finder));
-    assert_eq!(App::parse_external_open_app("vscode"), Some(ExternalOpenApp::VSCode));
-    assert_eq!(
-        App::parse_external_open_app("android-studio"),
-        Some(ExternalOpenApp::AndroidStudio)
-    );
-    assert_eq!(App::parse_external_open_app("powershell"), Some(ExternalOpenApp::PowerShell));
-    assert_eq!(App::parse_external_open_app("unknown"), None);
-}
-
-#[test]
-fn parse_external_open_app_maps_remaining_stable_ids() {
-    let cases = [
-        ("cursor", ExternalOpenApp::Cursor),
-        ("trae", ExternalOpenApp::Trae),
-        ("windsurf", ExternalOpenApp::Windsurf),
-        ("kiro", ExternalOpenApp::Kiro),
-        ("zed", ExternalOpenApp::Zed),
-        ("textmate", ExternalOpenApp::TextMate),
-        ("antigravity", ExternalOpenApp::Antigravity),
-        ("terminal", ExternalOpenApp::Terminal),
-        ("iterm2", ExternalOpenApp::ITerm2),
-        ("ghostty", ExternalOpenApp::Ghostty),
-        ("xcode", ExternalOpenApp::Xcode),
-        ("sublime-text", ExternalOpenApp::SublimeText),
-    ];
-
-    for (id, expected) in cases {
-        assert_eq!(App::parse_external_open_app(id), Some(expected));
-    }
-}
-
-#[test]
-fn external_open_priority_is_platform_specific() {
-    assert_eq!(App::external_open_priority(Some(RuntimePlatform::MacOs))[0], ExternalOpenApp::Trae);
-    assert!(
-        App::external_open_priority(Some(RuntimePlatform::MacOs))
-            .contains(&ExternalOpenApp::Terminal)
-    );
-    assert!(
-        App::external_open_priority(Some(RuntimePlatform::Windows))
-            .contains(&ExternalOpenApp::PowerShell)
-    );
-    assert!(
-        !App::external_open_priority(Some(RuntimePlatform::Linux))
-            .contains(&ExternalOpenApp::PowerShell)
-    );
 }
 
 #[test]

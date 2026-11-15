@@ -10,7 +10,7 @@ use config_aggregate::AcpAgentConfig;
 
 
 
-fn sort_acp_agent_names(mut names: Vec<String>) -> Vec<String> {
+pub fn sort_acp_agent_names(mut names: Vec<String>) -> Vec<String> {
     names.sort_by(|left, right| {
         let left_key = (left != "codex", left.as_str());
         let right_key = (right != "codex", right.as_str());

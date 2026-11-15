@@ -28,3 +28,6 @@ pub mod app_init;
 pub mod view_layout;
 
 pub mod panel;
+
+pub mod status_bar;
+pub mod external_apps_update;

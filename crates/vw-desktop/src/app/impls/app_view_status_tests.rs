@@ -38,13 +38,6 @@ fn preview_tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn is_dark_theme_detects_dark_and_light_palettes() {
-    assert!(super::is_dark_theme(&iced::Theme::Dark));
-    assert!(!super::is_dark_theme(&iced::Theme::Light));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
 fn status_bar_builds_ready_when_no_preview_tab_is_active() {
     let (mut app, _) = crate::app::App::new();
     std::hint::black_box(super::status_bar(&app));

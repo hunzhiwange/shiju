@@ -112,3 +112,23 @@ pub async fn load_full_access(client: Option<vw_gateway_client::GatewayClient>, 
     gateway_session::GatewaySessionClient::new(client?.transport().clone())
         .session_ui_summary(target, Some(directory)).await.ok()?.full_access
 }
+
+/// Merge project defaults into the empty draft without replacing entered task settings.
+pub fn apply_draft_preferences<R>(runtime: &mut super::agent::SessionRuntimeState<R>, model: String, auto_model: bool, acp_agent: Option<String>) {
+    if runtime.task_mode_executor.is_none() && runtime.task_mode_model == runtime.model {
+        runtime.task_mode_model = model.clone();
+    }
+    runtime.model = model;
+    runtime.auto_model = auto_model;
+    if runtime.acp_agent != acp_agent {
+        runtime.acp_agent = acp_agent;
+        runtime.agent = None;
+        runtime.agent_label = None;
+        runtime.acp_model_source = Default::default();
+        runtime.acp_options_state.options = Default::default();
+        runtime.acp_options_state.pending = false;
+        runtime.acp_options_state.model_input_draft = None;
+        runtime.acp_options_state.source_pending = None;
+        runtime.acp_options_state.source_request_id = None;
+    }
+}

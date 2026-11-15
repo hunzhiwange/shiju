@@ -19,7 +19,6 @@
 
 use iced::Task;
 use iced_code_editor::theme;
-use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
@@ -28,45 +27,14 @@ use super::{App, Message, Screen};
 use crate::app::state::RuntimePlatform;
 use crate::app::ui_types::ClipboardShortcutKind;
 
-fn sort_acp_agent_names(mut acp_agents: Vec<String>) -> Vec<String> {
-    acp_agents.sort_by(|left, right| {
-        let left_key = (left != "codex", left.as_str());
-        let right_key = (right != "codex", right.as_str());
-        left_key.cmp(&right_key)
-    });
-    acp_agents
-}
+use desktop_settings_agents::acp_update::sort_acp_agent_names;
 
 #[cfg(not(target_arch = "wasm32"))]
-fn startup_retry_interval(elapsed: Duration) -> Duration {
-    if elapsed >= Duration::from_secs(24 * 60 * 60) {
-        Duration::from_secs(60)
-    } else if elapsed >= Duration::from_secs(60 * 60) {
-        Duration::from_secs(20)
-    } else if elapsed >= Duration::from_secs(5 * 60) {
-        Duration::from_secs(10)
-    } else {
-        Duration::from_secs(2)
-    }
-}
+use desktop_settings_network::startup::startup_retry_interval;
 
-fn selected_gateway_health_key(
-    settings: &crate::app::state::GatewayClientSettingsState,
-) -> Option<String> {
-    let server = settings.servers.iter().find(|server| server.id == settings.selected_server_id)?;
-    crate::app::message::gateway_health::server_health_key(server)
-}
-
+use desktop_settings_network::bootstrap::selected_gateway_health_key;
 #[cfg(any(test, target_arch = "wasm32"))]
-fn selected_gateway_became_healthy(
-    settings: &crate::app::state::GatewayClientSettingsState,
-    results: &[(String, bool)],
-) -> bool {
-    selected_gateway_health_key(settings).is_some_and(|key| {
-        settings.health.get(&key) != Some(&true)
-            && results.iter().any(|(candidate, healthy)| *healthy && candidate == &key)
-    })
-}
+use desktop_settings_network::bootstrap::selected_gateway_became_healthy;
 
 fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Message> {
     iced::widget::operation::is_focused(app.input_editor_id.clone())
@@ -157,102 +125,14 @@ fn copy_text_task(text: String, hash: u64) -> Task<Message> {
 
 impl App {
     fn parse_external_open_app(value: &str) -> Option<crate::app::state::ExternalOpenApp> {
-        match value {
-            "finder" => Some(crate::app::state::ExternalOpenApp::Finder),
-            "vscode" => Some(crate::app::state::ExternalOpenApp::VSCode),
-            "cursor" => Some(crate::app::state::ExternalOpenApp::Cursor),
-            "trae" => Some(crate::app::state::ExternalOpenApp::Trae),
-            "windsurf" => Some(crate::app::state::ExternalOpenApp::Windsurf),
-            "kiro" => Some(crate::app::state::ExternalOpenApp::Kiro),
-            "zed" => Some(crate::app::state::ExternalOpenApp::Zed),
-            "textmate" => Some(crate::app::state::ExternalOpenApp::TextMate),
-            "antigravity" => Some(crate::app::state::ExternalOpenApp::Antigravity),
-            "terminal" => Some(crate::app::state::ExternalOpenApp::Terminal),
-            "iterm2" => Some(crate::app::state::ExternalOpenApp::ITerm2),
-            "ghostty" => Some(crate::app::state::ExternalOpenApp::Ghostty),
-            "xcode" => Some(crate::app::state::ExternalOpenApp::Xcode),
-            "android-studio" => Some(crate::app::state::ExternalOpenApp::AndroidStudio),
-            "powershell" => Some(crate::app::state::ExternalOpenApp::PowerShell),
-            "sublime-text" => Some(crate::app::state::ExternalOpenApp::SublimeText),
-            _ => None,
-        }
+        desktop_navigation::external_apps_update::parse_external_open_app(value)
     }
 
-    fn external_open_priority(
-        platform: Option<RuntimePlatform>,
-    ) -> &'static [crate::app::state::ExternalOpenApp] {
-        if matches!(platform, Some(RuntimePlatform::MacOs)) {
-            &[
-                crate::app::state::ExternalOpenApp::Trae,
-                crate::app::state::ExternalOpenApp::Windsurf,
-                crate::app::state::ExternalOpenApp::Kiro,
-                crate::app::state::ExternalOpenApp::Cursor,
-                crate::app::state::ExternalOpenApp::VSCode,
-                crate::app::state::ExternalOpenApp::Zed,
-                crate::app::state::ExternalOpenApp::Xcode,
-                crate::app::state::ExternalOpenApp::AndroidStudio,
-                crate::app::state::ExternalOpenApp::SublimeText,
-                crate::app::state::ExternalOpenApp::TextMate,
-                crate::app::state::ExternalOpenApp::Antigravity,
-                crate::app::state::ExternalOpenApp::Ghostty,
-                crate::app::state::ExternalOpenApp::ITerm2,
-                crate::app::state::ExternalOpenApp::Terminal,
-                crate::app::state::ExternalOpenApp::Finder,
-            ]
-        } else if matches!(platform, Some(RuntimePlatform::Windows)) {
-            &[
-                crate::app::state::ExternalOpenApp::Trae,
-                crate::app::state::ExternalOpenApp::Windsurf,
-                crate::app::state::ExternalOpenApp::Kiro,
-                crate::app::state::ExternalOpenApp::Cursor,
-                crate::app::state::ExternalOpenApp::VSCode,
-                crate::app::state::ExternalOpenApp::Zed,
-                crate::app::state::ExternalOpenApp::SublimeText,
-                crate::app::state::ExternalOpenApp::PowerShell,
-                crate::app::state::ExternalOpenApp::Finder,
-            ]
-        } else {
-            &[
-                crate::app::state::ExternalOpenApp::Trae,
-                crate::app::state::ExternalOpenApp::Windsurf,
-                crate::app::state::ExternalOpenApp::Kiro,
-                crate::app::state::ExternalOpenApp::Cursor,
-                crate::app::state::ExternalOpenApp::VSCode,
-                crate::app::state::ExternalOpenApp::Zed,
-                crate::app::state::ExternalOpenApp::SublimeText,
-                crate::app::state::ExternalOpenApp::Finder,
-            ]
-        }
-    }
-
-    fn apply_external_apps_state(
-        &mut self,
-        platform: Option<RuntimePlatform>,
-        apps: Vec<(String, bool)>,
-    ) {
-        let mut open_external_exists: HashMap<crate::app::state::ExternalOpenApp, bool> =
-            HashMap::new();
-        for (id, available) in apps {
-            if let Some(target) = Self::parse_external_open_app(&id) {
-                open_external_exists.insert(target, available);
-            }
-        }
-        open_external_exists.insert(crate::app::state::ExternalOpenApp::Finder, true);
-        self.open_external_platform = platform.or(self.open_external_platform);
-        self.open_external_exists = open_external_exists;
-
-        if self.open_external_exists.get(&self.open_external_app).copied().unwrap_or(false) {
-            return;
-        }
-        if let Some(target) = Self::external_open_priority(self.open_external_platform)
-            .iter()
-            .copied()
-            .find(|candidate| self.open_external_exists.get(candidate).copied().unwrap_or(false))
-        {
-            self.open_external_app = target;
-        } else {
-            self.open_external_app = crate::app::state::ExternalOpenApp::Finder;
-        }
+    fn apply_external_apps_state(&mut self, platform: Option<RuntimePlatform>, apps: Vec<(String, bool)>) {
+        desktop_navigation::external_apps_update::apply_external_apps_state(
+            &mut self.open_external_platform, &mut self.open_external_exists,
+            &mut self.open_external_app, platform, apps,
+        );
     }
 
     pub(crate) fn apply_project_chat_preferences(
@@ -270,22 +150,7 @@ impl App {
         // Existing sessions keep their own model. Updating the draft defaults must also preserve
         // text and task settings entered while the project GET was in flight.
         let runtime = self.get_session_runtime_mut("__empty__");
-        if runtime.task_mode_executor.is_none() && runtime.task_mode_model == runtime.model {
-            runtime.task_mode_model = model.clone();
-        }
-        runtime.model = model;
-        runtime.auto_model = auto_model;
-        if runtime.acp_agent != acp_agent {
-            runtime.acp_agent = acp_agent;
-            runtime.agent = None;
-            runtime.agent_label = None;
-            runtime.acp_model_source = Default::default();
-            runtime.acp_options_state.options = Default::default();
-            runtime.acp_options_state.pending = false;
-            runtime.acp_options_state.model_input_draft = None;
-            runtime.acp_options_state.source_pending = None;
-            runtime.acp_options_state.source_request_id = None;
-        }
+        desktop_session::session::runtime::apply_draft_preferences(runtime, model, auto_model, acp_agent);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -700,79 +565,12 @@ impl App {
         }
     }
 
-    fn apply_bootstrap_gateway_client(
-        &mut self,
-        config: config_ui::GatewayClientSystemSettingsConfig,
-    ) {
-        let active_gateway_client = config.active_server();
-        self.gateway_client_settings.servers = config
-            .normalized_servers()
-            .iter()
-            .map(crate::app::state::GatewayClientServerDraft::from_config)
-            .collect();
-        let gateway_health_keys = self
-            .gateway_client_settings
-            .servers
-            .iter()
-            .filter_map(crate::app::message::gateway_health::server_health_key)
-            .collect::<std::collections::HashSet<_>>();
-        self.gateway_client_settings.health.retain(|key, _| gateway_health_keys.contains(key));
-        self.gateway_client_settings.selected_server_id = active_gateway_client.id;
-        self.gateway_client_settings.name_input = active_gateway_client.name;
-        self.gateway_client_settings.host_input = {
-            let value = active_gateway_client.host.trim().to_string();
-            if value.is_empty() { "127.0.0.1".to_string() } else { value }
-        };
-        self.gateway_client_settings.port = active_gateway_client.port.clamp(1, u16::MAX);
-        self.gateway_client_settings.platform_id_input = active_gateway_client.platform_id;
-        self.gateway_client_settings.company_id_input = active_gateway_client.company_id;
-        self.gateway_client_settings.skey_input = active_gateway_client.skey;
+    fn apply_bootstrap_gateway_client(&mut self, config: config_ui::GatewayClientSystemSettingsConfig) {
+        desktop_settings_network::bootstrap::apply_bootstrap_gateway_client(&mut self.gateway_client_settings, config);
     }
 
     fn apply_bootstrap_browser_settings(&mut self, browser: config_tools::BrowserConfig) {
-        self.browser_settings.enabled = browser.enabled;
-        self.browser_settings.allowed_domains_input = browser.allowed_domains.join("\n");
-        self.browser_settings.allowed_domains_editor =
-            iced::widget::text_editor::Content::with_text(&browser.allowed_domains.join("\n"));
-        self.browser_settings.browser_open =
-            match browser.browser_open.trim().to_ascii_lowercase().as_str() {
-                "default" | "new_window" | "new_tab" => {
-                    browser.browser_open.trim().to_ascii_lowercase()
-                }
-                _ => "default".to_string(),
-            };
-        self.browser_settings.session_name_input = browser.session_name.unwrap_or_default();
-        self.browser_settings.backend =
-            match browser.backend.trim().to_ascii_lowercase().replace('-', "_").as_str() {
-                "agent_browser" => "agent_browser".to_string(),
-                "rust_native" | "native" => "native".to_string(),
-                "computer_use" => "computer_use".to_string(),
-                "auto" => "auto".to_string(),
-                _ => "agent_browser".to_string(),
-            };
-        self.browser_settings.native_headless = browser.native_headless;
-        self.browser_settings.native_webdriver_url = browser.native_webdriver_url;
-        self.browser_settings.native_chrome_path_input =
-            browser.native_chrome_path.unwrap_or_default();
-        self.browser_settings.computer_use_endpoint = browser.computer_use.endpoint;
-        self.browser_settings.computer_use_api_key_input =
-            browser.computer_use.api_key.unwrap_or_default();
-        self.browser_settings.computer_use_timeout_ms_input =
-            browser.computer_use.timeout_ms.to_string();
-        self.browser_settings.computer_use_allow_remote_endpoint =
-            browser.computer_use.allow_remote_endpoint;
-        self.browser_settings.computer_use_window_allowlist_input =
-            browser.computer_use.window_allowlist.join(", ");
-        self.browser_settings.computer_use_max_coordinate_x_input = browser
-            .computer_use
-            .max_coordinate_x
-            .map(|value| value.to_string())
-            .unwrap_or_default();
-        self.browser_settings.computer_use_max_coordinate_y_input = browser
-            .computer_use
-            .max_coordinate_y
-            .map(|value| value.to_string())
-            .unwrap_or_default();
+        desktop_settings_network::bootstrap::apply_bootstrap_browser_settings(&mut self.browser_settings, browser);
     }
 
     /// 处理应用程序消息并更新状态
@@ -1143,23 +941,10 @@ impl App {
             // 复制代码到剪贴板
             Message::CopyCode(s) => copy_code(self, s),
             Message::ChatMarkdownSelectionChanged { session_id, message_idx, text_idx, text } => {
-                if self.active_session_id.as_deref() == Some(session_id.as_str()) {
-                    if let Some(text) = text {
-                        self.chat_markdown_selection =
-                            Some(crate::app::ui_types::ChatMarkdownSelection {
-                                session_id,
-                                message_idx,
-                                text_idx,
-                                text,
-                            });
-                    } else if self.chat_markdown_selection.as_ref().is_some_and(|selection| {
-                        selection.session_id == session_id
-                            && selection.message_idx == message_idx
-                            && selection.text_idx == text_idx
-                    }) {
-                        self.chat_markdown_selection = None;
-                    }
-                }
+                desktop_chat_view::chat_ui::update_markdown_selection(
+                    &mut self.chat_markdown_selection, self.active_session_id.as_deref(),
+                    session_id, message_idx, text_idx, text,
+                );
                 Task::none()
             }
 

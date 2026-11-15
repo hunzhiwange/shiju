@@ -17,20 +17,6 @@ mod question_modal;
 mod recent_project_remove;
 mod rename;
 
-#[allow(dead_code)]
-pub(super) const PRESET_COLORS: [(&str, &str); 10] = [
-    ("Blue", "#3b82f6"),
-    ("Purple", "#8b5cf6"),
-    ("Green", "#22c55e"),
-    ("Red", "#ef4444"),
-    ("Orange", "#f97316"),
-    ("Pink", "#ec4899"),
-    ("Cyan", "#06b6d4"),
-    ("Yellow", "#eab308"),
-    ("Teal", "#14b8a6"),
-    ("Indigo", "#6366f1"),
-];
-
 pub(crate) use account_details::with_account_details;
 pub(crate) use chat_fork::with_chat_fork_dialog;
 pub(crate) use chat_reset::with_chat_reset_dialog;

@@ -6,3 +6,6 @@ pub mod metrics;
 pub mod persistence;
 
 pub mod preview;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod status_bar;

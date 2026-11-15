@@ -178,72 +178,11 @@ impl App {
         // 如果存在错误消息，则在最顶部显示红色错误横幅
         // 错误横幅包含错误文本和关闭按钮
         let root_content = if let Some(error) = &self.error_message {
-            use iced::widget::{button, column, container, row, text};
-            use iced::{Background, Border, Color, Length};
-
-            let card =
-                container(
-                    column![
-                        text(crate::app::i18n::I18n::new(self.desktop_locale).__("操作失败"))
-                            .size(20)
-                            .color(Color::from_rgb(0.86, 0.2, 0.2)),
-                        text(self.render_input_error(
-                            crate::app::i18n::input::ErrorField::General,
-                            error
-                        ))
-                        .size(14)
-                        .width(Length::Fill),
-                        row![
-                            container(text("")).width(Length::Fill),
-                            button(
-                                text(crate::app::i18n::I18n::new(self.desktop_locale).__("知道了"))
-                                    .size(14)
-                            )
-                            .on_press(Message::CloseError)
-                            .padding([8, 12])
-                            .style(|theme, status| {
-                                let mut style = button::primary(theme, status);
-                                style.border.radius = 8.0.into();
-                                style
-                            })
-                        ]
-                        .align_y(iced::Alignment::Center)
-                    ]
-                    .spacing(12),
-                )
-                .width(Length::Fixed(560.0))
-                .padding(16)
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    container::Style {
-                        background: Some(Background::Color(palette.background.base.color)),
-                        text_color: Some(palette.background.base.text),
-                        border: Border {
-                            radius: 12.0.into(),
-                            width: 1.0,
-                            color: palette.secondary.weak.color,
-                        },
-                        ..Default::default()
-                    }
-                });
-
-            iced::widget::stack![
-                main_view,
-                container(
-                    container(card)
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .center_x(Length::Fill)
-                        .center_y(Length::Fill)
-                )
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .style(|_theme| container::Style {
-                    background: Some(Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.4))),
-                    ..Default::default()
-                })
-            ]
-            .into()
+            desktop_navigation::view_layout::with_error(
+                main_view, crate::app::i18n::I18n::new(self.desktop_locale),
+                self.render_input_error(crate::app::i18n::input::ErrorField::General, error),
+                Message::CloseError,
+            )
         } else {
             main_view
         };

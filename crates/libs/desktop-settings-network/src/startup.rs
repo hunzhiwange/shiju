@@ -295,3 +295,21 @@ impl StartupConfiguration {
         }
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn startup_retry_interval(elapsed: std::time::Duration) -> std::time::Duration {
+    if elapsed >= std::time::Duration::from_secs(24 * 60 * 60) {
+        std::time::Duration::from_secs(60)
+    } else if elapsed >= std::time::Duration::from_secs(60 * 60) {
+        std::time::Duration::from_secs(20)
+    } else if elapsed >= std::time::Duration::from_secs(5 * 60) {
+        std::time::Duration::from_secs(10)
+    } else {
+        std::time::Duration::from_secs(2)
+    }
+}
+
+
+#[cfg(test)]
+#[path = "startup_retry_tests.rs"]
+mod startup_retry_tests;

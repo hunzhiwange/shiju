@@ -429,7 +429,7 @@ pub(crate) fn strip_leading_close_tags(mut input: &str) -> &str {
     }
 }
 
-pub use vw_shared::json::extract_json_values;
+pub use json_extract::extract_json_values;
 
 /// 通过跟踪括号平衡查找 JSON 对象的结束位置
 ///

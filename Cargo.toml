@@ -17,6 +17,7 @@ members = [
   "crates/libs/cli-agent-session",
   "crates/libs/cli-gateway-runtime",
   "crates/libs/cli-stdio",
+  "crates/libs/cli-gateway-process",
   "crates/libs/cli-gateway-commands",
   "crates/libs/app-catalog",
   "crates/libs/app-config-patch",

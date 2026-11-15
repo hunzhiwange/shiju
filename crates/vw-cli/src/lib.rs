@@ -99,7 +99,6 @@ mod cli;
 #[cfg(test)]
 #[path = "cli_tests.rs"]
 mod cli_tests;
-mod gateway_process;
 mod handlers;
 
 pub(crate) mod session {
@@ -451,7 +450,7 @@ pub async fn run() -> Result<()> {
             let port = port.unwrap_or(config.gateway.port);
             // 确定监听主机（使用参数或配置中的值）
             let host = host.unwrap_or_else(|| config.gateway.host.clone());
-            gateway_process::prepare_gateway_port(&host, port).await?;
+            cli_gateway_process::prepare_gateway_port(&host, port).await?;
             // 显示启动信息
             if port == 0 {
                 info!(" Starting ShiJu Gateway on {host} (random port)");

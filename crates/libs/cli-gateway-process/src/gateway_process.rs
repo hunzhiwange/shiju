@@ -5,7 +5,7 @@ use std::net::{SocketAddr, TcpListener};
 #[cfg(unix)]
 use std::time::Duration;
 
-pub(crate) async fn prepare_gateway_port(host: &str, port: u16) -> Result<()> {
+pub async fn prepare_gateway_port(host: &str, port: u16) -> Result<()> {
     let address: SocketAddr = format!("{host}:{port}").parse()?;
     match TcpListener::bind(address) {
         Ok(_) => return Ok(()),

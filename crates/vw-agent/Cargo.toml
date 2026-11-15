@@ -473,6 +473,7 @@ path = "tests/gateway_legacy_handlers.rs"
 tool-office = { path = "../libs/tool-office", version = "0.6.0" }
 
 [dev-dependencies]
+tool-assembly = { path = "../libs/tool-assembly", version = "0.6.0", features = ["test-support"] }
 channel-qq = { path = "../libs/channel-qq", version = "0.6.0", features = ["test-support"] }
 agent-loop = { path = "../libs/agent-loop", version = "0.6.0", features = ["test-support"] }
 tool-mcp = { path = "../libs/tool-mcp", version = "0.6.0", features = ["test-support"] }

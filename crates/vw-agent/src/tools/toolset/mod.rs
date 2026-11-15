@@ -1,644 +1,75 @@
+pub use tool_assembly::toolset::is_binary;
 use super::context::ToolUseContext;
 use super::discovery::ToolDiscoveryCatalog;
-use super::tool_search::{TOOL_SEARCH_ID, ToolSearchTool};
+use super::tool_search::ToolSearchTool;
 use super::*;
 use crate::app::agent::config::{Config, DelegateAgentConfig};
 use crate::app::agent::memory::Memory;
-use crate::app::agent::runtime::NativeRuntime;
 use runtime_types::RuntimeAdapter;
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::session::runtime::SessionToolset;
-use anyhow::Context;
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use crate::app::agent::security::SecurityPolicy;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use config_agent::merged_agent_configs;
 
-/// Claude Tools V2 运行时上下文。
-///
-/// 对外仍保留 `session/root` 这两个轻量字段，避免影响现有调用点；真正的共享
-/// 运行时能力则集中放在内部的 `ToolUseContext` 中，以便权限、审批、hook 与
-/// read_state 在不同入口之间复用。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolRuntimeContext {
-    /// 当前会话标识。
-    pub session: String,
-    /// 当前工作区根目录。
-    pub root: Option<String>,
-    /// 厚上下文共享状态。
-    #[serde(skip)]
-    tool_use_context: Arc<ToolUseContext>,
-    /// 只属于当前会话的预发现工具。
-    #[serde(skip)]
-    session_tools: SessionToolset,
-    #[cfg(test)]
-    #[serde(skip)]
-    test_config: Option<Arc<Config>>,
-}
-
-impl Default for ToolRuntimeContext {
-    fn default() -> Self {
-        Self::new(
-            "default",
-            std::env::current_dir().ok().map(|path| path.to_string_lossy().to_string()),
-        )
+impl tool_git::GitToolHost for super::context::AgentContextHost {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn initialize_worktree_host() {
+        crate::worktree::initialize_host();
     }
 }
 
-impl ToolRuntimeContext {
-    /// 创建新的运行时上下文。
-    pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
-        let session = session.into();
-        let tool_use_context = ToolUseContext::new(session.clone(), root.clone());
-        Self {
-            session,
-            root,
-            tool_use_context: Arc::new(tool_use_context),
-            session_tools: SessionToolset::default(),
-            #[cfg(test)]
-            test_config: None,
-        }
-    }
-
-    /// 构造用于工具规格枚举的默认上下文。
-    pub fn for_specs() -> Self {
-        Self::new(
-            "specs",
-            std::env::current_dir().ok().map(|path| path.to_string_lossy().to_string()),
-        )
-    }
-
-    /// 用完整 ToolUseContext 覆盖内部共享状态。
-    pub fn with_tool_use_context(mut self, tool_use_context: ToolUseContext) -> Self {
-        self.tool_use_context = Arc::new(tool_use_context.with_root(self.root.clone()));
-        self
-    }
-
-    /// 获取当前共享运行时上下文。
-    pub fn tool_use_context(&self) -> Arc<ToolUseContext> {
-        self.tool_use_context.clone()
-    }
-
-    /// 注入只属于当前会话的工具集合。
-    pub fn with_session_tools(mut self, session_tools: SessionToolset) -> Self {
-        self.session_tools = session_tools;
-        self
-    }
-
-    /// Isolate config storage while exercising the real registry and permission pipeline.
-    #[cfg(test)]
-    pub(crate) fn with_test_config(mut self, config: Config) -> Self {
-        self.test_config = Some(Arc::new(config));
-        self
-    }
-
-    /// Reuse native configuration, full-access inheritance and delegated restrictions
-    /// for file-only entry points without constructing the executable tool registry.
-    pub(crate) fn path_security_policy(&self) -> Arc<SecurityPolicy> {
-        let config = runtime_config_for_context(self);
-        let base = self.tool_use_context();
-        let workspace = base.workspace_root().unwrap_or_else(|| config.workspace_dir.clone());
-        security_for_tool_context(&config, &workspace, &base)
-    }
-
-    /// 返回当前会话的工具集合。
-    pub fn session_tools(&self) -> &SessionToolset {
-        &self.session_tools
-    }
-}
-
-/// Resolve the session-owned refresh source; ACP leases remain isolated from native chats.
+pub type ToolRuntimeContext = tool_assembly::runtime::ToolRuntimeContext<super::context::AgentContextHost>;
+pub use tool_assembly::toolset::boxed_registry_from_arcs;
+pub use super::executor::{ExecutedToolCall, ToolCallError};
 pub(crate) fn mcp_connections_for_context(
     ctx: &ToolRuntimeContext,
-) -> Arc<crate::plugins::McpSessionConnections> {
-    ctx.session_tools.mcp_connections().unwrap_or_else(|| {
-        let root = ctx
-            .tool_use_context()
-            .workspace_root()
-            .unwrap_or_else(|| std::path::PathBuf::from("."));
-        crate::plugins::mcp_session_connections(&ctx.session, &root)
-    })
-}
+) -> Arc<crate::plugins::McpSessionConnections> { tool_assembly::runtime::mcp_connections_for_context::<super::context::AgentContextHost>(ctx) }
 
-pub use super::executor::{ExecutedToolCall, ToolCallError};
+pub(crate) fn execution_tools_for_context(ctx: &ToolRuntimeContext) -> Vec<Box<dyn Tool>> { tool_assembly::runtime::execution_tools_for_context::<super::context::AgentContextHost>(ctx) }
 
-#[derive(Clone)]
-struct ArcDelegatingTool {
-    inner: Arc<dyn Tool>,
-}
 
-impl ArcDelegatingTool {
-    fn boxed(inner: Arc<dyn Tool>) -> Box<dyn Tool> {
-        Box::new(Self { inner })
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Tool for ArcDelegatingTool {
-    fn name(&self) -> &str {
-        self.inner.name()
-    }
-
-    fn description(&self) -> &str {
-        self.inner.description()
-    }
-
-    fn parameters_schema(&self) -> serde_json::Value {
-        self.inner.parameters_schema()
-    }
-
-    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        self.inner.execute(args).await
-    }
-
-    fn validate_input(&self, input: Value) -> anyhow::Result<Value> {
-        self.inner.validate_input(input)
-    }
-
-    async fn check_permissions(&self, input: &Value) -> anyhow::Result<()> {
-        self.inner.check_permissions(input).await
-    }
-
-    async fn call(&self, input: Value) -> anyhow::Result<ToolCallResult> {
-        self.inner.call(input).await
-    }
-
-    fn map_result_for_model(&self, result: &ToolCallResult) -> Value {
-        self.inner.map_result_for_model(result)
-    }
-
-    fn render_hint(&self, result: &ToolCallResult) -> Option<ToolRenderHint> {
-        self.inner.render_hint(result)
-    }
-
-    fn is_concurrency_safe(&self) -> bool {
-        self.inner.is_concurrency_safe()
-    }
-
-    fn is_read_only(&self) -> bool {
-        self.inner.is_read_only()
-    }
-
-    fn to_audit_input(&self, input: &Value) -> Value {
-        self.inner.to_audit_input(input)
-    }
-
-    fn spec(&self) -> ToolSpec {
-        self.inner.spec()
-    }
-}
-
-pub(super) fn boxed_registry_from_arcs(tools: Vec<Arc<dyn Tool>>) -> Vec<Box<dyn Tool>> {
-    tools.into_iter().map(ArcDelegatingTool::boxed).collect()
-}
-
-/// 根据当前上下文构建可执行工具集。
-pub(crate) fn execution_tools_for_context(ctx: &ToolRuntimeContext) -> Vec<Box<dyn Tool>> {
-    execution_environment_for_context(ctx).0
-}
-
-fn execution_environment_for_context(
-    ctx: &ToolRuntimeContext,
-) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
-    let config = runtime_config_for_context(ctx);
-    execution_environment_for_config(ctx, config)
-}
-
-fn runtime_config_for_context(ctx: &ToolRuntimeContext) -> Arc<Config> {
-    #[cfg(test)]
-    if let Some(config) = &ctx.test_config {
-        return config.clone();
-    }
-    let workspace_dir = ctx.tool_use_context().workspace_root().unwrap_or_else(|| {
-        ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
-            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-        })
-    });
-
-    let config = block_on(async {
-        match crate::config::get_project_for_tenant(
-            &ctx.tool_use_context().tenant_scope(),
-            &workspace_dir,
-        )
-        .await
-        {
-            Ok(config) => Arc::new(config),
-            Err(error) => {
-                tracing::warn!(
-                    "tool runtime: failed to load config, falling back to defaults: {error}"
-                );
-                let mut config = Config::default();
-                config.workspace_dir = workspace_dir.clone();
-                config.config_path = workspace_dir.join(".vibewindow.json");
-                Arc::new(config)
-            }
-        }
-    });
-
-    config
-}
-
-const DEFAULT_AGENT_TOOL_PARALLEL_LIMIT: usize = 4;
-const MAX_AGENT_TOOL_PARALLEL_LIMIT: usize = 32;
-
-fn agent_tool_parallel_limit(
-    agents: &HashMap<String, DelegateAgentConfig>,
-    agent_name: &str,
-) -> usize {
-    agents
-        .get(agent_name)
-        .map(|config| config.max_parallel_subagents)
-        .unwrap_or(DEFAULT_AGENT_TOOL_PARALLEL_LIMIT)
-        .clamp(1, MAX_AGENT_TOOL_PARALLEL_LIMIT)
-}
 
 pub(crate) fn agent_tool_parallel_limit_for_context(
     ctx: &ToolRuntimeContext,
     agent_name: &str,
-) -> usize {
-    let config = runtime_config_for_context(ctx);
-    agent_tool_parallel_limit(&config.agents, agent_name)
-}
+) -> usize { tool_assembly::runtime::agent_tool_parallel_limit_for_context::<super::context::AgentContextHost>(ctx, agent_name) }
 
+#[cfg(test)]
 fn execution_environment_for_config(
     ctx: &ToolRuntimeContext,
     config: Arc<Config>,
-) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
-    super::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
-        execution_environment_for_config_inner(ctx, config)
-    })
-}
+) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) { tool_assembly::runtime::execution_environment_for_config::<super::context::AgentContextHost>(ctx, config) }
 
-fn execution_environment_for_config_inner(
-    ctx: &ToolRuntimeContext,
-    config: Arc<Config>,
-) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
-    let base_context = ctx.tool_use_context();
-    let workspace_dir = base_context.workspace_root().unwrap_or_else(|| {
-        ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
-            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-        })
-    });
-    let security = security_for_tool_context(&config, &workspace_dir, base_context.as_ref());
-    let runtime: Arc<dyn RuntimeAdapter> = Arc::new(NativeRuntime::new());
-    let mem_cfg = config.memory.clone();
-    let memory: Arc<dyn Memory> = Arc::from(
-        crate::app::agent::memory::create_memory(&mem_cfg, &workspace_dir, None).unwrap_or_else(
-            |_| {
-                crate::app::agent::memory::create_memory(
-                    &crate::app::agent::config::MemoryConfig {
-                        backend: "markdown".to_string(),
-                        ..Default::default()
-                    },
-                    &workspace_dir,
-                    None,
-                )
-                .expect("failed to create fallback memory")
-            },
-        ),
-    );
 
-    let browser_config = config.browser.clone();
-    let http_config = config.http_request.clone();
-    let web_fetch_config = config.web_fetch.clone();
 
-    let tool_use_context = Arc::new(
-        base_context.as_ref().clone().with_root(ctx.root.clone()).with_security(security.clone()),
-    );
+pub fn tool_specs_for_context(ctx: &ToolRuntimeContext) -> Vec<ToolSpec> { tool_assembly::runtime::tool_specs_for_context::<super::context::AgentContextHost>(ctx) }
 
-    let mut tools = all_tools_with_runtime(
-        config.clone(),
-        &security,
-        runtime,
-        memory,
-        &browser_config,
-        &http_config,
-        &web_fetch_config,
-        &workspace_dir,
-        &config.agents,
-        None,
-        config.as_ref(),
-        Some(&ctx.session),
-    );
-
-    if !ctx.session_tools.is_empty() {
-        let session_tool_names = ctx
-            .session_tools
-            .tools()
-            .iter()
-            .map(|tool| tool.name())
-            .collect::<std::collections::HashSet<_>>();
-        tools.retain(|tool| !session_tool_names.contains(tool.name()));
-        let mut scoped_tools = boxed_registry_from_arcs(ctx.session_tools.tools().to_vec());
-        scoped_tools.extend(tools);
-        tools = scoped_tools;
-    }
-
-    // Session tools may replace registry entries, but cannot supply a forged
-    // search implementation or widen the caller's authorized catalog.
-    tools.retain(|tool| tool.name() != TOOL_SEARCH_ID);
-    if let Some(discovery) = tool_use_context.tool_discovery() {
-        tools.retain(|tool| discovery.authorizes(&tool.spec().id));
-        if discovery.authorizes(TOOL_SEARCH_ID) {
-            // The description comes from the authorized snapshot, including
-            // deferred tool namespaces rather than the currently exposed subset.
-            tools.push(Box::new(discovery.search_tool()));
-        }
-    } else {
-        let catalog = ToolDiscoveryCatalog::new(tools.iter().map(|tool| tool.spec()).collect());
-        if catalog.has_deferred_tools() {
-            tools.push(Box::new(ToolSearchTool::new(&catalog)));
-        }
-    }
-
-    (tools, tool_use_context)
-}
-
-fn execution_environment_for_context_with_agent_callback(
-    ctx: &ToolRuntimeContext,
-    callback: super::agent_tool::AgentToolChildSessionCreatedCallback,
-) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
-    let config = runtime_config_for_context(ctx);
-    let (mut tools, tool_use_context) = execution_environment_for_config(ctx, config.clone());
-    let delegate_agents = enabled_delegate_agents(&config.agents);
-    if !delegate_agents.is_empty()
-        && tool_use_context
-            .tool_discovery()
-            .is_none_or(|discovery| discovery.authorizes("AgentTool"))
-    {
-        tools.retain(|tool| tool.name() != "AgentTool");
-        let workspace_dir = tool_use_context.workspace_root().unwrap_or_else(|| {
-            ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
-                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-            })
-        });
-        tools.push(Box::new(
-            AgentTool::new(delegate_agents, Some(ctx.session.clone()), workspace_dir)
-                .with_child_session_created_callback(callback),
-        ));
-    }
-    (tools, tool_use_context)
-}
-
-fn security_for_tool_context(
-    config: &Config,
-    workspace_dir: &std::path::Path,
-    base_context: &ToolUseContext,
-) -> Arc<SecurityPolicy> {
-    let mut security =
-        SecurityPolicy::from_configs(&config.autonomy, &config.security, workspace_dir);
-    if base_context.full_access_enabled() {
-        security.bash_security_enabled = false;
-        security.autonomy = AutonomyLevel::Full;
-        security.workspace_only = false;
-        security.allowed_commands = vec!["*".to_string()];
-        security.forbidden_paths.clear();
-        security.max_actions_per_hour = u32::MAX;
-        security.require_approval_for_medium_risk = false;
-        security.block_high_risk_commands = false;
-        security.allow_unsafe_shell_patterns = true;
-    }
-    if let Some(parent) = base_context.delegated_security() {
-        use crate::config::ShellRedirectPolicy;
-        security.autonomy = match (parent.autonomy, security.autonomy) {
-            (AutonomyLevel::ReadOnly, _) | (_, AutonomyLevel::ReadOnly) => AutonomyLevel::ReadOnly,
-            (AutonomyLevel::Supervised, _) | (_, AutonomyLevel::Supervised) => {
-                AutonomyLevel::Supervised
-            }
-            _ => AutonomyLevel::Full,
-        };
-        security.workspace_only |= parent.workspace_only;
-        security
-            .allowed_roots
-            .retain(|root| parent.allowed_roots.iter().any(|allowed| root.starts_with(allowed)));
-        security.forbidden_paths.extend(parent.forbidden_paths.clone());
-        if security.allowed_commands.iter().any(|command| command == "*") {
-            security.allowed_commands = parent.allowed_commands.clone();
-        } else {
-            security.allowed_commands.retain(|command| {
-                parent.allowed_commands.contains(command)
-                    || parent.allowed_commands.iter().any(|value| value == "*")
-            });
-        }
-        security.shell_env_passthrough.retain(|name| parent.shell_env_passthrough.contains(name));
-        security.max_actions_per_hour =
-            security.max_actions_per_hour.min(parent.max_actions_per_hour);
-        security.max_cost_per_day_cents =
-            security.max_cost_per_day_cents.min(parent.max_cost_per_day_cents);
-        security.require_approval_for_medium_risk |= parent.require_approval_for_medium_risk;
-        security.block_high_risk_commands |= parent.block_high_risk_commands;
-        security.allow_unsafe_shell_patterns &= parent.allow_unsafe_shell_patterns;
-        security.shell_redirect_policy =
-            match (parent.shell_redirect_policy, security.shell_redirect_policy) {
-                (ShellRedirectPolicy::Block, _) | (_, ShellRedirectPolicy::Block) => {
-                    ShellRedirectPolicy::Block
-                }
-                (ShellRedirectPolicy::Strip, _) | (_, ShellRedirectPolicy::Strip) => {
-                    ShellRedirectPolicy::Strip
-                }
-                _ => ShellRedirectPolicy::Allow,
-            };
-        // A different shell validation program has no proven intersection. Refuse shell
-        // commands rather than silently choosing one validator's behavior.
-        if serde_json::to_value(&security.bash_security).ok()
-            != serde_json::to_value(&parent.bash_security).ok()
-        {
-            security.allowed_commands.clear();
-            security.bash_security = Default::default();
-            security.bash_security.enabled = true;
-            security.bash_security.policy.enabled = true;
-            security.bash_security.policy.command_rules = true;
-            security.bash_security_enabled = true;
-        }
-        security.bash_security_enabled |= parent.bash_security_enabled;
-        security.tracker = parent.tracker.clone();
-    }
-    Arc::new(security)
-}
-
-/// 枚举当前上下文下的所有工具规格。
-pub fn tool_specs_for_context(ctx: &ToolRuntimeContext) -> Vec<ToolSpec> {
-    if let Some(discovery) = ctx.tool_use_context().tool_discovery() {
-        return discovery.exposed_specs();
-    }
-    execution_environment_for_context(ctx).0.into_iter().map(|tool| tool.spec()).collect()
-}
-
-/// 执行一次工具调用。
 pub fn execute_tool_call(
     requested_name: &str,
     input: &str,
     ctx: &ToolRuntimeContext,
-) -> Result<ToolCallResult, ToolCallError> {
-    let parsed = parse_tool_input(requested_name, input)?;
-    let (tools, tool_use_context) = execution_environment_for_context(ctx);
-    let executed = block_on(execute_tool_from_registry(
-        &tools,
-        requested_name,
-        parsed,
-        tool_use_context.clone(),
-    ))?;
-    let mut result = finish_tool_call(executed)?;
-    if result.data.get("mcp_app").is_none() {
-        return Ok(result);
-    }
-    let tools = tools.into_iter().map(Arc::from).collect();
-    let app_context = ctx
-        .clone()
-        .with_tool_use_context((*tool_use_context).clone())
-        .with_session_tools(SessionToolset::new(tools));
-    crate::plugins::mcp_app_execution::register(&app_context, requested_name, &mut result)
-        .map_err(|error| classify_message(error.to_string()))?;
-    Ok(result)
-}
+) -> Result<ToolCallResult, ToolCallError> { tool_assembly::runtime::execute_tool_call::<super::context::AgentContextHost>(requested_name, input, ctx) }
 
 pub(crate) fn execute_bound_app_tool(
     requested_name: &str,
     input: &str,
     ctx: &ToolRuntimeContext,
-) -> Result<ToolCallResult, ToolCallError> {
-    let parsed = parse_tool_input(requested_name, input)?;
-    let (mut tools, tool_use_context) = execution_environment_for_context(ctx);
-    tools.retain(|tool| tool.name() == requested_name);
-    let executed =
-        block_on(execute_tool_from_registry(&tools, requested_name, parsed, tool_use_context))?;
-    finish_tool_call(executed)
-}
+) -> Result<ToolCallResult, ToolCallError> { tool_assembly::runtime::execute_bound_app_tool::<super::context::AgentContextHost>(requested_name, input, ctx) }
 
-/// 执行 AgentTool，并在真实子会话创建后报告其定位信息。
 pub(crate) fn execute_agent_tool_call(
     requested_name: &str,
     input: &str,
     ctx: &ToolRuntimeContext,
     callback: super::agent_tool::AgentToolChildSessionCreatedCallback,
-) -> Result<ToolCallResult, ToolCallError> {
-    let parsed = parse_tool_input(requested_name, input)?;
-    let (tools, tool_use_context) =
-        execution_environment_for_context_with_agent_callback(ctx, callback);
-    let executed = block_on(execute_tool_from_registry(
-        &tools,
-        requested_name,
-        parsed,
-        tool_use_context.clone(),
-    ))?;
-    finish_tool_call(executed)
-}
+) -> Result<ToolCallResult, ToolCallError> { tool_assembly::runtime::execute_agent_tool_call::<super::context::AgentContextHost>(requested_name, input, ctx, callback) }
 
-fn finish_tool_call(executed: ExecutedToolCall) -> Result<ToolCallResult, ToolCallError> {
-    // A managed process terminal snapshot is protocol data even when the command
-    // failed or was cancelled. Flattening it would discard its handle and stderr.
-    let shell_snapshot =
-        matches!(executed.tool_name.as_str(), "bash" | "bash_wait" | "bash_cancel")
-            && executed.result.data.get("process_id").and_then(Value::as_str).is_some()
-            && matches!(
-                executed.result.data.get("state").and_then(Value::as_str),
-                Some("running" | "exited" | "cancelled" | "timed_out")
-            );
-    if executed.result.is_success() || shell_snapshot {
-        return Ok(executed.result);
-    }
-
-    Err(classify_message(
-        executed.result.error_text().unwrap_or_else(|| "tool execution failed".to_string()),
-    ))
-}
-
-/// 在给定注册表中执行工具调用。
 pub async fn execute_tool_from_registry(
     tools: &[Box<dyn Tool>],
     requested_name: &str,
     input: Value,
     tool_use_context: Arc<ToolUseContext>,
-) -> Result<ExecutedToolCall, ToolCallError> {
-    super::executor::execute_tool_from_registry(tools, requested_name, input, tool_use_context)
-        .await
-}
-
-/// 检测文件是否为二进制内容。
-pub fn is_binary(path: &std::path::Path) -> bool {
-    let ext = path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_ascii_lowercase();
-    match ext.as_str() {
-        "zip" | "tar" | "gz" | "7z" | "exe" | "dll" | "so" | "class" | "jar" | "war" | "doc"
-        | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods" | "odp" | "bin" | "dat"
-        | "obj" | "o" | "a" | "lib" | "wasm" | "pyc" | "pyo" => {
-            return true;
-        }
-        _ => {}
-    }
-
-    use std::io::Read;
-
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return false;
-    };
-
-    let mut bytes = [0u8; 4096];
-    let Ok(read_len) = file.read(&mut bytes) else {
-        return false;
-    };
-    if read_len == 0 {
-        return false;
-    }
-
-    let mut bad = 0usize;
-    for byte in &bytes[..read_len] {
-        if *byte == 0 {
-            return true;
-        }
-        if *byte < 9 || (*byte > 13 && *byte < 32) {
-            bad += 1;
-        }
-    }
-
-    (bad as f32) / (read_len as f32) > 0.3
-}
-
-fn parse_tool_input(tool_id: &str, raw_input: &str) -> Result<Value, ToolCallError> {
-    let raw = raw_input.trim();
-    if raw.is_empty() {
-        return Ok(serde_json::json!({}));
-    }
-
-    if raw.starts_with('{') {
-        return serde_json::from_str::<Value>(raw)
-            .map_err(|error| ToolCallError::Failed(format!("invalid JSON arguments: {error}")));
-    }
-
-    if let Some(default_key) = default_scalar_input_key(tool_id) {
-        return Ok(serde_json::json!({ default_key: raw }));
-    }
-
-    Err(ToolCallError::Failed("invalid arguments: expected JSON object".to_string()))
-}
-
-fn default_scalar_input_key(tool_id: &str) -> Option<&'static str> {
-    match tool_id {
-        "file_read" | "file_write" => Some("path"),
-        id if is_web_fetch_tool_id(id) => Some("url"),
-        _ => None,
-    }
-}
-
-fn classify_message(message: String) -> ToolCallError {
-    if is_denied_error(&message) {
-        ToolCallError::denied(message)
-    } else {
-        ToolCallError::Failed(message)
-    }
-}
-
-fn is_denied_error(message: &str) -> bool {
-    let lower = message.to_ascii_lowercase();
-    lower.contains("denied")
-        || lower.contains("not allowed")
-        || lower.contains("forbidden")
-        || lower.contains("blocked")
-}
-
+) -> Result<ExecutedToolCall, ToolCallError> { tool_assembly::runtime::execute_tool_from_registry::<super::context::AgentContextHost>(tools, requested_name, input, tool_use_context).await }
 fn block_on<F>(fut: F) -> F::Output
 where
     F: std::future::Future + Send,
@@ -687,45 +118,28 @@ mod mod_tests;
 #[cfg(test)]
 mod tests;
 
-pub fn default_tools(security: Arc<SecurityPolicy>) -> Vec<Box<dyn Tool>> {
-    default_tools_with_runtime(security, Arc::new(NativeRuntime::new()))
+use tool_assembly::factory::ToolConstruction;
+use tool_assembly::factory::{ConstructionContext, FactoryHost};
+pub(crate) use tool_assembly::mcp::DiscoveredMcpTools;
+pub(crate) use tool_assembly::mcp::discover_dynamic_mcp_tools as discover_dynamic_mcp_tools_for_host;
+pub(crate) async fn discover_dynamic_mcp_tools(
+    server: agent_client_protocol::McpServer,
+    management: acp_config::McpServerManagement,
+    existing_tool_ids: &[&str],
+    connections: Arc<crate::plugins::McpSessionConnections>,
+) -> anyhow::Result<DiscoveredMcpTools<super::context::AgentContextHost>> {
+    discover_dynamic_mcp_tools_for_host::<super::context::AgentContextHost>(
+        server, management, existing_tool_ids, connections,
+    ).await
 }
+
+pub fn default_tools(security: Arc<SecurityPolicy>) -> Vec<Box<dyn Tool>> { tool_assembly::factory::default_tools::<super::context::AgentContextHost>(security) }
 
 pub fn default_tools_with_runtime(
     security: Arc<SecurityPolicy>,
     runtime: Arc<dyn RuntimeAdapter>,
-) -> Vec<Box<dyn Tool>> {
-    let has_shell_access = runtime.has_shell_access();
-    let has_filesystem_access = runtime.has_filesystem_access();
-    let mut tool_arcs: Vec<Arc<dyn Tool>> = Vec::new();
+) -> Vec<Box<dyn Tool>> { tool_assembly::factory::default_tools_with_runtime::<super::context::AgentContextHost>(security, runtime) }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    if has_shell_access {
-        tool_arcs.push(Arc::new(ShellTool::new(security.clone(), runtime.clone())));
-        tool_arcs.push(Arc::new(BashWaitTool::new(security.clone())));
-        tool_arcs.push(Arc::new(BashCancelTool::new(security.clone())));
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if has_filesystem_access {
-        tool_arcs.push(Arc::new(FileReadTool::new(security.clone())));
-        tool_arcs.push(Arc::new(FileEditTool::new(security.clone())));
-        tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
-        tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
-        tool_arcs.push(Arc::new(LsTool::new(security.clone())));
-        tool_arcs.push(Arc::new(GlobTool::new(security.clone())));
-        tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
-    }
-
-    if !tool_arcs.is_empty() {
-        let batch_tools = Arc::new(tool_arcs.clone());
-        tool_arcs.push(Arc::new(BatchTool::new(batch_tools)));
-    }
-
-    boxed_registry_from_arcs(tool_arcs)
-}
-
-#[allow(clippy::implicit_hasher, clippy::too_many_arguments)]
 pub fn all_tools(
     config: Arc<Config>,
     security: &Arc<SecurityPolicy>,
@@ -738,24 +152,8 @@ pub fn all_tools(
     fallback_api_key: Option<&str>,
     root_config: &crate::app::agent::config::Config,
     session_id_override: Option<&str>,
-) -> Vec<Box<dyn Tool>> {
-    all_tools_with_runtime(
-        config,
-        security,
-        Arc::new(NativeRuntime::new()),
-        memory,
-        browser_config,
-        http_config,
-        web_fetch_config,
-        workspace_dir,
-        agents,
-        fallback_api_key,
-        root_config,
-        session_id_override,
-    )
-}
+) -> Vec<Box<dyn Tool>> { tool_assembly::factory::all_tools::<super::context::AgentContextHost>(config, security, memory, browser_config, http_config, web_fetch_config, workspace_dir, agents, fallback_api_key, root_config, session_id_override) }
 
-#[allow(clippy::implicit_hasher, clippy::too_many_arguments)]
 pub fn all_tools_with_runtime(
     config: Arc<Config>,
     security: &Arc<SecurityPolicy>,
@@ -769,96 +167,122 @@ pub fn all_tools_with_runtime(
     _fallback_api_key: Option<&str>,
     root_config: &crate::app::agent::config::Config,
     session_id_override: Option<&str>,
-) -> Vec<Box<dyn Tool>> {
-    let has_shell_access = runtime.has_shell_access();
-    let has_filesystem_access = runtime.has_filesystem_access();
+) -> Vec<Box<dyn Tool>> { tool_assembly::factory::all_tools_with_runtime::<super::context::AgentContextHost>(config, security, runtime, memory, browser_config, http_config, web_fetch_config, workspace_dir, agents, _fallback_api_key, root_config, session_id_override) }
 
-    let vibewindow_dir = root_config
-        .config_path
-        .parent()
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| runtime.storage_path());
-
-    let session_id = session_id_override
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| workspace_dir.file_name().and_then(|name| name.to_str()))
-        .unwrap_or("default-session");
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    let project_scope = block_on(crate::project::from_directory(&tenant, workspace_dir))
-        .ok()
-        .map(|(info, _)| info.id);
-
-    let syscall_detector = Arc::new(crate::app::agent::security::SyscallAnomalyDetector::new(
-        root_config.security.syscall_anomaly.clone(),
-        &vibewindow_dir,
-        root_config.security.audit.clone(),
-    ));
-    let cron_full_access = security.autonomy == AutonomyLevel::Full && !security.workspace_only;
-    let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
-        Arc::new(ConfigTool::new(config.clone(), security.clone())),
-        Arc::new(
+impl FactoryHost for super::context::AgentContextHost {
+ fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send { block_on(future) }
+ fn block_on<F: std::future::Future + Send>(future: F) -> F::Output where F::Output: Send { block_on(future) }
+ fn construct(tool: ToolConstruction, context: &ConstructionContext<'_>) -> Arc<dyn Tool> {
+  match tool {
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::ShellTool => { let security = context.security;
+let runtime = context.runtime;
+ Arc::new(ShellTool::new(security.clone(), runtime.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::BashWaitTool => { let security = context.security;
+ Arc::new(BashWaitTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::BashCancelTool => { let security = context.security;
+ Arc::new(BashCancelTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::FileReadTool => { let security = context.security;
+ Arc::new(FileReadTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::FileEditTool => { let security = context.security;
+ Arc::new(FileEditTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::FileWriteTool => { let security = context.security;
+ Arc::new(FileWriteTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::ApplyPatchTool => { let security = context.security;
+ Arc::new(ApplyPatchTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::LsTool => { let security = context.security;
+ Arc::new(LsTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::GlobTool => { let security = context.security;
+ Arc::new(GlobTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::GrepTool => { let security = context.security;
+ Arc::new(GrepTool::new(security.clone())) },
+ToolConstruction::ConfigTool => { let security = context.security;
+let config = context.config.expect("full factory config");
+ Arc::new(ConfigTool::new(config.clone(), security.clone())) },
+ToolConstruction::CronAddTool => { let cron_full_access = context.cron_full_access;
+let security = context.security;
+let config = context.config.expect("full factory config");
+let workspace_dir = context.workspace_dir.expect("workspace");
+ Arc::new(
             CronAddTool::new(config.clone(), security.clone())
                 .with_execution_defaults(workspace_dir, cron_full_access),
-        ),
-        Arc::new(CronListTool::new(config.clone())),
-        Arc::new(CronRemoveTool::new(config.clone(), security.clone())),
-        Arc::new(CronUpdateTool::new(config.clone(), security.clone())),
-        Arc::new(CronRunTool::new(config.clone(), security.clone())),
-        Arc::new(CronRunsTool::new(config.clone())),
-        Arc::new(MemoryStoreTool::new(memory.clone(), security.clone())),
-        Arc::new(MemoryRecallTool::new(memory.clone())),
-        Arc::new(MemoryForgetTool::new(memory.clone(), security.clone())),
-        Arc::new(ScheduleTool::new(security.clone(), root_config.clone())),
-    ];
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if has_shell_access {
-        tool_arcs.push(Arc::new(ShellTool::new_with_syscall_detector(
+        ) },
+ToolConstruction::CronListTool => { let config = context.config.expect("full factory config");
+ Arc::new(CronListTool::new(config.clone())) },
+ToolConstruction::CronRemoveTool => { let security = context.security;
+let config = context.config.expect("full factory config");
+ Arc::new(CronRemoveTool::new(config.clone(), security.clone())) },
+ToolConstruction::CronUpdateTool => { let security = context.security;
+let config = context.config.expect("full factory config");
+ Arc::new(CronUpdateTool::new(config.clone(), security.clone())) },
+ToolConstruction::CronRunTool => { let security = context.security;
+let config = context.config.expect("full factory config");
+ Arc::new(CronRunTool::new(
+            config.clone(),
+            security.clone(),
+            super::cron_run::execute_job_now,
+        )) },
+ToolConstruction::CronRunsTool => { let config = context.config.expect("full factory config");
+ Arc::new(CronRunsTool::new(config.clone())) },
+ToolConstruction::MemoryStoreTool => { let security = context.security;
+let memory = context.memory.expect("full factory memory");
+ Arc::new(tool_memory::MemoryStoreTool::new(memory.clone(), security.clone())) },
+ToolConstruction::MemoryRecallTool => { let memory = context.memory.expect("full factory memory");
+ Arc::new(tool_memory::MemoryRecallTool::new(memory.clone())) },
+ToolConstruction::MemoryForgetTool => { let security = context.security;
+let memory = context.memory.expect("full factory memory");
+ Arc::new(tool_memory::MemoryForgetTool::new(memory.clone(), security.clone())) },
+ToolConstruction::ScheduleTool => { let security = context.security;
+let root_config = context.root_config.expect("root config");
+ Arc::new(ScheduleTool::new(security.clone(), root_config.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::ShellToolWithSyscallDetector => { let security = context.security;
+let runtime = context.runtime;
+let syscall_detector = context.syscall_detector.expect("syscall detector");
+ Arc::new(ShellTool::new_with_syscall_detector(
             security.clone(),
             runtime.clone(),
             Some(syscall_detector.clone()),
-        )));
-        tool_arcs.push(Arc::new(BashWaitTool::new(security.clone())));
-        tool_arcs.push(Arc::new(BashCancelTool::new(security.clone())));
-        #[cfg(target_os = "windows")]
-        tool_arcs.push(Arc::new(PowerShellTool::new(security.clone())));
-        tool_arcs
-            .push(Arc::new(GitOperationsTool::new(security.clone(), workspace_dir.to_path_buf())));
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if has_filesystem_access {
-        tool_arcs.push(Arc::new(FileReadTool::with_session(security.clone(), session_id)));
-        tool_arcs.push(Arc::new(FileEditTool::new(security.clone())));
-        tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
-        tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
-        tool_arcs.push(Arc::new(LsTool::new(security.clone())));
-        tool_arcs.push(Arc::new(GlobTool::new(security.clone())));
-        tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
-        tool_arcs.push(Arc::new(EnterWorktreeTool::new()));
-        tool_arcs.push(Arc::new(ExitWorktreeTool::new()));
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if browser_config.enabled {
-        tracing::debug!(
-            "all_tools_with_runtime: browser_config.enabled=true, browser_open={}",
-            browser_config.browser_open
-        );
-
-        if !browser_config.browser_open.eq_ignore_ascii_case("disable") {
-            tracing::debug!("all_tools_with_runtime: creating BrowserOpenTool");
-            tool_arcs.push(Arc::new(BrowserOpenTool::new(
+        )) },
+#[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
+ToolConstruction::PowerShellTool => { let security = context.security;
+ Arc::new(PowerShellTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::GitOperationsTool => { let security = context.security;
+let workspace_dir = context.workspace_dir.expect("workspace");
+ Arc::new(GitOperationsTool::new(security.clone(), workspace_dir.to_path_buf())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::FileReadToolWithSession => { let security = context.security;
+let session_id = context.session_id.expect("session");
+ Arc::new(FileReadTool::with_session(security.clone(), session_id)) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::EnterWorktreeTool => {
+ Arc::new(EnterWorktreeTool::new()) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::ExitWorktreeTool => {
+ Arc::new(ExitWorktreeTool::new()) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::BrowserOpenTool => { let security = context.security;
+let browser_config = context.browser_config.expect("browser config");
+ Arc::new(BrowserOpenTool::new(
                 security.clone(),
                 browser_config.allowed_domains.clone(),
                 browser_config.browser_open.clone(),
-            )));
-        } else {
-            tracing::debug!("all_tools_with_runtime: browser_open is disabled");
-        }
-
-        tracing::debug!("all_tools_with_runtime: creating BrowserTool");
-        tool_arcs.push(Arc::new(BrowserTool::new_with_backend(
+            )) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::BrowserToolWithBackend => {
+let security = context.security;
+let browser_config = context.browser_config.expect("browser config");
+ Arc::new(BrowserTool::new_with_backend(
             security.clone(),
             browser_config.allowed_domains.clone(),
             browser_config.session_name.clone(),
@@ -875,21 +299,19 @@ pub fn all_tools_with_runtime(
                 max_coordinate_x: browser_config.computer_use.max_coordinate_x,
                 max_coordinate_y: browser_config.computer_use.max_coordinate_y,
             },
-        )));
-    }
-
-    if http_config.enabled {
-        tool_arcs.push(Arc::new(HttpRequestTool::new(
+        )) },
+ToolConstruction::HttpRequestTool => { let http_config = context.http_config.expect("http config");
+let security = context.security;
+ Arc::new(HttpRequestTool::new(
             security.clone(),
             http_config.allowed_domains.clone(),
             http_config.max_response_size,
             http_config.timeout_secs,
             http_config.user_agent.clone(),
-        )));
-    }
-
-    if web_fetch_config.enabled {
-        tool_arcs.push(Arc::new(WebFetchTool::new(
+        )) },
+ToolConstruction::WebFetchTool => { let web_fetch_config = context.web_fetch_config.expect("web fetch config");
+let security = context.security;
+ Arc::new(WebFetchTool::new(
             security.clone(),
             web_fetch_config.provider.clone(),
             web_fetch_config.api_key.clone(),
@@ -899,23 +321,11 @@ pub fn all_tools_with_runtime(
             web_fetch_config.max_response_size,
             web_fetch_config.timeout_secs,
             web_fetch_config.user_agent.clone(),
-        )));
-    }
-
-    if root_config.web_search.enabled {
-        let provider = root_config.web_search.provider.trim().to_lowercase();
-        let api_key = if provider == "brave" {
-            root_config
-                .web_search
-                .brave_api_key
-                .clone()
-                .or_else(|| root_config.web_search.api_key.clone())
-        } else {
-            root_config.web_search.api_key.clone()
-        };
-
-        if provider == "exa" {
-            tool_arcs.push(Arc::new(super::websearch::WebSearchTool::new(
+        )) },
+ToolConstruction::ExaWebSearchTool => { let api_key = context.api_key.clone();
+let security = context.security;
+let root_config = context.root_config.expect("root config");
+ Arc::new(super::websearch::WebSearchTool::new(
                 security.clone(),
                 root_config.web_search.provider.clone(),
                 api_key,
@@ -923,9 +333,11 @@ pub fn all_tools_with_runtime(
                 root_config.web_search.max_results,
                 root_config.web_search.timeout_secs,
                 root_config.web_search.user_agent.clone(),
-            )));
-        } else {
-            tool_arcs.push(Arc::new(WebSearchTool::new(
+            )) },
+ToolConstruction::WebSearchTool => { let api_key = context.api_key.clone();
+let security = context.security;
+let root_config = context.root_config.expect("root config");
+ Arc::new(WebSearchTool::new(
                 security.clone(),
                 root_config.web_search.provider.clone(),
                 api_key,
@@ -933,326 +345,148 @@ pub fn all_tools_with_runtime(
                 root_config.web_search.max_results,
                 root_config.web_search.timeout_secs,
                 root_config.web_search.user_agent.clone(),
-            )));
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    tool_arcs.push(Arc::new(PdfReadTool::new(security.clone())));
-
-    #[cfg(not(target_arch = "wasm32"))]
-    tool_arcs.push(Arc::new(ScreenshotTool::new(security.clone())));
-    tool_arcs.push(Arc::new(ImageAssetReadTool::new()));
-
-    tool_arcs.push(Arc::new(SkillTool::new_with_runtime_config(
+            )) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::PdfReadTool => { let security = context.security;
+ Arc::new(PdfReadTool::new(security.clone())) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::ScreenshotTool => { let security = context.security;
+ Arc::new(ScreenshotTool::new(security.clone())) },
+ToolConstruction::ImageAssetReadTool => {
+ Arc::new(ImageAssetReadTool::new()) },
+ToolConstruction::SkillToolWithRuntimeConfig => { let security = context.security;
+let config = context.config.expect("full factory config");
+let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(SkillTool::new_with_runtime_config(
         security.clone(),
         session_id.to_string(),
         false,
         workspace_dir.to_path_buf(),
         config.clone(),
-    )));
-    tool_arcs.push(Arc::new(SleepTool::new()));
-    tool_arcs
-        .push(Arc::new(TodoReadTool::new_scoped(session_id.to_string(), project_scope.clone())));
-    tool_arcs.push(Arc::new(TodoWriteTool::new_scoped(
+    )) },
+ToolConstruction::SleepTool => {
+ Arc::new(SleepTool::new()) },
+ToolConstruction::TodoReadToolScoped => { let session_id = context.session_id.expect("session");
+let project_scope = context.project_scope.clone();
+ Arc::new(TodoReadTool::new_scoped(session_id.to_string(), project_scope.clone())) },
+ToolConstruction::TodoWriteToolScoped => { let security = context.security;
+let session_id = context.session_id.expect("session");
+let project_scope = context.project_scope.clone();
+ Arc::new(TodoWriteTool::new_scoped(
         session_id.to_string(),
         project_scope,
         security.clone(),
-    )));
-    tool_arcs.push(Arc::new(QuestionTool::new(session_id.to_string())));
-    tool_arcs.push(Arc::new(CreateThreadTool::new(
+    )) },
+ToolConstruction::QuestionTool => { let session_id = context.session_id.expect("session");
+ Arc::new(QuestionTool::new(session_id.to_string())) },
+ToolConstruction::CreateThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(CreateThreadTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::ForkThreadTool::new(
+    )) },
+ToolConstruction::ForkThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::ForkThreadTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::HandoffThreadTool::new(
+    )) },
+ToolConstruction::HandoffThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::HandoffThreadTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::ListThreadsTool::new(
+    )) },
+ToolConstruction::ListThreadsTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::ListThreadsTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::ReadThreadTool::new(
+    )) },
+ToolConstruction::ReadThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::ReadThreadTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::WaitThreadsTool::new(
+    )) },
+ToolConstruction::WaitThreadsTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::WaitThreadsTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::SendMessageToThreadTool::new(
+    )) },
+ToolConstruction::SendMessageToThreadTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::SendMessageToThreadTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::SetThreadTitleTool::new(
+    )) },
+ToolConstruction::SetThreadTitleTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::SetThreadTitleTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::SetThreadArchivedTool::new(
+    )) },
+ToolConstruction::SetThreadArchivedTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::SetThreadArchivedTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-    tool_arcs.push(Arc::new(super::thread_tool::SetThreadPinnedTool::new(
+    )) },
+ToolConstruction::SetThreadPinnedTool => { let workspace_dir = context.workspace_dir.expect("workspace");
+let session_id = context.session_id.expect("session");
+ Arc::new(super::thread_tool::SetThreadPinnedTool::new(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
-    )));
-
-    let delegate_agents =
-        enabled_delegate_agents_with_project_skills(agents, workspace_dir, root_config);
-    if !delegate_agents.is_empty() {
-        let agent_tool = Arc::new(AgentTool::new(
-            delegate_agents.clone(),
-            session_id_override.map(str::to_owned),
-            workspace_dir.to_path_buf(),
-        ));
-        tool_arcs.push(agent_tool);
-    }
-
-    tool_arcs.push(Arc::new(McpStatusTool::new()));
-    #[cfg(unix)]
-    if let Some(host) = super::computer_control::NativeControlRuntime::shared() {
-        tool_arcs.push(Arc::new(super::computer_control::ComputerControlTool::new(
-            host.clone(),
-            session_id_override.map(str::to_owned),
-        )));
-        tool_arcs.push(Arc::new(super::word_control::WordControlTool::new(
-            host.clone(),
-            session_id_override.map(str::to_owned),
-        )));
-        tool_arcs.push(Arc::new(super::excel_control::ExcelControlTool::new(
-            host,
-            session_id_override.map(str::to_owned),
-        )));
-    }
-
-    register_dynamic_mcp_tools(&mut tool_arcs, workspace_dir, session_id_override);
-
-    let catalog = ToolDiscoveryCatalog::new(tool_arcs.iter().map(|tool| tool.spec()).collect());
-    if catalog.has_deferred_tools() {
-        tool_arcs.push(Arc::new(ToolSearchTool::new(&catalog)));
-    }
-
-    let batch_tools = Arc::new(tool_arcs.clone());
-    tool_arcs.push(Arc::new(BatchTool::new(batch_tools)));
-    boxed_registry_from_arcs(tool_arcs)
+    )) },
+ToolConstruction::McpStatusTool => {
+ Arc::new(McpStatusTool::new()) },
+  }
+ }
+ fn batch(tools: Arc<Vec<Arc<dyn Tool>>>) -> Arc<dyn Tool> { Arc::new(BatchTool::new(tools)) }
+ fn search_tool(catalog: &ToolDiscoveryCatalog) -> Arc<dyn Tool> { Arc::new(ToolSearchTool::new(catalog)) }
+ fn agent_tool(agents: HashMap<String, DelegateAgentConfig>, session: Option<String>, workspace: std::path::PathBuf, callback: Option<super::agent_tool::AgentToolChildSessionCreatedCallback>) -> Arc<dyn Tool> {
+  let tool = AgentTool::new(agents, session, workspace);
+  Arc::new(match callback { Some(callback) => tool.with_child_session_created_callback(callback), None => tool })
+ }
+ fn project_scope(workspace: &Path) -> Option<String> {
+  let tenant = crate::session::ui_store::current_tenant_scope();
+  block_on(crate::project::from_directory(&tenant, workspace)).ok().map(|(info, _)| info.id)
+ }
+ fn project_skills(workspace: &Path, config: &Config) -> Vec<String> {
+  crate::app::agent::skills::load_project_skills_with_config(workspace, config).into_iter().map(|skill| skill.name).collect()
+ }
+ fn connections_for_factory(workspace: &Path, session: Option<&str>) -> Arc<crate::plugins::McpSessionConnections> {
+  session.map(|id| crate::plugins::mcp_session_connections(id, workspace)).unwrap_or_default()
+ }
+ fn load_runtime_mcp_config(workspace: &Path) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
+  block_on(super::mcp_common::load_resolved_runtime_mcp_config_from(workspace))
+ }
+ #[cfg(unix)]
+ fn native_tools(session: Option<&str>) -> Vec<Arc<dyn Tool>> {
+  let Some(host) = super::computer_control::NativeControlRuntime::shared() else { return Vec::new() };
+  vec![Arc::new(super::computer_control::ComputerControlTool::new(host.clone(), session.map(str::to_owned))), Arc::new(tool_office::WordControlTool::<Self>::new(host.clone(), session.map(str::to_owned))), Arc::new(tool_office::ExcelControlTool::<Self>::new(host, session.map(str::to_owned)))]
+ }
 }
 
-fn enabled_delegate_agents(
-    agents: &HashMap<String, DelegateAgentConfig>,
-) -> HashMap<String, DelegateAgentConfig> {
-    merged_agent_configs(agents)
-        .into_iter()
-        .filter(|(_, config)| config.enabled && config.allow_as_subagent)
-        .collect()
+impl tool_assembly::runtime::RuntimeHost for super::context::AgentContextHost {
+ async fn load_project_config(tenant: &vw_api_transport::TenantScope, workspace: &Path) -> anyhow::Result<Config> { crate::config::get_project_for_tenant(tenant, workspace).await }
+ fn mcp_connections(session: &str, root: &Path) -> Arc<crate::plugins::McpSessionConnections> { crate::plugins::mcp_session_connections(session, root) }
+ fn discovery_state(discovery: &Self::ToolDiscoverySession) -> &tool_assembly::tool_search::ToolDiscoverySession { discovery }
+ fn register_app(context: &ToolRuntimeContext, name: &str, result: &mut ToolCallResult) -> anyhow::Result<()> { crate::plugins::mcp_app_execution::register(context, name, result) }
 }
 
-fn enabled_delegate_agents_with_project_skills(
-    agents: &HashMap<String, DelegateAgentConfig>,
-    workspace_dir: &Path,
-    root_config: &Config,
-) -> HashMap<String, DelegateAgentConfig> {
-    let mut enabled = enabled_delegate_agents(agents);
-    if !root_config.skills.auto_load_project_skills || enabled.is_empty() {
-        return enabled;
-    }
-
-    let project_skill_names =
-        crate::app::agent::skills::load_project_skills_with_config(workspace_dir, root_config)
-            .into_iter()
-            .map(|skill| skill.name)
-            .collect::<Vec<_>>();
-
-    for config in enabled.values_mut() {
-        // Defaults must never expand an explicitly strict access boundary.
-        if config.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
-            || matches!(config.defaults.skills, config_agent_profile::AgentDefault::Fixed(_))
-        {
-            continue;
-        }
-        config.allowed_skills.extend(project_skill_names.iter().cloned());
-        config.allowed_skills.sort();
-        config.allowed_skills.dedup();
-    }
-
-    enabled
+#[cfg(test)]
+use tool_assembly::toolset::{parse_tool_input, classify_message};
+#[cfg(test)]
+use tool_assembly::agents::{agent_tool_parallel_limit, enabled_delegate_agents};
+#[cfg(test)]
+use tool_assembly::security::security_for_tool_context;
+#[cfg(test)]
+fn enabled_delegate_agents_with_project_skills(agents: &HashMap<String, DelegateAgentConfig>, workspace: &Path, config: &Config) -> HashMap<String, DelegateAgentConfig> {
+ tool_assembly::factory::enabled_delegate_agents_with_project_skills::<super::context::AgentContextHost>(agents, workspace, config)
 }
 
-fn register_dynamic_mcp_tools(
-    tool_arcs: &mut Vec<Arc<dyn Tool>>,
-    workspace_dir: &Path,
-    session: Option<&str>,
-) {
-    let connections = session
-        .map(|id| crate::plugins::mcp_session_connections(id, workspace_dir))
-        .unwrap_or_default();
-    let config =
-        match block_on(super::mcp_common::load_resolved_runtime_mcp_config_from(workspace_dir)) {
-            Ok(config) => config,
-            Err(error) => {
-                let _ = connections.synchronize(&[]);
-                tracing::warn!("MCP toolset: failed to load ACP config for dynamic tools: {error}");
-                return;
-            }
-        };
-
-    let enabled = config
-        .mcp_servers
-        .iter()
-        .filter(|server| super::mcp_common::management_for_server(&config, server).enabled)
-        .cloned()
-        .collect::<Vec<_>>();
-    if connections.synchronize(&enabled).is_err() {
-        connections.record_required_failure("configuration");
-        return;
-    }
-
-    let mut has_resources_or_prompts = false;
-    for server in &config.mcp_servers {
-        let server_label = super::mcp_common::server_name(server).to_string();
-        let management = super::mcp_common::management_for_server(&config, server);
-        if !management.enabled {
-            tracing::debug!(
-                server = server_label.as_str(),
-                "MCP toolset: skipped disabled MCP server"
-            );
-            continue;
-        }
-        let existing_ids = tool_arcs.iter().map(|tool| tool.spec().id).collect::<Vec<_>>();
-        let existing_refs = existing_ids.iter().map(String::as_str).collect::<Vec<_>>();
-
-        match block_on(discover_dynamic_mcp_tools(
-            server.clone(),
-            management.clone(),
-            &existing_refs,
-            connections.clone(),
-        )) {
-            Ok(discovered) => {
-                connections.register_tool_source(server.clone(), management.clone());
-                has_resources_or_prompts |= discovered.has_resources_or_prompts;
-                for tool in discovered.tools {
-                    tracing::debug!(
-                        server = server_label.as_str(),
-                        tool_id = tool.name(),
-                        "MCP toolset: registered dynamic tool"
-                    );
-                    tool_arcs.push(Arc::new(tool));
-                }
-            }
-            Err(error) => {
-                if management.required
-                    || crate::plugins::plugin_mcp_connection_settings(server)
-                        .is_ok_and(|settings| settings.required)
-                {
-                    connections.record_required_failure(&server_label);
-                    tracing::error!(
-                        server = server_label.as_str(),
-                        "MCP toolset: required server failed dynamic tool discovery: {error}"
-                    );
-                } else {
-                    tracing::warn!(
-                        server = server_label.as_str(),
-                        "MCP toolset: failed to discover dynamic tools: {error}"
-                    );
-                }
-            }
-        }
-    }
-    if has_resources_or_prompts {
-        tool_arcs.push(Arc::new(super::mcp_resource::McpResourceTool::new(config, connections)));
-    }
-}
-
-pub(crate) struct DiscoveredMcpTools {
-    pub(crate) tools: Vec<super::mcp_tool::McpTool>,
-    pub(crate) has_resources_or_prompts: bool,
-}
-
-pub(crate) async fn discover_dynamic_mcp_tools(
-    server: agent_client_protocol::McpServer,
-    management: acp_config::McpServerManagement,
-    existing_tool_ids: &[&str],
-    connections: Arc<crate::plugins::McpSessionConnections>,
-) -> anyhow::Result<DiscoveredMcpTools> {
-    let server_label = super::mcp_common::server_name(&server).to_string();
-    let existing_tool_ids =
-        existing_tool_ids.iter().map(|id| (*id).to_string()).collect::<Vec<_>>();
-    let configured_server = server.clone();
-
-    let timeout = super::mcp_common::management_timeout(&management);
-
-    let tool_connections = connections.clone();
-    connections
-        .with_client(&server, timeout, move |client| {
-            let server_label = server_label.clone();
-            let existing_tool_ids = existing_tool_ids.clone();
-            let configured_server = configured_server.clone();
-            let management = management.clone();
-            Box::pin(async move {
-                let peer = client.peer();
-                let has_resources_or_prompts = peer.peer_info().is_some_and(|info| {
-                    info.capabilities.resources.is_some() || info.capabilities.prompts.is_some()
-                });
-                if peer.peer_info().is_some_and(|info| info.capabilities.tools.is_none()) {
-                    return Ok(DiscoveredMcpTools { tools: Vec::new(), has_resources_or_prompts });
-                }
-                let tools = client
-                    .service()
-                    .catalogs
-                    .tools(peer)
-                    .await
-                    .context("failed to list MCP tools")?;
-                let server_instructions =
-                    peer.peer_info().and_then(|info| info.instructions.as_deref());
-                let mut allowed_tools = Vec::new();
-                for tool in tools.iter().cloned() {
-                    let tool_id = super::mcp_tool::mcp_tool_id(&server_label, tool.name.as_ref())?;
-                    if super::mcp_common::mcp_tool_allowed(
-                        &management,
-                        tool.name.as_ref(),
-                        &tool_id,
-                    ) && crate::plugins::plugin_mcp_tool_allowed(
-                        &configured_server,
-                        tool.name.as_ref(),
-                    )? {
-                        allowed_tools.push(tool);
-                    }
-                }
-                let existing_refs =
-                    existing_tool_ids.iter().map(String::as_str).collect::<Vec<_>>();
-                let mut specs = super::mcp_tool::mcp_tools_to_specs(
-                    &server_label,
-                    server_instructions,
-                    &allowed_tools,
-                    &existing_refs,
-                )?;
-
-                if crate::plugins::plugin_mcp_connection_settings(&configured_server)?
-                    .supports_parallel_tool_calls
-                    == Some(false)
-                {
-                    for spec in &mut specs {
-                        spec.concurrency_safe = false;
-                    }
-                }
-                let tools = allowed_tools
-                    .into_iter()
-                    .zip(specs.into_iter())
-                    .map(|(tool, spec)| {
-                        super::mcp_tool::McpTool::from_session_server(
-                            configured_server.clone(),
-                            tool.name.to_string(),
-                            spec,
-                            tool_connections.clone(),
-                            super::mcp_common::management_timeout(&management),
-                        )
-                    })
-                    .collect();
-                Ok(DiscoveredMcpTools { tools, has_resources_or_prompts })
-            })
-        })
-        .await
-}
+#[cfg(test)]
+use super::tool_search::TOOL_SEARCH_ID;

@@ -1,7 +1,7 @@
 //! Request-boundary publication of complete MCP specifications and executors.
 use super::mcp_connections::{McpSessionConnections, configuration_key};
 use tool_types::Tool;
-use tool_assembly::catalog::ToolCatalog;
+use tool_catalog::catalog::ToolCatalog;
 use mcp_client::{server_name, ToolCatalogBinding};
 use agent_client_protocol::McpServer;
 use anyhow::{Result, bail};

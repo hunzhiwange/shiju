@@ -1,23 +1,5 @@
 //! 尚未迁移的工具和进程宿主适配；随 session-engine 工厂迁移。
 
-use std::sync::Arc;
-use crate::tools::Tool;
-
-impl session_port::SessionCatalog for crate::tools::catalog::ToolCatalogSnapshot {
-    fn from_runtime_tools(tools: Vec<Arc<dyn Tool>>) -> Self {
-        Self::from_runtime_tools(tools)
-    }
-
-    fn tools(&self) -> &[Arc<dyn Tool>] {
-        self.tools()
-    }
-}
-
-impl session_port::SessionConnections for crate::plugins::McpSessionConnections {
-    fn shutdown(&self) {
-        self.shutdown();
-    }
-}
 
 #[derive(Debug, Default)]
 pub(super) struct ShellCleanup {

@@ -410,3 +410,7 @@ impl Drop for McpSessionConnections {
         self.shutdown();
     }
 }
+
+impl session_port::SessionConnections for McpSessionConnections {
+    fn shutdown(&self) { self.shutdown(); }
+}

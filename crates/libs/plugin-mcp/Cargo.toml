@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+session-port = { path = "../session-port", version = "0.6.0" }
 anyhow = "1"
 serde_json = "1"
 rmcp = { version = "0.8.0", features = ["client"] }
@@ -29,7 +30,7 @@ reqwest_012 = { package = "reqwest", version = "0.12", default-features = false,
 acp-config = { path = "../acp-config", version = "0.6.0" }
 sha2 = "0.10"
 hex = "0.4"
-tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
+tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
 plugin-types = { path = "../plugin-types", version = "0.6.0" }
 agent-config = { path = "../agent-config", version = "0.6.0" }
 secret-store = { path = "../secret-store", version = "0.6.0" }

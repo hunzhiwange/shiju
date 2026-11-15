@@ -17,3 +17,25 @@ tool-context = { path = "../tool-context", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
 tool-web = { path = "../tool-web", version = "0.6.0" }
+tool-catalog = { path = "../tool-catalog", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+plugin-mcp = { path = "../plugin-mcp", version = "0.6.0" }
+tool-mcp = { path = "../tool-mcp", version = "0.6.0" }
+mcp-client = { path = "../mcp-client", version = "0.6.0" }
+acp-config = { path = "../acp-config", version = "0.6.0" }
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
+tracing = "0.1"
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+agent-runtime = { path = "../agent-runtime", version = "0.6.0" }
+agent-memory = { path = "../agent-memory", version = "0.6.0" }
+runtime-types = { path = "../runtime-types", version = "0.6.0" }
+tool-agents = { path = "../tool-agents", version = "0.6.0" }
+syscall-anomaly = { path = "../syscall-anomaly", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+[features]
+default = []
+test-support = []

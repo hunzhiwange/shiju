@@ -401,7 +401,7 @@ async fn block_on_bridges_when_called_inside_tokio_runtime() {
 
 #[tokio::test]
 async fn arc_delegating_tool_forwards_methods() {
-    let boxed = ArcDelegatingTool::boxed(Arc::new(EchoTool));
+    let boxed = boxed_registry_from_arcs(vec![Arc::new(EchoTool)]).remove(0);
     assert_eq!(boxed.name(), "echo");
     assert_eq!(boxed.parameters_schema(), json!({"type": "object"}));
     assert_eq!(boxed.validate_input(json!({"x": 1})).unwrap(), json!({"x": 1}));
@@ -410,7 +410,7 @@ async fn arc_delegating_tool_forwards_methods() {
 
 #[tokio::test]
 async fn arc_delegating_tool_forwards_v2_contract_methods() {
-    let boxed = ArcDelegatingTool::boxed(Arc::new(EchoTool));
+    let boxed = boxed_registry_from_arcs(vec![Arc::new(EchoTool)]).remove(0);
     let input = json!({"x": 1});
 
     assert_eq!(boxed.description(), "echo tool");
@@ -907,7 +907,7 @@ fn execute_tool_call_runs_dynamic_mcp_tool_through_context_registry() {
 
 #[tokio::test]
 async fn execute_tool_from_registry_uses_supplied_tool_list() {
-    let tools = vec![ArcDelegatingTool::boxed(Arc::new(EchoTool))];
+    let tools = vec![boxed_registry_from_arcs(vec![Arc::new(EchoTool)]).remove(0)];
     let context = Arc::new(ToolUseContext::new("registry", None));
 
     let executed = execute_tool_from_registry(&tools, "echo", json!({"message": "hi"}), context)

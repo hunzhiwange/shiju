@@ -2,7 +2,9 @@ use super::{
     WorkflowDraft, WorkflowDraftStatus, WorkflowManagerMessage, build_draft_editor,
     owned_workflow_from_draft,
 };
-use crate::app::{Message, i18n::I18n, task::StatusRole};
+use super::Message;
+use desktop_i18n::I18n;
+use desktop_task_model::StatusRole;
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::operation::{Focusable, Operation};
 use iced::advanced::{Layout, clipboard, layout, widget::Tree};
@@ -94,7 +96,7 @@ impl Operation for FindText<'_> {
 async fn settings_help_gap_17_lifecycle_route_heading_and_controls() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }
@@ -364,7 +366,7 @@ impl<'a> EditorScene<'a> {
 async fn workflow_form_controls_open_shared_role_and_route_menus() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in crate::fonts::load_all() {
+        for font in desktop_assets::fonts::load_all() {
             fonts.load_font(font);
         }
     }

@@ -63,6 +63,7 @@ members = [
   "crates/libs/api-chat-identity",
   "crates/libs/config-provider",
   "crates/libs/acp-lease",
+  "crates/libs/api-provider",
   "crates/libs/api-transport",
   "crates/libs/acp-metrics",
   "crates/libs/provider-protocol-routes",

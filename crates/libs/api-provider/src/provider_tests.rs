@@ -1,6 +1,6 @@
 //! 验证提供商请求对凭据和默认连接选项的显式处理。
 
-use crate::provider::{AuthKind, ConnectProviderRequest, ListProvidersRequest, ProviderStatus};
+use crate::{AuthKind, ConnectProviderRequest, ListProvidersRequest, ProviderStatus};
 use serde_json::json;
 
 // 连接请求不隐式提供凭据或设为默认，同时固定认证和连接状态名称。

@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_workflow_commands_cover_application_crud_resume_and_stream() {

@@ -10,7 +10,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 struct Case {
     command: Vec<String>,

@@ -6,7 +6,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::session_tests::{assert_request, run_command, spawn_server};
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_desktop_commands_cover_preferences_skills_and_guarded_host_actions() {

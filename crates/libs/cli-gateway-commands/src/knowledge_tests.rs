@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_knowledge_commands_cover_dataset_document_and_retrieval_routes() {

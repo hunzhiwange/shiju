@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::{ApiCommands, run_with_io};
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test]
 async fn api_config_commands_preserve_scope_input_and_confirmation() {

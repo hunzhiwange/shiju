@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_interactive_commands_cover_permission_question_and_pty() {

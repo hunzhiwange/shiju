@@ -28,7 +28,7 @@ use vw_agent::security;
 use vw_agent::service::ServiceCommands;
 use vw_agent::skill::SkillCommands;
 
-use crate::handlers::api::{ApiOptions, RootApiCommands, RootConfigCommands};
+use cli_gateway_commands::{ApiOptions, RootApiCommands, RootConfigCommands};
 
 #[path = "cli/mod.rs"]
 mod runtime;
@@ -643,11 +643,11 @@ Examples:
 
 #[cfg(test)]
 impl Commands {
-    pub(crate) fn into_api_args(self) -> Option<crate::handlers::api::ApiArgs> {
+    pub(crate) fn into_api_args(self) -> Option<cli_gateway_commands::ApiArgs> {
         match self {
             Self::Api(commands) => Some(commands.into_args()),
             Self::Config { api_options, config_command: ConfigCommands::Gateway(command) } => {
-                Some(crate::handlers::api::config_args(api_options, command))
+                Some(cli_gateway_commands::config_args(api_options, command))
             }
             _ => None,
         }

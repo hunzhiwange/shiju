@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use clap::Parser;
 
 use super::{ApiCommands, run_with_writer};
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test]
 async fn api_system_commands_use_gateway_discovery_routes() {

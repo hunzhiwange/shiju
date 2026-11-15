@@ -9,7 +9,7 @@ use super::context::ApiContext;
 use super::input::read_json_input;
 use super::output::{write_json, write_jsonl_item};
 use super::{ApiCommands, ApiOutputFormat, ProviderCommands, ensure_confirmed, run_with_writer};
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test]
 async fn api_cli_context_input_output_and_confirmation_are_stable() {

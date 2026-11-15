@@ -10,7 +10,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_realtime_commands_cover_inference_sse_stop_and_websocket_protocols() {

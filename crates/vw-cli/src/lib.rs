@@ -390,7 +390,7 @@ pub async fn run() -> Result<()> {
         Commands::Acp => unreachable!("ACP mode is routed before interactive initialization"),
 
         // 处理根级远程 Gateway API 命令。
-        Commands::Api(api_commands) => handlers::api::run(api_commands.into_args()).await,
+        Commands::Api(api_commands) => cli_gateway_commands::run(api_commands.into_args()).await,
 
         // 处理 Agent 命令：启动 AI 代理
         Commands::Agent {
@@ -840,7 +840,8 @@ pub async fn run() -> Result<()> {
                 Ok(())
             }
             ConfigCommands::Gateway(command) => {
-                handlers::api::run(handlers::api::config_args(api_options, command)).await
+                cli_gateway_commands::run(cli_gateway_commands::config_args(api_options, command))
+                    .await
             }
         },
     }

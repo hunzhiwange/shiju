@@ -31,8 +31,9 @@
 /// 立即中断代理的执行流程。
 pub(crate) mod estop;
 
-/// 远程 Gateway API CLI 处理器模块。
-pub(crate) mod api;
+/// Gateway 路由与 CLI 根命令的集成覆盖测试。
+#[cfg(test)]
+mod api;
 
 /// 安全策略处理器模块
 ///

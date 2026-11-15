@@ -13,7 +13,7 @@ use tracing::subscriber::{Interest, Subscriber};
 use tracing::{Event, Metadata};
 
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 const CREDENTIAL_SENTINEL: &str = "operations-credential-sentinel-74bd";
 

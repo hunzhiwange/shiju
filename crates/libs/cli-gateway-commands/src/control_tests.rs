@@ -14,7 +14,7 @@ use tracing::{Event, Metadata};
 
 use super::input::read_json_input_with_env;
 use super::run_with_io;
-use crate::cli::Cli;
+use crate::test_cli::Cli;
 
 const PROVIDER_ID: &str = "openai /合作";
 const ENCODED_PROVIDER_ID: &str = "openai%20%2F%E5%90%88%E4%BD%9C";

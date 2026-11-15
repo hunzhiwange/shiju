@@ -5,8 +5,8 @@ use vw_api_app_identity::{AppId, AppRuntimeKind};
 fn cc_apps_acp_projection_preserves_registry_entries_and_legacy_view() {
     let projection = acp_registry();
     assert_eq!(projection.len(), 22);
-    assert_eq!(projection, vw_acp::built_in_agent_specs());
-    assert_eq!(legacy_registry(), vw_acp::built_in_agent_registry());
+    assert_eq!(projection, acp_agent_registry::built_in_agent_specs());
+    assert_eq!(legacy_registry(), acp_agent_registry::built_in_agent_registry());
     assert!(legacy_registry().contains_key("claude-legacy"));
 }
 
@@ -27,7 +27,7 @@ fn cc_apps_acp_projection_preserves_registry_multiple_forms() {
 #[test]
 fn cc_apps_acp_projection_preserves_registry_review_gate() {
     for name in acp_registry().keys() {
-        assert_eq!(reviewed_command(name), vw_acp::reviewed_agent_command(name));
+        assert_eq!(reviewed_command(name), acp_agent_registry::reviewed_agent_command(name));
     }
     assert!(reviewed_command("claude-legacy").is_err());
     assert!(reviewed_command("arbitrary-command").is_err());

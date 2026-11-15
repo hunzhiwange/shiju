@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use clap::Parser;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use vw_acp::server::{
+use acp_server::server::{
     BackendCancelHandle, BackendError, BackendPrompt, BackendSession, PromptContent, SessionBackend,
 };
 
@@ -27,7 +27,7 @@ struct RecordingBackend {
     prompt_started: Arc<AtomicBool>,
     cancel_count: Arc<AtomicUsize>,
     active: Arc<
-        std::sync::Mutex<Option<tokio::sync::mpsc::UnboundedSender<vw_acp::server::BackendEvent>>>,
+        std::sync::Mutex<Option<tokio::sync::mpsc::UnboundedSender<acp_server::server::BackendEvent>>>,
     >,
 }
 

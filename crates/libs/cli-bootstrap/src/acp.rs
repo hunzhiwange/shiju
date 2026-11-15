@@ -1,7 +1,7 @@
 //! `shiju acp` 的纯 stdio Agent 装配。
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use vw_acp::server::SessionBackend;
+use acp_server::server::SessionBackend;
 
 /// 使用进程 stdin/stdout 启动单连接 ACP Agent。
 pub(crate) async fn run_stdio() -> anyhow::Result<()> {
@@ -19,7 +19,7 @@ where
     R: AsyncRead + Unpin + 'static,
     W: AsyncWrite + Unpin + 'static,
 {
-    vw_acp::server::serve_with_io(backend, reader, writer)
+    acp_server::server::serve_with_io(backend, reader, writer)
         .await
         .map_err(|error| anyhow::anyhow!("ACP stdio connection failed: {error}"))
 }

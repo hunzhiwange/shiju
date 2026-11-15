@@ -1,18 +1,18 @@
 //! Read-only views of the existing ACP domain; registration is not availability.
 use super::catalog::{CatalogApp, catalog};
 use std::collections::BTreeMap;
-use vw_acp::AgentCommandSpec;
+use acp_agent_registry::AgentCommandSpec;
 use vw_api_app_identity::{AppId, AppRuntimeKind};
 
 /// Preserve all structured ACP registrations, including agents outside the native catalog.
 /// Commands may be local fallbacks; use the review APIs before claiming reviewed support.
 pub fn acp_registry() -> BTreeMap<String, AgentCommandSpec> {
-    vw_acp::built_in_agent_specs()
+    acp_agent_registry::built_in_agent_specs()
 }
 
 /// Preserve legacy keys without interpreting them as additional applications.
 pub fn legacy_registry() -> BTreeMap<String, String> {
-    vw_acp::built_in_agent_registry()
+    acp_agent_registry::built_in_agent_registry()
 }
 
 /// Add ACP forms to matching native applications without replacing either registry.
@@ -50,11 +50,11 @@ fn require_registered(agent: &str) -> Result<(), String> {
 /// `Ok(None)` means no review contract, never that an adapter is installed or approved.
 pub fn reviewed_command(agent: &str) -> Result<Option<(String, Vec<String>)>, String> {
     require_registered(agent)?;
-    vw_acp::reviewed_agent_command(agent)
+    acp_agent_registry::reviewed_agent_command(agent)
 }
 
 /// Delegate executable checks to the owner of the pinned review contracts.
 pub fn verify_reviewed_executable(agent: &str, command: &str) -> Result<(), String> {
     require_registered(agent)?;
-    vw_acp::verify_reviewed_agent_executable(agent, command)
+    acp_agent_registry::verify_reviewed_agent_executable(agent, command)
 }

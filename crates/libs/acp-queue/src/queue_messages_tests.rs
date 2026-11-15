@@ -5,7 +5,7 @@
 use super::*;
 use std::collections::HashMap;
 
-use crate::types::{
+use acp_types::types::{
     NonInteractivePermissionPolicy, OutputErrorCode, OutputErrorOrigin, PermissionMode,
     PermissionStats, SESSION_RECORD_SCHEMA, SessionEventLog, SessionRecord, SessionResumePolicy,
     SessionSendResult, SessionTokenUsage,

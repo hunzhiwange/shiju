@@ -6,7 +6,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::types::OutputErrorOrigin;
+use acp_types::types::OutputErrorOrigin;
 
 static NEXT_SOCKET_ID: AtomicUsize = AtomicUsize::new(1);
 

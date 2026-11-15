@@ -41,14 +41,14 @@ use acp_metrics::{perf_metrics, perf_metrics_capture};
 use acp_host_io::permission_prompt;
 use acp_host_io::permissions;
 use acp_storage::persisted_key_policy;
-mod queue_ipc;
-mod queue_ipc_health;
-mod queue_ipc_server;
-mod queue_ipc_transport;
+use acp_queue::queue_ipc;
+use acp_queue::queue_ipc_health;
+use acp_queue::queue_ipc_server;
+use acp_queue::queue_ipc_transport;
 use acp_lease::queue_lease_store;
-mod queue_messages;
+use acp_queue::queue_messages;
 mod queue_owner_env;
-mod queue_owner_turn_controller;
+use acp_queue::queue_owner_turn_controller;
 mod queue_paths {
     pub use acp_paths::queue_paths::*;
 

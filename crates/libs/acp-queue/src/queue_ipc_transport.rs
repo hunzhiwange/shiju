@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use tokio::time::timeout;
 
-use crate::errors::{AcpxErrorOptions, QueueConnectionError};
-use crate::perf_metrics::measure_perf;
-use crate::queue_lease_store::{QueueOwnerRecord, wait_ms};
-use crate::types::OutputErrorOrigin;
+use acp_types::errors::{AcpxErrorOptions, QueueConnectionError};
+use acp_metrics::perf_metrics::measure_perf;
+use acp_lease::queue_lease_store::{QueueOwnerRecord, wait_ms};
+use acp_types::types::OutputErrorOrigin;
 
 const QUEUE_CONNECT_ATTEMPTS: usize = 40;
 pub const QUEUE_CONNECT_RETRY_MS: u64 = 50;

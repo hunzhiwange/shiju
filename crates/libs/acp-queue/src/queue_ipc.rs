@@ -15,20 +15,20 @@ use agent_client_protocol::SetSessionConfigOptionResponse;
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-use crate::errors::{AcpxErrorOptions, QueueConnectionError};
-use crate::perf_metrics::increment_perf_counter;
+use acp_types::errors::{AcpxErrorOptions, QueueConnectionError};
+use acp_metrics::perf_metrics::increment_perf_counter;
 use crate::queue_ipc_health::probe_queue_owner_health;
 use crate::queue_ipc_transport::connect_to_queue_owner;
-use crate::queue_lease_store::{
+use acp_lease::queue_lease_store::{
     QueueOwnerRecord, read_default_queue_owner_record, terminate_default_queue_owner_for_session,
 };
 use crate::queue_messages::{QueueOwnerMessage, QueueRequest, parse_queue_owner_message};
-use crate::types::{
+use acp_types::types::{
     OutputErrorCode, OutputErrorEmissionPolicy, OutputErrorOrigin, OutputErrorParams,
     OutputFormatter, OutputFormatterContext, PermissionMode, SessionEnqueueResult,
     SessionResumePolicy, SessionSendOutcome,
 };
-use crate::{NonInteractivePermissionPolicy, PromptInput};
+use acp_types::{NonInteractivePermissionPolicy, PromptInput};
 
 pub const MAX_MESSAGE_BUFFER_SIZE: usize = 10 * 1024 * 1024;
 
@@ -319,7 +319,7 @@ async fn submit_to_queue_owner(
         prompt: options
             .prompt
             .clone()
-            .unwrap_or_else(|| crate::text_prompt(options.message.clone())),
+            .unwrap_or_else(|| acp_types::text_prompt(options.message.clone())),
         permission_mode: options.permission_mode,
         resume_policy: options.resume_policy,
         non_interactive_permissions: options.non_interactive_permissions,

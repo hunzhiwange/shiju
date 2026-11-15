@@ -3,9 +3,9 @@
 //! 临时租约、套接字和消息 fixture 用于隔离队列所有权与 IPC 边界。
 
 use super::*;
-use crate::errors::AcpxErrorOptions;
+use acp_types::errors::AcpxErrorOptions;
 use crate::queue_messages::{QueueOwnerMessage, QueueRequest};
-use crate::types::{
+use acp_types::types::{
     NonInteractivePermissionPolicy, OutputErrorCode, OutputErrorOrigin, PermissionMode,
     PermissionStats, SESSION_RECORD_SCHEMA, SessionEventLog, SessionRecord, SessionResumePolicy,
     SessionSendResult, SessionTokenUsage,
@@ -463,7 +463,7 @@ fn make_queue_owner_error_from_connection_error_preserves_rich_error_fields() {
             detail_code: Some("RICH_DETAIL".to_string()),
             origin: Some(OutputErrorOrigin::Acp),
             retryable: Some(true),
-            acp: Some(crate::types::OutputErrorAcpPayload {
+            acp: Some(acp_types::types::OutputErrorAcpPayload {
                 code: -32000,
                 message: "acp failure".to_string(),
                 data: Some(json!({"reason": "blocked"})),

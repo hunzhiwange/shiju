@@ -22,7 +22,7 @@ use tokio::net::UnixListener;
 use crate::queue_messages::QueueRequest;
 #[cfg(unix)]
 use crate::queue_paths::{queue_base_dir, queue_lock_file_path, queue_socket_base_dir};
-use crate::types::{
+use acp_types::types::{
     AcpJsonRpcMessage, OutputErrorCode, OutputErrorOrigin, OutputErrorParams, PermissionMode,
     PermissionStats, SESSION_RECORD_SCHEMA, SessionEventLog, SessionRecord, SessionSendResult,
     SessionTokenUsage,
@@ -335,7 +335,7 @@ fn queue_request_id_reads_all_request_variants() {
             request_id: "submit".to_string(),
             owner_generation: Some(7),
             message: "hello".to_string(),
-            prompt: crate::text_prompt("hello".to_string()),
+            prompt: acp_types::text_prompt("hello".to_string()),
             permission_mode: PermissionMode::ApproveReads,
             resume_policy: None,
             non_interactive_permissions: None,
@@ -934,7 +934,7 @@ async fn submit_to_queue_owner_forwards_explicit_prompt_and_policies() {
     let owner = owner_record(socket.path.clone());
     let handle =
         start_fake_owner(&socket.path, |request| vec![accepted_message(queue_request_id(request))]);
-    let explicit_prompt = crate::text_prompt("explicit prompt".to_string());
+    let explicit_prompt = acp_types::text_prompt("explicit prompt".to_string());
     let mut formatter = TestFormatter::default();
     let mut options = submit_options(&mut formatter, false);
     options.prompt = Some(explicit_prompt.clone());

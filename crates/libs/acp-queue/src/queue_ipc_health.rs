@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::queue_ipc_transport::connect_to_queue_owner;
-use crate::queue_lease_store::{read_default_queue_owner_record, read_default_queue_owner_status};
+use acp_lease::queue_lease_store::{read_default_queue_owner_record, read_default_queue_owner_status};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -5,7 +5,7 @@
 use super::*;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::errors::{AcpxErrorOptions, QueueConnectionError};
+use acp_types::errors::{AcpxErrorOptions, QueueConnectionError};
 
 #[derive(Debug, Default)]
 struct OptionsState {

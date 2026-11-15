@@ -5,9 +5,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::acp_jsonrpc::is_acp_json_rpc_message;
-use crate::prompt_content::{PromptInput, is_prompt_input, text_prompt};
-use crate::types::{
+use acp_types::acp_jsonrpc::is_acp_json_rpc_message;
+use acp_types::prompt_content::{PromptInput, is_prompt_input, text_prompt};
+use acp_types::types::{
     AcpJsonRpcMessage, NonInteractivePermissionPolicy, OutputErrorAcpPayload, OutputErrorCode,
     OutputErrorOrigin, PermissionMode, SessionResumePolicy, SessionSendResult,
 };

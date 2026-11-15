@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use agent_client_protocol::SetSessionConfigOptionResponse;
 
-use crate::errors::{AcpxErrorOptions, QueueConnectionError};
-use crate::types::OutputErrorOrigin;
+use acp_types::errors::{AcpxErrorOptions, QueueConnectionError};
+use acp_types::types::OutputErrorOrigin;
 
 pub type QueueControlFuture<T> =
     Pin<Box<dyn Future<Output = Result<T, QueueConnectionError>> + Send + 'static>>;

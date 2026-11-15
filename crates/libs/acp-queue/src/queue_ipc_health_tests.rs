@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-use crate::queue_lease_store::QueueOwnerRecord;
+use acp_lease::queue_lease_store::QueueOwnerRecord;
 use crate::queue_paths::{queue_base_dir, queue_lock_file_path, queue_socket_base_dir};
 
 static NEXT_TEMP_ID: AtomicUsize = AtomicUsize::new(1);

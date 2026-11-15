@@ -92,7 +92,7 @@ pub(crate) fn diff_view_state(app: &App) -> desktop_git_ui::git_panel::diff_view
     }
 }
 
-fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::DiffMessage) -> crate::app::Message {
+pub(super) fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::DiffMessage) -> crate::app::Message {
     use desktop_git_ui::git_panel::diff_view::DiffMessage as Local;
     use crate::app::{Message, message::GitMessage};
     Message::Git(match event {

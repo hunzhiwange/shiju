@@ -30,3 +30,8 @@ mod ui_tests;
 
 #[cfg(test)]
 mod left_panel_tests;
+
+pub mod panel;
+mod panel_layout;
+mod discard_modal;
+pub mod copy_modal;

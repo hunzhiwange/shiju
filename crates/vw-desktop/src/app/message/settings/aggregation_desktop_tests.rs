@@ -6,19 +6,19 @@ use crate::app::state::{
 use std::io::{Read, Write};
 use vw_api_app_aggregation::*;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_app_identity::AppId}};
+use {gateway_endpoint::{GatewayEndpoint}, vw_api_app_identity::AppId};
 fn fixture(
     path: &'static str,
     status: u16,
     response: &'static str,
-) -> (GatewayClient, Scope, std::thread::JoinHandle<Option<serde_json::Value>>) {
+) -> (gateway_http::GatewayTransport, Scope, std::thread::JoinHandle<Option<serde_json::Value>>) {
     fixture_sequence(vec![(path, status, response)])
 }
 fn fixture_sequence(
     responses: Vec<(&'static str, u16, &'static str)>,
-) -> (GatewayClient, Scope, std::thread::JoinHandle<Option<serde_json::Value>>) {
+) -> (gateway_http::GatewayTransport, Scope, std::thread::JoinHandle<Option<serde_json::Value>>) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let client = GatewayClient::new(
+    let client = gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_auth(gateway_endpoint::GatewayAuth { skey: Some("fake-host-token".into()) }),
     )

@@ -6,8 +6,8 @@ use crate::app::{
 };
 use iced::Task;
 use gateway_endpoint::GatewayAuth;
-use vw_gateway_client::AgentAppsSettingsError;
-use vw_gateway_client::GatewayClient;
+use gateway_aggregation_desktop::{AgentAppsSettingsError, GatewayAggregationDesktopClient};
+use gateway_http::GatewayTransport;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::*;
 use vw_api_app_aggregation::operations::ProviderOperationProgress;
@@ -123,7 +123,7 @@ pub(crate) fn error(e: &AgentAppsSettingsError) -> &'static str {
     }
 }
 pub(crate) async fn execute(
-    client: GatewayClient,
+    transport: GatewayTransport,
     form: Form,
     action: Action,
 ) -> Result<Reply, AgentAppsSettingsError> {
@@ -135,6 +135,7 @@ pub(crate) async fn execute(
         target_host_id: session.binding.scope.host.clone(),
         project_id: session.binding.project.clone(),
     };
+    let client = GatewayAggregationDesktopClient::new(transport.clone());
     match action {
         Action::Read => {
             let status = client.aggregation_desktop_status(&query).await?;
@@ -202,19 +203,19 @@ pub(crate) async fn execute(
                 .0
                 .as_str();
             if matches!(action, Action::Poll) {
-                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_get(id, &query).await
+                gateway_app_provider::GatewayAppProviderClient::new(transport.clone()).provider_aggregation_operation_get(id, &query).await
             } else {
-                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_cancel(id, &query).await
+                gateway_app_provider::GatewayAppProviderClient::new(transport.clone()).provider_aggregation_operation_cancel(id, &query).await
             }
             .map(Reply::Operation)
             .map_err(|e| match e {
-                vw_gateway_client::AgentAppsReadError::Http { status, body } => {
+                gateway_app_provider::AgentAppsReadError::Http { status, body } => {
                     AgentAppsSettingsError::Http { status, body }
                 }
-                vw_gateway_client::AgentAppsReadError::Transport(message) => {
+                gateway_app_provider::AgentAppsReadError::Transport(message) => {
                     AgentAppsSettingsError::Transport(message)
                 }
-                vw_gateway_client::AgentAppsReadError::Decode(message) => {
+                gateway_app_provider::AgentAppsReadError::Decode(message) => {
                     AgentAppsSettingsError::Decode(message)
                 }
             })
@@ -293,7 +294,7 @@ pub(crate) fn finish(form: &mut Form, result: Result<Reply, AgentAppsSettingsErr
         }
     }
 }
-fn current(app: &App) -> Result<(GatewayClient, Binding), String> {
+fn current(app: &App) -> Result<(GatewayTransport, Binding), String> {
     let (client, scope) = list::current(app, AppId::ClaudeDesktop)?;
     if app.app_providers.scope.as_ref() != Some(&scope)
         || scope.host.is_empty()
@@ -307,7 +308,7 @@ fn current(app: &App) -> Result<(GatewayClient, Binding), String> {
         .clone()
         .with_auth(GatewayAuth { skey: Some(app.apps_catalog.token.clone()) });
     Ok((
-        GatewayClient::new(endpoint)?,
+        GatewayTransport::new(endpoint)?,
         Binding { scope, project: project.as_str().into(), access: app.apps_catalog.generation },
     ))
 }

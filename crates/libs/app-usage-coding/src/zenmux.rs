@@ -23,7 +23,7 @@ use {
 use provider_model_discovery::is_real_bearer;
 
 use super::zhipu::{client_builder, read_json, transport_error};
-use crate::providers::validation::header_value;
+use app_provider_validation::validation::header_value;
 
 /// Queries the configured ZenMux quota endpoint using credentials resolved on the execution host.
 /// The caller must authorize the endpoint and the use of the credential.

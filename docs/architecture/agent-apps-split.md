@@ -2802,3 +2802,16 @@ app-usage-balances/src 唯一拥有 deepseek、novita、openrouter、siliconflow
 静态证据：十个文件逐一与 HEAD 对照，除上述导入外完全一致，五项相邻测试注册保留，无新增资源引用；Python 3.12 标准库 TOML 审阅61个递归路径清单，路径存在、无循环、无门面回依赖；workspace及门面直接依赖已注册。反向依赖检索无匹配，git diff --check 无空白错误。RustCodeGraph 旧索引无源码且保留已迁走路径，本轮按规则未更新索引，以源码检索核实实际接线。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、五家迁移单测、非 wasm 平台行为及清单/锁文件一致性；Cargo.lock 未触碰。静态审阅不代表编译或行为验收通过。
+
+
+### 任务 58：用量套餐查询迁移
+
+app-usage-coding/src 唯一拥有原 usage/coding 的全部 19 个文件（mod.rs 改为 lib.rs），以及任务57移交的 balances/zhipu.rs、zhipu_tests.rs（改名 zhipu_balance.rs、zhipu_balance_tests.rs）。所有权表任务58各行及任务57智谱余额移交以此实际结果为准。独立测试与原注册完整迁移，无资源/include 路径；原 usage::coding 重导出新包，balances::zhipu 重导出 zhipu_balance；lib.rs 既有 usage 公开入口无需改动。
+
+依赖仅指向 app-provider-validation、app-usage-core、provider-model-discovery、api-app-auth、api-apps-usage、api-transport 及原有 HTTP/JSON/时间/签名库；未引入门面回依赖。原包其它模块仍使用这些直接依赖，故保留。原非 wasm 边界落实到新包各模块及依赖，kimi::query_windows 保留 macOS 条件。供应商请求、签名、额度解析与错误函数体保持不变。
+
+订阅实现及其测试仍调用 zhipu::{client_builder, read_json_response, transport_error} 和 kimi::query_windows，仅这四项共享函数按实际跨包调用公开；personal_origin、authorization、query_personal_plan、get_json 收窄至新包内部。没有遗留叶子实现或未闭合符号需移交后继。
+
+静态证据：逐文件对照 HEAD 的移动差异仅涉及导入、可见性、模块条件及测试文件名；Python 3.13 标准库 tomllib 审阅三份清单及直接路径，模块/测试注册路径均存在，源码检索无旧门面回依赖，git diff --check 无空白错误。系统 python3 不含 tomllib，改用本机已有 Python 3.13，未安装工具。
+
+未运行 Cargo、单元及实机测试，统一验收待授权；需覆盖新包与网关、订阅调用者编译、迁移定向单测、macOS/Windows/Linux 平台行为和锁文件一致性。Cargo.lock 保持不变。

@@ -1,5 +1,5 @@
 use super::{client_builder, personal_origin, query_at, query_zhipu};
-use crate::usage::detect::CodingPlanProvider::{ZhipuCn, ZhipuGlobal, ZhipuTeam};
+use app_usage_core::detect::CodingPlanProvider::{ZhipuCn, ZhipuGlobal, ZhipuTeam};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,

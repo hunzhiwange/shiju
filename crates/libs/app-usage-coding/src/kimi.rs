@@ -25,7 +25,7 @@ use {
 };
 use provider_model_discovery::is_real_bearer;
 
-use crate::providers::validation::header_value;
+use app_provider_validation::validation::header_value;
 
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
@@ -130,7 +130,7 @@ fn usage_request(
 }
 
 #[cfg(target_os = "macos")]
-pub(in crate::usage) async fn query_windows(
+pub async fn query_windows(
     region: AuthRegion,
     access_token: &str,
     route: impl FnOnce(&mut Request),

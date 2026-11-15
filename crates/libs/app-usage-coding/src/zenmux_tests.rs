@@ -1,5 +1,5 @@
 use super::{query_at, query_zenmux};
-use crate::usage::coding::zhipu::client_builder;
+use crate::zhipu::client_builder;
 use std::time::Duration;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},

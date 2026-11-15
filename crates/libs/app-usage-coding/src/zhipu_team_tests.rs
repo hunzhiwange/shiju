@@ -17,9 +17,9 @@ use {
 };
 
 use super::{ZhipuTeamCredentials, query_at, query_zhipu_team};
-use crate::usage::{
-    coding::zhipu::client_builder,
-    detect::{CodingPlanProvider, NativeUsageCapability, ZhipuPlanSelection, detect_native_usage},
+use crate::zhipu::client_builder;
+use app_usage_core::detect::{
+    CodingPlanProvider, NativeUsageCapability, ZhipuPlanSelection, detect_native_usage,
 };
 
 const BASE_URL: &str = "https://open.bigmodel.cn/api/coding/paas/v4";

@@ -1,5 +1,5 @@
 use super::{client_builder, query_at, query_zhipu_balance};
-use crate::usage::detect::CodingPlanProvider;
+use app_usage_core::detect::CodingPlanProvider;
 use std::time::Duration;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},

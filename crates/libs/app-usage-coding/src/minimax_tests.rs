@@ -1,5 +1,5 @@
 use super::{minimax_origin, query_at, query_minimax};
-use crate::usage::detect::{
+use app_usage_core::detect::{
     CodingPlanProvider, NativeUsageCapability, ZhipuPlanSelection, detect_native_usage,
 };
 use std::time::Duration;

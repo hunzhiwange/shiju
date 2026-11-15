@@ -1,0 +1,25 @@
+[package]
+name = "app-usage-coding"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+app-provider-validation = { path = "../app-provider-validation" }
+app-usage-core = { path = "../app-usage-core" }
+provider-model-discovery = { path = "../provider-model-discovery" }
+vw-api-apps-usage = { path = "../api-apps-usage" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-transport = { path = "../api-transport" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+hmac = "0.13.0"
+sha2 = "0.11"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "io-util", "net", "time"] }

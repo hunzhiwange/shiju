@@ -8,7 +8,7 @@ use reqwest::{Method, Request, Url, header};
 use sha2::{Digest, Sha256};
 use vw_api_apps_usage::apps_usage::UsageQueryErrorCode;
 
-use crate::providers::validation::header_value;
+use app_provider_validation::validation::header_value;
 
 const HOST: &str = "open.volcengineapi.com";
 const VERSION: &str = "2024-01-01";

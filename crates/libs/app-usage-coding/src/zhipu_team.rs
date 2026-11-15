@@ -14,7 +14,8 @@ use super::zhipu::{
     CN_ORIGIN, PLAN_PATH, PlanResponse, authorization, client_builder, parse_windows, plan_result,
     read_json, transport_error,
 };
-use crate::{providers::validation::header_value, usage::detect::CodingPlanProvider};
+use app_provider_validation::validation::header_value;
+use app_usage_core::detect::CodingPlanProvider;
 
 pub struct ZhipuTeamCredentials<'a> {
     pub api_key: &'a str,

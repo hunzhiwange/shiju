@@ -25,7 +25,8 @@ use {
 };
 use provider_model_discovery::is_real_bearer;
 
-use crate::{providers::validation::header_value, usage::detect::CodingPlanProvider};
+use app_provider_validation::validation::header_value;
+use app_usage_core::detect::CodingPlanProvider;
 
 pub(super) const CN_ORIGIN: &str = "https://open.bigmodel.cn";
 pub(super) const PLAN_PATH: &str = "/api/monitor/usage/quota/limit";
@@ -42,7 +43,7 @@ pub async fn query_zhipu(
     query_at(client_builder(), personal_origin(provider), api_key, queried_at, correlation_id).await
 }
 
-pub(in crate::usage) fn personal_origin(
+pub(crate) fn personal_origin(
     provider: CodingPlanProvider,
 ) -> Result<&'static str, UsageQueryErrorCode> {
     match provider {
@@ -52,11 +53,11 @@ pub(in crate::usage) fn personal_origin(
     }
 }
 
-pub(in crate::usage) fn client_builder() -> ClientBuilder {
+pub fn client_builder() -> ClientBuilder {
     Client::builder().redirect(Policy::none()).timeout(Duration::from_secs(15))
 }
 
-pub(in crate::usage) fn authorization(api_key: &str) -> Result<HeaderValue, UsageQueryErrorCode> {
+pub(crate) fn authorization(api_key: &str) -> Result<HeaderValue, UsageQueryErrorCode> {
     use UsageQueryErrorCode::CredentialUnavailable;
 
     if !is_real_bearer(api_key) || api_key.chars().any(char::is_control) {
@@ -136,7 +137,7 @@ pub(super) fn plan_result(
     }
 }
 
-pub(in crate::usage) async fn query_personal_plan(
+pub(crate) async fn query_personal_plan(
     client: &Client,
     origin: &str,
     authorization: &HeaderValue,
@@ -251,7 +252,7 @@ fn is_no_plan_message(message: &str) -> bool {
     .any(|known| message.trim().eq_ignore_ascii_case(known))
 }
 
-pub(in crate::usage) async fn get_json<T: DeserializeOwned>(
+pub(crate) async fn get_json<T: DeserializeOwned>(
     client: &Client,
     origin: &str,
     path: &str,
@@ -273,7 +274,7 @@ pub(super) async fn read_json<T: DeserializeOwned>(
     read_json_response(response).await
 }
 
-pub(in crate::usage) async fn read_json_response<T: DeserializeOwned>(
+pub async fn read_json_response<T: DeserializeOwned>(
     mut response: Response,
 ) -> Result<T, UsageQueryErrorCode> {
     use UsageQueryErrorCode::*;
@@ -296,7 +297,7 @@ pub(in crate::usage) async fn read_json_response<T: DeserializeOwned>(
     serde_json::from_slice(&body).map_err(|_| InvalidResponse)
 }
 
-pub(in crate::usage) fn transport_error(error: reqwest::Error) -> UsageQueryErrorCode {
+pub fn transport_error(error: reqwest::Error) -> UsageQueryErrorCode {
     if error.is_timeout() { UsageQueryErrorCode::Timeout } else { UsageQueryErrorCode::Transport }
 }
 

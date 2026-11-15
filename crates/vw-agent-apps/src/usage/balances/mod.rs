@@ -1,2 +1,2 @@
 pub use app_usage_balances::{deepseek, novita, openrouter, siliconflow, stepfun};
-pub mod zhipu;
+pub use app_usage_coding::zhipu_balance as zhipu;

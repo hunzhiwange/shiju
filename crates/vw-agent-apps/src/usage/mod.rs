@@ -13,7 +13,7 @@ pub mod codex_timing;
 pub use app_usage_core::cost;
 pub use app_usage_store::cursors;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod coding;
+pub use app_usage_coding as coding;
 pub use app_usage_core::detect;
 pub mod gemini;
 pub mod grokbuild;

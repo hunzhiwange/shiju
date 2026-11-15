@@ -4,13 +4,11 @@ use reqwest::{Client, header::ACCEPT};
 use serde_json::Value;
 use vw_api_apps_usage::apps_usage::{UsageNumber, UsageQueryErrorCode, UsageWallet};
 
-use crate::usage::{
-    coding::zhipu::{
-        authorization, client_builder, get_json, personal_origin, query_personal_plan,
-        transport_error,
-    },
-    detect::CodingPlanProvider,
+use crate::zhipu::{
+    authorization, client_builder, get_json, personal_origin, query_personal_plan,
+    transport_error,
 };
+use app_usage_core::detect::CodingPlanProvider;
 
 const BALANCE_PATH: &str = "/api/biz/account/query-customer-account-report";
 
@@ -66,5 +64,5 @@ fn amount(data: &Value, field: &str) -> Option<f64> {
 }
 
 #[cfg(test)]
-#[path = "zhipu_tests.rs"]
+#[path = "zhipu_balance_tests.rs"]
 mod tests;

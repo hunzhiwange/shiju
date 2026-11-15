@@ -523,17 +523,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             crate::app::session_gateway::active_project_scope(project.id.clone())?;
                         gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(
                                 &scope,
-                                &vw_api_project::UpdateProjectRequest {
+                                &vw_gateway_client::vw_api_types::project::UpdateProjectRequest {
                                     name: Some(final_name_for_runtime),
                                     active_worktree_id: None,
                                     icon: Some(
-                                        vw_api_project::IconUpdateDto {
+                                        vw_gateway_client::vw_api_types::project::IconUpdateDto {
                                             override_icon: icon,
                                             color: icon_color,
                                         },
                                     ),
                                     commands: Some(
-                                        vw_api_project::CommandsUpdateDto {
+                                        vw_gateway_client::vw_api_types::project::CommandsUpdateDto {
                                             start: start_command,
                                         },
                                     ),

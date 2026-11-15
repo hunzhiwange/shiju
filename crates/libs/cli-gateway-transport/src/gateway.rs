@@ -25,7 +25,7 @@ use {
     vw_api_transport::id::SessionId,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_project::{ProjectDto, ResolveProjectRequest};
+use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};
 use vw_gateway_client::{
     GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint,
 };

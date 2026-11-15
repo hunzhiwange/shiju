@@ -22,8 +22,8 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_project::ListProjectsRequest;
-use vw_api_project::TenantScopeDto;
+use vw_api_types::project::ListProjectsRequest;
+use vw_api_types::project::TenantScopeDto;
 use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
 };

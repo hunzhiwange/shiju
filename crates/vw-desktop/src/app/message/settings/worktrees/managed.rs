@@ -8,8 +8,8 @@ use iced::Task;
 use {
     vw_gateway_client::GatewayClient,
     vw_api_transport::id::ProjectScope,
-    vw_api_project::ListProjectsRequest,
-    vw_api_project::ProjectDto,
+    vw_gateway_client::vw_api_types::project::ListProjectsRequest,
+    vw_gateway_client::vw_api_types::project::ProjectDto,
     vw_api_worktree::ManagedWorktreeDto,
     vw_api_worktree::WorktreeDeletionPreflight,
     vw_api_worktree::WorktreeStatus,

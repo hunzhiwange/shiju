@@ -11,11 +11,11 @@ model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
 provider-state-cache = { path = "../provider-state-cache", version = "0.6.0" }
 provider-config-reader = { path = "../provider-config-reader", version = "0.6.0" }
 provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
+vw-shared = { path = "../../vw-shared", version = "0.6.0" }
 once_cell = "1"
 strsim = "0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-auth-types = { path = "../auth-types", version = "0.6.0" }
 provider-auth-reader = { path = "../provider-auth-reader", version = "0.6.0" }
 provider-model-discovery = { path = "../provider-model-discovery", version = "0.6.0" }
 serde_json = "1"

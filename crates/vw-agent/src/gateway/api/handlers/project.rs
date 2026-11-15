@@ -19,7 +19,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_project::{
+use vw_api_types::project::{
     GetProjectResponse, ListProjectChangeRecordsRequest, ListProjectChangeRecordsResponse,
     ListProjectsRequest, ProjectChangeRecordDto, ProjectDto, ProjectGitStateDto, ProjectStatus,
     ResolveProjectRequest, ResolveProjectResponse, UpdateProjectRequest,
@@ -366,7 +366,7 @@ async fn project_get_v1(
     let commands = info
         .commands
         .as_ref()
-        .map(|c| vw_api_project::CommandsUpdateDto { start: c.start.clone() });
+        .map(|c| vw_api_types::project::CommandsUpdateDto { start: c.start.clone() });
     let project = crate::global_database::run_isolated(move || map_project(&info))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;
@@ -397,7 +397,7 @@ async fn project_update_v1(
     let commands = updated
         .commands
         .as_ref()
-        .map(|c| vw_api_project::CommandsUpdateDto { start: c.start.clone() });
+        .map(|c| vw_api_types::project::CommandsUpdateDto { start: c.start.clone() });
     let project = crate::global_database::run_isolated(move || map_project(&updated))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;

@@ -8,7 +8,7 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 use super::app::V3GatewayApp;
 use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
-use cli_gateway_runtime::plan_run::{stop_owned_plan_run_blocking, validate_owned_plan_run};
+use cli_gateway_session::plan_run::{stop_owned_plan_run_blocking, validate_owned_plan_run};
 use cli_gateway_transport::stream_adapter::adapt_task_plan_run_event;
 use cli_interaction_state::TuiState;
 

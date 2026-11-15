@@ -1204,7 +1204,7 @@ fn resolve_gateway_git_context(
     let client = crate::app::config::gateway_client()?;
     let project = super::block_on_gateway(gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
         &crate::app::session_gateway::active_tenant_scope(),
-        &vw_api_project::ResolveProjectRequest {
+        &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
             directory: project_path.to_string(),
             create_if_missing: true,
         },
@@ -1811,7 +1811,7 @@ fn lock_merge_target_via_gateway(
         async move {
             let project = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
                     &crate::app::session_gateway::active_tenant_scope(),
-                    &vw_api_project::ResolveProjectRequest {
+                    &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
                         directory: project_path,
                         create_if_missing: false,
                     },

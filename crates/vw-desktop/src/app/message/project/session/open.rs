@@ -569,7 +569,7 @@ mod open_tests;
 /// opening a blank draft; no worktree creation or initialization is involved.
 pub(crate) fn open_existing_checkout(
     app: &mut App,
-    project: vw_api_project::ProjectDto,
+    project: vw_gateway_client::vw_api_types::project::ProjectDto,
     directory: String,
 ) -> iced::Task<Message> {
     let path = project.directory.clone();

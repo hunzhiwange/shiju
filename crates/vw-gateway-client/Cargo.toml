@@ -35,7 +35,6 @@ vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle", version = "0.6.0"
 gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.6.0" }
 gateway-app-failover = { path = "../libs/gateway-app-failover", version = "0.6.0" }
 gateway-app-diagnostics = { path = "../libs/gateway-app-diagnostics", version = "0.6.0" }
-vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }
 gateway-app-auth = { path = "../libs/gateway-app-auth", version = "0.6.0" }

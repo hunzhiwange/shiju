@@ -12,19 +12,19 @@ use crate::app::{
 use iced::Task;
 use std::collections::HashSet;
 use {
-    gateway_model_catalog::AgentAppsReadError,
-    gateway_model_catalog::GatewayModelCatalogClient,
+    vw_gateway_client::AgentAppsReadError,
+    vw_gateway_client::GatewayClient,
     vw_api_transport::common::PaginationRequest,
     vw_api_transport::id::ModelId,
-    vw_api_model_catalog::ModelCatalogDefaultChange,
-    vw_api_model_catalog::ModelCatalogDefaultRequest,
-    vw_api_model_catalog::ModelCatalogEdit,
-    vw_api_model_catalog::ModelCatalogEditRequest,
-    vw_api_model_catalog::ModelCatalogIdentity,
-    vw_api_model_catalog::ModelCatalogPreset,
-    vw_api_model_catalog::ModelCatalogProject,
-    vw_api_model_catalog::ModelCatalogQuery,
-    vw_api_model_catalog::ModelCatalogReadResponse,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogDefaultChange,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogDefaultRequest,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogPreset,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogQuery,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogReadResponse,
 };
 
 #[derive(Clone)]
@@ -60,7 +60,7 @@ pub(crate) fn message(event: Event) -> Message {
     list::message(ListMessage::ModelCatalog(event))
 }
 
-fn current(app: &App, scope: &Scope) -> Result<(GatewayModelCatalogClient, CatalogContext), String> {
+fn current(app: &App, scope: &Scope) -> Result<(GatewayClient, CatalogContext), String> {
     let (client, actual_scope) = list::current(app, scope.app)?;
     if &actual_scope != scope || app.apps_catalog.token.is_empty() {
         return Err("应用执行主机已切换，请重新打开模型目录".into());
@@ -72,7 +72,7 @@ fn current(app: &App, scope: &Scope) -> Result<(GatewayModelCatalogClient, Catal
         _ => return Err("请先打开已注册的项目，再使用模型目录".into()),
     };
     Ok((
-        GatewayModelCatalogClient::new(client.transport().clone()),
+        client,
         CatalogContext {
             scope: actual_scope,
             project,
@@ -92,7 +92,7 @@ fn catalog_error(error: AgentAppsReadError) -> String {
 }
 
 async fn search(
-    client: &GatewayModelCatalogClient,
+    client: &GatewayClient,
     context: &CatalogContext,
     query: &str,
     token: &str,
@@ -122,7 +122,7 @@ async fn search(
 }
 
 pub(super) async fn read_catalog(
-    client: &GatewayModelCatalogClient,
+    client: &GatewayClient,
     context: &CatalogContext,
     deployment: ModelCatalogIdentity,
     token: &str,
@@ -168,7 +168,7 @@ struct SaveDraft {
 }
 
 async fn save(
-    client: &GatewayModelCatalogClient,
+    client: &GatewayClient,
     context: &CatalogContext,
     draft: SaveDraft,
     token: &str,

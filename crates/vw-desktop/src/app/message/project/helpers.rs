@@ -20,7 +20,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::WorktreeId,
 };
-use vw_api_project::{
+use vw_gateway_client::vw_api_types::project::{
     ListProjectsRequest, ProjectDto, ResolveProjectRequest,
 };
 use vw_api_worktree::{

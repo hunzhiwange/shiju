@@ -15,14 +15,14 @@ use std::{
 };
 use tokio::sync::watch;
 use {
-    gateway_model_catalog::AgentAppsReadError,
-    gateway_model_catalog::GatewayModelCatalogClient,
+    vw_gateway_client::AgentAppsReadError,
+    vw_gateway_client::GatewayClient,
     vw_api_transport::id::TaskId,
-    vw_api_model_catalog::ModelCatalogProject,
-    vw_api_model_catalog::ModelDiscoveryMethod,
-    vw_api_model_catalog::ModelDiscoveryRequest,
-    vw_api_model_catalog::ModelDiscoveryState,
-    vw_api_model_catalog::ModelDiscoveryStatus,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryMethod,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryRequest,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryState,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryStatus,
 };
 
 #[derive(Clone)]
@@ -39,7 +39,7 @@ impl Event {
     }
 }
 
-pub(super) fn update(app: &mut App, client: GatewayModelCatalogClient, event: Event) -> Task<Message> {
+pub(super) fn update(app: &mut App, client: GatewayClient, event: Event) -> Task<Message> {
     let Some(form) = &mut app.app_providers.model_catalog else { return Task::none() };
     match event {
         Event::Start(method) if !form.busy() && !form.discovery.phase.active() => {
@@ -126,7 +126,7 @@ pub(crate) fn methods(form: &CatalogForm) -> &'static [ModelDiscoveryMethod] {
 }
 
 struct Worker {
-    client: GatewayModelCatalogClient,
+    client: GatewayClient,
     token: String,
     project: ModelCatalogProject,
     request: ModelDiscoveryRequest,

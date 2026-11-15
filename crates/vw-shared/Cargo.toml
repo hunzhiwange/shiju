@@ -19,7 +19,6 @@ session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }
 session-info = { path = "../libs/session-info", version = "0.6.0" }
 message-types = { path = "../libs/message-types", version = "0.6.0" }
 auth-file-store = { path = "../libs/auth-file-store", version = "0.6.0" }
-auth-types = { path = "../libs/auth-types", version = "0.6.0" }
 model-state = { path = "../libs/model-state", version = "0.6.0" }
 model-types = { path = "../libs/model-types", version = "0.6.0" }
 model-catalog-types = { path = "../libs/model-catalog-types", version = "0.6.0" }

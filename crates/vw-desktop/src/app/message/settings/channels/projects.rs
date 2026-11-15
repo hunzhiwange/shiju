@@ -3,8 +3,7 @@ use super::persist::{build_channels_config_from_settings, persist_channels_setti
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::GatewayClient;
-use vw_api_project::ResolveProjectRequest;
+use vw_gateway_client::{GatewayClient, vw_api_types::project::ResolveProjectRequest};
 
 fn tenant(client: &GatewayClient) -> Result<String, String> {
     serde_json::to_string(client.endpoint().tenant_scope()).map_err(|err| err.to_string())

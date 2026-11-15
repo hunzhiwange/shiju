@@ -2,9 +2,9 @@
 use crate::app::{App, Message, state::app_providers::list::Scope};
 use super::app_providers::list::{self, ListMessage};
 use iced::Task;
-use gateway_app_failover::{GatewayAppFailoverClient, AgentAppsHighAvailabilityError as Error};
+use vw_gateway_client::{GatewayClient, AgentAppsHighAvailabilityError as Error};
 use {
-    vw_api_app_failover::*,
+    vw_gateway_client::vw_api_types::agent_apps_high_availability::*,
     vw_api_transport::ProviderId,
 };
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -57,7 +57,7 @@ fn matches_scope(context: &Context, scope: &FailoverQueueScope) -> bool {
         && scope.project.tenant_scope() == &context.scope.context.tenant
         && scope.target_host_id == context.query.target_host_id && scope.app_id == context.query.app_id
 }
-async fn request(client: GatewayAppFailoverClient, context: Context, token: String, op: Operation,
+async fn request(client: GatewayClient, context: Context, token: String, op: Operation,
     queue: Option<FailoverQueueResponse>) -> Result<(FailoverQueueResponse, FailoverCandidatesResponse), Error> {
     let query = &context.query;
     let token = Some(token.as_str());
@@ -122,7 +122,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let queue = state.queue.clone();
             let token = app.apps_catalog.token.clone();
             return Task::perform(async move {
-                let client = GatewayAppFailoverClient::new(client.transport().clone());
                 let result = request(client, context.clone(), token, op, queue).await;
                 Event::Loaded(context, serial, result)
             }, message);

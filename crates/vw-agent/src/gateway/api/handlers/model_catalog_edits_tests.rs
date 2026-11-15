@@ -102,11 +102,7 @@ async fn catalog_api_edits_denies_other_hosts_projects_and_tenants() {
     assert_http(client.edit_model_catalog(&wrong_project, &request, EDITOR_TOKEN).await, 403);
     let other_tenant = TenantScope::new("platform", "other-company").unwrap();
     let other_client =
-        GatewayModelCatalogClient::new(
-            gateway_http::GatewayTransport::new(
-                f.endpoint.clone().with_tenant_scope(other_tenant.clone()),
-            ).unwrap(),
-        );
+        GatewayClient::new(f.endpoint.clone().with_tenant_scope(other_tenant.clone())).unwrap();
     assert_http(other_client.edit_model_catalog(&f.project, &request, EDITOR_TOKEN).await, 403);
     request.deployment.target_host_id = "other-host".into();
     assert_http(client.edit_model_catalog(&f.project, &request, EDITOR_TOKEN).await, 403);

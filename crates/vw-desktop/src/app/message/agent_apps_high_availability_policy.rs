@@ -1,9 +1,7 @@
 //! Scoped policy drafts; only explicit Save issues a write.
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
-use gateway_app_failover::AgentAppsHighAvailabilityError as Error;
-use vw_api_app_identity::AppId;
-use vw_api_app_failover::*;
+use vw_gateway_client::{AgentAppsHighAvailabilityError as Error, vw_api_types::{agent_apps::AppId, agent_apps_high_availability::*}};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {
@@ -65,7 +63,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
-    let client = gateway_app_failover::GatewayAppFailoverClient::new(client.transport().clone());
     let catalog_generation = app.apps_catalog.generation;
     if let Event::Reply(request, catalog, generation, scope, saving, result) = event {
         let state = &mut app.apps_catalog.high_availability;

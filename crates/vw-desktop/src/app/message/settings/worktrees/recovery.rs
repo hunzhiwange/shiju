@@ -7,7 +7,7 @@ use crate::app::{
 use iced::Task;
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_project::ListProjectsRequest,
+    vw_gateway_client::vw_api_types::project::ListProjectsRequest,
     vw_api_worktree::*,
 };
 

@@ -16,7 +16,7 @@ fn token() -> ShijuModelTokenDto {
 fn shiju_model_token_storage_preserves_other_provider_credentials() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("auth.json");
-    auth::set_to(
+    auth::store::set_to(
         &path,
         "other",
         &auth_types::Info::Api(auth_types::ApiInfo { key: "other-secret".to_string() }),
@@ -24,14 +24,14 @@ fn shiju_model_token_storage_preserves_other_provider_credentials() {
     .unwrap();
     save_token(&path, &token()).unwrap();
     assert!(
-        matches!(auth::get_from(&path, "shiju"), Some(auth_types::Info::Api(info)) if info.key == "issued-model-secret")
+        matches!(auth::store::get_from(&path, "shiju"), Some(auth_types::Info::Api(info)) if info.key == "issued-model-secret")
     );
     assert!(
-        matches!(auth::get_from(&path, "other"), Some(auth_types::Info::Api(info)) if info.key == "other-secret")
+        matches!(auth::store::get_from(&path, "other"), Some(auth_types::Info::Api(info)) if info.key == "other-secret")
     );
-    auth::remove_from(&path, "shiju").unwrap();
-    assert!(auth::get_from(&path, "shiju").is_none());
-    assert!(auth::get_from(&path, "other").is_some());
+    auth::store::remove_from(&path, "shiju").unwrap();
+    assert!(auth::store::get_from(&path, "shiju").is_none());
+    assert!(auth::store::get_from(&path, "other").is_some());
 }
 
 #[test]

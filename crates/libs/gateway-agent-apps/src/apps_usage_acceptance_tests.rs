@@ -28,7 +28,8 @@ use super::{
     FIXTURE_CA, FIXTURE_CERT, FIXTURE_KEY, Fixture, NativeTransport, OTHER_TOKEN, TOKEN,
     codex_http_fixture, managed_codex_fixture, router_with_transports,
 };
-use crate::{agent_apps::usage_settings::UsageSettingsScope, app_providers::AppProviderStore};
+use agent_app_services::usage_settings::UsageSettingsScope;
+use app_provider_services::AppProviderStore;
 use serde_json::json;
 use std::sync::Arc;
 

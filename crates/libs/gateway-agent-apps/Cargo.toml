@@ -48,3 +48,12 @@ hex = "0.4"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+gateway-app-usage = { path = "../gateway-app-usage", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+rustls-pki-types = "1.14.0"
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }

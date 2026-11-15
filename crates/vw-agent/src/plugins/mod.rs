@@ -73,9 +73,6 @@ mod manifest_tests;
 #[path = "mcp_tests.rs"]
 mod mcp_tests;
 
-#[cfg(test)]
-#[path = "hooks_tests.rs"]
-mod hooks_tests;
 
 #[cfg(test)]
 #[path = "hook_trust_tests.rs"]

@@ -99,3 +99,10 @@ pub struct PluginInterface {
 }
 
 mod identity;
+
+// Shared hook declarations and lexical path validation.
+pub mod hook_manifest;
+pub mod hooks;
+pub mod path_audit;
+pub use hook_manifest::{CodexHookDiagnostic, CodexHookEvent, CodexHookHandler, CodexHookMatcherGroup, CodexHooksManifest};
+pub use hooks::{PluginHook, PluginHookEvent, PluginHookMode};

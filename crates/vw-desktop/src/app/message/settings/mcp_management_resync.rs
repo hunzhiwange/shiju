@@ -8,7 +8,7 @@ use iced::Task;
 use {
     vw_gateway_client::AgentAppsSettingsError,
     vw_gateway_client::GatewayClient,
-    vw_gateway_client::mcp_management_distribution::*,
+    gateway_mcp_distribution::*,
     vw_api_transport::TaskId,
     vw_api_app_operations::AppActionExecutionResult,
     vw_api_app_identity::AppId,
@@ -202,7 +202,7 @@ pub(crate) async fn execute(
                     });
                 }
             }
-            client
+            gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
                 .mcp_management_resync(&request, &token)
                 .await
                 .map(ResyncResult::Accepted)
@@ -219,7 +219,7 @@ pub(crate) async fn execute(
         }
         Work::Read(id) => {
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            client
+            gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
                 .mcp_management_resync_status(&host, &id, &token)
                 .await
                 .map(ResyncResult::Status)
@@ -228,7 +228,7 @@ pub(crate) async fn execute(
                     uncertain: false,
                 })
         }
-        Work::Cancel(id) => client
+        Work::Cancel(id) => gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
             .mcp_management_resync_cancel(&host, &id, &token)
             .await
             .map(ResyncResult::Status)

@@ -84,8 +84,6 @@ mod inference_api;
 mod knowledge_api;
 mod mcp_api;
 pub mod mcp_management_distribution;
-#[cfg(test)]
-mod mcp_management_distribution_tests;
 mod mcp_management_probe;
 #[cfg(test)]
 mod mcp_management_probe_tests;

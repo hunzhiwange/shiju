@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution", version = "0.6.0" }
 gateway-mcp-read = { path = "../libs/gateway-mcp-read", version = "0.6.0" }
 gateway-mcp-write = { path = "../libs/gateway-mcp-write", version = "0.6.0" }
 gateway-mcp-probe = { path = "../libs/gateway-mcp-probe", version = "0.6.0" }
@@ -138,6 +139,7 @@ gateway-project-profile = { path = "../libs/gateway-project-profile", version = 
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }
 config-memory = { path = "../libs/config-memory", version = "0.6.0" }
 desktop-i18n = { path = "../libs/desktop-i18n", version = "0.6.0" }
+desktop-update = { path = "../libs/desktop-update", version = "0.6.0" }
 gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }
 config-runtime = { path = "../libs/config-runtime", version = "0.6.0" }
 vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.6.0" }
@@ -268,8 +270,6 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 open = { version = "5", features = ["shellexecute-on-windows"] }
 notify-rust = { version = "4.18.2", default-features = false }
 winreg = "0.55"
-dunce = "1.0.5"
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_ApplicationInstallationAndServicing", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading"] }
 
 [features]
 default = []

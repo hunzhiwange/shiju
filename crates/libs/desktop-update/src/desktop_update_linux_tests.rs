@@ -76,7 +76,6 @@ fn linux_update_refuses_unmanaged_executable_before_authorization() {
     std::fs::write(&path, b"verified").unwrap();
     #[derive(serde::Deserialize)]
     struct Handoff {
-        #[serde(deserialize_with = "crate::app::installer_update::deserialize_handoff")]
         ready: PreparedDesktopUpdate,
     }
     let handoff: Handoff = serde_json::from_value(serde_json::json!({"ready": {

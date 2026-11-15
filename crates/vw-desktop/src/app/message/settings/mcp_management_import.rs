@@ -4,7 +4,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use {
     vw_gateway_client::GatewayClient,
-    vw_gateway_client::mcp_management_distribution::*,
+    gateway_mcp_distribution::*,
     vw_gateway_client::vw_api_types::agent_apps::AppId,
     vw_gateway_client::vw_api_types::agent_apps::AppInstallationEnvironment,
     vw_api_mcp_management::*,
@@ -175,7 +175,7 @@ pub(crate) async fn import(
     source: McpImportSource,
     token: &str,
 ) -> Result<Vec<String>, String> {
-    let response = client
+    let response = gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
         .mcp_management_import(
             &McpImportRequest { project_id: None, sources: vec![source.clone()] },
             token,

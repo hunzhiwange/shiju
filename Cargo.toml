@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-mcp-distribution",
   "crates/libs/desktop-web-install",
   "crates/libs/gateway-mcp-read",
   "crates/libs/gateway-mcp-write",
@@ -126,6 +127,7 @@ members = [
   "crates/libs/api-todo",
   "crates/libs/provider-model-discovery",
   "crates/libs/desktop-i18n",
+  "crates/libs/desktop-update",
   "crates/libs/api-question",
   "crates/libs/snapshot-types",
   "crates/libs/config-gateway",

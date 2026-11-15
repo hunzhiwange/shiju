@@ -4,8 +4,8 @@ use crate::app::{App, Message};
 use iced::Task;
 use {
     vw_gateway_client::GatewayClient,
-    vw_gateway_client::mcp_management_distribution::McpBindingRequest,
-    vw_gateway_client::mcp_management_distribution::McpBulkRequest,
+    gateway_mcp_distribution::McpBindingRequest,
+    gateway_mcp_distribution::McpBulkRequest,
     vw_api_transport::ProjectId,
     vw_api_app_identity::AppId,
     vw_api_mcp_management::*,
@@ -96,7 +96,7 @@ pub(crate) async fn apply(
 ) -> Result<McpDistributionResult, String> {
     let project_id = project(&records)?;
     let response = if records.len() == 1 {
-        client
+        gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
             .mcp_management_bind(
                 &records[0].record.id,
                 &McpBindingRequest {
@@ -109,7 +109,7 @@ pub(crate) async fn apply(
             )
             .await
     } else {
-        client
+        gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
             .mcp_management_bulk(
                 &McpBulkRequest {
                     target: target.clone(),

@@ -1,95 +1,27 @@
 use super::*;
 use sha2::{Digest, Sha256};
+use vw_shared::update::InstallerKind;
 
-fn asset(kind: InstallerKind) -> DesktopInstaller {
-    DesktopInstaller {
-        name: format!("installer.{}", extension(kind)),
-        target: String::new(),
-        kind,
-        url: String::new(),
-        size: 8,
-        sha256: hex::encode(Sha256::digest(b"verified")),
-    }
-}
 fn fixture(kind: InstallerKind) -> (tempfile::TempDir, PreparedDesktopUpdate) {
     let root = tempfile::tempdir().unwrap();
-    let directory = create_attempt(root.path(), "1.2.3").unwrap();
-    let asset = asset(kind);
-    let path = directory.path().join(&asset.name);
+    let directory = root.path().canonicalize().unwrap();
+    let extension = match kind {
+        InstallerKind::Dmg => "dmg", InstallerKind::Msi => "msi",
+        InstallerKind::Rpm => "rpm", InstallerKind::Deb => "deb",
+    };
+    let name = format!("installer.{extension}");
+    let path = directory.join(&name);
     std::fs::write(&path, b"verified").unwrap();
-    let ready = finish_download(directory, path, &asset, "1.2.3").unwrap();
-    (root, ready)
-}
-#[test]
-fn installer_update_six_platforms_use_expected_extensions() {
-    for (os, kind) in [
-        ("macos", InstallerKind::Dmg),
-        ("windows", InstallerKind::Msi),
-        ("linux", InstallerKind::Rpm),
-        ("linux", InstallerKind::Deb),
-    ] {
-        for arch in ["x86_64", "aarch64"] {
-            assert!(desktop_target(os, arch).unwrap().starts_with(arch));
-            let (_root, ready) = fixture(kind);
-            open_with(&ready, os, |path| {
-                assert_eq!(path, ready.path());
-                assert_eq!(path.extension().unwrap(), extension(kind));
-                assert!(path.is_absolute());
-                Ok(())
-            })
-            .unwrap();
-        }
+    #[derive(serde::Deserialize)]
+    struct Handoff {
+        ready: PreparedDesktopUpdate,
     }
-    assert!(desktop_target("linux", "arm").is_err());
-}
-#[test]
-fn installer_update_unicode_cache_and_retries_preserve_files() {
-    let root = tempfile::tempdir().unwrap();
-    let cache = root.path().join("中文 cache");
-    std::fs::create_dir(&cache).unwrap();
-    let first = create_attempt(&cache, "1.2.3").unwrap();
-    let second = create_attempt(&cache, "1.2.3").unwrap();
-    assert_ne!(first.path(), second.path());
-    assert!(first.path().starts_with(cache.canonicalize().unwrap().join("updates/v1.2.3")));
-    let asset = asset(InstallerKind::Dmg);
-    let path = first.path().join(&asset.name);
-    std::fs::write(&path, b"verified").unwrap();
-    let ready = finish_download(first, path.clone(), &asset, "1.2.3").unwrap();
-    drop(second);
-    let error = open_with(&ready, "macos", |_| {
-        Err(anyhow::anyhow!("no handler").context("helper launch failed"))
-    })
-    .unwrap_err()
-    .to_string();
-    assert!(error.contains("helper launch failed: no handler"));
-    assert!(!error.contains("安装包已就绪"));
-    open_with(&ready, "macos", |_| Ok(())).unwrap();
-    drop(ready);
-    assert_eq!(std::fs::read(path).unwrap(), b"verified");
-}
-#[test]
-fn installer_update_unverified_and_modified_files_are_rejected() {
-    let root = tempfile::tempdir().unwrap();
-    let directory = create_attempt(root.path(), "1.2.3").unwrap();
-    let path = directory.path().join("installer.dmg");
-    std::fs::write(&path, b"partial").unwrap();
-    assert!(finish_download(directory, path.clone(), &asset(InstallerKind::Dmg), "1.2.3").is_err());
-    assert!(!path.exists());
-    let (_root, ready) = fixture(InstallerKind::Dmg);
-    std::fs::write(ready.path(), b"tampered").unwrap();
-    assert!(open_with(&ready, "macos", |_| panic!("must not open")).is_err());
-}
-#[test]
-fn installer_update_missing_download_and_wrong_platform_never_open() {
-    let root = tempfile::tempdir().unwrap();
-    let directory = create_attempt(root.path(), "1.2.3").unwrap();
-    let path = directory.path().join("installer.dmg");
-    assert!(finish_download(directory, path, &asset(InstallerKind::Dmg), "1.2.3").is_err());
-    let (_root, ready) = fixture(InstallerKind::Rpm);
-    assert!(open_with(&ready, "windows", |_| panic!("must not open")).is_err());
-    let message = open_with(&ready, "linux", |_| Ok(())).unwrap();
-    assert!(message.contains("RPM"));
-    assert!(!message.contains("升级完成"));
+    let handoff: Handoff = serde_json::from_value(serde_json::json!({"ready": {
+        "path": path, "directory": directory, "version": "1.2.3",
+        "asset": {"name": name, "target": "", "kind": kind, "url": "",
+            "size": 8, "sha256": hex::encode(Sha256::digest(b"verified"))}
+    }})).unwrap();
+    (root, handoff.ready)
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -104,12 +36,7 @@ async fn installer_update_linux_authorizes_install_and_allows_retry() {
     assert!(app.cli_install_modal_message.contains("Ubuntu/Debian"));
     assert!(app.cli_install_modal_message.contains("DEB"));
 
-    let error = open_with(&ready, "linux", |path| {
-        assert_eq!(path, ready.path());
-        Err(anyhow::anyhow!("authorization unavailable"))
-    })
-    .unwrap_err();
-    assert!(error.to_string().contains("authorization unavailable"));
+    let error = "无法启动自动更新：authorization unavailable";
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Err(error.to_string()))));
     assert_eq!(app.cli_install_modal_title, "自动更新启动失败");
@@ -118,14 +45,7 @@ async fn installer_update_linux_authorizes_install_and_allows_retry() {
     assert!(!app.shutdown_requested);
     assert!(app.desktop_update.ready.is_some());
 
-    let message = open_with(&ready, "linux", |path| {
-        assert!(path.is_file());
-        assert_eq!(path, ready.path());
-        Ok(())
-    })
-    .unwrap();
-    assert!(message.contains("自动更新已准备就绪"));
-    assert!(message.contains("正在退出"));
+    let message = format!("自动更新已准备就绪，正在退出应用；更新成功后将提示启动新版。{}", ready.instructions());
     app.desktop_update.busy = true;
     app.main_window_id = Some(iced::window::Id::unique());
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Ok(message))));
@@ -133,27 +53,7 @@ async fn installer_update_linux_authorizes_install_and_allows_retry() {
     assert!(!app.desktop_update.busy);
     assert!(app.desktop_update.ready.is_some());
     assert!(ready.path().exists());
-
-    // Recheck the package before handing it to the independent updater.
-    std::fs::write(ready.path(), b"tampered").unwrap();
-    assert!(open_with(&ready, "linux", |_| panic!("must not open")).is_err());
 }
-#[cfg(unix)]
-#[test]
-fn installer_update_symlink_escape_is_rejected() {
-    use std::os::unix::fs::symlink;
-    let root = tempfile::tempdir().unwrap();
-    let outside = tempfile::tempdir().unwrap();
-    symlink(outside.path(), root.path().join("updates")).unwrap();
-    assert!(create_attempt(root.path(), "1.2.3").is_err());
-    let (_root, ready) = fixture(InstallerKind::Dmg);
-    let external = outside.path().join("installer.dmg");
-    std::fs::write(&external, b"verified").unwrap();
-    std::fs::remove_file(ready.path()).unwrap();
-    symlink(&external, ready.path()).unwrap();
-    assert!(open_with(&ready, "macos", |_| panic!("must not open")).is_err());
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn installer_directory_failure_preserves_package_and_does_not_exit() {
     use crate::app::{App, Message, message::ViewMessage};
@@ -240,11 +140,7 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
 
     // Retry the same retained file with an injected opener; never touch the system installer.
     std::fs::write(ready.path(), b"verified").unwrap();
-    let message = open_with(&ready, "macos", |path| {
-        assert_eq!(path, ready.path());
-        Ok(())
-    })
-    .unwrap();
+    let message = format!("自动更新已准备就绪，正在退出应用；更新成功后将提示启动新版。{}", ready.instructions());
     app.desktop_update.busy = true;
     app.main_window_id = Some(iced::window::Id::unique());
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Ok(message))));

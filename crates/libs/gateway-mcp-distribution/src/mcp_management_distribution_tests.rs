@@ -1,6 +1,6 @@
 use super::mcp_management_distribution::*;
-use super::{AgentAppsSettingsError, GatewayClient, test_support};
-use crate::endpoint::GatewayAuth;
+use super::{AgentAppsSettingsError, test_support};
+use gateway_endpoint::GatewayAuth;
 use serde_json::{Value, json};
 use {
     vw_api_transport::TenantScope,
@@ -38,9 +38,8 @@ async fn cc_mcp_t42_binding_uses_put_and_preserves_scoped_partial_results() {
         vec![(200, result())],
         TenantScope::new("p", "c").unwrap(),
     );
-    let client = GatewayClient::new(
+    let client = test_support::client(
         server
-            .client()
             .endpoint()
             .clone()
             .with_auth(GatewayAuth { skey: Some("fixture-skey".into()) }),
@@ -172,7 +171,7 @@ async fn cc_mcp_t42_resync_returns_existing_task_reference_for_owned_poll_and_ca
     assert_eq!(accepted.status, TaskStatus::Queued);
     assert_eq!(accepted.operation_id.0, "job /?");
     assert_eq!(
-        client
+        gateway_app_lifecycle::GatewayAppLifecycleClient::new(client.transport.clone())
             .agent_apps_operation_authorized(
                 &body.target_host_id,
                 &accepted.operation_id,
@@ -184,7 +183,7 @@ async fn cc_mcp_t42_resync_returns_existing_task_reference_for_owned_poll_and_ca
         TaskStatus::Running
     );
     assert_eq!(
-        client
+        gateway_app_lifecycle::GatewayAppLifecycleClient::new(client.transport.clone())
             .agent_apps_operation_cancel_authorized(
                 &body.target_host_id,
                 &accepted.operation_id,
@@ -249,7 +248,7 @@ async fn cc_mcp_t42_preserves_http_decode_and_transport_errors() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
     let client =
-        GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
     for id in ["", ".", ".."] {
         assert_eq!(
             client
@@ -301,7 +300,7 @@ async fn cc_mcp_t42_redirect_does_not_forward_application_credentials() {
         write!(stream, "HTTP/1.1 307 Temporary Redirect\r\nLocation: {location}\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}").unwrap();
     });
     let client =
-        GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
     assert_eq!(
         client
             .mcp_management_bind(&McpRecordId("docs".into()), &binding(true), "fixture-grant")
@@ -337,9 +336,8 @@ async fn cc_mcp_t42_resync_status_retains_target_reports_and_batch_outcome() {
         ],
         TenantScope::new("p", "c").unwrap(),
     );
-    let client = GatewayClient::new(
+    let client = test_support::client(
         server
-            .client()
             .endpoint()
             .clone()
             .with_auth(GatewayAuth { skey: Some("fixture-skey".into()) }),
@@ -369,7 +367,7 @@ async fn cc_mcp_t42_resync_status_retains_target_reports_and_batch_outcome() {
         client.mcp_management_resync_cancel(host, &id, "fixture-grant").await.unwrap();
     assert_eq!(serde_json::to_value(completed_cancel).unwrap(), terminal);
     // Existing generic callers retain their original state-only contract.
-    let generic = client.agent_apps_operation_authorized(host, &id, "fixture-grant").await.unwrap();
+    let generic = gateway_app_lifecycle::GatewayAppLifecycleClient::new(client.transport.clone()).agent_apps_operation_authorized(host, &id, "fixture-grant").await.unwrap();
     assert_eq!(
         serde_json::to_value(generic).unwrap(),
         json!({"operationId":"job /?","status":"failed","phase":"terminal"})
@@ -438,7 +436,7 @@ async fn cc_mcp_t42_resync_status_preserves_errors_and_rejects_missing_reports()
     let port = listener.local_addr().unwrap().port();
     drop(listener);
     let client =
-        GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
     for value in ["", ".", ".."] {
         assert_eq!(
             client

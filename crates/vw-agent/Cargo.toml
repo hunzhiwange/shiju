@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+agent-database = { path = "../libs/agent-database", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
@@ -78,8 +79,6 @@ pdf-extract = "0.12.0"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 pulldown-cmark = "0.13"
 rand = "0.10.3"
-r2d2 = "0.8.10"
-r2d2_postgres = "0.18.2"
 regex = "1"
 rhai = { version = "1.23", features = ["serde"] }
 rust-embed = "8.11.0"
@@ -160,7 +159,6 @@ rustls-platform-verifier = "0.7"
 rustyline = "17.0"
 tempfile = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
-tokio-postgres-rustls = "0.14.0"
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
 tokio-serial = "5.4.5"
 tokio-stream = { version = "0.1.18", features = ["fs", "sync"] }
@@ -241,3 +239,6 @@ path = "tests/model_protocol_015_messages.rs"
 [[test]]
 name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
+
+[dev-dependencies]
+agent-database = { path = "../libs/agent-database", version = "0.6.0", features = ["test-support"] }

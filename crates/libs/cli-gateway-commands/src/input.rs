@@ -7,11 +7,11 @@ use anyhow::{Context, Result};
 
 /// 从文件、`-` 表示的 stdin 或 `env:NAME` 环境变量读取一个 JSON 值。
 #[cfg_attr(not(test), allow(dead_code))]
-pub fn read_json_input(source: &str, stdin: &mut impl Read) -> Result<serde_json::Value> {
+pub(super) fn read_json_input(source: &str, stdin: &mut impl Read) -> Result<serde_json::Value> {
     read_json_input_with_env(source, stdin, |name| std::env::var_os(name))
 }
 
-pub fn read_json_input_with_env(
+pub(super) fn read_json_input_with_env(
     source: &str,
     stdin: &mut impl Read,
     env_lookup: impl FnOnce(&str) -> Option<OsString>,

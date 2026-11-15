@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use clap::{ArgAction, Subcommand};
 use serde_json::json;
 
-use cli_api_core::context::ApiContext;
-use cli_api_core::output;
+use super::context::ApiContext;
+use super::output;
 
 #[derive(Subcommand, Debug)]
 pub(super) enum ExtensionCommands {

@@ -16,9 +16,9 @@ use {
     vw_api_transport::id::ProjectScope,
 };
 
-use cli_api_core::context::ApiContext;
-use cli_api_core::input::read_json_input;
-use cli_api_core::output;
+use super::context::ApiContext;
+use super::input::read_json_input;
+use super::output;
 
 /// Agent Scheduler 的非流式用户与运维操作。
 #[derive(Subcommand, Debug)]

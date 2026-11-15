@@ -76,7 +76,7 @@ enum PostgresPool {
 }
 
 /// 可透明解引用为 PostgreSQL 客户端的池化连接。
-pub(crate) enum PostgresConnection {
+pub enum PostgresConnection {
     Plain(Option<PooledConnection<PlainManager>>),
     Rustls(Option<PooledConnection<RustlsManager>>),
     Closed,
@@ -285,7 +285,7 @@ impl PostgresProvider {
         Ok(connection)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     /// 返回连接池的有效参数快照。
     pub(super) fn settings(&self) -> PostgresPoolSettings {
         self.settings
@@ -353,7 +353,7 @@ pub(super) fn parse_connection_config(database_url: &str) -> Result<(Config, Pos
     Ok((config, tls_mode))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 /// 建立不设置租户模式的独立连接，仅供模式管理使用。
 pub(super) fn connect_unscoped(database_url: &str) -> Result<Client> {
     let (config, tls_mode) = parse_connection_config(database_url)?;
@@ -373,7 +373,7 @@ pub(super) fn quoted_identifier(identifier: &str) -> Result<String> {
     Ok(format!("\"{identifier}\""))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 /// 限制测试模式必须带专用前缀，避免清理生产模式。
 pub(super) fn validate_test_schema(schema: &str) -> Result<()> {
     let suffix = schema.strip_prefix("vw_test_").unwrap_or_default();

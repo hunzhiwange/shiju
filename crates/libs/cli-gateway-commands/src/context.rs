@@ -6,23 +6,23 @@ use anyhow::{Context, Result, bail};
 use vw_api_transport::id::TenantScope;
 use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
 
-use super::{ApiOptions, ApiOutputFormat};
+use super::{ApiArgs, ApiOutputFormat};
 
 /// 一次根级 Gateway API 命令调用复用的上下文。
 #[derive(Debug)]
-pub struct ApiContext {
+pub(super) struct ApiContext {
     client: GatewayClient,
     directory: Option<String>,
     output_format: ApiOutputFormat,
 }
 
 impl ApiContext {
-    pub fn from_options(args: &ApiOptions) -> Result<Self> {
-        Self::from_options_with_env(args, |name| std::env::var_os(name))
+    pub(super) fn from_args(args: &ApiArgs) -> Result<Self> {
+        Self::from_args_with_env(args, |name| std::env::var_os(name))
     }
 
-    pub fn from_options_with_env(
-        args: &ApiOptions,
+    pub(super) fn from_args_with_env(
+        args: &ApiArgs,
         env_lookup: impl Fn(&str) -> Option<OsString>,
     ) -> Result<Self> {
         let tenant_scope = TenantScope::new(args.platform.clone(), args.company.clone())
@@ -39,21 +39,21 @@ impl ApiContext {
         Ok(Self { client, directory: args.directory.clone(), output_format: args.output })
     }
 
-    pub fn client(&self) -> &GatewayClient {
+    pub(super) fn client(&self) -> &GatewayClient {
         &self.client
     }
 
-    pub fn directory(&self) -> Option<&str> {
+    pub(super) fn directory(&self) -> Option<&str> {
         self.directory.as_deref()
     }
 
-    pub fn output_format(&self) -> ApiOutputFormat {
+    pub(super) fn output_format(&self) -> ApiOutputFormat {
         self.output_format
     }
 }
 
 fn resolve_skey(
-    args: &ApiOptions,
+    args: &ApiArgs,
     env_lookup: impl Fn(&str) -> Option<OsString>,
 ) -> Result<Option<String>> {
     match (&args.skey_env, &args.skey_file) {

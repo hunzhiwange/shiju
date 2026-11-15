@@ -8,9 +8,9 @@ use serde::Deserialize;
 use serde_json::json;
 use vw_gateway_client::DesktopServiceCommand;
 
-use cli_api_core::context::ApiContext;
-use cli_api_core::input::read_json_input;
-use cli_api_core::output;
+use super::context::ApiContext;
+use super::input::read_json_input;
+use super::output;
 
 #[derive(Subcommand, Debug)]
 pub(super) enum DesktopCommands {

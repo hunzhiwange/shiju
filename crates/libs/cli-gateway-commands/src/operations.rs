@@ -7,9 +7,9 @@ use clap::Subcommand;
 use serde_json::json;
 use vw_gateway_client::{CronAddRequest, CronUpdateRequest};
 
-use cli_api_core::context::ApiContext;
-use cli_api_core::input::read_json_input;
-use cli_api_core::output;
+use super::context::ApiContext;
+use super::input::read_json_input;
+use super::output;
 
 /// 远程运维接口族。
 #[derive(Subcommand, Debug)]

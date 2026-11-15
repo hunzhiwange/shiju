@@ -23,6 +23,7 @@ pub(super) const LOCAL_MAX_LIFETIME: Duration = Duration::from_secs(300);
 /// 本地配置的 SQL 调试日志开关。
 pub(super) const LOCAL_DEBUG_LOGGING: bool = false;
 
+#[macro_export]
 macro_rules! postgres_test_database {
     () => {{
         match $crate::global_database::test_support::PostgresTestDatabase::from_environment() {
@@ -38,8 +39,9 @@ macro_rules! postgres_test_database {
     }};
 }
 
-pub(crate) use postgres_test_database;
+pub use crate::postgres_test_database;
 
+#[macro_export]
 macro_rules! postgres_test_database_unit {
     () => {{
         match $crate::global_database::test_support::PostgresTestDatabase::from_environment() {
@@ -55,10 +57,10 @@ macro_rules! postgres_test_database_unit {
     }};
 }
 
-pub(crate) use postgres_test_database_unit;
+pub use crate::postgres_test_database_unit;
 
 /// PostgreSQL 集成测试的独立模式和本地对照文件。
-pub(crate) struct PostgresTestDatabase {
+pub struct PostgresTestDatabase {
     home: tempfile::TempDir,
     database: GlobalDatabase,
     database_url: String,
@@ -68,7 +70,7 @@ pub(crate) struct PostgresTestDatabase {
 
 impl PostgresTestDatabase {
     /// 从测试专用环境变量创建隔离数据库夹具。
-    pub(crate) fn from_environment() -> Result<Self> {
+    pub fn from_environment() -> Result<Self> {
         let database_url = std::env::var(TEST_DATABASE_URL_ENV).with_context(|| {
             format!(
                 "{TEST_DATABASE_URL_ENV} is not configured; provide the real local PostgreSQL test URL"
@@ -104,7 +106,7 @@ impl PostgresTestDatabase {
     }
 
     /// 返回绑定测试模式的全局数据库。
-    pub(crate) fn database(&self) -> &GlobalDatabase {
+    pub fn database(&self) -> &GlobalDatabase {
         &self.database
     }
 
@@ -130,7 +132,7 @@ impl PostgresTestDatabase {
     }
 
     /// 使用相同配置重新打开全局数据库。
-    pub(crate) fn reopen(&self) -> Result<GlobalDatabase> {
+    pub fn reopen(&self) -> Result<GlobalDatabase> {
         GlobalDatabase::for_home_with_postgres_settings(
             self.home.path(),
             |_| Some(self.database_url.clone()),
@@ -148,7 +150,7 @@ impl PostgresTestDatabase {
     }
 
     /// 删除测试模式并清理夹具资源。
-    pub(crate) fn cleanup(mut self) -> Result<()> {
+    pub fn cleanup(mut self) -> Result<()> {
         Self::validate_cleanup_schema(&self.schema)?;
         self.database.drop_postgres_schema_for_test(&self.schema)?;
         self.cleaned = true;

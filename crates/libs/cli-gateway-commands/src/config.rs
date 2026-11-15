@@ -6,9 +6,9 @@ use anyhow::Result;
 use clap::Subcommand;
 use serde_json::Value;
 
-use cli_api_core::context::ApiContext;
-use cli_api_core::input::read_json_input;
-use cli_api_core::output;
+use super::context::ApiContext;
+use super::input::read_json_input;
+use super::output;
 
 /// 配置接口命令。
 #[derive(Subcommand, Debug)]

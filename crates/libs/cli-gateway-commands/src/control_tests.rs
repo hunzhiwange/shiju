@@ -12,7 +12,7 @@ use tracing::span::{Attributes, Id, Record};
 use tracing::subscriber::{Interest, Subscriber};
 use tracing::{Event, Metadata};
 
-use cli_api_core::input::read_json_input_with_env;
+use super::input::read_json_input_with_env;
 use super::run_with_io;
 use crate::test_cli::Cli;
 

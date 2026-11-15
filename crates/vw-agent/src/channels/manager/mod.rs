@@ -41,6 +41,7 @@ pub(crate) use telegram::*;
 pub(crate) use typing::*;
 
 #[cfg(test)]
+#[path = "../../../../libs/channel-runtime/src/manager/tests.rs"]
 mod tests;
 
 mod runtime_host;

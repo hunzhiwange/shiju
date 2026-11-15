@@ -114,7 +114,7 @@ async fn channel_reload_starts_from_empty_and_rotates_live_telegram_credentials(
 fn channel_reload_preserves_explicit_project_selection() {
     let listeners = ChannelListeners::default();
     let mut config = Config::default();
-    let state = listeners.configure_project_state(&config);
+    let state = listeners.configure_project_state(&config, crate::session::ui_store::current_tenant_scope());
     let chat = ChannelChatScope {
         tenant: crate::session::ui_store::current_tenant_scope(),
         channel: "telegram".into(),
@@ -128,7 +128,7 @@ fn channel_reload_preserves_explicit_project_selection() {
         .channels_config
         .instance_default_projects
         .insert("telegram:default".into(), "new-default".into());
-    let reloaded = listeners.configure_project_state(&config);
+    let reloaded = listeners.configure_project_state(&config, crate::session::ui_store::current_tenant_scope());
     assert!(Arc::ptr_eq(&state, &reloaded));
     let reloaded = reloaded.lock().unwrap();
     assert_eq!(reloaded.selections[&chat], "explicit-project");

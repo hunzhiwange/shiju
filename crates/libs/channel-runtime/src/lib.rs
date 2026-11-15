@@ -3,6 +3,7 @@ mod configured;
 pub use configured::ConfiguredChannel;
 pub mod manager;
 pub mod host;
+pub mod startup_host;
 mod commands;
 pub use commands::ChannelCommands;
 mod health_state;

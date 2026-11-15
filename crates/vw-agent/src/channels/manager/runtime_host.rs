@@ -61,3 +61,31 @@ impl ChannelHost for RuntimeHost {
     async fn take_reply(&self, snapshot: &ChannelMessageSnapshot, msg: &traits::ChannelMessage) -> Result<Option<(String, Option<String>)>> { super::super::session_turn::take_committed_channel_reply(snapshot, msg).await }
     async fn retry_reply(&self, snapshot: &ChannelMessageSnapshot, session: &str, msg: &traits::ChannelMessage, reply: String) -> Result<()> { super::super::session_turn::mark_channel_reply_retryable(snapshot, session, msg, reply).await }
 }
+
+impl channel_runtime::startup_host::ChannelStartupHost for RuntimeHost {
+    fn tenant(&self) -> vw_api_transport::id::TenantScope {
+        crate::session::ui_store::current_tenant_scope()
+    }
+    fn tools(&self, config: &Config, security: &Arc<crate::security::SecurityPolicy>, runtime: Arc<dyn runtime_types::RuntimeAdapter>, memory: Arc<dyn crate::memory::Memory>) -> Vec<Box<dyn crate::tools::Tool>> {
+        crate::tools::all_tools_with_runtime(
+            Arc::new(config.clone()), security, runtime, memory, &config.browser,
+            &config.http_request, &config.web_fetch, &config.workspace_dir, &config.agents,
+            config.api_key.as_deref(), config, None,
+        )
+    }
+    fn skills(&self, workspace: &Path, config: &Config) -> Vec<agent_skills::Skill> {
+        crate::skills::load_skills_with_config(workspace, config)
+    }
+    fn hooks(&self, config: &Config) -> Result<Option<Arc<crate::hooks::HookRunner>>> {
+        Ok(crate::hooks::build_hook_runtime(config)?.runner_snapshot())
+    }
+    fn recursive_policy(&self) -> &'static str {
+        crate::agent::prompt::multi_agent::recursive_orchestration_policy()
+    }
+    fn tool_instructions(&self, specs: &[tool_types::ToolSpec]) -> String {
+        crate::agent::loop_::build_tool_instructions_from_specs(specs)
+    }
+    fn shell_policy(&self, autonomy: &crate::config::AutonomyConfig) -> String {
+        crate::agent::loop_::build_shell_policy_instructions(autonomy)
+    }
+}

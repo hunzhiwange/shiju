@@ -28,6 +28,9 @@ agent-memory = { path = "../agent-memory", version = "0.6.0" }
 agent-observability = { path = "../agent-observability", version = "0.6.0" }
 tool-types = { path = "../tool-types", version = "0.6.0" }
 agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
+agent-runtime = { path = "../agent-runtime", version = "0.6.0" }
+runtime-types = { path = "../runtime-types", version = "0.6.0" }
+agent-skills = { path = "../agent-skills", version = "0.6.0" }
 agent-security = { path = "../agent-security", version = "0.6.0" }
 session-engine = { path = "../session-engine", version = "0.6.0" }
 agent-storage = { path = "../agent-storage", version = "0.6.0" }

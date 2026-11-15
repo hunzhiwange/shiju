@@ -11,8 +11,8 @@ use super::{
     color_with_hsla_channel_input, color_with_rgba_channel_input, hsla_channel_values,
     render_mini_color_picker, rgba_channel_values,
 };
-use crate::app::Message;
-use crate::app::components::color_picker::ColorFormat;
+use crate::color_picker::Message;
+use crate::color_picker::ColorFormat;
 
 fn assert_color_close(actual: Color, expected: Color) {
     let epsilon = 0.001;
@@ -73,19 +73,19 @@ fn mini_hsla_channel_helpers_round_channels_and_apply_updates() {
     assert_eq!(hsla_channel_values(color), (210, 50, 40, 128));
     assert_color_close(
         color_with_hsla_channel_input(color, HslaChannel::H, "120").expect("hue update"),
-        crate::app::components::color_picker::conversion::hsla_to_rgba(120.0, 0.5, 0.4, 0.5),
+        crate::color_picker::conversion::hsla_to_rgba(120.0, 0.5, 0.4, 0.5),
     );
     assert_color_close(
         color_with_hsla_channel_input(color, HslaChannel::S, "25").expect("saturation update"),
-        crate::app::components::color_picker::conversion::hsla_to_rgba(210.0, 0.25, 0.4, 0.5),
+        crate::color_picker::conversion::hsla_to_rgba(210.0, 0.25, 0.4, 0.5),
     );
     assert_color_close(
         color_with_hsla_channel_input(color, HslaChannel::L, "80").expect("lightness update"),
-        crate::app::components::color_picker::conversion::hsla_to_rgba(210.0, 0.5, 0.8, 0.5),
+        crate::color_picker::conversion::hsla_to_rgba(210.0, 0.5, 0.8, 0.5),
     );
     assert_color_close(
         color_with_hsla_channel_input(color, HslaChannel::A, "64").expect("alpha update"),
-        crate::app::components::color_picker::conversion::hsla_to_rgba(
+        crate::color_picker::conversion::hsla_to_rgba(
             210.0,
             0.5,
             0.4,

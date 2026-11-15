@@ -7,8 +7,8 @@ use iced::{Border, Color, ContentFit, Element, Length, Theme};
 
 use super::conversion;
 use super::{ColorFormat, Hsv, images, pickers, prop_text_input_style};
-use crate::app::Message;
-use crate::app::assets::{self, Icon};
+use crate::color_picker::Message;
+use desktop_assets::assets::{self, Icon};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RgbaChannel {

@@ -5,7 +5,7 @@
 
 use crate::app::components::system_settings_common::theme::is_dark_theme;
 use iced::theme::palette;
-use iced::widget::{button, checkbox, pick_list, text_editor, text_input, toggler};
+use iced::widget::{button, checkbox, pick_list, text_editor, text_input};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
 /// 构建或处理 `rounded_action_btn_style` 对应的界面片段与交互数据。
@@ -702,25 +702,4 @@ pub fn settings_segment_button_style(
         },
         ..Default::default()
     }
-}
-
-/// 常规设置开关的共享样式。
-pub(super) fn settings_toggle_style(theme: &Theme, status: toggler::Status) -> toggler::Style {
-    let mut style = toggler::default(theme, status);
-    // 保持开关滑块稳定可见，悬停时只改变轨道颜色。
-    style.foreground = Color::WHITE.into();
-    let palette = theme.extended_palette();
-    match status {
-        toggler::Status::Hovered { is_toggled: true } => {
-            style.background = palette.primary.strong.color.into();
-        }
-        toggler::Status::Hovered { is_toggled: false } => {
-            style.background = palette.background.strongest.color.into();
-        }
-        toggler::Status::Disabled { .. } => {
-            style.foreground = Color::WHITE.scale_alpha(0.8).into();
-        }
-        toggler::Status::Active { .. } => {}
-    }
-    style
 }

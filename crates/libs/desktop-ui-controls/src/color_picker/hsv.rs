@@ -30,7 +30,7 @@ use iced::Color;
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::components::color_picker::hsv::Hsv;
+/// use crate::color_picker::hsv::Hsv;
 /// use iced::Color;
 ///
 /// // 从 RGB 转换为 HSV

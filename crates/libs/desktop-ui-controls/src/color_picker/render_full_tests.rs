@@ -11,8 +11,8 @@ use super::{
     parse_alpha_percent_input, parse_hsla_channel_input, parse_rgba_channel_input, preview_style,
     render_color_picker, rounded_track_style,
 };
-use crate::app::Message;
-use crate::app::components::color_picker::ColorFormat;
+use crate::color_picker::Message;
+use crate::color_picker::ColorFormat;
 
 #[test]
 fn render_color_picker_builds_every_format_and_wires_format_controls() {

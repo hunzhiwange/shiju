@@ -12,8 +12,8 @@ use super::{
     AlphaPicker, AlphaState, HuePicker, HueState, SaturationValuePicker, SaturationValueState,
     cursor_position_inclusive,
 };
-use crate::app::Message;
-use crate::app::components::color_picker::Hsv;
+use crate::color_picker::Message;
+use crate::color_picker::Hsv;
 
 // 非零原点可同时发现坐标未平移和边界宽高映射错误。
 fn bounds() -> Rectangle {

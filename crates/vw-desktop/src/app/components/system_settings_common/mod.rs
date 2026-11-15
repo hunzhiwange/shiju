@@ -32,9 +32,6 @@ mod tests;
 #[cfg(test)]
 #[path = "theme_tests.rs"]
 mod theme_tests;
-#[cfg(test)]
-#[path = "utils_tests.rs"]
-mod utils_tests;
 
 pub(crate) use help::settings_hover_help_label;
 pub use help::{

@@ -4,7 +4,7 @@ use iced::mouse;
 use iced::widget::canvas::{Action, Event, Geometry, Program};
 use iced::{Point, Rectangle, Theme};
 
-use crate::app::Message;
+use crate::color_picker::Message;
 
 use super::hsv::Hsv;
 

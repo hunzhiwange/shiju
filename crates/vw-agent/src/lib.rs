@@ -214,7 +214,7 @@ pub mod format;
 pub mod gateway;
 
 // 目标引擎
-pub mod goals;
+pub use goal_engine as goals;
 
 // 全局状态
 pub mod global;

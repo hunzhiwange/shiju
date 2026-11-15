@@ -18,7 +18,7 @@
 //! ## 运行方式
 //!
 //! ```bash
-//! cargo test --package vibe-agent --lib app::agent::goals::engine::tests
+//! python3 scripts/cargo_slot.py cargo test -p goal-engine --lib engine::tests
 //! ```
 
 use super::*;

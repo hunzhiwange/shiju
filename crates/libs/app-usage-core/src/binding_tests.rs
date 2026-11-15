@@ -1,7 +1,7 @@
 use super::binding::{
     UnboundUsageAccount, UsageAccount, UsageAccountSelection, resolve_usage_credential,
 };
-use crate::auth::flow::AuthAccountScope;
+use app_auth_core::flow::AuthAccountScope;
 use {
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthErrorCode,
@@ -178,7 +178,7 @@ fn usage_binding_rejects_invalid_input() {
 #[cfg(unix)]
 #[test]
 fn usage_binding_rejects_credentials_outside_the_selected_scope() {
-    use crate::auth::credential_file::{AccountCredential, CredentialFileStore};
+    use app_auth::auth::credential_file::{AccountCredential, CredentialFileStore};
     use std::os::unix::fs::PermissionsExt;
 
     let root = tempfile::Builder::new()

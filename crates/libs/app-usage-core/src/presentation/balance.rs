@@ -9,7 +9,7 @@ use {
 };
 
 use super::tiers::QuotaTone;
-use crate::usage::cache::UsageCacheResult;
+use crate::cache::UsageCacheResult;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BalanceLine {

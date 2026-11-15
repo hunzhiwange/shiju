@@ -108,7 +108,7 @@ fn previous_date(date: NaiveDate, days: u64) -> Result<NaiveDate, String> {
 /// Choose the earliest occurrence of an ambiguous midnight. When a DST change
 /// skips midnight, the first valid wall-clock second is the day's actual start.
 /// A wholly skipped date is rejected instead of silently adding a calendar day.
-pub(super) fn start_of_day(date: NaiveDate, zone: Tz) -> Result<i64, String> {
+pub fn start_of_day(date: NaiveDate, zone: Tz) -> Result<i64, String> {
     let midnight = date.and_hms_opt(0, 0, 0).ok_or("invalid calendar date")?;
     for seconds in 0..86_400 {
         let local = midnight + chrono::Duration::seconds(seconds);

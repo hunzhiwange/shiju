@@ -1161,8 +1161,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/balances/stepfun_tests.rs` | 111 | 57 |
 | `usage/balances/zhipu.rs` | 70 | 57 |
 | `usage/balances/zhipu_tests.rs` | 172 | 57 |
-| `usage/binding.rs` | 100 | 55 |
-| `usage/binding_tests.rs` | 225 | 55 |
+| `crates/libs/app-usage-core/src/binding.rs` | 100 | 55 |
+| `crates/libs/app-usage-core/src/binding_tests.rs` | 225 | 55 |
 | `usage/cache.rs` | 120 | 56 |
 | `usage/cache_tests.rs` | 149 | 56 |
 | `usage/claude.rs` | 96 | 62 |
@@ -1190,14 +1190,14 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/coding/zhipu_team.rs` | 88 | 58 |
 | `usage/coding/zhipu_team_tests.rs` | 213 | 58 |
 | `usage/coding/zhipu_tests.rs` | 200 | 58 |
-| `usage/cost.rs` | 148 | 55 |
-| `usage/cursors.rs` | 252 | 55 |
-| `usage/dedup.rs` | 101 | 55 |
-| `usage/detect.rs` | 115 | 55 |
-| `usage/detect_tests.rs` | 117 | 55 |
+| `crates/libs/app-usage-core/src/cost.rs` | 148 | 55 |
+| `usage/cursors.rs` | 252 | 56 |
+| `usage/dedup.rs` | 101 | 56 |
+| `crates/libs/app-usage-core/src/detect.rs` | 115 | 55 |
+| `crates/libs/app-usage-core/src/detect_tests.rs` | 117 | 55 |
 | `usage/dsh.rs` | 189 | 62 |
-| `usage/exchange.rs` | 219 | 55 |
-| `usage/exchange_store.rs` | 128 | 55 |
+| `crates/libs/app-usage-core/src/exchange.rs` | 219 | 55 |
+| `usage/exchange_store.rs` | 128 | 56 |
 | `usage/gemini.rs` | 224 | 62 |
 | `usage/grokbuild.rs` | 199 | 62 |
 | `usage/groups.rs` | 368 | 56 |
@@ -1207,23 +1207,23 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/logs.rs` | 244 | 63 |
 | `usage/mcode.rs` | 172 | 62 |
 | `usage/mod.rs` | 82 | 63 |
-| `usage/model_names.rs` | 239 | 55 |
+| `crates/libs/app-usage-core/src/model_names.rs` | 239 | 55 |
 | `usage/models_selection.rs` | 156 | 63 |
 | `usage/models_sync.rs` | 163 | 63 |
 | `usage/omp.rs` | 74 | 62 |
 | `usage/opencode.rs` | 319 | 62 |
 | `usage/pi.rs` | 233 | 62 |
 | `usage/pi_children.rs` | 180 | 62 |
-| `usage/presentation/balance.rs` | 89 | 55 |
-| `usage/presentation/balance_tests.rs` | 154 | 55 |
-| `usage/presentation/credits.rs` | 1 | 55 |
-| `usage/presentation/credits_tests.rs` | 75 | 55 |
-| `usage/presentation/mod.rs` | 12 | 55 |
-| `usage/presentation/tiers.rs` | 1 | 55 |
-| `usage/presentation/tiers_tests.rs` | 102 | 55 |
+| `crates/libs/app-usage-core/src/presentation/balance.rs` | 89 | 55 |
+| `crates/libs/app-usage-core/src/presentation/balance_tests.rs` | 154 | 55 |
+| `crates/libs/app-usage-core/src/presentation/credits.rs` | 1 | 55 |
+| `crates/libs/app-usage-core/src/presentation/credits_tests.rs` | 75 | 55 |
+| `crates/libs/app-usage-core/src/presentation/mod.rs` | 12 | 55 |
+| `crates/libs/app-usage-core/src/presentation/tiers.rs` | 1 | 55 |
+| `crates/libs/app-usage-core/src/presentation/tiers_tests.rs` | 102 | 55 |
 | `usage/pricing.rs` | 159 | 55 |
-| `usage/pricing_batch.rs` | 109 | 55 |
-| `usage/ranges.rs` | 120 | 55 |
+| `usage/pricing_batch.rs` | 109 | 56 |
+| `crates/libs/app-usage-core/src/ranges.rs` | 120 | 55 |
 | `usage/retention.rs` | 266 | 56 |
 | `usage/scan_jobs.rs` | 199 | 63 |
 | `usage/scan_schedule.rs` | 127 | 63 |
@@ -1259,7 +1259,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/subscriptions/kimi_tests.rs` | 179 | 59 |
 | `usage/subscriptions/mod.rs` | 30 | 59 |
 | `usage/summary.rs` | 321 | 56 |
-| `usage/tokens.rs` | 193 | 55 |
+| `crates/libs/app-usage-core/src/tokens.rs` | 193 | 55 |
 | `workspace_files.rs` | 52 | 37（已迁入 app-workspace-memory） |
 | `workspace_files_tests.rs` | 105 | 37（已迁入 app-workspace-memory） |
 | `workspace_paths.rs` | 267 | 73（已迁入 app-workspace-paths，原路径仅重导出） |
@@ -2765,3 +2765,16 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 - catalog 的身份校验、删除分发、ResumePlan 与 native_resume_identity、维护编排全部收口；无未闭合符号需后继接收。source/cache/rollout 和解析器引用既有所有者；activity 引用 app-providers 的 process_table，compression 使用同包 providers 事务导出，maintenance 引用 app-operations 生命周期及 app-session-migration。无门面回依赖，不新增公开辅助 API。原包 uuid、rusqlite、tempfile、libc、toml_edit、tokio 仍有其它使用者，保留。
 - 静态证据：30 个迁移文件与 HEAD 原实现按导入替换逐字对照一致（terminal 模块说明同步所有权）；macOS cfg、Hermes 独立测试注册原样保留，无 include 或关联资源。新包 TOML 直接依赖、workspace 注册和门面路径通过读取审阅；使用环境现有 pip._vendor.tomli 解析（Python 标准库无 tomllib），并以标准库递归检查本地生产清单路径存在、无环及无旧门面依赖。toml_edit 保持 0.22，与事务补丁类型一致；目标相关依赖限 macOS。新包检索无 vw_agent_apps/vw-agent-apps，差异无空白错误。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：app-sessions 与直接调用者编译、迁移的 Hermes 删除测试和会话操作行为、macOS/Windows/Linux 条件与原生恢复路径。静态审阅不代表编译或行为通过；Cargo.lock 未修改。
+
+
+### 任务 55：用量计费规则迁移与静态证据
+
+app-usage-core 唯一拥有 binding、cost、detect、exchange、model_names、ranges、tokens 与 presentation 全部实现和五个独立测试文件；usage/mod.rs 直接重导出，lib.rs 已有 usage 公开接线，无需重复改动。原调用者（coding、balances、scripts、subscriptions、网关价格查询及 series）保持路径。
+
+pricing 的 ModelPricingInfo、StoredModelPricing、rates/normalize 下沉至 core；normalize 因 pricing_batch 真实调用最小公开，沿用 app-models::edits::validate_model_id 的原校验。存储 CRUD 仍由原 pricing.rs 持有，任务 56 接收。limits 的值类型及 combine/quota_window/total_tokens 规则下沉并供原 limits 编排使用；check_provider_limits 涉及 cache、store、retention，由任务 56 接收。cache::UsageCacheResult 值类型随展示下沉，原 cache 重导出；其缓存执行逻辑由任务 56 接收。ranges::start_of_day 因 series 真实调用公开。
+
+任务 56 必须接收仍在门面的 cursors.rs、dedup.rs、exchange_store.rs、pricing_batch.rs、pricing.rs 存储 CRUD、limits.rs 编排和 cache.rs 缓存实现。这些实现依赖尚未拆分的 store/source_settings/retention，不使规则包携带 SQLite 或回依赖。所有权表中 pricing/limits 为规则与存储拆分归属，以本段为准。
+
+静态审阅：Python 标准库 TOML 校验新包及传递路径存在、无循环及门面回依赖；五个测试文件函数清单与 HEAD 一致，unix cfg 保留，无 include 资源；git diff --check 无空白错误。新包成员和门面直接路径依赖已注册。原包 chrono、chrono-tz、rust_decimal、reqwest、serde 等仍有真实调用者，保留直接依赖；Cargo.lock 未修改。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：core 与门面/直接调用者编译、迁移单测、平台条件与清单/锁文件一致性。静态审阅不代表编译或行为验收通过。

@@ -2,7 +2,7 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod balances;
-pub mod binding;
+pub use app_usage_core::binding;
 pub mod cache;
 pub mod claude;
 pub mod claude_scan;
@@ -10,21 +10,21 @@ pub mod codex_delta;
 pub mod codex_lineage;
 pub mod codex_rebuild;
 pub mod codex_timing;
-pub mod cost;
+pub use app_usage_core::cost;
 pub mod cursors;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod coding;
-pub mod detect;
+pub use app_usage_core::detect;
 pub mod gemini;
 pub mod grokbuild;
 pub mod limits;
 pub mod logs;
-pub mod exchange;
+pub use app_usage_core::exchange;
 pub mod exchange_store;
-pub mod tokens;
-pub mod model_names;
-pub mod presentation;
-pub mod ranges;
+pub use app_usage_core::tokens;
+pub use app_usage_core::model_names;
+pub use app_usage_core::presentation;
+pub use app_usage_core::ranges;
 pub mod pi;
 pub mod pi_children;
 pub mod scripts;
@@ -33,12 +33,8 @@ pub mod source_settings;
 #[cfg(target_os = "macos")]
 pub mod subscriptions;
 
-#[cfg(test)]
-mod binding_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod cache_tests;
-#[cfg(test)]
-mod detect_tests;
 
 pub mod opencode;
 

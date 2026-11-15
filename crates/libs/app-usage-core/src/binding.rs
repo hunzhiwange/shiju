@@ -1,6 +1,7 @@
 //! Resolve a provider's usage credential within its authorized execution scope.
 
-use crate::{auth::flow::AuthAccountScope, providers::validate_identity};
+use app_auth_core::flow::AuthAccountScope;
+use app_provider_validation::validate_identity;
 use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_auth::AuthService;
 use vw_api_app_identity::{AppId};

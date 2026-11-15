@@ -37,15 +37,7 @@ pub struct UsageCacheKey {
     pub configuration_version: u64,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum UsageCacheResult {
-    Current(UsageQueryResult),
-    /// Display the original data and success time alongside the current failure.
-    Stale {
-        last_success: Arc<UsageQueryResult>,
-        failure: UsageQueryResult,
-    },
-}
+pub use app_usage_core::cache::UsageCacheResult;
 
 #[derive(Default)]
 pub struct UsageCache {

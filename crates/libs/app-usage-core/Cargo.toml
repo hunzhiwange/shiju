@@ -1,0 +1,28 @@
+[package]
+name = "app-usage-core"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-auth-core = { path = "../app-auth-core" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-models = { path = "../app-models" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-apps-usage = { path = "../api-apps-usage" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-usage = { path = "../api-usage" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+chrono-tz = "0.10.4"
+rust_decimal = { version = "1", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+app-auth = { path = "../app-auth" }
+tempfile = "3"

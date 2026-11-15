@@ -55,7 +55,6 @@ mod usage_button;
 mod voice_controls;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod voice_controls_tests;
-pub(crate) mod voice_waveform;
 
 pub(crate) const MODEL_POPOVER_SCROLL_ID: &str = "input_panel_model_popover_scroll";
 

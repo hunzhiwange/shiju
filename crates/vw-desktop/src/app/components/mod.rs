@@ -438,7 +438,6 @@ pub mod system_settings_companion;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod voice_chat;
-mod voice_moon;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod system_settings_voice;

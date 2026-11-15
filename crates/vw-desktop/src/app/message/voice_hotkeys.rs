@@ -7,17 +7,12 @@ use crate::app::voice::hotkeys::Action;
 use crate::app::{App, Message};
 use iced::Task;
 pub(super) fn tick(app: &mut App) -> Task<Message> {
-    if app.shutdown_requested {
-        return Task::none();
-    }
-    if app.voice.settings.busy || app.voice.settings.edit.is_some() {
-        let active = app.voice.hotkeys.machine.active;
-        app.voice.hotkeys.reload();
-        return if active { voice::update(app, Event::Cancel) } else { Task::none() };
-    }
-    app.voice.insertion.poll();
-    let previous_error = app.voice.hotkeys.error.clone();
-    let actions = app.voice.hotkeys.poll(|| crate::app::voice::preferences::load().map(|p| p.hotkeys));
+    use desktop_voice_ui::message::voice_hotkeys::{self as policy, Poll};
+    let (actions, previous_error) = match policy::poll(&mut app.voice, app.shutdown_requested, crate::app::voice::preferences::load) {
+        Poll::Skip => return Task::none(),
+        Poll::Cancel => return voice::update(app, Event::Cancel),
+        Poll::Actions { actions, previous_error } => (actions, previous_error),
+    };
     let mut tasks = vec![dispatch(app, actions)];
     if app.voice.hotkeys.error != previous_error
         && let Some(error) = app.voice.hotkeys.error.clone()
@@ -32,18 +27,9 @@ pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
         let mut external = None;
         let event = match action {
             Action::Start => {
-                if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
-                    || app.voice.chat_active()
-                {
-                    app.voice.hotkeys.machine.reset();
-                    // The same poll may also contain this rejected press's release.
-                    // It must not finish a capture started by the foreground button.
-                    break;
-                }
-                if app.voice.insertion.pending.is_some() {
-                    app.voice.hotkeys.machine.reset();
-                    tasks.push(app.show_error_toast("请先复制或丢弃上次未插入的听写结果。"));
-                    break;
+                match desktop_voice_ui::message::voice_hotkeys::accept_start(&mut app.voice) {
+                    Ok(true) => {}, Ok(false) => break,
+                    Err(error) => { tasks.push(app.show_error_toast(error)); break; }
                 }
                 external = match crate::app::voice::insertion::capture_external() {
                     Ok(None) => None,
@@ -61,8 +47,6 @@ pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
             app.voice.insertion.target = external;
         }
     }
-    if app.voice.hotkeys.machine.active && app.voice.draft.phase != Phase::Recording {
-        app.voice.hotkeys.machine.reset();
-    }
+    desktop_voice_ui::message::voice_hotkeys::finish_poll(&mut app.voice);
     Task::batch(tasks)
 }

@@ -1,0 +1,27 @@
+[package]
+name = "desktop-voice-ui"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+[lib]
+doctest = false
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+desktop-voice = { path = "../desktop-voice", version = "0.6.0" }
+audio-capture = { path = "../audio-capture", version = "0.6.0" }
+voice-recordings = { path = "../voice-recordings", version = "0.6.0" }
+config-voice = { path = "../config-voice", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+gateway-voice = { path = "../gateway-voice", version = "0.6.0" }
+vw-api-voice = { path = "../api-voice", version = "0.6.0" }
+rand = "0.10.3"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+chrono = "0.4"
+desktop-settings-voice = { path = "../desktop-settings-voice", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"
+iced_runtime = "0.14"
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }

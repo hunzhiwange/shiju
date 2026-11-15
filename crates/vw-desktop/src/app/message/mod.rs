@@ -257,8 +257,6 @@ pub(crate) mod app_providers;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod voice_draft;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod voice_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod voice;

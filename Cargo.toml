@@ -75,6 +75,7 @@ members = [
   "crates/libs/channel-support",
   "crates/libs/runtime-types",
   "crates/libs/desktop-voice",
+  "crates/libs/desktop-voice-ui",
   "crates/libs/app-discovery",
   "crates/libs/app-lifecycle",
   "crates/libs/app-uninstall",

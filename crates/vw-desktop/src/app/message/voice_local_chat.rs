@@ -1,113 +1,29 @@
 //! Per-turn local media, bound to an ordinary chat request and its final completion.
-use super::{Device, Event as VoiceEvent, dictation};
+use super::Event as VoiceEvent;
 use crate::app::{
     App, Message,
     models::{ChatMessage as StoredMessage, ChatRole},
-    voice::{local::Cancellation, preferences::Preferences},
+    voice::preferences::Preferences,
 };
 use iced::Task;
 use std::time::Duration;
-use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Stage {
-    Ready,
-    Preparing,
-    Recording,
-    Recognizing,
-    WaitingModel,
-    Speaking,
-}
-pub(crate) struct State {
-    pub stage: Stage,
-    pub show: bool,
-    pub muted: bool,
-    pub captions: Vec<(bool, String)>,
-    pub notice: Option<String>,
-    call: u128,
-    round: u64,
-    session: String,
-    preferences: Preferences,
-    native: Cancellation,
-    cancel: Option<tokio::sync::watch::Sender<bool>>,
-    device: Option<Device>,
-    route: Option<dictation::Route>,
-    request: Option<u64>,
-    watermark: usize,
-}
-impl State {
-    fn cancel_media(&mut self) {
-        self.native.cancel();
-        if let Some(tx) = self.cancel.take() {
-            let _ = tx.send(true);
-        }
-        if let Some(device) = self.device.take()
-            && let Ok(mut d) = device.lock()
-        {
-            drop(d.take());
-        }
-        self.route = None;
-        self.round = self.round.wrapping_add(1);
-        self.stage = Stage::Ready;
-    }
-    fn caption(&mut self, assistant: bool, text: String) {
-        self.captions.push((assistant, text));
-        while self.captions.len() > 40
-            || self.captions.iter().map(|(_, s)| s.len()).sum::<usize>() > 65_536
-        {
-            self.captions.remove(0);
-        }
-    }
-}
-impl Drop for State {
-    fn drop(&mut self) {
-        self.cancel_media();
-    }
-}
-#[derive(Clone)]
-pub enum Event {
-    Begin,
-    Finish,
-    ViewChat,
-    Prepared(u128, u64, Result<dictation::Prepared, String>),
-    Recognized(u128, u64, Result<String, String>),
-    Spoken(u128, u64, Result<(), String>),
-    Stopped(u128, Result<(), String>),
-}
-pub(crate) struct Stop {
-    call: u128,
-    endpoint: GatewayEndpoint,
-    request: String,
-    sent: bool,
-}
+use vw_gateway_client::GatewayClient;
+pub use desktop_voice_ui::components::voice_chat::Stage;
+pub use desktop_voice_ui::message::voice_local_chat::{State, Stop, Event};
 fn message(event: Event) -> Message {
     Message::Voice(VoiceEvent::Local(event))
 }
 fn ready_to_send(app: &App) -> Result<(), &'static str> {
-    let Some(runtime) = app.current_session_runtime_ref() else {
-        return Err("请先选择聊天会话。");
-    };
-    if runtime.is_requesting || runtime.active_agent_request.is_some() || !runtime.queue.is_empty()
-    {
-        return Err("请先完成或停止当前聊天请求及排队消息。");
-    }
-    if !runtime.input_editor.text().trim().is_empty() {
-        return Err("请先发送或清空聊天输入框中的草稿。");
-    }
-    if runtime.task_mode_enabled || runtime.workflow_mode_enabled || runtime.acp_agent.is_some() {
-        return Err("本机逐轮语音请使用普通聊天模型，并关闭任务与工作流模式。");
-    }
-    if runtime.full_access_saving
-        || runtime.full_access_save_failed
-        || runtime.acp_options_state.source_pending.is_some()
-        || runtime.acp_options_state.pending
-        || (app.active_session_view_state.ui_preparing && !app.active_session_view_state.base_ready)
-    {
-        return Err("会话正在加载或保存权限，请处理聊天提示后重试。");
-    }
-    if app.permission_modal_request_id.is_some() || app.question_modal_request_id.is_some() {
-        return Err("请先处理当前聊天的审批或问题。");
-    }
-    Ok(())
+    use desktop_voice_ui::message::voice_local_chat::{Readiness, ready};
+    let runtime = app.current_session_runtime_ref();
+    ready(Readiness {
+        has_runtime: runtime.is_some(),
+        requesting: runtime.is_some_and(|r| r.is_requesting || r.active_agent_request.is_some() || !r.queue.is_empty()),
+        has_draft: runtime.is_some_and(|r| !r.input_editor.text().trim().is_empty()),
+        special_mode: runtime.is_some_and(|r| r.task_mode_enabled || r.workflow_mode_enabled || r.acp_agent.is_some()),
+        permissions_loading: runtime.is_some_and(|r| r.full_access_saving || r.full_access_save_failed || r.acp_options_state.source_pending.is_some() || r.acp_options_state.pending || (app.active_session_view_state.ui_preparing && !app.active_session_view_state.base_ready)),
+        approval_pending: app.permission_modal_request_id.is_some() || app.question_modal_request_id.is_some(),
+    })
 }
 pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
     if let Some(chat) = app.voice.local_conversation.as_mut() {
@@ -131,23 +47,7 @@ pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
     };
     app.voice.conversation_endpoint = Some(crate::app::gateway_client_endpoint());
     app.voice.conversation_scope = Some(scope.clone());
-    app.voice.local_conversation = Some(State {
-        stage: Stage::Ready,
-        show: true,
-        muted: false,
-        captions: Vec::new(),
-        notice: None,
-        call: rand::random(),
-        round: 0,
-        session,
-        preferences,
-        native: Cancellation::default(),
-        cancel: None,
-        device: None,
-        route: None,
-        request: None,
-        watermark: 0,
-    });
+    app.voice.local_conversation = Some(desktop_voice_ui::message::voice_local_chat::new(session, preferences));
     Task::none()
 }
 /// Capture the old authenticated endpoint before scope invalidation clears it.
@@ -195,36 +95,12 @@ pub(super) fn tick(app: &mut App) -> Task<Message> {
     let Some(chat) = app.voice.local_conversation.as_ref() else {
         return Task::none();
     };
-    let failed_request = chat.stage == Stage::WaitingModel
-        && chat.request.is_some_and(|id| app.find_session_by_request_id(id).is_none());
-    let failed_capture = chat.stage == Stage::Recording
-        && chat.device.as_ref().is_some_and(|device| {
-            device.lock().ok().and_then(|mut d| d.as_mut()?.try_result()).is_some()
-        });
-    if failed_request || failed_capture {
-        let chat = app.voice.local_conversation.as_mut().unwrap();
-        chat.cancel_media();
-        chat.request = None;
-        chat.notice = Some(
-            if failed_capture {
-                "录音已停止，请检查麦克风并在60秒内完成录音。"
-            } else {
-                "聊天请求已结束或失败，请查看聊天后重试。"
-            }
-            .into(),
-        );
-    }
+    let request_active = chat.request.is_some_and(|id| app.find_session_by_request_id(id).is_some());
+    desktop_voice_ui::message::voice_local_chat::observe(app.voice.local_conversation.as_mut().unwrap(), request_active);
     Task::none()
 }
 pub(super) fn mute(app: &mut App) -> Task<Message> {
-    if let Some(chat) = app.voice.local_conversation.as_mut() {
-        chat.muted = !chat.muted;
-        if chat.muted
-            && matches!(chat.stage, Stage::Preparing | Stage::Recording | Stage::Recognizing)
-        {
-            chat.cancel_media();
-        }
-    }
+    if let Some(chat) = app.voice.local_conversation.as_mut() { desktop_voice_ui::message::voice_local_chat::mute(chat); }
     Task::none()
 }
 pub(super) fn interrupt(app: &mut App) -> Task<Message> {
@@ -253,116 +129,26 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         return Task::none();
     }
-    let Some(chat) = app.voice.local_conversation.as_mut() else {
-        return Task::none();
-    };
-    match event {
-        Event::ViewChat => {
-            chat.show = false;
-            Task::none()
+    let Some(chat) = app.voice.local_conversation.as_ref() else { return Task::none(); };
+    if matches!(event, Event::Begin) {
+        if chat.stage != Stage::Ready || chat.muted || app.voice.local_stop.is_some() { return Task::none(); }
+        if let Err(error) = ready_to_send(app) { return app.show_error_toast(error); }
+        app.voice.screen.cancel();
+    }
+    let (task, effect) = desktop_voice_ui::message::voice_local_chat::update_media(
+        app.voice.local_conversation.as_mut().unwrap(), crate::app::gateway_client_endpoint(), event,
+    );
+    let task = task.map(message);
+    match effect {
+        Some(desktop_voice_ui::message::voice_local_chat::Effect::Send(input)) => {
+            let send = send_request(app, input.clone(), input);
+            Task::batch([task, send])
         }
-        Event::Begin => {
-            if chat.stage != Stage::Ready || chat.muted || app.voice.local_stop.is_some() {
-                return Task::none();
-            }
-            if let Err(error) = ready_to_send(app) {
-                return app.show_error_toast(error);
-            }
-            app.voice.screen.cancel();
-            let chat = app.voice.local_conversation.as_mut().unwrap();
-            chat.round = chat.round.wrapping_add(1);
-            chat.notice = None;
-            chat.stage = Stage::Preparing;
-            chat.native = Cancellation::default();
-            let (tx, rx) = tokio::sync::watch::channel(false);
-            chat.cancel = Some(tx);
-            let call = chat.call;
-            let round = chat.round;
-            let future = dictation::prepare(
-                chat.preferences.clone(),
-                crate::app::gateway_client_endpoint(),
-                Some(chat.session.clone()),
-                round,
-                rx,
-                chat.native.clone(),
-            );
-            Task::perform(
-                async move {
-                    tokio::time::timeout(Duration::from_secs(20), future)
-                        .await
-                        .unwrap_or_else(|_| Err("准备本机录音超时，请重试。".into()))
-                },
-                move |result| message(Event::Prepared(call, round, result)),
-            )
-        }
-        Event::Prepared(call, round, result) => {
-            if chat.call != call || chat.round != round || chat.stage != Stage::Preparing {
-                return Task::none();
-            }
-            match result {
-                Ok(prepared) => {
-                    chat.device = Some(prepared.device);
-                    chat.route = Some(prepared.route);
-                    chat.stage = Stage::Recording;
-                    Task::none()
-                }
-                Err(error) => outcome(app, error),
-            }
-        }
-        Event::Finish => {
-            if chat.stage != Stage::Recording {
-                return Task::none();
-            }
-            let (Some(device), Some(route)) = (chat.device.take(), chat.route.take()) else {
-                return outcome(app, "录音已失效，请重新开始。".into());
-            };
-            if !matches!(route, dictation::Route::Local { .. }) {
-                return outcome(app, "本机语音路由不匹配，录音不会上传。".into());
-            }
-            chat.stage = Stage::Recognizing;
-            let call = chat.call;
-            let round = chat.round;
-            let cancel = chat.native.clone();
-            Task::perform(
-                async move { dictation::transcribe(device, route, cancel).await.map(|(text, _)| text) },
-                move |result| message(Event::Recognized(call, round, result)),
-            )
-        }
-        Event::Recognized(call, round, result) => {
-            if chat.call != call || chat.round != round || chat.stage != Stage::Recognizing {
-                return Task::none();
-            }
-            let input = match result {
-                Ok(text) if !text.trim().is_empty() && !text.trim_start().starts_with('/') => {
-                    text.trim().to_owned()
-                }
-                Ok(_) => {
-                    return outcome(
-                        app,
-                        "未识别到普通聊天文字；斜杠命令请在聊天输入框中发送。".into(),
-                    );
-                }
-                Err(error) => return outcome(app, error),
-            };
-            if let Err(error) = ready_to_send(app) {
-                return outcome(app, error.into());
-            }
-            send_request(app, input.clone(), input)
-        }
-
-        Event::Spoken(call, round, result) => {
-            if chat.call != call || chat.round != round || chat.stage != Stage::Speaking {
-                return Task::none();
-            }
-            chat.cancel_media();
-            match result {
-                Ok(()) => Task::none(),
-                Err(error) => outcome(app, error),
-            }
-        }
-        Event::Stopped(..) => Task::none(),
+        Some(desktop_voice_ui::message::voice_local_chat::Effect::Error(error)) => Task::batch([task, app.show_error_toast(error)]),
+        None => task,
     }
 }
+
 fn send_request(app: &mut App, input: String, caption: String) -> Task<Message> {
     if let Err(error) = ready_to_send(app) {
         return outcome(app, error.into());
@@ -407,35 +193,11 @@ pub(crate) fn model_completed(
     let Some(chat) = app.voice.local_conversation.as_mut() else {
         return Task::none();
     };
-    if chat.request != Some(id) || chat.session != session || chat.stage != Stage::WaitingModel {
-        return Task::none();
+    match desktop_voice_ui::message::voice_local_chat::model_completed(chat, id, session, messages.iter().map(|m| (m.role == ChatRole::Assistant, m.content.as_str()))) {
+        Ok(task) => task.map(message), Err(error) => outcome(app, error),
     }
-    chat.request = None;
-    let prose = messages
-        .iter()
-        .skip(chat.watermark)
-        .rfind(|m| m.role == ChatRole::Assistant)
-        .map(|m| crate::app::voice::local_conversation::speech_text(&m.content))
-        .unwrap_or_default();
-    if prose.is_empty() {
-        return outcome(app, "回复没有可朗读的正文，请查看聊天。".into());
-    }
-    let spoken = crate::app::voice::local_conversation::spoken_prefix(&prose);
-    chat.notice = (spoken != prose).then(|| "长回复仅朗读开头，完整内容请查看聊天。".into());
-    chat.caption(true, prose);
-    chat.stage = Stage::Speaking;
-    chat.native = Cancellation::default();
-    let call = chat.call;
-    let round = chat.round;
-    Task::perform(
-        crate::app::voice::local_conversation::speak(
-            spoken,
-            chat.preferences.local_voice.clone(),
-            chat.native.clone(),
-        ),
-        move |result| message(Event::Spoken(call, round, result)),
-    )
 }
+
 #[cfg(test)]
 #[path = "voice_local_chat_tests.rs"]
 mod tests;

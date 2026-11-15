@@ -2,69 +2,19 @@
 use super::voice_draft::Phase;
 use crate::app::voice::preferences::Preferences;
 use crate::app::voice::{
-    recordings::{self, Entry},
+    recordings::{self},
     recordings_playback::Replay,
 };
 use crate::app::{App, Message};
 use iced::Task;
-use std::time::Duration;
 use gateway_endpoint::GatewayEndpoint;
-#[derive(Default)]
-pub(crate) struct State {
-    pub entries: Vec<Entry>,
-    pub result: Option<String>,
-    pub problem: Option<String>,
-    pub replay: Option<Replay>,
-    pub busy: bool,
-    initialized: bool,
-    generation: u64,
-    scope: Option<super::voice_draft::Scope>,
-    endpoint: Option<GatewayEndpoint>,
-    cancel: Option<tokio::sync::watch::Sender<bool>>,
-    native_cancel: Option<crate::app::voice::local::Cancellation>,
-}
-#[derive(Clone)]
-pub enum Event {
-    Refresh,
-    Play(String),
-    Stop,
-    Delete(String),
-    Clear,
-    Retry(String),
-    Apply,
-    Dismiss,
-    Tick(u64),
-    Retried(u64, Result<String, String>),
-}
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("VoiceRecordingsEvent").field(&std::mem::discriminant(self)).finish()
-    }
-}
+use std::time::Duration;
+pub use desktop_voice_ui::message::voice_recordings::{Event, State};
 fn message(event: Event) -> Message {
     Message::Voice(super::voice::Event::Recordings(event))
 }
 fn tick(generation: u64) -> Task<Message> {
     super::after(Duration::from_millis(100), message(Event::Tick(generation)))
-}
-impl State {
-    pub(crate) fn stop(&mut self) {
-        if let Some(cancel) = self.native_cancel.take() {
-            cancel.cancel();
-        }
-        self.replay.take();
-        self.cancel.take();
-        self.busy = false;
-        self.result = None;
-        self.generation = self.generation.wrapping_add(1);
-        self.scope = None;
-        self.endpoint = None;
-    }
-    fn refresh(&mut self) -> Result<(), String> {
-        self.entries = recordings::local()?.list()?;
-        self.problem = None;
-        Ok(())
-    }
 }
 pub(crate) fn invalidate(app: &mut App) {
     let current = super::voice::scope(app);
@@ -72,7 +22,7 @@ pub(crate) fn invalidate(app: &mut App) {
     let state = &mut app.voice.recordings;
     if !state.initialized {
         state.initialized = true;
-        if let Err(e) = state.refresh() {
+        if let Err(e) = state.refresh(recordings::path()) {
             state.problem = Some(e);
         }
     }
@@ -101,7 +51,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
     match event {
         Event::Refresh => {
-            app.voice.recordings.refresh()?;
+            app.voice.recordings.refresh(recordings::path())?;
         }
         Event::Stop => {
             app.voice.recordings.stop();
@@ -112,12 +62,12 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
         Event::Delete(id) => {
             app.voice.recordings.stop();
             recordings::local()?.delete(&id)?;
-            app.voice.recordings.refresh()?;
+            app.voice.recordings.refresh(recordings::path())?;
         }
         Event::Clear => {
             app.voice.recordings.stop();
             recordings::local()?.clear()?;
-            app.voice.recordings.refresh()?;
+            app.voice.recordings.refresh(recordings::path())?;
         }
         Event::Play(id) => {
             if app.voice.chat_active()

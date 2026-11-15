@@ -15,7 +15,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tempfile::Builder;
 use config_skills::SkillSecurityConfig;
-use vw_gateway_client::SkillMarketCoordinateDto;
+use gateway_skill_market::SkillMarketCoordinateDto;
 use zip::ZipArchive;
 
 use super::provider::{
@@ -142,7 +142,7 @@ pub(crate) fn install_verified_market_skill_set(
     let mut target_names = BTreeSet::new();
     let mut targets = Vec::with_capacity(artifact.members.len() + 1);
     let meta_coordinate = SkillMarketCoordinateDto {
-        locator: vw_gateway_client::SkillMarketSkillLocatorDto {
+        locator: gateway_skill_market::SkillMarketSkillLocatorDto {
             source: artifact.source.clone(),
             namespace: "skillset".to_string(),
             slug: artifact.slug.clone(),

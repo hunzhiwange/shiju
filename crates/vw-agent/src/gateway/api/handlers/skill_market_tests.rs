@@ -1,3 +1,20 @@
+use gateway_skill_market::{
+    SkillMarketCategoryDto,
+    SkillMarketCoordinateDto,
+    SkillMarketInstallScopeDto,
+    SkillMarketInstallSelectionDto,
+    SkillMarketInstallTargetDto,
+    SkillMarketSkillDetailDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillFileDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto,
+    SkillMarketSkillQuery,
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSourceDto,
+};
 // 覆盖技能市场提供商路由、查询校验及安装目标解析。
 
 use std::io::{Cursor, Write};
@@ -12,13 +29,7 @@ use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tower::ServiceExt;
-use vw_gateway_client::{
-    SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketInstallScopeDto,
-    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillDetailDto,
-    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
-    SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSourceDto,
-};
+
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 

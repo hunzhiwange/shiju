@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
 gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }

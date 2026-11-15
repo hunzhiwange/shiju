@@ -1,5 +1,21 @@
 //! 公共 SkillHub 目录的技能市场适配器。
 
+use gateway_skill_market::{
+    SkillMarketCategoryDto,
+    SkillMarketCoordinateDto,
+    SkillMarketSecurityDto,
+    SkillMarketSkillDetailDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillFileDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto,
+    SkillMarketSkillQuery,
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSort,
+    SkillMarketSourceDto,
+};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -12,13 +28,7 @@ use serde::Deserialize;
 use serde::de::{DeserializeOwned, Deserializer};
 use serde_json::Value;
 use url::Url;
-use vw_gateway_client::{
-    SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketSecurityDto,
-    SkillMarketSkillDetailDto, SkillMarketSkillDto, SkillMarketSkillFileDto,
-    SkillMarketSkillLocatorDto, SkillMarketSkillPageDto, SkillMarketSkillQuery,
-    SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,
-    SkillMarketSort, SkillMarketSourceDto,
-};
+
 
 use super::provider::{
     SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider, SkillMarketProviderError,

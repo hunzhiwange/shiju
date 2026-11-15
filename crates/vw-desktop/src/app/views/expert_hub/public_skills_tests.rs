@@ -1,6 +1,16 @@
 //! 公共技能市场测试，覆盖来源选择、推荐卡片和三类工作助手标签。
 //! 来源选择器仅在确有多个来源时出现，窄布局仍需保持卡片背景与中文文本可读。
 
+use gateway_skill_market::{
+    SkillMarketCategoryDto,
+    SkillMarketCoordinateDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillSetDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSort,
+    SkillMarketSourceDto,
+};
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::operation::{Focusable, Operation, Scrollable};
 use iced::advanced::{Layout, clipboard, layout, mouse, renderer, widget::Tree};
@@ -8,11 +18,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::{Color, Element, Event, Font, Pixels, Point, Rectangle, Renderer, Size, Theme, Vector};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_ui::DesktopLocale;
-use vw_gateway_client::{
-    SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketSkillDto,
-    SkillMarketSkillLocatorDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,
-    SkillMarketSort, SkillMarketSourceDto,
-};
+
 
 use super::public_skills::{grid_column_count, public_tab_specs, source_selector_visible, view};
 use super::styles::{card_style, featured_card_style};
@@ -56,7 +62,7 @@ fn populated_app(tab: PublicSkillTab) -> App {
     app.expert_hub.public_market.current_source = Some("skillhub".to_string());
     app.expert_hub.public_market.recommended = LoadState::Loaded(vec![skill()]);
     app.expert_hub.public_market.market =
-        LoadState::Loaded(vw_gateway_client::SkillMarketSkillPageDto {
+        LoadState::Loaded(gateway_skill_market::SkillMarketSkillPageDto {
             skills: vec![skill()],
             total: 1,
             page: 1,

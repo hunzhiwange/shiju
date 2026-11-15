@@ -1,13 +1,16 @@
 //! 验证专家包列表状态和中文详情的真实绘制路径。
 
+use gateway_skill_market::{
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSourceDto,
+};
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use vw_gateway_client::{
-    SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,
-    SkillMarketSourceDto,
-};
+
 
 use super::experts::view;
 use crate::app::App;

@@ -4,6 +4,16 @@
 //!
 //! Unified read-only skill-market gateway API.
 
+use gateway_skill_market::{
+    SkillMarketCoordinateDto,
+    SkillMarketEnvelope,
+    SkillMarketInstallScopeDto,
+    SkillMarketInstallSelectionDto,
+    SkillMarketInstallTargetDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillQuery,
+    SkillMarketSort,
+};
 use std::collections::BTreeSet;
 use std::path::{Path as FsPath, PathBuf};
 use std::sync::Arc;
@@ -17,11 +27,7 @@ use directories::BaseDirs;
 use serde::Deserialize;
 use serde_json::Value;
 use config_runtime_paths::HOME_CONFIG_DIR_NAME;
-use vw_gateway_client::{
-    DesktopSkillPathDto, SkillMarketCoordinateDto, SkillMarketEnvelope, SkillMarketInstallScopeDto,
-    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillQuery, SkillMarketSort,
-};
+use vw_gateway_client::{DesktopSkillPathDto};
 
 use crate::app::agent::skills::marketplace::install::{
     install_verified_market_artifact, install_verified_market_artifact_for_roots,
@@ -68,14 +74,14 @@ where
 
 async fn sources_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
-) -> Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketSourceDto>>> {
+) -> Json<SkillMarketEnvelope<Vec<gateway_skill_market::SkillMarketSourceDto>>> {
     success(registry.sources())
 }
 
 async fn recommended_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketSkillDto>>>, MarketApiError>
+) -> Result<Json<SkillMarketEnvelope<Vec<gateway_skill_market::SkillMarketSkillDto>>>, MarketApiError>
 {
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let provider = resolve_provider(&registry, query.required_source()?)?;
@@ -86,7 +92,7 @@ async fn recommended_get(
 async fn skills_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillPageDto>>, MarketApiError> {
+) -> Result<Json<SkillMarketEnvelope<gateway_skill_market::SkillMarketSkillPageDto>>, MarketApiError> {
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let provider = resolve_provider(&registry, query.required_source()?)?;
     let catalog_query = query.catalog_query()?;
@@ -97,7 +103,7 @@ async fn skills_get(
 async fn categories_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketCategoryDto>>>, MarketApiError>
+) -> Result<Json<SkillMarketEnvelope<Vec<gateway_skill_market::SkillMarketCategoryDto>>>, MarketApiError>
 {
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let provider = resolve_provider(&registry, query.required_source()?)?;
@@ -109,7 +115,7 @@ async fn skill_detail_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     Path(slug): Path<String>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillDetailDto>>, MarketApiError>
+) -> Result<Json<SkillMarketEnvelope<gateway_skill_market::SkillMarketSkillDetailDto>>, MarketApiError>
 {
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let locator = query.locator(slug)?;
@@ -122,7 +128,7 @@ async fn skill_file_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     Path(slug): Path<String>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillFileDto>>, MarketApiError> {
+) -> Result<Json<SkillMarketEnvelope<gateway_skill_market::SkillMarketSkillFileDto>>, MarketApiError> {
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let locator = query.locator(slug)?;
     let provider = resolve_provider(&registry, &locator.source)?;
@@ -200,7 +206,7 @@ async fn skill_install_targets_post(
 async fn skill_sets_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillSetPageDto>>, MarketApiError>
+) -> Result<Json<SkillMarketEnvelope<gateway_skill_market::SkillMarketSkillSetPageDto>>, MarketApiError>
 {
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let provider = resolve_provider(&registry, query.required_source()?)?;
@@ -214,7 +220,7 @@ async fn skill_set_detail_get(
     Path(slug): Path<String>,
     RawQuery(raw_query): RawQuery,
 ) -> Result<
-    Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillSetDetailDto>>,
+    Json<SkillMarketEnvelope<gateway_skill_market::SkillMarketSkillSetDetailDto>>,
     MarketApiError,
 > {
     let query = MarketQuery::parse(raw_query.as_deref())?;

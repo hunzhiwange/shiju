@@ -1,5 +1,17 @@
 //! 定义专家中心各技能页签、异步请求与安装操作的界面状态。
 
+use gateway_skill_market::{
+    SkillMarketCategoryDto,
+    SkillMarketSkillDetailDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillFileDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto,
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSort,
+    SkillMarketSourceDto,
+};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 /// 专家中心的一级内容分区。
 pub enum ExpertHubSection {
@@ -451,9 +463,4 @@ impl Default for PublicSkillMarketState {
 
 use super::LoadState;
 use std::collections::{BTreeMap, BTreeSet};
-use vw_gateway_client::{
-    DesktopSkillCatalogEntryDto, SkillMarketCategoryDto, SkillMarketSkillDetailDto,
-    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillPageDto, SkillMarketSkillSetDetailDto, SkillMarketSkillSetPageDto,
-    SkillMarketSort, SkillMarketSourceDto,
-};
+use vw_gateway_client::{DesktopSkillCatalogEntryDto};

@@ -1,14 +1,13 @@
 //! 验证 SkillHub 市场接口的响应解析、版本与下载契约。
 //! 伪服务按请求序列返回目录、详情、技能集和制品，重定向仅信任固定 HTTPS 对象路径。
 
+use gateway_skill_market::{SkillMarketCoordinateDto, SkillMarketSkillLocatorDto, SkillMarketSkillQuery, SkillMarketSort};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 
 use serde_json::json;
-use vw_gateway_client::{
-    SkillMarketCoordinateDto, SkillMarketSkillLocatorDto, SkillMarketSkillQuery, SkillMarketSort,
-};
+
 
 use super::provider::{SkillMarketProvider, SkillMarketProviderError};
 use super::skillhub::{SkillHubProvider, skill_artifact_redirect_url, skill_file_redirect_url};

@@ -1,15 +1,19 @@
 //! 构建公共技能市场的推荐、检索、来源筛选与套件列表。
 
+use gateway_skill_market::{
+    SkillMarketSkillDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillSetDto,
+    SkillMarketSort,
+    SkillMarketSourceDto,
+};
 use std::fmt;
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
-use vw_gateway_client::{
-    SkillMarketSkillDto, SkillMarketSkillLocatorDto, SkillMarketSkillSetDto, SkillMarketSort,
-    SkillMarketSourceDto,
-};
+
 
 use super::list::{description_preview, description_tooltip};
 use super::styles;

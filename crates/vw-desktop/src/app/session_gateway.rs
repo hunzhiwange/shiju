@@ -16,22 +16,31 @@ use vw_gateway_client::HookMutationResponseDto;
 use gateway_interaction::PendingPermissionReplyDto;
 use vw_gateway_client::PendingPermissionRequestDto;
 use vw_gateway_client::ProjectChangeRecordDto;
-use vw_gateway_client::SkillMarketCategoryDto;
-use vw_gateway_client::SkillMarketCoordinateDto;
-use vw_gateway_client::SkillMarketInstallSelectionDto;
-use vw_gateway_client::SkillMarketSkillDetailDto;
-use vw_gateway_client::SkillMarketSkillDto;
-use vw_gateway_client::SkillMarketSkillFileDto;
-use vw_gateway_client::SkillMarketSkillLocatorDto;
-use vw_gateway_client::SkillMarketSkillPageDto;
-use vw_gateway_client::SkillMarketSkillQuery;
-use vw_gateway_client::SkillMarketSkillSetDetailDto;
-use vw_gateway_client::SkillMarketSkillSetPageDto;
-use vw_gateway_client::SkillMarketSourceDto;
+use gateway_skill_market::SkillMarketCategoryDto;
+use gateway_skill_market::SkillMarketCoordinateDto;
+use gateway_skill_market::SkillMarketInstallSelectionDto;
+use gateway_skill_market::SkillMarketSkillDetailDto;
+use gateway_skill_market::SkillMarketSkillDto;
+use gateway_skill_market::SkillMarketSkillFileDto;
+use gateway_skill_market::SkillMarketSkillLocatorDto;
+use gateway_skill_market::SkillMarketSkillPageDto;
+use gateway_skill_market::SkillMarketSkillQuery;
+use gateway_skill_market::SkillMarketSkillSetDetailDto;
+use gateway_skill_market::SkillMarketSkillSetPageDto;
+use gateway_skill_market::SkillMarketSourceDto;
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
-use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential, ShijuLoginChallengeDto, ShijuLoginPollDto};
+use vw_gateway_client::{
+    ShijuAccountMeDto,
+    ShijuAccountPasswordUpdateRequest,
+    ShijuAccountProfileDto,
+    ShijuAccountUpdateRequest,
+    ShijuAccountUpdateResponseDto,
+    ShijuCredential,
+    ShijuLoginChallengeDto,
+    ShijuLoginPollDto,
+};
 use gateway_shiju_skill::{ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto};
 use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto};
 use session_ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
@@ -754,7 +763,7 @@ pub async fn gateway_skill_delete_async(
 
 /// Lists the skill-market sources registered by the active gateway.
 pub async fn gateway_skill_market_sources_async() -> Result<Vec<SkillMarketSourceDto>, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_sources().await
 }
 
@@ -762,7 +771,7 @@ pub async fn gateway_skill_market_sources_async() -> Result<Vec<SkillMarketSourc
 pub async fn gateway_skill_market_recommended_async(
     source: &str,
 ) -> Result<Vec<SkillMarketSkillDto>, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_recommended(source).await
 }
 
@@ -771,7 +780,7 @@ pub async fn gateway_skill_market_skills_async(
     source: &str,
     query: &SkillMarketSkillQuery,
 ) -> Result<SkillMarketSkillPageDto, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_skills(source, query).await
 }
 
@@ -779,7 +788,7 @@ pub async fn gateway_skill_market_skills_async(
 pub async fn gateway_skill_market_categories_async(
     source: &str,
 ) -> Result<Vec<SkillMarketCategoryDto>, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_categories(source).await
 }
 
@@ -787,7 +796,7 @@ pub async fn gateway_skill_market_categories_async(
 pub async fn gateway_skill_market_skill_detail_async(
     locator: &SkillMarketSkillLocatorDto,
 ) -> Result<SkillMarketSkillDetailDto, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_skill_detail(locator).await
 }
 
@@ -795,7 +804,7 @@ pub async fn gateway_skill_market_skill_detail_async(
 pub async fn gateway_skill_market_skill_file_async(
     locator: &SkillMarketSkillLocatorDto,
 ) -> Result<SkillMarketSkillFileDto, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_skill_file(locator).await
 }
 
@@ -804,7 +813,7 @@ pub async fn gateway_skill_market_install_async(
     project_path: &str,
     coordinate: &SkillMarketCoordinateDto,
 ) -> Result<String, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_install(project_path, coordinate).await
 }
 
@@ -814,7 +823,7 @@ pub async fn gateway_skill_market_install_to_targets_async(
     coordinate: &SkillMarketCoordinateDto,
     installations: &[SkillMarketInstallSelectionDto],
 ) -> Result<Vec<String>, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_install_to_targets(project_path, coordinate, installations).await
 }
 
@@ -823,7 +832,7 @@ pub async fn gateway_skill_market_skill_sets_async(
     source: &str,
     query: &SkillMarketSkillQuery,
 ) -> Result<SkillMarketSkillSetPageDto, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_skill_sets(source, query).await
 }
 
@@ -832,7 +841,7 @@ pub async fn gateway_skill_market_skill_set_detail_async(
     source: &str,
     slug: &str,
 ) -> Result<SkillMarketSkillSetDetailDto, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_skill_set_detail(source, slug).await
 }
 
@@ -842,7 +851,7 @@ pub async fn gateway_skill_market_skill_set_install_async(
     source: &str,
     slug: &str,
 ) -> Result<Vec<String>, String> {
-    let client = gateway_client()?;
+    let client = gateway_skill_market::GatewaySkillMarketClient::new(gateway_client()?.transport().clone());
     client.skill_market_skill_set_install(project_path, source, slug).await
 }
 

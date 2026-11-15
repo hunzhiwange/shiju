@@ -1,15 +1,25 @@
 //! 处理公共技能市场的检索、详情、安装与批量操作消息。
 
-use crate::app::skill_hub::SkillHubError;
-use iced::Task;
-use vw_gateway_client::{
-    DesktopSkillCatalogEntryDto, SkillMarketCategoryDto, SkillMarketCoordinateDto,
-    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto,
-    SkillMarketSkillDetailDto, SkillMarketSkillDto, SkillMarketSkillFileDto,
-    SkillMarketSkillLocatorDto, SkillMarketSkillPageDto, SkillMarketSkillQuery,
-    SkillMarketSkillSetDetailDto, SkillMarketSkillSetPageDto, SkillMarketSort,
+use gateway_skill_market::{
+    SkillMarketCategoryDto,
+    SkillMarketCoordinateDto,
+    SkillMarketInstallScopeDto,
+    SkillMarketInstallSelectionDto,
+    SkillMarketInstallTargetDto,
+    SkillMarketSkillDetailDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillFileDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto,
+    SkillMarketSkillQuery,
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSort,
     SkillMarketSourceDto,
 };
+use crate::app::skill_hub::SkillHubError;
+use iced::Task;
+use vw_gateway_client::{DesktopSkillCatalogEntryDto};
 
 use crate::app::session_gateway::{
     gateway_skill_delete_async, gateway_skill_market_categories_async,

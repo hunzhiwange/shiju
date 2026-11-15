@@ -1,13 +1,21 @@
+use gateway_skill_market::{
+    SkillMarketCoordinateDto,
+    SkillMarketInstallScopeDto,
+    SkillMarketInstallSelectionDto,
+    SkillMarketInstallTargetDto,
+    SkillMarketSkillDetailDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillFileDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSourceDto,
+};
 // 验证公共技能来源切换、精选轮播与安装项目选择。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
-use vw_gateway_client::{
-    DesktopSkillCatalogEntryDto, SkillMarketCoordinateDto, SkillMarketInstallScopeDto,
-    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillDetailDto,
-    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,
-    SkillMarketSourceDto,
-};
+use vw_gateway_client::{DesktopSkillCatalogEntryDto};
 
 use super::public::{
     PublicRequest, PublicSkillMessage, begin_batch_action, begin_install, reduce,

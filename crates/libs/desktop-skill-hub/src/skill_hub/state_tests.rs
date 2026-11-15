@@ -1,7 +1,6 @@
+use gateway_skill_market::{SkillMarketSkillLocatorDto, SkillMarketSort, SkillMarketSourceDto};
 use super::*;
-use vw_gateway_client::{
-    DesktopSkillCatalogEntryDto, SkillMarketSkillLocatorDto, SkillMarketSort, SkillMarketSourceDto,
-};
+use vw_gateway_client::{DesktopSkillCatalogEntryDto};
 
 #[test]
 fn expert_hub_state_defaults_to_skills_marketplace() {

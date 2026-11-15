@@ -1,16 +1,24 @@
 //! 技能市场提供方的抽象边界与注册表。
 
+use gateway_skill_market::{
+    SkillMarketCategoryDto,
+    SkillMarketCoordinateDto,
+    SkillMarketSkillDetailDto,
+    SkillMarketSkillDto,
+    SkillMarketSkillFileDto,
+    SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto,
+    SkillMarketSkillQuery,
+    SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetPageDto,
+    SkillMarketSourceDto,
+};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use thiserror::Error;
-use vw_gateway_client::{
-    SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketSkillDetailDto,
-    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
-    SkillMarketSkillSetPageDto, SkillMarketSourceDto,
-};
+
 
 /// 屏蔽原生与 WASM 平台线程安全差异的市场提供方边界。
 #[cfg(not(target_arch = "wasm32"))]

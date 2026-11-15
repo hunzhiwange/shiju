@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-skill-market = { path = "../libs/gateway-skill-market", version = "0.6.0" }
 gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-knowledge = { path = "../libs/gateway-shiju-knowledge", version = "0.6.0" }
 gateway-shiju-connector = { path = "../libs/gateway-shiju-connector", version = "0.6.0" }

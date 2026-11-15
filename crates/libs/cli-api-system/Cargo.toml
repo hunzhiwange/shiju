@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
 gateway-shiju-skill = { path = "../gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
 gateway-system = { path = "../gateway-system", version = "0.6.0" }

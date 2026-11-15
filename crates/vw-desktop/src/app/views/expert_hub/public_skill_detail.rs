@@ -1,9 +1,10 @@
 //! 展示公共技能或套件详情，并收集安装范围与目标选择。
 
+use gateway_skill_market::{SkillMarketSkillDetailDto, SkillMarketSkillSetDetailDto};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, markdown, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
-use vw_gateway_client::{SkillMarketSkillDetailDto, SkillMarketSkillSetDetailDto};
+
 
 use super::install_guide::{
     InstallTargetPresentation, install_project_options, install_target_presentations,

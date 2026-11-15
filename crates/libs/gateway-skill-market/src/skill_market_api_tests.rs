@@ -7,7 +7,7 @@ use super::{
     SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillLocatorDto,
     SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSort,
 };
-use crate::client::test_support;
+use crate::test_support;
 use serde_json::json;
 
 #[test]

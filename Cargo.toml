@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/acp-cli-app",
   "crates/libs/api-worktree",
   "crates/libs/session-paths",
   "crates/libs/acp-cli-commands",

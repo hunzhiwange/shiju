@@ -3,9 +3,9 @@
 //! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use clap::{Arg, ArgAction, Command};
-use vw_acp::PublicCliPlan;
-use vw_acp::cli::flags::GlobalFlagOptions;
-use vw_acp::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat};
+use acp_cli_model::PublicCliPlan;
+use acp_cli_model::cli::flags::GlobalFlagOptions;
+use acp_types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat};
 
 use super::{extract_global_flags, resolve_cli_dispatch};
 

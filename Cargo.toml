@@ -28,6 +28,7 @@ members = [
   "crates/libs/canary-guard",
   "crates/libs/content-guard",
   "crates/libs/acp-paths",
+  "crates/libs/acp-types",
   "crates/libs/permission-engine",
   "crates/libs/security-audit",
   "crates/libs/goal-engine",

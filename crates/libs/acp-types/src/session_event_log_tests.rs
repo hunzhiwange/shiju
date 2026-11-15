@@ -3,7 +3,9 @@
 //! 临时主目录和最小会话记录 fixture 用于隔离事件与偏好状态。
 
 use super::*;
-use crate::queue_paths::{TEST_HOME_ENV_LOCK, default_home_dir};
+use acp_paths::queue_paths::default_home_dir;
+
+static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 use std::ffi::OsString;
 use std::path::Path;
 

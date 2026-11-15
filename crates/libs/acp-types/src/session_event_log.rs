@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::queue_paths::default_home_dir;
+use acp_paths::queue_paths::default_home_dir;
 use crate::types::SessionEventLog;
 
 pub use acp_paths::session_event_log::*;

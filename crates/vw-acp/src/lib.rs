@@ -20,23 +20,21 @@
 
 #![allow(clippy::result_large_err)]
 
+use acp_types::{
+    acp_error_shapes, acp_jsonrpc, agent_session_id, error, error_normalization, errors,
+    jsonrpc_error, prompt_content, runtime_session_id, session_event_log, session_mounts, types,
+};
+
 mod access_policy;
 pub use access_policy::{AccessPolicy, AccessPolicyReason, FullAccessSupport};
-mod acp_error_shapes;
-mod acp_jsonrpc;
 mod agent_registry;
-mod agent_session_id;
 pub mod cli;
 mod cli_core;
 mod cli_public;
 mod client;
 mod codex_compat;
 mod config;
-mod error;
-mod error_normalization;
-mod errors;
 mod filesystem;
-mod jsonrpc_error;
 mod managed_runtime;
 mod mcp_servers;
 pub use managed_runtime::{reviewed_agent_command, verify_reviewed_agent_executable};
@@ -47,7 +45,6 @@ mod perf_metrics_capture;
 mod permission_prompt;
 mod permissions;
 mod persisted_key_policy;
-mod prompt_content;
 mod queue_ipc;
 mod queue_ipc_health;
 mod queue_ipc_server;
@@ -63,40 +60,24 @@ mod queue_paths {
     pub(crate) static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 }
 mod read_output_suppression;
-mod runtime_session_id;
 pub mod server;
 mod session_conversation_model;
-mod session_event_log;
 mod session_events;
 mod session_mode_preference;
-mod session_mounts;
 pub use session_mounts::*;
 mod session_persistence;
 mod session_runtime;
 mod session_runtime_helpers;
 mod spawn_command_options;
 mod terminal;
-mod types;
 mod version;
 
 #[cfg(test)]
 #[path = "codex_compat_tests.rs"]
 mod codex_compat_tests;
 #[cfg(test)]
-#[path = "error_normalization_tests.rs"]
-mod error_normalization_tests;
-#[cfg(test)]
-#[path = "error_tests.rs"]
-mod error_tests;
-#[cfg(test)]
-#[path = "errors_tests.rs"]
-mod errors_tests;
-#[cfg(test)]
 #[path = "filesystem_tests.rs"]
 mod filesystem_tests;
-#[cfg(test)]
-#[path = "jsonrpc_error_tests.rs"]
-mod jsonrpc_error_tests;
 #[cfg(test)]
 #[path = "queue_owner_env_tests.rs"]
 mod queue_owner_env_tests;

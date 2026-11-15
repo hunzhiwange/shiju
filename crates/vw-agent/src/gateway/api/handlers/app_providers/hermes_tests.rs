@@ -7,13 +7,13 @@ use {
     vw_api_types::app_providers::hermes::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-hermes-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
     port: u16,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -46,11 +46,11 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
-        .unwrap();
+        .unwrap());
         Self { root, db, port, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -299,7 +299,7 @@ async fn cc04_ui_hermes_sdk_form_edits_one_native_member_and_keeps_secrets() {
     let before = f.bytes();
     assert!(matches!(
         f.client.hermes_form_update("native", &req, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 409, .. })
     ));
     assert_eq!(f.bytes(), before);
 
@@ -327,7 +327,7 @@ async fn cc04_ui_hermes_sdk_form_rejects_invalid_and_unauthorized_writes() {
     req.declaration = r#"{"models":[{"id":"","name":"中文模型"}]}"#.into();
     assert!(matches!(
         f.client.hermes_form_create("native", &req, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 422, .. })
     ));
     assert!(f.record("native").is_none());
     assert_eq!(f.bytes(), before);
@@ -347,7 +347,7 @@ async fn cc04_ui_hermes_sdk_can_edit_an_unimported_native_member() {
     std::fs::write(f.file(), &changed).unwrap();
     assert!(matches!(
         f.client.hermes_form_update("other", &req, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 409, .. })
     ));
     assert_eq!(f.bytes(), changed.as_bytes());
     assert!(f.record("other").is_none());

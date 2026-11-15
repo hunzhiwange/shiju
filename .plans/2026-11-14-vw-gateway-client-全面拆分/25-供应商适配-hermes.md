@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：25，线性顺序 25；依赖：前一批次 24。符号依赖卡：无额外前置。不并行。
 
@@ -32,3 +32,11 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-app-provider crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 本卡静态落地记录
+
+- hermes.rs 的八个公开操作与私有 hermes_request 归属 gateway-app-provider/src/app_providers/hermes.rs；原包保留八个显式转发。
+- hermes_tests.rs 两个行为测试迁入领域库独立测试文件；原包保留路径拒绝的门面兼容测试。
+- 桌面 Hermes 调用与 agent Hermes 测试固件直连 GatewayAppProviderClient，复用已有依赖、传输和测试工厂。
+- 前置提交 802eb8124 已落地 OpenCode；四包搜索仅发现桌面与 agent 的本卡调用。
+- 已做差异静态审查与 git diff --check，无反向依赖；未运行 Cargo、测试及实机验证，后续另行统一验收。

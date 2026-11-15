@@ -247,3 +247,9 @@ mod opencode;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/opencode_tests.rs"]
 mod opencode_tests;
+
+#[path = "app_providers/hermes.rs"]
+mod hermes;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/hermes_tests.rs"]
+mod hermes_tests;

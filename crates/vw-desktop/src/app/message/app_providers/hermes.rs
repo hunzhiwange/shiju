@@ -8,12 +8,13 @@ use crate::app::{
 };
 use iced::{Task, widget::text_editor};
 use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
+    GatewayClient,
     vw_api_types::{
         agent_apps::AppId,
         app_providers::{catalog::ProviderMembership, create::ProviderSecretWrite, hermes::*},
     },
 };
+use gateway_app_provider::AgentAppsReadError;
 
 #[derive(Clone)]
 pub enum Field {
@@ -35,7 +36,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<HermesFormView, String> {
-    client
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .hermes_form_read(id, &HermesTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
@@ -47,6 +48,7 @@ pub(crate) async fn save(
     form: EditForm,
     token: String,
 ) -> Result<HermesLiveResult, String> {
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let draft = form.hermes.ok_or("此档案的 Hermes 节点不可编辑。")?;
     let api_key = if form.clear_key {
         ProviderSecretWrite::Clear
@@ -133,6 +135,7 @@ pub(crate) fn change_membership(app: &mut App, id: String, add: bool) -> Task<Me
     state.generation = state.generation.wrapping_add(1);
     let generation = state.generation;
     let token = app.apps_catalog.token.clone();
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let target = HermesTarget { target_host_id: scope.host.clone() };
     Task::perform(
         async move {

@@ -4,11 +4,11 @@
 
 use super::run::run;
 use super::setup::CliSetup;
-use crate::app::agent::config::Config;
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::traits::ObserverMetric;
-use crate::app::agent::observability::{Observer, ObserverEvent};
-use crate::app::agent::providers::Provider;
+use vw_agent::config::Config;
+use vw_agent::memory::NoneMemory;
+use vw_agent::observability::traits::ObserverMetric;
+use vw_agent::observability::{Observer, ObserverEvent};
+use vw_agent::providers::Provider;
 use std::any::Any;
 use std::cell::RefCell;
 use std::sync::Arc;

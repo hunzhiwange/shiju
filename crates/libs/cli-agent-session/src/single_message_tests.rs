@@ -4,12 +4,12 @@
 
 use super::setup::CliSetup;
 use super::single_message::run_single_message;
-use crate::app::agent::agent::loop_::core::AUTOSAVE_MIN_MESSAGE_CHARS;
-use crate::app::agent::config::Config;
-use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
-use crate::app::agent::observability::traits::ObserverMetric;
-use crate::app::agent::observability::{Observer, ObserverEvent};
-use crate::app::agent::providers::Provider;
+use vw_agent::agent::loop_::core::AUTOSAVE_MIN_MESSAGE_CHARS;
+use vw_agent::config::Config;
+use vw_agent::memory::{Memory, MemoryCategory, MemoryEntry};
+use vw_agent::observability::traits::ObserverMetric;
+use vw_agent::observability::{Observer, ObserverEvent};
+use vw_agent::providers::Provider;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 

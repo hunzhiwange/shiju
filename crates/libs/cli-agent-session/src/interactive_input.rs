@@ -15,7 +15,7 @@
 //!
 //! ```ignore
 //! use crossterm::event::KeyCode;
-//! use crate::app::agent::agent::loop_::cli::interactive_input::*;
+//! use crate::interactive_input::*;
 //!
 //! let mut input = String::from("hello");
 //! let mut cursor = 5;

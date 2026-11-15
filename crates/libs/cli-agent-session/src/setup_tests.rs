@@ -129,7 +129,7 @@ fn channel_name_distinguishes_interactive_and_daemon_modes() {
 #[test]
 fn interactive_setup_allows_missing_default_provider() {
     let workspace = tempfile::tempdir().expect("workspace");
-    let mut config = crate::app::agent::config::Config {
+    let mut config = vw_agent::config::Config {
         workspace_dir: workspace.path().to_path_buf(),
         config_path: workspace.path().join("vibewindow.json"),
         default_provider: Some("token-plan".to_string()),
@@ -157,9 +157,9 @@ fn gateway_runtime_for_workspace_uses_current_directory_seed() {
             .as_nanos(),
     ));
     std::fs::create_dir(&config_dir).expect("create workspace config dir");
-    let config = crate::app::agent::config::Config {
+    let config = vw_agent::config::Config {
         config_path: config_dir.join("vibewindow.json"),
-        ..crate::app::agent::config::Config::default()
+        ..vw_agent::config::Config::default()
     };
 
     let runtime = super::setup::setup_gateway_runtime(&config).expect("runtime should build");

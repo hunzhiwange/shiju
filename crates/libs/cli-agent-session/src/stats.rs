@@ -27,7 +27,7 @@
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::agent::loop_::cli::stats::CliStats;
+/// use crate::stats::CliStats;
 ///
 /// let mut stats = CliStats::default();
 /// stats.user_messages += 1;
@@ -77,7 +77,7 @@ pub(crate) struct CliStats {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::agent::loop_::cli::stats::{CliStats, build_session_title};
+/// use crate::stats::{CliStats, build_session_title};
 ///
 /// let stats = CliStats {
 ///     user_messages: 2,

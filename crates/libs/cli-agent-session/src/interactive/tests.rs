@@ -3,10 +3,10 @@
 //! 失败场景则约束错误按原语义向上传播，不被交互层吞掉。
 
 use super::run_interactive;
-use crate::app::agent::config::Config;
-use crate::app::agent::memory::NoneMemory;
-use crate::app::agent::observability::NoopObserver;
-use crate::app::agent::providers::Provider;
+use vw_agent::config::Config;
+use vw_agent::memory::NoneMemory;
+use vw_agent::observability::NoopObserver;
+use vw_agent::providers::Provider;
 use std::sync::Arc;
 
 use super::super::setup::CliSetup;

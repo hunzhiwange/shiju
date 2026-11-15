@@ -30,11 +30,7 @@ use vw_agent::skill::SkillCommands;
 
 use cli_gateway_commands::{ApiOptions, RootApiCommands, RootConfigCommands};
 
-#[path = "cli/mod.rs"]
-mod runtime;
-
-pub(crate) use runtime::run;
-pub(crate) use runtime::{session, setup, tui};
+pub(crate) use cli_agent_session::run;
 
 /// Shell 补全脚本支持的 shell 类型枚举
 ///

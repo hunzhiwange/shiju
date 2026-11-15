@@ -1,9 +1,9 @@
 //! 验证 CLI processor 的请求桥接、终态规整与 delta 转发行为。
 //! 测试只使用纯转换、内存 channel 与未发起请求的 runtime。
 
-use crate::app::agent::session::processor as legacy_processor;
+use vw_agent::session::processor as legacy_processor;
 use cli_gateway_runtime::gateway::GatewaySessionSeed;
-use crate::session::ui_types as models;
+use vw_shared::session::ui_types as models;
 use serde_json::json;
 use std::path::PathBuf;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
@@ -17,7 +17,7 @@ fn sample_request() -> legacy_processor::Request {
         query: "continue the migration".to_string(),
         root: Some("/tmp/bridge-workspace".to_string()),
         model: Some("provider/model".to_string()),
-        reliability: crate::app::agent::config::ReliabilityConfig::default(),
+        reliability: vw_agent::config::ReliabilityConfig::default(),
         options: json!({
             "chat_system_prompt": "be precise",
             "temperature": 0.1,

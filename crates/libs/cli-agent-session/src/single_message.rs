@@ -17,17 +17,17 @@
 //! - 一次性查询处理
 //! - 自动化工作流中的代理调用
 
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::Config;
-use crate::app::agent::memory::MemoryCategory;
-use crate::app::agent::providers::ChatMessage;
-use crate::app::agent::security::SecurityPolicy;
+use vw_agent::approval::ApprovalManager;
+use vw_agent::config::Config;
+use vw_agent::memory::MemoryCategory;
+use vw_agent::providers::ChatMessage;
+use vw_agent::security::SecurityPolicy;
 use anyhow::Result;
 use std::sync::Arc;
 
 use super::setup::CliSetup;
-use crate::app::agent::agent::loop_::context::build_context;
-use crate::app::agent::agent::loop_::core::{
+use vw_agent::agent::loop_::context::build_context;
+use vw_agent::agent::loop_::core::{
     AUTOSAVE_MIN_MESSAGE_CHARS, autosave_memory_key, run_tool_call_loop,
 };
 
@@ -64,8 +64,8 @@ use crate::app::agent::agent::loop_::core::{
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::config::Config;
-/// use crate::app::agent::agent::loop_::cli::setup::CliSetup;
+/// use vw_agent::config::Config;
+/// use crate::setup::CliSetup;
 ///
 /// async fn example() -> anyhow::Result<()> {
 ///     let config = Config::load()?;
@@ -168,7 +168,7 @@ pub(crate) async fn run_single_message(
     println!("{response}");
 
     // 记录会话完成事件，用于可观测性和指标收集
-    setup.observer.record_event(&crate::app::agent::observability::ObserverEvent::TurnComplete);
+    setup.observer.record_event(&vw_agent::observability::ObserverEvent::TurnComplete);
 
     Ok(response)
 }

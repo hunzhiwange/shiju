@@ -21,9 +21,9 @@
 //! ## 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::config::Config;
-//! use crate::app::agent::agent::loop_::cli::setup::CliSetup;
-//! use crate::app::agent::agent::loop_::cli::interactive::run_interactive;
+//! use vw_agent::config::Config;
+//! use crate::setup::CliSetup;
+//! use crate::interactive::run_interactive;
 //!
 //! async fn start_interactive_session(config: &Config, setup: &CliSetup) -> anyhow::Result<()> {
 //!     let mut final_output = String::new();
@@ -38,7 +38,7 @@
 //! 本模块的交互循环在单个异步任务中运行，不涉及跨线程共享状态。
 //! 所有状态变更都在事件循环的主控制流中顺序执行。
 
-use crate::app::agent::config::Config;
+use vw_agent::config::Config;
 use anyhow::Result;
 
 #[cfg(test)]
@@ -79,8 +79,8 @@ fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::config::Config;
-/// use crate::app::agent::agent::loop_::cli::setup::CliSetup;
+/// use vw_agent::config::Config;
+/// use crate::setup::CliSetup;
 ///
 /// async fn run_cli_session(config: &Config) {
 ///     let setup = CliSetup::from_config(config);

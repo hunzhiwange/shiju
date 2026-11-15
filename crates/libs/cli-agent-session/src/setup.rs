@@ -18,17 +18,17 @@
 //! 此模块主要用于 `vibe-agent` CLI 入口，在交互模式和守护进程模式下都会被调用。
 //! 根据模式不同，会启用或禁用某些功能（如审批管理器）。
 
-use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::Config;
-use crate::app::agent::memory::{self, Memory};
-use crate::app::agent::observability::{self, Observer, ObserverEvent};
-use crate::app::agent::providers::Provider;
-use crate::app::agent::runtime;
-use crate::app::agent::security::SecurityPolicy;
+use vw_agent::approval::ApprovalManager;
+use vw_agent::config::Config;
+use vw_agent::memory::{self, Memory};
+use vw_agent::observability::{self, Observer, ObserverEvent};
+use vw_agent::providers::Provider;
+use vw_agent::runtime;
+use vw_agent::security::SecurityPolicy;
 use anyhow::Result;
 use std::sync::Arc;
 
-use crate::app::agent::agent::loop_::instructions::{
+use vw_agent::agent::loop_::instructions::{
     build_shell_policy_instructions, build_tool_instructions,
 };
 
@@ -45,8 +45,8 @@ use crate::app::agent::agent::loop_::instructions::{
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::config::Config;
-/// use crate::app::agent::agent::loop_::cli::setup::{setup_cli, CliSetup};
+/// use vw_agent::config::Config;
+/// use crate::setup::{setup_cli, CliSetup};
 ///
 /// let config = Config::load_default()?;
 /// let setup = setup_cli(&config, true, None, None)?;
@@ -78,7 +78,7 @@ pub(crate) struct CliSetup {
     ///
     /// 包含代理可调用的所有工具，如文件操作、Shell 命令、
     /// 网络请求、内存操作等。每个工具都实现了 `Tool` trait。
-    pub(crate) tools_registry: Vec<Box<dyn crate::app::agent::tools::Tool>>,
+    pub(crate) tools_registry: Vec<Box<dyn vw_agent::tools::Tool>>,
 
     /// 提供者名称
     ///
@@ -249,7 +249,7 @@ pub(super) fn setup_channel_name(interactive: bool) -> &'static str {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::config::Config;
+/// use vw_agent::config::Config;
 ///
 /// // 从文件加载配置
 /// let config = Config::load_default()?;
@@ -318,7 +318,7 @@ pub(crate) fn setup_cli(
     // ========================================
 
     // 注册所有可用工具，传入必要的依赖项
-    let tools_registry = crate::app::agent::tools::all_tools_with_runtime(
+    let tools_registry = vw_agent::tools::all_tools_with_runtime(
         Arc::new(config.clone()),  // 配置克隆
         &security,                 // 安全策略
         runtime,                   // 运行时适配器
@@ -356,7 +356,7 @@ pub(crate) fn setup_cli(
     // ========================================
 
     // 构建 Provider 运行时选项
-    let provider_runtime_options = crate::app::agent::providers::ProviderRuntimeOptions {
+    let provider_runtime_options = vw_agent::providers::ProviderRuntimeOptions {
         configured_provider_ids: config.providers.keys().cloned().collect(),
         auth_profile_override: None,              // 认证配置文件覆盖
         provider_api_url: config.api_url.clone(), // Provider API URL
@@ -371,11 +371,11 @@ pub(crate) fn setup_cli(
 
     // 交互界面允许先进入再选择模型；实际请求由 gateway 解析和校验 Provider。
     let provider: Box<dyn Provider> = if interactive {
-        Box::new(crate::app::agent::providers::session_llm::SessionLlmProvider::with_options(
+        Box::new(vw_agent::providers::session_llm::SessionLlmProvider::with_options(
             &provider_runtime_options,
         ))
     } else {
-        crate::app::agent::providers::create_routed_provider_with_options(
+        vw_agent::providers::create_routed_provider_with_options(
             &provider_name,
             config.api_key.as_deref(),
             config.api_url.as_deref(),
@@ -397,7 +397,7 @@ pub(crate) fn setup_cli(
     // ========================================
 
     // 加载技能定义
-    let skills = crate::app::agent::skills::load_skills_with_config(&config.workspace_dir, config);
+    let skills = vw_agent::skills::load_skills_with_config(&config.workspace_dir, config);
 
     // 构建工具描述列表，用于系统提示词
     // 每个工具包含名称和使用指南
@@ -417,7 +417,7 @@ pub(crate) fn setup_cli(
     let timezone = vw_agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
 
     // 构建基础系统提示词
-    let mut system_prompt = crate::app::agent::channels::build_system_prompt_with_mode(
+    let mut system_prompt = vw_agent::channels::build_system_prompt_with_mode(
         &config.workspace_dir,
         &model_name,
         &tool_descs,

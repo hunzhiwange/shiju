@@ -24,8 +24,8 @@ use super::run_tests::{run_interactive, run_single_message, setup_cli};
 use super::setup::setup_cli;
 #[cfg(not(test))]
 use super::single_message::run_single_message;
-use crate::app::agent::config::Config;
-use crate::app::agent::observability::ObserverEvent;
+use vw_agent::config::Config;
+use vw_agent::observability::ObserverEvent;
 use anyhow::Result;
 use std::time::Instant;
 
@@ -63,8 +63,8 @@ use std::time::Instant;
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::config::Config;
-/// use crate::app::agent::agent::loop_::cli::run::run;
+/// use vw_agent::config::Config;
+/// use crate::run::run;
 ///
 /// async fn example() -> anyhow::Result<()> {
 ///     let config = Config::load("config.toml")?;

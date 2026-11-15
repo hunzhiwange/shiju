@@ -1,6 +1,6 @@
 //! CLI 工作区状态与项目信息。
 
-use crate::app::agent::shell::git_std_command;
+use vw_agent::shell::git_std_command;
 use cli_interaction_model::GitWorkspaceStatus;
 use std::fmt::Write;
 use std::path::Path;

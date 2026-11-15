@@ -13,8 +13,8 @@
 
 use std::path::Path;
 
-use crate::app::agent::session::processor as legacy_processor;
-use crate::session::ui_types as models;
+use vw_agent::session::processor as legacy_processor;
+use vw_shared::session::ui_types as models;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;

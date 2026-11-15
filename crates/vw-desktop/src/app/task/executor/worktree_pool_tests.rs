@@ -149,7 +149,7 @@ fn desktop_worktree_snapshot_maps_gateway_dto() {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };
-    use vw_gateway_client::vw_api_types::task::{
+    use vw_api_task::{
         TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto,
         TaskPoolWorktreeSnapshotResponse,
     };

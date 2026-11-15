@@ -2,7 +2,7 @@ use super::operations::*;
 use {
     vw_api_types::app_providers::operations::ProviderOperationPhase,
     vw_api_transport::id::TaskId,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 #[test]
 fn cc04_operations_cancel_before_publish_changes_nothing() {

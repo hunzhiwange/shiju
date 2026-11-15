@@ -289,8 +289,9 @@ async fn cc04_editor_merge_registered_route_requires_gateway_authentication() {
 
 use vw_api_types::{
     app_providers::{operations::*, preview::SavedProviderPreviewRequest},
-    task::TaskStatus,
+
 };
+use vw_api_task::TaskStatus;
 
 async fn wait_for_progress(
     f: &Fixture,

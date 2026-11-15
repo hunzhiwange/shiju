@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params, 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use vw_api_transport::common::TimestampMs;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto, TaskPoolWorkflowTransitionDto,
 };
 

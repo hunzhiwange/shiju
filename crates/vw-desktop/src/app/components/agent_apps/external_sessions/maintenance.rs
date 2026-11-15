@@ -2,7 +2,8 @@
 use super::{message, Scope};
 use crate::app::{App, Message, state::AgentAppsContext, components::system_settings_common::*};
 use iced::{Element, Length, Task, widget::{button, checkbox, column, container, row, text}};
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::{external_session::*, task::TaskStatus}};
+use vw_gateway_client::{AgentAppsReadError, vw_api_types::{external_session::*, }};
+use vw_api_task::TaskStatus;
 
 #[derive(Clone, Default)]
 pub(super) struct State {

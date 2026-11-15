@@ -13,8 +13,9 @@ use iced::{
 use vw_gateway_client::vw_api_types::{
     agent_apps::{AppId, AppOperationPhase},
     mcp_management::{McpBatchOutcome, McpNativeStatus},
-    task::TaskStatus,
+
 };
+use vw_api_task::TaskStatus;
 pub(crate) fn panel(app: &App) -> Element<'_, Message> {
     use crate::app::components::system_settings_common::*;
     let state = visible(app);

@@ -667,7 +667,7 @@ fn worktree_snapshot_from_gateway_preserves_counts_locks_and_slot_state() {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };
-    use vw_gateway_client::vw_api_types::task::{
+    use vw_api_task::{
         TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto,
         TaskPoolWorktreeSnapshotResponse,
     };
@@ -767,7 +767,7 @@ fn scheduler_status_mapping_covers_every_builtin_task_status() {
 #[test]
 fn scheduler_status_key_and_role_fall_back_to_default_workflow() {
     use crate::app::task::TaskStatus;
-    use vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto;
+    use vw_api_task::TaskPoolWorkflowStatusRoleDto;
 
     assert_eq!(
         super::agent_scheduler_status_key_for_task_status(TaskStatus::CodeReview, "missing"),

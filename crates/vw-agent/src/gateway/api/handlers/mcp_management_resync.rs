@@ -175,7 +175,7 @@ pub(super) async fn submit(
             StatusCode::ACCEPTED,
             Json(vw_api_types::agent_apps::AppActionExecutionResult {
                 operation_id: id.into(),
-                status: vw_api_types::task::TaskStatus::Queued,
+                status: vw_api_task::TaskStatus::Queued,
             }),
         ))
     }

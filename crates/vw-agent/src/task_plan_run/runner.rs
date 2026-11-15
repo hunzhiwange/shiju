@@ -19,7 +19,7 @@ use serde_json::{Map, Value, json};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+use vw_api_task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 
 /// 子任务首次执行失败后允许的额外重试次数。
 ///

@@ -14,7 +14,7 @@ use {
     vw_api_types::mcp_management::McpDistributionOutcome,
     vw_api_types::mcp_management::McpFailureCode,
     vw_api_types::mcp_management::McpRecordRef,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 
 use super::{

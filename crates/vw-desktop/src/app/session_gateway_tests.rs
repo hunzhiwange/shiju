@@ -155,7 +155,7 @@ async fn task_plan_run_stop_gateway_boundary_preserves_task_and_tenant_scope() {
     let request_lower = request.to_ascii_lowercase();
 
     assert_eq!(status.task_id, "task-nested");
-    assert_eq!(status.status, vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled);
+    assert_eq!(status.status, vw_api_task::TaskPlanRunStatus::Cancelled);
     assert!(request.starts_with("POST /v1/task-plan-run/task-nested/stop HTTP/1.1"));
     assert!(
         request_lower

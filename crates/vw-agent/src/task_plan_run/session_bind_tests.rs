@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use vw_api_types::task::TaskPlanRunRequest;
+use vw_api_task::TaskPlanRunRequest;
 
 #[derive(Clone)]
 struct ScriptedSessionRunner {
@@ -268,7 +268,7 @@ async fn run_plan_persists_subtask_details_before_finished_event() {
     let captured = Arc::clone(&observed);
 
     super::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
-        if let vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+        if let vw_api_task::TaskPlanRunStreamEventDto::SubtaskFinished {
             session_id,
             success,
             ..
@@ -322,7 +322,7 @@ async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails
     let captured = Arc::clone(&finished);
 
     super::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
-        if let vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+        if let vw_api_task::TaskPlanRunStreamEventDto::SubtaskFinished {
             success,
             error,
             ..

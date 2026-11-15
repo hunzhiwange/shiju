@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use vw_api_transport::common::TimestampMs;
-use vw_api_types::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use crate::agent_scheduler::domain::{RunId, TaskId};
 use crate::agent_scheduler::events::AgentEventKind;

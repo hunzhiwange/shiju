@@ -67,7 +67,7 @@ fn task_pool_employee_gateway_projection_preserves_run_identity() {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };
-    use vw_gateway_client::vw_api_types::task::{
+    use vw_api_task::{
         TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto, TaskPoolWorktreeSnapshotResponse,
     };
     let snapshot = WorktreePoolSnapshot::from_gateway_response(TaskPoolWorktreeSnapshotResponse {

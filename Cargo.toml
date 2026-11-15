@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-task",
   "crates/libs/model-types",
   "crates/libs/config-worktree",
   "crates/libs/api-task-lifecycle",

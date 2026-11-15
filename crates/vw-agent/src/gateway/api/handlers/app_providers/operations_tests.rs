@@ -8,7 +8,7 @@ use {
     vw_api_types::app_providers::import::ImportTrigger,
     vw_api_types::app_providers::operations::*,
     vw_api_transport::id::TenantScope,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";

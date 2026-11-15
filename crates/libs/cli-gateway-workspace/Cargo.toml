@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-task = { path = "../api-task", version = "0.6.0" }
 cli-gateway-transport = { path = "../cli-gateway-transport", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

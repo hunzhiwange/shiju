@@ -2,7 +2,7 @@
 //! 缺失、禁用状态及禁用结果链中的环路必须明确拒绝。
 
 use serde_json::json;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
 };

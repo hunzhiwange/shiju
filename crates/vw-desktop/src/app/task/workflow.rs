@@ -21,7 +21,7 @@ pub(crate) use registry::{
     register_runtime_task_workflow, replace_runtime_task_lifecycle_workflows_for_tests,
     reset_runtime_task_lifecycle_cache, runtime_task_lifecycle_cache_test_lock,
 };
-use vw_gateway_client::vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
 };

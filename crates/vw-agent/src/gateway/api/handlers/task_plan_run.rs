@@ -11,7 +11,7 @@ use axum::{
 };
 use futures_util::FutureExt;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPlanRunRequest, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
 };
 

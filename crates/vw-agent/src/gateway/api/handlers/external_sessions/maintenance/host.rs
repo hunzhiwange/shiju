@@ -18,7 +18,7 @@ use vw_agent_apps::{
         source::SourceRegistry,
     },
 };
-use vw_api_types::{task::TaskStatus};
+use vw_api_task::TaskStatus;
 use vw_api_app_identity::{AppId};
 
 /// Shared by the history-options owner. Defaults never authorize migration.

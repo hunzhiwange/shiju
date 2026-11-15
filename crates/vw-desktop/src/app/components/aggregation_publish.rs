@@ -8,7 +8,8 @@ use iced::{
     Element,
     widget::{button, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::{agent_apps::aggregation::*, task::TaskStatus};
+use vw_gateway_client::vw_api_types::{agent_apps::aggregation::*, };
+use vw_api_task::TaskStatus;
 
 pub(super) fn overlay<'a>(
     session: &'a Session,

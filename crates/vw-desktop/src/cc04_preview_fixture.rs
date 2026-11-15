@@ -6,8 +6,9 @@ use vw_gateway_client::vw_api_types::{
         operations::*,
         preview::{ProviderPreviewRequest, SavedProviderPreviewRequest},
     },
-    task::TaskStatus,
+
 };
+use vw_api_task::TaskStatus;
 
 #[derive(Default)]
 pub(crate) struct Fixture {

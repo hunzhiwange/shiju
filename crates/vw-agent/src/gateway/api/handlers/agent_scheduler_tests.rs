@@ -21,7 +21,7 @@ use vw_api_types::agent_scheduler::{
     AgentTaskStatusDto,
 };
 use vw_api_transport::common::TimestampMs;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
 };

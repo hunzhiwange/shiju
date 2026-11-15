@@ -23,7 +23,7 @@ use {
     vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

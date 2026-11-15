@@ -50,7 +50,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_types::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use crate::agent_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
 use crate::agent_scheduler::domain::{

@@ -13,7 +13,7 @@ use {
     vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotResponse,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
-    vw_gateway_client::vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 
 use crate::app::components::apps_usage_cards::{CardSnapshot, Failure};

@@ -51,8 +51,8 @@ impl Session {
         self.operation.as_ref().is_some_and(|o| {
             matches!(
                 o.status,
-                vw_gateway_client::vw_api_types::task::TaskStatus::Queued
-                    | vw_gateway_client::vw_api_types::task::TaskStatus::Running
+                vw_api_task::TaskStatus::Queued
+                    | vw_api_task::TaskStatus::Running
             )
         })
     }
@@ -263,19 +263,19 @@ pub(crate) fn finish(form: &mut Form, result: Result<Reply, AgentAppsSettingsErr
                     format!("执行失败：{status} / {code:?}；恢复状态：{recovery:?}。请刷新后处理。")
                 }
                 Some(AggregationOutcome::Published { .. })
-                    if o.status == vw_gateway_client::vw_api_types::task::TaskStatus::Completed =>
+                    if o.status == vw_api_task::TaskStatus::Completed =>
                 {
                     "聚合已发布，请完全退出并重新启动 Desktop。".into()
                 }
                 Some(AggregationOutcome::Exited { .. })
-                    if o.status == vw_gateway_client::vw_api_types::task::TaskStatus::Completed =>
+                    if o.status == vw_api_task::TaskStatus::Completed =>
                 {
                     "直连配置已恢复，请完全退出并重新启动 Desktop。".into()
                 }
                 _ if matches!(
                     o.status,
-                    vw_gateway_client::vw_api_types::task::TaskStatus::Queued
-                        | vw_gateway_client::vw_api_types::task::TaskStatus::Running
+                    vw_api_task::TaskStatus::Queued
+                        | vw_api_task::TaskStatus::Running
                 ) =>
                 {
                     "操作进行中，请查询进度；取消请求不代表已经取消。".into()
@@ -400,8 +400,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         && s.operation.as_ref().is_some_and(|o| {
             !matches!(
                 o.status,
-                vw_gateway_client::vw_api_types::task::TaskStatus::Queued
-                    | vw_gateway_client::vw_api_types::task::TaskStatus::Running
+                vw_api_task::TaskStatus::Queued
+                    | vw_api_task::TaskStatus::Running
             )
         })
     {

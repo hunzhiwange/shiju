@@ -8,7 +8,7 @@ use {
     vw_api_types::agent_apps::*,
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 use {gateway_endpoint::{GatewayEndpoint}, gateway_app_lifecycle::{AgentAppsLifecycleError, GatewayAppLifecycleClient}};
 fn terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {

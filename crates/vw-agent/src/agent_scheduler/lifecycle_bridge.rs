@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use anyhow::{Result, bail};
 use serde_json::{Map, Value, json};
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
 };

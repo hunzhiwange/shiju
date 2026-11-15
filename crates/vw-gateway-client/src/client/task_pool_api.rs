@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPlanRunRequest, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
     TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
     TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,

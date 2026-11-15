@@ -2,7 +2,8 @@
 //! its target/restore exclusion lock until run returns and persist each update
 //! through `save`; a failed save stops further writes. No payloads are reported.
 use std::{collections::BTreeSet, path::Path, sync::{Arc, Mutex}};
-use vw_api_types::{agent_apps::*, task::TaskStatus};
+use vw_api_types::{agent_apps::*, };
+use vw_api_task::TaskStatus;
 use crate::apps::lifecycle::operations::Operation;
 use super::{rollback::{apply_with_rollback, RollbackError}, safety_snapshot::{OwnerPreimage, SafetySnapshotReceipt, SnapshotTarget}, source::{SourceCategory, SourceScope, SourceSnapshot, SourceSummary}};
 

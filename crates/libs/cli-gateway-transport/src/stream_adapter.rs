@@ -6,7 +6,7 @@
 
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use serde_json::Value;
-use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+use vw_api_task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent,
     GatewayWorkflowStreamEvent, normalize_chat_stream_event, normalize_chat_tool_event,

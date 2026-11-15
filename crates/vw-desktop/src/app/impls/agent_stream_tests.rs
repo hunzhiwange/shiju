@@ -661,7 +661,7 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
     )
     .to_string();
     let (endpoint, handle) = spawn_workflow_stream_response("200 OK", stream_body);
-    let request = vw_gateway_client::vw_api_types::task::TaskPlanRunRequest {
+    let request = vw_api_task::TaskPlanRunRequest {
         query: "请规划并执行".to_string(),
         root: "/tmp/project".to_string(),
         model: Some("demo-model".to_string()),
@@ -683,11 +683,11 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
     assert_eq!(events.len(), 6);
     assert!(matches!(
         events[0],
-        vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. }
+        vw_api_task::TaskPlanRunStreamEventDto::PlanningStarted { .. }
     ));
     assert!(matches!(
         events[5],
-        vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }
+        vw_api_task::TaskPlanRunStreamEventDto::Finished { .. }
     ));
 
     let block = super::plan_run_tool_block(&events[1], "/work/project");
@@ -1656,9 +1656,9 @@ fn temporary_workflow_fingerprint_ignores_outer_whitespace_only() {
     assert!(base.chars().all(|ch| ch.is_ascii_hexdigit()));
 }
 
-fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto> {
+fn plan_run_events() -> Vec<vw_api_task::TaskPlanRunStreamEventDto> {
     // 固定事件序列包含规划、子任务与终态，供多个生命周期测试共享同一基线。
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     vec![
         TaskPlanRunStreamEventDto::PlanningStarted {
@@ -1790,7 +1790,7 @@ fn plan_run_tool_block_carries_session_directory() {
 
 #[test]
 fn goal_mode_stream_continues_after_negative_evaluation() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let rejected = TaskPlanRunStreamEventDto::GoalEvaluated {
         task_id: "task-goal".to_string(),
@@ -1814,7 +1814,7 @@ fn goal_mode_stream_continues_after_negative_evaluation() {
 
 #[test]
 fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consistent() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let waiting = TaskPlanRunStreamEventDto::SessionWaiting {
         task_id: "task-2".to_string(),
@@ -1903,7 +1903,7 @@ fn plan_run_event_helpers_map_every_variant_and_failure_branch() {
 
 #[test]
 fn completed_batch_reuses_started_node_and_marks_it_completed() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let started = TaskPlanRunStreamEventDto::BatchStarted {
         task_id: "task-2".to_string(),
@@ -1931,7 +1931,7 @@ fn plan_run_tool_block_serializes_error_and_metadata() {
         .find(|event| {
             matches!(
                 event,
-                vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+                vw_api_task::TaskPlanRunStreamEventDto::SubtaskFinished {
                     success: false,
                     ..
                 }
@@ -1962,7 +1962,7 @@ fn plan_run_tool_block_serializes_error_and_metadata() {
 
 #[test]
 fn plan_run_tool_block_uses_explicit_title_fallback_for_blank_subtask_title() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let event = TaskPlanRunStreamEventDto::SubtaskStarted {
         task_id: "task-2".to_string(),
@@ -1984,7 +1984,7 @@ fn plan_run_tool_block_uses_explicit_title_fallback_for_blank_subtask_title() {
 
 #[test]
 fn plan_run_started_messages_register_planning_and_execution_sessions() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let planning = TaskPlanRunStreamEventDto::PlanningStarted {
         task_id: "task-2".to_string(),
@@ -2045,7 +2045,7 @@ fn plan_run_started_messages_register_planning_and_execution_sessions() {
 
 #[test]
 fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let blocked = TaskPlanRunStreamEventDto::Blocked {
         task_id: "task-2".to_string(),
@@ -2087,7 +2087,7 @@ fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
 
 #[test]
 fn plan_run_subtask_validation_failure_is_distinct_from_execution_failure() {
-    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+    use vw_api_task::TaskPlanRunStreamEventDto;
 
     let validation_failure = TaskPlanRunStreamEventDto::SubtaskFinished {
         task_id: "task-2".to_string(),

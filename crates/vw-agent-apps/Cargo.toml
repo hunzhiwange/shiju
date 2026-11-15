@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-task = { path = "../libs/api-task", version = "0.6.0" }
 model-reasoning = { path = "../libs/model-reasoning", version = "0.6.0" }
 provider-model-discovery = { path = "../libs/provider-model-discovery", version = "0.6.0" }
 provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }

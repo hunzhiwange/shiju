@@ -97,9 +97,9 @@ impl Harness {
                         "同一操作-恢复后".into(),
                     ),
                     status: if self.case % 6 == 2 {
-                        vw_gateway_client::vw_api_types::task::TaskStatus::Running
+                        vw_api_task::TaskStatus::Running
                     } else {
-                        vw_gateway_client::vw_api_types::task::TaskStatus::Cancelled
+                        vw_api_task::TaskStatus::Cancelled
                     },
                     phase: if self.case % 6 == 2 {
                         AppOperationPhase::Executing
@@ -124,7 +124,7 @@ impl Harness {
                 if self.frames == 4 && self.case % 6 == 2 {
                     let operation = self.state.lifecycle.operation.as_mut().unwrap();
                     operation.phase = AppOperationPhase::Terminal;
-                    operation.status = vw_gateway_client::vw_api_types::task::TaskStatus::Completed;
+                    operation.status = vw_api_task::TaskStatus::Completed;
                 }
                 if self.frames == 60 {
                     return window::screenshot(self.window).map(Message::Capture);

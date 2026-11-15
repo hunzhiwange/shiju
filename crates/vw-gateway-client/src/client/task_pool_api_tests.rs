@@ -8,7 +8,7 @@ use {
     vw_api_transport::id::PLATFORM_ID_HEADER,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
     TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeMaintenanceRequest,
     TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeUnlockRequest,

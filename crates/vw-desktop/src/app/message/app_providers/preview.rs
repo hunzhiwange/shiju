@@ -19,9 +19,10 @@ use vw_gateway_client::{
             },
             preview::{ProviderPreviewRequest, SavedProviderPreviewRequest},
         },
-        task::TaskStatus,
+
     },
 };
+use vw_api_task::TaskStatus;
 
 #[derive(Clone)]
 pub enum Event {

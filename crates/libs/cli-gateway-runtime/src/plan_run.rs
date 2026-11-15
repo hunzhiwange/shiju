@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use vw_gateway_client::vw_api_types::task::TaskPlanRunRequest;
+use vw_api_task::TaskPlanRunRequest;
 use vw_gateway_client::{GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume};
 
 use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};

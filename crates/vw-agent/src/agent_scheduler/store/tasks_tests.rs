@@ -767,13 +767,13 @@ fn agent_scheduler_store_updates_task_board_fields_and_workflow_snapshot() -> Re
     assert_eq!(updated.metadata["task_board.status_key"], "doing");
     assert_eq!(updated.updated_at_ms, TimestampMs(1_783_000_101_000));
 
-    let workflow = vw_api_types::task::TaskPoolWorkflowSnapshotDto {
+    let workflow = vw_api_task::TaskPoolWorkflowSnapshotDto {
         id: "custom_flow".to_string(),
         label: "Custom Flow".to_string(),
-        statuses: vec![vw_api_types::task::TaskPoolWorkflowStatusDto {
+        statuses: vec![vw_api_task::TaskPoolWorkflowStatusDto {
             key: "doing".to_string(),
             label: "Doing".to_string(),
-            role: vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Executing,
+            role: vw_api_task::TaskPoolWorkflowStatusRoleDto::Executing,
             enabled: true,
             terminal: false,
             next: None,
@@ -792,23 +792,23 @@ fn agent_scheduler_store_repairs_missing_failed_retry_transition() -> Result<()>
     let project_path = temp_dir.path();
     let store = AgentSchedulerStore::new();
     store.initialize_project(project_path)?;
-    let workflow = vw_api_types::task::TaskPoolWorkflowSnapshotDto {
+    let workflow = vw_api_task::TaskPoolWorkflowSnapshotDto {
         id: "dev_lifecycle".to_string(),
         label: "Development Lifecycle".to_string(),
         statuses: vec![
-            vw_api_types::task::TaskPoolWorkflowStatusDto {
+            vw_api_task::TaskPoolWorkflowStatusDto {
                 key: "failed".to_string(),
                 label: "Failed".to_string(),
-                role: vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Failed,
+                role: vw_api_task::TaskPoolWorkflowStatusRoleDto::Failed,
                 enabled: true,
                 terminal: false,
                 next: Some("pending".to_string()),
                 transitions: Vec::new(),
             },
-            vw_api_types::task::TaskPoolWorkflowStatusDto {
+            vw_api_task::TaskPoolWorkflowStatusDto {
                 key: "pending".to_string(),
                 label: "Pending".to_string(),
-                role: vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Queued,
+                role: vw_api_task::TaskPoolWorkflowStatusRoleDto::Queued,
                 enabled: true,
                 terminal: false,
                 next: None,
@@ -846,36 +846,36 @@ fn agent_scheduler_store_keeps_existing_retry_and_non_failed_workflow_statuses()
     let project_path = temp_dir.path();
     let store = AgentSchedulerStore::new();
     store.initialize_project(project_path)?;
-    let workflow = vw_api_types::task::TaskPoolWorkflowSnapshotDto {
+    let workflow = vw_api_task::TaskPoolWorkflowSnapshotDto {
         id: "no_repair_needed".to_string(),
         label: "No repair needed".to_string(),
         statuses: vec![
-            vw_api_types::task::TaskPoolWorkflowStatusDto {
+            vw_api_task::TaskPoolWorkflowStatusDto {
                 key: "failed-with-retry".to_string(),
                 label: "Failed with retry".to_string(),
-                role: vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Failed,
+                role: vw_api_task::TaskPoolWorkflowStatusRoleDto::Failed,
                 enabled: true,
                 terminal: false,
                 next: Some("pending".to_string()),
-                transitions: vec![vw_api_types::task::TaskPoolWorkflowTransitionDto {
+                transitions: vec![vw_api_task::TaskPoolWorkflowTransitionDto {
                     outcome: " Retry ".to_string(),
                     label: Some("Try again".to_string()),
                     target: "pending".to_string(),
                 }],
             },
-            vw_api_types::task::TaskPoolWorkflowStatusDto {
+            vw_api_task::TaskPoolWorkflowStatusDto {
                 key: "failed-terminal".to_string(),
                 label: "Failed terminal".to_string(),
-                role: vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Failed,
+                role: vw_api_task::TaskPoolWorkflowStatusRoleDto::Failed,
                 enabled: true,
                 terminal: true,
                 next: None,
                 transitions: Vec::new(),
             },
-            vw_api_types::task::TaskPoolWorkflowStatusDto {
+            vw_api_task::TaskPoolWorkflowStatusDto {
                 key: "queued".to_string(),
                 label: "Queued".to_string(),
-                role: vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Queued,
+                role: vw_api_task::TaskPoolWorkflowStatusRoleDto::Queued,
                 enabled: true,
                 terminal: false,
                 next: Some("running".to_string()),

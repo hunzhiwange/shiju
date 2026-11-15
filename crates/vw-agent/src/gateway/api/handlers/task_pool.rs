@@ -5,7 +5,7 @@ use axum::Router;
 use axum::routing::post;
 use std::sync::LazyLock;
 use vw_api_transport::id::TaskId;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
     TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
     TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,

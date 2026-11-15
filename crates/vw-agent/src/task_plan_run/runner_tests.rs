@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tokio::sync::{Notify, Semaphore};
 use tokio_util::sync::CancellationToken;
-use vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+use vw_api_task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 
 #[derive(Clone)]
 struct ScriptedSessionRunner {

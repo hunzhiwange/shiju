@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use tokio_util::sync::CancellationToken;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::task::{TaskPlanRunStatus, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto};
+use vw_api_task::{TaskPlanRunStatus, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto};
 
 use crate::session::child_agent::coordinator::ChildAgentCoordinator;
 

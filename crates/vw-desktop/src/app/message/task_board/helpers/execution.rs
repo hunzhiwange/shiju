@@ -419,8 +419,8 @@ pub(crate) fn agent_scheduler_status_key_for_task_status(
 
 fn task_pool_workflow_status_role_dto(
     role: StatusRole,
-) -> vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto {
-    use vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto;
+) -> vw_api_task::TaskPoolWorkflowStatusRoleDto {
+    use vw_api_task::TaskPoolWorkflowStatusRoleDto;
 
     match role {
         StatusRole::Backlog => TaskPoolWorkflowStatusRoleDto::Backlog,
@@ -441,7 +441,7 @@ fn task_pool_workflow_status_role_dto(
 pub(crate) fn agent_scheduler_status_role_for_task_status(
     status: TaskStatus,
     workflow_id: &str,
-) -> Option<vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto> {
+) -> Option<vw_api_task::TaskPoolWorkflowStatusRoleDto> {
     let workflow = task_workflow_for_agent_scheduler(workflow_id)?;
     workflow.status_role(status).map(task_pool_workflow_status_role_dto)
 }
@@ -827,7 +827,7 @@ pub(crate) fn send_agent_scheduler_command(
 }
 
 fn worktree_snapshot_from_gateway(
-    snapshot: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse,
+    snapshot: vw_api_task::TaskPoolWorktreeSnapshotResponse,
 ) -> crate::app::task::WorktreePoolSnapshot {
     crate::app::task::WorktreePoolSnapshot::from_gateway_response(snapshot)
 }
@@ -838,7 +838,7 @@ pub(crate) async fn cleanup_office_contexts(project_path: String) -> Result<usiz
     let client = crate::app::config::gateway_client()?;
     let snapshot = client
         .task_pool_worktree_snapshot(
-            &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotRequest { project_id },
+            &vw_api_task::TaskPoolWorktreeSnapshotRequest { project_id },
         )
         .await?;
     let snapshot = worktree_snapshot_from_gateway(snapshot);
@@ -866,7 +866,7 @@ pub(crate) async fn recycle_worktree_slot_via_gateway(
         let client = crate::app::config::gateway_client()?;
         let response = client
             .task_pool_worktree_slot_recycle(
-                &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotRecycleRequest {
+                &vw_api_task::TaskPoolWorktreeSlotRecycleRequest {
                     project_id,
                     slot_id: slot_id.clone(),
                 },
@@ -892,7 +892,7 @@ async fn recycle_task_worktree_via_gateway(
         let client = crate::app::config::gateway_client()?;
         let response = client
             .task_pool_worktree_recycle(
-                &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeRecycleRequest {
+                &vw_api_task::TaskPoolWorktreeRecycleRequest {
                     project_id,
                     task_id: vw_api_transport::TaskId(task_id.clone()),
                     taint_reason,
@@ -936,7 +936,7 @@ pub(crate) fn schedule_worktree_pool_maintenance(
             let client = crate::app::config::gateway_client()?;
             let response = client
                 .task_pool_worktree_maintain(
-                    &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMaintenanceRequest {
+                    &vw_api_task::TaskPoolWorktreeMaintenanceRequest {
                         project_id,
                         desired_capacity: desired_capacity as u32,
                     },
@@ -1005,7 +1005,7 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
             let client = crate::app::config::gateway_client()?;
             let snapshot = client
                 .task_pool_worktree_snapshot(
-                    &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotRequest {
+                    &vw_api_task::TaskPoolWorktreeSnapshotRequest {
                         project_id,
                     },
                 )

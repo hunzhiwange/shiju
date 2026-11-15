@@ -11,7 +11,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
 };
-use vw_gateway_client::vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+use vw_api_task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 use vw_gateway_client::{
     GatewayAgentRequest, GatewayChatWebSocketEvent, GatewayJsonSseEvent,
     GatewayStreamAttemptResult, GatewayStreamEvent, GatewayStreamResume,

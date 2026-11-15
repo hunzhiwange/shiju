@@ -215,7 +215,7 @@ fn cc_mcp_t48_real_sdk_job_polls_cancels_retains_failure_and_retries_only_failed
             &responses,
             &AppActionExecutionResult {
                 operation_id: "job /?".into(),
-                status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,
+                status: vw_api_task::TaskStatus::Queued,
             },
         );
         let poll = run(update(&mut app, runtime.block_on(start).unwrap()), &runtime);
@@ -306,7 +306,7 @@ fn cc_mcp_t48_real_sdk_job_polls_cancels_retains_failure_and_retries_only_failed
             &responses,
             &AppActionExecutionResult {
                 operation_id: "retry".into(),
-                status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,
+                status: vw_api_task::TaskStatus::Queued,
             },
         );
         drop(update(&mut app, runtime.block_on(retry).unwrap()));
@@ -350,7 +350,7 @@ fn cc_mcp_t48_unknown_submission_and_changed_credentials_prevent_replay_and_stal
                 generation,
                 result: Ok(ResyncResult::Accepted(AppActionExecutionResult {
                     operation_id: "late".into(),
-                    status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,
+                    status: vw_api_task::TaskStatus::Queued,
                 })),
             },
         ));
@@ -374,7 +374,7 @@ fn cc_mcp_t48_incomplete_foreign_and_duplicate_reports_cannot_finish_job() {
                     generation,
                     result: Ok(ResyncResult::Accepted(AppActionExecutionResult {
                         operation_id: "job /?".into(),
-                        status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,
+                        status: vw_api_task::TaskStatus::Queued,
                     })),
                 },
             ));
@@ -406,7 +406,7 @@ fn cc_mcp_t48_incomplete_foreign_and_duplicate_reports_cannot_finish_job() {
 #[test]
 fn cc_mcp_t48_cancellation_accepts_empty_unexecuted_items_partial_commit_and_completed_job() {
     use std::time::Duration;
-    use vw_gateway_client::vw_api_types::task::TaskStatus;
+    use vw_api_task::TaskStatus;
     crate::app::config::with_settings_gateway(|requests, responses| {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
@@ -518,7 +518,7 @@ fn cc_mcp_t48_options_modal_draws_chinese_account_and_cancel_does_not_submit() {
 #[test]
 fn cc_mcp_t48_unverified_native_items_cannot_produce_success_feedback() {
     use crate::app::state::ToastKind;
-    use vw_gateway_client::vw_api_types::task::TaskStatus;
+    use vw_api_task::TaskStatus;
     crate::app::config::with_settings_gateway(|_, _| {
         for native_outcome in [
             McpDistributionOutcome::NotVerified,

@@ -19,7 +19,7 @@ use vw_agent_apps::providers::operations::ProviderOperation;
 use {
     vw_api_types::app_providers::operations::*,
     vw_api_transport::id::TaskId,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 #[derive(Clone)]
 pub(in crate::gateway::api::handlers) struct State {

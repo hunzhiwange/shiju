@@ -11,7 +11,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeMaintenanceResponse,
     TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeMergeLockResponse,
     TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto,

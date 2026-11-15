@@ -1763,7 +1763,7 @@ struct GatewayMergeTargetLockGuard {
 impl Drop for GatewayMergeTargetLockGuard {
     fn drop(&mut self) {
         let result = super::block_on_gateway(self.client.task_pool_worktree_merge_unlock(
-            &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMergeUnlockRequest {
+            &vw_api_task::TaskPoolWorktreeMergeUnlockRequest {
                 project_id: self.project_id.clone(),
                 task_id: vw_api_transport::TaskId(self.task_id.clone()),
                 target_branch: self.target_branch.clone(),
@@ -1820,7 +1820,7 @@ fn lock_merge_target_via_gateway(
                 .project;
             let response = client
                 .task_pool_worktree_merge_lock(
-                    &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMergeLockRequest {
+                    &vw_api_task::TaskPoolWorktreeMergeLockRequest {
                         project_id: project.id.clone(),
                         task_id: vw_api_transport::TaskId(task_id),
                         target_branch,

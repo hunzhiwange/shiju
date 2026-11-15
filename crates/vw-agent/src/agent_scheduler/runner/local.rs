@@ -485,13 +485,13 @@ where
         )?;
         let bridge = crate::agent_scheduler::lifecycle_bridge::LifecycleBridge::new(&workflow);
         let mut executing = workflow.statuses.iter().filter(|s| {
-            s.enabled && s.role == vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Executing
+            s.enabled && s.role == vw_api_task::TaskPoolWorkflowStatusRoleDto::Executing
         });
         let source_key = execution_metadata_string(task, "task_board.status_key").filter(|key| {
             workflow.statuses.iter().any(|s| {
                 s.enabled
                     && s.key == *key
-                    && s.role == vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Executing
+                    && s.role == vw_api_task::TaskPoolWorkflowStatusRoleDto::Executing
             })
         });
         let source_key = match source_key {

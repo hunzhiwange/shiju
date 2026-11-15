@@ -164,9 +164,9 @@ fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets()
         &mut app,
         ChatMessage::StopPlanRunFinished {
             task_id: "task-requested".to_string(),
-            result: Ok(vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse {
+            result: Ok(vw_api_task::TaskPlanRunStatusResponse {
                 task_id: "task-other".to_string(),
-                status: vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled,
+                status: vw_api_task::TaskPlanRunStatus::Cancelled,
                 current_session_id: None,
                 terminal_event: None,
             }),

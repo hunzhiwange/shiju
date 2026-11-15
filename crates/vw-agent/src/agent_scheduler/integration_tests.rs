@@ -14,7 +14,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
+use vw_api_task::TaskPoolWorkflowSnapshotDto;
 use vw_api_task_lifecycle::TaskLifecycleWorkflowUpsertBody;
 use project_types::{Info, TimeInfo};
 use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};

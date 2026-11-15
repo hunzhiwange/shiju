@@ -2,7 +2,8 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_gateway_client::vw_api_types::{hermes_dashboard::*, task::TaskStatus};
+use vw_gateway_client::vw_api_types::{hermes_dashboard::*, };
+use vw_api_task::TaskStatus;
 
 #[derive(Clone, Default)]
 pub(crate) struct State {

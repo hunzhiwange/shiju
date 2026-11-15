@@ -10,8 +10,9 @@ use iced::{
 };
 use vw_gateway_client::{
     GatewayClient, WorkspaceMemoryScope,
-    vw_api_types::{task::TaskStatus, workspace_memory::DailyMemorySearchResult},
+    vw_api_types::{ workspace_memory::DailyMemorySearchResult},
 };
+use vw_api_task::TaskStatus;
 
 #[derive(Clone, Default)]
 pub(crate) struct State {

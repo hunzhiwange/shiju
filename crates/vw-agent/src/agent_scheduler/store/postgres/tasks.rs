@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
-use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
+use vw_api_task::TaskPoolWorkflowSnapshotDto;
 
 use super::PostgresAgentSchedulerStore;
 use crate::agent_scheduler::domain::{AssigneeId, TaskId, TeamId};

@@ -13,7 +13,7 @@ use {
     vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 
 const TOKEN: &str = "fixture-apps-principal-token";

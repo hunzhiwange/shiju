@@ -1,4 +1,4 @@
-use crate::task::{
+use crate::{
     CommandTaskSpecDto, CreateTaskRequest, ListTasksRequest, TaskKind, TaskPlanRunStatus,
     TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto, TaskPoolStatus,
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
@@ -383,7 +383,7 @@ fn task_pool_workflow_snapshot_rejects_invalid_identity_and_empty_routes() {
 
 #[test]
 fn task_plan_run_request_and_events_serialize_session_fields() {
-    use crate::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+    use crate::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 
     let request = TaskPlanRunRequest {
         query: "plan it".to_string(),
@@ -555,7 +555,7 @@ fn task_plan_run_control_status_and_cancelled_event_roundtrip() {
 
 #[test]
 fn task_plan_run_request_ignores_legacy_mode_and_goal_events_round_trip() {
-    use crate::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+    use crate::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 
     // 旧客户端仍可能发送 mode；网关侧已删除该参数，反序列化时忽略。
     let request: TaskPlanRunRequest = serde_json::from_value(json!({

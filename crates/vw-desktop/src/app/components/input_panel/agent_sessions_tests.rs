@@ -445,9 +445,9 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
         &mut app,
         message::ChatMessage::StopPlanRunFinished {
             task_id: TASK_ID.to_string(),
-            result: Ok(vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse {
+            result: Ok(vw_api_task::TaskPlanRunStatusResponse {
                 task_id: TASK_ID.to_string(),
-                status: vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled,
+                status: vw_api_task::TaskPlanRunStatus::Cancelled,
                 current_session_id: Some(WORKFLOW_SESSION_ID.to_string()),
                 terminal_event: None,
             }),

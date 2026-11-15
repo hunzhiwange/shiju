@@ -4,7 +4,7 @@
 use super::PlanRunControlRegistry;
 use crate::session::child_agent::coordinator::ChildAgentCoordinator;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::task::{TaskPlanRunStatus, TaskPlanRunStreamEventDto};
+use vw_api_task::{TaskPlanRunStatus, TaskPlanRunStreamEventDto};
 
 #[test]
 fn task_plan_run_stop_is_tenant_scoped_and_cancels_descendants() {

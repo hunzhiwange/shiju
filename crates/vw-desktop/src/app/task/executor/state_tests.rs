@@ -202,7 +202,7 @@ fn worktree_state_is_copy_and_comparable() {
 
 #[test]
 fn worktree_state_maps_every_gateway_variant() {
-    use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto as GatewayState;
+    use vw_api_task::TaskPoolWorktreeSlotStateDto as GatewayState;
 
     let cases = [
         (GatewayState::Idle, super::WorktreeState::Idle),
@@ -220,7 +220,7 @@ fn worktree_state_maps_every_gateway_variant() {
 #[test]
 fn gateway_snapshot_conversion_preserves_empty_boundary() {
     use vw_api_transport::id::ProjectId;
-    use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse;
+    use vw_api_task::TaskPoolWorktreeSnapshotResponse;
 
     let snapshot =
         super::WorktreePoolSnapshot::from_gateway_response(TaskPoolWorktreeSnapshotResponse {

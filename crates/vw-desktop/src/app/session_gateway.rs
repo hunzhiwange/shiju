@@ -88,7 +88,7 @@ pub(crate) fn active_tenant_scope() -> TenantScopeDto {
 pub(crate) async fn gateway_task_plan_run_stop_with_client(
     client: &vw_gateway_client::GatewayClient,
     task_id: &str,
-) -> Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String> {
+) -> Result<vw_api_task::TaskPlanRunStatusResponse, String> {
     let task_id = task_id.trim();
     if task_id.is_empty() {
         return Err("plan-run task id 不能为空".to_string());
@@ -98,7 +98,7 @@ pub(crate) async fn gateway_task_plan_run_stop_with_client(
 
 pub(crate) async fn gateway_task_plan_run_stop_async(
     task_id: &str,
-) -> Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String> {
+) -> Result<vw_api_task::TaskPlanRunStatusResponse, String> {
     let client = gateway_client()?;
     gateway_task_plan_run_stop_with_client(&client, task_id).await
 }

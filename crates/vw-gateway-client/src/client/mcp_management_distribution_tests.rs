@@ -7,7 +7,7 @@ use {
     vw_api_app_identity::AppId,
     vw_api_app_identity::AppInstallationId,
     vw_api_types::mcp_management::*,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 
 fn target() -> McpAppTarget {

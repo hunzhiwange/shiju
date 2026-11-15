@@ -8,7 +8,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerMoveTaskPayloadDto, AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
 };
 use vw_api_transport::common::TimestampMs;
-use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
+use vw_api_task::TaskPoolWorkflowSnapshotDto;
 
 use crate::agent_scheduler::domain::TaskId;
 use crate::agent_scheduler::events::AgentEventKind;

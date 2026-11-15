@@ -355,7 +355,7 @@ pub enum ChatMessage {
     /// plan-run 停止请求完成；实时状态仍由 SSE cancelled 事件收敛。
     StopPlanRunFinished {
         task_id: String,
-        result: Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String>,
+        result: Result<vw_api_task::TaskPlanRunStatusResponse, String>,
     },
 
     /// 模型被选择

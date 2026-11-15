@@ -8,7 +8,7 @@ use anyhow::{Result, bail};
 use parking_lot::Mutex;
 use serde_json::json;
 use std::collections::VecDeque;
-use vw_api_types::task::{
+use vw_api_task::{
     TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeRecycleResponse,
     TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto,
 };

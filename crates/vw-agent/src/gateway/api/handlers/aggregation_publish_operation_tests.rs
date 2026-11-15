@@ -47,7 +47,7 @@ async fn aggregation_t41_cancellation_respects_original_publication_boundary() {
     use vw_agent_apps::providers::operations::{ProviderOperation, publication};
     use {
     vw_api_transport::id::TaskId,
-    vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
     for published in [false, true] {
         let operation =

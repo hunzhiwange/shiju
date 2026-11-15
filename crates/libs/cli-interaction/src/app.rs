@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use vw_gateway_client::vw_api_types::task::TaskPlanRunRequest;
+use vw_api_task::TaskPlanRunRequest;
 use vw_gateway_client::vw_api_types::workflow::{WorkflowResumeRequest, WorkflowRunResponse};
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayStreamAttemptResult,

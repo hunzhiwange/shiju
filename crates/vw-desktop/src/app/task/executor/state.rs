@@ -66,9 +66,9 @@ pub struct WorktreeSlotSnapshot {
 
 impl WorktreeState {
     pub fn from_gateway(
-        state: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto,
+        state: vw_api_task::TaskPoolWorktreeSlotStateDto,
     ) -> Self {
-        use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto;
+        use vw_api_task::TaskPoolWorktreeSlotStateDto;
 
         match state {
             TaskPoolWorktreeSlotStateDto::Idle => Self::Idle,
@@ -82,7 +82,7 @@ impl WorktreeState {
 
 impl WorktreePoolSnapshot {
     pub fn from_gateway_response(
-        snapshot: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse,
+        snapshot: vw_api_task::TaskPoolWorktreeSnapshotResponse,
     ) -> Self {
         Self {
             repo_root: snapshot.repo_root,

@@ -8,7 +8,7 @@ use std::process::Command;
 
 use anyhow::Result;
 use vw_api_transport::id::TaskId;
-use vw_api_types::task::{TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto};
+use vw_api_task::{TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto};
 
 use super::worktree::WorktreeResourceProvider;
 use super::{AcquireResourceRequest, ResourceLease, ResourceProvider};

@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::thread;
 
-use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+use vw_api_task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 use super::app::V3GatewayApp;

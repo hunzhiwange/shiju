@@ -14,7 +14,7 @@ use {
     vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps::AppOperationPhase,
     vw_gateway_client::vw_api_types::mcp_management::*,
-    vw_gateway_client::vw_api_types::task::TaskStatus,
+    vw_api_task::TaskStatus,
 };
 
 #[derive(Debug, Clone, Default)]

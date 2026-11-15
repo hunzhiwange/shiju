@@ -289,3 +289,6 @@ fn print_tasks_json(tasks: &[Task]) -> Result<()> {
 mod tests;
 #[cfg(test)]
 mod lib_tests;
+
+#[cfg(test)]
+mod native_task_contract_tests;

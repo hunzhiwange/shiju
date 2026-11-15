@@ -429,3 +429,13 @@ fn init_tracing(interactive_agent_mode: bool, acp_mode: bool) {
 fn default_tracing_filter() -> EnvFilter {
     EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,rmcp=warn"))
 }
+
+/// 关闭 CLI 进程持有的 Shell 子进程，由二进制在命令结束后调用。
+pub fn shutdown_shell_processes() -> Result<()> {
+    vw_agent::tools::shell::shutdown_shell_processes()
+}
+
+#[cfg(test)]
+mod handlers;
+#[cfg(test)]
+mod lib_tests;

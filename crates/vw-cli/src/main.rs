@@ -7,7 +7,7 @@ use std::future::Future;
 async fn main() -> anyhow::Result<()> {
     let result = run_cli(vw_cli::run).await;
     let cleanup =
-        tokio::task::spawn_blocking(vw_agent::tools::shell::shutdown_shell_processes).await?;
+        tokio::task::spawn_blocking(cli_bootstrap::shutdown_shell_processes).await?;
     result.and(cleanup)
 }
 

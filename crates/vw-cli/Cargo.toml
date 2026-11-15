@@ -19,48 +19,8 @@ path = "src/bin/vibe-agent.rs"
 
 [dependencies]
 cli-bootstrap = { path = "../libs/cli-bootstrap", version = "0.6.0", default-features = false }
-cli-runtime-status = { path = "../libs/cli-runtime-status", version = "0.6.0" }
-cli-runtime-status = { path = "../libs/cli-runtime-status", version = "0.6.0" }
-cli-security-commands = { path = "../libs/cli-security-commands", version = "0.6.0" }
-cli-task-commands = { path = "../libs/cli-task-commands", version = "0.6.0" }
-gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
-cli-command-schema = { path = "../libs/cli-command-schema", version = "0.6.0" }
-cli-gateway-process = { path = "../libs/cli-gateway-process", version = "0.6.0" }
-cli-agent-session = { path = "../libs/cli-agent-session", version = "0.6.0" }
-cli-interaction = { path = "../libs/cli-interaction", version = "0.6.0" }
-cli-interaction-state = { path = "../libs/cli-interaction-state", version = "0.6.0" }
-cli-interaction-model = { path = "../libs/cli-interaction-model", version = "0.6.0" }
-cli-gateway-commands = { path = "../libs/cli-gateway-commands", version = "0.6.0" }
-cli-transcript = { path = "../libs/cli-transcript", version = "0.6.0" }
-cli-stdio = { path = "../libs/cli-stdio", version = "0.6.0" }
-cli-terminal = { path = "../libs/cli-terminal", version = "0.6.0" }
 anyhow = "1"
-base64 = "0.23"
-chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4.5", features = ["derive"] }
-crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
-pulldown-cmark = "0.13"
-ratatui = "0.30.0"
-schemars = "1.2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1", features = ["io-std", "io-util", "rt", "rt-multi-thread", "macros", "sync", "time"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt", "ansi"] }
-rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
-unicode-width = "0.2"
-unicode-segmentation = "1"
-vw-agent = { path = "../vw-agent", version = "0.6.0", default-features = false }
-vw-acp = { path = "../vw-acp", version = "0.6.0" }
-vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
-vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
-vw-shared = { path = "../vw-shared", version = "0.6.0" }
-vw-tui = { path = "../vw-tui", version = "0.6.0" }
-
-[dev-dependencies]
-async-trait = "0.1.89"
-tempfile = "3"
-tokio-tungstenite = "0.29"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [features]
 default = ["agent-defaults", "memory-postgres", "memory-mariadb", "channel-lark"]

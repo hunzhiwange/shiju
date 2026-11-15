@@ -27,6 +27,7 @@ path = "src/main.rs"
 [dependencies]
 vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }
 gateway-app-skills = { path = "../libs/gateway-app-skills", version = "0.6.0" }
+gateway-app-prompts = { path = "../libs/gateway-app-prompts", version = "0.6.0" }
 vw-api-external-session = { path = "../libs/api-external-session", version = "0.6.0" }
 vw-api-device-sync = { path = "../libs/api-device-sync", version = "0.6.0" }
 gateway-app-data = { path = "../libs/gateway-app-data", version = "0.6.0" }

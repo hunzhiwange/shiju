@@ -1,7 +1,7 @@
 //! Drafts remain owned by the dialog until a matching save succeeds.
 use crate::app::{Message, components::system_settings_common::*, message::settings::prompts::{Event, message}};
 use iced::{Element, Length, widget::{button, column, row, text, text_editor}};
-use vw_gateway_client::AgentAppPromptEntry;
+use gateway_app_prompts::AgentAppPromptEntry;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Draft {

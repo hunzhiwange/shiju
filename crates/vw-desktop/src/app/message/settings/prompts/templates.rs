@@ -2,7 +2,8 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_prompts::templates::{State, Draft};
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::{PiPromptResourcesScope, PiPromptTemplate, AgentAppPromptsError};
+use gateway_app_prompts::{AgentAppPromptsError};
+use vw_gateway_client::{PiPromptResourcesScope, PiPromptTemplate};
 
 #[derive(Debug, Clone)]
 pub(crate) enum Event {

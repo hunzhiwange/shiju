@@ -1,5 +1,5 @@
 //! Mutations use the server revision and exact native snapshot, including undo.
-use vw_gateway_client::{AgentAppPromptEntry, AgentAppPromptsError};
+use gateway_app_prompts::{AgentAppPromptEntry, AgentAppPromptsError};
 
 #[derive(Clone, Debug)]
 pub enum Action {

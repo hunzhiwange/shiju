@@ -2,7 +2,8 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use super::{message, Event as PromptEvent};
 use iced::Task;
-use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptCopies, AgentAppPromptCopyOutcome, AgentAppPromptImportSource, AgentAppPromptsScope, vw_api_app_identity::AppId};
+use gateway_app_prompts::{AgentAppPromptCatalog, AgentAppPromptCopies, AgentAppPromptCopyOutcome, AgentAppPromptImportSource, AgentAppPromptsScope};
+use vw_gateway_client::{vw_api_app_identity::AppId};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(String), Close, Select(AppId, bool), Copy, Body(String), Path, Reveal,
@@ -15,6 +16,7 @@ fn send(event: Event) -> Message { message(PromptEvent::Transfer(event)) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let client = match crate::app::config::gateway_client() { Ok(c) => c, Err(e) => return app.show_error_toast(e) };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let prompts_client = gateway_app_prompts::GatewayAppPromptsClient::new(client.transport().clone());
     let catalog_generation = app.apps_catalog.generation;
     if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return Task::none(); }
     let state = &mut app.apps_catalog.prompts;
@@ -75,7 +77,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     Task::perform(async move {
         let result = async {
             match event {
-                Event::Copy => client.agent_app_prompts_copy(&scope, id.as_deref().unwrap_or_default(), &targets, &token).await.map(Outcome::Copies).map_err(|e| e.to_string()),
+                Event::Copy => prompts_client.agent_app_prompts_copy(&scope, id.as_deref().unwrap_or_default(), &targets, &token).await.map(Outcome::Copies).map_err(|e| e.to_string()),
                 Event::ImportHost | Event::ImportClient => {
                     let source = if matches!(event, Event::ImportHost) { AgentAppPromptImportSource::CurrentFile } else {
                         let Some(file) = rfd::AsyncFileDialog::new().add_filter("提示词", &["md", "txt"]).pick_file().await else { return Ok(Outcome::Cancelled); };
@@ -90,7 +92,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         }).await.map_err(|_| "读取文件任务失败".to_owned())?.map_err(str::to_owned)?;
                         AgentAppPromptImportSource::UploadedContent { name: file.file_name(), content, description: None }
                     };
-                    client.agent_app_prompts_import(&scope, revision, &source, &token).await.map(Outcome::Imported).map_err(|e| e.to_string())
+                    prompts_client.agent_app_prompts_import(&scope, revision, &source, &token).await.map(Outcome::Imported).map_err(|e| e.to_string())
                 }
                 Event::Reveal => {
                     let path = path.filter(|p| std::path::Path::new(p).is_absolute()).ok_or("目标路径不可用")?;

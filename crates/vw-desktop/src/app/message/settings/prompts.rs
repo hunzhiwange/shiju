@@ -8,7 +8,8 @@ pub(crate) mod sync;
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use crate::app::components::system_settings_prompts::activation::{Action, Undo, error_text, effect};
-use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId}};
+use gateway_app_prompts::{AgentAppPromptCatalog, AgentAppPromptsScope};
+use vw_gateway_client::{vw_api_types::agent_apps::{AppId}};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(AppId),
@@ -48,6 +49,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Err(error) => { return app.show_error_toast(error); }
     };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let client = gateway_app_prompts::GatewayAppPromptsClient::new(client.transport().clone());
     let catalog_generation = app.apps_catalog.generation;
     match event {
         Event::SharedImport(_) | Event::PiFile(_) | Event::Sync(_) | Event::Transfer(_) | Event::Template(_) => unreachable!(),
@@ -96,8 +98,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             Task::perform(async move {
                 let result = client.agent_app_prompts_save(&scope, revision, &entry, updating, &token).await.map_err(|error| match error {
-                    vw_gateway_client::AgentAppPromptsError::Http { status: 413, .. } => "正文超过服务端限长；MCode 最多 32768 UTF-8 字节".to_owned(),
-                    vw_gateway_client::AgentAppPromptsError::Http { status: 409, .. } => "内容版本已变化，请保留草稿并刷新后重试".to_owned(),
+                    gateway_app_prompts::AgentAppPromptsError::Http { status: 413, .. } => "正文超过服务端限长；MCode 最多 32768 UTF-8 字节".to_owned(),
+                    gateway_app_prompts::AgentAppPromptsError::Http { status: 409, .. } => "内容版本已变化，请保留草稿并刷新后重试".to_owned(),
                     error => error.to_string(),
                 });
                 Event::Saved(context, catalog_generation, generation, scope, result)
@@ -184,7 +186,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
 }
 
-fn mutate(app: &mut App, client: vw_gateway_client::GatewayClient, context: AgentAppsContext,
+fn mutate(app: &mut App, client: gateway_app_prompts::GatewayAppPromptsClient, context: AgentAppsContext,
     catalog_generation: u64, action: Action, undoing: bool) -> Task<Message> {
     let state = &mut app.apps_catalog.prompts;
     let (Some(scope), Some(catalog), Some(preview)) = (state.scope.clone(), state.catalog.as_ref(), state.preview.as_ref()) else { return Task::none(); };

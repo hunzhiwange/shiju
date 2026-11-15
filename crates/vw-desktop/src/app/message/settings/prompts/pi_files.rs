@@ -2,7 +2,8 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_prompts::pi_files::{State, kind};
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::{AgentAppPromptsError, PiPromptResourcesScope, PiPromptFileSnapshot};
+use gateway_app_prompts::{AgentAppPromptsError};
+use vw_gateway_client::{PiPromptResourcesScope, PiPromptFileSnapshot};
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
     Open, Close, Select(usize), Edit(text_editor::Action), Read, Save, Delete, AcceptRevision,

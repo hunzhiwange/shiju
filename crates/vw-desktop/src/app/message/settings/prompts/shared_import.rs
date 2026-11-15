@@ -3,7 +3,7 @@ use vw_api_app_operations::{ImportPromptShareRequest, ImportPromptShareResult, P
 use crate::app::{App, Message, state::AgentAppsContext};
 use super::{message, Event as PromptEvent};
 use iced::Task;
-use vw_gateway_client::{AgentAppPromptsScope};
+use gateway_app_prompts::{AgentAppPromptsScope};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(PromptSharePayload), Cancel, Enable(bool), Confirm,
@@ -18,6 +18,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     let client = match crate::app::config::gateway_client() { Ok(c) => c, Err(e) => return app.show_error_toast(e) };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let client = gateway_app_prompts::GatewayAppPromptsClient::new(client.transport().clone());
     let catalog_generation = app.apps_catalog.generation;
     if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return Task::none(); }
     let state = &mut app.apps_catalog.prompts;

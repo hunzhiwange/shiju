@@ -173,8 +173,8 @@ fn init_skills_dir_writes_readme_policy_and_builtin_skills() {
 
     let skills = skills_dir(dir.path());
     assert!(skills.join("README.md").is_file());
-    assert!(skills.join(crate::app::agent::skill::constants::SKILL_DOWNLOAD_POLICY_FILE).is_file());
-    for builtin in crate::app::agent::skill::constants::BUILTIN_PRELOADED_SKILLS {
+    assert!(skills.join(skill_core::constants::SKILL_DOWNLOAD_POLICY_FILE).is_file());
+    for builtin in skill_core::constants::BUILTIN_PRELOADED_SKILLS {
         assert!(skills.join(builtin.dir_name).join("SKILL.md").is_file());
         assert!(skills.join(builtin.dir_name).join("_meta.json").is_file());
     }

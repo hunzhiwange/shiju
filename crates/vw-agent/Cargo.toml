@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+skill-core = { path = "../libs/skill-core", version = "0.6.0" }
 shiju-client = { path = "../libs/shiju-client", version = "0.6.0" }
 session-instructions = { path = "../libs/session-instructions", version = "0.6.0" }
 agent-service = { path = "../libs/agent-service", version = "0.6.0" }

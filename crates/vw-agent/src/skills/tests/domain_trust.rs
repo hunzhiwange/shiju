@@ -7,7 +7,7 @@
 //! - 恶意域名防护（如 evilskills.sh 不应匹配 skills.sh）
 
 use super::super::*;
-use crate::app::agent::skill::host_matches_trusted_domain;
+use skill_core::host_matches_trusted_domain;
 
 /// 测试 host_matches_trusted_domain 函数是否正确支持子域名匹配
 ///

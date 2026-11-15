@@ -11,7 +11,7 @@
 //! 技能是用户定义或社区构建的能力扩展，位于 `~/.shiju-harness/workspace/skills/<name>/SKILL.md`，
 //! 可以包含工具定义、提示词模板和自动化脚本。
 
-use crate::app::agent::skill::constants::{
+use skill_core::constants::{
     default_policy_version, default_preloaded_skill_aliases, default_version,
 };
 use clap::Subcommand;

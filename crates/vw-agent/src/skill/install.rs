@@ -35,8 +35,8 @@
 //! shiju skills remove my-skill
 //! ```
 
-use crate::app::agent::skill::audit;
-use crate::app::agent::skill::constants::BUILTIN_PRELOADED_SKILLS;
+use skill_core::audit;
+use skill_core::constants::BUILTIN_PRELOADED_SKILLS;
 use crate::app::agent::skill::loader::load_skills_full_with_config;
 use crate::app::agent::skill::policy::{
     ensure_source_domain_trust, load_or_init_skill_download_policy, resolve_skill_source_alias,

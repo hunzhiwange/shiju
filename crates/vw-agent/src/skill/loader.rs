@@ -14,7 +14,7 @@
 //! - 对于工作区技能：优先加载 `SKILL.toml`，如不存在则尝试 `SKILL.md`
 //! - 所有技能在加载前必须通过安全审计
 
-use crate::app::agent::skill::audit;
+use skill_core::audit;
 use crate::app::agent::skill::types::{
     Skill, SkillLoadMode, SkillManifest, SkillMetadataManifest, SkillRuntimeConfig,
 };

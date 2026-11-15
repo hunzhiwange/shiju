@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/skill-core",
   "crates/libs/session-instructions",
   "crates/libs/agent-service",
   "crates/libs/tool-agents",

@@ -1,6 +1,6 @@
 //! 无状态的权限配置解析、规则合并、求值与工具禁用判定。
 
-pub use vw_shared::permission::{Action, Rule, Ruleset};
+pub use permission_types::{Action, Rule, Ruleset};
 
 use glob::Pattern;
 use serde_json::Value;

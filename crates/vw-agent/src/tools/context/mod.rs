@@ -124,7 +124,7 @@ pub struct ToolUseContext {
     security: Option<Arc<SecurityPolicy>>,
     delegated_security: Option<Arc<SecurityPolicy>>,
     delegated_tools: Option<Arc<BTreeSet<String>>>,
-    delegated_skill_rules: Vec<vw_shared::permission::Ruleset>,
+    delegated_skill_rules: Vec<permission_types::Ruleset>,
     approval: Option<Arc<ApprovalManager>>,
     messages_view: Option<Arc<Vec<ChatMessage>>>,
     explicitly_requested_skills: Arc<BTreeSet<String>>,
@@ -360,13 +360,13 @@ impl ToolUseContext {
 
     pub(crate) fn with_delegated_skill_rules(
         mut self,
-        rules: vw_shared::permission::Ruleset,
+        rules: permission_types::Ruleset,
     ) -> Self {
         self.delegated_skill_rules.push(rules);
         self
     }
 
-    pub(crate) fn delegated_skill_rules(&self) -> &[vw_shared::permission::Ruleset] {
+    pub(crate) fn delegated_skill_rules(&self) -> &[permission_types::Ruleset] {
         &self.delegated_skill_rules
     }
 

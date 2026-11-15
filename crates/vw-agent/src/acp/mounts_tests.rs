@@ -285,10 +285,10 @@ async fn acp_server_skill_overlay_retains_native_skill_permission_denial() {
     let context = Arc::new(
         ToolUseContext::new(&mounted.session.id, Some(project.path().to_str().unwrap().into()))
             .with_session_skills(sources)
-            .with_delegated_skill_rules(vec![vw_shared::permission::Rule {
+            .with_delegated_skill_rules(vec![permission_types::Rule {
                 permission: "skill".into(),
                 pattern: "overlay_probe".into(),
-                action: vw_shared::permission::Action::Deny,
+                action: permission_types::Action::Deny,
             }]),
     );
     let skill = SkillTool::new_with_runtime_config(

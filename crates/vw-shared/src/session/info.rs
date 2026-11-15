@@ -1,4 +1,4 @@
-use crate::permission::Ruleset;
+use permission_types::Ruleset;
 use snapshot_types::FileDiff;
 use serde::{Deserialize, Serialize};
 

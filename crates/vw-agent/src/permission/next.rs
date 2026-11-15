@@ -40,7 +40,7 @@
 //! assert_eq!(rule.action, Action::Allow);
 //! ```
 
-pub use vw_shared::permission::{Action, Rule, Ruleset};
+pub use permission_types::{Action, Rule, Ruleset};
 
 use crate::app::agent::global;
 use crate::app::agent::id;

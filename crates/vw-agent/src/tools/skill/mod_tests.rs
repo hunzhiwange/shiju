@@ -479,10 +479,10 @@ async fn agcollab_inherited_skill_denial_cannot_be_overridden_by_child() {
     let (workspace, config) = expert_package_fixture();
     let context =
         Arc::new(ToolUseContext::new("child-skill-denial", None).with_delegated_skill_rules(vec![
-            vw_shared::permission::Rule {
+            permission_types::Rule {
                 permission: "skill".into(),
                 pattern: "expert-child".into(),
-                action: vw_shared::permission::Action::Deny,
+                action: permission_types::Action::Deny,
             },
         ]));
     let tool = SkillTool::new_with_runtime_config(

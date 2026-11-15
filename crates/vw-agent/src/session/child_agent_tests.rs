@@ -622,10 +622,10 @@ async fn agcollab_stored_history_and_permissions_are_snapshotted() {
     project::instance::provide(directory.clone(), None, move || {
         Box::pin(async move {
             session::update(&parent_id, |info| {
-                info.permission = Some(vec![vw_shared::permission::Rule {
+                info.permission = Some(vec![permission_types::Rule {
                     permission: "edit".into(),
                     pattern: "private/**".into(),
-                    action: vw_shared::permission::Action::Deny,
+                    action: permission_types::Action::Deny,
                 }]);
             })
             .await
@@ -681,7 +681,7 @@ async fn agcollab_stored_history_and_permissions_are_snapshotted() {
     let rules = child.permission.unwrap();
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].pattern, "private/**");
-    assert_eq!(rules[0].action, vw_shared::permission::Action::Deny);
+    assert_eq!(rules[0].action, permission_types::Action::Deny);
 }
 
 #[test]

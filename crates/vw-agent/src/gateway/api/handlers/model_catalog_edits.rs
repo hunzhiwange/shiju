@@ -29,7 +29,7 @@ use {
     vw_api_types::model_catalog::ModelCatalogProject,
     vw_api_types::model_catalog::ModelCatalogWriteResponse,
 };
-use vw_provider_resolver::models::{self, ModelsSnapshot};
+use provider_model_cache::{self as models, ModelsSnapshot};
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);

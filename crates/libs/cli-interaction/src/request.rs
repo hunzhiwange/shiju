@@ -2,7 +2,7 @@
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;
-use cli_gateway_transport::gateway::normalize_optional_str_ref;
+use cli_gateway_runtime::gateway::normalize_optional_str_ref;
 use cli_interaction_model::{PermissionMode, PromptSubmission, ReasoningEffort};
 use cli_interaction_model::paste::{PromptAttachment, PromptAttachmentKind};
 use cli_interaction_state::TuiState;

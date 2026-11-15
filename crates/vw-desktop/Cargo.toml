@@ -26,6 +26,7 @@ path = "src/main.rs"
 
 [dependencies]
 vw-api-mcp-network = { path = "../libs/api-mcp-network", version = "0.6.0" }
+provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 config-hooks = { path = "../libs/config-hooks", version = "0.6.0" }
 gateway-config = { path = "../libs/gateway-config", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }

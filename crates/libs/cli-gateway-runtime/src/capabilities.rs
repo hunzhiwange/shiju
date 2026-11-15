@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
-use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::{
     AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort, SessionCapabilityMatrix,
 };

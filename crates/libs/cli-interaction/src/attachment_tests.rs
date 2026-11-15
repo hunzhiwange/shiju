@@ -6,7 +6,7 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_tui::{V3Action, V3Attachment, V3AttachmentKind};
 
 use super::app::{ActiveRunner, V3GatewayApp};
-use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 fn test_app(root: PathBuf) -> V3GatewayApp {

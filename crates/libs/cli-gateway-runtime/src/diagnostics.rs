@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 
-use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::integration::sanitize_integration_text;
 
 const MAX_DIAGNOSTIC_RESULTS: usize = 50;

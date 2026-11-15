@@ -119,7 +119,7 @@ async fn save_config(Extension(p): Extension<Policy>,Extension(t): Extension<Ten
 async fn save_display(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>,Json(r): Json<DisplayBody>) -> Response { write(p,t,h,i,Write::Display(r)).await }
 async fn candidates(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response {
     tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,false)).await.map_err(unavailable)??;
-    output(u::models_selection::flatten_models(&vw_provider_resolver::models::snapshot().await.providers))
+    output(u::models_selection::flatten_models(&provider_model_cache::snapshot().await.providers))
 }
 async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response {
     let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,true)).await.map_err(unavailable)??;

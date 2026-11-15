@@ -3,7 +3,7 @@
 use vw_gateway_client::{HookAuditEntryDto, HookCatalogEntryDto, HookMutationResponseDto};
 use vw_tui::V3SelectionItem;
 
-use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::integration::sanitize_integration_text;
 
 const MAX_HOOK_ENTRIES: usize = 100;

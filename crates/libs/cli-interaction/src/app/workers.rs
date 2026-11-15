@@ -64,7 +64,7 @@ pub(super) fn spawn_stream(
             |event| {
                 if matches!(&event, GatewayChatStreamEvent::Done { .. }) {
                     done = matches!(
-                        cli_gateway_transport::stream_adapter::adapt_gateway_stream_event(event.clone()),
+                        cli_gateway_runtime::stream_adapter::adapt_gateway_stream_event(event.clone()),
                         UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Done { .. })
                     );
                 }

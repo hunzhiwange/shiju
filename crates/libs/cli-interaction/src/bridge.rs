@@ -23,9 +23,9 @@ use super::controller::{
 use cli_interaction_model::attachment::prepare_prompt_attachments;
 use cli_interaction_model::permission::PermissionDecision;
 use cli_interaction_model::{PermissionMode, UiMessage, UiOverlay};
-use cli_gateway_transport::gateway::GatewayUiRuntime;
+use cli_gateway_runtime::gateway::GatewayUiRuntime;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
-use cli_gateway_transport::stream_adapter::adapt_gateway_stream_event;
+use cli_gateway_runtime::stream_adapter::adapt_gateway_stream_event;
 use cli_interaction_state::selectors::select_status_summary;
 use cli_interaction_state::{TuiAction, TuiState, apply_runtime_event, reduce_tui_state};
 

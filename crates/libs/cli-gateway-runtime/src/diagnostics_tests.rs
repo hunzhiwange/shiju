@@ -6,7 +6,7 @@ use std::thread;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 use super::diagnostics::{load_gateway_diagnostics_blocking, sanitize_diagnostics_error};
-use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 
 #[test]
 fn gateway_diagnostics_use_doctor_get_and_only_render_bounded_fields() {

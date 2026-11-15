@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use vw_tui::V3SelectionItem;
 
-use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 const MAX_DIRECTORY_ENTRIES: usize = 200;
 const MAX_FILE_DISPLAY_CHARS: usize = 16_000;

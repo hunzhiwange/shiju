@@ -21,7 +21,7 @@ use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 use cli_interaction_model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 use cli_interaction_model::{UiConfirmIntent, UiOverlay};
 use cli_interaction_model::snapshots::CronJobSnapshot;
-use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_model::snapshots::OrchestrationSnapshot;
 use cli_gateway_runtime::workflow_run::workflow_run_request;
 use cli_interaction_state::TuiState;

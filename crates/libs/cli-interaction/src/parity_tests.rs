@@ -23,7 +23,7 @@ use cli_interaction_model::{
     PermissionMode, UiMessage, UiOverlay, UiPermissionOverlay, UiQuestionOption, UiQuestionOverlay,
     UiQuestionPrompt, UiTurnTerminal,
 };
-use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use cli_interaction_state::TuiState;
 
 const SIZES: [(u16, u16); 3] = [(40, 18), (80, 24), (120, 40)];

@@ -5,7 +5,7 @@ use std::path::{Component, Path};
 use serde_json::Value;
 use vw_tui::V3FileSearchMatch;
 
-use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 const FILE_SEARCH_LIMIT: usize = 20;
 

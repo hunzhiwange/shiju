@@ -3,7 +3,7 @@
 use super::identity::metadata_model_key;
 use std::collections::HashSet;
 use provider_model_catalog::Model;
-use vw_provider_resolver::models::ModelsSnapshot;
+use provider_model_cache::ModelsSnapshot;
 
 const GPT_CONTEXT_WINDOW_CAP: u64 = 272_000;
 

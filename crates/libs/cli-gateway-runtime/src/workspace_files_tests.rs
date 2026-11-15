@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
-use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::workspace_files::{
     load_workspace_files_blocking, read_workspace_file_blocking, workspace_text_from_parts,
 };

@@ -6,7 +6,7 @@ use cli_interaction_model::snapshots::{
     MAX_DETAIL_CHARS, MAX_HISTORY_RUNS,
 };
 
-use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

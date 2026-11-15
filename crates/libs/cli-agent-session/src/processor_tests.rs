@@ -2,7 +2,7 @@
 //! 测试只使用纯转换、内存 channel 与未发起请求的 runtime。
 
 use vw_agent::session::processor as legacy_processor;
-use cli_gateway_transport::gateway::GatewaySessionSeed;
+use cli_gateway_runtime::gateway::GatewaySessionSeed;
 use vw_shared::session::ui_types as models;
 use serde_json::json;
 use std::path::PathBuf;

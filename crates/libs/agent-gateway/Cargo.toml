@@ -37,6 +37,39 @@ version = "0.1"
 [lib]
 doctest = false
 
+[dependencies.channel-linq]
+path = "../channel-linq"
+version = "0.6.0"
+
+[dependencies.channel-nextcloud-talk]
+path = "../channel-nextcloud-talk"
+version = "0.6.0"
+
+[dependencies.channel-qq]
+path = "../channel-qq"
+version = "0.6.0"
+
+[dependencies.channel-wati]
+path = "../channel-wati"
+version = "0.6.0"
+
+[dependencies.channel-whatsapp]
+path = "../channel-whatsapp"
+version = "0.6.0"
+
+[dependencies.channel-support]
+path = "../channel-support"
+version = "0.6.0"
+
+[dependencies.channel-runtime]
+path = "../channel-runtime"
+version = "0.6.0"
+
+[dependencies.agent-hooks]
+path = "../agent-hooks"
+version = "0.6.0"
+
+
 [dependencies]
 gateway-project = { path = "../gateway-project", version = "0.6.0" }
 agent-database = { path = "../agent-database", version = "0.6.0" }

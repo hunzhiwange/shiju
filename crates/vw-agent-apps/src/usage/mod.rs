@@ -3,7 +3,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod balances;
 pub use app_usage_core::binding;
-pub mod cache;
+pub use app_usage_store::cache;
 pub mod claude;
 pub mod claude_scan;
 pub mod codex_delta;
@@ -11,16 +11,16 @@ pub mod codex_lineage;
 pub mod codex_rebuild;
 pub mod codex_timing;
 pub use app_usage_core::cost;
-pub mod cursors;
+pub use app_usage_store::cursors;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod coding;
 pub use app_usage_core::detect;
 pub mod gemini;
 pub mod grokbuild;
-pub mod limits;
+pub use app_usage_store::limits;
 pub mod logs;
 pub use app_usage_core::exchange;
-pub mod exchange_store;
+pub use app_usage_store::exchange_store;
 pub use app_usage_core::tokens;
 pub use app_usage_core::model_names;
 pub use app_usage_core::presentation;
@@ -28,8 +28,8 @@ pub use app_usage_core::ranges;
 pub mod pi;
 pub mod pi_children;
 pub mod scripts;
-pub mod store;
-pub mod source_settings;
+pub use app_usage_store::store;
+pub use app_usage_store::source_settings;
 #[cfg(target_os = "macos")]
 pub mod subscriptions;
 
@@ -47,26 +47,25 @@ pub mod kimi;
 
 pub mod dsh;
 
-pub mod retention;
+pub use app_usage_store::retention;
 
-pub mod summary;
+pub use app_usage_store::summary;
 
-pub mod groups;
+pub use app_usage_store::groups;
 
-pub mod series;
+pub use app_usage_store::series;
 
 pub mod omp;
 
-pub mod pricing;
+pub use app_usage_store::pricing;
 
-pub(crate) mod import_store;
+pub(crate) use app_usage_store::import_store;
 
-pub mod pricing_batch;
+pub use app_usage_store::pricing_batch;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod models_selection;
 
-pub mod dedup;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod models_sync;

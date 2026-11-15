@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/app-usage-core",
+  "crates/libs/app-usage-store",
   "crates/libs/app-settings-store",
   "crates/libs/app-session-core",
   "crates/libs/app-sessions",

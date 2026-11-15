@@ -1,5 +1,5 @@
 //! Scoped USD prices on the host-owned SQLite connection. No CC configuration writes.
-use crate::models::edits::validate_model_id;
+use app_models::edits::validate_model_id;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use {
     vw_api_transport::id::ModelId,

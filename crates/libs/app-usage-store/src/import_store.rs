@@ -6,7 +6,7 @@ fn storage_error(_: rusqlite::Error) -> UsageStoreError { UsageStoreError::Stora
 
 /// Internal CC migration reader. Archived identities remain replay barriers and
 /// cannot be replaced: retention owns their aggregate accounting.
-pub(crate) fn load_imported_usage(
+pub fn load_imported_usage(
     connection: &Connection, scope: &ProjectScope, identity: &UsageSourceIdentity,
 ) -> Result<Option<StoredUsageRecord>, UsageStoreError> {
     let scope_key = serde_json::to_string(&(scope, &identity.target_host)).map_err(|_| UsageStoreError::InvalidInput)?;
@@ -23,7 +23,7 @@ pub(crate) fn load_imported_usage(
 
 /// Replace only this importer-owned, unarchived request. Never changes account
 /// ownership or canonical identity. All SQL stays inside the ledger owner.
-pub(crate) fn replace_imported_usage_in_transaction(
+pub fn replace_imported_usage_in_transaction(
     tx: &Transaction<'_>, scope: &ProjectScope, identity: &UsageSourceIdentity,
     value: &StoredUsageRecord,
 ) -> Result<(), UsageStoreError> {
@@ -38,7 +38,7 @@ pub(crate) fn replace_imported_usage_in_transaction(
         let payload = serde_json::to_string(value).map_err(|_| UsageStoreError::InvalidInput)?;
         tx.execute("UPDATE usage_records SET payload_json=?3,error_message=?4 WHERE scope_key=?1 AND record_id=?2",
             params![scope_key,value.record.id,payload,value.failure.map(|_| "Upstream request failed")]).map_err(storage_error)?;
-        crate::usage::source_settings::advance_statistics_revision(tx,scope,&identity.target_host,&identity.app)?;
+        crate::source_settings::advance_statistics_revision(tx,scope,&identity.target_host,&identity.app)?;
     } else {
         save_usage_record_in_transaction(tx,scope,identity,value)?;
     }

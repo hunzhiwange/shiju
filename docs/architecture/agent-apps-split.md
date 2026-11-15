@@ -1163,8 +1163,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/balances/zhipu_tests.rs` | 172 | 57 |
 | `crates/libs/app-usage-core/src/binding.rs` | 100 | 55 |
 | `crates/libs/app-usage-core/src/binding_tests.rs` | 225 | 55 |
-| `usage/cache.rs` | 120 | 56 |
-| `usage/cache_tests.rs` | 149 | 56 |
+| `usage/cache.rs` → `app-usage-store/src/cache.rs` | 120 | 56 |
+| `usage/cache_tests.rs`（订阅回放集成，留存至任务 59） | 149 | 59 |
 | `usage/claude.rs` | 96 | 62 |
 | `usage/claude_scan.rs` | 312 | 62 |
 | `usage/codex_delta.rs` | 245 | 61 |
@@ -1191,19 +1191,19 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/coding/zhipu_team_tests.rs` | 213 | 58 |
 | `usage/coding/zhipu_tests.rs` | 200 | 58 |
 | `crates/libs/app-usage-core/src/cost.rs` | 148 | 55 |
-| `usage/cursors.rs` | 252 | 56 |
-| `usage/dedup.rs` | 101 | 56 |
+| `usage/cursors.rs` → `app-usage-store/src/cursors.rs` | 252 | 56 |
+| `usage/dedup.rs` → `app-usage-store/src/dedup.rs` | 101 | 56 |
 | `crates/libs/app-usage-core/src/detect.rs` | 115 | 55 |
 | `crates/libs/app-usage-core/src/detect_tests.rs` | 117 | 55 |
 | `usage/dsh.rs` | 189 | 62 |
 | `crates/libs/app-usage-core/src/exchange.rs` | 219 | 55 |
-| `usage/exchange_store.rs` | 128 | 56 |
+| `usage/exchange_store.rs` → `app-usage-store/src/exchange_store.rs` | 128 | 56 |
 | `usage/gemini.rs` | 224 | 62 |
 | `usage/grokbuild.rs` | 199 | 62 |
-| `usage/groups.rs` | 368 | 56 |
-| `usage/import_store.rs` | 46 | 56 |
+| `usage/groups.rs` → `app-usage-store/src/groups.rs` | 368 | 56 |
+| `usage/import_store.rs` → `app-usage-store/src/import_store.rs` | 46 | 56 |
 | `usage/kimi.rs` | 217 | 62 |
-| `usage/limits.rs` | 266 | 55 |
+| `usage/limits.rs` → `app-usage-store/src/limits.rs` | 266 | 56 |
 | `usage/logs.rs` | 244 | 63 |
 | `usage/mcode.rs` | 172 | 62 |
 | `usage/mod.rs` | 82 | 63 |
@@ -1221,10 +1221,10 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `crates/libs/app-usage-core/src/presentation/mod.rs` | 12 | 55 |
 | `crates/libs/app-usage-core/src/presentation/tiers.rs` | 1 | 55 |
 | `crates/libs/app-usage-core/src/presentation/tiers_tests.rs` | 102 | 55 |
-| `usage/pricing.rs` | 159 | 55 |
-| `usage/pricing_batch.rs` | 109 | 56 |
+| `usage/pricing.rs` → `app-usage-store/src/pricing.rs` | 159 | 56 |
+| `usage/pricing_batch.rs` → `app-usage-store/src/pricing_batch.rs` | 109 | 56 |
 | `crates/libs/app-usage-core/src/ranges.rs` | 120 | 55 |
-| `usage/retention.rs` | 266 | 56 |
+| `usage/retention.rs` → `app-usage-store/src/retention.rs` | 266 | 56 |
 | `usage/scan_jobs.rs` | 199 | 63 |
 | `usage/scan_schedule.rs` | 127 | 63 |
 | `usage/scripts/config.rs` | 313 | 60 |
@@ -1238,10 +1238,10 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/scripts/run_tests.rs` | 153 | 60 |
 | `usage/scripts/runtime.rs` | 182 | 60 |
 | `usage/scripts/runtime_tests.rs` | 113 | 60 |
-| `usage/series.rs` | 193 | 56 |
+| `usage/series.rs` → `app-usage-store/src/series.rs` | 193 | 56 |
 | `usage/snapshot_scan.rs` | 109 | 63 |
-| `usage/source_settings.rs` | 175 | 56 |
-| `usage/store.rs` | 221 | 56 |
+| `usage/source_settings.rs` → `app-usage-store/src/source_settings.rs` | 175 | 56 |
+| `usage/store.rs` → `app-usage-store/src/store.rs` | 221 | 56 |
 | `usage/subscriptions/agy.rs` | 428 | 59 |
 | `usage/subscriptions/agy_tests.rs` | 250 | 59 |
 | `usage/subscriptions/claude.rs` | 390 | 59 |
@@ -1258,7 +1258,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/subscriptions/kimi.rs` | 145 | 59 |
 | `usage/subscriptions/kimi_tests.rs` | 179 | 59 |
 | `usage/subscriptions/mod.rs` | 30 | 59 |
-| `usage/summary.rs` | 321 | 56 |
+| `usage/summary.rs` → `app-usage-store/src/summary.rs` | 321 | 56 |
 | `crates/libs/app-usage-core/src/tokens.rs` | 193 | 55 |
 | `workspace_files.rs` | 52 | 37（已迁入 app-workspace-memory） |
 | `workspace_files_tests.rs` | 105 | 37（已迁入 app-workspace-memory） |
@@ -2778,3 +2778,14 @@ pricing 的 ModelPricingInfo、StoredModelPricing、rates/normalize 下沉至 co
 静态审阅：Python 标准库 TOML 校验新包及传递路径存在、无循环及门面回依赖；五个测试文件函数清单与 HEAD 一致，unix cfg 保留，无 include 资源；git diff --check 无空白错误。新包成员和门面直接路径依赖已注册。原包 chrono、chrono-tz、rust_decimal、reqwest、serde 等仍有真实调用者，保留直接依赖；Cargo.lock 未修改。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：core 与门面/直接调用者编译、迁移单测、平台条件与清单/锁文件一致性。静态审阅不代表编译或行为验收通过。
+
+
+### 任务 56：用量账本与查询迁移
+
+app-usage-store 唯一拥有 cache、groups、import_store、retention、series、source_settings、store、summary，以及任务55移交的 cursors、dedup、exchange_store、pricing、pricing_batch、limits。原 usage/mod.rs 按原路径重导出；dedup 仅包内使用，不再在门面声明。lib.rs 原有 usage 公开声明无需重复改动。UsageSourceIdentity、错误形状、事务边界与调用者连接/授权职责保持。
+
+import_store 的两项函数因 data_management/usage 的真实跨包调用最小公开；pricing 直接使用 app_models 校验，其余函数体逐文件与 HEAD 对照一致。原包其它导入器仍使用 SQLite、SHA、Decimal、日期与序列化，保留直接依赖。迁移实现无平台 cfg 或 include 资源引用变化。
+
+cache_tests.rs 依赖 subscriptions::codex_tests::replay_with_usage 的 HTTP 回放及认证夹具，保持原 all(test, target_os = "macos") 注册和三个测试不变，作为跨适配器集成测试交由任务59接收，避免账本包依赖订阅或旧门面；其它迁移文件无相邻独立测试注册。
+
+静态证据：14 文件逐一源码对照，模块与路径清单经 Python 3.12 标准库 TOML 读取审阅，递归路径依赖无环且不依赖 vw-agent-apps；成员及直接路径依赖检索存在，反向依赖检索无匹配，git diff --check 无空白错误。系统 Python 3.9 无 tomllib，改用已有 Python 3.12，未安装工具。未触碰 Cargo.lock，未运行 Cargo、单元及实机测试，统一验收待授权：新包与调用者编译、账本/缓存/价格/限额定向测试、平台行为及锁文件一致性。

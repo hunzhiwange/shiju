@@ -9,7 +9,7 @@ use agent_client_protocol::{
 };
 use serde_json::{Value, json};
 
-use crate::types::{NonInteractivePermissionPolicy, PermissionMode};
+use acp_types::types::{NonInteractivePermissionPolicy, PermissionMode};
 
 fn option(option_id: &'static str, kind: PermissionOptionKind) -> PermissionOption {
     PermissionOption::new(option_id, option_id, kind)

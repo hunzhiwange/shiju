@@ -9,7 +9,7 @@ fn test_module_is_wired() {
 }
 
 fn run_git_test(cwd: &std::path::Path, args: &[&str]) {
-    let output = vw_shared::shell::git_std_command()
+    let output = shell_command::git_std_command()
         .current_dir(cwd)
         .args(args)
         .output()
@@ -438,7 +438,7 @@ fn abort_git_in_progress_states_aborts_active_merge_and_logs_result() {
     run_git_test(&repo, &["add", "README.md"]);
     run_git_test(&repo, &["commit", "-m", "main"]);
 
-    let merge = vw_shared::shell::git_std_command()
+    let merge = shell_command::git_std_command()
         .current_dir(&repo)
         .args(["merge", "feature"])
         .output()

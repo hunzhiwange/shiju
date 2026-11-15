@@ -59,10 +59,10 @@ pub async fn install(server: Server) -> Result<(), String> {
     }
     let _release = Release;
     let (program, args) = server.command();
-    let path = vw_shared::shell::resolve_executable(program)
+    let path = shell_command::resolve_executable(program)
         .ok_or_else(|| format!("未找到 {program}，请先安装对应工具并重启 ShiJu。"))?;
     let mut command = tokio::process::Command::new(path);
-    vw_shared::shell::apply_augmented_path_tokio_command(&mut command);
+    shell_command::apply_augmented_path_tokio_command(&mut command);
     command
         .args(args)
         .kill_on_drop(true)

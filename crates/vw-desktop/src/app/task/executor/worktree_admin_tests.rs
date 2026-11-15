@@ -45,7 +45,7 @@ impl Drop for EnvGuard {
 }
 
 fn run_git_test(cwd: &std::path::Path, args: &[&str]) -> std::process::Output {
-    let output = vw_shared::shell::git_std_command()
+    let output = shell_command::git_std_command()
         .current_dir(cwd)
         .args(args)
         .output()

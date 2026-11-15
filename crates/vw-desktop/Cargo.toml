@@ -25,8 +25,8 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+shell-command = { path = "../libs/shell-command", version = "0.6.0", features = ["shell-tokio"] }
 gateway-scheduler = { path = "../libs/gateway-scheduler", version = "0.6.0" }
-gateway-task-lifecycle = { path = "../libs/gateway-task-lifecycle", version = "0.6.0" }
 gateway-knowledge = { path = "../libs/gateway-knowledge", version = "0.6.0" }
 gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }
 gateway-voice = { path = "../libs/gateway-voice", version = "0.6.0" }

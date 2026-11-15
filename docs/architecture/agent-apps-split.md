@@ -2256,28 +2256,3 @@ xai_refresh.rs 持久化和 XaiCredential 固有刷新实现留在原处。任�
 新包无门面回依赖。未运行 Cargo、单元及
 实机测试，统一验收待授权：新增包与调用者编译、现有定向测试、三平台条件、
 发现端点拒绝/轮询/刷新代际行为和锁文件一致性。
-
-## 任务 18 静态迁移结果
-
-`app-auth-kimi/src/protocol.rs` 接收 auth/kimi.rs 的区域 Endpoints、endpoints、
-identify、token、seconds、verification_url、identity_field 和协议常量；
-绑定区域解析 binding_region/oauth_slot 移入 binding.rs，连同其唯一依赖
-providers/kimi.rs::official 一并移动，原位置重导出，任务 24 可直接接入。
-令牌保持原 xAI ASCII graphic 判定，不改用 core 带长度限制的判定。
-core 的有界响应/时钟经 protocol 供设备流程使用；版本仍为 0.6.0，保持请求头。
-包为非 wasm，原 macOS 账户/供应商条件不变，无资源/include 路径变动。
-旧 auth 和 lib.rs 公开路径保持；旧包依赖均有其它调用者，未删除。
-
-覆盖基线所有权表：CredentialFileStore/KimiCredential 及租约仍受前序 Claude
-编排制约，KimiDeviceAuth 的账户固有方法不能跨包实现。任务 22 接收 kimi.rs
-剩余设备流程、凭据关联及 kimi_tests.rs；kimi_account.rs 与 binding/logout/
-native/usage 依赖尚未下沉的 KimiFiles，任务 22 不能闭合时由任务 24 完成
-原生能力后交任务 29 收完。kimi_account_tests.rs 及 binding_tests.rs 保持原
-独立文件、cfg 和私有访问，随账户整体迁移；共享 oauth_server 夹具也交任务 22。
-本轮不复制运行时或测试，不增加回调抽象，不引入门面回依赖。
-
-静态证据：迁移函数与原源码对照、唯一实现及真实调用者检索、路径依赖和
-workspace 成员审阅、cfg 和测试注册核对、任务差异无空白错误。系统 Python
-无 tomllib，使用标准库读取清单并核实路径，未声称 TOML 解析成功。
-未运行 Cargo、单元及实机测试，统一验收待授权：新包及调用者编译、迁移
-定向测试、三平台条件、OAuth/绑定拒绝语义、锁文件一致性。

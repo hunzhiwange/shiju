@@ -1,6 +1,9 @@
 //! Shell 管理测试模块，覆盖环境解析、命令构建和安全进程终止行为。
 
 use super::*;
+use crate::environment::*;
+use crate::command::{GIT_DEFAULT_ENV, resolved_program_or_original};
+use std::path::{Path, PathBuf};
 
 #[allow(dead_code)]
 mod tests {

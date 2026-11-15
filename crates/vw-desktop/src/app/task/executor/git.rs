@@ -195,7 +195,7 @@ fn run_git_gateway(
 
 #[cfg(test)]
 fn run_git_local(cwd: &str, args: &[&str]) -> Result<GitCommandOutput, String> {
-    let output = vw_shared::shell::git_std_command()
+    let output = shell_command::git_std_command()
         .current_dir(cwd)
         .args(args)
         .output()

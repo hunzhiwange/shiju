@@ -515,9 +515,7 @@ fn workflow_manager_effect_task(effect: WorkflowManagerEffect) -> Task<Message> 
 }
 
 async fn load_lifecycle_workflows_via_gateway() -> LifecycleWorkflowListResult {
-    let client = gateway_task_lifecycle::GatewayTaskLifecycleClient::new(
-        crate::app::config::gateway_client()?.transport().clone(),
-    );
+    let client = crate::app::config::gateway_client()?;
     client.task_lifecycle_workflows_list().await
 }
 
@@ -525,15 +523,13 @@ async fn save_lifecycle_workflow_via_gateway(
     original_id: Option<String>,
     body: TaskLifecycleWorkflowUpsertBody,
 ) -> LifecycleWorkflowListResult {
-    let client = gateway_task_lifecycle::GatewayTaskLifecycleClient::new(
-        crate::app::config::gateway_client()?.transport().clone(),
-    );
+    let client = crate::app::config::gateway_client()?;
     save_lifecycle_workflow_with_client(&client, original_id.as_deref(), &body).await?;
     client.task_lifecycle_workflows_list().await
 }
 
 async fn save_lifecycle_workflow_with_client(
-    client: &gateway_task_lifecycle::GatewayTaskLifecycleClient,
+    client: &vw_gateway_client::GatewayClient,
     original_id: Option<&str>,
     body: &TaskLifecycleWorkflowUpsertBody,
 ) -> std::result::Result<(), String> {
@@ -558,9 +554,7 @@ async fn delete_lifecycle_workflow_via_gateway(workflow_id: String) -> Lifecycle
     if is_builtin_task_workflow_id(&workflow_id) {
         return Err(format!("内置生命周期不能删除: {workflow_id}"));
     }
-    let client = gateway_task_lifecycle::GatewayTaskLifecycleClient::new(
-        crate::app::config::gateway_client()?.transport().clone(),
-    );
+    let client = crate::app::config::gateway_client()?;
     client.task_lifecycle_workflows_delete(&workflow_id).await?;
     client.task_lifecycle_workflows_list().await
 }
@@ -569,9 +563,7 @@ async fn reset_lifecycle_workflow_via_gateway(workflow_id: String) -> LifecycleW
     if !is_builtin_task_workflow_id(&workflow_id) {
         return Err(format!("只有内置生命周期可以重置: {workflow_id}"));
     }
-    let client = gateway_task_lifecycle::GatewayTaskLifecycleClient::new(
-        crate::app::config::gateway_client()?.transport().clone(),
-    );
+    let client = crate::app::config::gateway_client()?;
     client.task_lifecycle_workflows_reset(&workflow_id).await?;
     client.task_lifecycle_workflows_list().await
 }

@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::basic::ProviderBasicWrite;
+use vw_api_app_provider_base::basic::ProviderBasicWrite;
 pub(super) fn router() -> Router {
     Router::new().route(
         "/app-providers/{app}/{id}/basic",

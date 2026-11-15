@@ -1,5 +1,6 @@
 use super::GatewayClient;
-use vw_api_types::{app_providers::AppProviderSummary, app_providers::update::AppProviderUpdate};
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::update::AppProviderUpdate;
 use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Partial catalog update without native activation.

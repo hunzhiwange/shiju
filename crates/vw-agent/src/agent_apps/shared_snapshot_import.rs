@@ -47,7 +47,7 @@ pub fn preview_shared_snapshot(database: &GlobalDatabase, scope: SnapshotScope<'
             let basic = vw_agent_apps::providers::basic::read(v).map_err(|_| anyhow::anyhow!("invalid receiving provider"))?;
             let mut fields = basic;
             fields.name = p.name.clone();
-            let mut updated = vw_agent_apps::providers::basic::apply(p.app_id,v,&fields,&vw_api_types::app_providers::create::ProviderSecretWrite::Keep)
+            let mut updated = vw_agent_apps::providers::basic::apply(p.app_id,v,&fields,&vw_api_app_provider_base::create::ProviderSecretWrite::Keep)
                 .map_err(|_| anyhow::anyhow!("invalid shared provider metadata"))?;
             // Native protocol/model projections have app-specific formats. Do not
             // change them without the corresponding local editor adapter.

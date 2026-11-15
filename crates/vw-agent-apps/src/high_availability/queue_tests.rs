@@ -1,6 +1,6 @@
 use super::queue::{Queue, QueueError};
 use crate::providers::failover::{ProviderAuth, ProviderSnapshot};
-use vw_api_types::{app_providers::AppProviderSummary};
+use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_identity::{AppId};
 
 fn provider(app_id: AppId, id: &str, auth: ProviderAuth) -> ProviderSnapshot {

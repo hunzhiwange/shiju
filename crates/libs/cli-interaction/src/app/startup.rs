@@ -119,7 +119,7 @@ pub(crate) fn bootstrap_directory_switch(
 }
 
 pub(super) fn new_draft_id() -> String {
-    use ordered_id::{Prefix, descending};
+    use vw_shared::id::{Prefix, descending};
 
     descending(Prefix::Session, None)
         .unwrap_or_else(|_| format!("ses_{}", next_stream_request_id()))

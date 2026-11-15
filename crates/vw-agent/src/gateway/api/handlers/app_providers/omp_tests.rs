@@ -263,7 +263,7 @@ async fn cc04_ui_omp_sdk_edits_native_yaml_without_exposing_credentials() {
         target_host_id: "host".into(),
         fields,
         declaration: format!("{}models:\n  - id: sample\n    name: 中文模型\n", config.declaration),
-        api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+        api_key: vw_api_app_provider_base::create::ProviderSecretWrite::Keep,
         activation: OmpActivation::IfMember,
         revision: Some(config.revision),
     };
@@ -315,11 +315,11 @@ async fn cc04_ui_omp_sdk_rejects_invalid_and_unauthorized_yaml_before_writes() {
     let before = f.bytes();
     let mut body = OmpFormWrite {
         target_host_id: "host".into(),
-        fields: vw_api_types::app_providers::basic::ProviderBasic {
+        fields: vw_api_app_provider_base::basic::ProviderBasic {
             name: "中文供应商".into(), category: None, notes: None, website_url: None,
         },
         declaration: "baseUrl: https://fixture.example/v1\napi: openai-completions\nauth: none\nmodels:\n  - id: sample\n".into(),
-        api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+        api_key: vw_api_app_provider_base::create::ProviderSecretWrite::Keep,
         activation: OmpActivation::Add,
         revision: None,
     };

@@ -30,18 +30,16 @@ use vw_agent_apps::{
     },
     mcp::catalog::McpCatalogDraft,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::*,
-    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-    vw_api_types::mcp_management::McpCatalogScope,
-    vw_api_types::mcp_management::McpConnectionDefinition,
-    vw_api_types::mcp_management::McpRecordId,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps_diagnostics::*;
+use vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
+use vw_api_types::mcp_management::McpCatalogScope;
+use vw_api_types::mcp_management::McpConnectionDefinition;
+use vw_api_types::mcp_management::McpRecordId;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsSettingsError, GatewayClient}};
 
 const TOKEN: &str = "fixture-macos-diagnostic-member-00001";

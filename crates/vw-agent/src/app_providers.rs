@@ -8,14 +8,12 @@ use vw_agent_apps::{
     },
     providers::{validate_identity, validate_profile},
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_app_identity::AppInstallation,
-    vw_api_types::app_providers::AppProviderSummary,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderLaunchRequest,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_identity::AppInstallation;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderLaunchRequest;
+use vw_api_transport::id::TenantScope;
 
 const NAMESPACE: &str = "app_providers.records";
 
@@ -106,10 +104,10 @@ impl AppProviderStore {
             .settings
             .get(tenant, NAMESPACE, &key)
             .map_err(|_| "application provider storage unavailable")?;
-        let input = vw_api_types::app_providers::update::AppProviderUpdate {
+        let input = vw_api_app_provider_base::update::AppProviderUpdate {
             name: Some(profile.name.clone()),
             protocol: Some(profile.protocol),
-            api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Replace {
+            api_key: vw_api_app_provider_base::create::ProviderSecretWrite::Replace {
                 value: profile.api_key.clone(),
             },
             base_url: Some(profile.base_url.clone()),
@@ -144,7 +142,7 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-        request: &vw_api_types::app_providers::create::AppProviderCreate,
+        request: &vw_api_app_provider_base::create::AppProviderCreate,
     ) -> Result<AppProviderSummary, String> {
         vw_agent_apps::providers::create::create(app, id, request, |profile| {
             let key = Self::key(app, id)?;
@@ -186,7 +184,7 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
         id: &str,
-        request: &vw_api_types::app_providers::update::AppProviderUpdate,
+        request: &vw_api_app_provider_base::update::AppProviderUpdate,
     ) -> Result<AppProviderSummary, String> {
         let key = Self::key(app, id)?;
         let before = self
@@ -424,7 +422,7 @@ impl AppProviderStore {
         if app == AppId::Claude {
             if let Some(row) = self.claude_record(tenant, id)? {
                 if let Some(config) = row.get("claude") {
-                    let profile: vw_api_types::app_providers::claude::ClaudeProfile =
+                    let profile: vw_api_app_provider_base::claude::ClaudeProfile =
                         serde_json::from_value(config.clone())
                             .map_err(|_| "invalid stored application provider profile")?;
                     vw_agent_apps::providers::claude::settings(&profile)

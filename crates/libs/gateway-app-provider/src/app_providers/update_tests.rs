@@ -1,6 +1,6 @@
 use crate::test_support;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::{app_providers::update::AppProviderUpdate};
+use vw_api_app_provider_base::update::AppProviderUpdate;
 use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_update_sdk_sends_explicit_intent_and_tenant_to_update_route() {

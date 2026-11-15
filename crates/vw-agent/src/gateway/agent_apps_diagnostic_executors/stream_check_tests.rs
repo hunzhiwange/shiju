@@ -15,17 +15,15 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::auth::copilot::CopilotAuth;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_transport::id::ProjectScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource;
+use vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode;
+use vw_api_types::agent_apps_diagnostics::DiagnosticOutcome;
+use vw_api_types::agent_apps_diagnostics::DiagnosticResult;
+use vw_api_types::agent_apps_diagnostics::DiagnosticScope;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_transport::id::ProjectScope;
 
 use crate::model_relay::stream_observer::tests::samples;
 

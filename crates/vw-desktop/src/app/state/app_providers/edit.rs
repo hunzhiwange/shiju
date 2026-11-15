@@ -1,8 +1,7 @@
 use super::claude::{Draft, Kind};
-use vw_gateway_client::vw_api_types::app_providers::{
-    basic::*,
-    create::{AppProviderCreate, ProviderSecretWrite},
-};
+use vw_api_app_provider_base::basic::*;
+use vw_api_app_provider_base::create::AppProviderCreate;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 #[derive(Clone, Debug)]
 pub(crate) enum Mode {
     Create,
@@ -105,7 +104,7 @@ impl EditForm {
     pub fn claude_request(
         &self,
         host: String,
-    ) -> Option<vw_gateway_client::vw_api_types::app_providers::claude::ClaudeFormWrite> {
+    ) -> Option<vw_api_app_provider_base::claude::ClaudeFormWrite> {
         let draft = self.claude.as_ref()?;
         draft.request(
             host,

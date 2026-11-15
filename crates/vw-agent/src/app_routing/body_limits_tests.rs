@@ -9,13 +9,11 @@ use tokio::{
     net::{TcpListener, TcpStream},
     time::timeout,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::validation::ProviderRequestOptions,
-    vw_api_types::app_providers::validation::ProviderRequestOverrides,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::validation::ProviderRequestOptions;
+use vw_api_app_provider_base::validation::ProviderRequestOverrides;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 
 const LIMIT: usize = 4 * 1024 * 1024;
 const PROMPT: &[u8] = br#"{"model":"fixture"}"#;

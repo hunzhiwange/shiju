@@ -1,7 +1,5 @@
-use crate::{
-    agent_apps::AppId,
-    app_providers::{ProviderProtocol, create::*},
-};
+use vw_api_app_identity::AppId;
+use crate::{ProviderProtocol, create::*};
 fn request() -> AppProviderCreate {
     AppProviderCreate {
         request_options: None,

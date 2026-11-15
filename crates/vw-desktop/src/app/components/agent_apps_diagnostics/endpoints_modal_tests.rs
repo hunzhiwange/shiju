@@ -3,10 +3,9 @@ use crate::app::{
     message::agent_apps_diagnostics::endpoints::{self, Event},
 };
 use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{basic::ProviderBasic, claude::ClaudeFormKind},
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_api_app_provider_base::claude::ClaudeFormKind;
 #[test]
 fn diagnostic_desktop_endpoint_selection_requires_save() {
     crate::app::config::with_settings_gateway(|_requests, _responses| {

@@ -264,7 +264,7 @@ async fn cc04_grok_managed_rows_and_missing_write_records_are_refused() {
 
 #[tokio::test]
 async fn cc04_ui_grok_form_keeps_inactive_values_and_uses_live_transaction() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut original = f.request(false, GrokActivation::First);
     let GrokConfig::ThirdParty { toml } = &mut original.profile.config else { unreachable!() };
@@ -337,7 +337,8 @@ async fn cc04_ui_grok_form_keeps_inactive_values_and_uses_live_transaction() {
 
 #[tokio::test]
 async fn cc04_ui_grok_create_activates_only_first_provider() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut form = GrokFormWrite {
         target_host_id: f.target().target_host_id,

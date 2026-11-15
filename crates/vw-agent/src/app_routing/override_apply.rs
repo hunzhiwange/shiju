@@ -3,7 +3,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use serde_json::{Map, Value};
 use vw_agent_apps::providers::validation::custom_user_agent;
 use vw_agent_apps::routing::private_params::filter_private_params;
-use vw_api_types::app_providers::validation::ProviderRequestOverrides;
+use vw_api_app_provider_base::validation::ProviderRequestOverrides;
 
 /// Options have already been validated when the target was bound to the grant.
 pub(super) fn apply(

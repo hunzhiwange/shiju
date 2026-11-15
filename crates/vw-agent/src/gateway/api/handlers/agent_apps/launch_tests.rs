@@ -185,10 +185,9 @@ async fn cc_apps_launch_native_terminal_sdk_http_lifetime_and_rotation() {
 async fn identity_roundtrip(
     terminal_boundary: fn(Option<&str>, &Path, &LaunchMaterial) -> Result<(), String>,
 ) {
-    use vw_api_types::{
-        agent_apps::*,
-        app_providers::{AppProviderWrite, ProviderProtocol},
-    };
+use vw_api_types::agent_apps::*;
+    use vw_api_app_provider_base::AppProviderWrite;
+    use vw_api_app_provider_base::ProviderProtocol;
     use {gateway_endpoint::{GatewayEndpoint}, gateway_app_settings::{AgentAppsSettingsError, GatewayAppSettingsClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();

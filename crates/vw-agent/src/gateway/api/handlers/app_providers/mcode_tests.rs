@@ -321,7 +321,7 @@ async fn cc04_mcode_native_account_and_lock_denials_leave_no_catalog_changes() {
 
 #[tokio::test]
 async fn cc04_ui_mcode_form_roundtrip_preserves_secrets_and_other_nodes() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut initial = f.request(McodeActivation::Add);
     initial.profile.declaration["options"]["headers"] = json!({"Authorization":"private-fixture"});
@@ -365,7 +365,8 @@ async fn cc04_ui_mcode_form_roundtrip_preserves_secrets_and_other_nodes() {
 
 #[tokio::test]
 async fn cc04_ui_mcode_form_rejects_invalid_yaml_and_unauthorized_writes() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let before = f.bytes();
     let mut body = McodeFormWrite {

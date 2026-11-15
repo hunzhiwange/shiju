@@ -8,13 +8,11 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::basic::*,
-    vw_api_types::app_providers::create::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_base::basic::*;
+use vw_api_app_provider_base::create::*;
+use vw_api_transport::id::TenantScope;
 fn input() -> ProviderBasicWrite {
     ProviderBasicWrite {
         fields: ProviderBasic {

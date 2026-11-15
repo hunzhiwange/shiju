@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
-use vw_api_types::{app_providers::AppProviderWrite};
+use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_identity::{AppId};
 
 /// Not serializable or Debug: argv/environment must never become API responses or logs.

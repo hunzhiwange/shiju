@@ -4,10 +4,9 @@ use super::{identity, settings};
 use crate::providers::{basic, projection, validate_identity, validation};
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item, Table, TableLike, value};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{codex_catalog::*, create::ProviderSecretWrite},
-};
+use vw_api_types::agent_apps::AppId;
+use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_identity::{AppId};

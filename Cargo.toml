@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-app-provider-base",
   "crates/libs/ordered-id",
   "crates/libs/desktop-config",
   "crates/libs/session-text",

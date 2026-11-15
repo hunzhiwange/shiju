@@ -1,6 +1,7 @@
 //! Bridge the write-only desktop form to the native Claude profile.
 use serde_json::Value;
-use vw_api_types::app_providers::{claude::*, create::ProviderSecretWrite};
+use vw_api_app_provider_base::claude::*;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 fn stored_profile(row: &Value) -> Result<Option<ClaudeProfile>, String> {
     row.get("claude")

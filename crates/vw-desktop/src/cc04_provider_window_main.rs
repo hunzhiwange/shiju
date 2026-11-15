@@ -54,7 +54,8 @@ fn main() {
             let task =
                 app::message::app_providers::list::update(&mut state, ListMessage::Open(app));
             if edit {
-                use vw_gateway_client::vw_api_types::app_providers::{ProviderProtocol, create::*};
+use vw_api_app_provider_base::ProviderProtocol;
+                use vw_api_app_provider_base::create::*;
                 state.app_providers.new_draft = Some(AppProviderCreate {
                     name: "fixture".into(),
                     protocol: ProviderProtocol::Anthropic,

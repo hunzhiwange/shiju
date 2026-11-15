@@ -5,14 +5,12 @@ use axum::{Json, Router, routing::post};
 use reqwest::{Client, Method, StatusCode};
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::PermissionsExt, sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}}, time::Duration};
-use {
-    vw_api_app_identity::AppId::Claude,
-    vw_api_types::agent_apps_high_availability::FailoverPolicy,
-    vw_api_types::agent_apps_high_availability::FailoverQueueQuery,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId::Claude;
+use vw_api_types::agent_apps_high_availability::FailoverPolicy;
+use vw_api_types::agent_apps_high_availability::FailoverQueueQuery;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_transport::id::TenantScope;
 
 struct Servers(Vec<tokio::task::JoinHandle<()>>);
 impl Drop for Servers {

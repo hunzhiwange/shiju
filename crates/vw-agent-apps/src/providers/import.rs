@@ -56,7 +56,7 @@ pub(super) fn reject_placeholders(
 
 #[cfg(target_os = "macos")]
 pub enum NativeImport {
-    Claude(vw_api_types::app_providers::claude::ClaudeProfile),
+    Claude(vw_api_app_provider_base::claude::ClaudeProfile),
     Codex(vw_api_types::app_providers::codex_catalog::CodexProfile),
     Gemini(vw_api_types::app_providers::gemini::GeminiProfile),
     Grok(vw_api_types::app_providers::grok::GrokProfile),

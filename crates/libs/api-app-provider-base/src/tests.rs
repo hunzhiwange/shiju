@@ -1,4 +1,4 @@
-use super::app_providers::*;
+use super::*;
 #[test]
 fn cc_apps_provider_launch_isolation_dto_separates_write_secrets_and_launch_identity() {
     let profile: AppProviderWrite = serde_json::from_value(serde_json::json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-key-only","baseUrl":"https://provider.example.test","model":"fixture"})).unwrap();

@@ -11,14 +11,12 @@ use std::{
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::claude::*,
-    vw_api_types::app_providers::codex_catalog::*,
-    vw_api_types::app_providers::editor_merge::*,
-    vw_api_types::app_providers::mode_state::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::claude::*;
+use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_types::app_providers::editor_merge::*;
+use vw_api_types::app_providers::mode_state::*;
+use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 
 const HOST: &str = "host";

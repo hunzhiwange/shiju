@@ -185,7 +185,8 @@ printf '%s' "$dir" > proof
     );
 
     // Real SDK -> HTTP -> tenant SQLite form editing; private settings change only on launch.
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let target = AgyTarget { target_host_id: "host".into() };
     let public = client.agy_form_read("one", &target, TOKEN).await.unwrap();
     let public_json = serde_json::to_string(&public).unwrap();
@@ -297,7 +298,7 @@ printf '%s' "$dir" > proof
 
 #[test]
 fn cc04_ui_agy_editor_preserves_metadata_and_latest_secret() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let root = tempfile::tempdir().unwrap();
     let db = crate::global_database::GlobalDatabase::for_home(root.path()).unwrap();
     let store = crate::app_providers::AppProviderStore::new(db.clone()).unwrap();

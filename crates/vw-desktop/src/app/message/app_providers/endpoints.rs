@@ -4,13 +4,12 @@ use crate::app::{
     state::app_providers::{endpoints::Form, list::Scope},
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{endpoints::*, request_options::*, validation::ProviderRequestOptions},
-    },
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_gateway_client::vw_api_types::app_providers::endpoints::*;
+use vw_gateway_client::vw_api_types::app_providers::request_options::*;
+use vw_api_app_provider_base::validation::ProviderRequestOptions;
 pub(crate) async fn add(
     client: GatewayClient,
     scope: Scope,

@@ -19,17 +19,15 @@ use iced::widget::Space;
 use iced::widget::text_editor;
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        basic::ProviderBasic,
-        claude::ClaudeFormKind,
-        codex_catalog::{CodexFormConfig, CodexModelMapping},
-        gemini::GeminiFormKind,
-        grok::GrokFormConfig,
-        opencode::{OpenCodeFormConfig, OpenCodeFormat},
-    },
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_api_app_provider_base::claude::ClaudeFormKind;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexFormConfig;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexModelMapping;
+use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormKind;
+use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormConfig;
+use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormConfig;
+use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormat;
 
 const PROVIDERS: [(AppId, &str); 5] = [
     (AppId::Claude, "claude"),

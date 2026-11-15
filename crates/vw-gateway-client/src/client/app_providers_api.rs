@@ -1,6 +1,7 @@
 //! Tenant application-provider records; no relationship to model-provider auth APIs.
 use super::GatewayClient;
-use vw_api_types::{app_providers::AppProviderSummary, app_providers::AppProviderWrite};
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_identity::{AppId};
 impl GatewayClient {
     pub async fn app_provider_save(

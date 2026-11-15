@@ -1,8 +1,7 @@
 use super::update::update;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{create::ProviderSecretWrite, update::AppProviderUpdate},
-};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_app_provider_base::update::AppProviderUpdate;
 use vw_api_app_identity::{AppId};
 fn stored() -> serde_json::Value {
     serde_json::json!({"name":"fixture", "protocol":"anthropic", "apiKey":"fixture-secret", "baseUrl":"https://fixture.example.test", "model":"fixture-model", "meta":{"notes":"keep", "sortIndex":7}, "createdAt":123})

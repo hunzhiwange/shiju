@@ -461,12 +461,10 @@ impl ProductionFixture {
             app_providers::{AppProviderStore, ClaudeBindingHost},
         };
         use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
-        use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_auth::AuthService,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-};
+use vw_api_transport::TimestampMs;
+        use vw_api_app_auth::AuthService;
+        use vw_api_app_provider_base::claude::ClaudeConfig;
+        use vw_api_app_provider_base::claude::ClaudeProfile;
 
         let home = tempfile::tempdir().unwrap();
         let root = home.path().join("credentials");
@@ -667,7 +665,8 @@ async fn cc_route_109_missing_project_or_stale_account_generation_never_writes()
 async fn ha_enable_requires_routing_mode_and_keeps_queue_http() {
     use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
     use crate::app_providers::AppProviderStore;
-    use vw_api_types::app_providers::claude::{ClaudeConfig, ClaudeProfile};
+use vw_api_app_provider_base::claude::ClaudeConfig;
+    use vw_api_app_provider_base::claude::ClaudeProfile;
 
     let f = ProductionFixture::new(4_000_000_000_000).await;
     let db = GlobalDatabase::for_home(f.home.path()).unwrap();

@@ -12,25 +12,23 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::high_availability::circuit_breaker::{AttemptOutcome, CircuitBreaker};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource::ControlledFixture,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
-    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
-    vw_api_types::agent_apps_diagnostics::ReachabilityEvidence,
-    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
-    vw_api_types::agent_apps_high_availability::FailoverHealthState,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_transport::id::ProjectScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_auth::AuthErrorCode;
+use vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource::ControlledFixture;
+use vw_api_types::agent_apps_diagnostics::DiagnosticFailure;
+use vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode;
+use vw_api_types::agent_apps_diagnostics::DiagnosticJobState;
+use vw_api_types::agent_apps_diagnostics::DiagnosticOutcome;
+use vw_api_types::agent_apps_diagnostics::DiagnosticPhase;
+use vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind;
+use vw_api_types::agent_apps_diagnostics::DiagnosticResult;
+use vw_api_types::agent_apps_diagnostics::DiagnosticScope;
+use vw_api_types::agent_apps_diagnostics::ReachabilityEvidence;
+use vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy;
+use vw_api_types::agent_apps_high_availability::FailoverHealthState;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_transport::id::ProjectScope;
 
 use super::{DiagnosticProbeError, Endpoint, ReachabilityPrepareError, ReachabilityProbe, probe};
 use crate::{

@@ -23,7 +23,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{Space, text_editor};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::app_providers::basic::ProviderBasic;
+use vw_api_app_provider_base::basic::ProviderBasic;
 
 const PROVIDERS: [&str; 8] = ["agy", "dsh", "hermes", "kimi", "mcode", "omp", "openclaw", "pi"];
 const MODEL: &str = "模型标识／模型識別 · fixture-model";

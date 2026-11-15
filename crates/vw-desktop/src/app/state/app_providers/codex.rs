@@ -1,9 +1,9 @@
 use iced::widget::text_editor::Content;
-use vw_gateway_client::vw_api_types::app_providers::{
-    basic::ProviderBasic,
-    codex_catalog::{CodexFormConfig, CodexFormWrite, CodexModelMapping},
-    create::ProviderSecretWrite,
-};
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexFormConfig;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexFormWrite;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexModelMapping;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 pub(crate) struct Draft {
     pub toml: Content,

@@ -315,7 +315,8 @@ async fn cc04_gemini_managed_row_is_refused_without_touching_live() {
 
 #[tokio::test]
 async fn cc04_ui_gemini_sdk_form_projects_env_and_settings() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
 
     let f = Fixture::new().await;
     let env = f.root.path().join(".gemini/.env");

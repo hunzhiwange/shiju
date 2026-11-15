@@ -1,5 +1,6 @@
 //! Application-provider validation/projection owner. No model-provider or host credential fallback.
-use vw_api_types::{app_providers::AppProviderWrite, app_providers::ProviderProtocol};
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_identity::{AppId};
 
 pub fn validate_identity(id: &str) -> Result<(), String> {

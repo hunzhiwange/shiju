@@ -6,9 +6,8 @@ use vw_agent_apps::{
     auth::credential_lease::CredentialLease,
     providers::live::commit::{ClaudeManagedLogin, ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{
-    app_providers::claude::{ClaudeConfig, ClaudeProfile},
-};
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
 use vw_api_app_auth::{AuthErrorCode, AuthService};
 
 const FIELD: &str = "managedClaudeLogin";

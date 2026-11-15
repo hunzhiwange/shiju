@@ -1,5 +1,6 @@
 use super::{provider::prepare_provider_launch, request::LaunchMaterial};
-use vw_api_types::{app_providers::AppProviderWrite, app_providers::ProviderProtocol};
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_identity::{AppId};
 #[test]
 fn cc_apps_omp_provider_private_projection_is_available() {

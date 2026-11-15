@@ -8,7 +8,8 @@ use vw_api_app_identity::{
     LaunchRequest,
 };
 use crate::global_database::GlobalDatabase;
-use vw_api_types::app_providers::{AppProviderWrite, ProviderProtocol};
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
 fn profile(key: &str) -> AppProviderWrite {
     AppProviderWrite {
         request_options: None,
@@ -96,11 +97,9 @@ async fn cc_apps_provider_launch_isolation_api_write_read_auth_and_redaction() {
 #[tokio::test]
 async fn cc_apps_provider_launch_isolation_sdk_http_sqlite_projection_process_roundtrip() {
     use axum::{Extension, Router, middleware};
-    use {
-    vw_api_types::agent_apps::*,
-    vw_api_types::app_providers::ProviderLaunchRequest,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_types::agent_apps::*;
+    use vw_api_app_provider_base::ProviderLaunchRequest;
+    use vw_api_transport::id::TenantScope;
     use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
     let home = tempfile::tempdir().unwrap();
     let database = GlobalDatabase::for_home(home.path()).unwrap();

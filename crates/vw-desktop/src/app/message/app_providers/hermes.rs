@@ -7,13 +7,11 @@ use crate::app::{
     },
 };
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::{
-    GatewayClient,
-    vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{catalog::ProviderMembership, create::ProviderSecretWrite, hermes::*},
-    },
-};
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_gateway_client::vw_api_types::app_providers::hermes::*;
 use gateway_app_provider::AgentAppsReadError;
 
 #[derive(Clone)]

@@ -46,7 +46,7 @@ pub(crate) struct ListState {
     pub desktop: Option<super::desktop::Form>,
     pub omo: Option<crate::app::state::aggregation_omo::Form>,
     pub new_draft:
-        Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,
+        Option<vw_api_app_provider_base::create::AppProviderCreate>,
     pub error: Option<String>,
     #[cfg(not(target_arch = "wasm32"))]
     pub usage: crate::app::components::apps_usage_cards::Cards,

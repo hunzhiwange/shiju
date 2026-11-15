@@ -2,7 +2,7 @@
 use super::*;
 use axum::{http::HeaderMap, routing::post};
 use std::path::PathBuf;
-use vw_api_types::app_providers::claude::*;
+use vw_api_app_provider_base::claude::*;
 
 #[path = "claude_form.rs"]
 mod form;
@@ -156,7 +156,7 @@ fn write_sync(
                 AppId::Claude,
                 before.as_ref().unwrap_or(&serde_json::json!({})),
                 &req.fields,
-                &vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+                &vw_api_app_provider_base::create::ProviderSecretWrite::Keep,
             )
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             let activation = match (req.apply, kind) {

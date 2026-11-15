@@ -274,7 +274,8 @@ async fn cc04_kimi_editor_is_checked_by_server_and_import_never_overwrites() {
 
 #[tokio::test]
 async fn cc04_ui_kimi_form_roundtrip_preserves_credentials_and_other_nodes() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut seed = f.request(KimiActivation::Add);
     seed.profile.declaration["provider"]["base_url"] = json!("https://fixture.example.test/v1");
@@ -325,7 +326,7 @@ async fn cc04_ui_kimi_form_roundtrip_preserves_credentials_and_other_nodes() {
 
 #[tokio::test]
 async fn cc04_ui_kimi_form_invalid_denied_and_redirect_leave_no_side_effects() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut seed = f.request(KimiActivation::Add);
     seed.profile.declaration["provider"]["base_url"] = json!("https://fixture.example.test/v1");

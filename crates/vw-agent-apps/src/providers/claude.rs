@@ -4,7 +4,7 @@ use super::{
     projection::fields,
 };
 use serde_json::{Value, json};
-use vw_api_types::app_providers::claude::*;
+use vw_api_app_provider_base::claude::*;
 
 #[path = "claude_form.rs"]
 pub mod form;

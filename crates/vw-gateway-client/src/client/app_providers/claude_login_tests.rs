@@ -1,9 +1,7 @@
 use super::super::test_support;
-use {
-    vw_api_types::app_providers::claude::*,
-    vw_api_types::app_providers::claude_login::ClaudeLoginBinding,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_provider_base::claude::*;
+use vw_api_app_provider_base::claude_login::ClaudeLoginBinding;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_claude_login_sdk_serializes_scoped_binding_and_redacts_errors() {
     let server = test_support::server_with_tenant_scope(

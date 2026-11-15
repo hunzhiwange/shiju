@@ -57,10 +57,9 @@ fn native(f: &Fixture, app: AppId) -> (String, String, String) {
 }
 async fn check_ordinary_default(app: AppId, name: &str) {
     use axum::{Json, http::HeaderMap, routing::post};
-    use vw_api_types::app_providers::{
-        claude::{ClaudeConfig, ClaudeProfile},
-        codex_catalog::CodexProfile,
-    };
+use vw_api_app_provider_base::claude::ClaudeConfig;
+    use vw_api_app_provider_base::claude::ClaudeProfile;
+    use vw_api_types::app_providers::codex_catalog::CodexProfile;
     let mut f = if app == AppId::Claude { Fixture::new() } else { client_fixture(app, name) };
     let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = upstream.local_addr().unwrap();

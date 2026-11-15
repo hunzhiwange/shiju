@@ -46,10 +46,10 @@ mod host_reads {
     use axum::{Router, body::to_bytes, middleware};
     use sha2::{Digest, Sha256};
     use std::{os::unix::fs::PermissionsExt, path::Path};
-    use vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{AppProviderWrite, ProviderProtocol, catalog::*},
-    };
+use vw_api_types::agent_apps::AppId;
+    use vw_api_app_provider_base::AppProviderWrite;
+    use vw_api_app_provider_base::ProviderProtocol;
+    use vw_api_types::app_providers::catalog::*;
     const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
     use vw_api_app_identity::{AppId};
     fn policy(root: &Path) -> std::path::PathBuf {
@@ -119,7 +119,7 @@ mod host_reads {
             app.clone().oneshot(request("/app-providers/claude", "a", TOKEN)).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let bytes = to_bytes(response.into_body(), 65536).await.unwrap();
-        let rows: Vec<vw_api_types::app_providers::AppProviderSummary> =
+        let rows: Vec<vw_api_app_provider_base::AppProviderSummary> =
             serde_json::from_slice(&bytes).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "ours");

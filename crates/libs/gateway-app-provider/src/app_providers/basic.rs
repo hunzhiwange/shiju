@@ -1,5 +1,6 @@
 use super::{GatewayAppProviderClient, provider_path};
-use vw_api_types::{app_providers::basic::ProviderBasic, app_providers::basic::ProviderBasicWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_api_app_provider_base::basic::ProviderBasicWrite;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn app_provider_basic(&self, app: AppId, id: &str) -> Result<ProviderBasic, String> {

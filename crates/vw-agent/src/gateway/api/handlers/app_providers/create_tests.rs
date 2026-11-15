@@ -1,4 +1,5 @@
-use vw_api_types::{app_providers::ProviderProtocol, app_providers::create::*};
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_base::create::*;
 use vw_api_app_identity::{AppId};
 fn request() -> AppProviderCreate {
     AppProviderCreate {

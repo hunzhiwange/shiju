@@ -8,7 +8,8 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
-use vw_api_types::app_providers::{ProviderProtocol, endpoints::AppProviderEndpointKind};
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::endpoints::AppProviderEndpointKind;
 
 const KEY: &str = "fixture-secret";
 const DATA: &str = r#"{"data":[{"id":"model-a"}]}"#;

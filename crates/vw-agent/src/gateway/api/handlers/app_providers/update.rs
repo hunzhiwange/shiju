@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::app_providers::update::AppProviderUpdate;
+use vw_api_app_provider_base::update::AppProviderUpdate;
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn update(
     Extension(tenant): Extension<TenantScope>,
@@ -14,7 +14,7 @@ pub(super) async fn update(
         Extension<super::super::app_routing::RoutingControl>,
     >,
     body: Result<
-        Json<vw_api_types::app_providers::claude::ClaudeOr<AppProviderUpdate>>,
+        Json<vw_api_app_provider_base::claude::ClaudeOr<AppProviderUpdate>>,
         JsonRejection,
     >,
 ) -> Response {
@@ -22,7 +22,7 @@ pub(super) async fn update(
         return error("invalid input");
     };
     let request = match request {
-        vw_api_types::app_providers::claude::ClaudeOr::Claude(request) => {
+        vw_api_app_provider_base::claude::ClaudeOr::Claude(request) => {
             if app != AppId::Claude {
                 return StatusCode::BAD_REQUEST.into_response();
             }
@@ -42,7 +42,7 @@ pub(super) async fn update(
             )
             .await;
         }
-        vw_api_types::app_providers::claude::ClaudeOr::Legacy(request) => request,
+        vw_api_app_provider_base::claude::ClaudeOr::Legacy(request) => request,
     };
     match tokio::task::spawn_blocking(move || store(database)?.update(&tenant, app, &id, &request))
         .await

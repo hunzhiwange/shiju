@@ -2,10 +2,10 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::app_providers::{agy::*, create::ProviderSecretWrite},
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::app_providers::agy::*;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 #[derive(Clone)]
 pub enum Field {
     Model(String),

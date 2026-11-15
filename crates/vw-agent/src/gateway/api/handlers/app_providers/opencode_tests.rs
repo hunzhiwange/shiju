@@ -206,7 +206,7 @@ async fn cc04_opencode_partial_builtin_cannot_reactivate_after_removal() {
 fn form(declaration: &str, activation: OpenCodeActivation) -> OpenCodeFormWrite {
     OpenCodeFormWrite {
         target_host_id: "host".into(),
-        fields: vw_api_types::app_providers::basic::ProviderBasic {
+        fields: vw_api_app_provider_base::basic::ProviderBasic {
             name: "中文节点".into(),
             category: Some("隔离测试".into()),
             notes: Some("中文备注".into()),
@@ -214,7 +214,7 @@ fn form(declaration: &str, activation: OpenCodeActivation) -> OpenCodeFormWrite 
         },
         format: OpenCodeFormat::V1,
         declaration: declaration.into(),
-        api_key: vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+        api_key: vw_api_app_provider_base::create::ProviderSecretWrite::Keep,
         activation,
         revision: None,
     }
@@ -222,7 +222,7 @@ fn form(declaration: &str, activation: OpenCodeActivation) -> OpenCodeFormWrite 
 
 #[tokio::test]
 async fn cc04_ui_opencode_form_updates_native_node_and_preserves_protected_values() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut body = form(
         r#"{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"https://example.test/v1","headers":{"Authorization":"fake-hidden-header"}},"models":{"one":{"name":"旧模型"}}}"#,

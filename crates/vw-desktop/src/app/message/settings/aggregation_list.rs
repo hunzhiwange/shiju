@@ -5,14 +5,12 @@ use crate::app::{
     state::app_providers::list::Scope,
 };
 use iced::Task;
-use {
-    vw_gateway_client::AggregationApiError,
-    vw_gateway_client::GatewayClient,
-    vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::*,
-    vw_gateway_client::vw_api_types::app_providers::AppProviderSummary,
-    vw_api_transport::id::ProjectId,
-};
+use vw_gateway_client::AggregationApiError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_identity::AppId;
+use vw_gateway_client::vw_api_types::agent_apps::aggregation::*;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_transport::id::ProjectId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Selection {

@@ -1,7 +1,6 @@
 use super::*;
-use vw_api_types::app_providers::{
-    request_options::RequestOptionsView, validation::ProviderRequestOptions,
-};
+use vw_api_types::app_providers::request_options::RequestOptionsView;
+use vw_api_app_provider_base::validation::ProviderRequestOptions;
 impl AppProviderStore {
     pub fn request_options_view(
         &self,

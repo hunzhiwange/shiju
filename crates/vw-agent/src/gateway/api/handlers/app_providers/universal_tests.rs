@@ -8,11 +8,9 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use {
-    vw_api_types::app_providers::create::ProviderSecretWrite,
-    vw_api_types::app_providers::universal::UniversalProviderWrite,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_types::app_providers::universal::UniversalProviderWrite;
+use vw_api_transport::id::TenantScope;
 fn request() -> UniversalProviderWrite {
     serde_json::from_value(serde_json::json!({"config":{"name":"共享","providerType":"custom","apps":{"claude":true,"codex":true},"baseUrl":"https://example.com","models":{"claude":{"haikuModel":"haiku"},"codex":{"reasoningEffort":"high"},"gemini":{"model":"gemini"}}},"apiKey":{"action":"replace","value":"fixture-secret"}})).unwrap()
 }

@@ -8,16 +8,14 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt, path::Path, sync::Arc, time::Duration};
 use tokio::sync::Notify;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::agy::AgyProfile,
-    vw_api_types::app_providers::opencode::OpenCodeProfile,
-    vw_api_transport::id::TaskId,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::*,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::agy::AgyProfile;
+use vw_api_types::app_providers::opencode::OpenCodeProfile;
+use vw_api_transport::id::TaskId;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::*;
 use {gateway_endpoint::{GatewayEndpoint}, gateway_model_catalog::{AgentAppsReadError}};
 
 const TOKEN: &str = "model-discovery-application-credential";

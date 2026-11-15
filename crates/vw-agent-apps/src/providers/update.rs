@@ -1,9 +1,9 @@
 //! Catalog-only update; native re-projection is owned by application adapters.
 use super::{validate_identity, validate_profile};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, create::ProviderSecretWrite, update::AppProviderUpdate},
-};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_app_provider_base::update::AppProviderUpdate;
 
 use vw_api_app_identity::{AppId};
 /// Read only the established profile fields; retain opaque stored metadata on update.

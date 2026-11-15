@@ -7,16 +7,14 @@ use crate::{
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use std::{fs, time::Duration};
-use {
-    vw_api_app_identity::AppId::Codex,
-    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
-    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::codex_catalog::CodexProfile,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId::Codex;
+use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
+use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 
 #[tokio::test]
 async fn ha_api_queue_read_enforces_scope() -> anyhow::Result<()> {
@@ -359,7 +357,8 @@ async fn ha_api_queue_write_rejects_conflicts_enabled() -> anyhow::Result<()> {
         settings_store::GatewaySettingsStore,
     };
     use std::os::unix::fs::PermissionsExt;
-    use vw_api_types::{app_providers::claude::ClaudeConfig, app_providers::claude::ClaudeProfile};
+use vw_api_app_provider_base::claude::ClaudeConfig;
+    use vw_api_app_provider_base::claude::ClaudeProfile;
     use vw_api_app_identity::{AppId::Claude};
     let home = tempfile::tempdir()?;
     let root = home.path().join("credentials");

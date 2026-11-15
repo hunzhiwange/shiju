@@ -15,16 +15,14 @@ use std::{fs, os::unix::fs::PermissionsExt, sync::Arc};
 use tokio::{net::TcpListener, sync::mpsc};
 use tower::ServiceExt;
 use vw_agent_apps::providers::{claude::ClaudeFile, live::commit::*, mode_state::StackState};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps::aggregation::AggregationWriteQuery;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_transport::id::COMPANY_ID_HEADER;
+use vw_api_transport::id::PLATFORM_ID_HEADER;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 const TOKEN: &str = "aggregation-task16-fixture-manager-credential";
 fn tenant() -> TenantScope {
     TenantScope::new("platform", "company").unwrap()

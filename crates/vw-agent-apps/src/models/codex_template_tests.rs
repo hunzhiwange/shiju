@@ -1,9 +1,9 @@
 use super::codex_template::codex_custom_template;
 use crate::providers::codex_catalog::form;
 use toml_edit::{DocumentMut, value};
-use vw_api_types::app_providers::{
-    basic::ProviderBasic, codex_catalog::CodexFormWrite, create::ProviderSecretWrite,
-};
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_api_types::app_providers::codex_catalog::CodexFormWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 #[test]
 fn catalog_codex_template_requires_endpoint_and_key_to_prepare_provider() {

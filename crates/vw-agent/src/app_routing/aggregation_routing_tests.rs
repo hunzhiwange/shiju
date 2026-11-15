@@ -103,9 +103,8 @@ async fn aggregation_t11_published_revision_routes_and_revokes_exact_targets() {
         },
         mode_state::StackState,
     };
-    use vw_api_types::app_providers::validation::{
-        ProviderRequestOptions, ProviderRequestOverrides,
-    };
+use vw_api_app_provider_base::validation::ProviderRequestOptions;
+    use vw_api_app_provider_base::validation::ProviderRequestOverrides;
 
     let (record, mut requests) = mpsc::unbounded_channel();
     let mut upstreams = Vec::new();

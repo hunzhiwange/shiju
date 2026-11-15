@@ -28,15 +28,14 @@ use iced::widget::Space;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_ui::DesktopLocale;
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        AppProviderSummary,
-        basic::ProviderBasic,
-        catalog::{ProviderCatalog, ProviderCatalogRow, ProviderMembership, ProviderSelection},
-        desktop_mapping::DesktopModelRoute,
-    },
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderCatalog;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderCatalogRow;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
+use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopModelRoute;
 
 async fn renderer() -> Renderer {
     static FONTS: std::sync::Once = std::sync::Once::new();

@@ -3,15 +3,13 @@ use vw_agent_apps::{
     high_availability::queue::{Queue, QueueError},
     providers::failover::ProviderAuth,
 };
-use {
-    vw_api_app_identity::AppId::Claude,
-    vw_api_app_identity::AppId::Codex,
-    vw_api_app_identity::AppId::Pi,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::codex_catalog::CodexProfile,
-    vw_api_transport::id::ProjectScope,
-};
+use vw_api_app_identity::AppId::Claude;
+use vw_api_app_identity::AppId::Codex;
+use vw_api_app_identity::AppId::Pi;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_transport::id::ProjectScope;
 
 #[test]
 fn ha_queue_rejects_ineligible_members_from_saved_provider_snapshot() {

@@ -330,7 +330,8 @@ fn diagnostic_desktop_cancel_keeps_terminal_state_routes_and_resumes() {
         },
     };
     use std::time::Duration;
-    use vw_gateway_client::vw_api_types::app_providers::{AppProviderSummary, catalog::*};
+use vw_api_app_provider_base::AppProviderSummary;
+    use vw_gateway_client::vw_api_types::app_providers::catalog::*;
     crate::app::config::with_settings_gateway(|requests, responses| {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)

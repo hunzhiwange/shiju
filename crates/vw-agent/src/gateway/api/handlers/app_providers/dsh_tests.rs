@@ -217,7 +217,7 @@ async fn cc04_dsh_catalog_first_add_and_current_edit_use_all_profiles() {
 
 #[tokio::test]
 async fn cc04_ui_dsh_native_form_preserves_credentials_and_removes_only_member() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut original = f.request(DshActivation::Add);
     original.profile.declaration["options"]["headers"] =
@@ -281,7 +281,8 @@ async fn cc04_ui_dsh_native_form_preserves_credentials_and_removes_only_member()
 
 #[tokio::test]
 async fn cc04_ui_dsh_native_only_read_and_permission_denial_are_safe() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let body = DshFormWrite {
         target_host_id:"host".into(), fields:ProviderBasic {name:"Native".into(),category:None,notes:None,website_url:None},

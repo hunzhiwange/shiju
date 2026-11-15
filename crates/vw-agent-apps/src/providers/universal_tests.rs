@@ -17,7 +17,7 @@ fn cc04_universal_roundtrip_preserves_app_fields() {
     stored["meta"] = serde_json::json!({"token":"fixture-token"});
     let mut change = req.clone();
     change.config.name = "Changed".into();
-    change.api_key = vw_api_types::app_providers::create::ProviderSecretWrite::Keep;
+    change.api_key = vw_api_app_provider_base::create::ProviderSecretWrite::Keep;
     let updated = save("shared", Some(&stored), &change).unwrap();
     assert_eq!(updated["config"]["name"], "Changed");
     assert_eq!(updated["config"]["models"], saved["config"]["models"]);
@@ -40,7 +40,7 @@ fn cc04_universal_read_hides_credentials() {
 }
 #[test]
 fn cc04_universal_invalid_changes_preserve_saved_record() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let req = request();
     let stored = save("shared", None, &req).unwrap();
     let before = stored.clone();

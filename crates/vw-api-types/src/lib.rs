@@ -100,8 +100,6 @@ mod agent_apps_diagnostics_tests;
 mod agent_apps_high_availability_tests;
 
 pub mod app_providers;
-#[cfg(test)]
-mod app_providers_tests;
 
 pub mod model_catalog;
 

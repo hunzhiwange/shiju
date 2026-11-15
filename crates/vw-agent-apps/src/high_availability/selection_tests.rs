@@ -7,12 +7,10 @@ use crate::{
     },
 };
 use std::time::{Duration, Instant};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
-    vw_api_types::app_providers::AppProviderSummary,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_transport::id::TenantScope;
 
 #[test]
 fn ha_selection_respects_queue_and_open_breakers() {

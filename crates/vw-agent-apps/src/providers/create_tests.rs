@@ -1,4 +1,5 @@
-use vw_api_types::{app_providers::ProviderProtocol, app_providers::create::*};
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_base::create::*;
 use vw_api_app_identity::{AppId};
 fn request() -> AppProviderCreate {
     AppProviderCreate {
@@ -15,7 +16,7 @@ use super::create::create;
 // Real isolated file persistence exercises the callback contract; SQLite is tested in agent.
 fn persist(
     path: &std::path::Path,
-    profile: &vw_api_types::app_providers::AppProviderWrite,
+    profile: &vw_api_app_provider_base::AppProviderWrite,
 ) -> Result<bool, String> {
     use std::io::Write;
     match std::fs::OpenOptions::new().write(true).create_new(true).open(path) {

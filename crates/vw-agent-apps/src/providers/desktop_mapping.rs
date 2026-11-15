@@ -73,7 +73,8 @@ fn compatible_source(
     String,
 > {
     use serde_json::json;
-    use vw_api_types::app_providers::{AppProviderWrite, claude_desktop::*};
+use vw_api_app_provider_base::AppProviderWrite;
+    use vw_api_types::app_providers::claude_desktop::*;
     let mut source = source.clone();
     if !source.is_object() {
         return Err("invalid provider record".into());

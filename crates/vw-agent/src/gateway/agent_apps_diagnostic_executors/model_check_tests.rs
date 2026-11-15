@@ -12,29 +12,27 @@ use vw_agent_apps::auth::{
     credential_file::{AccountCredential, CredentialFileStore},
     flow::AuthAccountScope,
 };
-use {
-    vw_api_transport::TimestampMs,
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_app_auth::AuthService,
-    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
-    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
-    vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol,
-    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
-    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
-    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_types::app_providers::codex_catalog::CodexProfile,
-    vw_api_transport::id::ProjectScope,
-    vw_api_model_catalog::CodexNativeModel,
-    vw_api_model_catalog::ModelCatalogEdit,
-    vw_api_model_catalog::ModelCatalogEditRequest,
-    vw_api_model_catalog::ModelCatalogIdentity,
-    vw_api_model_catalog::SavedCodexCatalog,
-};
+use vw_api_transport::TimestampMs;
+use vw_api_app_identity::AppId;
+use vw_api_app_auth::AuthErrorCode;
+use vw_api_app_auth::AuthService;
+use vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource;
+use vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode;
+use vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol;
+use vw_api_types::agent_apps_diagnostics::DiagnosticOutcome;
+use vw_api_types::agent_apps_diagnostics::DiagnosticResult;
+use vw_api_types::agent_apps_diagnostics::DiagnosticScope;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_transport::id::ProjectScope;
+use vw_api_model_catalog::CodexNativeModel;
+use vw_api_model_catalog::ModelCatalogEdit;
+use vw_api_model_catalog::ModelCatalogEditRequest;
+use vw_api_model_catalog::ModelCatalogIdentity;
+use vw_api_model_catalog::SavedCodexCatalog;
 
 use super::{ModelPrepareError, ModelProbe};
 use crate::{

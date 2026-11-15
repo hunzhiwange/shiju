@@ -88,7 +88,7 @@ async fn draw_directory() {
                         recovery: RecoveryState::None,
                     },
                     candidates: if case == 4 {
-                        vec![vw_gateway_client::vw_api_types::app_providers::AppProviderSummary {
+                        vec![vw_api_app_provider_base::AppProviderSummary {
                             id: "candidate".into(),
                             app_id: AppId::ClaudeDesktop,
                             name: "动态中文候选供应商".into(),

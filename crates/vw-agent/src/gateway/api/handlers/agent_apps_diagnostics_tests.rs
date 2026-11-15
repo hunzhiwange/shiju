@@ -20,14 +20,12 @@ use std::{
     time::Duration,
 };
 use tower::ServiceExt;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
-    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity;
+use vw_api_types::agent_apps_diagnostics::DiagnosticJobState;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_transport::id::TenantScope;
 
 const TOKEN: &str = "fixture-diagnostic-member-token-00001";
 

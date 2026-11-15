@@ -1,5 +1,6 @@
 use super::GatewayClient;
-use vw_api_types::{app_providers::AppProviderSummary, app_providers::create::AppProviderCreate};
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::create::AppProviderCreate;
 use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Explicit create-only operation. Never defaults to live activation or upsert.

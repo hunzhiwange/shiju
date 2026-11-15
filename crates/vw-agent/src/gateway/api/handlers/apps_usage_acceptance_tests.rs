@@ -8,21 +8,19 @@ use tokio::{
     sync::{Semaphore, mpsc},
     task::JoinHandle,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_app_auth::AuthErrorCode,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::apps_usage::UsageQueryData,
-    vw_api_types::apps_usage::UsageQueryErrorCode,
-    vw_api_types::apps_usage::UsageQueryKind,
-    vw_api_types::apps_usage::UsageQueryOutcome,
-    vw_api_types::apps_usage::UsageSnapshotQuery,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TaskId,
-    vw_api_transport::id::TenantScope,
-    vw_api_task::TaskStatus,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_auth::AuthErrorCode;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::apps_usage::UsageQueryData;
+use vw_api_types::apps_usage::UsageQueryErrorCode;
+use vw_api_types::apps_usage::UsageQueryKind;
+use vw_api_types::apps_usage::UsageQueryOutcome;
+use vw_api_types::apps_usage::UsageSnapshotQuery;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TaskId;
+use vw_api_transport::id::TenantScope;
+use vw_api_task::TaskStatus;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppsUsageOperation, AppsUsageWriteError, GatewayClient}};
 
 use super::{

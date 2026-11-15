@@ -4,7 +4,8 @@ use crate::providers::basic;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
-use vw_api_types::{app_providers::create::ProviderSecretWrite, app_providers::hermes::*};
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_types::app_providers::hermes::*;
 use vw_api_app_identity::{AppId};
 
 const FIELDS: &[&str] = &["base_url", "api_mode", "model", "models", "rate_limit_delay"];

@@ -244,7 +244,7 @@ fn aggregation_t57_candidates_are_intents_and_noop_writes_are_blocked() {
         assert!(!form.loading);
     }
     form.snapshot.as_mut().unwrap().candidates.push(
-        vw_gateway_client::vw_api_types::app_providers::AppProviderSummary {
+        vw_api_app_provider_base::AppProviderSummary {
             id: "candidate".into(),
             app_id: AppId::ClaudeDesktop,
             name: "候选供应商".into(),

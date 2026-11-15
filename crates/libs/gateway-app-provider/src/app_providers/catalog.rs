@@ -1,5 +1,5 @@
 use super::{GatewayAppProviderClient, provider_collection_path};
-use vw_api_types::{app_providers::AppProviderSummary};
+use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     pub async fn app_provider_list(&self, app: AppId) -> Result<Vec<AppProviderSummary>, String> {

@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use vw_api_types::{app_providers::claude::*, app_providers::gemini::*};
+use vw_api_app_provider_base::claude::*;
+use vw_api_types::app_providers::gemini::*;
 use vw_api_app_identity::{AppId};
 use super::{preview::{self, Decision, ImportPreview, PreviewCandidate, PreviewError}, source::*};
 

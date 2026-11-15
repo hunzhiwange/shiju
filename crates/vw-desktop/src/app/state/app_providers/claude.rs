@@ -1,8 +1,8 @@
-use vw_gateway_client::vw_api_types::app_providers::{
-    basic::ProviderBasic,
-    claude::{ClaudeFormConfig, ClaudeFormKind, ClaudeFormWrite},
-    create::ProviderSecretWrite,
-};
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_api_app_provider_base::claude::ClaudeFormConfig;
+use vw_api_app_provider_base::claude::ClaudeFormKind;
+use vw_api_app_provider_base::claude::ClaudeFormWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kind {

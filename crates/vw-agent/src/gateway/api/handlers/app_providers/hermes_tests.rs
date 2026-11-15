@@ -232,7 +232,8 @@ async fn cc04_hermes_partial_catalog_edit_preserves_credentials_and_future_field
 }
 
 fn editor_request(activation: HermesActivation) -> HermesFormWrite {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     HermesFormWrite {
         target_host_id: "host".into(),
         fields: ProviderBasic {
@@ -255,7 +256,7 @@ fn editor_request(activation: HermesActivation) -> HermesFormWrite {
 
 #[tokio::test]
 async fn cc04_ui_hermes_sdk_form_edits_one_native_member_and_keeps_secrets() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut req = editor_request(HermesActivation::Add);
     let result = f.client.hermes_form_create("native", &req, TOKEN).await.unwrap();
@@ -335,7 +336,7 @@ async fn cc04_ui_hermes_sdk_form_rejects_invalid_and_unauthorized_writes() {
 
 #[tokio::test]
 async fn cc04_ui_hermes_sdk_can_edit_an_unimported_native_member() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     assert!(f.record("other").is_none());
     let view = f.client.hermes_form_read("other", &f.target(), TOKEN).await.unwrap();

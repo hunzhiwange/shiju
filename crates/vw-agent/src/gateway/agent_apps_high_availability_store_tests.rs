@@ -2,15 +2,13 @@ use std::{sync::Barrier, thread};
 
 use anyhow::Result;
 use vw_agent_apps::providers::failover::{ProviderAuth, ProviderSnapshot};
-use {
-    vw_api_app_identity::AppId::Claude,
-    vw_api_app_identity::AppId::Codex,
-    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
-    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
-    vw_api_types::app_providers::AppProviderSummary,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId::Claude;
+use vw_api_app_identity::AppId::Codex;
+use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
+use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 
 use super::{
     agent_apps_high_availability_store::{

@@ -229,7 +229,7 @@ fn cc04_ui_dsh_removal_preserves_profiles_and_rejects_references() {
 
 #[test]
 fn cc04_ui_dsh_form_keeps_or_replaces_native_reference_without_disclosing_it() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     let pre = Snapshot::from([
         ("web".into(), None),
         ("desktop".into(), None),

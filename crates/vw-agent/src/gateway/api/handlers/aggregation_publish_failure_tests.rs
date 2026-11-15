@@ -26,9 +26,9 @@ async fn aggregation_t41_native_io_failure_reports_target_failed_without_a_false
             .claude_save(
                 &tenant(),
                 id,
-                &vw_api_types::app_providers::claude::ClaudeProfile {
+                &vw_api_app_provider_base::claude::ClaudeProfile {
                     name: id.into(),
-                    config: vw_api_types::app_providers::claude::ClaudeConfig::ThirdParty {
+                    config: vw_api_app_provider_base::claude::ClaudeConfig::ThirdParty {
                         base_url: format!("http://{address}"),
                         api_key: "synthetic-private-key".into(),
                         api_key_header: true,

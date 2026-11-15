@@ -29,9 +29,9 @@ async fn published_claude() -> (
             .claude_save(
                 &tenant(),
                 id,
-                &vw_api_types::app_providers::claude::ClaudeProfile {
+                &vw_api_app_provider_base::claude::ClaudeProfile {
                     name: id.into(),
-                    config: vw_api_types::app_providers::claude::ClaudeConfig::ThirdParty {
+                    config: vw_api_app_provider_base::claude::ClaudeConfig::ThirdParty {
                         base_url: origin.clone(),
                         api_key: "synthetic-private-key".into(),
                         api_key_header: true,

@@ -2,7 +2,8 @@
 
 use crate::providers::validation;
 use reqwest::Url;
-use vw_api_types::app_providers::{ProviderProtocol, endpoints::AppProviderEndpointKind};
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::endpoints::AppProviderEndpointKind;
 
 // Check longer suffixes before the ones they contain.
 const COMPAT_SUFFIXES: &[&str] = &[

@@ -3,17 +3,14 @@ use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
 use crate::app::state::app_providers::list::Scope;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        catalog::ProviderSelection,
-        claude::{ClaudeLiveResult, ClaudeTarget},
-        claude_desktop::ClaudeDesktopTarget,
-        codex_catalog::CodexTarget,
-        gemini::GeminiTarget,
-        grok::GrokTarget,
-    },
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
+use vw_api_app_provider_base::claude::ClaudeLiveResult;
+use vw_api_app_provider_base::claude::ClaudeTarget;
+use vw_gateway_client::vw_api_types::app_providers::claude_desktop::ClaudeDesktopTarget;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexTarget;
+use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiTarget;
+use vw_gateway_client::vw_api_types::app_providers::grok::GrokTarget;
 
 pub(super) fn supports(app: AppId) -> bool {
     matches!(

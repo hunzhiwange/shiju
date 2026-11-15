@@ -146,7 +146,8 @@ async fn cc04_desktop_mapping_imported_native_profile_reaches_transactional_file
     let f = Fixture::new().await;
     let tenant = TenantScope::new("p", "a").unwrap();
     let store = crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap();
-    use vw_api_types::app_providers::claude::{ClaudeConfig, ClaudeProfile};
+use vw_api_app_provider_base::claude::ClaudeConfig;
+    use vw_api_app_provider_base::claude::ClaudeProfile;
     store
         .claude_save(
             &tenant,

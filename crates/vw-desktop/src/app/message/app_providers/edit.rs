@@ -48,25 +48,33 @@ use crate::app::state::app_providers::claude::Draft;
 use crate::app::state::app_providers::edit::Mode;
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        basic::ProviderBasic,
-        catalog::ProviderMembership,
-        claude::{ClaudeFormView, ClaudeLiveResult},
-        codex_catalog::{CodexFormView, CodexLiveResult},
-        dsh::{DshFormView, DshLiveResult},
-        gemini::{GeminiFormView, GeminiLiveResult},
-        grok::{GrokFormView, GrokLiveResult},
-        hermes::{HermesFormView, HermesLiveResult},
-        kimi::{KimiFormView, KimiLiveResult},
-        mcode::{McodeFormView, McodeLiveResult},
-        omp::{OmpFormView, OmpLiveResult},
-        openclaw::{OpenClawFormView, OpenClawLiveResult},
-        opencode::{OpenCodeFormView, OpenCodeLiveResult},
-        pi::{PiFormView, PiLiveResult},
-    },
-};
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
+use vw_api_app_provider_base::claude::ClaudeFormView;
+use vw_api_app_provider_base::claude::ClaudeLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexFormView;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::dsh::DshFormView;
+use vw_gateway_client::vw_api_types::app_providers::dsh::DshLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormView;
+use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormView;
+use vw_gateway_client::vw_api_types::app_providers::grok::GrokLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::hermes::HermesFormView;
+use vw_gateway_client::vw_api_types::app_providers::hermes::HermesLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::kimi::KimiFormView;
+use vw_gateway_client::vw_api_types::app_providers::kimi::KimiLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::mcode::McodeFormView;
+use vw_gateway_client::vw_api_types::app_providers::mcode::McodeLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::omp::OmpFormView;
+use vw_gateway_client::vw_api_types::app_providers::omp::OmpLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::openclaw::OpenClawFormView;
+use vw_gateway_client::vw_api_types::app_providers::openclaw::OpenClawLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormView;
+use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::pi::PiFormView;
+use vw_gateway_client::vw_api_types::app_providers::pi::PiLiveResult;
 #[derive(Clone)]
 pub enum EditMessage {
     Create,

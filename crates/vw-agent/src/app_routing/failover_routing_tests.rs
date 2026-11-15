@@ -21,14 +21,12 @@ use vw_agent_apps::providers::{
     },
     mode_state::StackState,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
-    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
-    vw_api_types::app_providers::AppProviderSummary,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
+use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 
 #[tokio::test]
 async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection() {

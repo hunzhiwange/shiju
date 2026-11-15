@@ -21,16 +21,14 @@ use std::{
     },
 };
 use vw_agent_apps::providers::live::{commit::*, write_guard::lock_app};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
-    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_types::app_providers::mode_apply::ModeApplyAction,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_types::agent_apps_high_availability::FailoverQueueScope;
+use vw_api_types::agent_apps_high_availability::FailoverQueueVersion;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_types::app_providers::mode_apply::ModeApplyAction;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 
 #[tokio::test]
 async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()> {

@@ -1,7 +1,7 @@
 //! Common write validation. Errors contain no request data, paths or upstream parser details.
 use reqwest::header::{HeaderName, HeaderValue, USER_AGENT};
 use std::collections::BTreeMap;
-use vw_api_types::{app_providers::validation::ProviderRequestOptions};
+use vw_api_app_provider_base::validation::ProviderRequestOptions;
 use vw_api_app_identity::{AppId};
 const PROTECTED: &[&str] = &[
     "host",

@@ -3,13 +3,11 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use {
-    vw_api_types::app_providers::claude::ClaudeActivation,
-    vw_api_types::app_providers::codex_catalog::*,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::CodexNativeModel,
-    vw_api_model_catalog::SavedCodexCatalog,
-};
+use vw_api_app_provider_base::claude::ClaudeActivation;
+use vw_api_types::app_providers::codex_catalog::*;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::CodexNativeModel;
+use vw_api_model_catalog::SavedCodexCatalog;
 use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::{GatewayAppProviderClient}};
 const TOKEN: &str = "fixture-codex-token-with-at-least-32-chars";
 struct Fixture {
@@ -354,7 +352,8 @@ async fn cc04_codex_catalog_missing_write_grant_and_managed_rows_are_rejected() 
 #[tokio::test]
 async fn cc04_ui_codex_sdk_edits_mapping_and_preserves_inactive_fields_through_native_transaction()
 {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut seed = f.request(true, ClaudeActivation::First);
     seed.profile.config.push_str(

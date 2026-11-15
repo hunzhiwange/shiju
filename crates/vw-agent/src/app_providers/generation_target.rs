@@ -3,15 +3,13 @@
 use crate::model_relay::generation::GenerationProtocol;
 use serde_json::Value;
 use vw_agent_apps::providers;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_types::app_providers::gemini::GeminiConfig,
-    vw_api_types::app_providers::gemini::GeminiProfile,
-    vw_api_transport::id::ProviderId,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_types::app_providers::gemini::GeminiConfig;
+use vw_api_types::app_providers::gemini::GeminiProfile;
+use vw_api_transport::id::ProviderId;
 
 #[derive(Clone, Copy)]
 pub(crate) struct UnsupportedSavedTarget;

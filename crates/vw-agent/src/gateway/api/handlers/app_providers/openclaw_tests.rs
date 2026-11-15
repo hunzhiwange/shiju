@@ -201,7 +201,8 @@ async fn cc04_openclaw_permission_tenant_and_host_denials_leave_no_changes() {
 
 #[tokio::test]
 async fn cc04_ui_openclaw_sdk_edits_only_the_named_member_and_preserves_secrets() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut create = OpenClawFormWrite {
         target_host_id: "host".into(),
@@ -291,7 +292,7 @@ async fn cc04_ui_openclaw_sdk_edits_only_the_named_member_and_preserves_secrets(
 
 #[tokio::test]
 async fn cc04_ui_openclaw_sdk_rejects_invalid_stale_and_unauthorized_writes() {
-    use vw_api_types::app_providers::create::ProviderSecretWrite;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
     use vw_gateway_client::AgentAppsReadError;
     let f = Fixture::new().await;
     f.client

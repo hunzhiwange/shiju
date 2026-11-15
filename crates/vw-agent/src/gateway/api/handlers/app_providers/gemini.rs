@@ -169,7 +169,7 @@ fn execute(
                 AppId::Gemini,
                 before.as_ref().unwrap_or(&serde_json::json!({})),
                 &body.fields,
-                &vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+                &vw_api_app_provider_base::create::ProviderSecretWrite::Keep,
             )
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             let activation = match (body.apply, create) {

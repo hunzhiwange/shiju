@@ -3,13 +3,13 @@ use crate::app::state::app_providers::{
     list::{ListState, Scope},
 };
 use iced::widget::text_editor;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::app_providers::{
-        codex_catalog::{CodexFormView, CodexLiveResult, CodexModelMapping, CodexTarget},
-        create::ProviderSecretWrite,
-    },
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexFormView;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexLiveResult;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexModelMapping;
+use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexTarget;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 #[derive(Clone)]
 pub enum Field {

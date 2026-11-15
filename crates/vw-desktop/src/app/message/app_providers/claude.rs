@@ -2,10 +2,11 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::app_providers::claude::{ClaudeFormView, ClaudeLiveResult, ClaudeTarget},
-};
+use vw_gateway_client::AgentAppsReadError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_provider_base::claude::ClaudeFormView;
+use vw_api_app_provider_base::claude::ClaudeLiveResult;
+use vw_api_app_provider_base::claude::ClaudeTarget;
 
 #[derive(Clone)]
 pub enum Field {

@@ -9,7 +9,7 @@ use vw_agent_apps::{
     auth::{claude_keychain::ClaudeKeychain, credential_file::AccountCredential},
     providers::claude_login::LoginMaterial,
 };
-use vw_api_types::app_providers::claude_login::ClaudeLoginBinding;
+use vw_api_app_provider_base::claude_login::ClaudeLoginBinding;
 #[derive(Default)]
 struct Keychain(Mutex<BTreeMap<Option<PathBuf>, Value>>);
 impl ClaudeKeychain for Keychain {

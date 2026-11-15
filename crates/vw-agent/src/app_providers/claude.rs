@@ -1,7 +1,7 @@
 //! Claude records use the established tenant namespace and compare/exchange owner.
 use super::*;
 use serde_json::{Value, json};
-use vw_api_types::app_providers::claude::ClaudeProfile;
+use vw_api_app_provider_base::claude::ClaudeProfile;
 impl AppProviderStore {
     pub(crate) fn claude_record(
         &self,
@@ -80,7 +80,7 @@ impl AppProviderStore {
                 "category".into(),
                 json!(if matches!(
                     profile.config,
-                    vw_api_types::app_providers::claude::ClaudeConfig::Official { .. }
+                    vw_api_app_provider_base::claude::ClaudeConfig::Official { .. }
                 ) {
                     "official"
                 } else {

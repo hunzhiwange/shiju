@@ -1,5 +1,6 @@
 use super::*;
-use vw_api_types::app_providers::{basic::*, duplicate::AppProviderDuplicate};
+use vw_api_app_provider_base::basic::*;
+use vw_api_types::app_providers::duplicate::AppProviderDuplicate;
 impl AppProviderStore {
     pub fn basic(
         &self,

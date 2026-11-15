@@ -13,24 +13,22 @@ use vw_agent_apps::{
     },
     providers::{self, codex_catalog},
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_types::app_providers::agy::AgyProfile,
-    vw_api_types::app_providers::claude::ClaudeConfig,
-    vw_api_types::app_providers::claude::ClaudeProfile,
-    vw_api_types::app_providers::endpoints::AppProviderEndpointKind,
-    vw_api_types::app_providers::gemini::GeminiConfig,
-    vw_api_types::app_providers::gemini::GeminiProfile,
-    vw_api_transport::id::ModelId,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::ModelCatalogEntry,
-    vw_api_model_catalog::ModelCatalogIdentity,
-    vw_api_model_catalog::ModelDiscoveryFailure as Failure,
-    vw_api_model_catalog::ModelDiscoveryMethod,
-    vw_api_model_catalog::ModelDiscoveryRequest,
-    vw_api_model_catalog::ScopedModelCatalogIdentity,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::agy::AgyProfile;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_types::app_providers::endpoints::AppProviderEndpointKind;
+use vw_api_types::app_providers::gemini::GeminiConfig;
+use vw_api_types::app_providers::gemini::GeminiProfile;
+use vw_api_transport::id::ModelId;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::ModelCatalogEntry;
+use vw_api_model_catalog::ModelCatalogIdentity;
+use vw_api_model_catalog::ModelDiscoveryFailure as Failure;
+use vw_api_model_catalog::ModelDiscoveryMethod;
+use vw_api_model_catalog::ModelDiscoveryRequest;
+use vw_api_model_catalog::ScopedModelCatalogIdentity;
 
 pub(super) enum Work {
     Http(Http),

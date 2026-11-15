@@ -2,7 +2,7 @@
 
 use super::preset_search::{PresetPlan, PresetRegion};
 use serde::Deserialize;
-use vw_api_types::{app_providers::ProviderProtocol};
+use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

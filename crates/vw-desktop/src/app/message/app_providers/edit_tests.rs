@@ -1,5 +1,5 @@
 use crate::app::state::app_providers::edit::*;
-use vw_gateway_client::vw_api_types::app_providers::basic::ProviderBasic;
+use vw_api_app_provider_base::basic::ProviderBasic;
 fn form(mode: Mode) -> EditForm {
     EditForm::new(
         mode,
@@ -123,7 +123,8 @@ async fn cc04_ui_edit_save_dispatches_keep_and_delete_errors_through_sdk() {
 }
 #[test]
 fn cc04_ui_edit_create_never_replays_credentials_embedded_in_draft() {
-    use vw_gateway_client::vw_api_types::app_providers::{ProviderProtocol, create::*};
+use vw_api_app_provider_base::ProviderProtocol;
+    use vw_api_app_provider_base::create::*;
     let mut create = form(Mode::Create);
     create.draft = Some(AppProviderCreate {
         name: "draft".into(),

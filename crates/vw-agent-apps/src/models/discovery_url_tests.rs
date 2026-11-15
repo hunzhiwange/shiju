@@ -1,9 +1,10 @@
 use super::discovery_url::build_models_url_candidates;
 use reqwest::Url;
-use vw_api_types::app_providers::{
-    ProviderProtocol::{Anthropic, Gemini, OpenaiResponses},
-    endpoints::AppProviderEndpointKind::{BaseUrl, FullUrl},
-};
+use vw_api_app_provider_base::ProviderProtocol::Anthropic;
+use vw_api_app_provider_base::ProviderProtocol::Gemini;
+use vw_api_app_provider_base::ProviderProtocol::OpenaiResponses;
+use vw_api_types::app_providers::endpoints::AppProviderEndpointKind::BaseUrl;
+use vw_api_types::app_providers::endpoints::AppProviderEndpointKind::FullUrl;
 
 fn urls<const N: usize>(expected: [&str; N]) -> [Url; N] {
     expected.map(|value| Url::parse(value).unwrap())

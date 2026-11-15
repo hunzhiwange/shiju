@@ -7,11 +7,9 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_transport::id::TenantScope;
 
 pub(crate) fn router() -> Router {
     let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
@@ -123,7 +121,7 @@ async fn save(
     >,
     #[cfg(target_os = "macos")] control: Option<Extension<super::app_routing::RoutingControl>>,
     body: Result<
-        Json<vw_api_types::app_providers::claude::ClaudeOr<AppProviderWrite>>,
+        Json<vw_api_app_provider_base::claude::ClaudeOr<AppProviderWrite>>,
         JsonRejection,
     >,
 ) -> Response {
@@ -131,7 +129,7 @@ async fn save(
         return error("invalid input");
     };
     let profile = match profile {
-        vw_api_types::app_providers::claude::ClaudeOr::Claude(request) => {
+        vw_api_app_provider_base::claude::ClaudeOr::Claude(request) => {
             if app != AppId::Claude {
                 return StatusCode::BAD_REQUEST.into_response();
             }
@@ -151,7 +149,7 @@ async fn save(
             )
             .await;
         }
-        vw_api_types::app_providers::claude::ClaudeOr::Legacy(profile) => profile,
+        vw_api_app_provider_base::claude::ClaudeOr::Legacy(profile) => profile,
     };
     match tokio::task::spawn_blocking(move || store(database)?.save(&tenant, app, &id, &profile))
         .await

@@ -3,11 +3,9 @@ use axum::{Extension, Router, middleware, routing::post};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::claude::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::claude::*;
+use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-claude-token-with-at-least-32-chars";
 struct Fixture {
@@ -321,7 +319,8 @@ async fn cc04_claude_denied_and_invalid_requests_leave_database_and_files_untouc
 }
 #[tokio::test]
 async fn cc04_claude_sync_projects_existing_universal_owner_and_applies_current_child() {
-    use vw_api_types::app_providers::{create::ProviderSecretWrite, universal::*};
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+    use vw_api_types::app_providers::universal::*;
     let f = Fixture::new().await;
     let store = crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();
@@ -512,7 +511,8 @@ mod claude_login_tests;
 
 #[tokio::test]
 async fn cc04_ui_claude_sdk_round_trip_projects_key_fields_on_the_authorized_host() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     let f = Fixture::new().await;
     let mut request = ClaudeFormWrite {
         target_host_id: "host".into(),
@@ -575,7 +575,8 @@ async fn cc04_ui_claude_sdk_round_trip_projects_key_fields_on_the_authorized_hos
 
 #[tokio::test]
 async fn cc04_ui_claude_sdk_validation_and_permission_failures_do_not_write() {
-    use vw_api_types::app_providers::{basic::ProviderBasic, create::ProviderSecretWrite};
+use vw_api_app_provider_base::basic::ProviderBasic;
+    use vw_api_app_provider_base::create::ProviderSecretWrite;
     use vw_gateway_client::AgentAppsReadError;
     let f = Fixture::new().await;
     let mut request = ClaudeFormWrite {

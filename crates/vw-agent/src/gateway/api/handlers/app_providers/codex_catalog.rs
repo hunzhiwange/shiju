@@ -5,7 +5,8 @@ use axum::{
     routing::{post, put},
 };
 use std::path::PathBuf;
-use vw_api_types::app_providers::{claude::ClaudeActivation, codex_catalog::*};
+use vw_api_app_provider_base::claude::ClaudeActivation;
+use vw_api_types::app_providers::codex_catalog::*;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 
@@ -237,7 +238,7 @@ fn execute_scoped(
                     AppId::Codex,
                     before.as_ref().unwrap_or(&serde_json::json!({})),
                     &body.fields,
-                    &vw_api_types::app_providers::create::ProviderSecretWrite::Keep,
+                    &vw_api_app_provider_base::create::ProviderSecretWrite::Keep,
                 )
                 .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
             );

@@ -1,7 +1,7 @@
 //! Native Claude config operations with explicit host authorization and redacted transport errors.
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::app_providers::claude::*;
+use vw_api_app_provider_base::claude::*;
 impl GatewayClient {
     pub async fn claude_form_read(
         &self,

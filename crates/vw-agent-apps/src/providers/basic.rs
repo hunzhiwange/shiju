@@ -1,12 +1,10 @@
 //! Basic fields preserve all opaque application configuration. No native activation.
 use serde_json::Value;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        basic::ProviderBasic, create::ProviderSecretWrite, presentation::AppProviderPresentation,
-        update::AppProviderUpdate,
-    },
-use vw_api_app_identity::{AppId};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::basic::ProviderBasic;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_types::app_providers::presentation::AppProviderPresentation;
+use vw_api_app_provider_base::update::AppProviderUpdate;
 };
 pub fn read(stored: &Value) -> Result<ProviderBasic, String> {
     let p = super::presentation::read(stored)?;

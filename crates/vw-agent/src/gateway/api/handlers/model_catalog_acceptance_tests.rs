@@ -18,14 +18,12 @@ use axum::{
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_transport::id::ModelId,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::*,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_transport::id::ModelId;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::*;
 use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
     AgentAppsReadError, GatewayChatStreamEvent, GatewayChatStreamRequest,
     GatewayClient}};

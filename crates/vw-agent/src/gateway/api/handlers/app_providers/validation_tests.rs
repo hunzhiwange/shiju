@@ -4,13 +4,11 @@ use crate::{
 };
 use axum::Extension;
 use serde_json::json;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::create::AppProviderCreate,
-    vw_api_types::app_providers::update::AppProviderUpdate,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::create::AppProviderCreate;
+use vw_api_app_provider_base::update::AppProviderUpdate;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mutation() {
     let root = tempfile::tempdir().unwrap();

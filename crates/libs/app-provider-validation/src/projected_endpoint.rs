@@ -1,7 +1,6 @@
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{ProviderProtocol, universal_sync::UniversalSyncError},
-};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_types::app_providers::universal_sync::UniversalSyncError;
 use vw_api_app_identity::{AppId};
 
 pub fn projected_endpoint(

@@ -1,6 +1,6 @@
 //! Portable device configuration. No host identity, credentials or arbitrary maps.
 use serde::{Deserialize, Serialize};
-use vw_api_types::{app_providers::ProviderProtocol};
+use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_identity::{AppId};
 
 pub const DATA_COMPAT_VERSION: u32 = 1;

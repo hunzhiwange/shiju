@@ -1,15 +1,14 @@
 //! Credential-free projection of one saved provider for queue eligibility.
 use serde_json::Value;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        AppProviderSummary,
-        claude::{ClaudeConfig, ClaudeProfile},
-        codex_catalog::CodexProfile,
-        gemini::{GeminiConfig, GeminiProfile},
-        grok::{GrokConfig, GrokProfile},
-    },
-};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::claude::ClaudeConfig;
+use vw_api_app_provider_base::claude::ClaudeProfile;
+use vw_api_types::app_providers::codex_catalog::CodexProfile;
+use vw_api_types::app_providers::gemini::GeminiConfig;
+use vw_api_types::app_providers::gemini::GeminiProfile;
+use vw_api_types::app_providers::grok::GrokConfig;
+use vw_api_types::app_providers::grok::GrokProfile;
 use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

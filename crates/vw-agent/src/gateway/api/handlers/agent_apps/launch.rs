@@ -155,7 +155,7 @@ async fn launch(
                     }else{None};
                     #[cfg(not(target_os="macos"))]
                     let agy: Option<vw_agent_apps::apps::launch::provider::ProviderLaunch>=None;
-                    let prepared=if let Some(prepared)=agy{prepared}else{store.prepare_launch(&tenant, &vw_api_types::app_providers::ProviderLaunchRequest { provider_id, launch: request.launch.clone() }, &host.id, &observed.installations, &[root], false, Path::new("/tmp"))
+                    let prepared=if let Some(prepared)=agy{prepared}else{store.prepare_launch(&tenant, &vw_api_app_provider_base::ProviderLaunchRequest { provider_id, launch: request.launch.clone() }, &host.id, &observed.installations, &[root], false, Path::new("/tmp"))
                         .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?};
                     Some(context.sessions.start(scope, move |ready| {
                         let transport = vw_agent_apps::apps::launch::terminal_session::TerminalSession::connect_with(Path::new("/tmp"), |_, material| terminal(preferred.as_deref(), Path::new("/bin/sh"), material))?;

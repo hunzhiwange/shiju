@@ -1,6 +1,7 @@
 //! Safe catalog projection and write-only credentials for the Gemini editor.
 use serde_json::Value;
-use vw_api_types::app_providers::{create::ProviderSecretWrite, gemini::*};
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_types::app_providers::gemini::*;
 
 fn stored_profile(row: &Value) -> Result<Option<GeminiProfile>, String> {
     row.get("gemini")

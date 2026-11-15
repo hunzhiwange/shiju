@@ -1,5 +1,6 @@
 use super::catalog::read;
-use vw_api_types::{app_providers::AppProviderSummary, app_providers::catalog::*};
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_types::app_providers::catalog::*;
 use vw_api_app_identity::{AppId};
 fn row(app: AppId, id: &str) -> AppProviderSummary {
     AppProviderSummary { id: id.into(), app_id: app, name: id.into(), configured: true }

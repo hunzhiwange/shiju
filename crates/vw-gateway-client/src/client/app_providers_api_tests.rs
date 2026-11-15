@@ -1,10 +1,8 @@
 use super::test_support;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::AppProviderWrite,
-    vw_api_types::app_providers::ProviderProtocol,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc_apps_provider_launch_isolation_sdk_uses_domain_identity_and_tenant() {
     let summary =

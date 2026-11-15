@@ -4,7 +4,7 @@ use vw_api_app_identity::{AppId};
 #[test]
 fn cc04_validation_distinguishes_ordinary_and_proxy_headers_and_explicit_clear() {
     use super::validation::{endpoint, merge, validate};
-    use vw_api_types::app_providers::validation::ProviderRequestOptions;
+use vw_api_app_provider_base::validation::ProviderRequestOptions;
     let normal: ProviderRequestOptions = serde_json::from_value(
         json!({"requestHeaders":{" Authorization ":"fixture-secret","X-Test":"hello\tworld"}}),
     )

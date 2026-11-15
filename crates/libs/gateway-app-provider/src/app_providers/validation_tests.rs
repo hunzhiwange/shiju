@@ -1,10 +1,8 @@
 use crate::test_support;
 use serde_json::json;
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::app_providers::create::AppProviderCreate,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_provider_base::create::AppProviderCreate;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_validation_sdk_transmits_write_only_options_and_sanitizes_errors() {
     let server = test_support::server_with_tenant_scope(
@@ -28,7 +26,7 @@ async fn cc04_validation_sdk_save_never_exposes_raw_error_payload() {
         vec![(400, json!({"echo":"fixture-private-body"}))],
         TenantScope::new("p", "a").unwrap(),
     );
-    let profile:vw_api_types::app_providers::AppProviderWrite=serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-private","baseUrl":"https://fixture.test","model":"fixture","requestOptions":{"localProxyRequestOverrides":{"body":{"pluginData":"fixture-private-body"}}}})).unwrap();
+    let profile:vw_api_app_provider_base::AppProviderWrite=serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-private","baseUrl":"https://fixture.test","model":"fixture","requestOptions":{"localProxyRequestOverrides":{"body":{"pluginData":"fixture-private-body"}}}})).unwrap();
     let error =
         server.client().app_provider_save(AppId::Claude, "fixture", &profile).await.unwrap_err();
     assert!(error.contains("400"));
@@ -74,8 +72,8 @@ async fn cc04_validation_sdk_common_options_never_enter_domain_logs() {
         TenantScope::new("p", "a").unwrap(),
     );
     let request:AppProviderCreate=serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":{"action":"replace","value":"fixture-private-key"},"baseUrl":"https://fixture.test","model":"fixture","addToLive":false,"requestOptions":{"requestHeaders":{"X-Arbitrary":"fixture-private-header"},"localProxyRequestOverrides":{"body":{"arbitrary":"fixture-private-body"}}}})).unwrap();
-    let profile:vw_api_types::app_providers::AppProviderWrite=serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-private-key","baseUrl":"https://fixture.test","model":"fixture","requestOptions":request.request_options})).unwrap();
-    let patch: vw_api_types::app_providers::update::AppProviderUpdate =
+    let profile:vw_api_app_provider_base::AppProviderWrite=serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-private-key","baseUrl":"https://fixture.test","model":"fixture","requestOptions":request.request_options})).unwrap();
+    let patch: vw_api_app_provider_base::update::AppProviderUpdate =
         serde_json::from_value(json!({"requestOptions":request.request_options})).unwrap();
     assert!(server.client().app_provider_create(AppId::Claude, "fixture", &request).await.is_err());
     server.take_request();

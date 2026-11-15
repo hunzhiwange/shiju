@@ -1,9 +1,8 @@
 use super::{create::create, update::update};
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{create::AppProviderCreate, update::AppProviderUpdate},
-};
+use vw_api_types::agent_apps::AppId;
+use vw_api_app_provider_base::create::AppProviderCreate;
+use vw_api_app_provider_base::update::AppProviderUpdate;
 use vw_api_app_identity::{AppId};
 fn input(options: serde_json::Value) -> AppProviderCreate {
     serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":{"action":"replace","value":"fixture-secret"},"baseUrl":"https://fixture.test","model":"fixture","addToLive":false,"requestOptions":options})).unwrap()
@@ -70,7 +69,7 @@ fn cc04_validation_preview_rejects_options_and_source_metadata_without_files() {
 #[test]
 fn cc04_validation_launch_rejects_unimplemented_options_before_creating_files() {
     use crate::apps::launch::{provider::prepare_provider_launch, request::LaunchMaterial};
-    use vw_api_types::app_providers::AppProviderWrite;
+use vw_api_app_provider_base::AppProviderWrite;
     let root = tempfile::tempdir().unwrap();
     let program = root.path().join("fixture");
     std::fs::write(&program, "#!/bin/sh\nexit 0\n").unwrap();

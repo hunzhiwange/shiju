@@ -12,10 +12,15 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use vw_gateway_client::{
-    ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto, ShijuKnowledgePageDto,
-    ShijuKnowledgePageQuery, ShijuKnowledgeReadDto, ShijuKnowledgeReadRequest,
-    ShijuKnowledgeSearchDto, ShijuKnowledgeSearchRequest,
+use gateway_shiju_knowledge::{
+    ShijuKnowledgeBaseDto,
+    ShijuKnowledgeDocumentDto,
+    ShijuKnowledgePageDto,
+    ShijuKnowledgePageQuery,
+    ShijuKnowledgeReadDto,
+    ShijuKnowledgeReadRequest,
+    ShijuKnowledgeSearchDto,
+    ShijuKnowledgeSearchRequest,
 };
 
 pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {

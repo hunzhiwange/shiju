@@ -1,6 +1,6 @@
 //! 桌面知识消息编排边界测试。
 use super::LoadState;
-use vw_gateway_client::{ShijuKnowledgePageDto, ShijuKnowledgeReadDto};
+use gateway_shiju_knowledge::{ShijuKnowledgePageDto, ShijuKnowledgeReadDto};
 use crate::app::account::SecretSkey;
 #[test]
 fn shiju_knowledge_state_messages_reject_active_credential_change_and_redact() {

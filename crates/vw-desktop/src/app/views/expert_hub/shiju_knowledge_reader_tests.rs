@@ -7,7 +7,7 @@ use crate::app::{
     skill_hub::{ExpertHubSection, LoadState},
 };
 use iced::Theme;
-use vw_gateway_client::{ShijuKnowledgeReadDto, ShijuKnowledgeRecordDto, ShijuKnowledgeSearchDto};
+use gateway_shiju_knowledge::{ShijuKnowledgeReadDto, ShijuKnowledgeRecordDto, ShijuKnowledgeSearchDto};
 
 fn app() -> App {
     let (mut app, _) = App::new();

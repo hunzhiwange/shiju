@@ -11,7 +11,7 @@ use iced::advanced::{
     widget::{Operation, Tree},
 };
 use iced::{Element, Event, Font, Pixels, Rectangle, Size, Theme};
-use vw_gateway_client::{ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto};
+use gateway_shiju_knowledge::{ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto};
 
 fn app() -> App {
     let (mut app, _) = App::new();

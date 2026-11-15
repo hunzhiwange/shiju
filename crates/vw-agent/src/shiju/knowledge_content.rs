@@ -1,6 +1,6 @@
 //! 按上游字符偏移读取正文；文件名仅用于寻址，身份始终由 ID 核验。
 use super::*;
-use vw_gateway_client::{ShijuKnowledgeReadDto, ShijuKnowledgeReadRequest};
+use gateway_shiju_knowledge::{ShijuKnowledgeReadDto, ShijuKnowledgeReadRequest};
 
 const MAX_CONTENT_BYTES: usize = 1024 * 1024;
 const CONTENT_TOO_LARGE: &str = "SHIJU knowledge response exceeds size limit";

@@ -1,4 +1,4 @@
-//! 所有云端资料请求复用敏感 GatewayClient，并在状态接收前核对当前凭据。
+//! 所有云端资料请求复用敏感领域传输，并在状态接收前核对当前凭据。
 use super::SkillHubMessage;
 use crate::app::{
     App, Message, config,
@@ -8,9 +8,14 @@ use crate::app::{
     },
 };
 use iced::Task;
-use vw_gateway_client::{
-    ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto, ShijuKnowledgePageDto, ShijuKnowledgeReadDto,
-    ShijuKnowledgeReadRequest, ShijuKnowledgeSearchDto, ShijuKnowledgeSearchRequest,
+use gateway_shiju_knowledge::{
+    ShijuKnowledgeBaseDto,
+    ShijuKnowledgeDocumentDto,
+    ShijuKnowledgePageDto,
+    ShijuKnowledgeReadDto,
+    ShijuKnowledgeReadRequest,
+    ShijuKnowledgeSearchDto,
+    ShijuKnowledgeSearchRequest,
 };
 
 #[derive(Clone)]
@@ -103,7 +108,7 @@ fn dispatch(app: &App, request: Option<KnowledgeRequest>) -> Task<Message> {
             let result = async {
                 let credential =
                     credential.gateway_credential().map_err(|error| error.to_string())?;
-                Ok::<_, String>((config::gateway_client()?, credential))
+                Ok::<_, String>((gateway_shiju_knowledge::GatewayShijuKnowledgeClient::new(config::gateway_client()?.transport().clone()), credential))
             }
             .await;
             match request.work.clone() {

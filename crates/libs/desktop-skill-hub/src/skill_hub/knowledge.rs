@@ -1,9 +1,13 @@
 //! 云端资料的数字分页、账号边界与可重试正文状态。
 use super::LoadState;
 use desktop_account::SecretSkey;
-use vw_gateway_client::{
-    ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto, ShijuKnowledgePageDto,
-    ShijuKnowledgePageQuery, ShijuKnowledgeReadDto, ShijuKnowledgeSearchDto,
+use gateway_shiju_knowledge::{
+    ShijuKnowledgeBaseDto,
+    ShijuKnowledgeDocumentDto,
+    ShijuKnowledgePageDto,
+    ShijuKnowledgePageQuery,
+    ShijuKnowledgeReadDto,
+    ShijuKnowledgeSearchDto,
 };
 
 #[derive(Debug, Clone)]

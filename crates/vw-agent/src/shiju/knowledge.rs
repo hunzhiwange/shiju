@@ -2,9 +2,13 @@
 use super::{ShijuAccountClient, ShijuAccountError, endpoint};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use vw_gateway_client::{
-    ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto, ShijuKnowledgePageDto,
-    ShijuKnowledgePageQuery, ShijuKnowledgeSearchDto, ShijuKnowledgeSearchRequest,
+use gateway_shiju_knowledge::{
+    ShijuKnowledgeBaseDto,
+    ShijuKnowledgeDocumentDto,
+    ShijuKnowledgePageDto,
+    ShijuKnowledgePageQuery,
+    ShijuKnowledgeSearchDto,
+    ShijuKnowledgeSearchRequest,
 };
 
 const REQUEST_FAILED: &str = "SHIJU knowledge request failed";

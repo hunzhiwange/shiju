@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 directories = "5"
 parking_lot = "0.12"

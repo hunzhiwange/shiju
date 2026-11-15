@@ -56,5 +56,5 @@ mod chat;
 #[allow(dead_code)]
 #[path = "../src/model_relay/messages.rs"]
 mod messages;
-#[path = "../src/model_relay/messages_request_core_tests.rs"]
+#[path = "../../libs/model-protocol/src/messages_request_core_tests.rs"]
 mod request_core_tests;

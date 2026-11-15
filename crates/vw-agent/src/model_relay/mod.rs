@@ -86,39 +86,23 @@ pub(crate) mod native_gemini;
 mod native_gemini_tests;
 
 pub(crate) mod messages_chat_request;
-#[cfg(test)]
-mod messages_chat_request_tests;
 
 pub(crate) mod messages_chat_result;
-#[cfg(test)]
-mod messages_chat_result_tests;
 
 #[cfg(test)]
 mod messages_chat_stream_tests;
 
 pub(crate) mod messages_gemini_request;
-#[cfg(test)]
-mod messages_gemini_request_tests;
 
 pub(crate) mod messages_responses_request;
-#[cfg(test)]
-mod messages_responses_request_tests;
 
 pub(crate) mod messages_responses_result;
-#[cfg(test)]
-mod messages_responses_result_tests;
 
 pub(crate) mod messages_gemini_result;
-#[cfg(test)]
-mod messages_gemini_result_tests;
 
 pub(crate) mod messages_gemini_stream;
-#[cfg(test)]
-mod messages_gemini_stream_tests;
 
 pub(crate) mod messages_responses_stream;
-#[cfg(test)]
-mod messages_responses_stream_tests;
 
 pub(crate) mod gemini_shadow;
 

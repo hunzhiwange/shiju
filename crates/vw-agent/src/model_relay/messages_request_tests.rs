@@ -1,7 +1,5 @@
 //! The complete lib suite also checks shared routing capability registration.
-use super::{chat, messages, routing};
-#[path = "messages_request_core_tests.rs"]
-mod request_core_tests;
+use super::routing;
 
 #[test]
 fn model_protocol_014_shared_selector_advertises_only_executable_messages_capabilities() {

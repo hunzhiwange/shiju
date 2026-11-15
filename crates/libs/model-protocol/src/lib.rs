@@ -74,3 +74,23 @@ pub mod messages_thinking_config;
 pub mod protocol_bridge_stream;
 #[cfg(test)]
 mod messages_thinking_core_tests;
+
+// Messages protocol tests follow their production modules.
+#[cfg(test)]
+mod messages_chat_request_tests;
+#[cfg(test)]
+mod messages_chat_result_tests;
+#[cfg(test)]
+mod messages_gemini_request_tests;
+#[cfg(test)]
+mod messages_gemini_result_tests;
+#[cfg(test)]
+mod messages_gemini_stream_tests;
+#[cfg(test)]
+mod messages_responses_request_tests;
+#[cfg(test)]
+mod messages_responses_result_tests;
+#[cfg(test)]
+mod messages_responses_stream_tests;
+#[cfg(test)]
+mod messages_request_core_tests;

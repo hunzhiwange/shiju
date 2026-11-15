@@ -92,7 +92,7 @@ fn model_protocol_014_images_preserve_order_and_enforce_selected_model() {
     );
     let mut capabilities = model_state::default_model_capabilities();
     capabilities.input.image = true;
-    let mut model: crate::provider::provider::Model = serde_json::from_value(json!({
+    let mut model: model_types::Model = serde_json::from_value(json!({
         "id":"selected","providerID":"fixture","name":"Fixture","status":"active","release_date":"",
         "api":{"id":"wire-model","url":"https://example.invalid/v1","adapter":"openai"},
         "capabilities":capabilities,"limit":{"context":4096,"output":1024},

@@ -37,3 +37,15 @@ pub fn rollback_orphan_user_turn(
     }
     true
 }
+
+use crate::scope::ChannelChatScope;
+
+pub fn conversation_memory_key(msg: &channel_types::ChannelMessage, tenant: vw_api_transport::id::TenantScope) -> String {
+    serde_json::to_string(&(ChannelChatScope::from_message(msg, tenant), &msg.id))
+        .expect("channel memory identity contains only serializable fields")
+}
+
+pub fn conversation_history_key(msg: &channel_types::ChannelMessage, tenant: vw_api_transport::id::TenantScope) -> String {
+    serde_json::to_string(&ChannelChatScope::from_message(msg, tenant))
+        .expect("channel identity contains only serializable fields")
+}

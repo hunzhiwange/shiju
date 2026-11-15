@@ -905,3 +905,11 @@ pub fn split_internal_progress_delta<'a>(delta: &'a str, draft_progress_sentinel
         (false, delta)
     }
 }
+
+use tool_types::Tool;
+pub fn sanitize_visible_channel_response(response: &str, tools: &[Box<dyn Tool>]) -> String {
+    let without_tool_tags = strip_tool_call_tags(response);
+    let known_tool_names: HashSet<String> =
+        tools.iter().map(|tool| tool.spec().id.to_ascii_lowercase()).collect();
+    strip_isolated_tool_json_artifacts(&without_tool_tags, &known_tool_names)
+}

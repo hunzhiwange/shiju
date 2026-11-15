@@ -231,7 +231,7 @@ pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapsho
         .lock()
         .unwrap()
         .selections
-        .insert(ChannelChatScope::from_message(&msg), a.id.clone());
+        .insert(ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()), a.id.clone());
     let explicit = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     assert_eq!(explicit.source, ChannelProjectSource::Chat);
     assert_eq!(explicit.scope.project, a.id);
@@ -262,7 +262,7 @@ pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {
         .lock()
         .unwrap()
         .selections
-        .insert(ChannelChatScope::from_message(&msg), "missing-explicit".into());
+        .insert(ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()), "missing-explicit".into());
     ctx.project_state.lock().unwrap().config.instance_default_projects.clear();
     assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
 }
@@ -341,11 +341,11 @@ pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_bin
         .config
         .instance_default_projects
         .insert("telegram:default".into(), a.id);
-    let first = ChannelChatScope::from_message(&msg);
+    let first = ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope());
     crate::session::ui_store::with_tenant_scope(
         vw_api_transport::TenantScope::new("scope-platform", "scope-company").unwrap(),
         async {
-            assert_ne!(first, ChannelChatScope::from_message(&msg));
+            assert_ne!(first, ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()));
             ctx.project_state.lock().unwrap().tenant =
                 crate::session::ui_store::current_tenant_scope();
             assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());

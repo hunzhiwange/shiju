@@ -14,16 +14,7 @@ use super::*;
 /// 返回值：过滤后的工具规格列表。
 ///
 /// 错误处理：该函数只读取内存结构，不产生错误。
-pub(crate) fn filtered_tool_specs_for_runtime(
-    tools_registry: &[Box<dyn Tool>],
-    excluded_tools: &[String],
-) -> Vec<crate::app::agent::tools::ToolSpec> {
-    tools_registry
-        .iter()
-        .map(|tool| tool.spec())
-        .filter(|spec| !excluded_tools.iter().any(|excluded| excluded == &spec.id))
-        .collect()
-}
+pub(crate) use channel_support::prompt::filtered_tool_specs_for_runtime;
 
 /// 从缓存或配置创建指定 provider。
 ///

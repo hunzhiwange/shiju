@@ -8,6 +8,30 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+agent-observability = { path = "../agent-observability", version = "0.6.0" }
+agent-providers = { path = "../agent-providers", version = "0.6.0" }
+agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+sha2 = "0.11"
+hex = "0.4"
+agent-skills = { path = "../agent-skills", version = "0.6.0" }
+agent-memory = { path = "../agent-memory", version = "0.6.0" }
+agent-util = { path = "../agent-util", version = "0.6.0" }
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+chrono-tz = "0.10"
+config-routing = { path = "../config-routing", version = "0.6.0" }
+model-selection = { path = "../model-selection", version = "0.6.0" }
+channel-types = { path = "../channel-types", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+config-channels = { path = "../config-channels", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["sync", "rt"] }
+tokio-util = { version = "0.7", features = ["rt"] }
 agent-config = { path = "../agent-config", version = "0.6.0" }
 model-types = { path = "../model-types", version = "0.6.0" }
 secret-store = { path = "../secret-store", version = "0.6.0" }
@@ -16,8 +40,10 @@ anyhow = "1"
 pulldown-cmark = "0.13"
 reqwest = { version = "0.13", default-features = false }
 serde_json = "1"
+tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hostname = "0.4"
 tokio = { version = "1", features = ["fs"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 

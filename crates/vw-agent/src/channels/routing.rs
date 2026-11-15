@@ -32,13 +32,7 @@ use super::*;
 /// 的另一个无操作版本。
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogError> {
-    // 异步阻塞调用 provider 模块获取所有已注册的提供者
-    let providers = block_on_future(provider::list())?;
-    // 提取所有键（Provider ID）并收集为向量
-    let mut ids = providers.into_keys().collect::<Vec<_>>();
-    // 按字母顺序排序，确保返回结果的一致性和可预测性
-    ids.sort();
-    Ok(ids)
+    block_on_future(channel_support::routing::available_provider_ids())
 }
 
 /// 获取当前可用的 Provider ID 列表（WASM 平台）
@@ -55,9 +49,7 @@ pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogE
 /// 此版本仅在 WASM 平台编译，非 WASM 平台使用功能完整的
 /// [`available_provider_ids`] 版本。
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogError> {
-    Ok(Vec::new())
-}
+pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogError> { Ok(Vec::new()) }
 
 /// 解析 Provider 别名为规范的 Provider ID
 ///
@@ -89,24 +81,9 @@ pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogE
 /// 2. 检查处理后的字符串是否为空
 /// 3. 遍历所有可用的 Provider ID，执行不区分大小写的匹配
 /// 4. 返回第一个匹配的规范 ID（保持原始大小写）
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn resolve_provider_alias(name: &str) -> Result<Option<String>, provider::CatalogError> {
-    // 去除输入名称的首尾空白字符
-    let candidate = name.trim();
-    // 空字符串直接返回 None，避免无意义的匹配
-    if candidate.is_empty() {
-        return Ok(None);
-    }
-
-    // 遍历所有可用的 Provider ID 进行不区分大小写的匹配
-    for id in available_provider_ids()? {
-        if id.eq_ignore_ascii_case(candidate) {
-            // 返回规范化的 Provider ID（保持原始注册时的大小写）
-            return Ok(Some(id));
-        }
-    }
-
-    // 未找到匹配项
-    Ok(None)
+    block_on_future(channel_support::routing::resolve_provider_alias(name))
 }
 
 /// 构建默认的路由选择配置
@@ -131,15 +108,7 @@ pub(crate) fn resolve_provider_alias(name: &str) -> Result<Option<String>, provi
 /// - 当用户切换回默认配置时作为比较基准
 /// - 清除自定义路由时的回退值
 pub(crate) fn default_route_selection(ctx: &ChannelRuntimeContext) -> ChannelRouteSelection {
-    // 从运行时上下文获取默认配置快照
-    let defaults = runtime_defaults_snapshot(ctx);
-    // 构建默认路由选择，任务模式默认禁用
-    ChannelRouteSelection {
-        provider: defaults.default_provider,
-        model: defaults.model,
-        reasoning_effort: None,
-        task_mode_enabled: false,
-    }
+    channel_support::routing::default_route_selection(runtime_defaults_snapshot(ctx))
 }
 
 /// 获取指定发送者的路由选择配置
@@ -168,20 +137,7 @@ pub(crate) fn default_route_selection(ctx: &ChannelRuntimeContext) -> ChannelRou
 /// let selection = get_route_selection(&ctx, "telegram:user123");
 /// println!("Using provider: {}, model: {}", selection.provider, selection.model);
 /// ```
-pub(crate) fn get_route_selection(
-    ctx: &ChannelRuntimeContext,
-    sender_key: &str,
-) -> ChannelRouteSelection {
-    ctx.route_overrides
-        // 获取 Mutex 锁，如果被污染则恢复并继续
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        // 查找指定发送者的自定义路由
-        .get(sender_key)
-        .cloned()
-        // 如果没有自定义配置，使用默认路由
-        .unwrap_or_else(|| default_route_selection(ctx))
-}
+pub(crate) use channel_support::routing::get_route_selection;
 
 /// 根据消息内容分类并返回智能路由选择
 ///
@@ -214,38 +170,8 @@ pub(crate) fn get_route_selection(
 /// 2. 如果分类器返回决策，查找匹配的模型路由规则
 /// 3. 找到匹配规则后，记录分类日志并返回路由选择
 /// 4. 任何步骤失败（分类禁用、无匹配规则）均返回 None
-pub(crate) fn classify_message_route(
-    ctx: &ChannelRuntimeContext,
-    message: &str,
-) -> Option<ChannelRouteSelection> {
-    // 使用分类器对消息进行分类，获取决策结果
-    // 如果分类功能禁用或消息不匹配任何规则，此处返回 None
-    let decision = crate::app::agent::agent::classifier::classify_with_decision(
-        &ctx.query_classification,
-        message,
-    )?;
-
-    // 在模型路由规则列表中查找与分类提示匹配的路由
-    // 使用分类决策的 hint 字段作为匹配键
-    let route = ctx.model_routes.iter().find(|r| r.hint == decision.hint)?;
-
-    // 记录分类决策日志，便于调试和监控
-    tracing::info!(
-        target: "query_classification",
-        hint = %decision.hint,
-        model = %route.model,
-        rule_priority = decision.priority,
-        message_length = message.len(),
-        "Classified message route"
-    );
-
-    // 构建并返回路由选择，任务模式禁用
-    Some(ChannelRouteSelection {
-        provider: route.provider.clone(),
-        model: route.model.clone(),
-        reasoning_effort: None,
-        task_mode_enabled: false,
-    })
+pub(crate) fn classify_message_route(ctx: &ChannelRuntimeContext, message: &str) -> Option<ChannelRouteSelection> {
+    channel_support::routing::classify_message_route(&ctx.query_classification, &ctx.model_routes, message)
 }
 
 /// 设置指定发送者的路由选择配置
@@ -275,22 +201,8 @@ pub(crate) fn classify_message_route(
 /// - 减少内存占用
 /// - 保持映射表清洁
 /// - 使默认配置变更能自动生效
-pub(crate) fn set_route_selection(
-    ctx: &ChannelRuntimeContext,
-    sender_key: &str,
-    next: ChannelRouteSelection,
-) {
-    // 获取默认路由作为比较基准
-    let default_route = default_route_selection(ctx);
-    // 获取 Mutex 锁，处理可能的污染情况
-    let mut routes = ctx.route_overrides.lock().unwrap_or_else(|e| e.into_inner());
-    // 如果新配置等于默认配置，移除自定义条目（恢复默认）
-    if next == default_route {
-        routes.remove(sender_key);
-    } else {
-        // 否则，存储新的自定义配置
-        routes.insert(sender_key.to_string(), next);
-    }
+pub(crate) fn set_route_selection(ctx: &ChannelRuntimeContext, sender_key: &str, next: ChannelRouteSelection) {
+    channel_support::routing::set_route_selection(&ctx.route_overrides, default_route_selection(ctx), sender_key, next)
 }
 
 /// 从缓存文件加载指定 Provider 的模型列表预览
@@ -321,28 +233,7 @@ pub(crate) fn set_route_selection(
 ///
 /// - 使用 `take()` 限制返回数量，避免大量数据的内存分配
 /// - 文件读取失败时快速返回，无额外开销
-pub(crate) fn load_cached_model_preview(workspace_dir: &Path, provider_name: &str) -> Vec<String> {
-    // 构建缓存文件的完整路径
-    let cache_path = workspace_dir.join("state").join(MODEL_CACHE_FILE);
-    // 尝试读取缓存文件内容，失败则返回空向量
-    let Ok(raw) = std::fs::read_to_string(cache_path) else {
-        return Vec::new();
-    };
-    // 尝试解析 JSON 格式的缓存状态，失败则返回空向量
-    let Ok(state) = serde_json::from_str::<ModelCacheState>(&raw) else {
-        return Vec::new();
-    };
-
-    // 在缓存条目中查找指定的 Provider
-    state
-        .entries
-        .into_iter()
-        .find(|entry| entry.provider == provider_name)
-        // 提取模型列表，限制预览数量
-        .map(|entry| entry.models.into_iter().take(MODEL_CACHE_PREVIEW_LIMIT).collect::<Vec<_>>())
-        // 未找到 Provider 时返回空向量
-        .unwrap_or_default()
-}
+pub(crate) use channel_support::routing::load_cached_model_preview;
 
 /// 构建模型帮助命令的响应文本
 ///
@@ -383,55 +274,11 @@ pub(crate) fn load_cached_model_preview(workspace_dir: &Path, provider_name: &st
 /// # 使用场景
 ///
 /// 当用户执行 `/models` 命令或请求查看可用模型时调用。
-pub(crate) fn build_models_help_response(
-    current: &ChannelRouteSelection,
-    workspace_dir: &Path,
-) -> String {
-    let mut response = String::new();
-    // 添加当前路由状态信息
-    let _ = writeln!(
-        response,
-        "Current provider: `{}`\nCurrent model: `{}`",
-        current.provider, current.model
-    );
-    // 添加模型切换命令说明
-    response.push_str("\nSwitch model with `/model <model-id>`.\n");
-    // 添加授权相关命令说明
-    response.push_str("Request supervised tool approval with `/approve-request <tool-name>`.\n");
-    response.push_str("Request one-time all-tools approval with `/approve-all-once`.\n");
-    response.push_str("Confirm approval with `/approve-confirm <request-id>`.\n");
-    response.push_str("Deny approval with `/approve-deny <request-id>`.\n");
-    response.push_str("List pending requests with `/approve-pending`.\n");
-    response.push_str("Approve supervised tools with `/approve <tool-name>`.\n");
-    response.push_str("Revoke approval with `/unapprove <tool-name>`.\n");
-    response.push_str("List approval state with `/approvals`.\n");
-    // 添加自然语言授权模式的说明
-    response.push_str(
-        "Natural language also works (policy controlled).\n\
-         - `direct` mode (default): `授权工具 shell` grants immediately.\n\
-         - `request_confirm` mode: `授权工具 shell` then `确认授权 apr-xxxxxx`.\n",
-    );
-
-    // 尝试加载并显示缓存的模型列表
-    let cached_models = load_cached_model_preview(workspace_dir, &current.provider);
-    if cached_models.is_empty() {
-        // 无缓存时，提示用户运行刷新命令
-        let _ = writeln!(
-            response,
-            "\nNo cached model list found for `{}`. Ask the operator to run `shiju models refresh --provider {}`.",
-            current.provider, current.provider
-        );
-    } else {
-        // 有缓存时，显示模型预览列表
-        let _ = writeln!(response, "\nCached model IDs (top {}):", cached_models.len());
-        for model in cached_models {
-            let _ = writeln!(response, "- `{model}`");
-        }
-    }
-
-    response
-}
+pub(crate) use channel_support::routing::build_models_help_response;
 
 #[cfg(test)]
 #[path = "routing_tests.rs"]
 mod routing_tests;
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn resolve_provider_alias(_name: &str) -> Result<Option<String>, provider::CatalogError> { Ok(None) }

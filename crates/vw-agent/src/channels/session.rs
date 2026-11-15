@@ -1,178 +1,35 @@
 //! 通道会话映射与 processor 集成；映射绑定完整消息作用域。
 use super::*;
 
-pub(crate) fn sender_session_store() -> &'static Mutex<HashMap<ChannelMessageScope, String>> {
-    static STORE: OnceLock<Mutex<HashMap<ChannelMessageScope, String>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(HashMap::new()))
-}
+pub(crate) use channel_support::session::sender_session_store;
 
 pub(crate) async fn clear_sender_session_id(
     ctx: &ChannelRuntimeContext,
     msg: &traits::ChannelMessage,
 ) -> Result<()> {
     let snapshot = resolve_channel_message_snapshot(ctx, msg).await?;
-    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&snapshot.scope);
+    channel_support::session::clear_sender_session_scope(&snapshot.scope);
     Ok(())
 }
 
 /// 会话创建失败返回错误，不缓存伪造的会话 ID。
-pub(crate) async fn resolve_or_create_sender_session_id(
-    snapshot: &ChannelMessageSnapshot,
-    msg: &traits::ChannelMessage,
-    route: Option<ChannelRouteSelection>,
-) -> Result<String> {
-    anyhow::ensure!(
-        snapshot.scope.chat == {
-            let mut chat = ChannelChatScope::from_message(msg);
-            chat.tenant = snapshot.scope.chat.tenant.clone();
-            chat
-        },
-        "channel message snapshot identity mismatch"
-    );
-    anyhow::ensure!(snapshot.directory.is_dir(), "channel project directory unavailable");
-    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
-        let existing = sender_session_store()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .get(&snapshot.scope)
-            .cloned();
-        if let Some(existing) = existing {
-            if let Ok(info) = crate::session::session::get_any(&existing).await {
-                if info.project_id == snapshot.scope.project
-                    && info.time.archived.is_none()
-                    && Path::new(&info.directory) == snapshot.directory
-                {
-                    return Ok(existing);
-                }
-            }
-        }
-        create_channel_session(snapshot, route).await
-    })
-    .await
+pub(crate) async fn resolve_or_create_sender_session_id(snapshot: &ChannelMessageSnapshot, msg: &traits::ChannelMessage, route: Option<ChannelRouteSelection>) -> Result<String> {
+    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), channel_support::session::resolve_or_create_sender_session_id(&ChannelSessionHost, snapshot, msg, route)).await
 }
 
-/// 所有权只随新建登记；作用域键哈希避免把外部聊天 ID 当作文件路径。
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct ChannelSessionOwnership {
-    pub(crate) scope: String,
-    pub(crate) route: Option<ChannelRouteSelection>,
-}
+pub(crate) use channel_support::session::{ChannelSessionOwnership, ownership_scope_key};
 
-pub(super) fn ownership_scope_key(snapshot: &ChannelMessageSnapshot) -> String {
-    use sha2::{Digest, Sha256};
-    hex::encode(Sha256::digest(snapshot.scope.key().as_bytes()))
-}
+pub(crate) use channel_support::session::channel_session_ownership;
 
-pub(crate) async fn channel_session_ownership(
-    snapshot: &ChannelMessageSnapshot,
-    id: &str,
-) -> Result<ChannelSessionOwnership> {
-    anyhow::ensure!(
-        id.starts_with("ses_") && id.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_'),
-        "无效会话 ID"
-    );
-    let record: ChannelSessionOwnership =
-        crate::storage::read(&["channel_session", &ownership_scope_key(snapshot), id])
-            .await
-            .context("会话不属于当前聊天和项目")?;
-    anyhow::ensure!(record.scope == snapshot.scope.key(), "会话作用域不匹配");
-    Ok(record)
-}
+pub(crate) use channel_support::session::save_channel_session_route;
 
-pub(crate) async fn save_channel_session_route(
-    snapshot: &ChannelMessageSnapshot,
-    id: &str,
-    route: &ChannelRouteSelection,
-) -> Result<()> {
-    let mut record = channel_session_ownership(snapshot, id).await?;
-    if record.route.as_ref() == Some(route) {
-        return Ok(());
-    }
-    record.route = Some(route.clone());
-    crate::storage::write_atomic(&["channel_session", &ownership_scope_key(snapshot), id], &record)
-        .await?;
-    Ok(())
-}
-
-pub(crate) async fn owned_channel_sessions(
-    snapshot: &ChannelMessageSnapshot,
-) -> Result<Vec<crate::session::session::Info>> {
-    let mut sessions = Vec::new();
-    for key in crate::storage::list(&["channel_session", &ownership_scope_key(snapshot)]).await? {
-        let Some(id) = key.last() else { continue };
-        channel_session_ownership(snapshot, id).await?;
-        match crate::session::session::get_any(id).await {
-            Ok(info)
-                if info.project_id == snapshot.scope.project
-                    && Path::new(&info.directory) == snapshot.directory
-                    && info.time.archived.is_none()
-                    && !info.is_first_response_pending() =>
-            {
-                sessions.push(info)
-            }
-            Ok(_)
-            | Err(crate::session::session::Error::Storage(crate::storage::Error::NotFound(_))) => {}
-            Err(err) => return Err(err.into()),
-        }
-    }
-    sessions.sort_by(|a, b| b.time.updated.cmp(&a.time.updated).then(a.id.cmp(&b.id)));
-    Ok(sessions)
+pub(crate) async fn owned_channel_sessions(snapshot: &ChannelMessageSnapshot) -> Result<Vec<crate::session::session::Info>> {
+    channel_support::session::owned_channel_sessions(&ChannelSessionHost, snapshot).await
 }
 
 /// 会话与所有权均写入成功后才替换当前映射。
-pub(crate) async fn create_channel_session(
-    snapshot: &ChannelMessageSnapshot,
-    route: Option<ChannelRouteSelection>,
-) -> Result<String> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = (snapshot, route);
-        anyhow::bail!("通道会话所有权持久化不支持 WASM");
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        anyhow::ensure!(snapshot.directory.is_dir(), "channel project directory unavailable");
-        let directory = snapshot.directory.to_string_lossy().to_string();
-        let context = crate::project::instance::Context {
-            directory: directory.clone(),
-            worktree: snapshot.project.worktree.clone(),
-            project: snapshot.project.clone(),
-        };
-        let info = crate::project::instance::provide_context(context, async move {
-            crate::session::session::reserve_next(crate::session::session::CreateInput {
-                parent_id: None,
-                title: None,
-                directory,
-                permission: None,
-            })
-            .await
-        })
-        .await
-        .context("failed to create channel session")?;
-        let record = ChannelSessionOwnership { scope: snapshot.scope.key(), route };
-        if let Err(err) = crate::storage::write_atomic(
-            &["channel_session", &ownership_scope_key(snapshot), &info.id],
-            &record,
-        )
-        .await
-        {
-            // 登记失败的孤立新会话不可恢复；旧绑定未动。
-            let tenant = snapshot.scope.chat.tenant.clone();
-            let project = info.project_id;
-            let id = info.id;
-            crate::global_database::run_isolated(move || {
-                crate::session::ui_store::discard_pending_session(&tenant, &project, &id)
-            })
-            .await?
-            .context("failed to discard unowned channel reservation")?;
-            return Err(err.into());
-        }
-        sender_session_store()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(snapshot.scope.clone(), info.id.clone());
-        Ok(info.id)
-    }
+pub(crate) async fn create_channel_session(snapshot: &ChannelMessageSnapshot, route: Option<ChannelRouteSelection>) -> Result<String> {
+    channel_support::session::create_channel_session(&ChannelSessionHost, snapshot, route).await
 }
 
 /// 异步为通道运行会话处理器
@@ -209,29 +66,12 @@ pub(crate) async fn run_session_processor_for_channel(
     Ok(collect_channel_response(req, delta_tx).await?.text)
 }
 
-#[derive(Default)]
-pub(crate) struct ChannelProcessorResponse {
-    pub(crate) text: String,
-    pub(crate) completed: bool,
-    pub(crate) user_id: Option<String>,
-    pub(crate) assistant_id: Option<String>,
-    pub(crate) steps: Vec<crate::session::ui_types::ChatSessionStep>,
-    pub(crate) raw_artifacts: Vec<crate::session::llm_raw::LlmRawArtifact>,
-}
-
-#[cfg(test)]
-impl From<&str> for ChannelProcessorResponse {
-    fn from(text: &str) -> Self {
-        Self { text: text.into(), completed: true, ..Self::default() }
-    }
-}
+pub(crate) use channel_support::session_events::ChannelProcessorResponse;
 
 pub(crate) async fn collect_channel_response(
     mut req: crate::session::processor::Request,
     delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
 ) -> Result<ChannelProcessorResponse> {
-    use crate::session::processor::{StreamEvent, ToolEventKind};
-    use crate::session::ui_types::ChatSessionStep;
 
     let user_id = if req.persist_app_session_artifacts && req.assistant_message_id.is_none() {
         let user_id = crate::id::ascending(crate::id::Prefix::Message, None)?;
@@ -240,7 +80,7 @@ pub(crate) async fn collect_channel_response(
     } else {
         None
     };
-    let mut response = ChannelProcessorResponse {
+    let response = ChannelProcessorResponse {
         user_id,
         assistant_id: req.assistant_message_id.clone(),
         ..Default::default()
@@ -254,8 +94,8 @@ pub(crate) async fn collect_channel_response(
     }
 
     // 创建无界通道用于事件传递
-    let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel::<
-        crate::app::agent::session::processor::StreamEvent,
+    let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel::<
+        session_port::PromptEvent,
     >();
 
     // 阻塞线程不会继承 task-local 项目上下文；按请求目录和租户重新绑定，
@@ -275,7 +115,7 @@ pub(crate) async fn collect_channel_response(
         block_on_future(crate::session::ui_store::with_tenant_scope(tenant, async move {
             let run = async move {
                 crate::app::agent::session::processor::run(req, move |ev| {
-                    event_tx.send(ev).is_ok()
+                    match channel_prompt_event(ev) { Some(ev) => event_tx.send(ev).is_ok(), None => !event_tx.is_closed() }
                 });
             };
             if let Some(context) = instance_context {
@@ -289,76 +129,10 @@ pub(crate) async fn collect_channel_response(
     let run_processor = crate::global_database::inherit_test_database_context(run_processor);
     let processor_task = tokio::task::spawn_blocking(run_processor);
 
-    // 处理流式事件
-    let mut open_tools = std::collections::HashSet::new();
-    let mut step_started_ms = None;
-    let mut final_step_has_text = false;
-    let terminal = loop {
-        let Some(ev) = event_rx.recv().await else {
-            break Err(anyhow::anyhow!("session processor exited without terminal event"));
-        };
-        match ev {
-            StreamEvent::LlmRawArtifact(artifact) => response.raw_artifacts.push(artifact),
-            StreamEvent::ModelToolCalls(_) => {}
-            StreamEvent::Delta(delta) => {
-                final_step_has_text |= !delta.trim().is_empty();
-                response.text.push_str(&delta);
-                if let Some(tx) = delta_tx.as_ref() {
-                    let _ = tx.send(delta).await;
-                }
-            }
-            StreamEvent::Tool(event) => {
-                if event.kind == ToolEventKind::Complete {
-                    open_tools.remove(&event.call_id);
-                } else {
-                    open_tools.insert(event.call_id);
-                }
-                let delta = format!("tool {}\n{}\n", event.name, event.payload);
-                response.text.push_str(&delta);
-                if let Some(tx) = delta_tx.as_ref() {
-                    let _ = tx.send(delta).await;
-                }
-            }
-            StreamEvent::Done(_) => {
-                let finish_reason =
-                    response.steps.last().and_then(|step| step.finish_reason.as_deref());
-                response.completed = open_tools.is_empty()
-                    && final_step_has_text
-                    && crate::session::runtime::is_successful_finish_reason(finish_reason);
-                break Ok(response);
-            }
-            StreamEvent::Error(err) => {
-                break Err(anyhow::anyhow!(err));
-            }
-            StreamEvent::StepStart { created_ms, .. } => {
-                final_step_has_text = false;
-                step_started_ms = Some(created_ms);
-            }
-            StreamEvent::StepFinish { step_index, finished_ms, usage, finish_reason, model } => {
-                response.steps.push(ChatSessionStep {
-                    index: step_index,
-                    turn_id: response.assistant_id.clone(),
-                    started_ms: step_started_ms.take().unwrap_or(finished_ms),
-                    finished_ms: Some(finished_ms),
-                    start_snapshot_path: None,
-                    finish_snapshot_path: None,
-                    usage,
-                    cost_usd: None,
-                    finish_reason,
-                    model,
-                    tool_timings: Vec::new(),
-                });
-            }
-            StreamEvent::PostToolRound { .. }
-            | StreamEvent::ModelRecovery(_)
-            | StreamEvent::TodoContinuation
-            | StreamEvent::Compaction { .. }
-            | StreamEvent::ContextLoaded { .. } => {}
-        }
-    };
-    // 终态事件可能早于最终工件持久化，必须等待阻塞处理器真正返回。
-    processor_task.await.context("channel session processor crashed")?;
-    terminal
+    channel_support::session_events::collect_channel_events(
+        event_rx, response, delta_tx, processor_task,
+        crate::session::runtime::is_successful_finish_reason,
+    ).await
 }
 
 /// 将通道聊天消息转换为会话历史格式
@@ -387,31 +161,53 @@ pub(crate) async fn collect_channel_response(
 ///
 /// - `think_timing` 字段被初始化为空向量
 /// - 无法识别的角色会被过滤掉
-pub(crate) fn to_session_history(
-    turns: &[ChatMessage],
-) -> Vec<crate::session::ui_types::ChatMessage> {
-    turns
-        .iter()
-        .filter_map(|turn| {
-            let role = match turn.role.as_str() {
-                "user" => crate::session::ui_types::ChatRole::User,
-                "assistant" => crate::session::ui_types::ChatRole::Assistant,
-                "system" => crate::session::ui_types::ChatRole::System,
-                "developer" => crate::session::ui_types::ChatRole::Developer,
-                "tool" => crate::session::ui_types::ChatRole::Tool,
-                _ => return None,
-            };
-            Some(crate::session::ui_types::ChatMessage {
-                role,
-                content: turn.content.clone(),
-                model: None,
-                think_timing: Vec::new(),
-                processing_timing: None,
-            })
-        })
-        .collect()
-}
+pub(crate) use channel_support::session_events::to_session_history;
 
 #[cfg(test)]
 #[path = "session_tests.rs"]
 pub(crate) mod session_tests;
+
+struct ChannelSessionHost;
+impl channel_support::session::ChannelSessions for ChannelSessionHost {
+    fn get<'a>(&'a self, id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output=Result<crate::session::session::Info, crate::session::session::Error>> + Send + 'a>> {
+        Box::pin(crate::session::session::get_any(id))
+    }
+    #[cfg(not(target_arch="wasm32"))]
+    fn reserve<'a>(&'a self, snapshot: &'a ChannelMessageSnapshot) -> std::pin::Pin<Box<dyn std::future::Future<Output=Result<crate::session::session::Info>> + Send + 'a>> {
+        Box::pin(async move {
+            let directory = snapshot.directory.to_string_lossy().to_string();
+            let context = crate::project::instance::Context { directory: directory.clone(), worktree: snapshot.project.worktree.clone(), project: snapshot.project.clone() };
+            crate::project::instance::provide_context(context, crate::session::session::reserve_next(crate::session::session::CreateInput { parent_id: None, title: None, directory, permission: None })).await.map_err(Into::into)
+        })
+    }
+    #[cfg(not(target_arch="wasm32"))]
+    fn discard<'a>(&'a self, snapshot: &'a ChannelMessageSnapshot, info: crate::session::session::Info) -> std::pin::Pin<Box<dyn std::future::Future<Output=Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            let tenant = snapshot.scope.chat.tenant.clone();
+            let project = info.project_id;
+            let id = info.id;
+            crate::global_database::run_isolated(move || crate::session::ui_store::discard_pending_session(&tenant, &project, &id)).await??;
+            Ok(())
+        })
+    }
+}
+
+fn channel_prompt_event(event: crate::session::processor::StreamEvent) -> Option<session_port::PromptEvent> {
+    use crate::session::processor::StreamEvent as E;
+    use session_port::{PromptEvent as P, PromptTermination as T};
+    Some(match event {
+        E::ModelToolCalls(_) => return None,
+        E::LlmRawArtifact(value) => P::LlmRawArtifact(value),
+        E::Delta(value) => P::Text(value),
+        E::Tool(value) => P::Tool(value),
+        E::Done(value) => P::Terminated(T::Completed(value)),
+        E::Error(value) => P::Terminated(T::Failed(value)),
+        E::StepStart { step_index, created_ms, model } => P::StepStart { step_index, created_ms, model },
+        E::StepFinish { step_index, finished_ms, usage, finish_reason, model } => P::StepFinish { step_index, finished_ms, usage, finish_reason, model },
+        E::PostToolRound { step_index } => P::PostToolRound { step_index },
+        E::ModelRecovery(value) => P::ModelRecovery(value),
+        E::TodoContinuation => P::TodoContinuation,
+        E::Compaction { phase } => P::Compaction { phase },
+        E::ContextLoaded { paths } => P::ContextLoaded { paths },
+    })
+}

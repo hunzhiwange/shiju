@@ -21,15 +21,13 @@ use super::*;
 
 /// 消息级记忆键包含完整聊天身份和平台消息 ID。
 pub(crate) fn conversation_memory_key(msg: &traits::ChannelMessage) -> String {
-    serde_json::to_string(&(ChannelChatScope::from_message(msg), &msg.id))
-        .expect("channel memory identity contains only serializable fields")
+    channel_support::history::conversation_memory_key(msg, crate::session::ui_store::current_tenant_scope())
 }
 
 /// 聊天身份包含租户、实例、房间、主题和发送者，结构化编码保留字段边界。
 /// 执行路径使用 `scoped_history_key` 再加入已解析的项目 ID。
 pub(crate) fn conversation_history_key(msg: &traits::ChannelMessage) -> String {
-    serde_json::to_string(&ChannelChatScope::from_message(msg))
-        .expect("channel identity contains only serializable fields")
+    channel_support::history::conversation_history_key(msg, crate::session::ui_store::current_tenant_scope())
 }
 
 /// 中断与历史使用完整聊天身份，包含租户、实例、房间、主题和发送者。

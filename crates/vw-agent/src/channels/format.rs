@@ -60,12 +60,8 @@ pub(crate) use channel_support::format::extract_tool_context_summary;
 ///
 /// 返回净化后的响应字符串
 pub(crate) fn sanitize_channel_response(response: &str, tools: &[Box<dyn Tool>]) -> String {
-    let visible_response =
-        crate::app::agent::session::child_agent::visible_answer_from_execution_output(response);
-    let without_tool_tags = strip_tool_call_tags(&visible_response);
-    let known_tool_names: HashSet<String> =
-        tools.iter().map(|tool| tool.spec().id.to_ascii_lowercase()).collect();
-    strip_isolated_tool_json_artifacts(&without_tool_tags, &known_tool_names)
+    let visible_response = crate::app::agent::session::child_agent::visible_answer_from_execution_output(response);
+    channel_support::format::sanitize_visible_channel_response(&visible_response, tools)
 }
 
 #[cfg(test)]

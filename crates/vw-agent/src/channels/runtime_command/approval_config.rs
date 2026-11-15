@@ -13,15 +13,7 @@ use super::approval_target_label;
 /// 返回值：用于追踪事件和状态摘要的蛇形字符串。
 ///
 /// 错误处理：该函数不产生错误。
-pub(crate) fn non_cli_natural_language_mode_label(
-    mode: NonCliNaturalLanguageApprovalMode,
-) -> &'static str {
-    match mode {
-        NonCliNaturalLanguageApprovalMode::Disabled => "disabled",
-        NonCliNaturalLanguageApprovalMode::RequestConfirm => "request_confirm",
-        NonCliNaturalLanguageApprovalMode::Direct => "direct",
-    }
-}
+pub(crate) use channel_support::config::non_cli_natural_language_mode_label;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_runtime_config(contents: &str, config_path: &Path) -> Result<Config> {

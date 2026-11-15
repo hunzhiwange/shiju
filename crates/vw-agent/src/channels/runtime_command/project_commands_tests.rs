@@ -42,7 +42,7 @@ async fn channel_project_select_default_recovers_invalid_override() {
         .lock()
         .unwrap()
         .selections
-        .insert(ChannelChatScope::from_message(&msg), "missing".into());
+        .insert(ChannelChatScope::from_message(&msg, crate::session::ui_store::current_tenant_scope()), "missing".into());
     msg.content = "/project default".into();
     assert!(handle_project_command(&ctx, &msg).await.contains("已切换"));
     assert_eq!(resolve_channel_message_snapshot(&ctx, &msg).await.unwrap().scope.project, a.id);

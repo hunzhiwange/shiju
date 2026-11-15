@@ -195,11 +195,10 @@ use crate::app::agent::tools::Tool;
 use crate::app::agent::util::truncate_with_ellipsis;
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
@@ -207,21 +206,6 @@ use tokio_util::sync::CancellationToken;
 // ============================================================================
 // 类型别名定义
 // ============================================================================
-
-/// 每个发送者的会话历史映射表。
-///
-/// 外层 `Arc` 允许多个任务共享同一份历史数据，
-/// 内层 `Mutex` 保证并发安全访问，
-/// `HashMap` 的键为发送者标识符，值为该发送者的消息历史列表。
-type ConversationHistoryMap = Arc<Mutex<HashMap<String, Vec<ChatMessage>>>>;
-
-/// Provider 缓存映射表。
-/// 键为 provider 名称，值为对应的 Provider 实例。
-type ProviderCacheMap = Arc<Mutex<HashMap<String, Arc<dyn Provider>>>>;
-
-/// 路由选择映射表。
-/// 键为路由标识，值为对应的路由选择配置。
-type RouteSelectionMap = Arc<Mutex<HashMap<String, ChannelRouteSelection>>>;
 
 // ============================================================================
 // 常量定义
@@ -233,10 +217,6 @@ type RouteSelectionMap = Arc<Mutex<HashMap<String, ChannelRouteSelection>>>;
 /// 以减少记忆检索时的噪音。此设计避免将无意义的简短回复
 /// 污染长期记忆存储。
 const AUTOSAVE_MIN_MESSAGE_CHARS: usize = 20;
-
-/// 每个注入的工作区文件的最大字符数。
-/// 与 `OpenClaw` 默认值保持一致，防止单个文件占用过多上下文空间。
-const BOOTSTRAP_MAX_CHARS: usize = 20_000;
 
 /// 通道初始重连退避时间（秒）。
 /// 连接失败后首次重试前的等待时间。
@@ -271,26 +251,6 @@ const CHANNEL_TYPING_REFRESH_INTERVAL_SECS: u64 = 4;
 /// 健康检查心跳间隔（秒）。
 /// 定期检查通道连接状态的频率。
 const CHANNEL_HEALTH_HEARTBEAT_SECS: u64 = 30;
-
-/// 模型缓存文件名。
-/// 存储已发现的模型列表，避免每次启动都重新查询。
-const MODEL_CACHE_FILE: &str = "models_cache.json";
-
-/// 模型缓存预览显示数量上限。
-/// 在列出缓存模型时，最多显示的条目数。
-const MODEL_CACHE_PREVIEW_LIMIT: usize = 10;
-
-/// 记忆上下文最大条目数。
-/// 注入到提示词中的相关记忆片段数量上限。
-const MEMORY_CONTEXT_MAX_ENTRIES: usize = 4;
-
-/// 单条记忆上下文条目的最大字符数。
-/// 防止单条记忆过长影响上下文窗口。
-const MEMORY_CONTEXT_ENTRY_MAX_CHARS: usize = 800;
-
-/// 记忆上下文总字符数上限。
-/// 所有注入记忆片段的总长度限制。
-const MEMORY_CONTEXT_MAX_CHARS: usize = 4_000;
 
 /// Hook 修改后的出站消息内容最大字符数。
 /// 防止 Hook 产生过长的输出内容。
@@ -350,165 +310,15 @@ pub enum ChannelCommands {
     BindTelegram { identity: String },
 }
 
-/// 通道路由选择配置。
-///
-/// 记录为特定会话选择的服务提供者和模型信息，
-/// 以及是否启用了任务模式。用于消息路由决策。
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(crate) struct ChannelRouteSelection {
-    /// 选中的服务提供者名称
-    pub(crate) provider: String,
-    /// 选中的模型标识符
-    pub(crate) model: String,
-    /// 当前作用域选择的推理强度；None 使用 provider 默认值。
-    pub(crate) reasoning_effort: Option<String>,
-    /// 是否启用了任务模式
-    pub(crate) task_mode_enabled: bool,
-}
-
-/// 模型缓存状态。
-///
-/// 持久化存储已知模型的列表，避免每次启动时重新发现。
-#[derive(Debug, Clone, Default, Deserialize)]
-struct ModelCacheState {
-    /// 缓存条目列表，按提供者分组
-    pub(crate) entries: Vec<ModelCacheEntry>,
-}
-
-/// 模型缓存条目。
-///
-/// 记录单个提供者下的可用模型列表。
-#[derive(Debug, Clone, Default, Deserialize)]
-struct ModelCacheEntry {
-    /// 提供者名称
-    pub(crate) provider: String,
-    /// 该提供者支持的模型列表
-    pub(crate) models: Vec<String>,
-}
+pub(crate) use channel_support::routing::ChannelRouteSelection;
 
 pub(crate) use channel_support::config::{
     ChannelRuntimeDefaults, ConfigFileStamp, RuntimeAutonomyPolicy, RuntimeConfigState,
 };
 
-/// 通道运行时上下文。
-///
-/// 包含处理消息所需的全部共享状态和配置，
-/// 在消息处理循环中被克隆和传递。
-/// 使用 `Arc` 包装以实现高效的共享所有权。
-#[derive(Clone)]
-pub struct ChannelRuntimeContext {
-    pub(crate) project_state: Arc<Mutex<ChannelProjectState>>,
-    pub(crate) message_snapshot: Option<ChannelMessageSnapshot>,
-    /// Webhook 保留网关的受监督工具权限；监听通道沿用既有会话权限。
-    pub(crate) session_full_access: bool,
-    /// 按名称索引的通道实例映射
-    pub(crate) channels_by_name: Arc<HashMap<String, Arc<dyn Channel>>>,
-    /// 当前使用的服务提供者
-    pub(crate) provider: Arc<dyn Provider>,
-    /// 默认提供者名称
-    pub(crate) default_provider: Arc<String>,
-    /// 记忆存储后端
-    pub(crate) memory: Arc<dyn Memory>,
-    /// 已注册工具的注册表
-    pub(crate) tools_registry: Arc<Vec<Box<dyn Tool>>>,
-    /// 可观测性观察者
-    pub(crate) observer: Arc<dyn Observer>,
-    /// 系统提示词
-    pub(crate) system_prompt: Arc<String>,
-    /// 当前使用的模型标识符
-    pub(crate) model: Arc<String>,
-    /// 生成温度参数
-    pub(crate) temperature: f64,
-    /// 是否启用自动记忆保存
-    pub(crate) auto_save_memory: bool,
-    /// 单次请求中工具迭代的最大次数
-    pub(crate) max_iterations: usize,
-    /// 记忆检索的最小相关性分数阈值
-    pub(crate) min_relevance_score: f64,
-    /// 各发送者的会话历史
-    pub(crate) conversation_histories: ConversationHistoryMap,
-    /// Provider 实例缓存
-    pub(crate) provider_cache: ProviderCacheMap,
-    /// 路由覆盖配置
-    pub(crate) route_overrides: RouteSelectionMap,
-    /// 可选的 API 密钥
-    pub(crate) api_key: Option<String>,
-    /// 可选的 API 端点 URL
-    pub(crate) api_url: Option<String>,
-    /// 可靠性配置
-    pub(crate) reliability: Arc<crate::app::agent::config::ReliabilityConfig>,
-    /// Provider 运行时选项
-    pub(crate) provider_runtime_options: crate::app::agent::providers::ProviderRuntimeOptions,
-    /// 工作区目录路径
-    pub(crate) workspace_dir: Arc<PathBuf>,
-    /// 消息处理超时时间（秒）
-    pub(crate) message_timeout_secs: u64,
-    /// 是否在新消息到达时中断当前处理
-    pub(crate) interrupt_on_new_message: bool,
-    /// 多模态配置
-    pub(crate) multimodal: crate::app::agent::config::MultimodalConfig,
-    /// 可选的 Hook 运行器
-    pub(crate) hooks: Option<Arc<crate::app::agent::hooks::HookRunner>>,
-    /// 非 CLI 环境下排除的工具列表（运行时可变）
-    pub(crate) non_cli_excluded_tools: Arc<Mutex<Vec<String>>>,
-    /// 查询分类配置
-    pub(crate) query_classification: crate::app::agent::config::QueryClassificationConfig,
-    /// 模型路由配置列表
-    pub(crate) model_routes: Vec<crate::app::agent::config::ModelRouteConfig>,
-    /// 审批管理器
-    pub(crate) approval_manager: Arc<ApprovalManager>,
-}
+pub use channel_support::runtime_state::ChannelRuntimeContext;
 
-/// 正在处理中的发送者任务状态。
-///
-/// 跟踪每个消息处理任务的生命周期，
-/// 支持取消和完成通知。
-#[derive(Clone)]
-pub(crate) struct InFlightSenderTaskState {
-    /// 任务唯一标识符
-    pub(crate) task_id: u64,
-    /// 用于取消任务的令牌
-    pub(crate) cancellation: CancellationToken,
-    /// 任务完成状态通知器
-    pub(crate) completion: Arc<InFlightTaskCompletion>,
-}
-
-/// 正在处理中的任务完成状态。
-///
-/// 提供原子完成标志和异步等待机制，
-/// 允许其他任务等待当前任务完成。
-pub(crate) struct InFlightTaskCompletion {
-    /// 完成标志（原子布尔值）
-    pub(crate) done: AtomicBool,
-    /// 用于通知等待者的异步原语
-    pub(crate) notify: tokio::sync::Notify,
-}
-
-impl InFlightTaskCompletion {
-    /// 创建新的未完成状态实例。
-    fn new() -> Self {
-        Self { done: AtomicBool::new(false), notify: tokio::sync::Notify::new() }
-    }
-
-    /// 标记任务为已完成。
-    ///
-    /// 设置完成标志并通知所有等待者。
-    fn mark_done(&self) {
-        self.done.store(true, Ordering::Release);
-        self.notify.notify_waiters();
-    }
-
-    /// 异步等待任务完成。
-    ///
-    /// 如果任务已完成则立即返回，否则阻塞等待通知。
-    async fn wait(&self) {
-        // 先创建通知 Future，再检查完成状态，避免 notify_waiters 丢失唤醒。
-        let notified = self.notify.notified();
-        if !self.done.load(Ordering::Acquire) {
-            notified.await;
-        }
-    }
-}
+pub(crate) use channel_support::scope::{InFlightSenderTaskState, InFlightTaskCompletion};
 
 /// 通道健康状态枚举。
 ///
@@ -655,3 +465,9 @@ mod channel_command_cancel_dispatch_tests;
 include!("tests/message_dispatch.rs");
 
 mod session_turn;
+
+#[cfg(test)]
+use channel_support::routing::{MODEL_CACHE_FILE, MODEL_CACHE_PREVIEW_LIMIT};
+
+#[cfg(test)]
+use channel_support::prompt::{MEMORY_CONTEXT_MAX_CHARS, MEMORY_CONTEXT_ENTRY_MAX_CHARS};

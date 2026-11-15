@@ -142,9 +142,7 @@ pub(crate) use channel_support::config::runtime_autonomy_policy_from_config;
 /// # 配置文件名
 ///
 /// 项目覆盖文件固定命名为 `.vibewindow.json`
-pub(crate) fn runtime_config_path(ctx: &ChannelRuntimeContext) -> Option<PathBuf> {
-    ctx.provider_runtime_options.vibewindow_dir.as_ref().map(|dir| dir.join(".vibewindow.json"))
-}
+pub(crate) use channel_support::config::runtime_config_path;
 
 /// 获取运行时默认值的快照
 ///
@@ -167,26 +165,7 @@ pub(crate) fn runtime_config_path(ctx: &ChannelRuntimeContext) -> Option<PathBuf
 /// # 性能考虑
 ///
 /// 使用缓存避免重复加载和解析配置文件
-pub(crate) fn runtime_defaults_snapshot(ctx: &ChannelRuntimeContext) -> ChannelRuntimeDefaults {
-    // 尝试从配置文件路径获取缓存的默认值
-    if let Some(config_path) = runtime_config_path(ctx) {
-        // 锁定全局存储，处理可能的 poison 错误
-        let store = runtime_config_store().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(state) = store.get(&config_path) {
-            return state.defaults.clone();
-        }
-    }
-
-    // 缓存未命中，从上下文构建默认值
-    ChannelRuntimeDefaults {
-        default_provider: ctx.default_provider.as_str().to_string(),
-        model: ctx.model.as_str().to_string(),
-        temperature: ctx.temperature,
-        api_key: ctx.api_key.clone(),
-        api_url: ctx.api_url.clone(),
-        reliability: (*ctx.reliability).clone(),
-    }
-}
+pub(crate) use channel_support::config::runtime_defaults_snapshot;
 
 /// 获取非 CLI 环境下排除工具的快照
 ///
@@ -203,9 +182,7 @@ pub(crate) fn runtime_defaults_snapshot(ctx: &ChannelRuntimeContext) -> ChannelR
 /// # 线程安全
 ///
 /// 使用 `unwrap_or_else` 处理可能的锁 poison 情况
-pub(crate) fn snapshot_non_cli_excluded_tools(ctx: &ChannelRuntimeContext) -> Vec<String> {
-    ctx.non_cli_excluded_tools.lock().unwrap_or_else(|e| e.into_inner()).clone()
-}
+pub(crate) use channel_support::config::snapshot_non_cli_excluded_tools;
 
 pub(crate) use channel_support::config::config_file_stamp;
 
@@ -257,96 +234,4 @@ pub(crate) use channel_support::config::load_runtime_defaults_from_config_file;
 /// # 线程安全
 ///
 /// 使用互斥锁保护共享状态的更新，处理可能的锁 poison 情况
-pub(crate) async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContext) -> Result<()> {
-    // 获取配置文件路径，不存在则跳过
-    let Some(config_path) = runtime_config_path(ctx) else {
-        return Ok(());
-    };
-
-    // 获取文件时间戳，失败则跳过
-    let Some(stamp) = config_file_stamp(&config_path).await else {
-        return Ok(());
-    };
-
-    // 检查缓存中是否已有最新配置
-    {
-        let store = runtime_config_store().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(state) = store.get(&config_path) {
-            // 时间戳相同，说明配置未变化，跳过更新
-            if state.last_applied_stamp == Some(stamp) {
-                return Ok(());
-            }
-        }
-    }
-
-    // 加载新的配置文件
-    let (next_defaults, next_autonomy_policy, next_channels_config) =
-        load_runtime_defaults_from_config_file(&config_path).await?;
-
-    // 创建新的 Provider 实例（带弹性策略）
-    let next_default_provider =
-        agent_providers::create_resilient_provider_with_options(
-            &next_defaults.default_provider,
-            next_defaults.api_key.as_deref(),
-            next_defaults.api_url.as_deref(),
-            &next_defaults.reliability,
-            &ctx.provider_runtime_options,
-        )?;
-    let next_default_provider: Arc<dyn Provider> = Arc::from(next_default_provider);
-
-    // 尝试预热 Provider（失败不影响整体流程）
-    if let Err(err) = next_default_provider.warmup().await {
-        tracing::warn!(
-            provider = %next_defaults.default_provider,
-            "Provider warmup failed after config reload: {err}"
-        );
-    }
-
-    ctx.project_state.lock().unwrap_or_else(|e| e.into_inner()).config = next_channels_config;
-
-    // 更新 Provider 缓存
-    {
-        let mut cache = ctx.provider_cache.lock().unwrap_or_else(|e| e.into_inner());
-        cache.clear();
-        cache.insert(next_defaults.default_provider.clone(), Arc::clone(&next_default_provider));
-    }
-
-    // 更新配置存储
-    {
-        let mut store = runtime_config_store().lock().unwrap_or_else(|e| e.into_inner());
-        store.insert(
-            config_path.clone(),
-            RuntimeConfigState { defaults: next_defaults.clone(), last_applied_stamp: Some(stamp) },
-        );
-    }
-
-    // 更新审批管理器的运行时策略
-    ctx.approval_manager.replace_runtime_non_cli_policy(
-        &next_autonomy_policy.auto_approve,
-        &next_autonomy_policy.always_ask,
-        &next_autonomy_policy.non_cli_approval_approvers,
-        next_autonomy_policy.non_cli_natural_language_approval_mode,
-        &next_autonomy_policy.non_cli_natural_language_approval_mode_by_channel,
-    );
-
-    // 更新非 CLI 排除工具列表
-    {
-        let mut excluded = ctx.non_cli_excluded_tools.lock().unwrap_or_else(|e| e.into_inner());
-        *excluded = next_autonomy_policy.non_cli_excluded_tools.clone();
-    }
-
-    // 记录配置更新日志
-    tracing::info!(
-        path = %config_path.display(),
-        provider = %next_defaults.default_provider,
-        model = %next_defaults.model,
-        temperature = next_defaults.temperature,
-        non_cli_approval_mode = %non_cli_natural_language_mode_label(
-            next_autonomy_policy.non_cli_natural_language_approval_mode
-        ),
-        non_cli_excluded_tools_count = next_autonomy_policy.non_cli_excluded_tools.len(),
-        "Applied updated channel runtime config from disk"
-    );
-
-    Ok(())
-}
+pub(crate) use channel_support::config::maybe_apply_runtime_config_update;

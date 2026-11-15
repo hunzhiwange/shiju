@@ -1,0 +1,20 @@
+[package]
+name = "agent-skills"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+console = "0.16"
+config-skills = { path = "../config-skills", version = "0.6.0" }
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3"

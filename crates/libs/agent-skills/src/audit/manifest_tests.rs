@@ -2,7 +2,7 @@
 //! 清单缺失、命令为空和危险提示分别形成独立诊断，便于定位具体契约破坏。
 
 use super::*;
-use crate::app::agent::skills::audit::report::SkillAuditReport;
+use crate::audit::report::SkillAuditReport;
 use config_skills::SkillSecurityConfig;
 
 #[test]

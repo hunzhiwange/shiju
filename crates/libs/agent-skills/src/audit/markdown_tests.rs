@@ -2,7 +2,7 @@
 //! 仅技能入口 Markdown 执行严格链接完整性检查，普通资源仍保留风险内容扫描。
 
 use super::*;
-use crate::app::agent::skills::audit::report::SkillAuditReport;
+use crate::audit::report::SkillAuditReport;
 use config_skills::SkillSecurityConfig;
 
 #[test]

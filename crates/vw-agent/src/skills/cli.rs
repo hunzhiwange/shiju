@@ -26,7 +26,6 @@ use crate::app::agent::skills::{
     init_skills_dir, load_skills_full_with_config, workspace_skills_dir,
 };
 use anyhow::Result;
-use std::path::PathBuf;
 
 /// 处理技能相关的命令行命令（原生平台实现）
 ///
@@ -86,193 +85,61 @@ pub fn handle_command(
             // 加载所有技能，包括开放技能（如果启用）
             let skills = load_skills_full_with_config(workspace_dir, config);
 
-            // 如果没有安装任何技能，显示帮助信息
-            if skills.is_empty() {
-                println!("No skills installed.");
-                println!();
-                println!(
-                    "  Create one: mkdir -p {}",
-                    workspace_dir.join("skills").join("my-skill").display()
-                );
-                println!(
-                    "              echo '# My Skill' > {}",
-                    workspace_dir.join("skills").join("my-skill").join("SKILL.md").display()
-                );
-                println!();
-                println!("  Or install: shiju skills install <source>");
-            } else {
-                // 显示已安装技能的统计信息
-                println!("Installed skills ({}):", skills.len());
-                println!();
-
-                // 遍历并显示每个技能的详细信息
-                for skill in &skills {
-                    // 显示技能名称、版本和描述
-                    println!(
-                        "  {} {} — {}",
-                        console::style(&skill.name).white().bold(),
-                        console::style(format!("v{}", skill.version)).dim(),
-                        skill.description
-                    );
-
-                    // 如果技能包含工具，显示工具列表
-                    if !skill.tools.is_empty() {
-                        println!(
-                            "    Tools: {}",
-                            skill
-                                .tools
-                                .iter()
-                                .map(|t| t.name.as_str())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        );
-                    }
-
-                    // 如果技能有标签，显示标签列表
-                    if !skill.tags.is_empty() {
-                        println!("    Tags:  {}", skill.tags.join(", "));
-                    }
-                }
-            }
-            println!();
-            Ok(())
+            let entries = skills.iter().map(|skill| agent_skills::cli::SkillListEntry {
+                name: &skill.name,
+                version: &skill.version,
+                description: &skill.description,
+                tools: skill.tools.iter().map(|tool| tool.name.as_str()).collect(),
+                tags: &skill.tags,
+            }).collect::<Vec<_>>();
+            agent_skills::cli::print_skill_list(workspace_dir, &entries)
         }
 
         // 处理 audit 命令：审计指定技能的安全性
         crate::app::agent::skill::SkillCommands::Audit { source } => {
-            // 解析源路径：可能是绝对路径或技能名称
-            let source_path = PathBuf::from(&source);
-
-            // 确定审计目标：优先使用实际路径，否则在技能目录中查找
-            let target = if source_path.exists() {
-                source_path
-            } else {
-                workspace_skills_dir(workspace_dir, config.skills.directory_provider).join(&source)
-            };
-
-            // 验证目标是否存在
-            if !target.exists() {
-                anyhow::bail!("Skill source or installed skill not found: {source}");
-            }
-
-            // 执行技能安全审计
-            let report = crate::app::agent::skills::audit::audit_skill_directory_with_security(
-                &target,
+            agent_skills::cli::audit_skill(
+                source,
+                &workspace_skills_dir(workspace_dir, config.skills.directory_provider),
                 &config.skills.security,
-            )?;
-
-            // 如果审计通过（无安全问题），显示成功信息
-            if report.is_clean() {
-                println!(
-                    "  {} Skill audit passed for {} ({} files scanned).",
-                    console::style("✓").green().bold(),
-                    target.display(),
-                    report.files_scanned
-                );
-                return Ok(());
-            }
-
-            // 审计未通过，显示所有发现的问题
-            println!(
-                "  {} Skill audit failed for {}",
-                console::style("✗").red().bold(),
-                target.display()
-            );
-            for finding in report.findings {
-                println!("    - {finding}");
-            }
-            anyhow::bail!("Skill audit failed.");
+            )
         }
 
         // 处理 install 命令：从指定来源安装技能
         crate::app::agent::skill::SkillCommands::Install { source } => {
-            println!("Installing skill from: {source}");
-
-            // 初始化技能目录（如果不存在则创建）
-            init_skills_dir(workspace_dir)?;
             let skills_path = workspace_skills_dir(workspace_dir, config.skills.directory_provider);
-            std::fs::create_dir_all(&skills_path).map_err(|err| {
-                anyhow::anyhow!("failed to create {}: {err}", skills_path.display())
-            })?;
-
-            // 执行技能安装，支持多种来源（本地、Git、skills.sh）
-            let install_result =
-                install_skill_from_source(&source, &skills_path, &config.skills.security)?;
-
-            print_install_success(install_result);
-
-            println!("  Security audit completed successfully.");
-            Ok(())
+            agent_skills::cli::install_skill(
+                &source,
+                &skills_path,
+                || init_skills_dir(workspace_dir),
+                |source, path| {
+                    let result = install_skill_from_source(source, path, &config.skills.security)?;
+                    print_install_success(result);
+                    Ok(())
+                },
+            )
         }
 
         // 处理 remove 命令：移除已安装的技能
         crate::app::agent::skill::SkillCommands::Remove { name } => {
-            // 安全校验：拒绝路径遍历攻击尝试
-            // 禁止在技能名称中包含父目录引用或路径分隔符
-            if name.contains("..") || name.contains('/') || name.contains('\\') {
-                anyhow::bail!("Invalid skill name: {name}");
-            }
-
-            // 构建技能的完整路径
-            let skills_path = workspace_skills_dir(workspace_dir, config.skills.directory_provider);
-            let skill_path = skills_path.join(&name);
-
-            // 安全校验：确保解析后的路径实际位于技能目录内部
-            // 通过规范化路径来检测潜在的路径逃逸攻击
-            let canonical_skills =
-                skills_path.canonicalize().unwrap_or_else(|_| skills_path.clone());
-            if let Ok(canonical_skill) = skill_path.canonicalize() {
-                // 验证技能路径是否以技能目录为前缀
-                if !canonical_skill.starts_with(&canonical_skills) {
-                    anyhow::bail!("Skill path escapes skills directory: {name}");
-                }
-            }
-
-            // 验证技能是否存在
-            if !skill_path.exists() {
-                anyhow::bail!("Skill not found: {name}");
-            }
-
-            // 递归删除技能目录及其所有内容
-            std::fs::remove_dir_all(&skill_path)?;
-            println!("  {} Skill '{}' removed.", console::style("✓").green().bold(), name);
-            Ok(())
+            agent_skills::cli::remove_skill(
+                name,
+                &workspace_skills_dir(workspace_dir, config.skills.directory_provider),
+            )
         }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn print_install_success(install_result: InstallResult) {
-    // 根据安装来源类型显示相应的成功信息
-    match install_result {
-        // 从 skills.sh 仓库安装
-        InstallResult::SkillsSh { installed_dir, files_scanned } => {
-            println!(
-                "  {} Skill installed from skills.sh: {} ({} files scanned)",
-                console::style("✓").green().bold(),
-                installed_dir.display(),
-                files_scanned
-            );
-        }
-        // 从 Git 仓库安装
-        InstallResult::Git { installed_dir, files_scanned } => {
-            println!(
-                "  {} Skill installed and audited: {} ({} files scanned)",
-                console::style("✓").green().bold(),
-                installed_dir.display(),
-                files_scanned
-            );
-        }
-        // 从本地目录安装
-        InstallResult::Local { installed_dir, files_scanned } => {
-            println!(
-                "  {} Skill installed and audited: {} ({} files scanned)",
-                console::style("✓").green().bold(),
-                installed_dir.display(),
-                files_scanned
-            );
-        }
-    }
+    let (message, installed_dir, files_scanned) = match install_result {
+        InstallResult::SkillsSh { installed_dir, files_scanned } =>
+            ("Skill installed from skills.sh", installed_dir, files_scanned),
+        InstallResult::Git { installed_dir, files_scanned } =>
+            ("Skill installed and audited", installed_dir, files_scanned),
+        InstallResult::Local { installed_dir, files_scanned } =>
+            ("Skill installed and audited", installed_dir, files_scanned),
+    };
+    agent_skills::cli::print_install_success(message, &installed_dir, files_scanned);
 }
 
 /// 处理技能相关的命令行命令（WASM 平台存根实现）

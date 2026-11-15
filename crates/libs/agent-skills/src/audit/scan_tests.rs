@@ -36,7 +36,7 @@ fn audit_path_flags_script_symlink_and_oversized_text_without_reading() {
         std::os::unix::fs::symlink(&large, dir.path().join("link")).unwrap();
     }
 
-    let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
+    let mut report = crate::audit::report::SkillAuditReport::default();
     let security = SkillSecurityConfig {
         reject_symlinks: true,
         reject_script_files: true,
@@ -63,7 +63,7 @@ fn audit_path_applies_stricter_link_checks_only_to_skill_entry_markdown() {
     std::fs::write(&skill, "[missing](docs/missing.md)\n").unwrap();
     std::fs::write(&resource, "[also missing](docs/also-missing.md)\n").unwrap();
 
-    let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
+    let mut report = crate::audit::report::SkillAuditReport::default();
     let security = SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
     audit_path(dir.path(), &skill, &security, &mut report).unwrap();
     audit_path(dir.path(), &resource, &security, &mut report).unwrap();
@@ -76,7 +76,7 @@ fn audit_path_applies_stricter_link_checks_only_to_skill_entry_markdown() {
 fn audit_path_reports_missing_path_metadata_error() {
     let dir = tempfile::tempdir().expect("temp dir");
     let missing = dir.path().join("missing.md");
-    let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
+    let mut report = crate::audit::report::SkillAuditReport::default();
 
     let error =
         audit_path(dir.path(), &missing, &SkillSecurityConfig::default(), &mut report).unwrap_err();

@@ -50,7 +50,7 @@ impl MonthlyQuota {
 }
 
 impl ShijuAccountClient {
-    pub(crate) async fn monthly_quota(
+    pub async fn monthly_quota(
         &self,
         credential: &str,
     ) -> Result<ShijuMonthlyQuotaDto, ShijuAccountError> {

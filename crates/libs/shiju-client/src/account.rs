@@ -32,7 +32,7 @@ mod model_token;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// SHIJU 账户接口的输入或上游响应错误。
-pub(crate) enum ShijuAccountError {
+pub enum ShijuAccountError {
     Message(&'static str),
     Upstream { status: StatusCode, message: String },
 }
@@ -50,7 +50,7 @@ impl std::error::Error for ShijuAccountError {}
 
 impl ShijuAccountError {
     /// 返回上游 HTTP 状态；本地校验错误没有状态码。
-    pub(crate) fn status(&self) -> Option<StatusCode> {
+    pub fn status(&self) -> Option<StatusCode> {
         match self {
             Self::Message(_) => None,
             Self::Upstream { status, .. } => Some(*status),
@@ -60,7 +60,7 @@ impl ShijuAccountError {
 
 #[derive(Clone)]
 /// 浏览器授权开始后用于轮询的挑战信息。
-pub(crate) struct ShijuLoginChallenge {
+pub struct ShijuLoginChallenge {
     state: String,
     authorization_url: Url,
     poll_interval_seconds: u64,
@@ -79,31 +79,31 @@ impl fmt::Debug for ShijuLoginChallenge {
 
 impl ShijuLoginChallenge {
     /// 返回绑定本次登录流程的状态标识。
-    pub(crate) fn state(&self) -> &str {
+    pub fn state(&self) -> &str {
         &self.state
     }
 
     /// 返回已通过主机与协议校验的授权地址。
-    pub(crate) fn authorization_url(&self) -> &str {
+    pub fn authorization_url(&self) -> &str {
         self.authorization_url.as_str()
     }
 
     /// 返回上游建议的轮询间隔秒数。
-    pub(crate) fn poll_interval_seconds(&self) -> u64 {
+    pub fn poll_interval_seconds(&self) -> u64 {
         self.poll_interval_seconds
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 登录轮询尚在等待或已经取得凭证的结果。
-pub(crate) enum ShijuAccountPoll {
+pub enum ShijuAccountPoll {
     Pending,
     Approved(String),
 }
 
 #[derive(Clone)]
 /// SHIJU Passport 与账户网关客户端。
-pub(crate) struct ShijuAccountClient {
+pub struct ShijuAccountClient {
     http: reqwest::Client,
     knowledge_http: reqwest::Client,
     passport_base: Url,
@@ -112,13 +112,13 @@ pub(crate) struct ShijuAccountClient {
 
 impl ShijuAccountClient {
     /// 使用固定生产端点创建客户端。
-    pub(crate) fn production() -> Result<Self, ShijuAccountError> {
+    pub fn production() -> Result<Self, ShijuAccountError> {
         Self::new(PASSPORT_BASE_URL, GATEWAY_BASE_URL)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     /// 使用显式基础地址创建客户端，供受控环境与测试使用。
-    pub(crate) fn with_base_urls(
+    pub fn with_base_urls(
         passport_base: &str,
         gateway_base: &str,
     ) -> Result<Self, ShijuAccountError> {
@@ -139,7 +139,7 @@ impl ShijuAccountClient {
     }
 
     /// 发起浏览器授权登录并返回轮询挑战。
-    pub(crate) async fn start_login(&self) -> Result<ShijuLoginChallenge, ShijuAccountError> {
+    pub async fn start_login(&self) -> Result<ShijuLoginChallenge, ShijuAccountError> {
         let response = self
             .http
             .post(endpoint(&self.passport_base, LOGIN_PATH)?)
@@ -158,7 +158,7 @@ impl ShijuAccountClient {
     }
 
     /// 使用状态标识轮询登录结果。
-    pub(crate) async fn poll_login(
+    pub async fn poll_login(
         &self,
         state: &str,
     ) -> Result<ShijuAccountPoll, ShijuAccountError> {
@@ -190,7 +190,7 @@ impl ShijuAccountClient {
     }
 
     /// 使用凭证读取当前账户基础资料。
-    pub(crate) async fn profile(
+    pub async fn profile(
         &self,
         credential: &str,
     ) -> Result<ShijuAccountProfileDto, ShijuAccountError> {
@@ -230,7 +230,7 @@ impl ShijuAccountClient {
     }
 
     /// 读取当前用户、角色与部门信息。
-    pub(crate) async fn current_user(
+    pub async fn current_user(
         &self,
         credential: &str,
     ) -> Result<ShijuAccountMeDto, ShijuAccountError> {
@@ -250,7 +250,7 @@ impl ShijuAccountClient {
     }
 
     /// 校验并更新当前用户可编辑资料。
-    pub(crate) async fn update_current_user(
+    pub async fn update_current_user(
         &self,
         credential: &str,
         request: &ShijuAccountUpdateRequest,
@@ -283,7 +283,7 @@ impl ShijuAccountClient {
     }
 
     /// 校验并更新当前账户密码。
-    pub(crate) async fn update_password(
+    pub async fn update_password(
         &self,
         credential: &str,
         request: &ShijuAccountPasswordUpdateRequest,
@@ -305,7 +305,7 @@ impl ShijuAccountClient {
 }
 
 /// 校验密码更新请求的必填项、一致性与最小长度。
-pub(crate) fn validate_password_update_request(
+pub fn validate_password_update_request(
     request: &ShijuAccountPasswordUpdateRequest,
 ) -> Result<(), ShijuAccountError> {
     if request.old_password.trim().is_empty() {

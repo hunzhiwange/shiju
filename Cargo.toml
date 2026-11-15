@@ -101,6 +101,7 @@ members = [
   "crates/libs/app-model-discovery",
   "crates/libs/gateway-shiju-app",
   "crates/libs/gateway-shiju-account",
+  "crates/libs/shiju-client",
   "crates/libs/gateway-channel-qr",
   "crates/libs/gateway-system",
   "crates/libs/gateway-interaction",

@@ -24,7 +24,7 @@ pub(super) fn http_client() -> Result<reqwest::Client, ShijuAccountError> {
 }
 
 impl ShijuAccountClient {
-    pub(crate) async fn knowledge_bases(
+    pub async fn knowledge_bases(
         &self,
         credential: &str,
         query: &ShijuKnowledgePageQuery,
@@ -47,7 +47,7 @@ impl ShijuAccountClient {
         Ok(page)
     }
 
-    pub(crate) async fn knowledge_documents(
+    pub async fn knowledge_documents(
         &self,
         credential: &str,
         kb_zid: &str,
@@ -77,7 +77,7 @@ impl ShijuAccountClient {
         Ok(page)
     }
 
-    pub(crate) async fn knowledge_search(
+    pub async fn knowledge_search(
         &self,
         credential: &str,
         request: &ShijuKnowledgeSearchRequest,

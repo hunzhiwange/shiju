@@ -14,7 +14,7 @@ const AUTHORIZATIONS_PATH: &str = "data/api/v1/me/account-binding-authorizations
 const REQUEST_FAILED: &str = "SHIJU connector request failed";
 
 impl ShijuAccountClient {
-    pub(crate) async fn connectors(
+    pub async fn connectors(
         &self,
         credential: &str,
     ) -> Result<Vec<ShijuConnector>, ShijuAccountError> {
@@ -34,7 +34,7 @@ impl ShijuAccountClient {
         Ok(connectors)
     }
 
-    pub(crate) async fn save_connector_binding(
+    pub async fn save_connector_binding(
         &self,
         credential: &str,
         request: &ShijuConnectorSaveRequest,
@@ -79,7 +79,7 @@ impl ShijuAccountClient {
         Ok(binding)
     }
 
-    pub(crate) async fn authorize_connector(
+    pub async fn authorize_connector(
         &self,
         credential: &str,
         request: &ShijuConnectorAuthorizeRequest,
@@ -110,7 +110,7 @@ impl ShijuAccountClient {
         Ok(challenge)
     }
 
-    pub(crate) async fn poll_connector(
+    pub async fn poll_connector(
         &self,
         credential: &str,
         flow_id: &str,

@@ -22,7 +22,7 @@ struct TokenData {
 }
 
 impl ShijuAccountClient {
-    pub(crate) async fn model_token(
+    pub async fn model_token(
         &self,
         credential: &str,
     ) -> Result<ShijuModelTokenDto, ShijuAccountError> {

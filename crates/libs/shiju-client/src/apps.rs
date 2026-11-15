@@ -22,14 +22,14 @@ const MAX_INSTALLATION_ID_BYTES: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// SHIJU 应用接口错误的稳定分类。
-pub(crate) enum ShijuAppErrorKind {
+pub enum ShijuAppErrorKind {
     InvalidInput,
     Upstream,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// SHIJU 应用接口的本地校验或上游错误。
-pub(crate) struct ShijuAppError {
+pub struct ShijuAppError {
     kind: ShijuAppErrorKind,
     message: &'static str,
 }
@@ -44,7 +44,7 @@ impl ShijuAppError {
     }
 
     /// 返回调用方可用于映射响应的错误分类。
-    pub(crate) fn kind(&self) -> ShijuAppErrorKind {
+    pub fn kind(&self) -> ShijuAppErrorKind {
         self.kind
     }
 }
@@ -59,7 +59,7 @@ impl std::error::Error for ShijuAppError {}
 
 #[derive(Clone)]
 /// SHIJU 应用平台与 IAM 客户端。
-pub(crate) struct ShijuAppClient {
+pub struct ShijuAppClient {
     http: reqwest::Client,
     app_base_url: Url,
     iam_base_url: Url,
@@ -67,13 +67,13 @@ pub(crate) struct ShijuAppClient {
 
 impl ShijuAppClient {
     /// 使用固定生产端点创建客户端。
-    pub(crate) fn production() -> Result<Self, ShijuAppError> {
+    pub fn production() -> Result<Self, ShijuAppError> {
         Self::new(PRODUCTION_APP_BASE_URL, PRODUCTION_IAM_BASE_URL)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     /// 使用显式应用与 IAM 基础地址创建客户端。
-    pub(crate) fn with_base_urls(
+    pub fn with_base_urls(
         app_base_url: &str,
         iam_base_url: &str,
     ) -> Result<Self, ShijuAppError> {
@@ -91,7 +91,7 @@ impl ShijuAppClient {
     }
 
     /// 读取当前凭证可见的应用目录。
-    pub(crate) async fn catalog(
+    pub async fn catalog(
         &self,
         credential: &str,
     ) -> Result<ShijuAppCatalogDto, ShijuAppError> {
@@ -99,7 +99,7 @@ impl ShijuAppClient {
     }
 
     /// 读取当前凭证已安装的应用。
-    pub(crate) async fn installed(
+    pub async fn installed(
         &self,
         credential: &str,
     ) -> Result<ShijuAppListDto, ShijuAppError> {
@@ -107,7 +107,7 @@ impl ShijuAppClient {
     }
 
     /// 读取指定安装实例绑定的 API 密钥。
-    pub(crate) async fn api_key_binding(
+    pub async fn api_key_binding(
         &self,
         credential: &str,
         installation_id: &str,
@@ -118,7 +118,7 @@ impl ShijuAppClient {
     }
 
     /// 列出当前账户可用的 IAM API 密钥。
-    pub(crate) async fn api_keys(
+    pub async fn api_keys(
         &self,
         credential: &str,
     ) -> Result<ShijuIamApiKeyListDto, ShijuAppError> {
@@ -140,7 +140,7 @@ impl ShijuAppClient {
     }
 
     /// 校验安装标识并保存 API 密钥绑定。
-    pub(crate) async fn save_api_key_binding(
+    pub async fn save_api_key_binding(
         &self,
         credential: &str,
         installation_id: &str,
@@ -188,7 +188,7 @@ impl ShijuAppClient {
     /// 建立浏览器会话并返回已校验的应用运行地址。
     ///
     /// 返回地址必须使用 HTTPS、匹配固定运行主机且绑定请求的安装标识。
-    pub(crate) async fn prepare_launch(
+    pub async fn prepare_launch(
         &self,
         credential: &str,
         installation_id: &str,
@@ -365,7 +365,7 @@ fn validate_installation_id(installation_id: &str) -> Result<(), ShijuAppError> 
 }
 
 /// 判断安装标识是否满足长度与字符集约束。
-pub(crate) fn is_valid_installation_id(installation_id: &str) -> bool {
+fn is_valid_installation_id(installation_id: &str) -> bool {
     !installation_id.is_empty()
         && installation_id.len() <= MAX_INSTALLATION_ID_BYTES
         && installation_id.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())

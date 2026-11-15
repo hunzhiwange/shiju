@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+shiju-client = { path = "../libs/shiju-client", version = "0.6.0" }
 session-instructions = { path = "../libs/session-instructions", version = "0.6.0" }
 agent-service = { path = "../libs/agent-service", version = "0.6.0" }
 tool-agents = { path = "../libs/tool-agents", version = "0.6.0" }
@@ -428,6 +429,7 @@ name = "gateway_legacy_handlers"
 path = "tests/gateway_legacy_handlers.rs"
 
 [dev-dependencies]
+shiju-client = { path = "../libs/shiju-client", version = "0.6.0", features = ["test-support"] }
 worktree-core = { path = "../libs/worktree-core", version = "0.6.0", features = ["test-support"] }
 agent-provider = { path = "../libs/agent-provider", version = "0.6.0", features = ["test-support"] }
 agent-project = { path = "../libs/agent-project", version = "0.6.0", features = ["test-support"] }

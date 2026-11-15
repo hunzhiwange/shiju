@@ -6,7 +6,7 @@ const MAX_CONTENT_BYTES: usize = 1024 * 1024;
 const CONTENT_TOO_LARGE: &str = "SHIJU knowledge response exceeds size limit";
 
 impl ShijuAccountClient {
-    pub(crate) async fn knowledge_read(
+    pub async fn knowledge_read(
         &self,
         credential: &str,
         request: &ShijuKnowledgeReadRequest,

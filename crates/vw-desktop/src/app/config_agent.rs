@@ -1,8 +1,4 @@
-//! 桌面应用智能体相关配置的读取、归一化与保存。
-//!
-//! 本模块集中处理配置读取、保存、归一化和跨平台回退边界。
-//! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护配置持久化流程。
-
+//! Desktop message and configuration-source adapters.
 use crate::app::Message;
 use config_observability::ObservabilityConfig;
 use config_hooks::HooksConfig;
@@ -10,7 +6,7 @@ use config_automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use config_reliability::ReliabilityConfig;
 use config_runtime::RuntimeConfig;
 use iced::Task;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use config_skills::SkillsConfig;
 use config_agent::DelegateAgentConfig;
 use vw_config_types::{
@@ -19,1655 +15,377 @@ use vw_config_types::{
     gateway::{GatewayConfig, TunnelConfig},
     memory::{MemoryConfig, StorageConfig},
     proxy::ProxyConfig,
-    reliability::ReliabilityConfig,
     routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig},
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},
     tools::{BrowserConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},
 };
 
+pub use desktop_config::{AcpSettingsSnapshot, resolve_enabled_acp_config};
+
+fn access() -> desktop_config::ConfigAccess {
+ desktop_config::ConfigAccess::new(super::gateway::gateway_client_endpoint(), local_config_path())
+}
 #[cfg(not(target_arch = "wasm32"))]
-use super::gateway::load_config_value_at_path;
-use super::gateway::{
-    apply_main_agent_overrides, gateway_client, run_gateway_call, set_config_value_at_path,
-    spawn_gateway_task,
-};
-
-#[derive(Debug, Clone)]
-pub struct AcpSettingsSnapshot {
-    pub defaults: BTreeMap<String, AcpAgentConfig>,
-    pub catalog: BTreeMap<String, AcpAgentConfig>,
-    pub enabled: BTreeMap<String, AcpAgentConfig>,
-}
-
-const DEFAULT_ENABLED_ACP_AGENTS: &[&str] =
-    &["claude", "gemini", "opencode", "codex", "openclaw", "copilot"];
-
-fn default_enabled_acp_config(
-    catalog: &HashMap<String, AcpAgentConfig>,
-) -> HashMap<String, AcpAgentConfig> {
-    DEFAULT_ENABLED_ACP_AGENTS
-        .iter()
-        .filter_map(|name| catalog.get(*name).cloned().map(|config| ((*name).to_string(), config)))
-        .collect()
-}
-
-pub(in crate::app) fn resolve_enabled_acp_config(
-    catalog: &HashMap<String, AcpAgentConfig>,
-    enabled: HashMap<String, AcpAgentConfig>,
-) -> HashMap<String, AcpAgentConfig> {
-    if enabled.is_empty() { default_enabled_acp_config(catalog) } else { enabled }
-}
-
-fn build_acp_agent_enabled_patch(
-    agent_name: &str,
-    enabled: bool,
-    spec: Option<AcpAgentConfig>,
-    catalog: &HashMap<String, AcpAgentConfig>,
-    configured: HashMap<String, AcpAgentConfig>,
-) -> Result<serde_json::Value, String> {
-    let agent_name = agent_name.trim().to_string();
-    if agent_name.is_empty() {
-        return Err("acp agent name must not be empty".to_string());
-    }
-
-    let mut effective = resolve_enabled_acp_config(catalog, configured.clone());
-    let spec = match spec {
-        Some(spec) => spec,
-        None => catalog
-            .get(&agent_name)
-            .cloned()
-            .ok_or_else(|| format!("unknown acp agent: {agent_name}"))?,
-    };
-
-    let mut acp_patch = serde_json::Map::new();
-    if enabled {
-        effective.insert(agent_name.clone(), spec);
-        if configured.is_empty() {
-            for (name, config) in effective {
-                acp_patch
-                    .insert(name, serde_json::to_value(config).map_err(|err| err.to_string())?);
-            }
-        } else {
-            let config = effective
-                .remove(&agent_name)
-                .ok_or_else(|| format!("unknown acp agent: {agent_name}"))?;
-            acp_patch
-                .insert(agent_name, serde_json::to_value(config).map_err(|err| err.to_string())?);
-        }
-    } else {
-        effective.remove(&agent_name);
-        if configured.is_empty() {
-            for (name, config) in effective {
-                acp_patch
-                    .insert(name, serde_json::to_value(config).map_err(|err| err.to_string())?);
-            }
-        }
-        acp_patch.insert(agent_name, serde_json::Value::Null);
-    }
-
-    let mut root_patch = serde_json::Map::new();
-    root_patch.insert("acp".to_string(), serde_json::Value::Object(acp_patch));
-    Ok(serde_json::Value::Object(root_patch))
-}
-
-fn build_acp_agent_create_patch(
-    agent_name: &str,
-    mut spec: AcpAgentConfig,
-    catalog: &HashMap<String, AcpAgentConfig>,
-    configured: HashMap<String, AcpAgentConfig>,
-) -> Result<serde_json::Value, String> {
-    let agent_name = agent_name.trim();
-    if agent_name.is_empty() {
-        return Err("acp agent name must not be empty".to_string());
-    }
-    if catalog.contains_key(agent_name) {
-        return Err(format!("acp agent already exists: {agent_name}"));
-    }
-
-    spec.command = spec.command.trim().to_string();
-    if spec.command.is_empty() {
-        return Err("acp agent command must not be empty".to_string());
-    }
-    build_acp_agent_enabled_patch(agent_name, true, Some(spec), catalog, configured)
-}
-
-fn build_acp_agent_edit_patch(
-    agent_name: &str,
-    spec: AcpAgentConfig,
-    catalog: &HashMap<String, AcpAgentConfig>,
-    configured: HashMap<String, AcpAgentConfig>,
-) -> Result<serde_json::Value, String> {
-    let name = agent_name.trim();
-    let old = catalog.get(name).ok_or_else(|| format!("unknown acp agent: {name}"))?;
-    if spec.command.trim().is_empty() {
-        return Err("acp agent command must not be empty".into());
-    }
-    let mut value = serde_json::to_value(&spec).map_err(|err| err.to_string())?;
-    for key in old.env.keys().chain(configured.get(name).into_iter().flat_map(|v| v.env.keys())) {
-        if !spec.env.contains_key(key) {
-            value["env"][key] = serde_json::Value::Null;
-        }
-    }
-    let mut patch = serde_json::json!({"acp_saved": {name: value.clone()}});
-    if resolve_enabled_acp_config(catalog, configured.clone()).contains_key(name) {
-        let enabled_patch =
-            build_acp_agent_enabled_patch(name, true, Some(spec), catalog, configured)?;
-        patch["acp"] = enabled_patch["acp"].clone();
-        patch["acp"][name] = value;
-    }
-    Ok(patch)
-}
-
-/// Save launch settings without changing the driver's enabled state.
+fn local_config_path() -> Option<std::path::PathBuf> { super::gateway::project_config_override_path() }
+#[cfg(target_arch = "wasm32")]
+fn local_config_path() -> Option<std::path::PathBuf> { None }
 pub async fn save_global_acp_agent_async(
     agent_name: String,
     spec: AcpAgentConfig,
-) -> Result<AcpSettingsSnapshot, String> {
-    let snapshot = load_acp_settings_snapshot_async().await?;
-    let catalog = snapshot.catalog.into_iter().collect();
-    let configured = fetch_global_agent_config_via_gateway().await?.acp;
-    let patch = build_acp_agent_edit_patch(&agent_name, spec, &catalog, configured)?;
-    patch_agent_config_via_gateway(&patch).await?;
-    load_acp_settings_snapshot_async().await
-}
-
-fn build_main_agent_overrides_patch(config: &Config) -> Result<Option<serde_json::Value>, String> {
-    let Some(main) = config.agents.get("main") else {
-        return Ok(None);
-    };
-
-    let provider = main.provider.trim().to_string();
-    let model = main.model.trim().to_string();
-    let identity =
-        IdentityConfig { format: "openclaw".to_string(), aieos_path: None, aieos_inline: None };
-
-    let mut patch = serde_json::Map::new();
-    if !provider.is_empty() {
-        patch.insert("default_provider".to_string(), serde_json::Value::String(provider.clone()));
-    }
-    if !provider.is_empty() && !model.is_empty() {
-        patch.insert(
-            "default_model".to_string(),
-            serde_json::Value::String(format!("{provider}/{model}")),
-        );
-    }
-    if let Some(temperature) = main.temperature
-        && let Some(number) = serde_json::Number::from_f64(temperature)
-    {
-        patch.insert("default_temperature".to_string(), serde_json::Value::Number(number));
-    }
-    let identity_value = serde_json::to_value(identity).map_err(|err| err.to_string())?;
-    patch.insert("identity".to_string(), identity_value);
-
-    Ok(Some(serde_json::Value::Object(patch)))
-}
-
-async fn fetch_agent_config_via_gateway() -> Result<Config, String> {
-    let client = gateway_client()?;
-    let value = gateway_config::GatewayConfigClient::new(client.transport().clone()).config_get(None).await?;
-    let mut config = serde_json::from_value::<Config>(value).map_err(|err| err.to_string())?;
-    apply_main_agent_overrides(&mut config);
-    Ok(config)
-}
-
-async fn fetch_global_agent_config_via_gateway() -> Result<Config, String> {
-    let client = gateway_client()?;
-    let value = gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await?;
-    let mut config = serde_json::from_value::<Config>(value).map_err(|err| err.to_string())?;
-    apply_main_agent_overrides(&mut config);
-    Ok(config)
-}
-
-async fn fetch_global_config_value_via_gateway() -> Result<serde_json::Value, String> {
-    let client = gateway_client()?;
-    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_get().await
-}
-
+) -> Result<AcpSettingsSnapshot, String> { access().save_global_acp_agent_async(agent_name, spec).await }
 #[cfg(not(target_arch = "wasm32"))]
-pub(in crate::app) fn load_local_agent_config() -> Option<Config> {
-    let mut config = load_config_value_at_path::<Config>(&[])?;
-    config.gateway.skeys.clear();
-    apply_main_agent_overrides(&mut config);
-    Some(config)
-}
-
-#[cfg(target_arch = "wasm32")]
-fn load_local_agent_config() -> Option<Config> {
-    None
-}
-
-async fn fetch_global_acp_config_via_gateway() -> Result<HashMap<String, AcpAgentConfig>, String> {
-    let client = gateway_client()?;
-    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_acp_config_get().await
-}
-
-async fn patch_agent_config_via_gateway(patch: &serde_json::Value) -> Result<(), String> {
-    let client = gateway_client()?;
-    gateway_config::GatewayConfigClient::new(client.transport().clone()).global_config_patch(patch).await
-}
-
-fn load_agent_config_via_gateway() -> Config {
-    let result = run_gateway_call(async { fetch_agent_config_via_gateway().await });
-
-    match result {
-        Ok(config) => config,
-        Err(err) => {
-            if gateway_http::is_gateway_unavailable_error(&err) {
-                tracing::debug!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
-            } else {
-                tracing::warn!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
-            }
-            if let Some(config) = load_local_agent_config() {
-                return config;
-            }
-            Config::default()
-        }
-    }
-}
-
-#[allow(dead_code)]
-fn patch_agent_config(path: &[&str], value: serde_json::Value) {
-    let mut patch = serde_json::json!({});
-    set_config_value_at_path(&mut patch, path, value);
-
-    let outcome = run_gateway_call(async { patch_agent_config_via_gateway(&patch).await });
-
-    if let Err(err) = outcome {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to patch agent config via gateway");
-    }
-}
-
-/// 读取、保存或转换 `load_full_agent_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub async fn load_full_agent_config_async() -> Result<Config, String> {
-    fetch_agent_config_via_gateway().await
-}
-
-pub async fn load_project_agent_config_async(project_path: &str) -> Result<Config, String> {
-    let client = gateway_client()?;
-    let value = gateway_config::GatewayConfigClient::new(client.transport().clone()).config_get(Some(project_path)).await?;
-    serde_json::from_value(value).map_err(|error| error.to_string())
-}
-
-/// 读取全局配置原始 JSON，用于尚未进入 `Config` 强类型结构的字段。
-pub async fn load_global_config_value_async() -> Result<serde_json::Value, String> {
-    fetch_global_config_value_via_gateway().await
-}
-
-/// 读取 MCP server 连接状态与工具预览。
+pub(in crate::app) fn load_local_agent_config() -> Option<Config> { access().load_local_agent_config() }
+pub async fn load_full_agent_config_async() -> Result<Config, String> { access().load_full_agent_config_async().await }
+pub async fn load_project_agent_config_async(project_path: &str) -> Result<Config, String> { access().load_project_agent_config_async(project_path).await }
+pub async fn load_global_config_value_async() -> Result<serde_json::Value, String> { access().load_global_config_value_async().await }
 pub async fn load_mcp_inspect_async()
--> Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String> {
-    let client = gateway_client()?;
-    client.mcp_inspect().await
-}
-
-/// 读取、保存或转换 `load_browser_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub async fn load_browser_config_async() -> Result<BrowserConfig, String> {
-    Ok(load_full_agent_config_async().await?.browser)
-}
-
-/// 读取、保存或转换 `load_gateway_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub fn load_gateway_config_result() -> Result<GatewayConfig, String> {
-    match run_gateway_call(async { fetch_global_agent_config_via_gateway().await }) {
-        Ok(config) => Ok(config.gateway),
-        Err(err) => load_local_agent_config().map(|config| config.gateway).ok_or(err),
-    }
-}
-
-/// 读取、保存或转换 `load_global_acp_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub fn load_global_acp_config_result() -> Result<HashMap<String, AcpAgentConfig>, String> {
-    run_gateway_call(async { fetch_global_acp_config_via_gateway().await })
-}
-
-/// 读取、保存或转换 `load_global_acp_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub async fn load_global_acp_config_async() -> Result<HashMap<String, AcpAgentConfig>, String> {
-    fetch_global_acp_config_via_gateway().await
-}
-
-pub fn load_enabled_acp_config_result() -> Result<HashMap<String, AcpAgentConfig>, String> {
-    run_gateway_call(async {
-        let catalog = fetch_global_acp_config_via_gateway().await?;
-        let enabled = fetch_global_agent_config_via_gateway().await?.acp;
-        Ok(resolve_enabled_acp_config(&catalog, enabled))
-    })
-}
-
-pub async fn load_enabled_acp_config_async() -> Result<HashMap<String, AcpAgentConfig>, String> {
-    let catalog = fetch_global_acp_config_via_gateway().await?;
-    let enabled = fetch_global_agent_config_via_gateway().await?.acp;
-    Ok(resolve_enabled_acp_config(&catalog, enabled))
-}
-
-pub async fn load_acp_settings_snapshot_async() -> Result<AcpSettingsSnapshot, String> {
-    let defaults = gateway_config::GatewayConfigClient::new(gateway_client()?.transport().clone()).global_acp_defaults_get().await?;
-    let mut catalog = fetch_global_acp_config_via_gateway().await?;
-    let config = fetch_global_agent_config_via_gateway().await?;
-    catalog.extend(config.acp_saved);
-    let enabled = resolve_enabled_acp_config(&catalog, config.acp);
-
-    Ok(AcpSettingsSnapshot {
-        defaults,
-        catalog: catalog.into_iter().collect(),
-        enabled: enabled.into_iter().collect(),
-    })
-}
-
+-> Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String> { access().load_mcp_inspect_async().await }
+pub async fn load_browser_config_async() -> Result<BrowserConfig, String> { access().load_browser_config_async().await }
+pub fn load_gateway_config_result() -> Result<GatewayConfig, String> { access().load_gateway_config_result() }
+pub fn load_global_acp_config_result() -> Result<HashMap<String, AcpAgentConfig>, String> { access().load_global_acp_config_result() }
+pub async fn load_global_acp_config_async() -> Result<HashMap<String, AcpAgentConfig>, String> { access().load_global_acp_config_async().await }
+pub fn load_enabled_acp_config_result() -> Result<HashMap<String, AcpAgentConfig>, String> { access().load_enabled_acp_config_result() }
+pub async fn load_enabled_acp_config_async() -> Result<HashMap<String, AcpAgentConfig>, String> { access().load_enabled_acp_config_async().await }
+pub async fn load_acp_settings_snapshot_async() -> Result<AcpSettingsSnapshot, String> { access().load_acp_settings_snapshot_async().await }
 pub async fn set_global_acp_agent_enabled_async(
     agent_name: String,
     enabled: bool,
     spec: Option<AcpAgentConfig>,
-) -> Result<AcpSettingsSnapshot, String> {
-    let catalog = fetch_global_acp_config_via_gateway().await?;
-    let configured = fetch_global_agent_config_via_gateway().await?.acp;
-    let patch = build_acp_agent_enabled_patch(&agent_name, enabled, spec, &catalog, configured)?;
-
-    patch_agent_config_via_gateway(&patch).await?;
-
-    load_acp_settings_snapshot_async().await
-}
-
+) -> Result<AcpSettingsSnapshot, String> { access().set_global_acp_agent_enabled_async(agent_name, enabled, spec).await }
 pub async fn add_global_acp_agent_async(
     agent_name: String,
     spec: AcpAgentConfig,
-) -> Result<AcpSettingsSnapshot, String> {
-    let catalog = fetch_global_acp_config_via_gateway().await?;
-    let configured = fetch_global_agent_config_via_gateway().await?.acp;
-    let patch = build_acp_agent_create_patch(&agent_name, spec, &catalog, configured)?;
-
-    patch_agent_config_via_gateway(&patch).await?;
-
-    load_acp_settings_snapshot_async().await
-}
-
-/// 读取、保存或转换 `patch_full_agent_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub async fn patch_full_agent_config_async(patch: serde_json::Value) -> Result<(), String> {
-    patch_agent_config_via_gateway(&patch).await
-}
-
+) -> Result<AcpSettingsSnapshot, String> { access().add_global_acp_agent_async(agent_name, spec).await }
+pub async fn patch_full_agent_config_async(patch: serde_json::Value) -> Result<(), String> { access().patch_full_agent_config_async(patch).await }
 pub async fn patch_project_agent_config_async(
     project_path: &str,
     patch: serde_json::Value,
-) -> Result<(), String> {
-    let client = gateway_client()?;
-    gateway_config::GatewayConfigClient::new(client.transport().clone()).config_patch(Some(project_path), &patch).await.map(|_| ())
-}
-
-/// 读取、保存或转换 `patch_agent_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub fn patch_agent_config_result(path: &[&str], value: serde_json::Value) -> Result<(), String> {
-    let mut patch = serde_json::json!({});
-    set_config_value_at_path(&mut patch, path, value);
-
-    run_gateway_call(async { patch_agent_config_via_gateway(&patch).await })
-}
-
-/// 读取、保存或转换 `update_gateway_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub fn update_gateway_config_result(update: impl FnOnce(&mut GatewayConfig)) -> Result<(), String> {
-    let mut cfg = load_gateway_config_result()?;
-    update(&mut cfg);
-    let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-
-    run_gateway_call(async {
-        patch_agent_config_via_gateway(&serde_json::json!({ "gateway": value })).await
-    })
-}
-
-/// 读取、保存或转换 `remove_global_provider_via_gateway` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub async fn remove_global_provider_via_gateway(provider_id: &str) -> Result<(), String> {
-    let provider_id = provider_id.trim();
-    if provider_id.is_empty() {
-        return Err("provider_id must not be empty".to_string());
-    }
-
-    let mut providers = serde_json::Map::new();
-    providers.insert(provider_id.to_string(), serde_json::Value::Null);
-
-    let mut root = serde_json::Map::new();
-    root.insert("providers".to_string(), serde_json::Value::Object(providers));
-
-    patch_agent_config_via_gateway(&serde_json::Value::Object(root)).await
-}
-
-macro_rules! define_agent_config_update_result_fns {
-    ($(($result_name:ident, $name:ident, $ty:ty, $field:ident, $path:expr)),* $(,)?) => {
-        $(
-            #[cfg(not(target_arch = "wasm32"))]
-            pub fn $result_name(update: impl FnOnce(&mut $ty)) -> Result<(), String> {
-                let mut cfg = load_full_agent_config_result()?.$field;
-                update(&mut cfg);
-                let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-                patch_agent_config_result($path, value)
-            }
-
-            #[cfg(not(target_arch = "wasm32"))]
-            pub fn $name(update: impl FnOnce(&mut $ty)) {
-                if let Err(err) = $result_name(update) {
-                    tracing::warn!(target: "vw_desktop", error = %err, "failed to update agent config via gateway");
-                }
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            pub fn $result_name(_update: impl FnOnce(&mut $ty)) -> Result<(), String> {
-                Ok(())
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            pub fn $name(_update: impl FnOnce(&mut $ty)) {}
-        )*
-    };
-}
-
-macro_rules! define_agent_config_update_result_async_fns {
-    ($(($async_result_name:ident, $ty:ty, $field:ident, $path:expr)),* $(,)?) => {
-        $(
-            pub async fn $async_result_name(update: impl FnOnce(&mut $ty)) -> Result<(), String> {
-                let mut cfg = load_full_agent_config_async().await?.$field;
-                update(&mut cfg);
-                let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-                patch_full_agent_config_async(serde_json::json!({ $path[0]: value })).await
-            }
-        )*
-    };
-}
-
-macro_rules! define_agent_config_update_async_fns {
-    ($(($async_name:ident, $async_result_name:ident, $ty:ty, $field:ident, $path:expr)),* $(,)?) => {
-        $(
-            pub fn $async_name(update: impl FnOnce(&mut $ty) + Send + 'static) -> Task<Message> {
-                spawn_gateway_task($path[0], async move { $async_result_name(update).await })
-            }
-        )*
-    };
-}
-
-/// 读取、保存或转换 `load_gateway_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_gateway_config() -> GatewayConfig {
-    load_gateway_config_result().unwrap_or_else(|err| {
-        if gateway_http::is_gateway_unavailable_error(&err) {
-            tracing::debug!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");
-        } else {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");
-        }
-        GatewayConfig::default()
-    })
-}
-
-/// 读取、保存或转换 `load_heartbeat_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_heartbeat_config() -> HeartbeatConfig {
-    load_agent_config_via_gateway().heartbeat
-}
-
-/// 读取、保存或转换 `load_cron_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_cron_config() -> CronConfig {
-    load_agent_config_via_gateway().cron
-}
-
-/// 读取、保存或转换 `load_scheduler_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_scheduler_config() -> SchedulerConfig {
-    load_agent_config_via_gateway().scheduler
-}
-
-/// 读取、保存或转换 `load_reliability_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_reliability_config() -> ReliabilityConfig {
-    load_agent_config_via_gateway().reliability
-}
-
-/// 读取、保存或转换 `load_memory_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_memory_config() -> MemoryConfig {
-    load_agent_config_via_gateway().memory
-}
-
-/// 读取、保存或转换 `load_security_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_security_config() -> SecurityConfig {
-    load_agent_config_via_gateway().security
-}
-
-/// 读取、保存或转换 `load_channels_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_channels_config() -> ChannelsConfig {
-    load_agent_config_via_gateway().channels_config
-}
-
-/// 读取、保存或转换 `load_observability_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_observability_config() -> ObservabilityConfig {
-    load_agent_config_via_gateway().observability
-}
-
-/// 读取、保存或转换 `load_storage_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_storage_config() -> StorageConfig {
-    load_agent_config_via_gateway().storage
-}
-
-/// 读取、保存或转换 `load_proxy_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_proxy_config() -> ProxyConfig {
-    load_agent_config_via_gateway().proxy
-}
-
-/// 读取、保存或转换 `load_browser_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_browser_config() -> BrowserConfig {
-    load_agent_config_via_gateway().browser
-}
-
-/// 读取、保存或转换 `load_http_request_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_http_request_config() -> HttpRequestConfig {
-    load_agent_config_via_gateway().http_request
-}
-
-/// 读取、保存或转换 `load_multimodal_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_multimodal_config() -> MultimodalConfig {
-    load_agent_config_via_gateway().multimodal
-}
-
-/// 读取、保存或转换 `load_web_search_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_web_search_config() -> WebSearchConfig {
-    load_agent_config_via_gateway().web_search
-}
-
+) -> Result<(), String> { access().patch_project_agent_config_async(project_path, patch).await }
+pub fn patch_agent_config_result(path: &[&str], value: serde_json::Value) -> Result<(), String> { access().patch_agent_config_result(path, value) }
+pub fn update_gateway_config_result(update: impl FnOnce(&mut GatewayConfig)) -> Result<(), String> { access().update_gateway_config_result(update) }
+pub async fn remove_global_provider_via_gateway(provider_id: &str) -> Result<(), String> { access().remove_global_provider_via_gateway(provider_id).await }
+pub fn load_gateway_config() -> GatewayConfig { access().load_gateway_config() }
+pub fn load_heartbeat_config() -> HeartbeatConfig { access().load_heartbeat_config() }
+pub fn load_cron_config() -> CronConfig { access().load_cron_config() }
+pub fn load_scheduler_config() -> SchedulerConfig { access().load_scheduler_config() }
+pub fn load_reliability_config() -> ReliabilityConfig { access().load_reliability_config() }
+pub fn load_memory_config() -> MemoryConfig { access().load_memory_config() }
+pub fn load_security_config() -> SecurityConfig { access().load_security_config() }
+pub fn load_channels_config() -> ChannelsConfig { access().load_channels_config() }
+pub fn load_observability_config() -> ObservabilityConfig { access().load_observability_config() }
+pub fn load_storage_config() -> StorageConfig { access().load_storage_config() }
+pub fn load_proxy_config() -> ProxyConfig { access().load_proxy_config() }
+pub fn load_browser_config() -> BrowserConfig { access().load_browser_config() }
+pub fn load_http_request_config() -> HttpRequestConfig { access().load_http_request_config() }
+pub fn load_multimodal_config() -> MultimodalConfig { access().load_multimodal_config() }
+pub fn load_web_search_config() -> WebSearchConfig { access().load_web_search_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_tunnel_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_tunnel_config() -> TunnelConfig {
-    load_agent_config_via_gateway().tunnel
-}
-
+pub fn load_tunnel_config() -> TunnelConfig { access().load_tunnel_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_hooks_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_hooks_config() -> HooksConfig {
-    load_agent_config_via_gateway().hooks
-}
-
+pub fn load_hooks_config() -> HooksConfig { access().load_hooks_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_skills_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_skills_config() -> SkillsConfig {
-    load_agent_config_via_gateway().skills
-}
-
+pub fn load_skills_config() -> SkillsConfig { access().load_skills_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_delegate_agents_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> {
-    load_agent_config_via_gateway().agents
-}
-
+pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> { access().load_delegate_agents_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_embedding_routes_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_embedding_routes_config() -> Vec<EmbeddingRouteConfig> {
-    load_agent_config_via_gateway().embedding_routes
-}
-
+pub fn load_embedding_routes_config() -> Vec<EmbeddingRouteConfig> { access().load_embedding_routes_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_autonomy_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_autonomy_config() -> AutonomyConfig {
-    load_agent_config_via_gateway().autonomy
-}
-
+pub fn load_autonomy_config() -> AutonomyConfig { access().load_autonomy_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_identity_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_identity_config() -> IdentityConfig {
-    load_agent_config_via_gateway().identity
-}
-
+pub fn load_identity_config() -> IdentityConfig { access().load_identity_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_full_agent_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_full_agent_config() -> Config {
-    load_agent_config_via_gateway()
-}
-
+pub fn load_full_agent_config() -> Config { access().load_full_agent_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_full_agent_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub fn load_full_agent_config_result() -> Result<Config, String> {
-    match run_gateway_call(async { fetch_agent_config_via_gateway().await }) {
-        Ok(config) => Ok(config),
-        Err(err) => load_local_agent_config().ok_or(err),
-    }
-}
-
+pub fn load_full_agent_config_result() -> Result<Config, String> { access().load_full_agent_config_result() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `update_gateway_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn update_gateway_config(update: impl FnOnce(&mut GatewayConfig)) {
-    let mut cfg = load_gateway_config();
-    update(&mut cfg);
-    if let Ok(value) = serde_json::to_value(cfg) {
-        patch_agent_config(&["gateway"], value);
-    }
-}
-
+pub fn update_gateway_config(update: impl FnOnce(&mut GatewayConfig)) { access().update_gateway_config(update) }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_runtime_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_runtime_config() -> RuntimeConfig {
-    load_agent_config_via_gateway().runtime
-}
-
+pub fn load_runtime_config() -> RuntimeConfig { access().load_runtime_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_model_routes_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_model_routes_config() -> Vec<ModelRouteConfig> {
-    load_agent_config_via_gateway().model_routes
-}
-
+pub fn load_model_routes_config() -> Vec<ModelRouteConfig> { access().load_model_routes_config() }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_query_classification_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_query_classification_config() -> QueryClassificationConfig {
-    load_agent_config_via_gateway().query_classification
-}
-
+pub fn load_query_classification_config() -> QueryClassificationConfig { access().load_query_classification_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_tunnel_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_tunnel_config() -> TunnelConfig {
-    TunnelConfig::default()
-}
+pub fn load_tunnel_config() -> TunnelConfig { access().load_tunnel_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_hooks_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_hooks_config() -> HooksConfig {
-    HooksConfig::default()
-}
+pub fn load_hooks_config() -> HooksConfig { access().load_hooks_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_skills_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_skills_config() -> SkillsConfig {
-    SkillsConfig::default()
-}
+pub fn load_skills_config() -> SkillsConfig { access().load_skills_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_delegate_agents_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> {
-    HashMap::new()
-}
-
+pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> { access().load_delegate_agents_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_embedding_routes_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_embedding_routes_config() -> Vec<EmbeddingRouteConfig> {
-    Vec::new()
-}
+pub fn load_embedding_routes_config() -> Vec<EmbeddingRouteConfig> { access().load_embedding_routes_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_autonomy_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_autonomy_config() -> AutonomyConfig {
-    AutonomyConfig::default()
-}
+pub fn load_autonomy_config() -> AutonomyConfig { access().load_autonomy_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_identity_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_identity_config() -> IdentityConfig {
-    IdentityConfig::default()
-}
+pub fn load_identity_config() -> IdentityConfig { access().load_identity_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_full_agent_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_full_agent_config() -> Config {
-    Config::default()
-}
+pub fn load_full_agent_config() -> Config { access().load_full_agent_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_full_agent_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub fn load_full_agent_config_result() -> Result<Config, String> {
-    Ok(Config::default())
-}
+pub fn load_full_agent_config_result() -> Result<Config, String> { access().load_full_agent_config_result() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `update_gateway_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn update_gateway_config(_update: impl FnOnce(&mut GatewayConfig)) {}
+pub fn update_gateway_config(_update: impl FnOnce(&mut GatewayConfig)) { access().update_gateway_config(_update) }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_runtime_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_runtime_config() -> RuntimeConfig {
-    RuntimeConfig::default()
-}
+pub fn load_runtime_config() -> RuntimeConfig { access().load_runtime_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_model_routes_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_model_routes_config() -> Vec<ModelRouteConfig> {
-    Vec::new()
-}
+pub fn load_model_routes_config() -> Vec<ModelRouteConfig> { access().load_model_routes_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_query_classification_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_query_classification_config() -> QueryClassificationConfig {
-    QueryClassificationConfig::default()
-}
-
+pub fn load_query_classification_config() -> QueryClassificationConfig { access().load_query_classification_config() }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `update_delegate_agents_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn update_delegate_agents_config(
     _update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>),
-) {
-}
-
+) { access().update_delegate_agents_config(_update) }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `update_delegate_agents_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn update_delegate_agents_config_result(
     _update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>),
-) -> Result<(), String> {
-    Ok(())
-}
-
+) -> Result<(), String> { access().update_delegate_agents_config_result(_update) }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `update_main_agent_overrides_from_delegate_agents` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn update_main_agent_overrides_from_delegate_agents() {}
-
-define_agent_config_update_result_fns!(
-    (update_heartbeat_config_result, update_heartbeat_config, HeartbeatConfig, heartbeat, &["heartbeat"]),
-    (update_cron_config_result, update_cron_config, CronConfig, cron, &["cron"]),
-    (update_scheduler_config_result, update_scheduler_config, SchedulerConfig, scheduler, &["scheduler"]),
-    (update_reliability_config_result, update_reliability_config, ReliabilityConfig, reliability, &["reliability"]),
-    (update_memory_config_result, update_memory_config, MemoryConfig, memory, &["memory"]),
-    (update_security_config_result, update_security_config, SecurityConfig, security, &["security"]),
-    (update_channels_config_result, update_channels_config, ChannelsConfig, channels_config, &["channels_config"]),
-    (update_observability_config_result, update_observability_config, ObservabilityConfig, observability, &["observability"]),
-    (update_storage_config_result, update_storage_config, StorageConfig, storage, &["storage"]),
-    (update_proxy_config_result, update_proxy_config, ProxyConfig, proxy, &["proxy"]),
-    (update_browser_config_result, update_browser_config, BrowserConfig, browser, &["browser"]),
-    (update_http_request_config_result, update_http_request_config, HttpRequestConfig, http_request, &["http_request"]),
-    (update_multimodal_config_result, update_multimodal_config, MultimodalConfig, multimodal, &["multimodal"]),
-    (update_web_search_config_result, update_web_search_config, WebSearchConfig, web_search, &["web_search"]),
-    (update_tunnel_config_result, update_tunnel_config, TunnelConfig, tunnel, &["tunnel"]),
-    (update_hooks_config_result, update_hooks_config, HooksConfig, hooks, &["hooks"]),
-    (update_skills_config_result, update_skills_config, SkillsConfig, skills, &["skills"]),
-    (update_runtime_config_result, update_runtime_config, RuntimeConfig, runtime, &["runtime"]),
-    (update_model_routes_config_result, update_model_routes_config, Vec<ModelRouteConfig>, model_routes, &["model_routes"]),
-    (update_embedding_routes_config_result, update_embedding_routes_config, Vec<EmbeddingRouteConfig>, embedding_routes, &["embedding_routes"]),
-    (update_query_classification_config_result, update_query_classification_config, QueryClassificationConfig, query_classification, &["query_classification"]),
-    (update_autonomy_config_result, update_autonomy_config, AutonomyConfig, autonomy, &["autonomy"]),
-);
-
-define_agent_config_update_result_async_fns!(
-    (update_heartbeat_config_result_async, HeartbeatConfig, heartbeat, &["heartbeat"]),
-    (update_cron_config_result_async, CronConfig, cron, &["cron"]),
-    (update_scheduler_config_result_async, SchedulerConfig, scheduler, &["scheduler"]),
-    (update_reliability_config_result_async, ReliabilityConfig, reliability, &["reliability"]),
-    (update_memory_config_result_async, MemoryConfig, memory, &["memory"]),
-    (update_security_config_result_async, SecurityConfig, security, &["security"]),
-    (update_channels_config_result_async, ChannelsConfig, channels_config, &["channels_config"]),
-    (update_observability_config_result_async, ObservabilityConfig, observability, &["observability"]),
-    (update_storage_config_result_async, StorageConfig, storage, &["storage"]),
-    (update_proxy_config_result_async, ProxyConfig, proxy, &["proxy"]),
-    (update_browser_config_result_async, BrowserConfig, browser, &["browser"]),
-    (update_http_request_config_result_async, HttpRequestConfig, http_request, &["http_request"]),
-    (update_multimodal_config_result_async, MultimodalConfig, multimodal, &["multimodal"]),
-    (update_web_search_config_result_async, WebSearchConfig, web_search, &["web_search"]),
-    (update_tunnel_config_result_async, TunnelConfig, tunnel, &["tunnel"]),
-    (update_hooks_config_result_async, HooksConfig, hooks, &["hooks"]),
-    (update_skills_config_result_async, SkillsConfig, skills, &["skills"]),
-    (update_runtime_config_result_async, RuntimeConfig, runtime, &["runtime"]),
-    (update_model_routes_config_result_async, Vec<ModelRouteConfig>, model_routes, &["model_routes"]),
-    (update_embedding_routes_config_result_async, Vec<EmbeddingRouteConfig>, embedding_routes, &["embedding_routes"]),
-    (update_query_classification_config_result_async, QueryClassificationConfig, query_classification, &["query_classification"]),
-    (update_autonomy_config_result_async, AutonomyConfig, autonomy, &["autonomy"]),
-);
-
-define_agent_config_update_async_fns!(
-    (update_heartbeat_config_async, update_heartbeat_config_result_async, HeartbeatConfig, heartbeat, &["heartbeat"]),
-    (update_cron_config_async, update_cron_config_result_async, CronConfig, cron, &["cron"]),
-    (update_scheduler_config_async, update_scheduler_config_result_async, SchedulerConfig, scheduler, &["scheduler"]),
-    (update_reliability_config_async, update_reliability_config_result_async, ReliabilityConfig, reliability, &["reliability"]),
-    (update_memory_config_async, update_memory_config_result_async, MemoryConfig, memory, &["memory"]),
-    (update_security_config_async, update_security_config_result_async, SecurityConfig, security, &["security"]),
-    (update_channels_config_async, update_channels_config_result_async, ChannelsConfig, channels_config, &["channels_config"]),
-    (update_observability_config_async, update_observability_config_result_async, ObservabilityConfig, observability, &["observability"]),
-    (update_storage_config_async, update_storage_config_result_async, StorageConfig, storage, &["storage"]),
-    (update_proxy_config_async, update_proxy_config_result_async, ProxyConfig, proxy, &["proxy"]),
-    (update_browser_config_async, update_browser_config_result_async, BrowserConfig, browser, &["browser"]),
-    (update_http_request_config_async, update_http_request_config_result_async, HttpRequestConfig, http_request, &["http_request"]),
-    (update_multimodal_config_async, update_multimodal_config_result_async, MultimodalConfig, multimodal, &["multimodal"]),
-    (update_web_search_config_async, update_web_search_config_result_async, WebSearchConfig, web_search, &["web_search"]),
-    (update_tunnel_config_async, update_tunnel_config_result_async, TunnelConfig, tunnel, &["tunnel"]),
-    (update_hooks_config_async, update_hooks_config_result_async, HooksConfig, hooks, &["hooks"]),
-    (update_skills_config_async, update_skills_config_result_async, SkillsConfig, skills, &["skills"]),
-    (update_runtime_config_async, update_runtime_config_result_async, RuntimeConfig, runtime, &["runtime"]),
-    (update_model_routes_config_async, update_model_routes_config_result_async, Vec<ModelRouteConfig>, model_routes, &["model_routes"]),
-    (update_embedding_routes_config_async, update_embedding_routes_config_result_async, Vec<EmbeddingRouteConfig>, embedding_routes, &["embedding_routes"]),
-    (update_query_classification_config_async, update_query_classification_config_result_async, QueryClassificationConfig, query_classification, &["query_classification"]),
-    (update_autonomy_config_async, update_autonomy_config_result_async, AutonomyConfig, autonomy, &["autonomy"]),
-);
-
-/// 读取、保存或转换 `update_gateway_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
+pub fn update_main_agent_overrides_from_delegate_agents() { access().update_main_agent_overrides_from_delegate_agents() }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_heartbeat_config_result(update: impl FnOnce(&mut HeartbeatConfig)) -> Result<(), String> { access().update_heartbeat_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_heartbeat_config(update: impl FnOnce(&mut HeartbeatConfig)) { access().update_heartbeat_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_heartbeat_config_result(_update: impl FnOnce(&mut HeartbeatConfig)) -> Result<(), String> { access().update_heartbeat_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_heartbeat_config(_update: impl FnOnce(&mut HeartbeatConfig)) { access().update_heartbeat_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_cron_config_result(update: impl FnOnce(&mut CronConfig)) -> Result<(), String> { access().update_cron_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_cron_config(update: impl FnOnce(&mut CronConfig)) { access().update_cron_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_cron_config_result(_update: impl FnOnce(&mut CronConfig)) -> Result<(), String> { access().update_cron_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_cron_config(_update: impl FnOnce(&mut CronConfig)) { access().update_cron_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_scheduler_config_result(update: impl FnOnce(&mut SchedulerConfig)) -> Result<(), String> { access().update_scheduler_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_scheduler_config(update: impl FnOnce(&mut SchedulerConfig)) { access().update_scheduler_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_scheduler_config_result(_update: impl FnOnce(&mut SchedulerConfig)) -> Result<(), String> { access().update_scheduler_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_scheduler_config(_update: impl FnOnce(&mut SchedulerConfig)) { access().update_scheduler_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_reliability_config_result(update: impl FnOnce(&mut ReliabilityConfig)) -> Result<(), String> { access().update_reliability_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_reliability_config(update: impl FnOnce(&mut ReliabilityConfig)) { access().update_reliability_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_reliability_config_result(_update: impl FnOnce(&mut ReliabilityConfig)) -> Result<(), String> { access().update_reliability_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_reliability_config(_update: impl FnOnce(&mut ReliabilityConfig)) { access().update_reliability_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_memory_config_result(update: impl FnOnce(&mut MemoryConfig)) -> Result<(), String> { access().update_memory_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_memory_config(update: impl FnOnce(&mut MemoryConfig)) { access().update_memory_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_memory_config_result(_update: impl FnOnce(&mut MemoryConfig)) -> Result<(), String> { access().update_memory_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_memory_config(_update: impl FnOnce(&mut MemoryConfig)) { access().update_memory_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_security_config_result(update: impl FnOnce(&mut SecurityConfig)) -> Result<(), String> { access().update_security_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_security_config(update: impl FnOnce(&mut SecurityConfig)) { access().update_security_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_security_config_result(_update: impl FnOnce(&mut SecurityConfig)) -> Result<(), String> { access().update_security_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_security_config(_update: impl FnOnce(&mut SecurityConfig)) { access().update_security_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_channels_config_result(update: impl FnOnce(&mut ChannelsConfig)) -> Result<(), String> { access().update_channels_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_channels_config(update: impl FnOnce(&mut ChannelsConfig)) { access().update_channels_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_channels_config_result(_update: impl FnOnce(&mut ChannelsConfig)) -> Result<(), String> { access().update_channels_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_channels_config(_update: impl FnOnce(&mut ChannelsConfig)) { access().update_channels_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_observability_config_result(update: impl FnOnce(&mut ObservabilityConfig)) -> Result<(), String> { access().update_observability_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_observability_config(update: impl FnOnce(&mut ObservabilityConfig)) { access().update_observability_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_observability_config_result(_update: impl FnOnce(&mut ObservabilityConfig)) -> Result<(), String> { access().update_observability_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_observability_config(_update: impl FnOnce(&mut ObservabilityConfig)) { access().update_observability_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_storage_config_result(update: impl FnOnce(&mut StorageConfig)) -> Result<(), String> { access().update_storage_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_storage_config(update: impl FnOnce(&mut StorageConfig)) { access().update_storage_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_storage_config_result(_update: impl FnOnce(&mut StorageConfig)) -> Result<(), String> { access().update_storage_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_storage_config(_update: impl FnOnce(&mut StorageConfig)) { access().update_storage_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_proxy_config_result(update: impl FnOnce(&mut ProxyConfig)) -> Result<(), String> { access().update_proxy_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_proxy_config(update: impl FnOnce(&mut ProxyConfig)) { access().update_proxy_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_proxy_config_result(_update: impl FnOnce(&mut ProxyConfig)) -> Result<(), String> { access().update_proxy_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_proxy_config(_update: impl FnOnce(&mut ProxyConfig)) { access().update_proxy_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_browser_config_result(update: impl FnOnce(&mut BrowserConfig)) -> Result<(), String> { access().update_browser_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_browser_config(update: impl FnOnce(&mut BrowserConfig)) { access().update_browser_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_browser_config_result(_update: impl FnOnce(&mut BrowserConfig)) -> Result<(), String> { access().update_browser_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_browser_config(_update: impl FnOnce(&mut BrowserConfig)) { access().update_browser_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_http_request_config_result(update: impl FnOnce(&mut HttpRequestConfig)) -> Result<(), String> { access().update_http_request_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_http_request_config(update: impl FnOnce(&mut HttpRequestConfig)) { access().update_http_request_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_http_request_config_result(_update: impl FnOnce(&mut HttpRequestConfig)) -> Result<(), String> { access().update_http_request_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_http_request_config(_update: impl FnOnce(&mut HttpRequestConfig)) { access().update_http_request_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_multimodal_config_result(update: impl FnOnce(&mut MultimodalConfig)) -> Result<(), String> { access().update_multimodal_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_multimodal_config(update: impl FnOnce(&mut MultimodalConfig)) { access().update_multimodal_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_multimodal_config_result(_update: impl FnOnce(&mut MultimodalConfig)) -> Result<(), String> { access().update_multimodal_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_multimodal_config(_update: impl FnOnce(&mut MultimodalConfig)) { access().update_multimodal_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_web_search_config_result(update: impl FnOnce(&mut WebSearchConfig)) -> Result<(), String> { access().update_web_search_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_web_search_config(update: impl FnOnce(&mut WebSearchConfig)) { access().update_web_search_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_web_search_config_result(_update: impl FnOnce(&mut WebSearchConfig)) -> Result<(), String> { access().update_web_search_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_web_search_config(_update: impl FnOnce(&mut WebSearchConfig)) { access().update_web_search_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_tunnel_config_result(update: impl FnOnce(&mut TunnelConfig)) -> Result<(), String> { access().update_tunnel_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_tunnel_config(update: impl FnOnce(&mut TunnelConfig)) { access().update_tunnel_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_tunnel_config_result(_update: impl FnOnce(&mut TunnelConfig)) -> Result<(), String> { access().update_tunnel_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_tunnel_config(_update: impl FnOnce(&mut TunnelConfig)) { access().update_tunnel_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_hooks_config_result(update: impl FnOnce(&mut HooksConfig)) -> Result<(), String> { access().update_hooks_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_hooks_config(update: impl FnOnce(&mut HooksConfig)) { access().update_hooks_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_hooks_config_result(_update: impl FnOnce(&mut HooksConfig)) -> Result<(), String> { access().update_hooks_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_hooks_config(_update: impl FnOnce(&mut HooksConfig)) { access().update_hooks_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_skills_config_result(update: impl FnOnce(&mut SkillsConfig)) -> Result<(), String> { access().update_skills_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_skills_config(update: impl FnOnce(&mut SkillsConfig)) { access().update_skills_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_skills_config_result(_update: impl FnOnce(&mut SkillsConfig)) -> Result<(), String> { access().update_skills_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_skills_config(_update: impl FnOnce(&mut SkillsConfig)) { access().update_skills_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_runtime_config_result(update: impl FnOnce(&mut RuntimeConfig)) -> Result<(), String> { access().update_runtime_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_runtime_config(update: impl FnOnce(&mut RuntimeConfig)) { access().update_runtime_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_runtime_config_result(_update: impl FnOnce(&mut RuntimeConfig)) -> Result<(), String> { access().update_runtime_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_runtime_config(_update: impl FnOnce(&mut RuntimeConfig)) { access().update_runtime_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_model_routes_config_result(update: impl FnOnce(&mut Vec<ModelRouteConfig>)) -> Result<(), String> { access().update_model_routes_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_model_routes_config(update: impl FnOnce(&mut Vec<ModelRouteConfig>)) { access().update_model_routes_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_model_routes_config_result(_update: impl FnOnce(&mut Vec<ModelRouteConfig>)) -> Result<(), String> { access().update_model_routes_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_model_routes_config(_update: impl FnOnce(&mut Vec<ModelRouteConfig>)) { access().update_model_routes_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_embedding_routes_config_result(update: impl FnOnce(&mut Vec<EmbeddingRouteConfig>)) -> Result<(), String> { access().update_embedding_routes_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_embedding_routes_config(update: impl FnOnce(&mut Vec<EmbeddingRouteConfig>)) { access().update_embedding_routes_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_embedding_routes_config_result(_update: impl FnOnce(&mut Vec<EmbeddingRouteConfig>)) -> Result<(), String> { access().update_embedding_routes_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_embedding_routes_config(_update: impl FnOnce(&mut Vec<EmbeddingRouteConfig>)) { access().update_embedding_routes_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_query_classification_config_result(update: impl FnOnce(&mut QueryClassificationConfig)) -> Result<(), String> { access().update_query_classification_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_query_classification_config(update: impl FnOnce(&mut QueryClassificationConfig)) { access().update_query_classification_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_query_classification_config_result(_update: impl FnOnce(&mut QueryClassificationConfig)) -> Result<(), String> { access().update_query_classification_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_query_classification_config(_update: impl FnOnce(&mut QueryClassificationConfig)) { access().update_query_classification_config(_update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_autonomy_config_result(update: impl FnOnce(&mut AutonomyConfig)) -> Result<(), String> { access().update_autonomy_config_result(update) }
+            #[cfg(not(target_arch = "wasm32"))]
+            pub fn update_autonomy_config(update: impl FnOnce(&mut AutonomyConfig)) { access().update_autonomy_config(update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_autonomy_config_result(_update: impl FnOnce(&mut AutonomyConfig)) -> Result<(), String> { access().update_autonomy_config_result(_update) }
+            #[cfg(target_arch = "wasm32")]
+            pub fn update_autonomy_config(_update: impl FnOnce(&mut AutonomyConfig)) { access().update_autonomy_config(_update) }
+pub async fn update_heartbeat_config_result_async(update: impl FnOnce(&mut HeartbeatConfig)) -> Result<(), String> { access().update_heartbeat_config_result_async(update).await }
+pub async fn update_cron_config_result_async(update: impl FnOnce(&mut CronConfig)) -> Result<(), String> { access().update_cron_config_result_async(update).await }
+pub async fn update_scheduler_config_result_async(update: impl FnOnce(&mut SchedulerConfig)) -> Result<(), String> { access().update_scheduler_config_result_async(update).await }
+pub async fn update_reliability_config_result_async(update: impl FnOnce(&mut ReliabilityConfig)) -> Result<(), String> { access().update_reliability_config_result_async(update).await }
+pub async fn update_memory_config_result_async(update: impl FnOnce(&mut MemoryConfig)) -> Result<(), String> { access().update_memory_config_result_async(update).await }
+pub async fn update_security_config_result_async(update: impl FnOnce(&mut SecurityConfig)) -> Result<(), String> { access().update_security_config_result_async(update).await }
+pub async fn update_channels_config_result_async(update: impl FnOnce(&mut ChannelsConfig)) -> Result<(), String> { access().update_channels_config_result_async(update).await }
+pub async fn update_observability_config_result_async(update: impl FnOnce(&mut ObservabilityConfig)) -> Result<(), String> { access().update_observability_config_result_async(update).await }
+pub async fn update_storage_config_result_async(update: impl FnOnce(&mut StorageConfig)) -> Result<(), String> { access().update_storage_config_result_async(update).await }
+pub async fn update_proxy_config_result_async(update: impl FnOnce(&mut ProxyConfig)) -> Result<(), String> { access().update_proxy_config_result_async(update).await }
+pub async fn update_browser_config_result_async(update: impl FnOnce(&mut BrowserConfig)) -> Result<(), String> { access().update_browser_config_result_async(update).await }
+pub async fn update_http_request_config_result_async(update: impl FnOnce(&mut HttpRequestConfig)) -> Result<(), String> { access().update_http_request_config_result_async(update).await }
+pub async fn update_multimodal_config_result_async(update: impl FnOnce(&mut MultimodalConfig)) -> Result<(), String> { access().update_multimodal_config_result_async(update).await }
+pub async fn update_web_search_config_result_async(update: impl FnOnce(&mut WebSearchConfig)) -> Result<(), String> { access().update_web_search_config_result_async(update).await }
+pub async fn update_tunnel_config_result_async(update: impl FnOnce(&mut TunnelConfig)) -> Result<(), String> { access().update_tunnel_config_result_async(update).await }
+pub async fn update_hooks_config_result_async(update: impl FnOnce(&mut HooksConfig)) -> Result<(), String> { access().update_hooks_config_result_async(update).await }
+pub async fn update_skills_config_result_async(update: impl FnOnce(&mut SkillsConfig)) -> Result<(), String> { access().update_skills_config_result_async(update).await }
+pub async fn update_runtime_config_result_async(update: impl FnOnce(&mut RuntimeConfig)) -> Result<(), String> { access().update_runtime_config_result_async(update).await }
+pub async fn update_model_routes_config_result_async(update: impl FnOnce(&mut Vec<ModelRouteConfig>)) -> Result<(), String> { access().update_model_routes_config_result_async(update).await }
+pub async fn update_embedding_routes_config_result_async(update: impl FnOnce(&mut Vec<EmbeddingRouteConfig>)) -> Result<(), String> { access().update_embedding_routes_config_result_async(update).await }
+pub async fn update_query_classification_config_result_async(update: impl FnOnce(&mut QueryClassificationConfig)) -> Result<(), String> { access().update_query_classification_config_result_async(update).await }
+pub async fn update_autonomy_config_result_async(update: impl FnOnce(&mut AutonomyConfig)) -> Result<(), String> { access().update_autonomy_config_result_async(update).await }
+pub fn update_heartbeat_config_async(update: impl FnOnce(&mut HeartbeatConfig) + Send + 'static) -> Task<Message> { access().update_heartbeat_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_cron_config_async(update: impl FnOnce(&mut CronConfig) + Send + 'static) -> Task<Message> { access().update_cron_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_scheduler_config_async(update: impl FnOnce(&mut SchedulerConfig) + Send + 'static) -> Task<Message> { access().update_scheduler_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_reliability_config_async(update: impl FnOnce(&mut ReliabilityConfig) + Send + 'static) -> Task<Message> { access().update_reliability_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_memory_config_async(update: impl FnOnce(&mut MemoryConfig) + Send + 'static) -> Task<Message> { access().update_memory_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_security_config_async(update: impl FnOnce(&mut SecurityConfig) + Send + 'static) -> Task<Message> { access().update_security_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_channels_config_async(update: impl FnOnce(&mut ChannelsConfig) + Send + 'static) -> Task<Message> { access().update_channels_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_observability_config_async(update: impl FnOnce(&mut ObservabilityConfig) + Send + 'static) -> Task<Message> { access().update_observability_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_storage_config_async(update: impl FnOnce(&mut StorageConfig) + Send + 'static) -> Task<Message> { access().update_storage_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_proxy_config_async(update: impl FnOnce(&mut ProxyConfig) + Send + 'static) -> Task<Message> { access().update_proxy_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_browser_config_async(update: impl FnOnce(&mut BrowserConfig) + Send + 'static) -> Task<Message> { access().update_browser_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_http_request_config_async(update: impl FnOnce(&mut HttpRequestConfig) + Send + 'static) -> Task<Message> { access().update_http_request_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_multimodal_config_async(update: impl FnOnce(&mut MultimodalConfig) + Send + 'static) -> Task<Message> { access().update_multimodal_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_web_search_config_async(update: impl FnOnce(&mut WebSearchConfig) + Send + 'static) -> Task<Message> { access().update_web_search_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_tunnel_config_async(update: impl FnOnce(&mut TunnelConfig) + Send + 'static) -> Task<Message> { access().update_tunnel_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_hooks_config_async(update: impl FnOnce(&mut HooksConfig) + Send + 'static) -> Task<Message> { access().update_hooks_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_skills_config_async(update: impl FnOnce(&mut SkillsConfig) + Send + 'static) -> Task<Message> { access().update_skills_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_runtime_config_async(update: impl FnOnce(&mut RuntimeConfig) + Send + 'static) -> Task<Message> { access().update_runtime_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_model_routes_config_async(update: impl FnOnce(&mut Vec<ModelRouteConfig>) + Send + 'static) -> Task<Message> { access().update_model_routes_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_embedding_routes_config_async(update: impl FnOnce(&mut Vec<EmbeddingRouteConfig>) + Send + 'static) -> Task<Message> { access().update_embedding_routes_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_query_classification_config_async(update: impl FnOnce(&mut QueryClassificationConfig) + Send + 'static) -> Task<Message> { access().update_query_classification_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
+pub fn update_autonomy_config_async(update: impl FnOnce(&mut AutonomyConfig) + Send + 'static) -> Task<Message> { access().update_autonomy_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
 pub fn update_gateway_config_async(
     update: impl FnOnce(&mut GatewayConfig) + Send + 'static,
-) -> Task<Message> {
-    spawn_gateway_task("gateway", async move { update_gateway_config_result_async(update).await })
-}
-
+) -> Task<Message> { access().update_gateway_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `update_delegate_agents_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn update_delegate_agents_config(
     update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>),
-) {
-    let mut cfg = load_agent_config_via_gateway().agents;
-    update(&mut cfg);
-    if let Ok(value) = serde_json::to_value(cfg) {
-        patch_agent_config(&["agents"], value);
-    }
-}
-
+) { access().update_delegate_agents_config(update) }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `update_delegate_agents_config_result` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn update_delegate_agents_config_result(
     update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>),
-) -> Result<(), String> {
-    let mut cfg = load_full_agent_config_result()?.agents;
-    update(&mut cfg);
-    let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-    patch_agent_config_result(&["agents"], value)
-}
-
-/// 读取、保存或转换 `update_delegate_agents_config_result_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
+) -> Result<(), String> { access().update_delegate_agents_config_result(update) }
 pub async fn update_delegate_agents_config_result_async(
     update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>),
-) -> Result<(), String> {
-    let mut cfg = load_full_agent_config_async().await?.agents;
-    update(&mut cfg);
-    let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-    patch_full_agent_config_async(serde_json::json!({ "agents": value })).await
-}
-
+) -> Result<(), String> { access().update_delegate_agents_config_result_async(update).await }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `update_delegate_agents_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn update_delegate_agents_config_async(
     update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>) + 'static,
-) -> Task<Message> {
-    spawn_gateway_task("agents", async move {
-        let mut cfg = load_full_agent_config_async().await?.agents;
-        update(&mut cfg);
-        let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-        patch_full_agent_config_async(serde_json::json!({ "agents": value })).await
-    })
-}
-
+) -> Task<Message> { access().update_delegate_agents_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `update_delegate_agents_config_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn update_delegate_agents_config_async(
     update: impl FnOnce(&mut HashMap<String, DelegateAgentConfig>) + Send + 'static,
-) -> Task<Message> {
-    spawn_gateway_task("agents", async move {
-        let mut cfg = load_full_agent_config_result()?.agents;
-        update(&mut cfg);
-        let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-        patch_agent_config_result(&["agents"], value)
-    })
-}
-
+) -> Task<Message> { access().update_delegate_agents_config_async(update).map(|message| crate::app::Message::Settings(crate::app::message::SettingsMessage::AgentConfigSaved { tag: message.tag, result: message.result })) }
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `update_main_agent_overrides_from_delegate_agents` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn update_main_agent_overrides_from_delegate_agents() {
-    let cfg = load_agent_config_via_gateway();
-    let Some(main) = cfg.agents.get("main") else {
-        return;
-    };
-
-    let provider = main.provider.trim().to_string();
-    if !provider.is_empty() {
-        patch_agent_config(&["default_provider"], serde_json::Value::String(provider.clone()));
-    }
-
-    let model = main.model.trim().to_string();
-    if !provider.is_empty() && !model.is_empty() {
-        patch_agent_config(
-            &["default_model"],
-            serde_json::Value::String(format!("{provider}/{model}")),
-        );
-    }
-
-    if let Some(temperature) = main.temperature
-        && let Some(number) = serde_json::Number::from_f64(temperature)
-    {
-        patch_agent_config(&["default_temperature"], serde_json::Value::Number(number));
-    }
-
-    let identity =
-        IdentityConfig { format: "openclaw".to_string(), aieos_path: None, aieos_inline: None };
-    if let Ok(value) = serde_json::to_value(identity) {
-        patch_agent_config(&["identity"], value);
-    }
-}
-
-/// 读取、保存或转换 `update_main_agent_overrides_from_delegate_agents_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
-pub async fn update_main_agent_overrides_from_delegate_agents_async() -> Result<(), String> {
-    let cfg = load_full_agent_config_async().await?;
-    let Some(patch) = build_main_agent_overrides_patch(&cfg)? else {
-        return Ok(());
-    };
-
-    patch_full_agent_config_async(patch).await
-}
-
-/// 读取、保存或转换 `update_gateway_config_result_async` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
+pub fn update_main_agent_overrides_from_delegate_agents() { access().update_main_agent_overrides_from_delegate_agents() }
+pub async fn update_main_agent_overrides_from_delegate_agents_async() -> Result<(), String> { access().update_main_agent_overrides_from_delegate_agents_async().await }
 pub async fn update_gateway_config_result_async(
     update: impl FnOnce(&mut GatewayConfig),
-) -> Result<(), String> {
-    let mut cfg = load_full_agent_config_async().await?.gateway;
-    update(&mut cfg);
-    let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-    patch_full_agent_config_async(serde_json::json!({ "gateway": value })).await
-}
-
-#[cfg(test)]
-#[path = "config_agent_tests.rs"]
-mod tests;
+) -> Result<(), String> { access().update_gateway_config_result_async(update).await }

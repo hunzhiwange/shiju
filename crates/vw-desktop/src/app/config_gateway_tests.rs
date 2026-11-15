@@ -3,9 +3,9 @@
 //! 地址样例覆盖主机、端口、协议和环境来源，非法输入必须走明确回退。
 
 use super::{
-    apply_main_agent_overrides, gateway_blocking_runtime, gateway_client, gateway_client_endpoint,
+    apply_main_agent_overrides, gateway_client, gateway_client_endpoint,
     load_config_value_at_path, load_tools_list_via_gateway, load_vibewindow_root_json,
-    normalize_gateway_host, normalize_identity_format, normalize_tool_ids,
+    normalize_gateway_host, normalize_tool_ids,
     project_config_override_path, run_gateway_call, server_config_unreachable_error,
     set_config_value_at_path, should_attempt_tools_list_request,
 };
@@ -183,11 +183,7 @@ fn active_gateway_config(port: u16) -> GatewayClientSystemSettingsConfig {
     cfg
 }
 
-#[test]
-fn normalize_identity_format_always_returns_openclaw() {
-    assert_eq!(normalize_identity_format(None), "openclaw");
-    assert_eq!(normalize_identity_format(Some(" aieos ")), "openclaw");
-}
+
 
 #[test]
 fn normalize_gateway_host_trims_and_defaults_empty_values() {
@@ -681,12 +677,4 @@ fn run_gateway_call_returns_future_error() {
         .expect_err("future error should be returned");
 
     assert_eq!(err, "boom");
-}
-
-#[test]
-fn gateway_blocking_runtime_reuses_successful_runtime() {
-    let first = gateway_blocking_runtime().expect("runtime should build") as *const _;
-    let second = gateway_blocking_runtime().expect("runtime should be reused") as *const _;
-
-    assert_eq!(first, second);
 }

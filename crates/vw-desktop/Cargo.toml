@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-config = { path = "../libs/desktop-config", version = "0.6.0" }
 session-text = { path = "../libs/session-text", version = "0.6.0" }
 vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.6.0" }
 config-aggregate = { path = "../libs/config-aggregate", version = "0.6.0" }

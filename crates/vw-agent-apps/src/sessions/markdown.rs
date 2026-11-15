@@ -6,7 +6,7 @@
 //! exporting a preview. Each body and the complete export are bounded to 32MiB.
 //! Images follow upstream's description-only export: no paths, URLs, bytes or
 //! image references are embedded or loaded. Saving/clipboard belongs to clients.
-use vw_api_types::external_session::{ContentRef, ImageRef, SessionBlock, SessionMessage};
+use vw_api_external_session::{ContentRef, ImageRef, SessionBlock, SessionMessage};
 use super::{cache::{self, Fingerprint, Transcript}, content_file, content_sqlite,
     source::ValidatedSource, turns::{self, ReaderStep, ReaderText, SessionTurn}};
 

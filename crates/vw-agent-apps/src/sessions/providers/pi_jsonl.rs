@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use serde_json::Value;
-use vw_api_types::external_session::ContentRef;
+use vw_api_external_session::ContentRef;
 
 pub fn parse_timestamp_to_ms(value: &Value) -> Option<i64> {
     if let Some(n) = value.as_i64() { return if n > 1_000_000_000_000 { Some(n) } else { n.checked_mul(1000) }; }

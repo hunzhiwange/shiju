@@ -1,7 +1,7 @@
 //! OpenCode legacy file storage. Roots are supplied by the authorized execution host.
 use std::{fs, io, path::{Component, Path, PathBuf}};
 use serde_json::Value;
-use vw_api_types::external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource};
 use super::opencode_blocks::{message_from_parts, PartLocator};
 use crate::sessions::utils::truncate_summary;
 

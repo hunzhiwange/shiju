@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 use serde_json::Value;
-use vw_api_types::external_session::{ContentRef, ExternalSessionId, ExternalSessionIdentity, SessionBlock, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource, ToolStatus};
+use vw_api_external_session::{ContentRef, ExternalSessionId, ExternalSessionIdentity, SessionBlock, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource, ToolStatus};
 use crate::sessions::blocks::{openai_tool_calls, tool_result_block};
 use crate::sessions::utils::{extract_text, truncate_summary};
 const TITLE_MAX_CHARS: usize = 80;

@@ -4,7 +4,7 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use crate::sessions::utils::{extract_text, truncate_summary};
 use super::pi::{PiSessionContext, session_files, resolve_session_root, SessionRootResolution};
 use super::pi_blocks::PiTranscript;

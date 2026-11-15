@@ -1,7 +1,7 @@
 //! OpenClaw transcript deletion and agent-local sessions index cleanup.
 use crate::sessions::{cache::TranscriptCache, providers, source::SourceRegistry};
 use std::{fs, io::{self, Write}, path::{Path, PathBuf}};
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// Requires explicit gateway authorization/confirmation. The caller holds its
 /// application lifecycle guard throughout; the activity callback uses trusted

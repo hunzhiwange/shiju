@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Durati
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 use vw_agent_apps::sessions::catalog::{Catalog, CatalogQuery};
 

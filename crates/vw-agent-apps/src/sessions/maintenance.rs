@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use vw_api_types::{external_session::ExternalSessionIdentity};
+use vw_api_external_session::{ExternalSessionIdentity};
 use vw_api_app_identity::{AppId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

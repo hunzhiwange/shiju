@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use chrono::{DateTime, FixedOffset};
 use serde_json::Value;
-use vw_api_types::external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMeta, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMeta, SessionProvider, SessionSource};
 use crate::sessions::{codex_state::codex_state_db_paths, rollout};
 use crate::sessions::utils::{extract_text, truncate_summary};
 const TITLE_MAX_CHARS: usize = 80;

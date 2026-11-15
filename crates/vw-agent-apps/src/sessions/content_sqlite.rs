@@ -1,7 +1,7 @@
 //! Lazy SQLite text reads bound to an authorized application's session record.
 use rusqlite::{Connection, OpenFlags, params, types::ValueRef};
 use serde_json::Value;
-use vw_api_types::external_session::{ContentRef, SessionProvider};
+use vw_api_external_session::{ContentRef, SessionProvider};
 
 use super::{
     content_file::{BlockContent, MAX_TEXT_BYTES, extract_text, paginate, safe_join},

@@ -1,5 +1,6 @@
 //! Maintenance requests identify resources; paths and configuration remain host-owned.
-use crate::{ProjectScope, task::TaskStatus};
+use vw_api_transport::ProjectScope;
+use vw_api_task::TaskStatus;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

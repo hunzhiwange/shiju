@@ -2,7 +2,7 @@
 //! returned by this session's parsed transcript, never a client-supplied path.
 use std::{fs::File, io::Read, path::PathBuf};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use vw_api_types::external_session::{ContentRef, ImageRef, ImageSource};
+use vw_api_external_session::{ContentRef, ImageRef, ImageSource};
 use super::{content_file, content_sqlite, source::ValidatedSource};
 
 pub const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;

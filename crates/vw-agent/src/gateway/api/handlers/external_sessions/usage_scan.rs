@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}, sync::{Mutex, 
 use vw_agent_apps::{sessions::{source::SourceRegistry, providers as p}, usage::{self, scan_jobs::*}};
 use {
     vw_api_transport::ProjectScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 
 static SCHEDULES: OnceLock<Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>>> = OnceLock::new();

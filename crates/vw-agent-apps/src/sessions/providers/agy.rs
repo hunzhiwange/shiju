@@ -1,7 +1,7 @@
 //! Read-only Antigravity exports and summary index; encrypted binary bodies stay opaque.
 use serde_json::Value;
 use std::{collections::BTreeMap, fs, io::{BufRead, BufReader}, path::{Component, Path, PathBuf}};
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use crate::sessions::utils::truncate_summary;
 use super::pi_jsonl::parse_timestamp_to_ms;
 

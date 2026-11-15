@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{SessionContentRequest, SessionContentResponse};
+use vw_api_external_session::{SessionContentRequest, SessionContentResponse};
 
 impl GatewayClient {
     /// Read one Unicode character page of an authorized transcript's text reference.

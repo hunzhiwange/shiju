@@ -1,5 +1,5 @@
 use super::super::{GatewayClient, AgentAppsReadError};
-use vw_api_types::external_session::{SessionCatalogQuery, SessionCatalogPage};
+use vw_api_external_session::{SessionCatalogQuery, SessionCatalogPage};
 impl GatewayClient {
     /// Query only the selected gateway and explicitly authorized host; never discover local history.
     pub async fn external_sessions_catalog(&self, query: &SessionCatalogQuery, token: &str) -> Result<SessionCatalogPage, AgentAppsReadError> {

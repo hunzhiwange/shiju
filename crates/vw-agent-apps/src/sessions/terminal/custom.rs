@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
     process::{Command, Stdio},
 };
-use vw_api_types::external_session::ExternalSessionIdentity;
+use vw_api_external_session::ExternalSessionIdentity;
 
 /// Non-wire capability created only after authorizing the execution host's
 /// terminal settings. Ordinary launch/resume authorization does not grant the

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use serde::de::{self, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use crate::sessions::blocks::*;
 use super::parse_timestamp_to_ms;
 include!("claude_jsonl.rs");

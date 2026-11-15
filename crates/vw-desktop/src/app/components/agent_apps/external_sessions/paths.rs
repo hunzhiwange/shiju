@@ -3,7 +3,7 @@ use super::{Event as ParentEvent, Scope, State, message};
 use crate::app::{App, Message, components::system_settings_common::*, state::AgentAppsContext};
 use iced::{Element, Length, Task, widget::{button, column, container, row, scrollable, text}};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use vw_gateway_client::vw_api_types::external_session::{ExternalSessionIdentity, SessionMeta};
+use vw_api_external_session::{ExternalSessionIdentity, SessionMeta};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Location { Source, Project }

@@ -1,7 +1,7 @@
 //! Gemini transcript deletion, including the legacy JSON left by migration.
 use crate::sessions::{cache::TranscriptCache, providers, source::SourceRegistry};
 use std::{fs, io};
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// The gateway must authorize deletion and confirm it explicitly. The caller
 /// holds its application lifecycle guard for the whole operation; `is_active`
@@ -60,7 +60,7 @@ where
             if !migrated {
                 return Err(forbidden());
             }
-            let meta = vw_api_types::external_session::SessionMeta {
+            let meta = vw_api_external_session::SessionMeta {
                 identity: sibling_identity.clone(),
                 title: None,
                 summary: None,
@@ -68,7 +68,7 @@ where
                 created_at: None,
                 last_active_at: None,
                 source_path: None,
-                capabilities: vw_api_types::external_session::SessionCapabilities {
+                capabilities: vw_api_external_session::SessionCapabilities {
                     read: true,
                     delete: true,
                     resume: true,

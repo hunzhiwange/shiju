@@ -1,6 +1,6 @@
 //! Capability-based deletion; source paths never select arbitrary operations.
 use std::io;
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 use crate::sessions::{cache::TranscriptCache, source::SourceRegistry};
 

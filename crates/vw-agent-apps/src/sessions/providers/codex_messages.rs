@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use crate::sessions::rollout as codex_rollout_file;
 use crate::sessions::blocks::{
     first_string_field, large_text_block, normalize_tool, preview, preview_chars,

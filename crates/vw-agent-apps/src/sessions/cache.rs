@@ -1,7 +1,7 @@
 //! Bounded process-local transcript cache. Authorization is repeated by callers;
 //! a cache hit never replaces SourceRegistry resolution on the execution host.
 use std::{collections::VecDeque, fs, io, path::{Path, PathBuf}, sync::{Arc, LazyLock, Mutex}, time::SystemTime};
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionMessage, SessionProvider};
+use vw_api_external_session::{ExternalSessionIdentity, SessionMessage, SessionProvider};
 use super::{content_file::safe_join, source::ValidatedSource};
 
 pub const MAX_ENTRIES: usize = 8;

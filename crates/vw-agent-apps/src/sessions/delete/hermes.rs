@@ -5,7 +5,7 @@ use crate::sessions::{
     providers::hermes::parse_jsonl_session,
     source::{SourceRegistry, ValidatedSource},
 };
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// Requires gateway delete authorization, explicit confirmation and a caller-held
 /// application lifecycle guard. Activity comes from trusted runtime state and

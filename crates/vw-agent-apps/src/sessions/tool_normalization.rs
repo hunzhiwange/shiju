@@ -1,4 +1,4 @@
-use vw_api_types::external_session::ToolKind;
+use vw_api_external_session::ToolKind;
 
 /// 工具结果预览的最大行数
 pub const PREVIEW_LINES: usize = 12;

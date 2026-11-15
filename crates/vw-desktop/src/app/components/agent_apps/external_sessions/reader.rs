@@ -7,7 +7,8 @@ use iced::{
     futures::SinkExt,
     widget::{button, column, container, row, scrollable, text},
 };
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
+use vw_gateway_client::AgentAppsReadError;
+use vw_api_external_session::*;
 
 #[derive(Clone)]
 pub(super) struct State {

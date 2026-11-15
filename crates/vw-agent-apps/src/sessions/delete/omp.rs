@@ -1,7 +1,7 @@
 //! Oh My Pi file and owned sidecar deletion on the authorized execution host.
 use std::{fs, io, path::{Path, PathBuf}};
 use crate::sessions::{cache::TranscriptCache, providers::omp::verify_omp_session_id, source::{SourceRegistry, ValidatedSource}};
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// Requires gateway authorization, explicit confirmation, and a caller-held
 /// application lifecycle guard. Activity must come from trusted host state.

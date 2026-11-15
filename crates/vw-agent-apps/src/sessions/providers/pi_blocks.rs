@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use vw_api_types::external_session::{
+use vw_api_external_session::{
     ContentRef, DiffOp, EventKind, ImageRef, ImageSource, MessageMeta, SessionBlock,
     SessionMessage, ToolKind, ToolStatus,
 };

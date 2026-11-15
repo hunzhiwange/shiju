@@ -153,7 +153,7 @@ fn execute(o: &ScanOwner, home: &std::path::Path, instances: Vec<super::super::a
             let settings = u::source_settings::load_source_settings(&c,&o.scope,&o.target_host,"codex")?;
             anyhow::ensure!(settings.settings.scan_enabled,"scan disabled");
             let project = crate::project::store::ProjectStore::new(db)?.get(&o.scope)?.ok_or_else(|| anyhow::anyhow!("project unavailable"))?;
-            anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_types::external_session::SessionProvider::Codex),"Codex source not authorized");
+            anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_external_session::SessionProvider::Codex),"Codex source not authorized");
             // Rebuild replaces all native Codex rows for this host/scope. Reject
             // partial instance authority before entering that destructive transaction.
             let scope_key = serde_json::to_string(&(&o.scope,&o.target_host))?;
@@ -163,11 +163,11 @@ fn execute(o: &ScanOwner, home: &std::path::Path, instances: Vec<super::super::a
             for identity in identities {
                 let identity: u::store::UsageSourceIdentity = serde_json::from_str(&identity)?;
                 if identity.app == "codex" && identity.kind == vw_api_types::usage::UsageSourceKind::Native {
-                    anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_types::external_session::SessionProvider::Codex && i.instance_id == identity.instance_id),"partial Codex authority");
+                    anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_external_session::SessionProvider::Codex && i.instance_id == identity.instance_id),"partial Codex authority");
                 }
             }
             let instances = instances.into_iter().map(|i| (home.to_path_buf(),i)).collect::<Vec<_>>();
-            let files = host::discover(&o.scope,&o.target_host,vw_api_types::external_session::SessionProvider::Codex,&instances,&project.worktree)?;
+            let files = host::discover(&o.scope,&o.target_host,vw_api_external_session::SessionProvider::Codex,&instances,&project.worktree)?;
             let mut lineage = u::codex_lineage::CodexLineage::new(files.iter().map(|f| f.path.clone()).collect())?;
             u::codex_rebuild::rebuild_codex_usage(&mut c,&o.scope,&o.target_host,&mut lineage,operation,|writer,lineage| {
                 for file in files {

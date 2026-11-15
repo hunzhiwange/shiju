@@ -1,12 +1,12 @@
 //! Conservative execution-host activity gate for destructive history operations.
 use std::io;
-use vw_api_types::external_session::ExternalSessionIdentity;
+use vw_api_external_session::ExternalSessionIdentity;
 
 /// Called inside the host lifecycle guard. An application process may hold a
 /// session without keeping its transcript open, so reject the whole application
 /// while any matching command is present. Probe errors never establish inactivity.
 pub fn is_active(identity: &ExternalSessionIdentity) -> io::Result<bool> {
-    use vw_api_types::external_session::SessionProvider::*;
+    use vw_api_external_session::SessionProvider::*;
     let names: &[&str] = match identity.provider {
         Claude => &["claude"],
         Codex => &["codex"],

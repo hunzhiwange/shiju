@@ -1,6 +1,6 @@
 //! Pure transcript-to-reader projection, ported from the pinned reader/turns.ts.
 use std::collections::{HashMap, HashSet};
-use vw_api_types::external_session::{EventKind, SessionBlock, SessionMessage, SessionProvider, StepPhase, ToolKind, ToolStatus, TurnIndex};
+use vw_api_external_session::{EventKind, SessionBlock, SessionMessage, SessionProvider, StepPhase, ToolKind, ToolStatus, TurnIndex};
 
 #[derive(Debug, Clone)]
 pub struct ReaderStep {

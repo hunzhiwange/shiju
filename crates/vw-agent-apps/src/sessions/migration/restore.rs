@@ -14,7 +14,7 @@ use std::{
     path::PathBuf,
 };
 use toml_edit::DocumentMut;
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 #[derive(Default)]
 pub struct RestoreOutcome {

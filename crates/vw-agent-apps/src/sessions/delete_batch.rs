@@ -1,6 +1,6 @@
 //! Ordered, cooperative bulk deletion through the native capability dispatcher.
 use std::{collections::HashMap, io};
-use vw_api_types::external_session::{
+use vw_api_external_session::{
     DeleteSessionOutcome, DeleteSessionRequest, DeleteSessionResult, ExternalSessionError,
     ExternalSessionErrorCode, ExternalSessionIdentity,
 };

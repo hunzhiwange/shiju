@@ -12,7 +12,7 @@ use vw_agent_apps::{
 use {
     vw_api_transport::TenantScope,
     vw_api_app_identity::AppId,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 
 pub(super) async fn single(

@@ -2,7 +2,7 @@
 use std::{io, time::Duration};
 use rusqlite::{Connection, OpenFlags, TransactionBehavior};
 use crate::sessions::{cache::{source_fingerprint, TranscriptCache}, source::SourceRegistry};
-use vw_api_types::external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
 
 /// Requires delete authorization, confirmation and a caller-held application
 /// lifecycle guard. Activity must be queried from trusted runtime state.

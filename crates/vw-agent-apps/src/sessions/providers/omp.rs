@@ -1,7 +1,7 @@
 //! Oh My Pi history on the authorized host. No ambient desktop environment.
 use std::fs;
 use std::path::{Component, Path, PathBuf};
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use super::pi::{SessionLayout, SessionRootResolution};
 use super::pi_tree::{self, Dialect};
 

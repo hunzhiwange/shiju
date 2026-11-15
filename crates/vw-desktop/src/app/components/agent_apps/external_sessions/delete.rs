@@ -3,7 +3,8 @@ use super::{message, Scope};
 use crate::app::{App, Message, components::system_settings_common::*, state::AgentAppsContext};
 use iced::{Element, Length, Task, widget::{button, column, container, row, scrollable, text}};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
+use vw_gateway_client::AgentAppsReadError;
+use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
 pub(super) struct State {

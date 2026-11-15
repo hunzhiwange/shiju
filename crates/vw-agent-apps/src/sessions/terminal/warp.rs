@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
-use vw_api_types::external_session::ExternalSessionIdentity;
+use vw_api_external_session::ExternalSessionIdentity;
 
 /// Run on the authorized execution host with a freshly rebuilt plan, retaining
 /// its authorization guard until the native CLI and PTY resources are reaped.

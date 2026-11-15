@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{DeleteSessionOutcome, DeleteSessionRequest};
+use vw_api_external_session::{DeleteSessionOutcome, DeleteSessionRequest};
 
 impl GatewayClient {
     /// Delete an explicitly selected session with independent deletion authority.

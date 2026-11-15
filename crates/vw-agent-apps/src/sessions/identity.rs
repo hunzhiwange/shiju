@@ -1,6 +1,6 @@
 //! External identities never become ShiJu or ACP restore state.
 use std::path::{Component, Path};
-use vw_api_types::external_session::{ExternalSessionErrorCode, ExternalSessionIdentity, SessionSource};
+use vw_api_external_session::{ExternalSessionErrorCode, ExternalSessionIdentity, SessionSource};
 use vw_api_transport::SessionId;
 
 use super::source::ValidatedSource;

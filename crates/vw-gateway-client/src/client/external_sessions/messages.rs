@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{SessionMessagesRequest, SessionMessagesResponse};
+use vw_api_external_session::{SessionMessagesRequest, SessionMessagesResponse};
 
 impl GatewayClient {
     /// Read a selected host's history using its separate application credential.

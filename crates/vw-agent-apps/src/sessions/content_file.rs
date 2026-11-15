@@ -2,7 +2,7 @@
 use std::{fs::File, io::Read, path::{Component, Path, PathBuf}};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
-use vw_api_types::external_session::{ContentRef, SessionProvider};
+use vw_api_external_session::{ContentRef, SessionProvider};
 use super::source::ValidatedSource;
 
 pub const MAX_TEXT_BYTES: u64 = 32 * 1024 * 1024;

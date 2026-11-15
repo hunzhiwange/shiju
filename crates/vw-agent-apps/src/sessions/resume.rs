@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-use vw_api_types::{external_session::ExternalSessionIdentity, external_session::SessionProvider};
+use vw_api_external_session::{ExternalSessionIdentity, SessionProvider};
 use vw_api_app_identity::{AppId, AppInstallation, LaunchRequest};
 
 /// Resolved by the authorized execution host for the selected native instance.

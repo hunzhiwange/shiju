@@ -14,7 +14,7 @@ use vw_agent_apps::{
 use {
     vw_api_transport::ProjectId,
     vw_api_transport::ProjectScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
     vw_api_types::usage::UsageMeasurementKind,
 };
 

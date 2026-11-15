@@ -1,6 +1,6 @@
 //! Native authenticated history settings and scoped backup queries.
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 
 impl GatewayClient {
     pub async fn external_history_options(

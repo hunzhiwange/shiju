@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{SessionResumeResponse, SessionResumeRequest};
+use vw_api_external_session::{SessionResumeResponse, SessionResumeRequest};
 
 impl GatewayClient {
     /// Resume on the authorized execution host; completes after the native process exits.
@@ -44,7 +44,7 @@ impl GatewayClient {
         &self,
         request: &SessionResumeRequest,
         token: &str,
-    ) -> Result<vw_api_types::external_session::SessionResumeCommandResponse, AgentAppsReadError> {
+    ) -> Result<vw_api_external_session::SessionResumeCommandResponse, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
             let _ = (request, token);

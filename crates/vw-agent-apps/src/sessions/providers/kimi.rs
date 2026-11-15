@@ -1,7 +1,7 @@
 //! Kimi committed main-agent history on the selected execution host.
 use std::{fs, path::{Path, PathBuf}};
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use crate::sessions::{blocks, utils};
 use super::kimi_requests::RequestIndex;
 

@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Component, Path};
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use super::pi_blocks::PiTranscript;
 use super::pi_jsonl::{for_each_jsonl_value, parse_timestamp_to_ms};
 use crate::sessions::utils::{extract_text, truncate_summary};

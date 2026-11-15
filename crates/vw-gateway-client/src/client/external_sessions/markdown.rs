@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{SessionMarkdownRequest, SessionMarkdownResponse};
+use vw_api_external_session::{SessionMarkdownRequest, SessionMarkdownResponse};
 
 impl GatewayClient {
     /// Export authorized history as Markdown for client-side copying or saving.

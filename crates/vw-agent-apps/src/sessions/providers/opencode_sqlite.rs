@@ -2,7 +2,7 @@
 use std::{collections::{HashMap, HashSet}, fs, path::{Path, PathBuf}, time::Duration};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
-use vw_api_types::external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMessage, SessionMeta, SessionProvider, SessionSource};
 use super::opencode_blocks::{message_from_parts, PartLocator};
 
 pub(crate) fn open(data_root: &Path) -> Result<(Connection, PathBuf), String> {

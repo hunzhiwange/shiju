@@ -3,7 +3,7 @@ use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::path::Path;
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
-use vw_api_types::external_session::{ContentRef, SessionBlock, ToolStatus, SessionMessage, SessionMeta, ExternalSessionIdentity, ExternalSessionId, SessionProvider, SessionSource, SessionCapabilities};
+use vw_api_external_session::{ContentRef, SessionBlock, ToolStatus, SessionMessage, SessionMeta, ExternalSessionIdentity, ExternalSessionId, SessionProvider, SessionSource, SessionCapabilities};
 use crate::sessions::blocks::{openai_tool_calls, thinking_block, tool_result_block};
 use crate::sessions::utils::{extract_text, truncate_summary};
 const SQLITE_SCAN_LIMIT: usize = 500;

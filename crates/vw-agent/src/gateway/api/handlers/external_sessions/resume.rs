@@ -3,7 +3,7 @@ use super::catalog::Policy;
 use axum::{Extension, Json, http::{HeaderMap, StatusCode}};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 
 pub(super) async fn resume(

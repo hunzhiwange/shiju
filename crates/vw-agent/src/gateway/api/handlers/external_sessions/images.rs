@@ -3,7 +3,7 @@ use axum::{Extension, Json, http::{HeaderMap, StatusCode, header}, response::{In
 use vw_agent_apps::sessions::{cache, images};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 use super::messages::{Failure, failure};
 

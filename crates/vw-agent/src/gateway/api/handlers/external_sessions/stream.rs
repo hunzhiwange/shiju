@@ -17,7 +17,7 @@ use tokio::sync::mpsc;
 use vw_agent_apps::apps::lifecycle::operations::Operation;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 
 #[derive(Clone, Default)]

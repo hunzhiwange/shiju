@@ -2,7 +2,7 @@
 use std::path::{Component, Path, PathBuf};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 
 const DATABASE: &str = "v2/sqlite/runtime-state.sqlite";
 

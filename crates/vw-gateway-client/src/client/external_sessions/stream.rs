@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{SessionStreamFrame, SessionStreamRequest, TranscriptChunk};
+use vw_api_external_session::{SessionStreamFrame, SessionStreamRequest, TranscriptChunk};
 
 /// Dropping this reader closes the HTTP body and cancels the host read.
 #[cfg(not(target_arch = "wasm32"))]

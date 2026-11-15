@@ -1,6 +1,6 @@
 //! Authorized native Codex compression settings and stored-byte queries.
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 
 impl GatewayClient {
     pub async fn external_session_compression(

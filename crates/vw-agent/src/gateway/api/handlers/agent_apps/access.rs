@@ -2155,7 +2155,7 @@ pub(super) fn authorize_project_profiles_maintenance(
 #[serde(deny_unknown_fields)]
 struct ExternalHistoryPermit {
     project_id: vw_api_transport::ProjectId,
-    provider: vw_api_types::external_session::SessionProvider,
+    provider: vw_api_external_session::SessionProvider,
     instance_id: String,
 }
 /// Administrator-owned native instance paths; never populated from request data.
@@ -2163,7 +2163,7 @@ struct ExternalHistoryPermit {
 #[serde(deny_unknown_fields)]
 pub(in super::super) struct ExternalHistoryInstance {
     pub instance_id: String,
-    pub provider: vw_api_types::external_session::SessionProvider,
+    pub provider: vw_api_external_session::SessionProvider,
     pub root: PathBuf,
     #[serde(default)]
     pub resume: Option<ExternalResumeSettings>,
@@ -2197,7 +2197,7 @@ pub(in super::super) struct ExternalResumeHost {
     pub credential_root: Option<PathBuf>,
 }
 pub(in super::super) fn authorize_external_history_resume(
-    path: Option<&Path>, headers: &HeaderMap, id: &vw_api_types::external_session::ExternalSessionIdentity,
+    path: Option<&Path>, headers: &HeaderMap, id: &vw_api_external_session::ExternalSessionIdentity,
     custom: bool,
 ) -> Result<(ExternalResumeHost, ExternalHistoryInstance, String, bool), StatusCode> {
     let a = authorize_scoped(path, headers, id.scope.tenant_scope(), &id.target_host, None,

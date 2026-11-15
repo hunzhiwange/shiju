@@ -13,7 +13,7 @@ use std::{
 use vw_agent_apps::sessions::maintenance::{MaintenanceOperation, MaintenancePhase};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 #[cfg(target_os = "macos")]
 pub(super) mod host;

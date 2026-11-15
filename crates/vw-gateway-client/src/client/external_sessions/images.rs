@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{SessionImageRequest, SessionImageResponse};
+use vw_api_external_session::{SessionImageRequest, SessionImageResponse};
 
 impl GatewayClient {
     /// Read authorized bitmap bytes on the selected host, without local filesystem fallback.

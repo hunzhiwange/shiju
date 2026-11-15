@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
-use vw_api_types::external_session::ExternalSessionIdentity;
+use vw_api_external_session::ExternalSessionIdentity;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AppleTerminal {

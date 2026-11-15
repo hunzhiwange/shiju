@@ -17,7 +17,7 @@ use serde::de::{self, Deserializer, IgnoredAny, SeqAccess, Visitor};
 use serde::Deserialize;
 use serde_json::Value;
 
-use vw_api_types::external_session::{
+use vw_api_external_session::{
     ContentRef, DiffFile, DiffOp, DiffSummary, ImageRef, ImageSource, SessionBlock, ToolKind,
     ToolStatus,
 };

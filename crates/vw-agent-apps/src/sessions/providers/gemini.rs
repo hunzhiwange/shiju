@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 
 use crate::sessions::blocks::{
     count_diff_lines, single_file_diff, thinking_block, tool_call_block,

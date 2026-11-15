@@ -1,9 +1,9 @@
 //! Shared structured block constructors, preserving upstream tool identity and references.
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 pub use super::tool_normalization::*;
 pub use super::block_preview::*;
-pub use vw_api_types::external_session::project_content;
+pub use vw_api_external_session::project_content;
 
 
 /// 参数里第一个存在的非空字符串字段。

@@ -23,7 +23,8 @@ mod export;
 mod maintenance;
 #[path = "external_sessions/compression.rs"]
 mod compression;
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
+use vw_gateway_client::AgentAppsReadError;
+use vw_api_external_session::*;
 
 #[derive(Clone, Default)]
 pub(crate) struct State {

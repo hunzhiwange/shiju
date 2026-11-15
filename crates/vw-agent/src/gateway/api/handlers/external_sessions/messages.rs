@@ -10,7 +10,7 @@ use vw_agent_apps::sessions::{
 };
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::external_session::*,
+    vw_api_external_session::*,
 };
 
 const MAX_PAYLOAD_BYTES: usize = 32 * 1024 * 1024;

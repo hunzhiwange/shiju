@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
 };
-use vw_api_types::external_session::ExternalSessionIdentity;
+use vw_api_external_session::ExternalSessionIdentity;
 
 /// Call under the target host authorization guard with a freshly rebuilt plan.
 pub fn launch_resume(

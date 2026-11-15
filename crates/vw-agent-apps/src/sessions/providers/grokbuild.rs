@@ -2,7 +2,7 @@
 use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use crate::sessions::blocks::{openai_tool_calls, tool_result_block};
 use crate::sessions::utils::{extract_text, truncate_summary};
 use super::pi_jsonl::{for_each_jsonl_value, parse_timestamp_to_ms};

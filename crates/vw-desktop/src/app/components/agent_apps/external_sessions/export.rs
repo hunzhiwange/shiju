@@ -3,7 +3,8 @@ use super::{Event as ParentEvent, message, reader};
 use crate::app::{App, Message, components::system_settings_common::*};
 use iced::{Element, Task, widget::{button, row, text}};
 use std::path::PathBuf;
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
+use vw_gateway_client::AgentAppsReadError;
+use vw_api_external_session::*;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Destination { Clipboard, File }

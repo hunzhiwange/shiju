@@ -1,7 +1,7 @@
 //! Adapter dispatch over administrator-bound instance roots, without ambient HOME.
 use std::path::Path;
 use vw_agent_apps::sessions::providers as p;
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 pub(super) fn scan(root: &Path, home: &Path, identity: &ExternalSessionIdentity) -> Result<(Vec<SessionMeta>, bool), String> {
     // Reject root symlinks before any adapter reads metadata.
     for ancestor in root.ancestors() {

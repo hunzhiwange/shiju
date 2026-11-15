@@ -1,5 +1,5 @@
 use super::super::{AgentAppsReadError, GatewayClient};
-use vw_api_types::external_session::{
+use vw_api_external_session::{
     HistoryMaintenanceProgress, HistoryMaintenanceQuery, HistoryMaintenanceRequest,
 };
 

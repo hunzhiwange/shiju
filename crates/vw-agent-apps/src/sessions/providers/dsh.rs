@@ -1,6 +1,6 @@
 //! Read-only DeepSeek Harness session browser; native Web UI owns resume/delete.
 use crate::sessions::{blocks, utils};
-use vw_api_types::external_session::*;
+use vw_api_external_session::*;
 use serde_json::Value;
 use std::{
     collections::HashSet,

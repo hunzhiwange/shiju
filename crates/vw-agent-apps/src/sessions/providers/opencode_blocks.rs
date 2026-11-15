@@ -4,7 +4,7 @@
 
 use serde_json::Value;
 
-use vw_api_types::external_session::{
+use vw_api_external_session::{
     ContentRef, DiffOp, EventKind, ImageRef, ImageSource, MessageMeta, SessionBlock,
     SessionMessage, StepPhase, ToolStatus,
 };
@@ -159,7 +159,7 @@ fn push_tool_blocks(blocks: &mut Vec<SessionBlock>, locator: &PartLocator, part:
         kind, title, diff, ..
     } = &mut call
     {
-        use vw_api_types::external_session::ToolKind;
+        use vw_api_external_session::ToolKind;
         // edit/write 的 state.title 是相对项目的路径，比参数里的绝对路径更短
         if matches!(kind, ToolKind::Edit | ToolKind::Write) {
             if let Some(t) = state_title {

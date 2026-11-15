@@ -5,7 +5,7 @@ use iced::{
     Element,
     widget::{button, column, row, text, text_input},
 };
-use vw_gateway_client::vw_api_types::external_session::*;
+use vw_api_external_session::*;
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub enum Filter {
     #[default]

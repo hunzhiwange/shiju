@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use serde_json::Value;
-use vw_api_types::external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMeta, SessionProvider, SessionSource};
+use vw_api_external_session::{ExternalSessionId, ExternalSessionIdentity, SessionCapabilities, SessionMeta, SessionProvider, SessionSource};
 use crate::sessions::utils::{extract_text, truncate_summary};
 const TITLE_MAX_CHARS: usize = 80;
 

@@ -1,7 +1,7 @@
 use std::{sync::Barrier, thread};
 
 use anyhow::Result;
-use vw_agent_apps::providers::failover::{ProviderAuth, ProviderSnapshot};
+use app_providers::providers::failover::{ProviderAuth, ProviderSnapshot};
 use vw_api_app_identity::AppId::Claude;
 use vw_api_app_identity::AppId::Codex;
 use vw_api_app_failover::FailoverQueueScope;
@@ -16,7 +16,7 @@ use super::{
     },
     settings_store::GatewaySettingsStore,
 };
-use crate::global_database::{GlobalDatabase, test_support::PostgresTestDatabase};
+use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 
 #[test]
 fn ha_sqlite_queue_updates_are_atomic() -> Result<()> {

@@ -5,8 +5,8 @@ use anyhow::Result;
 use vw_api_transport::id::TenantScope;
 
 use super::settings_store::GatewaySettingsStore;
-use crate::global_database::GlobalDatabase;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::GlobalDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn gateway_settings_store_isolates_tenant_namespace_and_key() -> Result<()> {
@@ -117,7 +117,7 @@ fn for_each_gateway_settings_store_provider(
     let sqlite_store = GatewaySettingsStore::new(GlobalDatabase::for_home(sqlite_home.path())?)?;
     check(&sqlite_store)?;
 
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database!();
     let postgres_store = GatewaySettingsStore::new(postgres_fixture.database().clone())?;
     check(&postgres_store)?;
     postgres_fixture.cleanup()?;

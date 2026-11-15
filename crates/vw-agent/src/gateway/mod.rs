@@ -26,11 +26,7 @@ pub mod agent_apps_high_availability_service;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_high_availability_service_tests;
 pub mod agent_apps_high_availability_store;
-#[cfg(test)]
-mod agent_apps_high_availability_store_tests;
 pub mod agent_apps_skills_store;
-#[cfg(test)]
-mod agent_apps_skills_store_tests;
 pub mod api;
 pub(crate) mod approval_state;
 mod bootstrap;
@@ -55,8 +51,6 @@ mod router;
 pub(crate) use bootstrap::dynamic_tools_acceptance_router;
 mod runtime;
 pub(crate) mod settings_store;
-#[cfg(test)]
-mod settings_store_tests;
 pub mod sse;
 mod state;
 #[cfg(test)]

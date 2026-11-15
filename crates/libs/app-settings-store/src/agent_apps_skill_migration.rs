@@ -45,7 +45,7 @@ impl SkillInstallsStore {
             }
         }
         for detail in
-            vw_agent_apps::skills::inventory::get_all_installed(&state.ssot_root, &state.skills)?
+            app_skills::inventory::get_all_installed(&state.ssot_root, &state.skills)?
         {
             if let Some(record) = existing.get_mut(&detail.skill.directory) {
                 record.content_hash =
@@ -145,7 +145,7 @@ impl SkillInstallsStore {
 fn migration_revision(state: &SkillInstallsState) -> Result<String> {
     use sha2::{Digest, Sha256};
     let inventory =
-        vw_agent_apps::skills::inventory::get_all_installed(&state.ssot_root, &state.skills)?;
+        app_skills::inventory::get_all_installed(&state.ssot_root, &state.skills)?;
     let mut content = Vec::new();
     for detail in inventory {
         content.push((detail.skill.directory, detail.content_hash));
@@ -154,7 +154,7 @@ fn migration_revision(state: &SkillInstallsState) -> Result<String> {
     for (key, binding) in &state.copy_bindings {
         projections.push((
             key,
-            vw_agent_apps::skills::copy_deploy::binding_fingerprint(
+            app_skills::copy_deploy::binding_fingerprint(
                 &binding.destination,
                 binding.link_target.as_deref(),
             )?,

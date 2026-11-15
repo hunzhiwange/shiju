@@ -3,11 +3,11 @@
 // CRUD 在同一数据库 fixture 中切换多个作用域，直接观察键空间是否串用。
 use super::*;
 
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn postgres_gateway_settings_crud_isolates_tenant_namespace_and_key() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let store =
         PostgresGatewaySettingsStore::new(fixture.database().clone()).expect("settings store");
     let tenant_a = TenantScope::new("platform-a", "company-a").expect("tenant A");

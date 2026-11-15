@@ -1,5 +1,5 @@
 use anyhow::Result;
-use vw_agent_apps::skills::repos::SkillRepo;
+use app_skills::repos::SkillRepo;
 use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
@@ -11,7 +11,7 @@ use super::{
     },
     settings_store::GatewaySettingsStore,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 #[cfg(target_os = "macos")]
 #[test]

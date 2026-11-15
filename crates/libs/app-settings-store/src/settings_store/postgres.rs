@@ -7,7 +7,7 @@ use postgres::{IsolationLevel, types::ToSql};
 use vw_api_transport::id::TenantScope;
 
 use super::{GatewaySetting, current_timestamp_ms, validate_identifier};
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const GATEWAY_SETTINGS_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS gateway_settings (

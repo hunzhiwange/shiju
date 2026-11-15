@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+app-settings-store = { path = "../libs/app-settings-store", version = "0.6.0" }
 tool-context = { path = "../libs/tool-context", version = "0.6.0" }
 storage-types = { path = "../libs/storage-types", version = "0.6.0" }
 session-port = { path = "../libs/session-port", version = "0.6.0" }

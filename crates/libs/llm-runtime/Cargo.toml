@@ -1,0 +1,42 @@
+[package]
+name = "llm-runtime"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+parking_lot = "0.12"
+tokio = { version = "1", features = ["sync"] }
+sha2 = "0.11"
+hex = "0.4"
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+acp-types = { path = "../acp-types", version = "0.6.0" }
+vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+acp-host-io = { path = "../acp-host-io", version = "0.6.0" }
+tokio-util = "0.7.18"
+
+reqwest = { version = "0.13", default-features = false }
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume", "unstable_session_model", "unstable_boolean_config"] }
+tracing = "0.1"
+acp-client = { path = "../acp-client", version = "0.6.0" }
+acp-storage = { path = "../acp-storage", version = "0.6.0" }
+acp-access-policy = { path = "../acp-access-policy", version = "0.6.0" }
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
+acp-cli-model = { path = "../acp-cli-model", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+agent-multimodal = { path = "../agent-multimodal", version = "0.6.0" }
+message-types = { path = "../message-types", version = "0.6.0" }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
+
+[dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+tempfile = "3"

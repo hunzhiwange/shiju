@@ -14,24 +14,14 @@ pub(crate) use replay::{build_replay_prompt, parse_replay_strategy};
 pub(crate) use request::do_stream_request_acp;
 #[allow(unused_imports)]
 pub(crate) use session::{acp_session_name, missing_session_error};
-use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 #[allow(unused_imports)]
 pub(crate) use updates::{
     extract_delta_from_acp_message, extract_reasoning_delta_from_acp_message,
     extract_tool_call_from_acp_message,
 };
 
-use parking_lot::Mutex;
-use tokio::sync::mpsc;
-use acp_client::AcpClient;
-use acp_types::{
-    AcpJsonRpcMessage,
-    AcpSessionOptions,
-    AuthPolicy,
-    NonInteractivePermissionPolicy,
-    PermissionMode,
-};
+
 
 use crate::app::agent::session::message;
 
@@ -51,24 +41,7 @@ mod session;
 mod skill_mounts;
 mod updates;
 
-static ACP_CLIENT_CACHE: LazyLock<Mutex<HashMap<String, Arc<CachedAcpClient>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
-/// 绑定到一组 ACP 启动配置的客户端缓存项。
-///
-/// 同一个 ACP 代理进程会复用客户端连接；`prompt_lock` 用来串行化同一客户端上的 prompt，
-/// `output_tx` 则在请求运行期间临时接收 ACP JSON-RPC 输出回调。
-struct CachedAcpClient {
-    permission_confirmation: Arc<parking_lot::Mutex<Option<acp_host_io::permissions::PermissionConfirmation>>>,
-    tenant: vw_api_transport::TenantScope,
-    runtime_identity: Option<String>,
-    client: Arc<AcpClient>,
-    prompt_lock: Arc<tokio::sync::Mutex<()>>,
-    output_tx: Arc<Mutex<Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>>>,
-    // Native peers can retain terminals between prompts. Keep their actual cwd
-    // protected until the cached client is retired; drop this after the client.
-    worktree_use: Mutex<Option<Arc<std::fs::File>>>,
-}
+use llm_runtime::acp::cache::{ACP_CLIENT_CACHE, CachedAcpClient};
 
 /// ACP 客户端缓存命中结果。
 ///
@@ -82,55 +55,8 @@ struct CachedAcpClientEntry {
 /// 从运行时选项解析出的 ACP 会话参数。
 ///
 /// 字段保持为 `Option`，让调用方能区分“用户未配置”和“明确配置为空”的场景。
-#[derive(Clone, Default, PartialEq, Eq)]
-pub(super) struct ParsedAcpOptions {
-    /// 已在网关按作用域解析的 MCP 配置，不接受请求中的原始凭据。
-    pub(super) runtime_identity: Option<String>,
-    /// Canonical workspace bound by the desktop turn context.
-    pub(super) desktop_workspace: Option<std::path::PathBuf>,
-    pub(super) skill_mounts: Vec<acp_types::SessionSkillMount>,
-    pub(super) skill_view: Option<skill_mounts::MountedSkills>,
-    pub(super) mcp_servers: Vec<agent_client_protocol::McpServer>,
-    /// ACP 权限模式；未设置时由客户端构造逻辑选择默认策略。
-    pub(super) permission_mode: Option<PermissionMode>,
-    /// 是否允许 ACP 文件系统操作越过会话工作目录边界。
-    pub(super) full_access: bool,
-    /// 非交互环境下的权限处理策略。
-    pub(super) non_interactive_permissions: Option<NonInteractivePermissionPolicy>,
-    /// ACP 代理认证策略。
-    pub(super) auth_policy: Option<AuthPolicy>,
-    /// 期望切换到的 ACP 会话模式。
-    pub(super) session_mode: Option<String>,
-    /// 会话级模型、工具白名单和最大轮次等选项。
-    pub(super) session_options: Option<AcpSessionOptions>,
-    /// 需要逐项写入 ACP 会话配置的键值对。
-    pub(super) session_config_options: Vec<(String, String)>,
-}
-
-// MCP payloads may contain credentials; diagnostics expose only their count.
-impl std::fmt::Debug for ParsedAcpOptions {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ParsedAcpOptions")
-            .field("mcp_server_count", &self.mcp_servers.len())
-            .field("permission_mode", &self.permission_mode)
-            .field("full_access", &self.full_access)
-            .finish_non_exhaustive()
-    }
-}
-
-/// 新建 ACP 会话时本地历史的重放策略。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum AcpReplayStrategy {
-    /// 丢弃旧历史，仅发送当前用户请求和系统约束。
-    Discard,
-    /// 完整重放本地会话历史。
-    Full,
-    /// 生成压缩摘要并附带最近若干轮。
-    Summary,
-    /// 只重放最近若干轮对话。
-    Recent,
-}
+pub(super) type ParsedAcpOptions = llm_runtime::acp::options::ParsedAcpOptions<skill_mounts::MountedSkills>;
+pub(super) use llm_runtime::acp::options::AcpReplayStrategy;
 
 /// 将底层 ACP 错误包装为上层统一的 API 错误。
 ///
@@ -173,3 +99,12 @@ fn is_acp_session_changed_error(err: &Error) -> bool {
 mod tests;
 
 pub(crate) mod source_selection;
+
+#[cfg(test)]
+use acp_client::AcpClient;
+#[cfg(test)]
+use acp_types::AcpJsonRpcMessage;
+#[cfg(test)]
+use parking_lot::Mutex;
+#[cfg(test)]
+use tokio::sync::mpsc;

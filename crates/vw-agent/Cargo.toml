@@ -55,6 +55,7 @@ tool-context = { path = "../libs/tool-context", version = "0.6.0" }
 tool-services = { path = "../libs/tool-services", version = "0.6.0" }
 storage-types = { path = "../libs/storage-types", version = "0.6.0" }
 session-port = { path = "../libs/session-port", version = "0.6.0" }
+llm-runtime = { path = "../libs/llm-runtime", version = "0.6.0" }
 channel-types = { path = "../libs/channel-types", version = "0.6.0" }
 channel-mattermost = { path = "../libs/channel-mattermost", version = "0.6.0" }
 channel-slack = { path = "../libs/channel-slack", version = "0.6.0" }

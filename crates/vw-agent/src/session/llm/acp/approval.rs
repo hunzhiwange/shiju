@@ -12,8 +12,7 @@ use crate::approval::{
 };
 
 pub(super) struct PromptApproval<'a> {
-    slot: &'a Mutex<Option<PermissionConfirmation>>,
-    cancellation: CancellationToken,
+    _binding: llm_runtime::acp::approval::PromptApproval<'a>,
 }
 
 impl<'a> PromptApproval<'a> {
@@ -30,7 +29,7 @@ impl<'a> PromptApproval<'a> {
             .map(CancellationToken::child_token)
             .unwrap_or_default();
         let prompt_cancellation = cancellation.clone();
-        *slot.lock() = context.map(|context| {
+        let confirmation = context.map(|context| {
             let session_id = session_id.to_owned();
             let confirm: PermissionConfirmation = Arc::new(move |title, arguments| {
                 let context = context.clone();
@@ -74,14 +73,7 @@ impl<'a> PromptApproval<'a> {
             });
             confirm
         });
-        Self { slot, cancellation }
-    }
-}
-
-impl Drop for PromptApproval<'_> {
-    fn drop(&mut self) {
-        self.cancellation.cancel();
-        self.slot.lock().take();
+        Self { _binding: llm_runtime::acp::approval::PromptApproval::bind(slot, confirmation, cancellation) }
     }
 }
 

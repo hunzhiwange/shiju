@@ -106,6 +106,7 @@ members = [
   "crates/libs/storage-types",
   "crates/libs/app-workspace-memory",
   "crates/libs/session-port",
+  "crates/libs/llm-runtime",
   "crates/libs/app-operations",
   "crates/libs/channel-types",
   "crates/libs/channel-nostr",

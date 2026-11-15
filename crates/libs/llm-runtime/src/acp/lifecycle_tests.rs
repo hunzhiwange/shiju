@@ -1,4 +1,5 @@
 use super::*;
+use agent_database::GlobalDatabase;
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 #[test]
@@ -8,7 +9,7 @@ fn acp_model_source_session_controls_failed_commit_preserves_recovery_anchor() {
     let store = Store {
         store: GatewaySettingsStore::new(database).unwrap(),
         tenant: TenantScope::default(),
-        key: session_identity("session", "/workspace"),
+        key: session_identity(&TenantScope::default(), "session", "/workspace"),
     };
     let previous = Selection {
         agent: "codex".into(),

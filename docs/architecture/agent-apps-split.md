@@ -2658,3 +2658,14 @@ native_capability、adapters、native_file、import 与 distribution 的公开�
 静态审阅：18 文件仅替换所有者导入路径；工作区已有 live_file.rs、shared_import.rs 修改随迁移保留且不纳入本任务提交。基线仍引用 vw-api-types，故清单暂保留该真实依赖；已有修复完成后可独立清理。TOML 标准库解析及路径审阅、模块注册/调用者与无反向依赖检索、差异空白检查完成。Cargo.lock 未触碰。
 
 未运行 Cargo、单元及实机测试，统一验收待授权；需覆盖 app-prompts 与直接调用者编译、提示词测试及 macOS/Windows/Linux 条件行为。静态审阅不代表编译或行为验证通过。
+
+
+## 任务 44：会话解析基础迁移结果
+
+本节覆盖历史所有权表任务 44 原路径：`crates/libs/app-session-core/src` 唯一拥有 block_preview.rs、blocks.rs、codex_state.rs、tool_normalization.rs、utils.rs，以及 identity.rs 的 AcpDisplayId、SessionDisplayLinks、validate_identity。原 sessions/mod.rs 重导出 blocks、codex_state、utils；sessions/identity.rs 重导出纯身份符号。lib.rs 的 pub mod sessions 维持原调用路径。
+
+native_resume_identity 依赖上层 source::ValidatedSource，暂留原 sessions/identity.rs；任务 53 接收 source 后，由任务 54 收口恢复校验及会话操作，禁止 core 回依赖门面。blocks::openai_tool_calls 仅因 hermes、hermes_sqlite、grokbuild 真实跨包调用改为 pub，其余签名和行为保持。providers、usage 与网关继续经原门面使用预览、文本提取和 Codex 状态路径解析。
+
+静态证据：五个完整迁移文件与 HEAD 逐字核对（仅 openai_tool_calls 可见性调整）；身份纯逻辑与恢复校验分别保留原函数体。原文件无独立单测、cfg、include 或资源路径，未新增测试。新包直接依赖 serde_json（保留 arbitrary_precision）、toml_edit、vw-api-external-session、vw-api-transport；路径存在且无旧门面回依赖。原包其余领域仍使用这些依赖，保留。Python 标准库核实路径；当前 Python 无 tomllib，清单语法、版本及特性人工审阅。差异空白检查通过。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：覆盖 app-session-core 与直接调用者编译、迁移函数的定向验证和三平台路径行为。静态审阅不代表行为验收；Cargo.lock 未触碰。

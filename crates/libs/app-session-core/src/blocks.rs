@@ -227,7 +227,7 @@ fn str_field_allow_empty<'a>(input: &'a Value, keys: &[&str]) -> Option<&'a str>
 /// OpenAI 形状的 `tool_calls[]`（`{id, function{name, arguments}}`，也兼容扁平 `{id, name, arguments}`）
 /// → ToolCall。`arguments_ref(pointer)` 为参数全文生成引用，`pointer` 是参数在 `tool_calls`
 /// 数组内的 JSON Pointer（`/{i}/function/arguments` 或扁平形状的 `/{i}/arguments`）。
-pub(super) fn openai_tool_calls(
+pub fn openai_tool_calls(
     calls: Option<&Value>,
     arguments_ref: impl Fn(String) -> Option<ContentRef>,
 ) -> Vec<SessionBlock> {

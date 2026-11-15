@@ -22,3 +22,14 @@ desktop-config = { path = "../desktop-config", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 gateway-model-provider = { path = "../gateway-model-provider", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+auth-file-store = { path = "../auth-file-store", version = "0.6.0" }
+auth-types = { path = "../auth-types", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+provider-resolution = { path = "../provider-resolution", version = "0.6.0" }
+provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
+provider-model-discovery = { path = "../provider-model-discovery", version = "0.6.0" }
+model-catalog-types = { path = "../model-catalog-types", version = "0.6.0" }
+directories = "5"
+
+[dev-dependencies]
+model-state = { path = "../model-state", version = "0.6.0" }

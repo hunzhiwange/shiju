@@ -11,3 +11,10 @@ pub mod model_tasks;
 pub mod model_update;
 
 pub mod app_init;
+
+pub mod provider_state;
+pub mod provider_models;
+pub mod provider_tasks;
+pub mod provider_catalog;
+pub mod embedding_view_message;
+pub mod embedding_routes_view;

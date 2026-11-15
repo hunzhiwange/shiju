@@ -135,6 +135,7 @@ pub(crate) fn map_view_message(message: domain::Message) -> crate::app::Message 
  domain::Message::CopyCode(text) => Message::CopyCode(text),
  domain::Message::None => Message::None,
  domain::Message::Settings(message) => Message::Settings(match message {
+        domain::SettingsMessage::EmbeddingRoutes(message) => SettingsMessage::EmbeddingRoutes(message),
         domain::SettingsMessage::CustomProviderModelClose => SettingsMessage::CustomProviderModelClose,
         domain::SettingsMessage::CustomProviderModelModalAttachmentChanged(v0) => SettingsMessage::CustomProviderModelModalAttachmentChanged(v0),
         domain::SettingsMessage::CustomProviderModelModalContextLimitChanged(v0) => SettingsMessage::CustomProviderModelModalContextLimitChanged(v0),

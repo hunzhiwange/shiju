@@ -3,6 +3,7 @@ use crate::state::{CustomProviderModelTab};
 pub enum ModelRoutesMessage { AddRoute, RemoveRoute(usize), PatternChanged(usize,String), ProviderChanged(usize,String), ModelChanged(usize,String), PriorityChanged(usize,String) }
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    EmbeddingRoutes(crate::embedding_view_message::EmbeddingRoutesMessage),
     CustomProviderModelClose,
     CustomProviderModelModalAttachmentChanged(bool),
     CustomProviderModelModalContextLimitChanged(String),

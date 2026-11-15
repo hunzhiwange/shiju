@@ -20,20 +20,7 @@ use super::types::{
 };
 
 /// Embedding 路由设置页消息。
-#[derive(Debug, Clone)]
-pub enum EmbeddingRoutesMessage {
-    AddRoute,
-    InsertAlibabaTemplate,
-    InsertDoubaoTemplate,
-    InsertShijuTemplate,
-    RemoveRoute(usize),
-    PatternChanged(usize, String),
-    ProviderChanged(usize, String),
-    ModelChanged(usize, String),
-    DimensionsChanged(usize, String),
-    ApiKeyChanged(usize, String),
-    Save,
-}
+pub use desktop_settings_providers::embedding_view_message::EmbeddingRoutesMessage;
 
 pub use desktop_settings_security::security_message::{BashPolicyCheck, BashValidatorCheck};
 

@@ -2,7 +2,7 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::state::{CustomProviderDraft, CustomProviderModelDraft, ProviderHeaderDraft};
+use crate::provider_state::{CustomProviderDraft, CustomProviderModelDraft, ProviderHeaderDraft};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
@@ -432,7 +432,7 @@ fn custom_provider_patch_skips_untouched_disabled_catalog_models() {
 
 #[test]
 fn merge_custom_provider_draft_combines_config_and_settings_models() {
-    use crate::app::provider::provider::{
+    use model_types::{
         ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
         ModelCostCache, ModelLimit, ProviderSource,
     };
@@ -653,7 +653,7 @@ fn custom_provider_patch_writes_explicit_model_metadata_and_preserves_unedited_f
 #[test]
 fn cross_layer_fixture_patch_and_usage_window_share_the_default_limit() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../../../libs/model-state/assets/provider/cross_layer_unknown_model.json"
+        "../../model-state/assets/provider/cross_layer_unknown_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let draft = CustomProviderDraft {
@@ -681,7 +681,7 @@ fn cross_layer_fixture_patch_and_usage_window_share_the_default_limit() {
 #[test]
 fn cross_layer_explicit_fixture_round_trips_through_settings_patch() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../../../libs/model-state/assets/provider/cross_layer_explicit_model.json"
+        "../../model-state/assets/provider/cross_layer_explicit_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let draft = CustomProviderDraft {

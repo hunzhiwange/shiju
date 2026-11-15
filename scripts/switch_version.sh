@@ -27,6 +27,7 @@ It updates these package manifests:
   crates/vw-webview/Cargo.toml
   crates/libs/webview-*/Cargo.toml (discovered automatically)
   crates/libs/api-*/Cargo.toml (discovered automatically)
+  Shared responsibility libraries listed below
 
 It also updates matching package entries in Cargo.lock.
 It also updates local path dependency version constraints between VibeWindow crates.
@@ -285,9 +286,43 @@ LOCK_PACKAGE_NAMES=(
   "vw-webview"
 )
 
-# WebView responsibilities are versioned together with their binary consumers.
-# Discover manifests rather than maintaining a second list for each extracted crate.
-for manifest in crates/libs/webview-*/Cargo.toml crates/libs/api-*/Cargo.toml; do
+# Version extracted responsibilities together with their consumers.
+# Discover the WebView and API families; enumerate the shared libraries explicitly.
+for manifest in \
+  crates/libs/app-self-update/Cargo.toml \
+  crates/libs/desktop-release/Cargo.toml \
+  crates/libs/update-types/Cargo.toml \
+  crates/libs/shell-command/Cargo.toml \
+  crates/libs/local-app-auth/Cargo.toml \
+  crates/libs/runtime-log/Cargo.toml \
+  crates/libs/pasted-text-cache/Cargo.toml \
+  crates/libs/task-file-store/Cargo.toml \
+  crates/libs/session-artifact-store/Cargo.toml \
+  crates/libs/task-types/Cargo.toml \
+  crates/libs/ordered-id/Cargo.toml \
+  crates/libs/session-text/Cargo.toml \
+  crates/libs/session-ui-types/Cargo.toml \
+  crates/libs/session-info/Cargo.toml \
+  crates/libs/message-types/Cargo.toml \
+  crates/libs/auth-file-store/Cargo.toml \
+  crates/libs/auth-types/Cargo.toml \
+  crates/libs/model-state/Cargo.toml \
+  crates/libs/model-types/Cargo.toml \
+  crates/libs/model-catalog-types/Cargo.toml \
+  crates/libs/model-reasoning/Cargo.toml \
+  crates/libs/model-protocols/Cargo.toml \
+  crates/libs/session-paths/Cargo.toml \
+  crates/libs/build-identity/Cargo.toml \
+  crates/libs/runtime-time/Cargo.toml \
+  crates/libs/display-format/Cargo.toml \
+  crates/libs/json-extract/Cargo.toml \
+  crates/libs/todo-types/Cargo.toml \
+  crates/libs/project-types/Cargo.toml \
+  crates/libs/question-types/Cargo.toml \
+  crates/libs/permission-types/Cargo.toml \
+  crates/libs/snapshot-types/Cargo.toml \
+  crates/libs/patch/Cargo.toml \
+  crates/libs/webview-*/Cargo.toml crates/libs/api-*/Cargo.toml; do
   [[ -f "$manifest" ]] || die "Missing responsibility library manifests"
   package_name="$(awk '
     /^\[package\][[:space:]]*$/ { in_package = 1; next }

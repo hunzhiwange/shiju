@@ -8,7 +8,6 @@ license = "MIT"
 model-types = { path = "../model-types", version = "0.6.0" }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
-vw-shared = { path = "../../vw-shared", version = "0.6.0" }
 
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

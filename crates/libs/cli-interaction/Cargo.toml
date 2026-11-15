@@ -29,7 +29,6 @@ dialoguer = "0.11"
 ratatui = "0.30.0"
 serde_json = "1"
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
-vw-shared = { path = "../../vw-shared", version = "0.6.0" }
 vw-tui = { path = "../../vw-tui", version = "0.6.0" }
 
 [dev-dependencies]

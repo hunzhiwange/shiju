@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use vw_shared::patch::{Hunk, parse_patch};
+use patch::patch::{Hunk, parse_patch};
 
 use super::changes::parse_changes_files;
 use super::diff_utils::extract_diff_block;

@@ -1,338 +1,51 @@
-//! Confirmed aggregation exit through the existing host operation registry.
-use super::app_providers::operations::{State, aggregation::Owner};
-#[cfg(target_os = "macos")]
-use super::app_routing::RoutingControl;
-use crate::global_database::GlobalDatabase;
-use axum::{
-    Extension, Json, Router,
-    extract::{DefaultBodyLimit, Path, rejection::JsonRejection},
-    http::{HeaderMap, StatusCode, header},
-    response::{IntoResponse, Response},
-    routing::post,
-};
-use sha2::{Digest, Sha256};
-use vw_api_app_identity::AppId;
-use vw_api_app_aggregation::*;
-use vw_api_transport::id::ProjectScope;
-use vw_api_transport::id::TenantScope;
-#[cfg(not(target_os = "macos"))]
-#[derive(Clone)]
-struct RoutingControl;
-pub(super) fn router() -> Router {
-    Router::new()
-        .route("/agent-apps/{app}/aggregation/exit", post(submit))
-        .layer(DefaultBodyLimit::max(24 * 1024))
-}
-
-#[derive(Debug)]
-struct Failure(StatusCode, &'static str);
-impl From<StatusCode> for Failure {
-    fn from(status: StatusCode) -> Self {
-        Self(
-            status,
-            match status {
-                StatusCode::BAD_REQUEST => "invalid_request",
-                StatusCode::UNAUTHORIZED => "unauthenticated",
-                StatusCode::FORBIDDEN => "forbidden",
-                StatusCode::NOT_FOUND => "not_found",
-                StatusCode::CONFLICT => "revision_conflict",
-                StatusCode::UNPROCESSABLE_ENTITY => "unsupported_target",
-                StatusCode::BAD_GATEWAY => "target_failed",
-                StatusCode::GATEWAY_TIMEOUT => "target_timeout",
-                _ => "target_unavailable",
-            },
-        )
+//! Compose the exit HTTP route with the unique provider operation registry.
+use super::aggregation_codex_settings::SnapshotHost;
+use gateway_aggregation::exit_host::{ExitHost, Owner};
+impl ExitHost for SnapshotHost {
+    type State = super::app_providers::operations::State;
+    #[cfg(target_os = "macos")]
+    type Context = crate::gateway::aggregation_resync::RecordPublicationContext;
+    #[cfg(target_os = "macos")]
+    fn policy<'a>(&self, state: &'a Self::State) -> Option<&'a std::path::Path> { state.aggregation_policy() }
+    #[cfg(target_os = "macos")]
+    fn replay(&self, state: &Self::State, o: &Owner, request: &str, fingerprint: &[u8;32])
+        -> Result<Option<serde_json::Value>, axum::http::StatusCode> {
+        state.aggregation_exit_replay(&super::app_providers::operations::aggregation::Owner {
+            project: o.project.clone(), host: o.host.clone(), app: o.app, principal: o.principal.clone(),
+        }, request, fingerprint)
     }
-}
-impl IntoResponse for Failure {
-    fn into_response(self) -> Response {
-        use {
-    vw_api_transport::error::ApiErrorBody,
-    vw_api_transport::error::ApiErrorDetail,
-};
-        (
-            self.0,
-            [(header::CACHE_CONTROL, "no-store")],
-            Json(ApiErrorBody {
-                error: ApiErrorDetail {
-                    code: self.1.into(),
-                    message: self.1.into(),
-                    details: None,
-                },
-            }),
-        )
-            .into_response()
+    #[cfg(target_os = "macos")]
+    fn start(&self, state: &Self::State, o: Owner, request: String, fingerprint: [u8;32],
+        work: impl FnOnce() -> vw_api_app_aggregation::AggregationOutcome + Send + 'static)
+        -> Result<serde_json::Value, axum::http::StatusCode> {
+        state.aggregation_exit_start(super::app_providers::operations::aggregation::Owner {
+            project: o.project, host: o.host, app: o.app, principal: o.principal,
+        }, request, fingerprint, work)
     }
-}
-async fn submit(
-    Extension(state): Extension<State>,
-    Extension(tenant): Extension<TenantScope>,
-    db: Option<Extension<GlobalDatabase>>,
-    control: Option<Extension<RoutingControl>>,
-    headers: HeaderMap,
-    app: Result<Path<AppId>, axum::extract::rejection::PathRejection>,
-    input: Result<Json<AggregationExitRequest>, JsonRejection>,
-) -> Response {
-    let result = async {
-        let Path(app) = app.map_err(|_| Failure::from(StatusCode::BAD_REQUEST))?;
-        let Json(request) = input.map_err(|_| Failure::from(StatusCode::BAD_REQUEST))?;
-        tokio::task::spawn_blocking(move || {
-            prepare(state, tenant, db, control, headers, app, request)
-        })
-        .await
-        .map_err(|_| Failure::from(StatusCode::SERVICE_UNAVAILABLE))?
+    #[cfg(target_os = "macos")]
+    fn database(&self) -> Result<crate::global_database::GlobalDatabase, axum::http::StatusCode> {
+        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home)
+            .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)
     }
-    .await;
-    match result {
-        Ok(progress) => {
-            (StatusCode::ACCEPTED, [(header::CACHE_CONTROL, "no-store")], Json(progress))
-                .into_response()
+    #[cfg(target_os = "macos")]
+    fn exit_context(&self, p: gateway_aggregation::publication_host::Publication, control: Self::Routing) -> Self::Context {
+        crate::gateway::aggregation_resync::RecordPublicationContext {
+            database: p.database, project: p.project, host: p.host, app: p.app, home: p.home,
+            root: p.root, routing: Some(control.routing), expected: p.expected,
+            principal: p.principal, revision: p.revision, failure: Default::default(),
         }
-        Err(error) => error.into_response(),
     }
-}
-#[cfg(not(target_os = "macos"))]
-#[allow(clippy::too_many_arguments)]
-fn prepare(
-    _: State,
-    _: TenantScope,
-    _: Option<Extension<GlobalDatabase>>,
-    _: Option<Extension<RoutingControl>>,
-    _: HeaderMap,
-    _: AppId,
-    _: AggregationExitRequest,
-) -> Result<serde_json::Value, Failure> {
-    Err(Failure(StatusCode::UNPROCESSABLE_ENTITY, "unsupported_target"))
 }
 #[cfg(target_os = "macos")]
-#[allow(clippy::too_many_arguments)]
-fn prepare(
-    state: State,
-    tenant: TenantScope,
-    db: Option<Extension<GlobalDatabase>>,
-    control: Option<Extension<RoutingControl>>,
-    headers: HeaderMap,
-    app: AppId,
-    request: AggregationExitRequest,
-) -> Result<serde_json::Value, Failure> {
-    use super::aggregation_read_snapshot as snapshot;
-    use vw_agent_apps::providers::live::{
-        commit::{ExecutionHostId, ProviderTransactions},
-        write_guard::lock_app,
-    };
-    let project = ProjectScope::new(tenant.clone(), request.project_id.clone())
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-    for id in [&request.target_host_id, &request.request_id] {
-        vw_agent_apps::providers::validate_identity(id).map_err(|_| StatusCode::BAD_REQUEST)?;
+impl gateway_aggregation::exit_host::ExitContext for crate::gateway::aggregation_resync::RecordPublicationContext {
+    fn home(&self) -> &std::path::PathBuf { &self.home }
+    fn root(&self) -> &std::path::PathBuf { &self.root }
+    fn principal(&self) -> &String { &self.principal }
+    fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), axum::http::StatusCode> {
+        self.exit_aggregation(authorized)
     }
-    let (home, root, principal) = super::agent_apps::authorize_aggregation_write(
-        state.aggregation_policy(),
-        &headers,
-        &project,
-        &request.target_host_id,
-        app,
-        true,
-    )?;
-    if !matches!(app, AppId::Claude | AppId::Codex | AppId::ClaudeDesktop) {
-        return Err(Failure(StatusCode::UNPROCESSABLE_ENTITY, "unsupported_app"));
+    fn exited_state(&self) -> Result<vw_api_app_aggregation::AggregationState, axum::http::StatusCode> {
+        self.exited_state()
     }
-    let owner = Owner {
-        project: project.clone(),
-        host: request.target_host_id.clone(),
-        app,
-        principal: principal.clone(),
-    };
-    let fingerprint: [u8; 32] =
-        Sha256::digest(serde_json::to_vec(&request).map_err(|_| StatusCode::BAD_REQUEST)?).into();
-    if let Some(progress) =
-        state.aggregation_exit_replay(&owner, &request.request_id, &fingerprint).map_err(|s| {
-            if s == StatusCode::CONFLICT { Failure(s, "request_conflict") } else { s.into() }
-        })?
-    {
-        return Ok(progress);
-    }
-    if !request.confirmed {
-        return Err(Failure(StatusCode::UNPROCESSABLE_ENTITY, "confirmation_required"));
-    }
-    if request.expected_revision.is_empty() || request.expected_revision.len() > 256 {
-        return Err(StatusCode::BAD_REQUEST.into());
-    }
-    if app == AppId::ClaudeDesktop {
-        require_desktop(
-            state.aggregation_policy(),
-            &headers,
-            &project,
-            &request.target_host_id,
-            &home,
-            &principal,
-        )?;
-    }
-    let root = root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let guard = lock_app(app, &home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    if let Some(progress) =
-        state.aggregation_exit_replay(&owner, &request.request_id, &fingerprint).map_err(|s| {
-            if s == StatusCode::CONFLICT { Failure(s, "request_conflict") } else { s.into() }
-        })?
-    {
-        return Ok(progress);
-    }
-    let tx = ProviderTransactions::open_existing(
-        &root,
-        ExecutionHostId::new(&request.target_host_id).map_err(|_| StatusCode::BAD_REQUEST)?,
-    )
-    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-    .ok_or(StatusCode::CONFLICT)?;
-    let expected = tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    if expected.project_scope.as_ref() != Some(&project) {
-        return Err(StatusCode::FORBIDDEN.into());
-    }
-    expected.require_project(&project).map_err(|_| StatusCode::CONFLICT)?;
-    if let Some(pending) = tx.pending(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? {
-        if pending.tenant != tenant
-            || pending.target.project_scope.as_ref().is_some_and(|p| p != &project)
-        {
-            return Err(StatusCode::FORBIDDEN.into());
-        }
-        return Err(Failure(StatusCode::CONFLICT, "recovery_pending"));
-    }
-    let db = match db {
-        Some(Extension(db)) => db,
-        None => GlobalDatabase::for_home(&crate::global::paths().home)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
-    };
-    let input =
-        snapshot::load(&db, &project, &request.target_host_id, app, &home, &expected, None)?;
-    if snapshot::revision(&project, &request.target_host_id, app, &principal, &expected, &input)?
-        != request.expected_revision
-    {
-        return Err(StatusCode::CONFLICT.into());
-    }
-    let Extension(control) = control.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let provider_headers = super::aggregation_resync::provider_headers(headers.clone())?;
-    let (route_root, route_principal) =
-        control.authorize_mode(&provider_headers, &project, &request.target_host_id, app)?;
-    if route_root != root || route_principal != principal {
-        return Err(StatusCode::FORBIDDEN.into());
-    }
-    let context = crate::gateway::aggregation_resync::RecordPublicationContext {
-        database: db,
-        project: project.clone(),
-        host: request.target_host_id.clone(),
-        app,
-        home: home.clone(),
-        root: root.clone(),
-        routing: Some(control.routing),
-        expected,
-        principal: principal.clone(),
-        revision: request.expected_revision.clone(),
-        failure: Default::default(),
-    };
-    let policy = state.aggregation_policy().map(std::path::Path::to_path_buf);
-    drop(guard);
-    state
-        .aggregation_exit_start(owner, request.request_id, fingerprint, move || {
-            let result = (|| -> Result<AggregationState, Failure> {
-                let again = super::agent_apps::authorize_aggregation_write(
-                    policy.as_deref(),
-                    &headers,
-                    &project,
-                    &request.target_host_id,
-                    app,
-                    true,
-                )
-                .map_err(Failure::from)?;
-                if again != (home, Some(root.clone()), principal) {
-                    return Err(StatusCode::CONFLICT.into());
-                }
-                if app == AppId::ClaudeDesktop {
-                    require_desktop(
-                        policy.as_deref(),
-                        &headers,
-                        &project,
-                        &request.target_host_id,
-                        &context.home,
-                        &context.principal,
-                    )?;
-                }
-                context.exit_aggregation(|| {
-                    super::agent_apps::authorize_aggregation_write(
-                        policy.as_deref(),
-                        &headers,
-                        &project,
-                        &request.target_host_id,
-                        app,
-                        true,
-                    )
-                    .is_ok_and(|value| {
-                        value
-                            == (
-                                context.home.clone(),
-                                Some(context.root.clone()),
-                                context.principal.clone(),
-                            )
-                    })
-                })?;
-                context.exited_state().map_err(Failure::from)
-            })();
-            match result {
-                Ok(state) => AggregationOutcome::Exited { state },
-                Err(error) => {
-                    let recovery = match ProviderTransactions::open_existing(
-                        &root,
-                        ExecutionHostId::new(&request.target_host_id).expect("validated host"),
-                    )
-                    .and_then(|tx| tx.map(|tx| tx.pending(app)).transpose())
-                    {
-                        Ok(Some(Some(_))) => RecoveryState::Pending,
-                        Ok(Some(None)) => RecoveryState::None,
-                        Ok(None) | Err(_) => RecoveryState::Failed,
-                    };
-                    let code = serde_json::from_value(serde_json::json!(if error.0
-                        == StatusCode::BAD_GATEWAY
-                    {
-                        "recovery_failed"
-                    } else {
-                        error.1
-                    }))
-                    .unwrap_or(AggregationErrorCode::TargetFailed);
-                    AggregationOutcome::Failed { status: error.0.as_u16(), code, recovery }
-                }
-            }
-        })
-        .map_err(
-            |s| if s == StatusCode::CONFLICT { Failure(s, "request_conflict") } else { s.into() },
-        )
 }
-
-#[cfg(target_os = "macos")]
-fn require_desktop(
-    policy: Option<&std::path::Path>,
-    headers: &HeaderMap,
-    project: &ProjectScope,
-    host: &str,
-    home: &std::path::Path,
-    principal: &str,
-) -> Result<(), StatusCode> {
-    let internal = super::aggregation_resync::provider_headers(headers.clone())?;
-    let (environment, subject) = super::agent_apps::provider_discovery_host(
-        policy,
-        &internal,
-        project.tenant_scope(),
-        host,
-    )?;
-    if environment.home != home || subject != principal {
-        return Err(StatusCode::FORBIDDEN);
-    }
-    let observation =
-        vw_agent_apps::apps::discovery::read::read(AppId::ClaudeDesktop, &environment)
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-            .desktop
-            .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if vw_agent_apps::providers::claude_desktop::publication::DesktopInstallation::from(
-        &observation,
-    ) != vw_agent_apps::providers::claude_desktop::publication::DesktopInstallation::Installed
-    {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    Ok(())
-}
+pub(super) fn router() -> axum::Router { gateway_aggregation::aggregation_exit::router(SnapshotHost) }

@@ -4,6 +4,9 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[lib]
+doctest = false
+
 [dependencies]
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
@@ -12,7 +15,22 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+sha2 = "0.11"
+agent-database = { path = "../agent-database", version = "0.6.0" }
+app-access-service = { path = "../app-access-service", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+tokio = { version = "1", features = ["rt"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies]
+libc = "0.2"
+
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", features = ["json", "query"] }

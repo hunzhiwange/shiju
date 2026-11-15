@@ -1,8 +1,8 @@
 //! Audited package reads bridge to the MCP credential implementation.
-use crate::plugins::{DiscoveredPlugin, load_plugin_manifest};
+use crate::plugins::load_plugin_manifest;
 use agent_client_protocol::McpServerHttp;
 use anyhow::Result;
-use std::{path::{Path, PathBuf}, collections::HashMap};
+use std::path::{Path, PathBuf};
 use plugin_mcp::mcp_legacy::PluginMcpParseOutcome;
 pub use plugin_mcp::mcp_auth::HttpContext;
 pub(crate) use plugin_mcp::mcp_auth::bind;

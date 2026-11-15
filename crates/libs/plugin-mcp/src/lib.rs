@@ -19,3 +19,7 @@ pub mod mcp_auth;
 pub mod mcp_oauth_tokens;
 pub mod mcp_oauth_flow;
 pub mod mcp_app_execution;
+
+pub mod mcp_environment;
+pub mod mcp_portable;
+pub mod mcp_portable_overlay;

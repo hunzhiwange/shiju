@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+build-identity = { path = "../libs/build-identity", version = "0.6.0" }
 runtime-time = { path = "../libs/runtime-time", version = "0.6.0" }
 display-format = { path = "../libs/display-format", version = "0.6.0" }
 json-extract = { path = "../libs/json-extract", version = "0.6.0" }

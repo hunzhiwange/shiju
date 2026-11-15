@@ -103,7 +103,7 @@ fn bootstrap_cli_service() -> Result<(), String> {
     let home = resolve_home_dir()?;
     let config_dir = config_runtime_paths::home_config_dir(&home);
     let cli = ensure_cli_installed(&home)?;
-    let cli_build_id = vw_shared::build_identity::executable_build_id(&cli)
+    let cli_build_id = build_identity::executable_build_id(&cli)
         .map_err(|error| format!("计算 CLI 构建标识失败 {}: {error}", cli.display()))?;
     let endpoint = sync_gateway_client_bootstrap_from_runtime_config(&home)?;
     #[cfg(windows)]

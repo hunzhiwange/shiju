@@ -19,7 +19,7 @@
 //! - `time` / `util` / `json`：通用辅助工具
 
 pub mod auth;
-pub mod build_identity;
+pub use build_identity;
 pub mod id;
 pub mod json;
 pub mod local_apps;
@@ -40,7 +40,3 @@ pub use runtime_time as time;
 pub mod todo;
 pub mod update;
 pub mod util;
-
-#[cfg(test)]
-#[path = "build_identity_tests.rs"]
-mod build_identity_tests;

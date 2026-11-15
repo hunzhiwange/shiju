@@ -117,7 +117,7 @@ pub fn initialize_runtime_build_id() -> Result<&'static str, String> {
         return Ok(build_id);
     }
 
-    let build_id = vw_shared::build_identity::current_executable_build_id()
+    let build_id = build_identity::current_executable_build_id()
         .map_err(|error| format!("failed to calculate runtime build identity: {error}"))?;
     let _ = RUNTIME_BUILD_ID.set(build_id);
     RUNTIME_BUILD_ID

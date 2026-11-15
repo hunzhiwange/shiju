@@ -97,11 +97,19 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
         EditorMessage::FontSizePreview(size) => {
             app.editor_metrics_preview.font_size = Some(size);
-            app.editor_metrics_preview.schedule_commit()
+            let generation = app.editor_metrics_preview.schedule_commit();
+            crate::app::message::after(
+                std::time::Duration::from_millis(200),
+                Message::Editor(EditorMessage::CommitMetricsDue(generation)),
+            )
         }
         EditorMessage::LineHeightPreview(height) => {
             app.editor_metrics_preview.line_height = Some(height);
-            app.editor_metrics_preview.schedule_commit()
+            let generation = app.editor_metrics_preview.schedule_commit();
+            crate::app::message::after(
+                std::time::Duration::from_millis(200),
+                Message::Editor(EditorMessage::CommitMetricsDue(generation)),
+            )
         }
         EditorMessage::CommitMetrics => metrics::commit(app, None),
         EditorMessage::CommitMetricsDue(generation) => {

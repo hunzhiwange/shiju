@@ -2,8 +2,9 @@
 //! 引号、行锚点、非法 JSON 和非字符串路径用于守住输入规范化与拒绝边界。
 
 use super::read_view::{parse_read_input, read_range_text};
-use super::{tool_read_compact_view, tool_read_view, tool_text_key};
-use crate::app::App;
+use super::read_view::{tool_read_compact_view, tool_read_view};
+use crate::tool_text_support::tool_text_key;
+use super::view_fixture::TestApp as App;
 use iced::widget::text_editor;
 
 fn app() -> App {
@@ -90,12 +91,12 @@ fn read_views_accept_supported_tools_and_reject_bad_input() {
     let pdf_visible = r#"tool pdf_read
 {"input":"docs/manual.pdf"}"#;
 
-    assert!(tool_read_compact_view(&app, visible).is_some());
-    assert!(tool_read_view(&app, 1, 2, visible).is_some());
-    assert!(tool_read_view(&app, 1, 3, pdf_visible).is_some());
-    assert!(tool_read_view(&app, 1, 4, "tool bash\n{}").is_none());
-    assert!(tool_read_view(&app, 1, 5, "tool read\nnot-json").is_none());
-    assert!(tool_read_view(&app, 1, 6, "read\n{}").is_none());
+    assert!(tool_read_compact_view(&app.files().card, visible).is_some());
+    assert!(tool_read_view(&app.files().card, 1, 2, visible).is_some());
+    assert!(tool_read_view(&app.files().card, 1, 3, pdf_visible).is_some());
+    assert!(tool_read_view(&app.files().card, 1, 4, "tool bash\n{}").is_none());
+    assert!(tool_read_view(&app.files().card, 1, 5, "tool read\nnot-json").is_none());
+    assert!(tool_read_view(&app.files().card, 1, 6, "read\n{}").is_none());
 }
 
 #[test]
@@ -110,8 +111,8 @@ fn read_views_accept_aliases_and_all_range_shapes() {
 
     for (tool_name, input) in cases {
         let visible = visible(tool_name, input);
-        assert!(tool_read_compact_view(&app, &visible).is_some(), "compact {tool_name}");
-        assert!(tool_read_view(&app, 7, 9, &visible).is_some(), "detailed {tool_name}");
+        assert!(tool_read_compact_view(&app.files().card, &visible).is_some(), "compact {tool_name}");
+        assert!(tool_read_view(&app.files().card, 7, 9, &visible).is_some(), "detailed {tool_name}");
     }
 }
 
@@ -130,7 +131,7 @@ fn tool_read_view_uses_cached_text_and_hovered_detail_slots() {
     );
     let visible = visible("read", r#"{"path":"src/cached.rs","offset":1,"limit":2}"#);
 
-    assert!(tool_read_view(&app, msg_idx, tool_idx, &visible).is_some());
+    assert!(tool_read_view(&app.files().card, msg_idx, tool_idx, &visible).is_some());
 }
 
 #[test]
@@ -141,13 +142,13 @@ fn tool_read_compact_view_rejects_incomplete_or_malformed_calls() {
 {"input":{"path":"src/main.rs"}}"#;
     let malformed_input = visible("read", "{");
 
-    assert!(tool_read_compact_view(&app, "tool read").is_none());
-    assert!(tool_read_compact_view(&app, "read\n{}").is_none());
-    assert!(tool_read_compact_view(&app, "tool bash\n{}").is_none());
-    assert!(tool_read_compact_view(&app, "tool read\nnot-json").is_none());
-    assert!(tool_read_compact_view(&app, missing_input).is_none());
-    assert!(tool_read_compact_view(&app, non_string_input).is_none());
-    assert!(tool_read_compact_view(&app, &malformed_input).is_none());
+    assert!(tool_read_compact_view(&app.files().card, "tool read").is_none());
+    assert!(tool_read_compact_view(&app.files().card, "read\n{}").is_none());
+    assert!(tool_read_compact_view(&app.files().card, "tool bash\n{}").is_none());
+    assert!(tool_read_compact_view(&app.files().card, "tool read\nnot-json").is_none());
+    assert!(tool_read_compact_view(&app.files().card, missing_input).is_none());
+    assert!(tool_read_compact_view(&app.files().card, non_string_input).is_none());
+    assert!(tool_read_compact_view(&app.files().card, &malformed_input).is_none());
 }
 
 #[test]
@@ -158,13 +159,13 @@ fn tool_read_view_rejects_incomplete_or_malformed_calls() {
 {"input":["src/main.rs"]}"#;
     let empty_input = visible("read", "  ");
 
-    assert!(tool_read_view(&app, 1, 1, "tool read").is_none());
-    assert!(tool_read_view(&app, 1, 2, "read\n{}").is_none());
-    assert!(tool_read_view(&app, 1, 3, "tool write\n{}").is_none());
-    assert!(tool_read_view(&app, 1, 4, "tool read\n[").is_none());
-    assert!(tool_read_view(&app, 1, 5, missing_input).is_none());
-    assert!(tool_read_view(&app, 1, 6, non_string_input).is_none());
-    assert!(tool_read_view(&app, 1, 7, &empty_input).is_none());
+    assert!(tool_read_view(&app.files().card, 1, 1, "tool read").is_none());
+    assert!(tool_read_view(&app.files().card, 1, 2, "read\n{}").is_none());
+    assert!(tool_read_view(&app.files().card, 1, 3, "tool write\n{}").is_none());
+    assert!(tool_read_view(&app.files().card, 1, 4, "tool read\n[").is_none());
+    assert!(tool_read_view(&app.files().card, 1, 5, missing_input).is_none());
+    assert!(tool_read_view(&app.files().card, 1, 6, non_string_input).is_none());
+    assert!(tool_read_view(&app.files().card, 1, 7, &empty_input).is_none());
 }
 
 #[test]
@@ -173,6 +174,6 @@ fn read_views_accept_root_path_when_file_name_is_unavailable() {
     let visible = visible("read", "/");
 
     assert_eq!(parse_read_input("/"), Some(("/".to_string(), 0, 0)));
-    assert!(tool_read_compact_view(&app, &visible).is_some());
-    assert!(tool_read_view(&app, 8, 9, &visible).is_some());
+    assert!(tool_read_compact_view(&app.files().card, &visible).is_some());
+    assert!(tool_read_view(&app.files().card, 8, 9, &visible).is_some());
 }

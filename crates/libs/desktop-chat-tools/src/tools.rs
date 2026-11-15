@@ -59,3 +59,15 @@ pub mod question_view;
 mod question_view_tests;
 #[cfg(test)]
 mod result_fixture;
+
+pub mod read_view;
+pub mod skill_view;
+pub mod text_view;
+#[cfg(test)]
+mod read_view_tests;
+#[cfg(test)]
+mod skill_view_tests;
+#[cfg(test)]
+mod text_view_tests;
+#[cfg(test)]
+mod config_card_tests;

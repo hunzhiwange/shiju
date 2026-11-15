@@ -7,6 +7,7 @@ pub(super) fn input(app: &App) -> CardInput<'_> {
 }
 pub(super) fn map(local: Local<Message>) -> Message { match local {
  Local::Diff(value) => value,
+ Local::OpenInlineYaml {workflow_yaml,focus_node_id} => Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml {workflow_yaml,focus_node_id}),
  Local::ToolFilesFilterChanged(v) => Message::Chat(message::ChatMessage::ToolFilesFilterChanged(v)),
  Local::ToolFileHover(v) => Message::Chat(message::ChatMessage::ToolFileHover(v)),
  Local::ToolFileHoverLeave => Message::Chat(message::ChatMessage::ToolFileHoverLeave),
@@ -23,6 +24,7 @@ pub(super) fn map(local: Local<Message>) -> Message { match local {
 } }
 pub(super) fn map_card(local: Local) -> Message { match local {
  Local::Diff(never) => match never {},
+ Local::OpenInlineYaml {workflow_yaml,focus_node_id} => map(Local::OpenInlineYaml {workflow_yaml,focus_node_id}),
  Local::ToolFilesFilterChanged(v) => Message::Chat(message::ChatMessage::ToolFilesFilterChanged(v)),
  Local::ToolFileHover(v) => Message::Chat(message::ChatMessage::ToolFileHover(v)),
  Local::ToolFileHoverLeave => Message::Chat(message::ChatMessage::ToolFileHoverLeave),

@@ -83,10 +83,6 @@ mod bash_view_tests;
 #[cfg(test)]
 mod command_summary_view_tests;
 #[cfg(test)]
-mod read_view_tests;
-#[cfg(test)]
-mod skill_view_tests;
-#[cfg(test)]
 mod text_view_tests;
 #[cfg(test)]
 mod todo_views_tests;

@@ -5,7 +5,7 @@ use super::skill_view::{
     quoted_attr_value, skill_display_name, skill_name_from_input, skill_name_from_json_value,
     skill_name_from_output, tool_skill_view, yaml_name_value,
 };
-use crate::app::App;
+use super::view_fixture::TestApp as App;
 
 fn app() -> App {
     App::new().0
@@ -32,7 +32,7 @@ fn skill_names_fall_back_to_output_and_errors() {
     assert_eq!(skill_name_from_output("name: yaml-skill").as_deref(), Some("yaml-skill"));
     assert_eq!(
         skill_display_name(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "",
             "",
             "name: error-skill"
@@ -41,7 +41,7 @@ fn skill_names_fall_back_to_output_and_errors() {
     );
     assert_eq!(
         skill_display_name(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "",
             "",
             ""
@@ -58,10 +58,10 @@ fn skill_view_builds_for_skill_tool_only() {
     let error_visible = r#"tool skill
 {"status":"error","input":"","error":"name: broken"}"#;
 
-    assert!(tool_skill_view(&app, 0, 0, visible).is_some());
-    assert!(tool_skill_view(&app, 0, 1, error_visible).is_some());
-    assert!(tool_skill_view(&app, 0, 2, "tool bash\n{}").is_none());
-    assert!(tool_skill_view(&app, 0, 3, "tool skill\nnot-json").is_none());
+    assert!(tool_skill_view(&app.files().card, 0, 0, visible).is_some());
+    assert!(tool_skill_view(&app.files().card, 0, 1, error_visible).is_some());
+    assert!(tool_skill_view(&app.files().card, 0, 2, "tool bash\n{}").is_none());
+    assert!(tool_skill_view(&app.files().card, 0, 3, "tool skill\nnot-json").is_none());
 }
 
 #[test]

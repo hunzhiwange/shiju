@@ -22,6 +22,7 @@ pub enum Message<Host = std::convert::Infallible> {
     ToggleToolFile(usize, usize, String),
     OpenMessageContextMenu { target: u64, x: f32, y: f32, text: String },
     OpenPreview(String),
+    OpenInlineYaml { workflow_yaml: String, focus_node_id: Option<String> },
     OpenChatTextDiff { title: String, file: String, before: String, after: String },
     Text(crate::tool_text_support::Message),
     Diff(Host),

@@ -1,0 +1,24 @@
+[package]
+name = "gateway-plugins"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-plugins = { path = "../agent-plugins", version = "0.6.0" }
+config-plugins = { path = "../config-plugins", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+plugin-install = { path = "../plugin-install", version = "0.6.0" }
+anyhow = "1"
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt"] }
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
+plugin-hooks = { path = "../plugin-hooks", version = "0.6.0" }

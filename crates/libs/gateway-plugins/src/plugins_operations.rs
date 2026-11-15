@@ -1,22 +1,18 @@
 //! Authenticated, configuration-bound package previews and explicit activation.
 use super::*;
-use crate::gateway::AppState;
+
 use axum::{extract::State, http::HeaderMap};
-use std::{
-    collections::HashMap,
-    sync::{Mutex, OnceLock},
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 use gateway_desktop_settings::DesktopPluginPreviewDto;
 
-pub(super) fn router() -> Router<AppState> {
+pub(super) fn router<H: PluginHost>() -> Router<H::State> {
     Router::new()
-        .route("/plugins/status", get(status))
-        .route("/plugins/prepare-install", post(prepare_install))
-        .route("/plugins/install", post(install))
-        .route("/plugins/prepare-update", post(prepare_update))
-        .route("/plugins/update", post(update))
-        .route("/plugins/cancel", post(cancel))
+        .route("/plugins/status", get(status::<H>))
+        .route("/plugins/prepare-install", post(prepare_install::<H>))
+        .route("/plugins/install", post(install::<H>))
+        .route("/plugins/prepare-update", post(prepare_update::<H>))
+        .route("/plugins/update", post(update::<H>))
+        .route("/plugins/cancel", post(cancel::<H>))
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -36,33 +32,28 @@ struct ActivationRequest {
     approved: bool,
 }
 struct PreparedInstall {
-    installed: crate::plugins::PluginInstallResult,
+    installed: agent_plugins::PluginInstallResult,
     hash: String,
     _owner: tempfile::TempDir,
 }
-enum Operation {
+enum Operation<U> {
     Install(PreparedInstall),
-    Update(crate::plugins::PluginUpgradePreview),
+    Update(U),
 }
-struct Pending {
+pub struct Pending<U> {
     root: PathBuf,
     created: Instant,
-    operation: Operation,
+    operation: Operation<U>,
 }
-fn pending() -> &'static Mutex<HashMap<String, Pending>> {
-    static PENDING: OnceLock<Mutex<HashMap<String, Pending>>> = OnceLock::new();
-    PENDING.get_or_init(|| Mutex::new(HashMap::new()))
-}
-fn authorize(state: &AppState, headers: &HeaderMap) -> Result<(), ApiError> {
-    super::super::super::auth::require_auth(state, headers)
-        .map_err(|(status, _)| ApiError { status, message: "Unauthorized".into() })
+fn authorize<H: PluginHost>(state: &H::State, headers: &HeaderMap) -> Result<(), ApiError> {
+    H::authorize(state, headers)
 }
 fn bad(error: impl std::fmt::Display) -> ApiError {
     ApiError::bad_request(error.to_string())
 }
-fn store(root: PathBuf, operation: Operation) -> Result<String> {
+fn store<H: PluginHost>(root: PathBuf, operation: Operation<H::Upgrade>) -> Result<String> {
     let mut map =
-        pending().lock().map_err(|_| anyhow::anyhow!("plugin operation store unavailable"))?;
+        H::pending().lock().map_err(|_| anyhow::anyhow!("plugin operation store unavailable"))?;
     map.retain(|_, p| p.created.elapsed() < Duration::from_secs(600));
     if map.len() >= 16 {
         bail!("too many pending plugin previews");
@@ -82,18 +73,18 @@ fn validate_source(source: &str) -> Result<()> {
     Ok(())
 }
 fn origin(manifest: &PluginManifest) -> Result<gateway_desktop_settings::DesktopPluginSourceDto> {
-    let metadata = crate::plugins::plugin_install_metadata(&manifest.root, manifest)?
+    let metadata = plugin_install::identity::read_install_metadata(&manifest.root, manifest)?
         .ok_or_else(|| anyhow::anyhow!("prepared plugin provenance is missing"))?;
     Ok(super::source_origin(Some(&metadata), manifest.version.clone()))
 }
-async fn status(
-    State(state): State<AppState>,
+async fn status<H: PluginHost>(
+    State(state): State<H::State>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<DesktopPluginCatalogEntryDto>>, ApiError> {
-    authorize(&state, &headers)?;
-    let config = state.config.lock().clone();
+    authorize::<H>(&state, &headers)?;
+    let config = H::state_config(&state);
     tokio::task::spawn_blocking(move || {
-        super::collect_plugin_catalog(
+        super::collect_plugin_catalog::<H>(
             config.workspace_dir.clone(),
             super::config_dir_from_config(&config),
             config.plugins.clone(),
@@ -104,13 +95,13 @@ async fn status(
     .map(Json)
     .map_err(bad)
 }
-fn preview(
+fn preview<H: PluginHost>(
     token: String,
     source: String,
-    installed: &crate::plugins::PluginInstallResult,
+    installed: &agent_plugins::PluginInstallResult,
     old_version: Option<String>,
 ) -> Result<DesktopPluginPreviewDto> {
-    let dependency_checks = super::dependency_checks(&installed.manifest);
+    let dependency_checks = super::dependency_checks::<H>(&installed.manifest);
     Ok(DesktopPluginPreviewDto {
         token,
         plugin_id: installed.identity.as_key(),
@@ -125,32 +116,32 @@ fn preview(
         previous_capabilities: None,
     })
 }
-async fn prepare_install(
-    State(state): State<AppState>,
+async fn prepare_install<H: PluginHost>(
+    State(state): State<H::State>,
     headers: HeaderMap,
     Json(body): Json<SourceRequest>,
 ) -> Result<Json<DesktopPluginPreviewDto>, ApiError> {
-    authorize(&state, &headers)?;
-    let config = state.config.lock().clone();
+    authorize::<H>(&state, &headers)?;
+    let config = H::state_config(&state);
     tokio::task::spawn_blocking(move || {
         validate_source(&body.source)?;
         let temporary = tempfile::tempdir()?;
         let destination = temporary.path().join("plugins");
         let installed = if !Path::new(&body.source).exists()
-            && crate::plugins::PluginIdentity::parse_marketplace(&body.source).is_ok()
+            && agent_plugins::PluginIdentity::parse_marketplace(&body.source).is_ok()
         {
-            let entry = crate::plugins::registered_plugin_entry(
+            let entry = plugin_install::marketplace::registered_plugin_entry(
                 &super::config_dir_from_config(&config),
                 &body.source,
             )?;
-            crate::plugins::install_plugin_marketplace_entry(&entry, &destination)?
+            H::install_plugin_marketplace_entry(&entry, &destination)?
         } else {
-            crate::plugins::install_plugin_from_source(&body.source, &destination)?
+            H::install_plugin_from_source(&body.source, &destination)?
         };
         let hash =
-            crate::plugins::plugin_package_content_hash(&installed.installed_dir, &|| false)?;
-        let response = preview(String::new(), body.source, &installed, None)?;
-        let token = store(
+            plugin_hooks::hook_trust_content::plugin_content_hash(&installed.installed_dir, &|| false)?;
+        let response = preview::<H>(String::new(), body.source, &installed, None)?;
+        let token = store::<H>(
             install_dir_from_config(&config),
             Operation::Install(PreparedInstall { installed, hash, _owner: temporary }),
         )?;
@@ -161,42 +152,42 @@ async fn prepare_install(
     .map(Json)
     .map_err(bad)
 }
-async fn prepare_update(
-    State(state): State<AppState>,
+async fn prepare_update<H: PluginHost>(
+    State(state): State<H::State>,
     headers: HeaderMap,
     Json(body): Json<UpdateRequest>,
 ) -> Result<Json<DesktopPluginPreviewDto>, ApiError> {
-    authorize(&state, &headers)?;
-    let config = state.config.lock().clone();
+    authorize::<H>(&state, &headers)?;
+    let config = H::state_config(&state);
     tokio::task::spawn_blocking(move || {
         let root = install_dir_from_config(&config);
         let source = body.source.clone().unwrap_or_else(|| body.plugin_id.clone());
         validate_source(&source)?;
         let prepared = if let Some(source) = body.source {
-            crate::plugins::prepare_plugin_upgrade(&source, &root, &body.plugin_id)?
+            H::prepare_plugin_upgrade(&source, &root, &body.plugin_id)?
         } else {
-            let entry = crate::plugins::registered_plugin_entry(
+            let entry = plugin_install::marketplace::registered_plugin_entry(
                 &super::config_dir_from_config(&config),
                 &body.plugin_id,
             )?;
-            crate::plugins::prepare_plugin_marketplace_upgrade(&entry, &root)?
+            H::prepare_plugin_marketplace_upgrade(&entry, &root)?
         };
-        let capabilities = super::plugin_capabilities(prepared.manifest());
-        let dependency_checks = super::dependency_checks(prepared.manifest());
+        let capabilities = super::plugin_capabilities(H::manifest(&prepared));
+        let dependency_checks = super::dependency_checks::<H>(H::manifest(&prepared));
         let response = DesktopPluginPreviewDto {
             token: String::new(),
             plugin_id: body.plugin_id,
             source,
-            old_version: prepared.old_version.clone(),
-            version: prepared.new_version.clone(),
+            old_version: H::old_manifest(&prepared).version.clone(),
+            version: H::manifest(&prepared).version.clone(),
             capabilities,
             audit_status: "passed".into(),
             dependency_status: super::dependency_status(&dependency_checks),
             dependency_checks,
-            origin: origin(prepared.manifest())?,
-            previous_capabilities: Some(super::plugin_capabilities(prepared.old_manifest())),
+            origin: origin(H::manifest(&prepared))?,
+            previous_capabilities: Some(super::plugin_capabilities(H::old_manifest(&prepared))),
         };
-        let token = store(root, Operation::Update(prepared))?;
+        let token = store::<H>(root, Operation::Update(prepared))?;
         Ok::<_, anyhow::Error>(DesktopPluginPreviewDto { token, ..response })
     })
     .await
@@ -204,35 +195,35 @@ async fn prepare_update(
     .map(Json)
     .map_err(bad)
 }
-async fn install(
-    State(state): State<AppState>,
+async fn install<H: PluginHost>(
+    State(state): State<H::State>,
     headers: HeaderMap,
     Json(body): Json<ActivationRequest>,
 ) -> Result<Json<DesktopPluginPathDto>, ApiError> {
-    activate(state, headers, body, false).await
+    activate::<H>(state, headers, body, false).await
 }
-async fn update(
-    State(state): State<AppState>,
+async fn update<H: PluginHost>(
+    State(state): State<H::State>,
     headers: HeaderMap,
     Json(body): Json<ActivationRequest>,
 ) -> Result<Json<DesktopPluginPathDto>, ApiError> {
-    activate(state, headers, body, true).await
+    activate::<H>(state, headers, body, true).await
 }
-async fn activate(
-    state: AppState,
+async fn activate<H: PluginHost>(
+    state: H::State,
     headers: HeaderMap,
     body: ActivationRequest,
     is_update: bool,
 ) -> Result<Json<DesktopPluginPathDto>, ApiError> {
-    authorize(&state, &headers)?;
+    authorize::<H>(&state, &headers)?;
     if !body.approved {
         return Err(ApiError::bad_request("explicit approval is required"));
     }
-    let config = state.config.lock().clone();
+    let config = H::state_config(&state);
     tokio::task::spawn_blocking(move || {
         let root = install_dir_from_config(&config);
         let operation = {
-            let mut map = pending()
+            let mut map = H::pending()
                 .lock()
                 .map_err(|_| anyhow::anyhow!("plugin operation store unavailable"))?;
             map.retain(|_, p| p.created.elapsed() < Duration::from_secs(600));
@@ -248,17 +239,17 @@ async fn activate(
         };
         let path = match operation {
             Operation::Install(p) => {
-                if crate::plugins::plugin_package_content_hash(&p.installed.installed_dir, &|| {
+                if plugin_hooks::hook_trust_content::plugin_content_hash(&p.installed.installed_dir, &|| {
                     false
                 })? != p.hash
                 {
                     bail!("prepared plugin contents changed");
                 }
-                crate::plugins::publish_materialized_install(&p.installed, &root)?.installed_dir
+                agent_plugins::install::publish_materialized_install(&p.installed, &root)?.installed_dir
             }
             Operation::Update(p) => {
-                let key = p.identity_key();
-                crate::plugins::activate_plugin_upgrade(p)?;
+                let key = H::identity_key(&p);
+                H::activate_plugin_upgrade(p)?;
                 root.join(key)
             }
         };
@@ -275,16 +266,16 @@ async fn activate(
 struct CancelRequest {
     token: String,
 }
-async fn cancel(
-    State(state): State<AppState>,
+async fn cancel<H: PluginHost>(
+    State(state): State<H::State>,
     headers: HeaderMap,
     Json(body): Json<CancelRequest>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    authorize(&state, &headers)?;
-    let root = install_dir_from_config(&state.config.lock());
+    authorize::<H>(&state, &headers)?;
+    let root = install_dir_from_config(&H::state_config(&state));
     tokio::task::spawn_blocking(move || {
         let removed = {
-            let mut map = pending()
+            let mut map = H::pending()
                 .lock()
                 .map_err(|_| anyhow::anyhow!("plugin operation store unavailable"))?;
             if map.get(&body.token).is_some_and(|p| p.root != root) {

@@ -137,6 +137,7 @@ members = [
   "crates/libs/app-launch",
   "crates/libs/gateway-desktop-settings",
   "crates/libs/gateway-hooks",
+  "crates/libs/gateway-plugins",
   "crates/libs/app-versions",
   "crates/libs/tool-types",
   "crates/libs/tool-context",

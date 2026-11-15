@@ -26,3 +26,7 @@ fn spawn_gateway_task(tag: &'static str, future: impl std::future::Future<Output
 fn spawn_gateway_task(tag: &'static str, future: impl std::future::Future<Output=Result<(), String>> + 'static) -> iced::Task<ConfigSaved> {
     iced::Task::perform(future, move |result| ConfigSaved { tag, result })
 }
+
+pub mod config_cron_jobs;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod config_cli_bootstrap;

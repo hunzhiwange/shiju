@@ -166,7 +166,7 @@ fn retain_changed_settings(before: &Value, after: &mut Value) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
+pub(super) fn gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
     if let Some(directory) =
         std::env::var_os("VIBEWINDOW_CONFIG_DIR").filter(|value| !value.is_empty())
     {

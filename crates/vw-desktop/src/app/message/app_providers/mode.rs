@@ -142,8 +142,7 @@ async fn execute(
     token: String,
 ) -> Result<Outcome, AgentAppsReadError> {
     match work {
-        Operation::Read => client
-            .provider_mode_state(
+        Operation::Read => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_state(
                 scope.app,
                 &ModeStateQuery {
                     target_host_id: scope.host,
@@ -154,8 +153,7 @@ async fn execute(
             )
             .await
             .map(Outcome::Observed),
-        Operation::RestoreDirect => client
-            .provider_mode_apply(
+        Operation::RestoreDirect => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_apply(
                 scope.app,
                 &ModeApplyRequest {
                     target_host_id: scope.host,

@@ -67,15 +67,14 @@ pub(crate) async fn execute(
             return icons.custom_icon_rename(&id, &request).await.map(Outcome::Renamed);
         }
         Operation::Save(request) => {
-            return client
-                .app_provider_icon_change(app, &provider, &request)
+            return gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon_change(app, &provider, &request)
                 .await
                 .map(Outcome::Saved);
         }
     };
     // Both reads matter after deletion: the row is gone, but saved provider images are copies.
     let (rows, current) =
-        tokio::join!(icons.custom_icons_list(), client.app_provider_icon(app, &provider));
+        tokio::join!(icons.custom_icons_list(), gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_icon(app, &provider));
     Ok(Outcome::Refreshed { rows, current, deleted })
 }
 

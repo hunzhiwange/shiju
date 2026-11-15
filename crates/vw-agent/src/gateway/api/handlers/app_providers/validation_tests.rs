@@ -32,7 +32,7 @@ async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mut
     .unwrap();
     let mut wire = json!({"name":"fixture","protocol":"anthropic","apiKey":{"action":"replace","value":"fixture-secret"},"baseUrl":"https://fixture.test","model":"fixture","addToLive":false,"requestOptions":{"requestHeaders":{"Authorization":"fixture-header-secret"},"apiKeyField":"ANTHROPIC_API_KEY","localProxyRequestOverrides":{"headers":{"X-Test":"ok"},"body":{"temperature":0.2}}}});
     let request: AppProviderCreate = serde_json::from_value(wire.clone()).unwrap();
-    let summary = client.app_provider_create(AppId::Claude, "fixture", &request).await.unwrap();
+    let summary = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_create(AppId::Claude, "fixture", &request).await.unwrap();
     assert!(!serde_json::to_string(&summary).unwrap().contains("secret"));
     let settings = GatewaySettingsStore::new(db.clone()).unwrap();
     let key = "\"claude\":fixture";
@@ -48,20 +48,19 @@ async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mut
         json!({"localProxyRequestOverrides":{"headers":{"Authorization":"fixture-header-secret"}}});
     let bad: AppProviderCreate = serde_json::from_value(wire.clone()).unwrap();
     assert!(
-        client.app_provider_create(AppId::Claude, "bad", &bad).await.unwrap_err().contains("400")
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_create(AppId::Claude, "bad", &bad).await.unwrap_err().contains("400")
     );
     let bad: AppProviderUpdate =
         serde_json::from_value(json!({"requestOptions":wire["requestOptions"]})).unwrap();
     assert!(
-        client
-            .app_provider_update(AppId::Claude, "fixture", &bad)
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_update(AppId::Claude, "fixture", &bad)
             .await
             .unwrap_err()
             .contains("400")
     );
     let bad:AppProviderWrite=serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":"fixture-secret","baseUrl":"https://fixture.test","model":"fixture","requestOptions":wire["requestOptions"]})).unwrap();
     assert!(
-        client.app_provider_save(AppId::Claude, "fixture", &bad).await.unwrap_err().contains("400")
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_save(AppId::Claude, "fixture", &bad).await.unwrap_err().contains("400")
     );
     assert_eq!(settings.get(&tenant, "app_providers.records", key).unwrap().unwrap(), before);
     assert_eq!(AppProviderStore::new(db).unwrap().list(&tenant, AppId::Claude).unwrap().len(), 1);
@@ -71,10 +70,10 @@ async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mut
     original["meta"] = json!({"unknown":{"nested":42}});
     settings.upsert(&tenant, "app_providers.records", key, &original.to_string()).unwrap();
     let patch:AppProviderUpdate=serde_json::from_value(json!({"name":"edited","requestOptions":{"localProxyRequestOverrides":{"body":{"temperature":0.8}}}})).unwrap();
-    client.app_provider_update(AppId::Claude, "fixture", &patch).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_update(AppId::Claude, "fixture", &patch).await.unwrap();
     let mut put = bad;
     put.request_options = None;
-    client.app_provider_save(AppId::Claude, "fixture", &put).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_save(AppId::Claude, "fixture", &put).await.unwrap();
     let kept: serde_json::Value = serde_json::from_str(
         &settings.get(&tenant, "app_providers.records", key).unwrap().unwrap(),
     )
@@ -91,7 +90,7 @@ async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mut
         json!({"requestOptions":{"requestHeaders":{},"localProxyRequestOverrides":{}}}),
     )
     .unwrap();
-    client.app_provider_update(AppId::Claude, "fixture", &clear).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_update(AppId::Claude, "fixture", &clear).await.unwrap();
     let cleared: serde_json::Value = serde_json::from_str(
         &settings.get(&tenant, "app_providers.records", key).unwrap().unwrap(),
     )
@@ -198,7 +197,7 @@ async fn cc04_validation_preview_checks_permission_before_options_and_never_writ
     .unwrap();
     let request=serde_json::from_value(json!({"targetHostId":"host","settings":{"env":{}},"requestOptions":{"localProxyRequestOverrides":{"headers":{"authorization":"fixture-secret"}}}})).unwrap();
     for (token, status) in [("invalid", 401), (TOKEN, 400)] {
-        let error = client.app_provider_preview(AppId::Claude, &request, token).await.unwrap_err();
+        let error = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &request, token).await.unwrap_err();
         assert!(
             matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:actual,body} if actual==status && body.is_null())
         );

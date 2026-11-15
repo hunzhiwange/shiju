@@ -9,36 +9,7 @@ impl GatewayClient {
         body: &ProviderImport,
         token: &str,
     ) -> Result<ProviderImportResult, Error> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = (app, body, token);
-            Err(Error::Transport("Provider import requires native transport".into()))
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
-            let app = serde_json::to_value(app)
-                .map_err(|_| Error::Transport("invalid application".into()))?;
-            let app = app.as_str().ok_or_else(|| Error::Transport("invalid application".into()))?;
-            let url = format!("{}/v1/app-providers/{app}/catalog/import", self.transport.endpoint().base_url());
-            let request = self.transport.dynamic_host_client()
-                .post(url)
-                .header("x-agent-apps-token", credential)
-                .json(body);
-            let response = crate::http::apply_request_context(request, self.transport.endpoint())
-                .send()
-                .await
-                .map_err(|_| Error::Transport("Provider import request failed".into()))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(Error::Http { status: status.as_u16(), body: serde_json::Value::Null });
-            }
-            response
-                .json()
-                .await
-                .map_err(|_| Error::Decode("invalid Provider import response".into()))
-        }
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .provider_import(app, body, token).await
     }
 }

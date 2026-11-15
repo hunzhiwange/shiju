@@ -43,7 +43,7 @@ async fn cc04_universal_sync_sdk_api_persistence_and_partial_failure() {
             .unwrap();
     let result = std::panic::AssertUnwindSafe(async {
         let req = UniversalSyncRequest { apps: vec![AppId::Claude, AppId::Kimi, AppId::Codex] };
-        let rows = client.universal_provider_sync("shared", &req).await.unwrap();
+        let rows = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_sync("shared", &req).await.unwrap();
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].catalog, UniversalCatalogResult::Updated);
         assert_eq!(
@@ -71,7 +71,7 @@ async fn cc04_universal_sync_sdk_api_persistence_and_partial_failure() {
                 "bad-json",
             )
             .unwrap();
-        let rows = client.universal_provider_sync("shared", &req).await.unwrap();
+        let rows = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_sync("shared", &req).await.unwrap();
         assert_eq!(rows[0].catalog, UniversalCatalogResult::Updated);
         assert_eq!(
             rows[2].catalog,
@@ -99,7 +99,7 @@ async fn cc04_universal_sync_sdk_api_persistence_and_partial_failure() {
             )
             .unwrap();
             assert!(
-                other.universal_provider_sync("shared", &req).await.unwrap_err().contains("404")
+                gateway_app_provider::GatewayAppProviderClient::new(other.transport().clone()).universal_provider_sync("shared", &req).await.unwrap_err().contains("404")
             );
             assert!(settings.list(&scope, "app_providers.records").unwrap().is_empty());
         }

@@ -59,7 +59,7 @@ async fn cc04_universal_sdk_api_sqlite_crud_and_isolation() {
     .unwrap();
     let result = std::panic::AssertUnwindSafe(async {
         let mut req = request();
-        let saved = client.universal_provider_save("shared", &req).await.unwrap();
+        let saved = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_save("shared", &req).await.unwrap();
         assert_eq!(saved.config, req.config);
         assert!(saved.configured);
         let raw = settings.get(&tenant, "app_providers.universal", "shared").unwrap().unwrap();
@@ -70,11 +70,11 @@ async fn cc04_universal_sdk_api_sqlite_crud_and_isolation() {
         req.config.name = "Changed".into();
         req.api_key = ProviderSecretWrite::Keep;
         assert_eq!(
-            client.universal_provider_save("shared", &req).await.unwrap().config,
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_save("shared", &req).await.unwrap().config,
             req.config
         );
-        assert_eq!(client.universal_provider_get("shared").await.unwrap().config, req.config);
-        assert_eq!(client.universal_providers_list().await.unwrap().len(), 1);
+        assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_get("shared").await.unwrap().config, req.config);
+        assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_providers_list().await.unwrap().len(), 1);
         let reopened =
             AppProviderStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
         assert_eq!(reopened.universal_get(&tenant, "shared").unwrap().config, req.config);
@@ -86,13 +86,13 @@ async fn cc04_universal_sdk_api_sqlite_crud_and_isolation() {
         assert_eq!(disk["meta"], raw["meta"]);
         assert_eq!(disk["future"], 42);
         req.api_key = ProviderSecretWrite::Replace { value: "replacement-secret".into() };
-        client.universal_provider_save("shared", &req).await.unwrap();
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_save("shared", &req).await.unwrap();
         req.api_key = ProviderSecretWrite::Clear;
-        assert!(client.universal_provider_save("shared", &req).await.unwrap_err().contains("400"));
-        assert!(client.universal_provider_delete("shared").await.unwrap());
-        assert!(!client.universal_provider_delete("shared").await.unwrap());
-        assert!(client.universal_provider_get("shared").await.unwrap_err().contains("404"));
-        assert!(client.universal_providers_list().await.unwrap().is_empty());
+        assert!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_save("shared", &req).await.unwrap_err().contains("400"));
+        assert!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_delete("shared").await.unwrap());
+        assert!(!gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_delete("shared").await.unwrap());
+        assert!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_provider_get("shared").await.unwrap_err().contains("404"));
+        assert!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).universal_providers_list().await.unwrap().is_empty());
         for scope in [&other, &platform] {
             assert_eq!(
                 settings.get(scope, "app_providers.universal", "shared").unwrap().unwrap(),

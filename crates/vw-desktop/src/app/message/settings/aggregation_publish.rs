@@ -225,10 +225,9 @@ pub(crate) async fn execute(
                 .as_ref()
                 .ok_or_else(|| AggregationApiError::Transport("missing operation".into()))?;
             let result = if matches!(action, Action::Poll) {
-                client.provider_aggregation_operation_get(&operation.operation_id.0, &query).await
+                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_get(&operation.operation_id.0, &query).await
             } else {
-                client
-                    .provider_aggregation_operation_cancel(&operation.operation_id.0, &query)
+                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_cancel(&operation.operation_id.0, &query)
                     .await
             };
             result.map(Reply::Operation).map_err(|e| match e {

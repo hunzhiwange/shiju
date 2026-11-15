@@ -74,11 +74,11 @@ async fn cc04_operations_sdk_api_import_progress_correlates_and_denies_foreign_s
         request_id: "request-one".into(),
         action: ProviderOperationAction::Import { app: AppId::Pi, trigger: ImportTrigger::Manual },
     };
-    let first = f.client.provider_operation_start(&req, TOKEN).await.unwrap();
+    let first = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&req, TOKEN).await.unwrap();
     let id = first.operation_id.0.clone();
     let mut last = first;
     for _ in 0..200 {
-        last = f.client.provider_operation_get(&id, "host", TOKEN).await.unwrap();
+        last = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_get(&id, "host", TOKEN).await.unwrap();
         if !matches!(last.status, TaskStatus::Queued | TaskStatus::Running) {
             break;
         }
@@ -90,26 +90,26 @@ async fn cc04_operations_sdk_api_import_progress_correlates_and_denies_foreign_s
             .with_tenant_scope(TenantScope::new("p", "other").unwrap()),
     )
     .unwrap();
-    assert!(foreign.provider_operation_get(&id, "host", TOKEN).await.is_err());
-    assert!(foreign.provider_operation_cancel(&id, "host", TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).provider_operation_get(&id, "host", TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).provider_operation_cancel(&id, "host", TOKEN).await.is_err());
     let mut conflicting = req.clone();
     conflicting.action =
         ProviderOperationAction::Import { app: AppId::Pi, trigger: ImportTrigger::Startup };
     assert!(matches!(
-        f.client.provider_operation_start(&conflicting, TOKEN).await.unwrap_err(),
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&conflicting, TOKEN).await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }
     ));
     assert_eq!(last.request_id, "request-one");
     assert_eq!((last.completed, last.total), (2, 2));
     assert_eq!(
-        f.client.provider_operation_start(&req, TOKEN).await.unwrap().operation_id,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&req, TOKEN).await.unwrap().operation_id,
         last.operation_id
     );
     assert_eq!(std::fs::read(f.root.path().join(".pi/agent/models.json")).unwrap(), native);
     assert!(f.record(AppId::Pi, "two").to_string().contains("fake-two"));
-    let bad = f.client.provider_operation_cancel(&id, "other", TOKEN).await.unwrap_err();
+    let bad = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_cancel(&id, "other", TOKEN).await.unwrap_err();
     assert!(matches!(bad, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
-    assert!(f.client.provider_operation_get(&id, "host", "wrong-token").await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_get(&id, "host", "wrong-token").await.is_err());
 }
 
 #[tokio::test]
@@ -126,11 +126,11 @@ async fn cc04_operations_projection_persists_selected_apps_and_read_only_denial_
             apps: vec![AppId::Claude, AppId::Codex],
         },
     };
-    let first = f.client.provider_operation_start(&req, TOKEN).await.unwrap();
+    let first = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&req, TOKEN).await.unwrap();
     let id = first.operation_id.0;
     let last = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
-            let status = f.client.provider_operation_get(&id, "host", TOKEN).await.unwrap();
+            let status = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_get(&id, "host", TOKEN).await.unwrap();
             if !matches!(status.status, TaskStatus::Queued | TaskStatus::Running) {
                 break status;
             }
@@ -144,7 +144,7 @@ async fn cc04_operations_projection_persists_selected_apps_and_read_only_denial_
     assert!(f.record(AppId::Claude, "universal-claude-shared").to_string().contains("fixture-key"));
     assert!(f.record(AppId::Codex, "universal-codex-shared").to_string().contains("fixture-key"));
     assert!(!serde_json::to_string(&last).unwrap().contains("fixture-key"));
-    assert_eq!(f.client.provider_operation_cancel(&id, "host", TOKEN).await.unwrap(), last);
+    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_cancel(&id, "host", TOKEN).await.unwrap(), last);
     let before = f.record(AppId::Claude, "universal-claude-shared");
     let policy = f.root.path().join("access.json");
     let mut access: Value = serde_json::from_slice(&std::fs::read(&policy).unwrap()).unwrap();
@@ -152,10 +152,10 @@ async fn cc04_operations_projection_persists_selected_apps_and_read_only_denial_
     std::fs::write(policy, access.to_string()).unwrap();
     req.request_id = "read-only".into();
     assert!(matches!(
-        f.client.provider_operation_start(&req, TOKEN).await.unwrap_err(),
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&req, TOKEN).await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
     ));
-    assert!(f.client.provider_operation_cancel(&id, "host", TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_cancel(&id, "host", TOKEN).await.is_err());
     assert_eq!(f.record(AppId::Claude, "universal-claude-shared"), before);
 }
 

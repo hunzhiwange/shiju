@@ -16,8 +16,7 @@ pub(crate) async fn add(
     scope: Scope,
     form: Form,
 ) -> Result<Vec<AppProviderEndpoint>, String> {
-    client
-        .app_provider_endpoint_change(
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
             scope.app,
             &form.id,
             &AppProviderEndpointChange::Add {
@@ -72,8 +71,7 @@ pub(crate) async fn save_options(
         headers.retain(|name, _| !name.trim().eq_ignore_ascii_case("user-agent"));
         headers.insert("user-agent".into(), value);
     }
-    client
-        .app_provider_request_options_save(
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_request_options_save(
             scope.app,
             &form.id,
             &RequestOptionsWrite { target_host_id: scope.host, options },
@@ -179,8 +177,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 let host = scope.host.clone();
                 return Task::perform(
                     async move {
-                        client
-                            .app_provider_request_options_read(
+                        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_request_options_read(
                                 scope.app,
                                 &id,
                                 &RequestOptionsTarget { target_host_id: host },
@@ -262,8 +259,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     match event {
                         Event::Add => add(client, worker, form).await,
                         Event::Remove(url, kind) => {
-                            client
-                                .app_provider_endpoint_change(
+                            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
                                     worker.app,
                                     &form.id,
                                     &AppProviderEndpointChange::Remove { url, kind },
@@ -271,15 +267,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                                 .await
                         }
                         Event::MarkUsed(url, kind) => {
-                            client
-                                .app_provider_endpoint_change(
+                            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoint_change(
                                     worker.app,
                                     &form.id,
                                     &AppProviderEndpointChange::MarkUsed { url, kind },
                                 )
                                 .await
                         }
-                        _ => client.app_provider_endpoints(worker.app, &form.id).await,
+                        _ => gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_endpoints(worker.app, &form.id).await,
                     }
                 },
                 move |result| message(Event::Loaded { scope: scope.clone(), generation, result }),

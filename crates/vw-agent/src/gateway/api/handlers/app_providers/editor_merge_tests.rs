@@ -80,8 +80,7 @@ impl Fixture {
         self.root.path().join(".claude/settings.json")
     }
     async fn open(&self, id: &str) -> EditorView {
-        self.client
-            .app_provider_editor_open(
+        gateway_app_provider::GatewayAppProviderClient::new(self.client.transport().clone()).app_provider_editor_open(
                 AppId::Claude,
                 id,
                 &EditorOpen { target_host_id: "host".into() },
@@ -103,7 +102,7 @@ impl Fixture {
         }
     }
     async fn save(&self, id: &str, request: &EditorSave) -> EditorResult {
-        self.client.app_provider_editor_save(AppId::Claude, id, request, TOKEN).await.unwrap()
+        gateway_app_provider::GatewayAppProviderClient::new(self.client.transport().clone()).app_provider_editor_save(AppId::Claude, id, request, TOKEN).await.unwrap()
     }
     fn record(&self, id: &str) -> String {
         GatewaySettingsStore::new(self.db.clone())
@@ -144,7 +143,7 @@ async fn cc04_editor_merge_sdk_api_keeps_external_fields_and_requires_fresh_choi
     assert_eq!(saved, json!({"x":2,"untouched":"external-secret","z":true}));
     assert_eq!(row, f.record("saved"));
     assert!(
-        f.client.app_provider_editor_save(AppId::Claude, "saved", &request, TOKEN).await.is_err()
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &request, TOKEN).await.is_err()
     );
 }
 #[tokio::test]
@@ -161,14 +160,14 @@ async fn cc04_editor_merge_inactive_is_catalog_only_and_permission_denial_has_no
     let view = f.open("saved").await;
     req = f.request(&view);
     req.edits[0].path = vec!["env".into(), "ANTHROPIC_API_KEY".into()];
-    assert!(f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), bytes);
     req = f.request(&view);
     let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();
     policy["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
     std::fs::write(&f.policy, policy.to_string()).unwrap();
     let error =
-        f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.unwrap_err();
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.unwrap_err();
     assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
     assert_eq!(std::fs::read(f.file()).unwrap(), bytes);
 }
@@ -198,16 +197,16 @@ async fn cc04_editor_merge_rejects_wrong_binding_stale_record_and_invalid_projec
     let mut req = f.request(&view);
     let bytes = std::fs::read(f.file()).unwrap();
     assert!(
-        f.client.app_provider_editor_save(AppId::Claude, "inactive", &req, TOKEN).await.is_err()
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "inactive", &req, TOKEN).await.is_err()
     );
     req.choice = EditorChoice::KeepMine;
-    assert!(f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
     req = f.request(&view);
     req.edits.push(EditorEdit {
         path: vec!["env".into()],
         value: EditorValue::Set { value: json!("invalid") },
     });
-    assert!(f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), bytes);
     let store = GatewaySettingsStore::new(f.db.clone()).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();
@@ -215,15 +214,14 @@ async fn cc04_editor_merge_rejects_wrong_binding_stale_record_and_invalid_projec
     row["new_external"] = json!(true);
     store.upsert(&tenant, "app_providers.records", "\"claude\":saved", &row.to_string()).unwrap();
     req = f.request(&view);
-    assert!(f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), bytes);
     assert_eq!(f.record("saved"), row.to_string());
     // Invalid projection must fail at open, without returning a usable context or changing live.
     row["settingsConfig"]["apiBaseUrl"] = json!("invalid endpoint");
     store.upsert(&tenant, "app_providers.records", "\"claude\":saved", &row.to_string()).unwrap();
     assert!(
-        f.client
-            .app_provider_editor_open(
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_open(
                 AppId::Claude,
                 "saved",
                 &EditorOpen { target_host_id: "host".into() },
@@ -242,14 +240,14 @@ async fn cc04_editor_merge_symlink_and_state_change_are_rejected() {
     let before = std::fs::read(f.file()).unwrap();
     std::fs::rename(f.file(), f.root.path().join("original.json")).unwrap();
     std::os::unix::fs::symlink(f.root.path().join("original.json"), f.file()).unwrap();
-    assert!(f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     std::fs::remove_file(f.file()).unwrap();
     std::fs::rename(f.root.path().join("original.json"), f.file()).unwrap();
     let state_path = f.root.path().join("private/provider-live/aG9zdA/claude.state.json");
     let changed = AppState::default();
     std::fs::write(&state_path, serde_json::to_vec(&changed).unwrap()).unwrap();
-    assert!(f.client.app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.is_err());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     // A never-activated catalog does not provision transaction state or touch live.
     std::fs::remove_dir_all(f.root.path().join("private/provider-live")).unwrap();
@@ -300,7 +298,7 @@ async fn wait_for_progress(
 ) -> ProviderOperationProgress {
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
-            let progress = f.client.provider_operation_get(id, "host", TOKEN).await.unwrap();
+            let progress = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_get(id, "host", TOKEN).await.unwrap();
             if ready(&progress) {
                 break progress;
             }
@@ -330,14 +328,14 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
     let file = std::fs::read(f.file()).unwrap();
     let hold = vw_agent_apps::providers::editor_merge::ClaudeFile::open(f.root.path()).unwrap();
     let request = operation("cancel-fixture", f.request(&view));
-    let accepted = f.client.provider_operation_start(&request, TOKEN).await.unwrap();
+    let accepted = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&request, TOKEN).await.unwrap();
     assert_eq!(accepted.request_id, "cancel-fixture");
     let id = accepted.operation_id.as_ref();
     let running = wait_for_progress(&f, id, |p| p.status == TaskStatus::Running).await;
     assert_eq!(running.phase, ProviderOperationPhase::Preparing);
-    let same = f.client.provider_operation_start(&request, TOKEN).await.unwrap();
+    let same = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&request, TOKEN).await.unwrap();
     assert_eq!(same.operation_id, accepted.operation_id);
-    let cancelled = f.client.provider_operation_cancel(id, "host", TOKEN).await.unwrap();
+    let cancelled = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_cancel(id, "host", TOKEN).await.unwrap();
     assert!(cancelled.cancellation_requested);
     assert_eq!(std::fs::read(f.file()).unwrap(), file);
     drop(hold);
@@ -347,7 +345,7 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
     assert_eq!(std::fs::read(f.file()).unwrap(), file);
 
     let retry = operation("retry-fixture", f.request(&view));
-    let denied = f.client.provider_operation_start(&retry, "bad-token").await.unwrap_err();
+    let denied = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&retry, "bad-token").await.unwrap_err();
     assert!(matches!(
         denied,
         vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }
@@ -357,7 +355,7 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
     external["x"] = 3.into();
     let external = serde_json::to_vec(&external).unwrap();
     std::fs::write(f.file(), &external).unwrap();
-    let accepted = f.client.provider_operation_start(&retry, TOKEN).await.unwrap();
+    let accepted = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&retry, TOKEN).await.unwrap();
     let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
         p.phase == ProviderOperationPhase::Terminal
     })
@@ -376,8 +374,7 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
     input.choice = EditorChoice::KeepMine;
     input.resolution = Some(resolution);
     let accepted = f
-        .client
-        .provider_operation_start(&operation("choose-fixture", input.clone()), TOKEN)
+        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_operation_start(&operation("choose-fixture", input.clone()), TOKEN)
         .await
         .unwrap();
     let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
@@ -390,7 +387,7 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
         Some(ProviderEditorOutcome::Reviewed { result: EditorResult { saved: true, .. } })
     ));
     let accepted =
-        f.client.provider_operation_start(&operation("stale-fixture", input), TOKEN).await.unwrap();
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&operation("stale-fixture", input), TOKEN).await.unwrap();
     let terminal = wait_for_progress(&f, accepted.operation_id.as_ref(), |p| {
         p.phase == ProviderOperationPhase::Terminal
     })
@@ -411,12 +408,11 @@ async fn cc04_ui_preview_saved_fallback_is_redacted_authorized_and_read_only() {
         SavedProviderPreviewRequest { target_host_id: "host".into(), provider_id: "saved".into() };
     let before = f.record("saved");
     let fallback =
-        f.client.app_provider_saved_preview(AppId::Claude, &request, TOKEN).await.unwrap();
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_saved_preview(AppId::Claude, &request, TOKEN).await.unwrap();
     assert_eq!(fallback.settings["catalog"], true);
     assert!(!fallback.settings.to_string().contains("fixture-key"));
     let denied = f
-        .client
-        .app_provider_saved_preview(AppId::Claude, &request, "bad-token")
+        .gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_saved_preview(AppId::Claude, &request, "bad-token")
         .await
         .unwrap_err();
     assert!(matches!(

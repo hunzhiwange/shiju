@@ -208,9 +208,9 @@ pub(crate) async fn execute(
         Action::Poll | Action::Cancel => {
             let id = &session.operation.as_ref().unwrap().operation_id.0;
             let r = if matches!(action, Action::Poll) {
-                client.provider_aggregation_operation_get(id, &query).await
+                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_get(id, &query).await
             } else {
-                client.provider_aggregation_operation_cancel(id, &query).await
+                gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_cancel(id, &query).await
             };
             r.map(Reply::Operation).map_err(|e| match e {
                 vw_gateway_client::AgentAppsReadError::Http { status, body } => {

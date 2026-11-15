@@ -134,13 +134,12 @@ async fn cc04_duplicate_sdk_api_sqlite_preserves_source_and_native_files() {
     .unwrap();
     let request = AppProviderDuplicate { new_id: "copy".into(), name: "fixture copy".into() };
     assert_eq!(
-        client.app_provider_duplicate(AppId::Claude, "source", &request).await.unwrap().id,
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_duplicate(AppId::Claude, "source", &request).await.unwrap().id,
         "copy"
     );
-    assert_eq!(client.app_provider_get(AppId::Claude, "copy").await.unwrap().name, "fixture copy");
+    assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "copy").await.unwrap().name, "fixture copy");
     assert!(
-        client
-            .app_provider_duplicate(AppId::Claude, "source", &request)
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_duplicate(AppId::Claude, "source", &request)
             .await
             .unwrap_err()
             .contains("409")

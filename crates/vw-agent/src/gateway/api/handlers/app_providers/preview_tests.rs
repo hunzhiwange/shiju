@@ -57,7 +57,7 @@ async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
         provider_id: None,
         meta: None,
     };
-    let response = client.app_provider_preview(AppId::Claude, &request, TOKEN).await.unwrap();
+    let response = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &request, TOKEN).await.unwrap();
     assert_eq!(response.settings["hooks"]["keep"], true);
     assert!(response.inactive.contains(&vec!["hooks".into()]));
     assert!(!serde_json::to_string(&response).unwrap().contains("secret"));
@@ -94,7 +94,7 @@ async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
         std::fs::write(&file, text).unwrap();
         let mut draft_request = request.clone();
         draft_request.settings = draft;
-        let view = client.app_provider_preview(app, &draft_request, TOKEN).await.unwrap();
+        let view = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(app, &draft_request, TOKEN).await.unwrap();
         assert!(view.unavailable.is_none());
         assert!(view.parse_error.is_none());
         assert!(!view.changes.is_empty());
@@ -112,7 +112,7 @@ async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
     {
         request.target_host_id = host.into();
         assert!(
-            matches!(client.app_provider_preview(AppId::Claude,&request,TOKEN).await.unwrap_err(),vw_gateway_client::AgentAppsReadError::Http{status:actual,..} if actual==status)
+            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude,&request,TOKEN).await.unwrap_err(),vw_gateway_client::AgentAppsReadError::Http{status:actual,..} if actual==status)
         );
     }
     assert_eq!(std::fs::read(&config).unwrap(), before);
@@ -172,7 +172,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
         category: None,
         directory_override: None,
     };
-    let view = client.app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
+    let view = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
     assert!(view.unavailable.is_none());
     assert_eq!(view.settings["env"]["ANTHROPIC_API_KEY"], "[redacted]");
     assert!(!serde_json::to_string(&view).unwrap().contains("stored-secret"));
@@ -187,11 +187,11 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
         GatewayClient::new(endpoint.with_tenant_scope(TenantScope::new("p", "b").unwrap()))
             .unwrap();
     assert!(matches!(
-        foreign.app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap_err(),
+        gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
     ));
     assert!(matches!(
-        client.app_provider_preview(AppId::Claude, &req, "invalid").await.unwrap_err(),
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &req, "invalid").await.unwrap_err(),
         vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }
     ));
     assert!(!root.path().join(".claude").exists());
@@ -211,7 +211,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
     let pending_path = state_path.with_file_name("claude.pending.json");
     let pending_bytes = serde_json::to_vec(&pending).unwrap();
     std::fs::write(&pending_path, &pending_bytes).unwrap();
-    let view = client.app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
+    let view = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
     assert_eq!(view.unavailable, Some(PreviewUnavailable::PendingTransaction));
     assert_eq!(std::fs::read(&pending_path).unwrap(), pending_bytes);
     assert_eq!(std::fs::read(&state_path).unwrap(), state_before);
@@ -220,7 +220,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
     other_owner.pointer.as_mut().unwrap().tenant = TenantScope::new("p", "b").unwrap();
     let other_bytes = serde_json::to_vec(&other_owner).unwrap();
     std::fs::write(&state_path, &other_bytes).unwrap();
-    let view = client.app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
+    let view = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap();
     assert_eq!(view.unavailable, Some(PreviewUnavailable::Ownership));
     assert!(view.settings.is_null());
     assert_eq!(std::fs::read(&state_path).unwrap(), other_bytes);

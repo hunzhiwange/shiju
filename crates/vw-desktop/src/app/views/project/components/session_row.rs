@@ -31,7 +31,7 @@ pub(in crate::app::views::project) fn running_draft_sessions(
 }
 
 
-pub(super) fn row_input(app: &App, id: &str, title: &str, updated: u64) -> domain::Input {
+pub(in crate::app::views::project) fn row_input(app: &App, id: &str, title: &str, updated: u64) -> domain::Input {
  let i18n = I18n::new(app.desktop_locale);
     let metadata = app.session_ui_projection.hover_details.get(id);
     let workspace_kind = metadata.and_then(|details| details.primary_workspace);

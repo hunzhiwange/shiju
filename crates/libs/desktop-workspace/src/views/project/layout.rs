@@ -29,3 +29,5 @@ pub mod sessions_panel;
 pub mod sidebar;
 pub mod work;
 pub mod work_resources;
+
+pub mod work_sidebar;

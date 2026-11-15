@@ -1,6 +1,6 @@
 use crate::app::{App, Message, message};
 pub(super) use desktop_workspace::views::project::components::sessions_panel as domain;
-pub(super) fn map(event: domain::Message) -> Message {
+pub(in crate::app::views::project) fn map(event: domain::Message) -> Message {
  match event {
  domain::Message::Open | domain::Message::HeaderToolsToggle => Message::None,
  domain::Message::Project(event) => Message::Project(match event {

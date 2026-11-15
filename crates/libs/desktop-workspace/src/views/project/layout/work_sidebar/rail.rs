@@ -6,18 +6,13 @@ use iced::widget::tooltip::{Position, Tooltip};
 use iced::widget::{Column, column, container, mouse_area, scrollable, text};
 use iced::{Element, Length, Radians, Rectangle, Renderer, Size, Theme};
 
-use crate::app::assets::Icon;
-use crate::app::components::input_panel::styles::tooltip_dark_style;
-use crate::app::components::overlays::SideOverlay;
-use crate::app::components::system_settings::SystemTab;
-use crate::app::i18n::I18n;
-use crate::app::message::ViewMessage;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::message::{ShijuAppsMessage, SkillHubMessage};
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::skill_hub::ExpertHubSection;
-use crate::app::state::WORK_SIDEBAR_RAIL_WIDTH;
-use crate::app::{App, Message};
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::tooltip::tooltip_dark_style;
+use desktop_ui_controls::overlays::SideOverlay;
+use desktop_i18n::I18n;
+use super::events::*;
+use super::presentation::WORK_SIDEBAR_RAIL_WIDTH;
+use super::ViewInput;
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::expert_hub_message;
@@ -30,7 +25,7 @@ use super::{
 
 const CONTROL_SIZE: f32 = 36.0;
 
-pub(super) fn view(app: &App) -> Element<'static, Message> {
+pub(super) fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let navigation = column![control(
         i18n,
@@ -86,7 +81,7 @@ fn control(
     .into()
 }
 
-fn more_control(app: &App, i18n: I18n) -> Element<'static, Message> {
+fn more_control(app: &ViewInput<'_>, i18n: I18n) -> Element<'static, Message> {
     let icon = navigation_icon_enabled(Icon::DotsThreeVertical, true)
         .rotation(Radians(std::f32::consts::FRAC_PI_2));
     let open = Message::View(ViewMessage::WorkSidebarMoreOpened);

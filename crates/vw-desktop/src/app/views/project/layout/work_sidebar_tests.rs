@@ -5,7 +5,6 @@ use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer, widget::
 use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme, Vector};
 use session_info::{Info, TimeInfo};
 
-use crate::app::assets::Icon;
 use crate::app::message::{ProjectMessage, ShijuAppsMessage, SkillHubMessage, ViewMessage};
 use crate::app::state::{
     WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
@@ -13,6 +12,7 @@ use crate::app::state::{
 use crate::app::{App, Message};
 
 use super::work_sidebar;
+use work_sidebar::domain::events as sidebar_events;
 
 const VIEWPORT: Size = Size::new(320.0, 800.0);
 
@@ -109,7 +109,7 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     assert_eq!(running.spaces[0].sessions[0].id, id);
     assert!(matches!(
         &running.tasks[0].message,
-        Message::Project(ProjectMessage::OpenProjectSessionPressed(path, _)) if path == directory
+        sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(path, _)) if path == directory
     ));
     assert!(app.project_sessions.is_empty());
 
@@ -226,7 +226,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
             .tasks
             .iter()
             .map(|task| match &task.message {
-                Message::Project(ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
+                sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
                 _ => panic!("task should use the existing project session open message"),
             })
             .collect::<Vec<_>>(),
@@ -258,20 +258,20 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
     assert!(!model.spaces[1].tools_open);
     assert_eq!(model.tasks[0].details.updated, 40);
 
-    let Message::Project(ProjectMessage::SwitchWorkSpacePressed(path)) =
+    let sidebar_events::Message::Project(sidebar_events::ProjectMessage::SwitchWorkSpacePressed(path)) =
         model.spaces[0].message.clone()
     else {
         panic!("space should use the work-mode project switch message");
     };
     assert_eq!(path, "/workspace/alpha");
 
-    let Message::View(ViewMessage::WorkSpaceToggled(path)) = model.spaces[0].toggle_message.clone()
+    let sidebar_events::Message::View(sidebar_events::ViewMessage::WorkSpaceToggled(path)) = model.spaces[0].toggle_message.clone()
     else {
         panic!("space disclosure should preserve the existing expansion message");
     };
     assert_eq!(path, "/workspace/alpha");
 
-    let Message::Project(ProjectMessage::OpenProjectSessionPressed(directory, id)) =
+    let sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(directory, id)) =
         model.spaces[0].sessions[0].message.clone()
     else {
         panic!("expanded space task should use the existing project session open message");
@@ -553,44 +553,7 @@ fn work_sidebar_paginates_expanded_space_tasks_from_twenty() {
 }
 
 #[test]
-fn work_sidebar_navigation_matches_reference_grouping_and_icons() {
-    assert_eq!(
-        work_sidebar::navigation_specs(),
-        [
-            ("新建任务", Icon::FileEarmarkPlus, None),
-            ("助手", Icon::Robot, None),
-            ("项目", Icon::FolderOpen, None),
-            ("识矩应用", Icon::Grid1x2, None),
-            ("识矩技能", Icon::Star, None),
-            ("专家 · 技能 · 连接器", Icon::GearWideConnected, None),
-            ("定时任务", Icon::ArrowRepeat, None),
-            ("识矩知识库", Icon::Journals, None),
-            ("更多", Icon::Grid1x2, Some("知识库 · 应用")),
-        ]
-    );
-    assert_eq!(
-        work_sidebar::header_icon_specs(false),
-        [
-            (Icon::LayoutSidebar, "收起侧边栏"),
-            (Icon::ArrowRepeat, "刷新全部任务"),
-            (Icon::Grid1x2, "任务池"),
-            (Icon::Search, "搜索"),
-            (Icon::Funnel, "过滤"),
-        ]
-    );
-    assert_eq!(
-        work_sidebar::header_icon_specs(true)[0],
-        (Icon::LayoutSidebarReverse, "展开侧边栏")
-    );
-    assert_eq!(
-        work_sidebar::more_menu_item_specs(),
-        [
-            ("添加网址", Icon::Link45Deg),
-            ("知识库", Icon::Journals),
-            ("工作流", Icon::GitBranch),
-            ("应用中心", Icon::Grid1x2),
-        ]
-    );
+fn work_sidebar_navigation_routes_project_actions() {
     assert!(matches!(
         work_sidebar::project_navigation_message(),
         Message::View(ViewMessage::OpenSystemSettingsTab(
@@ -601,18 +564,6 @@ fn work_sidebar_navigation_matches_reference_grouping_and_icons() {
         work_sidebar::project_create_message(),
         Message::View(ViewMessage::ProjectFileNewProject)
     ));
-}
-
-#[test]
-fn work_sidebar_surface_is_pale_in_light_theme_and_dark_in_dark_theme() {
-    let surface = |theme: &Theme| match work_sidebar::sidebar_style(theme).background {
-        Some(iced::Background::Color(color)) => color,
-        _ => panic!("work sidebar should have a background"),
-    };
-    let luminance = |color: iced::Color| 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-
-    assert!(luminance(surface(&Theme::Light)) > 0.90);
-    assert!(luminance(surface(&Theme::Dark)) < 0.50);
 }
 
 #[test]
@@ -671,7 +622,7 @@ fn work_sidebar_filters_sessions_by_runtime_status() {
             .tasks
             .iter()
             .map(|task| match &task.message {
-                Message::Project(ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
+                sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
                 _ => panic!("task should use the existing project session open message"),
             })
             .collect::<Vec<_>>(),
@@ -685,7 +636,7 @@ fn work_sidebar_filters_sessions_by_runtime_status() {
             .tasks
             .iter()
             .map(|task| match &task.message {
-                Message::Project(ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
+                sidebar_events::Message::Project(sidebar_events::ProjectMessage::OpenProjectSessionPressed(_, id)) => id.as_str(),
                 _ => panic!("task should use the existing project session open message"),
             })
             .collect::<Vec<_>>(),

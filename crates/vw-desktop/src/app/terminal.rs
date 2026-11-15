@@ -8,9 +8,6 @@ pub type TerminalState = desktop_terminal::TerminalState<Shell>;
 
 pub use desktop_terminal::Shell;
 
-#[cfg(test)]
-#[path = "terminal_tests.rs"]
-mod terminal_tests;
 
 /// Open a local directory without interpreting it as shell code or an `open` option.
 #[cfg(not(target_arch = "wasm32"))]

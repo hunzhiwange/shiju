@@ -1,4 +1,4 @@
-use vw_desktop::app::state::{PluginInstallForm, PluginInstallPhase};
+use crate::plugin_state::{PluginInstallForm, PluginInstallPhase};
 use gateway_desktop_settings::{DesktopPluginCapabilitiesDto, DesktopPluginPreviewDto};
 
 fn preview(token: &str) -> DesktopPluginPreviewDto {

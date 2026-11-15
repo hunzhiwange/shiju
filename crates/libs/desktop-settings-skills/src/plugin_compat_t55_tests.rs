@@ -1,4 +1,4 @@
-use vw_desktop::app::components::system_settings_skills::plugin_dependency_summary;
+use crate::plugin_dependency_summary;
 fn checks(status: &str) -> Vec<gateway_desktop_settings::DesktopPluginDependencyDto> {
     vec![gateway_desktop_settings::DesktopPluginDependencyDto {
         component: "中文 MCP".into(),

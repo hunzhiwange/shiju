@@ -10,6 +10,3 @@ pub(crate) fn overlay<'a>(state: &'a LifecycleState, host: &'a str, base: iced::
     let guidance = state.preview.as_ref().map(|p| super::uninstall::guidance(p.request.app_id)).unwrap_or("");
     desktop_settings_apps::system_settings_apps::lifecycle_view::overlay(state, host, base, guidance, super::domain_event)
 }
-#[cfg(test)]
-#[path = "../../desktop_integration_20_tests.rs"]
-mod desktop_integration_20_tests;

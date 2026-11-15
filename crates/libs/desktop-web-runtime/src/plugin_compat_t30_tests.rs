@@ -1,5 +1,5 @@
 use serde_json::json;
-use vw_desktop::app::mcp_app_bridge::McpAppBridge;
+use crate::mcp_app_bridge::McpAppBridge;
 fn bridge() -> McpAppBridge {
     McpAppBridge::new("session".into(), "server".into(), "null".into(), ["allowed".into()].into())
         .unwrap()
@@ -69,7 +69,7 @@ fn codex_plugin_compat_t30_preserves_isolation() {
 #[test]
 #[ignore = "requires a built WebView helper and a graphical desktop"]
 fn codex_plugin_compat_t30_real_webview_roundtrip() {
-    use vw_desktop::app::mcp_app_bridge::McpAppProcess;
+    use crate::mcp_app_bridge::McpAppProcess;
     let helper = std::env::var_os("VW_T30_HELPER").expect("VW_T30_HELPER is required");
     let html = r#"<meta charset="utf-8"><h1>真实桥接 · 中文</h1><script>
     parent.postMessage({jsonrpc:'2.0',id:1,method:'ui/initialize'},'*');

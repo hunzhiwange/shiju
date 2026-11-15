@@ -7,7 +7,7 @@ use std::{
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
-use vw_desktop::app::components::mcp_app_panel::McpAppPanel;
+use crate::mcp_app_panel::McpAppPanel;
 
 struct LocalServer(Child);
 impl Drop for LocalServer {
@@ -28,7 +28,7 @@ fn codex_plugin_compat_t64_real_macos_mcp_page() {
     let source = root.join("中文 MCP 原包 with spaces");
     fs::create_dir(&source).unwrap();
     let fixtures =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vw-agent/testdata/plugin_compat/t31");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vw-agent/testdata/plugin_compat/t31");
     let original: Vec<_> = ["server.py", "app.html"]
         .into_iter()
         .map(|name| {

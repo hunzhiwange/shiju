@@ -123,3 +123,9 @@ pub mod help;
 pub mod update;
 
 pub mod save_feedback;
+
+#[cfg(test)]
+mod plugin_compat_t55_tests;
+
+#[cfg(test)]
+mod plugin_compat_t56_tests;

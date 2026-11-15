@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use vw_desktop::app::components::mcp_app_panel::McpAppPanel;
+use crate::mcp_app_panel::McpAppPanel;
 fn resource(html: &str) -> Value {
     json!({"server":"server","tool":"allowed","execution_binding":"host-issued","resource_uri":"ui://app/view","resource":{"contents":[{"uri":"ui://app/view","mimeType":"text/html;profile=mcp-app","text":html}]}})
 }
@@ -76,7 +76,7 @@ fn codex_plugin_compat_t31_destroys_app_after_session_close() {
 fn codex_plugin_compat_t31_real_local_mcp_page() {
     use std::io::{BufRead, Write};
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../vw-agent/testdata/plugin_compat/t31");
+        .join("../../vw-agent/testdata/plugin_compat/t31");
     let mut server = std::process::Command::new("python3")
         .arg(root.join("server.py"))
         .stdin(std::process::Stdio::piped())

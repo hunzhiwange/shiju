@@ -46,3 +46,6 @@ pub mod local;
 pub mod shell;
 pub use shell::Shell;
 pub mod updates;
+
+#[cfg(test)]
+mod shell_compat_tests;

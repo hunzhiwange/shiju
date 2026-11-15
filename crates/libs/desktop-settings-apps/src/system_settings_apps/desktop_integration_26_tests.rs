@@ -6,12 +6,16 @@ use vw_api_app_identity::{
     AppReadResponse,
     AppUserPreferences,
 };
-//! Navigation visibility is a projection of confirmed user preferences.
-//! Database reopening is covered by the gateway preferences API tests.
+// Navigation visibility is a projection of confirmed user preferences.
+// Database reopening is covered by the gateway preferences API tests.
 
-use super::components::system_settings_apps::{catalog::CatalogRow, preferences};
-use super::state::AppsCatalogState;
-use vw_api_types::agent_apps::*;
+use super::{catalog::CatalogRow, preferences};
+
+#[derive(Default)]
+struct AppsCatalogState {
+    rows: Vec<CatalogRow>,
+    preferences: preferences::PreferencesState,
+}
 
 fn catalog_state() -> AppsCatalogState {
     AppsCatalogState {
@@ -32,7 +36,14 @@ fn catalog_state() -> AppsCatalogState {
 }
 
 fn visible_ids(state: &AppsCatalogState) -> Vec<AppId> {
-    preferences::visible_rows(state).iter().map(|row| row.entry.id).collect()
+    let lifecycle = super::lifecycle::LifecycleState::default();
+    let drag = super::drag::DragState::default();
+    let view = super::ViewState {
+        rows: &state.rows, preferences: &state.preferences,
+        lifecycle: &lifecycle, drag: &drag, query: "", host: "",
+        loading: false, error: &None, expanded: None, hovered: None,
+    };
+    preferences::visible_rows(&view).iter().map(|row| row.entry.id).collect()
 }
 
 #[test]

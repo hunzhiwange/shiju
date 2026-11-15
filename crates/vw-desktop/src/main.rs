@@ -273,26 +273,6 @@ mod main_tests;
 #[path = "app/plugin_compat_t25_tests.rs"]
 mod plugin_compat_t25_tests;
 
-#[cfg(test)]
-#[path = "app/plugin_compat_t30_tests.rs"]
-mod plugin_compat_t30_tests;
-
-#[cfg(test)]
-#[path = "app/plugin_compat_t31_tests.rs"]
-mod plugin_compat_t31_tests;
-
-#[cfg(test)]
-#[path = "app/plugin_compat_t55_tests.rs"]
-mod plugin_compat_t55_tests;
-
-#[cfg(test)]
-#[path = "app/plugin_compat_t56_tests.rs"]
-mod plugin_compat_t56_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-#[path = "app/plugin_compat_t64_tests.rs"]
-mod plugin_compat_t64_tests;
-
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app/components/archived_chats_window_tests.rs"]
 mod archived_chats_window_tests;

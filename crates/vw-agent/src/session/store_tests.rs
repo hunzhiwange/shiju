@@ -10,7 +10,7 @@ use {
     vw_api_transport::id::TenantScope,
 };
 use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
-use vw_shared::session::info::{
+use session_info::{
     Info as AgentSessionInfo, RevertInfo, ShareInfo, Summary, TimeInfo,
 };
 use vw_shared::session::ui_types::{

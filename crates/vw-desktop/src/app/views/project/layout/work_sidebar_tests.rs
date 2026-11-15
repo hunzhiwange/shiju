@@ -3,7 +3,7 @@
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer, widget::Tree};
 use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme, Vector};
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 use crate::app::assets::Icon;
 use crate::app::message::{ProjectMessage, ShijuAppsMessage, SkillHubMessage, ViewMessage};
@@ -342,7 +342,7 @@ async fn work_sidebar_task_context_menu_routes_session_id_and_pointer_position()
 #[tokio::test(flavor = "multi_thread")]
 async fn shared_session_row_draws_right_details_and_routes_hover_actions() {
     use super::super::components::{SessionRowDetails, SessionRowStatus, session_row};
-    use vw_shared::session::info::Summary;
+    use session_info::Summary;
 
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))

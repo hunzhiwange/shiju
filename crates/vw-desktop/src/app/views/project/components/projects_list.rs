@@ -29,7 +29,7 @@ use iced::{Background, Color, ContentFit, Element, Length, Theme};
 use crate::app::components::input_panel::styles::tooltip_dark_style;
 use crate::app::components::widgets::SingleLineLabel;
 use crate::app::{App, Message, message};
-use vw_shared::session::info as session;
+use session_info as session;
 
 use super::super::styles::project_item_button_style;
 use super::super::utils::{

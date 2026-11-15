@@ -7,7 +7,7 @@ use chrono::{Local, TimeZone};
 use iced::widget::tooltip::{Position, Tooltip};
 use iced::widget::{Space, button, column, container, hover, mouse_area, row, stack, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, border};
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_panel_style,

@@ -217,7 +217,7 @@ impl From<anyhow::Error> for Error {
     }
 }
 
-pub use vw_shared::session::info::{Info, RevertInfo, ShareInfo, Summary, TimeInfo};
+pub use session_info::{Info, RevertInfo, ShareInfo, Summary, TimeInfo};
 pub use vw_shared::session::session_utils::{create_slug, is_default_title};
 
 /// 创建会话的输入参数

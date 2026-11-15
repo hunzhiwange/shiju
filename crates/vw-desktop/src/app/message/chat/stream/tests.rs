@@ -14,8 +14,8 @@ fn chat_message(role: ChatRole, content: &str) -> ModelChatMessage {
     }
 }
 
-fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: format!("{id}-slug"),
         project_id: "project-1".to_string(),
@@ -25,7 +25,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
         share: None,
         title: title.to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 10,
             updated: 20,
             compacting: None,
@@ -69,7 +69,7 @@ fn completed_session_summary_reload_refreshes_both_lists_without_an_active_reque
     let mut info = session_info("finished", "Finished", "/project");
     app.sessions = vec![info.clone()];
     app.project_sessions.insert("/project".into(), vec![info.clone()]);
-    info.summary = Some(vw_shared::session::info::Summary {
+    info.summary = Some(session_info::Summary {
         additions: 1434,
         deletions: 7,
         files: 16,
@@ -92,7 +92,7 @@ fn stream_diff_summary_updates_the_request_session_in_both_lists() {
     app.active_session_id = Some("other".into());
     app.get_session_runtime_mut("edited").active_agent_request = Some(agent_request(42, "edited"));
     let summary =
-        vw_shared::session::info::Summary { additions: 2, deletions: 1, files: 1, diffs: None };
+        session_info::Summary { additions: 2, deletions: 1, files: 1, diffs: None };
 
     let _ = super::update(
         &mut app,
@@ -389,7 +389,7 @@ fn externally_created_session_does_not_replace_active_session() {
     let (mut app, _task) = crate::app::App::new();
     let mut visible = session_info("visible-task", "Visible task", "/project");
     visible.parent_id = Some("main-session".to_string());
-    visible.slug = vw_shared::session::info::Info::visible_task_slug("visible-task");
+    visible.slug = session_info::Info::visible_task_slug("visible-task");
     app.project_path = Some("/project".to_string());
     app.active_session_id = Some("main-session".to_string());
     app.sessions = vec![session_info("main-session", "Main", "/project")];

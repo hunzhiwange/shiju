@@ -42,8 +42,8 @@ fn session_step(index: u32, usage: TokenUsage) -> ChatSessionStep {
     }
 }
 
-fn session_info(id: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: format!("{id}-slug"),
         project_id: "project-1".to_string(),
@@ -53,7 +53,7 @@ fn session_info(id: &str) -> vw_shared::session::info::Info {
         share: None,
         title: "Session".to_string(),
         version: "1".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 10,
             updated: 20,
             compacting: None,

@@ -96,14 +96,14 @@ fn loaded_project_info(
     }
 }
 
-fn session_info(id: &str, additions: i64, deletions: i64) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, additions: i64, deletions: i64) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: id.to_string(),
         project_id: "project".to_string(),
         directory: "/tmp/project".to_string(),
         parent_id: None,
-        summary: Some(vw_shared::session::info::Summary {
+        summary: Some(session_info::Summary {
             additions,
             deletions,
             files: 1,
@@ -112,7 +112,7 @@ fn session_info(id: &str, additions: i64, deletions: i64) -> vw_shared::session:
         share: None,
         title: id.to_string(),
         version: "1".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 1,
             updated: 1,
             compacting: None,

@@ -166,7 +166,7 @@ fn chat_mode_control(app: &App) -> Element<'_, Message> {
 fn known_session_info<'a>(
     app: &'a App,
     session_id: &str,
-) -> Option<&'a vw_shared::session::info::Info> {
+) -> Option<&'a session_info::Info> {
     app.sessions.iter().find(|session| session.id == session_id).or_else(|| {
         app.project_sessions
             .values()

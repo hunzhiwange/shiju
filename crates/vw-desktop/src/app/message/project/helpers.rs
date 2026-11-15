@@ -663,11 +663,11 @@ async fn resolve_gateway_project_with_client(
 pub(crate) async fn list_gateway_project_sessions(
     client: &vw_gateway_client::GatewayClient,
     project_path: &str,
-) -> Result<Vec<vw_shared::session::info::Info>, String> {
+) -> Result<Vec<session_info::Info>, String> {
     let Ok(project) = resolve_gateway_project_with_client(client, project_path, false).await else {
         return gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list(Some(project_path)).await;
     };
-    let mut sessions: Vec<vw_shared::session::info::Info> =
+    let mut sessions: Vec<session_info::Info> =
         gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list_for_project(&project.id).await?;
     // Older gateways may ignore the project query parameter.
     sessions.retain(|info| info.project_id == project.id.0);
@@ -676,7 +676,7 @@ pub(crate) async fn list_gateway_project_sessions(
 
 pub(crate) async fn gateway_session_project_path(
     client: &vw_gateway_client::GatewayClient,
-    info: &vw_shared::session::info::Info,
+    info: &session_info::Info,
 ) -> Result<String, String> {
     let scope = vw_api_transport::ProjectScope::new(
         client.endpoint().tenant_scope().clone(),

@@ -122,10 +122,10 @@ fn project_label(app: &App, path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
-type SessionRef<'a> = (&'a str, &'a vw_shared::session::info::Info);
+type SessionRef<'a> = (&'a str, &'a session_info::Info);
 
 fn collect_top_level_sessions<'a>(
-    sessions: impl Iterator<Item = (&'a str, &'a vw_shared::session::info::Info)>,
+    sessions: impl Iterator<Item = (&'a str, &'a session_info::Info)>,
 ) -> Vec<SessionRef<'a>> {
     let sessions = sessions.collect::<Vec<_>>();
     // Most projects contain only root conversations. Build the parent index only

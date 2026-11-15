@@ -17,7 +17,7 @@ use crate::app::components::system_settings_common::{
 use crate::app::components::widgets::{RightClickArea, SingleLineLabel};
 use crate::app::message::TaskBoardMessage;
 use crate::app::{Message, message};
-use vw_shared::session::info as session;
+use session_info as session;
 
 use super::super::styles::{is_dark_theme, tooltip_bubble};
 use super::super::utils::mix_color;

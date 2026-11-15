@@ -12,7 +12,7 @@ use crate::app::session::{AgentChildSession, AgentChildSessionKind, AgentChildSe
 use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
 use crate::app::{Message, message};
 use iced::Theme;
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 // 会话与工具事件 fixture 只填充层级展示所需字段，避免无关运行时状态干扰断言。
 fn session(id: &str, parent_id: Option<&str>, title: &str, directory: &str) -> Info {

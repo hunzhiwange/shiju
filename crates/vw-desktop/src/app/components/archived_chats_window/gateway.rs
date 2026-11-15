@@ -5,7 +5,7 @@ use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
-use vw_shared::session::info::Info;
+use session_info::Info;
 
 pub(super) struct Gateway {
     pub port: u16,

@@ -8,7 +8,7 @@ fn archived_chats_native_acceptance_has_explicit_isolated_entry() {
     );
 }
 
-use vw_shared::session::info::Info;
+use session_info::Info;
 
 pub(super) fn fixture() -> Vec<Info> {
     (0..1178).map(|index| {

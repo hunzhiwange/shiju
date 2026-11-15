@@ -4,7 +4,7 @@
 use super::*;
 use crate::app::models::TokenUsage;
 use std::sync::Arc;
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
     ChatMessage {

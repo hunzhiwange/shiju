@@ -5,7 +5,7 @@ use crate::app::{App, Message, models};
 use iced::Task;
 use std::time::Duration;
 use vw_gateway_client::GatewayClient;
-use vw_shared::session::info::Info;
+use session_info::Info;
 use vw_shared::session::ui_types::ChatSessionMeta;
 
 #[derive(Debug, Clone)]

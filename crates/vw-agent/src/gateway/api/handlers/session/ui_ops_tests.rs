@@ -14,7 +14,7 @@ use vw_api_session::session::{
     GatewaySessionTodoPutBody,
 };
 use vw_api_todo::todo::{TodoPriority, TodoStatus};
-use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
+use session_info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 
 static TEST_HOME: Once = Once::new();
 static UI_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

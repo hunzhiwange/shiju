@@ -8,7 +8,7 @@ use crate::app::state::{
     AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QueueItem, SessionRuntimeState,
 };
 use iced::widget::{button, svg};
-use vw_shared::session::info::{Info, Summary, TimeInfo};
+use session_info::{Info, Summary, TimeInfo};
 
 fn test_app() -> crate::app::App {
     crate::app::App::new().0

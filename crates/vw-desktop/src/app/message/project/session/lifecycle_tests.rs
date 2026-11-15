@@ -50,8 +50,8 @@ fn stale_stream_ui_phase_is_ignored() {
     assert_eq!(app.chat_render_cache[&0].display_text, "kept");
 }
 
-fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: id.to_string(),
         project_id: "project".to_string(),
@@ -61,7 +61,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
         share: None,
         title: title.to_string(),
         version: "1".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 1,
             updated: 1,
             compacting: None,

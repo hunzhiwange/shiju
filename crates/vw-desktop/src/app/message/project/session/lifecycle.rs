@@ -14,14 +14,14 @@ use message_types as agent_message;
 use web_time::Instant;
 
 /// 幂等登记外部创建的会话，不触碰当前活动会话及聊天运行态。
-pub(crate) fn cache_external_session(app: &mut App, info: vw_shared::session::info::Info) {
+pub(crate) fn cache_external_session(app: &mut App, info: session_info::Info) {
     cache_project_session(app, info.directory.clone(), info);
 }
 
 pub(super) fn cache_project_session(
     app: &mut App,
     project_path: String,
-    info: vw_shared::session::info::Info,
+    info: session_info::Info,
 ) {
     if let Some(existing) = app.sessions.iter_mut().find(|session| session.id == info.id) {
         *existing = info.clone();
@@ -857,7 +857,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
                     gateway_session::GatewaySessionClient::new(client.transport().clone())
-                        .session_update::<vw_shared::session::info::Info>(
+                        .session_update::<session_info::Info>(
                             &id,
                             project_path.as_deref(),
                             &vw_api_session::GatewaySessionPatchBody {
@@ -914,7 +914,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 .session_messages::<Vec<agent_message::WithParts>>(&next_id, None)
                                 .await;
                             let info = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_get::<vw_shared::session::info::Info>(&next_id, None)
+                                .session_get::<session_info::Info>(&next_id, None)
                                 .await;
                             match (msgs, info) {
                                 (Ok(msgs), Ok(_info)) => {
@@ -955,7 +955,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             Err(err) => return Err(err.to_string()),
                         };
                         gateway_session::GatewaySessionClient::new(client.transport().clone())
-                            .session_update::<vw_shared::session::info::Info>(
+                            .session_update::<session_info::Info>(
                                 &id,
                                 project_path.as_deref(),
                                 &vw_api_session::GatewaySessionPatchBody {
@@ -1070,7 +1070,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
                     gateway_session::GatewaySessionClient::new(client.transport().clone())
-                        .session_fork::<vw_shared::session::info::Info>(
+                        .session_fork::<session_info::Info>(
                             &id,
                             project_path.as_deref(),
                             &None,

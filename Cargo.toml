@@ -22,6 +22,7 @@ members = [
   "crates/libs/model-protocols",
   "crates/libs/api-worktree",
   "crates/libs/session-paths",
+  "crates/libs/session-info",
   "crates/libs/acp-cli-commands",
   "crates/libs/build-identity",
   "crates/libs/cli-bootstrap",

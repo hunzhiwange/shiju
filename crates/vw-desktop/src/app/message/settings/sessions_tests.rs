@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 fn app() -> App {
     let mut app = App::new().0;

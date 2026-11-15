@@ -60,8 +60,8 @@ fn chat_message(
     }
 }
 
-fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: format!("{id}-slug"),
         project_id: "project-1".to_string(),
@@ -71,7 +71,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
         share: None,
         title: title.to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 10,
             updated: 20,
             compacting: None,
@@ -1564,7 +1564,7 @@ fn expert_package_selection_does_not_leak_between_sessions() {
 fn send_current_session_input_disables_workflow_mode_for_plan_run_child_session() {
     let (mut app, _task) = crate::app::App::new();
     let mut child = session_info("child", "Child", "/repo");
-    child.slug = vw_shared::session::info::Info::plan_run_slug(&child.slug);
+    child.slug = session_info::Info::plan_run_slug(&child.slug);
     child.parent_id = Some("parent".to_string());
     app.active_session_id = Some("child".to_string());
     app.sessions = vec![child];
@@ -1776,7 +1776,7 @@ fn active_session_is_plan_run_child_uses_persisted_source() {
     app.sessions = vec![child];
     assert!(!super::active_session_is_plan_run_child(&app));
 
-    app.sessions[0].slug = vw_shared::session::info::Info::plan_run_slug(&app.sessions[0].slug);
+    app.sessions[0].slug = session_info::Info::plan_run_slug(&app.sessions[0].slug);
     assert!(super::active_session_is_plan_run_child(&app));
 }
 

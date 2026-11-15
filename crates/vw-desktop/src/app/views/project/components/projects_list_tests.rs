@@ -4,7 +4,7 @@ use std::fs;
 
 use iced::{Color, Element};
 use tempfile::tempdir;
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 use super::*;
 use crate::app::state::SessionRuntimeState;

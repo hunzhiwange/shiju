@@ -14,7 +14,7 @@ use crate::app::session::{
     agent_child_session_projection, plan_run_session_controls_from_content,
 };
 use crate::app::{App, Message, message};
-use vw_shared::session::info::Info;
+use session_info::Info;
 
 const POPOVER_WIDTH: f32 = 340.0;
 const POPOVER_MAX_HEIGHT: f32 = 248.0;

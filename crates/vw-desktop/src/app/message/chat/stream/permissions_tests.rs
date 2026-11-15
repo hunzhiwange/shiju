@@ -20,8 +20,8 @@ fn request(id: &str, session_id: &str) -> vw_gateway_client::PendingPermissionRe
     }
 }
 
-fn session_info(id: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: format!("{id}-slug"),
         project_id: "project-1".to_string(),
@@ -31,7 +31,7 @@ fn session_info(id: &str, directory: &str) -> vw_shared::session::info::Info {
         share: None,
         title: "Session".to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 10,
             updated: 20,
             compacting: None,

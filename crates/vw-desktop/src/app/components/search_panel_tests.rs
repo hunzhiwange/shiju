@@ -8,8 +8,8 @@ use crate::app::App;
 use iced::widget::{button, text_input};
 use iced::{Background, Length, Theme};
 
-fn session(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session(id: &str, title: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: id.to_string(),
         project_id: "project-1".to_string(),
@@ -19,7 +19,7 @@ fn session(id: &str, title: &str, directory: &str) -> vw_shared::session::info::
         share: None,
         title: title.to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 0,
             updated: 0,
             compacting: None,
@@ -123,12 +123,12 @@ fn child_session_navigation_search_hides_internal_sources() {
     let mut agent = session("agent", "任务", "/workspace");
     agent.mark_agent_tool();
     let mut workflow = session("workflow", "任务", "/workspace");
-    workflow.slug = vw_shared::session::info::Info::plan_run_slug(&workflow.slug);
+    workflow.slug = session_info::Info::plan_run_slug(&workflow.slug);
     let mut fork = session("fork", "任务", "/workspace");
     fork.parent_id = Some("parent".into());
     let mut task = session("task", "任务", "/workspace");
     task.parent_id = Some("parent".into());
-    task.slug = vw_shared::session::info::Info::visible_task_slug(&task.slug);
+    task.slug = session_info::Info::visible_task_slug(&task.slug);
     app.sessions = vec![agent, workflow, fork, task];
 
     let matches = matching_sessions(&app, "任务");

@@ -20,7 +20,7 @@ use tracing::{debug, info};
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 use vw_shared::id;
 use message_types as agent_message;
-use vw_shared::session::info as session;
+use session_info as session;
 
 /// 项目身份解析期间保留的首次发送内容。
 #[derive(Debug, Clone)]
@@ -860,7 +860,7 @@ fn active_session_is_plan_run_child(app: &App) -> bool {
             .iter()
             .chain(app.project_sessions.values().flatten())
             .find(|session| session.id == session_id)
-            .is_some_and(vw_shared::session::info::Info::is_plan_run)
+            .is_some_and(session_info::Info::is_plan_run)
 }
 
 fn check_agent_installation(app: &App, backend: String, query: Option<String>) -> Task<Message> {

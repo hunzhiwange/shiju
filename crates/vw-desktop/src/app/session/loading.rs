@@ -322,7 +322,7 @@ impl App {
                     .map_err(anyhow::Error::msg)?
                 } else {
                     gateway_session::GatewaySessionClient::new(client.transport().clone())
-                        .session_list::<Vec<vw_shared::session::info::Info>>(None)
+                        .session_list::<Vec<session_info::Info>>(None)
                         .await
                         .map_err(anyhow::Error::msg)?
                 };
@@ -331,7 +331,7 @@ impl App {
             },
             move |res: Result<
                 (
-                    Vec<vw_shared::session::info::Info>,
+                    Vec<session_info::Info>,
                     std::collections::HashMap<String, String>,
                     std::collections::HashSet<String>,
                 ),

@@ -12,13 +12,13 @@ use crate::app::message::project::helpers::{
 use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{App, Message, models};
 use std::collections::HashSet;
-use vw_shared::session::info::Info;
+use session_info::Info;
 use web_time::Instant;
 
 fn merge_project_sessions(
-    existing: Option<Vec<vw_shared::session::info::Info>>,
-    incoming: Vec<vw_shared::session::info::Info>,
-) -> Vec<vw_shared::session::info::Info> {
+    existing: Option<Vec<session_info::Info>>,
+    incoming: Vec<session_info::Info>,
+) -> Vec<session_info::Info> {
     let Some(existing) = existing else {
         return incoming;
     };

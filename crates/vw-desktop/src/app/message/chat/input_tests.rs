@@ -216,7 +216,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
 
     app.project_path = Some("/workspace/project".to_string());
     app.active_session_id = Some("session-1".to_string());
-    app.sessions.push(vw_shared::session::info::Info {
+    app.sessions.push(session_info::Info {
         id: "session-1".to_string(),
         slug: "session-1".to_string(),
         project_id: "project-1".to_string(),
@@ -226,7 +226,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
         share: None,
         title: "Current".to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 1,
             updated: 1,
             compacting: None,

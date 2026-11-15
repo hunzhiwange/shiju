@@ -1,5 +1,5 @@
 use super::*;
-use vw_shared::session::info::TimeInfo;
+use session_info::TimeInfo;
 
 fn session(id: &str, project: &str, title: &str, created: u64, updated: u64) -> Info {
     Info {

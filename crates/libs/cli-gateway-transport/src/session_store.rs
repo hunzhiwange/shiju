@@ -10,7 +10,7 @@ use vw_api_session::{
     GatewaySessionForkBody, GatewaySessionPatchBody, GatewaySessionResetBody,
     GatewaySessionSummarizeBody,
 };
-use vw_shared::session::info::Info;
+use session_info::Info;
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway, normalize_optional_str_ref};

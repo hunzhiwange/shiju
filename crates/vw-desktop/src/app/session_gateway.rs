@@ -645,7 +645,7 @@ pub async fn gateway_permission_reply_async(
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_save_agent_session_scoped_async(
-    info: &vw_shared::session::info::Info,
+    info: &session_info::Info,
     scope: Option<&str>,
 ) -> Result<Option<std::path::PathBuf>, String> {
     let client = gateway_client()?;
@@ -1110,7 +1110,7 @@ pub fn gateway_permission_reply(
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn gateway_save_agent_session_scoped(
-    info: &vw_shared::session::info::Info,
+    info: &session_info::Info,
     scope: Option<&str>,
 ) -> Option<std::path::PathBuf> {
     let result = block_on_gateway(gateway_save_agent_session_scoped_async(info, scope));

@@ -278,7 +278,7 @@ fn prepare_chat(app: &mut App) {
     app.chat_reset_menu_idx = Some(1);
 }
 
-fn session_info(id: &str, directory: &str) -> vw_shared::session::info::Info {
+fn session_info(id: &str, directory: &str) -> session_info::Info {
     serde_json::from_value(serde_json::json!({
         "id": id,
         "slug": id,

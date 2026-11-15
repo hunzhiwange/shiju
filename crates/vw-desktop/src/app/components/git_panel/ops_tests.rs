@@ -10,7 +10,7 @@ use super::ops::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::components::git_panel::utils::FileStatus;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 #[test]
 fn task_721_test_module_is_wired() {

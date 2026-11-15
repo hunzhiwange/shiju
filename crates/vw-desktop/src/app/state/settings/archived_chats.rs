@@ -3,7 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use vw_shared::session::info::Info;
+use session_info::Info;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ArchivedChatsSort {

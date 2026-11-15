@@ -17,7 +17,7 @@ use {
 use vw_api_task::TaskPoolWorkflowSnapshotDto;
 use vw_api_task_lifecycle::TaskLifecycleWorkflowUpsertBody;
 use project_types::{Info, TimeInfo};
-use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
+use session_info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionStep, SessionTodoItem, TokenUsage,
 };

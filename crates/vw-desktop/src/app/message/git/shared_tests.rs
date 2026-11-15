@@ -56,7 +56,7 @@ fn git_context_path_returns_none_without_any_context() {
 fn git_context_path_uses_trimmed_active_session_directory() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("session-1".to_string());
-    app.sessions = vec![vw_shared::session::info::Info {
+    app.sessions = vec![session_info::Info {
         id: "session-1".to_string(),
         slug: "session-1".to_string(),
         project_id: "project-1".to_string(),
@@ -66,7 +66,7 @@ fn git_context_path_uses_trimmed_active_session_directory() {
         share: None,
         title: "Session".to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 1,
             updated: 2,
             compacting: None,

@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
 use message_types as message;
-use vw_shared::session::info as session_info;
+use session_info as session_info;
 
 /// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。
 pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(16);

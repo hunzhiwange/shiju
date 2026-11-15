@@ -11,7 +11,7 @@
 //! - `ui_store`：WASM 会话 JSON 与原生文件制品存取实现
 //! - `ui_types`：桌面端会话列表和消息展示结构
 
-pub mod info;
+pub use session_info as info;
 pub use session_paths as path;
 pub mod session_utils;
 pub mod ui_store;

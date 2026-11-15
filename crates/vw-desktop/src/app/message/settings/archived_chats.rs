@@ -10,7 +10,7 @@ mod project_delete;
 use delete::{
     accept_delete, delete_candidates, delete_task, sync_deleted_sessions, valid_delete_target,
 };
-use vw_shared::session::info::Info;
+use session_info::Info;
 
 pub(crate) use crate::app::state::ArchivedChatsIdentity as Identity;
 

@@ -2,7 +2,7 @@
 //! 计划控制信息应从增量事件中稳定提取，并在后续差量缺字段时保留已知归属。
 
 use super::{AgentChildSession, ChatMessage, ChatRole, agent_child_session_projection};
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 fn message(content: &str) -> ChatMessage {
     ChatMessage {

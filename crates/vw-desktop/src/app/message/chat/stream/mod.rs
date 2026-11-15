@@ -461,7 +461,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         async move {
                             let client = crate::app::gateway_client()?;
                             gateway_session::GatewaySessionClient::new(client.transport().clone())
-                                .session_get::<vw_shared::session::info::Info>(
+                                .session_get::<session_info::Info>(
                                     &session_id,
                                     directory.as_deref(),
                                 )

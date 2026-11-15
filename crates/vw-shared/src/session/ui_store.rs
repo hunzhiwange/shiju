@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::io;
 
 #[cfg(target_arch = "wasm32")]
-use crate::session::info::Info;
+use session_info::Info;
 pub use crate::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
     ThinkTiming, TokenUsage,

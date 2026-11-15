@@ -3,7 +3,7 @@
 use crate::app::{App, Message};
 use iced::Task;
 use message_types as message;
-use vw_shared::session::info;
+use session_info as info;
 
 use super::messages::SettingsMessage;
 

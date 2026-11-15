@@ -4,7 +4,7 @@
 use super::*;
 use crate::app::state::{AcpHistoryReplayMode, ChatSendBehavior, QueueItem, SessionRuntimeState};
 use iced::widget::button;
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 fn test_app() -> App {
     App::new().0

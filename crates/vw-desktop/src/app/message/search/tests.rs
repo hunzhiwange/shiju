@@ -19,8 +19,8 @@ fn app() -> App {
     App::new().0
 }
 
-fn session_info(id: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: id.to_string(),
         project_id: "project".to_string(),
@@ -30,7 +30,7 @@ fn session_info(id: &str, directory: &str) -> vw_shared::session::info::Info {
         share: None,
         title: id.to_string(),
         version: "1".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 1,
             updated: 1,
             compacting: None,

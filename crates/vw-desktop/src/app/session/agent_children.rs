@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use vw_shared::session::info::Info;
+use session_info::Info;
 
 use super::{ChatMessage, ChatRole};
 use crate::app::components::chat_panel::tools::{

@@ -3,7 +3,7 @@
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, ChatSessionStep, TokenUsage};
 use serde_json::json;
-use vw_shared::session::info::{Info, TimeInfo};
+use session_info::{Info, TimeInfo};
 
 fn session_info(id: &str, title: &str, created: u64, updated: u64) -> Info {
     Info {

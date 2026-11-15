@@ -220,7 +220,7 @@ pub(crate) struct ForkSessionDialog {
 
 #[derive(Debug, Clone)]
 pub struct ForkSessionLoaded {
-    pub(crate) info: vw_shared::session::info::Info,
+    pub(crate) info: session_info::Info,
     pub(crate) project_path: String,
     pub(crate) prepared: crate::app::session::PreparedSessionOpen,
 }
@@ -534,7 +534,7 @@ pub enum ChatMessage {
     AgentModelRecovery(u64, gateway_chat_stream::GatewayModelRecoveryEvent),
 
     /// SessionTool 创建完成后，从网关读取到的权威可见任务会话元信息。
-    VisibleTaskSessionLoaded(Result<vw_shared::session::info::Info, String>),
+    VisibleTaskSessionLoaded(Result<session_info::Info, String>),
 
     /// 合并一小段时间内的 Agent 流式增量，降低 UI 重绘和会话保存频率。
     AgentStreamDeltaFlush(String),
@@ -679,8 +679,8 @@ pub enum ChatMessage {
     ///
     /// 标记本轮工具执行已结束，下一轮模型请求尚未开始。
     AgentPostToolRound(u64, String, u32),
-    AgentSessionDiffSummary(u64, String, vw_shared::session::info::Summary),
-    SessionSummaryReloaded(Result<vw_shared::session::info::Info, String>),
+    AgentSessionDiffSummary(u64, String, session_info::Summary),
+    SessionSummaryReloaded(Result<session_info::Info, String>),
 
     /// 会话保存完成
     ///
@@ -720,7 +720,7 @@ pub enum ChatMessage {
         error: String,
         recovered: Option<Box<stream::draft::RecoveredDraft>>,
     },
-    PublishedSessionTitleLoaded(vw_shared::session::info::Info),
+    PublishedSessionTitleLoaded(session_info::Info),
 
     /// 问题轮询时钟滴答
     ///
@@ -1050,7 +1050,7 @@ pub enum ChatMessage {
     },
 
     ResetSessionFinished {
-        result: Result<vw_shared::session::info::Info, String>,
+        result: Result<session_info::Info, String>,
         session_id: String,
         retained_chat: Vec<crate::app::models::ChatMessage>,
         retained_message_ids: Vec<Option<String>>,

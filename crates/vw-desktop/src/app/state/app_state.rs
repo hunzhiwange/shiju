@@ -513,7 +513,7 @@ pub struct App {
     /// 输入框文件搜索缓存结果
     pub(crate) file_search_cache_entries: Vec<crate::app::message::chat::input::FileSearchResult>,
     /// 会话信息列表
-    pub(crate) sessions: Vec<vw_shared::session::info::Info>,
+    pub(crate) sessions: Vec<session_info::Info>,
     /// 会话预览映射（会话 ID -> 预览文本），缓存避免每帧查 DB
     pub(crate) session_previews: HashMap<String, String>,
     /// 当前活跃会话的唯一标识符
@@ -537,7 +537,7 @@ pub struct App {
     /// 已归档的会话 ID 集合
     pub(crate) archived_session_ids: HashSet<String>,
     /// 项目会话映射（项目路径 -> 会话列表）
-    pub(crate) project_sessions: HashMap<String, Vec<vw_shared::session::info::Info>>,
+    pub(crate) project_sessions: HashMap<String, Vec<session_info::Info>>,
     /// 项目会话加载计数（用于分页）
     pub(crate) project_session_load_counts: HashMap<String, usize>,
     /// 左侧普通会话树的展开会话 ID 集合（不持久化）

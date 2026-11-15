@@ -55,8 +55,8 @@ fn agent_request(
     })
 }
 
-fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
-    vw_shared::session::info::Info {
+fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
+    session_info::Info {
         id: id.to_string(),
         slug: format!("{id}-slug"),
         project_id: "project-1".to_string(),
@@ -66,7 +66,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
         share: None,
         title: title.to_string(),
         version: "0.0.0".to_string(),
-        time: vw_shared::session::info::TimeInfo {
+        time: session_info::TimeInfo {
             created: 10,
             updated: 20,
             compacting: None,

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/config-computer-control",
   "crates/libs/json-extract",
   "crates/libs/acp-prompt-runner",
   "crates/libs/gateway-model-provider",

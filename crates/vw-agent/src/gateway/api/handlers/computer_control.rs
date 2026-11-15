@@ -6,7 +6,7 @@ use {
     vw_api_types::computer_control::*,
     vw_api_transport::id::TenantScope,
 };
-use vw_config_types::computer_control::GrantDecision;
+use config_computer_control::GrantDecision;
 use crate::{computer_control::{policy::{ComputerControlPolicy, ControlFeature, GrantScope}, office::sessions::OfficeSurface}, tools::computer_control::NativeControlRuntime};
 
 static EDIT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

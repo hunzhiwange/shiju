@@ -4,7 +4,7 @@
 //! Authorization does not prove backend readiness, system permission or lock support.
 
 use vw_api_types::computer_control::{ComputerControlTarget, ControlErrorCode, PermissionVersion};
-use vw_config_types::computer_control::{ComputerControlConfig, GrantDecision};
+use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlFeature {

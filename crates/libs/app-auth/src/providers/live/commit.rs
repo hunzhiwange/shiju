@@ -187,7 +187,7 @@ pub struct ProviderTransactions {
     pub(super) host: ExecutionHostId,
 }
 impl ProviderTransactions {
-    pub(crate) fn is_for_host(&self, host: &str) -> bool {
+    pub fn is_for_host(&self, host: &str) -> bool {
         self.host.0 == host
     }
 
@@ -250,7 +250,7 @@ impl ProviderTransactions {
         }
         Ok(Some(Self { directory, host }))
     }
-    pub(crate) fn execution_host(&self) -> &ExecutionHostId {
+    pub fn execution_host(&self) -> &ExecutionHostId {
         &self.host
     }
     pub fn pending(&self, app: AppId) -> Result<Option<Pending>, WriteError> {
@@ -288,7 +288,7 @@ impl ProviderTransactions {
             .map(Option::unwrap_or_default)
     }
     /// Caller-triggered recovery must belong to the same tenant as the write.
-    pub(crate) fn recover_owned(
+    pub fn recover_owned(
         &self,
         tenant: &TenantScope,
         guard: &mut AppWriteGuard,
@@ -460,7 +460,7 @@ impl ProviderTransactions {
     }
 
     /// A reference-only change has no native file publication to journal.
-    pub(crate) fn remove_kimi_binding(
+    pub fn remove_kimi_binding(
         &self,
         provider: &str,
         mut expected: AppState,
@@ -722,7 +722,7 @@ pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Phase {
+pub enum Phase {
     Intent,
     Marked,
     BeforePublish,
@@ -730,23 +730,23 @@ pub(crate) enum Phase {
     Published,
     Settled,
 }
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 type CheckpointHook = Box<dyn FnMut(&ProviderTransactions, AppId, Phase) -> Result<(), WriteError>>;
-#[cfg(test)]
-thread_local! { pub(crate) static HOOK: std::cell::RefCell<Option<CheckpointHook>> = const { std::cell::RefCell::new(None) }; }
+#[cfg(any(test, feature = "test-support"))]
+thread_local! { pub static HOOK: std::cell::RefCell<Option<CheckpointHook>> = const { std::cell::RefCell::new(None) }; }
 pub(super) fn checkpoint(
     store: &ProviderTransactions,
     app: AppId,
     phase: Phase,
 ) -> Result<(), WriteError> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     {
         HOOK.with_borrow_mut(|hook| match hook {
             Some(hook) => hook(store, app, phase),
             None => Ok(()),
         })
     }
-    #[cfg(not(test))]
+    #[cfg(not(any(test, feature = "test-support")))]
     {
         let _ = (store, app, phase);
         Ok(())

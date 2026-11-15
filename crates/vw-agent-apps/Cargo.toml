@@ -90,5 +90,6 @@ tokio = { version = "1", features = ["io-util", "process", "time"] }
 libc = "0.2"
 
 [dev-dependencies]
+app-auth = { path = "../libs/app-auth", features = ["test-support"] }
 png = "0.18"
 tokio = { version = "1", features = ["io-util", "net", "time"] }

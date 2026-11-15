@@ -132,13 +132,13 @@ impl CredentialLease {
     }
 
     #[cfg(target_os = "macos")]
-    pub(crate) fn claude_profile_scope(&self) -> Result<&(TenantScope, String), WriteError> {
+    pub fn claude_profile_scope(&self) -> Result<&(TenantScope, String), WriteError> {
         self.claude_profile_scope.as_ref().ok_or(WriteError::InvalidResource)
     }
 
     /// Open the registered account's profile directory relative to the checked lease.
     #[cfg(target_os = "macos")]
-    pub(crate) fn open_claude_profile(&self) -> Result<Directory, WriteError> {
+    pub fn open_claude_profile(&self) -> Result<Directory, WriteError> {
         self.claude_profile_scope()?;
         let Ok(AccountCredential::ClaudeDirectory(config)) = self.read() else {
             return Err(WriteError::InvalidResource);
@@ -153,7 +153,7 @@ impl CredentialLease {
     }
 
     #[cfg(target_os = "macos")]
-    pub(crate) fn verify_claude_profile(&self, expected: &File) -> Result<(), WriteError> {
+    pub fn verify_claude_profile(&self, expected: &File) -> Result<(), WriteError> {
         let current = self.open_claude_profile()?;
         if same_file(expected, &current.0).map_err(|_| WriteError::Io)? {
             Ok(())

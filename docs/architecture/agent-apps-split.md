@@ -2354,17 +2354,33 @@ unix/non-wasm 注册和私有访问，随任务 22 迁移。无资源路径需�
 实现，无资源复制。未运行 Cargo、单元及实机测试，统一验收待授权：新包与
 调用者编译、现有 Gemini 刷新定向测试和平台条件。
 
-### 任务 22：部分下沉，依赖阻塞
+### 任务 22：认证账户编排闭合
 
-app-auth 接收 accounts::managed_default_key 和 macOS logout::check_revocation_support，
-原位置重导出，真实调用者继续沿用 auth 路径；函数体、错误语义与 cfg 不变。
-其余 accounts、logout、binding_tests 与现有独立测试保留原位置和注册，无复制。
-credential_file::register_claude_directory 依赖 providers::claude_login::LoginMaterial
-（任务 23），credential_lease::remove_claude 依赖 providers 原生配置；
-DSH/Kimi 账户依赖 DshCredentials/KimiFiles（任务 24）。前序交接的 Codex、Copilot、
-xAI、Kimi、Gemini 持久化适配器及测试仍待凭据存储闭环，任务 22 尚未完成。
-不得通过回依赖门面或跨包 path/include 闭合。建议先闭合任务 23/24 的底层依赖，
-再恢复任务 22，后续执行器需调整原串行依赖，不能据此跳过待迁移文件。
-本次仅静态审阅：新包直接依赖 core、API、serde_json，无资源引用或回依赖。
-未运行 Cargo、单元及实机测试，统一验收待授权；还需验证新库与门面调用者编译、
-全部原平台条件和迁移单测。
+app-auth::auth 接收原 auth 整棵实现树与全部独立测试（包括 binding_tests
+及 kimi_account/binding_tests）；accounts、logout 和 Codex/Copilot/xAI/Kimi/
+Claude/Gemini 前序移交的凭据持久化与租约编排均已收口。AGY/DSH 等既有具体
+协议包仍是直接依赖；原 auth/mod.rs 仅导出新所有者。原进程子测试的
+`auth::...` 路径保留，因此不改变 --exact 过滤行为。
+
+必要提前下沉：app-auth::providers 接收 claude_login（LoginMaterial/LoginHost）、
+claude、dsh（含 files/edit/form）、kimi（含 form）、mode_state、operations、live
+全部共享事务模块及各自相邻测试。catalog 仅下沉有界 no-follow read_file，
+目录分发留原处；投影/验证/文件写入仍直接使用原有底层包，无门面回依赖。
+这些类型相互持有具体事务状态，保持同一所有者避免回调接口或复制实现。
+原 providers 与 live 路径均重导出，Claude Desktop 和其它适配器仍留原处。
+app-auth::apps 接收 lifecycle::operations/coordinator 与 launch::account/request；
+原路径重导出。启动相关独立测试随迁，生命周期其它行为测试仍沿原路径调用。
+这也收口 Codex refresh 测试对账户启动与旋转的真实依赖。
+
+仅为现有跨包测试消费者增加 test-support 特性，通过门面 dev-dependency 启用：
+保留事务 HOOK 的原故障注入语义；HTTP/Kimi 共享夹具抽出独立文件，认证及 usage
+测试引用同一实现，不公开整个单测模块。生产默认不启用故障注入；所有业务
+跨包可见性仅针对现有 MCP、usage、供应商发布与启动调用者调整。
+任务 23/24/29/33/35 已注明提前接收边界，后续不重复搬迁这些所有者。
+
+静态证据：移位后无 auth 业务重复定义，无 app-auth 到 vw-agent-apps 回依赖；
+模块/#[path]、清单直接依赖路径和工作区注册已检查，原 cfg、错误与锁语义保持。
+未发现 include_str/include_bytes 资源路径。环境 Python 3.9 无 tomllib，
+采用清单人工审阅与标准库路径/依赖环检查替代，未安装工具或改 Cargo.lock。
+未运行 Cargo、rustc、单元及实机测试，统一验收待授权，重点覆盖新库与门面目标、
+macOS/Linux/Windows/wasm 原有条件、迁移单测、故障注入与共享 usage 夹具。

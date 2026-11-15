@@ -54,7 +54,7 @@ fn checkpoint(phase: LoginPhase) {
     }
 }
 /// Configuration-only operations must not bypass the login owner's unfinished journal.
-pub(crate) fn configuration_has_pending_login(
+pub fn configuration_has_pending_login(
     guard: &super::live::write_guard::AppWriteGuard,
 ) -> Result<bool, WriteError> {
     Ok(guard.read(std::ffi::OsStr::new(JOURNAL))?.is_some())
@@ -122,7 +122,7 @@ impl LoginHost {
     pub fn has_journal(&self) -> Result<bool, WriteError> {
         Ok(self.default.read(JOURNAL)?.is_some())
     }
-    pub(crate) fn material(
+    pub fn material(
         &self,
         keychain: &dyn ClaudeKeychain,
     ) -> Result<LoginMaterial, WriteError> {
@@ -359,16 +359,16 @@ impl LoginMaterial {
         crate::auth::claude_rotation::expiry(self.oauth().and_then(|oauth| oauth.get("expiresAt")))
     }
 
-    pub(crate) fn oauth(&self) -> Option<&Value> {
+    pub fn oauth(&self) -> Option<&Value> {
         self.secret.as_ref()?.get("claudeAiOauth")
     }
 
-    pub(crate) fn usage_oauth(&self) -> Option<&Value> {
+    pub fn usage_oauth(&self) -> Option<&Value> {
         self.oauth().or_else(|| self.secret.as_ref()?.get("claude.ai_oauth"))
     }
 
     /// An MCP-only keychain item does not represent the Claude login in this slot.
-    pub(crate) fn with_usage_fallback(mut self) -> Self {
+    pub fn with_usage_fallback(mut self) -> Self {
         if self.keychain.is_some() && self.usage_oauth().is_none() {
             // read already validated the file; select the token and plan together.
             self.secret =
@@ -378,7 +378,7 @@ impl LoginMaterial {
     }
 
     /// Snapshot the parked login under the same CLI locks as account checkout.
-    pub(crate) fn locked_account(
+    pub fn locked_account(
         path: &Path,
         keychain: &dyn ClaudeKeychain,
     ) -> Result<Self, WriteError> {

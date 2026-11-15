@@ -1,5 +1,4 @@
-//! Shared authorization account policies.
-
-pub mod accounts;
-#[cfg(target_os = "macos")]
-pub mod logout;
+//! Execution-host account authorization and its shared storage primitives.
+pub mod auth;
+pub mod providers;
+pub mod apps;

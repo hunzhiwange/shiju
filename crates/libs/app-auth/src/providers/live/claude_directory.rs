@@ -58,7 +58,7 @@ impl ClaudeDirectory {
         self.path.to_str().ok_or(WriteError::InvalidResource)
     }
 
-    pub(crate) fn open(&self, home: &Path) -> Result<File, WriteError> {
+    pub fn open(&self, home: &Path) -> Result<File, WriteError> {
         let directory =
             paths::open_beneath(home, &self.path, true).map_err(|_| WriteError::InvalidResource)?;
         let metadata = directory.metadata().map_err(|_| WriteError::Io)?;

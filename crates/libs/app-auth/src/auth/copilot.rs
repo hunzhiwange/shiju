@@ -32,7 +32,7 @@ const EDITOR_VERSION: &str = "vscode/1.110.1";
 const PLUGIN_VERSION: &str = "copilot-chat/0.38.2";
 
 pub struct CopilotAuth {
-    pub(crate) client: Client,
+    pub client: Client,
     pub(super) sessions: CopilotSessions,
 }
 
@@ -288,7 +288,7 @@ impl CopilotAuth {
     }
 
     /// Build the GitHub user request used for endpoint discovery and quota.
-    pub(crate) fn copilot_user_request(
+    pub fn copilot_user_request(
         &self,
         authority: &str,
         token: &str,
@@ -407,8 +407,9 @@ impl CopilotAuth {
     }
 }
 
+pub use app_auth_core::response::valid_token;
 pub(crate) use app_auth_core::response::{
-    read_json, read_json_limited, read_body_limited, valid_token, utc_now,
+    read_json, read_json_limited, read_body_limited, utc_now,
 };
 
 fn copilot_account(

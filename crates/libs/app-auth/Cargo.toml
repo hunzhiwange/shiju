@@ -4,7 +4,53 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+test-support = ["tokio/rt-multi-thread", "tokio/net", "tokio/io-util"]
+
 [dependencies]
+app-auth-agy = { path = "../app-auth-agy" }
+app-auth-claude = { path = "../app-auth-claude" }
+app-auth-codex = { path = "../app-auth-codex" }
+app-auth-copilot = { path = "../app-auth-copilot" }
+app-auth-xai = { path = "../app-auth-xai" }
+app-auth-kimi = { path = "../app-auth-kimi" }
 app-auth-core = { path = "../app-auth-core" }
-vw-api-app-auth = { path = "../api-app-auth" }
+app-auth-dsh = { path = "../app-auth-dsh" }
+app-auth-gemini = { path = "../app-auth-gemini" }
+app-provider-core = { path = "../app-provider-core" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+app-catalog = { path = "../app-catalog" }
+app-config-patch = { path = "../app-config-patch" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-provider-projection = { path = "../app-provider-projection" }
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
+sha2 = "0.11"
+base64 = "0.23"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+tempfile = "3"
+vw-api-app-aggregation = { path = "../api-app-aggregation" }
+app-config-paths = { path = "../app-config-paths" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-config-write = { path = "../app-config-write" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
+serde_yaml = "0.9"
+toml = "0.9"
+toml_edit = "0.22"
+tokio = { version = "1", features = ["io-util", "process", "time"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util"] }

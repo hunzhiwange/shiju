@@ -23,7 +23,17 @@ use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_auth::AuthService;
 use vw_api_app_identity::{AppId};
 
-pub use app_auth::accounts::managed_default_key;
+/// Tenant platform and company are supplied separately to the settings store.
+pub fn managed_default_key(scope: AuthAccountScope<'_>) -> Result<String, AuthErrorCode> {
+    scope.validate()?;
+    match scope.service {
+        AuthService::GithubCopilot | AuthService::CodexOauth | AuthService::XaiOauth => {
+            serde_json::to_string(&(scope.principal, scope.host, scope.service))
+                .map_err(|_| AuthErrorCode::InvalidInput)
+        }
+        _ => Err(AuthErrorCode::Unsupported),
+    }
+}
 
 /// Hold the account's existing credential lease until the host has atomically
 /// published the default. The publisher verifies the managed account metadata.

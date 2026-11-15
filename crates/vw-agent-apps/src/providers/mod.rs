@@ -50,14 +50,10 @@ pub use app_provider_core::snippets;
 #[cfg(all(test, target_os = "macos"))]
 mod snippets_tests;
 
-pub mod claude;
-#[cfg(test)]
-mod claude_tests;
+pub use app_auth::providers::claude;
 
 #[cfg(target_os = "macos")]
-pub mod claude_login;
-#[cfg(all(test, target_os = "macos"))]
-mod claude_login_tests;
+pub use app_auth::providers::claude_login;
 
 pub use app_provider_projection::codex;
 
@@ -123,14 +119,10 @@ pub mod mcode;
 mod mcode_tests;
 
 #[cfg(target_os = "macos")]
-pub mod kimi;
-#[cfg(all(test, target_os = "macos"))]
-mod kimi_tests;
+pub use app_auth::providers::kimi;
 
 #[cfg(target_os = "macos")]
-pub mod dsh;
-#[cfg(all(test, target_os = "macos"))]
-mod dsh_tests;
+pub use app_auth::providers::dsh;
 
 #[cfg(target_os = "macos")]
 pub mod agy;
@@ -142,9 +134,7 @@ pub mod import;
 mod import_tests;
 
 #[cfg(target_os = "macos")]
-pub mod mode_state;
-#[cfg(all(test, target_os = "macos"))]
-mod mode_state_tests;
+pub use app_auth::providers::mode_state;
 
 #[cfg(target_os = "macos")]
 pub mod mode_apply;
@@ -166,9 +156,7 @@ mod env_restore_tests;
 #[cfg(target_os = "macos")]
 mod env_backup;
 
-pub mod operations;
-#[cfg(test)]
-mod operations_tests;
+pub use app_auth::providers::operations;
 
 pub use app_provider_core::basic;
 

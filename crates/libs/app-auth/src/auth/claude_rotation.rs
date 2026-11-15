@@ -64,7 +64,7 @@ pub fn get_claude_login_switch(
 }
 
 /// Check the default slot's scope while holding the Claude directory lock.
-pub(crate) fn default_login_available(
+pub fn default_login_available(
     tx: &ProviderTransactions,
     tenant: &TenantScope,
     state: &crate::providers::live::commit::AppState,
@@ -79,4 +79,5 @@ pub(crate) fn default_login_available(
     Ok(tx.claude_directory(tenant)?.is_none() && std::env::var_os("CLAUDE_CONFIG_DIR").is_none())
 }
 
-pub(crate) use app_auth_claude::claude_rotation::{check_generation, expiry};
+pub(crate) use app_auth_claude::claude_rotation::check_generation;
+pub use app_auth_claude::claude_rotation::expiry;

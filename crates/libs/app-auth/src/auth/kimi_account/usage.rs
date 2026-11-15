@@ -13,7 +13,7 @@ use super::{
 };
 
 impl KimiDeviceAuth {
-    pub(crate) async fn refresh_usage_token(
+    pub async fn refresh_usage_token(
         &self,
         credentials: &CredentialFileStore,
         account: KimiAccountTarget<'_>,

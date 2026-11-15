@@ -15,7 +15,7 @@ use vw_api_session::session::{
 use vw_shared::session::ui_types::{
     ChatSession, ChatSessionMeta, SessionMessageDelta, SessionMessageRecord,
 };
-use vw_shared::todo::Todo;
+use todo_types::Todo;
 
 impl GatewaySessionClient {
     /// 列出目录上下文下的会话集合。

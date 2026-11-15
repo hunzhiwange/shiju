@@ -14,7 +14,7 @@ use crate::app::components::chat_panel::utils::{
 use crate::app::components::input_panel::todo_panel::read_todos_for_panel;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
-use vw_shared::todo::Todo;
+use todo_types::Todo;
 
 use super::tool_meta::{ToolVisual, tool_activity_header, tool_visual_state};
 use super::tool_parse::tool_status;

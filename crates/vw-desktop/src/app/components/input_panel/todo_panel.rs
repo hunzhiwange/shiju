@@ -26,7 +26,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
 use crate::app::{App, Message, TodoPanelPlacement, message};
-use vw_shared::todo::Todo;
+use todo_types::Todo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TodoPanelSurface {

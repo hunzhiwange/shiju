@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+todo-types = { path = "../libs/todo-types", version = "0.6.0" }
 vw-api-session = { path = "../libs/api-session", version = "0.6.0" }
 gateway-session = { path = "../libs/gateway-session", version = "0.6.0" }
 question-types = { path = "../libs/question-types", version = "0.6.0" }

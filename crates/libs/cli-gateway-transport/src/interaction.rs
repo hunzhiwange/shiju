@@ -5,7 +5,7 @@
 
 use vw_gateway_client::{PendingPermissionReplyDto, PendingPermissionRequestDto};
 use question_types as question;
-use vw_shared::todo::Todo;
+use todo_types::Todo;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 

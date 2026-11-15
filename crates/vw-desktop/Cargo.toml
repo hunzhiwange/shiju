@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+todo-types = { path = "../libs/todo-types", version = "0.6.0" }
 config-proxy = { path = "../libs/config-proxy", version = "0.6.0" }
 vw-api-session = { path = "../libs/api-session", version = "0.6.0" }
 project-types = { path = "../libs/project-types", version = "0.6.0" }

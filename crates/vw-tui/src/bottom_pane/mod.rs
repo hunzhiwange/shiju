@@ -30,7 +30,8 @@ pub(crate) use tui_input::textarea;
 pub(crate) use bottom_pane_view::BottomPaneView;
 #[allow(unused_imports)]
 pub(crate) use tui_widgets::action_required_title;
-pub(crate) use tui_approval as approval_overlay;
+#[path = "approval_overlay.rs"]
+pub(crate) mod approval_overlay;
 use tui_composer::chat_composer;
 #[path = "command_popup.rs"]
 pub(crate) mod command_popup;

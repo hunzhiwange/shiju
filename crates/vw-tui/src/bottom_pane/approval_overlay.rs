@@ -12,13 +12,13 @@
 //! turns a dismissal into approval.  Every request keeps explicit allow, custom, deny, and cancel
 //! choices supplied by the bridge.
 
-use tui_widgets::bottom_pane_view::BottomPaneView;
-use tui_widgets::list_selection_view::{
+use crate::bottom_pane::bottom_pane_view::BottomPaneView;
+use crate::bottom_pane::list_selection_view::{
     ListSelectionView, SelectionItem, SelectionViewParams,
 };
-use tui_widgets::selection_popup_common::render_menu_surface;
-use tui_render::renderable::Renderable;
-use tui_contracts::action::{V3Action, V3ApprovalDecision, V3ApprovalRequest};
+use crate::bottom_pane::selection_popup_common::render_menu_surface;
+use crate::render::renderable::Renderable;
+use crate::vibe::action::{V3Action, V3ApprovalDecision, V3ApprovalRequest};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -26,7 +26,7 @@ use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
 
-pub struct ApprovalOverlay {
+pub(crate) struct ApprovalOverlay {
     request: V3ApprovalRequest,
     list: ListSelectionView,
     done: bool,
@@ -34,7 +34,7 @@ pub struct ApprovalOverlay {
 
 impl ApprovalOverlay {
     #[must_use]
-    pub fn new(request: V3ApprovalRequest) -> Self {
+    pub(crate) fn new(request: V3ApprovalRequest) -> Self {
         let list = Self::build_list(&request);
         Self { request, list, done: false }
     }
@@ -75,12 +75,12 @@ impl ApprovalOverlay {
     }
 
     #[must_use]
-    pub fn is_complete(&self) -> bool {
+    pub(crate) fn is_complete(&self) -> bool {
         self.done
     }
 
     #[must_use]
-    pub fn request(&self) -> &V3ApprovalRequest {
+    pub(crate) fn request(&self) -> &V3ApprovalRequest {
         &self.request
     }
 }
@@ -126,18 +126,18 @@ impl Renderable for ApprovalOverlay {
 }
 
 struct ApprovalHeader {
-    kind: tui_contracts::action::V3ApprovalKind,
+    kind: crate::vibe::action::V3ApprovalKind,
     detail: String,
 }
 
 impl Renderable for ApprovalHeader {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let kind = match self.kind {
-            tui_contracts::action::V3ApprovalKind::Command => "Command",
-            tui_contracts::action::V3ApprovalKind::FileChange => "File change",
-            tui_contracts::action::V3ApprovalKind::Network => "Network access",
-            tui_contracts::action::V3ApprovalKind::Permissions => "Additional permissions",
-            tui_contracts::action::V3ApprovalKind::Elicitation => "External question",
+            crate::vibe::action::V3ApprovalKind::Command => "Command",
+            crate::vibe::action::V3ApprovalKind::FileChange => "File change",
+            crate::vibe::action::V3ApprovalKind::Network => "Network access",
+            crate::vibe::action::V3ApprovalKind::Permissions => "Additional permissions",
+            crate::vibe::action::V3ApprovalKind::Elicitation => "External question",
         };
         Paragraph::new(vec![Line::from(kind.cyan()), Line::from(self.detail.clone())])
             .wrap(Wrap { trim: false })
@@ -152,4 +152,70 @@ impl Renderable for ApprovalHeader {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+    use crate::vibe::action::{V3ApprovalChoice, V3ApprovalKind, V3ApprovalRequest};
+
+    fn request() -> V3ApprovalRequest {
+        V3ApprovalRequest::new(
+            "permission-1",
+            V3ApprovalKind::Command,
+            "Would you like to run this command?",
+            "$ git status --short",
+            vec![
+                V3ApprovalChoice::new("allow", "Allow", V3ApprovalDecision::Allow),
+                V3ApprovalChoice::new(
+                    "custom",
+                    "Allow with custom rule",
+                    V3ApprovalDecision::Custom("prefix:git".into()),
+                ),
+                V3ApprovalChoice::new("deny", "Deny", V3ApprovalDecision::Deny),
+                V3ApprovalChoice::new("cancel", "Cancel", V3ApprovalDecision::Cancel),
+            ],
+        )
+    }
+
+    // 验证 `v3_approval_actions_preserve_reject_and_custom_paths` 场景的触发条件与预期结果。
+    #[test]
+    fn v3_approval_actions_preserve_reject_and_custom_paths() {
+        let mut overlay = ApprovalOverlay::new(request());
+        assert_eq!(overlay.handle_key_event(KeyEvent::from(KeyCode::Down)), V3Action::None);
+        assert_eq!(
+            overlay.handle_key_event(KeyEvent::from(KeyCode::Enter)),
+            V3Action::ResolveApproval {
+                request_id: "permission-1".into(),
+                decision: V3ApprovalDecision::Custom("prefix:git".into()),
+            }
+        );
+
+        let mut cancelled = ApprovalOverlay::new(request());
+        assert_eq!(
+            cancelled.handle_key_event(KeyEvent::from(KeyCode::Esc)),
+            V3Action::ResolveApproval {
+                request_id: "permission-1".into(),
+                decision: V3ApprovalDecision::Cancel,
+            }
+        );
+    }
+
+    // 验证 `approval_choices_keep_explicit_deny_and_session_options` 场景的触发条件与预期结果。
+    #[test]
+    fn approval_choices_keep_explicit_deny_and_session_options() {
+        let request = V3ApprovalRequest::new(
+            "file-1",
+            V3ApprovalKind::FileChange,
+            "Apply edits?",
+            "src/main.rs",
+            vec![
+                V3ApprovalChoice::new(
+                    "session",
+                    "Allow for session",
+                    V3ApprovalDecision::AllowForSession,
+                ),
+                V3ApprovalChoice::new("deny", "Reject edits", V3ApprovalDecision::Deny),
+            ],
+        );
+        assert_eq!(request.choices.len(), 2);
+        assert_eq!(request.choices[1].decision, V3ApprovalDecision::Deny);
+    }
+}

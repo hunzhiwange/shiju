@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+runtime-log = { path = "../libs/runtime-log", version = "0.6.0" }
 pasted-text-cache = { path = "../libs/pasted-text-cache", version = "0.6.0" }
 task-file-store = { path = "../libs/task-file-store", version = "0.6.0" }
 session-artifact-store = { path = "../libs/session-artifact-store", version = "0.6.0" }
@@ -54,9 +55,7 @@ tokio = { version = "1", features = ["process"], optional = true }
 shell-tokio = ["dep:tokio"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-chrono = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
-tracing-subscriber = { version = "0.3", features = ["fmt"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", features = ["json"] }

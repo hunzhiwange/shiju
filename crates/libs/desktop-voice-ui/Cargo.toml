@@ -14,6 +14,7 @@ gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 gateway-voice = { path = "../gateway-voice", version = "0.6.0" }
 vw-api-voice = { path = "../api-voice", version = "0.6.0" }
+base64 = "0.23"
 rand = "0.10.3"
 tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
 chrono = "0.4"

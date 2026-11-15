@@ -4,3 +4,4 @@ pub mod voice_local_chat;
 pub mod voice_recordings;
 pub mod voice;
 pub mod voice_hotkeys;
+pub mod voice_screen;

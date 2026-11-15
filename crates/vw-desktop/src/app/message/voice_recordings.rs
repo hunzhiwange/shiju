@@ -1,167 +1,25 @@
-//! Explicit archive actions; retry replies are bound to the current composer generation.
-use super::voice_draft::Phase;
-use crate::app::voice::preferences::Preferences;
-use crate::app::voice::{
-    recordings::{self},
-    recordings_playback::Replay,
-};
+//! Desktop routing for archive actions.
 use crate::app::{App, Message};
 use iced::Task;
-use gateway_endpoint::GatewayEndpoint;
-use std::time::Duration;
 pub use desktop_voice_ui::message::voice_recordings::{Event, State};
-fn message(event: Event) -> Message {
-    Message::Voice(super::voice::Event::Recordings(event))
-}
-fn tick(generation: u64) -> Task<Message> {
-    super::after(Duration::from_millis(100), message(Event::Tick(generation)))
-}
+use desktop_voice_ui::message::voice_recordings as domain;
+fn message(event: Event) -> Message { Message::Voice(super::voice::Event::Recordings(event)) }
 pub(crate) fn invalidate(app: &mut App) {
-    let current = super::voice::scope(app);
-    let endpoint = crate::app::gateway_client_endpoint();
-    let state = &mut app.voice.recordings;
-    if !state.initialized {
-        state.initialized = true;
-        if let Err(e) = state.refresh(recordings::path()) {
-            state.problem = Some(e);
-        }
-    }
-    let auth_changed = state.endpoint.as_ref().is_some_and(|old| {
-        old.base_url() != endpoint.base_url()
-            || old.tenant_scope() != endpoint.tenant_scope()
-            || old.auth.as_ref().and_then(|a| a.skey.as_ref())
-                != endpoint.auth.as_ref().and_then(|a| a.skey.as_ref())
-    });
-    if state.scope.is_some() && (state.scope != current || auth_changed) {
-        state.stop();
-    }
-    if !app.show_system_settings
-        || app.system_settings_tab != crate::app::components::system_settings::SystemTab::Voice
-    {
-        state.stop();
-    }
+    let scope = super::voice::scope(app);
+    let visible = app.show_system_settings && app.system_settings_tab == crate::app::components::system_settings::SystemTab::Voice;
+    domain::invalidate(&mut app.voice.recordings, scope, &crate::app::gateway_client_endpoint(), visible, crate::app::voice::recordings::path());
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
-    match handle(app, event) {
-        Ok(task) => task,
-        Err(e) => app.show_error_toast(e),
+    let active = app.voice.chat_active();
+    let busy = matches!(app.voice.draft.phase, super::voice_draft::Phase::Recording | super::voice_draft::Phase::Transcribing);
+    let scope = super::voice::scope(app);
+    match domain::update(&mut app.voice.recordings, event, active, busy, app.voice.settings.preview.is_some(), scope, crate::app::gateway_client_endpoint(), crate::app::voice::recordings::path(), crate::app::voice::preferences::path()) {
+        Ok(domain::Outcome::None) => Task::none(),
+        Ok(domain::Outcome::Task(task)) => task.map(message),
+        Ok(domain::Outcome::Apply(text)) => { super::voice::paste(app, text, false); app.voice.recordings.stop(); Task::none() }
+        Err(error) => app.show_error_toast(error),
     }
-}
-fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
-    match event {
-        Event::Refresh => {
-            app.voice.recordings.refresh(recordings::path())?;
-        }
-        Event::Stop => {
-            app.voice.recordings.stop();
-        }
-        Event::Dismiss => {
-            app.voice.recordings.result = None;
-        }
-        Event::Delete(id) => {
-            app.voice.recordings.stop();
-            recordings::local()?.delete(&id)?;
-            app.voice.recordings.refresh(recordings::path())?;
-        }
-        Event::Clear => {
-            app.voice.recordings.stop();
-            recordings::local()?.clear()?;
-            app.voice.recordings.refresh(recordings::path())?;
-        }
-        Event::Play(id) => {
-            if app.voice.chat_active()
-                || matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
-                || app.voice.settings.preview.is_some()
-            {
-                return Err("请先结束当前语音活动再回放录音。".into());
-            }
-            app.voice.recordings.stop();
-            let wav = recordings::local()?.read(&id)?;
-            app.voice.recordings.replay = Some(Replay::start(wav)?);
-            return Ok(tick(app.voice.recordings.generation));
-        }
-        Event::Tick(generation) => {
-            if generation != app.voice.recordings.generation {
-                return Ok(Task::none());
-            }
-            if let Some(result) = app.voice.recordings.replay.as_ref().and_then(Replay::result) {
-                app.voice.recordings.replay.take();
-                result?;
-            } else if app.voice.recordings.replay.is_some() {
-                return Ok(tick(generation));
-            }
-        }
-        Event::Retry(id) => {
-            if app.voice.chat_active()
-                || matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
-            {
-                return Err("请先结束当前语音活动再重试识别。".into());
-            }
-            let scope = super::voice::scope(app).ok_or("请先选择回填的聊天会话。")?;
-            let endpoint = crate::app::gateway_client_endpoint();
-            let preferences = crate::app::voice::preferences::load()?;
-            app.voice.recordings.stop();
-            let wav = recordings::local()?.read(&id)?;
-            let state = &mut app.voice.recordings;
-            state.scope = Some(scope.clone());
-            state.endpoint = Some(endpoint.clone());
-            state.busy = true;
-            let generation = state.generation;
-            let (tx, mut cancel) = tokio::sync::watch::channel(false);
-            state.cancel = Some(tx);
-            let native_cancel = crate::app::voice::local::Cancellation::default();
-            state.native_cancel = Some(native_cancel.clone());
-            return Ok(Task::perform(
-                async move {
-                    tokio::select! {
-                        biased;
-                        _=cancel.changed()=>Err("已取消重新识别。".into()),
-                        result=tokio::time::timeout(Duration::from_secs(90),retry(preferences,endpoint,scope.session_id().map(str::to_owned),generation,wav,native_cancel))=>result.unwrap_or_else(|_|Err("重新识别超时。".into())),
-                    }
-                },
-                move |result| message(Event::Retried(generation, result)),
-            ));
-        }
-        Event::Retried(generation, result) => {
-            let state = &mut app.voice.recordings;
-            if state.generation != generation || !state.busy {
-                return Ok(Task::none());
-            }
-            state.busy = false;
-            state.cancel = None;
-            if let Some(cancel) = state.native_cancel.take() {
-                cancel.cancel();
-            }
-            let text = result?;
-            if text.trim().is_empty() {
-                return Err("没有识别到文字。".into());
-            }
-            state.result = Some(text);
-        }
-        Event::Apply => {
-            if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
-                || app.voice.chat_active()
-            {
-                return Err("请先结束当前语音活动再回填。".into());
-            }
-            if let Some(text) = app.voice.recordings.result.take() {
-                super::voice::paste(app, text, false);
-            }
-            app.voice.recordings.stop();
-        }
-    }
-    Ok(Task::none())
-}
-async fn retry(
-    preferences: Preferences,
-    endpoint: GatewayEndpoint,
-    session: Option<String>,
-    generation: u64,
-    wav: Vec<u8>,
-    cancel: crate::app::voice::local::Cancellation,
-) -> Result<String, String> {
-    super::voice::dictation::retry(preferences, endpoint, session, generation, wav, cancel).await
 }
 #[cfg(test)]
 #[path = "voice_recordings_tests.rs"]

@@ -4,6 +4,31 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 6：应用目录与偏好迁移结果
+
+`apps/{acp_projection,catalog,preferences}.rs` 及三个独立测试现归
+`crates/libs/app-catalog/src/`；原 apps 模块 re-export 保留现有调用路径。
+AppId、目录能力、ACP 注册及审查门禁、偏好归一化和错误语义保持不变。
+原 lib.rs 通过 apps 提供接口，无需新增顶层别名。
+
+偏好校验复用 `discovery/wsl` 的纯规则，为避免依赖发现层，WslShell、WslTarget、
+parse_target、resolve_target 及原独立测试一并迁入 app-catalog::wsl；resolve_target
+仅检查 cfg!(windows) 并解析，无探测或执行。原 discovery re-export 保留类型身份
+及调用路径，任务 32 不再重复迁移这两个文件，其发现/探测职责仍归任务 32。
+所有权表中上述八个原文件均由 app-catalog 接收，无留存实现。
+
+新包仅依赖 serde_json（保留 arbitrary_precision）、vw-api-types、vw-acp；
+根 workspace 和原包直接路径依赖已接线，原包 vw-acp 已无其它调用，移除。
+真实消费者包括 discovery、lifecycle、launch、providers/live/recovery、
+data_management/preferences 及网关目录/偏好接口，继续沿用原门面。
+新包无启动、安装或门面依赖；原测试仍独立且仅在 cfg(test) 注册，
+WSL 平台拒绝条件保持不变，无 include 资源路径。
+
+静态证据：迁移内容与 HEAD 对照（仅偏好 import 路径调整）、导出及调用者检索、
+清单路径与依赖人工审阅、Python 标准库路径检查、git diff --check。
+系统 Python 无 tomllib，未执行 TOML 解析。未运行 Cargo、单元及实机测试，
+统一验收待授权：新包和直接调用者编译、迁移测试、锁文件一致性、三平台行为。
+
 ## 任务 5：配置补丁迁移结果
 
 所有权表任务 5 的十个 `providers/live/patch_*.rs` 文件（dotenv、JSON、JSON5、
@@ -109,7 +134,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | live::commit → kimi::validate_identity；live::recovery → apps::catalog::catalog | 身份规则任务 4 接收；catalog 任务 6 接收后，任务 12 可直接依赖 app-catalog。Kimi 原生写入留任务 24。 |
 | auth::{kimi_account,dsh_account,claude_rotation} → 原生供应商/事务；供应商登录与 kimi_form → auth | 任务 18/20/15 先搬纯协议及凭据逻辑；依赖原生写入的账户绑定、旋转发布留任务 22，未具备原生依赖时继续留至任务 24 后由任务 29 收完；kimi_form 的 binding_region 纯解析随任务 18 下沉，任务 24 只依赖该叶子。 |
 | providers::agy → apps::launch::{ProviderLaunch,LaunchMaterial}；apps::launch::provider → providers::agy::Lease | LaunchMaterial 请求数据保持任务 35 所有；agy 中消费它并构造 ProviderLaunch 的启动组装随任务 35 移动，任务 24 仅保留 Scope、Lease 与原生配置操作。 |
-| discovery::read → lifecycle::{local_agy,local_omp}::owns；lifecycle::wsl → discovery::wsl；local_agy/local_omp → uninstall::native::is_native_executable | 路径所有权识别及可执行文件纯判定随任务 32 的发现叶子接收，任务 33/34 依赖发现包；WSL 类型/解析保持任务 32，生命周期执行归 33。任务 31 node_tests 对 discovery::version 探测的集成场景留任务 32，避免测试反向依赖。 |
+| discovery::read → lifecycle::{local_agy,local_omp}::owns；lifecycle::wsl → discovery::wsl；local_agy/local_omp → uninstall::native::is_native_executable | 路径所有权识别及可执行文件纯判定随任务 32 的发现叶子接收，任务 33/34 依赖发现包；WSL 类型/解析已由任务 6 提前迁入 app-catalog::wsl，任务 32 保留发现/探测，生命周期执行归 33。任务 31 node_tests 对 discovery::version 探测的集成场景留任务 32，避免测试反向依赖。 |
 | models::preset_catalog → universal_sync::projected_endpoint、validation::endpoint；providers::codex_catalog → models::codex_projection | projected_endpoint 的纯端点投影随任务 4 接收；models 根 validate/codex_projection 随任务 9 下沉目录包，任务 24/28 依赖目录包，不依赖任务 26 发现填充服务。 |
 | providers::desktop_mapping::catalog → aggregation::model_ids::{Decoded,decode,encode}；aggregation 发布 → providers 原生配置 | model_ids 编解码随任务 27 下沉 app-aggregation-catalog；任务 24 暂留相关桌面映射到任务 28 接收（依赖 27 和已迁移原生叶子），任务 29 只从 28 调用聚合服务。 |
 | aggregation::{exit_restore,claude_publish} → claude_login::configuration_has_pending_login；aggregation → codex_catalog/CodexFiles、live::commit | 发布/恢复任务 28 依赖任务 23 登录、24 原生、12 写入及9目录；与聚合目录 27 分开，27 不反向依赖 28。 |
@@ -264,10 +289,10 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `aggregation/resolve_tests.rs` | 164 | 28 |
 | `aggregation/stale_clients.rs` | 207 | 28 |
 | `aggregation/stale_clients_tests.rs` | 204 | 28 |
-| `apps/acp_projection.rs` | 60 | 6 |
-| `apps/acp_projection_tests.rs` | 36 | 6 |
-| `apps/catalog.rs` | 115 | 6 |
-| `apps/catalog_tests.rs` | 56 | 6 |
+| `apps/acp_projection.rs` → `app-catalog/src/acp_projection.rs` | 60 | 6 |
+| `apps/acp_projection_tests.rs` → `app-catalog/src/acp_projection_tests.rs` | 36 | 6 |
+| `apps/catalog.rs` → `app-catalog/src/catalog.rs` | 115 | 6 |
+| `apps/catalog_tests.rs` → `app-catalog/src/catalog_tests.rs` | 56 | 6 |
 | `apps/discovery/claude_desktop.rs` | 99 | 32 |
 | `apps/discovery/claude_desktop_tests.rs` | 78 | 32 |
 | `apps/discovery/mod.rs` | 27 | 32 |
@@ -280,8 +305,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `apps/discovery/version_tests.rs` | 144 | 32 |
 | `apps/discovery/windows.rs` | 109 | 32 |
 | `apps/discovery/windows_tests.rs` | 45 | 32 |
-| `apps/discovery/wsl.rs` | 90 | 32 |
-| `apps/discovery/wsl_tests.rs` | 69 | 32 |
+| `apps/discovery/wsl.rs` → `app-catalog/src/wsl.rs` | 90 | 6（提前接收 32 的纯规则） |
+| `apps/discovery/wsl_tests.rs` → `app-catalog/src/wsl_tests.rs` | 69 | 6 |
 | `apps/launch/account.rs` | 267 | 35 |
 | `apps/launch/account_lifecycle_tests.rs` | 203 | 35 |
 | `apps/launch/account_tests.rs` | 344 | 35 |
@@ -328,8 +353,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `apps/lifecycle/wsl.rs` | 222 | 33 |
 | `apps/lifecycle/wsl_tests.rs` | 278 | 33 |
 | `apps/mod.rs` | 18 | 36 |
-| `apps/preferences.rs` | 147 | 6 |
-| `apps/preferences_tests.rs` | 213 | 6 |
+| `apps/preferences.rs` → `app-catalog/src/preferences.rs` | 147 | 6 |
+| `apps/preferences_tests.rs` → `app-catalog/src/preferences_tests.rs` | 213 | 6 |
 | `apps/uninstall/execute.rs` | 115 | 34 |
 | `apps/uninstall/execute_tests.rs` | 110 | 34 |
 | `apps/uninstall/mod.rs` | 11 | 34 |

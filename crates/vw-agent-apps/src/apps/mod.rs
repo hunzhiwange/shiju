@@ -1,18 +1,11 @@
 //! Application catalog rules, independent of execution and installation state.
-pub mod acp_projection;
-#[cfg(test)]
-mod acp_projection_tests;
-pub mod catalog;
-#[cfg(test)]
-mod catalog_tests;
+pub use app_catalog::{acp_projection, catalog};
 pub mod discovery;
 
 pub mod lifecycle;
 pub mod uninstall;
 pub mod versions;
 
-pub mod preferences;
-#[cfg(test)]
-mod preferences_tests;
+pub use app_catalog::preferences;
 
 pub mod launch;

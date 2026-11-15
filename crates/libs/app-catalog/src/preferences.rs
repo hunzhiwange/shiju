@@ -1,7 +1,7 @@
 //! Pure execution-host preference validation; persistence belongs to the caller.
 use super::{
     catalog::catalog,
-    discovery::wsl::{WslShell, parse_target},
+    wsl::{WslShell, parse_target},
 };
 use std::io;
 use vw_api_types::agent_apps::{AppHostPreferences, AppPreferencesResult, AppUserPreferences};

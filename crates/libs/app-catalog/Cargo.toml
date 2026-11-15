@@ -1,0 +1,13 @@
+[package]
+name = "app-catalog"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+vw-api-types = { path = "../../vw-api-types" }
+vw-acp = { path = "../../vw-acp" }

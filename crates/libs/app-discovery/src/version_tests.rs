@@ -4,7 +4,6 @@ use std::{
     os::unix::fs::PermissionsExt,
     time::{Duration, Instant},
 };
-use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{AppInstallationProbeFailure, AppInstallationRuntimeStatus};
 fn fixture(body: &str, executable: bool) -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().unwrap();

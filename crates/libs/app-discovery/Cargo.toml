@@ -1,0 +1,23 @@
+[package]
+name = "app-discovery"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-catalog = { path = "../app-catalog" }
+app-providers = { path = "../app-providers" }
+vw-api-app-identity = { path = "../api-app-identity" }
+base64 = "0.23"
+sha2 = "0.11"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+tempfile = "3"
+
+[dev-dependencies]
+app-versions = { path = "../app-versions" }
+tempfile = "3"

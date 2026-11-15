@@ -37,7 +37,7 @@ fn validate_roots(env: &LocalReadEnvironment) -> io::Result<()> {
 }
 
 fn cli_command(app: AppId) -> io::Result<String> {
-    crate::apps::catalog::catalog()
+    app_catalog::catalog::catalog()
         .into_iter()
         .find(|c| c.metadata.id == app)
         .and_then(|c| c.metadata.cli_command)
@@ -149,8 +149,8 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
             },
             path: entry,
             real_path: path.canonicalize().ok().map(|p| p.to_string_lossy().into_owned()),
-            source: if (app == AppId::Agy && crate::apps::lifecycle::local_agy::owns(&path))
-                || (app == AppId::Omp && crate::apps::lifecycle::local_omp::owns(&path))
+            source: if (app == AppId::Agy && crate::local_agy::owns(&path))
+                || (app == AppId::Omp && crate::local_omp::owns(&path))
             {
                 AppInstallationSource::System
             } else {

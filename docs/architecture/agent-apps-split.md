@@ -397,16 +397,16 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `apps/catalog_tests.rs` → `app-catalog/src/catalog_tests.rs` | 56 | 6 |
 | `apps/discovery/claude_desktop.rs` | 99 | 32 |
 | `apps/discovery/claude_desktop_tests.rs` | 78 | 32 |
-| `apps/discovery/mod.rs` | 27 | 32 |
-| `apps/discovery/posix.rs` | 185 | 32 |
-| `apps/discovery/posix_tests.rs` | 115 | 32 |
-| `apps/discovery/read.rs` | 162 | 32 |
-| `apps/discovery/report.rs` | 128 | 32 |
-| `apps/discovery/report_tests.rs` | 124 | 32 |
-| `apps/discovery/version.rs` | 150 | 32 |
-| `apps/discovery/version_tests.rs` | 144 | 32 |
-| `apps/discovery/windows.rs` | 109 | 32 |
-| `apps/discovery/windows_tests.rs` | 45 | 32 |
+| `apps/discovery/mod.rs` → `app-discovery/src/lib.rs`（原处薄导出） | 27 | 32 |
+| `apps/discovery/posix.rs` → `app-discovery/src/posix.rs` | 185 | 32 |
+| `apps/discovery/posix_tests.rs` → `app-discovery/src/posix_tests.rs` | 115 | 32 |
+| `apps/discovery/read.rs` → `app-discovery/src/read.rs` | 162 | 32 |
+| `apps/discovery/report.rs` → `app-discovery/src/report.rs` | 128 | 32 |
+| `apps/discovery/report_tests.rs` → `app-discovery/src/report_tests.rs` | 124 | 32 |
+| `apps/discovery/version.rs` → `app-discovery/src/version.rs` | 150 | 32 |
+| `apps/discovery/version_tests.rs` → `app-discovery/src/version_tests.rs` | 144 | 32 |
+| `apps/discovery/windows.rs` → `app-discovery/src/windows.rs` | 109 | 32 |
+| `apps/discovery/windows_tests.rs` → `app-discovery/src/windows_tests.rs` | 45 | 32 |
 | `apps/discovery/wsl.rs` → `app-catalog/src/wsl.rs` | 90 | 6（提前接收 32 的纯规则） |
 | `apps/discovery/wsl_tests.rs` → `app-catalog/src/wsl_tests.rs` | 69 | 6 |
 | `apps/launch/account.rs` | 267 | 35 |
@@ -2518,3 +2518,14 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 直接依赖仅 api-app-identity、reqwest（json/rustls）、serde_json（arbitrary_precision）、semver；测试使用 tokio macros/rt。原门面其它实现仍使用这些依赖，不移除。无平台专属直接依赖，无资源路径变化，原 cfg/path 测试注册保留。
 - 原 node_tests 的 Unix sibling reprobe 场景保留在门面 versions/node_probe_tests.rs，由任务 32 随 discovery::version 接收；使用公开 node_range_satisfied 核对探测版本是否满足原范围，私有 evaluate/enforce 的原有测试继续在新包覆盖。移除测试中多余的 vw_api_types 通配导入，安装类型全部来自 api-app-identity；不扩大业务符号可见性。
 - 静态证据：实现/测试搬迁及模块路径审阅、调用者检索、清单直接依赖与路径核对、差异空白检查；新包无门面回依赖，无重复业务实现。未运行 Cargo、单元及实机测试，统一验收待授权：新包及调用者编译、迁移测试、Unix 探测集成、Windows/WSL/macOS 条件及锁文件一致性。Cargo.lock 未修改。
+
+
+### 任务 32：应用发现迁移结果
+
+- app-discovery 接收 POSIX/Windows 路径发现、Unix 版本探测、报告聚合与本地读取，以及原四个独立测试文件；versions/node_probe_tests.rs 的 sibling reprobe 集成测试同步迁入并注册。
+- discovery/mod.rs 保留薄导出，lifecycle::local/local_node、models 的真实调用者继续使用原路径及同一 LocalReadEnvironment 类型；无需修改 lib.rs 的 apps 导出。
+- Claude Desktop 探测及测试已归任务 30 的 app-providers::desktop_presence，WSL 类型与测试已归任务 6 的 app-catalog::wsl；新库沿用这两个导出，不复制实现。
+- 为闭合 read → lifecycle → uninstall 的依赖，local_agy/local_omp 的 private_directory、private、digest、owns 只读实现迁入发现包；这四个函数仅因生命周期 validate/home/record 的真实调用而公开。安装及 receipt 写入留任务 33，原归属测试仍跟随写入场景留该任务；native::is_native_executable 纯文件判定提前接收，原卸载路径重导出供任务 34 使用。
+- 新库直接依赖 app-catalog、app-providers、api-app-identity、base64、sha2；Unix 额外依赖 libc/tempfile；dev 依赖 app-versions/tempfile。原包这些依赖仍有其它调用，不删除。无门面回依赖、资源 include 路径或命令范围变更。
+- 静态审阅：系统 Python 缺少 tomllib，改为人工审阅清单语法并用 Python 标准库核对路径；迁移模块及独立测试注册、cfg、导出、调用者和无重复实现已检查，git diff --check 通过。
+- 未运行 Cargo、单元及实机测试，统一验收待授权；后续需覆盖发现库与直接调用者编译、迁移单测、归属校验及 macOS/Windows/Linux 行为。

@@ -29,7 +29,7 @@ fn cc_apps_node_requirement_gap_real_sibling_reprobe() {
         std::fs::write(&path, format!("#!/bin/sh\nprintf 'v{version}\\n'\n")).unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
         let candidate = node_candidate(&inst, None, |p| std::path::Path::new(p).is_file()).unwrap();
-        let probe = crate::apps::discovery::version::probe_local_version(
+        let probe = crate::version::probe_local_version(
             std::path::Path::new(&candidate),
             Duration::from_secs(1),
         )

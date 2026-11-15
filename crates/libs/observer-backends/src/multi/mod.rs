@@ -12,20 +12,21 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use vibe_agent::observability::{Observer, MultiObserver, LogObserver, MetricsObserver};
+//! use observer_backends::{MultiObserver, LogObserver, NoopObserver};
+//! use observer_types::{Observer, ObserverEvent};
 //!
 //! // 创建多个观察者实例
 //! let log_obs = Box::new(LogObserver::new());
-//! let metrics_obs = Box::new(MetricsObserver::new());
+//! let noop_obs = Box::new(NoopObserver);
 //!
 //! // 组合为多观察者
-//! let multi = MultiObserver::new(vec![log_obs, metrics_obs]);
+//! let multi = MultiObserver::new(vec![log_obs, noop_obs]);
 //!
 //! // 广播事件到所有观察者
-//! multi.record_event(&event);
+//! multi.record_event(&ObserverEvent::HeartbeatTick);
 //! ```
 
-use super::traits::{Observer, ObserverEvent, ObserverMetric};
+use observer_types::{Observer, ObserverEvent, ObserverMetric};
 use std::any::Any;
 
 /// 多观察者组合器
@@ -66,7 +67,7 @@ impl MultiObserver {
     /// ```ignore
     /// let observers: Vec<Box<dyn Observer>> = vec![
     ///     Box::new(LogObserver::new()),
-    ///     Box::new(MetricsObserver::new()),
+    ///     Box::new(NoopObserver),
     /// ];
     /// let multi = MultiObserver::new(observers);
     /// ```

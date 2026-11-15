@@ -16,14 +16,14 @@
 //! # 示例
 //!
 //! ```ignore
-//! use vibewindow::app::agent::observability::log::LogObserver;
-//! use vibewindow::app::agent::observability::traits::Observer;
+//! use observer_backends::LogObserver;
+//! use observer_types::Observer;
 //!
 //! let observer = LogObserver::new();
 //! observer.name(); // 返回 "log"
 //! ```
 
-use super::traits::{Observer, ObserverEvent, ObserverMetric};
+use observer_types::{Observer, ObserverEvent, ObserverMetric};
 use std::any::Any;
 use tracing::info;
 
@@ -57,7 +57,7 @@ impl LogObserver {
     /// # 示例
     ///
     /// ```ignore
-    /// use vibewindow::app::agent::observability::log::LogObserver;
+    /// use observer_backends::LogObserver;
     ///
     /// let observer = LogObserver::new();
     /// ```

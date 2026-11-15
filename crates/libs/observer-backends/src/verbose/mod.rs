@@ -13,13 +13,14 @@
 //! # 使用示例
 //!
 //! ```rust,ignore
-//! use vibe_agent::observability::{Observer, VerboseObserver};
+//! use observer_backends::VerboseObserver;
+//! use observer_types::{Observer, ObserverEvent};
 //!
 //! let observer = VerboseObserver::new();
 //! observer.record_event(&ObserverEvent::TurnComplete);
 //! ```
 
-use super::traits::{Observer, ObserverEvent, ObserverMetric};
+use observer_types::{Observer, ObserverEvent, ObserverMetric};
 use std::any::Any;
 
 /// 详细输出观察器

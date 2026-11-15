@@ -44,15 +44,15 @@
 //!
 //! - `observability-otel`：启用 OpenTelemetry 支持，需要额外的依赖项
 
-pub mod log;
-pub mod multi;
-pub mod noop;
+pub use observer_backends::log;
+pub use observer_backends::multi;
+pub use observer_backends::noop;
 #[cfg(feature = "observability-otel")]
 pub mod otel;
 pub mod prometheus;
 pub mod runtime_trace;
 pub mod traits;
-pub mod verbose;
+pub use observer_backends::verbose;
 
 // ============================================================================
 // 类型重导出

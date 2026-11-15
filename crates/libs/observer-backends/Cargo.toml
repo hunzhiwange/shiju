@@ -1,0 +1,12 @@
+[package]
+name = "observer-backends"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+observer-types = { path = "../observer-types", version = "0.6.0" }
+tracing = "0.1"

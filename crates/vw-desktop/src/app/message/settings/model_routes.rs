@@ -63,7 +63,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         ModelRoutesMessage::Loaded(revision, result) => {
             if app.model_routes_settings.persistence.revision != revision
                 || app.model_routes_settings.persistence.dirty
-                || !app.model_routes_settings.persistence.load_is_current()
+                || !app.model_routes_settings.persistence.load_is_current(&crate::app::config::gateway_client_endpoint())
             {
                 return Task::none();
             }

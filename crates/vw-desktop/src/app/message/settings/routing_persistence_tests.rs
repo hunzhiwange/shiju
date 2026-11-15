@@ -60,7 +60,7 @@ fn routing_refresh_and_shutdown_preserve_newer_edits_after_failed_save() {
         assert_eq!(app.model_routes_settings.routes[0].model, "new");
 
         // Shutdown flushes pending snapshots without waiting for the debounce timer.
-        let (flush, mut idle) = app.model_routes_settings.persistence.flush();
+        let (flush, mut idle) = flush(&mut app);
         let first = run(&runtime, flush);
         assert!(!*idle.as_mut().unwrap().borrow_and_update());
         let first_request = requests.recv_timeout(TIMEOUT).unwrap();

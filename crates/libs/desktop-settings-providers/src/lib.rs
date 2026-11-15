@@ -47,3 +47,8 @@ pub mod metadata_fill;
 pub mod managed_shiju;
 #[cfg(test)]
 mod catalog_api_tests;
+
+pub mod routing_persistence;
+
+#[cfg(test)]
+mod provider_dispatch_tests;

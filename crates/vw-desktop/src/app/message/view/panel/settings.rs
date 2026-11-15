@@ -221,7 +221,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     return Task::none();
                 }
                 let commit = crate::app::message::editor::metrics::commit(app, None);
-                let (routing_commit, routing_saves) = app.model_routes_settings.persistence.flush();
+                let (routing_commit, routing_saves) = crate::app::message::settings::routing_persistence::flush(app);
                 (
                     commit,
                     app.editor_config_persistence.wait_for_idle(),
@@ -826,7 +826,7 @@ pub(crate) fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Ta
     let requests = take_shutdown_stream_requests(app);
     let editor_commit = crate::app::message::editor::metrics::commit(app, None);
     let editor_saves = app.editor_config_persistence.wait_for_idle();
-    let (routing_commit, routing_saves) = app.model_routes_settings.persistence.flush();
+    let (routing_commit, routing_saves) = crate::app::message::settings::routing_persistence::flush(app);
     let worktree_saves = crate::app::message::settings::wait_for_worktree_saves(app);
     let preference_saves = app.desktop_preferences_persistence.wait_for_idle();
     app.web_install.runtime.shutdown();

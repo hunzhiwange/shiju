@@ -108,7 +108,7 @@ pub(super) fn resolve_source(
     }
     vw_agent_apps::sessions::identity::validate_identity(&id)
         .map_err(|_| failure(StatusCode::BAD_REQUEST, ExternalSessionErrorCode::InvalidInput))?;
-    let (_, home, instances) = super::super::agent_apps::authorize_external_history(
+    let (_, home, instances) = app_access_service::access::authorize_external_history(
         policy.0.as_deref(),
         &headers,
         &id.scope,

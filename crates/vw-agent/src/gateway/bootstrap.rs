@@ -332,7 +332,7 @@ async fn serve_gateway(
     };
     let usage_scans = async {
         if let Some(policy) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
-            api::handlers::external_sessions::usage_scan::run(policy.into()).await;
+            gateway_external_sessions::usage_scan::run(policy.into()).await;
         }
         std::future::pending::<()>().await;
     };

@@ -50,7 +50,7 @@ fn authorize(
     {
         return Err(failure(StatusCode::BAD_REQUEST, ExternalSessionErrorCode::InvalidInput));
     }
-    let (principal, _, instances) = super::super::agent_apps::authorize_external_history(
+    let (principal, _, instances) = app_access_service::access::authorize_external_history(
         policy.0.as_deref(),
         headers,
         &request.identity.scope,

@@ -1,5 +1,6 @@
 //! Composition of usage routes with the gateway's authorization and scan host.
-use super::{agent_apps, external_sessions::usage_scan};
+use super::agent_apps;
+use gateway_external_sessions::usage_scan;
 use gateway_usage::host::{File, Host, Source};
 
 pub(crate) fn router() -> axum::Router {

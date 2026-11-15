@@ -1,6 +1,7 @@
 //! Host input resolution and retained ledger ownership; no client path is opened.
 use super::*;
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -24,7 +25,7 @@ use vw_api_app_identity::{AppId};
 /// Shared by the history-options owner. Defaults never authorize migration.
 pub(super) type Options = HistoryOptions;
 fn storage() -> Result<GatewaySettingsStore, StatusCode> {
-    GlobalDatabase::for_home(&crate::global::paths().home)
+    GlobalDatabase::for_home(&agent_paths::paths().home)
         .and_then(GatewaySettingsStore::new)
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
 }
@@ -120,7 +121,7 @@ pub(in super::super) fn authorize(
     target: &HistoryMaintenanceTarget,
 ) -> Result<(String, PathBuf, PathBuf, PathBuf), StatusCode> {
     let (principal, home, instances, private) =
-        super::super::super::agent_apps::authorize_external_history_maintenance(
+        app_access_service::access::authorize_external_history_maintenance(
             policy.0.as_deref(),
             headers,
             &target.scope,

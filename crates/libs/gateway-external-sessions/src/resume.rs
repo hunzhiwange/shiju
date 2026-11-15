@@ -38,7 +38,7 @@ fn execute(_: Policy, _: HeaderMap, _: SessionResumeRequest, _: bool) -> Result<
 fn execute(policy: Policy, headers: HeaderMap, request: SessionResumeRequest, preview: bool) -> Result<Outcome, StatusCode> {
     use vw_agent_apps::{apps::{discovery::read::{self, LocalReadEnvironment}, launch::request::LaunchMaterial}, sessions::{resume::{build_resume_plan, ResumeContext}, source::SourceRegistry, providers::{omp, pi}, terminal as t}};
     let id = &request.identity;
-    let (host, instance, principal, agy_owner) = super::super::agent_apps::authorize_external_history_resume(
+    let (host, instance, principal, agy_owner) = app_access_service::access::authorize_external_history_resume(
         policy.0.as_deref(), &headers, id, request.terminal == SessionTerminal::Custom)?;
     if matches!(id.provider, SessionProvider::Hermes | SessionProvider::Openclaw | SessionProvider::Dsh) { return Err(StatusCode::NOT_IMPLEMENTED); }
     let settings = instance.resume.as_ref().ok_or(StatusCode::PRECONDITION_FAILED)?;
@@ -76,9 +76,9 @@ fn execute(policy: Policy, headers: HeaderMap, request: SessionResumeRequest, pr
         return Ok(Outcome::Preview(SessionResumeCommandResponse { command }));
     }
     let agy = if id.provider == SessionProvider::Agy {
-        let db = crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let store = crate::app_providers::AppProviderStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: id.scope.tenant_scope(), principal: &principal, host: &host.id, service: vw_api_app_auth::AuthService::AgyOauth };
+        let db = agent_database::GlobalDatabase::for_home(&agent_paths::paths().home).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let store = app_provider_services::AppProviderStore::new(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let scope = agent_app_services::auth_accounts::AuthAccountScope { tenant: id.scope.tenant_scope(), principal: &principal, host: &host.id, service: vw_api_app_auth::AuthService::AgyOauth };
         Some(store.prepare_agy_launch(scope, vw_agent_apps::auth::agy_account::AgyNativeTarget { home: &host.home, exclusive_owner: agy_owner.then_some(scope) }, settings.agy_provider_id.as_deref().ok_or(StatusCode::PRECONDITION_FAILED)?, host.credential_root.as_deref().ok_or(StatusCode::PRECONDITION_FAILED)?, LaunchMaterial { program: plan.program().into(), cwd: plan.cwd().into(), args: vec![], skip_permissions: false }).map_err(|_| StatusCode::FORBIDDEN)?)
     } else { None };
     let credentials = |_: &ExternalSessionIdentity, command: &mut std::process::Command| {

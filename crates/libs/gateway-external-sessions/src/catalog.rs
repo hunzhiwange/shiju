@@ -21,7 +21,7 @@ struct Snapshot {
 pub(super) struct Snapshots(Arc<Mutex<HashMap<String, Snapshot>>>);
 #[derive(Clone)]
 pub(super) struct Policy(pub(super) Option<PathBuf>);
-pub(in super::super) fn router() -> Router {
+pub fn router() -> Router {
     Router::new()
         .merge(super::usage_scan::router())
         .route("/external-sessions/markdown", axum::routing::post(super::markdown::read))
@@ -59,7 +59,7 @@ async fn list(
 fn execute(policy: Policy, snapshots: Snapshots, tenant: TenantScope, headers: HeaderMap,
     request: SessionCatalogQuery) -> Result<Json<SessionCatalogPage>, StatusCode> {
     let project = ProjectScope::new(tenant, request.project_id).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let (principal, home, instances) = super::super::agent_apps::authorize_external_history(
+    let (principal, home, instances) = app_access_service::access::authorize_external_history(
         policy.0.as_deref(), &headers, &project, &request.target_host_id)?;
     let instances: Vec<_> = instances.into_iter().filter(|i|
         request.provider.is_none_or(|p| p == i.provider)

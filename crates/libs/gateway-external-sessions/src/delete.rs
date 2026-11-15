@@ -116,7 +116,7 @@ fn registry(
     headers: &HeaderMap,
     id: &ExternalSessionIdentity,
 ) -> Result<SourceRegistry, io::ErrorKind> {
-    let (_, home, instances) = super::super::agent_apps::authorize_external_history_delete(
+    let (_, home, instances) = app_access_service::access::authorize_external_history_delete(
         policy.0.as_deref(),
         headers,
         &id.scope,

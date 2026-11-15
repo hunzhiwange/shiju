@@ -7,11 +7,11 @@ use {
 };
 
 static SCHEDULES: OnceLock<Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>>> = OnceLock::new();
-pub(in super::super) fn schedules() -> &'static Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>> {
+pub fn schedules() -> &'static Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>> {
     SCHEDULES.get_or_init(Default::default)
 }
 
-pub(in super::super) async fn run(policy: PathBuf) {
+pub async fn run(policy: PathBuf) {
     let mut timer = tokio::time::interval(std::time::Duration::from_secs(1));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
@@ -28,15 +28,15 @@ fn cycle(policy: &Path) {
 }
 
 fn cycle_inner(policy: &Path) -> anyhow::Result<()> {
-    let targets = super::super::agent_apps::usage_scan_targets(policy)
+    let targets = app_access_service::access::usage_scan_targets(policy)
         .map_err(|_| anyhow::anyhow!("usage scan policy unavailable"))?;
-    let database = crate::usage_bridge::context::database()?;
-    let projects = crate::project::store::ProjectStore::new(database.clone())?;
+    let database = agent_usage::context::database(&agent_paths::paths().home)?;
+    let projects = agent_project::store::ProjectStore::new(database.clone())?;
     let mut connection = database.connect_sqlite()?;
     usage::store::initialize_usage_store(&mut connection)?;
     usage::cursors::initialize_usage_cursors(&connection)?;
     usage::source_settings::initialize_source_settings(&connection)?;
-    let host = crate::usage_bridge::context::local_host()?;
+    let host = agent_usage::context::local_host()?;
     let mut groups: HashMap<ScanOwner, Vec<_>> = HashMap::new();
     for (scope, principal, home, instance) in targets {
         if projects.get(&scope)?.is_none() { continue; }
@@ -92,7 +92,7 @@ fn cycle_inner(policy: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(in super::super) const ADAPTERS: [(ScanAdapter, &str, SessionProvider); 11] = [
+pub const ADAPTERS: [(ScanAdapter, &str, SessionProvider); 11] = [
     (ScanAdapter::Claude,"claude",SessionProvider::Claude), (ScanAdapter::Codex,"codex",SessionProvider::Codex),
     (ScanAdapter::Gemini,"gemini",SessionProvider::Gemini), (ScanAdapter::OpenCode,"opencode",SessionProvider::Opencode),
     (ScanAdapter::GrokBuild,"grokbuild",SessionProvider::Grokbuild), (ScanAdapter::Pi,"pi",SessionProvider::Pi),
@@ -101,14 +101,14 @@ pub(in super::super) const ADAPTERS: [(ScanAdapter, &str, SessionProvider); 11] 
     (ScanAdapter::Dsh,"dsh",SessionProvider::Dsh),
 ];
 
-pub(in super::super) struct Work {
-    pub(in super::super) path: PathBuf,
+pub struct Work {
+    pub path: PathBuf,
     root: PathBuf,
-    pub(in super::super) identity: ExternalSessionIdentity,
+    pub identity: ExternalSessionIdentity,
     registry: SourceRegistry,
 }
-pub(in super::super) fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
-    instances: &[(PathBuf, super::super::agent_apps::ExternalHistoryInstance)],
+pub fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
+    instances: &[(PathBuf, app_access_service::access::ExternalHistoryInstance)],
     worktree: &str) -> anyhow::Result<Vec<Work>> {
     let mut files = Vec::new();
     for (home, instance) in instances.iter().filter(|(_, i)| i.provider == provider) {
@@ -184,23 +184,23 @@ fn dispatch(connection: &mut rusqlite::Connection, scope: &ProjectScope,
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(in super::super) struct Intent {
-    pub(in super::super) project_id: vw_api_transport::ProjectId,
-    pub(in super::super) target_host: String,
-    pub(in super::super) active: Option<bool>,
-    pub(in super::super) paused: Option<bool>,
+pub struct Intent {
+    pub project_id: vw_api_transport::ProjectId,
+    pub target_host: String,
+    pub active: Option<bool>,
+    pub paused: Option<bool>,
 }
 pub(super) fn router() -> axum::Router {
     axum::Router::new()
         .route("/usage/activity", axum::routing::post(page_activity))
         .route("/usage/scans", axum::routing::post(manual_scan))
 }
-pub(in super::super) fn authorized_owner(policy: Option<&Path>, tenant: vw_api_transport::TenantScope,
+pub fn authorized_owner(policy: Option<&Path>, tenant: vw_api_transport::TenantScope,
     headers: &axum::http::HeaderMap, intent: &Intent) -> Result<ScanOwner, axum::http::StatusCode> {
     let scope = ProjectScope::new(tenant, intent.project_id.clone()).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
-    let (principal, _, _) = super::super::agent_apps::authorize_external_history(
+    let (principal, _, _) = app_access_service::access::authorize_external_history(
         policy, headers, &scope, &intent.target_host)?;
-    if intent.target_host != crate::usage_bridge::context::local_host().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)? { return Err(axum::http::StatusCode::FORBIDDEN); }
+    if intent.target_host != agent_usage::context::local_host().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)? { return Err(axum::http::StatusCode::FORBIDDEN); }
     Ok(ScanOwner { scope, principal, target_host: intent.target_host.clone() })
 }
 async fn page_activity(

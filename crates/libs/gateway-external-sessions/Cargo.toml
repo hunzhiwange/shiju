@@ -1,0 +1,43 @@
+[package]
+name = "gateway-external-sessions"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+app-access-service = { path = "../app-access-service", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+agent-usage = { path = "../agent-usage", version = "0.6.0" }
+vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+anyhow = "1"
+axum = { version = "0.8.8", features = ["json"] }
+chrono = "0.4"
+futures-util = "0.3.32"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+tracing = "0.1"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies]
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+sha2 = "0.11"
+libc = "0.2"
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"

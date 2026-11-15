@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+permission-runtime = { path = "../libs/permission-runtime", version = "0.6.0" }
 agent-snapshot = { path = "../libs/agent-snapshot", version = "0.6.0" }
 agent-storage = { path = "../libs/agent-storage", version = "0.6.0" }
 agent-async = { path = "../libs/agent-async", version = "0.6.0" }

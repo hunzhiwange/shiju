@@ -15,10 +15,10 @@ use vw_gateway_client::{
 use cli_interaction_model::UiQuestionOverlay;
 use cli_interaction_model::overlay::workflow_action_label;
 
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
+use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::snapshots::OrchestrationSnapshot;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
-use super::stream_adapter::adapt_gateway_workflow_stream_event;
+use cli_gateway_transport::stream_adapter::adapt_gateway_workflow_stream_event;
 
 /// 已通过当前 Workflow snapshot 校验的运行请求。
 #[derive(Debug, Clone, PartialEq)]

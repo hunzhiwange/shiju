@@ -7,7 +7,7 @@ use vw_gateway_client::vw_api_types::agent_scheduler::{
 };
 
 use cli_interaction_model::snapshots::{CronJobSnapshot, OrchestrationSnapshot};
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
+use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskStatus,
     CanonicalTaskStatus, TaskArtifactSummary, TaskControlAction, TaskDetailView,

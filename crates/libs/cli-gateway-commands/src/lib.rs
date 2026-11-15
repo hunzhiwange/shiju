@@ -5,29 +5,38 @@ use std::io::{Read, Write};
 use anyhow::Result;
 use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand};
 
-use cli_api_system::config::{self, ConfigCommands};
+use self::config::ConfigCommands;
 use cli_api_core::context::ApiContext;
 pub use cli_api_core::ApiOptions;
 use cli_api_core::{ApiOutputFormat, ensure_confirmed};
-use cli_api_system::control::{self, ControlCommands, ProviderCommands};
-use cli_api_system::desktop::{self, DesktopCommands};
-use cli_api_system::extensions::{self, ExtensionCommands};
+use self::control::{ControlCommands, ProviderCommands};
+use self::desktop::DesktopCommands;
+use self::extensions::ExtensionCommands;
 use cli_api_session::interactive::{self, InteractiveCommands};
 use cli_api_workspace::knowledge::{self, KnowledgeCommands};
-use cli_api_system::operations::{self, OperationsCommands};
+use self::operations::OperationsCommands;
 use cli_api_workspace::project::{self, ProjectCommands};
 use cli_api_session::realtime::{self, RealtimeCommands};
 use cli_api_automation::scheduler::{self, SchedulerCommands};
 use cli_api_session::session::{self, SessionCommands};
 use cli_api_session::session_content::{self, SessionContentCommands};
-use cli_api_system::shiju_apps::{self, ShijuAppsCommands};
-use cli_api_system::skill_market::{self, SkillMarketCommands};
+use self::shiju_apps::ShijuAppsCommands;
+use self::skill_market::SkillMarketCommands;
 use cli_api_automation::task_lifecycle::{self, TaskLifecycleCommands};
 use cli_api_automation::task_pool::{self, TaskPoolCommands};
 use cli_api_automation::workflow::{self, WorkflowCommands};
 use cli_api_workspace::workspace::{self, WorkspaceCommands};
 
-use cli_api_system::system::{self, SystemCommands};
+mod config;
+mod control;
+mod desktop;
+mod extensions;
+mod operations;
+mod shiju_apps;
+mod skill_market;
+mod system;
+
+use self::system::SystemCommands;
 
 /// 一次根级 Gateway API 命令调用的完整参数。
 #[derive(Debug)]

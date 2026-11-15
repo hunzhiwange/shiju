@@ -21,7 +21,7 @@ use tokio::task::JoinHandle;
 use vw_api_transport::id::SessionId;
 use vw_gateway_client::{GatewayChatStreamRequest, GatewayChatUsage};
 
-use cli_gateway_runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
+use cli_gateway_transport::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 /// legacy CLI 链路当前暴露给交互层的成功结果。

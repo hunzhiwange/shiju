@@ -12,13 +12,14 @@ autotests = false
 doctest = false
 
 [dependencies]
-provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 config-observability = { path = "../libs/config-observability", version = "0.6.0" }
 config-hooks = { path = "../libs/config-hooks", version = "0.6.0" }
+provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }
 config-automation = { path = "../libs/config-automation", version = "0.6.0" }
 config-reliability = { path = "../libs/config-reliability", version = "0.6.0" }
 vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
+config-reliability = { path = "../libs/config-reliability", version = "0.6.0" }
 gateway-chat-stream = { path = "../libs/gateway-chat-stream", version = "0.6.0" }
 config-routing = { path = "../libs/config-routing", version = "0.6.0" }
 vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }

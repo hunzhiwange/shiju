@@ -4,7 +4,7 @@
 //! Gateway 事件到界面事件的语义转换留在 `bridge`，不在主循环中重复。
 
 use cli_interaction_model::snapshots::{CronDetailView, CronJobSnapshot, OrchestrationSnapshot};
-use cli_gateway_runtime::stream_adapter::terminal_from_error_message;
+use cli_gateway_transport::stream_adapter::terminal_from_error_message;
 use anyhow::{Result, anyhow};
 use crossterm::event::{self, Event, KeyEventKind};
 use dialoguer::Editor;
@@ -59,7 +59,7 @@ use cli_gateway_runtime::cron::{
 };
 use cli_gateway_runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
 use cli_gateway_runtime::file_search::search_files_blocking;
-use cli_gateway_runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
+use cli_gateway_transport::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
 use cli_gateway_runtime::hooks::{
     HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh, load_hook_audit_blocking,
     load_hook_catalog_blocking, mutate_hook_and_refresh_blocking,
@@ -68,7 +68,7 @@ use cli_gateway_runtime::integrations::{
     MemoryMutation, delete_integration_blocking, load_integrations_blocking,
     mutate_memory_and_refresh_blocking, query_memory_blocking, set_integration_enabled_blocking,
 };
-use cli_gateway_runtime::interaction::InteractionSnapshot;
+use cli_gateway_transport::interaction::InteractionSnapshot;
 use cli_gateway_runtime::orchestration::{
     control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,

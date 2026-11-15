@@ -17,6 +17,7 @@ use vw_config_types::{
     gateway::{GatewayConfig, TunnelConfig},
     memory::{MemoryConfig, StorageConfig},
     proxy::ProxyConfig,
+    reliability::ReliabilityConfig,
     routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig},
     runtime::RuntimeConfig,
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},

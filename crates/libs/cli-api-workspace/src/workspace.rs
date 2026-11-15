@@ -9,9 +9,9 @@ use serde_json::json;
 use vw_gateway_client::vw_api_types::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest};
 use vw_gateway_client::vw_api_types::git::{GitCommandRequest, GitCommitRequest, GitMergeRequest};
 
-use cli_api_core::context::ApiContext;
-use cli_api_core::input::read_json_input;
-use cli_api_core::output;
+use super::context::ApiContext;
+use super::input::read_json_input;
+use super::output;
 
 /// 工作区文件、搜索与 Git 接口族。
 #[derive(Subcommand, Debug)]

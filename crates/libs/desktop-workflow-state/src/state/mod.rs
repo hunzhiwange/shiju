@@ -16,6 +16,7 @@ mod app_ui;
 mod canvas_ops;
 mod core;
 mod draft_build;
+mod history;
 mod ids;
 mod if_else_helpers;
 mod node_editor_branches;
@@ -23,6 +24,9 @@ mod node_editor_integrations;
 mod node_editor_start;
 mod node_ops;
 mod node_validation;
+mod run_preview;
+mod run_prompt;
+mod saved_apps;
 mod start_variable_drafts;
 mod start_variable_validation;
 mod variables;
@@ -76,7 +80,7 @@ mod output_and_text_nodes_tests;
 #[cfg(test)]
 use app_ui::organized_node_positions;
 #[cfg(not(target_arch = "wasm32"))]
-pub use core::workflow_run_inputs_from_document;
+pub use run_prompt::workflow_run_inputs_from_document;
 use draft_build::*;
 use ids::*;
 use if_else_helpers::*;

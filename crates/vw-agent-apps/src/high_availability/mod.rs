@@ -1,7 +1,6 @@
 //! Domain rules for application routing availability.
 
-pub mod circuit_breaker;
-pub mod health;
+pub use app_availability_core::{circuit_breaker, health};
 
 pub mod queue;
 
@@ -9,6 +8,6 @@ pub mod queue;
 mod queue_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod retry;
+pub use app_availability_core::retry;
 
 pub mod selection;

@@ -4,6 +4,26 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 7：高可用状态与重试迁移结果
+
+所有权表任务 7 的 circuit_breaker、health、retry 实现及三个独立测试现归
+`crates/libs/app-availability-core/src/`，原 high_availability 模块重导出同名模块，
+lib.rs 继续通过 high_availability 提供原路径，无需新增顶层别名。
+health 与 circuit_breaker 同包互引，保留私有可见性；health_tests 的包内导入随之调整。
+retry 继续仅在非 wasm 平台导出，最多 10 次重试、5 秒退避上限和截止时间保持不变。
+原根模块的 queue、selection 及其测试仍归任务 30，无本任务遗留符号。
+
+新包生产依赖仅 vw-api-types 与非 wasm tokio（macros/rt/time）；非 wasm 测试
+依赖 tokio（io-util/net/sync）及 reqwest（关闭默认特性，rustls）。原包仍有其它
+调用者使用 tokio、reqwest 与 vw-api-types，因此保留其依赖。真实消费者包括
+selection、网关高可用服务与 app_routing，经原门面共享相同类型身份。
+
+静态证据：六文件移动与原内容对照、原模块导出和调用者检索、清单路径审阅、
+无门面回依赖、测试注册及 cfg 对照、git diff --check。无 include 资源路径。
+当前 Python 无 tomllib，未执行 TOML 解析；标准库检查直接依赖路径均存在。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包和调用者编译、迁移测试、
+锁文件一致性及三平台行为。
+
 ## 任务 6：应用目录与偏好迁移结果
 
 `apps/{acp_projection,catalog,preferences}.rs` 及三个独立测试现归

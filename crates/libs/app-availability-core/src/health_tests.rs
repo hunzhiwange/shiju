@@ -1,5 +1,5 @@
 use super::{HealthAccount, HealthKey, HealthRegistry};
-use crate::high_availability::circuit_breaker::AttemptOutcome::{
+use crate::circuit_breaker::AttemptOutcome::{
     Neutral, ProviderFailure, Success,
 };
 use std::{

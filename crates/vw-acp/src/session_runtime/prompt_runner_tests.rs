@@ -17,7 +17,7 @@ use super::{
 use crate::error::AcpError;
 use crate::errors::{AcpxErrorOptions, QueueConnectionError};
 use crate::queue_paths::TEST_HOME_ENV_LOCK;
-use crate::session_runtime_helpers::{InterruptedError, TimeoutError, WithInterruptError};
+use acp_async_control::{InterruptedError, TimeoutError, WithInterruptError};
 use crate::types::{
     SessionAcpxState, SessionEventLog, SessionRecord, SessionStateOptions, SessionTokenUsage,
 };

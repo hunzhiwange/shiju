@@ -30,7 +30,7 @@ use crate::session_runtime::lifecycle::{
     AgentLifecycleSnapshot, apply_lifecycle_snapshot_to_record, reconcile_agent_session_id,
     session_has_agent_messages,
 };
-use crate::session_runtime_helpers::TimeoutError;
+use acp_async_control::TimeoutError;
 use crate::types::{SessionInfo, SessionRecord, SessionResumePolicy};
 
 type OnClientAvailable = Arc<dyn Fn(Arc<dyn QueueOwnerActiveSessionController>) + Send + Sync>;
@@ -509,5 +509,5 @@ where
     F: std::future::Future<Output = Result<T, E>>,
     E: Into<ConnectAndLoadSessionError>,
 {
-    crate::session_runtime_helpers::with_timeout(future, timeout_ms).await?.map_err(Into::into)
+    acp_async_control::with_timeout(future, timeout_ms).await?.map_err(Into::into)
 }

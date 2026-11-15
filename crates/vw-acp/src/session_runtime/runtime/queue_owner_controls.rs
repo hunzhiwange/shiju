@@ -10,7 +10,7 @@ use crate::session_runtime::prompt_runner::{
     run_session_set_mode_direct, run_session_set_model_direct,
 };
 use crate::session_runtime::queue_owner_process::QueueOwnerRuntimeOptions;
-use crate::session_runtime_helpers::with_timeout;
+use acp_async_control::with_timeout;
 use crate::types::OutputErrorOrigin;
 
 use super::queue_owner::timeout_queue_connection_error;

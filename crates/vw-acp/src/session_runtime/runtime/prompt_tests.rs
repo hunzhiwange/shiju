@@ -379,7 +379,7 @@ fn prompt_request_same_session_only_uses_resume_or_load() {
 
 #[test]
 fn should_retry_prompt_requires_runtime_output_code() {
-    let timeout = SessionRuntimeError::from_source(crate::session_runtime_helpers::TimeoutError {
+    let timeout = SessionRuntimeError::from_source(acp_async_control::TimeoutError {
         timeout_ms: 10,
     });
 

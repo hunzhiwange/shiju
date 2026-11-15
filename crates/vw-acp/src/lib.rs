@@ -61,7 +61,6 @@ use acp_storage::session_events;
 pub use session_mounts::*;
 use acp_storage::session_persistence;
 mod session_runtime;
-mod session_runtime_helpers;
 use acp_host_io::spawn_command_options;
 use acp_host_io::terminal;
 mod version;
@@ -255,7 +254,7 @@ pub use session_runtime::{
     send_session, send_session_direct, session_has_agent_messages, set_session_config_option,
     set_session_mode, set_session_model, spawn_queue_owner_process,
 };
-pub use session_runtime_helpers::{
+pub use acp_async_control::{
     InterruptedError, TimeoutError, WithInterruptError, with_interrupt, with_timeout,
 };
 pub use spawn_command_options::build_spawn_command;

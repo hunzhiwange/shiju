@@ -51,8 +51,8 @@ pub mod onboarding;
 mod pager_overlay;
 #[allow(dead_code, unused_imports)]
 mod render;
-#[allow(unused_imports)]
-pub(crate) use tui_pickers::resume_picker;
+#[allow(dead_code)]
+pub(crate) mod resume_picker;
 #[allow(dead_code)]
 pub use tui_widgets::selection_list;
 #[allow(dead_code)]
@@ -76,8 +76,8 @@ pub(crate) use tui_theme::terminal_palette;
 pub(crate) use tui_terminal::terminal_probe;
 #[allow(dead_code)]
 pub(crate) use tui_text::text_formatting;
-#[allow(unused_imports)]
-pub(crate) use tui_pickers::theme_picker;
+#[allow(dead_code)]
+pub(crate) mod theme_picker;
 #[allow(dead_code)]
 use tui_cells::thread_transcript;
 #[allow(dead_code)]

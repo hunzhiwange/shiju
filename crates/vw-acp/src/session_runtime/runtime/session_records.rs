@@ -31,7 +31,7 @@ async fn create_session_record_with_client(
 ) -> Result<SessionRecord, SessionRuntimeError> {
     let cwd = absolute_path(&options.cwd).to_string_lossy().into_owned();
     let session_info = if let Some(session_id) = options.resume_session_id.as_deref() {
-        crate::session_runtime_helpers::with_timeout(
+        acp_async_control::with_timeout(
             client.load_session(session_id.to_string(), PathBuf::from(&cwd)),
             options.timeout_ms,
         )
@@ -40,7 +40,7 @@ async fn create_session_record_with_client(
         .map_err(SessionRuntimeError::from_source)?
     } else {
         crate::perf_metrics::measure_perf("runtime.session_create.create_session", || async {
-            crate::session_runtime_helpers::with_timeout(
+            acp_async_control::with_timeout(
                 client.create_session(PathBuf::from(&cwd)),
                 options.timeout_ms,
             )

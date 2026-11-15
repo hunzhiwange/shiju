@@ -10,7 +10,7 @@ use crate::errors::{
     QueueConnectionError, SessionModeReplayError, SessionModelReplayError,
     SessionResumeRequiredError,
 };
-use crate::session_runtime_helpers::{InterruptedError, TimeoutError};
+use acp_async_control::{InterruptedError, TimeoutError};
 use crate::types::{OutputErrorOrigin, OutputErrorParams};
 
 #[cfg(test)]

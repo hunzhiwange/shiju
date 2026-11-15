@@ -27,7 +27,7 @@ use crate::session_runtime::prompt_runner::PromptRunnerActiveSessionController;
 use crate::session_runtime::prompt_runner::{
     ClientAvailableCallback, ClientClosedCallback, parse_agent_command,
 };
-use crate::session_runtime_helpers::with_timeout;
+use acp_async_control::with_timeout;
 use crate::types::{
     AcpAgentConfig, AcpJsonRpcMessage, AcpMessageCallback, AcpSessionOptions, AuthPolicy,
     ClientOperationCallback, NonInteractivePermissionPolicy, OutputFormatter,

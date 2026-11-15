@@ -34,7 +34,7 @@ use crate::session_runtime::queue_owner_process::{
     QueueOwnerRuntimeOptions, QueueOwnerRuntimeSendOptions, queue_owner_runtime_options_from_send,
     spawn_queue_owner_process,
 };
-use crate::session_runtime_helpers::TimeoutError;
+use acp_async_control::TimeoutError;
 use crate::types::{OutputErrorOrigin, OutputFormatter, SessionSendOutcome, SessionSendResult};
 
 use super::prompt::{OnPromptActiveCallback, RunSessionPromptOptions, run_session_prompt};

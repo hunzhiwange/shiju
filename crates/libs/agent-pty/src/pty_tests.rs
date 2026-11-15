@@ -222,6 +222,15 @@ fn buffer_state_cursor_saturates_instead_of_wrapping() {
 #[tokio::test]
 // 未知会话的查询和清理返回安全默认值，不应触发外部进程操作。
 async fn missing_session_operations_return_safe_defaults_without_external_effects() {
+    struct TestHost;
+    impl crate::host::PtyHost for TestHost {
+        fn directory(&self) -> String { String::new() }
+        fn state(&self) -> crate::host::BoxFuture<Arc<State>> {
+            static STATE: LazyLock<Arc<State>> = LazyLock::new(|| Arc::new(State::default()));
+            Box::pin(async { STATE.clone() })
+        }
+    }
+    crate::host::install(Arc::new(TestHost));
     let missing_id = "pty_static_test_missing_session";
 
     assert!(list().await.iter().all(|info| info.id != missing_id));

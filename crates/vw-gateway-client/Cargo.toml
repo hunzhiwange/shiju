@@ -11,6 +11,7 @@ license = "MIT"
 gateway-device-sync = { path = "../libs/gateway-device-sync", version = "0.6.0" }
 gateway-usage-read = { path = "../libs/gateway-usage-read", version = "0.6.0" }
 gateway-usage-scan = { path = "../libs/gateway-usage-scan", version = "0.6.0" }
+gateway-usage-price = { path = "../libs/gateway-usage-price", version = "0.6.0" }
 vw-api-hermes-dashboard = { path = "../libs/api-hermes-dashboard", version = "0.6.0" }
 vw-api-project-profiles = { path = "../libs/api-project-profiles", version = "0.6.0" }
 gateway-app-usage = { path = "../libs/gateway-app-usage", version = "0.6.0" }

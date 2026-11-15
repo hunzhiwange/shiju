@@ -3,7 +3,7 @@ use super::{identity, Identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Length, Task, widget::{button, column, row, text, text_editor}};
-use vw_gateway_client::client::{ModelPricingInfo, StoredModelPricing};
+use gateway_usage_price::{ModelPricingInfo, StoredModelPricing};
 use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
@@ -77,7 +77,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let client = crate::app::config::gateway_client();
             return Task::perform(async move {
                 let result = async {
-                    client?.usage_prices(&UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() }).await.map_err(|e| e.to_string())
+                    gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone()).usage_prices(&UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() }).await.map_err(|e| e.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| message(Event::Loaded(ticket, scope, result)));
@@ -152,7 +152,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let client = crate::app::config::gateway_client();
             return Task::perform(async move {
                 let result = async {
-                    let client = client?;
+                    let client = gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone());
                     let scope = UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() };
                     match operation {
                         Write::Save(price, true) => client.usage_create_price(&scope, &price).await.map(|_| ()).map_err(|e| e.to_string()),

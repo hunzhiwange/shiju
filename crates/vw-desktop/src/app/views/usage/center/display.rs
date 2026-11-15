@@ -3,7 +3,7 @@ use super::{identity, Identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_gateway_client::client::{Currency, RateMode, UsageDisplayPatch, UsageRatesState};
+use gateway_usage_price::{Currency, RateMode, UsageDisplayPatch, UsageRatesState};
 use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
@@ -74,7 +74,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let client = crate::app::config::gateway_client();
             return Task::perform(async move {
                 let result = async {
-                    let client = client?;
+                    let client = gateway_usage_price::GatewayUsagePriceClient::new(client?.transport().clone());
                     let request = UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() };
                     if saving { client.usage_save_display(&request, &patch).await.map_err(|e| e.to_string())?; }
                     if refresh { client.usage_refresh_rates(&request).await } else { client.usage_display(&request).await }.map_err(|e| e.to_string())

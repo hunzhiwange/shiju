@@ -260,3 +260,9 @@ mod openclaw;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/openclaw_tests.rs"]
 mod openclaw_tests;
+
+#[path = "app_providers/pi.rs"]
+mod pi;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/pi_tests.rs"]
+mod pi_tests;

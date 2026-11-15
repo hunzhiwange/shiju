@@ -3,13 +3,13 @@ use crate::app::installer_update::{PreparedDesktopUpdate, verify_ready};
 use anyhow::{Context, Result, bail};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use vw_shared::update::InstallerKind;
+use desktop_release::InstallerKind;
 
 pub(super) fn preflight(executable: &Path, ready: &PreparedDesktopUpdate) -> Result<()> {
     if executable != Path::new("/usr/bin/shi-ju") {
         bail!("自动更新仅支持系统包安装的 /usr/bin/shi-ju");
     }
-    let kind = vw_shared::update::desktop_release::linux_installer_kind()?;
+    let kind = desktop_release::linux_installer_kind()?;
     if ready.kind() != kind {
         bail!("安装包格式与当前 Linux 发行版不一致");
     }

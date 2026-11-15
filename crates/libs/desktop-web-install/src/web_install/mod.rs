@@ -45,7 +45,7 @@ pub struct Snapshot {
 pub fn update(
     state: &mut State,
     event: Event,
-    source: Option<vw_shared::update::UpdateSource>,
+    source: Option<desktop_release::UpdateSource>,
     shutdown_requested: bool,
 ) -> (Task<Event>, Option<String>) {
     match event {
@@ -127,7 +127,7 @@ pub fn update(
 fn operate(
     event: Event,
     runtime: &runtime::Runtime,
-    source: Option<vw_shared::update::UpdateSource>,
+    source: Option<desktop_release::UpdateSource>,
     progress_tx: &mpsc::Sender<Event>,
 ) -> Result<()> {
     // 安装失败后也能停止既有服务；读到损坏安装时保留明确错误。

@@ -1,6 +1,6 @@
 use super::*;
 use sha2::{Digest, Sha256};
-use vw_shared::update::InstallerKind;
+use desktop_release::InstallerKind;
 
 fn fixture(kind: InstallerKind) -> (tempfile::TempDir, PreparedDesktopUpdate) {
     let root = tempfile::tempdir().unwrap();

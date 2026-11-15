@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use std::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_shared::update;
+use desktop_release as update;
 
 #[cfg(not(target_arch = "wasm32"))]
 const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
@@ -1113,7 +1113,7 @@ async fn fetch_latest_release_version(source: update::UpdateSource) -> Result<St
 
 #[cfg(target_arch = "wasm32")]
 async fn fetch_latest_release_version(
-    _source: vw_shared::update::UpdateSource,
+    _source: desktop_release::UpdateSource,
 ) -> Result<String, String> {
     Err("当前平台不支持检测更新".to_string())
 }
@@ -1139,8 +1139,8 @@ pub(super) async fn fetch_latest_app_release(
 
 #[cfg(target_arch = "wasm32")]
 pub(super) async fn fetch_latest_app_release(
-    _source: vw_shared::update::UpdateSource,
-) -> Result<vw_shared::update::DesktopRelease, String> {
+    _source: desktop_release::UpdateSource,
+) -> Result<desktop_release::DesktopRelease, String> {
     Err("当前平台不支持检测应用更新".into())
 }
 

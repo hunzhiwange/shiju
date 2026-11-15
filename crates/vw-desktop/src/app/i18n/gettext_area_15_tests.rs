@@ -10,7 +10,7 @@ async fn desktop_gettext_area_15_failed_skip_preserves_error_and_switches_langua
         &mut app,
         ViewMessage::SkipAppUpdateSaved(
             crate::app::desktop_update::SkippedRelease {
-                source: vw_shared::update::UpdateSource::Shiju,
+                source: desktop_release::UpdateSource::Shiju,
                 version: "99.0.0".into(),
             },
             Err(raw.into()),

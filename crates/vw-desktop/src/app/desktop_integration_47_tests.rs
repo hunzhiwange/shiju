@@ -2,7 +2,7 @@
 use super::desktop_update::DesktopUpdate;
 use super::message::{ViewMessage, view};
 use super::{App, Message};
-use vw_shared::update::{DesktopRelease, UpdateSource};
+use desktop_release::{DesktopRelease, UpdateSource};
 
 #[test]
 fn desktop_integration_47_preserves_expected_behavior() {

@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 use update_types::UpdateProgress;
-use vw_shared::update::{UpdateSource, desktop_release::SHIJU_MANIFEST};
+use desktop_release::{UpdateSource, SHIJU_MANIFEST};
 
 const RELEASE_API: &str = "https://api.github.com/repos/hunzhiwange/shiju/releases/latest";
 const DOWNLOAD_ROOT: &str = "https://github.com/hunzhiwange/shiju/releases/download/";

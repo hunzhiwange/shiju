@@ -250,8 +250,8 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
     use iced::advanced::widget::Tree;
     use iced::{Font, Pixels};
     let mut app = crate::app::App::new().0;
-    app.desktop_update.release = Some(vw_shared::update::DesktopRelease {
-        source: vw_shared::update::UpdateSource::Shiju,
+    app.desktop_update.release = Some(desktop_release::DesktopRelease {
+        source: desktop_release::UpdateSource::Shiju,
         version: "99.0.0".into(),
         assets: vec![],
     });

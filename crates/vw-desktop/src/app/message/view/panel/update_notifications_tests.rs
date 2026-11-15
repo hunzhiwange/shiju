@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::desktop_update::DesktopUpdate;
-use vw_shared::update::{DesktopRelease, UpdateSource};
+use desktop_release::{DesktopRelease, UpdateSource};
 
 fn release(version: &str) -> DesktopRelease {
     DesktopRelease { source: UpdateSource::Shiju, version: version.into(), assets: vec![] }

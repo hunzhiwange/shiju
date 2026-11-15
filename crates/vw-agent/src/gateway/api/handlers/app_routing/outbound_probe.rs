@@ -36,7 +36,7 @@ use {
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::update::desktop_release::SHIJU_MANIFEST;
+use desktop_release::SHIJU_MANIFEST;
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
 const KIND: DiagnosticProbeKind = DiagnosticProbeKind::OutboundProxy;

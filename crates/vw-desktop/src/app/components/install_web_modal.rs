@@ -36,8 +36,8 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         settings_close_button(close.clone()),
     );
     let label = match app.desktop_update.source {
-        Some(vw_shared::update::UpdateSource::Shiju) => Some(i18n.__("shiju（默认）")),
-        Some(vw_shared::update::UpdateSource::Github) => Some("github.com"),
+        Some(desktop_release::UpdateSource::Shiju) => Some(i18n.__("shiju（默认）")),
+        Some(desktop_release::UpdateSource::Github) => Some("github.com"),
         None => None,
     };
     let source_control: Element<'a, Message> =
@@ -46,9 +46,9 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         } else {
             settings_select([i18n.__("shiju（默认）"), "github.com"], label, |label| {
                 Message::View(ViewMessage::AppUpdateSourceSelected(if label == "github.com" {
-                    vw_shared::update::UpdateSource::Github
+                    desktop_release::UpdateSource::Github
                 } else {
-                    vw_shared::update::UpdateSource::Shiju
+                    desktop_release::UpdateSource::Shiju
                 }))
             })
             .placeholder(i18n.__("请选择来源"))

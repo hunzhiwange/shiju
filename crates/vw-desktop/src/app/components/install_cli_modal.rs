@@ -394,8 +394,8 @@ fn view_inner<'a>(
 
     let source_control: Element<'a, Message> = if let Some(state) = desktop_update {
         let label = match state.source {
-            Some(vw_shared::update::UpdateSource::Shiju) => Some(i18n.__("shiju（默认）")),
-            Some(vw_shared::update::UpdateSource::Github) => Some("github.com"),
+            Some(desktop_release::UpdateSource::Shiju) => Some(i18n.__("shiju（默认）")),
+            Some(desktop_release::UpdateSource::Github) => Some("github.com"),
             None => None,
         };
         let control: Element<'a, Message> = if state.busy || state.saving {
@@ -404,9 +404,9 @@ fn view_inner<'a>(
             settings_select([i18n.__("shiju（默认）"), "github.com"], label, |label| {
                 Message::View(message::ViewMessage::AppUpdateSourceSelected(
                     if label == "github.com" {
-                        vw_shared::update::UpdateSource::Github
+                        desktop_release::UpdateSource::Github
                     } else {
-                        vw_shared::update::UpdateSource::Shiju
+                        desktop_release::UpdateSource::Shiju
                     },
                 ))
             })

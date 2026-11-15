@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use update_types::UpdateProgress;
-use vw_shared::update::{DesktopInstaller, DesktopRelease, InstallerKind};
+use desktop_release::{DesktopInstaller, DesktopRelease, InstallerKind};
 
 /// Only the verified download path can produce this result. Fields stay private so
 /// callers cannot substitute an arbitrary path or digest before opening it.
@@ -88,7 +88,7 @@ pub async fn prepare_desktop_update(
         directories::ProjectDirs::from("com", "rsung", APP_NAME).context("无法确定应用缓存目录")?;
     fs::create_dir_all(dirs.cache_dir())?;
     let attempt = create_attempt(dirs.cache_dir(), &release.version)?;
-    let path = vw_shared::update::download_desktop_installer(
+    let path = desktop_release::download_desktop_installer(
         release,
         target,
         kind,
@@ -276,7 +276,7 @@ fn installer_kind(os: &str) -> Result<InstallerKind> {
     match os {
         "macos" => Ok(InstallerKind::Dmg),
         "windows" => Ok(InstallerKind::Msi),
-        "linux" => vw_shared::update::desktop_release::linux_installer_kind(),
+        "linux" => desktop_release::linux_installer_kind(),
         _ => bail!("不支持的安装平台：{os}"),
     }
 }

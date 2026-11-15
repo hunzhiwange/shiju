@@ -702,7 +702,7 @@ fn batch_message_applies_each_nested_update_in_order() {
 #[test]
 fn app_update_bootstrap_restores_source_without_overwriting_user_selection() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let mut app = test_app();
     app.apply_bootstrap_app_config(json!({"app_update_source":"github"}));
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
@@ -716,7 +716,7 @@ fn app_update_bootstrap_restores_source_without_overwriting_user_selection() {
 
 #[test]
 fn app_update_late_bootstrap_preserves_checked_release() {
-    use vw_shared::update::{DesktopRelease, UpdateSource};
+    use desktop_release::{DesktopRelease, UpdateSource};
     let mut app = test_app();
     app.desktop_update.source = Some(UpdateSource::Github);
     let release =

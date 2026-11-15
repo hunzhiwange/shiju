@@ -4,7 +4,7 @@
 fn desktop_integration_48_preserves_expected_behavior() {
     use super::message::{ViewMessage, view};
     use update_types::UpdateProgress;
-    use vw_shared::update::{DesktopRelease, UpdateSource};
+    use desktop_release::{DesktopRelease, UpdateSource};
 
     let mut app = super::App::new().0;
     app.desktop_update = super::desktop_update::DesktopUpdate::from_config(&serde_json::json!({}));

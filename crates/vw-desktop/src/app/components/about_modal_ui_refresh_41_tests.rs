@@ -298,7 +298,7 @@ async fn ui_refresh_41_layout_and_interaction() {
         app.cli_install_modal_current_version = "1.2.3".into();
         app.cli_install_modal_server_version = "1.2.4".into();
         app.cli_install_modal_show_install_action = true;
-        app.desktop_update.source = Some(vw_shared::update::UpdateSource::Shiju);
+        app.desktop_update.source = Some(desktop_release::UpdateSource::Shiju);
         let mut ui = scene(install_cli_modal::view_app_update(&app), &mut renderer, size);
         capture(&mut ui, &mut renderer, &theme, size, &format!("cli-{name}"), Point::ORIGIN);
         let controls = bounds(&mut ui, &renderer);
@@ -346,7 +346,7 @@ async fn ui_refresh_41_layout_and_interaction() {
             assert!(matches!(
                 key(&mut ui, &mut renderer, Key::Named(Named::Enter), None).as_slice(),
                 [Message::View(ViewMessage::AppUpdateSourceSelected(
-                    vw_shared::update::UpdateSource::Github
+                    desktop_release::UpdateSource::Github
                 ))]
             ));
         }
@@ -547,7 +547,7 @@ async fn ui_refresh_41_preserves_values_and_disabled_states() {
     app.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
     app.cli_install_modal_is_checking_update = true;
     app.cli_install_modal_show_install_action = true;
-    app.desktop_update.source = Some(vw_shared::update::UpdateSource::Github);
+    app.desktop_update.source = Some(desktop_release::UpdateSource::Github);
     app.desktop_update.busy = true;
     let mut ui = scene(install_cli_modal::view_app_update(&app), &mut renderer, size);
     let controls = bounds(&mut ui, &renderer);

@@ -621,7 +621,7 @@ fn wasm_tool_content_wrappers_are_safe_empty_noops() {
 
 #[test]
 fn app_update_source_patch_and_restart_read_use_gateway_preferences() {
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let stored = Arc::new(Mutex::new(serde_json::json!({"theme":"dark"})));
     let server_state = stored.clone();
     let server = TestServer::start(2, move |request| {
@@ -654,7 +654,7 @@ fn app_update_source_patch_and_restart_read_use_gateway_preferences() {
 fn app_update_source_gateway_save_failure_reaches_unsaved_toast() {
     use crate::app::{Message, message::ViewMessage};
     use iced_runtime::futures::futures::StreamExt;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let mut app = crate::app::App::new().0;
     let server = TestServer::start(1, |request| {
         assert_eq!(request.method, "PATCH");

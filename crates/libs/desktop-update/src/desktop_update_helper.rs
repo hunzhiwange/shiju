@@ -220,7 +220,7 @@ fn preflight(executable: &Path, ready: &PreparedDesktopUpdate) -> Result<()> {
     }
     #[cfg(target_os = "macos")]
     {
-        if ready.kind() != vw_shared::update::InstallerKind::Dmg {
+        if ready.kind() != desktop_release::InstallerKind::Dmg {
             bail!("macOS 更新需要 DMG");
         }
         macos::bundle(executable)?;
@@ -229,7 +229,7 @@ fn preflight(executable: &Path, ready: &PreparedDesktopUpdate) -> Result<()> {
     linux::preflight(executable, ready)?;
     #[cfg(target_os = "windows")]
     {
-        if ready.kind() != vw_shared::update::InstallerKind::Msi {
+        if ready.kind() != desktop_release::InstallerKind::Msi {
             bail!("Windows 更新需要 MSI");
         }
         windows::Package::inspect(windows_installer_path(ready.path())?, ready.version())?;

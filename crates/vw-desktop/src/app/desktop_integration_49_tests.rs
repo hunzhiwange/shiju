@@ -3,7 +3,7 @@
 #[test]
 fn desktop_integration_49_preserves_expected_behavior() {
     use crate::app::message::{ViewMessage, view};
-    use vw_shared::update::{DesktopRelease, UpdateSource};
+    use desktop_release::{DesktopRelease, UpdateSource};
 
     let mut app = crate::app::App::new().0;
     app.desktop_update = crate::app::desktop_update::DesktopUpdate::from_config(&serde_json::json!({}));

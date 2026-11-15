@@ -472,7 +472,7 @@ fn cli_update_result_distinguishes_matching_new_and_failed_versions() {
 #[test]
 fn app_update_result_controls_install_action_for_each_outcome() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::{DesktopRelease, UpdateSource};
+    use desktop_release::{DesktopRelease, UpdateSource};
     let mut app = crate::app::App::new().0;
     for (version, installable) in
         [(env!("CARGO_PKG_VERSION"), false), ("0.0.0", false), ("99.0.0", true)]
@@ -753,7 +753,7 @@ fn path_profiles_are_created_only_inside_supplied_home() {
 #[test]
 fn app_update_source_switch_invalidates_pending_release() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
     let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
@@ -764,7 +764,7 @@ fn app_update_source_switch_invalidates_pending_release() {
         ViewMessage::CheckAppUpdateFinished(
             request,
             UpdateSource::Shiju,
-            Ok(vw_shared::update::DesktopRelease {
+            Ok(desktop_release::DesktopRelease {
                 source: UpdateSource::Shiju,
                 version: "99.0.0".into(),
                 assets: vec![],
@@ -779,7 +779,7 @@ fn app_update_source_switch_invalidates_pending_release() {
 #[test]
 fn app_update_download_survives_close_and_blocks_duplicate_and_source_change() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::{DesktopRelease, UpdateSource};
+    use desktop_release::{DesktopRelease, UpdateSource};
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
     app.desktop_update.checking = false;
@@ -806,7 +806,7 @@ fn app_update_download_survives_close_and_blocks_duplicate_and_source_change() {
 #[test]
 fn app_update_save_failure_keeps_selection_and_shows_unsaved_toast() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let mut app = crate::app::App::new().0;
     let _ = crate::app::message::view::update(
         &mut app,
@@ -824,7 +824,7 @@ fn app_update_save_failure_keeps_selection_and_shows_unsaved_toast() {
 #[test]
 fn app_update_old_request_from_same_source_cannot_override_new_check() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
     let old = app.desktop_update.request;
@@ -842,7 +842,7 @@ fn app_update_old_request_from_same_source_cannot_override_new_check() {
 async fn app_update_download_consumes_checked_snapshot_without_refetching_latest() {
     use crate::app::message::ViewMessage;
     use iced_runtime::futures::futures::StreamExt;
-    use vw_shared::update::{DesktopRelease, UpdateSource};
+    use desktop_release::{DesktopRelease, UpdateSource};
     let mut app = crate::app::App::new().0;
     app.desktop_update.source = Some(UpdateSource::Github);
     // A deliberately incomplete snapshot must fail its own asset validation before network I/O.
@@ -870,7 +870,7 @@ async fn app_update_download_consumes_checked_snapshot_without_refetching_latest
 #[test]
 fn cli_update_ignores_result_after_source_switch() {
     use crate::app::message::ViewMessage;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdate);
     let request = app.desktop_update.request;

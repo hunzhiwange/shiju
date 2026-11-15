@@ -259,7 +259,7 @@ fn load_web_bookmarks_returns_default_when_config_key_is_not_an_array() {
 #[test]
 fn app_update_initial_config_defaults_and_rejects_invalid_sources() {
     use crate::app::desktop_update::DesktopUpdate;
-    use vw_shared::update::UpdateSource;
+    use desktop_release::UpdateSource;
     assert_eq!(DesktopUpdate::from_config(&json!({})).source, Some(UpdateSource::Shiju));
     assert_eq!(
         DesktopUpdate::from_config(&json!({"app_update_source":"github"})).source,

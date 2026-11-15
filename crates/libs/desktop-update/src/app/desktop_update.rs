@@ -1,5 +1,5 @@
 //! Desktop update selection and the exact release snapshot used for download.
-use vw_shared::update::{DesktopRelease, UpdateSource};
+use desktop_release::{DesktopRelease, UpdateSource};
 
 pub const UPDATE_CHECK_INTERVAL: std::time::Duration =
     std::time::Duration::from_secs(3 * 60 * 60);

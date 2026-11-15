@@ -387,7 +387,7 @@ async fn desktop_release_publication_race_preserves_existing_file_and_cleans_tem
 
 #[tokio::test]
 async fn desktop_release_consumes_generated_eight_installer_manifest() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let output = std::process::Command::new("python3")
         .current_dir(root)
         .args(["-c", "import sys,json; sys.path.insert(0,'scripts/tests'); from test_prepare_oss_release import prepared_contract; print(json.dumps(prepared_contract()))"])

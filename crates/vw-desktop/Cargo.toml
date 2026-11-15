@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-settings-providers = { path = "../libs/desktop-settings-providers", version = "0.6.0" }
 desktop-terminal = { path = "../libs/desktop-terminal", version = "0.6.0" }
 desktop-file-tree = { path = "../libs/desktop-file-tree", version = "0.6.0" }
 desktop-editor = { path = "../libs/desktop-editor", version = "0.6.0" }

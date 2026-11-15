@@ -4,14 +4,7 @@ use model_types as model_provider;
 
 use crate::app::state::{ModelCatalogEntry, ProviderModelsSummary, ProviderSummary};
 
-/// 一项待持久化的模型启用状态变更。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ModelStatusChange {
-    pub provider_id: String,
-    pub model_id: String,
-    pub previous_enabled: bool,
-    pub enabled: bool,
-}
+pub use desktop_settings_providers::models::ModelStatusChange;
 
 /// `ProvidersLoaded` 的加载结果类型。
 ///

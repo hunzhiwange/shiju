@@ -99,41 +99,7 @@ fn queue_valid_routes(app: &mut App) -> Task<Message> {
 }
 
 fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
-    let mut routes = Vec::with_capacity(app.model_routes_settings.routes.len());
-    for (idx, route) in app.model_routes_settings.routes.iter().enumerate() {
-        let pattern = route.pattern.trim();
-        let provider = route.provider.trim();
-        let model = route.model.trim();
-        let priority = route.priority_input.trim();
-
-        if pattern.is_empty() && provider.is_empty() && model.is_empty() && priority.is_empty() {
-            continue;
-        }
-        if pattern.is_empty() {
-            return Err(Feedback::owned("第 %s 条路由缺少 pattern", vec![(idx + 1).to_string()]));
-        }
-        if provider.is_empty() {
-            return Err(Feedback::owned("第 %s 条路由缺少 provider", vec![(idx + 1).to_string()]));
-        }
-        if model.is_empty() {
-            return Err(Feedback::owned("第 %s 条路由缺少 model", vec![(idx + 1).to_string()]));
-        }
-        if !priority.is_empty() && priority.parse::<u32>().is_err() {
-            return Err(Feedback::owned(
-                "第 %s 条路由的 priority 不是有效数字",
-                vec![(idx + 1).to_string()],
-            ));
-        }
-
-        routes.push(ModelRouteConfig {
-            hint: pattern.to_string(),
-            provider: provider.to_string(),
-            model: model.to_string(),
-            max_tokens: None,
-            api_key: None,
-        });
-    }
-    Ok(routes)
+    desktop_settings_providers::model_routes::validate_routes(&app.model_routes_settings.routes)
 }
 
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {

@@ -21,16 +21,7 @@ pub fn parse_comma_or_newline_list(input: &str) -> Vec<String> {
 /// 处理 `is_provider_connected` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-pub fn is_provider_connected(provider: &model_types::Info) -> bool {
-    let has_key = provider.key.as_deref().is_some_and(|key| !key.trim().is_empty());
-
-    has_key
-        || matches!(
-            provider.source,
-            model_types::ProviderSource::Api
-                | model_types::ProviderSource::Env
-        )
-}
+pub use desktop_settings_providers::models::is_provider_connected;
 
 #[cfg(target_arch = "wasm32")]
 #[allow(dead_code)]

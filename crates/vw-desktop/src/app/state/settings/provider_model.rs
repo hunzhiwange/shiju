@@ -328,113 +328,7 @@ impl Default for ProviderSettingsState {
     }
 }
 
-/// 模型摘要信息
-///
-/// 模型的基本信息和能力配置，
-/// 用于在模型列表中显示。
-#[derive(Debug, Clone)]
-pub struct ModelSummary {
-    /// 模型标识符
-    pub(crate) id: String,
-    /// 模型显示名称
-    pub(crate) name: String,
-    /// 是否启用
-    pub(crate) enabled: bool,
-    /// 是否支持工具调用
-    pub(crate) toolcall: bool,
-    /// 是否支持附件
-    pub(crate) attachment: bool,
-    /// 上下文长度限制
-    pub(crate) context_limit: u64,
-    /// 模型详细信息（JSON 格式）
-    pub(crate) detail: Value,
-}
-
-/// 提供者模型摘要
-///
-/// 提供者及其包含的模型列表信息。
-#[derive(Debug, Clone)]
-pub struct ProviderModelsSummary {
-    /// 提供者标识符
-    pub(crate) id: String,
-    /// 提供者显示名称
-    pub(crate) name: String,
-    /// 模型列表
-    pub(crate) models: Vec<ModelSummary>,
-}
-
-/// 模型详情行
-///
-/// 模型详情对话框中显示的单行信息。
-#[derive(Debug, Clone)]
-pub(crate) struct ModelDetailRow {
-    /// 行标签
-    pub(crate) label: crate::app::i18n::settings_models::messages::Feedback,
-    /// 行值
-    pub(crate) value: crate::app::i18n::settings_models::messages::Feedback,
-}
-
-/// 模型详情对话框状态
-///
-/// 管理模型详情对话框的显示状态和内容。
-#[derive(Debug, Clone)]
-pub(crate) struct ModelDetailModalState {
-    /// 提供者标识符
-    pub(crate) provider_id: String,
-    /// 提供者显示名称
-    pub(crate) provider_name: String,
-    /// 模型标识符
-    pub(crate) model_id: String,
-    /// 模型显示名称
-    pub(crate) model_name: String,
-    /// 详情行列表
-    pub(crate) rows: Vec<ModelDetailRow>,
-    /// 原始 JSON 数据
-    pub(crate) raw_json: String,
-    /// 是否显示原始 JSON
-    pub(crate) show_raw: bool,
-}
-
-/// 模型配置内的子标签。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ModelConfigTab {
-    /// 已连接模型目录。
-    #[default]
-    Models,
-    /// 按请求提示选择模型的路由规则。
-    ModelRoutes,
-    /// 将查询匹配到模型路由的分类规则。
-    QueryClassification,
-    /// 图片输入、远程抓取与 OCR 配置。
-    Multimodal,
-}
-
-/// 模型设置面板状态
-///
-/// 管理模型设置页面的状态，包括模型列表、
-/// 搜索过滤和详情对话框。
-#[derive(Debug, Clone)]
-#[derive(Default)]
-pub(crate) struct ModelSettingsState {
-    /// 当前显示的模型配置子标签。
-    pub(crate) active_tab: ModelConfigTab,
-    /// 是否正在加载
-    pub(crate) loading: bool,
-    /// 是否正在保存模型启用状态
-    pub(crate) saving: bool,
-    /// 当前展开的提供者模型分组；默认全部折叠
-    pub(crate) expanded_provider_ids: std::collections::HashSet<String>,
-    /// 输入面板模型选择器中已折叠的提供商，独立于系统设置分组。
-    pub(crate) input_collapsed_provider_ids: std::collections::BTreeSet<String>,
-    /// 搜索查询
-    pub(crate) query: String,
-    /// 提供者模型列表
-    pub(crate) providers: Vec<ProviderModelsSummary>,
-    /// 保存错误信息
-    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
-    /// 模型详情对话框状态
-    pub(crate) detail_modal: Option<ModelDetailModalState>,
-}
+pub use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary, ModelDetailRow, ModelDetailModalState, ModelConfigTab, ModelSettingsState};
 
 /// 嵌入路由草稿
 ///
@@ -463,18 +357,7 @@ pub(crate) struct EmbeddingRoutesSettingsState {
     pub(crate) save_success: bool,
 }
 
-/// 模型路由单条规则输入状态。
-#[derive(Debug, Clone, Default)]
-pub(crate) struct ModelRoute {
-    /// 路由模式/提示。
-    pub(crate) pattern: String,
-    /// 提供者名称。
-    pub(crate) provider: String,
-    /// 模型名称。
-    pub(crate) model: String,
-    /// 优先级输入。
-    pub(crate) priority_input: String,
-}
+pub use desktop_settings_providers::state::ModelRoute;
 
 /// 模型路由设置面板状态。
 #[derive(Debug, Clone, Default)]

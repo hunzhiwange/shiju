@@ -18,56 +18,6 @@ fn route(pattern: &str, provider: &str, model: &str, priority: &str) -> ModelRou
     }
 }
 
-// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
-// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-#[test]
-fn validate_routes_skips_blank_rows_and_trims_complete_routes() {
-    let mut app = app();
-    app.model_routes_settings.routes =
-        vec![route("  ", " ", "\t", ""), route("  coding  ", "  openai  ", "  gpt-5  ", "  7  ")];
-
-    let routes = validate_routes(&app).expect("blank and complete routes should be valid");
-
-    assert_eq!(routes.len(), 1);
-    assert_eq!(routes[0].hint, "coding");
-    assert_eq!(routes[0].provider, "openai");
-    assert_eq!(routes[0].model, "gpt-5");
-    assert_eq!(routes[0].max_tokens, None);
-    assert_eq!(routes[0].api_key, None);
-}
-
-#[test]
-fn validate_routes_accepts_complete_route_without_priority() {
-    let mut app = app();
-    app.model_routes_settings.routes =
-        vec![route("  analysis  ", "  anthropic  ", "  claude-sonnet  ", "  ")];
-
-    let routes = validate_routes(&app).expect("priority is optional");
-
-    assert_eq!(routes.len(), 1);
-    assert_eq!(routes[0].hint, "analysis");
-    assert_eq!(routes[0].provider, "anthropic");
-    assert_eq!(routes[0].model, "claude-sonnet");
-}
-
-// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
-// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-#[test]
-fn validate_routes_reports_provider_model_and_priority_errors_with_row_number() {
-    let mut app = app();
-    app.model_routes_settings.routes =
-        vec![ModelRoute::default(), route("chat", " ", "gpt-5", "1")];
-    assert_eq!(validate_routes(&app).unwrap_err(), "第 2 条路由缺少 provider");
-
-    app.model_routes_settings.routes[1].provider = "openai".to_string();
-    app.model_routes_settings.routes[1].model.clear();
-    assert_eq!(validate_routes(&app).unwrap_err(), "第 2 条路由缺少 model");
-
-    app.model_routes_settings.routes[1].model = "gpt-5".to_string();
-    app.model_routes_settings.routes[1].priority_input = "-1".to_string();
-    assert_eq!(validate_routes(&app).unwrap_err(), "第 2 条路由的 priority 不是有效数字");
-}
-
 #[test]
 fn model_routes_validate_required_fields() {
     let mut app = app();

@@ -73,3 +73,12 @@ git diff --stat
 ```
 
 逐一审查搜索命中，不把 rg 零命中退出码 1 当作失败或编译通过。另查暂存差异，防止提交无关改动。所需证据：本片迁移映射、局部状态/消息边界、旧调用接线、测试注册、cfg/资源审阅及 diff 检查结果。新库不得反向依赖桌面；壳适配不得残留本片业务副本。明确报告未运行 Cargo、单元测试和实机验收。
+
+## 执行中交接（2026-11-15）
+
+- 当前 checkout 实施，未创建 worktree；公共接线与提交已获授权，先提交已完成的数据层迁移。
+- 已提取 `desktop-settings-providers::{state,models,model_routes}`：模型列表/详情/标签状态、模型摘要、状态补丁/回滚辅助、详情构建、路由验证；旧消息模块委派到真实新实现，没有保留这些算法副本。
+- 已迁移既有纯数据测试 7 项，入口 `models::models_tests`（4 项）、`model_routes::model_routes_tests`（3 项）。壳集成测试保留，无断言删除。
+- 公共接线精确补丁 `/tmp/shiju-task4-integration.patch`：根 Cargo.toml 注册 workspace；桌面 Cargo.toml 添加 path/version 依赖；`state/settings/provider_model.rs` 重导出 7 个模型状态及 ModelRoute；`message/settings/types.rs` 重导出 ModelStatusChange；`message/settings/util.rs` 重导出 is_provider_connected。这些改动已获授权并应用；类型所有者唯一，仍未经编译验证。
+- 未完成：本片三个视图文件及 UI 测试迁移、领域局部消息/update 与效果边界；自定义模型弹窗实际读取字段及控件帮助浮层仍需收敛。不得当作完成或删除本卡。
+- 静态证据：`rg -n 'crate::app::|vw_desktop|vw-desktop' crates/libs/desktop-settings-providers` 零命中；`git diff --check` 通过。当前 Python 无 tomllib，TOML 解析未执行成功（Python 缺 tomllib，Ruby 缺 tomlrb；未安装工具）。未运行 Cargo、单元测试、程序或实机验收。未修改 Cargo.lock；无新增平台依赖与资源宏。

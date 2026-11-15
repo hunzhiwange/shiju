@@ -1,7 +1,8 @@
+#[cfg(not(all(feature = "sandbox-landlock", target_os = "linux")))]
 use std::process::Command;
 
-use vibe_agent::app::agent::security::Sandbox;
-use vibe_agent::app::agent::security::landlock::LandlockSandbox;
+use crate::Sandbox;
+use crate::landlock::LandlockSandbox;
 
 // 测试 landlock 沙箱的名称是否正确返回 "landlock"
 #[cfg(all(feature = "sandbox-landlock", target_os = "linux"))]

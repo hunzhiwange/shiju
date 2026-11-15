@@ -1,4 +1,4 @@
-use vibe_agent::app::agent::security::domain_matcher::DomainMatcher;
+use crate::domain_matcher::DomainMatcher;
 
 // 测试精确域名匹配功能
 #[test]

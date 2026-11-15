@@ -483,3 +483,7 @@ impl LeakDetector {
 #[cfg(test)]
 #[path = "leak_detector_tests.rs"]
 mod leak_detector_tests;
+
+#[cfg(test)]
+#[path = "leak_detector_legacy_security_tests.rs"]
+mod legacy_security_tests;

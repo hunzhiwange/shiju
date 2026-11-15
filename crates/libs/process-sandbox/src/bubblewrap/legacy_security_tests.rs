@@ -1,7 +1,7 @@
 use std::process::Command;
 
-use vibe_agent::app::agent::security::Sandbox;
-use vibe_agent::app::agent::security::bubblewrap::BubblewrapSandbox;
+use crate::Sandbox;
+use crate::bubblewrap::BubblewrapSandbox;
 
 // 测试 bubblewrap 沙箱的名称是否正确返回 "bubblewrap"
 #[test]

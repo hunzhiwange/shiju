@@ -683,3 +683,7 @@ fn decode_base32_secret(raw: &str) -> Result<Vec<u8>> {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "legacy_security_tests.rs"]
+mod legacy_security_tests;

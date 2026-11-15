@@ -1,4 +1,4 @@
-use vibe_agent::app::agent::security::leak_detector::{LeakDetector, LeakResult};
+use crate::leak_detector::{LeakDetector, LeakResult};
 
 // 测试正常内容应该通过泄露检测
 #[test]

@@ -663,3 +663,7 @@ fn wildcard_match(pattern: &[u8], value: &[u8]) -> bool {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "legacy_security_tests.rs"]
+mod legacy_security_tests;

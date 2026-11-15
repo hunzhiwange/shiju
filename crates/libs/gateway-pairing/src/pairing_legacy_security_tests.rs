@@ -1,4 +1,4 @@
-use vibe_agent::app::agent::security::pairing::{
+use super::{
     constant_time_eq, generate_code, generate_token, hash_token, is_public_bind, is_token_hash,
     PairingGuard, MAX_PAIR_ATTEMPTS, MAX_TRACKED_CLIENTS, PAIR_LOCKOUT_SECS,
     FAILED_ATTEMPT_RETENTION_SECS, FAILED_ATTEMPT_SWEEP_INTERVAL_SECS, FailedAttemptState,

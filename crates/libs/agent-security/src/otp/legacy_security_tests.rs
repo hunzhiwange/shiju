@@ -1,9 +1,8 @@
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::tempdir;
-use vibe_agent::app::agent::config::OtpConfig;
-use vibe_agent::app::agent::security::otp::OtpValidator;
-use vibe_agent::app::agent::security::secrets::SecretStore;
+use config_security::OtpConfig;
+use crate::otp::OtpValidator;
+use crate::secrets::SecretStore;
 
 fn test_config() -> OtpConfig {
     OtpConfig { enabled: true, token_ttl_secs: 30, cache_valid_secs: 120, ..OtpConfig::default() }
@@ -65,7 +64,7 @@ fn secret_is_generated_and_reused() {
     let (first, first_uri) = OtpValidator::from_config(&test_config(), dir.path(), &store).unwrap();
     assert!(first_uri.is_some());
 
-    let secret_path = vibe_agent::app::agent::security::otp::secret_file_path(dir.path());
+    let secret_path = crate::otp::secret_file_path(dir.path());
     let stored = fs::read_to_string(&secret_path).unwrap();
     assert!(SecretStore::is_encrypted(stored.trim()));
 

@@ -2,10 +2,10 @@ use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::tempdir;
-use vibe_agent::app::agent::config::{EstopConfig, OtpConfig};
-use vibe_agent::app::agent::security::SecretStore;
-use vibe_agent::app::agent::security::estop::{EstopLevel, EstopManager, ResumeSelector};
-use vibe_agent::app::agent::security::otp::OtpValidator;
+use config_security::{EstopConfig, OtpConfig};
+use crate::SecretStore;
+use crate::estop::{EstopLevel, EstopManager, ResumeSelector};
+use crate::otp::OtpValidator;
 
 fn estop_config(path: &Path) -> EstopConfig {
     EstopConfig {

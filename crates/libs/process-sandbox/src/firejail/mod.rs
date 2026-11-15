@@ -244,3 +244,7 @@ impl Sandbox for FirejailSandbox {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "legacy_security_tests.rs"]
+mod legacy_security_tests;

@@ -732,3 +732,7 @@ pub fn is_public_bind(host: &str) -> bool {
 #[cfg(test)]
 #[path = "pairing_tests.rs"]
 mod pairing_tests;
+
+#[cfg(test)]
+#[path = "pairing_legacy_security_tests.rs"]
+mod legacy_security_tests;

@@ -1,7 +1,7 @@
 use std::process::Command;
 
-use vibe_agent::app::agent::security::Sandbox;
-use vibe_agent::app::agent::security::firejail::FirejailSandbox;
+use crate::Sandbox;
+use crate::firejail::FirejailSandbox;
 
 // 测试 FirejailSandbox 返回正确的沙箱名称
 #[test]

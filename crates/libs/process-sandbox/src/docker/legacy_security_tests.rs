@@ -1,7 +1,7 @@
 use std::process::Command;
 
-use vibe_agent::app::agent::security::Sandbox;
-use vibe_agent::app::agent::security::docker::DockerSandbox;
+use crate::Sandbox;
+use crate::docker::DockerSandbox;
 
 // 测试 Docker 沙箱的名称是否正确返回 "docker"
 #[test]

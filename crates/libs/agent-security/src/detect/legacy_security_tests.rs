@@ -1,5 +1,5 @@
-use vibe_agent::app::agent::config::{SandboxBackend, SandboxConfig, SecurityConfig};
-use vibe_agent::app::agent::security::detect::{create_sandbox, detect_best_sandbox};
+use config_security::{SandboxBackend, SandboxConfig, SecurityConfig};
+use crate::detect::{create_sandbox, detect_best_sandbox};
 
 // 测试 detect_best_sandbox 函数是否返回可用的沙箱
 #[test]

@@ -14,26 +14,8 @@ use {
 };
 use gateway_device_sync::{DeviceSyncOperationsError, DeviceSyncSelection};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum S3Preset {
-    #[default]
-    Aws,
-    Minio,
-    R2,
-    Oss,
-    Custom,
-}
-impl std::fmt::Display for S3Preset {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Aws => "AWS",
-            Self::Minio => "MinIO",
-            Self::R2 => "R2",
-            Self::Oss => "OSS",
-            Self::Custom => "Custom",
-        })
-    }
-}
+pub(crate) use desktop_settings_memory::system_settings_device_sync::s3_modal::S3Preset;
+
 #[derive(Clone)]
 pub(crate) enum Event {
     Open,

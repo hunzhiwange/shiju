@@ -2,28 +2,22 @@
 //!
 //! 连接字符串包含空值、Unicode 与多行内容，确保输入控件不误改原始配置。
 
-use super::*;
-use crate::app::App;
+use crate::view_test_support::*;
+use crate::system_settings_storage::STORAGE_PROVIDER_OPTIONS;
+
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
-fn test_app() -> App {
-    App::new().0
-}
+fn fixture() -> Fixture { Fixture::default() }
 
 fn element_tree(element: Element<'_, Message>) -> Tree {
     Tree::new(element.as_widget())
 }
 
 #[test]
-fn storage_provider_options_keep_supported_order() {
-    assert_eq!(STORAGE_PROVIDER_OPTIONS, ["postgres", "mariadb", "sqlite"]);
-}
-
-#[test]
 fn field_row_builds_help_label_and_control_columns() {
-    let app = test_app();
+    let app = fixture();
     let tree = element_tree(field_row_with_help(&app, "标签", "说明", text("control")));
 
     assert_eq!(tree.children.len(), 2);
@@ -33,7 +27,7 @@ fn field_row_builds_help_label_and_control_columns() {
 
 #[test]
 fn text_row_accepts_empty_unicode_and_multiline_connection_values() {
-    let app = test_app();
+    let app = fixture();
     for value in ["", "数据库.example/记忆", "第一行\n第二行", "🔒 postgres"] {
         let tree = element_tree(text_row_with_help(
             &app,
@@ -51,7 +45,7 @@ fn text_row_accepts_empty_unicode_and_multiline_connection_values() {
 
 #[test]
 fn embedded_view_builds_all_storage_sections_and_field_rows() {
-    let tree = element_tree(embedded_view(&test_app()));
+    let tree = element_tree(embedded_view(&fixture()));
 
     assert_eq!(tree.children.len(), 6);
     for section_index in [0, 2, 4] {
@@ -73,7 +67,7 @@ fn embedded_view_builds_all_storage_sections_and_field_rows() {
 
 #[test]
 fn view_builds_each_supported_and_unknown_provider_state() {
-    let mut app = test_app();
+    let mut app = fixture();
 
     for provider in STORAGE_PROVIDER_OPTIONS {
         app.storage_settings.provider = provider.to_string();
@@ -86,7 +80,7 @@ fn view_builds_each_supported_and_unknown_provider_state() {
 
 #[test]
 fn view_builds_empty_and_populated_connection_states() {
-    let mut app = test_app();
+    let mut app = fixture();
     app.storage_settings.provider.clear();
     app.storage_settings.db_url_input.clear();
     app.storage_settings.schema.clear();

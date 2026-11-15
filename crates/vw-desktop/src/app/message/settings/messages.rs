@@ -5,7 +5,7 @@ use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, ChannelsSettingsTab, CronAddJobType,
     CronAddScheduleKind, CronFrequency, CronListFilter, CronSettingsTab, CustomProviderModelFilter,
     CustomProviderModelTab, CustomProviderTab, McpNewServerTransport,
-    McpSettingsTab, MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
+    McpSettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
     ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
@@ -66,16 +66,7 @@ pub enum ModelRoutesMessage {
 }
 
 /// 存储设置页消息。
-#[derive(Debug, Clone)]
-pub enum StorageMessage {
-    ProviderChanged(String),
-    DbUrlChanged(String),
-    SchemaChanged(String),
-    TableChanged(String),
-    ConnectTimeoutSecsChanged(String),
-    TlsToggled(bool),
-    Save,
-}
+pub use desktop_settings_memory::messages::StorageMessage;
 
 /// 模型配置内的子标签切换消息。
 #[derive(Debug, Clone, Copy)]
@@ -109,35 +100,7 @@ pub enum WebSearchMessage {
 }
 
 /// 记忆系统设置页消息。
-#[derive(Debug, Clone)]
-pub enum MemoryMessage {
-    Refresh,
-    TabSelected(MemorySettingsTab),
-    BackendChanged(String),
-    AutoSaveToggled(bool),
-    HygieneEnabledToggled(bool),
-    ArchiveAfterDaysChanged(u32),
-    PurgeAfterDaysChanged(u32),
-    ConversationRetentionDaysChanged(u32),
-    EmbeddingProviderChanged(String),
-    EmbeddingModelChanged(String),
-    EmbeddingDimensionsChanged(u32),
-    VectorWeightChanged(f32),
-    KeywordWeightChanged(f32),
-    MinRelevanceScoreChanged(f32),
-    EmbeddingCacheSizeChanged(u32),
-    ChunkMaxTokensChanged(u32),
-    ResponseCacheEnabledToggled(bool),
-    ResponseCacheTtlMinutesChanged(u32),
-    ResponseCacheMaxEntriesChanged(u32),
-    SnapshotEnabledToggled(bool),
-    SnapshotOnHygieneToggled(bool),
-    AutoHydrateToggled(bool),
-    SqliteOpenTimeoutSecsChanged(u32),
-    QdrantUrlChanged(String),
-    QdrantCollectionChanged(String),
-    QdrantApiKeyChanged(String),
-}
+pub use desktop_settings_memory::messages::MemoryMessage;
 
 /// HTTP 请求工具设置页消息。
 #[derive(Debug, Clone)]

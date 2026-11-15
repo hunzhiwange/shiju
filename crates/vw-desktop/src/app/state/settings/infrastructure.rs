@@ -281,37 +281,9 @@ impl AutonomySettingsState {
 /// 存储设置面板状态
 ///
 /// 管理持久化存储 provider、连接地址、schema、table 与 TLS 配置。
-#[derive(Debug, Clone)]
-pub(crate) struct StorageSettingsState {
-    /// 存储 provider 标识
-    pub(crate) provider: String,
-    /// 数据库连接 URL 输入
-    pub(crate) db_url_input: String,
-    /// schema 输入
-    pub(crate) schema: String,
-    /// table 输入
-    pub(crate) table: String,
-    /// 连接超时输入（秒）
-    pub(crate) connect_timeout_secs_input: String,
-    /// 是否启用 TLS
-    pub(crate) tls: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
+pub(crate) use desktop_settings_memory::state::StorageSettingsState;
 
-impl Default for StorageSettingsState {
-    fn default() -> Self {
-        Self {
-            provider: String::new(),
-            db_url_input: String::new(),
-            schema: "public".to_string(),
-            table: "memories".to_string(),
-            connect_timeout_secs_input: String::new(),
-            tls: false,
-            save_error: None,
-        }
-    }
-}
+
 
 /// 代理设置面板状态
 ///

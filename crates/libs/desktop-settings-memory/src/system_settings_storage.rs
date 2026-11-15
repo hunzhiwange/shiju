@@ -1,0 +1,158 @@
+//! 系统设置中 storage 配置页面的界面拼装与交互消息转换。
+//!
+//! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
+//! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
+
+use crate::fields::{field_row_with_help, text_row_with_help};
+use desktop_ui_controls::system_settings_common::{
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_group_card,
+    settings_group_heading_with_help, settings_muted_text_style, settings_select,
+    settings_text_input,
+};
+use desktop_i18n::{I18n, settings_runtime::text as runtime_text};
+use crate::{messages::StorageMessage, state::StorageSettingsState};
+
+use iced::widget::{checkbox, column, text};
+use iced::{Element, Length};
+
+pub const STORAGE_PROVIDER_OPTIONS: [&str; 3] = ["postgres", "mariadb", "sqlite"];
+
+/// 构建或处理 `view` 对应的界面片段与交互数据。
+///
+/// # 参数
+///
+/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
+///
+/// # 返回值
+///
+/// 返回可交给 Iced 渲染树使用的 `Element`，其中已绑定必要的消息回调。
+///
+/// # 错误处理
+///
+/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
+pub fn embedded_view<'a>(s: &'a StorageSettingsState, locale: config_ui::DesktopLocale, theme: &iced::Theme) -> Element<'a, StorageMessage> {
+    let i18n = I18n::new(locale);
+
+    let provider_pick = settings_select(
+        STORAGE_PROVIDER_OPTIONS,
+        STORAGE_PROVIDER_OPTIONS.into_iter().find(|option| *option == s.provider.as_str()),
+        |value| {
+            StorageMessage::ProviderChanged(
+                value.to_string(),
+            )
+        },
+    )
+    .width(Length::Fill);
+
+    let provider_row = field_row_with_help(
+        locale, theme,
+        runtime_text(locale, "存储类型"),
+        runtime_text(locale, "选择用于保存记忆的数据库后端。"),
+        provider_pick,
+    );
+
+    let db_url_row = text_row_with_help(
+        locale, theme,
+        runtime_text(locale, "数据库地址"),
+        runtime_text(
+            locale,
+            "远程 SQL 存储使用连接串，例如 postgres://user:pass@db.example:5432/memory。留空时不写入数据库地址。",
+        ),
+        "",
+        &s.db_url_input,
+        |value| {
+            StorageMessage::DbUrlChanged(
+                value,
+            )
+        },
+    );
+
+    let schema_row = text_row_with_help(
+        locale, theme,
+        runtime_text(locale, "Schema 名称"),
+        runtime_text(locale, "存储表所在的数据库 schema，例如 public。"),
+        "",
+        &s.schema,
+        |value| {
+            StorageMessage::SchemaChanged(
+                value,
+            )
+        },
+    );
+
+    let table_row = text_row_with_help(
+        locale, theme,
+        runtime_text(locale, "数据表"),
+        runtime_text(locale, "保存记忆记录的表名，例如 memories。"),
+        "",
+        &s.table,
+        |value| {
+            StorageMessage::TableChanged(
+                value,
+            )
+        },
+    );
+
+    let timeout_row = field_row_with_help(
+        locale, theme,
+        runtime_text(locale, "连接超时"),
+        runtime_text(locale, "留空时不保存连接超时，由存储后端使用默认值。"),
+        column![
+            settings_text_input("", &s.connect_timeout_secs_input)
+                .on_input(StorageMessage::ConnectTimeoutSecsChanged)
+                .width(Length::Fill),
+            text(runtime_text(locale, "整数秒，留空使用默认值"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
+    );
+
+    let tls_row = field_row_with_help(
+        locale, theme,
+        runtime_text(locale, "TLS 加密"),
+        runtime_text(locale, "控制远程存储连接是否启用 TLS。"),
+        column![
+            checkbox(s.tls)
+                .label(runtime_text(locale, "启用存储连接 TLS"))
+                .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+                .on_toggle(StorageMessage::TlsToggled)
+                .style(settings_checkbox_style),
+            text(runtime_text(locale, "关闭后允许未加密的远程连接。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(6),
+    );
+
+    let content = column![
+        settings_group_heading_with_help(
+            i18n,
+            theme,
+            runtime_text(locale, "连接参数"),
+            runtime_text(locale, "选择数据库类型并配置基础连接信息。")
+        ),
+        settings_group_card(column![provider_row, settings_divider(), db_url_row].spacing(0)),
+        settings_group_heading_with_help(
+            i18n,
+            theme,
+            runtime_text(locale, "命名与超时"),
+            runtime_text(locale, "配置 schema、表名和连接超时。")
+        ),
+        settings_group_card(
+            column![schema_row, settings_divider(), table_row, settings_divider(), timeout_row]
+                .spacing(0),
+        ),
+        settings_group_heading_with_help(
+            i18n,
+            theme,
+            runtime_text(locale, "安全"),
+            runtime_text(locale, "配置与远程存储的加密连接策略。")
+        ),
+        settings_group_card(column![tls_row].spacing(0)),
+    ]
+    .spacing(16)
+    .width(Length::Fill);
+
+    content.into()
+}

@@ -1,17 +1,16 @@
 //! 验证记忆后端设置的数值边界、动态标签、字段结构与保存错误。
 //! 仅 Qdrant 后端显示专属标签，非有限数值必须限制到合法范围。
 
-use super::*;
-use crate::app::App;
-use crate::app::state::MemorySettingsTab;
+use crate::view_test_support::*;
+use crate::{messages::MemoryMessage, memory_tabs::{MEMORY_TABS, QDRANT_TAB}};
+
+use crate::state::MemorySettingsTab;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
-// 记忆后端由用例显式选择，防止本机持久配置影响动态标签断言。
-fn test_app() -> App {
-    App::new().0
-}
+// 记忆后端由用例显式选择，验证动态标签。
+fn fixture() -> Fixture { Fixture::default() }
 
 fn element_tree(element: Element<'_, Message>) -> Tree {
     Tree::new(element.as_widget())
@@ -23,24 +22,8 @@ fn system_settings_memory_tests_are_wired() {
 }
 
 #[test]
-fn parse_bounded_number_uses_value_fallback_and_limits() {
-    assert_eq!(parse_bounded_number("12.5", 1.0, 20.0), 12.5);
-    assert_eq!(parse_bounded_number("invalid", 1.0, 20.0), 1.0);
-    assert_eq!(parse_bounded_number("-4", 1.0, 20.0), 1.0);
-    assert_eq!(parse_bounded_number("25", 1.0, 20.0), 20.0);
-}
-
-#[test]
-fn parse_bounded_number_clamps_infinite_values_and_preserves_bounds() {
-    assert_eq!(parse_bounded_number("inf", 1.0, 20.0), 20.0);
-    assert_eq!(parse_bounded_number("-inf", 1.0, 20.0), 1.0);
-    assert_eq!(parse_bounded_number("1", 1.0, 20.0), 1.0);
-    assert_eq!(parse_bounded_number("20", 1.0, 20.0), 20.0);
-}
-
-#[test]
 fn row_helpers_build_expected_control_structure() {
-    let app = test_app();
+    let app = fixture();
     let field = element_tree(field_row_with_help(&app, "标签", "说明", text("control")));
     assert_eq!(field.children.len(), 2);
     assert_eq!(field.children[0].children[0].children.len(), 2);
@@ -48,15 +31,15 @@ fn row_helpers_build_expected_control_structure() {
 
     let text =
         element_tree(text_row_with_help(&app, "地址", "说明", "placeholder", "value", |_| {
-            Message::Settings(SettingsMessage::Memory(MemoryMessage::QdrantUrlChanged(
+            Message::Memory(MemoryMessage::QdrantUrlChanged(
                 "changed".to_string(),
-            )))
+            ))
         }));
     assert!(text.children[1].children.is_empty());
 
     let boolean =
-        element_tree(bool_row(&test_app(), "启用", "说明", true, "启用记忆", |value| {
-            Message::Settings(SettingsMessage::Memory(MemoryMessage::AutoSaveToggled(value)))
+        element_tree(bool_row(&fixture(), "启用", "说明", true, "启用记忆", |value| {
+            Message::Memory(MemoryMessage::AutoSaveToggled(value))
         }));
     assert!(boolean.children[1].children.is_empty());
 
@@ -69,9 +52,9 @@ fn row_helpers_build_expected_control_structure() {
         1.0,
         0,
         |value| {
-            Message::Settings(SettingsMessage::Memory(MemoryMessage::EmbeddingCacheSizeChanged(
+            Message::Memory(MemoryMessage::EmbeddingCacheSizeChanged(
                 value.round() as u32,
-            )))
+            ))
         },
     ));
     assert_eq!(number.children[1].children.len(), 2);
@@ -79,7 +62,7 @@ fn row_helpers_build_expected_control_structure() {
 
 #[test]
 fn view_shows_qdrant_tab_only_for_qdrant_backend() {
-    let mut app = test_app();
+    let mut app = fixture();
 
     for backend in ["sqlite", "postgres", "chroma", "markdown", "null", "unknown"] {
         app.memory_settings.backend = backend.to_string();
@@ -92,7 +75,7 @@ fn view_shows_qdrant_tab_only_for_qdrant_backend() {
 
 #[test]
 fn view_builds_intro_tabs_and_selected_section() {
-    let mut app = test_app();
+    let mut app = fixture();
     app.memory_settings.backend = "sqlite".to_string();
 
     let sqlite = element_tree(view(&app));
@@ -110,7 +93,7 @@ fn view_builds_intro_tabs_and_selected_section() {
 
 #[test]
 fn memory_save_error_banner_follows_dynamic_tabs() {
-    let mut app = test_app();
+    let mut app = fixture();
     app.memory_settings.save_error = Some("memory save failed".to_string());
     app.storage_settings.save_error = Some("storage save failed".to_string());
 
@@ -136,7 +119,7 @@ fn memory_save_error_banner_follows_dynamic_tabs() {
 
 #[test]
 fn view_switches_between_memory_configuration_tabs() {
-    let mut app = test_app();
+    let mut app = fixture();
 
     for tab in [
         MemorySettingsTab::General,
@@ -156,7 +139,7 @@ fn view_switches_between_memory_configuration_tabs() {
 
 #[test]
 fn view_builds_boundary_memory_state() {
-    let mut custom = test_app();
+    let mut custom = fixture();
 
     custom.memory_settings.backend = "qdrant".to_string();
     custom.memory_settings.auto_save = false;

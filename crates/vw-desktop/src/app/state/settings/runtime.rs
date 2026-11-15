@@ -191,79 +191,11 @@ impl Default for CostSettingsState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MemorySettingsTab {
-    General,
-    RetentionAndCache,
-    Embedding,
-    EmbeddingRoutes,
-    Storage,
-    Qdrant,
-}
+pub use desktop_settings_memory::state::MemorySettingsTab;
 
-#[derive(Debug, Clone)]
-pub(crate) struct MemorySettingsState {
-    /// 当前显示的记忆配置页签
-    pub(crate) active_tab: MemorySettingsTab,
-    pub(crate) backend: String,
-    pub(crate) auto_save: bool,
-    pub(crate) hygiene_enabled: bool,
-    pub(crate) archive_after_days: u32,
-    pub(crate) purge_after_days: u32,
-    pub(crate) conversation_retention_days: u32,
-    pub(crate) embedding_provider: String,
-    pub(crate) embedding_model: String,
-    pub(crate) embedding_dimensions: u32,
-    pub(crate) vector_weight: f32,
-    pub(crate) keyword_weight: f32,
-    pub(crate) min_relevance_score: f32,
-    pub(crate) embedding_cache_size: u32,
-    pub(crate) chunk_max_tokens: u32,
-    pub(crate) response_cache_enabled: bool,
-    pub(crate) response_cache_ttl_minutes: u32,
-    pub(crate) response_cache_max_entries: u32,
-    pub(crate) snapshot_enabled: bool,
-    pub(crate) snapshot_on_hygiene: bool,
-    pub(crate) auto_hydrate: bool,
-    pub(crate) sqlite_open_timeout_secs: u32,
-    pub(crate) qdrant_url_input: String,
-    pub(crate) qdrant_collection: String,
-    pub(crate) qdrant_api_key_input: String,
-    pub(crate) save_error: Option<String>,
-}
+pub(crate) use desktop_settings_memory::state::MemorySettingsState;
 
-impl Default for MemorySettingsState {
-    fn default() -> Self {
-        Self {
-            active_tab: MemorySettingsTab::General,
-            backend: "sqlite".to_string(),
-            auto_save: true,
-            hygiene_enabled: true,
-            archive_after_days: 7,
-            purge_after_days: 30,
-            conversation_retention_days: 30,
-            embedding_provider: "none".to_string(),
-            embedding_model: "text-embedding-3-small".to_string(),
-            embedding_dimensions: 1536,
-            vector_weight: 0.7,
-            keyword_weight: 0.3,
-            min_relevance_score: 0.4,
-            embedding_cache_size: 10_000,
-            chunk_max_tokens: 512,
-            response_cache_enabled: false,
-            response_cache_ttl_minutes: 60,
-            response_cache_max_entries: 5_000,
-            snapshot_enabled: false,
-            snapshot_on_hygiene: false,
-            auto_hydrate: true,
-            sqlite_open_timeout_secs: 0,
-            qdrant_url_input: String::new(),
-            qdrant_collection: "vibewindow_memories".to_string(),
-            qdrant_api_key_input: String::new(),
-            save_error: None,
-        }
-    }
-}
+
 
 #[cfg(test)]
 #[path = "runtime_tests.rs"]

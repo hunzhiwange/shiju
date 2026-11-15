@@ -38,6 +38,7 @@ desktop-editor = { path = "../libs/desktop-editor", version = "0.6.0" }
 desktop-settings-shell = { path = "../libs/desktop-settings-shell", version = "0.6.0" }
 desktop-settings-network = { path = "../libs/desktop-settings-network", version = "0.6.0" }
 desktop-ui-controls = { path = "../libs/desktop-ui-controls", version = "0.6.0" }
+desktop-settings-memory = { path = "../libs/desktop-settings-memory", version = "0.6.0" }
 desktop-settings-cron = { path = "../libs/desktop-settings-cron", version = "0.6.0" }
 desktop-settings-security = { path = "../libs/desktop-settings-security", version = "0.6.0" }
 vw-api-types = { path = "../vw-api-types", version = "0.6.0" }

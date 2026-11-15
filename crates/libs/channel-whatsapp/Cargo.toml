@@ -1,0 +1,24 @@
+[package]
+name = "channel-whatsapp"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-providers = { path = "../agent-providers", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+channel-support = { path = "../channel-support", version = "0.6.0" }
+channel-types = { path = "../channel-types", version = "0.6.0" }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "time"] }
+tracing = "0.1"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[dev-dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0" }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "time"] }

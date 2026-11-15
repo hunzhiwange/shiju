@@ -45,6 +45,7 @@ session-port = { path = "../libs/session-port", version = "0.6.0" }
 channel-types = { path = "../libs/channel-types", version = "0.6.0" }
 channel-cli = { path = "../libs/channel-cli", version = "0.6.0" }
 channel-support = { path = "../libs/channel-support", version = "0.6.0" }
+channel-whatsapp = { path = "../libs/channel-whatsapp", version = "0.6.0" }
 runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
 gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-app = { path = "../libs/gateway-shiju-app", version = "0.6.0" }

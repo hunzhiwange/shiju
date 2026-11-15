@@ -76,7 +76,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn whatsapp_send_and_health_check_fail_with_unreachable_proxy() {
-        use crate::app::agent::config::{
+        use agent_config::schema::{
             ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config,
         };
 
@@ -112,7 +112,7 @@ mod tests {
         let _proxy_lock = crate::test_support::global_runtime_proxy_lock()
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        crate::app::agent::config::set_runtime_proxy_config(Default::default());
+        agent_config::schema::set_runtime_proxy_config(Default::default());
         let ch = WhatsAppChannel::new_with_api_base_url(
             "bad-token".into(),
             "0".into(),
@@ -1199,7 +1199,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn whatsapp_send_reports_graph_error_response() {
-        use crate::app::agent::config::{runtime_proxy_config, set_runtime_proxy_config};
+        use agent_config::schema::{runtime_proxy_config, set_runtime_proxy_config};
 
         let _proxy_lock = crate::test_support::global_runtime_proxy_lock()
             .lock()

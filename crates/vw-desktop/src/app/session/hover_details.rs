@@ -1,7 +1,7 @@
 //! Read server-owned session metadata only when its sidebar details are requested.
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::vw_api_types::chat::SessionAgentIdentity;
+use vw_api_chat_identity::SessionAgentIdentity;
 
 #[derive(Debug, Clone, Default)]
 pub struct SessionHoverDetails {

@@ -285,16 +285,16 @@ pub(crate) fn parse_acp_options(
     }
 
     if let Some(value) = merged_options.get("reasoning_effort") {
-        let effort = serde_json::from_value::<vw_api_types::ReasoningEffortDto>(value.clone())
+        let effort = serde_json::from_value::<vw_api_chat_identity::ReasoningEffortDto>(value.clone())
             .map_err(|_| acp_option_error("reasoning_effort must be a supported string"))?;
         let value = match effort {
-            vw_api_types::ReasoningEffortDto::None => "none",
-            vw_api_types::ReasoningEffortDto::Low => "low",
-            vw_api_types::ReasoningEffortDto::Medium => "medium",
-            vw_api_types::ReasoningEffortDto::High => "high",
-            vw_api_types::ReasoningEffortDto::Xhigh => "xhigh",
-            vw_api_types::ReasoningEffortDto::Max => "max",
-            vw_api_types::ReasoningEffortDto::Minimal => "minimal",
+            vw_api_chat_identity::ReasoningEffortDto::None => "none",
+            vw_api_chat_identity::ReasoningEffortDto::Low => "low",
+            vw_api_chat_identity::ReasoningEffortDto::Medium => "medium",
+            vw_api_chat_identity::ReasoningEffortDto::High => "high",
+            vw_api_chat_identity::ReasoningEffortDto::Xhigh => "xhigh",
+            vw_api_chat_identity::ReasoningEffortDto::Max => "max",
+            vw_api_chat_identity::ReasoningEffortDto::Minimal => "minimal",
         };
         let config_id =
             resolve_compatible_config_id(acp_agent_name, &acp_cfg.command, "reasoning_effort");

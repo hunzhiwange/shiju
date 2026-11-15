@@ -378,7 +378,7 @@ async fn ui_refresh_35_preserves_values_and_disabled_states() {
         return;
     }
     use crate::app::views::task_board::panel::build_bulk_reasoning_effort_selector;
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::English;

@@ -241,7 +241,7 @@ fn execute_gateway_prompt_with_streaming_in_mode(
     prompt: &str,
     agent: Option<String>,
     acp_agent: Option<String>,
-    reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     sender: Option<&Sender<TaskLogStream>>,
     session_mode: GatewayPromptSessionMode,
     idle_timeout: Option<Duration>,
@@ -357,7 +357,7 @@ fn gateway_task_stream_request(
     prompt: &str,
     agent: Option<String>,
     acp_agent: Option<String>,
-    reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     session_mode: GatewayPromptSessionMode,
 ) -> vw_gateway_client::GatewayChatStreamRequest {
     let acp_enabled = acp_agent.is_some();

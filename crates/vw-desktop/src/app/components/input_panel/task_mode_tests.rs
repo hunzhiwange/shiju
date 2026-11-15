@@ -7,7 +7,7 @@ use super::task_mode::{
 use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message};
 use iced::Length;
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 fn test_app() -> App {
     App::new().0

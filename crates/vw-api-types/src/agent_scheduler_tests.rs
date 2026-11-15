@@ -25,7 +25,7 @@ use super::agent_scheduler::{
     AgentSchedulerWakeResponse, AgentSchedulerWorkspaceContextDto, AgentTaskDto, AgentTaskKindDto,
     AgentTaskStatusDto, TaskDependencyNodeDto,
 };
-use super::chat::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 use super::common::TimestampMs;
 use super::id::{
     CompanyId, DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, PlatformId, ProjectId, ProjectScope,

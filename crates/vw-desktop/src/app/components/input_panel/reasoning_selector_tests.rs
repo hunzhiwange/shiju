@@ -7,7 +7,7 @@ use super::reasoning_selector::{
 };
 use crate::app::message::chat;
 use crate::app::{Message, message};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 #[test]
 fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {

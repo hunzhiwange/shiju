@@ -875,7 +875,7 @@ fn reasoning_and_send_preferences_preserve_unrelated_sessions_and_remove_legacy_
     use serde_json::{Value, json};
     use std::sync::mpsc;
     use std::time::Duration;
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let (_lock, _home, _guard) = temp_home();
     let (mut app, _) = App::new();

@@ -397,7 +397,7 @@ fn task_draft_defaults_match_task_creation_defaults() {
 
 #[test]
 fn task_reasoning_effort_imports_roundtrip() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let json = super::parse_task_import_content(
         r#"[
@@ -480,7 +480,7 @@ fn task_split_mode_aliases_labels_and_system_override_are_stable() {
 
 #[test]
 fn task_import_json_maps_optional_fields_and_rejects_invalid_shapes() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let records = super::parse_task_import_content(
         r#"[
@@ -527,7 +527,7 @@ fn task_import_json_maps_optional_fields_and_rejects_invalid_shapes() {
 
 #[test]
 fn task_import_delimited_content_supports_localized_headers_and_reports_missing_prompt() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let records = super::parse_task_import_content(
         "优先级\t提示词\t模型\t代理\t智能体\t推理强度\t任务拆分\n12\t 写测试 \t auto \t main \t codex \t low \t no\n\ninvalid\t second ",

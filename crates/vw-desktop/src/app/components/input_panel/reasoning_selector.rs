@@ -4,7 +4,7 @@ use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 use super::dark_tooltip_content;
 use super::icons::icon_svg;

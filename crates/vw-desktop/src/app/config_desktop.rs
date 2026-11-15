@@ -313,7 +313,7 @@ impl App {
 /// 独立解码每个会话，避免未知值影响其它会话的偏好恢复。
 pub(crate) fn session_reasoning_efforts_from_config(
     cfg: &serde_json::Value,
-) -> std::collections::HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>
+) -> std::collections::HashMap<String, Option<vw_api_chat_identity::ReasoningEffortDto>>
 {
     cfg.get(REASONING_EFFORTS)
         .and_then(serde_json::Value::as_object)

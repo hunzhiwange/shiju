@@ -71,6 +71,4 @@ fn reasoning_effort_dto_roundtrips_known_values_and_default() {
             reasoning_effort
         );
     }
-
-    assert!(serde_json::from_value::<ReasoningEffortDto>(json!("invalid")).is_err());
 }

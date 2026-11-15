@@ -26,7 +26,7 @@ use crate::app::components::system_settings_common::settings_segment_button_styl
 use crate::app::state::ChatSendBehavior;
 use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message, message};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 const MAIN_SEND_BUTTON_SIZE: f32 = BOTTOM_BAR_ICON_BUTTON_SIZE;
 const MAIN_SEND_ICON_SIZE: f32 = BOTTOM_BAR_ICON_SIZE;

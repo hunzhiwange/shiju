@@ -210,7 +210,7 @@ fn gateway_stream_request_without_agent_or_acp_keeps_minimal_options() -> Result
 #[test]
 fn gateway_stream_request_preserves_reasoning_effort_without_acp() -> Result<()> {
     let mut request = execution_request(None, None)?;
-    request.reasoning_effort = Some(vw_api_types::ReasoningEffortDto::High);
+    request.reasoning_effort = Some(vw_api_chat_identity::ReasoningEffortDto::High);
     let stream = gateway_local_agent_stream_request(&request);
     assert_eq!(stream.reasoning_effort, request.reasoning_effort);
     assert_eq!(stream.acp_agent, None);

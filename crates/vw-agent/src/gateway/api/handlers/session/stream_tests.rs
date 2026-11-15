@@ -801,7 +801,7 @@ fn merge_gateway_request_options_replaces_non_object_options_with_object() {
 
 #[test]
 fn chat_reasoning_effort_reaches_acp_and_model_options() {
-    use vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     for (effort, expected) in [
         (ReasoningEffortDto::High, "high"),
@@ -1088,7 +1088,7 @@ fn merge_gateway_request_options_fills_missing_agent_defaults() {
 
 #[test]
 fn merge_gateway_request_options_existing_acp_request_reuses_allowed_tools() {
-    use vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let options = merge_gateway_request_options(
         Some(serde_json::json!({"acp_test": true})),

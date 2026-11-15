@@ -149,7 +149,7 @@ pub(crate) struct AgentRequest {
     pub(crate) root: Option<String>,
     /// 要使用的模型标识符（可选，使用默认模型）
     pub(crate) model: Option<String>,
-    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     pub(crate) acp_test: bool,
     pub(crate) acp_model_source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,
     pub(crate) acp_agent: Option<String>,
@@ -199,7 +199,7 @@ pub(crate) struct QueueItem {
     pub(crate) root: Option<String>,
     /// 要使用的模型标识符（可选）
     pub(crate) model: Option<String>,
-    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     pub(crate) acp_test: bool,
     pub(crate) acp_model_source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,
     pub(crate) acp_agent: Option<String>,
@@ -502,7 +502,7 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) auto_model: bool,
     /// 是否等待从历史步骤恢复该会话自己的模型。
     pub(crate) restore_model_from_history: bool,
-    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     pub(crate) tool_selector: SessionToolSelectorState,
     /// 是否启用任务模式
     pub(crate) task_mode_enabled: bool,
@@ -518,7 +518,7 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) task_mode_executor: Option<String>,
     /// 任务模式使用的推理强度；`None` 表示沿用模型或 ACP 智能体默认值
     pub(crate) task_mode_reasoning_effort:
-        Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+        Option<vw_api_chat_identity::ReasoningEffortDto>,
     /// 任务模式的任务拆分策略
     pub(crate) task_mode_task_split_mode: crate::app::task::TaskSplitMode,
     /// 任务模式的子任务列表

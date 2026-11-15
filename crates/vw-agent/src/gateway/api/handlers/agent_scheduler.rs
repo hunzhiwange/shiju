@@ -18,7 +18,7 @@ use futures_util::stream;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
-use vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_types::agent_scheduler::{
     AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto,
     AgentOutboxMessageStatusDto, AgentRunDto, AgentRunStatusDto, AgentSchedulerBulkCommandRequest,

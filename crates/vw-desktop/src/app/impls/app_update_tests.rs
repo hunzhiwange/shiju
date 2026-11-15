@@ -729,7 +729,7 @@ fn app_update_late_bootstrap_preserves_checked_release() {
 
 #[test]
 fn bootstrap_reasoning_effort_restores_open_history_and_preserves_local_default_selection() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let mut app = test_app();
     app.session_reasoning_efforts.clear();

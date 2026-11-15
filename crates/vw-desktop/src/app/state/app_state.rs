@@ -180,7 +180,7 @@ pub struct App {
     pub(crate) model: String,
     /// 是否自动选择模型
     pub(crate) auto_model: bool,
-    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     pub(crate) acp_agent: Option<String>,
     pub(crate) acp_history_mode: AcpHistoryReplayMode,
     pub(crate) acp_recent_count: usize,
@@ -532,7 +532,7 @@ pub struct App {
     pub(crate) session_runtime_states: HashMap<String, SessionRuntimeState>,
     /// 持久化的会话推理强度；缺省表示使用模型默认值。
     pub(crate) session_reasoning_efforts:
-        HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>,
+        HashMap<String, Option<vw_api_chat_identity::ReasoningEffortDto>>,
     pub(crate) last_llm_full_access: Option<bool>,
     /// 已归档的会话 ID 集合
     pub(crate) archived_session_ids: HashSet<String>,
@@ -1224,7 +1224,7 @@ pub struct App {
     pub task_board_bulk_acp_agent: Option<String>,
     /// 任务看板批量设置推理强度
     pub task_board_bulk_reasoning_effort:
-        Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+        Option<vw_api_chat_identity::ReasoningEffortDto>,
     /// 任务看板批量设置任务拆分模式
     pub task_board_bulk_task_split_mode: crate::app::task::TaskSplitMode,
     /// 任务看板手动批量合并队列

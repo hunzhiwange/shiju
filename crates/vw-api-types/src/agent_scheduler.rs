@@ -3,7 +3,7 @@
 //! 本模块只定义调度器边界上的中性序列化协议，用于表达任务、运行 lease、
 //! Worker/Team 能力、资源 lease、事件与 outbox 消息；不承载执行逻辑。
 
-use crate::chat::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 use crate::common::TimestampMs;
 use crate::id::{IdValidationError, ProjectId, ProjectScope, TaskId};
 use crate::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};

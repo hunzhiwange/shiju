@@ -1,7 +1,7 @@
 //! Model catalog wire contracts shared by the gateway, SDK and clients.
+use vw_api_chat_identity::ReasoningEffortDto;
 use crate::{
     agent_apps::AppId,
-    chat::ReasoningEffortDto,
     common::{PaginationRequest, TimestampMs},
     id::{ModelId, TaskId, TenantScope},
 };

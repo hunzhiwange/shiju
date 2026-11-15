@@ -330,7 +330,7 @@ fn gateway_prompt_options_continue_existing_reuses_acp_session() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn task_reasoning_effort_is_reused_for_plan_execution_review_and_continue() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     for (stage, mode) in [
         ("plan", super::GatewayPromptSessionMode::Fresh),
@@ -1338,7 +1338,7 @@ fn gateway_task_stream_request_maps_delegate_route_and_auto_model() {
         "run task",
         Some("delegate-agent".to_string()),
         None,
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh),
+        Some(vw_api_chat_identity::ReasoningEffortDto::Xhigh),
         super::GatewayPromptSessionMode::Fresh,
     );
     let value = serde_json::to_value(request).expect("request should serialize");

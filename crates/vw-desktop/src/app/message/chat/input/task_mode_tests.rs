@@ -32,7 +32,7 @@ fn task_mode_scalar_settings_update_current_runtime() {
     handle_task_mode_executor_changed(&mut app, Some("codex".to_string()));
     handle_task_mode_reasoning_effort_changed(
         &mut app,
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),
+        Some(vw_api_chat_identity::ReasoningEffortDto::High),
     );
     handle_task_mode_task_split_mode_changed(&mut app, TaskSplitMode::Enabled);
 
@@ -44,7 +44,7 @@ fn task_mode_scalar_settings_update_current_runtime() {
     assert_eq!(runtime.task_mode_executor.as_deref(), Some("codex"));
     assert_eq!(
         runtime.task_mode_reasoning_effort,
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)
+        Some(vw_api_chat_identity::ReasoningEffortDto::High)
     );
     assert_eq!(runtime.task_mode_task_split_mode, TaskSplitMode::Enabled);
 
@@ -88,7 +88,7 @@ fn goal_mode_stays_enabled_and_independent_from_workflow() {
 fn task_mode_reasoning_effort_can_be_cleared() {
     let mut app = test_app();
     app.current_session_runtime_mut().task_mode_reasoning_effort =
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);
+        Some(vw_api_chat_identity::ReasoningEffortDto::High);
 
     handle_task_mode_reasoning_effort_changed(&mut app, None);
 

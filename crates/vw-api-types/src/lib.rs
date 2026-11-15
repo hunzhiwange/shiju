@@ -127,7 +127,7 @@ mod workflow_tests;
 #[path = "worktree_tests.rs"]
 mod worktree_tests;
 
-pub use chat::ReasoningEffortDto;
+pub use vw_api_chat_identity::ReasoningEffortDto;
 pub use common::*;
 pub use error::*;
 pub use id::*;

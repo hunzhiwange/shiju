@@ -1959,7 +1959,7 @@ fn gateway_local_agent_stream_request_forwards_execution_selection() {
         model: Some("deepseek/deepseek-v4-flash".to_string()),
         agent: None,
         acp_agent: Some("codex".to_string()),
-        reasoning_effort: Some(vw_api_types::ReasoningEffortDto::High),
+        reasoning_effort: Some(vw_api_chat_identity::ReasoningEffortDto::High),
         workspace: crate::agent_scheduler::runner::local::LocalAgentWorkspace {
             slot_id: Some("slot-deepseek".to_string()),
             path: "/tmp/project-root/worktrees/slot-deepseek".to_string(),
@@ -1972,7 +1972,7 @@ fn gateway_local_agent_stream_request_forwards_execution_selection() {
     assert_eq!(body.model.as_deref(), Some("deepseek/deepseek-v4-flash"));
     assert_eq!(body.agent, None);
     assert_eq!(body.acp_agent.as_deref(), Some("codex"));
-    assert_eq!(body.reasoning_effort, Some(vw_api_types::ReasoningEffortDto::High));
+    assert_eq!(body.reasoning_effort, Some(vw_api_chat_identity::ReasoningEffortDto::High));
     assert_eq!(body.messages[0]["content"], "Use the selected model");
     let options = body.options.expect("gateway options");
     assert_eq!(options["cwd"], "/tmp/project-root/worktrees/slot-deepseek");

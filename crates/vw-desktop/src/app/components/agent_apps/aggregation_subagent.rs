@@ -8,9 +8,8 @@ use iced::{
     Element, Length,
     widget::{button, checkbox, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::{
-    ReasoningEffortDto, agent_apps::aggregation::AggregationNotice,
-};
+use vw_api_chat_identity::ReasoningEffortDto;
+use vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationNotice;
 #[derive(Clone, PartialEq)]
 struct ModelOption {
     id: Option<String>,

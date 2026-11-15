@@ -23,7 +23,7 @@ pub type SharedChatMessages = Arc<[ChatMessage]>;
 #[derive(Debug, Clone)]
 pub struct PreparedSessionOpen {
     pub session_id: String,
-    pub agent_binding: Option<vw_gateway_client::vw_api_types::chat::SessionAgentIdentity>,
+    pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
     pub full_access: Option<bool>,
     pub messages: Vec<ChatMessage>,
     pub message_ids: Vec<Option<String>>,

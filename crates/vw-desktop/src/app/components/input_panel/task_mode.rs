@@ -34,7 +34,7 @@ use crate::app::i18n::I18n;
 use crate::app::state::SessionRuntimeState;
 use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message, message};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,

@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
-use vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerLegacyTaskImportDto,
     AgentSchedulerMoveTaskPayloadDto, AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,

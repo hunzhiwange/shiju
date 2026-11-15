@@ -94,7 +94,7 @@ fn local_runner_success_completes_default_finite_task() -> Result<()> {
     assert_eq!(requests[0].model.as_deref(), Some("deepseek/deepseek-v4-flash"));
     assert_eq!(requests[0].agent, None);
     assert_eq!(requests[0].acp_agent.as_deref(), Some("codex"));
-    assert_eq!(requests[0].reasoning_effort, Some(vw_api_types::ReasoningEffortDto::High));
+    assert_eq!(requests[0].reasoning_effort, Some(vw_api_chat_identity::ReasoningEffortDto::High));
 
     Ok(())
 }
@@ -117,7 +117,7 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
     let requests = executor.requests.lock().expect("requests lock");
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].acp_agent.as_deref(), Some("codex"));
-    assert_eq!(requests[0].reasoning_effort, Some(vw_api_types::ReasoningEffortDto::High));
+    assert_eq!(requests[0].reasoning_effort, Some(vw_api_chat_identity::ReasoningEffortDto::High));
     Ok(())
 }
 
@@ -141,7 +141,7 @@ fn local_runner_forwards_task_reasoning_effort_to_model_execution() -> Result<()
     let requests = executor.requests.lock().expect("requests lock");
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].acp_agent, None);
-    assert_eq!(requests[0].reasoning_effort, Some(vw_api_types::ReasoningEffortDto::High));
+    assert_eq!(requests[0].reasoning_effort, Some(vw_api_chat_identity::ReasoningEffortDto::High));
     Ok(())
 }
 

@@ -6,7 +6,7 @@ use iced::time::{Duration, Instant};
 use iced::{
     Border, Color, Degrees, Element, Event, Length, Point, Rectangle, Size, Theme, gradient,
 };
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 use super::{HANDLE_RADIUS, SLIDER_HEIGHT, SLIDER_WIDTH, reasoning_effort_message};
 use crate::app::Message;

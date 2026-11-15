@@ -5,7 +5,8 @@ use std::collections::HashSet;
 use serde::Deserialize;
 use serde_json::Value;
 use toml_edit::Value as TomlValue;
-use vw_api_types::{ReasoningEffortDto, agent_apps::AppId};
+use vw_api_chat_identity::ReasoningEffortDto;
+use vw_api_types::agent_apps::AppId;
 
 use super::codex_catalog::CodexCatalogError;
 use super::model_ids::{self, Decoded};

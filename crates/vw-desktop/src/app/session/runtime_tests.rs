@@ -490,7 +490,7 @@ fn sync_active_session_preferences_preserves_global_model_and_syncs_other_values
     assert!(!app.auto_model);
 
     let mut runtime = SessionRuntimeState::with_defaults("session-model".to_string(), true);
-    runtime.reasoning_effort = Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);
+    runtime.reasoning_effort = Some(vw_api_chat_identity::ReasoningEffortDto::High);
     runtime.acp_agent = Some("session-acp".to_string());
     runtime.acp_history_mode = AcpHistoryReplayMode::Recent;
     runtime.acp_recent_count = 12;
@@ -503,7 +503,7 @@ fn sync_active_session_preferences_preserves_global_model_and_syncs_other_values
     assert!(!app.auto_model);
     assert_eq!(
         app.reasoning_effort,
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)
+        Some(vw_api_chat_identity::ReasoningEffortDto::High)
     );
     assert_eq!(app.acp_agent.as_deref(), Some("session-acp"));
     assert_eq!(app.acp_history_mode, AcpHistoryReplayMode::Recent);
@@ -664,7 +664,7 @@ fn advance_status_animation_frame_expires_old_summary_animation() {
 
 #[test]
 fn historical_session_restores_persisted_reasoning_effort_without_affecting_model_restore() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let mut app = test_app();
     let cfg = serde_json::json!({

@@ -324,7 +324,7 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "task".into(),
         "5".into(),
         "provider/model".into(),
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),
+        Some(vw_api_chat_identity::ReasoningEffortDto::High),
         TaskSplitMode::Enabled,
         vec!["sub".into()],
     );

@@ -315,7 +315,7 @@ fn session_open_page_becomes_ready_from_latest_page_without_heavy_state() {
 #[test]
 fn agent_unified_selection_bounded_load_preserves_trusted_identity() {
     let mut summary = bounded_summary(0);
-    summary.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {
+    summary.agent_binding = Some(vw_api_chat_identity::SessionAgentIdentity {
         agent: "acp-codex".into(),
         label: Some("编程助手".into()),
         acp_agent: Some("codex".into()),

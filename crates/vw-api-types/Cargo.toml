@@ -8,6 +8,7 @@ description = "API types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["std"] }

@@ -333,7 +333,7 @@ pub enum ChatMessage {
         session_id: String,
         result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
     },
-    ReasoningEffortSelected(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
+    ReasoningEffortSelected(Option<vw_api_chat_identity::ReasoningEffortDto>),
     SessionAgentSelected(Option<String>),
     AgentRecommendedPromptSelected(usize),
     AgentInstallationStatusesLoaded(Result<std::collections::BTreeMap<String, bool>, String>),
@@ -431,7 +431,7 @@ pub enum ChatMessage {
     TaskModeExecutorChanged(Option<String>),
 
     /// 切换任务模式使用的推理强度
-    TaskModeReasoningEffortChanged(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
+    TaskModeReasoningEffortChanged(Option<vw_api_chat_identity::ReasoningEffortDto>),
 
     /// 任务模式模型变化
     ///

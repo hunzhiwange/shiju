@@ -3,7 +3,7 @@
 use std::fmt;
 
 use iced::{Element, Length};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 use crate::app::components::input_panel::reasoning_selector::{
     model_reasoning_effort_options, reasoning_effort_label, reasoning_effort_options,

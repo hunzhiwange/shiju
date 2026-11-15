@@ -89,21 +89,21 @@ pub(crate) fn gateway_stream_request_from_state(
         reasoning_effort: match submission.execution.effort {
             ReasoningEffort::Auto => None,
             ReasoningEffort::None => {
-                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::None)
+                Some(vw_api_chat_identity::ReasoningEffortDto::None)
             }
-            ReasoningEffort::Max => Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Max),
+            ReasoningEffort::Max => Some(vw_api_chat_identity::ReasoningEffortDto::Max),
             ReasoningEffort::Minimal => {
-                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Minimal)
+                Some(vw_api_chat_identity::ReasoningEffortDto::Minimal)
             }
-            ReasoningEffort::Low => Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Low),
+            ReasoningEffort::Low => Some(vw_api_chat_identity::ReasoningEffortDto::Low),
             ReasoningEffort::Medium => {
-                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium)
+                Some(vw_api_chat_identity::ReasoningEffortDto::Medium)
             }
             ReasoningEffort::High => {
-                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)
+                Some(vw_api_chat_identity::ReasoningEffortDto::High)
             }
             ReasoningEffort::XHigh => {
-                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh)
+                Some(vw_api_chat_identity::ReasoningEffortDto::Xhigh)
             }
         },
         agent: submission.execution.delegate_agent.clone(),

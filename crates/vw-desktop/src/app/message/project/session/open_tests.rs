@@ -1546,7 +1546,7 @@ fn fork_selection_reopen_late_inherited_binding_keeps_explicit_native_selection(
         false,
     );
     prepared.full_access = Some(true);
-    prepared.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {
+    prepared.agent_binding = Some(vw_api_chat_identity::SessionAgentIdentity {
         agent: "acp-claude".into(),
         acp_agent: Some("claude".into()),
         label: Some("Inherited Claude".into()),

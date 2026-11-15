@@ -4,7 +4,7 @@ use super::*;
 use crate::app::App;
 use crate::app::message::{self, ChatMessage, TaskBoardMessage};
 use crate::app::task::{Task, TaskStatus};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 
 #[test]
 fn reasoning_option_formats_automatic_and_explicit_efforts() {

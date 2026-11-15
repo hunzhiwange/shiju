@@ -356,7 +356,7 @@ pub struct GatewaySessionMessagePageQuery {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GatewaySessionUiSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent_binding: Option<crate::chat::SessionAgentIdentity>,
+    pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub full_access: Option<bool>,
     pub id: String,

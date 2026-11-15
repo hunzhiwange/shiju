@@ -47,25 +47,7 @@ pub enum MessageStatus {
     Error,
 }
 
-/// 单次调用覆盖的推理强度。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReasoningEffortDto {
-    /// 显式关闭推理。
-    None,
-    /// 最低推理强度。
-    Minimal,
-    /// 低推理强度。
-    Low,
-    /// 中等推理强度。
-    Medium,
-    /// 高推理强度。
-    High,
-    /// 超高推理强度。
-    Xhigh,
-    /// 最大推理强度。
-    Max,
-}
+pub use vw_api_chat_identity::{ReasoningEffortDto, SessionAgentIdentity};
 
 /// 消息内容片段。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -349,13 +331,4 @@ pub enum ChatEvent {
     SessionUpdated(SessionUpdatedEvent),
     Error(ChatErrorEvent),
     Done(DoneEvent),
-}
-
-/// Read-only UI projection of a server-owned session agent binding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SessionAgentIdentity {
-    pub agent: String,
-    pub label: Option<String>,
-    /// Absent for the native engine; otherwise a stable ACP backend key.
-    pub acp_agent: Option<String>,
 }

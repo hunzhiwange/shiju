@@ -135,7 +135,7 @@ pub struct AggregationDefaultRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CodexSettingsValues {
     pub subagent_model_id: Option<String>,
-    pub subagent_effort: Option<crate::ReasoningEffortDto>,
+    pub subagent_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
     pub auto_review_model_id: Option<String>,
     pub classic_tools: bool,
 }
@@ -154,7 +154,7 @@ impl Default for CodexSettingsValues {
 pub struct CodexSettingsChoice {
     pub model_id: String,
     pub label: String,
-    pub efforts: Vec<crate::ReasoningEffortDto>,
+    pub efforts: Vec<vw_api_chat_identity::ReasoningEffortDto>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -59,8 +59,8 @@ impl AgentBinding {
         definition.enabled = true;
     }
 
-    pub(crate) fn identity(&self) -> vw_api_types::chat::SessionAgentIdentity {
-        vw_api_types::chat::SessionAgentIdentity {
+    pub(crate) fn identity(&self) -> vw_api_chat_identity::SessionAgentIdentity {
+        vw_api_chat_identity::SessionAgentIdentity {
             agent: self.agent.clone(),
             label: self.label.clone(),
             acp_agent: match &self.runtime {

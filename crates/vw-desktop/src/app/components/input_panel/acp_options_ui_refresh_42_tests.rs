@@ -17,7 +17,7 @@ use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::futures::futures::StreamExt;
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+use vw_api_chat_identity::ReasoningEffortDto;
 use vw_gateway_client::vw_api_types::acp_model_source::{
     AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
 };

@@ -1737,7 +1737,7 @@ fn session_reopen_restores_gateway_identity_and_full_access() {
         None,
         false,
     );
-    prepared.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {
+    prepared.agent_binding = Some(vw_api_chat_identity::SessionAgentIdentity {
         agent: "acp-codex".into(),
         label: Some("固化助手名称".into()),
         acp_agent: Some("codex".into()),

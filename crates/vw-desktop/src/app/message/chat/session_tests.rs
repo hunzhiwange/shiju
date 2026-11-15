@@ -6,7 +6,7 @@ fn session_tests_module_is_wired() {
 
 #[test]
 fn chat_reasoning_effort_is_isolated_by_session() {
-    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+    use vw_api_chat_identity::ReasoningEffortDto;
 
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("session-a".to_string());
@@ -1469,7 +1469,7 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
         runtime.input_editor = iced::widget::text_editor::Content::with_text("inspect");
         runtime.auto_model = false;
         runtime.model = "gpt-test".to_string();
-        runtime.reasoning_effort = Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);
+        runtime.reasoning_effort = Some(vw_api_chat_identity::ReasoningEffortDto::High);
         runtime.acp_agent = Some("codex".to_string());
         runtime.tool_selector.toggle_manual_tool("shell");
         runtime.tool_selector.toggle_manual_skill("rust");
@@ -1509,7 +1509,7 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
     assert_eq!(request.model.as_deref(), Some("gpt-test"));
     assert_eq!(
         request.reasoning_effort,
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)
+        Some(vw_api_chat_identity::ReasoningEffortDto::High)
     );
     assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.acp_recent_count, 20);

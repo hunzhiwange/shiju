@@ -46,7 +46,7 @@ fn tui_deepseek_request_preserves_auto_and_explicit_effort() {
         (cli_interaction_model::ReasoningEffort::Auto, None),
         (
             cli_interaction_model::ReasoningEffort::High,
-            Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),
+            Some(vw_api_chat_identity::ReasoningEffortDto::High),
         ),
     ] {
         let mut app = gateway_app();

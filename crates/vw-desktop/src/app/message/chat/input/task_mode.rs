@@ -77,7 +77,7 @@ pub(super) fn handle_task_mode_executor_changed(
 
 pub(super) fn handle_task_mode_reasoning_effort_changed(
     app: &mut App,
-    reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
 ) -> Task<Message> {
     app.current_session_runtime_mut().task_mode_reasoning_effort = reasoning_effort;
     Task::none()

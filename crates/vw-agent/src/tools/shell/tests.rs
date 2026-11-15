@@ -82,14 +82,14 @@ mod tests {
 
         let tool = ShellTool::new(security, test_runtime());
 
-        assert!(!tool.sandbox_config.enabled);
+        assert!(!tool.sandbox_config_for_test().enabled);
     }
 
     #[test]
     fn shell_workspace_scoped_full_autonomy_keeps_sandbox() {
         let tool = ShellTool::new(test_security(AutonomyLevel::Full), test_runtime());
 
-        assert!(tool.sandbox_config.enabled);
+        assert!(tool.sandbox_config_for_test().enabled);
     }
 
     /// 创建带有自定义重定向策略的测试安全策略
@@ -1038,7 +1038,7 @@ mod tests {
     #[test]
     fn shell_initial_wait_defaults_to_thirty_seconds() {
         let tool = ShellTool::new(test_security(AutonomyLevel::Full), test_runtime());
-        let args = tool.parse_args(&json!({"command": "echo ready"})).unwrap();
+        let args = tool.parse_args_for_test(&json!({"command": "echo ready"})).unwrap();
         assert_eq!(args.yield_time_ms, 30_000);
         assert_eq!(tool.parameters_schema()["properties"]["yield_time_ms"]["default"], 30_000);
     }

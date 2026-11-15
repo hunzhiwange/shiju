@@ -45,7 +45,7 @@ fn shell_process_windows_cmd_executes_general_commands() {
     )
     .unwrap();
     let owner = ShellProcessScope::new("tenant".into(), &directory, "commands".into()).unwrap();
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let runtime = NativeRuntime::new_for_test(Some(ShellProgram {
         kind: ShellKind::Cmd,
@@ -82,7 +82,7 @@ fn shell_process_windows_powershell_executes_general_commands() {
     let directory = root.path().join("workspace with spaces");
     std::fs::create_dir(&directory).unwrap();
     let owner = ShellProcessScope::new("tenant".into(), &directory, "powershell".into()).unwrap();
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     for (program, kind) in
         [("powershell.exe", ShellKind::PowerShell), ("pwsh.exe", ShellKind::Pwsh)]
@@ -143,7 +143,7 @@ fn shell_process_windows_git_bash_executes_general_commands() {
     let directory = root.path().join("workspace with spaces");
     std::fs::create_dir(&directory).unwrap();
     let owner = ShellProcessScope::new("tenant".into(), &directory, "bash".into()).unwrap();
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let runtime =
         NativeRuntime::new_for_test(Some(ShellProgram { kind: ShellKind::Bash, program }));

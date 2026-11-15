@@ -6,11 +6,11 @@
 use std::any::Any;
 use std::path::{Path, PathBuf};
 
-use crate::app::agent::runtime::NativeRuntime;
+use agent_runtime::NativeRuntime;
 use runtime_types::RuntimeAdapter;
 #[cfg(target_os = "macos")]
-use crate::tools::shell::sandbox::NetworkPolicy;
-use crate::tools::shell::sandbox::SandboxConfig;
+use crate::shell::sandbox::NetworkPolicy;
+use crate::shell::sandbox::SandboxConfig;
 
 use super::SandboxExecutor;
 

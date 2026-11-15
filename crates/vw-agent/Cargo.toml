@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+tool-shell = { path = "../libs/tool-shell", version = "0.6.0" }
 skill-forge = { path = "../libs/skill-forge", version = "0.6.0" }
 skill-core = { path = "../libs/skill-core", version = "0.6.0" }
 shiju-client = { path = "../libs/shiju-client", version = "0.6.0" }
@@ -401,9 +402,9 @@ probe = ["dep:probe-rs"]
 memory-postgres = ["dep:memory-postgres", "agent-memory/memory-postgres"]
 memory-mariadb = ["dep:memory-mariadb", "agent-memory/memory-mariadb"]
 observability-otel = ["agent-observability/observability-otel"]
-sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap", "agent-security/sandbox-bubblewrap"]
-sandbox-landlock = ["process-sandbox/sandbox-landlock", "agent-security/sandbox-landlock"]
-shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash", "agent-security/shell-ast"]
+sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap", "agent-security/sandbox-bubblewrap", "tool-shell/sandbox-bubblewrap"]
+sandbox-landlock = ["process-sandbox/sandbox-landlock", "agent-security/sandbox-landlock", "tool-shell/sandbox-landlock"]
+shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash", "agent-security/shell-ast", "tool-shell/shell-ast"]
 channel-lark = ["dep:prost"]
 whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport"]
 
@@ -432,6 +433,7 @@ name = "gateway_legacy_handlers"
 path = "tests/gateway_legacy_handlers.rs"
 
 [dev-dependencies]
+tool-shell = { path = "../libs/tool-shell", version = "0.6.0", features = ["test-support"] }
 shiju-client = { path = "../libs/shiju-client", version = "0.6.0", features = ["test-support"] }
 worktree-core = { path = "../libs/worktree-core", version = "0.6.0", features = ["test-support"] }
 agent-provider = { path = "../libs/agent-provider", version = "0.6.0", features = ["test-support"] }

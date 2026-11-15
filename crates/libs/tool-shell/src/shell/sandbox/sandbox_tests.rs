@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use crate::tools::shell::ast::{ParsedCommand, parse_command};
+use crate::shell::ast::{ParsedCommand, parse_command};
 
 use super::{
     SandboxConfig, SandboxReason, is_env_assignment, is_nice_priority, should_use_sandbox,

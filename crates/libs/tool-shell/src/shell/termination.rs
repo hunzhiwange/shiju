@@ -8,14 +8,14 @@ use tokio::process::{Child, Command};
 #[path = "termination_windows.rs"]
 mod windows;
 
-pub(crate) struct ProcessTree {
+pub struct ProcessTree {
     #[cfg(unix)]
     pid: Option<u32>,
     #[cfg(windows)]
     job: windows::JobObject,
 }
 
-pub(crate) fn spawn(command: &mut Command) -> anyhow::Result<(Child, ProcessTree)> {
+pub fn spawn(command: &mut Command) -> anyhow::Result<(Child, ProcessTree)> {
     let program_path = std::path::Path::new(command.as_std().get_program());
     #[cfg(windows)]
     let program = program_path.file_stem().and_then(|name| name.to_str());
@@ -67,7 +67,7 @@ fn signal(pid: Option<u32>, force: bool) {
 }
 
 impl ProcessTree {
-    pub(super) async fn terminate(
+    pub async fn terminate(
         &self,
         child: &mut Child,
     ) -> std::io::Result<std::process::ExitStatus> {

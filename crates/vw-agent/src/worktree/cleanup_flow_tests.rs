@@ -371,7 +371,7 @@ async fn worktree_cleanup_flow_runtime_and_detached_shell_hold_leases() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     assert!(registry::ensure_not_in_use(&old).is_ok());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let scope = ShellProcessScope::new("fixture".into(), &f.primary, "detached".into()).unwrap();
     let cwd = old.directory.clone();
     let process = host

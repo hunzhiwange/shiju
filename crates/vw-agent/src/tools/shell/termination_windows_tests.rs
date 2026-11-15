@@ -65,7 +65,7 @@ fn shell_process_windows_cleanup_stops_descendants() {
     for action in ["cancel", "timeout", "shutdown", "exit"] {
         let root = tempfile::tempdir().unwrap();
         let owner = ShellProcessScope::new("tenant".into(), root.path(), action.into()).unwrap();
-        let host = ShellProcesses::new().unwrap();
+        let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
         let rt = tokio::runtime::Runtime::new().unwrap();
         let ready = root.path().join("ready");
         let limit = (action == "timeout").then_some(Duration::from_secs(3));
@@ -119,7 +119,7 @@ fn shell_process_windows_cleanup_stops_descendants() {
 fn shell_process_windows_rejects_remote_runtime_before_spawn() {
     let root = tempfile::tempdir().unwrap();
     let owner = ShellProcessScope::new("tenant".into(), root.path(), "remote".into()).unwrap();
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     for program in ["docker.exe", "PODMAN.EXE", "ssh.exe"] {
         let error = rt
@@ -127,5 +127,5 @@ fn shell_process_windows_rejects_remote_runtime_before_spawn() {
             .unwrap_err();
         assert!(error.to_string().contains("cannot guarantee"));
     }
-    assert!(host.records.lock().is_empty());
+    assert!(host.records_empty_for_test());
 }

@@ -19,7 +19,7 @@ fn assert_gone(pid: i32) {
 fn shell_cancel_stops_descendants() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let child_pid = root.path().join("child");
     let script = format!(
@@ -41,7 +41,7 @@ fn shell_cancel_stops_descendants() {
 fn shell_cancel_is_idempotent() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let started = rt.block_on(host.start(owner.clone(), command("exec sleep 60".into()))).unwrap();
     let first = rt.block_on(host.cancel(&owner, &started.process_id)).unwrap();
@@ -60,7 +60,7 @@ fn shell_cancel_is_idempotent() {
 fn shell_cancel_rejects_other_scope() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let started = rt.block_on(host.start(owner.clone(), command("exec sleep 60".into()))).unwrap();
     let unknown = rt.block_on(host.cancel(&owner, "unknown")).unwrap_err().to_string();
@@ -81,7 +81,7 @@ fn shell_cancel_rejects_other_scope() {
 fn shell_deadline_is_distinct_from_yield() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let started = rt
         .block_on(host.start_with_timeout(
@@ -107,7 +107,7 @@ fn shell_shutdown_reaps_children() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
     let path = root.path().join("pid");
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(host.start(
         owner,
@@ -124,7 +124,7 @@ fn shell_shutdown_reaps_children() {
 fn shell_cancel_rejects_remote_runtime_before_spawn() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     for program in ["docker", "podman", "ssh"] {
         let error = rt
@@ -132,14 +132,14 @@ fn shell_cancel_rejects_remote_runtime_before_spawn() {
             .unwrap_err();
         assert!(error.to_string().contains("cannot guarantee"));
     }
-    assert!(host.records.lock().is_empty());
+    assert!(host.records_empty_for_test());
 }
 
 #[test]
 fn shell_cancel_wakes_waiters() {
     let root = tempfile::tempdir().unwrap();
     let owner = scope(root.path());
-    let host = ShellProcesses::new().unwrap();
+    let host = ShellProcesses::new::<crate::tools::context::AgentContextHost>().unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let started = rt.block_on(host.start(owner.clone(), command("exec sleep 60".into()))).unwrap();
     let (waiting, cancelled) = rt.block_on(async {

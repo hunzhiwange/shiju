@@ -128,7 +128,7 @@ async fn expert_package_view_renders_loading_empty_error_and_detail() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_14_expert_hub_renders_all_locales() {
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
     let mut app = app();
     app.expert_hub.public_market.suites = LoadState::Loaded(SkillMarketSkillSetPageDto {
         skillsets: vec![suite()],

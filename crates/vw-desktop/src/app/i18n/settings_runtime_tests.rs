@@ -1,5 +1,5 @@
 use super::settings_runtime::text;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 #[test]
 fn desktop_i18n_settings_runtime_views_and_search_follow_locale() {
     use crate::app::components::{

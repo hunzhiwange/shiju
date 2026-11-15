@@ -318,7 +318,7 @@ impl widget::Operation for FormContents {
 async fn help_rollout_01_renders_contextual_help() {
     use super::super::{settings_flexible_row_with_help, settings_group_heading_with_help};
     use crate::app::i18n::I18n;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
@@ -577,7 +577,7 @@ async fn ui_refresh_03_preserves_values_and_disabled_states() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn ui_refresh_03_renders_localized_help_and_keeps_copy_and_close() {
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
         iced::futures::executor::block_on(async {
@@ -648,7 +648,7 @@ fn ui_refresh_03_renders_localized_help_and_keeps_copy_and_close() {
 fn ui_refresh_03_renders_model_draft_and_error_with_original_actions() {
     use crate::app::components::system_settings_providers::custom_model_modal;
     use crate::app::state::CustomProviderModelModalState;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     crate::app::config::with_editor_settings_gateway(|mut app, _, _| {
         iced::futures::executor::block_on(async {

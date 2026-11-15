@@ -6,7 +6,7 @@
 use crate::app::{App, Message, message};
 use iced::Element;
 
-pub(super) fn help_text(locale: vw_config_types::ui::DesktopLocale) -> &'static str {
+pub(super) fn help_text(locale: config_ui::DesktopLocale) -> &'static str {
     crate::app::i18n::I18n::new(locale).__(r#"技能配置说明
 
 一、作用

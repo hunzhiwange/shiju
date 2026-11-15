@@ -140,16 +140,16 @@ fn task_card_builds_running_completed_hovered_and_replying_states() {
 fn leaf_widgets_and_status_icons_build() {
     keep_element(robot_pet_sprite(&test_app(), PET_COLLAPSED_SIZE));
     keep_element(task_pet_context_menu(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::English,
+        config_ui::DesktopLocale::English,
     )));
     keep_element(human_pet_sprite(PET_BEAUTY_HANDLE.clone(), PET_COLLAPSED_SIZE, 4.0));
     keep_element(code_effect(7));
     keep_element(reply_button(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
         1,
     ));
     keep_element(reply_input(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
         "hello",
     ));
     keep_element(centered_button_label("发送", 12));

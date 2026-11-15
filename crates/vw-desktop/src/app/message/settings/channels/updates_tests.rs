@@ -575,7 +575,7 @@ fn wecom_delivery_modal_save_uses_real_config_api_and_retains_draft_on_failure()
     const CHILD: &str = "SHIJU_WECOM_MODAL_CONFIG_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let home = tempfile::tempdir().unwrap();
-        let cfg = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+        let cfg = config_ui::GatewayClientSystemSettingsConfig {
             host: "[".into(),
             servers: Vec::new(),
             ..Default::default()

@@ -34,14 +34,14 @@ fn bold_font_is_configured() {
 fn menu_and_tooltip_build_only_when_requested() {
     assert!(
         chat_context_menu(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             false
         )
         .is_none()
     );
     assert!(
         chat_context_menu(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             true
         )
         .is_some()

@@ -178,7 +178,7 @@ async fn worktree_settings_ui_renders_chinese_modal_in_both_themes() {
     };
     use iced::{Font, Renderer, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
         for font in crate::fonts::load_all() {

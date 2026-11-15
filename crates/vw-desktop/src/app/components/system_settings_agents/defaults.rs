@@ -9,7 +9,7 @@ use iced::{
 };
 use std::fmt;
 use config_agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 
 pub(crate) fn patch(defaults: &AgentDefaults) -> serde_json::Value {

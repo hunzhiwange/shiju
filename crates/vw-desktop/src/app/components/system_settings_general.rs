@@ -155,15 +155,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let locales = ["简体中文", "繁體中文", "English"];
     let locale_index = match app.desktop_locale {
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese => 0,
-        vw_config_types::ui::DesktopLocale::TraditionalChinese => 1,
-        vw_config_types::ui::DesktopLocale::English => 2,
+        config_ui::DesktopLocale::SimplifiedChinese => 0,
+        config_ui::DesktopLocale::TraditionalChinese => 1,
+        config_ui::DesktopLocale::English => 2,
     };
     let locale_pick = settings_select(locales, Some(locales[locale_index]), |label| {
         let locale = match label {
-            "繁體中文" => vw_config_types::ui::DesktopLocale::TraditionalChinese,
-            "English" => vw_config_types::ui::DesktopLocale::English,
-            _ => vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "繁體中文" => config_ui::DesktopLocale::TraditionalChinese,
+            "English" => config_ui::DesktopLocale::English,
+            _ => config_ui::DesktopLocale::SimplifiedChinese,
         };
         Message::Settings(message::SettingsMessage::General(
             message::GeneralSettingsMessage::LocaleSelected(locale),
@@ -209,7 +209,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(GENERAL_CONTROL_WIDTH);
 
     let timezone_pick = settings_select(
-        vw_config_types::ui::timezone_options().into_iter().map(str::to_string).collect::<Vec<_>>(),
+        config_ui::timezone_options().into_iter().map(str::to_string).collect::<Vec<_>>(),
         Some(app.chat_timezone.clone()),
         timezone_selected,
     )

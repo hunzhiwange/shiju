@@ -591,7 +591,7 @@ fn set_status_localized(
 ) {
     let message = crate::app::i18n::format::Message::new(source, arguments);
     let chinese = message
-        .render(crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
+        .render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
         .expect("valid skills status template");
     set_status(app, chinese, is_error);
     app.skills_settings.status_message_translation = Some(message);
@@ -605,7 +605,7 @@ fn set_plugin_status_localized(
 ) {
     let message = crate::app::i18n::format::Message::new(source, arguments);
     let chinese = message
-        .render(crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
+        .render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
         .expect("valid skills status template");
     set_plugin_status(app, chinese, is_error);
     app.skills_settings.plugin_status_message_translation = Some(message);

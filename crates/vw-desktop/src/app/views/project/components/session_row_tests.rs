@@ -158,7 +158,7 @@ async fn running_indicator_rotates_around_a_centered_breathing_dot() {
 
 #[test]
 fn session_agent_description_distinguishes_native_and_acp_bindings() {
-    let i18n = crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
+    let i18n = crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     assert_eq!(super::agent_description(i18n, None, None, None), "识矩原生");
     assert_eq!(
         super::agent_description(i18n, Some("reviewer"), Some("代码审查"), None),
@@ -172,7 +172,7 @@ fn session_agent_description_distinguishes_native_and_acp_bindings() {
 
 #[tokio::test]
 async fn session_hover_details_shape_chinese_workspace_and_agents_in_both_themes() {
-    let i18n = crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
+    let i18n = crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     let details = SessionRowDetails {
         title: "检查悬浮详情".into(),
         directory: "/项目/工作区".into(),

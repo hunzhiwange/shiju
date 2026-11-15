@@ -135,7 +135,7 @@ fn view_builds_empty_single_and_multi_server_states() {
 #[test]
 fn tenant_controls_and_help_example_are_declared() {
     use crate::app::i18n::settings_models::{connection_text::text, help};
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
     for locale in [
         DesktopLocale::SimplifiedChinese,
         DesktopLocale::TraditionalChinese,

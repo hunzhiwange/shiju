@@ -369,7 +369,7 @@ pub fn help_open_for_tab(open_tab: Option<SystemTab>, active_tab: SystemTab) -> 
 
 /// 为有通用帮助内容的页面提供标题栏入口。
 pub(super) fn help_button(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     tab: SystemTab,
 ) -> Option<Element<'static, Message>> {
     help_content(tab)?;

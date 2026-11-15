@@ -96,13 +96,13 @@ pub(super) fn settings_close_button_style(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn settings_help_button(on_press: Message) -> Element<'static, Message> {
     settings_help_button_with_locale(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         on_press,
     )
 }
 
 pub fn settings_help_button_with_locale(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     on_press: Message,
 ) -> Element<'static, Message> {
     icon_btn(Icon::QuestionCircle, crate::app::i18n::I18n::new(locale).__("帮助"), Some(on_press))

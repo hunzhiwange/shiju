@@ -133,7 +133,7 @@ fn context_menu_builds_regular_and_failed_task_variants() {
     regular.id = "regular-task".to_string();
 
     let regular_menu = super::build_context_menu(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         regular,
     );
     assert_eq!(regular_menu.as_widget().children().len(), 3);
@@ -144,7 +144,7 @@ fn context_menu_builds_regular_and_failed_task_variants() {
     failed.status = TaskStatus::Failed;
 
     let failed_menu = super::build_context_menu(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         failed,
     );
     assert_eq!(failed_menu.as_widget().children().len(), 4);
@@ -154,7 +154,7 @@ fn context_menu_builds_regular_and_failed_task_variants() {
     running.id = "running-task".to_string();
     running.status = TaskStatus::Running;
     let running_menu = super::build_context_menu(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         running,
     );
     assert_eq!(running_menu.as_widget().children().len(), 3);
@@ -251,7 +251,7 @@ pub(in crate::app::views::task_board) mod help_rollout {
     use iced::keyboard::{self, Key, key::Named};
     use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+    use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
     pub(crate) type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 

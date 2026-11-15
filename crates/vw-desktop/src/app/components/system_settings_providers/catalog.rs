@@ -22,7 +22,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Element, Length, Theme};
 use std::collections::BTreeMap;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct CatalogProviderItem {

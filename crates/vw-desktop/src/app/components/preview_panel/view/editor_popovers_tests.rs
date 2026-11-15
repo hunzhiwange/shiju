@@ -2,7 +2,7 @@ use crate::app::components::editor::Editor;
 use crate::app::message::editor::{self, EditorMessage, EditorPopover};
 use crate::app::{App, PreviewTab};
 use iced::widget::Id;
-use vw_config_types::ui::GatewayClientSystemSettingsConfig;
+use config_ui::GatewayClientSystemSettingsConfig;
 fn tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
     PreviewTab {
         path: path.to_string(),

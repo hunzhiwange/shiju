@@ -1,5 +1,5 @@
 use super::{I18n, modals};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_15_modal_formatter_keeps_raw_arguments() {

@@ -17,7 +17,7 @@ use crate::app::{App, Message};
 use iced::widget::{Space, button, checkbox, column, container, row, text, text_editor};
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use serde_json::Value;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 use vw_gateway_client::vw_api_types::mcp::{
     McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto,
 };

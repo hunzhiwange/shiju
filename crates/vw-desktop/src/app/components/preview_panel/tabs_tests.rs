@@ -75,7 +75,7 @@ fn display_language_is_copyable_and_comparable() {
 #[test]
 fn preview_tab_menu_builds_for_owned_path_messages() {
     let menu = build_preview_tab_menu(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "/tmp/src/main.rs",
     );
     let element: iced::Element<'_, Message> = menu;
@@ -86,7 +86,7 @@ fn preview_tab_menu_builds_for_owned_path_messages() {
 #[test]
 fn preview_tab_menu_keeps_four_actions_and_two_separators() {
     let menu = build_preview_tab_menu(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "项目/含 空格.rs",
     );
     let children = menu.as_widget().children();

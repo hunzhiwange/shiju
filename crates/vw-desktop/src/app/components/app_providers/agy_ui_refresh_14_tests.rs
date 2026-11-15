@@ -722,7 +722,7 @@ async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
 async fn help_rollout_06_renders_declaration_adapters() {
     use super::super::desktop::ui_refresh_12_tests::assert_contextual_help;
     use crate::app::i18n::I18n;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     let mut renderer = renderer().await;
     let theme = Theme::Light;

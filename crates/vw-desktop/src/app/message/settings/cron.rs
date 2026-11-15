@@ -128,7 +128,7 @@ fn cron_editor_save_task(
 }
 
 fn format_run_history_text(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     runs: &[vw_gateway_client::CronRunDto],
 ) -> String {
     let mut text = String::new();

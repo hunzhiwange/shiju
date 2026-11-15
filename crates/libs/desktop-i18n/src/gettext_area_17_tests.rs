@@ -1,5 +1,5 @@
 use super::I18n;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 #[test]
 fn desktop_gettext_area_17_uses_chinese_keys() {
     assert_eq!(I18n::new(DesktopLocale::English).__("隐藏识矩"), "Hide ShiJu");

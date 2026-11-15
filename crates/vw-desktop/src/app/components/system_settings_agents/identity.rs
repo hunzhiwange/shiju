@@ -28,7 +28,7 @@ pub(super) fn default_workspace_identity_root(agent_key: &str) -> String {
 }
 
 pub(super) fn workspace_identity_hint(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     root: Option<&str>,
     agent_key: &str,
     file_name: &str,
@@ -250,7 +250,7 @@ pub(super) fn view<'a>(
 }
 
 pub(super) fn workspace_identity_meta_line(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     size: Option<u64>,
     modified: Option<u64>,
 ) -> Option<String> {

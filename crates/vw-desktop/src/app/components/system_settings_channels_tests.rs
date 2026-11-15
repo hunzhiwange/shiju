@@ -50,7 +50,7 @@ fn channel_tabs_builds_domestic_two_group_grid() {
     assert_eq!(CHINA_CHANNEL_CARD_COLUMNS, 3);
     assert_eq!(CHANNEL_TAB_GROUPS.map(|(_, title)| title), ["全局", "中文互联网"]);
     keep_element(channel_tabs(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         app.channels_settings.active_tab,
     ));
 }
@@ -67,13 +67,13 @@ fn china_channel_cards_build_brand_icons_and_active_states() {
     for descriptor in &china {
         std::hint::black_box(china_channel_icon(descriptor.tab));
         keep_element(china_channel_card(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             descriptor,
             descriptor.tab,
         ));
     }
     keep_element(china_channel_cards(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &china,
         ChannelsSettingsTab::Global,
     ));

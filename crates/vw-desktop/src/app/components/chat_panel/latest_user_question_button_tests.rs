@@ -70,7 +70,7 @@ fn user_question_indices_preserve_question_order() {
 fn live_message_meta_fallback_applies_to_chat_roles() {
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::Assistant,
             true,
             true,
@@ -80,7 +80,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::Assistant,
             true,
             false,
@@ -90,7 +90,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::User,
             true,
             true,
@@ -100,7 +100,7 @@ fn live_message_meta_fallback_applies_to_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::System,
             true,
             true,

@@ -537,14 +537,14 @@ impl App {
 
     pub(crate) fn apply_bootstrap_system_settings(
         &mut self,
-        system: vw_config_types::ui::AppSystemSettingsConfig,
+        system: config_ui::AppSystemSettingsConfig,
     ) {
         self.apply_system_settings_snapshot(system, true);
     }
 
     fn apply_system_settings_snapshot(
         &mut self,
-        system: vw_config_types::ui::AppSystemSettingsConfig,
+        system: config_ui::AppSystemSettingsConfig,
         apply_gateway_client: bool,
     ) {
         use crate::app::config::SystemSettingsSection;
@@ -629,11 +629,11 @@ impl App {
         }
         if !edited(self, "quick_messages") {
             self.quick_messages = system.quick_messages;
-            vw_config_types::ui::upgrade_legacy_quick_message_actions(&mut self.quick_messages);
-            vw_config_types::ui::append_missing_builtin_general_quick_messages(
+            config_ui::upgrade_legacy_quick_message_actions(&mut self.quick_messages);
+            config_ui::append_missing_builtin_general_quick_messages(
                 &mut self.quick_messages,
             );
-            vw_config_types::ui::append_missing_builtin_git_quick_messages(
+            config_ui::append_missing_builtin_git_quick_messages(
                 &mut self.quick_messages,
             );
         }
@@ -702,7 +702,7 @@ impl App {
 
     fn apply_bootstrap_gateway_client(
         &mut self,
-        config: vw_config_types::ui::GatewayClientSystemSettingsConfig,
+        config: config_ui::GatewayClientSystemSettingsConfig,
     ) {
         let active_gateway_client = config.active_server();
         self.gateway_client_settings.servers = config

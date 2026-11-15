@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 
 use tempfile::TempDir;
-use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 
 const SOURCE: &str = include_str!("config_desktop.rs");
 

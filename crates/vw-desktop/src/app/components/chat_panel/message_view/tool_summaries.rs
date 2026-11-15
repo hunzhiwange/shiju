@@ -608,7 +608,7 @@ pub(super) fn collect_tool_card_texts(raw: &str) -> Option<Vec<String>> {
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     Some(collect_tool_texts(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         tool_name,
         &value,
     ))
@@ -623,7 +623,7 @@ pub(crate) fn summarize_explore_items<'a>(
         (
             index,
             counts.render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             )),
         )
     })

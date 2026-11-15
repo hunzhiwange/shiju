@@ -153,7 +153,7 @@ async fn scene(app: &App, width: f32, click: Option<&str>) -> (Scene, Vec<crate:
 async fn mini_companion_settings_cards_render_and_emit_real_selection_events() {
     use crate::app::Message;
     let mut app = App::new().0;
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     app.task_pet_visible = true;
     let id = iced::window::Id::unique();
     app.task_pet_window_id = Some(id);
@@ -204,7 +204,7 @@ async fn mini_companion_settings_cards_render_and_emit_real_selection_events() {
 #[tokio::test]
 async fn mini_companion_settings_english_labels_render_without_actions_in_preview() {
     let mut app = App::new().0;
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::English;
+    app.desktop_locale = config_ui::DesktopLocale::English;
     app.task_pet_avatar_kind = TaskPetAvatarKind::Robot;
     app.task_pet_visible = false;
     let (rendered, messages) = scene(&app, 520.0, Some("Mini toolbar")).await;

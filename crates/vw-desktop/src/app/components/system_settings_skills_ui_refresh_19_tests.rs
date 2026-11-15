@@ -11,7 +11,7 @@ use iced::advanced::{
 };
 use iced::{Event, Font, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use vw_gateway_client::{
     DesktopPluginCapabilitiesDto, DesktopPluginDependencyDto, DesktopPluginPreviewDto,
 };

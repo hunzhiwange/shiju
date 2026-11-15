@@ -36,14 +36,14 @@ fn lsp_summary_and_meta_use_structured_counts() {
 
     assert!(
         summary_from_data(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &data
         )
         .contains("2")
     );
     assert!(
         meta_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &data
         )
         .contains("2")
@@ -59,14 +59,14 @@ fn lsp_summary_and_meta_use_structured_counts() {
     .expect("valid lsp payload");
     assert_eq!(
         meta_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &hover_data
         ),
         "悬停信息可用"
     );
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &hover_data
         ),
         "悬停信息可用"
@@ -95,7 +95,7 @@ fn lsp_meta_text_covers_operation_specific_labels() {
 
         assert_eq!(
             meta_text(
-                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &data
             ),
             expected
@@ -114,7 +114,7 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
     .expect("valid lsp payload");
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &with_query
         ),
         "Widget"
@@ -130,7 +130,7 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
     .expect("valid lsp payload");
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &whitespace_query
         ),
         "src/lib.rs"
@@ -145,7 +145,7 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
     .expect("valid lsp payload");
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &with_file
         ),
         "src/main.rs"
@@ -163,7 +163,7 @@ fn lsp_summary_is_empty_without_counts_query_or_file_path() {
 
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &data
         ),
         ""

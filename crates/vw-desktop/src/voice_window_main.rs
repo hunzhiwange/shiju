@@ -283,7 +283,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let path = std::env::var_os("VOICE_ACCEPTANCE_GATEWAY_BOOTSTRAP").ok_or("live requires VOICE_ACCEPTANCE_GATEWAY_BOOTSTRAP pointing to an already configured ShiJu gateway bootstrap; no service request was sent")?;
         let bytes = std::fs::read(path)?;
         Some(
-            serde_json::from_slice::<vw_config_types::ui::GatewayClientSystemSettingsConfig>(
+            serde_json::from_slice::<config_ui::GatewayClientSystemSettingsConfig>(
                 &bytes,
             )
             .map_err(|_| "invalid ShiJu gateway bootstrap; no service request was sent")?,

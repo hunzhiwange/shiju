@@ -94,7 +94,7 @@ pub async fn prepare_desktop_update(
 /// Revalidate the download and start the independent automatic updater.
 pub fn open_desktop_installer(
     ready: &PreparedDesktopUpdate,
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
 ) -> Result<String> {
     open_with(ready, std::env::consts::OS, |_| crate::desktop_update_helper::start(ready, locale))
 }

@@ -734,7 +734,7 @@ async fn terminal_split_toolbar_creates_independent_panes_in_each_direction() {
     for item in 0..4 {
         let mut h = Harness::new().await;
         h.app.project_path = Some(project.path().to_string_lossy().into_owned());
-        h.app.desktop_locale = vw_config_types::ui::DesktopLocale::TraditionalChinese;
+        h.app.desktop_locale = config_ui::DesktopLocale::TraditionalChinese;
         h.app.terminal.tabs[0].title = "开发环境终端标签".repeat(15);
         let original = h.app.terminal.active_id.unwrap();
         let original_pane = h.app.terminal.panes.focused;

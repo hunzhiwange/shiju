@@ -28,7 +28,7 @@ fn permission_modal_title_prefers_trimmed_metadata_title() {
 
     assert_eq!(
         permission_modal_title_localized(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &req
         ),
         "Approve shell"
@@ -42,7 +42,7 @@ fn permission_modal_title_falls_back_to_argument_summary_or_permission() {
 
     assert!(
         permission_modal_title_localized(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &req
         )
         .contains("echo hello")
@@ -51,7 +51,7 @@ fn permission_modal_title_falls_back_to_argument_summary_or_permission() {
     req.metadata.clear();
     assert_eq!(
         permission_modal_title_localized(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &req
         ),
         "需要批准 shell 操作"
@@ -66,7 +66,7 @@ fn permission_modal_title_ignores_blank_and_non_string_titles() {
 
     assert_eq!(
         permission_modal_title_localized(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &req
         ),
         "批准运行：pwd"
@@ -75,7 +75,7 @@ fn permission_modal_title_ignores_blank_and_non_string_titles() {
     req.metadata.insert("title".to_string(), json!(42));
     assert_eq!(
         permission_modal_title_localized(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &req
         ),
         "批准运行：pwd"
@@ -160,7 +160,7 @@ fn permission_request_selector_label_uses_permission_and_summary() {
     req.metadata.insert("arguments".to_string(), json!("echo hello"));
 
     let label = permission_request_selector_label_localized(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &req,
     );
 
@@ -173,7 +173,7 @@ fn permission_request_selector_label_falls_back_and_truncates_by_character() {
     let mut req = request("perm-1");
     assert_eq!(
         permission_request_selector_label_localized(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &req
         ),
         "运行 · shell"
@@ -181,7 +181,7 @@ fn permission_request_selector_label_falls_back_and_truncates_by_character() {
 
     req.metadata.insert("arguments".to_string(), json!("命令".repeat(50)));
     let label = permission_request_selector_label_localized(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &req,
     );
 

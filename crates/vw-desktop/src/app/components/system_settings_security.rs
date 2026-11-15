@@ -34,7 +34,7 @@ use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Checkbox, button, checkbox, column, container, row, scrollable, slider, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 const CONTROL_WIDTH: f32 = 240.0;
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;

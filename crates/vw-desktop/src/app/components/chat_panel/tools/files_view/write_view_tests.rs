@@ -64,7 +64,7 @@ fn write_tool_summary_uses_first_file_name_and_total_count() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("main.rs 等 2 个文件".to_string())
@@ -77,7 +77,7 @@ fn write_tool_summary_uses_single_file_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("main.rs".to_string())
@@ -90,7 +90,7 @@ fn write_tool_summary_falls_back_to_file_count_for_blank_names() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("1 个文件".to_string())
@@ -101,7 +101,7 @@ fn write_tool_summary_falls_back_to_file_count_for_blank_names() {
 fn write_tool_summary_returns_none_for_empty_state() {
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &file_list_state(Vec::new())
         ),
         None
@@ -115,7 +115,7 @@ fn write_tool_summary_trims_the_first_file_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("main.rs".to_string())
@@ -129,7 +129,7 @@ fn write_tool_summary_uses_minimum_count_for_whitespace_only_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("1 个文件".to_string())
@@ -142,7 +142,7 @@ fn write_tool_summary_preserves_root_path_without_file_name() {
 
     assert_eq!(
         write_tool_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         Some("/".to_string())
@@ -153,7 +153,7 @@ fn write_tool_summary_preserves_root_path_without_file_name() {
 fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             true,
             Some(ToolPermissionState::Rejected),
@@ -163,7 +163,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some(ToolPermissionState::ApprovalRequired),
@@ -173,7 +173,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some(ToolPermissionState::Rejected),
@@ -183,7 +183,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             None,
@@ -193,7 +193,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
     );
     assert_eq!(
         write_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             None,
@@ -207,7 +207,7 @@ fn write_tool_title_applies_running_permission_error_and_success_precedence() {
 fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             true,
             Some("disk full"),
@@ -217,7 +217,7 @@ fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     );
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some("  disk full  "),
@@ -227,7 +227,7 @@ fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     );
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             Some("   "),
@@ -237,7 +237,7 @@ fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
     );
     assert_eq!(
         write_tool_detail_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "写入",
             false,
             None,

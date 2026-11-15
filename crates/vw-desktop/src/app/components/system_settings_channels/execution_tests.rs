@@ -30,7 +30,7 @@ impl Operation for Controls {
 #[tokio::test(flavor = "multi_thread")]
 async fn channel_execution_loading_shows_unified_agent_and_provider_models_when_ready() {
     let mut app = App::new().0;
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let key = "wechat:default";
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))

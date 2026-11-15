@@ -3,7 +3,7 @@
 use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
 use crate::app::{App, Message, i18n::I18n};
 use iced::Task;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 pub(crate) const SUPPORTED: bool = cfg!(any(target_os = "macos", target_os = "windows"));
 

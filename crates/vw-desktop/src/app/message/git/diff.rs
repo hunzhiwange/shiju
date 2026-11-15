@@ -177,7 +177,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             if let Some(error) = crate::app::preview::preview_open_error_message(&full_path) {
                 let fallback = error
                     .render(crate::app::i18n::I18n::new(
-                        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        config_ui::DesktopLocale::SimplifiedChinese,
                     ))
                     .expect("preview error template");
                 let task = app.show_error_toast(fallback);

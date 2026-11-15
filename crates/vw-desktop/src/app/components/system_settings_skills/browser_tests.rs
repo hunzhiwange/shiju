@@ -159,7 +159,7 @@ fn provider_paths_match_directory_provider_contract() {
 fn scope_descriptions_include_provider_specific_paths() {
     assert!(
         scope_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             SkillsDirectoryScope::Project,
             SkillsDirectoryProvider::Codex
         )
@@ -167,7 +167,7 @@ fn scope_descriptions_include_provider_specific_paths() {
     );
     assert!(
         scope_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             SkillsDirectoryScope::Ancestor,
             SkillsDirectoryProvider::Claude
         )
@@ -175,7 +175,7 @@ fn scope_descriptions_include_provider_specific_paths() {
     );
     assert!(
         scope_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             SkillsDirectoryScope::Global,
             SkillsDirectoryProvider::Cursor
         )
@@ -183,7 +183,7 @@ fn scope_descriptions_include_provider_specific_paths() {
     );
     assert!(
         scope_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             SkillsDirectoryScope::Bundled,
             SkillsDirectoryProvider::Vibewindow
         )
@@ -191,7 +191,7 @@ fn scope_descriptions_include_provider_specific_paths() {
     );
     assert!(
         scope_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             SkillsDirectoryScope::All,
             SkillsDirectoryProvider::Vibewindow
         )
@@ -225,7 +225,7 @@ fn scope_descriptions_are_exact_for_each_codex_scope() {
     for (scope, expected) in cases {
         assert_eq!(
             scope_description(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
                 scope,
                 provider
             ),
@@ -276,31 +276,31 @@ fn browser_widgets_build_for_status_actions_and_common_states() {
         SkillsDirectoryScope::Project,
         false,
     );
-    let _ = refresh_button(vw_config_types::ui::DesktopLocale::SimplifiedChinese, false);
-    let _ = refresh_button(vw_config_types::ui::DesktopLocale::SimplifiedChinese, true);
+    let _ = refresh_button(config_ui::DesktopLocale::SimplifiedChinese, false);
+    let _ = refresh_button(config_ui::DesktopLocale::SimplifiedChinese, true);
     let _ = loading_banner("正在同步技能目录");
     let _ = empty_state("空", "没有结果");
     let _ = detail_source_note(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         Some("/tmp/skill"),
     );
-    let _ = detail_source_note(vw_config_types::ui::DesktopLocale::SimplifiedChinese, None);
+    let _ = detail_source_note(config_ui::DesktopLocale::SimplifiedChinese, None);
     let _ = detail_action_button(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "执行",
         Icon::Plus,
         DetailActionStyle::Primary,
         Some(Message::Settings(SettingsMessage::SkillsRefresh)),
     );
     let _ = detail_action_button(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "删除",
         Icon::Trash,
         DetailActionStyle::Danger,
         None,
     );
     let _ = detail_action_button(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "次要",
         Icon::ArrowRepeat,
         DetailActionStyle::Secondary,

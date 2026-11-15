@@ -245,7 +245,7 @@ pub enum ChatMessage {
     QuickMessageSelected(usize),
 
     /// 点击切换或关闭输入框上方的快捷消息分组菜单
-    QuickMessageGroupChanged(Option<vw_config_types::ui::QuickMessageGroup>),
+    QuickMessageGroupChanged(Option<config_ui::QuickMessageGroup>),
 
     /// 切换输入框上方的识矩技能菜单
     ToggleShijuSkillMenu,

@@ -1,6 +1,6 @@
 use super::tasks::SplitOption;
 use crate::app::task::TaskSplitMode;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_12_split_option_keeps_value() {

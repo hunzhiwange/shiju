@@ -1,5 +1,5 @@
 use super::settings_extensions::{domain_label, operation_error, text};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_6_uses_chinese_keys() {

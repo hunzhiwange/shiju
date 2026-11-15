@@ -8,7 +8,7 @@ use iced::advanced::{clipboard, widget};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 fn new_app() -> App {
     App::new().0

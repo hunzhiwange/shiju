@@ -3,7 +3,7 @@ use crate::app::message::editor::EditorOption;
 use crate::app::{App, PreviewTab};
 use iced::widget::Id;
 use iced_code_editor::{CodeEditor, IndentStyle, Message};
-use vw_config_types::ui::GatewayClientSystemSettingsConfig;
+use config_ui::GatewayClientSystemSettingsConfig;
 #[test]
 fn ecp04_options_change_only_active_editor() {
     let mut active = CodeEditor::new("hello", "txt");

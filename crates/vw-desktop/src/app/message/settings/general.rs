@@ -344,7 +344,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         GeneralSettingsMessage::TimezoneSelected(timezone) => {
-            if !vw_config_types::ui::timezone_options().contains(&timezone.as_str()) {
+            if !config_ui::timezone_options().contains(&timezone.as_str()) {
                 return Task::none();
             }
 
@@ -362,7 +362,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 #[path = "general_tests.rs"]
 mod general_tests;
 
-fn save_locale(locale: vw_config_types::ui::DesktopLocale) -> Task<Message> {
+fn save_locale(locale: config_ui::DesktopLocale) -> Task<Message> {
     Task::perform(
         crate::app::config::update_system_settings_config_result_async(move |system| {
             system.desktop_locale = locale;

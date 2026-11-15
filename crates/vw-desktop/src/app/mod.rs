@@ -205,7 +205,7 @@ impl ChannelQrFlowSnapshot {
     }
 }
 /// 对外暴露当前模块需要复用的能力。
-pub use vw_config_types::ui::PreviewAutoSaveMode;
+pub use config_ui::PreviewAutoSaveMode;
 /// 对外暴露当前模块需要复用的能力。
 pub use runtime_time as time;
 

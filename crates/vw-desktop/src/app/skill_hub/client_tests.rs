@@ -96,7 +96,7 @@ async fn latest_shiju_package_errors_remain_redacted() {
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_14_client_error_keeps_template_in_load_state() {
     use crate::app::i18n::I18n;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
     let (base_url, request) =
         fixture("503 Service Unavailable", serde_json::json!({"error":"raw secret %n"}));
     let error = client(&base_url)

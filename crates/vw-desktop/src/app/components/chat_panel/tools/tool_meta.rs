@@ -471,7 +471,7 @@ pub fn tool_activity_header<'a>(
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
     localized_tool_inline_summary(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         tool_name,
         input,
     )
@@ -480,7 +480,7 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
 /// 返回不预先按字符数截短的工具摘要，供按真实布局宽度裁切的状态栏使用。
 pub fn tool_inline_summary_unbounded(tool_name: &str, input: &str) -> Option<String> {
     tool_inline_summary_with_max_chars(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         tool_name,
         input,
         usize::MAX,

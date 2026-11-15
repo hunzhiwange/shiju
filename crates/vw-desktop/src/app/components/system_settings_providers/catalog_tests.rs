@@ -162,21 +162,21 @@ fn catalog_treats_shiju_as_pinned_popular_provider() {
 fn model_count_label_formats_singular_and_plural_counts() {
     assert_eq!(
         crate::app::i18n::settings_models::model_count(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             1
         ),
         "1 个模型"
     );
     assert_eq!(
         crate::app::i18n::settings_models::model_count(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             0
         ),
         "0 个模型"
     );
     assert_eq!(
         crate::app::i18n::settings_models::model_count(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             12
         ),
         "12 个模型"

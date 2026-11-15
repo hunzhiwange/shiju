@@ -27,7 +27,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::Space;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 use vw_gateway_client::vw_api_types::{
     agent_apps::AppId,
     app_providers::{

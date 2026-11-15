@@ -385,7 +385,7 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
     let stale_health_key = "http://stale.example:99/v1/health".to_string();
     app.gateway_client_settings.health.insert(stale_health_key.clone(), true);
 
-    let mut system = vw_config_types::ui::AppSystemSettingsConfig::default();
+    let mut system = config_ui::AppSystemSettingsConfig::default();
     system.terminal_font_family = "Test Mono".to_string();
     system.terminal_font_size = 15.0;
     system.timezone = "America/New_York".to_string();
@@ -394,12 +394,12 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
     system.dialogue_flow_show_reasoning_summary = false;
     system.dialogue_flow_expand_shell_tool_section = true;
     system.dialogue_flow_expand_edit_tool_section = true;
-    system.preview_auto_save = vw_config_types::ui::PreviewAutoSaveMode::OnWindowChange;
+    system.preview_auto_save = config_ui::PreviewAutoSaveMode::OnWindowChange;
     system.editor_follow_system_theme = false;
     system.app_theme = "missing-theme".to_string();
     system.editor_theme = "missing-editor-theme".to_string();
     system.gateway_client.active_server_id = "remote".to_string();
-    system.gateway_client.servers = vec![vw_config_types::ui::GatewayClientServerConfig {
+    system.gateway_client.servers = vec![config_ui::GatewayClientServerConfig {
         id: "remote".to_string(),
         name: "Remote".to_string(),
         host: "  ".to_string(),
@@ -424,7 +424,7 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
     assert!(app.dialogue_flow_expand_edit_tool_section);
     assert_eq!(
         app.preview_auto_save_mode,
-        vw_config_types::ui::PreviewAutoSaveMode::OnWindowChange
+        config_ui::PreviewAutoSaveMode::OnWindowChange
     );
     assert!(!app.editor_follow_system_theme);
     assert_eq!(app.app_theme, original_theme);
@@ -441,7 +441,7 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
 fn bootstrap_system_settings_applies_lsp_enabled_state() {
     let mut app = test_app();
     app.lsp_disabled = true;
-    let mut system = vw_config_types::ui::AppSystemSettingsConfig::default();
+    let mut system = config_ui::AppSystemSettingsConfig::default();
     system.lsp_enabled = true;
 
     app.apply_bootstrap_system_settings(system.clone());
@@ -457,18 +457,18 @@ fn bootstrap_system_settings_applies_lsp_enabled_state() {
 #[test]
 fn app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions() {
     let mut app = test_app();
-    let mut system = vw_config_types::ui::AppSystemSettingsConfig::default();
-    system.quick_messages = vec![vw_config_types::ui::QuickMessageConfig {
+    let mut system = config_ui::AppSystemSettingsConfig::default();
+    system.quick_messages = vec![config_ui::QuickMessageConfig {
         text: "提交当前分支".to_string(),
-        group: vw_config_types::ui::QuickMessageGroup::Git,
-        kind: vw_config_types::ui::QuickMessageKind::Message,
+        group: config_ui::QuickMessageGroup::Git,
+        kind: config_ui::QuickMessageKind::Message,
     }];
 
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system.clone())));
 
-    let mut expected = vw_config_types::ui::builtin_general_quick_messages();
+    let mut expected = config_ui::builtin_general_quick_messages();
     expected.extend(system.quick_messages.clone());
-    expected.extend(vw_config_types::ui::builtin_git_quick_messages());
+    expected.extend(config_ui::builtin_git_quick_messages());
     assert_eq!(app.quick_messages, expected);
 
     system.quick_messages.clear();

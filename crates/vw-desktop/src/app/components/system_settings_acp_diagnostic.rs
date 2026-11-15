@@ -7,7 +7,7 @@ use crate::app::Message;
 use crate::app::components::status_animation::spinner_frame;
 use crate::app::i18n::I18n;
 use crate::app::state::AcpDiagnosticStatus;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 fn status_color(theme: &Theme, status: AcpDiagnosticStatus) -> Color {
     let palette = theme.extended_palette();

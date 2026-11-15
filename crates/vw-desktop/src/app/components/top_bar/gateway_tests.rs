@@ -264,12 +264,12 @@ fn basic_gateway_widgets_can_be_built_for_all_states() {
     let _: Element<'static, Message> = status_dot(true);
     let _: Element<'static, Message> = status_dot(false);
     let _: Element<'static, Message> = gateway_services_button(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
         true,
         true,
     );
     let _: Element<'static, Message> = gateway_services_button(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
         false,
         false,
     );

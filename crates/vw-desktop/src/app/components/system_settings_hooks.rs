@@ -16,7 +16,7 @@ use crate::app::{App, Message, i18n::I18n, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text, text::Wrapping};
 use iced::{Alignment, Element, Length};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 fn field_row<'a>(
     label: &'static str,

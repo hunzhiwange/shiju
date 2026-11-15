@@ -243,7 +243,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .filter(|message| {
                 message
                     .render(crate::app::i18n::I18n::new(
-                        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        config_ui::DesktopLocale::SimplifiedChinese,
                     ))
                     .is_ok_and(|source| source == error)
             })

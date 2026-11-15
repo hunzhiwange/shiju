@@ -1,5 +1,5 @@
 use super::catalog::{I18n, parse_catalog};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_catalog_uses_chinese_keys() {

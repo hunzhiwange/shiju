@@ -1,4 +1,4 @@
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 pub use desktop_i18n::editor::*;
 
 pub fn refresh(app: &mut crate::app::App) {

@@ -165,14 +165,14 @@ fn corridor_covers_busy_maintenance_and_idle_states() {
     let idle = snapshot(3, 0, 0, 0, 0);
 
     let hidden = build_worktree_corridor(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &maintenance,
         true,
     );
     assert_eq!(hidden.as_widget().size().width, Length::Fixed(190.0));
 
     let visible = build_worktree_corridor(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &busy,
         false,
     );
@@ -181,7 +181,7 @@ fn corridor_covers_busy_maintenance_and_idle_states() {
     keep_element(hidden);
     keep_element(visible);
     keep_element(build_worktree_corridor(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &idle,
         false,
     ));

@@ -139,7 +139,7 @@ fn scope_and_target_actions_follow_busy_and_project_state() {
     ));
     assert_eq!(
         direct_install_button_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         "直接安装到 1 个目标"
@@ -147,7 +147,7 @@ fn scope_and_target_actions_follow_busy_and_project_state() {
     state.selected_targets.push(SkillInstallTarget::ClaudeCode);
     assert_eq!(
         direct_install_button_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         "直接安装到 2 个目标"

@@ -28,7 +28,7 @@ pub(crate) fn format_task_log_timestamp(timestamp_ms: u64) -> String {
 pub(crate) fn task_logs_viewer_text(task: &Task) -> String {
     localized_task_logs_viewer_text(
         task,
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
     )
 }
 

@@ -69,7 +69,7 @@ impl std::fmt::Display for McpSettingsError {
             Self::Localized(message) => f.write_str(
                 &message
                     .render(crate::app::i18n::I18n::new(
-                        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        config_ui::DesktopLocale::SimplifiedChinese,
                     ))
                     .expect("valid MCP validation template"),
             ),

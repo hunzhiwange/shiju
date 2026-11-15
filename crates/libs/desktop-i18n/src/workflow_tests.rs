@@ -1,5 +1,5 @@
 use super::{I18n, workflow::Feedback};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_13_raw_error_never_becomes_a_template() {

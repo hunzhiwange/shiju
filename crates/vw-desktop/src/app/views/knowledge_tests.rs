@@ -16,7 +16,7 @@ use iced::widget::button;
 use iced::{Element, Event, Point, Rectangle, Renderer, Size, Theme, Vector};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use std::collections::BTreeMap;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 use super::{
     DocumentPageItem, KNOWLEDGE_SCROLLBAR_GUTTER, KNOWLEDGE_SCROLLBAR_WIDTH,
@@ -144,14 +144,14 @@ fn runtime_status(vector: bool, rerank: bool) -> KnowledgeRuntimeStatus {
 fn knowledge_labels_match_ui_copy() {
     assert_eq!(
         indexing_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexingMode::Economy
         ),
         "经济"
     );
     assert_eq!(
         indexing_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexingMode::HighQuality
         ),
         "高质量"
@@ -159,56 +159,56 @@ fn knowledge_labels_match_ui_copy() {
     assert_eq!(chunking_label(&KnowledgeChunkingMode::General), "General");
     assert_eq!(
         chunk_type_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeChunkType::ParentText
         ),
         "父块"
     );
     assert_eq!(
         retrieval_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeRetrievalMode::Hybrid
         ),
         "混合检索"
     );
     assert_eq!(
         document_status_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeDocumentStatus::Failed
         ),
         "失败"
     );
     assert_eq!(
         match_type_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeMatchType::Hybrid
         ),
         "混合"
     );
     assert_eq!(
         support_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             true
         ),
         "可用"
     );
     assert_eq!(
         support_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             false
         ),
         "不可用"
     );
     assert_eq!(
         enabled_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             true
         ),
         "启用"
     );
     assert_eq!(
         enabled_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             false
         ),
         "关闭"
@@ -258,7 +258,7 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
     };
     assert_eq!(
         embedding_status_provider_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "alibaba-cn"
@@ -288,14 +288,14 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
     };
     assert_eq!(
         embedding_preset_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &alibaba
         ),
         "阿里百炼/DashScope · text-embedding-v4 / 1024维"
     );
     assert_eq!(
         embedding_preset_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &doubao
         ),
         "豆包/火山方舟 · doubao-embedding-text-240715 / 2048维"
@@ -312,7 +312,7 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
     };
     assert_eq!(
         embedding_test_result_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&result)
         ),
         "通过 · 1024 维 · 50 ms"
@@ -326,7 +326,7 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     enabled.score_threshold = 0.2;
     assert_eq!(
         score_threshold_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &enabled
         ),
         "0.20"
@@ -335,7 +335,7 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     let disabled = dataset("disabled");
     assert_eq!(
         score_threshold_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &disabled
         ),
         "关闭"
@@ -345,14 +345,14 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     assert_ne!(format_dataset_time(42), "--");
     assert_eq!(
         dataset_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "  "
         ),
         "未命名知识库"
     );
     assert_eq!(
         dataset_description(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "  "
         ),
         "暂无描述"
@@ -444,7 +444,7 @@ fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
     keep_element(build_dataset_list_panel(&app));
     keep_element(build_create_dataset_panel(&app));
     keep_element(build_create_dataset_card(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     )));
     keep_element(knowledge_header_button(
         "刷新",
@@ -458,7 +458,7 @@ fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
     keep_element(build_dataset_catalog_view(&app));
     keep_element(build_dataset_list_panel(&app));
     keep_element(build_no_dataset_result_card(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     )));
 
     app.knowledge.dataset_search_query = "DATASET".to_string();
@@ -551,14 +551,14 @@ fn upload_panel_builds_file_import_states() {
 
     assert_eq!(
         file_import_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             app.knowledge.file_imports.first().unwrap()
         ),
         "1.5 KB · text/markdown"
     );
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &app.knowledge.file_imports
         ),
         "1.5 KB · text/markdown"
@@ -571,7 +571,7 @@ fn upload_panel_builds_file_import_states() {
     });
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &app.knowledge.file_imports
         ),
         "3.5 KB · 2 个文件"
@@ -594,27 +594,27 @@ fn upload_panel_builds_file_import_states() {
     }];
     assert_eq!(
         import_job_status_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexJobStatus::Queued
         ),
         "入队"
     );
     assert_eq!(
         import_job_status_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexJobStatus::Processing
         ),
         "索引中"
     );
     assert_eq!(
         import_job_status_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &KnowledgeIndexJobStatus::Failed
         ),
         "失败"
     );
     keep_element(build_import_polling_panel(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.import_polling_jobs,
     ));
     keep_element(build_file_import_panel(&app));
@@ -650,7 +650,7 @@ fn documents_table_builds_loading_empty_filtered_and_row_states() {
     keep_element(super::build_chunks_panel(&app));
     keep_element(build_document_preview_drawer(&app));
     keep_element(chunk_preview_card(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.loaded_chunks[0],
         true,
     ));
@@ -662,7 +662,7 @@ fn documents_table_builds_loading_empty_filtered_and_row_states() {
     app.knowledge.document_page_size = 10;
     keep_element(build_documents_table(&app));
     keep_element(build_document_pagination(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         2,
         3,
         25,
@@ -860,7 +860,7 @@ fn document_page_size_accepts_supported_values_and_rejects_others() {
 #[test]
 fn document_status_helpers_preserve_archives_and_override_disabled_documents() {
     let options = document_status_filter_options(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     ));
     assert_eq!(
         options.map(|option| (option.label, option.status)),
@@ -950,7 +950,7 @@ fn document_styles_and_badges_cover_status_and_interaction_states() {
         keep_element(document_status_badge(
             &value,
             document_status_label(
-                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &status,
             ),
         ));
@@ -972,7 +972,7 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     value.content = "first line\nsecond line".to_string();
     assert_eq!(
         chunk_preview_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value
         ),
         "Explicit title"
@@ -981,7 +981,7 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     value.title = "  ".to_string();
     assert_eq!(
         chunk_preview_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value
         ),
         "first line"
@@ -991,7 +991,7 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     value.ordinal = 7;
     assert_eq!(
         chunk_preview_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value
         ),
         "分段 7"
@@ -1030,42 +1030,42 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
     assert!(!embedding_hybrid_available(&app));
     assert_eq!(
         embedding_status_provider_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "检测中"
     );
     assert_eq!(
         embedding_status_model_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "检测中"
     );
     assert_eq!(
         embedding_status_dimensions_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "768 维"
     );
     assert_eq!(
         embedding_status_route_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&status)
         ),
         "默认"
     );
     assert_eq!(
         embedding_status_dimensions_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             None
         ),
         "检测中"
     );
     assert_eq!(
         embedding_status_route_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             None
         ),
         "默认"
@@ -1110,7 +1110,7 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
     };
     assert_eq!(
         embedding_test_result_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             Some(&failed)
         ),
         "失败 · missing API key · 耗时未知"
@@ -1121,7 +1121,7 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
 fn file_import_summary_covers_empty_and_unknown_mime_states() {
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[]
         ),
         "等待选择"
@@ -1134,14 +1134,14 @@ fn file_import_summary_covers_empty_and_unknown_mime_states() {
     };
     assert_eq!(
         file_import_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &file
         ),
         "1.0 KB · 未知类型"
     );
     assert_eq!(
         file_imports_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[file]
         ),
         "1.0 KB · 未知类型"
@@ -1161,11 +1161,11 @@ fn retrieval_tab_builds_empty_and_result_states() {
     app.knowledge.retrieve_results = vec![debug, chunk("unscored", None)];
     keep_element(build_retrieval_tab(&app));
     keep_element(chunk_card(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.retrieve_results[0],
     ));
     keep_element(chunk_card(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.knowledge.retrieve_results[1],
     ));
 
@@ -1189,7 +1189,7 @@ fn small_element_helpers_build_without_panicking() {
         ))
     }));
     keep_element(option_card(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "高质量",
         "生成向量索引。",
         crate::app::assets::Icon::Speedometer2,

@@ -193,9 +193,9 @@ impl Editor {
             self.inner.set_custom_context_menu_entries(preview_context_menu_entries(
                 match language {
                     i18n::Language::ChineseSimplified => {
-                        vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                        config_ui::DesktopLocale::SimplifiedChinese
                     }
-                    _ => vw_config_types::ui::DesktopLocale::English,
+                    _ => config_ui::DesktopLocale::English,
                 },
             ));
         }
@@ -204,7 +204,7 @@ impl Editor {
     /// 配置预览编辑器使用的应用菜单项和底层默认编辑菜单。
     pub fn configure_preview_context_menu(
         &mut self,
-        locale: vw_config_types::ui::DesktopLocale,
+        locale: config_ui::DesktopLocale,
         reveal_in_file_manager_enabled: bool,
     ) {
         self.preview_context_menu_configured = true;
@@ -555,7 +555,7 @@ impl Editor {
 }
 
 fn preview_context_menu_entries(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
 ) -> Vec<ContextMenuEntry> {
     let i18n = crate::app::i18n::I18n::new(locale);
     let insert_selection = i18n.__("插入选择到聊天");

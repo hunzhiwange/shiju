@@ -652,7 +652,7 @@ pub struct App {
     /// 用于模型聊天时间上下文的 IANA 时区
     pub(crate) generated_session_titles:
         std::collections::HashMap<String, crate::app::i18n::input::Feedback>,
-    pub(crate) desktop_locale: vw_config_types::ui::DesktopLocale,
+    pub(crate) desktop_locale: config_ui::DesktopLocale,
     pub(crate) desktop_locale_selected: bool,
     pub(crate) desktop_locale_saving: bool,
     pub(crate) chat_timezone: String,
@@ -954,8 +954,8 @@ pub struct App {
     pub(crate) dialogue_flow_show_reasoning_summary: bool,
     pub(crate) dialogue_flow_expand_shell_tool_section: bool,
     pub(crate) dialogue_flow_expand_edit_tool_section: bool,
-    pub(crate) quick_messages: Vec<vw_config_types::ui::QuickMessageConfig>,
-    pub(crate) quick_message_open_group: Option<vw_config_types::ui::QuickMessageGroup>,
+    pub(crate) quick_messages: Vec<config_ui::QuickMessageConfig>,
+    pub(crate) quick_message_open_group: Option<config_ui::QuickMessageGroup>,
     pub(crate) show_shiju_skill_menu: bool,
     pub(crate) show_recommended_prompt_menu: bool,
     pub(crate) quick_message_handoff: Option<QuickMessageHandoffState>,

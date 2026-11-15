@@ -10,7 +10,7 @@ use tempfile::TempDir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
-use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 
 const SOURCE: &str = include_str!("config_cron_jobs.rs");
 static CRON_JOBS_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));

@@ -76,7 +76,7 @@ fn message_meta_labels_use_step_start_for_user_and_finish_for_assistant() {
         .map(|meta| {
             meta.map(|meta| {
                 meta.render(crate::app::i18n::I18n::new(
-                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                    config_ui::DesktopLocale::SimplifiedChinese,
                 ))
             })
         })
@@ -113,7 +113,7 @@ fn message_meta_labels_omit_missing_models_but_keep_assistant_step_alignment() {
         .map(|meta| {
             meta.map(|meta| {
                 meta.render(crate::app::i18n::I18n::new(
-                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                    config_ui::DesktopLocale::SimplifiedChinese,
                 ))
             })
         })
@@ -138,7 +138,7 @@ fn task_session_source_display_uses_vibewindow_label() {
         .map(|meta| {
             meta.map(|meta| {
                 meta.render(crate::app::i18n::I18n::new(
-                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                    config_ui::DesktopLocale::SimplifiedChinese,
                 ))
             })
         })
@@ -162,7 +162,7 @@ fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
         app.active_session_view_state.message_meta_texts[0]
             .as_ref()
             .map(|meta| meta.render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                config_ui::DesktopLocale::SimplifiedChinese
             )))
             .is_some_and(|label| label.contains("message-model"))
     );
@@ -173,7 +173,7 @@ fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
         app.active_session_view_state.message_meta_texts[0]
             .as_ref()
             .map(|meta| meta.render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                config_ui::DesktopLocale::SimplifiedChinese
             )))
             .is_some_and(|label| label.contains("message-model"))
     );

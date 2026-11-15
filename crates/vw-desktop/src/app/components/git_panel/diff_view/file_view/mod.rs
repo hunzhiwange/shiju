@@ -161,7 +161,7 @@ fn file_line_selection_state(
 }
 
 fn diff_file_actions_menu(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     file: &str,
     deleted_content: Option<String>,
     read_only: bool,

@@ -11,7 +11,7 @@ use crate::app::{App, Message, i18n::I18n};
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
-use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
+use config_ui::{QuickMessageGroup, QuickMessageKind};
 
 fn settings_message(message: QuickMessagesMessage) -> Message {
     Message::Settings(SettingsMessage::QuickMessages(message))

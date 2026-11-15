@@ -46,7 +46,7 @@ async fn mini_companion_size_modal_renders_themes_and_routes_cancel_reset() {
     let mut renderer =
         iced::Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut app = App::new().0;
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let _ = view::update(&mut app, ViewMessage::TaskPetSizeOpen);
     for scale in [0.5, 1.0, 2.0] {
         let _ = view::update(&mut app, ViewMessage::TaskPetSizePreview(scale));

@@ -12,7 +12,7 @@ use iced::advanced::{
 use iced::keyboard::key::Named;
 use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_30_CHILD";

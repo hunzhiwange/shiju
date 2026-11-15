@@ -5,7 +5,7 @@ use serde::{
     Deserialize, Deserializer,
     de::{self, MapAccess, Visitor},
 };
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 pub fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, serde_json::Error> {
     struct FlatCatalog;

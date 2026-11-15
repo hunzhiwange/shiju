@@ -6,7 +6,7 @@ use crate::app::message::SettingsMessage;
 use crate::app::{App, Message};
 use iced::Task;
 use serde_json::{Map, Value};
-use vw_config_types::ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
+use config_ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
 use gateway_endpoint::GatewayEndpoint;
 
 use super::desktop::{PreferencesScope, preferences_scope};
@@ -366,7 +366,7 @@ static WINDOW_TEST_BOOTSTRAP: std::sync::OnceLock<GatewayClientSystemSettingsCon
 pub(crate) fn install_window_test_bootstrap(port: u16) {
     assert_ne!(port, 0);
     let mut config = GatewayClientSystemSettingsConfig::default();
-    let server = vw_config_types::ui::GatewayClientServerConfig {
+    let server = config_ui::GatewayClientServerConfig {
         host: "127.0.0.1".into(),
         skey: "window-fixture-token".into(),
         port,

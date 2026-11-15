@@ -603,7 +603,7 @@ async fn ui_refresh_13_preserves_values_and_disabled_states() {
 async fn help_rollout_06_renders_claude_family() {
     use super::super::desktop::ui_refresh_12_tests::assert_contextual_help;
     use crate::app::i18n::I18n;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     let mut renderer = renderer().await;
     let theme = Theme::Dark;
@@ -627,7 +627,7 @@ async fn settings_help_gap_16_opencode_format_and_protected_values() {
     use super::super::desktop::ui_refresh_12_tests::Scene as HelpScene;
     use crate::app::i18n::I18n;
     use events::opencode::Field;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     let mut renderer = renderer().await;
     for locale in [

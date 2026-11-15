@@ -15,7 +15,7 @@ use crate::app::{App, Message};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct TaskBoardReasoningEffortOption(
     Option<ReasoningEffortDto>,
-    vw_config_types::ui::DesktopLocale,
+    config_ui::DesktopLocale,
 );
 
 impl fmt::Display for TaskBoardReasoningEffortOption {

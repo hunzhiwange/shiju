@@ -510,7 +510,7 @@ mod modal_render {
             return true;
         }
         let home = tempfile::tempdir().unwrap();
-        let config = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+        let config = config_ui::GatewayClientSystemSettingsConfig {
             host: "[".into(),
             servers: Vec::new(),
             ..Default::default()
@@ -554,7 +554,7 @@ mod modal_render {
                 .await
                 .unwrap();
         let mut app = test_app();
-        app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+        app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
         let time = "09:30:00".parse().unwrap();
         let date = "2099-01-01".parse().unwrap();
         let rules = [
@@ -777,7 +777,7 @@ mod modal_render {
                 .await
                 .unwrap();
         let mut app = test_app();
-        app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+        app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
         app.cron_settings.show_add_modal = true;
         let draft = &mut app.cron_settings.add_draft;
         draft.schedule_draft = Some(Default::default());

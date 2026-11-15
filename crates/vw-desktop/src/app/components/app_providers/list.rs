@@ -43,7 +43,7 @@ impl<'a> Help<'a> {
 
     #[cfg(test)]
     pub(super) fn test() -> Help<'static> {
-        Help::new(I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese), &Theme::Light)
+        Help::new(I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &Theme::Light)
     }
 
     pub(super) fn field(

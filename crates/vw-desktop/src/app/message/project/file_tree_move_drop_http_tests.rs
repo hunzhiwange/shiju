@@ -38,9 +38,9 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();
-    let mut config = vw_config_types::ui::GatewayClientSystemSettingsConfig::default();
+    let mut config = config_ui::GatewayClientSystemSettingsConfig::default();
     config.set_servers(
-        vec![vw_config_types::ui::GatewayClientServerConfig {
+        vec![config_ui::GatewayClientServerConfig {
             id: "move-test".into(),
             host: "127.0.0.1".into(),
             port,

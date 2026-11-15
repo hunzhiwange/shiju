@@ -18,7 +18,7 @@ use iced::widget::{Space, text_editor};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_agent_profile::AgentRuntime;
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 const KEY: &str = "fixture-agent";
 const BACKEND: &str = "fixture-backend";

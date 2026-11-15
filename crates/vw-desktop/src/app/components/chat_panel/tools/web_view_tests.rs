@@ -18,7 +18,7 @@ use serde_json::json;
 fn web_tool_title_running_suffix() {
     assert_eq!(
         web_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "网页搜索",
             None,
             true,
@@ -31,7 +31,7 @@ fn web_tool_title_running_suffix() {
 #[test]
 fn web_tool_title_approval_required() {
     let title = web_tool_title(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "网页搜索",
         Some(ToolPermissionState::ApprovalRequired),
         false,
@@ -43,7 +43,7 @@ fn web_tool_title_approval_required() {
 #[test]
 fn web_tool_title_rejected() {
     let title = web_tool_title(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "网页搜索",
         Some(ToolPermissionState::Rejected),
         false,
@@ -56,7 +56,7 @@ fn web_tool_title_rejected() {
 fn web_tool_title_error_suffix() {
     assert_eq!(
         web_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "网页搜索",
             None,
             false,
@@ -70,7 +70,7 @@ fn web_tool_title_error_suffix() {
 fn web_tool_title_base_title() {
     assert_eq!(
         web_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "网页搜索",
             None,
             false,
@@ -84,7 +84,7 @@ fn web_tool_title_base_title() {
 fn web_tool_title_permission_takes_precedence_over_error() {
     // permission_state is checked before is_error, so permission title should win
     let title = web_tool_title(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "网页搜索",
         Some(ToolPermissionState::ApprovalRequired),
         false,
@@ -361,7 +361,7 @@ fn web_metadata_text_web_fetch_has_url() {
     let value = json!({"data":{"url":"https://example.test"}});
     assert!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "web_fetch",
             &value
         )
@@ -376,7 +376,7 @@ fn web_metadata_text_web_fetch_all_fields() {
         "data":{"url":"https://example.test"}
     });
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "web_fetch",
         &value,
     );
@@ -393,7 +393,7 @@ fn web_metadata_text_web_search_has_query_and_results() {
         "data":{"query":"rust programming"}
     });
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "web_search",
         &value,
     );
@@ -407,7 +407,7 @@ fn web_metadata_text_unknown_tool_returns_empty() {
     let value = json!({"data":{"url":"https://example.test"}});
     assert_eq!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "bash",
             &value
         ),
@@ -420,7 +420,7 @@ fn web_metadata_text_empty_value_returns_empty() {
     let value = json!({});
     assert_eq!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "web_fetch",
             &value
         ),
@@ -428,7 +428,7 @@ fn web_metadata_text_empty_value_returns_empty() {
     );
     assert_eq!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "web_search",
             &value
         ),
@@ -440,7 +440,7 @@ fn web_metadata_text_empty_value_returns_empty() {
 fn web_metadata_text_fetch_webpage() {
     let value = json!({"data":{"url":"https://example.test"}});
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "fetch_webpage",
         &value,
     );
@@ -451,7 +451,7 @@ fn web_metadata_text_fetch_webpage() {
 fn web_metadata_text_http_request() {
     let value = json!({"data":{"url":"https://api.example.test/data"}});
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "http_request",
         &value,
     );
@@ -465,7 +465,7 @@ fn web_metadata_text_join_parts_with_separator() {
         "renderHint":{"metadata":{"provider":"custom"}}
     });
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "web_fetch",
         &value,
     );

@@ -1,4 +1,4 @@
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 /// Translate a Chinese source key in the caller's locale.
 pub fn text(locale: DesktopLocale, source: &'static str) -> &'static str {
     super::I18n::new(locale).__(source)

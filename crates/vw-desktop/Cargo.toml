@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+config-ui = { path = "../libs/config-ui", version = "0.6.0" }
 vw-api-app-auth = { path = "../libs/api-app-auth", version = "0.6.0" }
 session-info = { path = "../libs/session-info", version = "0.6.0" }
 message-types = { path = "../libs/message-types", version = "0.6.0" }

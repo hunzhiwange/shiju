@@ -19,7 +19,7 @@ use iced::{Alignment, Element, Length};
 use std::borrow::Cow;
 use config_channel_types::GroupReplyConfig;
 use config_channel_services::{LarkReceiveMode, QQReceiveMode};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 const MULTILINE_EDITOR_HEIGHT: f32 = 92.0;
 

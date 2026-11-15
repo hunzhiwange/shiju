@@ -79,7 +79,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             };
             match item.kind {
-                vw_config_types::ui::QuickMessageKind::Message => {
+                config_ui::QuickMessageKind::Message => {
                     if item.text.trim().is_empty() {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -92,7 +92,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     shared::sync_global_input_editor_if_needed(app);
                     Task::done(Message::Chat(ChatMessage::SendPressed))
                 }
-                vw_config_types::ui::QuickMessageKind::FillInput => {
+                config_ui::QuickMessageKind::FillInput => {
                     if item.text.trim().is_empty() {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -107,7 +107,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     shared::sync_global_input_editor_if_needed(app);
                     Task::none()
                 }
-                vw_config_types::ui::QuickMessageKind::CreateNewSession => {
+                config_ui::QuickMessageKind::CreateNewSession => {
                     let Some(project_path) =
                         app.project_path.clone().filter(|path| !path.trim().is_empty())
                     else {
@@ -121,7 +121,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         project_path,
                     )))
                 }
-                vw_config_types::ui::QuickMessageKind::SummarizeAndCreateNewSession => {
+                config_ui::QuickMessageKind::SummarizeAndCreateNewSession => {
                     let Some(session_id) = app.active_session_id.clone() else {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -147,7 +147,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         project_path,
                     }))
                 }
-                vw_config_types::ui::QuickMessageKind::RefreshGitChanges => {
+                config_ui::QuickMessageKind::RefreshGitChanges => {
                     if app.project_path.as_deref().is_none_or(|path| path.trim().is_empty()) {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -157,7 +157,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     }
                     Task::done(Message::Project(message::ProjectMessage::FileManagerRefreshChanges))
                 }
-                vw_config_types::ui::QuickMessageKind::SelectAllGitChanges => {
+                config_ui::QuickMessageKind::SelectAllGitChanges => {
                     if app.git_changed_files.is_empty() {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -169,7 +169,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         app.git_changed_files.clone(),
                     )))
                 }
-                vw_config_types::ui::QuickMessageKind::InvertGitSelection => {
+                config_ui::QuickMessageKind::InvertGitSelection => {
                     if app.git_changed_files.is_empty() {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -181,10 +181,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         app.git_changed_files.clone(),
                     )))
                 }
-                vw_config_types::ui::QuickMessageKind::StageAllGitChanges => {
+                config_ui::QuickMessageKind::StageAllGitChanges => {
                     Task::done(Message::Git(message::GitMessage::StageAll))
                 }
-                vw_config_types::ui::QuickMessageKind::StageAllAndCommitGitChanges => {
+                config_ui::QuickMessageKind::StageAllAndCommitGitChanges => {
                     let Some(project_path) = git_quick_action_path(app) else {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
@@ -197,7 +197,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         action: crate::app::state::QuickMessageGitCommitAction::StageAllAndCommit,
                     }))
                 }
-                vw_config_types::ui::QuickMessageKind::CommitSelectedGitChanges => {
+                config_ui::QuickMessageKind::CommitSelectedGitChanges => {
                     let Some(project_path) = git_quick_action_path(app) else {
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,

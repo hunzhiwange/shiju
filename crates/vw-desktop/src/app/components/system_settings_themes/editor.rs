@@ -535,7 +535,7 @@ fn chrome_row<'a>(
 }
 
 fn asset_status_label(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     relative: Option<&str>,
     source: Option<&str>,
 ) -> String {
@@ -553,7 +553,7 @@ fn asset_status_label(
 }
 
 fn asset_picker_control(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     relative: Option<&str>,
     source: Option<&str>,
     pick: ThemesMessage,
@@ -594,7 +594,7 @@ impl std::fmt::Display for ImageFitOption {
 }
 
 fn zone_image_fit_select(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     value: &str,
     field: ThemeChromeField,
 ) -> Element<'static, Message> {

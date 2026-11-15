@@ -12,7 +12,7 @@ use iced::advanced::{
 };
 use iced::{Event, Font, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::GatewayClientSystemSettingsConfig;
+use config_ui::GatewayClientSystemSettingsConfig;
 
 const CHANNELS: [&str; 21] = [
     "telegram",

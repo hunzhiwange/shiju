@@ -16,7 +16,7 @@ pub(crate) fn log_message(i18n: I18n, entry: &TaskLogEntry) -> String {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct SplitOption(
     pub crate::app::task::TaskSplitMode,
-    pub vw_config_types::ui::DesktopLocale,
+    pub config_ui::DesktopLocale,
 );
 impl std::fmt::Display for SplitOption {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

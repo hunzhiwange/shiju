@@ -208,7 +208,7 @@ fn text_and_session_cards_construct_for_segmented_and_empty_inputs() {
     let _ = message_text_body("line\n".repeat(120), false);
     let _ = message_text_body(String::new(), true);
     let _ = session_control_selection_card(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         SessionControlSelection {
             tools: vec!["read".to_string()],
             skills: vec!["testing".to_string()],
@@ -216,7 +216,7 @@ fn text_and_session_cards_construct_for_segmented_and_empty_inputs() {
         },
     );
     let _ = session_control_selection_card(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         SessionControlSelection { tools: Vec::new(), skills: Vec::new(), shiju_skills: Vec::new() },
     );
 }

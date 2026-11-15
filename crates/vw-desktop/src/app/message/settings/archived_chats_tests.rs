@@ -268,7 +268,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
     const CHILD: &str = "SHIJU_ARCHIVED_RESTORE_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let home = tempfile::tempdir().unwrap();
-        let config = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+        let config = config_ui::GatewayClientSystemSettingsConfig {
             host: "[".into(),
             servers: Vec::new(),
             ..Default::default()
@@ -617,7 +617,7 @@ fn archived_chats_browse_settings_routes_and_gateway_switch() {
     const CHILD: &str = "SHIJU_ARCHIVED_BROWSE_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let home = tempfile::tempdir().unwrap();
-        let config = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+        let config = config_ui::GatewayClientSystemSettingsConfig {
             host: "[".into(),
             servers: Vec::new(),
             ..Default::default()
@@ -831,7 +831,7 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
     const CHILD: &str = "SHIJU_ARCHIVED_DELETE_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let home = tempfile::tempdir().unwrap();
-        let config = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+        let config = config_ui::GatewayClientSystemSettingsConfig {
             host: "[".into(),
             servers: vec![],
             ..Default::default()

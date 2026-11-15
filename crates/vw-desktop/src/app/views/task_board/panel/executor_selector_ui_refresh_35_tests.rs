@@ -14,7 +14,7 @@ use iced::advanced::{
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 

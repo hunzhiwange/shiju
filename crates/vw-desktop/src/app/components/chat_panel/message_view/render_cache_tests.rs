@@ -107,7 +107,7 @@ fn build_render_cache_entry_merges_explore_across_hidden_think() {
     assert_eq!(entry.explore_summary_text_blocks.len(), 1);
     assert_eq!(
         entry.explore_summary_text_blocks[0].1.render(crate::app::i18n::I18n::new(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese
+            config_ui::DesktopLocale::SimplifiedChinese
         )),
         "2 次读取"
     );
@@ -149,7 +149,7 @@ fn build_render_cache_entry_collects_text_and_tool_card_blocks() {
             .tool_card_text_blocks
             .iter()
             .flat_map(|source| source.render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                config_ui::DesktopLocale::SimplifiedChinese
             )))
             .any(|text| text == "pwd")
     );

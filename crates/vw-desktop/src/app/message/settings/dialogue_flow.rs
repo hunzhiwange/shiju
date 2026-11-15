@@ -220,7 +220,7 @@ fn dialogue_flow_ui_settings_load_task(app: &mut App) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 let cfg = vw_gateway_client::GatewayClient::new(endpoint)?
-                    .desktop_system_settings_get::<vw_config_types::ui::AppSystemSettingsConfig>()
+                    .desktop_system_settings_get::<config_ui::AppSystemSettingsConfig>()
                     .await?
                     .unwrap_or_default();
                 Ok((

@@ -306,7 +306,7 @@ async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
             .expect("renderer");
     for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
         let help = crate::app::components::app_providers::list::Help::new(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &theme,
         );
         let element = crate::app::components::app_providers::desktop::overlay(

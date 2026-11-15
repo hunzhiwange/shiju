@@ -701,14 +701,14 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
             .expect("tiny-skia headless renderer should be available");
 
     let mut shiju_apps = work_sidebar::shiju_apps_button(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     ));
     let mut shiju_messages = click(&mut shiju_apps, &renderer);
     assert_eq!(shiju_messages.len(), 1);
     assert!(matches!(shiju_messages.remove(0), Message::ShijuApps(ShijuAppsMessage::Open)));
 
     let mut shiju_skills = work_sidebar::shiju_skills_button(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     ));
     let mut skill_messages = click(&mut shiju_skills, &renderer);
     assert_eq!(skill_messages.len(), 1);
@@ -718,7 +718,7 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
     ));
 
     let mut expert_hub = work_sidebar::expert_hub_button(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     ));
     let mut expert_messages = click(&mut expert_hub, &renderer);
     assert_eq!(expert_messages.len(), 1);
@@ -943,7 +943,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
     app.work_sidebar_collapsed = true;
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let project_path = "/workspace/project";
     app.project_path = Some(project_path.into());
     app.recent_projects = vec![project_path.into()];

@@ -15,7 +15,7 @@ pub(super) fn load_new_app_init() -> NewAppInit {
     #[cfg(not(target_arch = "wasm32"))]
     let system_settings_cfg = config::load_system_settings_config();
     #[cfg(target_arch = "wasm32")]
-    let system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
+    let system_settings_cfg = config_ui::AppSystemSettingsConfig::default();
 
     let now = {
         #[cfg(not(target_arch = "wasm32"))]

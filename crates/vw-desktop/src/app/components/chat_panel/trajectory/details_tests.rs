@@ -121,7 +121,7 @@ fn trajectory_details_trims_input_and_builds_single_line_tooltip_view() {
 
     let state = details_state(&user, TrajectoryDetailsTab::Preview);
     let element = trajectory_details(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &user,
         &state,
     );
@@ -166,7 +166,7 @@ fn trajectory_details_tab_and_close_actions_are_observable() {
     let assistant = record(TrajectoryRecordKind::Assistant);
     let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
     let element = trajectory_details(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &assistant,
         &state,
     );
@@ -191,7 +191,7 @@ fn trajectory_details_wraps_payloads_and_uses_safe_fonts() {
     assistant.detail.output = Some("x".repeat(20_000));
     let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
     let element = trajectory_details(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &assistant,
         &state,
     );
@@ -262,7 +262,7 @@ fn details_render_exact_reference_tabs_by_kind() {
             !Tree::new(
                 trajectory_details(
                     crate::app::i18n::I18n::new(
-                        vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                        config_ui::DesktopLocale::SimplifiedChinese
                     ),
                     &record,
                     &state
@@ -305,7 +305,7 @@ fn details_render_system_prompt_and_tools() {
     assert!(
         !Tree::new(
             trajectory_details(
-                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &system,
                 &state
             )

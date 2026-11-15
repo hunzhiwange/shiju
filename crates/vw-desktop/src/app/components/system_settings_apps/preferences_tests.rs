@@ -187,7 +187,7 @@ use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::{Id, Operation};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 pub(crate) const HELP_LOCALES: [(DesktopLocale, Theme, u32); 3] = [
     (DesktopLocale::SimplifiedChinese, Theme::Dark, 420),

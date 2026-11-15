@@ -32,7 +32,7 @@ fn queue_valid_routes(app: &mut App) -> Task<Message> {
                 || !route.model.trim().is_empty()
                 || !route.priority_input.trim().is_empty()
         })
-        .map(|route| vw_config_types::ui::ModelRoute {
+        .map(|route| config_ui::ModelRoute {
             pattern: route.pattern.trim().to_string(),
             provider: route.provider.trim().to_string(),
             model: route.model.trim().to_string(),

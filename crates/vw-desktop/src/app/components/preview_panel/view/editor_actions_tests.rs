@@ -2,7 +2,7 @@ use crate::app::components::editor::Editor;
 use crate::app::{App, PreviewTab};
 use iced::widget::Id;
 use iced_code_editor::Message as Event;
-use vw_config_types::ui::GatewayClientSystemSettingsConfig;
+use config_ui::GatewayClientSystemSettingsConfig;
 fn send(app: &mut App, event: Event) {
     let _ = crate::app::message::preview::update(
         app,

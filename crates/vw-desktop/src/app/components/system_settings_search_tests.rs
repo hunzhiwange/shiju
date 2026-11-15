@@ -107,7 +107,7 @@ fn catalog_extracts_unique_navigable_child_tabs_and_scoped_keywords() {
 
 #[test]
 fn search_results_show_secondary_pages_with_parent_paths() {
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     let mut app = App::new().0;
     app.desktop_locale = DesktopLocale::English;
@@ -137,7 +137,7 @@ fn search_results_show_secondary_pages_with_parent_paths() {
 #[test]
 fn search_matches_setting_labels_and_localizes_each_parent() {
     use super::system_settings::general_fields;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     let mut app = App::new().0;
     for (locale, query, label, path) in [

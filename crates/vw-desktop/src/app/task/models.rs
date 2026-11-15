@@ -889,7 +889,7 @@ impl Task {
         let message = crate::app::i18n::format::Message::new(source, arguments);
         let rendered = message
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .expect("valid task log template");
         self.add_log(rendered);

@@ -216,7 +216,7 @@ async fn general_settings_render_chinese_in_light_and_dark_without_overflow() {
     use iced::{Font, Pixels, Rectangle, Size};
 
     let mut app = test_app();
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     for (theme, theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
         app.app_theme = theme.clone();
         for (tab, tab_name) in [
@@ -306,7 +306,7 @@ mod tab_appearance {
     };
     use iced::{Color, Event, Font, Point, Rectangle, Renderer, Size, keyboard, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+    use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
     const SIZE: Size<u32> = Size::new(960, 640);
     type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;

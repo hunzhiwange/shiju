@@ -45,7 +45,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     let output = r#"[{"server":{"name":"rustcodegraph","transport":"stdio"},"prompts":[]}]"#;
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "MCP",
             &json!({"output": output})
         ),
@@ -53,7 +53,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     );
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "mcp_linear",
             &json!({"input":"{}"})
         ),
@@ -61,7 +61,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     );
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "list_mcp_resources",
             &json!({"input":"{}"})
         ),
@@ -69,7 +69,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     );
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "MCP",
             &json!({"summary":" connected "})
         ),

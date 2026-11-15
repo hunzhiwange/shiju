@@ -20,7 +20,7 @@ impl Feedback {
     pub fn new(source: &str, arguments: Vec<Argument>) -> Self {
         let message = Message::new(source, arguments);
         let fallback = message
-            .render(I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
+            .render(I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
             .expect("valid feedback template");
         Self { fallback, message }
     }

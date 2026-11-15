@@ -91,9 +91,9 @@ fn match_score(candidate: &SlashPaletteCandidate, query: &str) -> Option<i64> {
     };
     if let Some((title, description)) = built_in {
         for locale in [
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
-            vw_config_types::ui::DesktopLocale::TraditionalChinese,
-            vw_config_types::ui::DesktopLocale::English,
+            config_ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::TraditionalChinese,
+            config_ui::DesktopLocale::English,
         ] {
             let i18n = crate::app::i18n::I18n::new(locale);
             label.push(' ');

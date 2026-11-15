@@ -12,7 +12,7 @@ use std::sync::mpsc::{self, Receiver};
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
 use tempfile::TempDir;
-use vw_config_types::ui::{
+use config_ui::{
     AppSystemSettingsConfig, GatewayClientServerConfig, GatewayClientSystemSettingsConfig,
 };
 
@@ -696,7 +696,7 @@ fn update_system_settings_config_result_async_skips_unchanged_settings() {
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
 fn update_system_settings_config_result_async_patches_quick_messages() {
-    use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
+    use config_ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
 
     let (_lock, _home, _guard) = temp_home();
     let body = serde_json::json!({

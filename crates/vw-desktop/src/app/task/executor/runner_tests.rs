@@ -66,7 +66,7 @@ mod task_board_execution_worktree_gateway_runner {
     use std::ffi::{OsStr, OsString};
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
-    use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+    use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 
     #[derive(Debug)]
     struct RecordedRequest {

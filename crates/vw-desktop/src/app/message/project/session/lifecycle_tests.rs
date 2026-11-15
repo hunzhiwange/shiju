@@ -353,7 +353,7 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());
     assert!(app.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(
         |meta| meta.render(crate::app::i18n::I18n::new(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese
+            config_ui::DesktopLocale::SimplifiedChinese
         ))
     ) != Some(
         "stale".to_string()

@@ -5,7 +5,7 @@ use iced::advanced::{clipboard, renderer::Headless};
 use iced::widget::{container, text};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::GatewayClientSystemSettingsConfig;
+use config_ui::GatewayClientSystemSettingsConfig;
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 
 fn isolated(test: &str) -> bool {

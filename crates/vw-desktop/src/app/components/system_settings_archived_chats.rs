@@ -14,7 +14,7 @@ use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text, tooltip};
 use iced::{Alignment, Element, Length};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 mod delete_modal;
 

@@ -14,7 +14,7 @@ async fn wecom_delivery_modal_renders_narrow_chinese_and_qr_states() {
     const CHILD: &str = "SHIJU_WECOM_MODAL_RENDER_CHILD";
     if std::env::var_os(CHILD).is_none() {
         let home = tempfile::tempdir().unwrap();
-        let cfg = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+        let cfg = config_ui::GatewayClientSystemSettingsConfig {
             host: "[".into(),
             servers: Vec::new(),
             ..Default::default()

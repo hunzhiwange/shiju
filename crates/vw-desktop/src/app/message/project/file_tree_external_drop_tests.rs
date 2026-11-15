@@ -36,9 +36,9 @@ fn isolated(name: &str) -> bool {
 }
 
 fn configure(host: &str, port: u16) {
-    let mut config = vw_config_types::ui::GatewayClientSystemSettingsConfig::default();
+    let mut config = config_ui::GatewayClientSystemSettingsConfig::default();
     config.set_servers(
-        vec![vw_config_types::ui::GatewayClientServerConfig {
+        vec![config_ui::GatewayClientServerConfig {
             id: "external-test".into(),
             host: host.into(),
             port,

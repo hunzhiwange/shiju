@@ -103,7 +103,7 @@ impl SkillHubError {
 
     pub(crate) fn localized(source: &str, arguments: Vec<String>) -> Self {
         let message =
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)
                 .format(source, &arguments.iter().cloned().map(Into::into).collect::<Vec<_>>())
                 .expect("valid client error");
         Self { message, localized: Some((source.into(), arguments)) }

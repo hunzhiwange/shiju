@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use pinyin::ToPinyin;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 use crate::app::App;
 use crate::app::components::system_settings::{

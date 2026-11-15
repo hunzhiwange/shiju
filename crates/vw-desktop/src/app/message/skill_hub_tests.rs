@@ -1096,7 +1096,7 @@ fn install_guide_routes_current_package_copy_download_and_direct_install() {
     }));
     assert!(matches!(app.expert_hub.install_guide.agent_package, LoadState::Loaded(_)));
     let install_text = agent_install_text(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &app.expert_hub.install_guide,
     );
     assert!(install_text.contains("请帮我安装识矩技能"));

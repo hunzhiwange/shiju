@@ -42,7 +42,7 @@ fn assert_work_project_toolbar_shape(element: &Element<'_, Message>) {
 #[test]
 fn settings_button_builds_compact_tooltip_control() {
     let element = controls::settings_button(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::English,
+        config_ui::DesktopLocale::English,
     ));
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Shrink, Length::Fixed(24.0)));
@@ -69,7 +69,7 @@ async fn settings_tooltip_draws_readable_chinese_text_on_dark_background() {
             .unwrap();
     let viewport = Rectangle::with_size(Size::new(180.0, 90.0));
     let mut button = controls::settings_button(crate::app::i18n::I18n::new(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
     ));
     let mut tree = Tree::new(button.as_widget());
     let node = button.as_widget_mut().layout(

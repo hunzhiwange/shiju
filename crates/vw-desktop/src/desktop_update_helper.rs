@@ -28,7 +28,7 @@ struct UpdateRequest {
     ready: PreparedDesktopUpdate,
     executable: PathBuf,
     parent_pid: u32,
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     macos_stage: Option<PathBuf>,
 }
 
@@ -36,7 +36,7 @@ struct UpdateRequest {
 /// The original app exits only after the helper acknowledges a validated request.
 pub(crate) fn start(
     ready: &PreparedDesktopUpdate,
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
 ) -> Result<()> {
     verify_ready(ready)?;
     let executable = std::env::current_exe()?.canonicalize()?;

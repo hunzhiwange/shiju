@@ -37,7 +37,7 @@ use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 use self::common::{enabled_channels, number_row};
 

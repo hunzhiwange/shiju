@@ -13,7 +13,7 @@ use iced::widget::{Space, button, column, container, row, scrollable, text};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::widget::{Tooltip, tooltip::Position as TooltipPosition};
 use iced::{Element, Length, Theme};
-use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup};
+use config_ui::{QuickMessageConfig, QuickMessageGroup};
 
 use super::styles;
 

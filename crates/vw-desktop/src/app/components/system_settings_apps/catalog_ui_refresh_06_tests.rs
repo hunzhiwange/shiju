@@ -556,7 +556,7 @@ impl Operation for CatalogLabels {
 
 #[tokio::test]
 async fn settings_help_gap_14_app_catalog() {
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     let mut renderer = renderer().await;
     let mut state = fixture();

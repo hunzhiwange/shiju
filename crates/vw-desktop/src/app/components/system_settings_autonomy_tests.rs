@@ -34,7 +34,7 @@ fn field_row_builds_populated_and_empty_content() {
 
 #[test]
 fn text_row_builds_populated_and_empty_values() {
-    let i18n = I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
+    let i18n = I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     keep_element(text_row(
         i18n,
         &iced::Theme::Light,
@@ -154,7 +154,7 @@ fn view_builds_empty_and_unicode_list_items() {
 fn list_editor_renders_one_row_per_saved_item() {
     let items = vec!["cargo".to_string(), "git status".to_string(), "未知工具".to_string()];
     let element = list_editor(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         AutonomyListKind::AllowedCommands,
         settings_field_label("允许命令").into(),
         Some("说明"),

@@ -47,7 +47,7 @@ fn labeled_option_displays_label_not_value() {
 
 #[test]
 fn sandbox_enabled_options_are_stable_and_user_facing() {
-    let options = sandbox_enabled_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
+    let options = sandbox_enabled_options(config_ui::DesktopLocale::SimplifiedChinese);
     let values: Vec<_> = options.iter().map(|option| option.value).collect();
     let labels: Vec<_> = options.iter().map(|option| option.label).collect();
 
@@ -58,16 +58,16 @@ fn sandbox_enabled_options_are_stable_and_user_facing() {
 #[test]
 fn sandbox_backend_options_follow_enabled_policy() {
     let disabled_options =
-        sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "false");
+        sandbox_backend_options(config_ui::DesktopLocale::SimplifiedChinese, "false");
     let disabled_values: Vec<_> = disabled_options.iter().map(|option| option.value).collect();
     let disabled_labels: Vec<_> = disabled_options.iter().map(|option| option.label).collect();
     let forced_values: Vec<_> =
-        sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "true")
+        sandbox_backend_options(config_ui::DesktopLocale::SimplifiedChinese, "true")
             .iter()
             .map(|option| option.value)
             .collect();
     let auto_values: Vec<_> =
-        sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "auto")
+        sandbox_backend_options(config_ui::DesktopLocale::SimplifiedChinese, "auto")
             .iter()
             .map(|option| option.value)
             .collect();
@@ -84,7 +84,7 @@ fn sandbox_backend_options_treat_unknown_enabled_values_as_auto_policy() {
 
     for enabled in ["", "TRUE", " false", "unsupported"] {
         let values: Vec<_> =
-            sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, enabled)
+            sandbox_backend_options(config_ui::DesktopLocale::SimplifiedChinese, enabled)
                 .iter()
                 .map(|option| option.value)
                 .collect();
@@ -96,39 +96,39 @@ fn sandbox_backend_options_treat_unknown_enabled_values_as_auto_policy() {
 fn sandbox_backend_description_covers_known_and_fallback_backends() {
     assert!(
         sandbox_backend_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             "landlock"
         )
         .contains("Landlock")
     );
     assert!(
         sandbox_backend_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             "firejail"
         )
         .contains("Firejail")
     );
     assert!(
         sandbox_backend_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             "bubblewrap"
         )
         .contains("Bubblewrap")
     );
     assert!(
         sandbox_backend_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             "docker"
         )
         .contains("Docker")
     );
     assert!(
-        sandbox_backend_description(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "none")
+        sandbox_backend_description(config_ui::DesktopLocale::SimplifiedChinese, "none")
             .contains("不使用任何沙箱")
     );
     assert!(
         sandbox_backend_description(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             "unknown"
         )
         .contains("自动选择")

@@ -12,7 +12,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, Font, mouse};
 use iced::{Point, Rectangle, Renderer, Size, Theme, Vector};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use vw_gateway_client::{ShijuConnector, ShijuIamApiKeyDto};
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;

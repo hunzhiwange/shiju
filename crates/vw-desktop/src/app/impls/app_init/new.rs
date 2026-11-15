@@ -58,14 +58,14 @@ impl App {
     /// 使用本机连接配置和默认值构造首屏，由启动任务在服务就绪后回填配置。
     pub fn new() -> (Self, Task<Message>) {
         let cfg = serde_json::json!({});
-        let mut system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
-        vw_config_types::ui::upgrade_legacy_quick_message_actions(
+        let mut system_settings_cfg = config_ui::AppSystemSettingsConfig::default();
+        config_ui::upgrade_legacy_quick_message_actions(
             &mut system_settings_cfg.quick_messages,
         );
-        vw_config_types::ui::append_missing_builtin_general_quick_messages(
+        config_ui::append_missing_builtin_general_quick_messages(
             &mut system_settings_cfg.quick_messages,
         );
-        vw_config_types::ui::append_missing_builtin_git_quick_messages(
+        config_ui::append_missing_builtin_git_quick_messages(
             &mut system_settings_cfg.quick_messages,
         );
         let init_ms = {

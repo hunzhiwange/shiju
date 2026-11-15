@@ -1,5 +1,5 @@
 //! Locale-independent feedback stored until display.
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 #[path = "message_catalog.rs"]
 mod catalog;
 pub use catalog::render;

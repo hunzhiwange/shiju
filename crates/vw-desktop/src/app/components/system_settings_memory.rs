@@ -667,7 +667,7 @@ fn active_save_error(app: &App) -> Option<&str> {
 mod system_settings_memory_tests;
 
 pub(super) fn memory_tab_label(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     tab: MemorySettingsTab,
 ) -> &'static str {
     runtime_text(

@@ -23,7 +23,7 @@ fn apply_patch_header_summary_splits_first_path() {
 
     assert_eq!(
         apply_patch_header_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &files
         ),
         ("main.rs".to_string(), "/src".to_string(), Some("等 2 个文件".to_string()))
@@ -34,7 +34,7 @@ fn apply_patch_header_summary_splits_first_path() {
 fn apply_patch_header_summary_handles_empty_changes() {
     assert_eq!(
         apply_patch_header_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[]
         ),
         (String::new(), String::new(), None)
@@ -45,14 +45,14 @@ fn apply_patch_header_summary_handles_empty_changes() {
 fn apply_patch_header_summary_handles_single_and_absolute_paths() {
     assert_eq!(
         apply_patch_header_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[('A', "README.md".to_string())]
         ),
         ("README.md".to_string(), String::new(), None)
     );
     assert_eq!(
         apply_patch_header_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[('D', "/workspace/src/lib.rs".to_string())]
         ),
         ("lib.rs".to_string(), "/workspace/src".to_string(), None)

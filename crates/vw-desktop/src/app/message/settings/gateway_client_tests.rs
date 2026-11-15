@@ -555,7 +555,7 @@ mod remote_save {
         let _ = app.update(saved);
 
         let _ = app.update(Message::BootstrapSystemSettings(Ok(
-            vw_config_types::ui::AppSystemSettingsConfig {
+            config_ui::AppSystemSettingsConfig {
                 gateway_client: stale_bootstrap,
                 ..Default::default()
             },

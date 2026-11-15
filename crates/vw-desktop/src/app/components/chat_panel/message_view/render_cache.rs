@@ -206,7 +206,7 @@ pub(crate) fn build_render_cache_entry(
             .iter()
             .flat_map(|source| {
                 source.render(crate::app::i18n::I18n::new(
-                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                    config_ui::DesktopLocale::SimplifiedChinese,
                 ))
             })
             .find(|text| !text.trim().is_empty())

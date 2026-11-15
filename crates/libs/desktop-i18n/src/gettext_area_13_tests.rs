@@ -1,5 +1,5 @@
 use super::I18n;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 #[test]
 fn desktop_gettext_area_13_uses_chinese_keys() {
     for (locale, expected) in [

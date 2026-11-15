@@ -155,7 +155,7 @@ pub fn preview_open_error(path: &str) -> Option<String> {
     preview_open_error_message(path).map(|message| {
         message
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .expect("preview error template")
     })

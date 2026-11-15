@@ -426,7 +426,7 @@ fn rough_message_heights_grow_for_rich_messages() {
 fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::Assistant,
             true,
             true,
@@ -436,7 +436,7 @@ fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::User,
             true,
             true,
@@ -446,7 +446,7 @@ fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::Assistant,
             false,
             true,
@@ -456,7 +456,7 @@ fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::User,
             true,
             false,
@@ -466,7 +466,7 @@ fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     );
     assert_eq!(
         live_message_meta_fallback(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             ChatRole::System,
             true,
             true,

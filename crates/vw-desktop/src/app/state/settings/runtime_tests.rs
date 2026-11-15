@@ -222,7 +222,7 @@ fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
 
 #[test]
 fn gateway_client_server_draft_round_trips_config_and_clamps_port() {
-    let config = vw_config_types::ui::GatewayClientServerConfig {
+    let config = config_ui::GatewayClientServerConfig {
         id: "remote".to_string(),
         name: "Remote".to_string(),
         host: "gw.example".to_string(),
@@ -259,7 +259,7 @@ fn gateway_client_server_draft_round_trips_config_and_clamps_port() {
 
 #[test]
 fn gateway_client_server_draft_uses_bearer_token_when_skey_is_blank() {
-    let config = vw_config_types::ui::GatewayClientServerConfig {
+    let config = config_ui::GatewayClientServerConfig {
         id: "legacy".to_string(),
         name: "Legacy".to_string(),
         host: "legacy.example".to_string(),

@@ -15,7 +15,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::container;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn task_719_test_module_is_wired() {

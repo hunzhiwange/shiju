@@ -11,7 +11,7 @@ fn success_body_renders_empty_config_overview() {
 
     assert!(
         success_body(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &result
         )
         .is_some()
@@ -27,7 +27,7 @@ fn success_body_renders_truncated_config_section_summary() {
 
     assert!(
         success_body(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &result
         )
         .is_some()

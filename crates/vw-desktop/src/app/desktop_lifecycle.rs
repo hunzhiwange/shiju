@@ -27,7 +27,7 @@ pub(crate) fn save_close_to_tray(_: bool) -> Result<(), String> {
     Err("浏览器不支持系统托盘".into())
 }
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn ensure_tray(_: vw_config_types::ui::DesktopLocale) -> Result<(), String> {
+pub(crate) fn ensure_tray(_: config_ui::DesktopLocale) -> Result<(), String> {
     Err("浏览器不支持系统托盘".into())
 }
 #[cfg(target_arch = "wasm32")]

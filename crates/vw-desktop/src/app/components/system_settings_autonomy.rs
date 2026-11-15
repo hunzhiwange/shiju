@@ -107,7 +107,7 @@ fn text_row<'a>(
 
 #[allow(clippy::too_many_arguments)]
 fn list_editor<'a>(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     kind: AutonomyListKind,
     label: Element<'a, Message>,
     hint: Option<&'static str>,

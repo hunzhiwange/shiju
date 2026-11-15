@@ -1,4 +1,4 @@
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_14_all_registered_templates_have_translations() {

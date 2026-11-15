@@ -16,7 +16,7 @@ use crate::app::{Message, message};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Element, Length};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 /// 构建或处理 `catalog_matches_query` 对应的界面片段与交互数据。
 ///

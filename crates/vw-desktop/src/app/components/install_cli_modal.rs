@@ -71,7 +71,7 @@ const UPDATE_LOGO_BADGE_RADIUS: f32 = 26.0;
 ///    - 关闭按钮
 pub fn view<'a>(title: &'a str, content: &'a str) -> Element<'a, Message> {
     view_inner(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         title,
         content,
         None,
@@ -145,7 +145,7 @@ pub fn view_update_check_with_progress<'a>(
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     view_inner(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         title,
         content,
         Some(current_version),
@@ -650,7 +650,7 @@ pub(super) fn update_progress_block<'a>(
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     update_progress_block_localized(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         progress,
         last_copied_code_hash,
     )

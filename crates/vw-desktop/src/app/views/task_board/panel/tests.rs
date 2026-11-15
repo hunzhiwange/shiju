@@ -162,7 +162,7 @@ fn contextual_rows_reject_irrelevant_or_blank_task_metadata() {
 
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_none()
@@ -171,7 +171,7 @@ fn contextual_rows_reject_irrelevant_or_blank_task_metadata() {
     task.last_error = Some("   ".to_string());
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_none()
@@ -180,7 +180,7 @@ fn contextual_rows_reject_irrelevant_or_blank_task_metadata() {
     task.pause_reason = Some("   ".to_string());
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_none()
@@ -188,7 +188,7 @@ fn contextual_rows_reject_irrelevant_or_blank_task_metadata() {
 
     assert!(
         build_selected_worktree_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_none()
@@ -196,7 +196,7 @@ fn contextual_rows_reject_irrelevant_or_blank_task_metadata() {
     task.selected_worktree_path = Some("   ".to_string());
     assert!(
         build_selected_worktree_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_none()
@@ -215,7 +215,7 @@ fn contextual_rows_build_failure_pause_worktree_and_merge_lock_variants() {
     task.status = TaskStatus::Failed;
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_some()
@@ -223,7 +223,7 @@ fn contextual_rows_build_failure_pause_worktree_and_merge_lock_variants() {
     task.last_error = Some("worker exited".to_string());
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_some()
@@ -232,7 +232,7 @@ fn contextual_rows_build_failure_pause_worktree_and_merge_lock_variants() {
     task.status = TaskStatus::Paused;
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_some()
@@ -240,7 +240,7 @@ fn contextual_rows_build_failure_pause_worktree_and_merge_lock_variants() {
     task.pause_reason = Some("waiting for review".to_string());
     assert!(
         build_failed_reason_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_some()
@@ -249,7 +249,7 @@ fn contextual_rows_build_failure_pause_worktree_and_merge_lock_variants() {
     task.selected_worktree_path = Some(" /repo/.worktrees/task-1 ".to_string());
     assert!(
         build_selected_worktree_row(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &task
         )
         .is_some()
@@ -331,7 +331,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
     ));
 
     let create_header = build_header_row(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         text("新建任务"),
         None,
         None,
@@ -343,7 +343,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
         Task { id: "completed-task".to_string(), status: TaskStatus::Completed, ..Task::default() };
     completed_task.last_execution_duration_ms = Some(1_500);
     let completed_header = build_header_row(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         text("任务详情"),
         Some(completed_task.id.as_str()),
         Some(&completed_task),
@@ -354,7 +354,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
     let running_task =
         Task { id: "running-task".to_string(), status: TaskStatus::Running, ..Task::default() };
     let running_header = build_header_row(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         text("任务详情"),
         Some(running_task.id.as_str()),
         Some(&running_task),

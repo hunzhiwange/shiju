@@ -146,7 +146,7 @@ fn main() {
         move || {
             let (mut app, _) = App::new();
             app.app_theme = Theme::Light;
-            app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+            app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
             app.active_session_id = Some("render-session".into());
             app.project_path = Some(root.to_string_lossy().into_owned());
             let runtime = app.get_session_runtime_mut("render-session");

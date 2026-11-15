@@ -786,7 +786,7 @@ fi
 
 impl Default for TerminalState {
     fn default() -> Self {
-        let settings = vw_config_types::ui::AppSystemSettingsConfig::default();
+        let settings = config_ui::AppSystemSettingsConfig::default();
         Self::blank_with_settings(
             false,
             Shell::Bash,

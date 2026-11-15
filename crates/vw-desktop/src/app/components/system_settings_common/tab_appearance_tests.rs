@@ -16,7 +16,7 @@ use iced::advanced::{
 use iced::{Color, Element, Event, Font, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use image::{Rgba, RgbaImage};
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
 

@@ -4,7 +4,7 @@
 
 use super::*;
 use iced::advanced::widget::Tree;
-use vw_config_types::ui::QuickMessageConfig;
+use config_ui::QuickMessageConfig;
 
 fn app() -> App {
     App::new().0
@@ -42,7 +42,7 @@ fn quick_message_settings_view_supports_empty_and_default_lists() {
     let empty = view_tree(&app);
     assert_eq!(empty.children[1].children[0].children.len(), 1);
 
-    app.quick_messages = vw_config_types::ui::AppSystemSettingsConfig::default().quick_messages;
+    app.quick_messages = config_ui::AppSystemSettingsConfig::default().quick_messages;
     let defaults = view_tree(&app);
     assert_eq!(defaults.children[1].children[0].children.len(), 33);
 }

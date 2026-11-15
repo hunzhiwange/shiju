@@ -10,7 +10,7 @@ pub mod proxy;
 pub mod security;
 pub mod skills;
 pub use config_tools as tools;
-pub use vw_config_types::ui;
+pub use config_ui as ui;
 
 mod config;
 mod config_env;

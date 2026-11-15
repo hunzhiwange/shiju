@@ -125,7 +125,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.query_classification_settings.save_error = Some(
                 error
                     .render(crate::app::i18n::I18n::new(
-                        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        config_ui::DesktopLocale::SimplifiedChinese,
                     ))
                     .expect("valid classification error template"),
             );
@@ -143,7 +143,7 @@ fn validate(app: &App) -> Result<(), String> {
     validation_message(app).map_err(|message| {
         message
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .expect("valid classification error template")
     })

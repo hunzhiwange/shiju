@@ -321,7 +321,7 @@ async fn tool_explore_summary_spinner_centers_on_the_running_title() {
         .await
         .expect("tiny-skia headless renderer should be available");
     let mut app = test_app();
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let items = vec![ExploreItem {
         tool_idx: 1,
         raw: r#"tool read

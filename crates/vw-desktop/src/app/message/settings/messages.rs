@@ -11,7 +11,7 @@ use crate::app::state::{
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
 use config_security::{AutonomyLevel, ShellRedirectPolicy};
-use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
+use config_ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
     AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, HookAuditLoaded,
@@ -735,8 +735,8 @@ pub enum QuickMessagesMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum GeneralSettingsMessage {
-    LocaleSelected(vw_config_types::ui::DesktopLocale),
-    LocaleSaved(vw_config_types::ui::DesktopLocale, Result<(), String>),
+    LocaleSelected(config_ui::DesktopLocale),
+    LocaleSaved(config_ui::DesktopLocale, Result<(), String>),
     TabSelected(crate::app::state::GeneralSettingsTab),
     TimezoneSelected(String),
     TaskCompletionNotificationToggled(bool),

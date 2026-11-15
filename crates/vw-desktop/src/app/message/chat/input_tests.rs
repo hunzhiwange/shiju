@@ -181,25 +181,25 @@ fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets()
 async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     let (mut app, _) = crate::app::App::new();
     app.quick_messages = vec![
-        vw_config_types::ui::QuickMessageConfig {
+        config_ui::QuickMessageConfig {
             text: "继续推进".to_string(),
-            group: vw_config_types::ui::QuickMessageGroup::General,
-            kind: vw_config_types::ui::QuickMessageKind::Message,
+            group: config_ui::QuickMessageGroup::General,
+            kind: config_ui::QuickMessageKind::Message,
         },
-        vw_config_types::ui::QuickMessageConfig {
+        config_ui::QuickMessageConfig {
             text: "仔细检查".to_string(),
-            group: vw_config_types::ui::QuickMessageGroup::General,
-            kind: vw_config_types::ui::QuickMessageKind::FillInput,
+            group: config_ui::QuickMessageGroup::General,
+            kind: config_ui::QuickMessageKind::FillInput,
         },
-        vw_config_types::ui::QuickMessageConfig {
+        config_ui::QuickMessageConfig {
             text: "创建新会话".to_string(),
-            group: vw_config_types::ui::QuickMessageGroup::Git,
-            kind: vw_config_types::ui::QuickMessageKind::CreateNewSession,
+            group: config_ui::QuickMessageGroup::Git,
+            kind: config_ui::QuickMessageKind::CreateNewSession,
         },
-        vw_config_types::ui::QuickMessageConfig {
+        config_ui::QuickMessageConfig {
             text: "压缩当前会话".to_string(),
-            group: vw_config_types::ui::QuickMessageGroup::General,
-            kind: vw_config_types::ui::QuickMessageKind::SummarizeAndCreateNewSession,
+            group: config_ui::QuickMessageGroup::General,
+            kind: config_ui::QuickMessageKind::SummarizeAndCreateNewSession,
         },
     ];
 
@@ -236,7 +236,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
         fork_execution_started: None,
         revert: None,
     });
-    app.quick_message_open_group = Some(vw_config_types::ui::QuickMessageGroup::Git);
+    app.quick_message_open_group = Some(config_ui::QuickMessageGroup::Git);
     let create_task = super::update(&mut app, ChatMessage::QuickMessageSelected(2));
     assert_eq!(app.quick_message_open_group, None);
     assert!(matches!(
@@ -268,7 +268,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn quick_message_git_actions_reuse_panel_workflows_and_validate_empty_state() {
-    use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
+    use config_ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
 
     let (mut app, _) = crate::app::App::new();
     app.project_path = Some("/workspace/project".to_string());
@@ -349,9 +349,9 @@ fn quick_message_group_click_opens_and_closes_dropdown_state() {
 
     let _ = super::update(
         &mut app,
-        ChatMessage::QuickMessageGroupChanged(Some(vw_config_types::ui::QuickMessageGroup::Git)),
+        ChatMessage::QuickMessageGroupChanged(Some(config_ui::QuickMessageGroup::Git)),
     );
-    assert_eq!(app.quick_message_open_group, Some(vw_config_types::ui::QuickMessageGroup::Git));
+    assert_eq!(app.quick_message_open_group, Some(config_ui::QuickMessageGroup::Git));
 
     let _ = super::update(&mut app, ChatMessage::QuickMessageGroupChanged(None));
     assert_eq!(app.quick_message_open_group, None);
@@ -382,7 +382,7 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
             upgrade_available: false,
         },
     ]);
-    app.quick_message_open_group = Some(vw_config_types::ui::QuickMessageGroup::Git);
+    app.quick_message_open_group = Some(config_ui::QuickMessageGroup::Git);
 
     let load_task = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
     assert!(app.show_shiju_skill_menu);
@@ -1011,7 +1011,7 @@ fn session_entry_recommendations_close_for_other_input_menus() {
     assert!(app.show_recommended_prompt_menu);
     let _ = super::update(
         &mut app,
-        ChatMessage::QuickMessageGroupChanged(Some(vw_config_types::ui::QuickMessageGroup::Git)),
+        ChatMessage::QuickMessageGroupChanged(Some(config_ui::QuickMessageGroup::Git)),
     );
     assert!(!app.show_recommended_prompt_menu);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));

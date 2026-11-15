@@ -1,0 +1,15 @@
+[package]
+name = "config-ui"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+config-voice = { path = "../config-voice", version = "0.6.0" }
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
+chrono-tz = "0.10.4"
+schemars = "1.2"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

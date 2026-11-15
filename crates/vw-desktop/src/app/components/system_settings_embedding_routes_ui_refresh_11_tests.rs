@@ -21,7 +21,7 @@ use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector
 use iced_runtime::user_interface::{Cache, UserInterface};
 
 use serde_json::json;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 const OCR_PICKER: &[usize] = &[4, 0, 4, 0, 1, 0, 0, 0];
 const REMOTE_FETCH: &[usize] = &[2, 0, 4, 0, 1, 0, 0];

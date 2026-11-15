@@ -2090,7 +2090,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             let client_time_zone = crate::app::config::load_system_settings_config_async()
                 .await
                 .map(|config| config.timezone)
-                .unwrap_or_else(|_| vw_config_types::ui::default_timezone());
+                .unwrap_or_else(|_| config_ui::default_timezone());
 
             let mut messages = Vec::new();
             for message in &req.history {

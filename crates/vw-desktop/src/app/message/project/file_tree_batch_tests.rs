@@ -184,9 +184,9 @@ async fn batch_delete_http_attempts_every_root_once_and_reports_partial_failure(
     let root = project.path().to_string_lossy().into_owned();
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
-    let mut config = vw_config_types::ui::GatewayClientSystemSettingsConfig::default();
+    let mut config = config_ui::GatewayClientSystemSettingsConfig::default();
     config.set_servers(
-        vec![vw_config_types::ui::GatewayClientServerConfig {
+        vec![config_ui::GatewayClientServerConfig {
             id: "batch-delete-test".into(),
             host: "127.0.0.1".into(),
             port: listener.local_addr().unwrap().port(),

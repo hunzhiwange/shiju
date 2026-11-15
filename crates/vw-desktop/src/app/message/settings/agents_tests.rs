@@ -1769,7 +1769,7 @@ impl AgentConfigCleanupGateway {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let directory = tempfile::tempdir().unwrap();
-        let mut config = vw_config_types::ui::GatewayClientSystemSettingsConfig::default();
+        let mut config = config_ui::GatewayClientSystemSettingsConfig::default();
         let mut server = config.active_server().clone();
         server.host = "127.0.0.1".into();
         server.port = port;

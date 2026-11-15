@@ -32,7 +32,7 @@ fn skill_names_fall_back_to_output_and_errors() {
     assert_eq!(skill_name_from_output("name: yaml-skill").as_deref(), Some("yaml-skill"));
     assert_eq!(
         skill_display_name(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "",
             "",
             "name: error-skill"
@@ -41,7 +41,7 @@ fn skill_names_fall_back_to_output_and_errors() {
     );
     assert_eq!(
         skill_display_name(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "",
             "",
             ""

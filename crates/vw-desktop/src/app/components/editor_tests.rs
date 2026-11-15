@@ -68,7 +68,7 @@ fn editor_content_view_is_constructible() {
 fn preview_context_menu_uses_stable_actions_default_entries_and_localized_labels() {
     let mut editor = Editor::new("", "rust");
 
-    editor.configure_preview_context_menu(vw_config_types::ui::DesktopLocale::English, true);
+    editor.configure_preview_context_menu(config_ui::DesktopLocale::English, true);
 
     assert!(editor.inner.default_context_menu_enabled());
     assert!(editor.inner.reveal_in_file_manager_enabled());
@@ -94,7 +94,7 @@ fn preview_context_menu_uses_stable_actions_default_entries_and_localized_labels
     );
 
     editor.configure_preview_context_menu(
-        vw_config_types::ui::DesktopLocale::TraditionalChinese,
+        config_ui::DesktopLocale::TraditionalChinese,
         true,
     );
     assert_eq!(

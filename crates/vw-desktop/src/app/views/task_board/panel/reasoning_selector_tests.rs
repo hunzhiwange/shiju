@@ -9,14 +9,14 @@ use vw_api_chat_identity::ReasoningEffortDto;
 #[test]
 fn reasoning_option_formats_automatic_and_explicit_efforts() {
     assert_eq!(
-        TaskBoardReasoningEffortOption(None, vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+        TaskBoardReasoningEffortOption(None, config_ui::DesktopLocale::SimplifiedChinese)
             .to_string(),
         "默认"
     );
     assert_eq!(
         TaskBoardReasoningEffortOption(
             Some(ReasoningEffortDto::High),
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese
+            config_ui::DesktopLocale::SimplifiedChinese
         )
         .to_string(),
         "High"

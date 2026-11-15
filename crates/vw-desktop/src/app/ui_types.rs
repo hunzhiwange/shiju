@@ -80,11 +80,11 @@ pub enum Message {
     #[cfg(not(target_arch = "wasm32"))]
     StartupSessionsLoaded(u64, Box<crate::app::message::ProjectMessage>),
     StartupAppConfigLoaded(Result<serde_json::Value, String>),
-    StartupSystemSettingsLoaded(Result<vw_config_types::ui::AppSystemSettingsConfig, String>),
+    StartupSystemSettingsLoaded(Result<config_ui::AppSystemSettingsConfig, String>),
     StartupAgentConfigLoaded(Result<Box<vw_config_types::config::Config>, String>),
     StartupBrowserConfigLoaded(Result<config_tools::BrowserConfig, String>),
     BootstrapAppConfig(Result<serde_json::Value, String>),
-    BootstrapSystemSettings(Result<vw_config_types::ui::AppSystemSettingsConfig, String>),
+    BootstrapSystemSettings(Result<config_ui::AppSystemSettingsConfig, String>),
     BootstrapBrowserConfig(Result<config_tools::BrowserConfig, String>),
     BootstrapAcpAgentsLoaded(Result<Vec<String>, String>),
     BootstrapArchivedSessions(Result<std::collections::HashSet<String>, String>),

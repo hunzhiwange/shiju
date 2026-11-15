@@ -127,7 +127,7 @@ fn trajectory_timeline_selects_stable_record() {
     let captured_ids = Rc::clone(&selected_ids);
 
     let element = trajectory_timeline(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &projection,
         TrajectoryDurationMode::Timed,
         false,
@@ -176,7 +176,7 @@ fn timeline_toolbar_emits_control_messages() {
     let captured_actions = Rc::clone(&actions);
 
     let toolbar = timeline_toolbar(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         summary,
         TrajectoryDurationMode::Timed,
         false,
@@ -209,7 +209,7 @@ fn timeline_block_tooltip_truncates_preview_to_100_characters() {
     assistant.metrics.duration_ms = MetricAvailability::Available(1_250);
 
     let tooltip = timeline_block_tooltip(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
         &assistant,
     );
 
@@ -225,7 +225,7 @@ fn timeline_block_tooltip_truncates_preview_to_100_characters() {
     let unknown = record("user:2", 8, TrajectoryRecordKind::User);
     assert!(
         timeline_block_tooltip(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
             &unknown
         )
         .contains("不可用")

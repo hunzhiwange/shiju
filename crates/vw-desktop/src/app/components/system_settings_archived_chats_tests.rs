@@ -25,7 +25,7 @@ mod rendering {
     };
     use iced::{Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     #[derive(Default)]
     struct Geometry {

@@ -31,7 +31,7 @@ use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_gateway_client::vw_api_types::agent_apps::*;
 
 fn default_i18n() -> I18n {
-    I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+    I18n::new(config_ui::DesktopLocale::SimplifiedChinese)
 }
 
 fn fixture() -> AppsCatalogState {

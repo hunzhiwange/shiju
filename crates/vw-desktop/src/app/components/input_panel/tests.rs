@@ -428,7 +428,7 @@ fn input_panel_quick_message_strip_renders_in_standard_queue_and_todo_layouts() 
     let without_quick_messages = view(&app);
     assert_eq!(without_quick_messages.as_widget().children().len(), 1);
     drop(without_quick_messages);
-    app.quick_messages = vw_config_types::ui::AppSystemSettingsConfig::default().quick_messages;
+    app.quick_messages = config_ui::AppSystemSettingsConfig::default().quick_messages;
 
     app.current_session_runtime_mut().queue = vec![queue_item("queued request")];
     assert_eq!(view(&app).as_widget().size().width, Length::Fill);

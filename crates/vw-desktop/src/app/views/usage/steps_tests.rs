@@ -193,14 +193,14 @@ fn raw_payload_summary_counts_missing_and_present_fields() {
 
     assert_eq!(
         super::raw_payload_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &empty
         ),
         "历史消息 0 条 · 工具调用 0 条"
     );
     assert_eq!(
         super::raw_payload_summary(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &populated
         ),
         "历史消息 2 条 · 工具调用 2 条"

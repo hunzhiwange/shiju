@@ -53,7 +53,7 @@ impl fmt::Display for SkillCacheSyncError {
         let text = self
             .message()
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .map_err(|_| fmt::Error)?;
         formatter.write_str(&text)

@@ -13,7 +13,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::button;
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 fn fixture() -> App {
     let mut app = None;

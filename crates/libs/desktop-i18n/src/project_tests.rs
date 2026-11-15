@@ -1,5 +1,5 @@
 use super::{I18n, input::Feedback, project::search_error};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_10_search_error_preserves_external_content() {

@@ -47,7 +47,7 @@ struct LocalizedTray {
 }
 
 /// Update existing native items without creating a tray when the preference is disabled.
-pub(crate) fn refresh_tray_locale(locale: vw_config_types::ui::DesktopLocale) {
+pub(crate) fn refresh_tray_locale(locale: config_ui::DesktopLocale) {
     TRAY.with(|slot| {
         if let Some(tray) = slot.borrow().as_ref() {
             let i18n = crate::app::i18n::I18n::new(locale);
@@ -62,7 +62,7 @@ pub(crate) fn refresh_tray_locale(locale: vw_config_types::ui::DesktopLocale) {
 
 /// Uses only the application snapshot; no disk or SDK request runs on the UI thread.
 pub(crate) fn refresh_tray_state(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     shutting_down: bool,
     background: bool,
 ) {
@@ -110,7 +110,7 @@ pub(crate) fn refresh_tray_providers(app: &crate::app::App) {
 }
 
 fn tray_status_label(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     shutting_down: bool,
     background: bool,
 ) -> &'static str {
@@ -269,7 +269,7 @@ fn write_close_to_tray(path: &std::path::Path, enabled: bool) -> Result<(), Stri
     Ok(())
 }
 
-pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<(), String> {
+pub(crate) fn ensure_tray(locale: config_ui::DesktopLocale) -> Result<(), String> {
     TRAY.with(|slot| {
         let mut slot = slot.borrow_mut();
         if slot.is_some() {

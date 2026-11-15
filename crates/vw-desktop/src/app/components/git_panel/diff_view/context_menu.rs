@@ -129,7 +129,7 @@ pub(super) fn diff_context_menu_matches(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(super) fn diff_selection_menu<'a>(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
 ) -> Element<'a, Message> {
     let menu_item = |label: &'static str, message: Message| {
         button(

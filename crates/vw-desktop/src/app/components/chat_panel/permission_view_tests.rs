@@ -97,7 +97,7 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
 
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &requests,
             Some("perm-2")
         ),
@@ -105,7 +105,7 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
     );
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &requests,
             Some("missing")
         ),
@@ -113,7 +113,7 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
     );
     assert_eq!(
         pending_permission_request_badge_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &requests,
             "perm-1"
         ),

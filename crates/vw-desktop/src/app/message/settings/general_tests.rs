@@ -84,7 +84,7 @@ fn timezone_selection_updates_immediately_and_persists_last_choice() {
 
 #[test]
 fn desktop_language_selection_survives_reload() {
-    use vw_config_types::ui::{AppSystemSettingsConfig, DesktopLocale};
+    use config_ui::{AppSystemSettingsConfig, DesktopLocale};
     let mut app = App::new().0;
     for locale in [
         DesktopLocale::SimplifiedChinese,
@@ -102,7 +102,7 @@ fn desktop_language_selection_survives_reload() {
 
 #[test]
 fn desktop_language_restores_and_reports_save_failure() {
-    use vw_config_types::ui::{AppSystemSettingsConfig, DesktopLocale};
+    use config_ui::{AppSystemSettingsConfig, DesktopLocale};
     let mut app = App::new().0;
     app.apply_bootstrap_system_settings(AppSystemSettingsConfig {
         desktop_locale: DesktopLocale::English,
@@ -161,7 +161,7 @@ fn tray_quit_starts_shutdown_even_when_close_to_tray_is_enabled() {
 #[test]
 fn notification_settings_restore_and_report_delivery_failure() {
     let mut app = App::new().0;
-    app.apply_bootstrap_system_settings(vw_config_types::ui::AppSystemSettingsConfig {
+    app.apply_bootstrap_system_settings(config_ui::AppSystemSettingsConfig {
         task_completion_notification: true,
         ..Default::default()
     });

@@ -35,7 +35,7 @@ fn parse_config_result_from_output_reads_get_shape() {
     assert_eq!(result.value, Some(json!(true)));
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &result
         ),
         "browser.enabled = true"
@@ -72,7 +72,7 @@ fn parse_config_result_from_output_reads_set_shape() {
     assert_eq!(result.new_value, Some(json!("monokai")));
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &result
         ),
         "appUi.terminalTheme -> monokai"
@@ -87,7 +87,7 @@ fn summary_from_result_handles_failures_and_overview_gets() {
     .expect("config failure payload should parse");
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &failed
         ),
         "permission denied"
@@ -98,7 +98,7 @@ fn summary_from_result_handles_failures_and_overview_gets() {
             .expect("config overview should parse");
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &overview
         ),
         "当前配置概览"
@@ -127,7 +127,7 @@ fn parse_config_input_reads_pending_write_request() {
     assert_eq!(input.value, Some(json!("monokai")));
     assert_eq!(
         summary_from_input(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &input
         ),
         "设置 appUi.terminalTheme = monokai"
@@ -140,7 +140,7 @@ fn summary_from_input_handles_reads_and_sections() {
         .expect("config read input should parse");
     assert_eq!(
         summary_from_input(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &read
         ),
         "读取 browser.enabled"
@@ -150,7 +150,7 @@ fn summary_from_input_handles_reads_and_sections() {
         parse_config_input(r#"{"section":"proxy"}"#).expect("config section input should parse");
     assert_eq!(
         summary_from_input(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &proxy
         ),
         "读取 proxy 高级配置"
@@ -159,7 +159,7 @@ fn summary_from_input_handles_reads_and_sections() {
     let overview = parse_config_input(r#"{}"#).expect("empty config input should parse");
     assert_eq!(
         summary_from_input(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &overview
         ),
         "读取配置概览"
@@ -285,7 +285,7 @@ fn success_body_handles_get_set_and_unknown_operation_display_boundaries() {
             .expect("get without value");
     assert!(
         success_body(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &get_missing_value
         )
         .is_none()
@@ -296,7 +296,7 @@ fn success_body_handles_get_set_and_unknown_operation_display_boundaries() {
             .expect("set without values");
     assert!(
         success_body(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &set_without_values
         )
         .is_some()
@@ -307,7 +307,7 @@ fn success_body_handles_get_set_and_unknown_operation_display_boundaries() {
             .expect("unknown operation");
     assert!(
         success_body(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &unknown_operation
         )
         .is_none()
@@ -321,7 +321,7 @@ fn summary_from_result_fallback_labels() {
         .expect("set without details");
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &set_no_details
         ),
         "配置已更新"
@@ -331,7 +331,7 @@ fn summary_from_result_fallback_labels() {
         .expect("delete operation");
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &unknown_op
         ),
         "配置"
@@ -340,7 +340,7 @@ fn summary_from_result_fallback_labels() {
     let no_op = parse_config_result_from_output(r#"{"success":true}"#).expect("no operation");
     assert_eq!(
         summary_from_result(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &no_op
         ),
         "配置"
@@ -353,7 +353,7 @@ fn summary_from_input_edge_cases() {
     let empty_setting = parse_config_input(r#"{"setting":"  "}"#).expect("whitespace-only setting");
     assert_eq!(
         summary_from_input(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &empty_setting
         ),
         "读取配置概览"
@@ -363,7 +363,7 @@ fn summary_from_input_edge_cases() {
         parse_config_input(r#"{"section":"model_routing"}"#).expect("model_routing section");
     assert_eq!(
         summary_from_input(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &model_routing
         ),
         "读取 model_routing 高级配置"

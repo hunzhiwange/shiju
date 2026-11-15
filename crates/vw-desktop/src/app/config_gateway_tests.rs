@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use config_agent::AgentDefinitionConfig;
 use vw_config_types::config::Config;
-use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 use gateway_endpoint::GatewayEndpoint;
 
 #[test]

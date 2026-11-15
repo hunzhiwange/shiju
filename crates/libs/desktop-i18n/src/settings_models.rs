@@ -1,5 +1,5 @@
 //! Display-only model settings catalog. Provider IDs and model content stay verbatim.
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 pub fn text(locale: DesktopLocale, source: &str) -> &str {
     super::I18n::new(locale).__(source)

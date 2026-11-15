@@ -17,7 +17,7 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, responsive, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 /// 在插件标识、名称、版本、说明和来源路径中执行不区分大小写的匹配。
 pub(super) fn plugin_matches_query(

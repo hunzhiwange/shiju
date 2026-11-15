@@ -118,14 +118,14 @@ fn agent_sessions_popover_hides_without_running_children_and_counts_visible_item
     assert!(agent_sessions_entry(&app, &[]).is_none());
     assert_eq!(
         agent_sessions_badge_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             1
         ),
         "1 个工作中"
     );
     assert_eq!(
         agent_sessions_badge_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             3
         ),
         "3 个工作中"
@@ -215,7 +215,7 @@ async fn child_session_navigation_input_row_keeps_stop_separate_from_status() {
     use iced_runtime::user_interface::{Cache, UserInterface};
 
     let mut app = crate::app::App::new().0;
-    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+    app.desktop_locale = config_ui::DesktopLocale::SimplifiedChinese;
     let mut child = child("nested-child", "审查", "检查中文状态", "工作流执行");
     child.depth = 1;
     child.kind = AgentChildSessionKind::WorkflowExecution;

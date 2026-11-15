@@ -82,11 +82,11 @@ fn market_tag_rows_show_full_catalogs() {
     ]);
 
     let (platform_options, platform_feedback) = market_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &platform,
     );
     let (company_options, company_feedback) = market_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &company,
     );
     assert_eq!(
@@ -104,13 +104,13 @@ fn market_tag_rows_show_full_catalogs() {
     assert_eq!(company_feedback, None);
 
     let (empty, empty_feedback) = market_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &LoadState::Loaded(Vec::new()),
     );
     assert_eq!(empty.len(), 1);
     assert_eq!(empty_feedback, Some("暂无可选标签"));
     let (_, failed_feedback) = market_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &LoadState::Error(("目录不可用".to_string()).into()),
     );
     assert_eq!(failed_feedback, Some("标签目录加载失败"));
@@ -211,7 +211,7 @@ fn mine_multi_select_labels_and_tag_fallbacks_are_stable() {
         SkillTag { id: 9, name: "重复名称".to_string(), sort_order: 0 },
     ];
     let options = mine_tag_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         tags.iter(),
         &[2, 7],
     );
@@ -225,7 +225,7 @@ fn mine_multi_select_labels_and_tag_fallbacks_are_stable() {
     assert_eq!(mine_named_tag_filter_label("公司标签", &[2, 7]), "公司标签 2");
     assert_eq!(
         mine_status_filter_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &MineSkillStatus::DEFAULT
         ),
         "已选 3 个状态"
@@ -245,12 +245,12 @@ fn mine_tag_catalogs_are_independent_sorted_and_keep_selected_fallbacks() {
     ]);
 
     let (platform_options, platform_empty) = mine_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &platform,
         &[9],
     );
     let (company_options, company_empty) = mine_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &company,
         &[],
     );
@@ -266,7 +266,7 @@ fn mine_tag_catalogs_are_independent_sorted_and_keep_selected_fallbacks() {
     assert_eq!(company_empty, None);
 
     let (failed_options, failed_empty) = mine_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &LoadState::Error(("目录不可用".to_string()).into()),
         &[12],
     );
@@ -274,7 +274,7 @@ fn mine_tag_catalogs_are_independent_sorted_and_keep_selected_fallbacks() {
     assert_eq!(failed_empty, Some("标签目录加载失败"));
 
     let (empty_options, empty_label) = mine_catalog_filter_options(
-        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &LoadState::Loaded(Vec::new()),
         &[],
     );

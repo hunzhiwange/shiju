@@ -1,5 +1,5 @@
 use super::settings_runtime::text;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 #[test]
 fn desktop_i18n_settings_runtime_switches_visible_text() {
     assert_eq!(text(DesktopLocale::SimplifiedChinese, "运行时类型"), "运行时类型");

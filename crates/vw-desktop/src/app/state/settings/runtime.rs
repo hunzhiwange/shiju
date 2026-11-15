@@ -433,7 +433,7 @@ pub(crate) struct GatewayClientServerDraft {
 }
 
 impl GatewayClientServerDraft {
-    pub(crate) fn from_config(server: &vw_config_types::ui::GatewayClientServerConfig) -> Self {
+    pub(crate) fn from_config(server: &config_ui::GatewayClientServerConfig) -> Self {
         Self {
             id: server.id.clone(),
             name: server.name.clone(),
@@ -449,8 +449,8 @@ impl GatewayClientServerDraft {
         }
     }
 
-    pub(crate) fn to_config(&self) -> vw_config_types::ui::GatewayClientServerConfig {
-        vw_config_types::ui::GatewayClientServerConfig {
+    pub(crate) fn to_config(&self) -> config_ui::GatewayClientServerConfig {
+        config_ui::GatewayClientServerConfig {
             id: self.id.clone(),
             name: self.name.clone(),
             host: self.host.clone(),
@@ -484,7 +484,7 @@ pub(crate) struct GatewayClientSettingsState {
 impl Default for GatewayClientSettingsState {
     fn default() -> Self {
         let server = GatewayClientServerDraft::from_config(
-            &vw_config_types::ui::GatewayClientServerConfig::default(),
+            &config_ui::GatewayClientServerConfig::default(),
         );
         Self {
             selected_server_id: server.id.clone(),

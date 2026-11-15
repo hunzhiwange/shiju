@@ -3,7 +3,7 @@
 use crate::app::config::update_system_settings_config_result_async;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
+use config_ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
 
 use super::{QuickMessagesMessage, SettingsMessage};
 

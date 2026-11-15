@@ -1108,7 +1108,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 mod system_settings_gateway_tests;
 
 fn service_display_label(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     command: &str,
 ) -> &'static str {
     let key = match command {

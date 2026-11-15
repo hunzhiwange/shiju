@@ -1,5 +1,5 @@
 use super::I18n;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_16_lsp_state_switches_without_translating_server_content() {

@@ -90,7 +90,7 @@ fn catalog_matches_query_searches_all_visible_fields_case_insensitively() {
     for query in ["", "RUST", "review", "RISKY", "WORKSPACE", "VIBEWINDOW"] {
         assert!(
             catalog_matches_query(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
                 &item,
                 query
             ),
@@ -99,7 +99,7 @@ fn catalog_matches_query_searches_all_visible_fields_case_insensitively() {
     }
 
     assert!(!catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "browser"
     ));
@@ -110,12 +110,12 @@ fn catalog_matches_query_handles_missing_source_path() {
     let item = skill("id", "Title", "Description", "bundled", None);
 
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "bundle"
     ));
     assert!(!catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "missing/path"
     ));
@@ -153,9 +153,9 @@ fn catalog_widgets_build_for_badges_items_groups_and_styles() {
     let _ = section_card_style(&iced::Theme::Dark);
     let _ = skill_badge("Enabled", true);
     let item = skill("local", "Local Skill", "Description", "workspace", Some("/tmp/skill"));
-    let _ = catalog_item(vw_config_types::ui::DesktopLocale::SimplifiedChinese, item.clone(), true);
+    let _ = catalog_item(config_ui::DesktopLocale::SimplifiedChinese, item.clone(), true);
     let _ = catalog_group_section(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "workspace",
         vec![item],
         Some("local"),
@@ -177,37 +177,37 @@ fn catalog_matches_query_matches_each_field_individually() {
     );
 
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "rust"
     ));
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "code"
     ));
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "risky"
     ));
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "workspace"
     ));
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "review"
     ));
     assert!(catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         ""
     ));
     assert!(!catalog_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &item,
         "no-match"
     ));
@@ -277,7 +277,7 @@ fn catalog_item_variants_cover_all_kinds_resources_and_states() {
         true,
         true,
     );
-    let _ = catalog_item(vw_config_types::ui::DesktopLocale::SimplifiedChinese, recommended, false);
+    let _ = catalog_item(config_ui::DesktopLocale::SimplifiedChinese, recommended, false);
 
     let system = skill_with_kind(
         "sys-1",
@@ -290,7 +290,7 @@ fn catalog_item_variants_cover_all_kinds_resources_and_states() {
         true,
         false,
     );
-    let _ = catalog_item(vw_config_types::ui::DesktopLocale::SimplifiedChinese, system, false);
+    let _ = catalog_item(config_ui::DesktopLocale::SimplifiedChinese, system, false);
 
     let personal_not_installed = skill_with_kind(
         "per-1",
@@ -304,7 +304,7 @@ fn catalog_item_variants_cover_all_kinds_resources_and_states() {
         false,
     );
     let _ = catalog_item(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         personal_not_installed,
         true,
     );
@@ -325,25 +325,25 @@ fn catalog_group_section_variants_cover_sources_and_empty_skills() {
     );
 
     let _ = catalog_group_section(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "bundled",
         vec![],
         None,
     );
     let _ = catalog_group_section(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "global",
         vec![skill_ws],
         Some("ws-1"),
     );
     let _ = catalog_group_section(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "ancestor",
         vec![],
         None,
     );
     let _ = catalog_group_section(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         "unknown",
         vec![],
         None,

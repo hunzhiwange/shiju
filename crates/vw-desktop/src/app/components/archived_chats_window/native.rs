@@ -236,7 +236,7 @@ impl Harness {
     fn view(&self, _: window::Id) -> Element<'_, Message> {
         let content: Element<'_, AppMessage> = iced::widget::container(page(
             &self.app.archived_chats,
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
         ))
         .padding(16)
         .width(iced::Length::Fill)

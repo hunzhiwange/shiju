@@ -38,7 +38,7 @@ fn text_view_test_module_is_linked() {
 fn text_tool_header_includes_canonical_tool_name() {
     assert_eq!(
         tool_text_header_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "rustcodegraph",
             "工具"
         ),
@@ -46,7 +46,7 @@ fn text_tool_header_includes_canonical_tool_name() {
     );
     assert_eq!(
         tool_text_header_label(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "shell",
             "运行"
         ),
@@ -54,7 +54,7 @@ fn text_tool_header_includes_canonical_tool_name() {
     );
     assert_eq!(
         tool_text_failure_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "工具 rustcodegraph"
         ),
         "工具 rustcodegraph 失败"

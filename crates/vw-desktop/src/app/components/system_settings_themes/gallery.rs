@@ -181,7 +181,7 @@ fn entry_is_active(app: &App, entry: &ThemeGalleryEntry) -> bool {
 }
 
 fn palette_swatch_row(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     palette: &ThemePaletteHex,
 ) -> Element<'static, Message> {
     let swatches = [

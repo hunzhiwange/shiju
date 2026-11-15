@@ -1,5 +1,5 @@
 use super::settings_extensions::{operation_error, text};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_i18n_settings_extensions_switches_visible_text() {

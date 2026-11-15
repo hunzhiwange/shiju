@@ -1,5 +1,6 @@
+use crate::AppSystemSettingsConfig;
 use super::{
-    AppSystemSettingsConfig, QuickMessageConfig, QuickMessageGroup, QuickMessageKind,
+    QuickMessageConfig, QuickMessageGroup, QuickMessageKind,
     append_missing_builtin_general_quick_messages, append_missing_builtin_git_quick_messages,
     upgrade_legacy_quick_message_actions,
 };

@@ -41,38 +41,38 @@ fn desktop_plugins_tab_renders_catalog_items() {
     };
 
     assert!(super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "DEMO"
     ));
     assert!(super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "0.2"
     ));
     assert!(super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "settings"
     ));
     assert!(super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "/tmp"
     ));
     assert!(!super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "missing"
     ));
 
     let _ = super::plugin_catalog_item(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         plugin.clone(),
         true,
     );
     let _ = super::plugin_detail_panel(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         Some(&plugin),
         false,
     );
@@ -124,17 +124,17 @@ fn plugin_query_trims_whitespace_and_matches_empty_query() {
     };
 
     assert!(super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "   "
     ));
     assert!(super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "  DEMO  "
     ));
     assert!(!super::plugin_matches_query(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         &plugin,
         "missing"
     ));
@@ -145,17 +145,17 @@ fn plugin_detail_panel_builds_empty_busy_and_disabled_variants() {
     let disabled = plugin("disabled-plugin", "Disabled Plugin", false, None);
 
     let _ = super::plugin_detail_panel(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         None,
         false,
     );
     let _ = super::plugin_detail_panel(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         Some(&disabled),
         true,
     );
     let _ = super::plugin_catalog_item(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        config_ui::DesktopLocale::SimplifiedChinese,
         disabled,
         false,
     );

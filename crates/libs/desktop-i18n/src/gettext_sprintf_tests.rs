@@ -2,7 +2,7 @@ use super::{
     I18n,
     format::{Argument, Message},
 };
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_sprintf_uses_chinese_keys() {

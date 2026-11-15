@@ -1,5 +1,5 @@
 //! Editor UI language follows the explicit desktop locale.
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 pub fn language(locale: DesktopLocale) -> iced_code_editor::Language {
     match locale {

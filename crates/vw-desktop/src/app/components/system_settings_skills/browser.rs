@@ -22,7 +22,7 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length};
 use config_skills::SkillsDirectoryProvider;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[derive(Clone, Copy)]
 pub(super) enum DetailActionStyle {

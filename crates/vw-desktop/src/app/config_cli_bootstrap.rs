@@ -19,7 +19,7 @@ use std::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use config_gateway::DEFAULT_GATEWAY_PORT;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 #[cfg(not(target_arch = "wasm32"))]
 use vw_api_transport::id::TenantScope;
 

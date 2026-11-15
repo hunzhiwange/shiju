@@ -867,7 +867,7 @@ fn theme_error(
     app.themes_settings.error = Some(
         message
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .expect("valid theme error template"),
     );

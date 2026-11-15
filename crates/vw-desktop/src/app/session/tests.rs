@@ -203,7 +203,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
         app.active_session_view_state.message_meta_texts[0]
             .as_ref()
             .map(|meta| meta.render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                config_ui::DesktopLocale::SimplifiedChinese
             )))
             .is_some_and(|text| text.contains("message-model-a"))
     );

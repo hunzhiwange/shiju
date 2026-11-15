@@ -21,7 +21,7 @@ use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_agent_profile::{AgentDefault, AgentModelReference};
 use config_agent::DelegateCapabilityPolicy;
-use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use vw_gateway_client::vw_api_types::mcp::McpInspectResponse;
 
 const AGENT: &str = "fixture-agent";

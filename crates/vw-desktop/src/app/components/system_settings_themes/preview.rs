@@ -80,7 +80,7 @@ fn status_chip(label: &'static str, color: Color, text_color: Color) -> Element<
 
 /// 用当前草稿渲染小型配色预览。
 pub(crate) fn theme_preview_panel(
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
     draft: &ThemeEditorDraft,
 ) -> Element<'static, Message> {
     let definition = definition_from_draft(draft);

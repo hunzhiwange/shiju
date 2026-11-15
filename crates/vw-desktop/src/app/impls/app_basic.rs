@@ -339,7 +339,7 @@ impl App {
         let message = crate::app::i18n::format::Message::new(source, arguments);
         let fallback = message
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .expect("valid notification template");
         self.push_notification(fallback);
@@ -375,7 +375,7 @@ impl App {
         let message = crate::app::i18n::format::Message::new(source, arguments);
         let fallback = message
             .render(crate::app::i18n::I18n::new(
-                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                config_ui::DesktopLocale::SimplifiedChinese,
             ))
             .expect("valid toast template");
         let task = self.show_toast(kind, fallback);

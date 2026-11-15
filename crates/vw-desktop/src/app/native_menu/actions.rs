@@ -20,7 +20,7 @@ pub(crate) struct WindowTabEntry {
 /// 驱动原生菜单重建的状态快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NativeMenuSnapshot {
-    pub(crate) locale: vw_config_types::ui::DesktopLocale,
+    pub(crate) locale: config_ui::DesktopLocale,
     pub(crate) is_project: bool,
     pub(crate) workspace_mode: WorkspaceMode,
     pub(crate) show_file_manager: bool,

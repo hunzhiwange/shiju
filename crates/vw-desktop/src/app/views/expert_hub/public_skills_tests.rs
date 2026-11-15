@@ -7,7 +7,7 @@ use iced::advanced::{Layout, clipboard, layout, mouse, renderer, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Color, Element, Event, Font, Pixels, Point, Rectangle, Renderer, Size, Theme, Vector};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 use vw_gateway_client::{
     SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketSkillDto,
     SkillMarketSkillLocatorDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,

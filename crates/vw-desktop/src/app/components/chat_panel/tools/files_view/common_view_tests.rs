@@ -74,7 +74,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
 
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "5/12 项"
@@ -84,7 +84,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
     render_state.max_items = 8;
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "12项 (省略4项)"
@@ -93,7 +93,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
     render_state.truncated_middle = false;
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "12项 (省略3项)"
@@ -102,7 +102,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
     render_state.tail_omitted = 0;
     assert_eq!(
         common_tool_meta_text(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &render_state
         ),
         "12项"
@@ -113,7 +113,7 @@ fn common_tool_meta_text_prefers_filter_then_middle_then_tail_then_total() {
 fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             true,
@@ -124,7 +124,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -135,7 +135,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -146,7 +146,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,
@@ -157,7 +157,7 @@ fn common_tool_title_applies_running_permission_error_and_label_precedence() {
     );
     assert_eq!(
         common_tool_title(
-            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "read",
             "读取",
             false,

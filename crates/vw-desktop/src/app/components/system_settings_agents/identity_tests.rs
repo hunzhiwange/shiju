@@ -18,7 +18,7 @@ fn default_workspace_identity_root_uses_agent_key() {
 fn workspace_identity_hint_prefers_custom_root() {
     assert_eq!(
         workspace_identity_hint(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             Some("profiles/reviewer"),
             "reviewer",
             "AGENTS.md"
@@ -31,7 +31,7 @@ fn workspace_identity_hint_prefers_custom_root() {
 fn workspace_identity_hint_uses_default_root_for_main_and_workers() {
     assert_eq!(
         workspace_identity_hint(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             None,
             "main",
             "AGENTS.md"
@@ -43,7 +43,7 @@ fn workspace_identity_hint_uses_default_root_for_main_and_workers() {
     );
     assert_eq!(
         workspace_identity_hint(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             None,
             "reviewer",
             "AGENTS.md"
@@ -71,7 +71,7 @@ fn format_file_size_uses_human_readable_units() {
 fn workspace_identity_meta_line_combines_size_and_modified_time() {
     assert_eq!(
         workspace_identity_meta_line(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             Some(1536),
             Some(0)
         ),
@@ -83,7 +83,7 @@ fn workspace_identity_meta_line_combines_size_and_modified_time() {
 fn workspace_identity_meta_line_handles_single_and_missing_values() {
     assert_eq!(
         workspace_identity_meta_line(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             Some(512),
             None
         ),
@@ -91,7 +91,7 @@ fn workspace_identity_meta_line_handles_single_and_missing_values() {
     );
     assert_eq!(
         workspace_identity_meta_line(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             None,
             Some(0)
         ),
@@ -99,7 +99,7 @@ fn workspace_identity_meta_line_handles_single_and_missing_values() {
     );
     assert_eq!(
         workspace_identity_meta_line(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            config_ui::DesktopLocale::SimplifiedChinese,
             None,
             None
         ),

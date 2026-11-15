@@ -1,5 +1,5 @@
 use super::I18n;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_15_failed_skip_preserves_error_and_switches_language() {

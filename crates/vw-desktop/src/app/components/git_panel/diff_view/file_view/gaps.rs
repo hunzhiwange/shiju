@@ -75,7 +75,7 @@ pub(super) fn gap_expand_container_style(theme: &iced::Theme) -> iced::widget::c
 
 fn gap_summary_chip(
     hidden_count: usize,
-    locale: vw_config_types::ui::DesktopLocale,
+    locale: config_ui::DesktopLocale,
 ) -> Element<'static, Message> {
     container(
         text(

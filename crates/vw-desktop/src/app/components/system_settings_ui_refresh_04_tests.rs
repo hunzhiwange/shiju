@@ -7,7 +7,7 @@ use iced::advanced::widget::{Id, Operation};
 use iced::advanced::{Layout, Shell, clipboard, layout, overlay, renderer, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, Font, Point, Rectangle, Renderer, Size, Vector, mouse};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 fn fixture() -> App {
     let mut app = None;

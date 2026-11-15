@@ -10,7 +10,7 @@ use iced::widget::button;
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use serde_json::json;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 const PROVIDER: &str = "fixture-provider";
 const MODEL: &str = "fixture-model-with-an-unusually-long-stable-identifier-for-narrow-layouts";

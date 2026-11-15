@@ -91,7 +91,7 @@ pub(in crate::app::components) mod rollout {
     use iced::advanced::widget::{Id, Operation};
     use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
+    use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
     pub(in crate::app::components) const MODES: [(DesktopLocale, Theme); 3] = [
         (DesktopLocale::SimplifiedChinese, Theme::Light),

@@ -1,5 +1,5 @@
 use super::settings_models::{enabled_count, model_metadata, text};
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 #[test]
 fn desktop_i18n_settings_models_switches_visible_text() {
     for (locale, title, count) in [

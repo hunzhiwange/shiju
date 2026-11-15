@@ -46,31 +46,31 @@ fn service_cli_commands_match_copyable_server_commands() {
 #[test]
 fn service_command_labels_cover_all_known_commands() {
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "stop"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "stop"),
         "停止服务"
     );
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "uninstall"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "uninstall"),
         "卸载服务"
     );
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "install"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "install"),
         "安装服务"
     );
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "start"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "start"),
         "启动服务"
     );
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "restart"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "restart"),
         "重启服务"
     );
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "status"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "status"),
         "查询状态"
     );
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "unknown"),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, "unknown"),
         "服务命令"
     );
 }
@@ -85,7 +85,7 @@ fn service_command_classification_handles_unknown_and_danger_commands() {
     }
 
     assert_eq!(
-        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, ""),
+        service_display_label(config_ui::DesktopLocale::SimplifiedChinese, ""),
         "服务命令"
     );
 }

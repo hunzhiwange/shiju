@@ -417,7 +417,7 @@ struct DesktopRecordingGateway {
 
 impl DesktopRecordingGateway {
     fn start() -> Self {
-        use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+        use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
         let directory = tempfile::tempdir().unwrap();
         let previous = std::env::var_os("VIBEWINDOW_CONFIG_DIR");
         unsafe {

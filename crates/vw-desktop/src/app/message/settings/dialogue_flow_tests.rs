@@ -329,7 +329,7 @@ fn dialogue_flow_patch_failure_reaches_localized_feedback_and_queued_edits_save(
     use crate::app::config::{drive_system_settings_patch, with_editor_settings_gateway};
     use crate::app::i18n::I18n;
     use serde_json::json;
-    use vw_config_types::ui::DesktopLocale;
+    use config_ui::DesktopLocale;
 
     with_editor_settings_gateway(|mut app, requests, responses| {
         app.dialogue_flow_show_reasoning_summary = true;

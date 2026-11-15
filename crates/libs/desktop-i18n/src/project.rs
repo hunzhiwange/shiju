@@ -14,7 +14,7 @@ pub struct ProjectFeedback {
 }
 impl ProjectFeedback {
     pub fn new(source: &'static str, arguments: Vec<super::format::Argument>) -> Self {
-        let fallback = I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+        let fallback = I18n::new(config_ui::DesktopLocale::SimplifiedChinese)
             .format(source, &arguments)
             .expect("valid project feedback template");
         Self { source, arguments, fallback }

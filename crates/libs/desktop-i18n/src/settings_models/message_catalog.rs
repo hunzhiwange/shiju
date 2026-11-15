@@ -1,5 +1,5 @@
 //! Feedback templates use the shared safe formatter.
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 pub fn render(locale: DesktopLocale, source: &'static str, args: &[String]) -> String {
     let args =
         args.iter().cloned().map(crate::format::Argument::from).collect::<Vec<_>>();

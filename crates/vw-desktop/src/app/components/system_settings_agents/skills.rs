@@ -19,7 +19,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use std::fmt;
 use config_agent_profile::AgentDefault;
 use config_agent::DelegateCapabilityPolicy;
-use vw_config_types::ui::DesktopLocale;
+use config_ui::DesktopLocale;
 
 pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {
     match policy {

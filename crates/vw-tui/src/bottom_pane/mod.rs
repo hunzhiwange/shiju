@@ -32,12 +32,10 @@ pub(crate) use bottom_pane_view::BottomPaneView;
 pub(crate) use tui_widgets::action_required_title;
 pub(crate) use tui_approval as approval_overlay;
 use tui_composer::chat_composer;
-#[path = "command_popup.rs"]
-pub(crate) mod command_popup;
+pub(crate) use tui_popups::command_popup;
 #[cfg(test)]
 mod file_search_integration_tests;
-#[path = "file_search_popup.rs"]
-pub(crate) mod file_search_popup;
+pub(crate) use tui_popups::file_search_popup;
 use tui_composer::{footer, footer_state};
 pub(crate) use tui_widgets::list_selection_view;
 pub(crate) use tui_user_input as request_user_input;
@@ -47,8 +45,7 @@ pub(crate) use tui_widgets::selection_popup_common;
 pub(crate) use tui_widgets::selection_row_layout;
 #[allow(unused_imports)]
 pub(crate) use tui_widgets::selection_tabs;
-#[path = "slash_commands.rs"]
-pub(crate) mod slash_commands;
+pub(crate) use tui_popups::slash_commands;
 
 pub(crate) use chat_composer::ChatComposer;
 pub(crate) use pending_input_preview::PendingInputPreview;

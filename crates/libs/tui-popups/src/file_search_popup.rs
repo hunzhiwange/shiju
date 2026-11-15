@@ -6,15 +6,15 @@
 
 //! 确定性的 VibeWindow 提供的匹配项搜索弹窗
 //! File-search popup over deterministic VibeWindow-provided matches.
-use crate::bottom_pane::scroll_state::ScrollState;
-use crate::bottom_pane::selection_popup_common::{GenericDisplayRow, render_rows};
-use crate::vibe::action::{V3Action, V3FileSearchMatch};
+use tui_widgets::scroll_state::ScrollState;
+use tui_widgets::selection_popup_common::{GenericDisplayRow, render_rows};
+use tui_contracts::action::{V3Action, V3FileSearchMatch};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::WidgetRef;
 const MAX_POPUP_ROWS: usize = 8;
-pub(crate) struct FileSearchPopup {
+pub struct FileSearchPopup {
     display_query: String,
     pending_query: String,
     waiting: bool,
@@ -23,7 +23,7 @@ pub(crate) struct FileSearchPopup {
     state: ScrollState,
 }
 impl FileSearchPopup {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             display_query: String::new(),
             pending_query: String::new(),
@@ -33,14 +33,14 @@ impl FileSearchPopup {
             state: ScrollState::new(),
         }
     }
-    pub(crate) fn set_query(&mut self, query: &str) {
+    pub fn set_query(&mut self, query: &str) {
         if query != self.pending_query {
             self.pending_query = query.to_string();
             self.waiting = true;
             self.error_message = None;
         }
     }
-    pub(crate) fn set_empty_prompt(&mut self) {
+    pub fn set_empty_prompt(&mut self) {
         self.display_query.clear();
         self.pending_query.clear();
         self.waiting = false;
@@ -48,7 +48,7 @@ impl FileSearchPopup {
         self.matches.clear();
         self.state.reset();
     }
-    pub(crate) fn set_matches(&mut self, query: &str, matches: Vec<V3FileSearchMatch>) {
+    pub fn set_matches(&mut self, query: &str, matches: Vec<V3FileSearchMatch>) {
         if query != self.pending_query {
             return;
         }
@@ -59,7 +59,7 @@ impl FileSearchPopup {
         self.state.clamp_selection(self.matches.len());
         self.state.ensure_visible(self.matches.len(), MAX_POPUP_ROWS);
     }
-    pub(crate) fn set_error(&mut self, query: &str, message: String) {
+    pub fn set_error(&mut self, query: &str, message: String) {
         if query != self.pending_query {
             return;
         }
@@ -69,10 +69,10 @@ impl FileSearchPopup {
         self.error_message = Some(message);
         self.state.reset();
     }
-    pub(crate) fn selected_match(&self) -> Option<&V3FileSearchMatch> {
+    pub fn selected_match(&self) -> Option<&V3FileSearchMatch> {
         self.state.selected_idx.and_then(|idx| self.matches.get(idx))
     }
-    pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         let len = self.matches.len();
         match event.code {
             KeyCode::Up => self.state.move_up_wrap(len),
@@ -95,7 +95,7 @@ impl FileSearchPopup {
         self.state.ensure_visible(len, MAX_POPUP_ROWS.min(len.max(1)));
         V3Action::None
     }
-    pub(crate) fn calculate_required_height(&self) -> u16 {
+    pub fn calculate_required_height(&self) -> u16 {
         self.matches.len().clamp(1, MAX_POPUP_ROWS) as u16
     }
 }
@@ -126,39 +126,5 @@ impl WidgetRef for &FileSearchPopup {
     }
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    // 验证 `stale_file_search_results_are_ignored` 场景的触发条件与预期结果。
-    #[test]
-    fn stale_file_search_results_are_ignored() {
-        let mut popup = FileSearchPopup::new();
-        popup.set_query("src");
-        popup.set_matches(
-            "old",
-            vec![V3FileSearchMatch {
-                id: "old".into(),
-                path: "old.rs".into(),
-                ..Default::default()
-            }],
-        );
-        assert!(popup.selected_match().is_none());
-    }
-    // 验证 `file_search_selection_emits_only_an_action` 场景的触发条件与预期结果。
-    #[test]
-    fn file_search_selection_emits_only_an_action() {
-        let mut popup = FileSearchPopup::new();
-        popup.set_query("src");
-        popup.set_matches(
-            "src",
-            vec![V3FileSearchMatch {
-                id: "main".into(),
-                path: "src/main.rs".into(),
-                ..Default::default()
-            }],
-        );
-        assert_eq!(
-            popup.handle_key_event(KeyEvent::from(KeyCode::Enter)),
-            V3Action::Select { surface: "file_search".into(), item_id: "main".into() }
-        );
-    }
-}
+#[path = "file_search_popup_tests.rs"]
+mod tests;

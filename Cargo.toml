@@ -135,6 +135,7 @@ members = [
   "crates/libs/tui-user-input",
   "crates/libs/tui-widgets",
   "crates/libs/tui-pickers",
+  "crates/libs/tui-popups",
   "crates/libs/tui-composer",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",

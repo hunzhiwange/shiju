@@ -6,13 +6,13 @@
 
 //! 命令完成表面。VibeWindow 提供命令行；此模块仅过滤并渲染。
 //! Command completion surface. VibeWindow supplies command rows; this module only filters and renders.
-use crate::bottom_pane::list_selection_view::SelectionItem;
-use crate::bottom_pane::scroll_state::ScrollState;
-use crate::bottom_pane::selection_popup_common::{
+use tui_widgets::list_selection_view::SelectionItem;
+use tui_widgets::scroll_state::ScrollState;
+use tui_widgets::selection_popup_common::{
     ColumnWidthConfig, ColumnWidthMode, GenericDisplayRow, measure_rows_height_with_col_width_mode,
     render_rows_with_col_width_mode,
 };
-use crate::vibe::action::{V3Action, V3SelectionItem};
+use tui_contracts::action::{V3Action, V3SelectionItem};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -20,19 +20,19 @@ use ratatui::widgets::WidgetRef;
 const MAX_POPUP_ROWS: usize = 8;
 const COMMAND_COLUMN_WIDTH: ColumnWidthConfig =
     ColumnWidthConfig::new(ColumnWidthMode::AutoAllRows, None);
-pub(crate) type CommandItem = V3SelectionItem;
-pub(crate) struct CommandPopup {
+pub type CommandItem = V3SelectionItem;
+pub struct CommandPopup {
     command_filter: String,
     commands: Vec<V3SelectionItem>,
     state: ScrollState,
 }
 impl CommandPopup {
-    pub(crate) fn new(commands: Vec<V3SelectionItem>) -> Self {
+    pub fn new(commands: Vec<V3SelectionItem>) -> Self {
         let mut popup = Self { command_filter: String::new(), commands, state: ScrollState::new() };
         popup.reset_selection();
         popup
     }
-    pub(crate) fn from_selection_items(commands: Vec<SelectionItem>) -> Self {
+    pub fn from_selection_items(commands: Vec<SelectionItem>) -> Self {
         Self::new(
             commands
                 .into_iter()
@@ -49,7 +49,7 @@ impl CommandPopup {
                 .collect(),
         )
     }
-    pub(crate) fn on_composer_text_change(&mut self, text: String) {
+    pub fn on_composer_text_change(&mut self, text: String) {
         let first_line = text.lines().next().unwrap_or("");
         self.command_filter = first_line
             .strip_prefix('/')
@@ -99,11 +99,11 @@ impl CommandPopup {
             })
             .collect()
     }
-    pub(crate) fn selected_item(&self) -> Option<&V3SelectionItem> {
+    pub fn selected_item(&self) -> Option<&V3SelectionItem> {
         let index = self.filtered().get(self.state.selected_idx?)?.0;
         self.commands.get(index)
     }
-    pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         let len = self.filtered().len();
         match event.code {
             KeyCode::Up | KeyCode::Char('k') => self.state.move_up_wrap(len),
@@ -127,7 +127,7 @@ impl CommandPopup {
         self.state.ensure_visible(len, MAX_POPUP_ROWS.min(len.max(1)));
         V3Action::None
     }
-    pub(crate) fn calculate_required_height(&self, width: u16) -> u16 {
+    pub fn calculate_required_height(&self, width: u16) -> u16 {
         measure_rows_height_with_col_width_mode(
             &self.rows(),
             &self.state,
@@ -151,34 +151,5 @@ impl WidgetRef for &CommandPopup {
     }
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    // 验证 `command_popup_filters_vibe_window_rows` 场景的触发条件与预期结果。
-    #[test]
-    fn command_popup_filters_vibe_window_rows() {
-        let mut popup = CommandPopup::new(vec![
-            V3SelectionItem {
-                id: "search".into(),
-                label: "Search".into(),
-                description: Some("Find text".into()),
-                ..Default::default()
-            },
-            V3SelectionItem {
-                id: "settings".into(),
-                label: "Settings".into(),
-                ..Default::default()
-            },
-        ]);
-        popup.on_composer_text_change("/sea".into());
-        assert_eq!(popup.selected_item().map(|item| item.id.as_str()), Some("search"));
-    }
-    // 验证 `command_popup_emits_selection_action_without_dispatching` 场景的触发条件与预期结果。
-    #[test]
-    fn command_popup_emits_selection_action_without_dispatching() {
-        let mut popup = CommandPopup::new(vec![V3SelectionItem::new("todo", "Todo")]);
-        assert_eq!(
-            popup.handle_key_event(KeyEvent::from(KeyCode::Enter)),
-            V3Action::Select { surface: "command_palette".into(), item_id: "todo".into() }
-        );
-    }
-}
+#[path = "command_popup_tests.rs"]
+mod tests;

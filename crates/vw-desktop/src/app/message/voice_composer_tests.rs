@@ -133,7 +133,7 @@ fn voice_task_11_local_start_never_opens_cloud_conversation() {
     app.active_session_id = Some("local-voice-route".into());
     app.current_session_runtime_mut();
     assert_eq!(
-        crate::app::voice::preferences::Preferences::load().unwrap().engine,
+        crate::app::voice::preferences::load().unwrap().engine,
         crate::app::voice::preferences::VoiceEngine::Local
     );
     let _ = update(&mut app, Event::ChatStart);

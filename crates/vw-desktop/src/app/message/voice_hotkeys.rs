@@ -17,7 +17,7 @@ pub(super) fn tick(app: &mut App) -> Task<Message> {
     }
     app.voice.insertion.poll();
     let previous_error = app.voice.hotkeys.error.clone();
-    let actions = app.voice.hotkeys.poll(|| crate::app::voice::preferences::Preferences::load().map(|p| p.hotkeys));
+    let actions = app.voice.hotkeys.poll(|| crate::app::voice::preferences::load().map(|p| p.hotkeys));
     let mut tasks = vec![dispatch(app, actions)];
     if app.voice.hotkeys.error != previous_error
         && let Some(error) = app.voice.hotkeys.error.clone()

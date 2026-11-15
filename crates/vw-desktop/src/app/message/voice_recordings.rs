@@ -150,7 +150,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             }
             let scope = super::voice::scope(app).ok_or("请先选择回填的聊天会话。")?;
             let endpoint = crate::app::gateway_client_endpoint();
-            let preferences = Preferences::load()?;
+            let preferences = crate::app::voice::preferences::load()?;
             app.voice.recordings.stop();
             let wav = recordings::local()?.read(&id)?;
             let state = &mut app.voice.recordings;

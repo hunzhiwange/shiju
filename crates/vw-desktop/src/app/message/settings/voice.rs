@@ -251,7 +251,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if let Some(edit) = &mut app.voice.settings.edit {
                 edit.local.hotkeys.enabled = false;
             }
-            match Preferences::path().and_then(|path| Preferences::disable_hotkeys_at(&path)) {
+            match crate::app::voice::preferences::path().and_then(|path| Preferences::disable_hotkeys_at(&path)) {
                 Ok(()) => {
                     app.show_toast(crate::app::state::ToastKind::Success, "全局语音快捷键已停用。")
                 }
@@ -350,7 +350,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             state.preview.take();
             state.busy = true;
             Task::perform(
-                async move { io::save(edit, endpoint, cloud_ready, &Preferences::path()?).await },
+                async move { io::save(edit, endpoint, cloud_ready, &crate::app::voice::preferences::path()?).await },
                 move |result| message(Event::Saved(generation, result)),
             )
         }

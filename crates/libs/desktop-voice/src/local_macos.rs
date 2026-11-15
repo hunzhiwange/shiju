@@ -35,7 +35,7 @@ fn recognizer(locale: Option<&str>) -> Result<Retained<AnyObject>> {
     // SAFETY: All selectors/signatures below are SDK-declared Foundation/Speech
     // methods. Owned returns retain objects; NSString arguments live through calls.
     unsafe {
-        let class = super::super::permissions_macos::speech_class();
+        let class = voice_permissions::permissions_macos::speech_class();
         let object: Option<Retained<AnyObject>> = if let Some(locale) = locale {
             let locale: Retained<AnyObject> = msg_send![self::class(c"NSLocale")?, localeWithLocaleIdentifier: &*NSString::from_str(locale)];
             let allocated: Allocated<AnyObject> = msg_send![class, alloc];
@@ -204,7 +204,7 @@ pub(super) fn transcribe(
         let recognizer = recognizer(locale)?;
         let state = recognition_state(&recognizer);
         recognition_gate(&state)?;
-        if !super::super::permissions_macos::has_usage_description(
+        if !voice_permissions::permissions_macos::has_usage_description(
             "NSSpeechRecognitionUsageDescription",
         ) {
             return Err(LocalSpeechError::AppMetadata);

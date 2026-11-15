@@ -21,3 +21,16 @@ mod insertion_macos;
 pub use voice_permissions as permissions;
 #[cfg(all(feature = "acceptance-fixture", not(target_arch = "wasm32")))]
 pub mod acceptance_fixture;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod local;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod preferences;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod preview;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod local_conversation;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod local_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod preview_tests;

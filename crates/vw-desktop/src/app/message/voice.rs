@@ -308,7 +308,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     "请先结束听写再开始语音聊天。",
                 );
             }
-            let preferences = match crate::app::voice::preferences::Preferences::load() {
+            let preferences = match crate::app::voice::preferences::load() {
                 Ok(p) => p,
                 Err(error) => return app.show_error_toast(error),
             };
@@ -325,7 +325,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             match crate::app::voice::conversation::Conversation::start(
                 endpoint.clone(),
                 session.to_owned(),
-                || crate::app::voice::preferences::Preferences::load().map(|p| p.microphone),
+                || crate::app::voice::preferences::load().map(|p| p.microphone),
             ) {
                 Ok(conversation) => {
                     app.voice.conversation_error_reported = false;
@@ -392,7 +392,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     "请先结束语音聊天再开始听写。",
                 );
             }
-            let preferences = match crate::app::voice::preferences::Preferences::load() {
+            let preferences = match crate::app::voice::preferences::load() {
                 Ok(preferences) => preferences,
                 Err(error) => return fail(app, error),
             };
@@ -587,7 +587,7 @@ fn retain_completed(state: &mut State) -> Option<String> {
         return None;
     }
     let result = (|| {
-        let preferences = crate::app::voice::preferences::Preferences::load()?;
+        let preferences = crate::app::voice::preferences::load()?;
         if preferences.retain_recordings {
             let store = crate::app::voice::recordings::local()?;
             store.save(true, &audio)?;

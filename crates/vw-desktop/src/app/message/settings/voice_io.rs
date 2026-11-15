@@ -54,7 +54,7 @@ pub(super) async fn cloud(endpoint: GatewayEndpoint) -> Result<VoiceConfig, Stri
     .map_err(|_| "读取云端语音设置超时，请检查网关连接。".to_owned())?
 }
 pub(super) async fn load(endpoint: GatewayEndpoint) -> Result<Loaded, String> {
-    load_at(endpoint, Preferences::path()?).await
+    load_at(endpoint, crate::app::voice::preferences::path()?).await
 }
 pub(super) async fn load_at(
     endpoint: GatewayEndpoint,

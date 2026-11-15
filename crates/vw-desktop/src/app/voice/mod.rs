@@ -21,8 +21,6 @@ pub(crate) mod preferences;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod preview;
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod preview_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod recordings;
@@ -50,8 +48,6 @@ pub(crate) mod acceptance_fixture;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod local;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod local_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod local_conversation;

@@ -1,0 +1,24 @@
+[package]
+name = "desktop-task-executor"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+test-support = []
+
+[dependencies]
+desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
+shell-command = { path = "../shell-command", version = "0.6.0" }
+vw-api-git = { path = "../api-git", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread"] }
+
+[dev-dependencies]
+tempfile = "3"

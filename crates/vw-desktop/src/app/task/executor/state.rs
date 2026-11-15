@@ -6,16 +6,7 @@
 
 use super::*;
 
-/// 公开的 TaskLogStream 枚举，描述该模块支持的一组离散状态或事件。
-#[derive(Debug, Clone)]
-pub enum TaskLogStream {
-    Stdout(String),
-    Stderr(String),
-    SubTaskStarted { subtask_id: String, content: String, timestamp_ms: u64 },
-    SubTaskCompleted { subtask_id: String, timestamp_ms: u64 },
-    SubTaskFailed { subtask_id: String, error: String, timestamp_ms: u64 },
-    ExitStatus { success: bool, code: Option<i32>, signal: Option<i32> },
-}
+pub use desktop_task_executor::TaskLogStream;
 
 /// 公开的 TaskExecutorState 结构体，承载该模块边界内传递的结构化状态。
 pub struct TaskExecutorState {

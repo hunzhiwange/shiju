@@ -4,21 +4,18 @@
 //! 不改变任何运行时行为。
 
 use std::collections::{HashMap, HashSet};
-use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
 use super::models::{
-    CLAUDE_DEFAULT_MODEL_ALIAS, Task, TaskExecutorBackend, TaskStatus, claude_model_alias,
+    Task, TaskExecutorBackend, TaskStatus,
 };
 use super::store;
 #[cfg(not(target_arch = "wasm32"))]
 use session_text::is_default_title;
-use shell_command::{resolve_executable, shell_profile_env_var, std_command};
 
 mod backend_output;
 mod command_exec;

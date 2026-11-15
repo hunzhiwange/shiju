@@ -1,5 +1,9 @@
-//! 任务执行器 Git 适配测试，覆盖网关结果转换、可忽略中止错误和仓库操作。
-//! 命令状态与输出必须保留原始语义，只有明确列出的清理失败可以降级处理。
+fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
+    Err("test gateway unavailable".to_string())
+}
+
+// 任务执行器 Git 适配测试，覆盖网关结果转换、可忽略中止错误和仓库操作。
+// 命令状态与输出必须保留原始语义，只有明确列出的清理失败可以降级处理。
 
 #[test]
 fn test_module_is_wired() {
@@ -137,8 +141,8 @@ fn run_git_reads_branch_and_repo_root_from_temp_repo() {
     let (_temp, repo) = create_repo();
     let repo_path = repo.to_string_lossy().to_string();
 
-    let branch = super::git_branch_name(&repo_path);
-    let root = super::git_repo_root(&repo_path);
+    let branch = super::git_branch_name(gateway_client, &repo_path);
+    let root = super::git_repo_root(gateway_client, &repo_path);
 
     assert_eq!(branch.as_deref(), Some("main"));
     let expected_root = std::fs::canonicalize(&repo_path).expect("repo path should canonicalize");
@@ -150,8 +154,8 @@ fn git_branch_and_repo_root_reject_non_repository_directory() {
     let temp = tempfile::TempDir::new().expect("temp dir should be created");
     let path = temp.path().to_string_lossy();
 
-    assert_eq!(super::git_branch_name(path.as_ref()), None);
-    assert_eq!(super::git_repo_root(path.as_ref()), None);
+    assert_eq!(super::git_branch_name(gateway_client, path.as_ref()), None);
+    assert_eq!(super::git_repo_root(gateway_client, path.as_ref()), None);
 }
 
 #[test]
@@ -170,15 +174,15 @@ fn run_git_local_reports_missing_working_directory() {
 fn git_clean_and_staged_change_detection_follow_repo_state() {
     let (_temp, repo) = create_repo();
 
-    assert_eq!(super::git_is_clean(repo.to_string_lossy().as_ref()), Ok(true));
-    assert_eq!(super::git_has_staged_changes(repo.to_string_lossy().as_ref()), Ok(false));
+    assert_eq!(super::git_is_clean(gateway_client, repo.to_string_lossy().as_ref()), Ok(true));
+    assert_eq!(super::git_has_staged_changes(gateway_client, repo.to_string_lossy().as_ref()), Ok(false));
 
     std::fs::write(repo.join("README.md"), "seed\nchanged\n").expect("file should update");
-    assert_eq!(super::git_is_clean(repo.to_string_lossy().as_ref()), Ok(false));
-    assert_eq!(super::git_has_staged_changes(repo.to_string_lossy().as_ref()), Ok(false));
+    assert_eq!(super::git_is_clean(gateway_client, repo.to_string_lossy().as_ref()), Ok(false));
+    assert_eq!(super::git_has_staged_changes(gateway_client, repo.to_string_lossy().as_ref()), Ok(false));
 
     run_git_test(&repo, &["add", "README.md"]);
-    assert_eq!(super::git_has_staged_changes(repo.to_string_lossy().as_ref()), Ok(true));
+    assert_eq!(super::git_has_staged_changes(gateway_client, repo.to_string_lossy().as_ref()), Ok(true));
 }
 
 #[test]
@@ -186,8 +190,8 @@ fn git_state_queries_report_non_repository_failures() {
     let temp = tempfile::TempDir::new().expect("temp dir should be created");
     let path = temp.path().to_string_lossy();
 
-    assert_eq!(super::git_is_clean(path.as_ref()), Err("git status 返回失败".to_string()));
-    let staged_error = super::git_has_staged_changes(path.as_ref())
+    assert_eq!(super::git_is_clean(gateway_client, path.as_ref()), Err("git status 返回失败".to_string()));
+    let staged_error = super::git_has_staged_changes(gateway_client, path.as_ref())
         .expect_err("staged query outside a repository should fail");
     assert!(staged_error.contains("git diff --cached --quiet 失败 code="));
 }
@@ -198,7 +202,7 @@ fn run_git_logged_emits_command_stdout_stderr_and_exit() {
     let (tx, rx) = std::sync::mpsc::channel();
 
     let output =
-        super::run_git_logged(Some(&tx), repo.to_string_lossy().as_ref(), &["status", "--short"])
+        super::run_git_logged(gateway_client, Some(&tx), repo.to_string_lossy().as_ref(), &["status", "--short"])
             .expect("git status should run");
 
     assert!(output.status.success());
@@ -214,7 +218,7 @@ fn run_git_logged_emits_non_empty_stdout() {
     let (_temp, repo) = create_repo();
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let output = super::run_git_logged(
+    let output = super::run_git_logged(gateway_client,
         Some(&tx),
         repo.to_string_lossy().as_ref(),
         &["rev-parse", "--abbrev-ref", "HEAD"],
@@ -232,7 +236,7 @@ fn run_git_logged_emits_stderr_and_failed_exit() {
     let (_temp, repo) = create_repo();
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let output = super::run_git_logged(
+    let output = super::run_git_logged(gateway_client,
         Some(&tx),
         repo.to_string_lossy().as_ref(),
         &["rev-parse", "--verify", "missing-ref"],
@@ -254,7 +258,7 @@ fn run_git_logged_with_timeout_emits_elapsed_exit_log() {
     let (_temp, repo) = create_repo();
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let (output, _elapsed) = super::run_git_logged_with_timeout(
+    let (output, _elapsed) = super::run_git_logged_with_timeout(gateway_client,
         Some(&tx),
         repo.to_string_lossy().as_ref(),
         &["status", "--short"],
@@ -277,7 +281,7 @@ fn run_git_logged_with_timeout_emits_stderr_and_failed_exit() {
     let (_temp, repo) = create_repo();
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let (output, _elapsed) = super::run_git_logged_with_timeout(
+    let (output, _elapsed) = super::run_git_logged_with_timeout(gateway_client,
         Some(&tx),
         repo.to_string_lossy().as_ref(),
         &["rev-parse", "--verify", "missing-ref"],
@@ -300,7 +304,7 @@ fn run_git_maintenance_logged_returns_command_output() {
     let (_temp, repo) = create_repo();
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let output = super::run_git_maintenance_logged(
+    let output = super::run_git_maintenance_logged(gateway_client,
         Some(&tx),
         repo.to_string_lossy().as_ref(),
         &["rev-parse", "--abbrev-ref", "HEAD"],
@@ -350,7 +354,7 @@ fn build_review_diff_context_uses_parent_commit_for_normal_commit() {
     run_git_test(&repo, &["commit", "-m", "second"]);
 
     let (source, target, commit1, commit2, diff) =
-        super::build_review_diff_context(repo.to_string_lossy().as_ref(), None, Some("main"))
+        super::build_review_diff_context(gateway_client, repo.to_string_lossy().as_ref(), None, Some("main"))
             .expect("diff context should build");
 
     assert_eq!(source, "HEAD");
@@ -365,13 +369,13 @@ fn build_review_diff_context_trims_refs_and_defaults_blank_refs() {
     let repo_path = repo.to_string_lossy();
 
     let (source, target, _, _, _) =
-        super::build_review_diff_context(repo_path.as_ref(), Some("  main  "), Some("  HEAD  "))
+        super::build_review_diff_context(gateway_client, repo_path.as_ref(), Some("  main  "), Some("  HEAD  "))
             .expect("trimmed refs should resolve");
     assert_eq!(source, "main");
     assert_eq!(target, "HEAD");
 
     let (source, target, _, _, _) =
-        super::build_review_diff_context(repo_path.as_ref(), Some(" \t "), Some(""))
+        super::build_review_diff_context(gateway_client, repo_path.as_ref(), Some(" \t "), Some(""))
             .expect("blank refs should use HEAD");
     assert_eq!(source, "HEAD");
     assert_eq!(target, "HEAD");
@@ -381,11 +385,11 @@ fn build_review_diff_context_trims_refs_and_defaults_blank_refs() {
 fn build_review_diff_context_uses_empty_tree_for_root_commit() {
     let (_temp, repo) = create_repo();
     let root_commit =
-        super::run_git(repo.to_string_lossy().as_ref(), &["rev-list", "--max-parents=0", "HEAD"])
+        super::run_git(gateway_client, repo.to_string_lossy().as_ref(), &["rev-list", "--max-parents=0", "HEAD"])
             .expect("root commit should resolve");
     let root_commit = String::from_utf8_lossy(&root_commit.stdout).trim().to_string();
 
-    let (_source, _target, commit1, commit2, diff) = super::build_review_diff_context(
+    let (_source, _target, commit1, commit2, diff) = super::build_review_diff_context(gateway_client,
         repo.to_string_lossy().as_ref(),
         Some(&root_commit),
         Some("main"),
@@ -401,7 +405,7 @@ fn build_review_diff_context_uses_empty_tree_for_root_commit() {
 fn build_review_diff_context_reports_bad_source_ref() {
     let (_temp, repo) = create_repo();
 
-    let error = super::build_review_diff_context(
+    let error = super::build_review_diff_context(gateway_client,
         repo.to_string_lossy().as_ref(),
         Some("missing-branch"),
         None,
@@ -416,7 +420,7 @@ fn abort_git_in_progress_states_ignores_benign_empty_repo_state() {
     let (_temp, repo) = create_repo();
     let (tx, rx) = std::sync::mpsc::channel();
 
-    super::abort_git_in_progress_states(repo.to_string_lossy().as_ref(), Some(&tx));
+    super::abort_git_in_progress_states(gateway_client, repo.to_string_lossy().as_ref(), Some(&tx));
 
     assert!(rx.try_iter().all(|log| match log {
         super::TaskLogStream::Stdout(value) | super::TaskLogStream::Stderr(value) => {
@@ -447,7 +451,7 @@ fn abort_git_in_progress_states_aborts_active_merge_and_logs_result() {
     assert!(repo.join(".git/MERGE_HEAD").exists());
 
     let (tx, rx) = std::sync::mpsc::channel();
-    super::abort_git_in_progress_states(repo.to_string_lossy().as_ref(), Some(&tx));
+    super::abort_git_in_progress_states(gateway_client, repo.to_string_lossy().as_ref(), Some(&tx));
 
     assert!(!repo.join(".git/MERGE_HEAD").exists());
     assert!(rx.try_iter().any(|log| {

@@ -5,16 +5,16 @@
 
 use iced::{Color, Theme};
 
-use crate::app::App;
+use crate::control::ControlView;
 
 /// 将 Worktree 槽位状态转换为中文显示标签。
-pub(super) fn worktree_state_label(state: crate::app::task::WorktreeState) -> &'static str {
+pub(super) fn worktree_state_label(state: desktop_task_executor::executor::state::WorktreeState) -> &'static str {
     match state {
-        crate::app::task::WorktreeState::Idle => "空闲",
-        crate::app::task::WorktreeState::Busy => "忙碌",
-        crate::app::task::WorktreeState::Tainted => "污染",
-        crate::app::task::WorktreeState::Recycling => "回收中",
-        crate::app::task::WorktreeState::Dead => "失效",
+        desktop_task_executor::executor::state::WorktreeState::Idle => "空闲",
+        desktop_task_executor::executor::state::WorktreeState::Busy => "忙碌",
+        desktop_task_executor::executor::state::WorktreeState::Tainted => "污染",
+        desktop_task_executor::executor::state::WorktreeState::Recycling => "回收中",
+        desktop_task_executor::executor::state::WorktreeState::Dead => "失效",
     }
 }
 
@@ -35,43 +35,43 @@ pub(super) fn format_duration_ms(duration_ms: u64) -> String {
 }
 
 /// 获取任务状态标签的颜色配置。
-pub(super) fn task_status_tag_colors(status: crate::app::task::TaskStatus) -> (Color, Color) {
+pub(super) fn task_status_tag_colors(status: desktop_task_model::TaskStatus) -> (Color, Color) {
     match status {
-        crate::app::task::TaskStatus::Pool => {
+        desktop_task_model::TaskStatus::Pool => {
             (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246))
         }
-        crate::app::task::TaskStatus::Pending => {
+        desktop_task_model::TaskStatus::Pending => {
             (Color::from_rgb8(37, 99, 235), Color::from_rgb8(219, 234, 254))
         }
-        crate::app::task::TaskStatus::Planning => {
+        desktop_task_model::TaskStatus::Planning => {
             (Color::from_rgb8(79, 70, 229), Color::from_rgb8(224, 231, 255))
         }
-        crate::app::task::TaskStatus::Running => {
+        desktop_task_model::TaskStatus::Running => {
             (Color::from_rgb8(147, 51, 234), Color::from_rgb8(243, 232, 255))
         }
-        crate::app::task::TaskStatus::Failed => {
+        desktop_task_model::TaskStatus::Failed => {
             (Color::from_rgb8(220, 38, 38), Color::from_rgb8(254, 226, 226))
         }
-        crate::app::task::TaskStatus::Paused => {
+        desktop_task_model::TaskStatus::Paused => {
             (Color::from_rgb8(202, 138, 4), Color::from_rgb8(254, 249, 195))
         }
-        crate::app::task::TaskStatus::CodeComplete => {
+        desktop_task_model::TaskStatus::CodeComplete => {
             (Color::from_rgb8(5, 150, 105), Color::from_rgb8(209, 250, 229))
         }
-        crate::app::task::TaskStatus::CodeReview => {
+        desktop_task_model::TaskStatus::CodeReview => {
             (Color::from_rgb8(217, 119, 6), Color::from_rgb8(254, 243, 199))
         }
-        crate::app::task::TaskStatus::PrSubmitted => {
+        desktop_task_model::TaskStatus::PrSubmitted => {
             (Color::from_rgb8(8, 145, 178), Color::from_rgb8(207, 250, 254))
         }
-        crate::app::task::TaskStatus::Completed => {
+        desktop_task_model::TaskStatus::Completed => {
             (Color::from_rgb8(22, 163, 74), Color::from_rgb8(220, 252, 231))
         }
-        crate::app::task::TaskStatus::Archived => {
+        desktop_task_model::TaskStatus::Archived => {
             (Color::from_rgb8(100, 116, 139), Color::from_rgb8(241, 245, 249))
         }
         // 自定义状态暂用中性灰，待工作流迁移任务接管自定义列样式。
-        crate::app::task::TaskStatus::Custom(_) => {
+        desktop_task_model::TaskStatus::Custom(_) => {
             (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246))
         }
     }
@@ -79,9 +79,9 @@ pub(super) fn task_status_tag_colors(status: crate::app::task::TaskStatus) -> (C
 
 /// 从 Worktree 槽位快照中获取关联的任务对象。
 pub(super) fn slot_task<'a>(
-    app: &'a App,
-    slot: &'a crate::app::task::WorktreeSlotSnapshot,
-) -> Option<&'a crate::app::task::Task> {
+    app: &ControlView<'a>,
+    slot: &'a desktop_task_executor::executor::state::WorktreeSlotSnapshot,
+) -> Option<&'a desktop_task_model::Task> {
     let task_id = slot.leased_task_id.as_deref()?;
     app.task_board_tasks.iter().find(|task| task.id == task_id)
 }
@@ -89,13 +89,13 @@ pub(super) fn slot_task<'a>(
 /// 获取 Worktree 状态的调色板配置。
 pub(super) fn worktree_state_palette(
     theme: &Theme,
-    state: crate::app::task::WorktreeState,
+    state: desktop_task_executor::executor::state::WorktreeState,
 ) -> (Color, Color, Color) {
     let p = theme.extended_palette();
     let base = theme.palette().background;
     let is_dark = base.r + base.g + base.b < 1.5;
     match state {
-        crate::app::task::WorktreeState::Idle => {
+        desktop_task_executor::executor::state::WorktreeState::Idle => {
             if is_dark {
                 (
                     Color::from_rgb(0.17, 0.29, 0.20),
@@ -110,7 +110,7 @@ pub(super) fn worktree_state_palette(
                 )
             }
         }
-        crate::app::task::WorktreeState::Busy => {
+        desktop_task_executor::executor::state::WorktreeState::Busy => {
             if is_dark {
                 (
                     Color::from_rgb(0.30, 0.24, 0.14),
@@ -125,7 +125,7 @@ pub(super) fn worktree_state_palette(
                 )
             }
         }
-        crate::app::task::WorktreeState::Tainted => {
+        desktop_task_executor::executor::state::WorktreeState::Tainted => {
             if is_dark {
                 (
                     Color::from_rgb(0.34, 0.17, 0.18),
@@ -140,7 +140,7 @@ pub(super) fn worktree_state_palette(
                 )
             }
         }
-        crate::app::task::WorktreeState::Recycling => {
+        desktop_task_executor::executor::state::WorktreeState::Recycling => {
             if is_dark {
                 (
                     Color::from_rgb(0.15, 0.24, 0.31),
@@ -155,7 +155,7 @@ pub(super) fn worktree_state_palette(
                 )
             }
         }
-        crate::app::task::WorktreeState::Dead => {
+        desktop_task_executor::executor::state::WorktreeState::Dead => {
             if is_dark {
                 (
                     Color::from_rgb(0.22, 0.24, 0.28),
@@ -174,37 +174,37 @@ pub(super) fn worktree_state_palette(
 }
 
 /// 获取 Worktree 状态的提示文本。
-pub(super) fn worktree_state_hint(state: crate::app::task::WorktreeState) -> &'static str {
+pub(super) fn worktree_state_hint(state: desktop_task_executor::executor::state::WorktreeState) -> &'static str {
     match state {
-        crate::app::task::WorktreeState::Idle => "新任务到达后可立即执行；脏现场会在执行前统一整理",
-        crate::app::task::WorktreeState::Busy => "当前正在处理任务",
-        crate::app::task::WorktreeState::Tainted => "需要人工或自动修复",
-        crate::app::task::WorktreeState::Recycling => "正在回收与整理",
-        crate::app::task::WorktreeState::Dead => "当前暂不可用",
+        desktop_task_executor::executor::state::WorktreeState::Idle => "新任务到达后可立即执行；脏现场会在执行前统一整理",
+        desktop_task_executor::executor::state::WorktreeState::Busy => "当前正在处理任务",
+        desktop_task_executor::executor::state::WorktreeState::Tainted => "需要人工或自动修复",
+        desktop_task_executor::executor::state::WorktreeState::Recycling => "正在回收与整理",
+        desktop_task_executor::executor::state::WorktreeState::Dead => "当前暂不可用",
     }
 }
 
 /// 获取 Worktree 状态对应的角色图标和状态文本。
 pub(super) fn worktree_state_actor(
-    state: crate::app::task::WorktreeState,
+    state: desktop_task_executor::executor::state::WorktreeState,
 ) -> (&'static str, &'static str) {
     match state {
-        crate::app::task::WorktreeState::Idle => ("🧑‍💻", "待复用"),
-        crate::app::task::WorktreeState::Busy => ("👨‍💻", "任务处理中"),
-        crate::app::task::WorktreeState::Tainted => ("🕵️", "异常排查中"),
-        crate::app::task::WorktreeState::Recycling => ("🧹", "回收整理中"),
-        crate::app::task::WorktreeState::Dead => ("💤", "槽位停用中"),
+        desktop_task_executor::executor::state::WorktreeState::Idle => ("🧑‍💻", "待复用"),
+        desktop_task_executor::executor::state::WorktreeState::Busy => ("👨‍💻", "任务处理中"),
+        desktop_task_executor::executor::state::WorktreeState::Tainted => ("🕵️", "异常排查中"),
+        desktop_task_executor::executor::state::WorktreeState::Recycling => ("🧹", "回收整理中"),
+        desktop_task_executor::executor::state::WorktreeState::Dead => ("💤", "槽位停用中"),
     }
 }
 
 /// 获取 Worktree 房间道具列表（根据状态变化）。
-pub(super) fn worktree_room_props(state: crate::app::task::WorktreeState) -> [&'static str; 5] {
+pub(super) fn worktree_room_props(state: desktop_task_executor::executor::state::WorktreeState) -> [&'static str; 5] {
     match state {
-        crate::app::task::WorktreeState::Idle => ["🪑", "🖥️", "☕", "🪴", "📋"],
-        crate::app::task::WorktreeState::Busy => ["🪑", "🖥️", "⌨️", "⚙️", "📞"],
-        crate::app::task::WorktreeState::Tainted => ["🚧", "🧪", "🧰", "📁", "⚠️"],
-        crate::app::task::WorktreeState::Recycling => ["🧹", "🧴", "🗂️", "🪣", "🔧"],
-        crate::app::task::WorktreeState::Dead => ["🔌", "🗄️", "🧯", "📦", "⏸️"],
+        desktop_task_executor::executor::state::WorktreeState::Idle => ["🪑", "🖥️", "☕", "🪴", "📋"],
+        desktop_task_executor::executor::state::WorktreeState::Busy => ["🪑", "🖥️", "⌨️", "⚙️", "📞"],
+        desktop_task_executor::executor::state::WorktreeState::Tainted => ["🚧", "🧪", "🧰", "📁", "⚠️"],
+        desktop_task_executor::executor::state::WorktreeState::Recycling => ["🧹", "🧴", "🗂️", "🪣", "🔧"],
+        desktop_task_executor::executor::state::WorktreeState::Dead => ["🔌", "🗄️", "🧯", "📦", "⏸️"],
     }
 }
 
@@ -228,19 +228,19 @@ pub(super) fn truncate_log_line(value: &str, max_chars: usize) -> String {
 
 /// 获取 Worktree 槽位的日志预览行。
 pub(super) fn worktree_log_preview_lines(
-    app: &App,
-    slot: &crate::app::task::WorktreeSlotSnapshot,
+    app: &ControlView<'_>,
+    slot: &desktop_task_executor::executor::state::WorktreeSlotSnapshot,
     now_ms: u64,
 ) -> Vec<String> {
     let Some(task_id) = slot.leased_task_id.as_deref() else {
         return vec![
-            crate::app::i18n::I18n::new(app.desktop_locale).__("等待任务日志...").to_string(),
+            desktop_i18n::I18n::new(app.desktop_locale).__("等待任务日志...").to_string(),
         ];
     };
 
     let Some(task) = slot_task(app, slot) else {
         return vec![
-            crate::app::i18n::I18n::new(app.desktop_locale)
+            desktop_i18n::I18n::new(app.desktop_locale)
                 .format("任务 %s", &[truncate_log_line(task_id, 52).into()])
                 .expect("valid task label"),
         ];
@@ -251,8 +251,8 @@ pub(super) fn worktree_log_preview_lines(
         .iter()
         .rev()
         .filter_map(|entry| {
-            let line = crate::app::i18n::tasks::log_message(
-                crate::app::i18n::I18n::new(app.desktop_locale),
+            let line = desktop_i18n::tasks::log_message(
+                desktop_i18n::I18n::new(app.desktop_locale),
                 entry,
             )
             .replace('\n', " ");
@@ -263,7 +263,7 @@ pub(super) fn worktree_log_preview_lines(
         .collect::<Vec<_>>();
 
     if lines.is_empty() {
-        lines.push(crate::app::i18n::I18n::new(app.desktop_locale).__("任务已启动...").to_string());
+        lines.push(desktop_i18n::I18n::new(app.desktop_locale).__("任务已启动...").to_string());
     }
 
     lines.reverse();
@@ -275,14 +275,19 @@ pub(super) fn worktree_log_preview_lines(
 }
 
 /// 列表与像素办公室共用同一智能体/run 投影，工位身份和容量由池维护。
-pub(super) fn employee_summary(app: &App, slot: &crate::app::task::WorktreeSlotSnapshot) -> String {
-    let activity = crate::app::task::agent_activity::project_activity(
-        std::slice::from_ref(slot),
-        &app.agents_settings.entries,
-        &app.task_board_tasks,
+pub(super) fn employee_summary(app: &ControlView<'_>, slot: &desktop_task_executor::executor::state::WorktreeSlotSnapshot) -> String {
+    let activity = desktop_task_model::agent_activity::project_activity(
+        &[desktop_task_model::agent_activity::ActivitySlot {
+            agent_id: slot.agent_id.as_deref(),
+            run_id: slot.run_id.as_deref(),
+            leased_task_id: slot.leased_task_id.as_deref(),
+            busy: slot.state == desktop_task_executor::executor::state::WorktreeState::Busy,
+        }],
+        &app.agent_entries,
+        app.task_board_tasks,
     )
     .remove(0);
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     format!(
         "{} [{}] · {} · {}={} · task={} · run={}",
         activity.label,

@@ -1,8 +1,9 @@
 use iced::widget::{Space, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
-use crate::app::task::{WorktreePoolSnapshot, WorktreeSlotSnapshot};
-use crate::app::{App, Message};
+use desktop_task_executor::executor::state::{WorktreePoolSnapshot, WorktreeSlotSnapshot};
+use crate::control::ControlView;
+use crate::message::TaskBoardMessage as Message;
 
 use super::room_scene::build_worktree_pixel_card;
 
@@ -198,7 +199,7 @@ fn build_worktree_floor_texture_fill<'a>() -> Element<'a, Message> {
 
 /// 构建 Worktree 走廊组件，显示任务流程和维护状态概览。
 fn build_worktree_corridor<'a>(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     snapshot: &'a WorktreePoolSnapshot,
     maintenance_hidden: bool,
 ) -> Element<'a, Message> {
@@ -283,7 +284,7 @@ fn build_worktree_corridor<'a>(
 
 /// 构建 Worktree 像素区域，显示一组槽位卡片的网格布局。
 fn build_worktree_pixel_section<'a>(
-    app: &'a App,
+    app: &ControlView<'a>,
     title: &'static str,
     subtitle: &'static str,
     slots: Vec<&'a WorktreeSlotSnapshot>,
@@ -291,10 +292,10 @@ fn build_worktree_pixel_section<'a>(
 ) -> Element<'a, Message> {
     let cards_per_row = cards_per_row.max(1);
     let header = column![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__(title))
+        text(desktop_i18n::I18n::new(app.desktop_locale).__(title))
             .size(12)
             .style(|theme: &Theme| floor_text_alpha_style(theme, 1.0)),
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__(subtitle))
+        text(desktop_i18n::I18n::new(app.desktop_locale).__(subtitle))
             .size(11)
             .style(|theme: &Theme| floor_text_alpha_style(theme, 0.72)),
     ]
@@ -306,7 +307,7 @@ fn build_worktree_pixel_section<'a>(
     if slots.is_empty() {
         room_rows = room_rows.push(
             container(
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("当前区域暂无工位"))
+                text(desktop_i18n::I18n::new(app.desktop_locale).__("当前区域暂无工位"))
                     .size(11)
                     .style(|theme: &Theme| floor_text_alpha_style(theme, 0.62)),
             )
@@ -335,7 +336,7 @@ fn build_worktree_pixel_section<'a>(
 
 /// 构建 Worktree 像素楼层，组合活跃区和维护区的完整布局。
 pub(super) fn build_worktree_pixel_floor<'a>(
-    app: &'a App,
+    app: &ControlView<'a>,
     snapshot: &'a WorktreePoolSnapshot,
     active_slots: Vec<&'a WorktreeSlotSnapshot>,
     maintenance_slots: Vec<&'a WorktreeSlotSnapshot>,
@@ -354,7 +355,7 @@ pub(super) fn build_worktree_pixel_floor<'a>(
     .width(Length::Fill);
 
     let corridor = build_worktree_corridor(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        desktop_i18n::I18n::new(app.desktop_locale),
         snapshot,
         !has_maintenance_rooms,
     );
@@ -392,11 +393,11 @@ pub(super) fn build_worktree_pixel_floor<'a>(
         column![
             build_worktree_floor_texture_fill(),
             build_worktree_floor_strip(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("房间地板")
+                desktop_i18n::I18n::new(app.desktop_locale).__("房间地板")
             ),
             room_line,
             build_worktree_floor_strip(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("工位走道")
+                desktop_i18n::I18n::new(app.desktop_locale).__("工位走道")
             ),
             build_worktree_floor_texture_fill(),
         ]

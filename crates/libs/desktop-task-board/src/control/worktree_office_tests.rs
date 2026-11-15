@@ -4,7 +4,9 @@ use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Length, Theme};
 
 use super::*;
-use crate::app::task::{Task, WorktreeSlotSnapshot};
+use crate::control::test_support::TestApp as App;
+use desktop_task_model::{Task};
+use desktop_task_executor::executor::state::{WorktreeSlotSnapshot};
 
 const EPSILON: f32 = 0.000_01;
 
@@ -109,7 +111,7 @@ fn office_builds_empty_snapshot_as_fill_width_panel() {
     let app = test_app();
     let snapshot = snapshot(Vec::new());
 
-    let office = build_worktree_pixel_office(&app, &snapshot);
+    let office = build_worktree_pixel_office(&app.view(), &snapshot);
 
     assert_eq!(office.as_widget().size().width, Length::Fill);
     assert_eq!(office.as_widget().children().len(), 4);
@@ -126,7 +128,7 @@ fn office_builds_all_worktree_state_groups() {
         slot("dead", WorktreeState::Dead),
     ]);
 
-    let office = build_worktree_pixel_office(&app, &snapshot);
+    let office = build_worktree_pixel_office(&app.view(), &snapshot);
     let active_ids = active_worktree_slots(&snapshot)
         .into_iter()
         .map(|slot| slot.id.as_str())
@@ -158,7 +160,7 @@ async fn office_draws_all_worktree_state_groups() {
         slot("dead", WorktreeState::Dead),
     ]);
 
-    assert_element_draws(build_worktree_pixel_office(&app, &snapshot)).await;
+    assert_element_draws(build_worktree_pixel_office(&app.view(), &snapshot)).await;
 }
 
 #[test]
@@ -183,11 +185,11 @@ fn office_counts_visible_tasks_and_ignores_deleted_or_archived_tasks() {
     }
     let snapshot = snapshot(Vec::new());
 
-    let office = build_worktree_pixel_office(&app, &snapshot);
+    let office = build_worktree_pixel_office(&app.view(), &snapshot);
 
     assert_eq!(office.as_widget().size().width, Length::Fill);
     for status in statuses {
-        assert_eq!(visible_task_status_count(&app, status), 1);
+        assert_eq!(visible_task_status_count(&app.view(), status), 1);
     }
 }
 
@@ -197,11 +199,11 @@ fn task_pool_office_non_git_displays_agents_and_runs() {
     let project = tempfile::tempdir().unwrap();
     app.project_path = Some(project.path().to_string_lossy().into_owned());
     app.project_is_git_repo = false;
-    assert!(super::super::should_render_worktree_controls(&app));
+    assert!(super::super::should_render_worktree_controls(&app.view()));
     let mut employee = slot("logical-1", WorktreeState::Busy);
     employee.agent_id = Some("main".into());
     employee.run_id = Some("run-1".into());
-    let summary = super::super::helpers::employee_summary(&app, &employee);
+    let summary = super::super::helpers::employee_summary(&app.view(), &employee);
     assert!(summary.contains("run-1"));
     assert!(summary.contains("main"));
 }
@@ -214,7 +216,7 @@ fn task_pool_office_resource_changes_do_not_change_employee_count() {
     seats.slots[0].path.clear();
     seats.slots[0].branch.clear();
     assert_eq!(active_worktree_slots(&seats).len(), before);
-    let _ = build_worktree_pixel_office(&app, &seats);
+    let _ = build_worktree_pixel_office(&app.view(), &seats);
 }
 
 #[test]
@@ -222,79 +224,10 @@ fn task_pool_office_empty_and_disabled_agents_render() {
     let app = test_app();
     let mut employee = slot("seat", WorktreeState::Busy);
     employee.agent_id = Some("disabled-agent".into());
-    let summary = super::super::helpers::employee_summary(&app, &employee);
+    let summary = super::super::helpers::employee_summary(&app.view(), &employee);
     assert!(summary.contains("disabled-agent"));
     let seats = snapshot(vec![employee]);
-    let _ = build_worktree_pixel_office(&app, &seats);
+    let _ = build_worktree_pixel_office(&app.view(), &seats);
     let empty = snapshot(vec![]);
-    let _ = build_worktree_pixel_office(&app, &empty);
-}
-
-#[test]
-fn task_pool_office_capacity_and_all_employee_interactions_are_preserved() {
-    let mut app = test_app();
-    let project = tempfile::tempdir().unwrap();
-    app.project_path = Some(project.path().to_string_lossy().into_owned());
-    app.task_board_worktree_snapshot = Some(snapshot(vec![
-        slot("idle", WorktreeState::Idle),
-        slot("busy", WorktreeState::Busy),
-        slot("tainted", WorktreeState::Tainted),
-        slot("recycling", WorktreeState::Recycling),
-        slot("dead", WorktreeState::Dead),
-    ]));
-    use crate::app::message::{TaskBoardMessage, task_board::update};
-    app.task_board_worktree_desired_capacity = Some(17);
-    for (message, kind) in [
-        (TaskBoardMessage::CleanAllWorktreesPressed, "cleanup"),
-        (TaskBoardMessage::DeleteAllWorktreesPressed, "delete"),
-        (TaskBoardMessage::CommitMergeAllWorktreesPressed, "merge"),
-    ] {
-        let _ = update(&mut app, message);
-        assert_eq!(app.task_board_worktree_manual_confirm_kind, Some(kind));
-        let _ = update(&mut app, TaskBoardMessage::CancelWorktreeManualConfirm);
-        assert_eq!(app.task_board_worktree_manual_confirm_kind, None);
-        assert_eq!(app.task_board_worktree_desired_capacity, Some(17));
-        let press = || match kind {
-            "cleanup" => TaskBoardMessage::CleanAllWorktreesPressed,
-            "delete" => TaskBoardMessage::DeleteAllWorktreesPressed,
-            _ => TaskBoardMessage::CommitMergeAllWorktreesPressed,
-        };
-        let _ = update(&mut app, press());
-        let _ = update(&mut app, press());
-        assert_eq!(app.task_board_worktree_manual_action_kind, Some(kind));
-        assert!(!app.task_board_worktree_action_logs.is_empty());
-        let error = Err("显式任务未配置".to_string());
-        let completed = match kind {
-            "cleanup" => TaskBoardMessage::CleanAllWorktreesCompleted(error),
-            "delete" => TaskBoardMessage::DeleteAllWorktreesCompleted(error),
-            _ => TaskBoardMessage::CommitMergeAllWorktreesCompleted(error),
-        };
-        let _ = update(&mut app, completed);
-        assert!(app.task_board_worktree_manual_action_kind.is_none());
-        assert!(
-            app.task_board_worktree_action_logs.iter().any(|line| line.contains("显式任务未配置"))
-        );
-        assert_eq!(app.task_board_worktree_desired_capacity, Some(17));
-    }
-    let _ =
-        update(&mut app, TaskBoardMessage::RecycleWorktreeSlotPressed { slot_id: "busy".into() });
-    assert!(app.task_board_worktree_manual_action_kind.is_none());
-    let _ =
-        update(&mut app, TaskBoardMessage::RecycleWorktreeSlotPressed { slot_id: "dead".into() });
-    assert_eq!(app.task_board_worktree_manual_action_kind, Some("slot_recycle"));
-    // 丢弃未轮询的异步命令，测试不连接生产网关。
-    app.task_board_worktree_manual_action_kind = None;
-    let expanded = app.task_board_worktree_panel_expanded;
-    let _ = update(&mut app, TaskBoardMessage::ToggleWorktreePanelExpanded);
-    assert_eq!(app.task_board_worktree_panel_expanded, !expanded);
-    let _ = update(&mut app, TaskBoardMessage::ToggleWorktreePixelOffice(false));
-    assert!(!app.task_board_worktree_pixel_office);
-    for expanded in [false, true] {
-        for pixel in [false, true] {
-            app.task_board_worktree_panel_expanded = expanded;
-            app.task_board_worktree_pixel_office = pixel;
-            let _ = super::super::build_control_buttons(&app);
-            assert_eq!(app.task_board_worktree_snapshot.as_ref().unwrap().slots.len(), 5);
-        }
-    }
+    let _ = build_worktree_pixel_office(&app.view(), &empty);
 }

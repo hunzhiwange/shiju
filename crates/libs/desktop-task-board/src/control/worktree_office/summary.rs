@@ -1,8 +1,9 @@
 use iced::widget::{column, container, text};
 use iced::{Background, Border, Element, Length, Theme};
 
-use crate::app::Message;
-use crate::app::task::{TaskStatus, WorktreeState};
+use crate::message::TaskBoardMessage as Message;
+use desktop_task_model::{TaskStatus};
+use desktop_task_executor::executor::state::{WorktreeState};
 
 use super::super::helpers::{task_status_tag_colors, worktree_state_palette};
 

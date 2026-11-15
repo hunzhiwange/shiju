@@ -7,24 +7,24 @@ fn test_module_is_wired() {
     assert!(module.ends_with("helpers_tests"));
 }
 
-fn all_worktree_states() -> [crate::app::task::WorktreeState; 5] {
+fn all_worktree_states() -> [desktop_task_executor::executor::state::WorktreeState; 5] {
     [
-        crate::app::task::WorktreeState::Idle,
-        crate::app::task::WorktreeState::Busy,
-        crate::app::task::WorktreeState::Tainted,
-        crate::app::task::WorktreeState::Recycling,
-        crate::app::task::WorktreeState::Dead,
+        desktop_task_executor::executor::state::WorktreeState::Idle,
+        desktop_task_executor::executor::state::WorktreeState::Busy,
+        desktop_task_executor::executor::state::WorktreeState::Tainted,
+        desktop_task_executor::executor::state::WorktreeState::Recycling,
+        desktop_task_executor::executor::state::WorktreeState::Dead,
     ]
 }
 
-fn slot(task_id: Option<&str>) -> crate::app::task::WorktreeSlotSnapshot {
-    crate::app::task::WorktreeSlotSnapshot {
+fn slot(task_id: Option<&str>) -> desktop_task_executor::executor::state::WorktreeSlotSnapshot {
+    desktop_task_executor::executor::state::WorktreeSlotSnapshot {
         agent_id: None,
         run_id: None,
         id: "slot-1".to_string(),
         path: "/tmp/slot-1".to_string(),
         branch: "feature/task".to_string(),
-        state: crate::app::task::WorktreeState::Idle,
+        state: desktop_task_executor::executor::state::WorktreeState::Idle,
         leased_task_id: task_id.map(str::to_string),
         taint_reason: None,
     }
@@ -34,15 +34,15 @@ fn slot(task_id: Option<&str>) -> crate::app::task::WorktreeSlotSnapshot {
 fn worktree_state_text_helpers_cover_all_states() {
     let cases = [
         (
-            crate::app::task::WorktreeState::Idle,
+            desktop_task_executor::executor::state::WorktreeState::Idle,
             "空闲",
             "新任务到达后可立即执行；脏现场会在执行前统一整理",
             "待复用",
         ),
-        (crate::app::task::WorktreeState::Busy, "忙碌", "当前正在处理任务", "任务处理中"),
-        (crate::app::task::WorktreeState::Tainted, "污染", "需要人工或自动修复", "异常排查中"),
-        (crate::app::task::WorktreeState::Recycling, "回收中", "正在回收与整理", "回收整理中"),
-        (crate::app::task::WorktreeState::Dead, "失效", "当前暂不可用", "槽位停用中"),
+        (desktop_task_executor::executor::state::WorktreeState::Busy, "忙碌", "当前正在处理任务", "任务处理中"),
+        (desktop_task_executor::executor::state::WorktreeState::Tainted, "污染", "需要人工或自动修复", "异常排查中"),
+        (desktop_task_executor::executor::state::WorktreeState::Recycling, "回收中", "正在回收与整理", "回收整理中"),
+        (desktop_task_executor::executor::state::WorktreeState::Dead, "失效", "当前暂不可用", "槽位停用中"),
     ];
 
     for (state, label, hint, actor_label) in cases {
@@ -73,62 +73,62 @@ fn format_duration_ms_uses_seconds_and_zero_fallback() {
 fn task_status_tag_colors_cover_builtin_and_custom_statuses() {
     let cases = [
         (
-            crate::app::task::TaskStatus::Pool,
+            desktop_task_model::TaskStatus::Pool,
             iced::Color::from_rgb8(107, 114, 128),
             iced::Color::from_rgb8(243, 244, 246),
         ),
         (
-            crate::app::task::TaskStatus::Pending,
+            desktop_task_model::TaskStatus::Pending,
             iced::Color::from_rgb8(37, 99, 235),
             iced::Color::from_rgb8(219, 234, 254),
         ),
         (
-            crate::app::task::TaskStatus::Planning,
+            desktop_task_model::TaskStatus::Planning,
             iced::Color::from_rgb8(79, 70, 229),
             iced::Color::from_rgb8(224, 231, 255),
         ),
         (
-            crate::app::task::TaskStatus::Running,
+            desktop_task_model::TaskStatus::Running,
             iced::Color::from_rgb8(147, 51, 234),
             iced::Color::from_rgb8(243, 232, 255),
         ),
         (
-            crate::app::task::TaskStatus::Failed,
+            desktop_task_model::TaskStatus::Failed,
             iced::Color::from_rgb8(220, 38, 38),
             iced::Color::from_rgb8(254, 226, 226),
         ),
         (
-            crate::app::task::TaskStatus::Paused,
+            desktop_task_model::TaskStatus::Paused,
             iced::Color::from_rgb8(202, 138, 4),
             iced::Color::from_rgb8(254, 249, 195),
         ),
         (
-            crate::app::task::TaskStatus::CodeComplete,
+            desktop_task_model::TaskStatus::CodeComplete,
             iced::Color::from_rgb8(5, 150, 105),
             iced::Color::from_rgb8(209, 250, 229),
         ),
         (
-            crate::app::task::TaskStatus::CodeReview,
+            desktop_task_model::TaskStatus::CodeReview,
             iced::Color::from_rgb8(217, 119, 6),
             iced::Color::from_rgb8(254, 243, 199),
         ),
         (
-            crate::app::task::TaskStatus::PrSubmitted,
+            desktop_task_model::TaskStatus::PrSubmitted,
             iced::Color::from_rgb8(8, 145, 178),
             iced::Color::from_rgb8(207, 250, 254),
         ),
         (
-            crate::app::task::TaskStatus::Completed,
+            desktop_task_model::TaskStatus::Completed,
             iced::Color::from_rgb8(22, 163, 74),
             iced::Color::from_rgb8(220, 252, 231),
         ),
         (
-            crate::app::task::TaskStatus::Archived,
+            desktop_task_model::TaskStatus::Archived,
             iced::Color::from_rgb8(100, 116, 139),
             iced::Color::from_rgb8(241, 245, 249),
         ),
         (
-            crate::app::task::TaskStatus::Custom("blocked"),
+            desktop_task_model::TaskStatus::Custom("blocked"),
             iced::Color::from_rgb8(107, 114, 128),
             iced::Color::from_rgb8(243, 244, 246),
         ),
@@ -152,11 +152,11 @@ fn worktree_state_palette_uses_light_and_dark_branches() {
     }
 
     assert_eq!(
-        super::worktree_state_palette(&light, crate::app::task::WorktreeState::Idle).0,
+        super::worktree_state_palette(&light, desktop_task_executor::executor::state::WorktreeState::Idle).0,
         iced::Color::from_rgb(0.69, 0.92, 0.73)
     );
     assert_eq!(
-        super::worktree_state_palette(&dark, crate::app::task::WorktreeState::Dead).1,
+        super::worktree_state_palette(&dark, desktop_task_executor::executor::state::WorktreeState::Dead).1,
         iced::Color::from_rgb(0.83, 0.85, 0.90)
     );
 }
@@ -172,65 +172,65 @@ fn truncate_log_line_trims_limits_and_handles_empty_input() {
 
 #[test]
 fn slot_task_matches_leased_task_id_only() {
-    let (mut app, _task) = crate::app::App::new();
-    let mut task = crate::app::task::Task::new(1);
+    let (mut app, _task) = crate::control::test_support::TestApp::new();
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "task-1".to_string();
     app.task_board_tasks = vec![task];
 
     assert_eq!(
-        super::slot_task(&app, &slot(Some("task-1"))).map(|task| task.id.as_str()),
+        super::slot_task(&app.view(), &slot(Some("task-1"))).map(|task| task.id.as_str()),
         Some("task-1")
     );
-    assert!(super::slot_task(&app, &slot(Some("missing"))).is_none());
-    assert!(super::slot_task(&app, &slot(None)).is_none());
+    assert!(super::slot_task(&app.view(), &slot(Some("missing"))).is_none());
+    assert!(super::slot_task(&app.view(), &slot(None)).is_none());
 }
 
 #[test]
 fn worktree_log_preview_lines_handles_empty_and_missing_task_paths() {
-    let (app, _task) = crate::app::App::new();
+    let (app, _task) = crate::control::test_support::TestApp::new();
 
-    assert_eq!(super::worktree_log_preview_lines(&app, &slot(None), 10), vec!["等待任务日志..."]);
+    assert_eq!(super::worktree_log_preview_lines(&app.view(), &slot(None), 10), vec!["等待任务日志..."]);
     assert_eq!(
-        super::worktree_log_preview_lines(&app, &slot(Some("task-without-record")), 10),
+        super::worktree_log_preview_lines(&app.view(), &slot(Some("task-without-record")), 10),
         vec!["任务 task-without-record"]
     );
 }
 
 #[test]
 fn worktree_log_preview_lines_returns_started_when_task_has_no_visible_logs() {
-    let (mut app, _task) = crate::app::App::new();
-    let mut task = crate::app::task::Task::new(1);
+    let (mut app, _task) = crate::control::test_support::TestApp::new();
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "task-1".to_string();
-    task.logs = vec![crate::app::task::TaskLogEntry::new_message(" \n ".to_string())];
+    task.logs = vec![desktop_task_model::TaskLogEntry::new_message(" \n ".to_string())];
     app.task_board_tasks = vec![task];
 
     assert_eq!(
-        super::worktree_log_preview_lines(&app, &slot(Some("task-1")), 10),
+        super::worktree_log_preview_lines(&app.view(), &slot(Some("task-1")), 10),
         vec!["任务已启动..."]
     );
 }
 
 #[test]
 fn worktree_log_preview_lines_normalizes_truncates_and_keeps_latest_three() {
-    let (mut app, _task) = crate::app::App::new();
-    let mut task = crate::app::task::Task::new(1);
+    let (mut app, _task) = crate::control::test_support::TestApp::new();
+    let mut task = desktop_task_model::Task::new(1);
     task.id = "task-1".to_string();
     task.logs = vec![
-        crate::app::task::TaskLogEntry::new_message("one".to_string()),
-        crate::app::task::TaskLogEntry::new_message("two".to_string()),
-        crate::app::task::TaskLogEntry::new_message("three".to_string()),
-        crate::app::task::TaskLogEntry::new_message("four".to_string()),
-        crate::app::task::TaskLogEntry::new_message("five".to_string()),
-        crate::app::task::TaskLogEntry::new_message("six".to_string()),
-        crate::app::task::TaskLogEntry::new_message("seven".to_string()),
-        crate::app::task::TaskLogEntry::new_message(
+        desktop_task_model::TaskLogEntry::new_message("one".to_string()),
+        desktop_task_model::TaskLogEntry::new_message("two".to_string()),
+        desktop_task_model::TaskLogEntry::new_message("three".to_string()),
+        desktop_task_model::TaskLogEntry::new_message("four".to_string()),
+        desktop_task_model::TaskLogEntry::new_message("five".to_string()),
+        desktop_task_model::TaskLogEntry::new_message("six".to_string()),
+        desktop_task_model::TaskLogEntry::new_message("seven".to_string()),
+        desktop_task_model::TaskLogEntry::new_message(
             "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz1\nnext".to_string(),
         ),
     ];
     app.task_board_tasks = vec![task];
 
     assert_eq!(
-        super::worktree_log_preview_lines(&app, &slot(Some("task-1")), 123),
+        super::worktree_log_preview_lines(&app.view(), &slot(Some("task-1")), 123),
         vec![
             "six".to_string(),
             "seven".to_string(),
@@ -241,17 +241,17 @@ fn worktree_log_preview_lines_normalizes_truncates_and_keeps_latest_three() {
 
 #[test]
 fn task_pool_employee_summary_retains_unavailable_run() {
-    let mut app = crate::app::App::new().0;
-    app.agents_settings.entries.clear();
+    let mut app = crate::control::test_support::TestApp::new().0;
+    app.agent_entries.clear();
     let mut slot = slot(Some("history-task"));
     slot.agent_id = Some("deleted-agent".into());
     slot.run_id = Some("history-run".into());
-    let summary = super::employee_summary(&app, &slot);
+    let summary = super::employee_summary(&app.view(), &slot);
     assert!(summary.contains("deleted-agent"));
     assert!(summary.contains("history-task"));
     assert!(summary.contains("history-run"));
-    assert!(!crate::app::task::agent_activity::agent_available(
+    assert!(!desktop_task_model::agent_activity::agent_available(
         "deleted-agent",
-        &app.agents_settings.entries
+        &app.agent_entries
     ));
 }

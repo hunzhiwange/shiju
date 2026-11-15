@@ -4,7 +4,8 @@ use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Length, Theme};
 
 use super::*;
-use crate::app::task::{TaskStatus, WorktreeState};
+use desktop_task_model::{TaskStatus};
+use desktop_task_executor::executor::state::{WorktreeState};
 
 const EPSILON: f32 = 0.000_01;
 

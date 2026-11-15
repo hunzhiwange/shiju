@@ -3,8 +3,9 @@
 use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Element, Length, Theme};
 
-use crate::app::task::{WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState};
-use crate::app::{App, Message};
+use desktop_task_executor::executor::state::{WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState};
+use crate::control::test_support::TestApp as App;
+use crate::message::TaskBoardMessage as Message;
 
 use super::*;
 
@@ -165,14 +166,14 @@ fn corridor_covers_busy_maintenance_and_idle_states() {
     let idle = snapshot(3, 0, 0, 0, 0);
 
     let hidden = build_worktree_corridor(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &maintenance,
         true,
     );
     assert_eq!(hidden.as_widget().size().width, Length::Fixed(190.0));
 
     let visible = build_worktree_corridor(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &busy,
         false,
     );
@@ -181,7 +182,7 @@ fn corridor_covers_busy_maintenance_and_idle_states() {
     keep_element(hidden);
     keep_element(visible);
     keep_element(build_worktree_corridor(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &idle,
         false,
     ));
@@ -215,9 +216,9 @@ fn pixel_section_builds_empty_grid_and_filled_rows() {
     let busy = slot("busy", WorktreeState::Busy);
     let dead = slot("dead", WorktreeState::Dead);
 
-    keep_element(build_worktree_pixel_section(&app, "空区域", "暂无工位", Vec::new(), 0));
+    keep_element(build_worktree_pixel_section(&app.view(), "空区域", "暂无工位", Vec::new(), 0));
     keep_element(build_worktree_pixel_section(
-        &app,
+        &app.view(),
         "任务办公区",
         "三张卡片会触发行补位",
         vec![&idle, &busy, &dead],
@@ -261,7 +262,7 @@ async fn pixel_floor_draws_wide_layout_at_exact_width_threshold() {
     let pool = snapshot(1, 1, 1, 0, 0);
 
     assert_element_draws(build_worktree_pixel_floor(
-        &app,
+        &app.view(),
         &pool,
         vec![&idle, &busy],
         vec![&tainted],

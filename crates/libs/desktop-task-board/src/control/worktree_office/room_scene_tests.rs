@@ -2,8 +2,10 @@
 //! fixture 包含缺失任务、失败原因与 Unicode 标识，验证紧凑和宽屏构建。
 use iced::{Element, Length};
 
-use crate::app::task::{Task, TaskLogEntry, TaskStatus, WorktreeSlotSnapshot, WorktreeState};
-use crate::app::{App, Message};
+use desktop_task_model::{Task, TaskLogEntry, TaskStatus};
+use desktop_task_executor::executor::state::{WorktreeSlotSnapshot, WorktreeState};
+use crate::control::test_support::TestApp as App;
+use crate::message::TaskBoardMessage as Message;
 
 use super::*;
 
@@ -78,7 +80,7 @@ fn room_scene_builds_all_states_with_state_specific_details() {
         WorktreeState::Dead,
     ] {
         let slot = slot("state", state);
-        let scene = build_worktree_room_scene(&app, &slot);
+        let scene = build_worktree_room_scene(&app.view(), &slot);
 
         assert_eq!(scene.as_widget().size().width, Length::Fill);
         keep_element(scene);
@@ -91,7 +93,7 @@ fn room_scene_builds_compact_tight_and_wide_artwork() {
 
     for width in [1_200.0, 1_400.0, 1_600.0] {
         let app = test_app(width);
-        keep_element(build_worktree_room_scene(&app, &idle));
+        keep_element(build_worktree_room_scene(&app.view(), &idle));
     }
 }
 
@@ -102,8 +104,8 @@ fn tainted_room_builds_with_explicit_and_fallback_reasons() {
     let mut fallback = slot("fallback", WorktreeState::Tainted);
     fallback.taint_reason = None;
 
-    keep_element(build_worktree_room_scene(&app, &explicit));
-    keep_element(build_worktree_room_scene(&app, &fallback));
+    keep_element(build_worktree_room_scene(&app.view(), &explicit));
+    keep_element(build_worktree_room_scene(&app.view(), &fallback));
 }
 
 #[test]
@@ -117,13 +119,13 @@ fn busy_room_builds_for_missing_running_and_finished_tasks() {
     let mut running = task("task-busy", TaskStatus::Running);
     running.execution_started_at_ms = Some(0);
     running_app.task_board_tasks = vec![running];
-    keep_element(build_worktree_room_scene(&running_app, &busy));
+    keep_element(build_worktree_room_scene(&running_app.view(), &busy));
 
     let mut finished_app = test_app(1_440.0);
     let mut finished = task("task-busy", TaskStatus::Completed);
     finished.last_execution_duration_ms = Some(61_000);
     finished_app.task_board_tasks = vec![finished];
-    keep_element(build_worktree_room_scene(&finished_app, &busy));
+    keep_element(build_worktree_room_scene(&finished_app.view(), &busy));
 }
 
 #[test]
@@ -138,7 +140,7 @@ fn pixel_card_builds_all_states_with_fixed_card_geometry() {
         WorktreeState::Dead,
     ] {
         let slot = slot("card", state);
-        let card = build_worktree_pixel_card(&app, &slot);
+        let card = build_worktree_pixel_card(&app.view(), &slot);
         let size = card.as_widget().size();
 
         assert_eq!(size.width, Length::FillPortion(1));
@@ -153,10 +155,10 @@ fn pixel_card_builds_collapsed_and_expanded_panel_variants() {
     let mut app = test_app(1_440.0);
 
     app.task_board_worktree_panel_expanded = false;
-    keep_element(build_worktree_pixel_card(&app, &idle));
+    keep_element(build_worktree_pixel_card(&app.view(), &idle));
 
     app.task_board_worktree_panel_expanded = true;
-    keep_element(build_worktree_pixel_card(&app, &idle));
+    keep_element(build_worktree_pixel_card(&app.view(), &idle));
 }
 
 #[test]
@@ -165,8 +167,8 @@ fn busy_room_builds_with_unassigned_owner_fallback() {
     let mut busy = slot("unassigned", WorktreeState::Busy);
     busy.leased_task_id = None;
 
-    keep_element(build_worktree_room_scene(&app, &busy));
-    keep_element(build_worktree_pixel_card(&app, &busy));
+    keep_element(build_worktree_room_scene(&app.view(), &busy));
+    keep_element(build_worktree_pixel_card(&app.view(), &busy));
 }
 
 #[test]
@@ -175,7 +177,7 @@ fn busy_room_builds_non_running_task_without_duration() {
     app.task_board_tasks = vec![task("task-paused", TaskStatus::Paused)];
     let busy = slot("paused", WorktreeState::Busy);
 
-    keep_element(build_worktree_room_scene(&app, &busy));
+    keep_element(build_worktree_room_scene(&app.view(), &busy));
 }
 
 #[test]
@@ -190,6 +192,6 @@ fn busy_room_builds_log_bubble_from_recent_task_messages() {
     app.task_board_tasks = vec![running];
     let busy = slot("busy", WorktreeState::Busy);
 
-    keep_element(build_worktree_room_scene(&app, &busy));
-    keep_element(build_worktree_pixel_card(&app, &busy));
+    keep_element(build_worktree_room_scene(&app.view(), &busy));
+    keep_element(build_worktree_pixel_card(&app.view(), &busy));
 }

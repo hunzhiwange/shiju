@@ -10,8 +10,10 @@ mod summary;
 use iced::widget::{column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
-use crate::app::task::{TaskStatus, WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState};
-use crate::app::{App, Message};
+use desktop_task_model::{TaskStatus};
+use desktop_task_executor::executor::state::{WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState};
+use crate::control::ControlView;
+use crate::message::TaskBoardMessage as Message;
 
 use self::floor::build_worktree_pixel_floor;
 use self::summary::{build_task_status_summary_strip, build_worktree_summary_strip};
@@ -56,7 +58,7 @@ fn maintenance_worktree_slots(snapshot: &WorktreePoolSnapshot) -> Vec<&WorktreeS
         .collect()
 }
 
-fn visible_task_status_count(app: &App, status: TaskStatus) -> usize {
+fn visible_task_status_count(app: &ControlView<'_>, status: TaskStatus) -> usize {
     app.task_board_tasks
         .iter()
         .filter(|task| !task.deleted && !task.archived && task.status == status)
@@ -65,7 +67,7 @@ fn visible_task_status_count(app: &App, status: TaskStatus) -> usize {
 
 /// 构建智能体像素办公室，展示完整的办公室可视化界面。
 pub(super) fn build_worktree_pixel_office<'a>(
-    app: &'a App,
+    app: &ControlView<'a>,
     snapshot: &'a WorktreePoolSnapshot,
 ) -> Element<'a, Message> {
     let active_slots = active_worktree_slots(snapshot);
@@ -73,27 +75,27 @@ pub(super) fn build_worktree_pixel_office<'a>(
 
     let summary_row = row![
         build_worktree_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("空闲工位"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("空闲工位"),
             snapshot.idle_count,
             WorktreeState::Idle
         ),
         build_worktree_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("执行中"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("执行中"),
             snapshot.busy_count,
             WorktreeState::Busy
         ),
         build_worktree_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("待处理污染"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("待处理污染"),
             snapshot.tainted_count,
             WorktreeState::Tainted
         ),
         build_worktree_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("回收槽位"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("回收槽位"),
             snapshot.recycling_count,
             WorktreeState::Recycling
         ),
         build_worktree_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("停机槽位"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("停机槽位"),
             snapshot.dead_count,
             WorktreeState::Dead
         ),
@@ -103,52 +105,52 @@ pub(super) fn build_worktree_pixel_office<'a>(
 
     let task_status_summary = row![
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("任务池"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("任务池"),
             visible_task_status_count(app, TaskStatus::Pool),
             TaskStatus::Pool
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("待执行"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("待执行"),
             visible_task_status_count(app, TaskStatus::Pending),
             TaskStatus::Pending,
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("拆分"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("拆分"),
             visible_task_status_count(app, TaskStatus::Planning),
             TaskStatus::Planning,
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("执行中"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("执行中"),
             visible_task_status_count(app, TaskStatus::Running),
             TaskStatus::Running,
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("暂停"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("暂停"),
             visible_task_status_count(app, TaskStatus::Paused),
             TaskStatus::Paused
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("失败"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("失败"),
             visible_task_status_count(app, TaskStatus::Failed),
             TaskStatus::Failed
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("完成"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("完成"),
             visible_task_status_count(app, TaskStatus::CodeComplete),
             TaskStatus::CodeComplete,
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("审核"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("审核"),
             visible_task_status_count(app, TaskStatus::CodeReview),
             TaskStatus::CodeReview,
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("合并"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("合并"),
             visible_task_status_count(app, TaskStatus::PrSubmitted),
             TaskStatus::PrSubmitted,
         ),
         build_task_status_summary_strip(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("已完成"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("已完成"),
             visible_task_status_count(app, TaskStatus::Completed),
             TaskStatus::Completed,
         ),
@@ -160,13 +162,13 @@ pub(super) fn build_worktree_pixel_office<'a>(
         container(
             column![
                 row![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("像素办公室"))
+                    text(desktop_i18n::I18n::new(app.desktop_locale).__("像素办公室"))
                         .size(12)
                         .style(|theme: &Theme| iced::widget::text::Style {
                             color: Some(theme.extended_palette().background.base.text),
                         }),
                     text(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
+                        desktop_i18n::I18n::new(app.desktop_locale)
                             .__("每个工位都展示槽位状态、房间布置与关键道具")
                     )
                     .size(11)

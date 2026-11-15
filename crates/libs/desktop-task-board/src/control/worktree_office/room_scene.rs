@@ -1,9 +1,11 @@
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
 
-use crate::app::message::TaskBoardMessage;
-use crate::app::task::{TaskStatus, WorktreeSlotSnapshot, WorktreeState};
-use crate::app::{App, Message};
+use crate::message::TaskBoardMessage;
+use desktop_task_model::{TaskStatus};
+use desktop_task_executor::executor::state::{WorktreeSlotSnapshot, WorktreeState};
+use crate::control::ControlView;
+use crate::message::TaskBoardMessage as Message;
 
 use super::super::super::common::{button_style_danger, button_style_secondary};
 use super::super::helpers::{
@@ -14,13 +16,13 @@ use super::super::helpers::{
 
 /// 构建 Worktree 房间场景的可视化 UI 组件。
 fn build_worktree_room_scene<'a>(
-    app: &'a App,
+    app: &ControlView<'a>,
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
     let (base_actor_icon, actor_state) = worktree_state_actor(slot.state);
-    let actor_state = crate::app::i18n::I18n::new(app.desktop_locale).__(actor_state);
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let now_ms = crate::app::time::now_ms();
+    let actor_state = desktop_i18n::I18n::new(app.desktop_locale).__(actor_state);
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let now_ms = runtime_time::now_ms();
     let owner = slot.leased_task_id.as_deref().unwrap_or(i18n.__("未分配任务"));
     let task = slot_task(app, slot);
     let detail = match slot.state {
@@ -111,11 +113,11 @@ fn build_worktree_room_scene<'a>(
         let status_text = if task.status == TaskStatus::Running {
             format!(
                 "{} {}",
-                crate::app::i18n::tasks::status_label(i18n, task.status),
+                desktop_i18n::tasks::status_label(i18n, task.status),
                 running_dots(now_ms)
             )
         } else {
-            crate::app::i18n::tasks::status_label(i18n, task.status)
+            desktop_i18n::tasks::status_label(i18n, task.status)
         };
         let mut task_row = row![
             text(task_id_label).size(11).style(move |theme: &Theme| {
@@ -190,7 +192,7 @@ fn build_worktree_room_scene<'a>(
                 iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
             }),
             text(
-                crate::app::i18n::I18n::new(app.desktop_locale).__(worktree_state_hint(slot.state))
+                desktop_i18n::I18n::new(app.desktop_locale).__(worktree_state_hint(slot.state))
             )
             .size(10)
             .style(move |theme: &Theme| {
@@ -437,15 +439,15 @@ fn worktree_room_plate(slot_id: &str, state: WorktreeState) -> String {
 
 /// 构建 Worktree 像素卡片，显示单个槽位的完整信息。
 pub(super) fn build_worktree_pixel_card<'a>(
-    app: &'a App,
+    app: &ControlView<'a>,
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
     let room_plate = worktree_room_plate(&slot.id, slot.state);
     let recycle_btn =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("回收")).size(10))
-            .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
+        button(text(desktop_i18n::I18n::new(app.desktop_locale).__("回收")).size(10))
+            .on_press(TaskBoardMessage::RecycleWorktreeSlotPressed {
                 slot_id: slot.id.clone(),
-            }))
+            })
             .padding([2, 8])
             .style(if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
                 button_style_danger
@@ -461,7 +463,7 @@ pub(super) fn build_worktree_pixel_card<'a>(
                     iced::widget::text::Style { color: Some(text_color) }
                 }),
                 text(
-                    crate::app::i18n::I18n::new(app.desktop_locale)
+                    desktop_i18n::I18n::new(app.desktop_locale)
                         .__(worktree_state_label(slot.state))
                 )
                 .size(11)

@@ -1,5 +1,5 @@
 use super::{backup_create::*, backup_restore::*, retention::RetentionPolicy, safety_snapshot::*};
-use crate::usage::source_settings::{initialize_source_settings, load_source_settings, save_source_settings, UsageSourceSettings};
+use app_usage_store::source_settings::{initialize_source_settings, load_source_settings, save_source_settings, UsageSourceSettings};
 use rusqlite::Connection;
 use std::{cell::RefCell, fs, os::unix::fs::PermissionsExt};
 use {

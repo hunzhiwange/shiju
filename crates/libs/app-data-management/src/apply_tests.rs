@@ -40,7 +40,7 @@ fn fixture() -> (SourceScope, SourceSnapshot, Connection) {
             }),
         }]);
     let mut db = Connection::open_in_memory().unwrap();
-    crate::usage::store::initialize_usage_store(&mut db).unwrap();
+    app_usage_store::store::initialize_usage_store(&mut db).unwrap();
     (scope, source, db)
 }
 

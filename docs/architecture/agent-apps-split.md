@@ -618,8 +618,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `daily_memory_list_tests.rs` | 67 | 37（已迁入 app-workspace-memory） |
 | `daily_memory_search.rs` | 139 | 37（已迁入 app-workspace-memory） |
 | `daily_memory_search_tests.rs` | 77 | 37（已迁入 app-workspace-memory） |
-| `data_management/apply.rs` | 70 | 69 |
-| `data_management/apply_tests.rs` | 109 | 69 |
+| `data_management/apply.rs` → `app-data-management/src/apply.rs` | 70 | 69 |
+| `data_management/apply_tests.rs` → `app-data-management/src/apply_tests.rs` | 109 | 69 |
 | `data_management/backup_api.rs` → `app-data-backup/src/backup_api.rs` | 130 | 69 |
 | `data_management/backup_create.rs` → `app-data-backup/src/backup_create.rs` | 201 | 67 |
 | `data_management/backup_create_files.rs` → `app-data-backup/src/backup_create_files.rs` | 253 | 67 |
@@ -630,8 +630,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/backup_list_tests.rs` → `app-data-backup/src/backup_list_tests.rs` | 118 | 67 |
 | `data_management/backup_rename.rs` → `app-data-backup/src/backup_rename.rs` | 30 | 67 |
 | `data_management/backup_rename_tests.rs` → `app-data-backup/src/backup_rename_tests.rs` | 161 | 67 |
-| `data_management/backup_restore.rs` | 68 | 69 |
-| `data_management/backup_restore_tests.rs` | 73 | 69 |
+| `data_management/backup_restore.rs` → `app-data-management/src/backup_restore.rs` | 68 | 69 |
+| `data_management/backup_restore_tests.rs` → `app-data-management/src/backup_restore_tests.rs` | 73 | 69 |
 | `data_management/export.rs` → `app-data-backup/src/export.rs` | 137 | 67 |
 | `data_management/export_files.rs` → `app-data-backup/src/export_files.rs` | 47 | 67 |
 | `data_management/export_tests.rs` → `app-data-backup/src/export_tests.rs` | 46 | 67 |
@@ -643,13 +643,13 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/mcp.rs` → `app-data-projection/src/mcp.rs` | 154 | 68 |
 | `data_management/mcp_tests.rs` → `app-data-projection/src/mcp_tests.rs` | 55 | 68 |
 | `data_management/mod.rs` | 139 | 69 |
-| `data_management/operations.rs` | 146 | 69 |
-| `data_management/package_import.rs` | 47 | 69 |
-| `data_management/package_import_tests.rs` | 51 | 69 |
-| `data_management/periodic.rs` | 37 | 69 |
+| `data_management/operations.rs` → `app-data-management/src/operations.rs` | 146 | 69 |
+| `data_management/package_import.rs` → `app-data-management/src/package_import.rs` | 47 | 69 |
+| `data_management/package_import_tests.rs` → `app-data-management/src/package_import_tests.rs` | 51 | 69 |
+| `data_management/periodic.rs` → `app-data-management/src/periodic.rs` | 37 | 69 |
 | `data_management/portable_policy.rs` → `app-data-format/src/portable_policy.rs` | 190 | 66 |
 | `data_management/portable_policy_tests.rs` → `app-data-format/src/portable_policy_tests.rs` | 88 | 66 |
-| `data_management/post_import.rs` | 72 | 69 |
+| `data_management/post_import.rs` → `app-data-management/src/post_import.rs` | 72 | 69 |
 | `data_management/preferences.rs` → `app-data-projection/src/preferences.rs` | 92 | 68 |
 | `data_management/preview.rs` → `app-data-format/src/preview.rs` | 154 | 66 |
 | `data_management/preview_tests.rs` → `app-data-format/src/preview_tests.rs` | 63 | 66 |
@@ -659,12 +659,12 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/prompts_tests.rs` → `app-data-projection/src/prompts_tests.rs` | 27 | 68 |
 | `data_management/providers.rs` → `app-data-projection/src/providers.rs` | 216 | 68 |
 | `data_management/providers_tests.rs` → `app-data-projection/src/providers_tests.rs` | 54 | 68 |
-| `data_management/recovery.rs` | 69 | 69 |
-| `data_management/recovery_tests.rs` | 79 | 69 |
+| `data_management/recovery.rs` → `app-data-management/src/recovery.rs` | 69 | 69 |
+| `data_management/recovery_tests.rs` → `app-data-management/src/recovery_tests.rs` | 79 | 69 |
 | `data_management/retention.rs` → `app-data-backup/src/retention.rs` | 68 | 67 |
 | `data_management/retention_tests.rs` → `app-data-backup/src/retention_tests.rs` | 101 | 67 |
-| `data_management/rollback.rs` | 94 | 69 |
-| `data_management/rollback_tests.rs` | 71 | 69 |
+| `data_management/rollback.rs` → `app-data-management/src/rollback.rs` | 94 | 69 |
+| `data_management/rollback_tests.rs` → `app-data-management/src/rollback_tests.rs` | 71 | 69 |
 | `data_management/safety_snapshot.rs` → `app-data-backup/src/safety_snapshot.rs` | 249 | 67 |
 | `data_management/safety_snapshot_files.rs` → `app-data-backup/src/safety_snapshot_files.rs` | 134 | 67 |
 | `data_management/safety_snapshot_tests.rs` → `app-data-backup/src/safety_snapshot_tests.rs` | 232 | 67 |
@@ -1484,15 +1484,15 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `auth/xai_refresh.rs` | `crate::providers::validate_identity` |
 | `daily_memory_files.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
 | `daily_memory_list.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
-| `data_management/apply_tests.rs` | `crate::usage::store::initialize_usage_store` |
+| `data_management/apply_tests.rs` → `app-data-management/src/apply_tests.rs` | `crate::usage::store::initialize_usage_store` |
 | `data_management/backup_create_files.rs` → `app-data-backup/src/backup_create_files.rs` | `crate::providers::paths::open_beneath` |
 | `data_management/backup_create_tests.rs` → `app-data-backup/src/backup_create_tests.rs` | `crate::usage::source_settings::{     UsageSourceSettings, initialize_source_settings, load_source_settings, save_source_settings, }` |
 | `data_management/backup_delete_tests.rs` → `app-data-backup/src/backup_delete_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
 | `data_management/backup_list_tests.rs` → `app-data-backup/src/backup_list_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
 | `data_management/backup_rename_tests.rs` → `app-data-backup/src/backup_rename_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings}` |
-| `data_management/backup_restore_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings, save_source_settings, UsageSourceSettings}` |
+| `data_management/backup_restore_tests.rs` → `app-data-management/src/backup_restore_tests.rs` | `crate::usage::source_settings::{initialize_source_settings, load_source_settings, save_source_settings, UsageSourceSettings}` |
 | `data_management/mcp.rs` → `app-data-projection/src/mcp.rs` | `crate::mcp::{catalog::McpCatalogDraft, validation::parse_native}` |
-| `data_management/operations.rs` | `crate::apps::lifecycle::operations::Operation` |
+| `data_management/operations.rs` → `app-data-management/src/operations.rs` | `crate::apps::lifecycle::operations::Operation` |
 | `data_management/preferences.rs` → `app-data-projection/src/preferences.rs` | `crate::apps::preferences::{HostPlatform, default_user_preferences, normalize_preferences}` |
 | `data_management/prompts.rs` → `app-data-projection/src/prompts.rs` | `crate::prompts::listing::PromptEntry`<br>`crate::providers::validate_identity` |
 | `data_management/providers.rs` → `app-data-projection/src/providers.rs` | `crate::providers::claude::import`<br>`crate::providers::claude::settings`<br>`crate::providers::codex_catalog::import`<br>`crate::providers::codex_catalog::settings`<br>`crate::providers::endpoints::update`<br>`crate::providers::gemini::settings`<br>`crate::providers::icons::read`<br>`crate::providers::presentation::read`<br>`crate::providers::presentation::update`<br>`crate::providers::validate_identity`<br>`crate::providers::validation::endpoint` |
@@ -2930,3 +2930,11 @@ app-data-projection 唯一拥有 mcp、preferences、profiles、prompts、provid
 直接连接 app-data-format、app-catalog、app-mcp-catalog、app-prompts、app-providers、app-usage-store 和 macOS app-skills；无恢复服务或旧门面回依赖。source_test_support 为包内测试辅助副本，原文件仍供任务69的编排测试使用；无业务实现复制或私有 API 扩大。旧门面依赖仍有其他调用而保留。任务69接收 apply、rollback、operations、post_import、backup_restore、package_import、recovery、periodic 上层编排，本任务无叶子遗留。
 
 静态验收：迁移函数体与依赖替换对照、调用者及测试注册检索、Python 3.13 标准库 TOML 路径和依赖闭包无环审阅、git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：新包与调用者编译、迁移单测、各平台行为和清单锁文件一致性。providers 原有无条件引用 macOS codex_catalog 保持，非 macOS 编译需在统一验收关注。Cargo.lock 未修改。
+
+### 任务69：数据恢复编排（静态完成）
+
+app-data-management 接收 apply、rollback、operations、post_import、package_import、backup_restore、recovery、periodic 八个实现、五个独立测试与 source_test_support。原 data_management 保留薄重导出，lib.rs 既有公开入口不变。backup_api 已由任务67归 app-data-backup，继续复用，不重复迁移。根模块无遗留编排或后继移交。
+
+Operation 直接引用 app-auth 已公开执行器；格式来自 app-data-format，备份来自 app-data-backup；领域投影和 usage-store 仅供已有测试。失败回滚、持久化顺序、错误语义及 macOS cfg 均保持，无资源/include 路径变化。父包依赖仍服务其它门面与实现，未删除。
+
+静态证据：迁移源码逐文件对照仅依赖路径变化；五组独立测试注册保持；Python 标准库 TOML 路径及无循环审阅、门面调用检索、git diff --check 完成。未运行 Cargo、单元及实机测试，统一验收待授权，覆盖新包与调用方编译、迁移单测及各平台恢复行为。Cargo.lock 未修改。

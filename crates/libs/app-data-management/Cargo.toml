@@ -1,0 +1,25 @@
+[package]
+name = "app-data-management"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-data-format = { path = "../app-data-format" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-data-backup = { path = "../app-data-backup" }
+app-auth = { path = "../app-auth" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+
+[dev-dependencies]
+app-data-projection = { path = "../app-data-projection" }
+app-usage-store = { path = "../app-usage-store" }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+tempfile = "3"
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }

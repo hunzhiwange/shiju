@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-data-management",
   "crates/libs/app-data-projection",
   "crates/libs/app-data-backup",
   "crates/libs/app-data-format",
@@ -32,6 +33,7 @@ members = [
   "crates/libs/app-prompts",
   "crates/libs/desktop-ui-controls",
   "crates/libs/desktop-editor",
+  "crates/libs/desktop-file-tree",
   "crates/libs/app-mcp-catalog",
   "crates/libs/app-mcp",
   "crates/libs/storage-types",

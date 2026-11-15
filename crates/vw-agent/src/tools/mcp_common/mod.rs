@@ -18,6 +18,7 @@ pub use mcp_client::{
     auth_method_names, find_server_by_name, management_for_server, management_timeout,
     mcp_tool_allowed, resource_contents_json, server_name, server_summary, server_transport,
 };
+#[cfg(test)]
 use mcp_client::{apply_mcp_server_override_values, merge_global_mcp_server_values};
 
 mod wire_http;
@@ -76,91 +77,92 @@ async fn load_resolved_mcp_config(
     cwd: &Path,
     project_id: Option<String>,
 ) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
-    let mut config = acp_config::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
-    merge_runtime_mcp_servers(&mut config, cwd, project_id).await?;
-    if let Some(context) = crate::tools::current_tool_use_context()
-        && let Some(selected) = context.native_mcp_selection()
-    {
-        config.mcp_servers.retain(|server| selected.contains(server_name(server)));
-    }
-    Ok(config)
+    mcp_client::resolution::resolve_runtime_mcp_config(cwd, &ScopedMcpConfigHost { project_id }).await
 }
 
 pub(crate) async fn load_resolved_acp_config_from_with_plugin_options(
     cwd: impl AsRef<Path>,
     plugin_options: &PluginDiscoveryOptions,
 ) -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
-    let mut config = acp_config::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
-    let agent_config = merge_runtime_global_mcp_servers(&mut config).await?;
-    merge_enabled_plugin_mcp_servers(&mut config.mcp_servers, plugin_options)?;
-    apply_global_mcp_server_overrides_from_agent_config(&mut config, &agent_config)?;
-    Ok(config)
+    mcp_client::resolution::resolve_mcp_config_with_plugins(cwd.as_ref(), &PluginOptionsMcpConfigHost(plugin_options)).await
 }
 
-async fn merge_runtime_mcp_servers(
-    config: &mut acp_config::ResolvedAcpxConfig,
-    workspace: &Path,
+struct ScopedMcpConfigHost {
     project_id: Option<String>,
-) -> anyhow::Result<()> {
-    let tenant = crate::tools::current_tool_use_context()
-        .map(|context| context.tenant_scope())
-        .unwrap_or_else(crate::session::ui_store::current_tenant_scope);
-    let mut agent_config = crate::config::get_project_for_tenant(&tenant, workspace)
-        .await
-        .map_err(|error| anyhow::anyhow!("failed to load scoped MCP configuration: {error}"))?;
-    merge_global_mcp_servers_from_agent_config(config, &agent_config)?;
-    agent_config.workspace_dir = workspace.to_path_buf();
-    let plugin_options = plugin_mcp_discovery_options(&agent_config);
-    merge_enabled_plugin_mcp_servers(&mut config.mcp_servers, &plugin_options)?;
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(project_id) = project_id {
-        let project = vw_api_transport::ProjectScope::new(tenant, project_id.into())?;
-        let selected = crate::agent_apps::mcp::runtime::selected_runtime_servers(
-            &project,
-            workspace,
-            &config.mcp_servers,
-        )?;
-        config.mcp_servers.extend(selected);
+}
+
+impl mcp_client::resolution::McpConfigHost for ScopedMcpConfigHost {
+    type Config = (vw_api_transport::TenantScope, Config);
+
+    async fn load(&self, workspace: &Path) -> anyhow::Result<Self::Config> {
+        let tenant = crate::tools::current_tool_use_context()
+            .map(|context| context.tenant_scope())
+            .unwrap_or_else(crate::session::ui_store::current_tenant_scope);
+        let config = crate::config::get_project_for_tenant(&tenant, workspace)
+            .await
+            .map_err(|error| anyhow::anyhow!("failed to load scoped MCP configuration: {error}"))?;
+        Ok((tenant, config))
     }
-    #[cfg(target_arch = "wasm32")]
-    let _ = project_id;
-    apply_global_mcp_server_overrides_from_agent_config(config, &agent_config)
+
+    fn values(config: &Self::Config) -> mcp_client::resolution::McpConfigValues<'_> {
+        agent_mcp_config_values(&config.1)
+    }
+
+    fn merge_plugins(&self, config: &mut Self::Config, workspace: &Path, servers: &mut Vec<McpServer>) -> anyhow::Result<()> {
+        config.1.workspace_dir = workspace.to_path_buf();
+        let options = plugin_mcp_discovery_options(&config.1);
+        merge_enabled_plugin_mcp_servers(servers, &options)
+    }
 }
 
-async fn merge_runtime_global_mcp_servers(
-    config: &mut acp_config::ResolvedAcpxConfig,
-) -> anyhow::Result<Config> {
-    let agent_config = match Config::load_or_init().await {
-        Ok(config) => config,
-        Err(error) => {
-            tracing::warn!("skipping global MCP servers: failed to load agent config: {error}");
-            return Err(error);
+impl mcp_client::resolution::RuntimeMcpConfigHost for ScopedMcpConfigHost {
+    fn managed_servers(&self, config: &Self::Config, workspace: &Path, servers: &[McpServer]) -> anyhow::Result<Vec<McpServer>> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(project_id) = &self.project_id {
+            let project = vw_api_transport::ProjectScope::new(config.0.clone(), project_id.clone().into())?;
+            return crate::agent_apps::mcp::runtime::selected_runtime_servers(&project, workspace, servers);
         }
-    };
-    merge_global_mcp_servers_from_agent_config(config, &agent_config)?;
-    Ok(agent_config)
+        #[cfg(target_arch = "wasm32")]
+        let _ = (&self.project_id, config, workspace, servers);
+        Ok(Vec::new())
+    }
+
+    fn native_selection(&self) -> Option<std::collections::BTreeSet<String>> {
+        crate::tools::current_tool_use_context()
+            .and_then(|context| context.native_mcp_selection().cloned())
+    }
 }
 
-fn apply_global_mcp_server_overrides_from_agent_config(
-    config: &mut acp_config::ResolvedAcpxConfig,
-    agent_config: &Config,
-) -> anyhow::Result<()> {
-    apply_mcp_server_override_values(
-        config,
-        &agent_config.mcp_server_overrides,
-        &agent_config.config_path.to_string_lossy(),
-    )
+struct PluginOptionsMcpConfigHost<'a>(&'a PluginDiscoveryOptions);
+
+impl mcp_client::resolution::McpConfigHost for PluginOptionsMcpConfigHost<'_> {
+    type Config = Config;
+
+    async fn load(&self, _workspace: &Path) -> anyhow::Result<Config> {
+        match Config::load_or_init().await {
+            Ok(config) => Ok(config),
+            Err(error) => {
+                tracing::warn!("skipping global MCP servers: failed to load agent config: {error}");
+                Err(error)
+            }
+        }
+    }
+
+    fn values(config: &Config) -> mcp_client::resolution::McpConfigValues<'_> {
+        agent_mcp_config_values(config)
+    }
+
+    fn merge_plugins(&self, _config: &mut Config, _workspace: &Path, servers: &mut Vec<McpServer>) -> anyhow::Result<()> {
+        merge_enabled_plugin_mcp_servers(servers, self.0)
+    }
 }
 
-fn merge_global_mcp_servers_from_agent_config(
-    config: &mut acp_config::ResolvedAcpxConfig,
-    agent_config: &Config,
-) -> anyhow::Result<()> {
-    merge_global_mcp_server_values(
-        config,
-        &agent_config.mcp_servers,
-        &agent_config.config_path.to_string_lossy(),
-    )
+fn agent_mcp_config_values(config: &Config) -> mcp_client::resolution::McpConfigValues<'_> {
+    mcp_client::resolution::McpConfigValues {
+        servers: &config.mcp_servers,
+        overrides: &config.mcp_server_overrides,
+        source_path: config.config_path.to_string_lossy(),
+    }
 }
 
 /// 为指定 MCP server 建立客户端 peer，并在 peer 生命周期内执行回调。

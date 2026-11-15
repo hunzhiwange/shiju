@@ -442,9 +442,17 @@ async fn resolved_acp_config_from_merges_global_servers_and_management_overrides
     };
 
     let mut config = acp_config::load_resolved_config(&workspace_dir).await.expect("resolved config");
-    merge_global_mcp_servers_from_agent_config(&mut config, &agent_config)
+    merge_global_mcp_server_values(
+        &mut config,
+        &agent_config.mcp_servers,
+        &agent_config.config_path.to_string_lossy(),
+    )
         .expect("merge global mcp servers");
-    apply_global_mcp_server_overrides_from_agent_config(&mut config, &agent_config)
+    apply_mcp_server_override_values(
+        &mut config,
+        &agent_config.mcp_server_overrides,
+        &agent_config.config_path.to_string_lossy(),
+    )
         .expect("apply global mcp server overrides");
 
     assert_eq!(server_names(&config.mcp_servers), vec!["project-mcp", "global-mcp"]);

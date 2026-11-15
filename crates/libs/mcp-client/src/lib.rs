@@ -7,6 +7,7 @@ use std::{collections::HashMap, time::Duration};
 
 mod config;
 pub mod client;
+pub mod resolution;
 
 pub use client::{ClientHost, ConnectionCheckCleanup, NoopClient, ProbeChild, RunningMcpPeer, open_server_peer, unsupported_mcp_capabilities_json};
 #[cfg(not(target_arch = "wasm32"))]

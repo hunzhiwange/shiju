@@ -185,9 +185,10 @@ pub(crate) async fn execute(
             .map_err(AgentAppsSettingsError::Transport)?;
     let query =
         AggregationQuery { target_host_id: selection.scope.host, project_id: selection.project };
+    let codex = gateway_aggregation_codex::GatewayAggregationCodexClient::new(client.transport().clone());
     match action {
-        Action::Read => client.aggregation_codex_clients(&query).await.map(Reply::State),
-        Action::Ack => client
+        Action::Read => codex.aggregation_codex_clients(&query).await.map(Reply::State),
+        Action::Ack => codex
             .aggregation_codex_ack(&CodexClientsAckRequest {
                 target_host_id: query.target_host_id,
                 project_id: query.project_id,
@@ -195,7 +196,7 @@ pub(crate) async fn execute(
             })
             .await
             .map(Reply::State),
-        Action::Restart => client
+        Action::Restart => codex
             .aggregation_codex_restart(&CodexRestartRequest {
                 target_host_id: query.target_host_id,
                 project_id: query.project_id,

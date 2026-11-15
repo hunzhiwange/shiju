@@ -26,6 +26,7 @@ path = "src/main.rs"
 
 [dependencies]
 gateway-aggregation-native = { path = "../libs/gateway-aggregation-native", version = "0.6.0" }
+gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex", version = "0.6.0" }
 gateway-aggregation-desktop = { path = "../libs/gateway-aggregation-desktop", version = "0.6.0" }
 gateway-aggregation = { path = "../libs/gateway-aggregation", version = "0.6.0" }
 gateway-aggregation-omo = { path = "../libs/gateway-aggregation-omo", version = "0.6.0" }

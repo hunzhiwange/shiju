@@ -183,6 +183,7 @@ pub(crate) async fn execute(
     context: Context,
     write: Option<CodexSettingsRequest>,
 ) -> Result<CodexAggregationSettings, AgentAppsSettingsError> {
+    let client = gateway_aggregation_codex::GatewayAggregationCodexClient::new(client.transport().clone());
     match write {
         Some(body) => client.aggregation_codex_settings_save(&body).await,
         None => {

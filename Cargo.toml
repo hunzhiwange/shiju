@@ -3,6 +3,7 @@ members = [
   "crates/libs/gateway-aggregation",
   "crates/libs/gateway-aggregation-omo",
   "crates/libs/gateway-aggregation-native",
+  "crates/libs/gateway-aggregation-codex",
   "crates/libs/gateway-aggregation-desktop",
   "crates/libs/gateway-device-sync",
   "crates/libs/gateway-usage-read",

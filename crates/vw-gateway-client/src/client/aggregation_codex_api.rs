@@ -1,6 +1,5 @@
 //! Codex settings and client hints stay gateway-owned; writes are never replayed.
 use super::{AgentAppsSettingsError, GatewayClient};
-use serde::de::DeserializeOwned;
 use vw_api_app_aggregation::AggregationQuery;
 use vw_api_app_aggregation::CodexAggregationSettings;
 use vw_api_app_aggregation::CodexClientsAckRequest;
@@ -15,14 +14,8 @@ impl GatewayClient {
         &self,
         scope: &AggregationQuery,
     ) -> Result<CodexAggregationSettings, AgentAppsSettingsError> {
-        self.aggregation_codex_response(
-            self.native_transport()
-                .map_err(AgentAppsSettingsError::Transport)?
-                .get(self.aggregation_codex_url("settings"))
-                .query(scope),
-            reqwest::StatusCode::OK,
-        )
-        .await
+        gateway_aggregation_codex::GatewayAggregationCodexClient::new(self.transport.clone())
+            .aggregation_codex_settings(scope).await
     }
 
     /// Save intent at the observed settings revision without restarting clients.
@@ -30,14 +23,8 @@ impl GatewayClient {
         &self,
         intent: &CodexSettingsRequest,
     ) -> Result<CodexAggregationSettings, AgentAppsSettingsError> {
-        self.aggregation_codex_response(
-            self.native_transport()
-                .map_err(AgentAppsSettingsError::Transport)?
-                .put(self.aggregation_codex_url("settings"))
-                .json(intent),
-            reqwest::StatusCode::OK,
-        )
-        .await
+        gateway_aggregation_codex::GatewayAggregationCodexClient::new(self.transport.clone())
+            .aggregation_codex_settings_save(intent).await
     }
 
     /// Read bounded stale-client hints; `auth` is an inference, not process memory.
@@ -45,14 +32,8 @@ impl GatewayClient {
         &self,
         scope: &AggregationQuery,
     ) -> Result<CodexClientsState, AgentAppsSettingsError> {
-        self.aggregation_codex_response(
-            self.native_transport()
-                .map_err(AgentAppsSettingsError::Transport)?
-                .get(self.aggregation_codex_url("clients"))
-                .query(scope),
-            reqwest::StatusCode::OK,
-        )
-        .await
+        gateway_aggregation_codex::GatewayAggregationCodexClient::new(self.transport.clone())
+            .aggregation_codex_clients(scope).await
     }
 
     /// Acknowledge this clients revision only; acknowledgement does not restart clients.
@@ -60,14 +41,8 @@ impl GatewayClient {
         &self,
         intent: &CodexClientsAckRequest,
     ) -> Result<CodexClientsState, AgentAppsSettingsError> {
-        self.aggregation_codex_response(
-            self.native_transport()
-                .map_err(AgentAppsSettingsError::Transport)?
-                .post(self.aggregation_codex_url("ack"))
-                .json(intent),
-            reqwest::StatusCode::OK,
-        )
-        .await
+        gateway_aggregation_codex::GatewayAggregationCodexClient::new(self.transport.clone())
+            .aggregation_codex_ack(intent).await
     }
 
     /// Submit explicit confirmation and the clients revision for a managed daemon only.
@@ -78,41 +53,8 @@ impl GatewayClient {
         &self,
         intent: &CodexRestartRequest,
     ) -> Result<ProviderOperationProgress, AgentAppsSettingsError> {
-        self.aggregation_codex_response(
-            self.native_transport()
-                .map_err(AgentAppsSettingsError::Transport)?
-                .post(self.aggregation_codex_url("restart"))
-                .json(intent),
-            reqwest::StatusCode::ACCEPTED,
-        )
-        .await
+        gateway_aggregation_codex::GatewayAggregationCodexClient::new(self.transport.clone())
+            .aggregation_codex_restart(intent).await
     }
 
-    fn aggregation_codex_url(&self, resource: &str) -> String {
-        format!("{}/v1/agent-apps/codex/aggregation/codex/{resource}", self.transport.endpoint().base_url())
-    }
-
-    async fn aggregation_codex_response<T: DeserializeOwned>(
-        &self,
-        request: reqwest::RequestBuilder,
-        expected: reqwest::StatusCode,
-    ) -> Result<T, AgentAppsSettingsError> {
-        let response = crate::http::apply_request_context(request, self.transport.endpoint())
-            .send()
-            .await
-            .map_err(|_| AgentAppsSettingsError::Transport("Codex request failed".into()))?;
-        let status = response.status();
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|_| AgentAppsSettingsError::Transport("Codex response unavailable".into()))?;
-        if status != expected {
-            return Err(AgentAppsSettingsError::Http {
-                status: status.as_u16(),
-                body: serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
-            });
-        }
-        serde_json::from_slice(&bytes)
-            .map_err(|_| AgentAppsSettingsError::Decode("invalid Codex response".into()))
-    }
 }

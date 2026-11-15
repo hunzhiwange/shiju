@@ -696,7 +696,7 @@ pub fn init_skills_dir(_workspace_dir: &Path) -> Result<()> {
 /// - SSH: `ssh://...`
 /// - Git: `git://...`
 /// - SCP 风格: `user@host:path`
-fn is_git_source(source: &str) -> bool {
+pub(crate) fn is_git_source(source: &str) -> bool {
     (is_git_scheme_source(source, "https://") && source.ends_with(".git"))
         || (is_git_scheme_source(source, "http://") && source.ends_with(".git"))
         || is_git_scheme_source(source, "ssh://")

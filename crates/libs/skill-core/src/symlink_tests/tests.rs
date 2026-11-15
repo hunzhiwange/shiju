@@ -1,13 +1,11 @@
 //! 验证技能符号链接的跨平台创建、失效目标、路径计算与外部目录读取行为。
 //! 平台分支允许 Unix 外部目录链接；Windows 无权限时只要求失败后不留下伪目录。
 
-use super::*;
 
 #[allow(dead_code)]
 mod tests {
-    use super::*;
 
-    use crate::app::agent::skill::skills_dir;
+    use crate::skills_dir;
     use std::path::Path;
     use tempfile::TempDir;
 

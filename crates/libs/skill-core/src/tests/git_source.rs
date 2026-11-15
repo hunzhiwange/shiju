@@ -12,7 +12,7 @@
 //! - SCP 风格：`git@host:path` 格式
 //! - 拒绝场景：相对路径、绝对路径、Windows 路径、不完整地址
 
-use super::super::*;
+use super::*;
 
 /// 测试 Git 源检测函数接受所有有效的远程协议和 SCP 风格地址
 ///

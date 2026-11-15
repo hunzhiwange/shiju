@@ -1,6 +1,6 @@
 //! Markdown 技能加载测试，覆盖只有标题或正文较少的 SKILL.md 文件。
 
-use super::super::*;
+use super::*;
 use std::fs;
 
 #[test]

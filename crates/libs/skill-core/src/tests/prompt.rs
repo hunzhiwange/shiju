@@ -7,7 +7,7 @@
 //! - 工具信息的包含
 //! - XML 特殊字符的转义处理
 
-use super::super::*;
+use super::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

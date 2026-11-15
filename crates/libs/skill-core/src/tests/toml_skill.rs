@@ -9,7 +9,7 @@
 //! 这些测试验证 `load_skills` 函数能够正确解析 TOML 文件、
 //! 应用默认值、以及优雅地处理解析错误。
 
-use super::super::*;
+use super::*;
 use std::fs;
 
 /// 测试加载包含多个工具的 TOML 技能配置

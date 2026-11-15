@@ -14,7 +14,7 @@
 //! - 多技能批量加载
 //! - TOML 与 Markdown 的优先级规则
 
-use super::super::*;
+use super::*;
 use std::fs;
 
 /// 测试从空技能目录加载

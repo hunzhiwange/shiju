@@ -11,7 +11,7 @@
 //! - `parse_skills_sh_source` 函数：解析 skills.sh 格式的技能源 URL
 //! - `normalize_skills_sh_dir_name` 函数：规范化技能目录名称
 
-use super::super::*;
+use super::*;
 
 /// 测试 `parse_skills_sh_source` 函数对标准 skills.sh URL 格式的解析能力
 ///

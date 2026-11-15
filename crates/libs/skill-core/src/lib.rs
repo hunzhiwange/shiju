@@ -17,3 +17,9 @@ pub use install::{handle_command, init_skills_dir};
 pub use loader::{load_skills, load_skills_with_config};
 pub use prompt::{skills_dir, skills_to_prompt, skills_to_prompt_with_mode};
 pub use types::{Skill, SkillCommands, SkillRuntimeConfig, SkillTool, SkillsConfig, SkillsPromptInjectionMode};
+
+pub mod project;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod symlink_tests;

@@ -168,7 +168,7 @@ fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
     assert!(web.brave_api_key_input.is_empty());
     assert_eq!(web.max_results_input, "5");
     assert_eq!(web.timeout_secs_input, "15");
-    assert_eq!(web.user_agent, vw_config_types::tools::DEFAULT_USER_AGENT);
+    assert_eq!(web.user_agent, config_tools::DEFAULT_USER_AGENT);
     assert!(!web.show_help_modal);
     assert!(web.save_error.is_none());
 

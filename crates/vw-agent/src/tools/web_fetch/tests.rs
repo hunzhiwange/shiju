@@ -96,7 +96,7 @@ mod tests {
             blocked_domains.into_iter().map(String::from).collect(),
             500_000,
             30,
-            vw_config_types::tools::DEFAULT_USER_AGENT.to_string(),
+            config_tools::DEFAULT_USER_AGENT.to_string(),
         )
     }
 

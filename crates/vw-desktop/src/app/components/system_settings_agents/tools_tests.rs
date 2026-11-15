@@ -405,7 +405,7 @@ fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
 #[test]
 fn tools_view_splits_optional_and_builtin_tabs() {
     use crate::app::state::{AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB};
-    use vw_config_types::tools::is_builtin_required_tool_id;
+    use config_tools::is_builtin_required_tool_id;
 
     let (mut app, _) = crate::app::App::new();
     let entry = app.agents_settings.entries[0].clone();

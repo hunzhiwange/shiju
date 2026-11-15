@@ -68,7 +68,7 @@ impl HttpRequestTool {
             allowed_domains: normalize_allowed_domains(allowed_domains),
             max_response_size,
             timeout_secs,
-            user_agent: vw_config_types::tools::resolve_user_agent(&user_agent),
+            user_agent: config_tools::resolve_user_agent(&user_agent),
         }
     }
 

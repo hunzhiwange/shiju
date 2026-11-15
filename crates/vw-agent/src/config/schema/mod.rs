@@ -9,7 +9,7 @@ pub mod provider;
 pub mod proxy;
 pub mod security;
 pub mod skills;
-pub use vw_config_types::tools;
+pub use config_tools as tools;
 pub use vw_config_types::ui;
 
 mod config;

@@ -1345,7 +1345,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolToggled(agent_key, tool_id, enabled) => {
-            if !enabled && vw_config_types::tools::is_builtin_required_tool_id(&tool_id) {
+            if !enabled && config_tools::is_builtin_required_tool_id(&tool_id) {
                 return Task::none();
             }
             let available_tools = app.agents_settings.available_tools.clone();

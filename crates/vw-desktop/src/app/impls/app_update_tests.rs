@@ -305,7 +305,7 @@ fn bootstrap_app_config_preserves_invalid_values_and_clamps_minimum_width() {
 #[test]
 fn bootstrap_browser_config_normalizes_invalid_options() {
     let mut app = test_app();
-    let mut browser = vw_config_types::tools::BrowserConfig::default();
+    let mut browser = config_tools::BrowserConfig::default();
     browser.enabled = true;
     browser.allowed_domains = vec!["example.com".to_string(), "docs.example.com".to_string()];
     browser.browser_open = "unsupported".to_string();
@@ -322,7 +322,7 @@ fn bootstrap_browser_config_normalizes_invalid_options() {
     assert_eq!(app.browser_settings.allowed_domains_input, "example.com\ndocs.example.com");
     assert_eq!(
         app.browser_settings.browser_open,
-        vw_config_types::tools::BrowserConfig::default().browser_open
+        config_tools::BrowserConfig::default().browser_open
     );
     assert_eq!(app.browser_settings.backend, "native");
     assert_eq!(app.browser_settings.session_name_input, "desk");
@@ -335,7 +335,7 @@ fn bootstrap_browser_config_normalizes_invalid_options() {
 #[test]
 fn bootstrap_browser_config_accepts_supported_case_insensitive_options() {
     let mut app = test_app();
-    let mut browser = vw_config_types::tools::BrowserConfig::default();
+    let mut browser = config_tools::BrowserConfig::default();
     browser.browser_open = " NEW_TAB ".to_string();
     browser.backend = " AGENT-BROWSER ".to_string();
     browser.native_headless = false;
@@ -360,7 +360,7 @@ fn bootstrap_browser_config_accepts_supported_case_insensitive_options() {
 #[test]
 fn bootstrap_browser_config_accepts_remaining_supported_modes() {
     let mut app = test_app();
-    let mut browser = vw_config_types::tools::BrowserConfig::default();
+    let mut browser = config_tools::BrowserConfig::default();
     browser.browser_open = " new_window ".to_string();
     browser.backend = " computer-use ".to_string();
 
@@ -369,7 +369,7 @@ fn bootstrap_browser_config_accepts_remaining_supported_modes() {
     assert_eq!(app.browser_settings.browser_open, "new_window");
     assert_eq!(app.browser_settings.backend, "computer_use");
 
-    let mut browser = vw_config_types::tools::BrowserConfig::default();
+    let mut browser = config_tools::BrowserConfig::default();
     browser.browser_open = " default ".to_string();
     browser.backend = " auto ".to_string();
 

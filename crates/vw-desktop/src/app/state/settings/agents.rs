@@ -8,7 +8,7 @@ use vw_config_types::agent::{
     BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config,
     builtin_agent_keys, builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
 };
-use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
+use config_tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 #[derive(Debug, Clone)]
 /// 表示 DelegateAgentSettingsEntry 相关的应用状态或派生数据。
@@ -237,7 +237,7 @@ pub(crate) fn apply_default_allowed_tools(
             let defaults = available_tools
                 .iter()
                 .filter(|tool| {
-                    vw_config_types::tools::DEFAULT_ENABLED_TOOL_IDS.contains(&tool.as_str())
+                    config_tools::DEFAULT_ENABLED_TOOL_IDS.contains(&tool.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();

@@ -2,7 +2,7 @@
 
 use crate::app::{App, Message, update_web_search_config_async};
 use iced::Task;
-use vw_config_types::tools::WebSearchConfig;
+use config_tools::WebSearchConfig;
 
 use super::messages::{SettingsMessage, WebSearchMessage};
 

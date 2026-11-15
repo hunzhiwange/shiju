@@ -44,7 +44,7 @@ pub(crate) fn build_agentic_tools(
                 std::iter::once(tool_id).chain(spec.aliases.iter().map(String::as_str)).any(|id| {
                     BLOCKED_DELEGATE_TOOL_IDS.iter().any(|blocked| id.eq_ignore_ascii_case(blocked))
                 });
-            let selected = vw_config_types::tools::is_builtin_required_tool_id(tool_id)
+            let selected = config_tools::is_builtin_required_tool_id(tool_id)
                 || allowed_tool_ids.contains(&tool_id.to_lowercase())
                 || spec
                     .aliases

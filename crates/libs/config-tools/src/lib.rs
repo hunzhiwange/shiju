@@ -17,3 +17,11 @@ pub use network::{
 
 #[cfg(test)]
 mod tools_tests;
+#[cfg(test)]
+mod catalog_tests;
+#[cfg(test)]
+mod multimodal_tests;
+#[cfg(test)]
+mod browser_tests;
+#[cfg(test)]
+mod network_tests;

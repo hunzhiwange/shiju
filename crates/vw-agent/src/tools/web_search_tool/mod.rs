@@ -98,7 +98,7 @@ impl WebSearchTool {
     ///     None,
     ///     5,
     ///     30,
-    ///     vw_config_types::tools::DEFAULT_USER_AGENT.to_string(),
+    ///     config_tools::DEFAULT_USER_AGENT.to_string(),
     /// );
     /// ```
     pub fn new(
@@ -125,7 +125,7 @@ impl WebSearchTool {
             api_url,
             max_results: max_results.clamp(1, 10),
             timeout_secs: timeout_secs.max(1),
-            user_agent: vw_config_types::tools::resolve_user_agent(&user_agent),
+            user_agent: config_tools::resolve_user_agent(&user_agent),
             key_index: Arc::new(AtomicUsize::new(0)),
         }
     }

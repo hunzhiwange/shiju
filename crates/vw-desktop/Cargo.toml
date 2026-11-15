@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+config-tools = { path = "../libs/config-tools", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }
 build-identity = { path = "../libs/build-identity", version = "0.6.0" }

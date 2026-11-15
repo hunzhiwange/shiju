@@ -17,7 +17,7 @@ use crate::app::state::{
 use crate::app::{App, Message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
-use vw_config_types::tools::is_builtin_required_tool_id;
+use config_tools::is_builtin_required_tool_id;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ToolGroup {

@@ -285,7 +285,7 @@ pub(crate) struct WebSearchSettingsState {
 
 impl Default for WebSearchSettingsState {
     fn default() -> Self {
-        let config = vw_config_types::tools::WebSearchConfig::default();
+        let config = config_tools::WebSearchConfig::default();
         Self {
             enabled: config.enabled,
             provider: config.provider,
@@ -326,7 +326,7 @@ pub(crate) struct BrowserSettingsState {
 
 impl Default for BrowserSettingsState {
     fn default() -> Self {
-        let config = vw_config_types::tools::BrowserConfig::default();
+        let config = config_tools::BrowserConfig::default();
         let allowed_domains_input = config.allowed_domains.join("\n");
         Self {
             installing: false,

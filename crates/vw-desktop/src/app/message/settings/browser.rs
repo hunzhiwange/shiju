@@ -5,7 +5,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use iced::widget::text_editor;
 use serde_json::json;
-use vw_config_types::tools::BrowserComputerUseConfig;
+use config_tools::BrowserComputerUseConfig;
 
 use super::messages::{BrowserMessage, SettingsMessage};
 
@@ -86,7 +86,7 @@ fn persist_browser_settings(app: &mut App) -> Result<Task<Message>, String> {
     let browser_open = normalize_browser_open(&s.browser_open);
     let backend = normalize_backend(&s.backend);
 
-    let browser = vw_config_types::tools::BrowserConfig {
+    let browser = config_tools::BrowserConfig {
         enabled,
         allowed_domains,
         browser_open,

@@ -22,7 +22,7 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
     let expected = base
         .iter()
         .filter(|tool| {
-            tool.as_str() == selected || vw_config_types::tools::is_builtin_required_tool_id(tool)
+            tool.as_str() == selected || config_tools::is_builtin_required_tool_id(tool)
         })
         .cloned()
         .collect::<HashSet<_>>();
@@ -33,7 +33,7 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
     assert!(
         empty_selection
             .iter()
-            .all(|tool| { vw_config_types::tools::is_builtin_required_tool_id(tool) })
+            .all(|tool| { config_tools::is_builtin_required_tool_id(tool) })
     );
 }
 

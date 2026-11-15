@@ -8,6 +8,7 @@ members = [
   "crates/libs/api-git",
   "crates/libs/acp-cli-render",
   "crates/libs/config-plugins",
+  "crates/libs/config-tools",
   "crates/libs/gateway-app-read",
   "crates/libs/gateway-app-lifecycle",
   "crates/libs/config-voice",

@@ -3,7 +3,7 @@
 use crate::app::message::settings::util::parse_comma_or_newline_list;
 use crate::app::{App, Message, update_http_request_config_async};
 use iced::Task;
-use vw_config_types::tools::HttpRequestConfig;
+use config_tools::HttpRequestConfig;
 
 use super::messages::{HttpRequestMessage, SettingsMessage};
 

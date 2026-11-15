@@ -179,7 +179,7 @@ pub fn gateway_client() -> Result<GatewayClient, String> {
 
 fn normalize_tool_ids(mut tools: Vec<String>) -> Vec<String> {
     tools.retain(|tool_id| {
-        !tool_id.trim().is_empty() && !vw_config_types::tools::is_mcp_dynamic_tool_id(tool_id)
+        !tool_id.trim().is_empty() && !config_tools::is_mcp_dynamic_tool_id(tool_id)
     });
     tools.sort();
     tools.dedup();

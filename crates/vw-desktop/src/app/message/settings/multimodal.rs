@@ -2,7 +2,7 @@
 
 use crate::app::{App, Message, update_multimodal_config_async};
 use iced::Task;
-use vw_config_types::tools::{MultimodalConfig, MultimodalOcrConfig};
+use config_tools::{MultimodalConfig, MultimodalOcrConfig};
 
 use super::messages::{MultimodalMessage, SettingsMessage};
 

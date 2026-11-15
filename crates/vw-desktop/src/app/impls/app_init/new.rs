@@ -1012,7 +1012,7 @@ impl App {
                 max_results_input: web_search_cfg.max_results.clamp(1, 10).to_string(),
                 timeout_secs_input: web_search_cfg.timeout_secs.max(1).to_string(),
                 user_agent: if web_search_cfg.user_agent.trim().is_empty() {
-                    vw_config_types::tools::DEFAULT_USER_AGENT.to_string()
+                    config_tools::DEFAULT_USER_AGENT.to_string()
                 } else {
                     web_search_cfg.user_agent
                 },

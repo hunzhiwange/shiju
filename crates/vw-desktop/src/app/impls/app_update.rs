@@ -729,7 +729,7 @@ impl App {
         self.gateway_client_settings.skey_input = active_gateway_client.skey;
     }
 
-    fn apply_bootstrap_browser_settings(&mut self, browser: vw_config_types::tools::BrowserConfig) {
+    fn apply_bootstrap_browser_settings(&mut self, browser: config_tools::BrowserConfig) {
         self.browser_settings.enabled = browser.enabled;
         self.browser_settings.allowed_domains_input = browser.allowed_domains.join("\n");
         self.browser_settings.allowed_domains_editor =

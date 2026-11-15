@@ -220,7 +220,7 @@ impl WebFetchTool {
             blocked_domains: normalize_allowed_domains(blocked_domains),
             max_response_size,
             timeout_secs,
-            user_agent: vw_config_types::tools::resolve_user_agent(&user_agent),
+            user_agent: config_tools::resolve_user_agent(&user_agent),
             // 初始化 API 密钥轮询索引为 0
             key_index: Arc::new(AtomicUsize::new(0)),
         }

@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::App;
-use vw_config_types::tools::HttpRequestConfig;
+use config_tools::HttpRequestConfig;
 
 fn app() -> App {
     App::new().0

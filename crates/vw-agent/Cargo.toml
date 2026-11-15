@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+config-tools = { path = "../libs/config-tools", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 session-paths = { path = "../libs/session-paths", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }

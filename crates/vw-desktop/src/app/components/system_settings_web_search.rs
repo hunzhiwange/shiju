@@ -312,7 +312,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 app,
                 "User-Agent",
                 tr(app.desktop_locale, "搜索请求携带的 User-Agent。"),
-                vw_config_types::tools::DEFAULT_USER_AGENT,
+                config_tools::DEFAULT_USER_AGENT,
                 &s.user_agent,
                 |value| {
                     Message::Settings(SettingsMessage::WebSearch(

@@ -133,7 +133,7 @@ fn generated_runtime_ids_use_current_unix_milliseconds() {
         handle_id: "in".to_string(),
         kind: WorkflowHandleKind::Target,
     };
-    let before = vw_shared::time::now_ms() as u128;
+    let before = runtime_time::now_ms() as u128;
     let ids = [
         (generate_app_id(), "workflow-app-"),
         (generate_node_id("llm"), "llm-node-"),
@@ -144,7 +144,7 @@ fn generated_runtime_ids_use_current_unix_milliseconds() {
         (generate_prompt_item_id("system"), "system-prompt-"),
         (generate_edge_id(&source, &target), "manual-source-out-target-in-"),
     ];
-    let after = vw_shared::time::now_ms() as u128;
+    let after = runtime_time::now_ms() as u128;
 
     for (id, prefix) in ids {
         let timestamp = id

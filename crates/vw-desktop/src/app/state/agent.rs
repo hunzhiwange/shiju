@@ -459,9 +459,9 @@ pub(crate) struct SessionRuntimeState {
     /// 本轮请求开始的毫秒时间戳，用于状态栏展示运行时长；0 表示未在请求中
     pub(crate) request_started_ms: u64,
     /// 请求开始到结束的单调时钟耗时；持续计入步骤间停顿。
-    pub(crate) processing_timer: vw_shared::time::ActiveTimer,
+    pub(crate) processing_timer: runtime_time::ActiveTimer,
     /// 仅累计 LLM StepStart 到 StepFinish 的单调时钟耗时
-    pub(crate) llm_timer: vw_shared::time::ActiveTimer,
+    pub(crate) llm_timer: runtime_time::ActiveTimer,
     /// 提交动画计数器
     pub(crate) submit_anim: u8,
     /// 是否有未查看的成功响应
@@ -708,8 +708,8 @@ impl SessionRuntimeState {
             mcp_app_panels: Vec::new(),
             is_requesting: false,
             request_started_ms: 0,
-            processing_timer: vw_shared::time::ActiveTimer::default(),
-            llm_timer: vw_shared::time::ActiveTimer::default(),
+            processing_timer: runtime_time::ActiveTimer::default(),
+            llm_timer: runtime_time::ActiveTimer::default(),
             submit_anim: 0,
             has_unseen_success: false,
             active_agent_request: None,

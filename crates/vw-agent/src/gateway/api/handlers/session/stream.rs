@@ -1489,7 +1489,7 @@ async fn start_gateway_chat_producer(
         let sink_for_run = Arc::clone(&sink);
         let outcome = catch_unwind(AssertUnwindSafe(move || {
             let processing_started_ms = agent_session::session::now_ms();
-            let mut processing_timer = vw_shared::time::ActiveTimer::default();
+            let mut processing_timer = runtime_time::ActiveTimer::default();
             processing_timer.start_at(web_time::Instant::now());
             let mut assistant_text = String::new();
             let mut assistant_finish_reason: Option<String> = None;
@@ -1499,7 +1499,7 @@ async fn start_gateway_chat_producer(
             let mut trajectory_recorder = StreamTrajectoryRecorder::new(
                 stream_message_ids.as_ref().map(|ids| ids.assistant_id.clone()).unwrap_or_default(),
             );
-            let mut llm_timer = vw_shared::time::ActiveTimer::default();
+            let mut llm_timer = runtime_time::ActiveTimer::default();
             let approval_reply_target = if stream_session_id.trim().is_empty() {
                 "desktop".to_string()
             } else {

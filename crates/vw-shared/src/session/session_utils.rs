@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
 
-use crate::time::now_ms;
+use runtime_time::now_ms;
 
 const TASK_SESSION_SOURCE_OPEN: &str = "<task_session_source>\n";
 const TASK_SESSION_SOURCE_ID_PREFIX: &str = "source_session_id: ";

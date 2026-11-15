@@ -36,7 +36,7 @@ pub mod session;
 pub mod shell;
 pub mod snapshot;
 pub mod task;
-pub mod time;
+pub use runtime_time as time;
 pub mod todo;
 pub mod update;
 pub mod util;

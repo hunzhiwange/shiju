@@ -254,7 +254,7 @@ pub fn create_task(project_path: &str, task: Task) -> io::Result<Task> {
     {
         let mut task = task;
         let mut index = load_index_json(project_path);
-        let now_ms = crate::time::now_ms();
+        let now_ms = runtime_time::now_ms();
         let seconds = i64::try_from(now_ms / 1_000).unwrap_or_default();
         let date_time =
             OffsetDateTime::from_unix_timestamp(seconds).unwrap_or(OffsetDateTime::UNIX_EPOCH);

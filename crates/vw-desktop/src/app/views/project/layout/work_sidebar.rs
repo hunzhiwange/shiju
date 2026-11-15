@@ -213,7 +213,7 @@ fn session_matches_time_filter(app: &App, updated: u64) -> bool {
         WorkSidebarFilterTime::LastSevenDays => 7,
         WorkSidebarFilterTime::LastThirtyDays => 30,
     };
-    let cutoff = vw_shared::time::now_ms().saturating_sub(days * MILLIS_PER_DAY);
+    let cutoff = runtime_time::now_ms().saturating_sub(days * MILLIS_PER_DAY);
     updated >= cutoff
 }
 

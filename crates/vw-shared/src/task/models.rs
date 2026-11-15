@@ -285,7 +285,7 @@ impl TaskStatus {
 }
 
 fn now_ms() -> u64 {
-    crate::time::now_ms()
+    runtime_time::now_ms()
 }
 
 fn format_task_date_from_ms(ms: u64) -> String {

@@ -207,7 +207,7 @@ impl ChannelQrFlowSnapshot {
 /// 对外暴露当前模块需要复用的能力。
 pub use vw_config_types::ui::PreviewAutoSaveMode;
 /// 对外暴露当前模块需要复用的能力。
-pub use vw_shared::time;
+pub use runtime_time as time;
 
 #[cfg(test)]
 mod tests;

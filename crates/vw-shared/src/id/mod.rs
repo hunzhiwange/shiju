@@ -178,7 +178,7 @@ static FORCE_RANDOM_ERROR: AtomicBool = AtomicBool::new(false);
 /// - 计算与 Unix 纪元的时长差
 /// - 将时长转换为毫秒
 fn now_ms() -> u64 {
-    crate::time::now_ms()
+    runtime_time::now_ms()
 }
 
 /// 生成指定长度的 Base62 随机字符串

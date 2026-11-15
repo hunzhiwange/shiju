@@ -152,7 +152,7 @@ pub(crate) fn interrupt_part(part: &mut super::message::Part) -> bool {
     use super::message::{Part, PartTime, ToolState, ToolStateError};
     let Part::Tool(tool) = part else { return false };
     let (input, start) = match &tool.state {
-        ToolState::Pending(state) => (state.input.clone(), vw_shared::time::now_ms()),
+        ToolState::Pending(state) => (state.input.clone(), runtime_time::now_ms()),
         ToolState::Running(state) => (state.input.clone(), state.time.start),
         ToolState::Completed(_) | ToolState::Error(_) => return false,
     };
@@ -160,7 +160,7 @@ pub(crate) fn interrupt_part(part: &mut super::message::Part) -> bool {
         input,
         error: "tool call interrupted by session restore; external effects are not replayed".into(),
         metadata: None,
-        time: PartTime { start, end: Some(vw_shared::time::now_ms()) },
+        time: PartTime { start, end: Some(runtime_time::now_ms()) },
     });
     true
 }

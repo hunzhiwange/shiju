@@ -961,7 +961,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 &vw_api_session::GatewaySessionPatchBody {
                                     title: None,
                                     time: Some(vw_api_session::GatewaySessionPatchTime {
-                                        archived: Some(vw_shared::time::now_ms()),
+                                        archived: Some(runtime_time::now_ms()),
                                     }),
                                 },
                             )

@@ -618,7 +618,7 @@ fn work_sidebar_surface_is_pale_in_light_theme_and_dark_in_dark_theme() {
 #[test]
 fn work_sidebar_filters_sessions_by_project_and_update_time() {
     let mut app = App::new().0;
-    let now = vw_shared::time::now_ms();
+    let now = runtime_time::now_ms();
     app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
     app.recent_projects_edits.clear();
     app.project_path = Some("/workspace/alpha".into());
@@ -653,7 +653,7 @@ fn work_sidebar_filters_sessions_by_project_and_update_time() {
 #[test]
 fn work_sidebar_filters_sessions_by_runtime_status() {
     let mut app = App::new().0;
-    let now = vw_shared::time::now_ms();
+    let now = runtime_time::now_ms();
     app.recent_projects = vec!["/workspace/alpha".into()];
     app.project_sessions.insert(
         "/workspace/alpha".into(),

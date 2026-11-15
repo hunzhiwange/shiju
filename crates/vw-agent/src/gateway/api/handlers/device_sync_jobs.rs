@@ -3,7 +3,7 @@ use axum::{Extension, Json, Router, extract::{Path, DefaultBodyLimit}, http::{He
 use std::path::PathBuf;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::device_sync_task::*,
+    vw_api_device_sync::device_sync_task::*,
 };
 use crate::{global_database::GlobalDatabase, device_sync::tasks};
 
@@ -36,7 +36,7 @@ async fn upload(
     database: Option<Extension<GlobalDatabase>>, Path(transport): Path<String>,
     headers: HeaderMap, Json(request): Json<UploadRequest>,
 ) -> Result<(StatusCode, Json<SyncTaskStatus>), StatusCode> {
-    use vw_api_types::device_sync_config::DeviceSyncTransport;
+    use vw_api_device_sync::device_sync_config::DeviceSyncTransport;
     let transport = match transport.as_str() {
         "webdav" => DeviceSyncTransport::Webdav,
         "s3" => DeviceSyncTransport::S3,
@@ -83,7 +83,7 @@ pub(super) fn http_error(code: SyncErrorCode) -> StatusCode {
 
 #[cfg(target_os = "macos")]
 async fn run(database: GlobalDatabase, policy: Policy, headers: HeaderMap, request: UploadRequest,
-    transport: vw_api_types::device_sync_config::DeviceSyncTransport,
+    transport: vw_api_device_sync::device_sync_config::DeviceSyncTransport,
     revision: serde_json::Value, execution: tasks::SyncTaskExecution,
 ) -> Result<SyncRemoteSnapshot, SyncErrorCode> {
     use crate::device_sync::{operation_lock, webdav_settings::WebDavSettingsStore, s3_settings::S3SettingsStore};
@@ -145,11 +145,11 @@ async fn run(database: GlobalDatabase, policy: Policy, headers: HeaderMap, reque
         }};
     }
     match transport {
-        vw_api_types::device_sync_config::DeviceSyncTransport::Webdav => transfer!(
+        vw_api_device_sync::device_sync_config::DeviceSyncTransport::Webdav => transfer!(
             WebDavSettingsStore::new(database.clone(), &credentials).map_err(|_| SyncErrorCode::NotConfigured)?,
             vw_agent_apps::device_sync::webdav_transport::download::WebDavDownloadTarget,
             crate::device_sync::webdav_upload::upload_webdav_snapshot),
-        vw_api_types::device_sync_config::DeviceSyncTransport::S3 => transfer!(
+        vw_api_device_sync::device_sync_config::DeviceSyncTransport::S3 => transfer!(
             S3SettingsStore::new(database.clone(), &credentials).map_err(|_| SyncErrorCode::NotConfigured)?,
             vw_agent_apps::device_sync::s3_transport::S3DownloadTarget,
             crate::device_sync::s3_upload::upload_s3_snapshot),
@@ -159,14 +159,14 @@ async fn run(database: GlobalDatabase, policy: Policy, headers: HeaderMap, reque
 #[cfg(target_os = "macos")]
 pub(super) fn configuration_revision(database: &GlobalDatabase, root: &std::path::Path,
     target: &vw_api_app_operations::DataManagementTarget,
-    transport: vw_api_types::device_sync_config::DeviceSyncTransport,
+    transport: vw_api_device_sync::device_sync_config::DeviceSyncTransport,
 ) -> Result<serde_json::Value, SyncErrorCode> {
     use crate::device_sync::{webdav_settings::WebDavSettingsStore, s3_settings::S3SettingsStore};
     let tenant = target.scope.tenant_scope();
     let result = match transport {
-        vw_api_types::device_sync_config::DeviceSyncTransport::Webdav =>
+        vw_api_device_sync::device_sync_config::DeviceSyncTransport::Webdav =>
             WebDavSettingsStore::new(database.clone(), root).and_then(|s| s.revision(tenant, &target.target_host_id)),
-        vw_api_types::device_sync_config::DeviceSyncTransport::S3 =>
+        vw_api_device_sync::device_sync_config::DeviceSyncTransport::S3 =>
             S3SettingsStore::new(database.clone(), root).and_then(|s| s.revision(tenant, &target.target_host_id)),
     };
     result.map(serde_json::Value::String).map_err(|_| SyncErrorCode::NotConfigured)

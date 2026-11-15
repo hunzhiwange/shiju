@@ -10,10 +10,10 @@ use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_app_operations::DataManagementTarget,
-    vw_api_types::device_sync_task::SyncErrorCode,
-    vw_api_types::device_sync_task::SyncTaskStatus,
-    vw_api_types::device_sync_task::SyncTaskState,
-    vw_api_types::device_sync_task::SyncTaskCancelResponse,
+    vw_api_device_sync::device_sync_task::SyncErrorCode,
+    vw_api_device_sync::device_sync_task::SyncTaskStatus,
+    vw_api_device_sync::device_sync_task::SyncTaskState,
+    vw_api_device_sync::device_sync_task::SyncTaskCancelResponse,
     vw_api_transport::id::TaskId,
 };
 use crate::{device_sync::status, global_database::GlobalDatabase};
@@ -89,11 +89,11 @@ async fn cancel(
     let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
     // Cancellation requires the existing execution grant for this direction.
     match current.direction {
-        vw_api_types::device_sync_task::SyncDirection::Upload => {
+        vw_api_device_sync::device_sync_task::SyncDirection::Upload => {
             super::agent_apps::authorize_device_sync_upload(policy.as_deref(), &headers, &target)
                 .map_err(|_| StatusCode::NOT_FOUND)?;
         }
-        vw_api_types::device_sync_task::SyncDirection::Download => {
+        vw_api_device_sync::device_sync_task::SyncDirection::Download => {
             super::agent_apps::authorize_device_sync_download(policy.as_deref(), &headers, &target)
                 .map_err(|_| StatusCode::NOT_FOUND)?;
         }

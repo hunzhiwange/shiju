@@ -4,13 +4,13 @@ use serde::{Serialize, de::DeserializeOwned};
 use {
     vw_api_app_identity::AppId,
     vw_api_app_operations::DataManagementTarget,
-    vw_api_types::device_sync_config::DeviceSyncTransport,
-    vw_api_types::device_sync_config::DeviceSyncRemoteResponse,
-    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
-    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
-    vw_api_types::device_sync_task::SyncExpectedRemote,
-    vw_api_types::device_sync_task::SyncRemoteSnapshot,
-    vw_api_types::device_sync_task::SyncTaskStatus,
+    vw_api_device_sync::device_sync_config::DeviceSyncTransport,
+    vw_api_device_sync::device_sync_config::DeviceSyncRemoteResponse,
+    vw_api_device_sync::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_device_sync::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_device_sync::device_sync_task::SyncExpectedRemote,
+    vw_api_device_sync::device_sync_task::SyncRemoteSnapshot,
+    vw_api_device_sync::device_sync_task::SyncTaskStatus,
     vw_api_transport::id::ProjectId,
 };
 
@@ -105,7 +105,7 @@ impl GatewayClient {
     }
     pub async fn device_sync_local_preview(&self, transport: DeviceSyncTransport,
         target: &DataManagementTarget, selection: &DeviceSyncSelection, token: &str)
-        -> Result<vw_api_types::device_sync_config::DeviceSyncLocalPreview, DeviceSyncOperationsError> {
+        -> Result<vw_api_device_sync::device_sync_config::DeviceSyncLocalPreview, DeviceSyncOperationsError> {
         #[derive(Serialize)]
         struct Request<'a> { target: &'a DataManagementTarget, selection: &'a DeviceSyncSelection }
         let bytes = self.device_sync_operation_request(reqwest::Method::POST, transport,

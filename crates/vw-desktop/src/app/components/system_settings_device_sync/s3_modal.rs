@@ -8,7 +8,7 @@ use crate::app::message::settings::device_sync_s3::{Event, S3Preset, message};
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, row, text};
 use iced::{Element, Length};
-use vw_gateway_client::vw_api_types::device_sync_config::SyncSecretUpdate;
+use vw_api_device_sync::device_sync_config::SyncSecretUpdate;
 
 fn field<'a>(
     label: &'static str,

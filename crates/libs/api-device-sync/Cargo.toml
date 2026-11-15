@@ -1,0 +1,10 @@
+[package]
+name = "vw-api-device-sync"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }

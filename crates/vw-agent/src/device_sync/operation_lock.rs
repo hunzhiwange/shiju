@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock, Weak};
 use anyhow::{bail, Result};
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 use tokio_util::sync::CancellationToken;
-use vw_api_types::device_sync_task::SyncTaskOrigin;
+use vw_api_device_sync::device_sync_task::SyncTaskOrigin;
 
 // A tuple avoids collisions between tenant and host strings. Transport, origin,
 // principal and connection are deliberately absent: all share this business lock.

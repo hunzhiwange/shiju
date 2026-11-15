@@ -5,7 +5,7 @@ use iced::{Element, Task};
 use {
     vw_api_transport::TaskId,
     vw_api_app_operations::DataManagementTarget,
-    vw_api_types::device_sync_task::*,
+    vw_api_device_sync::device_sync_task::*,
 };
 use vw_gateway_client::GatewayClient;
 

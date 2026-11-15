@@ -4,7 +4,7 @@ use crate::app::message::settings::device_sync_webdav::{Event, message};
 use crate::app::{App, Message};
 use iced::Element;
 use iced::widget::{button, checkbox, column, row, text};
-use vw_gateway_client::vw_api_types::device_sync_config::SyncSecretUpdate;
+use vw_api_device_sync::device_sync_config::SyncSecretUpdate;
 
 fn field<'a>(
     label: &'static str,

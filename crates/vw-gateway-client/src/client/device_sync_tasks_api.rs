@@ -5,8 +5,8 @@ use reqwest::{Method, StatusCode, Url};
 use {
     vw_api_transport::TaskId,
     vw_api_app_operations::DataManagementTarget,
-    vw_api_types::device_sync_task::SyncTaskCancelResponse,
-    vw_api_types::device_sync_task::SyncTaskStatus,
+    vw_api_device_sync::device_sync_task::SyncTaskCancelResponse,
+    vw_api_device_sync::device_sync_task::SyncTaskStatus,
 };
 
 /// Safe SDK errors: response bodies and authorization tokens are never retained.

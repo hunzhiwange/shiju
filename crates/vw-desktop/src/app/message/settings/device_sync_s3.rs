@@ -10,7 +10,7 @@ use iced::Task;
 use {
     vw_api_transport::ProjectScope,
     vw_api_app_operations::DataManagementTarget,
-    vw_gateway_client::vw_api_types::device_sync_config::*,
+    vw_api_device_sync::device_sync_config::*,
 };
 use vw_gateway_client::{DeviceSyncOperationsError, DeviceSyncSelection};
 

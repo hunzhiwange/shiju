@@ -1,11 +1,11 @@
 //! Host-owned synchronization settings; secrets are sent only as explicit write intent.
 use super::{DeviceSyncOperationsError, GatewayClient};
 use {
-    vw_api_types::device_sync_config::DeviceSyncTransport,
-    vw_api_types::device_sync_config::S3SyncConfigResponse,
-    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
-    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
-    vw_api_types::device_sync_config::WebDavSyncConfigResponse,
+    vw_api_device_sync::device_sync_config::DeviceSyncTransport,
+    vw_api_device_sync::device_sync_config::S3SyncConfigResponse,
+    vw_api_device_sync::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_device_sync::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_device_sync::device_sync_config::WebDavSyncConfigResponse,
     vw_api_transport::id::ProjectId,
 };
 

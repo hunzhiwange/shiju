@@ -4,8 +4,8 @@ use super::device_sync_jobs::Policy;
 use super::device_sync_jobs::{configuration_revision, http_error};
 use axum::{Extension, Json, extract::Path, http::{HeaderMap, StatusCode}};
 use {
-    vw_api_types::device_sync_config::DeviceSyncTransport,
-    vw_api_types::device_sync_task::*,
+    vw_api_device_sync::device_sync_config::DeviceSyncTransport,
+    vw_api_device_sync::device_sync_task::*,
     vw_api_transport::id::TenantScope,
 };
 use crate::{device_sync::tasks, global_database::GlobalDatabase};

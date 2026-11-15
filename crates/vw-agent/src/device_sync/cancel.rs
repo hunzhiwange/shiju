@@ -2,8 +2,8 @@
 use {
     vw_api_app_operations::DataManagementTarget,
     vw_api_transport::id::TaskId,
-    vw_api_types::device_sync_task::SyncErrorCode,
-    vw_api_types::device_sync_task::SyncTaskStatus,
+    vw_api_device_sync::device_sync_task::SyncErrorCode,
+    vw_api_device_sync::device_sync_task::SyncTaskStatus,
 };
 
 /// Accepted running work stays Running until its resources have been dropped.

@@ -8,13 +8,13 @@ use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_app_operations::DataManagementTarget,
-    vw_api_types::device_sync_config::DeviceSyncTransport,
-    vw_api_types::device_sync_config::SyncSecretUpdate,
-    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
-    vw_api_types::device_sync_config::WebDavSyncConfigResponse,
-    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
-    vw_api_types::device_sync_config::S3SyncConfig,
-    vw_api_types::device_sync_config::S3SyncConfigResponse,
+    vw_api_device_sync::device_sync_config::DeviceSyncTransport,
+    vw_api_device_sync::device_sync_config::SyncSecretUpdate,
+    vw_api_device_sync::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_device_sync::device_sync_config::WebDavSyncConfigResponse,
+    vw_api_device_sync::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_device_sync::device_sync_config::S3SyncConfig,
+    vw_api_device_sync::device_sync_config::S3SyncConfigResponse,
 };
 use crate::{device_sync::{status, webdav_settings::WebDavSettingsStore, s3_settings::S3SettingsStore},
     global_database::GlobalDatabase};
@@ -51,7 +51,7 @@ fn database(injected: Option<Extension<GlobalDatabase>>) -> Result<GlobalDatabas
     }
 }
 fn response(database: GlobalDatabase, target: &DataManagementTarget,
-    config: Option<vw_api_types::device_sync_config::WebDavSyncConfig>)
+    config: Option<vw_api_device_sync::device_sync_config::WebDavSyncConfig>)
     -> Result<Json<WebDavSyncConfigResponse>, StatusCode> {
     let (last_status, active_task_id) = status::connection_status(database, target,
         DeviceSyncTransport::Webdav).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

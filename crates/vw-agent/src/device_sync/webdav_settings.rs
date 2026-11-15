@@ -5,9 +5,9 @@ use std::path::Path;
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::device_sync::webdav_config::WebDavConfig;
 use {
-    vw_api_types::device_sync_config::SyncSecretUpdate,
-    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
-    vw_api_types::device_sync_config::WebDavSyncConfig,
+    vw_api_device_sync::device_sync_config::SyncSecretUpdate,
+    vw_api_device_sync::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_device_sync::device_sync_config::WebDavSyncConfig,
     vw_api_transport::id::TenantScope,
 };
 use crate::{

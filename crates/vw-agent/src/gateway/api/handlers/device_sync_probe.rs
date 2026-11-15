@@ -12,9 +12,9 @@ use axum::{
 use serde::Deserialize;
 use std::path::PathBuf;
 use {
-    vw_api_types::device_sync_config::DeviceSyncTransport,
-    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
-    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_device_sync::device_sync_config::DeviceSyncTransport,
+    vw_api_device_sync::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_device_sync::device_sync_config::UpdateWebDavSyncConfigRequest,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
@@ -125,14 +125,14 @@ async fn remote(
     Path(transport): Path<DeviceSyncTransport>,
     Query(query): Query<ScopeQuery>,
 ) -> Result<
-    Json<vw_api_types::device_sync_config::DeviceSyncRemoteResponse>,
+    Json<vw_api_device_sync::device_sync_config::DeviceSyncRemoteResponse>,
     (StatusCode, &'static str),
 > {
     use vw_agent_apps::{
         data_management::shared_snapshot::DATA_COMPAT_VERSION,
         device_sync::webdav_remote::{RemoteCompatibility, RemoteSnapshotQuery},
     };
-    use vw_api_types::device_sync_config::{
+    use vw_api_device_sync::device_sync_config::{
         DeviceSyncRemoteCompatibility, DeviceSyncRemoteResponse,
     };
     let project = ProjectScope::new(tenant.clone(), query.project_id)
@@ -215,7 +215,7 @@ async fn remote(
             Err((StatusCode::BAD_GATEWAY, "invalid_manifest"))
         }
         RemoteSnapshotQuery::Snapshot(snapshot) => Ok(Json(DeviceSyncRemoteResponse::Snapshot {
-            snapshot: vw_api_types::device_sync_task::SyncRemoteSnapshot {
+            snapshot: vw_api_device_sync::device_sync_task::SyncRemoteSnapshot {
                 snapshot_id: snapshot.snapshot_id.clone(),
                 manifest_sha256: snapshot.manifest_sha256,
                 etag: Some(snapshot.etag),
@@ -252,7 +252,7 @@ async fn local_preview(
     headers: HeaderMap,
     Path(transport): Path<DeviceSyncTransport>,
     Json(request): Json<LocalPreviewRequest>,
-) -> Result<Json<vw_api_types::device_sync_config::DeviceSyncLocalPreview>, StatusCode> {
+) -> Result<Json<vw_api_device_sync::device_sync_config::DeviceSyncLocalPreview>, StatusCode> {
     if request.target.scope.tenant_scope() != &tenant {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -306,7 +306,7 @@ async fn local_preview(
             }
             .snapshot_id()
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-            Ok(Json(vw_api_types::device_sync_config::DeviceSyncLocalPreview {
+            Ok(Json(vw_api_device_sync::device_sync_config::DeviceSyncLocalPreview {
                 snapshot_id,
                 connection_revision: revision
                     .as_str()

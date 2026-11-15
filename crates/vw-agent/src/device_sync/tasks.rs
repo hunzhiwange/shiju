@@ -3,15 +3,15 @@ use std::{future::Future, sync::{Mutex, OnceLock}};
 use {
     vw_api_app_operations::DataManagementTarget,
     vw_api_transport::id::TaskId,
-    vw_api_types::device_sync_task::SyncStartRequest,
-    vw_api_types::device_sync_task::SyncTaskOrigin,
-    vw_api_types::device_sync_task::SyncTaskStatus,
-    vw_api_types::device_sync_task::SyncTaskPhase,
-    vw_api_types::device_sync_task::SyncTaskState,
-    vw_api_types::device_sync_task::SyncError,
-    vw_api_types::device_sync_task::SyncErrorCode,
-    vw_api_types::device_sync_task::SyncRemoteSnapshot,
-    vw_api_types::device_sync_task::SyncTaskWarning,
+    vw_api_device_sync::device_sync_task::SyncStartRequest,
+    vw_api_device_sync::device_sync_task::SyncTaskOrigin,
+    vw_api_device_sync::device_sync_task::SyncTaskStatus,
+    vw_api_device_sync::device_sync_task::SyncTaskPhase,
+    vw_api_device_sync::device_sync_task::SyncTaskState,
+    vw_api_device_sync::device_sync_task::SyncError,
+    vw_api_device_sync::device_sync_task::SyncErrorCode,
+    vw_api_device_sync::device_sync_task::SyncRemoteSnapshot,
+    vw_api_device_sync::device_sync_task::SyncTaskWarning,
 };
 
 type Result<T> = std::result::Result<T, SyncErrorCode>;
@@ -243,7 +243,7 @@ fn rank(phase: SyncTaskPhase) -> u8 {
 /// Gateway shutdown cancels only automatic work; commit boundaries remain owned
 /// by the execution future and are awaited by the lifecycle owner.
 pub(super) fn cancel_automatic(target: &DataManagementTarget,
-    transport: vw_api_types::device_sync_config::DeviceSyncTransport) -> Result<()> {
+    transport: vw_api_device_sync::device_sync_config::DeviceSyncTransport) -> Result<()> {
     let ids = {
         let records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
         records.iter().filter(|r| &r.status.target == target && r.status.transport == transport

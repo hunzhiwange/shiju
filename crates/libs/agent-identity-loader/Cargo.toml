@@ -1,0 +1,17 @@
+[package]
+name = "agent-identity-loader"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-identity = { path = "../agent-identity", version = "0.6.0" }
+vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
+anyhow = "1"
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

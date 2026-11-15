@@ -2,7 +2,7 @@
 
 // 相对路径以工作区为基准，绝对路径优先于内联来源，读取错误保留路径上下文。
 use super::*;
-use crate::app::agent::config::IdentityConfig;
+use vw_config_types::security::IdentityConfig;
 
 fn config(format: &str, path: Option<&str>, inline: Option<&str>) -> IdentityConfig {
     IdentityConfig {

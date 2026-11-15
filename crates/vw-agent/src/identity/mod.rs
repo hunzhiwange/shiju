@@ -28,19 +28,10 @@
 //! }
 //! ```
 
-mod load;
-
-pub use load::{is_aieos_configured, load_aieos_identity};
+pub use agent_identity_loader::{is_aieos_configured, load_aieos_identity};
 pub use agent_identity::{
     AieosIdentity, CapabilitiesSection, HistorySection, IdentitySection, InterestsSection,
     LinguisticsSection, MotivationsSection, Names, OceanTraits, PhysicalitySection,
     PsychologySection,
 };
 pub use agent_identity::aieos_to_system_prompt;
-
-#[cfg(test)]
-use load::parse_aieos_identity;
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;

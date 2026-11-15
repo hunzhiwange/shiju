@@ -1,4 +1,4 @@
-use crate::app::agent::config::IdentityConfig;
+use vw_config_types::security::IdentityConfig;
 use agent_identity::{AieosIdentity, normalize_aieos_identity};
 use anyhow::{Context, Result};
 use serde_json::Value;

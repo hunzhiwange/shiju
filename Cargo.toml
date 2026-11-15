@@ -267,6 +267,7 @@ members = [
   "crates/libs/agent-env",
   "crates/libs/agent-approval",
   "crates/libs/agent-identity",
+  "crates/libs/agent-identity-loader",
   "crates/libs/agent-log",
   "crates/libs/agent-paths",
   "crates/libs/agent-text",

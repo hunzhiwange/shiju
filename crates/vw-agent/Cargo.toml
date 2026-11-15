@@ -172,6 +172,7 @@ agent-env = { path = "../libs/agent-env", version = "0.6.0" }
 agent-context = { path = "../libs/agent-context", version = "0.6.0" }
 agent-text = { path = "../libs/agent-text", version = "0.6.0" }
 agent-identity = { path = "../libs/agent-identity", version = "0.6.0" }
+agent-identity-loader = { path = "../libs/agent-identity-loader", version = "0.6.0" }
 goal-engine = { path = "../libs/goal-engine", version = "0.6.0" }
 runtime-flags = { path = "../libs/runtime-flags", version = "0.6.0" }
 memory-postgres = { path = "../libs/memory-postgres", version = "0.6.0", optional = true }

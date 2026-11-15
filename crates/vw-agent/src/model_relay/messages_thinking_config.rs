@@ -3,7 +3,7 @@ use crate::provider::provider;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 pub(crate) fn supports(api: &crate::provider::provider::ApiInfo, provider: &str) -> bool {
-    use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_profile};
+    use model_reasoning::{ReasoningFormat, reasoning_profile};
     let profile = reasoning_profile(&api.id, &api.adapter, provider, &api.url);
     matches!(api.adapter.as_str(), "openai" | "openai-compatible")
         && (!profile.levels.is_empty() || matches!(profile.format, ReasoningFormat::DashScope))
@@ -14,7 +14,7 @@ pub(super) fn configure(
     input: &Value,
     model: &crate::provider::provider::Model,
 ) -> Result<(), StatusCode> {
-    use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_profile};
+    use model_reasoning::{ReasoningFormat, reasoning_profile};
     let api = &model.api;
     let profile = reasoning_profile(&api.id, &api.adapter, &model.provider_id, &api.url);
     let requested = input["thinking"]["type"].as_str();
@@ -78,7 +78,7 @@ pub(super) fn configure(
 }
 
 pub(super) fn configure_disabled(body: &mut serde_json::Value, model: &provider::Model) {
-    use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+    use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 
     // Apply an explicitly disabled mode only where the deployment can express it.
     if super::transport::official_deepseek_messages_url(&model.api).is_some() {
@@ -96,8 +96,8 @@ pub(super) fn configure_disabled(body: &mut serde_json::Value, model: &provider:
     );
     let supports_disabled = match &model.capabilities.reasoning_options {
         Some(options) => options.iter().any(|option| match option {
-            vw_shared::provider::reasoning::ReasoningOption::Toggle => true,
-            vw_shared::provider::reasoning::ReasoningOption::Effort { values } => {
+            model_reasoning::ReasoningOption::Toggle => true,
+            model_reasoning::ReasoningOption::Effort { values } => {
                 values.iter().any(|value| value == "none")
             }
             _ => false,

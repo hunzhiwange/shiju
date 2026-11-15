@@ -30,7 +30,7 @@ fn profile() -> AcpLaunchProfile {
 
 #[test]
 fn acp_model_source_opencode_variants_follow_selected_model() {
-    use vw_shared::provider::reasoning::ReasoningOption;
+    use model_reasoning::ReasoningOption;
 
     for (api_id, adapter, reasoning, declared, expected) in [
         ("gpt-5.1", "openai-compatible", true, Some(vec!["low", "high", "unknown"]), true),

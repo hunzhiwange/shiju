@@ -12,7 +12,8 @@
 pub mod models;
 /// Historical protocol module path.
 pub use model_protocols as protocols;
-pub mod reasoning;
+/// Historical reasoning module path.
+pub use model_reasoning as reasoning;
 pub mod state;
 pub mod types;
 

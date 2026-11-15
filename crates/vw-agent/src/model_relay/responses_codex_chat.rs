@@ -52,7 +52,7 @@ pub(in crate::model_relay) fn configure_codex_chat(
     model: &crate::provider::provider::Model,
     effort: Option<&str>,
 ) {
-    use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_profile};
+    use model_reasoning::{ReasoningFormat, reasoning_profile};
     let api = &model.api;
     let profile = reasoning_profile(&api.id, &api.adapter, &model.provider_id, &api.url);
     if crate::model_relay::official_deepseek_messages_url(api).is_some() {

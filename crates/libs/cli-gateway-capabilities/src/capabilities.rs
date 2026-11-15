@@ -157,7 +157,7 @@ fn config_allows_dangerous_access(config: &Value) -> bool {
 fn model_efforts(model: &vw_shared::provider::types::Model) -> Vec<ReasoningEffort> {
     let mut efforts = vec![ReasoningEffort::Auto];
     if model.capabilities.reasoning {
-        for level in vw_shared::provider::reasoning::reasoning_levels(
+        for level in model_reasoning::reasoning_levels(
             &model.api.id,
             &model.api.adapter,
             &model.provider_id,

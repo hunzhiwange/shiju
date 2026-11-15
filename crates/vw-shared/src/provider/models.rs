@@ -105,7 +105,7 @@ pub struct Model {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reasoning_options: Option<Vec<super::reasoning::ReasoningOption>>,
+    pub reasoning_options: Option<Vec<model_reasoning::ReasoningOption>>,
     #[serde(default)]
     pub temperature: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]

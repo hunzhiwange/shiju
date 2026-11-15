@@ -271,7 +271,7 @@ pub(super) fn effort_levels(model: &vw_shared::provider::types::Model) -> Vec<St
     if !model.capabilities.reasoning {
         return Vec::new();
     }
-    vw_shared::provider::reasoning::reasoning_levels(
+    model_reasoning::reasoning_levels(
         &model.api.id,
         &model.api.adapter,
         &model.provider_id,

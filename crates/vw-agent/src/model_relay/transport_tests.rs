@@ -93,7 +93,7 @@ fn chat_model(provider_id: &str, id: &str, url: &str) -> provider::Model {
 
 #[test]
 fn acp_model_source_messages_chat_matches_the_client_thinking_mode() {
-    use vw_shared::provider::reasoning::ReasoningOption;
+    use model_reasoning::ReasoningOption;
     let request = serde_json::json!({"model":"selected","messages":[]});
     for (provider, id, url, field, expected) in [
         (

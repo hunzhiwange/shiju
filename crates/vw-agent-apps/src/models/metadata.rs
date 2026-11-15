@@ -22,7 +22,8 @@ use {
     vw_api_types::model_catalog::ModelMetadataSource,
     vw_api_types::model_catalog::ModelTokenCost,
 };
-use provider_model_catalog::{Model, ReasoningOption};
+use provider_model_catalog::Model;
+use model_reasoning::ReasoningOption;
 use provider_model_cache::ModelsSnapshot;
 
 #[derive(Debug, PartialEq)]

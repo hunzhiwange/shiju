@@ -40,7 +40,7 @@ pub(crate) struct AcpLaunchProfile {
     pub(crate) model_supports_temperature: bool,
     pub(crate) model_supports_reasoning: bool,
     pub(crate) model_reasoning_options:
-        Option<Vec<vw_shared::provider::reasoning::ReasoningOption>>,
+        Option<Vec<model_reasoning::ReasoningOption>>,
     pub(crate) model_supports_tool_call: bool,
     pub(crate) state_root: Option<PathBuf>,
     pub(crate) model_api: Option<crate::provider::provider::ApiInfo>,

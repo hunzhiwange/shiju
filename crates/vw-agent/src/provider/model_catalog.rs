@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap};
 use vw_api_types::model_catalog::{
     ModelCapabilityState, ModelCatalogEntry, ModelCatalogReadResponse,
 };
-use vw_shared::provider::reasoning::ReasoningOption;
+use model_reasoning::ReasoningOption;
 use vw_shared::provider::state::{DEFAULT_MODEL_CONTEXT_LIMIT, DEFAULT_MODEL_OUTPUT_LIMIT};
 use vw_shared::provider::types::CatalogExecutionCapabilities;
 

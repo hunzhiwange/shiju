@@ -1,7 +1,7 @@
 use super::AcpLaunchProfile;
 use serde_json::json;
 use std::collections::HashMap;
-use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 
 pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     let url = reqwest::Url::parse(endpoint)?;

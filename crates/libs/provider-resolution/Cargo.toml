@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
 provider-state-cache = { path = "../provider-state-cache", version = "0.6.0" }
 provider-config-reader = { path = "../provider-config-reader", version = "0.6.0" }
 provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }

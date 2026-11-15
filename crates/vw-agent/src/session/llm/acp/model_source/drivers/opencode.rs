@@ -1,7 +1,7 @@
 use super::AcpLaunchProfile;
 use serde_json::json;
 use std::{collections::HashMap, path::Path};
-use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 
 /// OpenCode 1.19.5 merges inline configuration after project and home agents.
 /// Isolate both XDG state and its dedicated home lookup; never change the tool HOME.

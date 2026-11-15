@@ -60,10 +60,10 @@ pub(crate) fn model_reasoning_effort_options(
         {
             return options;
         }
-        let declared: Option<Vec<vw_shared::provider::reasoning::ReasoningOption>> = detail
+        let declared: Option<Vec<model_reasoning::ReasoningOption>> = detail
             .pointer("/capabilities/reasoning_options")
             .map(|value| serde_json::from_value(value.clone()).unwrap_or_default());
-        let levels = vw_shared::provider::reasoning::reasoning_levels(
+        let levels = model_reasoning::reasoning_levels(
             detail.pointer("/api/id").and_then(serde_json::Value::as_str).unwrap_or(&model.id),
             detail
                 .pointer("/api/adapter")

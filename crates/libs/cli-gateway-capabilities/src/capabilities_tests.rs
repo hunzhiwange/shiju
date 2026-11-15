@@ -39,7 +39,7 @@ fn model_efforts_follow_each_models_protocol_and_declared_options() {
         .expect("model fixture");
         assert_eq!(model_efforts(&model), expected);
         model.capabilities.reasoning_options =
-            Some(vec![vw_shared::provider::reasoning::ReasoningOption::Effort {
+            Some(vec![model_reasoning::ReasoningOption::Effort {
                 values: vec!["high".into()],
             }]);
         assert_eq!(model_efforts(&model), vec![ReasoningEffort::Auto, ReasoningEffort::High]);

@@ -1,7 +1,7 @@
 //! Validate selected effort and construct protocol-specific thinking switches.
 use aisdk::core::language_model::ReasoningEffort;
 use serde_json::{Map, Value, json};
-use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+use model_reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 use vw_shared::provider::types::Model;
 
 fn parse_effort(options: &Map<String, Value>) -> aisdk::Result<Option<ReasoningEffort>> {

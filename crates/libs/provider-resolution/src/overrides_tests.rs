@@ -259,7 +259,7 @@ async fn custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
     ] {
         let model = &state.providers["shiju"].models[id];
         assert_eq!(
-            vw_shared::provider::reasoning::reasoning_levels(
+            model_reasoning::reasoning_levels(
                 id,
                 "openai-compatible",
                 "shiju",

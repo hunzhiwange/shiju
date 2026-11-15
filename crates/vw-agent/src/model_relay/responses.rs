@@ -88,7 +88,7 @@ pub(super) fn chat_effort(
     }
     let effort = string(&reasoning, "effort")?;
     let api = &model.api;
-    let profile = vw_shared::provider::reasoning::reasoning_profile(
+    let profile = model_reasoning::reasoning_profile(
         &api.id,
         &api.adapter,
         &model.provider_id,

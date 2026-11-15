@@ -54,7 +54,7 @@ pub struct Capabilities {
     pub temperature: bool,
     pub reasoning: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reasoning_options: Option<Vec<super::reasoning::ReasoningOption>>,
+    pub reasoning_options: Option<Vec<model_reasoning::ReasoningOption>>,
     pub attachment: bool,
     pub toolcall: bool,
     /// Explicit model declaration; ordinary tool calling never implies native search.

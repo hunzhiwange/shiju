@@ -21,9 +21,11 @@ use std::time::SystemTime;
 #[path = "models_cache.rs"]
 mod native;
 
+pub use model_reasoning::ReasoningOption;
+
 pub use provider_model_catalog::{
     Model, ModelCost, ModelCostOver200k, ModelInterleaved, ModelLimit, ModelModalities,
-    ModelProviderInfo, Provider, ReasoningOption,
+    ModelProviderInfo, Provider,
 };
 #[cfg(target_arch = "wasm32")]
 use provider_model_catalog::bundled_models;

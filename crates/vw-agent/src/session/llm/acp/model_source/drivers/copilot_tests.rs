@@ -39,7 +39,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
     profile.model_supports_reasoning = reasoning;
     if declared_effort {
         profile.model_reasoning_options =
-            Some(vec![vw_shared::provider::reasoning::ReasoningOption::Effort {
+            Some(vec![model_reasoning::ReasoningOption::Effort {
                 values: ["low", "high", "none", "unsupported", "high"].map(str::to_owned).to_vec(),
             }]);
     }

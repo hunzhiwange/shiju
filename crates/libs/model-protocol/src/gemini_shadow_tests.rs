@@ -1,5 +1,5 @@
 use super::gemini_shadow::*;
-use crate::{app_routing::reference_scope::ReferenceScope, model_relay::RelayIdentity};
+use model_relay_state::{ReferenceScope, RelayIdentity};
 use serde_json::json;
 
 fn context() -> Context {

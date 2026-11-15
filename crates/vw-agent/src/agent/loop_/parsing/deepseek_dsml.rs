@@ -12,11 +12,7 @@ static PARAMETER_CLOSE_RE: LazyLock<Regex> =
 static ATTRIBUTE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"\s+([a-z_]+)\s*=\s*(?:"([^"]*)"|'([^']*)')"#).unwrap());
 
-pub(crate) fn contains_deepseek_dsml_markup(response: &str) -> bool {
-    static MARKER_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)</?[｜|]+DSML[｜|]+").unwrap());
-    MARKER_RE.is_match(response)
-}
+pub(crate) use model_protocol::dsml::contains_deepseek_dsml_markup;
 
 struct Tag<'a> {
     closing: bool,

@@ -123,8 +123,6 @@ pub(crate) mod messages_responses_stream;
 mod messages_responses_stream_tests;
 
 pub(crate) mod gemini_shadow;
-#[cfg(test)]
-mod gemini_shadow_tests;
 
 pub(crate) mod hosted_search;
 #[cfg(test)]
@@ -166,8 +164,6 @@ mod reasoning_bridge_tests;
 mod inline_think;
 
 pub(crate) mod late_arguments;
-#[cfg(test)]
-mod late_arguments_tests;
 
 pub(crate) mod xai_responses;
 #[cfg(test)]
@@ -202,15 +198,11 @@ mod compaction_v2_tests;
 pub(crate) mod models;
 
 pub(crate) mod gemini_metadata;
-#[cfg(test)]
-mod gemini_metadata_tests;
 
 pub(crate) mod alpha_search;
 
 pub(crate) mod image_generation;
 
 pub(crate) mod image_edit;
-#[cfg(test)]
-mod image_edit_tests;
 
 pub(crate) mod forced_sse;

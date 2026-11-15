@@ -14,7 +14,7 @@ pub(super) fn replay_compaction(item: &Value) -> Result<Option<Value>, StatusCod
 }
 
 /// Codex sends these response-only hints even with a third-party provider.
-pub(in crate::model_relay) fn codex_chat_effort(
+pub fn codex_chat_effort(
     body: &mut Value,
 ) -> Result<Option<String>, StatusCode> {
     let object = body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?;
@@ -47,15 +47,15 @@ pub(in crate::model_relay) fn codex_chat_effort(
     }
 }
 
-pub(in crate::model_relay) fn configure_codex_chat(
+pub fn configure_codex_chat(
     body: &mut Value,
-    model: &crate::provider::provider::Model,
+    model: &model_types::Model,
     effort: Option<&str>,
 ) {
     use model_reasoning::{ReasoningFormat, reasoning_profile};
     let api = &model.api;
     let profile = reasoning_profile(&api.id, &api.adapter, &model.provider_id, &api.url);
-    if crate::model_relay::official_deepseek_messages_url(api).is_some() {
+    if crate::endpoint_urls::official_deepseek_messages_url(api).is_some() {
         // DeepSeek Chat enables thinking by default. Opt out for non-reasoning models.
         let enabled = model.capabilities.reasoning && effort != Some("none");
         body["thinking"] = json!({"type":if enabled {"enabled"} else {"disabled"}});

@@ -214,6 +214,7 @@ members = [
   "crates/libs/model-reasoning",
   "crates/libs/acp-cli-app",
   "crates/libs/model-protocols",
+  "crates/libs/model-protocol",
   "crates/libs/session-paths",
   "crates/libs/session-info",
   "crates/libs/api-worktree",

@@ -14,7 +14,7 @@ struct Tool {
 }
 
 #[derive(Default, PartialEq, Eq, Debug)]
-pub(in crate::model_relay) struct ChatTools(HashMap<String, Tool>);
+pub struct ChatTools(HashMap<String, Tool>);
 
 fn namespace(value: &Value) -> Result<Option<&str>, StatusCode> {
     value
@@ -39,7 +39,7 @@ fn chat_name(name: &str, namespace: Option<&str>) -> String {
 }
 
 impl ChatTools {
-    pub(super) fn definitions(&mut self, tools: &Value) -> Result<Value, StatusCode> {
+    pub fn definitions(&mut self, tools: &Value) -> Result<Value, StatusCode> {
         let mut chat = Vec::new();
         for tool in tools.as_array().ok_or(StatusCode::BAD_REQUEST)? {
             if tool["type"] == "namespace" {
@@ -110,13 +110,13 @@ impl ChatTools {
         Ok(json!({"type":"function","function":function}))
     }
 
-    pub(in crate::model_relay) fn mark_search(&mut self) {
+    pub fn mark_search(&mut self) {
         if let Some(tool) = self.0.get_mut("tool_search") {
             tool.search = true;
         }
     }
 
-    pub(super) fn choice(&self, choice: &Value) -> Result<Value, StatusCode> {
+    pub fn choice(&self, choice: &Value) -> Result<Value, StatusCode> {
         super::object_keys(choice, &["type", "name", "namespace"])?;
         let name = string(choice, "name")?;
         let namespace = namespace(choice)?;
@@ -129,7 +129,7 @@ impl ChatTools {
         Ok(json!({"type":"function","function":{"name":wire}}))
     }
 
-    pub(in crate::model_relay) fn replay(&self, item: &Value) -> Result<Value, StatusCode> {
+    pub fn replay(&self, item: &Value) -> Result<Value, StatusCode> {
         let custom = item["type"] == "custom_tool_call";
         let arguments = if custom {
             super::object_keys(
@@ -158,7 +158,7 @@ impl ChatTools {
             "function":{"name":wire,"arguments":arguments}}))
     }
 
-    pub(super) fn output(
+    pub fn output(
         &self,
         block: &Value,
         call: &Value,

@@ -1,0 +1,175 @@
+//! Protocol and authentication primitives for one explicitly selected generation target.
+
+use axum::http::{StatusCode, header};
+use reqwest::Url;
+use vw_agent_apps::providers::validation;
+use provider_model_discovery::is_real_bearer;
+
+use super::endpoint_urls::{
+    chat_url, gemini_url, messages_url, official_alibaba_messages_url,
+    official_deepseek_messages_url, responses_url,
+};
+use model_types::ApiInfo;
+
+pub use model_protocols::ModelProtocol as GenerationProtocol;
+
+/// Transport operations for the shared protocol identity.
+pub trait GenerationTransport {
+    fn url(self, endpoint: &str, model: &str, full_url: bool) -> Result<Url, StatusCode>;
+    fn headers(self, credential: &str, messages_bearer: bool) -> Option<header::HeaderMap>;
+}
+
+impl GenerationTransport for GenerationProtocol {
+    fn url(self, endpoint: &str, model: &str, full_url: bool) -> Result<Url, StatusCode> {
+        let invalid = StatusCode::UNPROCESSABLE_ENTITY;
+        validation::endpoint(endpoint).map_err(|_| invalid)?;
+        if full_url && self != Self::Gemini {
+            return Url::parse(endpoint).map_err(|_| invalid);
+        }
+        let api = ApiInfo {
+            protocols: None,
+            url: endpoint.to_owned(),
+            id: model.to_owned(),
+            adapter: "openai-compatible".into(),
+        };
+        let url = match self {
+            Self::Chat => chat_url(&api),
+            Self::Messages => match official_deepseek_messages_url(&api)
+                .or_else(|| official_alibaba_messages_url(&api))
+            {
+                Some(url) => Ok(url),
+                None => messages_url(&api),
+            },
+            Self::Responses => responses_url(&api),
+            Self::Gemini => gemini_url(&api, false),
+        }?;
+        if full_url && Url::parse(endpoint).ok().as_ref() != Some(&url) {
+            return Err(invalid);
+        }
+        Ok(url)
+    }
+
+    fn headers(self, credential: &str, messages_bearer: bool) -> Option<header::HeaderMap> {
+        if !is_real_bearer(credential) {
+            return None;
+        }
+        let credential = credential.trim();
+        let (name, value) = match self {
+            Self::Messages if !messages_bearer => (
+                header::HeaderName::from_static("x-api-key"),
+                header::HeaderValue::from_str(credential),
+            ),
+            Self::Gemini => (
+                header::HeaderName::from_static("x-goog-api-key"),
+                header::HeaderValue::from_str(credential),
+            ),
+            _ => (
+                header::AUTHORIZATION,
+                header::HeaderValue::from_str(&format!("Bearer {credential}")),
+            ),
+        };
+        let mut value = value.ok()?;
+        value.set_sensitive(true);
+        let mut headers = header::HeaderMap::new();
+        headers.insert(name, value);
+        if self == Self::Messages {
+            headers.insert("anthropic-version", header::HeaderValue::from_static("2023-06-01"));
+        }
+        Some(headers)
+    }
+}
+
+/// Authentication belongs to the selected endpoint, never to a source protocol.
+pub fn endpoint_headers(
+    endpoint: &model_protocols::ProtocolEndpoint,
+    credential: &str,
+) -> Result<header::HeaderMap, StatusCode> {
+    use model_protocols::ProtocolAuthentication as A;
+    let mut headers = header::HeaderMap::new();
+    let invalid = StatusCode::UNPROCESSABLE_ENTITY;
+    let pair = match &endpoint.authentication {
+        A::None {} => None,
+        A::Bearer {} | A::OAuthBearer {} => {
+            Some((header::AUTHORIZATION, format!("Bearer {credential}")))
+        }
+        A::ApiKeyHeader { name }
+            if matches!(
+                name.to_ascii_lowercase().as_str(),
+                "x-api-key" | "x-goog-api-key" | "api-key"
+            ) =>
+        {
+            Some((
+                header::HeaderName::from_bytes(name.as_bytes()).map_err(|_| invalid)?,
+                credential.to_owned(),
+            ))
+        }
+        _ => return Err(invalid),
+    };
+    if let Some((name, value)) = pair {
+        if !is_real_bearer(credential) {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+        let mut value =
+            header::HeaderValue::from_str(&value).map_err(|_| StatusCode::UNAUTHORIZED)?;
+        value.set_sensitive(true);
+        headers.insert(name, value);
+    }
+    if endpoint.protocol == GenerationProtocol::Messages {
+        headers.insert("anthropic-version", header::HeaderValue::from_static("2023-06-01"));
+    }
+    Ok(headers)
+}
+
+/// Convert a bounded text-only probe through the production relay converters.
+/// Callers still select and authorize the exact upstream before dispatch.
+pub fn text_probe_request(
+    source: GenerationProtocol,
+    target: GenerationProtocol,
+    input: &serde_json::Value,
+) -> Result<serde_json::Value, StatusCode> {
+    if source == target {
+        return Ok(input.clone());
+    }
+    let chat = match source {
+        GenerationProtocol::Messages => super::messages::to_chat(input)?,
+        GenerationProtocol::Responses => super::responses::to_chat(input, false)?.0,
+        GenerationProtocol::Gemini => super::gemini::to_chat(input)?,
+        GenerationProtocol::Chat => input.clone(),
+    };
+    if target == GenerationProtocol::Chat {
+        Ok(chat)
+    } else {
+        super::protocol_bridge::request(target, &chat)
+    }
+}
+
+/// Validate the converted client response as well as the upstream response.
+pub fn text_probe_response(
+    source: GenerationProtocol,
+    target: GenerationProtocol,
+    body: &serde_json::Value,
+    model: &str,
+) -> Result<serde_json::Value, StatusCode> {
+    if source == target {
+        return Ok(body.clone());
+    }
+    let decoded;
+    let body = if target == GenerationProtocol::Chat {
+        body
+    } else {
+        decoded = super::protocol_bridge::response(target, body)?;
+        &decoded
+    };
+    match source {
+        GenerationProtocol::Messages => super::messages::from_chat(body, model),
+        GenerationProtocol::Responses => super::responses::from_chat(
+            body,
+            model,
+            "diagnostic",
+            &super::responses::ChatTools::default(),
+            false,
+        ),
+        GenerationProtocol::Gemini => super::gemini::from_chat(body, model),
+        GenerationProtocol::Chat => Ok(body.clone()),
+    }
+}

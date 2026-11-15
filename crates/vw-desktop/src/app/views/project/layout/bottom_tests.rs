@@ -1,7 +1,4 @@
-//! 项目底部区域的测试，验证终端显隐及高度扣减和下界钳制。
-//! 这些用例保证极端高度不会生成负尺寸，并保持布局可以正常构建。
 use crate::app::{App, Message};
-
 fn test_app() -> App {
     let (app, _task) = App::new();
     app
@@ -9,13 +6,6 @@ fn test_app() -> App {
 
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
-}
-
-#[test]
-fn test_module_is_wired() {
-    let module = std::hint::black_box(module_path!());
-
-    assert!(module.ends_with("bottom_tests"));
 }
 
 #[test]
@@ -72,30 +62,6 @@ fn bottom_panel_builds_terminal_at_large_height() {
     keep_element(super::bottom_panel(&app));
 }
 
-#[test]
-fn terminal_content_height_subtracts_resize_handle() {
-    assert_eq!(super::terminal_content_height(240.0, 8.0), 232.0);
-}
-
-#[test]
-fn terminal_content_height_never_goes_negative() {
-    assert_eq!(super::terminal_content_height(4.0, 8.0), 0.0);
-    assert_eq!(super::terminal_content_height(-4.0, 8.0), 0.0);
-    assert_eq!(super::terminal_content_height(10.0, -8.0), 10.0);
-    assert_eq!(super::terminal_content_height(-10.0, -8.0), 0.0);
-}
-
-#[test]
-fn terminal_content_height_zero_when_both_zero() {
-    assert_eq!(super::terminal_content_height(0.0, 0.0), 0.0);
-}
-
-#[test]
-fn terminal_content_height_zero_when_terminal_equals_handle() {
-    assert_eq!(super::terminal_content_height(8.0, 8.0), 0.0);
-}
-
-// Exercise the production mouse_area tree, including its real layout and message wiring.
 async fn terminal_resize_probe(
     y: f32,
 ) -> (Vec<Message>, iced::mouse::Interaction, Vec<iced::Rectangle>) {

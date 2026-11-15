@@ -36,7 +36,8 @@ use main::main_area;
 use sidebar::{hover_overlay_layout, sidebar_group};
 pub use work::build_work_layout;
 
-const WORKSPACE_BOTTOM_GAP: f32 = 6.0;
+#[cfg(test)]
+const WORKSPACE_BOTTOM_GAP: f32 = desktop_workspace::views::project::layout::WORKSPACE_BOTTOM_GAP;
 
 /// 构建对应界面片段。
 ///
@@ -109,21 +110,11 @@ pub fn build_base_layout(
         )
     };
 
-    if app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible {
-        workspace
-    } else {
-        column![
-            iced::widget::container(workspace)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .padding(iced::Padding::default().bottom(WORKSPACE_BOTTOM_GAP)),
-            bottom_panel(app)
-        ]
-        .spacing(0)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-    }
+    desktop_workspace::views::project::layout::build_base_layout(
+        workspace,
+        if app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible { Space::new().into() } else { bottom_panel(app) },
+        app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible,
+    )
 }
 
 /// 构建拖拽交互界面。

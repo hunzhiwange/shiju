@@ -1,9 +1,14 @@
 pub mod views {
     pub mod project {
+        pub mod handles;
+        pub mod layout;
+        pub mod row_styles;
         pub mod utils;
         pub mod badge_styles;
         pub mod composition;
         pub mod components {
+            pub mod session_row;
+            pub mod sessions_panel;
             pub mod new_session;
             pub mod projects_list;
         }

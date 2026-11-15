@@ -1,5 +1,5 @@
 use iced::{Background, Color, Theme};
-use iced::border::Border;
+use iced::border::{Border, Radius};
 use iced::widget::container::Style as ContainerStyle;
 fn blend_color(from: Color, to: Color, amount: f32) -> Color {
     let amount = amount.clamp(0.0, 1.0);
@@ -99,6 +99,12 @@ pub fn project_item_button_style(
         } else {
             iced::Shadow::default()
         },
+        ..Default::default()
+    }
+}
+pub fn panel_style_no_border(_theme: &Theme) -> ContainerStyle {
+    ContainerStyle {
+        border: Border { color: Color::TRANSPARENT, width: 0.0, radius: Radius::from(0.0) },
         ..Default::default()
     }
 }

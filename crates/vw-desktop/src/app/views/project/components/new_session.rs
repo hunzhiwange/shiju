@@ -17,7 +17,7 @@ fn input(app: &App) -> domain::Input {
  desktop_locale: app.desktop_locale.clone(),
  }
 }
-fn map(message: domain::Message) -> Message {
+pub(super) fn map(message: domain::Message) -> Message {
  use crate::app::message::ProjectMessage;
  match message {
  domain::Message::None => Message::None,
@@ -37,3 +37,5 @@ fn map(message: domain::Message) -> Message {
 }
 pub fn new_session_button<'a>(app: &App, path: String) -> iced::Element<'a, Message> { domain::new_session_button(&domain::Input { new_session_picker_project: app.new_session_picker_project.clone(), new_session_creating: app.new_session_creating, desktop_locale: app.desktop_locale, ..Default::default() }, path).map(map) }
 pub fn new_session_picker_layer<'a>(app: &App) -> iced::Element<'a, Message> { domain::new_session_picker_layer(&if app.new_session_picker_project.is_some() { input(app) } else { domain::Input::default() }).map(map) }
+
+pub(super) fn button_input(app: &App) -> domain::Input { domain::Input { new_session_picker_project: app.new_session_picker_project.clone(), new_session_creating: app.new_session_creating, desktop_locale: app.desktop_locale, ..Default::default() } }

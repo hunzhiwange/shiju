@@ -49,7 +49,11 @@ gateway-project-profile = { path = "../gateway-project-profile", version = "0.6.
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 tokio = { version = "1", features = ["time"] }
 
+chrono = "0.4"
+session-text = { path = "../session-text", version = "0.6.0" }
+
 [dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

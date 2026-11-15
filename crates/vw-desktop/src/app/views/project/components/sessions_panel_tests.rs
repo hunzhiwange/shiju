@@ -1,36 +1,15 @@
-//! 项目会话面板的测试，覆盖会话树、队列项、菜单按钮及主题样式。
-//! 测试数据刻意包含父子会话和归档状态，用于验证筛选与交互边界。
-use super::super::session_row::{
-    queued_status_color, running_status_color, session_row_button_style,
-};
 use super::*;
-use crate::app::state::{
-    AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QueueItem, SessionRuntimeState,
-};
-use iced::widget::{button, svg};
+use std::collections::HashSet;
+use iced::{Element, Point};
 use session_info::{Info, Summary, TimeInfo};
-
+use crate::app::state::{AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QueueItem, SessionRuntimeState};
+use domain::session_tree_projection;
 fn test_app() -> crate::app::App {
     crate::app::App::new().0
 }
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
-}
-
-fn color_from_background(background: Option<Background>) -> Color {
-    match background {
-        Some(Background::Color(color)) => color,
-        _ => panic!("expected color background"),
-    }
-}
-
-fn assert_color_near(actual: Color, expected: Color) {
-    let epsilon = 0.001;
-    assert!((actual.r - expected.r).abs() < epsilon, "red mismatch: {actual:?}");
-    assert!((actual.g - expected.g).abs() < epsilon, "green mismatch: {actual:?}");
-    assert!((actual.b - expected.b).abs() < epsilon, "blue mismatch: {actual:?}");
-    assert!((actual.a - expected.a).abs() < epsilon, "alpha mismatch: {actual:?}");
 }
 
 fn session(id: &str, title: &str, directory: &str, archived: bool) -> Info {
@@ -61,39 +40,6 @@ fn child_session(id: &str, parent_id: &str, updated: u64) -> Info {
     info.parent_id = Some(parent_id.to_string());
     info.time.updated = updated;
     info
-}
-
-#[test]
-fn pinned_thread_precedes_newer_thread_in_project_panel() {
-    let mut older = session("older", "Older", "/tmp/project", false);
-    older.time.updated = 10;
-    let mut newer = session("newer", "Newer", "/tmp/project", false);
-    newer.time.updated = 20;
-    let pinned = HashSet::from([(older.project_id.clone(), older.id.clone())]);
-    assert!(compare_session_recency(&&older, &&newer, &pinned).is_lt());
-    assert!(compare_session_recency(&&older, &&newer, &HashSet::new()).is_gt());
-}
-
-#[test]
-fn session_tree_shows_visible_task_but_hides_internal_children() {
-    let root = session("root", "Root", "/tmp/project", false);
-    let mut visible = child_session("visible", "root", 5);
-    visible.slug = Info::visible_task_slug("visible");
-    let ordinary_child = child_session("ordinary-child", "root", 4);
-    let mut plan_run = child_session("plan-run", "root", 3);
-    plan_run.slug = Info::plan_run_slug("plan-run");
-    let mut archived_visible = visible.clone();
-    archived_visible.id = "archived-visible".to_string();
-    archived_visible.time.archived = Some(6);
-
-    let sessions = [root, visible, ordinary_child, plan_run, archived_visible];
-    let projection = session_tree_projection(&sessions, 10, &HashSet::new());
-
-    assert_eq!(projection.total_roots, 2);
-    assert_eq!(
-        projection.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
-        vec!["visible", "root"]
-    );
 }
 
 fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
@@ -150,214 +96,6 @@ fn queue_item(query: &str) -> QueueItem {
 }
 
 #[test]
-fn test_module_is_wired() {
-    let module = std::hint::black_box(module_path!());
-
-    assert!(module.ends_with("sessions_panel_tests"));
-}
-
-#[test]
-fn button_styles_cover_light_and_dark_states() {
-    for theme in [Theme::Light, Theme::Dark] {
-        for status in [
-            button::Status::Active,
-            button::Status::Hovered,
-            button::Status::Pressed,
-            button::Status::Disabled,
-        ] {
-            assert!(icon_action_button_style(&theme, status).background.is_some());
-            assert!(outline_panel_button_style(&theme, false, status).background.is_some());
-            assert!(outline_panel_button_style(&theme, true, status).background.is_some());
-            assert!(session_row_button_style(&theme, false, status).background.is_some());
-            assert!(session_row_button_style(&theme, true, status).background.is_some());
-        }
-    }
-}
-
-#[test]
-fn menu_button_style_tracks_hover_pressed_and_theme_variants() {
-    let active = session_menu_button_style(&Theme::Light, button::Status::Active);
-    let hovered = session_menu_button_style(&Theme::Light, button::Status::Hovered);
-    let pressed_dark = session_menu_button_style(&Theme::Dark, button::Status::Pressed);
-
-    assert_eq!(color_from_background(active.background), Color::TRANSPARENT);
-    assert_eq!(hovered.border.width, 1.0);
-    assert_ne!(color_from_background(hovered.background), Color::TRANSPARENT);
-    assert_ne!(color_from_background(pressed_dark.background), Color::TRANSPARENT);
-    assert_eq!(pressed_dark.text_color, Theme::Dark.palette().text);
-}
-
-#[test]
-fn menu_button_style_covers_dark_hover_and_light_press() {
-    let hovered_dark = session_menu_button_style(&Theme::Dark, button::Status::Hovered);
-    let pressed_light = session_menu_button_style(&Theme::Light, button::Status::Pressed);
-
-    assert_eq!(hovered_dark.border.width, 1.0);
-    assert_ne!(color_from_background(hovered_dark.background), Color::TRANSPARENT);
-    assert_eq!(pressed_light.border.width, 0.0);
-    assert_ne!(color_from_background(pressed_light.background), Color::TRANSPARENT);
-}
-
-#[test]
-fn menu_separator_and_panel_styles_use_visible_surfaces() {
-    let separator = menu_separator_style(&Theme::Light);
-    let panel = floating_menu_panel_style(&Theme::Dark);
-
-    assert!(separator.background.is_some());
-    assert!(panel.background.is_some());
-    assert_eq!(panel.border.radius.top_left, 16.0);
-}
-
-#[test]
-fn status_styles_keep_expected_colors_and_alpha() {
-    let running = running_status_color(0.0);
-    let queued = queued_status_color(1.0);
-
-    assert_color_near(running, Color::from_rgb8(245, 158, 11));
-    assert_ne!(queued, Color::from_rgb8(239, 68, 68));
-    assert_color_near(running_status_color(1.0), Color::from_rgb8(239, 68, 68));
-    assert_color_near(queued_status_color(0.0), Color::from_rgb8(245, 158, 11));
-}
-
-#[test]
-fn task_pool_and_load_more_styles_adjust_base_styles() {
-    let task_pool = task_pool_button_style(&Theme::Light, button::Status::Hovered);
-    let load_more = load_more_button_style(&Theme::Dark, button::Status::Pressed);
-    let icon = task_pool_icon_style(&Theme::Dark, svg::Status::Idle);
-
-    assert_eq!(task_pool.border.radius.top_left, 14.0);
-    assert_eq!(load_more.border.width, 0.0);
-    assert_eq!(load_more.border.color, Color::TRANSPARENT);
-    assert_eq!(icon.color, Some(Theme::Dark.palette().text));
-}
-
-#[test]
-fn panel_title_prefers_non_blank_recent_edit_name() {
-    let projects = vec!["/tmp/a".to_string(), "/tmp/b".to_string()];
-    let edits = vec!["Alpha".to_string(), "   ".to_string()];
-
-    assert_eq!(project_panel_title("/tmp/a", &projects, &edits), "Alpha");
-    assert_eq!(project_panel_title("/tmp/b", &projects, &edits), "/tmp/b");
-    assert_eq!(
-        project_panel_title("/tmp/missing-edit", &["/tmp/missing-edit".to_string()], &[]),
-        "/tmp/missing-edit"
-    );
-    assert_eq!(project_panel_title("/tmp/c", &projects, &edits), "/tmp/c");
-}
-
-#[test]
-fn menu_builders_return_elements() {
-    keep_element(session_menu_button(
-        "重命名",
-        Message::Project(message::ProjectMessage::SessionRenamePressed("s1".to_string())),
-    ));
-    keep_element(build_session_menu(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "s1".to_string(),
-        "/tmp/project".to_string(),
-        false,
-    ));
-    keep_element(build_project_tools_menu(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "/tmp/project".to_string(),
-    ));
-}
-
-#[test]
-fn project_session_menu_exposes_compact_target_session_action() {
-    assert!(matches!(
-        session_compact_message("s1", "/tmp/project"),
-        Message::Chat(message::ChatMessage::CompactSessionRequested {
-            session_id,
-            project_path,
-        }) if session_id == "s1" && project_path == "/tmp/project"
-    ));
-}
-
-#[test]
-fn header_builds_clickable_and_static_variants() {
-    keep_element(project_sessions_header(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "项目".to_string(),
-        "/tmp/project".to_string(),
-        true,
-        true,
-    ));
-    keep_element(project_sessions_header(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "项目".to_string(),
-        "/tmp/project".to_string(),
-        false,
-        false,
-    ));
-}
-
-#[tokio::test]
-async fn long_project_header_renders_one_line_per_label_and_shows_right_tooltips() {
-    use iced::advanced::{
-        Layout, Renderer as _, Shell, clipboard, layout, mouse, renderer, text::LineHeight,
-        widget::Tree,
-    };
-    use iced::{Event, Font, Pixels, Rectangle, Renderer, Size, Vector};
-    use renderer::Headless;
-
-    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia")).await.unwrap();
-    let i18n = crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
-    let window = Size::new(640.0, 240.0);
-    let viewport = Rectangle::with_size(window);
-    let limits = layout::Limits::new(Size::ZERO, Size::new(180.0, window.height));
-    let mut header = project_sessions_header(
-        i18n,
-        "中文长项目名称 create-task-plan-skills".to_owned(),
-        "/Users/项目/very-long-directory/with/a/long/project/path".to_owned(),
-        false,
-        false,
-    );
-    let mut tree = Tree::new(header.as_widget());
-    let node = header.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let layout = Layout::new(&node);
-    let mut header_rows = layout.children();
-    let title = header_rows.next().unwrap().children().next().unwrap().bounds();
-    let path = header_rows.next().unwrap().bounds();
-
-    for (label, size, theme) in [(title, 16.0, Theme::Light), (path, 11.0, Theme::Dark)] {
-        let line_height = LineHeight::default().to_absolute(Pixels(size));
-        assert_eq!(label.height, f32::from(line_height));
-
-        renderer.reset(viewport);
-        let point = label.center();
-        let cursor = mouse::Cursor::Available(point);
-        header.as_widget_mut().update(
-            &mut tree,
-            &Event::Mouse(mouse::Event::CursorMoved { position: point }),
-            layout,
-            cursor,
-            &renderer,
-            &mut clipboard::Null,
-            &mut Shell::new(&mut Vec::new()),
-            &viewport,
-        );
-        let style = renderer::Style { text_color: theme.palette().text };
-        header.as_widget().draw(&tree, &mut renderer, &theme, &style, layout, cursor, &viewport);
-        let mut overlay = header
-            .as_widget_mut()
-            .overlay(&mut tree, layout, &renderer, &viewport, Vector::ZERO)
-            .expect("hover should show the full project label");
-        let overlay_node = overlay.as_overlay_mut().layout(&renderer, window);
-        overlay.as_overlay().draw(
-            &mut renderer,
-            &theme,
-            &style,
-            Layout::new(&overlay_node),
-            cursor,
-        );
-        let pixels = renderer.screenshot(Size::new(640, 240), 1.0, theme.palette().background);
-        let tooltip_pixel = (point.y as usize * 640 + 220) * 4;
-        assert_ne!(&pixels[tooltip_pixel..tooltip_pixel + 4], &pixels[..4]);
-    }
-}
-
-#[test]
 fn session_items_build_loading_empty_and_load_button_states() {
     let app = test_app();
     keep_element(session_items_list(&app, "/tmp/project", None, "Project", 10, false));
@@ -401,31 +139,108 @@ fn session_tree_projects_only_main_tasks_regardless_of_expansion() {
 }
 
 #[test]
-fn session_tree_hides_every_child_even_when_parent_is_missing_or_cyclic() {
-    let mut ordinary = session("ordinary", "Ordinary", "/tmp/project", false);
-    ordinary.time.updated = 50;
-    let mut duplicate = ordinary.clone();
-    duplicate.title = "Duplicate".to_string();
+fn session_items_filters_archived_and_shows_load_more() {
+    let app = test_app();
+    let sessions = vec![
+        session("s1", "可见会话一", "/tmp/project", false),
+        session("s2", "已归档会话", "/tmp/project", true),
+        session("s3", "可见会话二", "/tmp/project/worktree-a", false),
+    ];
 
-    let mut plan_run = session("plan-run", "Plan run", "/tmp/project", false);
-    plan_run.slug = Info::plan_run_slug(&plan_run.slug);
-    plan_run.time.updated = 60;
-    let hidden_descendant = child_session("hidden-descendant", "plan-run", 55);
-
-    let orphan = child_session("orphan", "missing-parent", 40);
-    let cycle_a = child_session("cycle-a", "cycle-b", 30);
-    let cycle_b = child_session("cycle-b", "cycle-a", 20);
-    let archived = session("archived", "Archived", "/tmp/project", true);
-    let sessions =
-        vec![plan_run, hidden_descendant, duplicate, archived, cycle_b, orphan, ordinary, cycle_a];
-    let projection = session_tree_projection(&sessions, 10, &HashSet::new());
-    assert_eq!(
-        projection.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
-        vec!["ordinary"]
-    );
-    assert_eq!(projection.total_roots, 1);
+    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 1, false));
+    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 0, false));
 }
 
+#[test]
+fn session_items_reports_empty_when_only_archived_sessions_exist() {
+    let app = test_app();
+    let sessions = vec![
+        session("s1", "归档一", "/tmp/project", true),
+        session("s2", "归档二", "/tmp/project/worktree-a", true),
+    ];
+
+    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
+}
+
+#[test]
+fn session_items_builds_runtime_status_variants() {
+    let mut app = test_app();
+    app.active_session_id = Some("running".to_string());
+    app.session_menu_id = Some("queued".to_string());
+    app.session_menu_anchor = Some(Point::new(4.0, 6.0));
+
+    let mut running = SessionRuntimeState::default();
+    running.request_lifecycle.is_requesting = true;
+    app.session_runtime_states.insert("running".to_string(), running);
+
+    let mut queued = SessionRuntimeState::default();
+    queued.request_lifecycle.queue.push(queue_item("继续"));
+    app.session_runtime_states.insert("queued".to_string(), queued);
+
+    let mut unseen = SessionRuntimeState::default();
+    unseen.has_unseen_success = true;
+    app.session_runtime_states.insert("unseen".to_string(), unseen);
+
+    let sessions = vec![
+        session("running", "运行中会话", "/tmp/project", false),
+        session("queued", "排队会话", "/tmp/project/worktree-b", false),
+        session("unseen", "未读成功会话", "/tmp/project", false),
+        session("idle", "空闲会话", "", false),
+    ];
+
+    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
+}
+
+#[test]
+fn session_items_builds_missing_summary_menu_default_anchor_and_no_load_more() {
+    let mut app = test_app();
+    app.session_menu_id = Some("summaryless".to_string());
+    app.session_menu_anchor = None;
+
+    let mut summaryless = session("summaryless", "没有摘要的会话", "/", false);
+    summaryless.summary = None;
+    let sessions =
+        vec![summaryless, session("normal", "普通会话", "/tmp/project/worktree-d", false)];
+
+    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
+}
+
+#[test]
+fn project_panel_builds_empty_and_selected_project_states() {
+    let mut app = test_app();
+    keep_element(project_sessions_panel(&app, None));
+
+    app.recent_projects.push("/tmp/project".to_string());
+    keep_element(project_sessions_panel(&app, None));
+
+    app.recent_projects_edits.push("自定义项目名".to_string());
+    app.project_tools_menu_path = Some("/tmp/project".to_string());
+    app.project_session_has_vertical_scrollbar.insert("/tmp/project".to_string(), true);
+    app.project_session_load_counts.insert("/tmp/project".to_string(), 1);
+    app.project_sessions.insert(
+        "/tmp/project".to_string(),
+        vec![
+            session("s1", "第一条会话", "/tmp/project", false),
+            session("s2", "第二条会话", "/tmp/project/worktree-c", false),
+        ],
+    );
+
+    keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
+
+    app.project_sessions_loading.insert("/tmp/loading".to_string());
+    keep_element(project_sessions_panel(&app, Some("/tmp/loading".to_string())));
+}
+
+#[test]
+fn project_panel_uses_path_fallback_for_unknown_or_blank_recent_names() {
+    let mut app = test_app();
+    app.recent_projects = vec!["/tmp/project".to_string()];
+    app.recent_projects_edits = vec!["   ".to_string()];
+    app.project_path = Some("/tmp/project".to_string());
+
+    keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
+    keep_element(project_sessions_panel(&app, Some("/tmp/unknown-project".to_string())));
+}
 #[test]
 fn plan_run_live_children_integrate_with_session_visibility() {
     const REQUEST_ID: u64 = 42;
@@ -573,128 +388,4 @@ fn plan_run_live_children_integrate_with_session_visibility() {
         assert!(!app.get_session_runtime(session_id).request_lifecycle.is_requesting);
     }
     assert!(app.get_session_runtime(MAIN_ID).request_lifecycle.active_agent_request.is_some());
-}
-
-#[test]
-fn session_items_filters_archived_and_shows_load_more() {
-    let app = test_app();
-    let sessions = vec![
-        session("s1", "可见会话一", "/tmp/project", false),
-        session("s2", "已归档会话", "/tmp/project", true),
-        session("s3", "可见会话二", "/tmp/project/worktree-a", false),
-    ];
-
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 1, false));
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 0, false));
-}
-
-#[test]
-fn session_items_reports_empty_when_only_archived_sessions_exist() {
-    let app = test_app();
-    let sessions = vec![
-        session("s1", "归档一", "/tmp/project", true),
-        session("s2", "归档二", "/tmp/project/worktree-a", true),
-    ];
-
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
-}
-
-#[test]
-fn session_items_builds_runtime_status_variants() {
-    let mut app = test_app();
-    app.active_session_id = Some("running".to_string());
-    app.session_menu_id = Some("queued".to_string());
-    app.session_menu_anchor = Some(Point::new(4.0, 6.0));
-
-    let mut running = SessionRuntimeState::default();
-    running.request_lifecycle.is_requesting = true;
-    app.session_runtime_states.insert("running".to_string(), running);
-
-    let mut queued = SessionRuntimeState::default();
-    queued.request_lifecycle.queue.push(queue_item("继续"));
-    app.session_runtime_states.insert("queued".to_string(), queued);
-
-    let mut unseen = SessionRuntimeState::default();
-    unseen.has_unseen_success = true;
-    app.session_runtime_states.insert("unseen".to_string(), unseen);
-
-    let sessions = vec![
-        session("running", "运行中会话", "/tmp/project", false),
-        session("queued", "排队会话", "/tmp/project/worktree-b", false),
-        session("unseen", "未读成功会话", "/tmp/project", false),
-        session("idle", "空闲会话", "", false),
-    ];
-
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
-}
-
-#[test]
-fn session_items_builds_missing_summary_menu_default_anchor_and_no_load_more() {
-    let mut app = test_app();
-    app.session_menu_id = Some("summaryless".to_string());
-    app.session_menu_anchor = None;
-
-    let mut summaryless = session("summaryless", "没有摘要的会话", "/", false);
-    summaryless.summary = None;
-    let sessions =
-        vec![summaryless, session("normal", "普通会话", "/tmp/project/worktree-d", false)];
-
-    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), "Project", 10, false));
-}
-
-#[test]
-fn standalone_panel_fragments_build_inactive_and_pressed_variants() {
-    keep_element(session_menu_button("删除", Message::None));
-    keep_element(project_sessions_header(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        "长项目标题".to_string(),
-        "/tmp/project/with/a/very/long/path".to_string(),
-        true,
-        false,
-    ));
-
-    for theme in [Theme::Light, Theme::Dark] {
-        let inactive = outline_panel_button_style(&theme, false, button::Status::Active);
-        let active_pressed = outline_panel_button_style(&theme, true, button::Status::Pressed);
-        assert_eq!(inactive.text_color, theme.palette().text);
-        assert!(active_pressed.background.is_some());
-        assert!(active_pressed.border.width > 0.0);
-    }
-}
-
-#[test]
-fn project_panel_builds_empty_and_selected_project_states() {
-    let mut app = test_app();
-    keep_element(project_sessions_panel(&app, None));
-
-    app.recent_projects.push("/tmp/project".to_string());
-    keep_element(project_sessions_panel(&app, None));
-
-    app.recent_projects_edits.push("自定义项目名".to_string());
-    app.project_tools_menu_path = Some("/tmp/project".to_string());
-    app.project_session_has_vertical_scrollbar.insert("/tmp/project".to_string(), true);
-    app.project_session_load_counts.insert("/tmp/project".to_string(), 1);
-    app.project_sessions.insert(
-        "/tmp/project".to_string(),
-        vec![
-            session("s1", "第一条会话", "/tmp/project", false),
-            session("s2", "第二条会话", "/tmp/project/worktree-c", false),
-        ],
-    );
-
-    keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
-
-    app.project_sessions_loading.insert("/tmp/loading".to_string());
-    keep_element(project_sessions_panel(&app, Some("/tmp/loading".to_string())));
-}
-
-#[test]
-fn project_panel_uses_path_fallback_for_unknown_or_blank_recent_names() {
-    let mut app = test_app();
-    app.recent_projects = vec!["/tmp/project".to_string()];
-    app.recent_projects_edits = vec!["   ".to_string()];
-    app.project_path = Some("/tmp/project".to_string());
-
-    keep_element(project_sessions_panel(&app, Some("/tmp/project".to_string())));
-    keep_element(project_sessions_panel(&app, Some("/tmp/unknown-project".to_string())));
 }

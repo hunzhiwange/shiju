@@ -4,7 +4,7 @@
 
 mod new_session;
 mod projects_list;
-mod session_row;
+pub(super) mod session_row;
 mod sessions_panel;
 
 /// 重新导出 new_session::new_session_picker_layer，作为上层模块访问该视图能力的稳定入口。

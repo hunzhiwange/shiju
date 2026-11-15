@@ -271,7 +271,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
         .map(|(path, session)| WorkTaskItem {
             id: session.id.clone(),
             details: SessionRowDetails::new(session, project_label(app, path)),
-            status: WorkTaskStatus::for_session(app, &session.id),
+            status: super::super::components::session_row::status_for_session(app, &session.id),
             message: Message::Project(ProjectMessage::OpenProjectSessionPressed(
                 session.directory.clone(),
                 session.id.clone(),
@@ -308,7 +308,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                     .map(|(_, session)| WorkTaskItem {
                         id: session.id.clone(),
                         details: SessionRowDetails::new(session, label.clone()),
-                        status: WorkTaskStatus::for_session(app, &session.id),
+                        status: super::super::components::session_row::status_for_session(app, &session.id),
                         message: Message::Project(ProjectMessage::OpenProjectSessionPressed(
                             session.directory.clone(),
                             session.id.clone(),

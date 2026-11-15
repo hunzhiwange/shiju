@@ -1,0 +1,839 @@
+//! 项目视图组件模块，负责会话列表和项目工具菜单等可复用界面。
+//!
+//! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
+
+use std::collections::HashSet;
+
+use iced::widget::tooltip::{Position, Tooltip};
+use iced::widget::{button, column, container, row, scrollable, text};
+use iced::{Background, Color, Element, Length, Point, Theme};
+
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::system_settings_common::icon_svg;
+use desktop_ui_controls::overlays::PointBelowOverlay;
+use desktop_ui_controls::system_settings_common::{
+    round_icon_btn_style, rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
+};
+use desktop_ui_controls::{right_click_area::RightClickArea, single_line_label::SingleLineLabel};
+
+use self::events as message;
+use session_info as session;
+
+use super::super::row_styles::{is_dark_theme, tooltip_bubble};
+use super::super::utils::mix_color;
+use super::new_session::new_session_button;
+use super::projects_list::title_tooltip;
+use super::session_row::{
+    SessionRowDetails, SessionRowStatus, session_row,
+};
+
+fn icon_action_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let mut style = round_icon_btn_style(theme, status);
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+
+    style.border.radius = 12.0.into();
+
+    if !is_dark {
+        style.background = Some(Background::Color(match status {
+            iced::widget::button::Status::Hovered => {
+                mix_color(Color::from_rgba8(252, 253, 255, 1.0), palette.primary.base.color, 0.08)
+            }
+            iced::widget::button::Status::Pressed => palette.primary.base.color.scale_alpha(0.12),
+            _ => Color::from_rgba8(252, 253, 255, 0.94),
+        }));
+        style.border.color = match status {
+            iced::widget::button::Status::Hovered => palette.primary.base.color.scale_alpha(0.28),
+            iced::widget::button::Status::Pressed => palette.primary.base.color.scale_alpha(0.36),
+            _ => Color::from_rgba8(222, 227, 235, 0.98),
+        };
+        style.shadow = match status {
+            iced::widget::button::Status::Hovered => iced::Shadow {
+                color: palette.primary.base.color.scale_alpha(0.10),
+                offset: iced::Vector::new(0.0, 8.0),
+                blur_radius: 18.0,
+            },
+            iced::widget::button::Status::Pressed => iced::Shadow {
+                color: palette.primary.base.color.scale_alpha(0.12),
+                offset: iced::Vector::new(0.0, 4.0),
+                blur_radius: 12.0,
+            },
+            _ => iced::Shadow {
+                color: Color::BLACK.scale_alpha(0.035),
+                offset: iced::Vector::new(0.0, 4.0),
+                blur_radius: 10.0,
+            },
+        };
+    }
+
+    style
+}
+
+fn outline_panel_button_style(
+    theme: &Theme,
+    active: bool,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let active_bg = if is_dark {
+        palette.primary.base.color.scale_alpha(0.14)
+    } else {
+        palette.primary.base.color.scale_alpha(0.08)
+    };
+    let background = match status {
+        iced::widget::button::Status::Hovered => {
+            if is_dark {
+                palette.background.weak.color.scale_alpha(0.84)
+            } else {
+                Color::from_rgba8(243, 246, 249, 1.0)
+            }
+        }
+        iced::widget::button::Status::Pressed => {
+            palette.background.strong.color.scale_alpha(if is_dark { 0.84 } else { 0.42 })
+        }
+        _ => {
+            if active {
+                active_bg
+            } else {
+                Color::TRANSPARENT
+            }
+        }
+    };
+    let border_color = if active {
+        palette.primary.base.color.scale_alpha(if is_dark { 0.72 } else { 0.40 })
+    } else if is_dark {
+        palette.background.strong.color.scale_alpha(0.72)
+    } else {
+        Color::from_rgba8(224, 228, 236, 0.98)
+    };
+
+    iced::widget::button::Style {
+        background: Some(Background::Color(background)),
+        text_color: if active { palette.primary.base.color } else { theme.palette().text },
+        border: iced::Border { radius: 10.0.into(), width: 1.0, color: border_color },
+        shadow: if active {
+            iced::Shadow {
+                color: palette.primary.base.color.scale_alpha(if is_dark { 0.16 } else { 0.08 }),
+                offset: iced::Vector::new(0.0, 8.0),
+                blur_radius: 18.0,
+            }
+        } else {
+            iced::Shadow::default()
+        },
+        ..Default::default()
+    }
+}
+
+fn session_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let bg = match status {
+        iced::widget::button::Status::Hovered => {
+            if is_dark {
+                p.background.weak.color.scale_alpha(0.74)
+            } else {
+                Color::WHITE.scale_alpha(0.92)
+            }
+        }
+        iced::widget::button::Status::Pressed => {
+            p.background.strong.color.scale_alpha(if is_dark { 0.82 } else { 0.28 })
+        }
+        _ => Color::TRANSPARENT,
+    };
+    iced::widget::button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: theme.palette().text,
+        border: iced::Border {
+            radius: 10.0.into(),
+            width: if matches!(status, iced::widget::button::Status::Hovered) { 1.0 } else { 0.0 },
+            color: p.background.strong.color.scale_alpha(0.42),
+        },
+        ..Default::default()
+    }
+}
+
+fn menu_separator_style(theme: &Theme) -> container::Style {
+    let p = theme.extended_palette();
+    container::Style { background: Some(p.background.strong.color.into()), ..Default::default() }
+}
+
+fn floating_menu_panel_style(theme: &Theme) -> container::Style {
+    let mut style = settings_panel_style(theme);
+    style.border.radius = 16.0.into();
+    style
+}
+
+fn task_pool_icon_style(
+    theme: &Theme,
+    _status: iced::widget::svg::Status,
+) -> iced::widget::svg::Style {
+    iced::widget::svg::Style { color: Some(theme.palette().text) }
+}
+
+fn task_pool_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let mut style = rounded_action_btn_style(theme, status);
+    style.border.radius = 14.0.into();
+    style
+}
+
+fn load_more_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let mut style = outline_panel_button_style(theme, false, status);
+    style.border.width = 0.0;
+    style.border.color = Color::TRANSPARENT;
+    style
+}
+
+fn project_panel_title(
+    path: &str,
+    recent_projects: &[String],
+    recent_project_edits: &[String],
+) -> String {
+    recent_projects
+        .iter()
+        .position(|p| p == path)
+        .and_then(|i| recent_project_edits.get(i).cloned())
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| path.to_string())
+}
+
+/// 构建菜单界面。
+///
+/// # 参数
+/// - `label`: 当前视图构建所需的状态、配置或消息。
+/// - `msg`: 当前视图构建所需的状态、配置或消息。
+///
+/// # 返回
+/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
+///
+/// # 错误
+/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
+pub fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message> {
+    let label = label.to_string();
+    button(container(text(label).size(12)).width(Length::Fill).padding([2, 6]))
+        .on_press(msg)
+        .style(session_menu_button_style)
+        .width(Length::Fill)
+        .into()
+}
+
+fn disabled_session_menu_button<'a>(label: &str) -> Element<'a, Message> {
+    let label = label.to_string();
+    button(container(text(label).size(12)).width(Length::Fill).padding([2, 6]))
+        .style(session_menu_button_style)
+        .width(Length::Fill)
+        .into()
+}
+
+fn session_compact_message(session_id: &str, project_path: &str) -> Message {
+    Message::CompactSessionRequested {
+        session_id: session_id.to_string(),
+        project_path: project_path.to_string(),
+    }
+}
+
+/// 构建对应界面片段。
+///
+/// # 参数
+/// - `id`: 当前视图构建所需的状态、配置或消息。
+///
+/// # 返回
+/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
+///
+/// # 错误
+/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
+pub fn build_session_menu<'a>(
+    i18n: desktop_i18n::I18n,
+    id: String,
+    project_path: String,
+    compaction_disabled: bool,
+) -> Element<'a, Message> {
+    let separator = || -> Element<'a, Message> {
+        container(iced::widget::Space::new())
+            .width(Length::Fill)
+            .height(Length::Fixed(1.0))
+            .style(menu_separator_style)
+            .into()
+    };
+
+    let compact_action = if compaction_disabled {
+        disabled_session_menu_button(i18n.__("压缩会话"))
+    } else {
+        session_menu_button(i18n.__("压缩会话"), session_compact_message(&id, &project_path))
+    };
+    let content = column![
+        compact_action,
+        session_menu_button(
+            i18n.__("重命名"),
+            Message::Project(message::ProjectMessage::SessionRenamePressed(id.clone())),
+        ),
+        session_menu_button(
+            i18n.__("复制对话"),
+            Message::Project(message::ProjectMessage::SessionCopyPressed(id.clone())),
+        ),
+        separator(),
+        session_menu_button(
+            i18n.__("归档"),
+            Message::Project(message::ProjectMessage::SessionArchivePressed(id.clone())),
+        ),
+        session_menu_button(
+            i18n.__("删除"),
+            Message::Project(message::ProjectMessage::SessionDeletePressed(id.clone())),
+        )
+    ]
+    .spacing(4);
+
+    container(content)
+        .padding([6, 8])
+        .style(floating_menu_panel_style)
+        .width(Length::Fixed(120.0))
+        .into()
+}
+
+/// 构建对应界面片段。
+///
+/// # 参数
+/// - `path`: 当前视图构建所需的状态、配置或消息。
+///
+/// # 返回
+/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
+///
+/// # 错误
+/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
+pub fn build_project_tools_menu<'a>(
+    i18n: desktop_i18n::I18n,
+    path: String,
+) -> Element<'a, Message> {
+    let separator = || -> Element<'a, Message> {
+        container(iced::widget::Space::new())
+            .width(Length::Fill)
+            .height(Length::Fixed(1.0))
+            .style(menu_separator_style)
+            .into()
+    };
+
+    let content = column![
+        session_menu_button(
+            i18n.__("编辑项目"),
+            Message::Project(message::ProjectMessage::ProjectEditOpened(path.clone())),
+        ),
+        separator(),
+        session_menu_button(
+            i18n.__("在访达中显示"),
+            Message::Project(message::ProjectMessage::RecentRevealPressed(path.clone())),
+        ),
+        session_menu_button(
+            i18n.__("移除项目"),
+            Message::Project(message::ProjectMessage::RecentRemovePressed(path)),
+        )
+    ]
+    .spacing(4);
+
+    container(content)
+        .padding([6, 8])
+        .style(floating_menu_panel_style)
+        .width(Length::Fixed(132.0))
+        .into()
+}
+
+/// 执行本模块的界面辅助逻辑。
+///
+/// # 参数
+/// - `title`: 当前视图构建所需的状态、配置或消息。
+/// - `path`: 当前视图构建所需的状态、配置或消息。
+/// - `clickable`: 当前视图构建所需的状态、配置或消息。
+/// - `show_tools_menu`: 当前视图构建所需的状态、配置或消息。
+///
+/// # 返回
+/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
+///
+/// # 错误
+/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
+pub fn project_sessions_header<'a>(
+    i18n: desktop_i18n::I18n,
+    title: String,
+    path: String,
+    clickable: bool,
+    show_tools_menu: bool,
+) -> Element<'a, Message> {
+    let toggle_tools = message::ProjectMessage::ProjectToolsMenuToggled(path.clone());
+    project_sessions_header_with_tools(
+        i18n,
+        title,
+        path,
+        clickable,
+        Message::Project(toggle_tools),
+        show_tools_menu,
+        false,
+    )
+}
+
+pub fn project_sessions_header_with_tools<'a>(
+    i18n: desktop_i18n::I18n,
+    title: String,
+    path: String,
+    clickable: bool,
+    toggle_tools: Message,
+    show_tools_menu: bool,
+    refreshing: bool,
+) -> Element<'a, Message> {
+    let refresh_btn = Tooltip::new(
+        button(
+            container(icon_svg(Icon::ArrowRepeat, 12.0))
+                .width(Length::Fixed(26.0))
+                .height(Length::Fixed(26.0))
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
+        )
+        .on_press(Message::Project(message::ProjectMessage::ProjectLoadSessions(path.clone())))
+        .padding(0)
+        .style(move |theme, status| {
+            let status = if refreshing && status == button::Status::Active {
+                button::Status::Pressed
+            } else {
+                status
+            };
+            icon_action_button_style(theme, status)
+        }),
+        tooltip_bubble(i18n.__("刷新会话").to_string()),
+        Position::Top,
+    )
+    .gap(8);
+    let more_btn = button(
+        container(icon_svg(Icon::Sliders, 12.0))
+            .width(Length::Fixed(26.0))
+            .height(Length::Fixed(26.0))
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center),
+    )
+    .on_press(toggle_tools)
+    .padding(0)
+    .style(icon_action_button_style);
+
+    let tools: Element<'a, Message> =
+        PointBelowOverlay::new(more_btn, build_project_tools_menu(i18n, path.clone()))
+            .show(show_tools_menu)
+            .anchor(Point::new(20.0, 20.0))
+            .on_close(Message::Project(message::ProjectMessage::ProjectToolsMenuClosed))
+            .into();
+
+    let title_label = SingleLineLabel::new(title.clone(), 16.0)
+        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
+    let title_label: Element<'a, Message> = if clickable {
+        iced::widget::mouse_area(title_label)
+            .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path.clone())))
+            .into()
+    } else {
+        title_label.into()
+    };
+    let title_text = title_tooltip(title_label, title, Position::Right);
+
+    let path_label = container(SingleLineLabel::new(path.clone(), 11.0)).style(|theme| {
+        iced::widget::container::Style {
+            text_color: settings_muted_text_style(theme).color,
+            ..Default::default()
+        }
+    });
+
+    let actions = row![refresh_btn, tools].spacing(6).align_y(iced::Alignment::Center);
+    column![
+        row![title_text, actions].spacing(8).align_y(iced::Alignment::Center).width(Length::Fill),
+        title_tooltip(path_label, path, Position::Right),
+    ]
+    .spacing(3)
+    .width(Length::Fill)
+    .into()
+}
+
+#[derive(Debug)]
+pub struct SessionTreeRow<'a> {
+    pub session: &'a session::Info,
+}
+
+#[derive(Debug)]
+pub struct SessionTreeProjection<'a> {
+    pub rows: Vec<SessionTreeRow<'a>>,
+    pub total_roots: usize,
+}
+
+fn compare_session_recency(
+    left: &&session::Info,
+    right: &&session::Info,
+    pinned: &HashSet<(String, String)>,
+) -> std::cmp::Ordering {
+    let is_pinned = |session: &session::Info| {
+        pinned.contains(&(session.project_id.clone(), session.id.clone()))
+    };
+    is_pinned(right).cmp(&is_pinned(left)).then_with(|| {
+        right
+            .time
+            .updated
+            .cmp(&left.time.updated)
+            .then_with(|| right.time.created.cmp(&left.time.created))
+            .then_with(|| left.id.cmp(&right.id))
+    })
+}
+
+pub fn session_tree_projection<'a>(
+    sessions: &'a [session::Info],
+    load_count: usize,
+    pinned: &HashSet<(String, String)>,
+) -> SessionTreeProjection<'a> {
+    let mut seen_ids = HashSet::new();
+    let mut roots = sessions
+        .iter()
+        .filter(|session| {
+            session.time.archived.is_none()
+                && session.is_user_navigable()
+                && (session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
+                    || session.is_visible_task())
+                && seen_ids.insert(session.id.as_str())
+        })
+        .collect::<Vec<_>>();
+    roots.sort_by(|left, right| compare_session_recency(left, right, pinned));
+    let total_roots = roots.len();
+    let rows =
+        roots.into_iter().take(load_count).map(|session| SessionTreeRow { session }).collect();
+
+    SessionTreeProjection { rows, total_roots }
+}
+
+fn session_tree_row(
+    app: &Input<'_>,
+    tree_row: SessionTreeRow<'_>,
+    project_title: &str,
+) -> Element<'static, Message> {
+    let s = tree_row.session;
+    let id = s.id.clone();
+    let status = app.rows.get(id.as_str()).map(|row| row.1).unwrap_or(SessionRowStatus::Idle);
+    let session_button = session_row(
+        &app.rows.get(id.as_str()).expect("session row projection").0,
+        &id,
+        &SessionRowDetails::new(s, project_title.to_owned()),
+        status,
+        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
+            s.directory.clone(),
+            id.clone(),
+        )),
+    );
+    if s.is_first_response_pending() {
+        return session_button;
+    }
+    let id_for_right_click = std::rc::Rc::new(id.clone());
+    let right_click = Element::new(RightClickArea::new(
+        session_button,
+        Box::new(move |pos| {
+            Message::Project(message::ProjectMessage::SessionRightClicked(
+                (*id_for_right_click).clone(),
+                pos.x,
+                pos.y,
+            ))
+        }),
+    ));
+
+    if app.session_menu_id.as_deref() == Some(id.as_str()) {
+        PointBelowOverlay::new(
+            right_click,
+            build_session_menu(
+                desktop_i18n::I18n::new(app.desktop_locale),
+                id,
+                s.directory.clone(),
+                status == SessionRowStatus::Running || s.time.compacting.is_some(),
+            ),
+        )
+        .show(true)
+        .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+        .on_close(Message::Project(message::ProjectMessage::SessionMenuClose))
+        .into()
+    } else {
+        right_click
+    }
+}
+
+/// 执行本模块的界面辅助逻辑。
+///
+/// # 参数
+/// - `app`: 当前视图构建所需的状态、配置或消息。
+/// - `path`: 当前视图构建所需的状态、配置或消息。
+/// - `sessions`: 当前视图构建所需的状态、配置或消息。
+/// - `project_title`: 详情卡展示的项目名称。
+/// - `load_count`: 当前视图构建所需的状态、配置或消息。
+/// - `is_loading`: 当前视图构建所需的状态、配置或消息。
+///
+/// # 返回
+/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
+///
+/// # 错误
+/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
+pub fn session_items_list<'a>(
+    app: &Input<'a>,
+    path: &str,
+    sessions: Option<&Vec<session::Info>>,
+    project_title: &str,
+    load_count: usize,
+    is_loading: bool,
+) -> Element<'static, Message> {
+    let mut session_items = column![].spacing(5);
+    let pinned = &app.pinned;
+    let mut drafts = app.drafts.iter().map(|(path, info)| (path.as_str(), info))
+        .filter(|(project_path, draft)| {
+            *project_path == path
+                && !sessions.into_iter().flatten().any(|session| {
+                    session.id == draft.id
+                        && session.is_user_navigable()
+                        && session.time.archived.is_none()
+                })
+        })
+        .map(|(_, draft)| draft)
+        .collect::<Vec<_>>();
+    drafts.sort_unstable_by(|left, right| compare_session_recency(&left, &right, pinned));
+    for session in &drafts {
+        session_items =
+            session_items.push(session_tree_row(app, SessionTreeRow { session }, project_title));
+    }
+
+    if is_loading {
+        session_items = session_items.push(
+            container(
+                text(desktop_i18n::I18n::new(app.desktop_locale).__("加载中...")).size(12),
+            )
+            .padding([8, 4])
+            .width(Length::Fill),
+        );
+    } else if let Some(sessions) = sessions {
+        let projection =
+            session_tree_projection(sessions, load_count, &app.pinned);
+        let total_visible = projection.total_roots;
+        for tree_row in projection.rows {
+            session_items = session_items.push(session_tree_row(app, tree_row, project_title));
+        }
+
+        if total_visible == 0 && drafts.is_empty() {
+            session_items = session_items.push(
+                container(
+                    text(desktop_i18n::I18n::new(app.desktop_locale).__("没有会话")).size(12),
+                )
+                .padding([8, 4])
+                .width(Length::Fill),
+            );
+        }
+
+        if total_visible > load_count {
+            let remaining = total_visible.saturating_sub(load_count);
+            let load_more_btn = button(
+                container(
+                    text(
+                        desktop_i18n::__!(
+                            desktop_i18n::I18n::new(app.desktop_locale),
+                            "加载更多 (剩余 %s)",
+                            format!("{}", remaining)
+                        )
+                        .expect("valid input display template"),
+                    )
+                    .size(11),
+                )
+                .padding([6, 4])
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Center),
+            )
+            .on_press(Message::Project(message::ProjectMessage::ProjectLoadMoreSessions(
+                path.to_string(),
+            )))
+            .width(Length::Fill)
+            .style(load_more_button_style);
+            session_items = session_items.push(load_more_btn);
+        }
+    } else {
+        let load_btn = button(
+            container(
+                text(desktop_i18n::I18n::new(app.desktop_locale).__("加载会话")).size(12),
+            )
+            .padding([6, 4])
+            .width(Length::Fill)
+            .align_x(iced::alignment::Horizontal::Center),
+        )
+        .on_press(Message::Project(message::ProjectMessage::ProjectLoadSessions(path.to_string())))
+        .width(Length::Fill)
+        .style(|theme: &Theme, status| outline_panel_button_style(theme, false, status));
+        session_items = session_items.push(load_btn);
+    }
+
+    session_items.into()
+}
+
+/// 构建面板界面。
+///
+/// # 参数
+/// - `app`: 当前视图构建所需的状态、配置或消息。
+/// - `target_path`: 当前视图构建所需的状态、配置或消息。
+///
+/// # 返回
+/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
+///
+/// # 错误
+/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
+pub fn project_sessions_panel(
+    app: &Input<'_>,
+    target_path: Option<String>,
+) -> Element<'static, Message> {
+    if let Some(path) = target_path {
+        let horizontal_padding = 14.0;
+        let title = project_panel_title(&path, &app.recent_projects, &app.recent_projects_edits);
+
+        let is_loading = app.project_sessions_loading.contains(&path);
+        let load_count = app.project_session_load_counts.get(&path).copied().unwrap_or(10);
+        let has_vertical_scrollbar =
+            app.project_session_has_vertical_scrollbar.get(&path).copied().unwrap_or(false);
+        let session_list_width_reduction = if has_vertical_scrollbar { 8.0 } else { 7.0 };
+        let sessions = app.project_sessions.get(&path);
+        let header = project_sessions_header(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            title.clone(),
+            path.clone(),
+            false,
+            app.project_tools_menu_path.as_ref() == Some(&path),
+        );
+        let new_session_btn = new_session_button(&app.new_session, path.clone()).map(Message::NewSession);
+        let session_items =
+            session_items_list(app, &path, sessions, &title, load_count, is_loading);
+        let task_pool_btn = button(
+            container(
+                row![
+                    iced::widget::svg::Svg::new(desktop_assets::assets::get_icon(
+                        desktop_assets::assets::Icon::Grid1x2
+                    ))
+                    .width(Length::Fixed(14.0))
+                    .height(Length::Fixed(14.0))
+                    .style(task_pool_icon_style),
+                    text(desktop_i18n::I18n::new(app.desktop_locale).__("任务池")).size(12),
+                ]
+                .align_y(iced::alignment::Vertical::Center)
+                .spacing(6),
+            )
+            .width(Length::Fill)
+            .align_x(iced::alignment::Horizontal::Center),
+        )
+        .on_press(Message::ToggleBoard)
+        .padding([10, 14])
+        .style(task_pool_button_style);
+
+        let static_content = column![
+            header,
+            iced::widget::Space::new().height(Length::Fixed(6.0)),
+            task_pool_btn,
+            iced::widget::Space::new().height(Length::Fixed(6.0)),
+            new_session_btn,
+            iced::widget::Space::new().height(Length::Fixed(6.0)),
+        ]
+        .spacing(0)
+        .width(Length::Fill);
+
+        let path_for_scroll = path.clone();
+        let sessions_scroll =
+            scrollable(container(session_items).width(Length::Fill).padding(iced::Padding {
+                top: 0.0,
+                right: session_list_width_reduction,
+                bottom: 0.0,
+                left: 0.0,
+            }))
+            .direction(iced::widget::scrollable::Direction::Vertical(
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .on_scroll(move |viewport| {
+                Message::Project(message::ProjectMessage::ProjectSessionListScrollChanged {
+                    project_path: path_for_scroll.clone(),
+                    has_vertical_scrollbar: viewport.content_bounds().height
+                        > viewport.bounds().height,
+                })
+            })
+            .width(Length::Fill)
+            .height(Length::Fill);
+
+        return column![
+            container(static_content).width(Length::Fill).padding(iced::Padding {
+                top: 16.0,
+                right: horizontal_padding,
+                bottom: 0.0,
+                left: horizontal_padding,
+            }),
+            container(sessions_scroll).width(Length::Fill).height(Length::Fill).padding(
+                iced::Padding {
+                    top: 0.0,
+                    right: horizontal_padding,
+                    bottom: 14.0,
+                    left: horizontal_padding,
+                }
+            ),
+        ]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
+    }
+
+    let empty_label =
+        if app.recent_projects.is_empty() { "暂无项目" } else { "请选择一个项目" };
+    container(text(desktop_i18n::I18n::new(app.desktop_locale).__(empty_label)).size(12))
+        .padding([20, 20])
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center)
+        .into()
+}
+
+
+#[derive(Debug, Clone)]
+pub enum Message {
+ Open,
+ HeaderToolsToggle,
+ Project(message::ProjectMessage),
+ CompactSessionRequested { session_id: String, project_path: String },
+ ToggleBoard,
+ NewSession(super::new_session::Message),
+ SessionDetailsHovered { session_id: String, project_id: String, directory: String },
+}
+pub struct Input<'a> {
+ pub desktop_locale: config_ui::DesktopLocale,
+ pub pinned: &'a HashSet<(String, String)>,
+ pub session_menu_id: &'a Option<String>,
+ pub session_menu_anchor: Option<Point>,
+ pub rows: std::collections::HashMap<String, (super::session_row::Input, SessionRowStatus)>,
+ pub drafts: Vec<(String, session::Info)>,
+ pub recent_projects: &'a Vec<String>,
+ pub recent_projects_edits: &'a Vec<String>,
+ pub project_sessions_loading: &'a HashSet<String>,
+ pub project_session_load_counts: &'a std::collections::HashMap<String, usize>,
+ pub project_session_has_vertical_scrollbar: &'a std::collections::HashMap<String, bool>,
+ pub project_sessions: &'a std::collections::HashMap<String, Vec<session::Info>>,
+ pub project_tools_menu_path: &'a Option<String>,
+ pub new_session: super::new_session::Input,
+}
+
+#[cfg(test)]
+#[path = "sessions_panel_tests.rs"]
+mod sessions_panel_tests;
+
+pub mod events {
+ #[derive(Debug, Clone)]
+ pub enum ProjectMessage {
+ OpenRecentPressed(String), OpenProjectSessionPressed(String, String),
+ ProjectToolsMenuToggled(String), ProjectToolsMenuClosed, ProjectEditOpened(String),
+ RecentRevealPressed(String), RecentRemovePressed(String), ProjectLoadSessions(String),
+ ProjectLoadMoreSessions(String), SessionRenamePressed(String), SessionCopyPressed(String),
+ SessionArchivePressed(String), SessionDeletePressed(String), SessionMenuClose,
+ SessionRightClicked(String, f32, f32), SessionPinPressed(String, String, bool),
+ ProjectSessionListScrollChanged { project_path: String, has_vertical_scrollbar: bool },
+ }
+}

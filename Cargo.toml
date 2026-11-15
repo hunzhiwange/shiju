@@ -308,6 +308,7 @@ members = [
   "crates/libs/computer-control",
   "crates/libs/agent-mcp",
   "crates/libs/agent-app-services",
+  "crates/libs/app-provider-services",
   "crates/libs/agent-knowledge",
   "crates/libs/agent-hooks",
   "crates/libs/agent-commands",

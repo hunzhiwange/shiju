@@ -297,7 +297,7 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
         )
         .unwrap();
     assert_eq!(f.tx.state(AppId::Claude).unwrap().stack.members, vec!["beta", "alpha"]);
-    let configured = super::aggregation_resync::configure(
+    let (_, context) = super::aggregation_resync::configure_with_context(
         AppProviderStore::new(f.db.clone()).unwrap(),
         &f.db,
         Some(&f.policy),
@@ -313,10 +313,10 @@ async fn aggregation_t16_default_and_member_order_use_same_transaction() {
         Some(f.control.clone()),
     )
     .unwrap();
-    let context = configured.resync_context().unwrap();
+    let context = context.unwrap();
     let mut candidate = f.tx.state(AppId::Claude).unwrap();
     candidate.mode.as_mut().unwrap().proxy_route = Some("beta".into());
-    let mut unavailable = context.as_ref().clone();
+    let mut unavailable = context.clone();
     unavailable.routing = None;
     assert_eq!(unavailable.publish_candidate(&candidate), Err(StatusCode::SERVICE_UNAVAILABLE));
     assert!(f.tx.state(AppId::Claude).unwrap() == context.expected);

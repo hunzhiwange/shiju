@@ -23,6 +23,22 @@ pub(crate) fn configure(
     query: AggregationWriteQuery,
     routing: Option<super::app_routing::RoutingControl>,
 ) -> Result<AppProviderStore, StatusCode> {
+    configure_with_context(store, db, policy, headers, tenant, host, app, query, routing)
+        .map(|(store, _)| store)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn configure_with_context(
+    store: AppProviderStore,
+    db: &GlobalDatabase,
+    policy: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    host: &str,
+    app: AppId,
+    query: AggregationWriteQuery,
+    routing: Option<super::app_routing::RoutingControl>,
+) -> Result<(AppProviderStore, Option<RecordPublicationContext>), StatusCode> {
     if query.target_host_id.as_deref().is_some_and(|target| target != host) {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -40,11 +56,11 @@ pub(crate) fn configure(
     )
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
     else {
-        return Ok(store);
+        return Ok((store, None));
     };
     let state = tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if state.stack.is_empty() {
-        return Ok(store);
+        return Ok((store, None));
     }
     let project = ProjectScope::new(tenant.clone(), query.project_id.ok_or(StatusCode::CONFLICT)?)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -126,7 +142,7 @@ pub(crate) fn configure(
         None if attached => return Err(StatusCode::SERVICE_UNAVAILABLE),
         None => None,
     };
-    Ok(store.with_resync(RecordPublicationContext {
+    let context = RecordPublicationContext {
         database: db.clone(),
         project,
         host: host.into(),
@@ -138,7 +154,8 @@ pub(crate) fn configure(
         failure: Default::default(),
         principal,
         revision,
-    }))
+    };
+    Ok((store.with_resync(context.clone()), Some(context)))
 }
 
 /// Reuse the legacy provider grant with the scoped API's single Bearer identity.

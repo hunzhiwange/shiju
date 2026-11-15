@@ -212,9 +212,9 @@ fn execute_scoped(
         publication,
     )?;
     let resync_published = store.resync_context().is_some_and(|context| {
-        context.expected.stack.enabled
-            && context.expected.stack.members.contains(&id)
-            && context.expected.mode.as_ref().is_some_and(|mode| mode.attached)
+        context.expected().stack.enabled
+            && context.expected().stack.members.contains(&id)
+            && context.expected().mode.as_ref().is_some_and(|mode| mode.attached)
     });
     if store.resync_configured() {
         activation = ClaudeActivation::CatalogOnly;

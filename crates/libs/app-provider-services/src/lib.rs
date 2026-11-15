@@ -1,0 +1,819 @@
+//! Tenant application-provider storage owner, separate from global model authentication.
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
+use std::path::{Path, PathBuf};
+use vw_agent_apps::{
+    apps::launch::{
+        provider::{ProviderLaunch, prepare_provider_launch},
+        request::validate_launch_request,
+    },
+    providers::{validate_identity, validate_profile},
+};
+use vw_api_app_identity::AppId;
+use vw_api_app_identity::AppInstallation;
+use vw_api_app_provider_base::AppProviderSummary;
+use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::ProviderLaunchRequest;
+use vw_api_transport::id::TenantScope;
+
+const NAMESPACE: &str = "app_providers.records";
+
+/// Fixed domain namespace; no global auth, host environment, upstream database or arbitrary key access.
+pub struct AppProviderStore {
+    settings: record_publication::ProviderRecordStore,
+    database: GlobalDatabase,
+}
+impl AppProviderStore {
+    pub fn new(database: GlobalDatabase) -> Result<Self, String> {
+        GatewaySettingsStore::new(database.clone())
+            .map(|settings| Self {
+                settings: record_publication::ProviderRecordStore::new(settings),
+                database,
+            })
+            .map_err(|_| "application provider storage unavailable".into())
+    }
+    fn prefix(app: AppId) -> String {
+        format!("{}:", serde_json::to_string(&app).expect("AppId serialization"))
+    }
+    fn key(app: AppId, id: &str) -> Result<String, String> {
+        validate_identity(id)?;
+        Ok(format!("{}{id}", Self::prefix(app)))
+    }
+    /// Consume the shared tenant library without linking provider records to deletable IDs.
+    pub fn set_icon(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_app_provider_edit::icons::AppProviderIconChange,
+        read_icons: impl FnOnce(&TenantScope) -> Result<Vec<vw_api_app_identity::CustomIconEntry>, String>,
+    ) -> Result<vw_api_app_provider_edit::icons::AppProviderIcon, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let icons = match request {
+            vw_api_app_provider_edit::icons::AppProviderIconChange::Select { .. } => {
+                read_icons(tenant)
+                    .map_err(|_| "application provider storage unavailable")?
+            }
+            vw_api_app_provider_edit::icons::AppProviderIconChange::Clear => Vec::new(),
+        };
+        let updated = vw_agent_apps::providers::icons::update(&stored, request, &icons)?;
+        let after = serde_json::to_string(&updated)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        vw_agent_apps::providers::icons::read(&updated)
+    }
+    pub fn get_icon(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<vw_api_app_provider_edit::icons::AppProviderIcon, String> {
+        let raw = self
+            .settings
+            .get(tenant, NAMESPACE, &Self::key(app, id)?)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&raw)
+            .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::icons::read(&stored)
+    }
+    /// Upsert a tenant-owned API provider without activating it or changing any CLI live config.
+    pub fn save(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        profile: &AppProviderWrite,
+    ) -> Result<AppProviderSummary, String> {
+        let key = Self::key(app, id)?;
+        validate_profile(app, profile)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?;
+        let input = vw_api_app_provider_base::update::AppProviderUpdate {
+            name: Some(profile.name.clone()),
+            protocol: Some(profile.protocol),
+            api_key: vw_api_app_provider_base::create::ProviderSecretWrite::Replace {
+                value: profile.api_key.clone(),
+            },
+            base_url: Some(profile.base_url.clone()),
+            model: Some(profile.model.clone()),
+            request_options: profile.request_options.clone(),
+        };
+        let stored = match &before {
+            Some(raw) => serde_json::from_str(raw)
+                .map_err(|_| "invalid stored application provider profile")?,
+            None => {
+                serde_json::to_value(profile).map_err(|_| "invalid application provider profile")?
+            }
+        };
+        let updated = vw_agent_apps::providers::update::update(app, id, &stored, &input)?;
+        let value =
+            serde_json::to_string(&updated).map_err(|_| "invalid application provider profile")?;
+        let saved = match before {
+            Some(before) => {
+                self.settings.compare_exchange(tenant, NAMESPACE, &key, &before, &value)
+            }
+            None => self.settings.insert_if_absent(tenant, NAMESPACE, &key, &value),
+        }
+        .map_err(|_| "application provider storage unavailable")?;
+        if !saved {
+            return Err("application provider changed during update".into());
+        }
+        Ok(Self::summary(app, id, profile))
+    }
+    /// Insert a new record without activation; existing records are never replaced.
+    pub fn create(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_app_provider_base::create::AppProviderCreate,
+    ) -> Result<AppProviderSummary, String> {
+        vw_agent_apps::providers::create::create(app, id, request, |profile| {
+            let key = Self::key(app, id)?;
+            let value = serde_json::to_string(profile)
+                .map_err(|_| "invalid application provider profile")?;
+            self.settings
+                .insert_if_absent(tenant, NAMESPACE, &key, &value)
+                .map_err(|_| "application provider storage unavailable".into())
+        })
+    }
+    /// Copy only within this tenant/application; atomic insertion never overwrites a target.
+    pub fn duplicate(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_app_provider_edit::duplicate::AppProviderDuplicate,
+    ) -> Result<AppProviderSummary, String> {
+        let key = Self::key(app, id)?;
+        let target = Self::key(app, &request.new_id)?;
+        let source = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&source)
+            .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::duplicate::duplicate(app, id, &stored, request, |copy| {
+            let payload =
+                serde_json::to_string(copy).map_err(|_| "invalid application provider profile")?;
+            self.settings
+                .insert_if_absent(tenant, NAMESPACE, &target, &payload)
+                .map_err(|_| "application provider storage unavailable".into())
+        })
+    }
+    /// Update an existing scoped catalog record, without touching native configuration.
+    pub fn update(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_app_provider_base::update::AppProviderUpdate,
+    ) -> Result<AppProviderSummary, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let updated = vw_agent_apps::providers::update::update(app, id, &stored, request)?;
+        let profile = vw_agent_apps::providers::update::profile(&updated)?;
+        let after =
+            serde_json::to_string(&updated).map_err(|_| "invalid application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        Ok(Self::summary(app, id, &profile))
+    }
+    /// Mutate only the existing scoped address book, never the active base URL.
+    pub fn change_endpoint(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_app_provider_edit::endpoints::AppProviderEndpointChange,
+    ) -> Result<Vec<vw_api_app_provider_edit::endpoints::AppProviderEndpoint>, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let updated = vw_agent_apps::providers::endpoints::update(
+            &stored,
+            request,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "application provider storage unavailable")?
+                .as_millis() as u64,
+        )?;
+        let after = serde_json::to_string(&updated)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        vw_agent_apps::providers::endpoints::read(&updated)
+    }
+    pub fn list_endpoints(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<Vec<vw_api_app_provider_edit::endpoints::AppProviderEndpoint>, String> {
+        let value = self
+            .settings
+            .get(tenant, NAMESPACE, &Self::key(app, id)?)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&value)
+            .map_err(|_| "invalid stored application provider profile")?;
+        vw_agent_apps::providers::endpoints::read(&stored)
+    }
+    /// Replace presentation fields on the existing row using the same scoped conditional write.
+    pub fn set_presentation(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        request: &vw_api_app_provider_edit::presentation::AppProviderPresentation,
+    ) -> Result<vw_api_app_provider_edit::presentation::AppProviderPresentation, String> {
+        let key = Self::key(app, id)?;
+        let before = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&before)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let updated = vw_agent_apps::providers::presentation::update(&stored, request)?;
+        let after = serde_json::to_string(&updated)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &before, &after)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        vw_agent_apps::providers::presentation::read(&updated)
+    }
+    /// Read category/grouping and notes without exposing the stored profile or credentials.
+    pub fn list_presentation(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+    ) -> Result<Vec<vw_api_app_provider_edit::presentation::AppProviderPresentationEntry>, String>
+    {
+        use vw_api_app_provider_edit::presentation::AppProviderPresentationEntry;
+        let prefix = format!("{}:", serde_json::to_string(&app).expect("AppId serialization"));
+        let mut rows = Vec::new();
+        for entry in self
+            .settings
+            .list(tenant, NAMESPACE)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            let Some(id) = entry.config_key.strip_prefix(&prefix) else {
+                continue;
+            };
+            validate_identity(id)?;
+            let stored = serde_json::from_str(&entry.payload_json)
+                .map_err(|_| "invalid stored application provider profile")?;
+            rows.push(AppProviderPresentationEntry {
+                id: id.into(),
+                presentation: vw_agent_apps::providers::presentation::read(&stored)?,
+            });
+        }
+        rows.sort_by(|a, b| {
+            (a.presentation.sort_index.is_none(), a.presentation.sort_index.unwrap_or_default())
+                .cmp(&(
+                    b.presentation.sort_index.is_none(),
+                    b.presentation.sort_index.unwrap_or_default(),
+                ))
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        Ok(rows)
+    }
+    /// Delete only a scoped catalog row after checking the authorized host's native references.
+    pub fn delete(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        home: &Path,
+    ) -> Result<(), String> {
+        let key = Self::key(app, id)?;
+        self.settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        vw_agent_apps::providers::delete::ensure_unreferenced(home, app, id)?;
+        if !self
+            .settings
+            .delete(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider not found".into());
+        }
+        Ok(())
+    }
+    /// Executor-only record for editor projection. Never returned by an HTTP handler.
+    pub fn preview_record(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<serde_json::Value, String> {
+        let raw =
+            GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &Self::key(app, id)?)
+                .map_err(|_| "application provider storage unavailable")?
+                .ok_or("application provider not found")?;
+        serde_json::from_str(
+            &record_publication::ProviderRecordStore::committed(raw)
+                .map_err(|_| "application provider storage unavailable")?,
+        )
+        .map_err(|_| "invalid stored application provider profile".into())
+    }
+    /// Read the executor record with a typed missing/storage boundary for usage reads.
+    #[cfg(target_os = "macos")]
+    pub fn usage_record(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<serde_json::Value, vw_api_app_auth::AuthErrorCode> {
+        use vw_api_app_auth::AuthErrorCode;
+        let key = Self::key(app, id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let raw = GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &key)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?
+            .ok_or(AuthErrorCode::NotFound)?;
+        serde_json::from_str(
+            &record_publication::ProviderRecordStore::committed(raw)
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?,
+        )
+        .map_err(|_| AuthErrorCode::StorageUnavailable)
+    }
+    fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
+        let key = Self::key(app, id)?;
+        let value = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored = serde_json::from_str(&value)
+            .map_err(|_| "invalid stored application provider profile")?;
+        let profile = vw_agent_apps::providers::update::profile(&stored)?;
+        validate_profile(app, &profile)?;
+        Ok(profile)
+    }
+    fn summary(app: AppId, id: &str, profile: &AppProviderWrite) -> AppProviderSummary {
+        AppProviderSummary {
+            app_id: app,
+            id: id.into(),
+            name: profile.name.clone(),
+            configured: true,
+        }
+    }
+    pub fn get_summary(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+    ) -> Result<AppProviderSummary, String> {
+        if app == AppId::Agy {
+            if let Some(row) = self.agy_record(tenant, id)? {
+                if row.get("agy").is_some() {
+                    return Ok(AppProviderSummary {
+                        app_id: app,
+                        id: id.into(),
+                        name: row["name"].as_str().ok_or("invalid provider record")?.into(),
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Claude {
+            if let Some(row) = self.claude_record(tenant, id)? {
+                if let Some(config) = row.get("claude") {
+                    let profile: vw_api_app_provider_base::claude::ClaudeProfile =
+                        serde_json::from_value(config.clone())
+                            .map_err(|_| "invalid stored application provider profile")?;
+                    vw_agent_apps::providers::claude::settings(&profile)
+                        .map_err(|_| "invalid stored application provider profile")?;
+                    return Ok(AppProviderSummary {
+                        app_id: app,
+                        id: id.into(),
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Codex {
+            if let Some(row) = self.codex_record(tenant, id)? {
+                if let Some(profile) = row.get("codex") {
+                    let profile: vw_api_app_provider_profiles::codex_catalog::CodexProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Gemini {
+            if let Some(row) = self.gemini_record(tenant, id)? {
+                if let Some(profile) = row.get("gemini") {
+                    let profile: vw_api_app_provider_profiles::gemini::GeminiProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::OpenCode {
+            if let Some(row) = self.opencode_record(tenant, id)? {
+                if let Some(profile) = row.get("opencode") {
+                    let profile: vw_api_app_provider_extended::opencode::OpenCodeProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::OpenClaw {
+            if let Some(row) = self.openclaw_record(tenant, id)? {
+                if let Some(profile) = row.get("openclaw") {
+                    let profile: vw_api_app_provider_extended::openclaw::OpenClawProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Hermes {
+            if let Some(row) = self.hermes_record(tenant, id)? {
+                if let Some(profile) = row.get("hermes") {
+                    let profile: vw_api_app_provider_extended::hermes::HermesProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Pi {
+            if let Some(row) = self.pi_record(tenant, id)? {
+                if let Some(profile) = row.get("pi") {
+                    let profile: vw_api_app_provider_terminal::pi::PiProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Omp {
+            if let Some(row) = self.omp_record(tenant, id)? {
+                if let Some(profile) = row.get("omp") {
+                    let profile: vw_api_app_provider_terminal::omp::OmpProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Mcode {
+            if let Some(row) = self.mcode_record(tenant, id)? {
+                if let Some(profile) = row.get("mcode") {
+                    let profile: vw_api_app_provider_terminal::mcode::McodeProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::Kimi {
+            if let Some(row) = self.kimi_record(tenant, id)? {
+                if let Some(profile) = row.get("kimi") {
+                    let profile: vw_api_app_provider_terminal::kimi::KimiProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::GrokBuild {
+            if let Some(row) = self.grok_record(tenant, id)? {
+                if let Some(profile) = row.get("grok") {
+                    let profile: vw_api_app_provider_extended::grok::GrokProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        if app == AppId::ClaudeDesktop {
+            if let Some(row) = self.claude_desktop_record(tenant, id)? {
+                if let Some(profile) = row.get("claude_desktop") {
+                    let profile: vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile =
+                        serde_json::from_value(profile.clone())
+                            .map_err(|_| "invalid provider record")?;
+                    return Ok(AppProviderSummary {
+                        id: id.into(),
+                        app_id: app,
+                        name: profile.name,
+                        configured: true,
+                    });
+                }
+            }
+        }
+        let profile = self.read(tenant, app, id)?;
+        Ok(Self::summary(app, id, &profile))
+    }
+    /// Only summaries from this tenant's formal records; no ambient provider discovery.
+    pub fn list(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+    ) -> Result<Vec<AppProviderSummary>, String> {
+        let prefix = Self::prefix(app);
+        self.settings
+            .list(tenant, NAMESPACE)
+            .map_err(|_| "application provider storage unavailable".to_string())?
+            .into_iter()
+            .filter_map(|entry| entry.config_key.strip_prefix(&prefix).map(str::to_owned))
+            .map(|id| self.get_summary(tenant, app, &id))
+            .collect()
+    }
+    /// Internal execution-host entry point. The host/observations/roots and skip decision must
+    /// come from the authenticated host caller, never from client fields. The API does not
+    /// expose this as a new execution endpoint; task36 owns the host dispatch.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_launch(
+        &self,
+        tenant: &TenantScope,
+        request: &ProviderLaunchRequest,
+        target_host_id: &str,
+        installations: &[AppInstallation],
+        authorized_roots: &[PathBuf],
+        skip_permissions_authorized: bool,
+        private_temp_root: &Path,
+    ) -> Result<ProviderLaunch, String> {
+        let profile = self.read(tenant, request.launch.app_id, &request.provider_id)?;
+        let material = validate_launch_request(
+            &request.launch,
+            target_host_id,
+            installations,
+            authorized_roots,
+            skip_permissions_authorized,
+        )?;
+        prepare_provider_launch(request.launch.app_id, &profile, material, private_temp_root)
+    }
+}
+
+#[cfg(test)]
+#[path = "app_providers_tests.rs"]
+mod tests;
+
+mod universal;
+
+mod universal_sync;
+
+mod failover;
+
+#[cfg(all(test, target_os = "macos"))]
+mod failover_tests;
+
+impl AppProviderStore {
+    pub fn editor_save_record(
+        &self,
+        tenant: &TenantScope,
+        app: AppId,
+        id: &str,
+        before: &serde_json::Value,
+        settings: serde_json::Value,
+    ) -> Result<(), String> {
+        let key = Self::key(app, id)?;
+        let raw = self
+            .settings
+            .get(tenant, NAMESPACE, &key)
+            .map_err(|_| "application provider storage unavailable")?
+            .ok_or("application provider not found")?;
+        let stored: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|_| "invalid stored application provider profile")?;
+        if stored != *before {
+            return Err("application provider changed during update".into());
+        }
+        let mut after = stored;
+        after["settingsConfig"] = settings;
+        if !self
+            .settings
+            .compare_exchange(tenant, NAMESPACE, &key, &raw, &after.to_string())
+            .map_err(|_| "application provider storage unavailable")?
+        {
+            return Err("application provider changed during update".into());
+        }
+        Ok(())
+    }
+}
+
+mod snippets;
+
+mod claude;
+
+#[cfg(target_os = "macos")]
+mod account_removal;
+#[cfg(target_os = "macos")]
+pub use account_removal::NativeAccountRemoval;
+
+#[cfg(target_os = "macos")]
+mod claude_binding;
+#[cfg(target_os = "macos")]
+pub use claude_binding::ClaudeBindingHost;
+#[cfg(target_os = "macos")]
+pub use claude_binding::{managed_claude_binding, same_scope as claude_binding_matches};
+
+#[cfg(target_os = "macos")]
+mod codex_binding;
+#[cfg(all(test, target_os = "macos"))]
+mod codex_binding_tests;
+mod codex_catalog;
+#[cfg(target_os = "macos")]
+pub use codex_binding::has_codex_binding;
+mod model_edits;
+#[cfg(target_os = "macos")]
+mod official_launch;
+
+mod gemini;
+
+mod claude_desktop;
+mod grok;
+
+mod desktop_mapping;
+
+mod hermes;
+mod openclaw;
+mod opencode;
+
+mod pi;
+
+mod mcode;
+mod omp;
+
+mod kimi;
+
+#[cfg(target_os = "macos")]
+mod kimi_binding;
+#[cfg(all(test, target_os = "macos"))]
+mod kimi_binding_tests;
+
+mod dsh;
+
+mod agy;
+
+#[cfg(target_os = "macos")]
+mod agy_binding;
+
+#[cfg(target_os = "macos")]
+mod import;
+
+mod basic;
+
+#[cfg(target_os = "macos")]
+mod agy_form;
+
+mod request_options;
+
+pub mod generation_target;
+
+mod record_publication;
+#[cfg(all(test, target_os = "macos"))]
+mod record_publication_tests;
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub fn with_resync(
+        mut self,
+        context: impl RecordPublication + 'static,
+    ) -> Self {
+        self.settings.1 = Some(std::sync::Arc::new(context));
+        self
+    }
+}
+
+impl AppProviderStore {
+    pub fn database(&self) -> GlobalDatabase {
+        self.database.clone()
+    }
+    #[cfg(target_os = "macos")]
+    pub fn resync_configured(&self) -> bool {
+        self.settings.1.is_some()
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub fn resync_context(
+        &self,
+    ) -> Option<std::sync::Arc<dyn RecordPublication>> {
+        self.settings.1.clone()
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub fn publication_error(&self) -> Option<axum::http::StatusCode> {
+        self.settings
+            .1
+            .as_ref()
+            .and_then(|context| context.failure())
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod data_import;
+
+/// Authenticated project publication supplied by the gateway composition layer.
+/// Implementations retain project grants, routing and durable publication ownership.
+#[cfg(target_os = "macos")]
+pub trait RecordPublication: Send + Sync {
+    fn tenant_scope(&self) -> &TenantScope;
+    fn expected(&self) -> &vw_agent_apps::providers::live::commit::AppState;
+    fn replace(&self, key: &str, before: &str, after: &str) -> Result<bool, axum::http::StatusCode>;
+    fn failure(&self) -> Option<axum::http::StatusCode>;
+    fn record_failure(&self, status: axum::http::StatusCode);
+}

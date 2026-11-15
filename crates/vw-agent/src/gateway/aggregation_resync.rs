@@ -582,3 +582,23 @@ mod route;
 mod publish;
 
 mod exit;
+
+impl app_provider_services::RecordPublication for RecordPublicationContext {
+    fn tenant_scope(&self) -> &vw_api_transport::id::TenantScope {
+        self.project.tenant_scope()
+    }
+    fn expected(&self) -> &AppState {
+        &self.expected
+    }
+    fn replace(&self, key: &str, before: &str, after: &str) -> Result<bool, StatusCode> {
+        RecordPublicationContext::replace(self, key, before, after)
+    }
+    fn failure(&self) -> Option<StatusCode> {
+        self.failure.lock().ok().and_then(|failure| *failure)
+    }
+    fn record_failure(&self, status: StatusCode) {
+        if let Ok(mut failure) = self.failure.lock() {
+            *failure = Some(status);
+        }
+    }
+}

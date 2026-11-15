@@ -178,6 +178,7 @@ agent-multimodal = { path = "../libs/agent-multimodal", version = "0.6.0" }
 computer-control = { path = "../libs/computer-control", version = "0.6.0" }
 agent-mcp = { path = "../libs/agent-mcp", version = "0.6.0" }
 agent-app-services = { path = "../libs/agent-app-services", version = "0.6.0" }
+app-provider-services = { path = "../libs/app-provider-services", version = "0.6.0" }
 agent-knowledge = { path = "../libs/agent-knowledge", version = "0.6.0" }
 agent-hooks = { path = "../libs/agent-hooks", version = "0.6.0" }
 agent-commands = { path = "../libs/agent-commands", version = "0.6.0" }

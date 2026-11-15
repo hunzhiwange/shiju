@@ -27,7 +27,12 @@ async fn write_icon(
         return error("invalid input");
     };
     match tokio::task::spawn_blocking(move || {
-        store(database)?.set_icon(&tenant, app, &id, &request)
+        let store = store(database)?;
+        store.set_icon(&tenant, app, &id, &request, |tenant| {
+            crate::agent_apps::store::IconLibraryStore::new(store.database())
+                .and_then(|icons| icons.read_icons(tenant))
+                .map_err(|_| "application provider storage unavailable".to_string())
+        })
     })
     .await
     {

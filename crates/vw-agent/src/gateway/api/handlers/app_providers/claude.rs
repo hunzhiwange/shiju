@@ -136,9 +136,9 @@ fn write_sync(
     )?;
     let scoped = store.resync_configured();
     let resync_published = store.resync_context().is_some_and(|context| {
-        context.expected.stack.enabled
-            && context.expected.stack.members.contains(&id)
-            && context.expected.mode.as_ref().is_some_and(|mode| mode.attached)
+        context.expected().stack.enabled
+            && context.expected().stack.members.contains(&id)
+            && context.expected().mode.as_ref().is_some_and(|mode| mode.attached)
     });
     let before = store.claude_record(&tenant, &id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if matches!(kind, WriteKind::Update) && before.is_none() {

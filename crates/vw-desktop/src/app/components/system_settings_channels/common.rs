@@ -470,7 +470,7 @@ fn number_control(
 ) -> Element<'static, Message> {
     let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
     row![
-        NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
+        NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, Message::None, move |raw| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::NumberChanged(
                 key.clone(),
                 raw.round() as u32,

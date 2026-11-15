@@ -150,7 +150,7 @@ fn number_row<'a>(
                     max,
                     step,
                     precision,
-                    step.max(0.01),
+                    step.max(0.01), Message::None,
                     on_change,
                 )
                 .settings_style()

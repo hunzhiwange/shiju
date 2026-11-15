@@ -291,7 +291,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             i18n.__("每小时动作上限"),
             i18n.__("限制自治过程中每小时可执行的动作数量。"),
             CONTROL_WIDTH,
-            NumberInput::new(s.max_actions_per_hour as f32, 1.0, 1_000_000.0, 1.0, 0, 1.0, |v| {
+            NumberInput::new(s.max_actions_per_hour as f32, 1.0, 1_000_000.0, 1.0, 0, 1.0, Message::None, |v| {
                 Message::Settings(message::SettingsMessage::AutonomyMaxActionsPerHourChanged(
                     v.round() as u32,
                 ))
@@ -313,7 +313,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 100_000_000.0,
                 1.0,
                 0,
-                1.0,
+                1.0, Message::None,
                 |v| {
                     Message::Settings(message::SettingsMessage::AutonomyMaxCostPerDayCentsChanged(
                         v.round() as u32,

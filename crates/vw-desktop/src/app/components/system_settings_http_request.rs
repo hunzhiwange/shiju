@@ -88,7 +88,7 @@ fn number_row<'a>(
 ) -> Element<'a, Message> {
     let display = number_display(value, suffix);
     let control = row![
-        NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
+        NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, Message::None, move |raw| {
             on_change(normalize_number_value(raw, min, max))
         })
         .settings_style(),

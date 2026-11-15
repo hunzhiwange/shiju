@@ -1,6 +1,11 @@
 use super::NumberInput;
-use crate::app::Message;
-use crate::app::components::system_settings_common::{
+#[derive(Debug, Clone)]
+enum Message { None, CopyCode(String), Settings(SettingsMessage) }
+#[derive(Debug, Clone)]
+enum SettingsMessage { General(GeneralSettingsMessage) }
+#[derive(Debug, Clone)]
+enum GeneralSettingsMessage { LaunchAtLoginToggled(bool) }
+use crate::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_text_editor_style_for,
 };
 use iced::advanced::{
@@ -122,10 +127,10 @@ async fn ui_refresh_02_layout_and_interaction_editor_renders_hover_focus_and_dis
 
 #[tokio::test]
 async fn ui_refresh_02_layout_and_interaction_number_aligns_with_shared_input() {
-    use crate::app::components::system_settings_common::settings_text_input_style;
+    use crate::system_settings_common::settings_text_input_style;
     use iced::widget::{row, text_input};
 
-    let number = NumberInput::new(2.0, 0.0, 10.0, 1.0, 0, 1.0, |_| Message::None).settings_style();
+    let number = NumberInput::new(2.0, 0.0, 10.0, 1.0, 0, 1.0, Message::None, |_| Message::None).settings_style();
     let input = text_input("", "2")
         .on_input(|_| Message::None)
         .padding(SETTINGS_CONTROL_PADDING)
@@ -151,11 +156,10 @@ fn click(form: &mut Form<'_>, point: Point) {
 
 #[tokio::test]
 async fn ui_refresh_02_preserves_values_and_disabled_states() {
-    use crate::app::components::system_settings_common::{
+    use crate::system_settings_common::{
         danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
         settings_checkbox_style, settings_toggle,
     };
-    use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
     use iced::widget::{button, checkbox, column, text};
 
     let toggle_message = |enabled| {
@@ -216,7 +220,7 @@ async fn ui_refresh_02_preserves_values_and_disabled_states() {
 
 #[tokio::test]
 async fn ui_refresh_02_preserves_password_masking() {
-    use crate::app::components::system_settings_common::settings_text_input_style;
+    use crate::system_settings_common::settings_text_input_style;
     use iced::widget::text_input;
 
     for theme in [Theme::Light, Theme::Dark] {
@@ -240,8 +244,8 @@ async fn ui_refresh_02_preserves_password_masking() {
 
 #[tokio::test]
 async fn ui_refresh_02_layout_and_interaction_renders_fixture_form() {
-    use crate::app::assets::Icon;
-    use crate::app::components::system_settings_common::{
+    use desktop_assets::assets::Icon;
+    use crate::system_settings_common::{
         danger_action_btn_style, icon_btn, primary_action_btn_style, rounded_action_btn_style,
         settings_checkbox_style, settings_field_label, settings_select, settings_text_input_style,
         settings_toggle,
@@ -258,7 +262,7 @@ async fn ui_refresh_02_layout_and_interaction_renders_fixture_form() {
             (960, "English · Settings path and validation status"),
         ] {
             let number =
-                NumberInput::new(4.0, 0.0, 10.0, 1.0, 0, 1.0, |_| Message::None).settings_style();
+                NumberInput::new(4.0, 0.0, 10.0, 1.0, 0, 1.0, Message::None, |_| Message::None).settings_style();
             let element = container(
                 column![
                     settings_field_label(label).width(Length::Fill),

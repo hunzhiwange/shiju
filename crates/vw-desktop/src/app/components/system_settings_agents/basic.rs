@@ -164,7 +164,7 @@ pub(super) fn view<'a>(
     let max_parallel_subagents_row = field_with_help(
         tr(app.desktop_locale, "子智能体数量"),
         tr(app.desktop_locale, "该 Agent 每轮最多同时启动的子智能体数量。"),
-        NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, {
+        NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, Message::None, {
             let key = entry.key.clone();
             move |value| {
                 Message::Settings(SettingsMessage::Agents(
@@ -179,7 +179,7 @@ pub(super) fn view<'a>(
     let max_depth_row = field_with_help(
         tr(app.desktop_locale, "最大深度"),
         tr(app.desktop_locale, "委托嵌套深度上限，防止无限递归。"),
-        NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, {
+        NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, Message::None, {
             let key = entry.key.clone();
             move |value| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::MaxDepthChanged(
@@ -212,7 +212,7 @@ pub(super) fn view<'a>(
     let max_history_messages_row = field_with_help(
         tr(app.desktop_locale, "历史消息上限"),
         tr(app.desktop_locale, "该智能体保留给模型的会话历史消息上限。"),
-        NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, {
+        NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, Message::None, {
             let key = entry.key.clone();
             move |value| {
                 Message::Settings(SettingsMessage::Agents(
@@ -245,7 +245,7 @@ pub(super) fn view<'a>(
     let max_iterations_row = field_with_help(
         tr(app.desktop_locale, "最大迭代次数"),
         tr(app.desktop_locale, "智能体模式下最多运行多少轮工具循环。"),
-        NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
+        NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, Message::None, {
             let key = entry.key.clone();
             move |value| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged(

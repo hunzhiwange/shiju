@@ -5,7 +5,8 @@ use super::{
     NumberInput, NumberInputStyleVariant, State, clamp, fmt_value, prop_text_input_style,
     round_precision, settings_text_input_style,
 };
-use crate::app::Message;
+#[derive(Debug, Clone)]
+enum Message { None, CopyCode(String) }
 use iced::advanced::text::editor::{Action, Cursor, Line, LineEnding, Position, Selection};
 use iced::advanced::text::highlighter::Highlighter;
 use iced::advanced::text::{self, Difference, LineHeight, Text, Wrapping};
@@ -279,11 +280,11 @@ impl text::Renderer for RecordingRenderer {
     }
 }
 
-fn input(value: f32) -> NumberInput<'static> {
-    NumberInput::new(value, -10.0, 10.0, 0.5, 2, 0.25, |v| Message::CopyCode(format!("{v:.2}")))
+fn input(value: f32) -> NumberInput<'static, Message> {
+    NumberInput::new(value, -10.0, 10.0, 0.5, 2, 0.25, Message::None, |v| Message::CopyCode(format!("{v:.2}")))
 }
 
-fn tree_for(widget: &NumberInput<'static>) -> widget::Tree {
+fn tree_for(widget: &NumberInput<'static, Message>) -> widget::Tree {
     widget::Tree::new(widget as &dyn Widget<Message, Theme, RecordingRenderer>)
 }
 
@@ -304,7 +305,7 @@ fn key_event(key: iced::keyboard::Key, text: Option<&str>) -> Event {
 }
 
 fn update_with(
-    widget: &mut NumberInput<'static>,
+    widget: &mut NumberInput<'static, Message>,
     tree: &mut widget::Tree,
     event: Event,
     cursor: mouse::Cursor,
@@ -315,7 +316,7 @@ fn update_with(
     let mut messages = Vec::new();
     let mut shell = Shell::new(&mut messages);
 
-    <NumberInput<'_> as Widget<Message, Theme, RecordingRenderer>>::update(
+    <NumberInput<'_, Message> as Widget<Message, Theme, RecordingRenderer>>::update(
         widget,
         tree,
         &event,
@@ -368,7 +369,7 @@ fn style_variant_height_matches_variant() {
 
 #[test]
 fn new_clamps_precision_and_uses_property_style_by_default() {
-    let widget = NumberInput::new(1.0, 0.0, 2.0, 0.1, 9, 0.5, |_| Message::None);
+    let widget = NumberInput::new(1.0, 0.0, 2.0, 0.1, 9, 0.5, Message::None, |_| Message::None);
 
     assert_eq!(widget.value, 1.0);
     assert_eq!(widget.min, 0.0);
@@ -433,15 +434,15 @@ fn widget_reports_state_size_and_idle_interaction() {
     let mut widget = input(2.0).settings_style();
     let mut tree = tree_for(&widget);
     let renderer = RecordingRenderer::default();
-    let size = <NumberInput<'_> as Widget<Message, Theme, RecordingRenderer>>::size(&widget);
-    let node = <NumberInput<'_> as Widget<Message, Theme, RecordingRenderer>>::layout(
+    let size = <NumberInput<'_, Message> as Widget<Message, Theme, RecordingRenderer>>::size(&widget);
+    let node = <NumberInput<'_, Message> as Widget<Message, Theme, RecordingRenderer>>::layout(
         &mut widget,
         &mut tree,
         &renderer,
         &layout::Limits::new(Size::ZERO, Size::new(300.0, 90.0)),
     );
     let interaction =
-        <NumberInput<'_> as Widget<Message, Theme, RecordingRenderer>>::mouse_interaction(
+        <NumberInput<'_, Message> as Widget<Message, Theme, RecordingRenderer>>::mouse_interaction(
             &widget,
             &tree,
             Layout::new(&node),
@@ -463,7 +464,7 @@ fn widget_draw_does_not_emit_renderer_commands() {
     let mut renderer = RecordingRenderer::default();
     let node = layout_for(Rectangle { x: 0.0, y: 0.0, width: 120.0, height: 26.0 });
 
-    <NumberInput<'_> as Widget<Message, Theme, RecordingRenderer>>::draw(
+    <NumberInput<'_, Message> as Widget<Message, Theme, RecordingRenderer>>::draw(
         &widget,
         &tree,
         &mut renderer,

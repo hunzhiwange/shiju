@@ -152,7 +152,7 @@ fn number_row<'a>(
                 *range.end() as f32,
                 1.0,
                 0,
-                0.15,
+                0.15, Message::None,
                 move |raw| on_change(raw.round() as u32),
             )
             .settings_style(),

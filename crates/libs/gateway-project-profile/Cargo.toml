@@ -9,7 +9,6 @@ vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" 
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 gateway-project = { path = "../gateway-project", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

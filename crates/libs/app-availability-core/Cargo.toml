@@ -11,7 +11,6 @@ doctest = false
 vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-types = { path = "../../vw-api-types" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["macros", "rt", "time"] }

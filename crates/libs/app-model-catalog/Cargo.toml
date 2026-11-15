@@ -13,7 +13,6 @@ vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 app-provider-validation = { path = "../app-provider-validation" }
 app-routing-policy = { path = "../app-routing-policy" }
-vw-api-types = { path = "../../vw-api-types" }
 reqwest = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }

@@ -20,7 +20,6 @@ thiserror = "2.0.18"
 time = { version = "0.3", features = ["formatting"] }
 tokio = { version = "1", features = ["fs", "io-util"] }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
-vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt", "sync"] }

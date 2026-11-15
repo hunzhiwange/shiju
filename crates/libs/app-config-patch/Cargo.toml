@@ -12,7 +12,6 @@ vw-api-hermes-memory = { path = "../api-hermes-memory", version = "0.6.0" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 serde_yaml = "0.9"
 toml_edit = "0.22"
-vw-api-types = { path = "../../vw-api-types" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 json-five = "0.3.1"

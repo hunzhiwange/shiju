@@ -2722,3 +2722,11 @@
 ## 任务46执行补充
 
 OpenClaw 设置契约及三个既有测试迁入 `crates/libs/api-openclaw-settings`，原 `openclaw_settings` 模块明确重导出同一类型。实际直接消费者为 vw-agent 处理器、vw-desktop OpenClaw 编辑器及测试、vw-gateway-client 兼容客户端，以及执行期间已落地的 gateway-openclaw-settings 领域客户端及测试；均改用新库。新库仅依赖 serde/serde_json，不反向依赖门面。定义、serde 属性与原断言保留，测试仅修改导入与注册。已做路径/清单人工审查与 git diff --check；未运行 Cargo、测试及实机验证，未来验收范围见原任务计划。
+
+## 任务49静态收口证据
+
+保留兼容模块、根导出及两个既有测试文件，修复重复 pub。实际剩五项外依赖：删除 base64/serde/url/uuid，serde_json 移至测试依赖。移除17个已跟踪消费者的闲置依赖。在途未跟踪的 gateway-app-failover、gateway-model-catalog 清单留给所属任务处理，不覆盖其内容。
+
+剩余入口：vw-agent-apps、vw-agent、gateway-app-lifecycle 仍用 agent_apps 通配兼容导入；vw-gateway-client 保留公开门面及生命周期调用；桌面端通过公开门面使用应用身份与任务契约。workspace 注册和发布旧包名保留；版本脚本补 api-* 自动发现。协议中继及其验证脚本、fixture 继续用兼容包名，历史说明不改。API 职责库无反向门面依赖，静态路径存在，根类型身份不变。
+
+静态路径核对及 diff 检查完成；系统 Python 缺 tomllib，改用正则检查路径，不宣称解析或编译通过。未运行 Cargo、测试及实机验证；未来需授权编译和序列化、拒绝输入及跨领域身份验收。

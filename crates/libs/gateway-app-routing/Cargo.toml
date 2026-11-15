@@ -9,7 +9,6 @@ vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
 vw-api-app-routing = { path = "../api-app-routing", version = "0.6.0" }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
-vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 serde = "1"

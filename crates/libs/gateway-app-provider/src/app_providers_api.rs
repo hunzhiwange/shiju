@@ -217,3 +217,9 @@ mod codex_catalog;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/codex_catalog_tests.rs"]
 mod codex_catalog_tests;
+
+#[path = "app_providers/gemini.rs"]
+mod gemini;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/gemini_tests.rs"]
+mod gemini_tests;

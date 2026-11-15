@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：20，线性顺序 20；依赖：前一批次 19。符号依赖卡：无额外前置。不并行。
 
@@ -32,3 +32,11 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-app-provider crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 实施归属与静态证据
+
+- 前置提交 12d33a501 已落地；六个公开方法及私有 gemini_request 归属 gateway-app-provider/src/app_providers/gemini.rs，原文件仅显式转发。
+- 两个测试迁至领域独立文件并使用已有 test_support 工厂，保留安全断言，按原生测试约束注册。
+- 四包调用搜索：桌面表单、托盘及 agent 测试夹具直连领域；CLI 和 resolver 无相关调用。已有 workspace 和依赖接线足够。
+- 静态核对协议、认证、租户、错误及 wasm 拒绝分支；领域库无反向依赖，git diff --check 通过。
+- 未运行 Cargo、测试及实机验证；后续另行统一验证。

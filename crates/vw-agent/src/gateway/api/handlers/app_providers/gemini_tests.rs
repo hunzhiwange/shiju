@@ -7,12 +7,13 @@ use {
     vw_api_types::app_providers::gemini::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use gateway_endpoint::GatewayEndpoint;
+use gateway_app_provider::GatewayAppProviderClient;
 const TOKEN: &str = "fixture-gemini-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -45,11 +46,11 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
-        .unwrap();
+        .unwrap());
         Self { root, db, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -373,23 +374,23 @@ async fn cc04_ui_gemini_sdk_form_projects_env_and_settings() {
     };
     assert!(matches!(
         f.client.gemini_form_update(id, &write, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 422, .. })
     ));
     assert!(matches!(
         f.client.gemini_form_read(id, &f.target(), "bad-token").await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 401 | 403, .. })
     ));
     assert!(matches!(
         f.client.gemini_form_update(id, &write, "bad-token").await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 401 | 403, .. })
     ));
     assert!(matches!(
         f.client.gemini_form_create(id, &write, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 409, .. })
     ));
     assert!(matches!(
         f.client.gemini_form_update("missing", &write, TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 404, .. })
+        Err(gateway_app_provider::AgentAppsReadError::Http { status: 404, .. })
     ));
     assert_eq!((f.record(id), f.state(), std::fs::read(f.file()).unwrap()), before);
     assert_eq!(std::fs::read_to_string(&env).unwrap(), dotenv);

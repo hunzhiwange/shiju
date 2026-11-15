@@ -82,9 +82,6 @@ mod codex_catalog_tests;
 
 #[path = "app_providers/gemini.rs"]
 mod gemini;
-#[cfg(test)]
-#[path = "app_providers/gemini_tests.rs"]
-mod gemini_tests;
 
 #[path = "app_providers/claude_desktop.rs"]
 mod claude_desktop;

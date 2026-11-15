@@ -80,7 +80,7 @@ pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
                         .await
                 }
                 AppId::Gemini => {
-                    client
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                         .gemini_provider_switch(
                             &worker_id,
                             &GeminiTarget { target_host_id: host },

@@ -1,93 +1,40 @@
-//! MCP handshake evidence is separate from production connection state.
-use super::super::system_settings_common::*;
 use crate::app::{
     App, Message,
-    message::{
-        agent_apps_diagnostics::{self as diagnostics, AppChoice, McpDiagnosticMessage as Event},
-        settings::mcp_management_list as catalog,
-    },
+    message::{agent_apps_diagnostics as diagnostics, settings::mcp_management_list as catalog},
 };
-use iced::{
-    Element,
-    widget::{button, column, row, text},
-};
-
-pub(crate) fn view(app: &App) -> Element<'_, Message> {
+use desktop_apps_ui::agent_apps_diagnostics::mcp_panel as domain;
+fn message(event: domain::Event<diagnostics::AppChoice>) -> Message {
+    diagnostics::message(match event {
+        domain::Event::Select(v) => diagnostics::McpDiagnosticMessage::Select(v),
+        domain::Event::Start(v) => diagnostics::McpDiagnosticMessage::Start(v),
+        domain::Event::Cancel => diagnostics::McpDiagnosticMessage::Cancel,
+        domain::Event::Refresh => diagnostics::McpDiagnosticMessage::Refresh,
+    })
+}
+pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
     let state = &app.mcp_settings.diagnostics;
     let current = diagnostics::context(app);
     let visible = current.is_some() && current.as_ref() == state.context.as_ref();
-    let active = visible && state.active();
-    let control = |label: &'static str, event: Option<Event>| {
-        button(text(label))
-            .padding([8, 14])
-            .style(rounded_action_btn_style)
-            .on_press_maybe(event.map(diagnostics::message))
-    };
-    let choices: Vec<_> =
-        app.apps_catalog.rows.iter().map(|r| AppChoice(r.entry.id, r.entry.name.clone())).collect();
-    let mut body = column![
-        text("MCP 连通检测").size(16),
-        text("仅点击才检查连接并发现工具，不执行工具；结果属于当前连接修订。")
-            .size(12)
-            .style(settings_muted_text_style),
-        settings_select(choices, state.app.clone(), |choice| diagnostics::message(Event::Select(
-            choice
-        )))
-        .disabled(active),
-    ]
-    .spacing(8);
-    if let Some(Ok(catalog)) = catalog::visible(app) {
-        body = body.push(control(
-            "检测全部",
-            (!active && !catalog.records.is_empty()).then(|| {
-                Event::Start(catalog.records.iter().map(|r| r.record.id.clone()).collect())
-            }),
-        ));
-        for record in &catalog.records {
-            body = body.push(
-                row![
-                    text(format!(
-                        "{} · {} · {}",
-                        record.name,
-                        record.record.id.0,
-                        if visible {
-                            state
-                                .targets
-                                .iter()
-                                .find(|(r, _)| r.id == record.record.id)
-                                .map(|(_, p)| p.label())
-                                .unwrap_or("unchecked · 未检查")
-                        } else {
-                            "unchecked · 未检查"
-                        }
-                    )),
-                    control(
-                        "检测",
-                        (!active).then(|| Event::Start(vec![record.record.id.clone()]))
-                    )
-                ]
-                .spacing(8),
-            );
-        }
-    }
-    if visible {
-        body = body.push(diagnostics::mcp_results::view(state));
-        if active {
-            body = body.push(
-                row![
-                    control("取消检测", (!state.cancelling).then_some(Event::Cancel)),
-                    control("刷新检测", state.error.as_ref().map(|_| Event::Refresh))
-                ]
-                .spacing(8),
-            );
-        }
-        if let Some(error) = &state.error {
-            body = body.push(settings_error_banner(error.clone()));
-        }
-    }
-    body.into()
+    domain::view(
+        domain::Panel {
+            visible,
+            active: state.active(),
+            cancelling: state.cancelling,
+            choices: app
+                .apps_catalog
+                .rows
+                .iter()
+                .map(|r| diagnostics::AppChoice(r.entry.id, r.entry.name.clone()))
+                .collect(),
+            app: state.app.clone(),
+            catalog: catalog::visible(app).and_then(|r| r.as_ref().ok()),
+            labels: state.targets.iter().map(|(r, p)| (r.id.clone(), p.label())).collect(),
+            error: &state.error,
+        },
+        message,
+        diagnostics::mcp_results::view(state),
+    )
 }
-
 #[cfg(test)]
 #[path = "mcp_panel_tests.rs"]
 mod tests;

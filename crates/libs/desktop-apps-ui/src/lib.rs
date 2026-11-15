@@ -22,3 +22,6 @@ fn success<E>(notice: &mut Option<Notice>, text: impl Into<String>) -> iced::Tas
 
 pub mod aggregation;
 pub mod diagnostics;
+
+pub mod agent_apps_diagnostics;
+pub mod agent_apps_high_availability;

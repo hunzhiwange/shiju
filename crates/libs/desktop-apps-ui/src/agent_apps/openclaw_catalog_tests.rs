@@ -1,4 +1,4 @@
-use super::openclaw_catalog::parse_draft;
+use super::parse_draft;
 use serde_json::json;
 
 #[test]

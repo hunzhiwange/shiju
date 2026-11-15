@@ -1,4 +1,4 @@
-use super::hermes_memory_limits::budget_text;
+use super::budget_text;
 
 #[test]
 fn hermes_budget_matches_utf16_count() {

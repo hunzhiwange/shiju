@@ -467,9 +467,6 @@ pub(crate) mod system_settings_prompts;
 
 #[path = "agent_apps/hermes_memory.rs"]
 pub(crate) mod hermes_memory;
-#[cfg(test)]
-#[path = "agent_apps/hermes_memory_tests.rs"]
-mod hermes_memory_tests;
 
 #[path = "agent_apps/openclaw_model.rs"]
 pub(crate) mod openclaw_model;
@@ -477,9 +474,6 @@ pub(crate) mod openclaw_model;
 #[path = "agent_apps/openclaw_catalog.rs"]
 pub(crate) mod openclaw_catalog;
 
-#[cfg(test)]
-#[path = "agent_apps/openclaw_catalog_tests.rs"]
-mod openclaw_catalog_tests;
 
 #[path = "agent_apps/openclaw_defaults.rs"]
 pub(crate) mod openclaw_defaults;
@@ -492,9 +486,6 @@ pub(crate) mod openclaw_env;
 
 #[path = "agent_apps/hermes_memory_limits.rs"]
 pub(crate) mod hermes_memory_limits;
-#[cfg(test)]
-#[path = "agent_apps/hermes_memory_limits_tests.rs"]
-mod hermes_memory_limits_tests;
 
 #[path = "agent_apps/daily_memory.rs"]
 pub(crate) mod daily_memory;

@@ -61,6 +61,7 @@ members = [
   "crates/libs/app-aggregation-catalog",
   "crates/libs/app-aggregation",
   "crates/libs/app-models",
+  "crates/libs/app-model-discovery",
   "crates/libs/gateway-shiju-app",
   "crates/libs/gateway-shiju-account",
   "crates/libs/gateway-channel-qr",

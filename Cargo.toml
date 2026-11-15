@@ -4,6 +4,7 @@ members = [
   "crates/libs/api-app-identity",
   "crates/libs/cli-api-automation",
   "crates/libs/config-reliability",
+  "crates/libs/config-automation",
   "crates/libs/config-routing",
   "crates/libs/acp-storage",
   "crates/libs/api-chat-identity",

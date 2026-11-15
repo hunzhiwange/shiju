@@ -6,7 +6,7 @@ use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use serde_json::{Value, json};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
-use vw_gateway_client::vw_api_types::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
+use vw_api_chat::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

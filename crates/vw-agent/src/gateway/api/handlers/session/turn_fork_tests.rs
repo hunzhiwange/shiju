@@ -462,7 +462,7 @@ async fn fork_selection_locks_when_own_request_starts() {
         let (status, body) = fork(&source, json!({"beforeTurnId":boundary, "target":target})).await;
         assert_eq!(status, StatusCode::OK, "{body}");
         let branch: agent_session::session::Info = serde_json::from_value(body).unwrap();
-        let stream_request = vw_api_types::chat::GatewayChatStreamRequest {
+        let stream_request = vw_api_chat::chat::GatewayChatStreamRequest {
             session_id: Some(branch.id.clone().into()),
             model: Some("model-recovery/original".into()),
             options: Some(json!({"full_access":false})),
@@ -609,7 +609,7 @@ async fn fork_selection_locks_when_own_request_starts() {
     let response = super::super::super::stream::chat_stream(
         Query(query_for(FsPath::new(&failed.directory))),
         HeaderMap::new(),
-        Json(vw_api_types::chat::GatewayChatStreamRequest {
+        Json(vw_api_chat::chat::GatewayChatStreamRequest {
             session_id: Some(failed.id.clone().into()),
             model: Some("model-recovery/original".into()),
             options: Some(json!({"full_access":false})),
@@ -646,7 +646,7 @@ async fn fork_selection_locks_when_own_request_starts() {
     let retry = super::super::super::stream::chat_stream(
         Query(query_for(FsPath::new(&failed.directory))),
         HeaderMap::new(),
-        Json(vw_api_types::chat::GatewayChatStreamRequest {
+        Json(vw_api_chat::chat::GatewayChatStreamRequest {
             session_id: Some(failed.id.clone().into()),
             model: Some("model-recovery/original".into()),
             options: Some(json!({"full_access":false})),

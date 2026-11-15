@@ -1,7 +1,7 @@
 //! Pure, pre-dispatch selection. Callers retain credentials and enforce access before
 //! granting an exact endpoint. A route is immutable for the lifetime of an attempt;
 //! transport failures never authorize selecting another model, account or endpoint.
-use vw_shared::provider::protocols::{ModelProtocol, ProtocolEndpoint};
+use model_protocols::{ModelProtocol, ProtocolEndpoint};
 
 /// Capabilities actually required by a request, including state carried between turns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -185,7 +185,7 @@ fn eligible_endpoint(
     }
     if matches!(
         endpoint.authentication,
-        vw_shared::provider::protocols::ProtocolAuthentication::Unsupported { .. }
+        model_protocols::ProtocolAuthentication::Unsupported { .. }
     ) {
         return Err(RouteRejection::UnsupportedAuthentication);
     }

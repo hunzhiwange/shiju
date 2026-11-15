@@ -2,7 +2,7 @@
 use super::responses::ChatTools;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use vw_shared::provider::ModelProtocol;
+use model_protocols::ModelProtocol;
 
 const INVALID: StatusCode = StatusCode::BAD_GATEWAY;
 

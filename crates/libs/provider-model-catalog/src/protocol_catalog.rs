@@ -3,7 +3,7 @@ use super::Provider;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::HashMap;
-use vw_shared::provider::protocols::{ProtocolEndpoint, ProtocolModelScope, deserialize_protocols};
+use model_protocols::{ProtocolEndpoint, ProtocolModelScope, deserialize_protocols};
 
 #[derive(Deserialize)]
 struct Catalog {

@@ -1,7 +1,7 @@
 //! Resident Gemini JSON differences; strict decoding remains owned by the bridge.
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use vw_shared::provider::ModelProtocol;
+use model_protocols::ModelProtocol;
 
 const INVALID: StatusCode = StatusCode::BAD_GATEWAY;
 

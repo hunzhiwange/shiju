@@ -2,7 +2,7 @@
 use axum::http::StatusCode;
 use base64::Engine as _;
 use serde_json::{Value, json};
-use vw_shared::provider::ModelProtocol;
+use model_protocols::ModelProtocol;
 
 pub(crate) fn convert(body: &Value) -> Result<Value, StatusCode> {
     let mut normalized = body.clone();

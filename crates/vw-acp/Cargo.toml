@@ -13,7 +13,6 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
-acp-cli-app = { path = "../libs/acp-cli-app", version = "0.6.0" }
 acp-cli-commands = { path = "../libs/acp-cli-commands", version = "0.6.0" }
 acp-cli-render = { path = "../libs/acp-cli-render", version = "0.6.0" }
 acp-cli-model = { path = "../libs/acp-cli-model", version = "0.6.0" }

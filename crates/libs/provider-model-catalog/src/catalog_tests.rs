@@ -611,7 +611,7 @@ fn model_protocol_010_overlay_respects_custom_and_explicit_empty_deployments() {
         &catalog["deepseek"].models["deepseek-v4-flash"],
     );
     assert!(original.api.protocols.as_ref().is_some_and(|endpoints| endpoints.iter().any(
-        |endpoint| endpoint.protocol == vw_shared::provider::protocols::ModelProtocol::Messages
+        |endpoint| endpoint.protocol == model_protocols::ModelProtocol::Messages
     )));
     for (api, protocols) in
         [("https://private.example", Value::Null), ("https://api.deepseek.com", json!([]))]

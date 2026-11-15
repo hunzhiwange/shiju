@@ -1,7 +1,7 @@
 //! Resident Messages request projection; session relay validation stays unchanged.
 use axum::http::StatusCode;
 use serde_json::Value;
-use vw_shared::provider::ModelProtocol;
+use model_protocols::ModelProtocol;
 
 pub(crate) fn to_responses(body: &Value) -> Result<Value, StatusCode> {
     let messages = body["messages"].as_array().ok_or(StatusCode::BAD_REQUEST)?;

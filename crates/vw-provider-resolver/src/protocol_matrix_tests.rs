@@ -1,7 +1,7 @@
 //! Exhaustive source identities, independently selected through the production catalog.
 use crate::protocol_routes::*;
 use serde_json::{Value, json};
-use vw_shared::provider::protocols::{ModelProtocol as P, ProtocolAuthentication as A};
+use model_protocols::{ModelProtocol as P, ProtocolAuthentication as A};
 
 const PROTOCOLS: [P; 4] = [P::Chat, P::Messages, P::Responses, P::Gemini];
 

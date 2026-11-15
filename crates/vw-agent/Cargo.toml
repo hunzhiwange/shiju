@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
+model-protocols = { path = "../libs/model-protocols", version = "0.6.0" }
 config-tools = { path = "../libs/config-tools", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 session-paths = { path = "../libs/session-paths", version = "0.6.0" }

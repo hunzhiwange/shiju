@@ -46,7 +46,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         .model_api
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("OpenCode requires selected model transport"))?;
-    use vw_shared::provider::ModelProtocol as P;
+    use model_protocols::ModelProtocol as P;
     let (npm, suffix) = match crate::model_relay::routing::client_protocol(api)
         .map_err(|_| anyhow::anyhow!("OpenCode selected model has no executable HTTP contract"))?
     {

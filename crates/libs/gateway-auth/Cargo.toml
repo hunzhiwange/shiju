@@ -1,0 +1,21 @@
+[package]
+name = "gateway-auth"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+agent-auth = { path = "../agent-auth", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+auth-file-store = { path = "../auth-file-store", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+tower = { version = "0.5", features = ["util"] }

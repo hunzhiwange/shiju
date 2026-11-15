@@ -453,6 +453,7 @@ members = [
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/gateway-types",
+  "crates/libs/gateway-auth",
   "crates/libs/gateway-agent-apps",
   "crates/libs/app-access-service",
   "crates/libs/gateway-endpoint",

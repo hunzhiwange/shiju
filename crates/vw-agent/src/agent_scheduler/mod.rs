@@ -27,44 +27,8 @@ pub mod task_graph;
 mod task_board_tests;
 
 #[cfg(test)]
-#[path = "store/schema_tests.rs"]
-mod schema_tests;
-
-#[cfg(test)]
-#[path = "store/tasks_tests.rs"]
-mod tasks_tests;
-
-#[cfg(test)]
-#[path = "store/runs_tests.rs"]
-mod runs_tests;
-
-#[cfg(test)]
-#[path = "store/resources_tests.rs"]
-mod resources_tests;
-
-#[cfg(test)]
-#[path = "store/events_tests.rs"]
-mod events_tests;
-
-#[cfg(test)]
-#[path = "store/outbox_tests.rs"]
-mod store_outbox_tests;
-
-#[cfg(test)]
-#[path = "store/logs_tests.rs"]
-mod store_logs_tests;
-
-#[cfg(test)]
-#[path = "store/artifacts_tests.rs"]
-mod store_artifacts_tests;
-
-#[cfg(test)]
 #[path = "policy_tests.rs"]
 mod policy_tests;
-
-#[cfg(test)]
-#[path = "lifecycle_bridge_tests.rs"]
-mod lifecycle_bridge_tests;
 
 #[cfg(test)]
 #[path = "integration_tests.rs"]
@@ -73,11 +37,3 @@ mod integration_tests;
 #[cfg(test)]
 #[path = "local_e2e_tests.rs"]
 mod local_e2e_tests;
-
-#[cfg(test)]
-#[path = "runner/local_tests.rs"]
-mod local_runner_tests;
-
-#[cfg(test)]
-#[path = "task_graph_tests.rs"]
-mod task_graph_tests;

@@ -979,18 +979,7 @@ fn set_reasoning_effort(
     Ok(())
 }
 
-pub(super) fn reasoning_effort_from_metadata(
-    metadata: &Value,
-) -> Result<Option<ReasoningEffortDto>> {
-    metadata
-        .get("reasoning_effort")
-        .cloned()
-        .filter(|value| !value.is_null())
-        .map(|value| {
-            serde_json::from_value(value).context("invalid task metadata field reasoning_effort")
-        })
-        .transpose()
-}
+pub(super) use task_scheduler::runner::local::reasoning_effort_from_metadata;
 
 fn set_metadata_u32(metadata: &mut Map<String, Value>, key: &str, value: Option<u32>) {
     if let Some(value) = value {

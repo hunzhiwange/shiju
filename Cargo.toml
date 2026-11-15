@@ -15,6 +15,7 @@ members = [
   "crates/libs/channel-nextcloud-talk",
   "crates/libs/channel-irc",
   "crates/libs/task-scheduler-core",
+  "crates/libs/task-scheduler",
   "crates/libs/device-sync",
   "crates/libs/session-store",
   "crates/libs/session-engine",

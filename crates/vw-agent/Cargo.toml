@@ -326,6 +326,7 @@ vw-api-types = { path = "../vw-api-types", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0" }
 channel-discord = { path = "../libs/channel-discord", version = "0.6.0" }
 agent-tunnel = { path = "../libs/agent-tunnel", version = "0.6.0" }
 channel-signal = { path = "../libs/channel-signal", version = "0.6.0" }
@@ -473,6 +474,9 @@ path = "tests/gateway_legacy_handlers.rs"
 [target.'cfg(unix)'.dependencies]
 tool-computer = { path = "../libs/tool-computer", version = "0.6.0" }
 tool-office = { path = "../libs/tool-office", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
 tool-assembly = { path = "../libs/tool-assembly", version = "0.6.0", features = ["test-support"] }

@@ -19,7 +19,7 @@ async fn cc04_agy_sdk_scopes_card_and_discards_error_payload() {
 }
 #[tokio::test]
 async fn cc04_agy_sdk_rejects_path_identity_without_transport() {
-    let client = crate::GatewayClient::new(crate::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();
+    let client = crate::test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1)).unwrap();
     let e = client
         .agy_provider_switch(
             "../escape",

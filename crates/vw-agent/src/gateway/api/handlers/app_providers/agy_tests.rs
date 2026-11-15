@@ -97,6 +97,7 @@ printf '%s' "$dir" > proof
         GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant.clone()),
     )
     .unwrap();
+    let providers = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let settings = gateway_app_settings::GatewayAppSettingsClient::new(client.transport().clone());
     let request = AgyWrite {
         target_host_id: "host".into(),
@@ -107,13 +108,13 @@ printf '%s' "$dir" > proof
             base_url: Some("https://example.com".into()),
         },
     };
-    assert!(client.agy_provider_save("one", &request, "wrong-token").await.is_err());
+    assert!(providers.agy_provider_save("one", &request, "wrong-token").await.is_err());
     assert!(!private.join("agy-profiles").exists());
-    let saved = client.agy_provider_save("one", &request, TOKEN).await.unwrap();
+    let saved = providers.agy_provider_save("one", &request, TOKEN).await.unwrap();
     assert!(saved.catalog_saved);
     assert!(!private.join("agy-profiles").exists());
     assert!(
-        client
+        providers
             .agy_provider_switch("one", &AgyTarget { target_host_id: "host".into() }, TOKEN)
             .await
             .is_err()
@@ -186,7 +187,7 @@ printf '%s' "$dir" > proof
 use vw_api_app_provider_base::basic::ProviderBasic;
     use vw_api_app_provider_base::create::ProviderSecretWrite;
     let target = AgyTarget { target_host_id: "host".into() };
-    let public = client.agy_form_read("one", &target, TOKEN).await.unwrap();
+    let public = providers.agy_form_read("one", &target, TOKEN).await.unwrap();
     let public_json = serde_json::to_string(&public).unwrap();
     assert!(!public_json.contains("fake-key"));
     let mut edit = AgyFormWrite {
@@ -208,7 +209,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
         .agy_record(&tenant, "one")
         .unwrap();
     edit.api_key = ProviderSecretWrite::Clear;
-    assert!(client.agy_form_update("one", &edit, TOKEN).await.is_err());
+    assert!(providers.agy_form_update("one", &edit, TOKEN).await.is_err());
     assert_eq!(
         crate::app_providers::AppProviderStore::new(db.clone())
             .unwrap()
@@ -218,15 +219,15 @@ use vw_api_app_provider_base::basic::ProviderBasic;
     );
     edit.api_key = ProviderSecretWrite::Keep;
     edit.base_url = Some("https://other.example.test".into());
-    assert!(client.agy_form_update("one", &edit, TOKEN).await.is_err());
+    assert!(providers.agy_form_update("one", &edit, TOKEN).await.is_err());
     edit.base_url = public.base_url.clone();
-    assert!(client.agy_form_update("one", &edit, TOKEN).await.unwrap().catalog_saved);
+    assert!(providers.agy_form_update("one", &edit, TOKEN).await.unwrap().catalog_saved);
     assert_eq!(std::fs::read(path.join("antigravity-cli/settings.json")).unwrap(), original);
     assert!(
-        client.agy_form_update("one", &edit, TOKEN).await.is_err(),
+        providers.agy_form_update("one", &edit, TOKEN).await.is_err(),
         "stale revision must not overwrite"
     );
-    let public = client.agy_form_read("one", &target, TOKEN).await.unwrap();
+    let public = providers.agy_form_read("one", &target, TOKEN).await.unwrap();
     assert_eq!(public.model.as_deref(), Some("新的中文模型"));
     assert!(public.has_saved_key);
     assert_eq!(public.fields.notes.as_deref(), Some("保留会话"));
@@ -244,7 +245,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
         .session_id
         .unwrap();
     assert!(
-        client.agy_form_delete("one", &target, TOKEN).await.is_err(),
+        providers.agy_form_delete("one", &target, TOKEN).await.is_err(),
         "active catalog lease blocks deletion"
     );
     std::fs::remove_file(home.join("hold")).unwrap();
@@ -264,26 +265,26 @@ use vw_api_app_provider_base::basic::ProviderBasic;
     assert_eq!(changed["model"], "新的中文模型");
     assert_eq!(std::fs::read(path.join("session.json")).unwrap(), b"session");
     // Delete only the catalog row; retained profile/session/login remain unchanged.
-    assert!(client.agy_form_delete("one", &target, TOKEN).await.unwrap().deleted);
-    assert!(client.agy_form_read("one", &target, TOKEN).await.is_err());
+    assert!(providers.agy_form_delete("one", &target, TOKEN).await.unwrap().deleted);
+    assert!(providers.agy_form_read("one", &target, TOKEN).await.is_err());
     assert!(path.join("session.json").is_file());
     assert_eq!(std::fs::read(home.join("login")).unwrap(), b"native-login");
     edit.revision = None;
     edit.base_url = None;
     edit.api_key = ProviderSecretWrite::Clear;
-    assert!(client.agy_form_create("native", &edit, TOKEN).await.unwrap().catalog_saved);
-    let native = client.agy_form_read("native", &target, TOKEN).await.unwrap();
+    assert!(providers.agy_form_create("native", &edit, TOKEN).await.unwrap().catalog_saved);
+    let native = providers.agy_form_read("native", &target, TOKEN).await.unwrap();
     assert!(!native.has_saved_key);
-    assert!(client.agy_form_delete("native", &target, "wrong-token").await.is_err());
-    assert!(client.agy_form_delete("native", &target, TOKEN).await.unwrap().deleted);
-    assert!(client.agy_form_create("read-only", &edit, TOKEN).await.unwrap().catalog_saved);
+    assert!(providers.agy_form_delete("native", &target, "wrong-token").await.is_err());
+    assert!(providers.agy_form_delete("native", &target, TOKEN).await.unwrap().deleted);
+    assert!(providers.agy_form_create("read-only", &edit, TOKEN).await.unwrap().catalog_saved);
     pv["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
     std::fs::write(&policy, pv.to_string()).unwrap();
-    assert!(client.agy_form_read("read-only", &target, TOKEN).await.is_ok());
-    assert!(client.agy_form_delete("read-only", &target, TOKEN).await.is_err());
-    assert!(client.agy_provider_save("two", &request, TOKEN).await.is_err());
-    assert!(client.agy_form_create("two", &edit, TOKEN).await.is_err());
-    assert!(client.agy_form_delete("two", &target, TOKEN).await.is_err());
+    assert!(providers.agy_form_read("read-only", &target, TOKEN).await.is_ok());
+    assert!(providers.agy_form_delete("read-only", &target, TOKEN).await.is_err());
+    assert!(providers.agy_provider_save("two", &request, TOKEN).await.is_err());
+    assert!(providers.agy_form_create("two", &edit, TOKEN).await.is_err());
+    assert!(providers.agy_form_delete("two", &target, TOKEN).await.is_err());
     assert!(
         crate::app_providers::AppProviderStore::new(db)
             .unwrap()

@@ -2,7 +2,7 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use vw_gateway_client::AgentAppsReadError;
+use gateway_app_provider::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_profiles::agy::*;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
@@ -24,7 +24,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<AgyFormView, String> {
-    client.agy_form_read(id, &AgyTarget { target_host_id: scope.host }, token).await.map_err(error)
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).agy_form_read(id, &AgyTarget { target_host_id: scope.host }, token).await.map_err(error)
 }
 pub(crate) async fn save(
     client: GatewayClient,
@@ -49,6 +49,7 @@ pub(crate) async fn save(
         api_key,
         revision: draft.revision,
     };
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let result = if matches!(form.mode, Mode::Create) {
         client.agy_form_create(&form.id, &body, &token).await
     } else {

@@ -1,5 +1,6 @@
 use crate::app::state::app_providers::{edit::EditForm, list::Scope};
-use vw_gateway_client::{GatewayClient, vw_api_types::app_providers::delete::AppProviderDelete};
+use vw_gateway_client::GatewayClient;
+use vw_api_app_provider_edit::delete::AppProviderDelete;
 pub(crate) async fn save(
     client: GatewayClient,
     scope: Scope,
@@ -8,7 +9,7 @@ pub(crate) async fn save(
 ) -> Result<(), String> {
     if matches!(form.mode, crate::app::state::app_providers::edit::Mode::Delete) {
         let deleted = if scope.app == vw_api_app_identity::AppId::Agy {
-            client
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                 .agy_form_delete(
                     &form.id,
                     &vw_api_app_provider_profiles::agy::AgyTarget {
@@ -50,7 +51,7 @@ use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
-use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
+use vw_api_app_provider_edit::catalog::ProviderMembership;
 use vw_api_app_provider_base::claude::ClaudeFormView;
 use vw_api_app_provider_base::claude::ClaudeLiveResult;
 use vw_api_app_provider_profiles::codex_catalog::CodexFormView;

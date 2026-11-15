@@ -290,3 +290,9 @@ mod dsh;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/dsh_tests.rs"]
 mod dsh_tests;
+
+#[path = "app_providers/agy.rs"]
+mod agy;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/agy_tests.rs"]
+mod agy_tests;

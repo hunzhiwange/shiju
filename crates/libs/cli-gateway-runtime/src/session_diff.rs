@@ -1,7 +1,7 @@
 //! TUI 会话文件差异的只读 Gateway 适配边界。
 
 use similar::TextDiff;
-use vw_gateway_client::vw_api_session::session::GatewaySessionDiffQuery;
+use vw_api_session::session::GatewaySessionDiffQuery;
 use snapshot_types::{DiffStatus, FileDiff};
 use vw_tui::{V3FileChange, V3FileDiff, V3FileDiffEntry};
 

@@ -112,3 +112,11 @@ fn tool_content_to_session_text_extracts_json_output_without_tool_call_id() {
 
     assert_eq!(text, "[Tool results]\n<tool_result>\nresult only\n</tool_result>");
 }
+
+#[test]
+fn split_stream_model_ref_uses_model_id_when_provider_is_missing() {
+    let model_ref = split_stream_model_ref(Some("claude-sonnet-4"));
+
+    assert_eq!(model_ref.provider_id, "");
+    assert_eq!(model_ref.model_id, "claude-sonnet-4");
+}

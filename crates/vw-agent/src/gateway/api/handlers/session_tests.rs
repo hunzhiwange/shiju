@@ -3,7 +3,7 @@
 //! 这些测试覆盖路由方法契约、请求级租户隔离，以及流式聊天落盘时的模型标识
 //! 拆分、用户/助手消息生成和预分配消息 id 复用。
 
-use super::stream::{StreamTurnMessageIds, persist_stream_chat_turn, split_stream_model_ref};
+use super::stream::{StreamTurnMessageIds, persist_stream_chat_turn};
 use super::{router, session_tenant_scope};
 
 use crate::app::agent::config::Config;

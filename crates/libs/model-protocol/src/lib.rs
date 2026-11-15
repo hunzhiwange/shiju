@@ -94,3 +94,15 @@ mod messages_responses_result_tests;
 mod messages_responses_stream_tests;
 #[cfg(test)]
 mod messages_request_core_tests;
+
+// Native protocol and Messages conversion tests follow their implementation owners.
+#[cfg(test)]
+mod native_chat_tests;
+#[cfg(test)]
+mod native_gemini_tests;
+#[cfg(test)]
+mod native_messages_tests;
+#[cfg(test)]
+mod native_responses_tests;
+#[cfg(test)]
+mod messages_tests;

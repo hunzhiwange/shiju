@@ -69,21 +69,13 @@ mod sse_framing_tests;
 pub(crate) mod sse_framing;
 
 pub(crate) mod native_chat;
-#[cfg(test)]
-mod native_chat_tests;
 
-#[cfg(test)]
-mod native_messages_tests;
 
 pub(crate) mod native_messages;
 
 pub(crate) mod native_responses;
-#[cfg(test)]
-mod native_responses_tests;
 
 pub(crate) mod native_gemini;
-#[cfg(test)]
-mod native_gemini_tests;
 
 pub(crate) mod messages_chat_request;
 

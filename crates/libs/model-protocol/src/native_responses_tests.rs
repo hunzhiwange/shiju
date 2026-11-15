@@ -1,6 +1,6 @@
-use super::RelayIdentity;
+use model_relay_state::RelayIdentity;
 use super::native_responses::{check, remember};
-use crate::app_routing::reference_scope::{ReferenceScope, References};
+use model_relay_state::reference_scope::{ReferenceScope, References};
 use axum::http::StatusCode;
 use serde_json::json;
 

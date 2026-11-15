@@ -336,7 +336,6 @@ fn question_error_display_conversion_and_events_are_stable() {
 
 #[tokio::test]
 async fn pending_questions_reject_cross_tenant_access() {
-    use crate::session::ui_store::{with_tenant_scope, with_tenant_scope_sync};
     let tenant = vw_api_transport::TenantScope::new("t24-platform", "t24-company").unwrap();
     let owner = tenant.clone();
     let task = tokio::spawn(with_tenant_scope(owner, async {
@@ -365,4 +364,40 @@ async fn cancelled_question_removes_pending_request() {
     task.abort();
     assert!(task.await.unwrap_err().is_cancelled());
     assert!(!list().iter().any(|q| q.id == request.id));
+}
+
+// Preserve the original public-entry fixtures while supplying explicit tenant identity.
+tokio::task_local! {
+    static TEST_TENANT_SCOPE: vw_api_transport::TenantScope;
+}
+
+fn current_tenant_scope() -> vw_api_transport::TenantScope {
+    TEST_TENANT_SCOPE.try_with(Clone::clone).unwrap_or_default()
+}
+
+async fn with_tenant_scope<T>(
+    tenant: vw_api_transport::TenantScope,
+    future: impl std::future::Future<Output = T>,
+) -> T {
+    TEST_TENANT_SCOPE.scope(tenant, future).await
+}
+
+fn with_tenant_scope_sync<T>(tenant: vw_api_transport::TenantScope, f: impl FnOnce() -> T) -> T {
+    TEST_TENANT_SCOPE.sync_scope(tenant, f)
+}
+
+async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
+    super::ask(input, current_tenant_scope()).await
+}
+
+fn reply(input: ReplyInput) {
+    super::reply(input, current_tenant_scope());
+}
+
+fn reject(id: impl Into<String>) {
+    super::reject(id, current_tenant_scope());
+}
+
+fn list() -> Vec<Request> {
+    super::list(current_tenant_scope())
 }

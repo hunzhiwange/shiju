@@ -165,6 +165,7 @@ vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }
 agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
+agent-question = { path = "../libs/agent-question", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
 agent-provider = { path = "../libs/agent-provider", version = "0.6.0" }

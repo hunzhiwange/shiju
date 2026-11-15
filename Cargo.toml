@@ -279,6 +279,7 @@ members = [
   "crates/libs/config-acp-install",
   "crates/libs/agent-async",
   "crates/libs/agent-bus",
+  "crates/libs/agent-question",
   "crates/libs/agent-files",
   "crates/libs/agent-format",
   "crates/libs/agent-health",

@@ -77,6 +77,8 @@ pub mod next_step;
 use next_step::*;
 pub mod node_editor_fields;
 pub mod node_visual;
+pub mod node_visual_integrations;
+pub mod run_preview;
 #[cfg(test)]
 mod node_editor_fields_tests;
 pub mod menu;

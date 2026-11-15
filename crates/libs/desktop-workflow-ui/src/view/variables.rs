@@ -24,3 +24,12 @@ pub fn build_editor_field_validated<'a, Message: Clone + 'static>(
 
     content.into()
 }
+
+pub fn build_inline_error(message: impl Into<String>) -> Element<'static, Message> {
+    text(message.into())
+        .size(12)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().danger.base.color),
+        })
+        .into()
+}

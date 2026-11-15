@@ -394,12 +394,7 @@ pub(super) fn build_node_validation_summary(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_inline_error(message: impl Into<String>) -> Element<'static, Message> {
-    text(message.into())
-        .size(12)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().danger.base.color),
-        })
-        .into()
+    desktop_workflow_ui::view::variables::build_inline_error(message).map(Message::WorkflowTool)
 }
 
 #[cfg(test)]

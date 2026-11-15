@@ -10,13 +10,13 @@ fn run_preview_layers_actions_and_copy_controls_build_all_header_branches() {
     running.text_output = "  line one\nline two  ".to_string();
 
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &running,
         false,
     );
     assert_eq!(run_preview_run_id_label(&running), RUN_PREVIEW_PENDING_RUN_ID_LABEL);
     assert!(matches!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &running),
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &running),
         Some(("取消运行", WorkflowMessage::CancelSavedAppRun))
     ));
     assert!(matches!(
@@ -29,13 +29,13 @@ fn run_preview_layers_actions_and_copy_controls_build_all_header_branches() {
     succeeded.is_finished = true;
     succeeded.text_output = "done".to_string();
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &succeeded,
         false,
     );
     assert_eq!(run_preview_run_id_label(&succeeded), "run-1");
     assert!(matches!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &succeeded),
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &succeeded),
         Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
     ));
 
@@ -47,24 +47,24 @@ fn run_preview_layers_actions_and_copy_controls_build_all_header_branches() {
         message: "boom".to_string(),
     });
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &failed,
         true,
     );
     assert!(matches!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &failed),
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &failed),
         Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
     ));
 
     let mut canceled = run_preview(WorkflowRunStatus::Canceled);
     canceled.is_finished = true;
     let _ = build_saved_app_run_preview_layer(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &canceled,
         false,
     );
     assert!(
-        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &canceled)
+        saved_app_run_preview_action(desktop_i18n::I18n::new(Default::default()), &canceled)
             .is_none()
     );
 
@@ -74,22 +74,22 @@ fn run_preview_layers_actions_and_copy_controls_build_all_header_branches() {
         content: text_editor::Content::with_text("full detail"),
     };
     let _ =
-        build_saved_app_run_detail_layer(crate::app::i18n::I18n::new(Default::default()), &detail);
+        build_saved_app_run_detail_layer(desktop_i18n::I18n::new(Default::default()), &detail);
     let _ = run_preview_section(
         "标题",
         Some(run_preview_detail_button(
-            crate::app::i18n::I18n::new(Default::default()),
-            Message::WorkflowTool(WorkflowMessage::CloseSavedAppRunDetail),
+            desktop_i18n::I18n::new(Default::default()),
+            WorkflowMessage::CloseSavedAppRunDetail,
         )),
         text("内容").into(),
     );
     let _ = run_preview_copy_button(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         false,
         Message::None,
     );
     let _ = run_preview_copy_button(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         true,
         Message::None,
     );
@@ -117,7 +117,7 @@ fn sensitive_run_preview_keys_are_filtered_case_insensitively() {
 fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     assert!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "created_at",
             &json!(0)
         )
@@ -126,7 +126,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "finished_at_ms",
             &json!("1000")
         )
@@ -135,7 +135,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "created_at",
             &json!(-1)
         ),
@@ -143,7 +143,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "created_at_ms",
             &json!(1.0e30)
         ),
@@ -151,7 +151,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "duration_ms",
             &json!(250)
         ),
@@ -159,7 +159,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "duration",
             &json!(1.5)
         ),
@@ -167,7 +167,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
 
     let compact = workflow_run_preview_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         "text",
         &json!("  hello\n\nworld  "),
     )
@@ -175,7 +175,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     assert_eq!(compact, "hello world");
 
     let truncated = workflow_run_preview_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         "text",
         &json!("x".repeat(140)),
     )
@@ -185,7 +185,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
 
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "flag",
             &json!(true)
         ),
@@ -193,7 +193,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "items",
             &json!(["one", "two", "three", "four"])
         ),
@@ -201,14 +201,14 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     );
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "items",
             &json!([null, null])
         ),
         Some("2 项".to_string())
     );
     let object_summary = workflow_run_preview_value(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         "payload",
         &json!({"access_token": "secret", "visible": "ok", "count": 2, "extra": "more"}),
     )
@@ -219,7 +219,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
     assert!(object_summary.ends_with(" 等"));
     assert_eq!(
         workflow_run_preview_value(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "payload",
             &json!({"output": "preferred"})
         ),
@@ -231,7 +231,7 @@ fn run_preview_values_format_timestamps_arrays_objects_and_truncated_text() {
 fn run_preview_duration_rejects_negative_and_non_numeric_values() {
     assert_eq!(
         format_run_preview_duration(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "elapsed_ms",
             &json!(-1)
         ),
@@ -239,7 +239,7 @@ fn run_preview_duration_rejects_negative_and_non_numeric_values() {
     );
     assert_eq!(
         format_run_preview_duration(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "elapsed_ms",
             &json!("invalid")
         ),
@@ -247,7 +247,7 @@ fn run_preview_duration_rejects_negative_and_non_numeric_values() {
     );
     assert_eq!(
         format_run_preview_duration(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "elapsed_ms",
             &json!(999.6)
         ),
@@ -255,7 +255,7 @@ fn run_preview_duration_rejects_negative_and_non_numeric_values() {
     );
     assert_eq!(
         format_run_preview_duration(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             "elapsed_time",
             &json!(1.25)
         ),
@@ -289,7 +289,7 @@ fn run_preview_node_data_limits_fields_and_hides_runtime_keys() {
     };
 
     let items = workflow_run_node_data_preview_items(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &node,
     );
     assert_eq!(items.len(), RUN_PREVIEW_NODE_MAX_FIELDS);
@@ -309,7 +309,7 @@ fn run_preview_node_data_limits_fields_and_hides_runtime_keys() {
     };
     assert_eq!(
         workflow_run_node_data_preview_items(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &scalar_node
         ),
         vec![("data".to_string(), "42".to_string())]
@@ -321,13 +321,13 @@ fn run_preview_summaries_hide_sensitive_only_objects_and_describe_null_arrays() 
     let sensitive = json!({"access_token": "secret", "password": "hidden"});
     let object = sensitive.as_object().expect("object fixture");
     assert_eq!(
-        summarize_run_preview_object(crate::app::i18n::I18n::new(Default::default()), object),
+        summarize_run_preview_object(desktop_i18n::I18n::new(Default::default()), object),
         None
     );
 
     assert_eq!(
         summarize_run_preview_array(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             &[serde_json::Value::Null, serde_json::Value::Null]
         ),
         Some("2 项".to_string())
@@ -339,7 +339,7 @@ fn run_preview_node_status_aliases_map_to_labels_and_kinds() {
     for alias in ["started", "running"] {
         assert_eq!(
             workflow_run_node_status_label(
-                crate::app::i18n::I18n::new(Default::default()),
+                desktop_i18n::I18n::new(Default::default()),
                 Some(alias)
             ),
             "运行中"
@@ -349,7 +349,7 @@ fn run_preview_node_status_aliases_map_to_labels_and_kinds() {
     for alias in ["success", "finished"] {
         assert_eq!(
             workflow_run_node_status_label(
-                crate::app::i18n::I18n::new(Default::default()),
+                desktop_i18n::I18n::new(Default::default()),
                 Some(alias)
             ),
             "成功"
@@ -361,7 +361,7 @@ fn run_preview_node_status_aliases_map_to_labels_and_kinds() {
     }
     assert_eq!(
         workflow_run_node_status_label(
-            crate::app::i18n::I18n::new(Default::default()),
+            desktop_i18n::I18n::new(Default::default()),
             Some("unexpected")
         ),
         "未知"
@@ -371,7 +371,7 @@ fn run_preview_node_status_aliases_map_to_labels_and_kinds() {
         WorkflowPreviewStatusKind::Unknown
     );
     assert_eq!(
-        workflow_run_node_status_label(crate::app::i18n::I18n::new(Default::default()), None),
+        workflow_run_node_status_label(desktop_i18n::I18n::new(Default::default()), None),
         "等待中"
     );
     assert_eq!(workflow_run_node_status_kind(None), WorkflowPreviewStatusKind::Waiting);

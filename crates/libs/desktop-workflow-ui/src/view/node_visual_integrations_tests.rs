@@ -4,11 +4,11 @@ use super::*;
 use iced::{Point, Size, Vector, widget::text_editor};
 use serde_yaml::Value;
 
-use crate::apps::workflow::model::{
+use desktop_workflow_model::{
     WorkflowAppMeta, WorkflowConversationVariable, WorkflowDocument, WorkflowEnvironmentVariable,
     WorkflowHandleSide, WorkflowViewport,
 };
-use crate::apps::workflow::state::{
+use desktop_workflow_state::state::{
     WorkflowAppEntry, WorkflowHistorySnapshot, WorkflowNodeEditorDraft,
     WorkflowNodeEditorValidation, WorkflowNodeValidationError,
 };
@@ -229,7 +229,7 @@ fn code_picker_options_match_supported_values() {
     let languages = code_language_options();
     let outputs = code_output_type_options();
     let error_strategies =
-        code_error_strategy_options(crate::app::i18n::I18n::new(Default::default()));
+        code_error_strategy_options(desktop_i18n::I18n::new(Default::default()));
 
     assert_eq!(code_picker_option("python3", &languages).expect("python3 option").label, "PYTHON3");
     assert!(code_picker_option("ruby", &languages).is_none());
@@ -685,14 +685,14 @@ fn code_row_builders_cover_empty_options_fallbacks_and_validation_errors() {
         WorkflowCodeOutputDraft { key: "result".to_string(), value_type: "unknown".to_string() };
 
     let _input_row = build_code_input_variable_row(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &input,
         &[],
         &validation,
     );
     let _output_row = build_code_output_variable_row(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &output,
         &code_output_type_options(),
@@ -727,7 +727,7 @@ fn integration_visual_sections_build_with_validation_errors() {
     let yaml_editor = text_editor::Content::with_text("key: value");
 
     let _knowledge = build_knowledge_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &validation,
         "sys.query",
         "start.files",
@@ -745,7 +745,7 @@ fn integration_visual_sections_build_with_validation_errors() {
         "chat",
     );
     let _tool = build_tool_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &validation,
         "google",
         "builtin",
@@ -759,7 +759,7 @@ fn integration_visual_sections_build_with_validation_errors() {
         &yaml_editor,
     );
     let _agent = build_agent_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &validation,
         "langgenius/openai/openai",
         "function_call",
@@ -779,7 +779,7 @@ fn integration_visual_sections_build_without_validation_errors_and_disabled_togg
     let yaml_editor = text_editor::Content::with_text("{}");
 
     let _knowledge = build_knowledge_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &validation,
         "",
         "",
@@ -797,7 +797,7 @@ fn integration_visual_sections_build_without_validation_errors_and_disabled_togg
         "",
     );
     let _tool = build_tool_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &validation,
         "",
         "",
@@ -811,7 +811,7 @@ fn integration_visual_sections_build_without_validation_errors_and_disabled_togg
         &yaml_editor,
     );
     let _agent = build_agent_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &validation,
         "",
         "",
@@ -841,7 +841,7 @@ fn code_visual_section_builds_empty_disabled_retry_and_default_value_branches() 
     let default_value_editor = text_editor::Content::with_text("result: ok");
 
     let _element = build_code_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
         &validation,
@@ -903,7 +903,7 @@ data:
     }];
 
     let _element = build_code_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
         &validation,
@@ -1142,14 +1142,14 @@ fn code_row_builders_support_selected_option_backfill_and_known_output_type() {
     let validation = WorkflowNodeEditorValidation::default();
     let output_type_options = code_output_type_options();
     let _input_row = build_code_input_variable_row(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &input,
         &options,
         &validation,
     );
     let _output_row = build_code_output_variable_row(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         0,
         &output,
         &output_type_options,
@@ -1170,7 +1170,7 @@ fn code_visual_section_builds_none_error_strategy_without_default_value() {
     }];
 
     let _element = build_code_visual_section(
-        crate::app::i18n::I18n::new(Default::default()),
+        desktop_i18n::I18n::new(Default::default()),
         &state,
         &editor,
         &validation,

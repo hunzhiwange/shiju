@@ -125,6 +125,7 @@ members = [
   "crates/libs/tui-stream",
   "crates/libs/tui-terminal",
   "crates/libs/tui-input",
+  "crates/libs/tui-approval",
   "crates/libs/tui-widgets",
   "crates/libs/tui-pickers",
   "crates/libs/tui-composer",

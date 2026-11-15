@@ -4,7 +4,8 @@
 //! 由活动宿主处理，避免网络副作用进入 reducer 或渲染 crate。
 
 use vw_gateway_client::{PendingPermissionReplyDto, PendingPermissionRequestDto};
-use vw_shared::{question, todo::Todo};
+use question_types as question;
+use vw_shared::todo::Todo;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 

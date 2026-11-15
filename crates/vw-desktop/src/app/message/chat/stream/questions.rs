@@ -13,7 +13,7 @@ fn clear_question_modal(app: &mut App) {
     app.question_modal_custom.clear();
 }
 
-fn apply_question_request(app: &mut App, requests: Vec<vw_shared::question::Request>) {
+fn apply_question_request(app: &mut App, requests: Vec<question_types::Request>) {
     let mut pending = requests;
     if pending.is_empty() {
         clear_question_modal(app);
@@ -63,7 +63,7 @@ pub(super) fn handle_question_poll_tick() -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_question_list_loaded(
     app: &mut App,
-    res: Result<Vec<vw_shared::question::Request>, String>,
+    res: Result<Vec<question_types::Request>, String>,
 ) -> Task<Message> {
     match res {
         Ok(requests) => apply_question_request(app, requests),

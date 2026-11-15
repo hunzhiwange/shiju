@@ -280,7 +280,7 @@ where
                     options: ["accept", "decline"].into_iter().map(|label| crate::question::OptionInfo { label: label.into(), description: String::new(), preview: None }).collect(),
                     multiple: Some(false), custom: Some(false),
                 }], tool: None,
-            }, vw_shared::question::McpForm { server: server.name.clone(), schema: serde_json::json!({"type":"object", "properties": {}}) })
+            }, question_types::McpForm { server: server.name.clone(), schema: serde_json::json!({"type":"object", "properties": {}}) })
         ).await.context("MCP authorization interaction cancelled")?;
         if answers != vec![vec![String::from("accept")]] {
             bail!("MCP authorization denied");

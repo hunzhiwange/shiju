@@ -187,7 +187,7 @@
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据
-    pub(crate) question_modal_request: Option<vw_shared::question::Request>,
+    pub(crate) question_modal_request: Option<question_types::Request>,
     /// 问题对话框的答案选项列表（每个问题多个选项）
     pub(crate) question_modal_answers: Vec<Vec<String>>,
     /// 问题对话框的自定义答案输入

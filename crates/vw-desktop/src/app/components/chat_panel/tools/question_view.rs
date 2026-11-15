@@ -42,7 +42,7 @@ use super::tool_parse::{
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn question_request_targets_message(
-    request: Option<&vw_shared::question::Request>,
+    request: Option<&question_types::Request>,
     // message_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     message_id: Option<&str>,
 ) -> bool {
@@ -92,7 +92,7 @@ fn question_request_matches_message(app: &App, msg_idx: usize) -> bool {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn parse_questions(input: &str) -> Vec<vw_shared::question::Info> {
+pub(super) fn parse_questions(input: &str) -> Vec<question_types::Info> {
     let trimmed = input.trim();
     if !(trimmed.starts_with('{') || trimmed.starts_with('[')) {
         return Vec::new();
@@ -105,7 +105,7 @@ pub(super) fn parse_questions(input: &str) -> Vec<vw_shared::question::Info> {
     let questions =
         if value.is_array() { value } else { value.get("questions").cloned().unwrap_or_default() };
 
-    serde_json::from_value::<Vec<vw_shared::question::Info>>(questions).ok().unwrap_or_default()
+    serde_json::from_value::<Vec<question_types::Info>>(questions).ok().unwrap_or_default()
 }
 
 /// 解析 answers 的输入文本，返回后续视图可以直接消费的结构化结果。
@@ -162,7 +162,7 @@ pub(super) fn parse_answers(value: &serde_json::Value, output: &str) -> BTreeMap
 pub(super) fn derived_summary(
     app: &App,
     // questions 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    questions: &[vw_shared::question::Info],
+    questions: &[question_types::Info],
     // answers 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     answers: &BTreeMap<String, String>,
     // is_running 保存该结构在渲染、解析或测试断言中需要直接访问的数据。

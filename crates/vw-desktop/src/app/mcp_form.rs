@@ -1,5 +1,5 @@
 //! Desktop validation for the primitive values accepted by MCP forms.
-pub(crate) fn valid(form: &vw_shared::question::McpForm, answers: &[Vec<String>]) -> bool {
+pub(crate) fn valid(form: &question_types::McpForm, answers: &[Vec<String>]) -> bool {
     let Some(fields) = form.schema["properties"].as_object() else { return false };
     if answers.len() != fields.len() + 1 {
         return false;

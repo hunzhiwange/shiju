@@ -15,8 +15,8 @@ fn question_poll_tick_schedules_gateway_refresh() {
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }
 
-fn option(label: &str) -> vw_shared::question::OptionInfo {
-    vw_shared::question::OptionInfo {
+fn option(label: &str) -> question_types::OptionInfo {
+    question_types::OptionInfo {
         label: label.to_string(),
         description: format!("{label} option"),
         preview: None,
@@ -28,8 +28,8 @@ fn question(
     options: Vec<&str>,
     multiple: Option<bool>,
     custom: Option<bool>,
-) -> vw_shared::question::Info {
-    vw_shared::question::Info {
+) -> question_types::Info {
+    question_types::Info {
         question: format!("{header}?"),
         header: header.to_string(),
         options: options.into_iter().map(option).collect(),
@@ -38,8 +38,8 @@ fn question(
     }
 }
 
-fn request(id: &str, questions: Vec<vw_shared::question::Info>) -> vw_shared::question::Request {
-    vw_shared::question::Request {
+fn request(id: &str, questions: Vec<question_types::Info>) -> question_types::Request {
+    question_types::Request {
         mcp_form: None,
         id: id.to_string(),
         session_id: "session".to_string(),

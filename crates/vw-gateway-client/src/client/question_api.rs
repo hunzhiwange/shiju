@@ -1,4 +1,4 @@
-use vw_shared::question;
+use question_types as question;
 
 use super::GatewayClient;
 

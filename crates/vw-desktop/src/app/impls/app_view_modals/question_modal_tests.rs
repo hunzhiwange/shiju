@@ -10,8 +10,8 @@ fn question_modal_tests_module_is_wired() {
 use iced::widget::text;
 use iced::{Background, Color, Theme, theme::Palette};
 
-fn option(label: &str, preview: Option<&str>) -> vw_shared::question::OptionInfo {
-    vw_shared::question::OptionInfo {
+fn option(label: &str, preview: Option<&str>) -> question_types::OptionInfo {
+    question_types::OptionInfo {
         label: label.to_string(),
         description: format!("{label} description"),
         preview: preview.map(ToString::to_string),
@@ -20,11 +20,11 @@ fn option(label: &str, preview: Option<&str>) -> vw_shared::question::OptionInfo
 
 fn question(
     header: &str,
-    options: Vec<vw_shared::question::OptionInfo>,
+    options: Vec<question_types::OptionInfo>,
     multiple: Option<bool>,
     custom: Option<bool>,
-) -> vw_shared::question::Info {
-    vw_shared::question::Info {
+) -> question_types::Info {
+    question_types::Info {
         question: format!("{header}?"),
         header: header.to_string(),
         options,
@@ -33,8 +33,8 @@ fn question(
     }
 }
 
-fn request(questions: Vec<vw_shared::question::Info>) -> vw_shared::question::Request {
-    vw_shared::question::Request {
+fn request(questions: Vec<question_types::Info>) -> question_types::Request {
+    question_types::Request {
         mcp_form: None,
         id: "question".to_string(),
         session_id: "session".to_string(),

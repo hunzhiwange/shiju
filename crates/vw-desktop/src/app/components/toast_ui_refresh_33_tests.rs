@@ -493,8 +493,8 @@ async fn ui_refresh_33_confirmation_preserves_messages() {
     }
 }
 
-fn question_option(label: &str, preview: Option<&str>) -> vw_shared::question::OptionInfo {
-    vw_shared::question::OptionInfo {
+fn question_option(label: &str, preview: Option<&str>) -> question_types::OptionInfo {
+    question_types::OptionInfo {
         label: label.into(),
         description: "虚构选项 · 虛構選項 · Fictional option".into(),
         preview: preview.map(str::to_owned),
@@ -515,11 +515,11 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
     const DRAFT: &str = "草稿 · Draft";
     let mut app = fixture();
     let mut renderer = renderer().await;
-    let request = vw_shared::question::Request {
+    let request = question_types::Request {
         id: "fixture-question".into(),
         session_id: "fixture-session".into(),
         questions: vec![
-            vw_shared::question::Info {
+            question_types::Info {
                 header: SINGLE.into(),
                 question: "Choose a fixture option.".into(),
                 options: vec![
@@ -529,7 +529,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
                 multiple: Some(false),
                 custom: Some(true),
             },
-            vw_shared::question::Info {
+            question_types::Info {
                 header: MULTI.into(),
                 question: MULTI.into(),
                 options: vec![question_option(C, None), question_option(D, None)],

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/question-types",
   "crates/libs/desktop-assets",
   "crates/libs/permission-types",
   "crates/libs/api-todo",

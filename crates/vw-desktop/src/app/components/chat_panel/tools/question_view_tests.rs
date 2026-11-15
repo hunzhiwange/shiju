@@ -8,7 +8,7 @@ use super::question_view::{
 use crate::app::{App, Message};
 use serde_json::json;
 use std::collections::BTreeMap;
-use vw_shared::question::{Info, Request, ToolMeta};
+use question_types::{Info, Request, ToolMeta};
 
 fn test_app() -> App {
     App::new().0

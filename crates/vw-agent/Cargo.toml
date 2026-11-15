@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+question-types = { path = "../libs/question-types", version = "0.6.0" }
 permission-types = { path = "../libs/permission-types", version = "0.6.0" }
 vw-api-todo = { path = "../libs/api-todo", version = "0.6.0" }
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }

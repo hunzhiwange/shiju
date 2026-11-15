@@ -577,7 +577,7 @@ pub async fn gateway_current_session_scope_async() -> Result<Option<String>, Str
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub async fn gateway_question_list_async() -> Result<Vec<vw_shared::question::Request>, String> {
+pub async fn gateway_question_list_async() -> Result<Vec<question_types::Request>, String> {
     let client = gateway_client()?;
     client.question_list().await
 }
@@ -1059,7 +1059,7 @@ pub fn gateway_current_session_scope() -> Option<String> {
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub fn gateway_question_list() -> Vec<vw_shared::question::Request> {
+pub fn gateway_question_list() -> Vec<question_types::Request> {
     block_on_gateway(gateway_question_list_async()).unwrap_or_default()
 }
 

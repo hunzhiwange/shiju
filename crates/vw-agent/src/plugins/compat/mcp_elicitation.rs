@@ -198,7 +198,7 @@ pub(crate) async fn request(
         owner.tenant,
         question::ask_sensitive(
             question::AskInput { session_id: owner.session, questions, tool: None },
-            vw_shared::question::McpForm { server, schema: schema.clone() },
+            question_types::McpForm { server, schema: schema.clone() },
         ),
     );
     let answers = tokio::select! {
@@ -284,7 +284,7 @@ async fn request_url(
                     custom: Some(false),
                 }],
             },
-            vw_shared::question::McpForm {
+            question_types::McpForm {
                 server,
                 schema: json!({"type":"object","properties":{}}),
             },

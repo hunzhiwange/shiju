@@ -743,7 +743,7 @@ pub enum ChatMessage {
     TodoPollTick,
 
     /// 问题列表加载完成
-    QuestionListLoaded(Result<Vec<vw_shared::question::Request>, String>),
+    QuestionListLoaded(Result<Vec<question_types::Request>, String>),
 
     /// 权限列表加载完成
     PermissionListLoaded(Result<Vec<vw_gateway_client::PendingPermissionRequestDto>, String>),

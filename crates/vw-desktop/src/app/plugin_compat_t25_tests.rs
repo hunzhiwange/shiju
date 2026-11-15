@@ -5,10 +5,10 @@ use vw_desktop::app::{
 };
 #[path = "mcp_form.rs"]
 mod validation;
-fn form() -> vw_shared::question::McpForm {
+fn form() -> question_types::McpForm {
     serde_json::from_value(json!({"server":"表单验收", "schema":{"type":"object","properties":{"age":{"type":"integer","minimum":18},"choice":{"type":"string","enum":["a","b"]}},"required":["age"]}})).unwrap()
 }
-fn request(id: &str) -> vw_shared::question::Request {
+fn request(id: &str) -> question_types::Request {
     serde_json::from_value(json!({"id":id,"sessionID":id,"mcp_form":form(),"questions":[{"header":"表单验收","question":"中文长内容".repeat(100),"options":[],"custom":true},{"header":"表单验收","question":"选择","options":[{"label":"a","description":"选项A"},{"label":"b","description":"选项B"}],"custom":true},{"header":"表单验收","question":"提交？","options":[{"label":"accept","description":"接受"},{"label":"decline","description":"拒绝"}],"custom":false}]})).unwrap()
 }
 #[test]

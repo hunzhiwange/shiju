@@ -288,10 +288,10 @@ async fn permission_and_question_modals_preserve_scroll_position() {
     ui.operate(&mut renderer, &mut position);
     assert_eq!(position.y, Some(200.0));
 
-    let question = vw_shared::question::Request {
+    let question = question_types::Request {
         id: "question-1".into(),
         session_id: "session-1".into(),
-        questions: vec![vw_shared::question::Info {
+        questions: vec![question_types::Info {
             header: "Confirm choice".into(),
             question: "Which option should I use?".into(),
             options: Vec::new(),

@@ -5,7 +5,7 @@
 //! 当前进程内的临时状态，不负责持久化问题内容。
 
 /// 重新导出共享层的问题数据结构，保持调用方使用统一的 question API。
-pub use vw_shared::question::*;
+pub use question_types::*;
 
 use crate::app::agent::bus;
 use crate::app::agent::id;
@@ -109,7 +109,7 @@ pub async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
 
 pub(crate) async fn ask_sensitive(
     input: AskInput,
-    form: vw_shared::question::McpForm,
+    form: question_types::McpForm,
 ) -> Result<Vec<Answer>, Error> {
     ask_inner(input, true, Some(form)).await
 }
@@ -117,7 +117,7 @@ pub(crate) async fn ask_sensitive(
 async fn ask_inner(
     input: AskInput,
     sensitive: bool,
-    mcp_form: Option<vw_shared::question::McpForm>,
+    mcp_form: Option<question_types::McpForm>,
 ) -> Result<Vec<Answer>, Error> {
     let id = id::ascending(id::Prefix::Question, None)?;
     LOGGER.info(

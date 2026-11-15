@@ -15,7 +15,7 @@ use super::{
     GatewayWorkflowDefaultStreamRequest, GatewayWorkflowResponseMode, GatewayWorkflowStreamError,
     GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
-use crate::client::test_support;
+use crate::test_support;
 
 fn take_scoped_request(server: &test_support::TestServer) -> test_support::RecordedRequest {
     let request = server.take_request();

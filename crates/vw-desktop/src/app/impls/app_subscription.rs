@@ -457,7 +457,8 @@ pub(super) fn workflow_run_subscription_request(
 
 fn workflow_run_stream(req: &WorkflowRunSubscriptionRequest) -> WorkflowRunBoxStream<Message> {
     use iced::futures::SinkExt;
-    use vw_gateway_client::{GatewayWorkflowResponseMode, GatewayWorkflowStreamRequest};
+    use gateway_workflow::{GatewayWorkflowResponseMode, GatewayWorkflowStreamRequest};
+
 
     let req = req.clone();
     Box::pin(iced::stream::channel(
@@ -472,7 +473,7 @@ fn workflow_run_stream(req: &WorkflowRunSubscriptionRequest) -> WorkflowRunBoxSt
                         user: req.user.clone(),
                         conversation_id: None,
                     };
-                    client
+                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
                         .stream_workflow_application(&req.uuid, &body, |event| {
                             output
                                 .try_send(Message::WorkflowTool(

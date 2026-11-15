@@ -154,7 +154,7 @@ fn load_saved_app_run_prompt_task(uuid: String) -> Task<Message> {
                 let uuid = uuid.clone();
                 async move {
                     let client = crate::app::config::gateway_client()?;
-                    let record = client.workflow_application_get(&uuid).await?;
+                    let record = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_get(&uuid).await?;
                     let loaded = load_document_from_text(None, record.workflow_yaml)?;
                     Ok(crate::apps::workflow::state::workflow_run_inputs_from_document(
                         &loaded.document,

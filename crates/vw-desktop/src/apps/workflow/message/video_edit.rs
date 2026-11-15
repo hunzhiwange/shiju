@@ -11,7 +11,7 @@ pub(super) fn load_template(graph: bool) -> Task<Message> {
     let client = crate::app::config::gateway_client();
     Task::perform(
         async move {
-            let result = async { client?.workflow_application_get(TEMPLATE_ID).await }.await;
+            let result = async { gateway_workflow::GatewayWorkflowClient::new(client?.transport().clone()).workflow_application_get(TEMPLATE_ID).await }.await;
             (tenant, result)
         },
         move |(tenant, result)| {
@@ -33,9 +33,9 @@ fn persist(
             let result = async {
                 let client = client?;
                 if restore {
-                    client.workflow_template_restore(TEMPLATE_ID, record.updated_at_ms, true).await
+                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_template_restore(TEMPLATE_ID, record.updated_at_ms, true).await
                 } else {
-                    client
+                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
                         .workflow_template_update(
                             TEMPLATE_ID,
                             &vw_gateway_client::WorkflowRecordUpsertBody {

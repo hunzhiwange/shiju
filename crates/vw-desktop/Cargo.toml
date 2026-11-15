@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }
 gateway-voice = { path = "../libs/gateway-voice", version = "0.6.0" }
 gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution", version = "0.6.0" }
 gateway-mcp-read = { path = "../libs/gateway-mcp-read", version = "0.6.0" }

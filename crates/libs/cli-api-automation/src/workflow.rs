@@ -6,9 +6,9 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::json;
 use vw_api_workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
+use gateway_workflow::{GatewayWorkflowDefaultStreamRequest, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest};
 use vw_gateway_client::{
-    GatewayWorkflowDefaultStreamRequest, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
-};
+    };
 
 use cli_api_core::context::ApiContext;
 use cli_api_core::input::read_json_input;
@@ -85,29 +85,29 @@ pub async fn run(
     let response = match command {
         WorkflowCommands::Resume { input } => {
             let request = parse::<WorkflowResumeRequest>(&input, stdin, "resume")?;
-            json!(client.workflow_resume(&request).await.map_err(anyhow::Error::msg)?)
+            json!(gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_resume(&request).await.map_err(anyhow::Error::msg)?)
         }
         WorkflowCommands::List => {
-            json!(client.workflow_applications_list().await.map_err(anyhow::Error::msg)?)
+            json!(gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_applications_list().await.map_err(anyhow::Error::msg)?)
         }
         WorkflowCommands::Create { input } => {
             let request = parse::<WorkflowRecordUpsertBody>(&input, stdin, "create")?;
-            json!(client.workflow_application_create(&request).await.map_err(anyhow::Error::msg)?)
+            json!(gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_create(&request).await.map_err(anyhow::Error::msg)?)
         }
         WorkflowCommands::Detail { uuid } => {
-            json!(client.workflow_application_get(&uuid).await.map_err(anyhow::Error::msg)?)
+            json!(gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_get(&uuid).await.map_err(anyhow::Error::msg)?)
         }
         WorkflowCommands::Update { uuid, input } => {
             let request = parse::<WorkflowRecordUpsertBody>(&input, stdin, "update")?;
             json!(
-                client
+                gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
                     .workflow_application_update(&uuid, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
             )
         }
         WorkflowCommands::Delete { uuid } => {
-            json!(client.workflow_application_delete(&uuid).await.map_err(anyhow::Error::msg)?)
+            json!(gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_delete(&uuid).await.map_err(anyhow::Error::msg)?)
         }
         WorkflowCommands::Chat { input } => {
             let request = parse::<GatewayWorkflowDefaultStreamRequest>(&input, stdin, "chat")?;
@@ -127,8 +127,8 @@ async fn run_default_stream(
     writer: &mut impl Write,
 ) -> Result<()> {
     let mut sink = WorkflowStreamSink::new(writer);
-    let result = context
-        .client()
+    let result = gateway_workflow::GatewayWorkflowClient::new(context
+        .client().transport().clone())
         .stream_default_workflow_application(request, |event| sink.write(event))
         .await;
     sink.finish(result)
@@ -141,8 +141,8 @@ async fn run_application_stream(
     writer: &mut impl Write,
 ) -> Result<()> {
     let mut sink = WorkflowStreamSink::new(writer);
-    let result = context
-        .client()
+    let result = gateway_workflow::GatewayWorkflowClient::new(context
+        .client().transport().clone())
         .stream_workflow_application(uuid, request, |event| sink.write(event))
         .await;
     sink.finish(result)

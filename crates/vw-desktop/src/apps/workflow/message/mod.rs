@@ -388,7 +388,7 @@ pub(crate) fn load_saved_apps_task() -> Task<Message> {
     Task::perform(
         async move {
             let client = client?;
-            let records = client.workflow_applications_list().await?;
+            let records = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_applications_list().await?;
             Ok(records.into_iter().map(saved_app_summary_from_record).collect())
         },
         move |result| {
@@ -420,7 +420,7 @@ pub(super) fn open_saved_app_task(uuid: String) -> Task<Message> {
         Task::perform(
             async move {
                 let client = crate::app::config::gateway_client()?;
-                let record = client.workflow_application_get(&uuid).await?;
+                let record = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_get(&uuid).await?;
                 let mut loaded = load_document_from_text(None, record.workflow_yaml)?;
                 loaded.local_uuid = Some(record.uuid);
                 if !record.name.trim().is_empty() {
@@ -458,7 +458,7 @@ pub(super) fn delete_saved_app_task(uuid: String) -> Task<Message> {
         Task::perform(
             async move {
                 let client = crate::app::config::gateway_client()?;
-                let response = client.workflow_application_delete(&uuid).await?;
+                let response = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_delete(&uuid).await?;
                 if response.deleted {
                     Ok(response.uuid)
                 } else {
@@ -528,8 +528,8 @@ pub(super) fn save_entry(
                     workflow_yaml: content,
                 };
                 let record = match entry.local_uuid.as_deref() {
-                    Some(uuid) => client.workflow_application_update(uuid, &body).await?,
-                    None => client.workflow_application_create(&body).await?,
+                    Some(uuid) => gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_update(uuid, &body).await?,
+                    None => gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_create(&body).await?,
                 };
                 return Ok(Some(WorkflowSaveTarget::LocalUuid(record.uuid)));
             }

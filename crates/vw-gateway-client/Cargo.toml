@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }
 gateway-voice = { path = "../libs/gateway-voice", version = "0.6.0" }
 gateway-pty = { path = "../libs/gateway-pty", version = "0.6.0" }
 gateway-inference = { path = "../libs/gateway-inference", version = "0.6.0" }

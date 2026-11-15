@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "crates/libs/app-auth-claude",
+  "crates/libs/gateway-workflow",
   "crates/libs/app-auth-codex",
   "crates/libs/app-auth-core",
   "crates/libs/gateway-voice",

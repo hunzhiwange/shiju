@@ -7,10 +7,9 @@ use serde_json::{Value, json};
 use vw_api_workflow::{
     WorkflowPauseDto, WorkflowResumeRequest, WorkflowRunResponse, WorkflowRunStatus,
 };
+use gateway_workflow::{GatewayWorkflowResponseMode, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest};
 use vw_gateway_client::{
-    GatewayStreamAttemptResult, GatewayWorkflowResponseMode, GatewayWorkflowStreamEvent,
-    GatewayWorkflowStreamRequest,
-};
+    GatewayStreamAttemptResult, };
 
 use cli_interaction_model::UiQuestionOverlay;
 use cli_interaction_model::overlay::workflow_action_label;
@@ -67,8 +66,8 @@ pub fn stream_workflow_run_blocking(
 ) -> Result<GatewayStreamAttemptResult, String> {
     let mut caller_stopped = false;
     block_on_gateway(async {
-        runtime
-            .client()
+        gateway_workflow::GatewayWorkflowClient::new(runtime
+            .client().transport().clone())
             .stream_workflow_application(request.uuid.as_str(), &request.body, |event| {
                 let keep_streaming = on_event(event);
                 caller_stopped |= !keep_streaming;
@@ -88,7 +87,7 @@ pub fn resume_workflow_run_blocking(
     runtime: &GatewayUiRuntime,
     request: &WorkflowResumeRequest,
 ) -> Result<WorkflowRunResponse, String> {
-    block_on_gateway(async { runtime.client().workflow_resume(request).await })
+    block_on_gateway(async { gateway_workflow::GatewayWorkflowClient::new(runtime.client().transport().clone()).workflow_resume(request).await })
 }
 
 /// 独立于 chat/plan-run 的 Workflow 请求、运行、会话与暂停归属。

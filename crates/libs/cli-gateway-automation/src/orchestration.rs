@@ -53,8 +53,9 @@ pub async fn load_orchestration(
     scope: Option<AgentSchedulerScopeDto>,
 ) -> OrchestrationSnapshot {
     let task_scope = scope.clone();
+    let workflow_client = gateway_workflow::GatewayWorkflowClient::new(runtime.client().transport().clone());
     let (workflows, schedules, tasks) = tokio::join!(
-        runtime.client().workflow_applications_list(),
+        workflow_client.workflow_applications_list(),
         runtime.client().cron_jobs_get(),
         async {
             match task_scope.as_ref() {
@@ -169,7 +170,7 @@ pub fn load_owned_workflow_detail_blocking(
             "workflow detail requires a UUID from the current Workflow snapshot".to_string()
         );
     }
-    let record = block_on_gateway(async { runtime.client().workflow_application_get(uuid).await })?;
+    let record = block_on_gateway(async { gateway_workflow::GatewayWorkflowClient::new(runtime.client().transport().clone()).workflow_application_get(uuid).await })?;
     if record.uuid != uuid {
         return Err(
             "Gateway Workflow detail UUID does not match the selected snapshot item".to_string()

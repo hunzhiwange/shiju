@@ -6,9 +6,9 @@ use std::collections::HashSet;
 use iced::Color;
 use similar::DiffOp;
 
-use super::super::DiffRenderCtx;
-use crate::app::components::git_panel::utils::FileStatus;
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::FileStatus;
+use crate::DiffTheme;
+use super::super::test_support::Fixture as App;
 
 // 统一构造渲染上下文，让各用例只突出文件内容和选择状态的差异。
 fn render_file(
@@ -18,9 +18,11 @@ fn render_file(
     contents: Option<(&str, &str)>,
     loading: bool,
 ) {
-    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(app);
+    let render_ctx = app.render_ctx();
     let _view = super::view_file(
-        app,
+        &app.view_state(),
+        app.expanded_files_set.contains(file),
+        app.file_menu_open,
         &render_ctx,
         file,
         contents,
@@ -70,43 +72,43 @@ fn changed_diff_line_sets_deduplicates_overlapping_ranges_across_groups() {
 
 #[test]
 fn file_line_selection_state_ignores_other_files_and_unchanged_lines() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.staged_files_selected.push("src/other.rs".to_string());
     app.staged_old_lines_selected =
         vec![("src/other.rs".to_string(), 3), ("src/lib.rs".to_string(), 99)];
     app.staged_lines_selected =
         vec![("src/other.rs".to_string(), 7), ("src/lib.rs".to_string(), 100)];
     let changed = (HashSet::from([3]), HashSet::from([7]));
-    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let render_ctx = app.render_ctx();
 
     assert_eq!(
-        super::file_line_selection_state(&app, &render_ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&render_ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::None
     );
 }
 
 #[test]
 fn file_line_selection_state_counts_old_and_new_sides_independently() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     let changed = (HashSet::from([3]), HashSet::from([3]));
     app.staged_old_lines_selected.push(("src/lib.rs".to_string(), 3));
-    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let render_ctx = app.render_ctx();
     assert_eq!(
-        super::file_line_selection_state(&app, &render_ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&render_ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::Partial
     );
 
     app.staged_lines_selected.push(("src/lib.rs".to_string(), 3));
-    let render_ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let render_ctx = app.render_ctx();
     assert_eq!(
-        super::file_line_selection_state(&app, &render_ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&render_ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::All
     );
 }
 
 #[test]
 fn view_file_handles_missing_content_with_an_old_line_selection() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.expanded_files_set.insert("src/lib.rs".to_string());
     app.staged_old_lines_selected.push(("src/lib.rs".to_string(), 0));
 
@@ -115,7 +117,7 @@ fn view_file_handles_missing_content_with_an_old_line_selection() {
 
 #[test]
 fn view_file_handles_insert_only_delete_only_and_unchanged_modified_content() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.expanded_files_set.insert("src/lib.rs".to_string());
 
     render_file(&app, "src/lib.rs", FileStatus::Modified, Some(("", "inserted\n")), false);
@@ -125,7 +127,7 @@ fn view_file_handles_insert_only_delete_only_and_unchanged_modified_content() {
 
 #[test]
 fn view_file_collapses_unselected_manual_hunks_and_hunks_over_the_auto_expand_budget() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.expanded_files_set.insert("src/lib.rs".to_string());
     app.expanded_hunks.push(("src/lib.rs".to_string(), 99));
     render_file(&app, "src/lib.rs", FileStatus::Modified, Some(("before\n", "after\n")), false);
@@ -144,7 +146,7 @@ fn view_file_collapses_unselected_manual_hunks_and_hunks_over_the_auto_expand_bu
 
 #[test]
 fn view_file_handles_empty_added_and_deleted_files() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.expanded_files_set.insert("src/empty.rs".to_string());
 
     render_file(&app, "src/empty.rs", FileStatus::Added, Some(("", "")), false);

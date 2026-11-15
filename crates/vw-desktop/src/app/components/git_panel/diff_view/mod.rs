@@ -96,6 +96,14 @@ fn map_diff_message(event: desktop_git_ui::git_panel::diff_view::DiffMessage) ->
     use desktop_git_ui::git_panel::diff_view::DiffMessage as Local;
     use crate::app::{Message, message::GitMessage};
     Message::Git(match event {
+        Local::PreviewDiffFile(file) => GitMessage::PreviewDiffFile(file),
+        Local::CopyDiffFile { file, deleted_content } => GitMessage::CopyDiffFile { file, deleted_content },
+        Local::RevertDiffFile(file) => GitMessage::RevertDiffFile(file),
+        Local::OpenDiffFileMenu(file) => GitMessage::OpenDiffFileMenu(file),
+        Local::CloseDiffFileMenu => GitMessage::CloseDiffFileMenu,
+        Local::SelectAllFileLines(file) => GitMessage::SelectAllFileLines(file),
+        Local::ClearAllFileLines(file) => GitMessage::ClearAllFileLines(file),
+        Local::ToggleExpandFile(file) => GitMessage::ToggleExpandFile(file),
         Local::DiffDragSelectStart(file, line, old, text) => GitMessage::DiffDragSelectStart(file, line, old, text),
         Local::DiffDragSelectHover(file, line, old) => GitMessage::DiffDragSelectHover(file, line, old),
         Local::DiffHoverEnter(file, line, old) => GitMessage::DiffHoverEnter(file, line, old),

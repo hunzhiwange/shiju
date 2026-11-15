@@ -32,6 +32,14 @@ pub struct GitDiffCommentDraft {
 }
 #[derive(Debug, Clone)]
 pub enum DiffMessage {
+    PreviewDiffFile(String),
+    CopyDiffFile { file: String, deleted_content: Option<String> },
+    RevertDiffFile(String),
+    OpenDiffFileMenu(String),
+    CloseDiffFileMenu,
+    SelectAllFileLines(String),
+    ClearAllFileLines(String),
+    ToggleExpandFile(String),
     DiffDragSelectStart(String, usize, bool, String),
     DiffDragSelectHover(String, usize, bool),
     DiffHoverEnter(String, usize, bool),

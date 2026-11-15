@@ -1,5 +1,7 @@
 use super::{DiffRenderCtx, DiffViewState, GitDiffContextMenuState, GitDiffLineRange, GitDiffCommentDraft};
 pub(crate) struct Fixture {
+    pub(crate) expanded_files_set: std::collections::HashSet<String>,
+    pub(crate) file_menu_open: bool,
     pub(crate) merge_view: bool,
     pub(crate) show_git_diff_highlight: bool,
     pub(crate) git_diff_drag_range: Option<GitDiffLineRange>,
@@ -37,6 +39,7 @@ impl Fixture {
 impl Default for Fixture {
     fn default() -> Self {
         Self {
+            expanded_files_set: Default::default(), file_menu_open: false,
             merge_view: true, show_git_diff_highlight: true,
             git_diff_drag_range: None, git_diff_selected_range: None, git_diff_comment_draft: None,
             staged_lines_selected: Vec::new(), staged_old_lines_selected: Vec::new(), staged_files_selected: Vec::new(),

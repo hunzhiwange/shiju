@@ -6,10 +6,10 @@ use std::collections::HashSet;
 use iced::Color;
 use similar::DiffOp;
 
-use crate::app::components::git_panel::diff_view::DiffRenderCtx;
-use crate::app::components::git_panel::utils::FileStatus;
-use crate::app::state::GitDiffFileMenuState;
-use crate::app::{App, DiffTheme};
+use crate::git_panel::utils::FileStatus;
+
+use crate::DiffTheme;
+use super::super::test_support::Fixture as App;
 
 fn colors() -> (Color, Color, Color, Color, Color) {
     (
@@ -22,10 +22,12 @@ fn colors() -> (Color, Color, Color, Color, Color) {
 }
 
 fn render_file(app: &App, status: FileStatus, contents: Option<(&str, &str)>, loading: bool) {
-    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(app);
+    let ctx = app.render_ctx();
     let (bg, add_line, add_word, del_line, del_word) = colors();
     let _view = super::view_file(
-        app,
+        &app.view_state(),
+        app.expanded_files_set.contains("src/lib.rs"),
+        app.file_menu_open,
         &ctx,
         "src/lib.rs",
         contents,
@@ -60,42 +62,42 @@ fn changed_diff_line_sets_collects_only_changed_lines() {
 
 #[test]
 fn file_line_selection_state_distinguishes_none_partial_all_and_file_stage() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     let changed = (HashSet::from([0, 1]), HashSet::from([0, 1]));
-    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let ctx = app.render_ctx();
     assert_eq!(
-        super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::None
     );
 
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0)];
-    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let ctx = app.render_ctx();
     assert_eq!(
-        super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::Partial
     );
 
     app.staged_old_lines_selected =
         vec![("src/lib.rs".to_string(), 0), ("src/lib.rs".to_string(), 1)];
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0), ("src/lib.rs".to_string(), 1)];
-    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let ctx = app.render_ctx();
     assert_eq!(
-        super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::All
     );
 
     app.staged_old_lines_selected.clear();
     app.staged_lines_selected.clear();
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
-    let ctx = crate::app::components::git_panel::diff_view::diff_render_ctx(&app);
+    let ctx = app.render_ctx();
     assert_eq!(
-        super::file_line_selection_state(&app, &ctx, "src/lib.rs", &changed),
+        super::file_line_selection_state(&ctx, "src/lib.rs", &changed),
         super::FileLineSelectionState::All
     );
 
     let empty = (HashSet::new(), HashSet::new());
     assert_eq!(
-        super::file_line_selection_state(&app, &ctx, "src/lib.rs", &empty),
+        super::file_line_selection_state(&ctx, "src/lib.rs", &empty),
         super::FileLineSelectionState::None
     );
 }
@@ -104,19 +106,19 @@ fn file_line_selection_state_distinguishes_none_partial_all_and_file_stage() {
 fn diff_line_select_controls_and_file_menu_build() {
     let _selected = super::diff_line_select_button(
         true,
-        crate::app::Message::Git(crate::app::message::GitMessage::SelectAllFileLines(
+        super::Message::SelectAllFileLines(
             "src/lib.rs".to_string(),
-        )),
+        ),
         false,
     );
     let _unselected = super::diff_line_select_button(
         false,
-        crate::app::Message::Git(crate::app::message::GitMessage::ClearAllFileLines(
+        super::Message::ClearAllFileLines(
             "src/lib.rs".to_string(),
-        )),
+        ),
         false,
     );
-    let _spacer = super::diff_line_select_spacer::<crate::app::Message>();
+    let _spacer = super::diff_line_select_spacer::<super::Message>();
     let _menu = super::diff_file_actions_menu(
         config_ui::DesktopLocale::SimplifiedChinese,
         "src/lib.rs",
@@ -127,7 +129,7 @@ fn diff_line_select_controls_and_file_menu_build() {
 
 #[test]
 fn view_file_covers_collapsed_loading_missing_and_file_status_branches() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     render_file(&app, FileStatus::Modified, Some(("old\n", "new\n")), false);
 
     app.expanded_files_set.insert("src/lib.rs".to_string());
@@ -141,7 +143,7 @@ fn view_file_covers_collapsed_loading_missing_and_file_status_branches() {
 
 #[test]
 fn view_file_missing_contents_builds_header_with_existing_line_selection() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 4)];
 
     render_file(&app, FileStatus::Modified, None, false);
@@ -153,9 +155,9 @@ fn view_file_missing_contents_builds_header_with_existing_line_selection() {
 
 #[test]
 fn view_file_covers_modified_renamed_hunk_menu_and_manual_expansion_branches() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.expanded_files_set.insert("src/lib.rs".to_string());
-    app.git_diff_file_menu = Some(GitDiffFileMenuState { file: "src/lib.rs".to_string() });
+    app.file_menu_open = true;
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 1)];
     render_file(&app, FileStatus::Modified, Some(("same\nold\nend\n", "same\nnew\nend\n")), false);
 
@@ -166,7 +168,7 @@ fn view_file_covers_modified_renamed_hunk_menu_and_manual_expansion_branches() {
 
 #[test]
 fn view_file_collapses_large_modified_hunk_when_auto_expand_budget_is_exceeded() {
-    let mut app = App::new().0;
+    let mut app = App::default();
     app.expanded_files_set.insert("src/lib.rs".to_string());
     let old_content = (0..520).map(|idx| format!("old-{idx}\n")).collect::<String>();
     let new_content = (0..520).map(|idx| format!("new-{idx}\n")).collect::<String>();

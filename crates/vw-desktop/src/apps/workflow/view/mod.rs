@@ -2,7 +2,6 @@
 //!
 //! 该模块构建 workflow 整体界面，包含头部工具区、画布区、各类弹层编辑器与交互控件。
 
-use super::canvas::WorkflowCanvas;
 use super::message::WorkflowMessage;
 use super::model::{
     WorkflowEdge, WorkflowNode, WorkflowNodeIconDescriptor, WorkflowNodeTypeDescriptor,
@@ -110,140 +109,14 @@ fn build_app_switcher(
 }
 
 pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, Message> {
-    if state.active_app_id.is_none() {
-        let mut layers: Vec<Element<'_, Message>> = vec![
-            container(build_saved_apps_view(i18n, state))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into(),
-        ];
-
-        if let Some(error) = state.error_text(i18n) {
-            layers.push(
-                container(error_banner(i18n, error))
-                    .padding(iced::Padding {
-                        top: FLOATING_MARGIN,
-                        right: FLOATING_MARGIN,
-                        bottom: 0.0,
-                        left: FLOATING_MARGIN,
-                    })
-                    .align_x(iced::alignment::Horizontal::Center)
-                    .align_y(iced::alignment::Vertical::Top)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .into(),
-            );
-        }
-
-        if state.app_editor.is_some() {
-            layers.push(build_app_editor_modal(i18n, state));
-        }
-        if let Some(confirm_dialog) = build_saved_app_delete_confirm_dialog(i18n, state) {
-            layers.push(confirm_dialog);
-        }
-        if let Some(run_prompt) = build_saved_app_run_prompt_dialog(i18n, state) {
-            layers.push(run_prompt);
-        }
-        if let Some(preview) = &state.saved_app_run_preview {
-            layers.push(build_saved_app_run_preview_layer(i18n, preview, state.run_error_copied));
-        }
-        if let Some(detail) = &state.saved_app_run_detail {
-            layers.push(build_saved_app_run_detail_layer(i18n, detail));
-        }
-
-        if state.video_edit.open {
-            layers.push(video_edit::modal(state));
-        }
-        return stack(layers).width(Length::Fill).height(Length::Fill).into();
-    }
-
-    let canvas_base: Element<'_, WorkflowMessage> = if !state.has_apps() || state.document.nodes.is_empty()
-    {
-        container(Space::new().width(Length::Fill).height(Length::Fill))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(canvas_panel_style)
-            .into()
-    } else {
-        let canvas: Element<'_, desktop_workflow_canvas::CanvasMessage> =
-            iced::widget::canvas(WorkflowCanvas {
-                i18n,
-                document: &state.document,
-                pan: state.pan,
-                zoom: state.zoom,
-                selected_node_id: state.selected_node_id.as_deref(),
-                selected_edge_id: state.selected_edge_id.as_deref(),
-                connection_draft: state.connection_draft.as_ref(),
-            })
-            .width(Length::Fill)
-            .height(Length::Fill).into();
-        container(canvas.map(|message| match message {
-        desktop_workflow_canvas::CanvasMessage::StartConnection(endpoint, point) => {
-            WorkflowMessage::StartConnection(endpoint, point)
-        }
-        desktop_workflow_canvas::CanvasMessage::NodeDragStart(id) => WorkflowMessage::NodeDragStart(id),
-        desktop_workflow_canvas::CanvasMessage::SelectEdge(id) => WorkflowMessage::SelectEdge(id),
-        desktop_workflow_canvas::CanvasMessage::ClearSelection => WorkflowMessage::ClearSelection,
-        desktop_workflow_canvas::CanvasMessage::OpenCanvasContextMenu(target, anchor, world) => {
-            WorkflowMessage::OpenCanvasContextMenu(target, anchor, world)
-        }
-        desktop_workflow_canvas::CanvasMessage::FinishConnection(endpoint) => WorkflowMessage::FinishConnection(endpoint),
-        desktop_workflow_canvas::CanvasMessage::CancelConnection => WorkflowMessage::CancelConnection,
-        desktop_workflow_canvas::CanvasMessage::FinishNodeDrag => WorkflowMessage::FinishNodeDrag,
-        desktop_workflow_canvas::CanvasMessage::PanBy(delta) => WorkflowMessage::PanBy(delta),
-        desktop_workflow_canvas::CanvasMessage::NodeDragged(id, delta) => WorkflowMessage::NodeDragged(id, delta),
-        desktop_workflow_canvas::CanvasMessage::UpdateConnectionCursor(point) => WorkflowMessage::UpdateConnectionCursor(point),
-    }))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(canvas_panel_style)
-        .into()
-    };
-
-    let canvas_area = build_canvas_area(i18n, state, canvas_base);
-
-    let mut layers: Vec<Element<'_, Message>> = vec![
-        container(canvas_area).width(Length::Fill).height(Length::Fill).style(root_style).into(),
-    ];
-
-    if let Some(error) = state.error_text(i18n) {
-        layers.push(
-            container(error_banner(i18n, error))
-                .padding(iced::Padding {
-                    top: FLOATING_MARGIN,
-                    right: FLOATING_MARGIN,
-                    bottom: 0.0,
-                    left: FLOATING_MARGIN,
-                })
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Top)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into(),
-        );
-    }
-
-    if state.app_editor.is_some() {
-        layers.push(build_app_editor_modal(i18n, state));
-    }
-    if state.node_editor.is_some() {
-        layers.push(build_node_editor_modal(i18n, state));
-    }
-    if state.variable_panel.is_some() {
-        layers.push(build_variable_panel_modal(i18n, state));
-    }
-    if state.variable_editor.is_some() {
-        layers.push(build_variable_editor_modal(i18n, state));
-    }
-    if state.node_editor.as_ref().and_then(|editor| editor.start_variable_editor.as_ref()).is_some()
-    {
-        layers.push(build_start_variable_editor_modal(i18n, state));
-    }
-
-    if state.video_edit.open {
-        layers.push(video_edit::modal(state));
-    }
-    stack(layers).width(Length::Fill).height(Length::Fill).into()
+    desktop_workflow_ui::view::view(
+        i18n,
+        state,
+        state.app_editor.as_ref().map(|_| build_app_editor_modal(i18n, state)),
+        state.node_editor.as_ref().filter(|_| state.active_app_id.is_some()).map(|_| build_node_editor_modal(i18n, state)),
+        Message::WorkflowTool,
+        Message::None,
+    )
 }
 
 #[cfg(test)]

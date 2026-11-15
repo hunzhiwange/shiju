@@ -306,3 +306,5 @@ pub mod node;
 pub mod run;
 pub mod run_inputs;
 pub mod video_edit;
+
+pub mod effects;

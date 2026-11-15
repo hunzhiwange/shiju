@@ -119,3 +119,5 @@ pub mod plugin_install_modal;
 pub mod plugins;
 pub mod help;
 #[cfg(test)] mod help_tests;
+
+pub mod update;

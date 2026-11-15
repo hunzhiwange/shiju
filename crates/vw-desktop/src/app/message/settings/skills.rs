@@ -5,12 +5,8 @@ use crate::app::session_gateway::{
     gateway_skill_create_async, gateway_skill_delete_async, gateway_skill_detail_async,
     gateway_skill_install_builtin_async, gateway_skill_set_enabled_async, gateway_skills_async,
 };
-use crate::app::state::{
-    PluginCatalogItem, SkillsCatalogItem, SkillsCatalogKind, SkillsSelectedDetail,
-};
 use crate::app::{App, Message};
 use iced::Task;
-use gateway_desktop_settings::{DesktopPluginCatalogEntryDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto};
 
 
 use super::messages::SettingsMessage;
@@ -27,57 +23,10 @@ pub(crate) mod bindings_view;
 pub(crate) mod storage_modal;
 pub(crate) mod backup_modal;
 
-const INSTALL_COMMAND_TEMPLATE: &str = "shiju skills install <source>";
-
-fn clear_selected_detail(app: &mut App) {
-    app.skills_settings.selected_skill_id = None;
-    app.skills_settings.selected_skill_detail = None;
-    app.skills_settings.detail_loading = false;
-    app.skills_settings.detail_error = None;
-}
-
-fn clear_selected_plugin(app: &mut App) {
-    app.skills_settings.selected_plugin_id = None;
-}
-
-fn set_status(app: &mut App, message: impl Into<String>, is_error: bool) {
-    app.skills_settings.status_message_translation = None;
-    app.skills_settings.status_message = Some(message.into());
-    app.skills_settings.status_is_error = is_error;
-}
-
-fn set_plugin_status(app: &mut App, message: impl Into<String>, is_error: bool) {
-    app.skills_settings.plugin_status_message_translation = None;
-    app.skills_settings.plugin_status_message = Some(message.into());
-    app.skills_settings.plugin_status_is_error = is_error;
-}
-
-fn clear_catalog_load_error(app: &mut App) {
-    let is_load_error = app.skills_settings.status_is_error
-        && app
-            .skills_settings
-            .status_message
-            .as_deref()
-            .is_some_and(|message| message.starts_with("读取技能目录失败:"));
-    if is_load_error {
-        app.skills_settings.status_message = None;
-        app.skills_settings.status_is_error = false;
-    }
-}
-
-fn clear_plugin_catalog_load_error(app: &mut App) {
-    let is_load_error = app.skills_settings.plugin_status_is_error
-        && app
-            .skills_settings
-            .plugin_status_message
-            .as_deref()
-            .is_some_and(|message| message.starts_with("读取插件目录失败:"));
-    if is_load_error {
-        app.skills_settings.plugin_status_message = None;
-        app.skills_settings.plugin_status_is_error = false;
-    }
-}
-
+use desktop_settings_skills::update::catalog::{self as domain, Event, Effect};
+pub(super) use domain::map_catalog_items;
+#[cfg(test)]
+use domain::INSTALL_COMMAND_TEMPLATE;
 fn refresh_task(project_path: Option<String>) -> Task<Message> {
     Task::perform(async move { gateway_skills_async(project_path.as_deref()).await }, |result| {
         Message::Settings(SettingsMessage::SkillsLoaded(result))
@@ -160,84 +109,6 @@ fn plugin_delete_task(plugin_id: String) -> Task<Message> {
     })
 }
 
-fn map_skill_kind(kind: &str) -> SkillsCatalogKind {
-    match kind {
-        "recommended" => SkillsCatalogKind::Recommended,
-        "personal" => SkillsCatalogKind::Personal,
-        _ => SkillsCatalogKind::System,
-    }
-}
-
-pub(super) fn map_catalog_items(items: Vec<DesktopSkillCatalogEntryDto>) -> Vec<SkillsCatalogItem> {
-    items
-        .into_iter()
-        .map(|item| SkillsCatalogItem {
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            kind: map_skill_kind(&item.kind),
-            resource_count: item.resource_count,
-            installed: item.installed,
-            enabled: item.enabled,
-            source: item.source,
-            source_path: item.source_path,
-        })
-        .collect()
-}
-
-fn map_plugin_catalog_items(items: Vec<DesktopPluginCatalogEntryDto>) -> Vec<PluginCatalogItem> {
-    items
-        .into_iter()
-        .map(|item| PluginCatalogItem {
-            id: item.id,
-            display_name: item.display_name,
-            version: item.version,
-            description: item.description,
-            enabled: item.enabled,
-            component_count: item.component_count,
-            source_path: item.source_path,
-            dependency_checks: item.dependency_checks,
-            origin: item.origin,
-            hook_review: item.hook_review,
-        })
-        .collect()
-}
-
-fn map_skill_detail(detail: DesktopSkillDetailDto) -> SkillsSelectedDetail {
-    SkillsSelectedDetail {
-        id: detail.id,
-        title: detail.title,
-        description: detail.description,
-        kind: map_skill_kind(&detail.kind),
-        installed: detail.installed,
-        enabled: detail.enabled,
-        source: detail.source,
-        source_path: detail.source_path,
-        document_name: detail.document_name,
-        document_content: detail.document_content,
-        can_install: detail.can_install,
-        can_toggle: detail.can_toggle,
-        can_delete: detail.can_delete,
-    }
-}
-
-fn persist_skills_settings(app: &mut App) -> Task<Message> {
-    let s = &app.skills_settings;
-    let directory_provider = s.directory_provider;
-    let auto_load_project_skills = s.auto_load_project_skills;
-    let prompt_injection_mode = s.prompt_injection_mode;
-
-    crate::app::update_skills_config_async(move |skills| {
-        skills.directory_provider = directory_provider;
-        skills.auto_load_project_skills = auto_load_project_skills;
-        skills.prompt_injection_mode = prompt_injection_mode;
-    })
-}
-
-/// 处理 `update` 对应的用户输入、异步结果或状态转换。
-///
-/// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-/// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     if let SettingsMessage::SkillsBackups(event) = message {
         return backup_modal::update(app, event);
@@ -269,343 +140,109 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     if let SettingsMessage::SkillsImport(event) = message {
         return import_modal::update(app, event);
     }
-    match message {
-        SettingsMessage::SkillsProjectSelected(project_path) => {
-            if app.project_path.as_deref() == Some(project_path.as_str()) {
-                return crate::app::projects::project_settings_refresh_task(project_path);
-            }
-            app.open_project_and_index(project_path)
+    let event = match message {
+        SettingsMessage::SkillsProjectSelected(value) => Event::SkillsProjectSelected(value),
+        SettingsMessage::SkillsRefresh => Event::SkillsRefresh,
+        SettingsMessage::PluginsRefresh => Event::PluginsRefresh,
+        SettingsMessage::PluginsLoaded(value) => Event::PluginsLoaded(value),
+        SettingsMessage::PluginsSelected(value) => Event::PluginsSelected(value),
+        SettingsMessage::PluginsSetEnabledRequested { plugin_id, enabled } => Event::PluginsSetEnabledRequested { plugin_id, enabled },
+        SettingsMessage::PluginsSetEnabledCompleted { plugin_id, enabled, result } => Event::PluginsSetEnabledCompleted { plugin_id, enabled, result },
+        SettingsMessage::PluginsDeleteRequested(value) => Event::PluginsDeleteRequested(value),
+        SettingsMessage::PluginsDeleteCompleted { plugin_id, result } => Event::PluginsDeleteCompleted { plugin_id, result },
+        SettingsMessage::SkillsTabChanged(value) => Event::SkillsTabChanged(value),
+        SettingsMessage::SkillsDetailClosed => Event::SkillsDetailClosed,
+        SettingsMessage::SkillsDetailRequested(value) => Event::SkillsDetailRequested(value),
+        SettingsMessage::SkillsLoaded(value) => Event::SkillsLoaded(value),
+        SettingsMessage::SkillsDetailLoaded { skill_id, result } => Event::SkillsDetailLoaded { skill_id, result },
+        SettingsMessage::SkillsQueryChanged(value) => Event::SkillsQueryChanged(value),
+        SettingsMessage::SkillsDirectoryScopeChanged(value) => Event::SkillsDirectoryScopeChanged(value),
+        SettingsMessage::SkillsCreateNewRequested => Event::SkillsCreateNewRequested,
+        SettingsMessage::SkillsCreateNewCompleted(value) => Event::SkillsCreateNewCompleted(value),
+        SettingsMessage::SkillsCopyInstallCommand => Event::SkillsCopyInstallCommand,
+        SettingsMessage::SkillsInstallBuiltInRequested(value) => Event::SkillsInstallBuiltInRequested(value),
+        SettingsMessage::SkillsInstallBuiltInCompleted(value) => Event::SkillsInstallBuiltInCompleted(value),
+        SettingsMessage::SkillsSetEnabledRequested { skill_id, enabled } => Event::SkillsSetEnabledRequested { skill_id, enabled },
+        SettingsMessage::SkillsSetEnabledCompleted { skill_id, enabled, result } => Event::SkillsSetEnabledCompleted { skill_id, enabled, result },
+        SettingsMessage::SkillsDeleteRequested(value) => Event::SkillsDeleteRequested(value),
+        SettingsMessage::SkillsDeleteCompleted { skill_id, result } => Event::SkillsDeleteCompleted { skill_id, result },
+        SettingsMessage::SkillsDirectoryProviderChanged(value) => Event::SkillsDirectoryProviderChanged(value),
+        SettingsMessage::SkillsProjectAutoLoadToggled(value) => Event::SkillsProjectAutoLoadToggled(value),
+        SettingsMessage::SkillsPromptInjectionModeChanged(value) => Event::SkillsPromptInjectionModeChanged(value),
+        SettingsMessage::SkillsSave => Event::SkillsSave,
+        SettingsMessage::SkillsHelpOpen => Event::SkillsHelpOpen,
+        SettingsMessage::SkillsHelpClose => Event::SkillsHelpClose,
+        _ => return Task::none(),
+    };
+    let effect = domain::update(&mut app.skills_settings, &app.project_path, event);
+    execute(app, effect)
+}
+fn execute(app: &mut App, effect: Effect) -> Task<Message> {
+    match effect {
+        Effect::None => Task::none(),
+        Effect::Batch(effects) => Task::batch(
+            effects.into_iter().map(|effect| execute(app, effect)).collect::<Vec<_>>(),
+        ),
+        Effect::RefreshProject(path) => crate::app::projects::project_settings_refresh_task(path),
+        Effect::OpenProject(path) => app.open_project_and_index(path),
+        Effect::Copy(value) => Task::done(Message::CopyCode(value)),
+        Effect::Refresh(path) => refresh_task(path),
+        Effect::PluginsRefresh => plugins_refresh_task(),
+        Effect::Detail(path, id) => detail_task(path, id),
+        Effect::SetEnabled(path, id, enabled) => set_enabled_task(path, id, enabled),
+        Effect::Delete(path, id) => delete_task(path, id),
+        Effect::PluginSetEnabled(id, enabled) => plugin_set_enabled_task(id, enabled),
+        Effect::PluginDelete(id) => plugin_delete_task(id),
+        Effect::Create(path) => Task::perform(
+            async move { gateway_skill_create_async(&path).await },
+            |result| Message::Settings(SettingsMessage::SkillsCreateNewCompleted(result)),
+        ),
+        Effect::InstallBuiltin(path, id) => Task::perform(
+            async move { gateway_skill_install_builtin_async(&path, &id).await },
+            |result| Message::Settings(SettingsMessage::SkillsInstallBuiltInCompleted(result)),
+        ),
+        Effect::Save(directory_provider, auto_load_project_skills, prompt_injection_mode) => {
+            crate::app::update_skills_config_async(move |skills| {
+                skills.directory_provider = directory_provider;
+                skills.auto_load_project_skills = auto_load_project_skills;
+                skills.prompt_injection_mode = prompt_injection_mode;
+            })
         }
-        SettingsMessage::SkillsRefresh => {
-            app.skills_settings.loading = true;
-            refresh_task(app.project_path.clone())
-        }
-        SettingsMessage::PluginsRefresh => {
-            app.skills_settings.plugin_loading = true;
-            plugins_refresh_task()
-        }
-        SettingsMessage::PluginsLoaded(result) => {
-            app.skills_settings.plugin_loading = false;
-            match result {
-                Ok(items) => {
-                    app.skills_settings.plugin_catalog = map_plugin_catalog_items(items);
-                    if app.skills_settings.selected_plugin_id.as_deref().is_some_and(|selected| {
-                        !app.skills_settings
-                            .plugin_catalog
-                            .iter()
-                            .any(|plugin| plugin.id == selected)
-                    }) {
-                        clear_selected_plugin(app);
-                    }
-                    clear_plugin_catalog_load_error(app);
-                }
-                Err(err) => {
-                    app.skills_settings.plugin_catalog.clear();
-                    set_plugin_status_localized(
-                        app,
-                        "读取插件目录失败: %s",
-                        vec![(err).into()],
-                        true,
-                    );
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::PluginsSelected(plugin_id) => {
-            app.skills_settings.selected_plugin_id = Some(plugin_id);
-            Task::none()
-        }
-        SettingsMessage::PluginsSetEnabledRequested { plugin_id, enabled } => {
-            app.skills_settings.plugin_loading = true;
-            plugin_set_enabled_task(plugin_id, enabled)
-        }
-        SettingsMessage::PluginsSetEnabledCompleted { plugin_id, enabled, result } => {
-            match result {
-                Ok(path) => {
-                    set_plugin_status_localized(
-                        app,
-                        if enabled { "已启用插件: %s" } else { "已禁用插件: %s" },
-                        vec![path.into()],
-                        false,
-                    );
-                    app.skills_settings.plugin_loading = true;
-                    return plugins_refresh_task();
-                }
-                Err(err) => {
-                    app.skills_settings.plugin_loading = false;
-                    set_plugin_status(app, err, true);
-                    if app.skills_settings.selected_plugin_id.as_deref() == Some(plugin_id.as_str())
-                    {
-                        app.skills_settings.selected_plugin_id = Some(plugin_id);
-                    }
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::PluginsDeleteRequested(plugin_id) => {
-            app.skills_settings.plugin_loading = true;
-            plugin_delete_task(plugin_id)
-        }
-        SettingsMessage::PluginsDeleteCompleted { plugin_id, result } => {
-            match result {
-                Ok(path) => {
-                    set_plugin_status_localized(app, "已删除插件: %s", vec![(path).into()], false);
-                    if app.skills_settings.selected_plugin_id.as_deref() == Some(plugin_id.as_str())
-                    {
-                        clear_selected_plugin(app);
-                    }
-                    app.skills_settings.plugin_loading = true;
-                    return plugins_refresh_task();
-                }
-                Err(err) => {
-                    app.skills_settings.plugin_loading = false;
-                    set_plugin_status(app, err, true);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsTabChanged(tab) => {
-            app.skills_settings.active_tab = tab;
-            clear_selected_detail(app);
-            Task::none()
-        }
-        SettingsMessage::SkillsDetailClosed => {
-            clear_selected_detail(app);
-            Task::none()
-        }
-        SettingsMessage::SkillsDetailRequested(skill_id) => {
-            app.skills_settings.selected_skill_id = Some(skill_id.clone());
-            app.skills_settings.selected_skill_detail = None;
-            app.skills_settings.detail_loading = true;
-            app.skills_settings.detail_error = None;
-            detail_task(app.project_path.clone(), skill_id)
-        }
-        SettingsMessage::SkillsLoaded(result) => {
-            app.skills_settings.loading = false;
-            match result {
-                Ok(items) => {
-                    app.skills_settings.catalog = map_catalog_items(items);
-                    if app.skills_settings.selected_skill_id.as_deref().is_some_and(|selected| {
-                        !app.skills_settings.catalog.iter().any(|skill| skill.id == selected)
-                    }) {
-                        clear_selected_detail(app);
-                    }
-                    clear_catalog_load_error(app);
-                }
-                Err(err) => {
-                    app.skills_settings.catalog.clear();
-                    set_status_localized(app, "读取技能目录失败: %s", vec![(err).into()], true);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsDetailLoaded { skill_id, result } => {
-            if app.skills_settings.selected_skill_id.as_deref() != Some(skill_id.as_str()) {
-                return Task::none();
-            }
-
-            app.skills_settings.detail_loading = false;
-            match result {
-                Ok(detail) => {
-                    app.skills_settings.selected_skill_detail = Some(map_skill_detail(detail));
-                    app.skills_settings.detail_error = None;
-                }
-                Err(err) => {
-                    app.skills_settings.selected_skill_detail = None;
-                    app.skills_settings.detail_error = Some(err);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsQueryChanged(value) => {
-            app.skills_settings.query = value;
-            clear_selected_detail(app);
-            Task::none()
-        }
-        SettingsMessage::SkillsDirectoryScopeChanged(scope) => {
-            app.skills_settings.directory_scope = scope;
-            clear_selected_detail(app);
-            Task::none()
-        }
-        SettingsMessage::SkillsCreateNewRequested => {
-            let Some(project_path) = app.project_path.clone() else {
-                set_status_localized(app, "请先打开一个项目，再创建技能。", vec![], true);
-                return Task::none();
-            };
-            app.skills_settings.loading = true;
-
-            Task::perform(
-                async move { gateway_skill_create_async(&project_path).await },
-                |result| Message::Settings(SettingsMessage::SkillsCreateNewCompleted(result)),
-            )
-        }
-        SettingsMessage::SkillsCreateNewCompleted(result) => {
-            match result {
-                Ok(path) => {
-                    set_status_localized(app, "已创建新技能: %s", vec![(path).into()], false);
-                    app.skills_settings.loading = true;
-                    return refresh_task(app.project_path.clone());
-                }
-                Err(err) => {
-                    app.skills_settings.loading = false;
-                    set_status(app, err, true);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsCopyInstallCommand => {
-            Task::done(Message::CopyCode(INSTALL_COMMAND_TEMPLATE.to_string()))
-        }
-        SettingsMessage::SkillsInstallBuiltInRequested(skill_id) => {
-            let Some(project_path) = app.project_path.clone() else {
-                set_status_localized(app, "请先打开一个项目，再安装内置技能。", vec![], true);
-                return Task::none();
-            };
-
-            app.skills_settings.loading = true;
-            Task::perform(
-                async move { gateway_skill_install_builtin_async(&project_path, &skill_id).await },
-                |result| Message::Settings(SettingsMessage::SkillsInstallBuiltInCompleted(result)),
-            )
-        }
-        SettingsMessage::SkillsInstallBuiltInCompleted(result) => {
-            match result {
-                Ok(path) => {
-                    set_status_localized(app, "已安装到: %s", vec![(path).into()], false);
-                    app.skills_settings.loading = true;
-                    if let Some(skill_id) = app.skills_settings.selected_skill_id.clone() {
-                        app.skills_settings.detail_loading = true;
-                        app.skills_settings.detail_error = None;
-                        return Task::batch(vec![
-                            refresh_task(app.project_path.clone()),
-                            detail_task(app.project_path.clone(), skill_id),
-                        ]);
-                    }
-                    return refresh_task(app.project_path.clone());
-                }
-                Err(err) => {
-                    app.skills_settings.loading = false;
-                    set_status(app, err, true);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsSetEnabledRequested { skill_id, enabled } => {
-            app.skills_settings.loading = true;
-            if app.skills_settings.selected_skill_id.as_deref() == Some(skill_id.as_str()) {
-                app.skills_settings.detail_loading = true;
-                app.skills_settings.detail_error = None;
-            }
-            set_enabled_task(app.project_path.clone(), skill_id, enabled)
-        }
-        SettingsMessage::SkillsSetEnabledCompleted { skill_id, enabled, result } => {
-            match result {
-                Ok(path) => {
-                    set_status_localized(
-                        app,
-                        if enabled { "已启用技能: %s" } else { "已禁用技能: %s" },
-                        vec![path.into()],
-                        false,
-                    );
-                    app.skills_settings.loading = true;
-
-                    let mut tasks = vec![refresh_task(app.project_path.clone())];
-                    if app.skills_settings.selected_skill_id.as_deref() == Some(skill_id.as_str()) {
-                        app.skills_settings.detail_loading = true;
-                        app.skills_settings.detail_error = None;
-                        tasks.push(detail_task(app.project_path.clone(), skill_id));
-                    }
-                    return Task::batch(tasks);
-                }
-                Err(err) => {
-                    app.skills_settings.loading = false;
-                    app.skills_settings.detail_loading = false;
-                    set_status(app, err, true);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsDeleteRequested(skill_id) => {
-            app.skills_settings.loading = true;
-            delete_task(app.project_path.clone(), skill_id)
-        }
-        SettingsMessage::SkillsDeleteCompleted { skill_id, result } => {
-            match result {
-                Ok(path) => {
-                    set_status_localized(app, "已删除技能: %s", vec![(path).into()], false);
-                    if app.skills_settings.selected_skill_id.as_deref() == Some(skill_id.as_str()) {
-                        clear_selected_detail(app);
-                    }
-                    app.skills_settings.loading = true;
-                    return refresh_task(app.project_path.clone());
-                }
-                Err(err) => {
-                    app.skills_settings.loading = false;
-                    set_status(app, err, true);
-                }
-            }
-            Task::none()
-        }
-        SettingsMessage::SkillsDirectoryProviderChanged(provider) => {
-            app.skills_settings.directory_provider = provider;
-            app.skills_settings.save_error = None;
-            app.skills_settings.loading = true;
-            clear_selected_detail(app);
-            Task::batch(vec![persist_skills_settings(app), refresh_task(app.project_path.clone())])
-        }
-        SettingsMessage::SkillsProjectAutoLoadToggled(v) => {
-            app.skills_settings.auto_load_project_skills = v;
-            app.skills_settings.save_error = None;
-            persist_skills_settings(app)
-        }
-        SettingsMessage::SkillsPromptInjectionModeChanged(v) => {
-            app.skills_settings.prompt_injection_mode = v;
-            app.skills_settings.save_error = None;
-            persist_skills_settings(app)
-        }
-        SettingsMessage::SkillsSave => {
-            app.skills_settings.save_error = None;
-            persist_skills_settings(app)
-        }
-        SettingsMessage::SkillsHelpOpen => {
-            app.skills_settings.show_help_modal = true;
-            Task::none()
-        }
-        SettingsMessage::SkillsHelpClose => {
-            app.skills_settings.show_help_modal = false;
-            Task::none()
-        }
-        _ => Task::none(),
     }
 }
+
 #[cfg(test)]
 #[path = "skills_tests.rs"]
 mod skills_tests;
 
-fn set_status_localized(
-    app: &mut App,
-    source: &str,
-    arguments: Vec<crate::app::i18n::format::Argument>,
-    is_error: bool,
-) {
-    let message = crate::app::i18n::format::Message::new(source, arguments);
-    let chinese = message
-        .render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
-        .expect("valid skills status template");
-    set_status(app, chinese, is_error);
-    app.skills_settings.status_message_translation = Some(message);
-}
-
-fn set_plugin_status_localized(
-    app: &mut App,
-    source: &str,
-    arguments: Vec<crate::app::i18n::format::Argument>,
-    is_error: bool,
-) {
-    let message = crate::app::i18n::format::Message::new(source, arguments);
-    let chinese = message
-        .render(crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
-        .expect("valid skills status template");
-    set_plugin_status(app, chinese, is_error);
-    app.skills_settings.plugin_status_message_translation = Some(message);
+fn update_input(app: &App) -> desktop_settings_skills::update::Input {
+    let client = crate::app::config::gateway_client();
+    let context = client.as_ref().ok().map(|client| crate::app::state::AgentAppsContext {
+        gateway: client.endpoint().base_url(),
+        tenant: client.endpoint().tenant_scope().clone(),
+        project: app.project_path.clone(),
+    });
+    desktop_settings_skills::update::Input {
+        connection_error: client.as_ref().err().map(ToString::to_string).unwrap_or_default(),
+        authorized: context.is_some() && context.as_ref() == app.apps_catalog.context.as_ref()
+            && !app.apps_catalog.token.is_empty(),
+        loopback: client.as_ref().is_ok_and(|client| client.endpoint().is_loopback()),
+        context,
+        project: app.project_id.clone(),
+        directory: app.project_path.clone(),
+        host: app.apps_catalog.host.clone(),
+        catalog: app.apps_catalog.generation,
+        targets: app.apps_catalog.rows.iter().filter_map(|row| row.observation.as_ref().ok())
+            .flat_map(|row| row.installations.iter())
+            .filter(|installation| installation.target_host_id == app.apps_catalog.host)
+            .map(|installation| vw_api_app_skills::bindings_api::SkillBindingTarget {
+                installation_id: installation.id.0.clone(), app_id: installation.app_id,
+            }).collect(),
+        repository_version: app.skills_settings.repositories.snapshot.as_ref()
+            .filter(|snapshot| Some(snapshot.scope.project_id.as_ref()) == app.project_id.as_deref()
+                && snapshot.scope.target_host_id == app.apps_catalog.host)
+            .map_or(0, |snapshot| snapshot.version),
+        job_active: app.skills_settings.jobs.task_id.is_some()
+            && app.skills_settings.jobs.snapshot.as_ref().is_none_or(|job| !jobs_view::terminal(job.phase)),
+    }
 }

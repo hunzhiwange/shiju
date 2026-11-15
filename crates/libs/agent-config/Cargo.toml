@@ -8,6 +8,18 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+config-provider = { path = "../config-provider", version = "0.6.0" }
+config-security = { path = "../config-security", version = "0.6.0" }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+acp-agent-registry = { path = "../acp-agent-registry", version = "0.6.0" }
+domain-matcher = { path = "../domain-matcher", version = "0.6.0" }
+toml = "0.9"
+serde_ignored = "0.1.14"
+chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "socks", "rustls", "http2", "gzip", "brotli", "deflate", "zstd"] }
 agent-paths = { path = "../agent-paths", version = "0.6.0" }
 anyhow = "1"
 serde_json = "1"
@@ -23,10 +35,8 @@ secret-store = { path = "../secret-store", version = "0.6.0" }
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1", features = ["rt", "fs", "io-util"] }
 agent-database = { path = "../agent-database", version = "0.6.0" }
-config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
@@ -35,4 +45,6 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 rusqlite = "0.37.0"
 
 [dev-dependencies]
+config-routing = { path = "../config-routing", version = "0.6.0" }
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
 tempfile = "3"

@@ -2,9 +2,10 @@
 //!
 //! 持久化前会移除运行期 skey；项目配置只保存相对基础配置的覆盖形状，避免复制全局值。
 
-use anyhow::{Context, Result, bail};
-use serde_json::{Map, Value};
-use std::collections::BTreeSet;
+use anyhow::{Context, Result};
+#[cfg(target_arch = "wasm32")]
+use anyhow::bail;
+use serde_json::Value;
 use std::path::Path;
 use vw_api_transport::id::TenantScope;
 use config_aggregate::Config;
@@ -12,15 +13,7 @@ use config_aggregate::Config;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::SystemConfigStore;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_io::merge_config_payload;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::schema::config_load::load_or_init_config_for_tenant;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_secrets::decrypt_config_secrets;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_secrets::encrypt_config_secrets;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_validate::validate_config;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::global_database::GlobalDatabase;
 
@@ -32,15 +25,6 @@ pub(super) fn save_config_to_store(
     store: &SystemConfigStore,
 ) -> Result<()> {
     store.upsert(tenant, &encode_config_for_storage(config)?)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn encode_config_for_storage(config: &Config) -> Result<String> {
-    let mut config_to_save = config.clone();
-    config_to_save.gateway.skeys.clear();
-    validate_config(&config_to_save)?;
-    encrypt_config_secrets(&mut config_to_save)?;
-    serde_json::to_string(&config_to_save).context("Failed to serialize system config")
 }
 
 /// 将配置保存到指定租户；原生平台把阻塞式数据库操作移出异步执行器。
@@ -80,24 +64,7 @@ pub async fn save_config(config: &Config) -> Result<()> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 校验项目根目录和 JSON 对象形状后保存租户项目覆盖。
-pub(super) fn save_project_config_to_store(
-    store: &SystemConfigStore,
-    tenant: &TenantScope,
-    project_root: &Path,
-    payload: &Value,
-) -> Result<()> {
-    if !payload.is_object() {
-        bail!("project config payload root must be an object");
-    }
-    if !project_root.is_dir() {
-        bail!("project root must be an existing directory");
-    }
-    let project_key = project_root.to_str().context("Project root must be valid UTF-8")?;
-    let payload =
-        serde_json::to_string(payload).context("Failed to serialize project config payload")?;
-    store.upsert_project(tenant, project_key, &payload)
-}
+pub(super) use agent_config::schema::config_save::save_project_config_to_store;
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn open_system_config_store() -> Result<SystemConfigStore> {
@@ -108,211 +75,43 @@ async fn open_system_config_store() -> Result<SystemConfigStore> {
         .context("join system config store initialization task")?
 }
 
-/// 递归合并原始项目补丁；对象递归合并，其他值整体替换。
-pub(super) fn merge_raw_project_patch(target: &mut Value, patch: Value) {
-    match (target, patch) {
-        (Value::Object(target_object), Value::Object(patch_object)) => {
-            for (key, patch_value) in patch_object {
-                if let Some(current) = target_object.get_mut(&key)
-                    && current.is_object()
-                    && patch_value.is_object()
-                {
-                    merge_raw_project_patch(current, patch_value);
-                } else {
-                    target_object.insert(key, patch_value);
-                }
-            }
-        }
-        (target_value, patch_value) => *target_value = patch_value,
-    }
+pub(crate) async fn update_project_config_for_tenant(tenant: &TenantScope, project: &Path, patch: Value) -> Result<Config> {
+    #[cfg(not(target_arch = "wasm32"))]
+    { agent_config::schema::config_save::update_project_config_for_tenant::<ProjectConfigHost>(tenant, project, patch).await }
+    #[cfg(target_arch = "wasm32")]
+    { let _ = (tenant, project, patch); bail!("Project config overrides are not supported in WASM"); }
 }
+pub(crate) async fn update_project_config_from_configs(project: &Path, before: &Config, after: &Config) -> Result<Config> {
+    #[cfg(not(target_arch = "wasm32"))]
+    { agent_config::schema::config_save::update_project_config_from_configs::<ProjectConfigHost>(project, before, after).await }
+    #[cfg(target_arch = "wasm32")]
+    { let before_value = serde_json::to_value(before).context("Failed to serialize previous config")?; let after_value = serde_json::to_value(after).context("Failed to serialize updated config")?; if merge_patch_between(&before_value, &after_value).is_none() { return Ok(after.clone()); } let _ = project; bail!("Project config overrides are not supported in WASM"); }
+}
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use agent_config::schema::config_save::encode_config_for_storage;
+#[cfg(test)]
+pub(crate) use agent_config::schema::config_save::{merge_raw_project_patch, select_override_shape};
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use agent_config::schema::config_save::merge_patch_between;
 
-/// 按覆盖模板选择加密后的有效值，避免把未覆盖字段写入项目配置。
-pub(super) fn select_override_shape(shape: &Value, encrypted_effective: Option<&Value>) -> Value {
-    match shape {
-        Value::Object(shape_object) => {
-            let encrypted_object = encrypted_effective.and_then(Value::as_object);
-            let selected = shape_object
-                .iter()
-                .map(|(key, child_shape)| {
-                    let encrypted_child = encrypted_object.and_then(|object| object.get(key));
-                    (key.clone(), select_override_shape(child_shape, encrypted_child))
-                })
-                .collect();
-            Value::Object(selected)
-        }
-        Value::Null => Value::Null,
-        _ => encrypted_effective.cloned().unwrap_or_else(|| shape.clone()),
-    }
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn prepare_project_override(base: &Config, raw_override: Value, patch: Value) -> Result<Value> {
+    let catalog = crate::agent::catalog::merged_agent_catalog(&base.agents);
+    agent_config::schema::config_save::prepare_project_override(base, raw_override, patch, &catalog)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 合并并验证项目覆盖；拒绝 agents 修改，保留旧记录，并剔除运行期 skey 字段。
-pub(super) fn prepare_project_override(
-    base: &Config,
-    mut raw_override: Value,
-    mut patch: Value,
-) -> Result<Value> {
-    if patch.get("worktree_settings").is_some() {
-        bail!("worktree_settings are global; update tenant global config instead");
-    }
-    if let Some(object) = raw_override.as_object_mut() {
-        object.remove("worktree_settings");
-    }
-    if patch.get("agents").is_some() {
-        bail!("agents are global; update tenant global config instead");
-    }
-    // Preserve legacy records without letting them affect validation or encryption.
-    let legacy_agents = raw_override.as_object_mut().and_then(|object| object.remove("agents"));
-    super::config_validate::validate_agent_profile_patch(&patch)?;
-    let mut current_payload = serde_json::to_value(base)?;
-    merge_config_payload(&mut current_payload, raw_override.clone());
-    let current = serde_json::from_value(current_payload)?;
-    super::config_validate::seed_agent_profile_patch(&current, &mut patch)?;
-    let mut next_override = raw_override;
-    merge_raw_project_patch(&mut next_override, patch);
-    if let Some(override_object) = next_override.as_object_mut() {
-        override_object.remove(super::CONFIG_AGENT_KEY);
-        if let Some(gateway) = override_object.get_mut("gateway").and_then(Value::as_object_mut) {
-            gateway.remove("skeys");
-        }
-    }
-
-    let mut effective_payload =
-        serde_json::to_value(base).context("Failed to serialize tenant base config")?;
-    merge_config_payload(&mut effective_payload, next_override.clone());
-    let mut effective: Config = serde_json::from_value(effective_payload)
-        .context("Failed to deserialize effective project config")?;
-    effective.config_path = base.config_path.clone();
-    effective.workspace_dir = base.workspace_dir.clone();
-    effective.gateway.skeys.clear();
-    let config_dir = base
-        .config_path
-        .parent()
-        .context("Tenant base config path must have a parent directory")?;
-    decrypt_config_secrets(&mut effective, config_dir)?;
-    validate_config(&effective)?;
-    encrypt_config_secrets(&mut effective)?;
-    let encrypted_effective =
-        serde_json::to_value(effective).context("Failed to serialize effective project config")?;
-    let mut selected = select_override_shape(&next_override, Some(&encrypted_effective));
-    if let Some(agents) = legacy_agents {
-        selected
-            .as_object_mut()
-            .context("project config payload root must be an object")?
-            .insert("agents".into(), agents);
-    }
-    Ok(selected)
+/// 项目配置持久化的宿主组合。
+struct ProjectConfigHost;
+#[cfg(not(target_arch = "wasm32"))]
+impl agent_config::schema::config_save::ProjectConfigHost for ProjectConfigHost {
+    type Store = SystemConfigStore;
+    async fn open_store() -> Result<Self::Store> { open_system_config_store().await }
+    async fn load(tenant: &TenantScope, project: Option<&Path>) -> Result<Config> { load_or_init_config_for_tenant(tenant, project).await }
+    fn catalog(config: &Config) -> std::collections::HashMap<String, config_agent::AgentDefinitionConfig> { crate::agent::catalog::merged_agent_catalog(&config.agents) }
 }
-
-/// 计算从 `before` 变为 `after` 的递归合并补丁；无变化时返回 `None`。
-pub(super) fn merge_patch_between(before: &Value, after: &Value) -> Option<Value> {
-    if before == after {
-        return None;
-    }
-    match (before, after) {
-        (Value::Object(before_object), Value::Object(after_object)) => {
-            let keys =
-                before_object.keys().chain(after_object.keys()).cloned().collect::<BTreeSet<_>>();
-            let mut patch = Map::new();
-            for key in keys {
-                match (before_object.get(&key), after_object.get(&key)) {
-                    (Some(before_value), Some(after_value)) => {
-                        if let Some(value) = merge_patch_between(before_value, after_value) {
-                            patch.insert(key, value);
-                        }
-                    }
-                    (Some(_), None) => {
-                        patch.insert(key, Value::Null);
-                    }
-                    (None, Some(after_value)) => {
-                        patch.insert(key, after_value.clone());
-                    }
-                    (None, None) => {}
-                }
-            }
-            (!patch.is_empty()).then_some(Value::Object(patch))
-        }
-        _ => Some(after.clone()),
-    }
-}
-
-/// 更新指定租户的项目覆盖，并返回重新加载后的有效配置。
-pub(crate) async fn update_project_config_for_tenant(
-    tenant: &TenantScope,
-    project_root: &Path,
-    patch: Value,
-) -> Result<Config> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = (tenant, project_root, patch);
-        bail!("Project config overrides are not supported in WASM");
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let Some(patch_object) = patch.as_object() else {
-            bail!("config patch must be a JSON object");
-        };
-        if patch_object.contains_key("agents") {
-            bail!("agents are global; update tenant global config instead");
-        }
-        if !project_root.is_dir() {
-            bail!("project root must be an existing directory");
-        }
-        if patch_object.is_empty() {
-            return load_or_init_config_for_tenant(tenant, Some(project_root)).await;
-        }
-        let base = load_or_init_config_for_tenant(tenant, None).await?;
-        let store = open_system_config_store().await?;
-        let project_key =
-            project_root.to_str().context("Project root must be valid UTF-8")?.to_owned();
-        let read_store = store.clone();
-        let read_tenant = tenant.clone();
-        let raw_override =
-            tokio::task::spawn_blocking(move || read_store.get_project(&read_tenant, &project_key))
-                .await
-                .context("join project config load task")??
-                .map(|payload| {
-                    serde_json::from_str(&payload)
-                        .context("Failed to parse tenant project config payload")
-                })
-                .transpose()?
-                .unwrap_or_else(|| Value::Object(Map::new()));
-        let next_override = prepare_project_override(&base, raw_override, patch)?;
-        let write_store = store;
-        let write_tenant = tenant.clone();
-        let write_project_root = project_root.to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            save_project_config_to_store(
-                &write_store,
-                &write_tenant,
-                &write_project_root,
-                &next_override,
-            )
-        })
-        .await
-        .context("join project config save task")??;
-        load_or_init_config_for_tenant(tenant, Some(project_root)).await
-    }
-}
-
-/// 更新默认租户的项目覆盖。
-pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> Result<Config> {
-    update_project_config_for_tenant(&TenantScope::default(), project_root, patch).await
-}
-
-/// 根据更新前后的完整配置计算最小项目补丁并持久化。
-pub(crate) async fn update_project_config_from_configs(
-    project_root: &Path,
-    before: &Config,
-    after: &Config,
-) -> Result<Config> {
-    let before_value =
-        serde_json::to_value(before).context("Failed to serialize previous config")?;
-    let after_value = serde_json::to_value(after).context("Failed to serialize updated config")?;
-    let Some(patch) = merge_patch_between(&before_value, &after_value) else {
-        return Ok(after.clone());
-    };
-    update_project_config(project_root, patch).await
+#[cfg(not(target_arch = "wasm32"))]
+impl agent_config::schema::config_save::ProjectConfigStore for SystemConfigStore {
+    fn get_project(&self, tenant: &TenantScope, project: &str) -> Result<Option<String>> { self.get_project(tenant, project) }
+    fn upsert_project(&self, tenant: &TenantScope, project: &str, payload: &str) -> Result<()> { self.upsert_project(tenant, project, payload) }
 }

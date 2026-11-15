@@ -1,10 +1,12 @@
 // 覆盖配置校验、兼容值规范化及各类语义约束。
 
 use std::sync::{Mutex, MutexGuard};
+use config_routing::{EmbeddingRouteConfig, ModelRouteConfig};
+use config_gateway::GatewaySkey;
 
 use super::config_validate::{normalize_wire_api, validate_config};
 use super::{
-    Config, EmbeddingRouteConfig, GatewaySkey, ModelProviderConfig, ModelRouteConfig,
+    Config, ModelProviderConfig,
     ProviderApiMode, ProxyScope,
 };
 

@@ -4,8 +4,10 @@ use super::config_secrets::{
     decrypt_config_secrets, decrypt_map_secrets, decrypt_vec_secrets, encrypt_config_secrets,
     encrypt_map_secrets, encrypt_vec_secrets,
 };
-use super::{Config, DelegateAgentConfig, EmbeddingRouteConfig, TelegramConfig};
-use crate::app::agent::security::SecretStore;
+use super::{Config, TelegramConfig};
+use config_agent::DelegateAgentConfig;
+use config_routing::EmbeddingRouteConfig;
+use secret_store::secrets::SecretStore;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -131,7 +133,7 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
 
     encrypt_config_secrets(&mut config).unwrap();
 
-    assert!(crate::app::agent::security::SecretStore::is_encrypted(
+    assert!(secret_store::secrets::SecretStore::is_encrypted(
         config.api_key.as_deref().unwrap()
     ));
     assert!(SecretStore::is_encrypted(config.proxy.http_proxy.as_deref().unwrap()));

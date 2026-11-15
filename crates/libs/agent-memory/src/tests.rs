@@ -4,12 +4,13 @@
 //! 以及嵌入路由覆盖规则。测试重点是确认外部配置被解析为明确、可预期的运行时行为。
 
 use super::*;
+use crate::create_memory_for_migration;
 
 #[allow(dead_code)]
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::{EmbeddingRouteConfig, StorageProviderConfig};
+    use agent_config::schema::{EmbeddingRouteConfig, StorageProviderConfig};
     use tempfile::TempDir;
 
     #[test]

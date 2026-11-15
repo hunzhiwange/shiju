@@ -12,6 +12,17 @@ pub mod mariadb;
 pub mod markdown;
 pub mod none;
 pub mod paths;
+pub mod qdrant;
+pub mod response_cache;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod snapshot;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod sqlite;
+pub mod vector;
+mod factory;
+pub use factory::*;
+pub use qdrant::QdrantMemory;
+pub use response_cache::ResponseCache;
 #[cfg(feature = "memory-postgres")]
 pub mod postgres;
 

@@ -2,7 +2,8 @@
 
 // 环境配置中的密钥只通过脱敏调试输出观察，空覆盖不会抹掉有效基础配置。
 use super::*;
-use crate::app::agent::config::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
+use crate::{NoneMemory, create_memory_for_migration};
+use agent_config::schema::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
 use std::sync::{Mutex, MutexGuard};
 use tempfile::TempDir;
 

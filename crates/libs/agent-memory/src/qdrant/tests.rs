@@ -15,7 +15,7 @@
 //! - 使用 `serde_json` 进行序列化验证
 
 use super::*;
-use crate::app::agent::memory::embeddings::EmbeddingProvider;
+use crate::embeddings::EmbeddingProvider;
 use async_trait::async_trait;
 use axum::Router;
 use axum::body::{Body, to_bytes};

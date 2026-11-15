@@ -3,12 +3,12 @@
 //! 滑块测试覆盖上下界和舍入回调，帮助文案检查用于约束已支持能力的说明。
 
 use super::*;
-use crate::app::{App, message};
+use crate::messages as message;
 use iced::Element;
 use iced::widget::text;
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 
 fn keep_element(element: Element<'_, Message>) {
@@ -41,7 +41,7 @@ fn reliability_view_uses_expected_bounded_ranges() {
 #[test]
 fn view_builds_default_extreme_and_error_states() {
     let app = test_app();
-    keep_element(view(&app));
+    keep_element(view(inputs(&app)));
 
     let mut app = test_app();
     app.reliability_settings.provider_retries = 20;
@@ -51,16 +51,16 @@ fn view_builds_default_extreme_and_error_states() {
     app.reliability_settings.scheduler_poll_secs = 3600;
     app.reliability_settings.scheduler_retries = 20;
     app.reliability_settings.save_error = Some("save failed".to_string());
-    keep_element(view(&app));
+    keep_element(view(inputs(&app)));
 }
 
 #[test]
 fn overlays_return_dialog_or_help_modal() {
     let mut app = test_app();
-    keep_element(view_overlays(&app, text("dialog").into()));
+    keep_element(view_overlays(inputs(&app), text("dialog").into()));
 
     app.reliability_settings.show_help_modal = true;
-    keep_element(view_overlays(&app, text("dialog").into()));
+    keep_element(view_overlays(inputs(&app), text("dialog").into()));
 }
 
 #[test]
@@ -137,4 +137,12 @@ fn slider_callbacks_round_into_reliability_messages() {
         }
         _ => panic!("expected scheduler retries message"),
     }
+}
+
+#[derive(Default)]
+struct Fixture { pub reliability_settings: ReliabilitySettingsState, app_theme: iced::Theme }
+fn inputs(app: &Fixture) -> View<'_> {
+ View { reliability_settings: &app.reliability_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+ app_theme: &app.app_theme, last_copied_code_hash: None,
+ render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }

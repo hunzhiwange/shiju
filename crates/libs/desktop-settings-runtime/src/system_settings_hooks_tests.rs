@@ -2,14 +2,14 @@
 //! 已信任和待审查目录项分开构造，确保危险操作映射到目标钩子。
 
 use super::*;
-use crate::app::App;
+
 use iced::advanced::widget::Tree;
 
 const SOURCE: &str = include_str!("system_settings_hooks.rs");
 
 // 钩子目录与审计记录由测试逐项注入，默认应用不携带外部插件状态。
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 
 fn keep_element(element: Element<'_, Message>) {
@@ -88,7 +88,7 @@ fn hooks_view_renders_plugin_review_and_audit_sections() {
     app.app_theme = iced::Theme::Dark;
     app.hooks_settings.catalog = vec![catalog_entry(false), catalog_entry(true)];
     app.hooks_settings.audit = vec![audit_entry()];
-    let populated = view(&app);
+    let populated = view(inputs(&app));
     let populated_tree = Tree::new(populated.as_widget());
 
     assert!(tree_node_count(&populated_tree) > tree_node_count(&empty_tree));
@@ -131,6 +131,14 @@ fn view_builds_all_hook_toggle_combinations() {
         let mut app = test_app();
         app.hooks_settings.enabled = enabled;
         app.hooks_settings.command_logger = command_logger;
-        keep_element(view(&app));
+        keep_element(view(inputs(&app)));
     }
+}
+
+#[derive(Default)]
+struct Fixture { pub hooks_settings: HooksSettingsState, app_theme: iced::Theme }
+fn inputs(app: &Fixture) -> View<'_> {
+ View { hooks_settings: &app.hooks_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+ app_theme: &app.app_theme,
+ render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }

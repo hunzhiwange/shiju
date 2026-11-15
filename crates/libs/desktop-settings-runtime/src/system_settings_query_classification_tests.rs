@@ -3,13 +3,14 @@
 //! 规则夹具覆盖空列表、单条和模型路由，源码连线检查用于防止编辑消息遗漏。
 
 use super::*;
-use crate::app::state::{ModelRoute, QueryClassificationRuleInput};
+use desktop_settings_providers::state::ModelRoute;
+use crate::state::QueryClassificationRuleInput;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 
 fn element_tree(element: Element<'_, Message>) -> Tree {
@@ -19,7 +20,7 @@ fn element_tree(element: Element<'_, Message>) -> Tree {
 #[test]
 fn field_row_builds_label_description_and_control_structure() {
     let app = test_app();
-    let tree = element_tree(field_row(&app, "pattern", "匹配关键字或模式。", text("bug")));
+    let tree = element_tree(field_row(inputs(&app), "pattern", "匹配关键字或模式。", text("bug")));
 
     assert_eq!(tree.children.len(), 2);
     assert_eq!(tree.children[0].children.len(), 2);
@@ -31,7 +32,7 @@ fn view_empty_rules_adds_empty_panel_after_base_sections() {
     let mut app = test_app();
     app.query_classification_settings.rules.clear();
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(view(inputs(&app)));
 
     assert_eq!(tree.children.len(), 5);
     assert_eq!(tree.children[0].children.len(), 3);
@@ -57,7 +58,7 @@ fn view_rule_cards_replace_empty_panel_and_render_three_fields_per_rule() {
         },
     ];
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(view(inputs(&app)));
 
     assert_eq!(tree.children.len(), 6);
     for card in &tree.children[4..] {
@@ -81,7 +82,7 @@ fn view_single_rule_uses_one_card_without_empty_state() {
         priority_input: String::new(),
     }];
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(view(inputs(&app)));
 
     assert_eq!(tree.children.len(), 5);
     let card_content = &tree.children[4];
@@ -92,7 +93,7 @@ fn view_single_rule_uses_one_card_without_empty_state() {
 #[test]
 fn view_renders_category_picker_for_configured_model_routes() {
     let mut app = test_app();
-    app.model_routes_settings.routes = vec![ModelRoute {
+    app.model_routes = vec![ModelRoute {
         pattern: "code".to_string(),
         provider: "openai".to_string(),
         model: "gpt-5".to_string(),
@@ -104,7 +105,7 @@ fn view_renders_category_picker_for_configured_model_routes() {
         priority_input: "100".to_string(),
     }];
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(view(inputs(&app)));
 
     assert_eq!(tree.children.len(), 5);
 }
@@ -120,5 +121,13 @@ fn source_wires_each_editor_action_to_query_classification_message() {
     assert!(source.contains("QueryClassificationMessage::CategoryChanged(idx, value)"));
     assert!(source.contains("QueryClassificationMessage::PriorityChanged(idx, value)"));
     assert!(source.contains("settings_select"));
-    assert!(source.contains("ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes)"));
+    assert!(source.contains("SettingsMessage::NavigateModelRoutes"));
+}
+
+#[derive(Default)]
+struct Fixture { pub query_classification_settings: QueryClassificationSettingsState,model_routes: Vec<ModelRoute>, app_theme: iced::Theme }
+fn inputs(app: &Fixture) -> View<'_> {
+ View { query_classification_settings: &app.query_classification_settings,model_routes: &app.model_routes, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+ app_theme: &app.app_theme,
+ render_help: |_, description, _, _| iced::widget::text(description).into(), }
 }

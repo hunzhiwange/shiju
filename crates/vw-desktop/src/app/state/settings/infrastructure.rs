@@ -1,31 +1,6 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub(crate) struct MultimodalSettingsState {
-    pub(crate) max_images: u32,
-    pub(crate) max_image_size_mb: u32,
-    pub(crate) allow_remote_fetch: bool,
-    pub(crate) ocr_enabled: bool,
-    pub(crate) model_supports_images: bool,
-    pub(crate) ocr_model: String,
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for MultimodalSettingsState {
-    fn default() -> Self {
-        Self {
-            max_images: 10,
-            max_image_size_mb: 5,
-            allow_remote_fetch: true,
-            ocr_enabled: false,
-            model_supports_images: true,
-            ocr_model: String::new(),
-            save_error: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub(crate) struct HttpRequestSettingsState {
     pub(crate) enabled: bool,
     pub(crate) allowed_domains: Vec<String>,
@@ -361,44 +336,6 @@ impl AutonomySettingsState {
     }
 }
 
-/// 可观测性设置面板状态
-///
-/// 管理系统可观测性的配置，包括 OpenTelemetry 和运行时追踪等。
-#[derive(Debug, Clone)]
-pub(crate) struct ObservabilitySettingsState {
-    /// 后端类型
-    pub(crate) backend: String,
-    /// OTEL 端点输入
-    pub(crate) otel_endpoint_input: String,
-    /// OTEL 服务名称输入
-    pub(crate) otel_service_name_input: String,
-    /// 运行时追踪模式
-    pub(crate) runtime_trace_mode: String,
-    /// 运行时追踪路径输入
-    pub(crate) runtime_trace_path_input: String,
-    /// 运行时追踪最大条目数
-    pub(crate) runtime_trace_max_entries: u32,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for ObservabilitySettingsState {
-    fn default() -> Self {
-        Self {
-            backend: "none".to_string(),
-            otel_endpoint_input: String::new(),
-            otel_service_name_input: String::new(),
-            runtime_trace_mode: "none".to_string(),
-            runtime_trace_path_input: "state/runtime-trace.jsonl".to_string(),
-            runtime_trace_max_entries: 200,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
-
 /// 存储设置面板状态
 ///
 /// 管理持久化存储 provider、连接地址、schema、table 与 TLS 配置。
@@ -679,3 +616,5 @@ impl Default for ThemesSettingsState {
 #[cfg(test)]
 #[path = "infrastructure_tests.rs"]
 mod infrastructure_tests;
+
+pub(crate) use desktop_settings_runtime::state::{MultimodalSettingsState, ObservabilitySettingsState};

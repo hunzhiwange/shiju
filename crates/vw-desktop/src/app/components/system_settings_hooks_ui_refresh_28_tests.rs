@@ -3,6 +3,9 @@
 
 use super::super::{system_settings, system_settings_observability as observability};
 use super::*;
+use crate::app::i18n::{I18n, settings_extensions::text as tr};
+use crate::app::message::settings::HooksMessage;
+use config_ui::DesktopLocale;
 use crate::app::message::SettingsMessage;
 use iced::advanced::{
     clipboard,

@@ -318,36 +318,6 @@ pub(crate) struct ModelRoutesSettingsState {
     pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
 }
 
-/// 查询分类单条规则输入状态。
-#[derive(Debug, Clone)]
-pub(crate) struct QueryClassificationRuleInput {
-    /// 匹配模式输入。
-    pub(crate) pattern: String,
-    /// 分类类别输入。
-    pub(crate) category: String,
-    /// 优先级输入。
-    pub(crate) priority_input: String,
-}
-
-impl Default for QueryClassificationRuleInput {
-    fn default() -> Self {
-        Self { pattern: String::new(), category: String::new(), priority_input: "0".to_string() }
-    }
-}
-
-/// 查询分类设置面板状态。
-#[derive(Debug, Clone)]
-#[derive(Default)]
-pub(crate) struct QueryClassificationSettingsState {
-    /// 是否启用查询分类。
-    pub(crate) enabled: bool,
-    /// 查询分类规则列表。
-    pub(crate) rules: Vec<QueryClassificationRuleInput>,
-    /// 保存错误信息。
-    pub(crate) save_error: Option<String>,
-    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
-}
-
 /// 心跳设置面板状态
 ///
 /// 管理心跳功能的配置，包括定时消息发送设置。
@@ -420,3 +390,5 @@ impl Default for SchedulerSettingsState {
 #[cfg(test)]
 #[path = "provider_model_tests.rs"]
 mod provider_model_tests;
+
+pub(crate) use desktop_settings_runtime::state::{QueryClassificationRuleInput, QueryClassificationSettingsState};

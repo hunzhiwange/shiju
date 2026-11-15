@@ -43,6 +43,7 @@ members = [
   "crates/libs/desktop-settings-security",
   "crates/libs/desktop-chat-tools",
   "crates/libs/desktop-settings-providers",
+  "crates/libs/desktop-settings-runtime",
   "crates/libs/desktop-editor",
   "crates/libs/desktop-settings-shell",
   "crates/libs/desktop-settings-network",

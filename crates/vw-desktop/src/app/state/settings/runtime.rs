@@ -1,102 +1,5 @@
 use super::*;
 
-/// Hooks 设置面板状态
-///
-/// 管理运行时 hooks 总开关与内置钩子的配置。
-#[derive(Debug, Clone)]
-pub(crate) struct HooksSettingsState {
-    /// 是否启用 hooks 运行时
-    pub(crate) enabled: bool,
-    /// 是否启用 command_logger 内置钩子
-    pub(crate) command_logger: bool,
-    /// 是否允许加载已启用插件声明的 hooks
-    pub(crate) plugins_enabled: bool,
-    /// 最近一次成功加载的插件 hook 清单
-    pub(crate) catalog: Vec<gateway_desktop_settings::HookCatalogEntryDto>,
-    /// 插件 hook 清单是否正在加载
-    pub(crate) catalog_loading: bool,
-    /// 最近一次插件 hook 清单加载错误
-    pub(crate) catalog_error: Option<String>,
-    /// 最近一次成功加载的安全审计记录
-    pub(crate) audit: Vec<gateway_desktop_settings::HookAuditEntryDto>,
-    /// 审计记录是否正在加载
-    pub(crate) audit_loading: bool,
-    /// 最近一次审计记录加载错误
-    pub(crate) audit_error: Option<String>,
-    /// 信任或撤销请求是否正在执行
-    pub(crate) mutation_loading: bool,
-    /// 最近一次信任或撤销错误
-    pub(crate) mutation_error: Option<String>,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for HooksSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            command_logger: false,
-            plugins_enabled: true,
-            catalog: Vec::new(),
-            catalog_loading: false,
-            catalog_error: None,
-            audit: Vec::new(),
-            audit_loading: false,
-            audit_error: None,
-            mutation_loading: false,
-            mutation_error: None,
-            save_error: None,
-        }
-    }
-}
-
-/// 运行时设置面板状态
-///
-/// 管理 runtime 配置，包括 kind 选择、Docker 子配置与推理覆盖选项。
-#[derive(Debug, Clone)]
-pub(crate) struct RuntimeSettingsState {
-    /// 运行时类型
-    pub(crate) kind: String,
-    /// Docker 镜像
-    pub(crate) docker_image: String,
-    /// Docker 网络模式
-    pub(crate) docker_network: String,
-    /// Docker 内存限制输入（MB）
-    pub(crate) docker_memory_limit_mb_input: String,
-    /// Docker CPU 限制输入
-    pub(crate) docker_cpu_limit_input: String,
-    /// Docker 只读根文件系统
-    pub(crate) docker_read_only_rootfs: bool,
-    /// Docker 挂载工作区
-    pub(crate) docker_mount_workspace: bool,
-    /// Docker 允许挂载的工作区根目录输入
-    pub(crate) docker_allowed_workspace_roots_input: String,
-    /// 推理覆盖开关输入（自动/启用/禁用，对应 auto/true/false）
-    pub(crate) reasoning_enabled_input: String,
-    /// 推理级别输入
-    pub(crate) reasoning_level_input: String,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for RuntimeSettingsState {
-    fn default() -> Self {
-        Self {
-            kind: "native".to_string(),
-            docker_image: "alpine:3.20".to_string(),
-            docker_network: "none".to_string(),
-            docker_memory_limit_mb_input: "512".to_string(),
-            docker_cpu_limit_input: "1".to_string(),
-            docker_read_only_rootfs: true,
-            docker_mount_workspace: true,
-            docker_allowed_workspace_roots_input: String::new(),
-            reasoning_enabled_input: "auto".to_string(),
-            reasoning_level_input: String::new(),
-            save_error: None,
-        }
-    }
-}
-
 /// 技能设置面板状态
 ///
 /// 管理技能系统的配置，包括开放技能目录和提示注入模式。
@@ -413,44 +316,8 @@ impl Default for MemorySettingsState {
     }
 }
 
-/// 可靠性设置面板状态
-///
-/// 管理系统可靠性的配置，包括重试策略和退避时间等。
-#[derive(Debug, Clone)]
-pub(crate) struct ReliabilitySettingsState {
-    /// 提供者重试次数
-    pub(crate) provider_retries: u32,
-    /// 提供者退避时间（毫秒）
-    pub(crate) provider_backoff_ms: u64,
-    /// 通道初始退避时间（秒）
-    pub(crate) channel_initial_backoff_secs: u64,
-    /// 通道最大退避时间（秒）
-    pub(crate) channel_max_backoff_secs: u64,
-    /// 调度器轮询间隔（秒）
-    pub(crate) scheduler_poll_secs: u64,
-    /// 调度器重试次数
-    pub(crate) scheduler_retries: u32,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for ReliabilitySettingsState {
-    fn default() -> Self {
-        Self {
-            provider_retries: 2,
-            provider_backoff_ms: 500,
-            channel_initial_backoff_secs: 2,
-            channel_max_backoff_secs: 60,
-            scheduler_poll_secs: 15,
-            scheduler_retries: 2,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
-
 #[cfg(test)]
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
+
+pub(crate) use desktop_settings_runtime::state::{HooksSettingsState, RuntimeSettingsState, ReliabilitySettingsState};

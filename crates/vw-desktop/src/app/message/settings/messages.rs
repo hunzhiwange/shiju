@@ -14,8 +14,8 @@ use config_security::{AutonomyLevel, ShellRedirectPolicy};
 use config_ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
-    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, HookAuditLoaded,
-    HookCatalogLoaded, HookMutationCompleted, ModelStatusChange, ModelsLoaded, PluginsLoaded,
+    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded,
+    ModelStatusChange, ModelsLoaded, PluginsLoaded,
     ProvidersLoaded, SkillsLoaded,
 };
 
@@ -65,21 +65,6 @@ pub enum ModelRoutesMessage {
     PriorityChanged(usize, String),
 }
 
-/// 钩子设置页消息。
-#[derive(Debug, Clone)]
-pub enum HooksMessage {
-    EnabledToggled(bool),
-    CommandLoggerToggled(bool),
-    PluginHooksToggled(bool),
-    CatalogRefresh,
-    CatalogLoaded(HookCatalogLoaded),
-    AuditRefresh,
-    AuditLoaded(HookAuditLoaded),
-    TrustRequested { plugin_id: String, hook_hash: String },
-    RevokeRequested { plugin_id: String, hook_hash: String },
-    MutationCompleted(HookMutationCompleted),
-}
-
 /// 存储设置页消息。
 #[derive(Debug, Clone)]
 pub enum StorageMessage {
@@ -92,18 +77,6 @@ pub enum StorageMessage {
     Save,
 }
 
-/// 查询分类设置页消息。
-#[derive(Debug, Clone)]
-pub enum QueryClassificationMessage {
-    Refresh,
-    EnabledToggled(bool),
-    AddRule,
-    RemoveRule(usize),
-    PatternChanged(usize, String),
-    CategoryChanged(usize, String),
-    PriorityChanged(usize, String),
-}
-
 /// 模型配置内的子标签切换消息。
 #[derive(Debug, Clone, Copy)]
 pub enum ModelConfigTabMessage {
@@ -114,22 +87,6 @@ pub enum ModelConfigTabMessage {
 #[derive(Debug, Clone, Copy)]
 pub enum AgentConfigTabMessage {
     Selected(crate::app::state::AgentConfigTab),
-}
-
-/// 运行时设置页消息。
-#[derive(Debug, Clone)]
-pub enum RuntimeMessage {
-    Refresh,
-    KindChanged(String),
-    DockerImageChanged(String),
-    DockerNetworkChanged(String),
-    DockerMemoryLimitMbChanged(String),
-    DockerCpuLimitChanged(String),
-    DockerReadOnlyRootfsToggled(bool),
-    DockerMountWorkspaceToggled(bool),
-    DockerAllowedWorkspaceRootsChanged(String),
-    ReasoningEnabledChanged(String),
-    ReasoningLevelChanged(String),
 }
 
 /// 浏览器工具设置页消息。
@@ -180,17 +137,6 @@ pub enum MemoryMessage {
     QdrantUrlChanged(String),
     QdrantCollectionChanged(String),
     QdrantApiKeyChanged(String),
-}
-
-/// 多模态设置页消息。
-#[derive(Debug, Clone)]
-pub enum MultimodalMessage {
-    MaxImagesChanged(u32),
-    MaxImageSizeMbChanged(u32),
-    AllowRemoteFetchToggled(bool),
-    OcrEnabledToggled(bool),
-    ModelSupportsImagesToggled(bool),
-    OcrModelChanged(String),
 }
 
 /// HTTP 请求工具设置页消息。
@@ -1119,3 +1065,5 @@ pub enum SettingsMessage {
     SkillsHelpOpen,
     SkillsHelpClose,
 }
+
+pub use desktop_settings_runtime::messages::{HooksMessage, RuntimeMessage, MultimodalMessage, QueryClassificationMessage};

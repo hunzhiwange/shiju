@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-task-pool = { path = "../gateway-task-pool", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-session = { path = "../api-session", version = "0.6.0" }
 cli-gateway-transport = { path = "../cli-gateway-transport", version = "0.6.0" }

@@ -823,7 +823,7 @@ pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message
         async move {
             let client = crate::app::config::gateway_client()?;
             if workflow {
-                client.task_plan_run_stream_stop(&request_id).await
+                gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone()).task_plan_run_stream_stop(&request_id).await
             } else {
                 gateway_session::GatewaySessionClient::new(client.transport().clone()).chat_stream_stop(&request_id).await
             }

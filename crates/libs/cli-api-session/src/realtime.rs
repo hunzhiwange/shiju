@@ -162,8 +162,9 @@ pub async fn run(
             run_plan_stream(context, request_id, last_event_id, &request, writer).await
         }
         RealtimeCommands::PlanStop { request_id } => {
-            let cancelled = context
-                .client()
+            let cancelled = gateway_task_pool::GatewayTaskPoolClient::new(
+                context.client().transport().clone(),
+            )
                 .task_plan_run_stream_stop(&request_id)
                 .await
                 .map_err(anyhow::Error::msg)?;
@@ -265,7 +266,7 @@ async fn run_plan_stream(
     let resume = GatewayStreamResume { request_id, last_event_id };
     let mut stream_error = None;
     let mut write_error = None;
-    let result = vw_gateway_client::GatewayClient::stream_task_plan_run_resumable(
+    let result = gateway_task_pool::GatewayTaskPoolClient::stream_task_plan_run_resumable(
         context.client().endpoint(),
         request,
         &resume,

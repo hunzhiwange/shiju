@@ -93,7 +93,7 @@ pub(crate) async fn gateway_task_plan_run_stop_with_client(
     if task_id.is_empty() {
         return Err("plan-run task id 不能为空".to_string());
     }
-    client.task_plan_run_stop(task_id).await
+    gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone()).task_plan_run_stop(task_id).await
 }
 
 pub(crate) async fn gateway_task_plan_run_stop_async(

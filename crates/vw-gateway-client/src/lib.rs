@@ -257,3 +257,5 @@ pub use client::{UsageScanScope, UsageSourceSettings, UsageSourceSettingsState, 
 pub use client::{UsageReadScope, UsageReadError, UsageSummary};
 
 pub use gateway_task_lifecycle::GatewayTaskLifecycleClient;
+
+pub use gateway_task_pool::GatewayTaskPoolClient;

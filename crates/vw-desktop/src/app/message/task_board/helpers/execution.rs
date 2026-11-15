@@ -836,7 +836,7 @@ fn worktree_snapshot_from_gateway(
 pub(crate) async fn cleanup_office_contexts(project_path: String) -> Result<usize, String> {
     let project_id = resolve_task_board_project_id(&project_path).await?;
     let client = crate::app::config::gateway_client()?;
-    let snapshot = client
+    let snapshot = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
         .task_pool_worktree_snapshot(
             &vw_api_task::TaskPoolWorktreeSnapshotRequest { project_id },
         )
@@ -864,7 +864,7 @@ pub(crate) async fn recycle_worktree_slot_via_gateway(
     let result = async {
         let project_id = resolve_task_board_project_id(&project_path).await?;
         let client = crate::app::config::gateway_client()?;
-        let response = client
+        let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
             .task_pool_worktree_slot_recycle(
                 &vw_api_task::TaskPoolWorktreeSlotRecycleRequest {
                     project_id,
@@ -890,7 +890,7 @@ async fn recycle_task_worktree_via_gateway(
     let result = async {
         let project_id = resolve_task_board_project_id(&project_path).await?;
         let client = crate::app::config::gateway_client()?;
-        let response = client
+        let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
             .task_pool_worktree_recycle(
                 &vw_api_task::TaskPoolWorktreeRecycleRequest {
                     project_id,
@@ -934,7 +934,7 @@ pub(crate) fn schedule_worktree_pool_maintenance(
         async move {
             let project_id = resolve_task_board_project_id(&path).await?;
             let client = crate::app::config::gateway_client()?;
-            let response = client
+            let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
                 .task_pool_worktree_maintain(
                     &vw_api_task::TaskPoolWorktreeMaintenanceRequest {
                         project_id,
@@ -1003,7 +1003,7 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
         async move {
             let project_id = resolve_task_board_project_id(&path).await?;
             let client = crate::app::config::gateway_client()?;
-            let snapshot = client
+            let snapshot = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
                 .task_pool_worktree_snapshot(
                     &vw_api_task::TaskPoolWorktreeSnapshotRequest {
                         project_id,

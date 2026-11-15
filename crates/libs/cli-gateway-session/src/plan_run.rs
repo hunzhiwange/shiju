@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use vw_api_task::TaskPlanRunRequest;
-use vw_gateway_client::{GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume};
+use vw_gateway_client::{GatewayStreamAttemptResult, GatewayStreamResume};
 
 use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::UiRuntimeEvent;
@@ -43,7 +43,7 @@ pub fn stream_plan_run_resumable_blocking(
 ) -> Result<GatewayStreamAttemptResult, String> {
     let resume = GatewayStreamResume { request_id: request_id.to_string(), last_event_id: None };
     let mut consumer_stopped = false;
-    block_on_gateway(GatewayClient::stream_task_plan_run_resumable(
+    block_on_gateway(gateway_task_pool::GatewayTaskPoolClient::stream_task_plan_run_resumable(
         runtime.endpoint(),
         request,
         &resume,
@@ -89,8 +89,8 @@ pub fn stop_owned_plan_run_blocking(
     task_id: &str,
 ) -> Result<bool, String> {
     validate_owned_plan_run(owned_request_id, owned_task_id, request_id, task_id)?;
-    let stream_cancelled =
-        block_on_gateway(runtime.client().task_plan_run_stream_stop(request_id))?;
-    let status = block_on_gateway(runtime.client().task_plan_run_stop(task_id))?;
+    let client = gateway_task_pool::GatewayTaskPoolClient::new(runtime.client().transport().clone());
+    let stream_cancelled = block_on_gateway(client.task_plan_run_stream_stop(request_id))?;
+    let status = block_on_gateway(client.task_plan_run_stop(task_id))?;
     Ok(stream_cancelled || status.status.is_terminal())
 }

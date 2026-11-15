@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-task-pool = { path = "../libs/gateway-task-pool", version = "0.6.0" }
 update-types = { path = "../libs/update-types", version = "0.6.0" }
 desktop-platform = { path = "../libs/desktop-platform", version = "0.6.0" }
 shell-command = { path = "../libs/shell-command", version = "0.6.0", features = ["shell-tokio"] }

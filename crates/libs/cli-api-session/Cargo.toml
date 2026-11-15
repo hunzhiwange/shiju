@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+gateway-task-pool = { path = "../gateway-task-pool", version = "0.6.0" }
 gateway-pty = { path = "../gateway-pty", version = "0.6.0" }
 gateway-inference = { path = "../gateway-inference", version = "0.6.0" }
 session-ui-types = { path = "../session-ui-types", version = "0.6.0" }

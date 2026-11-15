@@ -1988,7 +1988,7 @@ async fn stream_task_plan_run(
         path = TASK_PLAN_RUN_STREAM_PATH,
         "desktop connected task plan-run stream"
     );
-    vw_gateway_client::GatewayClient::stream_task_plan_run(endpoint, body, on_event).await
+    gateway_task_pool::GatewayTaskPoolClient::stream_task_plan_run(endpoint, body, on_event).await
 }
 
 async fn stream_task_plan_run_resumable(
@@ -2005,7 +2005,7 @@ async fn stream_task_plan_run_resumable(
         path = TASK_PLAN_RUN_STREAM_PATH,
         "desktop connected resumable task plan-run stream"
     );
-    vw_gateway_client::GatewayClient::stream_task_plan_run_resumable(
+    gateway_task_pool::GatewayTaskPoolClient::stream_task_plan_run_resumable(
         endpoint, body, resume, on_event,
     )
     .await

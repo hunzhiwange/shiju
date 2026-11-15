@@ -931,7 +931,7 @@ async fn stop_shutdown_streams(requests: Vec<ShutdownStreamRequest>) {
                     let _ = gateway_session::GatewaySessionClient::new(client.transport().clone()).chat_stream_stop(&request.request_id).await;
                 }
                 ShutdownStreamKind::TaskPlanRun => {
-                    let _ = client.task_plan_run_stream_stop(&request.request_id).await;
+                    let _ = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone()).task_plan_run_stream_stop(&request.request_id).await;
                 }
             }
         });

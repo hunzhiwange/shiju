@@ -73,7 +73,7 @@ pub async fn run(
     stdin: &mut impl Read,
     writer: &mut impl Write,
 ) -> Result<()> {
-    let client = context.client();
+    let client = gateway_task_pool::GatewayTaskPoolClient::new(context.client().transport().clone());
     let response = match command {
         TaskPoolCommands::Snapshot { input } => {
             let body = parse::<TaskPoolWorktreeSnapshotRequest>(&input, stdin, "snapshot")?;

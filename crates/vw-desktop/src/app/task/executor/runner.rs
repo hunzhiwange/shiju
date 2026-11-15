@@ -1762,7 +1762,7 @@ struct GatewayMergeTargetLockGuard {
 #[cfg(not(target_arch = "wasm32"))]
 impl Drop for GatewayMergeTargetLockGuard {
     fn drop(&mut self) {
-        let result = super::block_on_gateway(self.client.task_pool_worktree_merge_unlock(
+        let result = super::block_on_gateway(gateway_task_pool::GatewayTaskPoolClient::new(self.client.transport().clone()).task_pool_worktree_merge_unlock(
             &vw_api_task::TaskPoolWorktreeMergeUnlockRequest {
                 project_id: self.project_id.clone(),
                 task_id: vw_api_transport::TaskId(self.task_id.clone()),
@@ -1818,7 +1818,7 @@ fn lock_merge_target_via_gateway(
                 )
                 .await?
                 .project;
-            let response = client
+            let response = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
                 .task_pool_worktree_merge_lock(
                     &vw_api_task::TaskPoolWorktreeMergeLockRequest {
                         project_id: project.id.clone(),

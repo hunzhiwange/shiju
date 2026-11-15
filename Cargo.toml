@@ -4,6 +4,7 @@ members = [
   "crates/libs/desktop-voice",
   "crates/libs/app-discovery",
   "crates/libs/app-lifecycle",
+  "crates/libs/app-uninstall",
   "crates/libs/gateway-desktop-settings",
   "crates/libs/app-versions",
   "crates/libs/tool-types",

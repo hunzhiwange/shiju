@@ -1,9 +1,7 @@
 //! Fresh execution-host Node metadata gate; called again by preview under the write lock.
 use super::WriteEnvironment;
-use crate::apps::{
-    discovery::version::probe_local_version,
-    versions::node::{self, NodeRequirement},
-};
+use app_discovery::version::probe_local_version;
+use app_versions::node::{self, NodeRequirement};
 use std::{path::Path, time::Duration};
 use vw_api_app_identity::{AppInstallation};
 

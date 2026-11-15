@@ -157,13 +157,13 @@ fn known_native_install(tool: AppId, real: &Path) -> bool {
         AppId::Agy => {
             normalized.ends_with("/.local/bin/agy")
                 || normalized.ends_with("/agy/bin/agy.exe")
-                || crate::apps::lifecycle::local_agy::owns(real)
+                || app_discovery::local_agy::owns(real)
         }
         // Official install.sh (`~/.local/bin`) / install.ps1 (`%LOCALAPPDATA%\omp`) targets.
         AppId::Omp => {
             normalized.ends_with("/.local/bin/omp")
                 || normalized.ends_with("/omp/omp.exe")
-                || crate::apps::lifecycle::local_omp::owns(real)
+                || app_discovery::local_omp::owns(real)
         }
         _ => false,
     }

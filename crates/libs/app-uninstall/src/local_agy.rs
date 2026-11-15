@@ -3,6 +3,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+#[cfg(test)]
 pub(crate) use app_discovery::local_agy::owns;
 use app_discovery::local_agy::{digest, private, private_directory};
 

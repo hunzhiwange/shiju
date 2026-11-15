@@ -101,7 +101,7 @@ pub fn preview(
     let package = if inst.app_id == AppId::Omp {
         "@oh-my-pi/pi-coding-agent"
     } else {
-        super::super::lifecycle::npm::install_args(inst.app_id).map_err(|_| MANUAL)?[2]
+        app_lifecycle::npm::install_args(inst.app_id).map_err(|_| MANUAL)?[2]
             .strip_suffix("@latest")
             .ok_or(MANUAL)?
     };

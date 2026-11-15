@@ -1,5 +1,3 @@
-//! Lifecycle exports and local adapter awaiting the uninstall boundary.
+//! Lifecycle recipes and local execution exports.
 pub use app_lifecycle::*;
-pub mod local;
-pub(crate) mod local_agy;
-pub(crate) mod local_omp;
+pub use app_uninstall::local;

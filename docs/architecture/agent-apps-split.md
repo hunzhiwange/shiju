@@ -428,13 +428,13 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `apps/launch/windows_tests.rs` | 131 | 35 |
 | `apps/lifecycle/coordinator.rs` | 68 | 33 |
 | `apps/lifecycle/coordinator_tests.rs` | 130 | 33 |
-| `apps/lifecycle/local.rs` | 293 | 33 |
-| `apps/lifecycle/local_agy.rs` | 132 | 33 |
-| `apps/lifecycle/local_agy_tests.rs` | 238 | 33 |
-| `apps/lifecycle/local_node.rs` | 50 | 33 |
-| `apps/lifecycle/local_node_tests.rs` | 69 | 33 |
-| `apps/lifecycle/local_omp.rs` | 132 | 33 |
-| `apps/lifecycle/local_omp_tests.rs` | 245 | 33 |
+| `apps/lifecycle/local.rs` | 293 | 34 |
+| `apps/lifecycle/local_agy.rs` | 132 | 34 |
+| `apps/lifecycle/local_agy_tests.rs` | 238 | 34 |
+| `apps/lifecycle/local_node.rs` | 50 | 34 |
+| `apps/lifecycle/local_node_tests.rs` | 69 | 34 |
+| `apps/lifecycle/local_omp.rs` | 132 | 34 |
+| `apps/lifecycle/local_omp_tests.rs` | 245 | 34 |
 | `apps/lifecycle/mod.rs` | 45 | 33 |
 | `apps/lifecycle/native_grok_mcode.rs` | 82 | 33 |
 | `apps/lifecycle/native_grok_mcode_tests.rs` | 132 | 33 |
@@ -2538,3 +2538,13 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - WSL 类型/解析直接依赖 app-catalog，NodeRequirement 直接依赖 app-versions；平台 cfg、命令、错误及测试主体保持，迁移文件无静态资源。
 - lib.rs 的 apps 导出沿用，无需修改。静态清单/路径/模块审阅完成；未运行 Cargo、单元及实机测试，统一验收待授权。
 - 清单读取环境调整：系统 Python 3.9 无 tomllib，使用现有 pip._vendor.tomli 等价只读解析；44 个传递生产路径依赖未发现旧门面回边。本任务差异空白检查通过，全仓既有 git_api.rs EOF 空行不属本任务。
+
+
+### 任务 34 静态迁移结果
+
+- app-uninstall 接收 uninstall 的 execute/native/packages 三个实现、三个独立测试及模块注册；原 apps::uninstall 仅重导出，lib.rs 的 apps 声明无需改动。
+- 接收任务 33 移交的 local/local_node/local_agy/local_omp 四个实现及现存三个独立测试（原树没有 local_tests.rs，移交所称四个测试有误）。本地 Plan/Action、preview/run/uninstall 整体迁入，原 lifecycle::local 薄导出保持调用路径及类型一致，无未闭合符号。
+- execute 直接使用 app-lifecycle 的 coordinator/process，packages 使用其 npm；local 使用 app-discovery、app-versions 和 app-lifecycle 已公开入口。native 的 agy/omp owns 直接调用发现包唯一实现；receipt 写入辅助模块保持私有，测试继续独立注册。
+- 保留全部平台 cfg、命令参数、错误和权限校验，无资源 include 路径变化。清单仅声明实际依赖；原包其余实现仍使用相关直接依赖，未删除。根 workspace 与门面直接路径依赖已注册。
+- 静态证据：迁移文件/测试注册及真实调用者、cfg/path、导出与重复实现检索已审阅；TOML 用 Python 现有 pip._vendor.tomli 只读解析（系统无 tomllib），核对 68 个传递生产路径依赖，无门面回边；git diff --check 通过。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：新库及直接调用者目标编译、迁移单测、macOS/Windows/Linux/WSL 原行为及锁文件一致性。Cargo.lock 未修改。

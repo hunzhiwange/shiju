@@ -1,15 +1,9 @@
 //! Local lifecycle adapter restricted to an administrator-approved installation prefix.
 use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
-use super::{npm, process, update};
-use crate::apps::{
-    discovery::{
-        read::{self, LocalReadEnvironment},
-        report,
-    },
-    uninstall::execute,
-};
+use app_lifecycle::{npm, process, update};
+use app_discovery::{read::{self, LocalReadEnvironment}, report};
+use crate::execute;
 use std::path::{Path, PathBuf};
-use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{
     AppId,
     AppInstallation,
@@ -176,7 +170,7 @@ pub fn run(plan: Plan, env: LocalReadEnvironment, write: WriteEnvironment) -> Re
     }
     let (program, args, extra) = match &plan.action {
         Action::Install if plan.request.app_id == AppId::Agy => {
-            let recipe = super::native_hermes_agy::agy_managed_install(&write.prefix.join("bin"));
+            let recipe = app_lifecycle::native_hermes_agy::agy_managed_install(&write.prefix.join("bin"));
             (recipe.program.into(), recipe.args, vec![])
         }
         Action::Install if plan.request.app_id == AppId::Omp => (

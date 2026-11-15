@@ -1,6 +1,6 @@
 //! Confirmed uninstall plans belong to the authorized execution host.
 use super::{native, packages};
-use crate::apps::lifecycle::coordinator::ToolLifecycleCoordinator;
+use app_lifecycle::coordinator::ToolLifecycleCoordinator;
 use vw_api_app_identity::{AppInstallation, AppInstallationEnvironment};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -43,7 +43,7 @@ pub async fn uninstall_isolated<R>(
     plan: UninstallPlan,
     confirmed: bool,
     refresh: R,
-    environment: crate::apps::lifecycle::process::WriteProcessEnvironment,
+    environment: app_lifecycle::process::WriteProcessEnvironment,
 ) -> Result<(), String>
 where
     R: FnOnce() -> Result<(AppInstallation, Vec<String>, Option<packages::BrewOwnership>), String>
@@ -57,7 +57,7 @@ async fn uninstall_inner<R>(
     plan: UninstallPlan,
     confirmed: bool,
     refresh: R,
-    environment: Option<crate::apps::lifecycle::process::WriteProcessEnvironment>,
+    environment: Option<app_lifecycle::process::WriteProcessEnvironment>,
 ) -> Result<(), String>
 where
     R: FnOnce() -> Result<(AppInstallation, Vec<String>, Option<packages::BrewOwnership>), String>
@@ -87,7 +87,7 @@ where
             match &current.action {
                 Action::Native(removal) => removal.remove()?,
                 Action::Package(action) => {
-                    let mut command = crate::apps::lifecycle::process::command(
+                    let mut command = app_lifecycle::process::command(
                         &action.program,
                         &action.args,
                         &action.env,
@@ -100,7 +100,7 @@ where
                     } else {
                         None
                     };
-                    crate::apps::lifecycle::process::run_command(command)?;
+                    app_lifecycle::process::run_command(command)?;
                 }
             }
             match std::fs::symlink_metadata(&fresh.path) {

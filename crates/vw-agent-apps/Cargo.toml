@@ -9,6 +9,7 @@ license = "MIT"
 
 [dependencies]
 app-lifecycle = { path = "../libs/app-lifecycle" }
+app-uninstall = { path = "../libs/app-uninstall" }
 app-discovery = { path = "../libs/app-discovery" }
 app-versions = { path = "../libs/app-versions" }
 app-providers = { path = "../libs/app-providers" }

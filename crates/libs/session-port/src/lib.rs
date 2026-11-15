@@ -23,3 +23,7 @@ pub use turn::{PromptCleanup, PromptCancelHandle, PromptTurn};
 
 mod ports;
 pub use ports::{EventSink, SessionExecution, SessionFuture, SessionQuery};
+
+pub mod child_agent;
+pub mod task_session;
+pub mod chat_stream;

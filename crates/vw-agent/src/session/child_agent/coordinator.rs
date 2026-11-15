@@ -9,58 +9,13 @@ mod continuation;
 mod delivery;
 
 use anyhow::{Result, bail};
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, watch};
 use tokio_util::sync::CancellationToken;
 
-/// 子任务生命周期状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum ChildAgentTaskState {
-    Queued,
-    Running,
-    Succeeded,
-    Failed,
-    Cancelled,
-}
-
-impl ChildAgentTaskState {
-    pub(crate) fn is_terminal(self) -> bool {
-        matches!(self, Self::Succeeded | Self::Failed | Self::Cancelled)
-    }
-}
-
-/// 子任务的稳定状态快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct ChildAgentTaskSnapshot {
-    pub(crate) parent_session_id: String,
-    pub(crate) child_session_id: String,
-    pub(crate) agent: String,
-    pub(crate) task: String,
-    pub(crate) turn: u64,
-    pub(crate) state: ChildAgentTaskState,
-    pub(crate) output: Option<String>,
-    pub(crate) error: Option<String>,
-    pub(crate) created_ms: u64,
-    pub(crate) updated_ms: u64,
-}
-
-/// 等待任意任务或全部任务进入终态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum WaitCondition {
-    Any,
-    All,
-}
-
-/// 一次事件驱动等待的结果。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ChildAgentWaitOutcome {
-    pub(crate) tasks: Vec<ChildAgentTaskSnapshot>,
-    pub(crate) timed_out: bool,
-}
+pub(crate) use session_port::child_agent::{ChildAgentTaskState, ChildAgentTaskSnapshot, WaitCondition, ChildAgentWaitOutcome};
 
 #[derive(Debug)]
 struct TaskEntry {

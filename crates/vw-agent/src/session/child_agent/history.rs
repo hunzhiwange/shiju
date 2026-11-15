@@ -1,14 +1,7 @@
 //! 调用边界的可见历史快照；不继承父角色身份或工具执行轨迹。
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ForkTurns {
-    #[default]
-    All,
-    None,
-}
+pub use session_port::child_agent::ForkTurns;
 
 pub(super) fn snapshot(messages: &[Value]) -> Vec<Value> {
     messages

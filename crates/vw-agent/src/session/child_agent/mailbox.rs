@@ -4,36 +4,13 @@ use super::*;
 use crate::tools::ToolUseContext;
 use std::collections::VecDeque;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) enum TeamMessageKind {
-    Message,
-    Handoff,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct TeamMessage {
-    pub id: String,
-    pub sender_session: String,
-    pub recipient_session: String,
-    pub turn: u64,
-    pub kind: TeamMessageKind,
-    pub payload: String,
-    pub sequence: u64,
-}
+pub(crate) use session_port::child_agent::{TeamMessageKind, TeamMessage, TeamActivity};
 
 #[derive(Debug, Default)]
 pub(super) struct Mailbox {
     pub(super) pending: VecDeque<TeamMessage>,
     pub(super) cursor: u64,
     pub(super) result_cursor: u64,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum TeamActivity {
-    Message,
-    Result,
-    Cancelled,
-    TimedOut,
 }
 
 // 后续工具协议与模型安全边界连线使用这些运行时接口。

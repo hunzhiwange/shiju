@@ -38,54 +38,7 @@ transcript, and do not dump raw tool logs or hidden reasoning.";
 #[path = "child_agent/coordinator_tests.rs"]
 mod coordinator_tests;
 
-/// 启动一次持久化子会话所需的输入。
-#[derive(Debug, Clone)]
-pub struct ChildAgentRunInput {
-    /// 父会话 ID。
-    pub parent_session_id: String,
-    /// 子会话运行工作区。
-    pub directory: String,
-    /// 要使用的委托 agent key。
-    pub agent_key: String,
-    /// 父会话当前模型的完整 `provider/model` 引用。
-    pub model: Option<String>,
-    /// 本轮子任务提示词。
-    pub prompt: String,
-    /// 提示词之前的 Gateway 格式上下文消息。
-    pub context: Vec<Value>,
-    /// 委托 agent 注册给模型的工具选择。
-    pub allowed_tools: Vec<String>,
-    /// 委托 agent 配置的默认技能选择。
-    pub default_allowed_skills: Vec<String>,
-    /// 委托 agent 的技能可见性策略。
-    pub skill_policy: DelegateCapabilityPolicy,
-    /// 从父会话运行时上下文固化的可信用户技能选择。
-    pub trusted_user_selected_skills: Vec<String>,
-}
-
-/// 子会话执行结束后的终态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ChildAgentTerminalState {
-    /// Agent stream 正常完成。
-    Succeeded,
-    /// Agent stream 返回错误。
-    Failed,
-    /// 父智能体取消了仍在运行的子任务。
-    Cancelled,
-}
-
-/// 一次持久化子会话执行的结果。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ChildAgentRunResult {
-    /// 新创建且已持久化的子会话 ID。
-    pub child_session_id: String,
-    /// 子会话终态。
-    pub terminal_state: ChildAgentTerminalState,
-    /// 成功时供父会话消费的最终交接报告。
-    pub output: Option<String>,
-    /// 失败时的错误文本。
-    pub error: Option<String>,
-}
+pub use session_port::child_agent::{ChildAgentRunInput, ChildAgentRunResult, ChildAgentTerminalState};
 
 /// 已创建、尚未执行首轮模型请求的持久化子会话。
 #[derive(Debug, Clone)]

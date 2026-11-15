@@ -554,12 +554,7 @@ struct PreparedStreamHistory {
     preview: String,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct GatewayChatStreamCollected {
-    pub(crate) output: String,
-    pub(crate) message_id: Option<String>,
-    pub(crate) parent_message_id: Option<String>,
-}
+pub(crate) use session_port::chat_stream::GatewayChatStreamCollected;
 
 fn normalize_tool_ids(tools: Vec<String>) -> Option<Vec<String>> {
     let mut normalized = Vec::new();

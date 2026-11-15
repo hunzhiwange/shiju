@@ -8,7 +8,7 @@
 //!
 //! 最终对外暴露 provider 列表、模型查询、默认模型推导与缓存失效能力。
 
-use crate::cache;
+use provider_state_cache as cache;
 use crate::config;
 use crate::models;
 use once_cell::sync::Lazy;

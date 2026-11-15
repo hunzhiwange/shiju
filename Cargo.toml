@@ -124,6 +124,7 @@ members = [
   "crates/vw-webview",
   "crates/vw-provider-resolver",
   "crates/libs/provider-runtime-paths",
+  "crates/libs/provider-state-cache",
   "crates/libs/provider-errors",
 ]
 exclude = [

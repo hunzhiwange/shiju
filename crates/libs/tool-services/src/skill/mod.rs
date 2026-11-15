@@ -445,7 +445,7 @@ impl<H: SkillHost> SkillTool<H> {
                 Ok(result) => {
                     let source = skill_location(&skill, &self.workspace_dir);
                     let record =
-                        match skills::InvokedSkillRecord::new(&invocation_name, &source, args.args)
+                        match skills::invoked::InvokedSkillRecord::new(&invocation_name, &source, args.args)
                         {
                             Ok(record) => record.with_explicit_request(explicitly_requested),
                             Err(error) => return failure_result(error),

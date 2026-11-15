@@ -29,7 +29,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tempfile::NamedTempFile;
-use vw_gateway_client::{ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery};
+use gateway_shiju_skill::{ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery};
 
 pub(crate) mod connectors;
 #[cfg(test)]

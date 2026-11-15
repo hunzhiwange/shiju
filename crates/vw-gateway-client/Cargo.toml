@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }
 gateway-shiju-knowledge = { path = "../libs/gateway-shiju-knowledge", version = "0.6.0" }
 gateway-shiju-connector = { path = "../libs/gateway-shiju-connector", version = "0.6.0" }
 gateway-shiju-app = { path = "../libs/gateway-shiju-app", version = "0.6.0" }

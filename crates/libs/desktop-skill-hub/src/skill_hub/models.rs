@@ -89,14 +89,14 @@ pub struct CursorPage<T> {
     pub has_more: bool,
 }
 
-impl From<vw_gateway_client::ShijuSkillTagDto> for SkillTag {
-    fn from(dto: vw_gateway_client::ShijuSkillTagDto) -> Self {
+impl From<gateway_shiju_skill::ShijuSkillTagDto> for SkillTag {
+    fn from(dto: gateway_shiju_skill::ShijuSkillTagDto) -> Self {
         Self { id: dto.id, name: dto.name, sort_order: dto.sort_order }
     }
 }
 
-impl From<vw_gateway_client::ShijuMarketplaceSkillDto> for MarketplaceSkill {
-    fn from(dto: vw_gateway_client::ShijuMarketplaceSkillDto) -> Self {
+impl From<gateway_shiju_skill::ShijuMarketplaceSkillDto> for MarketplaceSkill {
+    fn from(dto: gateway_shiju_skill::ShijuMarketplaceSkillDto) -> Self {
         Self {
             id: dto.id,
             slug: dto.slug,
@@ -120,8 +120,8 @@ impl From<vw_gateway_client::ShijuMarketplaceSkillDto> for MarketplaceSkill {
     }
 }
 
-impl From<vw_gateway_client::ShijuSkillCursorPageDto> for CursorPage<MarketplaceSkill> {
-    fn from(dto: vw_gateway_client::ShijuSkillCursorPageDto) -> Self {
+impl From<gateway_shiju_skill::ShijuSkillCursorPageDto> for CursorPage<MarketplaceSkill> {
+    fn from(dto: gateway_shiju_skill::ShijuSkillCursorPageDto) -> Self {
         Self {
             items: dto.items.into_iter().map(MarketplaceSkill::from).collect(),
             next_cursor: dto.next_cursor,
@@ -130,8 +130,8 @@ impl From<vw_gateway_client::ShijuSkillCursorPageDto> for CursorPage<Marketplace
     }
 }
 
-impl From<vw_gateway_client::ShijuInstalledSkillDto> for InstalledSkill {
-    fn from(dto: vw_gateway_client::ShijuInstalledSkillDto) -> Self {
+impl From<gateway_shiju_skill::ShijuInstalledSkillDto> for InstalledSkill {
+    fn from(dto: gateway_shiju_skill::ShijuInstalledSkillDto) -> Self {
         Self {
             skill_id: dto.skill_id,
             slug: dto.slug,
@@ -145,8 +145,8 @@ impl From<vw_gateway_client::ShijuInstalledSkillDto> for InstalledSkill {
     }
 }
 
-impl From<vw_gateway_client::ShijuSystemSkillDto> for SystemSkill {
-    fn from(dto: vw_gateway_client::ShijuSystemSkillDto) -> Self {
+impl From<gateway_shiju_skill::ShijuSystemSkillDto> for SystemSkill {
+    fn from(dto: gateway_shiju_skill::ShijuSystemSkillDto) -> Self {
         Self {
             id: dto.id,
             slug: dto.slug,
@@ -158,8 +158,8 @@ impl From<vw_gateway_client::ShijuSystemSkillDto> for SystemSkill {
     }
 }
 
-impl From<vw_gateway_client::ShijuTenantSkillDto> for TenantSkill {
-    fn from(dto: vw_gateway_client::ShijuTenantSkillDto) -> Self {
+impl From<gateway_shiju_skill::ShijuTenantSkillDto> for TenantSkill {
+    fn from(dto: gateway_shiju_skill::ShijuTenantSkillDto) -> Self {
         Self {
             id: dto.id,
             slug: dto.slug,
@@ -174,11 +174,11 @@ impl From<vw_gateway_client::ShijuTenantSkillDto> for TenantSkill {
     }
 }
 
-impl From<vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuSystemSkillDto>>
+impl From<gateway_shiju_skill::ShijuSkillPageDto<gateway_shiju_skill::ShijuSystemSkillDto>>
     for Page<SystemSkill>
 {
     fn from(
-        dto: vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuSystemSkillDto>,
+        dto: gateway_shiju_skill::ShijuSkillPageDto<gateway_shiju_skill::ShijuSystemSkillDto>,
     ) -> Self {
         Self {
             items: dto.items.into_iter().map(SystemSkill::from).collect(),
@@ -189,11 +189,11 @@ impl From<vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuSystemSki
     }
 }
 
-impl From<vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuTenantSkillDto>>
+impl From<gateway_shiju_skill::ShijuSkillPageDto<gateway_shiju_skill::ShijuTenantSkillDto>>
     for Page<TenantSkill>
 {
     fn from(
-        dto: vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuTenantSkillDto>,
+        dto: gateway_shiju_skill::ShijuSkillPageDto<gateway_shiju_skill::ShijuTenantSkillDto>,
     ) -> Self {
         Self {
             items: dto.items.into_iter().map(TenantSkill::from).collect(),
@@ -262,10 +262,10 @@ pub struct SkillVersion {
     pub updated_at: String,
 }
 
-impl TryFrom<vw_gateway_client::ShijuSkillVersionContentDto> for SkillVersionContent {
+impl TryFrom<gateway_shiju_skill::ShijuSkillVersionContentDto> for SkillVersionContent {
     type Error = super::SkillHubError;
 
-    fn try_from(dto: vw_gateway_client::ShijuSkillVersionContentDto) -> Result<Self, Self::Error> {
+    fn try_from(dto: gateway_shiju_skill::ShijuSkillVersionContentDto) -> Result<Self, Self::Error> {
         let download_url = dto
             .download_url
             .ok_or_else(|| super::SkillHubError::localized("技能下载地址不可用", vec![]))
@@ -280,10 +280,10 @@ impl TryFrom<vw_gateway_client::ShijuSkillVersionContentDto> for SkillVersionCon
     }
 }
 
-impl TryFrom<vw_gateway_client::ShijuSkillDetailDto> for SkillDetail {
+impl TryFrom<gateway_shiju_skill::ShijuSkillDetailDto> for SkillDetail {
     type Error = super::SkillHubError;
 
-    fn try_from(dto: vw_gateway_client::ShijuSkillDetailDto) -> Result<Self, Self::Error> {
+    fn try_from(dto: gateway_shiju_skill::ShijuSkillDetailDto) -> Result<Self, Self::Error> {
         Ok(Self {
             id: dto.id,
             slug: dto.slug,
@@ -306,8 +306,8 @@ impl TryFrom<vw_gateway_client::ShijuSkillDetailDto> for SkillDetail {
     }
 }
 
-impl From<vw_gateway_client::ShijuSkillVersionDto> for SkillVersion {
-    fn from(dto: vw_gateway_client::ShijuSkillVersionDto) -> Self {
+impl From<gateway_shiju_skill::ShijuSkillVersionDto> for SkillVersion {
+    fn from(dto: gateway_shiju_skill::ShijuSkillVersionDto) -> Self {
         Self {
             id: dto.id,
             skill_id: dto.skill_id,

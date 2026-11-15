@@ -31,7 +31,8 @@ use vw_gateway_client::SkillMarketSourceDto;
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
-use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential, ShijuInstalledSkillDto, ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto};
+use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential, ShijuLoginChallengeDto, ShijuLoginPollDto};
+use gateway_shiju_skill::{ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto};
 use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto};
 use session_ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
 
@@ -195,14 +196,14 @@ pub(crate) async fn gateway_shiju_skill_search_async(
     query: &ShijuSkillSearchQuery,
 ) -> Result<ShijuSkillCursorPageDto, String> {
     let client = gateway_client()?;
-    client.shiju_skill_search(credential, query).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_search(credential, query).await
 }
 
 pub(crate) async fn gateway_shiju_skill_installed_async(
     credential: &ShijuCredential,
 ) -> Result<Vec<ShijuInstalledSkillDto>, String> {
     let client = gateway_client()?;
-    client.shiju_skill_installed(credential).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_installed(credential).await
 }
 
 pub(crate) async fn gateway_shiju_system_skills_async(
@@ -210,7 +211,7 @@ pub(crate) async fn gateway_shiju_system_skills_async(
     query: &ShijuSystemSkillQuery,
 ) -> Result<ShijuSkillPageDto<ShijuSystemSkillDto>, String> {
     let client = gateway_client()?;
-    client.shiju_system_skills(credential, query).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_system_skills(credential, query).await
 }
 
 pub(crate) async fn gateway_shiju_maintained_skills_async(
@@ -218,21 +219,21 @@ pub(crate) async fn gateway_shiju_maintained_skills_async(
     query: &ShijuMaintainedSkillQuery,
 ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
     let client = gateway_client()?;
-    client.shiju_maintained_skills(credential, query).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_maintained_skills(credential, query).await
 }
 
 pub(crate) async fn gateway_shiju_skill_tags_async(
     credential: &ShijuCredential,
 ) -> Result<ShijuSkillTagCatalogDto, String> {
     let client = gateway_client()?;
-    client.shiju_skill_tags(credential).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_tags(credential).await
 }
 
 pub(crate) async fn gateway_shiju_tenant_skill_tags_async(
     credential: &ShijuCredential,
 ) -> Result<ShijuSkillTagCatalogDto, String> {
     let client = gateway_client()?;
-    client.shiju_tenant_skill_tags(credential).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_tenant_skill_tags(credential).await
 }
 
 pub(crate) async fn gateway_shiju_skill_detail_async(
@@ -240,7 +241,7 @@ pub(crate) async fn gateway_shiju_skill_detail_async(
     skill_id: u64,
 ) -> Result<ShijuSkillDetailDto, String> {
     let client = gateway_client()?;
-    client.shiju_skill_detail(credential, skill_id).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_detail(credential, skill_id).await
 }
 
 #[allow(dead_code)]
@@ -249,7 +250,7 @@ pub(crate) async fn gateway_shiju_skill_readme_async(
     skill_id: u64,
 ) -> Result<ShijuSkillReadmeDto, String> {
     let client = gateway_client()?;
-    client.shiju_skill_readme(credential, skill_id).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_readme(credential, skill_id).await
 }
 
 pub(crate) async fn gateway_shiju_skill_versions_async(
@@ -257,7 +258,7 @@ pub(crate) async fn gateway_shiju_skill_versions_async(
     skill_id: u64,
 ) -> Result<Vec<ShijuSkillVersionDto>, String> {
     let client = gateway_client()?;
-    client.shiju_skill_versions(credential, skill_id).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_versions(credential, skill_id).await
 }
 
 pub(crate) async fn gateway_shiju_skill_remote_install_async(
@@ -265,7 +266,7 @@ pub(crate) async fn gateway_shiju_skill_remote_install_async(
     skill_id: u64,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.shiju_skill_remote_install(credential, skill_id).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_remote_install(credential, skill_id).await
 }
 
 #[allow(dead_code)]
@@ -275,7 +276,7 @@ pub(crate) async fn gateway_shiju_skill_remote_install_version_async(
     version_id: u64,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.shiju_skill_remote_install_version(credential, skill_id, version_id).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_remote_install_version(credential, skill_id, version_id).await
 }
 
 pub(crate) async fn gateway_shiju_skill_remote_uninstall_async(
@@ -283,7 +284,7 @@ pub(crate) async fn gateway_shiju_skill_remote_uninstall_async(
     skill_id: u64,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.shiju_skill_remote_uninstall(credential, skill_id).await
+    gateway_shiju_skill::GatewayShijuSkillClient::new(client.transport().clone()).shiju_skill_remote_uninstall(credential, skill_id).await
 }
 
 pub(crate) fn active_project_scope(project_id: ProjectId) -> Result<ProjectScopeDto, String> {

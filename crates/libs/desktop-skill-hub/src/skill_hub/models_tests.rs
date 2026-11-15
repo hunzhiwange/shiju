@@ -56,7 +56,7 @@ fn skill_version_keeps_metadata_when_download_url_is_unavailable() {
 
 #[test]
 fn shiju_gateway_dtos_preserve_download_url_validation() {
-    let detail_dto: vw_gateway_client::ShijuSkillDetailDto =
+    let detail_dto: gateway_shiju_skill::ShijuSkillDetailDto =
         serde_json::from_value(serde_json::json!({
             "id": 30,
             "slug": "shiju-visual",
@@ -97,7 +97,7 @@ fn shiju_gateway_dtos_preserve_download_url_validation() {
     let error = SkillDetail::try_from(untrusted).expect_err("untrusted detail URL");
     assert!(!error.contains("leak-secret"));
 
-    let version_dto: vw_gateway_client::ShijuSkillVersionDto =
+    let version_dto: gateway_shiju_skill::ShijuSkillVersionDto =
         serde_json::from_value(serde_json::json!({
             "id": 60,
             "skill_id": 30,

@@ -21,6 +21,7 @@ members = [
   "crates/libs/content-guard",
   "crates/libs/goal-engine",
   "crates/libs/runtime-flags",
+  "crates/libs/observer-types",
   "crates/libs/diff-text",
   "crates/libs/desktop-git",
   "crates/libs/desktop-lsp",

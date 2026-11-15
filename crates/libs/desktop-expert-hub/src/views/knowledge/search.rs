@@ -1,15 +1,18 @@
 //! 在当前知识库内召回正文；结果始终使用服务端身份打开原文。
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_muted_text_style, settings_text_input_style,
 };
-use crate::app::message::skill_hub::knowledge::{KnowledgeMessage, message};
-use crate::app::{App, Message, i18n::I18n, skill_hub::LoadState};
+use crate::message::knowledge::KnowledgeMessage;
+use super::message;
+use desktop_i18n::I18n;
+use desktop_skill_hub::skill_hub::LoadState;
+use crate::views::{ViewInput, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Element, Length};
 
-pub(super) fn view(app: &App) -> Element<'_, Message> {
+pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     let state = &app.expert_hub.knowledge;
     let i18n = I18n::new(app.desktop_locale);
     if state.selected_base.is_none() {

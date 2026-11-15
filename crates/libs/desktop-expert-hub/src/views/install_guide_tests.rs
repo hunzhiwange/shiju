@@ -9,13 +9,13 @@ use super::install_guide::{
     target_button_style, target_directory_action_label, target_path_label,
     uninstall_action_message, upgrade_available,
 };
-use crate::app::message::SkillHubMessage;
-use crate::app::skill_hub::{
+use crate::message::skill_hub::SkillHubMessage;
+use desktop_skill_hub::skill_hub::{
     LoadState, ShijuDirectInstallState, ShijuInstallGuideState, ShijuInstallation,
     ShijuInstallationsReport, ShijuManualDownloadState, ShijuPackageId, ShijuTargetInstallation,
     SkillInstallScope, SkillInstallSelection, SkillInstallTarget, resolve_skill_destinations,
 };
-use crate::app::{App, Message};
+use super::Message;
 use iced::{Background, Color};
 
 fn contrast_ratio(first: Color, second: Color) -> f32 {
@@ -32,12 +32,12 @@ fn contrast_ratio(first: Color, second: Color) -> f32 {
 
 #[test]
 fn install_guide_builds_all_methods_and_platform_actions() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = Fixture::new();
     app.expert_hub.install_guide.open = true;
     app.expert_hub.install_guide.current_package = Some(ShijuPackageId::DarwinArm64);
     app.expert_hub.install_guide.agent_package = LoadState::Error(("retry".to_string()).into());
 
-    let element: iced::Element<'_, Message> = super::install_guide::view(&app);
+    let element: iced::Element<'_, Message> = super::install_guide::view(&app.input());
     std::hint::black_box(element);
     assert!(matches!(
         direct_install_action_message(&app.expert_hub.install_guide),
@@ -139,7 +139,7 @@ fn scope_and_target_actions_follow_busy_and_project_state() {
     ));
     assert_eq!(
         direct_install_button_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         "直接安装到 1 个目标"
@@ -147,7 +147,7 @@ fn scope_and_target_actions_follow_busy_and_project_state() {
     state.selected_targets.push(SkillInstallTarget::ClaudeCode);
     assert_eq!(
         direct_install_button_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &state
         ),
         "直接安装到 2 个目标"
@@ -188,7 +188,7 @@ fn scope_and_target_actions_follow_busy_and_project_state() {
 
 #[test]
 fn install_project_options_put_current_first_and_deduplicate_recent_paths() {
-    let (mut app, _) = App::new();
+    let (mut app, _) = Fixture::new();
     app.project_path = Some("/repo/current".to_string());
     app.recent_projects = vec![
         "/repo/other".to_string(),
@@ -199,7 +199,7 @@ fn install_project_options_put_current_first_and_deduplicate_recent_paths() {
     app.expert_hub.install_guide.selected_project_path = Some("/repo/other".to_string());
 
     assert_eq!(
-        install_project_options(&app),
+        install_project_options(&app.project_path, &app.recent_projects),
         vec!["/repo/current".to_string(), "/repo/other".to_string(), "/repo/third".to_string(),]
     );
 }
@@ -339,38 +339,38 @@ fn installed_version_detects_available_upgrade() {
         installed_version: Some("3.0.3".to_string()),
         ..ShijuInstallGuideState::default()
     };
-    state.agent_package = LoadState::Loaded(crate::app::skill_hub::ShijuPackageRelease {
-        download_url: crate::app::skill_hub::SkillDownloadUrl::parse(
+    state.agent_package = LoadState::Loaded(desktop_skill_hub::skill_hub::ShijuPackageRelease {
+        download_url: desktop_skill_hub::skill_hub::SkillDownloadUrl::parse(
             "https://skill.shiju.cloud/hub/releases/3.1.0/shiju.zip?signature=secret",
         )
         .expect("trusted download URL"),
     });
 
     assert!(upgrade_available(&state));
-    let (mut app, _) = App::new();
+    let (mut app, _) = Fixture::new();
     app.expert_hub.install_guide = state;
-    std::hint::black_box(super::install_guide::view(&app));
+    std::hint::black_box(super::install_guide::view(&app.input()));
 }
 
 #[test]
 fn uninstall_confirmation_builds_as_full_expert_hub_overlay() {
-    let (mut app, _) = App::new();
-    app.expert_hub.skill_tab = crate::app::skill_hub::SkillTab::Install;
+    let (mut app, _) = Fixture::new();
+    app.expert_hub.skill_tab = desktop_skill_hub::skill_hub::SkillTab::Install;
     app.expert_hub.install_guide.open = true;
     app.expert_hub.install_guide.is_installed = true;
     app.expert_hub.install_guide.installed_version = Some("3.0.3".to_string());
     app.expert_hub.install_guide.uninstall_confirmation_open = true;
 
-    let modal: iced::Element<'_, Message> = super::view(&app);
+    let modal: iced::Element<'_, Message> = super::install_guide::uninstall_confirmation(&app.input()).expect("confirmation").1;
     std::hint::black_box(modal);
-    assert!(crate::app::skill_hub::shiju_install_path_label().is_ascii());
+    assert!(desktop_skill_hub::skill_hub::shiju_install_path_label().is_ascii());
 }
 
 #[test]
 fn install_page_never_renders_the_signed_download_url() {
     let mut state = ShijuInstallGuideState::default();
-    state.agent_package = LoadState::Loaded(crate::app::skill_hub::ShijuPackageRelease {
-        download_url: crate::app::skill_hub::SkillDownloadUrl::parse(
+    state.agent_package = LoadState::Loaded(desktop_skill_hub::skill_hub::ShijuPackageRelease {
+        download_url: desktop_skill_hub::skill_hub::SkillDownloadUrl::parse(
             "https://skill.shiju.cloud/hub/releases/shiju.zip?x-oss-signature=secret",
         )
         .expect("trusted download URL"),
@@ -380,4 +380,14 @@ fn install_page_never_renders_the_signed_download_url() {
     assert!(preview.contains("已生成"));
     assert!(!preview.contains("x-oss-signature"));
     assert!(!preview.contains("secret"));
+}
+
+struct Fixture {
+ expert_hub: desktop_skill_hub::skill_hub::ExpertHubState,
+ project_path: Option<String>,
+ recent_projects: Vec<String>,
+}
+impl Fixture {
+ fn new() -> (Self, ()) { (Self { expert_hub: Default::default(), project_path: None, recent_projects: vec![] }, ()) }
+ fn input(&self) -> super::install_guide::InstallInput<'_> { super::install_guide::InstallInput { state: &self.expert_hub.install_guide, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, project_path: &self.project_path, recent_projects: &self.recent_projects } }
 }

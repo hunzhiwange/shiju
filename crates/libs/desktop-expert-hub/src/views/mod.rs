@@ -19,3 +19,9 @@ pub struct ViewInput<'a> {
 
 #[cfg(test)] mod detail_tests;
 #[cfg(test)] mod connectors_tests;
+
+pub mod install_guide;
+pub mod installed_skills;
+pub mod knowledge;
+#[cfg(test)] mod install_guide_tests;
+#[cfg(test)] mod installed_skills_tests;

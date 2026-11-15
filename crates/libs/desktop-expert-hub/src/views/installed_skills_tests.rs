@@ -6,9 +6,9 @@ use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 use gateway_desktop_settings::DesktopSkillCatalogEntryDto;
 
-use super::installed_skills::{view, with_delete_confirmation};
-use crate::app::skill_hub::{ExpertHubSection, LoadState};
-use crate::app::{App, Message};
+use super::installed_skills::delete_confirmation;
+use desktop_skill_hub::skill_hub::{ExpertHubSection, LoadState};
+use super::{Message, ViewInput};
 
 fn item(
     id: &str,
@@ -33,8 +33,8 @@ fn item(
     }
 }
 
-async fn assert_draws(app: &App, theme: Theme) {
-    let mut element = with_delete_confirmation(app, view(app));
+async fn assert_draws(app: &ViewInput<'_>, theme: Theme) {
+    let mut element = { let (close, card) = delete_confirmation(app).expect("confirmation"); desktop_ui_controls::system_settings_common::settings_modal_overlay(Some(view(app)), close, card) };
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
@@ -62,19 +62,28 @@ async fn assert_draws(app: &App, theme: Theme) {
 
 #[tokio::test]
 async fn installed_skills_render_local_provider_and_suite_cards_with_confirmation() {
-    let (mut app, _) = App::new();
-    app.expert_hub.section = ExpertHubSection::Skills;
-    app.expert_hub.public_market.installed_open = true;
-    app.expert_hub.public_market.installed = LoadState::Loaded(vec![
+    let mut state = desktop_skill_hub::skill_hub::ExpertHubState::default();
+    state.section = ExpertHubSection::Skills;
+    state.public_market.installed_open = true;
+    state.public_market.installed = LoadState::Loaded(vec![
         item("local", "workspace", None, None),
         item("market", "skillhub", Some("skill"), Some("safe-suite")),
         item("suite", "skillhub", Some("meta-skill"), Some("safe-suite")),
     ]);
-    app.expert_hub.public_market.select_all_installed();
-    app.expert_hub.public_market.delete_confirmation_open = true;
+    state.public_market.select_all_installed();
+    state.public_market.delete_confirmation_open = true;
 
     for theme in [Theme::Light, Theme::Dark] {
-        assert_draws(&app, theme).await;
+        let app = ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &theme };
+        assert_draws(&app, theme.clone()).await;
     }
+    let theme = Theme::Light;
+    let app = ViewInput { expert_hub: &state, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &theme };
     let _: iced::Element<'_, Message> = view(&app);
+}
+
+fn view<'a>(app: &ViewInput<'a>) -> iced::Element<'a, Message> {
+ let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+ let header = super::installed_skills::header(i18n, move || desktop_ui_controls::system_settings_common::settings_hover_help_label(iced::widget::text(i18n.__("我安装的技能")).size(25), iced::widget::text(i18n.__("管理当前目录范围内可启用、关闭或卸载的本地技能")).into()), Message::SkillHub(crate::message::skill_hub::SkillHubMessage::Public(crate::message::public::PublicSkillMessage::CloseInstalled)));
+ super::installed_skills::view(app, header, |message| message)
 }

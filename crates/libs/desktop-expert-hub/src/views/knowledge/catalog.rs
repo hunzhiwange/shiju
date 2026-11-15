@@ -1,15 +1,14 @@
 //! 两级目录均从服务端 total 计算分页；加载时禁用翻页和重复刷新。
 use super::super::styles;
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_muted_text_style, settings_text_input_style,
 };
-use crate::app::message::skill_hub::knowledge::{KnowledgeMessage, message};
-use crate::app::{
-    App, Message,
-    i18n::I18n,
-    skill_hub::{LoadState, knowledge::KnowledgePage},
-};
+use crate::message::knowledge::KnowledgeMessage;
+use super::message;
+use desktop_i18n::I18n;
+use desktop_skill_hub::skill_hub::{LoadState, knowledge::KnowledgePage};
+use crate::views::{ViewInput, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Element, Length};
@@ -21,7 +20,7 @@ fn action(label: &'static str, action: Option<KnowledgeMessage>) -> Element<'sta
         .on_press_maybe(action.map(message))
         .into()
 }
-fn paging<T>(app: &App, page: &KnowledgePage<T>, bases: bool) -> Element<'static, Message> {
+fn paging<T>(app: &ViewInput<'_>, page: &KnowledgePage<T>, bases: bool) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let busy = matches!(page.status, LoadState::Loading { .. });
     let current = page.query.page;
@@ -39,7 +38,7 @@ fn paging<T>(app: &App, page: &KnowledgePage<T>, bases: bool) -> Element<'static
     .into()
 }
 fn panel<'a, T>(
-    app: &'a App,
+    app: &ViewInput<'a>,
     page: &'a KnowledgePage<T>,
     bases: bool,
     items: Vec<Element<'a, Message>>,
@@ -104,7 +103,7 @@ fn panel<'a, T>(
     .height(Length::Fill)
     .into()
 }
-pub(super) fn bases(app: &App) -> Element<'_, Message> {
+pub fn bases<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     let state = &app.expert_hub.knowledge;
     let items = state
         .bases
@@ -124,7 +123,7 @@ pub(super) fn bases(app: &App) -> Element<'_, Message> {
         .collect();
     panel(app, &state.bases, true, items)
 }
-pub(super) fn documents(app: &App) -> Element<'_, Message> {
+pub fn documents<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     let state = &app.expert_hub.knowledge;
     if state.selected_base.is_none() {
         return container(text(I18n::new(app.desktop_locale).__("请选择知识库")))

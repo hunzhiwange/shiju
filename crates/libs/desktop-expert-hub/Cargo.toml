@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
@@ -41,5 +42,6 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window"] }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
 iced = { version = "0.14", features = ["tiny-skia"] }
 iced_runtime = "0.14"

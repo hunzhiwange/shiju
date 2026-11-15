@@ -1,15 +1,18 @@
 //! 原文只读展示：标题和操作固定，仅正文滚动；链接不产生外部动作。
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
     settings_modal_overlay,
 };
-use crate::app::message::skill_hub::knowledge::{KnowledgeMessage, message};
-use crate::app::{App, Message, i18n::I18n, skill_hub::LoadState};
+use crate::message::knowledge::KnowledgeMessage;
+use super::message;
+use desktop_i18n::I18n;
+use desktop_skill_hub::skill_hub::LoadState;
+use crate::views::{ViewInput, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, markdown, row, scrollable, text};
 use iced::{Element, Font, Length};
 
-pub(super) fn with_reader<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(crate) fn with_reader<'a>(app: &ViewInput<'a>, base: Element<'a, Message>) -> Element<'a, Message> {
     if app.expert_hub.knowledge.reader.is_none() {
         return base;
     }
@@ -31,7 +34,7 @@ pub(super) fn with_reader<'a>(app: &'a App, base: Element<'a, Message>) -> Eleme
     )
 }
 
-fn body(app: &App) -> Element<'_, Message> {
+fn body<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     let Some(reader) = &app.expert_hub.knowledge.reader else {
         return container(text(I18n::new(app.desktop_locale).__("请选择文档查看正文")))
             .center(Length::Fill)
@@ -41,7 +44,7 @@ fn body(app: &App) -> Element<'_, Message> {
     let close = message(KnowledgeMessage::CloseReader);
     let busy = matches!(reader.status, LoadState::Loading { .. });
     // 复用公共详情的 Markdown 路径，关闭高亮并避免中文走等宽字体。
-    let mut style = markdown::Style::from(&app.theme());
+    let mut style = markdown::Style::from(&*app.app_theme);
     style.inline_code_font = Font::default();
     style.code_block_font = Font::default();
     let body =

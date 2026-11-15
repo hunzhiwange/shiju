@@ -95,10 +95,6 @@ mod detail_tests;
 #[cfg(test)]
 mod experts_tests;
 #[cfg(test)]
-mod install_guide_tests;
-#[cfg(test)]
-mod installed_skills_tests;
-#[cfg(test)]
 mod list_tests;
 #[cfg(test)]
 mod mod_tests;

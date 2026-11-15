@@ -1,12 +1,12 @@
 // 覆盖文件 API 的路径约束、读写查找及移动复制删除。
 
 use super::*;
-use crate::app::agent::project;
+use agent_project as project;
 
 // 真实文件与符号链接夹具用于验证尚未创建的路径也不能绕过工作区边界。
 #[test]
 fn router_builds_with_unit_state() {
-    let _ = router::<()>();
+    let _ = router::<(), crate::file::file_tests::TestHost>();
 }
 
 // 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
@@ -242,7 +242,7 @@ async fn file_read_and_write_v1_round_trip_with_directory_body() {
     let root = temp.path().canonicalize().expect("canonical temp dir");
     let headers = axum::http::HeaderMap::new();
 
-    let missing = file_read_v1(
+    let missing = file_read_v1::<crate::file::file_tests::TestHost>(
         headers.clone(),
         Json(FileReadBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -255,7 +255,7 @@ async fn file_read_and_write_v1_round_trip_with_directory_body() {
     .0;
     assert_eq!(missing.content, "");
 
-    let written = file_write_v1(
+    let written = file_write_v1::<crate::file::file_tests::TestHost>(
         headers.clone(),
         Json(FileWriteBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -271,7 +271,7 @@ async fn file_read_and_write_v1_round_trip_with_directory_body() {
     assert!(written.ok);
     assert_eq!(written.bytes_written, 5);
 
-    let read = file_read_v1(
+    let read = file_read_v1::<crate::file::file_tests::TestHost>(
         headers,
         Json(FileReadBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -292,7 +292,7 @@ async fn file_read_and_write_v1_reject_escape_and_missing_write_target() {
     std::fs::create_dir(root.join("dir")).expect("dir");
     let headers = axum::http::HeaderMap::new();
 
-    let escape = file_read_v1(
+    let escape = file_read_v1::<crate::file::file_tests::TestHost>(
         headers.clone(),
         Json(FileReadBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -305,7 +305,7 @@ async fn file_read_and_write_v1_reject_escape_and_missing_write_target() {
     assert_eq!(escape.status, axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(escape.message, "path escapes workspace root");
 
-    let dir_read = file_read_v1(
+    let dir_read = file_read_v1::<crate::file::file_tests::TestHost>(
         headers.clone(),
         Json(FileReadBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -317,7 +317,7 @@ async fn file_read_and_write_v1_reject_escape_and_missing_write_target() {
     .expect_err("directory read should fail");
     assert_eq!(dir_read.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let write_escape = file_write_v1(
+    let write_escape = file_write_v1::<crate::file::file_tests::TestHost>(
         headers.clone(),
         Json(FileWriteBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -331,7 +331,7 @@ async fn file_read_and_write_v1_reject_escape_and_missing_write_target() {
     .expect_err("escape write should fail");
     assert_eq!(write_escape.message, "path escapes workspace root");
 
-    let missing = file_write_v1(
+    let missing = file_write_v1::<crate::file::file_tests::TestHost>(
         headers,
         Json(FileWriteBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -353,7 +353,7 @@ async fn file_write_v1_overwrites_existing_file_and_counts_utf8_bytes() {
     let root = temp.path().canonicalize().expect("canonical temp dir");
     std::fs::write(root.join("notes.txt"), "old").expect("existing file");
 
-    let response = file_write_v1(
+    let response = file_write_v1::<crate::file::file_tests::TestHost>(
         axum::http::HeaderMap::new(),
         Json(FileWriteBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -380,7 +380,7 @@ async fn file_write_v1_reports_parent_directory_creation_error() {
     let root = temp.path().canonicalize().expect("canonical temp dir");
     std::fs::write(root.join("blocked"), "blocked").expect("blocked file");
 
-    let err = file_write_v1(
+    let err = file_write_v1::<crate::file::file_tests::TestHost>(
         axum::http::HeaderMap::new(),
         Json(FileWriteBody {
             directory: Some(root.to_string_lossy().to_string()),
@@ -408,7 +408,7 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
     std::fs::write(root.join(".DS_Store"), "ignored").expect("ds store");
 
     let headers = axum::http::HeaderMap::new();
-    let Json(matches) = file_find_text(
+    let Json(matches) = file_find_text::<crate::file::file_tests::TestHost>(
         Query(FindTextQuery {
             directory: Some(root.to_string_lossy().to_string()),
             pattern: "needle".to_string(),
@@ -421,7 +421,7 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
     assert!(matches.iter().any(|item| item.path == "README.md"));
     assert!(matches.iter().any(|item| item.path == "src/main.rs"));
 
-    let err = file_find_text(
+    let err = file_find_text::<crate::file::file_tests::TestHost>(
         Query(FindTextQuery {
             directory: Some(root.to_string_lossy().to_string()),
             pattern: "(".to_string(),
@@ -432,7 +432,7 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
     .expect_err("invalid regex should fail");
     assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let Json(nodes) = file_list(
+    let Json(nodes) = file_list::<crate::file::file_tests::TestHost>(
         Query(FileListQuery {
             directory: Some(root.to_string_lossy().to_string()),
             path: ".".to_string(),
@@ -446,7 +446,7 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
         ["src", "README.md"]
     );
 
-    let Json(content) = file_read(
+    let Json(content) = file_read::<crate::file::file_tests::TestHost>(
         Query(FileReadQuery {
             directory: Some(root.to_string_lossy().to_string()),
             path: "README.md".to_string(),
@@ -457,7 +457,7 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
     .expect("read content");
     assert_eq!(content.content, "needle readme");
 
-    let Json(status) = file_status(
+    let Json(status) = file_status::<crate::file::file_tests::TestHost>(
         Query(InstanceQuery { directory: Some(root.to_string_lossy().to_string()) }),
         headers,
     )
@@ -474,7 +474,7 @@ async fn file_read_rejects_absolute_path_outside_workspace() {
     let outside_file = outside_dir.path().join("outside.txt");
     std::fs::write(&outside_file, "outside").expect("outside file");
 
-    let error = file_read(
+    let error = file_read::<crate::file::file_tests::TestHost>(
         Query(FileReadQuery {
             directory: Some(root.to_string_lossy().to_string()),
             path: outside_file.to_string_lossy().to_string(),
@@ -497,7 +497,7 @@ async fn file_find_file_filters_directories_files_and_limit() {
     std::fs::write(root.join("beta.txt"), "beta").expect("beta");
     let headers = axum::http::HeaderMap::new();
 
-    let Json(files) = file_find_file(
+    let Json(files) = file_find_file::<crate::file::file_tests::TestHost>(
         Query(FindFileQuery {
             directory: Some(root.to_string_lossy().to_string()),
             query: "ALPHA".to_string(),
@@ -511,7 +511,7 @@ async fn file_find_file_filters_directories_files_and_limit() {
     .expect("find files");
     assert_eq!(files, ["Alpha.txt"]);
 
-    let Json(dirs) = file_find_file(
+    let Json(dirs) = file_find_file::<crate::file::file_tests::TestHost>(
         Query(FindFileQuery {
             directory: Some(root.to_string_lossy().to_string()),
             query: "alpha".to_string(),
@@ -535,7 +535,7 @@ async fn file_find_file_skips_ignored_dirs_and_stops_at_limit() {
     std::fs::create_dir_all(root.join("target/alpha-ignored")).expect("ignored dir");
     let headers = axum::http::HeaderMap::new();
 
-    let Json(dirs) = file_find_file(
+    let Json(dirs) = file_find_file::<crate::file::file_tests::TestHost>(
         Query(FindFileQuery {
             directory: Some(root.to_string_lossy().to_string()),
             query: "alpha-".to_string(),
@@ -551,7 +551,7 @@ async fn file_find_file_skips_ignored_dirs_and_stops_at_limit() {
     assert_eq!(dirs.len(), 1);
     assert!(dirs[0].starts_with("alpha-"));
 
-    let Json(ignored) = file_find_file(
+    let Json(ignored) = file_find_file::<crate::file::file_tests::TestHost>(
         Query(FindFileQuery {
             directory: Some(root.to_string_lossy().to_string()),
             query: "ignored".to_string(),
@@ -577,7 +577,7 @@ async fn file_move_copy_and_delete_v1_use_worktree_id_root() {
     let project_id = vw_api_transport::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
-    let _ = file_copy_v1(
+    let _ = file_copy_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(CopyFileRequest {
             project_id: project_id.clone(),
@@ -591,7 +591,7 @@ async fn file_move_copy_and_delete_v1_use_worktree_id_root() {
     .expect("copy file");
     assert_eq!(std::fs::read_to_string(root.join("copies/source.txt")).expect("copy"), "source");
 
-    let _ = file_move_v1(
+    let _ = file_move_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(MoveFileRequest {
             project_id: project_id.clone(),
@@ -606,7 +606,7 @@ async fn file_move_copy_and_delete_v1_use_worktree_id_root() {
     assert!(root.join("moved.txt").is_file());
     assert!(!root.join("copies/source.txt").exists());
 
-    let _ = file_delete_v1(
+    let _ = file_delete_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(DeleteFileRequest {
             project_id,
@@ -633,7 +633,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     let project_id = vw_api_transport::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
-    let missing = file_copy_v1(
+    let missing = file_copy_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(CopyFileRequest {
             project_id: project_id.clone(),
@@ -647,7 +647,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     .expect_err("missing source should fail");
     assert_eq!(missing.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let missing_move = file_move_v1(
+    let missing_move = file_move_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(MoveFileRequest {
             project_id: project_id.clone(),
@@ -661,7 +661,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     .expect_err("missing move source should fail");
     assert_eq!(missing_move.message, "file not found: missing.txt");
 
-    let conflict = file_copy_v1(
+    let conflict = file_copy_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(CopyFileRequest {
             project_id: project_id.clone(),
@@ -675,7 +675,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     .expect_err("copy conflict should fail");
     assert_eq!(conflict.message, "path already exists: existing.txt");
 
-    let _ = file_copy_v1(
+    let _ = file_copy_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(CopyFileRequest {
             project_id: project_id.clone(),
@@ -690,7 +690,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     assert_eq!(std::fs::read_to_string(root.join("existing.txt")).expect("existing"), "source");
 
     std::fs::write(root.join("other.txt"), "other").expect("other");
-    let move_conflict = file_move_v1(
+    let move_conflict = file_move_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(MoveFileRequest {
             project_id: project_id.clone(),
@@ -705,7 +705,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     assert_eq!(move_conflict.message, "path already exists: other.txt");
 
     std::fs::write(root.join("blocked-parent"), "blocked").expect("blocked parent");
-    let parent_error = file_move_v1(
+    let parent_error = file_move_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(MoveFileRequest {
             project_id: project_id.clone(),
@@ -719,7 +719,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     .expect_err("blocked parent should fail");
     assert_eq!(parent_error.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let _ = file_move_v1(
+    let _ = file_move_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(MoveFileRequest {
             project_id: project_id.clone(),
@@ -733,7 +733,7 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     .expect("move overwrite");
     assert_eq!(std::fs::read_to_string(root.join("other.txt")).expect("other"), "source");
 
-    let dir_delete = file_delete_v1(
+    let dir_delete = file_delete_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(DeleteFileRequest {
             project_id,
@@ -759,7 +759,7 @@ async fn file_copy_and_delete_v1_handle_directories_recursively() {
     let project_id = vw_api_transport::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
-    let _ = file_copy_v1(
+    let _ = file_copy_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(CopyFileRequest {
             project_id: project_id.clone(),
@@ -776,7 +776,7 @@ async fn file_copy_and_delete_v1_handle_directories_recursively() {
         "content"
     );
 
-    let _ = file_delete_v1(
+    let _ = file_delete_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(DeleteFileRequest {
             project_id,
@@ -801,7 +801,7 @@ async fn file_move_copy_and_delete_v1_reject_workspace_escapes() {
     let project_id = vw_api_transport::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
-    let copy_error = file_copy_v1(
+    let copy_error = file_copy_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(CopyFileRequest {
             project_id: project_id.clone(),
@@ -815,7 +815,7 @@ async fn file_move_copy_and_delete_v1_reject_workspace_escapes() {
     .expect_err("copy escape should fail");
     assert_eq!(copy_error.message, "path escapes workspace root");
 
-    let move_error = file_move_v1(
+    let move_error = file_move_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(MoveFileRequest {
             project_id: project_id.clone(),
@@ -829,7 +829,7 @@ async fn file_move_copy_and_delete_v1_reject_workspace_escapes() {
     .expect_err("move escape should fail");
     assert_eq!(move_error.message, "path escapes workspace root");
 
-    let delete_error = file_delete_v1(
+    let delete_error = file_delete_v1::<crate::file::file_tests::TestHost>(
         Extension(TenantScope::default()),
         Json(DeleteFileRequest {
             project_id,
@@ -859,13 +859,13 @@ async fn resolve_file_root_uses_project_worktree_and_reports_missing_project() {
         vec![],
     ));
     assert_eq!(
-        resolve_file_root(&TenantScope::default(), &worktree_id, None)
+        resolve_file_root::<crate::file::file_tests::TestHost>(&TenantScope::default(), &worktree_id, None)
             .await
             .expect("worktree root"),
         worktree.to_string_lossy()
     );
 
-    let missing = resolve_file_root(&TenantScope::default(), "missing-project", None)
+    let missing = resolve_file_root::<crate::file::file_tests::TestHost>(&TenantScope::default(), "missing-project", None)
         .await
         .expect_err("missing project should fail");
     assert_eq!(missing.status, axum::http::StatusCode::NOT_FOUND);
@@ -937,12 +937,12 @@ fn project_info_for_file_tests(
     }
 }
 
-fn store_file_test_project(info: &crate::app::agent::project::Info) {
-    crate::app::agent::project::store_local_test_project(info).expect("project should write");
+fn store_file_test_project(info: &agent_project::Info) {
+    agent_project::store_local_test_project(info).expect("project should write");
 }
 
 fn remove_file_test_project(project_id: &str) {
-    crate::app::agent::project::remove_local_test_project(project_id)
+    agent_project::remove_local_test_project(project_id)
         .expect("project should clean up");
 }
 
@@ -971,7 +971,7 @@ async fn assert_file_mutations_rejected(project_id: &str, root: &std::path::Path
     std::fs::write(root.join("source.txt"), "source").expect("source");
     std::fs::write(root.join("target.txt"), "target").expect("target");
     for operation in ["move", "copy", "delete"] {
-        let response = router::<()>()
+        let response = router::<(), crate::file::file_tests::TestHost>()
             .layer(Extension(TenantScope::default()))
             .oneshot(
                 axum::http::Request::builder()
@@ -1041,7 +1041,7 @@ async fn file_root_accepts_registered_primary_and_git_worktree() {
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_str().expect("path"));
     assert_eq!(
-        resolve_file_root(&TenantScope::default(), &project.0, Some(&encoded))
+        resolve_file_root::<crate::file::file_tests::TestHost>(&TenantScope::default(), &project.0, Some(&encoded))
             .await
             .expect("non git primary"),
         root.to_string_lossy()
@@ -1087,7 +1087,7 @@ async fn file_root_accepts_registered_primary_and_git_worktree() {
     for directory in [&root, &linked] {
         let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(directory.to_str().expect("path"));
-        let resolved = resolve_file_root(&TenantScope::default(), &project.0, Some(&encoded))
+        let resolved = resolve_file_root::<crate::file::file_tests::TestHost>(&TenantScope::default(), &project.0, Some(&encoded))
             .await
             .expect("registered directory");
         assert_eq!(
@@ -1104,7 +1104,7 @@ async fn drag_move_request(
     overwrite: bool,
 ) -> axum::http::StatusCode {
     use tower::ServiceExt;
-    router::<()>().layer(Extension(TenantScope::default())).oneshot(axum::http::Request::builder().method("POST").uri("/files/move")
+    router::<(), crate::file::file_tests::TestHost>().layer(Extension(TenantScope::default())).oneshot(axum::http::Request::builder().method("POST").uri("/files/move")
         .header("content-type", "application/json")
         .body(axum::body::Body::from(serde_json::json!({"project_id": project.0, "from_path": from, "to_path": to, "overwrite": overwrite}).to_string())).unwrap()).await.unwrap().status()
 }
@@ -1234,7 +1234,7 @@ async fn file_read_v1_decodes_legacy_text_and_reports_binary_file() {
     std::fs::write(root.join("legacy.txt"), bytes).expect("write text");
     std::fs::write(root.join("unknown"), b"hello\0world").expect("write binary");
     for (path, binary) in [("legacy.txt", false), ("unknown", true)] {
-        let result = file_read_v1(
+        let result = file_read_v1::<crate::file::file_tests::TestHost>(
             axum::http::HeaderMap::new(),
             Json(FileReadBody {
                 directory: Some(root.to_string_lossy().to_string()),
@@ -1250,5 +1250,13 @@ async fn file_read_v1_decodes_legacy_text_and_reports_binary_file() {
         } else {
             assert_eq!(result.expect("decoded text").0.content, original);
         }
+    }
+}
+
+// File-domain fixtures do not install the host snapshot scheduler.
+pub(super) struct TestHost;
+impl crate::Host for TestHost {
+    fn bootstrap(_worktree: std::path::PathBuf) -> agent_project::BoxFuture<()> {
+        Box::pin(async {})
     }
 }

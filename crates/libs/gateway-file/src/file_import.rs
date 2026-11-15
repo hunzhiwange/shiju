@@ -12,14 +12,14 @@ use axum::{
 };
 use vw_api_file::file::{LocalImportItemResult, LocalImportRequest, LocalImportResponse};
 
-pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
+pub(super) fn router<S: Clone + Send + Sync + 'static, H: crate::Host>() -> Router<S> {
     Router::new().route(
         "/files/import-local",
-        post(import_local).layer(DefaultBodyLimit::max(crate::app::agent::gateway::MAX_BODY_SIZE)),
+        post(import_local::<H>).layer(DefaultBodyLimit::max(gateway_types::MAX_BODY_SIZE)),
     )
 }
 
-async fn import_local(
+async fn import_local<H: crate::Host>(
     axum::Extension(tenant): axum::Extension<vw_api_transport::TenantScope>,
     peer: Option<axum::Extension<ConnectInfo<SocketAddr>>>,
     headers: HeaderMap,
@@ -35,7 +35,7 @@ async fn import_local(
         return Err(ApiError::bad_request("expected 1–128 source paths"));
     }
     // Resolve the authorized project before inspecting any external source.
-    let root = resolve_file_root(
+    let root = resolve_file_root::<H>(
         &tenant,
         &body.project_id.0,
         body.worktree_id.as_ref().map(|id| id.0.as_str()),

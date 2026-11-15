@@ -11,11 +11,11 @@ use vw_api_transport::id::TenantScope;
 use super::file_import::{copy_entry, io_error, publish_no_replace, target_directory};
 use super::{ApiError, resolve_file_root};
 
-pub(super) async fn duplicate(
+pub(super) async fn duplicate<H: crate::Host>(
     Extension(tenant): Extension<TenantScope>,
     Json(body): Json<DuplicateFileRequest>,
 ) -> Result<Json<OperationAck>, ApiError> {
-    let root = resolve_file_root(
+    let root = resolve_file_root::<H>(
         &tenant,
         &body.project_id.0,
         body.worktree_id.as_ref().map(|id| id.0.as_str()),

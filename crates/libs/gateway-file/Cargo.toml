@@ -1,0 +1,35 @@
+[package]
+name = "gateway-file"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+agent-files = { path = "../agent-files", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+session-instructions = { path = "../session-instructions", version = "0.6.0" }
+worktree-core = { path = "../worktree-core", version = "0.6.0" }
+vw-api-file = { path = "../api-file", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+base64 = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync"] }
+url = "2"
+tempfile = "3"
+
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+libc = "0.2"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+worktree-core = { path = "../worktree-core", version = "0.6.0", features = ["test-support"] }
+encoding_rs = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
+tower = { version = "0.5", features = ["util"] }
+uuid = { version = "1.11", features = ["v4", "js"] }

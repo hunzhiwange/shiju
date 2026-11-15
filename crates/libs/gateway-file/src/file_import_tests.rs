@@ -24,7 +24,7 @@ async fn request(
     if let Some(origin) = origin {
         builder = builder.header("origin", origin);
     }
-    let response = router::<()>().oneshot(builder.body(Body::from(serde_json::json!({"project_id":project,"target_directory":target,"source_paths":sources}).to_string())).unwrap()).await.unwrap();
+    let response = router::<(), crate::file::file_tests::TestHost>().oneshot(builder.body(Body::from(serde_json::json!({"project_id":project,"target_directory":target,"source_paths":sources}).to_string())).unwrap()).await.unwrap();
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     (status, serde_json::from_slice(&bytes).unwrap_or_default())
@@ -200,8 +200,8 @@ fn local_import_exclusive_publication_preserves_raced_directory_and_file() {
 
 #[tokio::test]
 async fn local_import_limits_json_metadata_body() {
-    let body = "x".repeat(crate::app::agent::gateway::MAX_BODY_SIZE + 1);
-    let response = router::<()>()
+    let body = "x".repeat(gateway_types::MAX_BODY_SIZE + 1);
+    let response = router::<(), crate::file::file_tests::TestHost>()
         .oneshot(
             Request::builder()
                 .extension(vw_api_transport::TenantScope::default())

@@ -1,0 +1,31 @@
+[package]
+name = "device-sync"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+secret-store = { path = "../secret-store", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+vw-api-device-sync = { path = "../api-device-sync", version = "0.6.0" }
+vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+hex = "0.4"
+tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
+tokio-util = { version = "0.7.18", features = ["rt"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+chrono = "0.4"

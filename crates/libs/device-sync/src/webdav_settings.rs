@@ -10,11 +10,9 @@ use {
     vw_api_device_sync::device_sync_config::WebDavSyncConfig,
     vw_api_transport::id::TenantScope,
 };
-use crate::{
-    gateway::settings_store::GatewaySettingsStore,
-    global_database::GlobalDatabase,
-    security::SecretStore,
-};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
+use secret_store::secrets::SecretStore;
 use super::operation_lock::acquire_sync_lock;
 
 const NAMESPACE: &str = "device_sync.webdav.local.v1";
@@ -50,7 +48,7 @@ impl WebDavSettingsStore {
     }
 
     /// Opaque local revision includes encrypted credential state, never returned to clients.
-    pub(crate) fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
+    pub fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
         use sha2::{Digest, Sha256};
         let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
             .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
@@ -59,7 +57,7 @@ impl WebDavSettingsStore {
     }
 
     /// Resolve only under the shared operation lock; never expose credentials as DTOs.
-    pub(crate) fn connection(&self, tenant: &TenantScope, host: &str) -> Result<WebDavConfig> {
+    pub fn connection(&self, tenant: &TenantScope, host: &str) -> Result<WebDavConfig> {
         let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
             .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
         let row = decode(&raw)?;

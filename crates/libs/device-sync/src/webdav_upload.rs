@@ -10,10 +10,8 @@ use vw_agent_apps::device_sync::{
     webdav_transport::{UploadArtifact, WebDavUploadTarget, download::WebDavDownloadTarget},
 };
 
-use crate::{
-    agent_apps::shared_snapshot::{SnapshotScope, SnapshotSelection},
-    global_database::GlobalDatabase,
-};
+use agent_app_services::shared_snapshot::{SnapshotScope, SnapshotSelection};
+use agent_database::GlobalDatabase;
 use super::export::export_shared_snapshot;
 
 /// Caller runs this inline inside run_with_sync_lock, using freshly resolved

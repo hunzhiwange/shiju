@@ -1,46 +1,28 @@
-//! Gateway-owned device synchronization coordination.
-
-pub mod operation_lock;
-
-pub mod webdav_settings;
-
-pub mod s3_settings;
-
+//! Compatibility exports for the device synchronization service owner.
+pub use ::device_sync::operation_lock;
+pub use ::device_sync::webdav_settings;
+pub use ::device_sync::s3_settings;
+pub use ::device_sync::change_events;
+pub use ::device_sync::tasks;
+pub use ::device_sync::cancel;
+pub use ::device_sync::status;
+pub use ::device_sync::auto_sync;
+pub use ::device_sync::lifecycle;
 #[cfg(target_os = "macos")]
-pub mod export;
-
+pub use ::device_sync::export;
 #[cfg(target_os = "macos")]
-pub mod import;
-
+pub use ::device_sync::import;
 #[cfg(target_os = "macos")]
-pub mod apply;
-
+pub use ::device_sync::apply;
 #[cfg(target_os = "macos")]
-pub mod webdav_upload;
-
+pub use ::device_sync::webdav_upload;
 #[cfg(target_os = "macos")]
-pub mod projection;
-
+pub use ::device_sync::projection;
 #[cfg(target_os = "macos")]
-pub mod s3_upload;
-
+pub use ::device_sync::s3_upload;
 #[cfg(target_os = "macos")]
-pub mod s3_download;
-
+pub use ::device_sync::s3_download;
 #[cfg(target_os = "macos")]
-pub mod webdav_download;
-
-pub mod change_events;
-
-pub mod tasks;
-
-pub mod cancel;
-
-pub mod status;
-
-pub mod auto_sync;
-
-pub mod lifecycle;
-
+pub use ::device_sync::webdav_download;
 #[cfg(target_os = "macos")]
-pub(crate) mod skill_receive;
+pub(crate) use ::device_sync::skill_receive;

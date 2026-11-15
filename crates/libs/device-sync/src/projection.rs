@@ -81,7 +81,7 @@ pub(super) async fn refresh(jobs: Vec<ProjectionJob<'_>>) -> Vec<ProjectionWarni
 /// Adapt the skill owner's saved-binding reconciliation, preserving its partial
 /// failure semantics rather than treating an outer Ok as complete success.
 pub fn skill_job<'a>(
-    store: &'a crate::gateway::agent_apps_skills_store::SkillInstallsStore,
+    store: &'a app_settings_store::agent_apps_skills_store::SkillInstallsStore,
     scope: &'a vw_api_transport::ProjectScope,
     host: &'a str,
     ssot: &'a std::path::Path,
@@ -105,14 +105,14 @@ pub fn skill_job<'a>(
 /// resolution and authorization stay with the existing host dispatcher.
 #[allow(clippy::too_many_arguments)]
 pub fn prompt_job<'a>(
-    store: &'a crate::agent_apps::prompts_store::PromptsStore,
-    scopes: Vec<crate::agent_apps::prompts_store::PromptScope<'a>>,
+    store: &'a agent_app_services::prompts_store::PromptsStore,
+    scopes: Vec<agent_app_services::prompts_store::PromptScope<'a>>,
     executor_host: &'a str,
     home: &'a std::path::Path,
     overrides: &'a std::collections::HashMap<vw_api_app_identity::AppId, String>,
     environment: &'a std::collections::BTreeMap<String, String>,
     transactions: &'a vw_agent_apps::providers::live::commit::ProviderTransactions,
-    authorize: impl Fn(crate::agent_apps::prompts_store::PromptScope<'_>)
+    authorize: impl Fn(agent_app_services::prompts_store::PromptScope<'_>)
         -> Result<(), vw_agent_apps::providers::live::write_guard::WriteError> + Send + Sync + 'a,
 ) -> ProjectionJob<'a> {
     ProjectionJob {
@@ -135,7 +135,7 @@ pub fn prompt_job<'a>(
 /// outcomes as retryable warnings. The future is lazy until apply commits.
 pub fn mcp_job<'a>(
     resync: impl Future<Output = Result<
-        crate::agent_apps::mcp::McpResyncResult,
+        agent_app_services::mcp::McpResyncResult,
         vw_api_mcp_management::McpFailureCode,
     >> + Send + 'a,
 ) -> ProjectionJob<'a> {

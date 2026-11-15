@@ -1,9 +1,8 @@
 //! Host-local S3 settings; only ciphertext is persisted alongside the read model.
 use super::operation_lock::acquire_sync_lock;
-use crate::{
-    gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase,
-    security::SecretStore,
-};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
+use secret_store::secrets::SecretStore;
 use anyhow::{Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -51,7 +50,7 @@ impl S3SettingsStore {
     }
 
     /// Opaque local revision includes encrypted credential state, never returned to clients.
-    pub(crate) fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
+    pub fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
         use sha2::{Digest, Sha256};
         let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
             .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
@@ -60,7 +59,7 @@ impl S3SettingsStore {
     }
 
     /// Resolve only under the shared operation lock; never expose credentials as DTOs.
-    pub(crate) fn connection(&self, tenant: &TenantScope, host: &str) -> Result<S3Config> {
+    pub fn connection(&self, tenant: &TenantScope, host: &str) -> Result<S3Config> {
         let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
             .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
         let row = decode(&raw)?;

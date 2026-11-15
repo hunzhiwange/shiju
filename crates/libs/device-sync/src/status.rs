@@ -5,7 +5,8 @@ use std::sync::{Mutex, OnceLock};
 use serde::{Deserialize, Serialize};
 use vw_api_device_sync::{device_sync_config::DeviceSyncTransport, device_sync_task::{SyncErrorCode, SyncRemoteSnapshot, SyncTaskState, SyncTaskStatus}};
 use vw_api_app_operations::{DataManagementTarget};
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 use super::tasks::Record;
 
 const NAMESPACE: &str = "device_sync.status.local.v1";

@@ -1,7 +1,8 @@
 //! Device synchronization consumes the data-management owner's portable capture.
 use anyhow::{Result, ensure};
 use sha2::{Digest, Sha256};
-use crate::{agent_apps::shared_snapshot::{self, SnapshotScope, SnapshotSelection}, global_database::GlobalDatabase};
+use agent_app_services::shared_snapshot::{self, SnapshotScope, SnapshotSelection};
+use agent_database::GlobalDatabase;
 use vw_agent_apps::device_sync::{archive_pack::PackedSkillsArchive, manifest::SyncArtifact};
 
 /// Only these exact immutable bytes may be described in a manifest and uploaded.

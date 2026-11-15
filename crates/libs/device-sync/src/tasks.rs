@@ -35,7 +35,7 @@ fn records() -> &'static Mutex<Vec<Record>> {
 
 /// Bind an authorized target to the gateway database before accepting work.
 /// Initialize once per process; recovery never invokes transfer or apply code.
-pub fn initialize(database: crate::global_database::GlobalDatabase,
+pub fn initialize(database: agent_database::GlobalDatabase,
     target: &DataManagementTarget) -> Result<()> {
     let mut records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
     super::status::initialize(database, target, &mut records)
@@ -49,7 +49,7 @@ pub fn accept(request: SyncStartRequest, origin: SyncTaskOrigin) -> Result<SyncT
 }
 
 /// Include the authorized object selection and connection revision in deduplication.
-pub(crate) fn accept_upload(request: SyncStartRequest, parameters: String) -> Result<SyncTaskStatus> {
+pub fn accept_upload(request: SyncStartRequest, parameters: String) -> Result<SyncTaskStatus> {
     accept_parameters(request, SyncTaskOrigin::Manual, Some(parameters))
 }
 fn accept_parameters(request: SyncStartRequest, origin: SyncTaskOrigin,

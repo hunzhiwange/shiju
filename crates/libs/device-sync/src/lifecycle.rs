@@ -24,7 +24,7 @@ impl SyncLifecycle {
     /// Register before publishing a connection as active. Duplicate registration
     /// preserves the existing subscription. Journal recovery precedes any upload.
     pub async fn start<C, R, RF, U, UF>(&self,
-        database: crate::global_database::GlobalDatabase,
+        database: agent_database::GlobalDatabase,
         target: DataManagementTarget, transport: DeviceSyncTransport, reload: R, upload: U,
     ) -> Result<(), SyncErrorCode>
     where C: Send + 'static,

@@ -1,18 +1,19 @@
 //! Receiving resources uses the existing installation state and deployment owner.
 use anyhow::{Result, Context, ensure};
-use crate::{gateway::{agent_apps_skills_store::{SkillInstallsStore, SkillInstallsState}, settings_store::GatewaySettingsStore}, global_database::GlobalDatabase};
+use app_settings_store::{agent_apps_skills_store::{SkillInstallsStore, SkillInstallsState}, settings_store::GatewaySettingsStore};
+use agent_database::GlobalDatabase;
 use vw_api_transport::id::ProjectScope;
 use std::{collections::{BTreeMap, BTreeSet}, path::Path};
 use vw_agent_apps::{data_management::{shared_snapshot::SharedSkill, safety_snapshot::*}, device_sync::skill_update::BatchSkillUpdate, skills::update_apply::SkillUpdateMetadata};
 
-pub(crate) struct PreparedSyncSkills {
+pub struct PreparedSyncSkills {
     pub updates: Vec<BatchSkillUpdate>,
     pub key: String,
     pub before: String,
     pub after: String,
     pub resources: OwnerPreimage,
 }
-pub(crate) fn prepare_sync_receive(database: &GlobalDatabase, scope: &ProjectScope, host: &str,
+pub fn prepare_sync_receive(database: &GlobalDatabase, scope: &ProjectScope, host: &str,
         root: &Path, staging: &Path, incoming: &[SharedSkill], local: &[SharedSkill],
     ) -> Result<PreparedSyncSkills> {
         let key = serde_json::to_string(&(scope.project_id(), host))?;

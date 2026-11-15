@@ -18,10 +18,8 @@ use vw_agent_apps::{
     skills::{inventory::compute_dir_hash, update_apply::SkillUpdate},
 };
 
-use crate::{
-    agent_apps::shared_snapshot::{SnapshotScope, SnapshotSelection},
-    global_database::GlobalDatabase,
-};
+use agent_app_services::shared_snapshot::{SnapshotScope, SnapshotSelection};
+use agent_database::GlobalDatabase;
 use super::{apply::{ApplyFailure, apply_snapshot}, projection::{AppliedSnapshot, ProjectionJob}};
 
 /// Run inline under the authorized host's sync lock. The preview must be bound

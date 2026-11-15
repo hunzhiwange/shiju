@@ -9,13 +9,8 @@ use vw_agent_apps::{
     skills::update_apply::SkillUpdate,
 };
 
-use crate::{
-    agent_apps::{
-        shared_snapshot::SnapshotScope,
-        shared_snapshot_import::{SnapshotImport, apply_shared_snapshot},
-    },
-    global_database::GlobalDatabase,
-};
+use agent_app_services::{shared_snapshot::SnapshotScope, shared_snapshot_import::{SnapshotImport, apply_shared_snapshot}};
+use agent_database::GlobalDatabase;
 
 /// Publication lease retained through the settings commit and rollback. Both
 /// single-resource callers and the multi-resource receive owner use this path.

@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+device-sync = { path = "../libs/device-sync", version = "0.6.0" }
 gateway-agent-app = { path = "../libs/gateway-agent-app", version = "0.6.0" }
 session-engine = { path = "../libs/session-engine", version = "0.6.0" }
 agent-loop = { path = "../libs/agent-loop", version = "0.6.0" }

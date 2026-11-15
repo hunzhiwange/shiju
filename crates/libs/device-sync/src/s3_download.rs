@@ -18,10 +18,8 @@ use vw_agent_apps::{
     skills::update_apply::SkillUpdate,
 };
 
-use crate::{
-    agent_apps::shared_snapshot::{SnapshotScope, SnapshotSelection},
-    global_database::GlobalDatabase,
-};
+use agent_app_services::shared_snapshot::{SnapshotScope, SnapshotSelection};
+use agent_database::GlobalDatabase;
 
 use super::{apply::{ApplyFailure, apply_snapshot}, import::preview_shared_snapshot,
     projection::{AppliedSnapshot, ProjectionJob}};

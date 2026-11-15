@@ -26,7 +26,7 @@ pub struct CurrentSyncConnection<C> {
 /// Also used by connection mutation/clear paths, so they cannot invalidate a
 /// lease during an operation. Inputs are canonical IDs from trusted authorization,
 /// never request-provided tenant/host aliases. This function grants no permission.
-pub(crate) async fn acquire_sync_lock(
+pub async fn acquire_sync_lock(
     tenant: &str,
     host: &str,
     cancellation: &CancellationToken,

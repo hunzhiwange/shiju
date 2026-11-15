@@ -4,8 +4,10 @@ use crate::providers::{
 };
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{
-    agent_apps::AppId, app_providers::mode_apply::TargetPublication, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_apply::TargetPublication,
+    vw_api_transport::id::TenantScope,
 };
 
 struct Runtime;
@@ -61,9 +63,9 @@ fn aggregation_t14_claude_publish_preserves_contract() {
         official_service: None,
         catalog: Catalog::Claude(&record),
     }];
-    let project = vw_api_types::id::ProjectScope::new(
+    let project = vw_api_transport::ProjectScope::new(
         tenant.clone(),
-        vw_api_types::id::ProjectId::from("project"),
+        vw_api_transport::ProjectId::from("project"),
     )
     .unwrap();
     let mut mode = ClaudeMode {
@@ -140,10 +142,10 @@ impl Fixture {
         .unwrap();
         Self { home, _private: private, tx, file, tenant }
     }
-    fn project(&self, id: &str) -> vw_api_types::id::ProjectScope {
-        vw_api_types::id::ProjectScope::new(
+    fn project(&self, id: &str) -> vw_api_transport::ProjectScope {
+        vw_api_transport::ProjectScope::new(
             self.tenant.clone(),
-            vw_api_types::id::ProjectId::from(id),
+            vw_api_transport::ProjectId::from(id),
         )
         .unwrap()
     }

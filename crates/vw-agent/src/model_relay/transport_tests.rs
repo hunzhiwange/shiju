@@ -242,7 +242,7 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
             }
         }));
     let upstream = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-    let tenant = vw_api_types::id::TenantScope::new("protocol012", "fixture").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("protocol012", "fixture").unwrap();
     let root = temp.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();

@@ -9,15 +9,23 @@ use tokio::{
     net::TcpListener,
     sync::{Semaphore, mpsc, oneshot},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailure, DiagnosticFailureCode, DiagnosticJobSnapshot,
-        DiagnosticJobState, DiagnosticOutcome, DiagnosticPhase, DiagnosticProbeKind,
-        DiagnosticReport, DiagnosticResult, DiagnosticScope, DiagnosticTiming,
-        ReachabilityEvidence,
-    },
-    id::{ProjectScope, TaskId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticReport,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticTiming,
+    vw_api_types::agent_apps_diagnostics::ReachabilityEvidence,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TaskId,
 };
 
 use super::{DiagnosticJobError, DiagnosticJobOwner, DiagnosticJobs, DiagnosticProbeError};

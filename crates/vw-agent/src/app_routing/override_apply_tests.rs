@@ -10,10 +10,11 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use tokio::{net::TcpListener, sync::mpsc, time::timeout};
 use vw_agent_apps::providers::request_options;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::validation::ProviderRequestOptions,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::validation::ProviderRequestOptions,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 fn binding() -> VerifiedRouteBinding {

@@ -3,7 +3,7 @@ use super::Error;
 use crate::storage;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Lifecycle {

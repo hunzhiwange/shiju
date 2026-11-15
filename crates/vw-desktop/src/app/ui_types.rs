@@ -104,7 +104,7 @@ pub enum Message {
     SessionDetailsLoaded(String, crate::app::session::hover_details::SessionHoverDetails),
     SessionPinsLoaded(u64, Result<std::collections::HashSet<(String, String)>, String>),
     DesktopPreferencesSaved(
-        (String, vw_gateway_client::vw_api_types::id::TenantScope),
+        (String, vw_api_transport::TenantScope),
         Result<(), String>,
     ),
     SystemSettingsSaved(

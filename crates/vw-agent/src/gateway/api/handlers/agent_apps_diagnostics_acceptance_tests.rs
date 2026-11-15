@@ -29,13 +29,17 @@ use vw_agent_apps::{
     },
     mcp::catalog::McpCatalogDraft,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::*,
-    agent_apps_high_availability::CircuitBreakerPolicy,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    id::{ProjectScope, TenantScope},
-    mcp_management::{McpCatalogScope, McpConnectionDefinition, McpRecordId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::*,
+    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpRecordId,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsSettingsError, GatewayClient}};
 

@@ -7,7 +7,10 @@ use axum::{
     routing::put,
 };
 use std::path::PathBuf;
-use vw_api_types::{agent_apps::aggregation::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 type DirectoryResult = Result<PiDirectoryState, (StatusCode, &'static str)>;
@@ -51,7 +54,10 @@ pub(super) fn invalid_request() -> Response {
     error(StatusCode::BAD_REQUEST, "invalid_request")
 }
 fn error(status: StatusCode, code: &str) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
@@ -107,7 +113,10 @@ fn execute(
         },
         pi::{self, PiDirectoryWriteError, PiFiles, PiNativeDirectory},
     };
-    use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
     let project = ProjectScope::new(tenant, query.project_id)
         .map_err(|_| status_error(StatusCode::BAD_REQUEST))?;
     vw_agent_apps::providers::validate_identity(&query.target_host_id)

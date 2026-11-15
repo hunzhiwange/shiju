@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::GatewayClient;
 use crate::http::directory_query;

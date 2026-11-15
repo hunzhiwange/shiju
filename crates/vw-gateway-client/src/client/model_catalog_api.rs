@@ -2,14 +2,18 @@
 
 use super::{AgentAppsReadError as Error, GatewayClient};
 use serde::Serialize;
-use vw_api_types::{
-    agent_apps::AppId,
-    common::{PaginatedResponse, PaginationRequest},
-    id::ModelId,
-    model_catalog::{
-        ModelCatalogCapabilities, ModelCatalogIdentity, ModelCatalogPreset, ModelCatalogProject,
-        ModelCatalogQuery, ModelCatalogReadResponse, ModelCatalogTemplates,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::common::PaginatedResponse,
+    vw_api_transport::common::PaginationRequest,
+    vw_api_transport::id::ModelId,
+    vw_api_types::model_catalog::ModelCatalogCapabilities,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogPreset,
+    vw_api_types::model_catalog::ModelCatalogProject,
+    vw_api_types::model_catalog::ModelCatalogQuery,
+    vw_api_types::model_catalog::ModelCatalogReadResponse,
+    vw_api_types::model_catalog::ModelCatalogTemplates,
 };
 
 impl GatewayClient {

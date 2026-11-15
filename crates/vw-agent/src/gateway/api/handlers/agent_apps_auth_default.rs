@@ -23,9 +23,10 @@ use vw_agent_apps::{
     auth::agy_account::AgyNativeTarget,
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) fn supports_default(service: AuthService, owns_native_slot: bool) -> bool {

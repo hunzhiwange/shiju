@@ -328,10 +328,10 @@ fn legacy_request_info(
 fn catalog_request_info(
     model: &provider::Model,
     chat_messages: &Value,
-    required: &[provider_protocol_routes::RouteCapability],
+    required: &[vw_provider_resolver::protocol_routes::RouteCapability],
 ) -> Result<AisdkRequestInfo, Error> {
     use crate::model_relay::{generation::GenerationProtocol as P, routing};
-    use provider_protocol_routes::{ConversionSupport, RouteCapability as C};
+    use vw_provider_resolver::protocol_routes::{ConversionSupport, RouteCapability as C};
     // Internal SDK messages use Chat semantics when the adapter has no native
     // driver identity. Only evidenced, executable endpoints may then be chosen.
     let source = routing::configured_protocol(model).unwrap_or(P::Chat);

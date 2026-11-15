@@ -42,7 +42,7 @@ macro_rules! unauthenticated_route {
             use axum::{body::Body, http::{Request, StatusCode}, Extension};
             use tower::ServiceExt;
             let response = super::computer_control::router()
-                .layer(Extension(vw_api_types::id::TenantScope::default()))
+                .layer(Extension(vw_api_transport::TenantScope::default()))
                 .oneshot(Request::builder().method($method).uri($path)
                     .header("content-type", "application/json")
                     .body(Body::from($body)).unwrap()).await.unwrap();

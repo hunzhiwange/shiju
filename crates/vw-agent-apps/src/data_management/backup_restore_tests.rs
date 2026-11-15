@@ -2,7 +2,12 @@ use super::{backup_create::*, backup_restore::*, retention::RetentionPolicy, saf
 use crate::usage::source_settings::{initialize_source_settings, load_source_settings, save_source_settings, UsageSourceSettings};
 use rusqlite::Connection;
 use std::{cell::RefCell, fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{agent_apps::DataManagementTarget, id::{ProjectId, ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn scope() -> SafetySnapshotScope {
     SafetySnapshotScope {

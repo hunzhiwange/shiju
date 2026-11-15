@@ -1,7 +1,7 @@
 //! Persisted preferences and statistics generations; quota snapshots remain owned by cache.
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::store::UsageStoreError;
 

@@ -6,7 +6,12 @@ use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, St
 use serde::Deserialize;
 use serde_json::Value;
 use vw_agent_apps::usage::{groups, logs, ranges, series, summary};
-use vw_api_types::{ProjectScope, TenantScope, id::ProjectId, usage::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_transport::id::ProjectId,
+    vw_api_types::usage::*,
+};
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);

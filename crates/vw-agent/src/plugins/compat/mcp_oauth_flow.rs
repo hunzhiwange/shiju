@@ -87,7 +87,7 @@ impl PendingAuthorization {
 pub async fn authorize(
     server: &agent_client_protocol::McpServerHttp,
     session: String,
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     cancelled: tokio_util::sync::CancellationToken,
 ) -> Result<String> {
     let owner = super::mcp_elicitation::FormOwner { session, tenant };

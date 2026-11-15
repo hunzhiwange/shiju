@@ -8,7 +8,7 @@ use vw_api_types::agent_scheduler::{
     AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
     AgentTaskStatusDto, TaskDependencyNodeDto,
 };
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 将 API 作用域与本地项目路径绑定的调度上下文。

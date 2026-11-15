@@ -5,11 +5,16 @@ use axum::{
     http::{HeaderMap, StatusCode},
     routing::get,
 };
-use vw_api_types::{
-    ProjectId, ProjectScope, TenantScope,
-    agent_apps::DataManagementTarget,
-    device_sync_task::{SyncErrorCode, SyncTaskStatus, SyncTaskState, SyncTaskCancelResponse},
-    id::TaskId,
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_types::device_sync_task::SyncErrorCode,
+    vw_api_types::device_sync_task::SyncTaskStatus,
+    vw_api_types::device_sync_task::SyncTaskState,
+    vw_api_types::device_sync_task::SyncTaskCancelResponse,
+    vw_api_transport::id::TaskId,
 };
 use crate::{device_sync::status, global_database::GlobalDatabase};
 

@@ -48,7 +48,7 @@ fn stored_config(home: &Path) -> Config {
         crate::global_database::GlobalDatabase::for_home(home).expect("database"),
     )
     .expect("config store")
-    .get(&vw_api_types::id::TenantScope::default())
+    .get(&vw_api_transport::TenantScope::default())
     .expect("read config")
     .expect("stored config");
     serde_json::from_str(&payload).expect("parse config")

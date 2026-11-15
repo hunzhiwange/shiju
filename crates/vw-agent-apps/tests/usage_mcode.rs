@@ -6,7 +6,12 @@ use vw_agent_apps::usage::{
     source_settings::initialize_source_settings,
     store::{StoredUsageRecord, initialize_usage_store},
 };
-use vw_api_types::{id::{ProjectId, ProjectScope}, usage::{UsageCostSource, UsageReasoningSemantics}};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::UsageCostSource,
+    vw_api_types::usage::UsageReasoningSemantics,
+};
 
 #[test]
 fn usage17_mcode_committed_projection_uses_native_cost_once() {

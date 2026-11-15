@@ -7,7 +7,7 @@ use super::*;
 use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerWakeResponse,
 };
-use vw_gateway_client::vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 fn should_continue_existing_session_for_manual_retry(task: &Task, manual: bool) -> bool {
     manual && task.status == TaskStatus::Failed

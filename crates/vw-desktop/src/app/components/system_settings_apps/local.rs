@@ -84,7 +84,7 @@ pub(crate) fn launch_directory(
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn verified_launch_directory(
     home: &std::path::Path,
-    tenant: &vw_gateway_client::vw_api_types::id::TenantScope,
+    tenant: &vw_api_transport::TenantScope,
     token: &str,
     project: Option<&str>,
 ) -> Option<String> {

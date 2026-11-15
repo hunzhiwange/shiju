@@ -6,7 +6,7 @@ use tokio::{
     time::timeout,
 };
 use tokio_tungstenite::{WebSocketStream, accept_async};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 type Socket = WebSocketStream<TcpStream>;
 

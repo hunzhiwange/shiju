@@ -5,9 +5,12 @@ use vw_acp::{
     McpCatalogMount, SessionMountRevision, SetSessionMountsRequest, server::SessionBackend,
 };
 use vw_agent_apps::mcp::catalog::McpCatalogDraft;
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{McpCatalogScope, McpConnectionDefinition, McpFailureCode},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use super::{VibeWindowBackend, read_catalog_mounts};

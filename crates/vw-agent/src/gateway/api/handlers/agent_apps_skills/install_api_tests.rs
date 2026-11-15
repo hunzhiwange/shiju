@@ -3,7 +3,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
 use tower::ServiceExt;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillInstallsStore};
 
 const TOKEN: &str = "skill-install-test-token-00000000000";
@@ -62,7 +65,7 @@ async fn cp12_install_api_success() {
     assert_eq!(result["results"][0]["targetHostId"], "h");
     assert_eq!(f.state().version, 1);
     assert!(f.root.path().join("ssot/fixture/SKILL.md").is_file());
-    let id: vw_api_types::id::TaskId = serde_json::from_value(result["taskId"].clone()).unwrap();
+    let id: vw_api_transport::TaskId = serde_json::from_value(result["taskId"].clone()).unwrap();
     let job = SkillInstallsStore::new(f.db.clone()).unwrap().job_snapshot(&project(), "h", &id).unwrap();
     assert_eq!(job.phase, vw_agent_apps::skills::jobs::SkillJobPhase::Completed);
     assert_eq!(f.call(request()).await.0, StatusCode::CONFLICT);

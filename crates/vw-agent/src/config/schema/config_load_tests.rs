@@ -8,7 +8,7 @@ use super::workspace::ConfigResolutionSource;
 use crate::app::agent::config::SystemConfigStore;
 use crate::global_database::GlobalDatabase;
 use serde_json::json;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 // 缺失、空文件、旧格式和非法载荷必须走不同分支，避免把配置损坏误判为未配置。
 #[test]

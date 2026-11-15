@@ -3,7 +3,7 @@
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use serde_json::json;
-use vw_api_types::id::TaskId;
+use vw_api_transport::id::TaskId;
 use vw_api_types::task::TaskPoolWorktreeSlotDto;
 
 use crate::agent_scheduler::domain::ResourceId;

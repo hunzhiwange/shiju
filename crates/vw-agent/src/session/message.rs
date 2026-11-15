@@ -24,7 +24,7 @@ pub(crate) async fn lock_history(session_id: &str) -> tokio::sync::OwnedMutexGua
 
 /// Order gateway turns through terminal persistence in their tenant and project.
 pub(crate) async fn lock_stream_prompt(
-    tenant: &vw_api_types::id::TenantScope,
+    tenant: &vw_api_transport::TenantScope,
     project_id: &str,
     session_id: &str,
 ) -> tokio::sync::OwnedMutexGuard<()> {

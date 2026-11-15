@@ -9,9 +9,11 @@ use vw_agent_apps::data_management::{
     safety_snapshot::SafetySnapshotScope,
     source::{SourceScope, read_selected_source},
 };
-use vw_api_types::{
-    agent_apps::{AppId, data_management::DataCategory},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::data_management::DataCategory,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 struct Fixture {

@@ -32,12 +32,15 @@ use vw_agent_apps::{
     },
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::{
-        AuthAccount, AuthCapabilities, AuthError, AuthErrorCode, AuthService, AuthStatus,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthAccount,
+    vw_api_types::agent_apps_auth::AuthCapabilities,
+    vw_api_types::agent_apps_auth::AuthError,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStatus,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone)]

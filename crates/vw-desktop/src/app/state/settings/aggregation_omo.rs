@@ -49,7 +49,7 @@ impl Snapshot {
 #[derive(Clone, Debug)]
 pub(crate) struct Form {
     pub variant: Variant,
-    pub binding: Option<(vw_gateway_client::vw_api_types::id::ProjectId, u64)>,
+    pub binding: Option<(vw_api_transport::ProjectId, u64)>,
     pub provider: String,
     pub snapshot: Option<Snapshot>,
     pub busy: bool,

@@ -13,11 +13,13 @@ use vw_agent_apps::{
     auth::credential_file::{AccountCredential, CredentialFileStore},
     mcp::catalog::McpCatalogDraft,
 };
-use vw_api_types::{
-    TenantScope, TimestampMs,
-    agent_apps::AppId,
-    agent_apps_auth::AuthService,
-    mcp_management::{McpCatalogScope, McpConnectionDefinition},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
 };
 
 use crate::{

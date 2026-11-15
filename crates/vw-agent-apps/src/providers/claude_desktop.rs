@@ -209,7 +209,7 @@ impl ClaudeDesktopFiles {
     pub fn apply(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         id: &str,
         profile: &ClaudeDesktopProfile,
@@ -251,7 +251,7 @@ impl ClaudeDesktopFiles {
     fn commit_profile(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         fields: &Map<String, Value>,
         target: super::live::commit::PendingTarget,
@@ -264,7 +264,7 @@ impl ClaudeDesktopFiles {
     fn commit_profile_record(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         fields: &Map<String, Value>,
         target: super::live::commit::PendingTarget,

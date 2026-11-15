@@ -10,7 +10,7 @@ use super::*;
 use crate::app::agent::storage;
 use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 static DESKTOP_STORAGE_LOCK: Mutex<()> = Mutex::const_new(());
 

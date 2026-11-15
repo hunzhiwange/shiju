@@ -1,5 +1,9 @@
 use super::super::test_support;
-use vw_api_types::{agent_apps::AppId, app_providers::universal_sync::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::universal_sync::*,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_universal_sync_sdk_wire_and_redaction() {
     let server = test_support::server_with_tenant_scope(

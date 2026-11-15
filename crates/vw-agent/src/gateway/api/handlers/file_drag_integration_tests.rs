@@ -7,9 +7,11 @@ use crate::app::agent::{
 use base64::Engine;
 use parking_lot::Mutex;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
-use vw_api_types::{
-    file::{LocalImportRequest, MoveFileRequest},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::file::LocalImportRequest,
+    vw_api_types::file::MoveFileRequest,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 struct StaticProvider;

@@ -299,7 +299,7 @@ mod http {
                 .await
                 .unwrap();
         });
-        let tenant = vw_api_types::id::TenantScope::new("messages", "one").unwrap();
+        let tenant = vw_api_transport::TenantScope::new("messages", "one").unwrap();
         let root = dir.path().join("project");
         std::fs::create_dir(&root).unwrap();
         let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
@@ -412,7 +412,7 @@ mod http {
         assert_eq!(received.lock().len(), 2);
         // Capability from another tenant/session cannot be replayed against this listener.
         let mut other = binding.identity.clone();
-        other.tenant = vw_api_types::id::TenantScope::new("other", "tenant").unwrap();
+        other.tenant = vw_api_transport::TenantScope::new("other", "tenant").unwrap();
         let other = RelayBinding::new(other, Duration::from_secs(60)).unwrap();
         assert_eq!(
             client

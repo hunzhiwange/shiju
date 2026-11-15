@@ -1,7 +1,10 @@
 //! Native resume is a separately authorized execution-host operation.
 use super::catalog::Policy;
 use axum::{Extension, Json, http::{HeaderMap, StatusCode}};
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 
 pub(super) async fn resume(
     Extension(policy): Extension<Policy>, Extension(tenant): Extension<TenantScope>,

@@ -115,9 +115,12 @@ async fn usage_usage_read_requires_current_scoped_provider_binding() {
         auth::credential_file::{AccountCredential, CredentialFileStore},
         providers::codex_catalog,
     };
-    use vw_api_types::{
-        TimestampMs, agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope,
-    };
+    use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
     use crate::{
         agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope, AuthAccountStore},

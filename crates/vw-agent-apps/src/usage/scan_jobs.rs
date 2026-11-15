@@ -5,7 +5,10 @@
 //! scanners. Cancellation never drops a scanner halfway through its transaction.
 use std::{collections::HashMap, sync::{Arc, Mutex}, time::SystemTime};
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::{ProjectScope, TaskId};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TaskId,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

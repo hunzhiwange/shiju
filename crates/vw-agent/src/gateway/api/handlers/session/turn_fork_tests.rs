@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::session::{agent_binding, message};
 use message::{Info as MessageInfo, Part, WithParts};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 async fn request(method: Method, path: &str, directory: &str, body: Value) -> (StatusCode, Value) {
     let response = super::super::super::router()
@@ -682,7 +682,7 @@ async fn worktree_environment_fork_waits_for_setup_and_rejects_failure() {
         crate::config::update_global_for_tenant(&tenant, json!({"worktree_settings": {"root": repo.path().join("managed")}})).await.unwrap();
         let source = create_session_in(repo.path(), "Source").await;
         let (_, boundary) = persist_turn(&source.id, "prompt", "answer").await;
-        let scope = vw_api_types::id::ProjectScope::new(tenant, vw_api_types::id::ProjectId::from(source.project_id.as_str())).unwrap();
+        let scope = vw_api_transport::ProjectScope::new(tenant, vw_api_transport::ProjectId::from(source.project_id.as_str())).unwrap();
         let mut info = project::get(&scope).await.unwrap().unwrap();
         info.commands = Some(project::Commands {
             start: Some("test -f tracked.txt && echo setup >> setup.txt".into()),

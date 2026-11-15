@@ -3,7 +3,7 @@ use super::GatewayClient;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use vw_api_types::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageScanScope {
@@ -50,7 +50,7 @@ pub struct UsageCacheRevision {
 pub struct UsageRevisionEvent {
     #[serde(rename = "type")]
     pub event_type: String,
-    pub scope: vw_api_types::ProjectScope,
+    pub scope: vw_api_transport::ProjectScope,
     pub target_host: String,
     pub statistics_revisions: BTreeMap<String, u64>,
     pub cache_updates: Vec<UsageCacheRevision>,

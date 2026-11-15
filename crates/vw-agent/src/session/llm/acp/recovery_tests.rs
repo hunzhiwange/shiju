@@ -4,7 +4,7 @@ use crate::model_relay::RelayIdentity;
 #[test]
 fn missing_anchor_recovers_only_the_latest_matching_managed_generation() {
     let launch = RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::default(),
+        tenant: vw_api_transport::TenantScope::default(),
         project: "project".into(),
         session: ":claude".into(),
         provider: "deepseek".into(),

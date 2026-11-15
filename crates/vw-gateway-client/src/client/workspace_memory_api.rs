@@ -1,7 +1,11 @@
 //! Fixed workspace routes. Content never appears in diagnostic errors.
 use super::GatewayClient;
 use serde::{Deserialize, Serialize};
-use vw_api_types::{agent_apps::AppOperationStatus, id::ProjectId, workspace_memory::*};
+use {
+    vw_api_types::agent_apps::AppOperationStatus,
+    vw_api_transport::id::ProjectId,
+    vw_api_types::workspace_memory::*,
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

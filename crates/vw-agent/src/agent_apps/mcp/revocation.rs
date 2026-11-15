@@ -2,9 +2,12 @@
 
 use agent_client_protocol::McpServer;
 use serde::{Deserialize, Serialize};
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{McpCatalogScope, McpFailureCode, McpRuntimeSelection},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRuntimeSelection,
 };
 
 use super::{

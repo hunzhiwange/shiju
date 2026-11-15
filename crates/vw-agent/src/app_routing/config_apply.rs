@@ -11,10 +11,12 @@ use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use vw_agent_apps::providers::validate_identity;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_routing::{RoutingEgressStatus, RoutingEgressUpdate},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_routing::RoutingEgressStatus,
+    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 const GLOBAL: &str = "agent_apps.routing.listener.v1";

@@ -11,7 +11,10 @@ use crate::providers::{
 };
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::DirBuilderExt, path::Path, process::Command};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 const CHILD_PHASE: &str = "SHIJU_CLAUDE_RECOVERY_TEST_PHASE";
 const CHILD_HOME: &str = "SHIJU_CLAUDE_RECOVERY_TEST_HOME";

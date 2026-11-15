@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, bail};
 use postgres::{GenericClient, Row};
 use uuid::Uuid;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::knowledge::{KnowledgeDatasetCreateRequest, KnowledgeDatasetDto};
 
 use super::super::{

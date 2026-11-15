@@ -5,7 +5,7 @@ use postgres::{GenericClient, Row};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::knowledge::{
     KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeDocumentListQuery,
     KnowledgeDocumentStatus,

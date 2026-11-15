@@ -52,7 +52,7 @@ impl McpBindingTarget<'_> {
         self.native_write(tenant).validate_target()
     }
 
-    fn native_write<'a>(&'a self, tenant: &'a vw_api_types::TenantScope) -> NativeMcpWrite<'a> {
+    fn native_write<'a>(&'a self, tenant: &'a vw_api_transport::TenantScope) -> NativeMcpWrite<'a> {
         NativeMcpWrite {
             tenant,
             target: self.target,
@@ -258,7 +258,7 @@ impl McpCatalogStore {
 
     fn check_snapshot(
         &self,
-        tenant: &vw_api_types::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         namespace: &str,
         key: &str,
         expected: &str,

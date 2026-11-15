@@ -21,7 +21,7 @@ use vw_config_types::gateway::DEFAULT_GATEWAY_PORT;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 #[cfg(not(target_arch = "wasm32"))]
-use vw_gateway_client::vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
 const MACOS_SERVICE_LABEL: &str = "com.vibewindow.daemon";
@@ -747,7 +747,7 @@ mod tests {
             String::from_utf8(request).unwrap()
         });
         let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", port).with_tenant_scope(
-            vw_gateway_client::vw_api_types::id::TenantScope::new("20000", "200000001").unwrap(),
+            vw_api_transport::TenantScope::new("20000", "200000001").unwrap(),
         );
 
         assert!(gateway_health_ready(&endpoint));

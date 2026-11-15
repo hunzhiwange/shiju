@@ -5,7 +5,7 @@ use std::path::Path;
 
 use tempfile::TempDir;
 use tokio::sync::Mutex;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::{
     CreateSessionInput, LifecycleError, SessionScope, create_session, create_visible_task_session,

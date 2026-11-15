@@ -5,7 +5,10 @@ use std::ffi::OsStr;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use vw_api_types::{TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 
 use crate::providers::live::{
     commit::{PendingTarget, ProviderTransactions},

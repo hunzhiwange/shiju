@@ -364,7 +364,7 @@ mod title_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn spawn_first_response_title(
     runtime: &tokio::runtime::Handle,
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     context: crate::project::instance::Context,
     session_id: String,
     preview: String,

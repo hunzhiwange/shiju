@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail, ensure};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;

@@ -11,7 +11,7 @@ use std::{
 };
 
 use anyhow::{Result, bail, ensure};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum Resource {

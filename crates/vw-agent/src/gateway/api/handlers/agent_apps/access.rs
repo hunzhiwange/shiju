@@ -7,17 +7,22 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
 };
-use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
+use {
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 #[cfg(target_os = "macos")]
 use {
-    crate::agent_apps::usage_settings::{UsageCredentialId, UsageSigningCredentialRefs},
-    vw_api_types::{
-        agent_apps::AppId,
-        agent_apps_diagnostics::DiagnosticScope,
-        apps_usage::UsageSnapshotQuery,
-        id::ProjectId,
-        mcp_management::{McpCatalogScope, McpConnectionDefinition, McpCredentialRef, McpRecordId},
-    },
+    crate::agent_apps::usage_settings::UsageCredentialId,
+    crate::agent_apps::usage_settings::UsageSigningCredentialRefs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_transport::id::ProjectId,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_types::mcp_management::McpRecordId,
 };
 
 #[derive(Deserialize)]
@@ -37,23 +42,23 @@ struct Principal {
 #[serde(deny_unknown_fields)]
 struct Grant {
     #[serde(default)]
-    device_sync_probe: Vec<vw_api_types::id::ProjectId>,
+    device_sync_probe: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    device_sync_config: Vec<vw_api_types::id::ProjectId>,
+    device_sync_config: Vec<vw_api_transport::ProjectId>,
     /// Explicit authority to export portable data to the configured remote.
     #[serde(default)]
-    device_sync_upload: Vec<vw_api_types::id::ProjectId>,
+    device_sync_upload: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    device_sync_download: Vec<vw_api_types::id::ProjectId>,
+    device_sync_download: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    data_migration_read: Vec<vw_api_types::id::ProjectId>,
+    data_migration_read: Vec<vw_api_transport::ProjectId>,
     /// Explicit background authority; API backup grants alone do not schedule work.
     #[serde(default)]
     periodic_data_backups: Vec<PeriodicDataBackupPermit>,
     #[serde(default)]
-    data_backups: Vec<vw_api_types::id::ProjectId>,
+    data_backups: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    data_export: Vec<vw_api_types::id::ProjectId>,
+    data_export: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
     external_sessions_read: Vec<ExternalHistoryPermit>,
     #[serde(default)]
@@ -71,11 +76,11 @@ struct Grant {
     #[serde(default)]
     provider_config_read: bool,
     #[serde(default)]
-    claude_config_read_projects: Vec<vw_api_types::id::ProjectId>,
+    claude_config_read_projects: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    claude_config_marker_projects: Vec<vw_api_types::id::ProjectId>,
+    claude_config_marker_projects: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    claude_onboarding_projects: Vec<vw_api_types::id::ProjectId>,
+    claude_onboarding_projects: Vec<vw_api_transport::ProjectId>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     aggregation_read: Vec<RoutingAppPermit>,
@@ -90,15 +95,15 @@ struct Grant {
     #[serde(default)]
     mcp_catalog_write: bool,
     #[serde(default)]
-    skill_inventory_read_projects: Vec<vw_api_types::id::ProjectId>,
+    skill_inventory_read_projects: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    skill_install_projects: Vec<vw_api_types::id::ProjectId>,
+    skill_install_projects: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    skill_repos_read_projects: Vec<vw_api_types::id::ProjectId>,
+    skill_repos_read_projects: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    skill_repos_write_projects: Vec<vw_api_types::id::ProjectId>,
+    skill_repos_write_projects: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    mcp_catalog_write_projects: Vec<vw_api_types::id::ProjectId>,
+    mcp_catalog_write_projects: Vec<vw_api_transport::ProjectId>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     usage_refresh: Vec<UsageRefreshPermit>,
@@ -106,7 +111,7 @@ struct Grant {
     usage_read: Vec<UsageReadPermit>,
     /// Project-wide canonical ledger access, independent of balance and native history grants.
     #[serde(default)]
-    usage_ledger_read_projects: Vec<vw_api_types::id::ProjectId>,
+    usage_ledger_read_projects: Vec<vw_api_transport::ProjectId>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     usage_settings_read: Vec<UsageReadPermit>,
@@ -121,7 +126,7 @@ struct Grant {
     usage_cancel: Vec<UsageReadPermit>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
-    usage_refresh_all: Vec<vw_api_types::id::ProjectId>,
+    usage_refresh_all: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
@@ -142,27 +147,27 @@ struct Grant {
     #[serde(default)]
     launch: bool,
     #[serde(default)]
-    hermes_dashboard: Vec<vw_api_types::id::ProjectId>,
+    hermes_dashboard: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    hermes_memory_read: Vec<vw_api_types::id::ProjectId>,
+    hermes_memory_read: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    openclaw_settings_read: Vec<vw_api_types::id::ProjectId>,
+    openclaw_settings_read: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    openclaw_env_sensitive_read: Vec<vw_api_types::id::ProjectId>,
+    openclaw_env_sensitive_read: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    openclaw_settings_write: Vec<vw_api_types::id::ProjectId>,
+    openclaw_settings_write: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    hermes_memory_write: Vec<vw_api_types::id::ProjectId>,
+    hermes_memory_write: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    workspace_read: Vec<vw_api_types::id::ProjectId>,
+    workspace_read: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    project_profiles_read: Vec<vw_api_types::id::ProjectId>,
+    project_profiles_read: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    project_profiles_create: Vec<vw_api_types::id::ProjectId>,
+    project_profiles_create: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    project_profiles_maintain: Vec<vw_api_types::id::ProjectId>,
+    project_profiles_maintain: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    workspace_write: Vec<vw_api_types::id::ProjectId>,
+    workspace_write: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
     #[cfg(target_os = "macos")]
@@ -204,7 +209,7 @@ struct RoutingAppPermit {
 #[serde(deny_unknown_fields)]
 struct McpAcpReadPermit {
     project_id: ProjectId,
-    session_id: vw_api_types::SessionId,
+    session_id: vw_api_transport::SessionId,
 }
 
 #[cfg(target_os = "macos")]
@@ -351,7 +356,7 @@ impl McpProbeAccess {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UsageReadPermit {
-    project_id: vw_api_types::id::ProjectId,
+    project_id: vw_api_transport::ProjectId,
     app_id: vw_api_types::agent_apps::AppId,
     provider_id: String,
     account_id: Option<String>,
@@ -423,7 +428,7 @@ struct UsageRefreshPermit {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(super) struct UsageRefreshTarget {
     pub policy: PathBuf,
-    pub project: vw_api_types::id::ProjectScope,
+    pub project: vw_api_transport::ProjectScope,
     pub principal: String,
     pub host: String,
     pub app: vw_api_types::agent_apps::AppId,
@@ -489,7 +494,7 @@ pub(super) fn usage_targets(
             };
             for permit in grant.usage_refresh {
                 use vw_agent_apps::providers::{validate_identity, validation::endpoint};
-                use vw_api_types::id::ProjectScope;
+                use vw_api_transport::id::ProjectScope;
 
                 let (Ok(project), Ok(origin)) = (
                     ProjectScope::new(tenant.clone(), permit.project_id.into()),
@@ -716,37 +721,37 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
-    UsageLedgerRead(&'a vw_api_types::id::ProjectId),
-    DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
-    DeviceSyncUpload(&'a vw_api_types::id::ProjectId),
-    DeviceSyncDownload(&'a vw_api_types::id::ProjectId),
-    DataMigrationRead(&'a vw_api_types::id::ProjectId),
-    DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
-    DataBackups(&'a vw_api_types::id::ProjectId),
-    DataExport(&'a vw_api_types::id::ProjectId),
-    ExternalHistory(&'a vw_api_types::id::ProjectId),
-    ExternalHistoryMaintenance(&'a vw_api_types::id::ProjectId),
-    ExternalHistoryDelete(&'a vw_api_types::id::ProjectId),
-    ExternalHistoryResume(&'a vw_api_types::id::ProjectId),
+    UsageLedgerRead(&'a vw_api_transport::ProjectId),
+    DeviceSyncProbe(&'a vw_api_transport::ProjectId),
+    DeviceSyncUpload(&'a vw_api_transport::ProjectId),
+    DeviceSyncDownload(&'a vw_api_transport::ProjectId),
+    DataMigrationRead(&'a vw_api_transport::ProjectId),
+    DeviceSyncConfig(&'a vw_api_transport::ProjectId),
+    DataBackups(&'a vw_api_transport::ProjectId),
+    DataExport(&'a vw_api_transport::ProjectId),
+    ExternalHistory(&'a vw_api_transport::ProjectId),
+    ExternalHistoryMaintenance(&'a vw_api_transport::ProjectId),
+    ExternalHistoryDelete(&'a vw_api_transport::ProjectId),
+    ExternalHistoryResume(&'a vw_api_transport::ProjectId),
     ExternalTerminalSettings,
-    ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
-    ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
-    OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
-    OpenClawSettings(&'a vw_api_types::id::ProjectId, bool),
-    Workspace(&'a vw_api_types::id::ProjectId, bool),
-    HermesDashboard(&'a vw_api_types::id::ProjectId),
-    HermesMemory(&'a vw_api_types::id::ProjectId, bool),
-    ClaudeConfig(&'a vw_api_types::id::ProjectId, vw_api_types::agent_apps_skills::claude_api::ClaudeConfigPermission),
-    SkillInventory(&'a vw_api_types::id::ProjectId),
-    SkillInstall(&'a vw_api_types::id::ProjectId),
-    SkillRepos(&'a vw_api_types::id::ProjectId, bool),
+    ProjectProfiles(&'a vw_api_transport::ProjectId, bool),
+    ProjectProfilesMaintain(&'a vw_api_transport::ProjectId),
+    OpenClawEnvRead(&'a vw_api_transport::ProjectId),
+    OpenClawSettings(&'a vw_api_transport::ProjectId, bool),
+    Workspace(&'a vw_api_transport::ProjectId, bool),
+    HermesDashboard(&'a vw_api_transport::ProjectId),
+    HermesMemory(&'a vw_api_transport::ProjectId, bool),
+    ClaudeConfig(&'a vw_api_transport::ProjectId, vw_api_types::agent_apps_skills::claude_api::ClaudeConfigPermission),
+    SkillInventory(&'a vw_api_transport::ProjectId),
+    SkillInstall(&'a vw_api_transport::ProjectId),
+    SkillRepos(&'a vw_api_transport::ProjectId, bool),
     UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
     #[cfg(target_os = "macos")]
     UsageCancel(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
-    UsageBatch(&'a vw_api_types::id::ProjectId),
+    UsageBatch(&'a vw_api_transport::ProjectId),
     Read,
     PreferencesWrite,
     Launch,
@@ -761,7 +766,7 @@ enum Capability<'a> {
     AggregationWrite(&'a ProjectId, AppId, bool),
     #[cfg(target_os = "macos")]
     CodexRestart(&'a ProjectId),
-    McpCatalogWrite(Option<&'a vw_api_types::id::ProjectId>),
+    McpCatalogWrite(Option<&'a vw_api_transport::ProjectId>),
     #[cfg(target_os = "macos")]
     RoutingControl {
         scope: &'a RoutingControlScope,
@@ -772,7 +777,7 @@ enum Capability<'a> {
     #[cfg(target_os = "macos")]
     McpProbe(&'a DiagnosticScope, &'a McpRecordId),
     #[cfg(target_os = "macos")]
-    McpAcpRead(&'a ProjectId, &'a vw_api_types::SessionId),
+    McpAcpRead(&'a ProjectId, &'a vw_api_transport::SessionId),
     #[cfg(target_os = "macos")]
     DiagnosticProbe(&'a DiagnosticScope),
     #[cfg(target_os = "macos")]
@@ -836,7 +841,7 @@ pub(super) fn authorize_usage_read(
 pub(super) fn authorize_usage_refresh(
     path: &Path,
     headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     host: &str,
     batch: bool,
 ) -> Result<Authorization, StatusCode> {
@@ -1534,7 +1539,7 @@ pub(crate) fn authorize_routing_mode(
     path: &Path,
     headers: &HeaderMap,
     scope: &RoutingControlScope,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     host: &str,
     app: AppId,
 ) -> Result<(PathBuf, String), StatusCode> {
@@ -1706,7 +1711,7 @@ pub(super) fn import_provider_policy(
 pub(in super::super) fn authorize_aggregation_read(
     path: Option<&Path>,
     headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     target: &str,
     app: AppId,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
@@ -1725,7 +1730,7 @@ pub(in super::super) fn authorize_aggregation_read(
 pub(in super::super) fn authorize_aggregation_write(
     path: Option<&Path>,
     headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     target: &str,
     app: AppId,
     attached: bool,
@@ -1745,7 +1750,7 @@ pub(in super::super) fn authorize_aggregation_write(
 fn authorize_aggregation(
     path: Option<&Path>,
     headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     target: &str,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
@@ -1859,7 +1864,7 @@ pub(in super::super) struct PiDirectoryContext {
 pub(in super::super) fn authorize_pi_directory(
     path: Option<&Path>,
     headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     target: &str,
     write: bool,
 ) -> Result<PiDirectoryContext, StatusCode> {
@@ -1895,7 +1900,7 @@ pub(crate) use aggregation_lifecycle::{
 pub(in super::super) fn authorize_codex_restart(
     path: Option<&Path>,
     headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     target: &str,
 ) -> Result<
     (vw_agent_apps::apps::discovery::read::LocalReadEnvironment, Option<PathBuf>, String),
@@ -1925,9 +1930,9 @@ pub(in super::super) fn authorize_codex_restart(
 pub(in super::super) fn authorize_mcp_acp_read(
     path: Option<&Path>,
     headers: &HeaderMap,
-    project: &vw_api_types::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     host: &str,
-    session: &vw_api_types::SessionId,
+    session: &vw_api_transport::SessionId,
 ) -> Result<(), StatusCode> {
     if session.as_ref().is_empty() {
         return Err(StatusCode::BAD_REQUEST);
@@ -1946,7 +1951,7 @@ pub(in super::super) fn authorize_mcp_acp_read(
 /// Repository grants are independent of MCP and provider configuration grants.
 pub(in super::super) fn authorize_skill_repos(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str, write: bool,
+    scope: &vw_api_transport::ProjectScope, target: &str, write: bool,
 ) -> Result<(), StatusCode> {
     authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::SkillRepos(scope.project_id(), write)).map(|_| ())
@@ -1955,7 +1960,7 @@ pub(in super::super) fn authorize_skill_repos(
 /// Separate grants for projection, marker and onboarding. No provider/plugin grant implies these.
 pub(in super::super) fn authorize_claude_config(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str,
+    scope: &vw_api_transport::ProjectScope, target: &str,
     permission: vw_api_types::agent_apps_skills::claude_api::ClaudeConfigPermission,
 ) -> Result<(PathBuf, PathBuf), StatusCode> {
     let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
@@ -1967,7 +1972,7 @@ pub(in super::super) fn authorize_claude_config(
 /// Inventory authorization resolves the SSOT exclusively from trusted host policy.
 pub(in super::super) fn authorize_skill_inventory(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str,
+    scope: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<PathBuf, StatusCode> {
     let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::SkillInventory(scope.project_id()))?;
@@ -1979,7 +1984,7 @@ pub(in super::super) fn authorize_skill_inventory(
 /// Installation has an independent write grant. Repository management never grants it.
 pub(in super::super) fn authorize_skill_install(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str, file_id: Option<&str>,
+    scope: &vw_api_transport::ProjectScope, target: &str, file_id: Option<&str>,
 ) -> Result<(PathBuf, Option<PathBuf>), StatusCode> {
     authorize_skill_install_owner(path, headers, scope, target, file_id)
         .map(|(root, source, _)| (root, source))
@@ -1987,7 +1992,7 @@ pub(in super::super) fn authorize_skill_install(
 
 pub(in super::super) fn authorize_skill_install_owner(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str, file_id: Option<&str>,
+    scope: &vw_api_transport::ProjectScope, target: &str, file_id: Option<&str>,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
     let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::SkillInstall(scope.project_id()))?;
@@ -2008,7 +2013,7 @@ pub(in super::super) fn authorize_skill_install_owner(
 /// inventory alone must not expose unowned application contents.
 pub(in super::super) fn authorize_skill_import(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str,
+    scope: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<(PathBuf, PathBuf), StatusCode> {
     authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::SkillInventory(scope.project_id()))?;
@@ -2022,7 +2027,7 @@ pub(in super::super) fn authorize_skill_import(
 /// Job observation/cancellation shares install authority and the trusted resource binding.
 pub(in super::super) fn authorize_skill_job(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str,
+    scope: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<(PathBuf, String), StatusCode> {
     let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::SkillInstall(scope.project_id()))?;
@@ -2035,7 +2040,7 @@ pub(in super::super) fn authorize_skill_job(
 #[cfg(target_os = "macos")]
 pub(in super::super) fn authorize_skill_bindings(
     path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_types::id::ProjectScope, target: &str,
+    scope: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<(vw_agent_apps::apps::discovery::read::LocalReadEnvironment, PathBuf), StatusCode> {
     let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::SkillInstall(scope.project_id()))?;
@@ -2049,7 +2054,7 @@ pub(in super::super) fn authorize_skill_bindings(
 
 /// Dashboard process control requires an explicit project grant on the target host.
 pub(super) fn authorize_hermes_dashboard(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str,
 ) -> Result<(Host, String), StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2061,7 +2066,7 @@ pub(super) fn authorize_hermes_dashboard(
 #[cfg(target_os = "macos")]
 pub(in super::super) fn authorize_prompts_read(
     path: Option<&Path>, headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope, target: &str, app: AppId,
+    project: &vw_api_transport::ProjectScope, target: &str, app: AppId,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
     let a = authorize_aggregation(path, headers, project, target,
         Capability::PromptsRead(project.project_id(), app))?;
@@ -2070,7 +2075,7 @@ pub(in super::super) fn authorize_prompts_read(
 
 /// Explicit project memory grants; dashboard/provider grants do not imply access.
 pub(super) fn authorize_hermes_memory(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str, write: bool,
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2080,7 +2085,7 @@ pub(super) fn authorize_hermes_memory(
 #[cfg(target_os = "macos")]
 pub(in super::super) fn authorize_prompts_write(
     path: Option<&Path>, headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope, target: &str, app: AppId,
+    project: &vw_api_transport::ProjectScope, target: &str, app: AppId,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
     let a = authorize_aggregation(path, headers, project, target,
         Capability::PromptsWrite(project.project_id(), app))?;
@@ -2092,7 +2097,7 @@ pub(in super::super) fn authorize_prompts_write(
 #[cfg(target_os = "macos")]
 pub(in super::super) fn authorize_prompts_activation(
     path: Option<&Path>, headers: &HeaderMap,
-    project: &vw_api_types::id::ProjectScope, target: &str, app: AppId,
+    project: &vw_api_transport::ProjectScope, target: &str, app: AppId,
 ) -> Result<(PathBuf, Option<PathBuf>, String, PathBuf), StatusCode> {
     let a = authorize_aggregation(path, headers, project, target,
         Capability::PromptsWrite(project.project_id(), app))?;
@@ -2102,7 +2107,7 @@ pub(in super::super) fn authorize_prompts_activation(
 
 /// Workspace contents need explicit project grants, independent of providers.
 pub(super) fn authorize_workspace(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str, write: bool,
 ) -> Result<(Host, String), StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2111,7 +2116,7 @@ pub(super) fn authorize_workspace(
 
 /// Settings grants are scoped independently from provider import and workspace IO.
 pub(super) fn authorize_openclaw_settings(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str, write: bool,
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2120,7 +2125,7 @@ pub(super) fn authorize_openclaw_settings(
 
 /// Additional sensitive permission; ordinary configuration read is insufficient.
 pub(super) fn authorize_openclaw_env_read(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str,
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2129,7 +2134,7 @@ pub(super) fn authorize_openclaw_env_read(
 
 /// Profile access never follows implicitly from provider or workspace grants.
 pub(super) fn authorize_project_profiles(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str, create: bool,
 ) -> Result<String, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2138,7 +2143,7 @@ pub(super) fn authorize_project_profiles(
 
 /// Maintenance is an explicit shared-entity grant, independent of creation.
 pub(super) fn authorize_project_profiles_maintenance(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope,
     target: &str,
 ) -> Result<String, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
@@ -2148,7 +2153,7 @@ pub(super) fn authorize_project_profiles_maintenance(
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ExternalHistoryPermit {
-    project_id: vw_api_types::id::ProjectId,
+    project_id: vw_api_transport::ProjectId,
     provider: vw_api_types::external_session::SessionProvider,
     instance_id: String,
 }
@@ -2215,7 +2220,7 @@ pub(in super::super) fn authorize_external_history_resume(
     Ok((host, instance, a.principal, agy_owner))
 }
 pub(in super::super) fn authorize_external_history(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, target: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<(String, PathBuf, Vec<ExternalHistoryInstance>), StatusCode> {
     let authorization = authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::ExternalHistory(project.project_id()))?;
@@ -2236,7 +2241,7 @@ pub(in super::super) fn authorize_external_history(
 
 /// Deletion never inherits a history read grant.
 pub(in super::super) fn authorize_external_history_delete(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, target: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<(String, PathBuf, Vec<ExternalHistoryInstance>), StatusCode> {
     let authorization = authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::ExternalHistoryDelete(project.project_id()))?;
@@ -2257,7 +2262,7 @@ pub(in super::super) fn authorize_external_history_delete(
 
 /// Maintenance never inherits read, deletion or provider configuration authority.
 pub(in super::super) fn authorize_external_history_maintenance(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, target: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, target: &str,
 ) -> Result<(String, PathBuf, Vec<ExternalHistoryInstance>, PathBuf), StatusCode> {
     let authorization = authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::ExternalHistoryMaintenance(project.project_id()))?;
@@ -2291,7 +2296,7 @@ pub(in super::super) fn authorize_data_backups(
 
 /// Resolve backup inventory ownership from authentication, never desktop claims.
 pub(in super::super) fn authorize_backup_inventory(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
 ) -> Result<(PathBuf, String), StatusCode> {
     let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
         Capability::DataBackups(project.project_id()))?;
@@ -2311,7 +2316,7 @@ struct PeriodicDataBackupPermit {
 pub(in super::super) fn periodic_data_backup_targets(
     path: &Path,
 ) -> Result<Vec<(PathBuf, vw_agent_apps::data_management::safety_snapshot::SafetySnapshotScope, u32)>, StatusCode> {
-    use vw_api_types::id::ProjectScope;
+    use vw_api_transport::id::ProjectScope;
     use vw_agent_apps::data_management::safety_snapshot::SafetySnapshotScope;
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let mut targets = Vec::new();
@@ -2390,7 +2395,7 @@ pub(in super::super) fn authorize_device_sync_upload(
 
 /// Device-sync settings require an explicit host/project grant, independent of backups.
 pub(in super::super) fn authorize_device_sync_config(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
 ) -> Result<String, StatusCode> {
     vw_agent_apps::providers::validate_identity(host).map_err(|_| StatusCode::BAD_REQUEST)?;
     let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
@@ -2400,7 +2405,7 @@ pub(in super::super) fn authorize_device_sync_config(
 
 /// Explicit permission to send draft credentials from this local execution host.
 pub(in super::super) fn authorize_device_sync_probe(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
 ) -> Result<PathBuf, StatusCode> {
     vw_agent_apps::providers::validate_identity(host).map_err(|_| StatusCode::BAD_REQUEST)?;
     let a = authorize_scoped(path, headers, project.tenant_scope(), host, None,
@@ -2439,7 +2444,7 @@ pub(in super::super) fn authorize_device_sync_download(
 
 /// Background usage only consumes administrator-bound read grants on local hosts.
 /// Project registration is rechecked by the worker before opening any source.
-pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_types::ProjectScope, String, PathBuf, ExternalHistoryInstance)>, StatusCode> {
+pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_transport::ProjectScope, String, PathBuf, ExternalHistoryInstance)>, StatusCode> {
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let mut targets = Vec::new();
     for principal in &policy.principals {
@@ -2449,7 +2454,7 @@ pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_ty
             let tenant = TenantScope::new(&grant.platform_id, &grant.company_id)
                 .map_err(|_| StatusCode::FORBIDDEN)?;
             for permit in &grant.external_sessions_read {
-                let project = vw_api_types::ProjectScope::new(tenant.clone(), permit.project_id.clone())
+                let project = vw_api_transport::ProjectScope::new(tenant.clone(), permit.project_id.clone())
                     .map_err(|_| StatusCode::FORBIDDEN)?;
                 for instance in host.external_session_instances.iter().filter(|instance|
                     instance.provider == permit.provider && instance.instance_id == permit.instance_id) {
@@ -2466,7 +2471,7 @@ pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_ty
 /// Ledger records combine native and relay sources, so a native instance grant
 /// cannot authorize project-wide ledger queries.
 pub(in super::super) fn authorize_usage_ledger_read(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
 ) -> Result<(), StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), host, None,
         Capability::UsageLedgerRead(project.project_id()))?;
@@ -2475,7 +2480,7 @@ pub(in super::super) fn authorize_usage_ledger_read(
 
 /// Event subscriptions retain the authenticated principal for quota isolation.
 pub(in super::super) fn authorize_usage_events(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
 ) -> Result<String, StatusCode> {
     let authorization = authorize_scoped(path, headers, project.tenant_scope(), host, None,
         Capability::UsageLedgerRead(project.project_id()))?;

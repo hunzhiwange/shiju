@@ -6,9 +6,10 @@ use super::{
     write_guard::{AppWriteGuard, WriteError},
 };
 use serde::{Deserialize, Serialize};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 /// Private executor input. Payloads can contain credentials: never log this type.

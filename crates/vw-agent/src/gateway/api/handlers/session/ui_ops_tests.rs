@@ -634,9 +634,9 @@ async fn session_step_llm_raw_get_isolates_tenants() {
     let project = TempDir::new().expect("shared project dir");
     let session_id = "tenant-isolated-raw";
     let tenant_a =
-        vw_api_types::id::TenantScope::new("platform-raw-a", "company-raw-a").expect("tenant A");
+        vw_api_transport::TenantScope::new("platform-raw-a", "company-raw-a").expect("tenant A");
     let tenant_b =
-        vw_api_types::id::TenantScope::new("platform-raw-b", "company-raw-b").expect("tenant B");
+        vw_api_transport::TenantScope::new("platform-raw-b", "company-raw-b").expect("tenant B");
 
     for (tenant, value) in [(tenant_a.clone(), "tenant-a"), (tenant_b.clone(), "tenant-b")] {
         ui_store::with_tenant_scope(tenant.clone(), async {
@@ -1197,8 +1197,8 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
             "SELECT COUNT(*) FROM session_index
              WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3",
             rusqlite::params![
-                vw_api_types::id::DEFAULT_PLATFORM_ID,
-                vw_api_types::id::DEFAULT_COMPANY_ID,
+                vw_api_transport::DEFAULT_PLATFORM_ID,
+                vw_api_transport::DEFAULT_COMPANY_ID,
                 &body_a.id,
             ],
             |row| row.get(0),
@@ -1480,8 +1480,8 @@ async fn ui_snapshot_handlers_isolate_same_session_id_across_tenants() {
     ui_store::set_session_scope(None);
     let project = ui_ops_test_home().join("tenant-shared-project");
     std::fs::create_dir_all(&project).expect("create shared project");
-    let tenant_a = vw_api_types::id::TenantScope::new("platform-a", "company-a").expect("tenant A");
-    let tenant_b = vw_api_types::id::TenantScope::new("platform-b", "company-b").expect("tenant B");
+    let tenant_a = vw_api_transport::TenantScope::new("platform-a", "company-a").expect("tenant A");
+    let tenant_b = vw_api_transport::TenantScope::new("platform-b", "company-b").expect("tenant B");
     let session_a = scoped_session("tenant-shared-session", "tenant A", "alpha", 10);
     let session_b = scoped_session("tenant-shared-session", "tenant B", "beta", 20);
 

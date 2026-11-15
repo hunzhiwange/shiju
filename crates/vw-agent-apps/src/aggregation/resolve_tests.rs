@@ -1,7 +1,12 @@
-use vw_api_types::{
-    agent_apps::AppId::{Claude, ClaudeDesktop, Codex, Gemini},
-    app_providers::desktop_mapping::{DesktopMapping, DesktopMappingMode, DesktopModelRoute},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId::Claude,
+    vw_api_types::agent_apps::AppId::ClaudeDesktop,
+    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_types::agent_apps::AppId::Gemini,
+    vw_api_types::app_providers::desktop_mapping::DesktopMapping,
+    vw_api_types::app_providers::desktop_mapping::DesktopMappingMode,
+    vw_api_types::app_providers::desktop_mapping::DesktopModelRoute,
+    vw_api_transport::id::TenantScope,
 };
 
 use crate::providers::{

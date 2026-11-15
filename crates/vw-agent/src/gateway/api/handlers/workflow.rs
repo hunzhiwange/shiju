@@ -21,7 +21,7 @@ use std::{
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::workflow::{
     WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto, WorkflowRecord,
     WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,

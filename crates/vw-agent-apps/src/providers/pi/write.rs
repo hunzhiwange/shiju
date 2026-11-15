@@ -7,7 +7,11 @@ use crate::providers::live::{
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 use std::{os::unix::ffi::OsStrExt, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::pi::PiProfile, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::pi::PiProfile,
+    vw_api_transport::id::TenantScope,
+};
 
 pub enum PiDirectoryChange<'a> {
     Insert(&'a PiProfile),
@@ -56,7 +60,7 @@ impl PiFiles {
     pub fn apply_directory_change_for_project(
         &mut self,
         tx: &ProviderTransactions,
-        project: &vw_api_types::id::ProjectScope,
+        project: &vw_api_transport::ProjectScope,
         expected_revision: &str,
         id: &str,
         change: PiDirectoryChange<'_>,

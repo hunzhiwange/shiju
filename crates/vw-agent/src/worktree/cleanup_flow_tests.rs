@@ -7,9 +7,10 @@ use axum::{
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use tower::ServiceExt;
-use vw_api_types::{
-    id::{ProjectScope, TenantScope},
-    worktree::DeleteManagedWorktreeRequest,
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::worktree::DeleteManagedWorktreeRequest,
 };
 use vw_config_types::worktree::WorktreeSettings;
 

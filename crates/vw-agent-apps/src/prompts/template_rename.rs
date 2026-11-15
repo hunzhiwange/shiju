@@ -1,7 +1,7 @@
 //! Rename through the existing Pi journal, publishing the destination first.
 use std::ffi::OsStr;
 
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 
 use crate::providers::live::{
     commit::{PendingTarget, ProviderTransactions},

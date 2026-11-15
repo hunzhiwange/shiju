@@ -12,7 +12,10 @@ use rusqlite::{Connection, TransactionBehavior};
 use rust_decimal::Decimal;
 use sha2::{Digest, Sha256};
 use std::path::Path;
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 #[derive(Debug)]
 pub enum AgyScanError {

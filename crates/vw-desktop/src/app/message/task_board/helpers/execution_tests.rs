@@ -663,7 +663,10 @@ fn persistence_and_removal_helpers_stay_idle_without_local_ownership() {
 
 #[test]
 fn worktree_snapshot_from_gateway_preserves_counts_locks_and_slot_state() {
-    use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};
+    use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
+};
     use vw_gateway_client::vw_api_types::task::{
         TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto,
         TaskPoolWorktreeSnapshotResponse,

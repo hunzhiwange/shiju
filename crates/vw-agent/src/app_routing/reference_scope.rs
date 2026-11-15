@@ -2,7 +2,10 @@
 
 use crate::model_relay::RelayIdentity;
 use axum::http::StatusCode;
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 /// The application fields stay private to the routing module until a verified request supplies them.
 #[derive(Clone, PartialEq, Eq)]

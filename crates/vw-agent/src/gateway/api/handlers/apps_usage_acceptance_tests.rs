@@ -8,15 +8,20 @@ use tokio::{
     sync::{Semaphore, mpsc},
     task::JoinHandle,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::AuthErrorCode,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    apps_usage::{
-        UsageQueryData, UsageQueryErrorCode, UsageQueryKind, UsageQueryOutcome, UsageSnapshotQuery,
-    },
-    id::{ProjectScope, TaskId, TenantScope},
-    task::TaskStatus,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::task::TaskStatus,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppsUsageOperation, AppsUsageWriteError, GatewayClient}};
 

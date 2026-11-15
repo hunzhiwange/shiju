@@ -322,7 +322,7 @@ async fn video_edit_delivery_project_fence_is_tenant_scoped_and_rejects_stale_sa
     let a = journal(&root);
     let other = VideoProjectJournal::new(
         GlobalDatabase::new(root.path().join("ledger.sqlite")).unwrap(),
-        vw_api_types::TenantScope::new("platform", "other").unwrap(),
+        vw_api_transport::TenantScope::new("platform", "other").unwrap(),
     )
     .unwrap();
     let ledger = a.claim("project").await.unwrap();

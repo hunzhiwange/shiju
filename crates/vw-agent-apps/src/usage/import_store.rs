@@ -1,6 +1,6 @@
 //! Ledger-owned CC migration transaction operations.
 use rusqlite::{Connection, Transaction, OptionalExtension, params};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 use super::store::{StoredUsageRecord, UsageSourceIdentity, UsageStoreError, save_usage_record_in_transaction};
 fn storage_error(_: rusqlite::Error) -> UsageStoreError { UsageStoreError::StorageUnavailable }
 

@@ -11,7 +11,7 @@ use vw_gateway_client::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
     pub(crate) gateway: String,
-    pub(crate) tenant: vw_gateway_client::vw_api_types::TenantScope,
+    pub(crate) tenant: vw_api_transport::TenantScope,
     pub(crate) project_path: Option<String>,
     pub(crate) credentials_generation: u64,
     pub(crate) query: DiagnosticScopeQuery,

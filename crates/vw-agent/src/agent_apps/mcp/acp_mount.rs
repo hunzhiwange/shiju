@@ -5,8 +5,11 @@ use std::collections::HashSet;
 use agent_client_protocol::McpServer;
 use vw_acp::{McpCatalogMount, server::BackendError};
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::ProjectScope;
-use vw_api_types::{TenantScope, mcp_management::McpFailureCode};
+use vw_api_transport::ProjectScope;
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpFailureCode,
+};
 
 use super::McpCatalogStore;
 #[cfg(not(target_arch = "wasm32"))]

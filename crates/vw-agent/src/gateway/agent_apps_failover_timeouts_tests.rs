@@ -19,15 +19,16 @@ use vw_agent_apps::providers::{
     failover::{ProviderAuth, ProviderSnapshot},
     live::{commit::*, write_guard::lock_app},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_high_availability::{FailoverQueueScope, FailoverQueueVersion},
-    app_providers::{
-        AppProviderSummary,
-        claude::{ClaudeConfig, ClaudeProfile},
-        mode_apply::ModeApplyAction,
-    },
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
+    vw_api_types::app_providers::AppProviderSummary,
+    vw_api_types::app_providers::claude::ClaudeConfig,
+    vw_api_types::app_providers::claude::ClaudeProfile,
+    vw_api_types::app_providers::mode_apply::ModeApplyAction,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[tokio::test]

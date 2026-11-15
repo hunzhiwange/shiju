@@ -8,7 +8,11 @@ use crate::providers::{
 };
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs, net::TcpListener, path::Path};
-use vw_api_types::{agent_apps::AppId, id::TenantScope, mcp_management::McpConnectionDefinition};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+};
 
 const BEFORE: &[u8] = b"# root comment\nmodel: 'keep'\nmcp_servers: # services\n  user: {command: 'keep'} # untouched\n";
 

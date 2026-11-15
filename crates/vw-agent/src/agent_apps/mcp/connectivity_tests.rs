@@ -8,12 +8,14 @@ use axum::{
 };
 use serde_json::json;
 
-use vw_api_types::{
-    TenantScope,
-    mcp_management::{
-        McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpConnectionOutcome,
-        McpCredentialRef, McpFailureCode,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpConnectionOutcome,
+    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use super::{
@@ -176,7 +178,10 @@ fn check_remote(mode: RemoteMode, expected: McpConnectionOutcome) -> anyhow::Res
     use vw_agent_apps::auth::credential_file::{
         AccountCredential, CredentialFileStore, XaiCredential,
     };
-    use vw_api_types::{TimestampMs, agent_apps_auth::AuthService};
+    use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthService,
+};
 
     with_database(|database| {
         let workspace = tempfile::tempdir()?;

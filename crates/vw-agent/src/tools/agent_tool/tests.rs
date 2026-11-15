@@ -1347,7 +1347,7 @@ async fn child_first_response_parent_abort_keeps_child_pending() {
 
 #[tokio::test]
 async fn child_first_response_followup_publishes_failed_launch_on_same_id() {
-    let tenant = vw_api_types::id::TenantScope::new("test-platform", "agent-tool").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("test-platform", "agent-tool").unwrap();
     let workspace = tempfile::tempdir().unwrap();
     crate::project::from_directory(&tenant, workspace.path()).await.unwrap();
     crate::session::ui_store::with_tenant_scope(tenant, async {
@@ -1445,7 +1445,7 @@ async fn child_first_response_followup_publishes_failed_launch_on_same_id() {
         assert_eq!(published.title, "attempt 2");
         assert!(
             crate::session::ui_store::load_agent_session_scoped_for_tenant(
-                &vw_api_types::id::TenantScope::default(),
+                &vw_api_transport::TenantScope::default(),
                 &child,
                 Some(&published.project_id),
             )

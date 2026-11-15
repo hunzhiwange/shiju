@@ -1,6 +1,10 @@
 use super::super::test_support;
 use serde_json::json;
-use vw_api_types::{agent_apps::AppId, app_providers::create::AppProviderCreate, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::create::AppProviderCreate,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_validation_sdk_transmits_write_only_options_and_sanitizes_errors() {
     let server = test_support::server_with_tenant_scope(

@@ -1,6 +1,6 @@
 use super::discovery_api::*;
 use axum::{Extension, body::Body, http::{Request, StatusCode}};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_agent_apps::skills::repos::SkillRepo;
 use tower::ServiceExt;
 use vw_agent_apps::skills::discovery::{SkillDiscoveryResult, SkillRepoFailure, DiscoveryError};

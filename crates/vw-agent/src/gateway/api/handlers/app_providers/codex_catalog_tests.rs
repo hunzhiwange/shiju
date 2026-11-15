@@ -3,10 +3,12 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{
-    app_providers::{claude::ClaudeActivation, codex_catalog::*},
-    id::TenantScope,
-    model_catalog::{CodexNativeModel, SavedCodexCatalog},
+use {
+    vw_api_types::app_providers::claude::ClaudeActivation,
+    vw_api_types::app_providers::codex_catalog::*,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::CodexNativeModel,
+    vw_api_types::model_catalog::SavedCodexCatalog,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-codex-token-with-at-least-32-chars";
@@ -451,11 +453,12 @@ async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected()
     };
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
-    use vw_api_types::{
-        TimestampMs,
-        agent_apps::AppId,
-        agent_apps_auth::{AuthErrorCode, AuthService},
-    };
+    use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+};
 
     let f = Fixture::new().await;
     let root = f.root.path().join("private");

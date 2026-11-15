@@ -293,7 +293,7 @@ async fn channel_session_history_rejects_forged_binding_across_projects_and_tena
     let (_temp, ctx, msg, id, ids) = fixture().await;
     let (_other_temp, mut other, _) = lifecycle_fixture().await;
     other.message_snapshot = None;
-    let tenant = vw_api_types::id::TenantScope::new("history-test", format!("user-{id}")).unwrap();
+    let tenant = vw_api_transport::TenantScope::new("history-test", format!("user-{id}")).unwrap();
     crate::project::from_directory(&tenant, ctx.workspace_dir.as_ref()).await.unwrap();
     let mut foreign = ctx.clone();
     foreign.project_state = Arc::new(Mutex::new(Default::default()));

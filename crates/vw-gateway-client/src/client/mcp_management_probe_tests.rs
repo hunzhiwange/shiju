@@ -1,7 +1,10 @@
 use super::{GatewayClient, test_support};
 use crate::GatewayAuth;
 use serde_json::{Value, json};
-use vw_api_types::{TenantScope, agent_apps_diagnostics::DiagnosticScopeQuery};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+};
 
 fn scope() -> DiagnosticScopeQuery {
     serde_json::from_value(

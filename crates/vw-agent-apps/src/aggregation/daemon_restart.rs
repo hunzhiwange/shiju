@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 use tokio::{io::AsyncReadExt, process::Command, task::JoinHandle};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 const ARGS: [&str; 3] = ["app-server", "daemon", "restart"];
 const LIMIT: usize = 64 * 1024;

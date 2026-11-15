@@ -6,8 +6,12 @@ use std::sync::{Arc, Barrier};
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_transport::common::TimestampMs;
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::{

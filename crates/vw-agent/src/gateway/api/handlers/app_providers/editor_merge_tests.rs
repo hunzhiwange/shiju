@@ -6,7 +6,11 @@ use std::os::unix::fs::PermissionsExt;
 use vw_agent_apps::providers::live::commit::{
     AppState, ExecutionHostId, ProviderTransactions, ScopedProvider,
 };
-use vw_api_types::{agent_apps::AppId, app_providers::editor_merge::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::editor_merge::*,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-editor-token-with-at-least-32-chars";
 struct Fixture {

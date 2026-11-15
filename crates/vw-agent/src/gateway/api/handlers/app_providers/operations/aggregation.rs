@@ -1,6 +1,9 @@
 //! Project/subject/action ownership on the existing provider registry.
 use super::*;
-use vw_api_types::{agent_apps::aggregation::*, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::ProjectScope,
+};
 #[derive(Clone, PartialEq, Eq)]
 pub(in crate::gateway::api::handlers) struct Owner {
     pub project: ProjectScope,

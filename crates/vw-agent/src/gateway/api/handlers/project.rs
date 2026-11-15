@@ -9,8 +9,16 @@ use axum::Router;
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use base64::Engine;
-use vw_api_types::common::{OperationAck, PaginatedResponse, TimestampMs};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::common::OperationAck,
+    vw_api_transport::common::PaginatedResponse,
+    vw_api_transport::common::TimestampMs,
+};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_api_types::project::{
     GetProjectResponse, ListProjectChangeRecordsRequest, ListProjectChangeRecordsResponse,
     ListProjectsRequest, ProjectChangeRecordDto, ProjectDto, ProjectGitStateDto, ProjectStatus,

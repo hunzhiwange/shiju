@@ -428,7 +428,7 @@ async fn channel_command_catalog_provider_catalog_isolated_by_tenant() {
     msg.content = "/model known".into();
     assert!(catalog_dispatch(&ctx, &msg, &channel).await.contains("Model switched"));
     let tenant =
-        vw_api_types::id::TenantScope::new("command-catalog", uuid::Uuid::new_v4().to_string())
+        vw_api_transport::TenantScope::new("command-catalog", uuid::Uuid::new_v4().to_string())
             .unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let (project, _) = crate::project::from_directory(&tenant, temp.path()).await.unwrap();

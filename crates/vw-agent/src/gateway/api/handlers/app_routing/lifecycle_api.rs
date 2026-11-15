@@ -22,11 +22,17 @@ use vw_agent_apps::{
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
     routing::lifecycle_state::LifecycleState,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_routing::{RoutingHealth, RoutingLifecycleRequest, RoutingState, RoutingStatus},
-    error::{ApiErrorBody, ApiErrorDetail},
-    id::{ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_routing::RoutingHealth,
+    vw_api_types::app_routing::RoutingLifecycleRequest,
+    vw_api_types::app_routing::RoutingState,
+    vw_api_types::app_routing::RoutingStatus,
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone)]

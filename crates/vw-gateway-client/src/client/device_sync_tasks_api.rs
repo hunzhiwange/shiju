@@ -2,10 +2,11 @@
 use super::GatewayClient;
 use crate::http::apply_request_context;
 use reqwest::{Method, StatusCode, Url};
-use vw_api_types::{
-    TaskId,
-    agent_apps::DataManagementTarget,
-    device_sync_task::{SyncTaskCancelResponse, SyncTaskStatus},
+use {
+    vw_api_transport::TaskId,
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_types::device_sync_task::SyncTaskCancelResponse,
+    vw_api_types::device_sync_task::SyncTaskStatus,
 };
 
 /// Safe SDK errors: response bodies and authorization tokens are never retained.

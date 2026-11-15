@@ -1,7 +1,11 @@
 use super::{recovery, registry};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 // Git children briefly inherit the process FD table before exec. Serialize these
 // subprocess-backed fixtures so one fixture cannot inherit another fixture's flock.
@@ -121,7 +125,7 @@ async fn worktree_recovery_restore_rejects_other_tenant() {
     let (_temp, primary, record) = fixture().await;
     let id = deleted(&primary, &record).await;
     let other = ProjectScope::new(
-        vw_api_types::id::TenantScope::new("other", "company").unwrap(),
+        vw_api_transport::TenantScope::new("other", "company").unwrap(),
         record.scope.project_id().clone(),
     )
     .unwrap();

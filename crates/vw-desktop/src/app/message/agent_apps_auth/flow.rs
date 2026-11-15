@@ -11,14 +11,17 @@ use iced::{
 };
 use std::time::Duration;
 use tokio::sync::oneshot;
-use vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient,
-    vw_api_types::{
-        TimestampMs,
-        agent_apps_auth::{
-            AuthErrorCode, AuthFlow, AuthFlowId, AuthPasteRequest, AuthService, AuthStartResponse,
-        },
-    },
+use {
+    vw_gateway_client::AgentAppsAuthCredentials,
+    vw_gateway_client::AgentAppsAuthError,
+    vw_gateway_client::GatewayClient,
+    vw_api_transport::TimestampMs,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthFlow,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthPasteRequest,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthStartResponse,
 };
 
 #[derive(Clone)]

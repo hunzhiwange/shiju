@@ -68,7 +68,10 @@ use std::os::unix::fs::PermissionsExt;
 #[test]
 fn cc04_pi_transaction_failure_recovers_without_unique_pointer() {
     use super::live::{commit::*, write_guard::WriteError};
-    use vw_api_types::{agent_apps::AppId, id::TenantScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
     for phase in
         [Phase::Intent, Phase::Marked, Phase::FilePublished, Phase::Published, Phase::Settled]
     {
@@ -121,7 +124,10 @@ fn cc04_pi_transaction_failure_recovers_without_unique_pointer() {
 #[test]
 fn cc04_pi_input_and_external_file_conflicts_do_not_publish() {
     use super::live::{commit::*, write_guard::WriteError};
-    use vw_api_types::{agent_apps::AppId, id::TenantScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
     let home = tempfile::tempdir().unwrap();
     let root = tempfile::tempdir().unwrap();
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();

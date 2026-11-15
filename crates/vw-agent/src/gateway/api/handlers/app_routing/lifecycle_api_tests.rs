@@ -8,7 +8,10 @@ use std::{
     process::{Child, Command, Stdio},
     time::Duration,
 };
-use vw_api_types::{app_routing::RoutingState, id::TenantScope};
+use {
+    vw_api_types::app_routing::RoutingState,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppRoutingError, GatewayClient}};
 
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";

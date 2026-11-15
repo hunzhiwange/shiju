@@ -5,15 +5,16 @@ use std::{fs, os::unix::fs::PermissionsExt};
 use axum::{Extension, Router};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vw_api_types::{
-    agent_apps_skills::{
-        install_api::{InstallSkillRequest, SkillInstallSource, SkillInstallStatus},
-        jobs_api::SkillJobPhase,
-        repos_api::SkillReposQuery,
-        uninstall_api::UninstallSkillRequest,
-        updates_api::{CheckSkillUpdatesRequest, UpdateSkillRequest},
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_skills::install_api::InstallSkillRequest,
+    vw_api_types::agent_apps_skills::install_api::SkillInstallSource,
+    vw_api_types::agent_apps_skills::install_api::SkillInstallStatus,
+    vw_api_types::agent_apps_skills::jobs_api::SkillJobPhase,
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_types::agent_apps_skills::uninstall_api::UninstallSkillRequest,
+    vw_api_types::agent_apps_skills::updates_api::CheckSkillUpdatesRequest,
+    vw_api_types::agent_apps_skills::updates_api::UpdateSkillRequest,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 use crate::global_database::GlobalDatabase;
@@ -188,7 +189,10 @@ async fn remote_update(f: &Fixture, cancel: bool) {
     use axum::{extract::State, routing::get};
     use crate::gateway::agent_apps_skills_store::SkillReposStore;
     use vw_agent_apps::skills::repos::SkillRepo;
-    use vw_api_types::{id::ProjectScope, agent_apps_skills::updates_api::SkillUpdatePhase};
+    use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::agent_apps_skills::updates_api::SkillUpdatePhase,
+};
 
     fn archive(content: &str) -> Vec<u8> {
         let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));

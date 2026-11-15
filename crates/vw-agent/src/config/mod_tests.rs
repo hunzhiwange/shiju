@@ -12,7 +12,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use serde_json::{Value, json};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::gateway::GatewaySkey;
 
 #[test]

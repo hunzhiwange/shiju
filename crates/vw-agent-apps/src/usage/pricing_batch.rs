@@ -2,7 +2,11 @@
 use std::{collections::{BTreeMap, BTreeSet}, str::FromStr};
 use rusqlite::{Connection, TransactionBehavior, params};
 use rust_decimal::Decimal;
-use vw_api_types::{id::{ModelId, ProjectScope}, usage::UsageCostSource};
+use {
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::UsageCostSource,
+};
 use super::{cost::calculate, pricing::{ModelPricingInfo, StoredModelPricing, get_model_pricing},
     source_settings::advance_statistics_revision, store::StoredUsageRecord};
 

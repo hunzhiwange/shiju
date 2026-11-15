@@ -10,7 +10,10 @@ use axum::{
 };
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 struct PolicyFile(Option<PathBuf>);
 #[derive(Deserialize)]

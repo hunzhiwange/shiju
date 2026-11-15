@@ -85,7 +85,7 @@ pub use plugin_install::{PluginInstallForm, PluginInstallPhase};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentAppsContext {
     pub(crate) gateway: String,
-    pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    pub(crate) tenant: vw_api_transport::TenantScope,
     pub(crate) project: Option<String>,
 }
 

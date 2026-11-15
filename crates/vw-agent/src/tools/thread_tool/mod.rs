@@ -8,7 +8,7 @@ use crate::session::runtime::{
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::path::PathBuf;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// 在当前项目中创建用户可见的 thread。
 pub struct CreateThreadTool {

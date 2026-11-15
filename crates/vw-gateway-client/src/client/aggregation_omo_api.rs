@@ -4,7 +4,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use vw_api_types::agent_apps::aggregation::{
     OmoApplyRequest, OmoDisableRequest, OmoSlimState, OmoState,
 };
-use vw_api_types::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 
 /// Preserve gateway status and structured errors instead of returning an empty catalog.
 #[derive(Debug, Clone, PartialEq)]

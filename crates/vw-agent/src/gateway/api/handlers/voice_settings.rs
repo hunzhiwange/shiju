@@ -11,9 +11,10 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use futures_util::stream;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Semaphore;
-use vw_api_types::{
-    id::TenantScope,
-    voice::{VoiceErrorCode as Code, VoiceEvent},
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::voice::VoiceErrorCode as Code,
+    vw_api_types::voice::VoiceEvent,
 };
 use vw_config_types::voice::{VoiceConfig, VoiceName};
 

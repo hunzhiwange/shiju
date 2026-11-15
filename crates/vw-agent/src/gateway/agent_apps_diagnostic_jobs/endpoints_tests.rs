@@ -1,8 +1,10 @@
 use super::*;
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    agent_apps::AppId,
-    agent_apps_diagnostics::{DiagnosticEndpointSource, DiagnosticScope},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
 };
 fn owner() -> DiagnosticJobOwner {
     DiagnosticJobOwner {

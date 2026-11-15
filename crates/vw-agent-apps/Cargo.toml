@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 app-model-catalog = { path = "../libs/app-model-catalog" }
 app-routing-policy = { path = "../libs/app-routing-policy" }
 app-availability-core = { path = "../libs/app-availability-core" }

@@ -8,13 +8,15 @@ use std::{
 
 use axum::{Json, Router, extract::State, routing::post};
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::TenantScope,
-    model_catalog::{
-        ModelCapabilityState::{Supported, Unsupported},
-        ModelCatalogEntry, ModelCatalogIdentity, ModelMetadataDto, ScopedModelCatalogIdentity,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCapabilityState::Supported,
+    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_types::model_catalog::ModelCatalogEntry,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
 
 use crate::{

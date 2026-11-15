@@ -7,7 +7,7 @@
 use super::{Error, IconUpdate, Info, UpdateInput, Vcs, update};
 use base64::Engine;
 use std::path::PathBuf;
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 #[cfg(target_arch = "wasm32")]
 /// wasm 目标下的图标发现占位实现。

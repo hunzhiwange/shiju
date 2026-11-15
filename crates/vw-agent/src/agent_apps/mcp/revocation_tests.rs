@@ -1,11 +1,13 @@
 use std::{fs, path::Path, sync::Arc, time::Duration};
 
 use serde_json::json;
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{
-        McpCatalogScope, McpConnectionDefinition, McpFailureCode, McpRuntimeSelection,
-    },
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRuntimeSelection,
 };
 
 use super::{McpCatalogStore, catalog_create_tests::http_draft, runtime_tests::register_project};

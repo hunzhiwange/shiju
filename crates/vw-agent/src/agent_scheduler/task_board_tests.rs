@@ -8,7 +8,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
 };
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::domain::TaskId;
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};

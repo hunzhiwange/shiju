@@ -5,12 +5,15 @@ use axum::{
     extract::{Path, rejection::JsonRejection},
     http::{HeaderMap, StatusCode},
 };
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{
-        McpCatalogRecord, McpCatalogScope, McpFailureCode, McpRecordId, McpRecordRef,
-        McpUpdateRequest,
-    },
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordId,
+    vw_api_types::mcp_management::McpRecordRef,
+    vw_api_types::mcp_management::McpUpdateRequest,
 };
 
 use super::{

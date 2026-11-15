@@ -1,7 +1,11 @@
 //! Authenticated project repository management, backed by the settings transaction.
 use axum::{Extension, Json, Router, extract::{Path, Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, delete}};
-use vw_api_types::{agent_apps_skills::repos_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::repos_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_agent_apps::skills::repos::{SkillRepo, RepoError};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::{
     SkillReposStore, SkillReposState, SkillReposVersionConflict}};

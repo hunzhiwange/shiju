@@ -5,7 +5,10 @@ use std::{
     collections::HashMap,
     sync::{Arc, LazyLock, Weak},
 };
-use vw_api_types::{acp_model_source::AcpSessionModelSelection, id::TenantScope};
+use {
+    vw_api_types::acp_model_source::AcpSessionModelSelection,
+    vw_api_transport::id::TenantScope,
+};
 
 static LOCKS: LazyLock<parking_lot::Mutex<HashMap<String, Weak<tokio::sync::Mutex<()>>>>> =
     LazyLock::new(|| parking_lot::Mutex::new(HashMap::new()));

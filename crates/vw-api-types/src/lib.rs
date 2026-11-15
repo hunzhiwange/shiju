@@ -85,20 +85,11 @@ mod apps_usage_tests;
 #[path = "chat_tests.rs"]
 mod chat_tests;
 #[cfg(test)]
-#[path = "common_tests.rs"]
-mod common_tests;
-#[cfg(test)]
-#[path = "error_tests.rs"]
-mod error_tests;
-#[cfg(test)]
 #[path = "file_tests.rs"]
 mod file_tests;
 #[cfg(test)]
 #[path = "git_tests.rs"]
 mod git_tests;
-#[cfg(test)]
-#[path = "id_tests.rs"]
-mod id_tests;
 #[cfg(test)]
 #[path = "knowledge_tests.rs"]
 mod knowledge_tests;

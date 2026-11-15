@@ -285,7 +285,7 @@ impl TelegramChannel {
     /// - 配置 payload 解密、反序列化或校验失败
     pub(super) async fn load_config_without_env() -> anyhow::Result<Config> {
         crate::app::agent::config::get_global_for_tenant_without_env(
-            &vw_api_types::id::TenantScope::default(),
+            &vw_api_transport::TenantScope::default(),
         )
         .await
         .map_err(anyhow::Error::from)

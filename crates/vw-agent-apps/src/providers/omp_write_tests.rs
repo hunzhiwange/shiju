@@ -2,7 +2,7 @@ use super::*;
 use crate::providers::live::commit::{ExecutionHostId, ProviderTransactions};
 use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 const BEFORE: &[u8] =
     b"# directory\r\nproviders:  null    # user comment\r\n\r\nother: {literal: true}\r\n";

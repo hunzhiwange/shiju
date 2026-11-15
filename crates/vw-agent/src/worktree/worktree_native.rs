@@ -195,9 +195,9 @@ pub(super) async fn project_start(project_id: &str) -> Result<String, Error> {
     if project_id.trim().is_empty() {
         return Ok(String::new());
     }
-    let scope = vw_api_types::id::ProjectScope::new(
+    let scope = vw_api_transport::ProjectScope::new(
         crate::session::ui_store::current_tenant_scope(),
-        vw_api_types::id::ProjectId::from(project_id),
+        vw_api_transport::ProjectId::from(project_id),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
     let project =

@@ -1,7 +1,10 @@
 //! Pi prompts/ CRUD on an executor-authorized, retained directory.
 use std::{ffi::{CStr, OsStr}, os::fd::{AsRawFd, FromRawFd}, fs::File};
 use sha2::{Digest, Sha256};
-use vw_api_types::{TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 use crate::providers::live::{
     commit::{PendingTarget, ProviderTransactions},
     stage::{FileChange, WholeFile},

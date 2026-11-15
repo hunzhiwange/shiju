@@ -8,10 +8,12 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use vw_api_types::{
-    agent_apps::{AddCustomIconRequest, AppId, RenameCustomIconRequest},
-    app_providers::icons::AppProviderIconChange as Change,
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AddCustomIconRequest,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::RenameCustomIconRequest,
+    vw_api_types::app_providers::icons::AppProviderIconChange as Change,
+    vw_api_transport::id::TenantScope,
 };
 const IMAGE: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 #[tokio::test]

@@ -18,8 +18,10 @@ use vw_agent_apps::{
         live::commit::*,
     },
 };
-use vw_api_types::{
-    agent_apps::AppId, agent_apps_high_availability::FailoverQueueScope, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone)]

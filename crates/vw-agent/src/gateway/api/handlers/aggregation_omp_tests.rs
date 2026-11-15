@@ -9,9 +9,13 @@ use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 use tower::ServiceExt;
 use vw_agent_apps::providers::live::{commit::*, write_guard::lock_app};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 const TOKEN: &str = "aggregation-t49-fixture-token-at-least-32-chars";
 struct Fixture {

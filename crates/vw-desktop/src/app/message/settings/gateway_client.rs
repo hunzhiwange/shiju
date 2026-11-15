@@ -5,7 +5,7 @@ use crate::app::state::GatewayClientServerDraft;
 use crate::app::{App, Message, update_gateway_client_config};
 use iced::Task;
 use vw_config_types::ui::GatewayClientSystemSettingsConfig;
-use vw_gateway_client::vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::messages::{GatewayClientMessage, SettingsMessage};
 

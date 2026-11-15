@@ -1283,7 +1283,7 @@ async fn collect_gateway_chat_stream_payloads_uses_fallback_for_malformed_error(
 
 fn docs_stream_request(session_id: Option<&str>) -> GatewayChatStreamRequest {
     GatewayChatStreamRequest {
-        session_id: session_id.map(vw_api_types::id::SessionId::from),
+        session_id: session_id.map(vw_api_transport::SessionId::from),
         messages: vec![serde_json::json!({
             "role": "user",
             "content": "请列出 docs 文件列表"

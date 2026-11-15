@@ -337,7 +337,7 @@ fn question_error_display_conversion_and_events_are_stable() {
 #[tokio::test]
 async fn pending_questions_reject_cross_tenant_access() {
     use crate::session::ui_store::{with_tenant_scope, with_tenant_scope_sync};
-    let tenant = vw_api_types::id::TenantScope::new("t24-platform", "t24-company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("t24-platform", "t24-company").unwrap();
     let owner = tenant.clone();
     let task = tokio::spawn(with_tenant_scope(owner, async {
         ask(AskInput { session_id: "t24-isolation".into(), questions: vec![], tool: None }).await

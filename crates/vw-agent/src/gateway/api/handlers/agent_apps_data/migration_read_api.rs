@@ -18,9 +18,10 @@ use vw_agent_apps::data_management::{
     providers::{self, ProviderPreview, ProviderRow},
     source::{SourceFormat, SourceScope, SourceSnapshot},
 };
-use vw_api_types::{
-    agent_apps::{AppId, data_management::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::data_management::*,
+    vw_api_transport::id::TenantScope,
 };
 
 const TTL: Duration = Duration::from_secs(300);

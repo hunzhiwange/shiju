@@ -400,7 +400,7 @@ async fn integration_credentials_put_saves_and_updates_state() {
     )
     .expect("system config store");
     let payload = store
-        .get(&vw_api_types::id::TenantScope::default())
+        .get(&vw_api_transport::TenantScope::default())
         .expect("stored config lookup")
         .expect("stored config payload");
     let stored: serde_json::Value = serde_json::from_str(&payload).expect("stored config json");

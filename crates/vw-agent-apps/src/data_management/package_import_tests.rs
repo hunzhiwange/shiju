@@ -2,8 +2,12 @@ use super::{export::export_portable_package, package_import::stage_portable_pack
     preview::{build_preview, Difference, PreviewCandidate}, safety_snapshot::*, source::*};
 use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{agent_apps::data_management::DataCategory,
-    id::{ProjectId, ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps::data_management::DataCategory,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn fixture() -> (tempfile::TempDir, Vec<u8>, [u8; 32], SourceScope) {
     let root = tempfile::tempdir().unwrap();

@@ -2,7 +2,11 @@
 use crate::app::components::system_settings_common::rounded_action_btn_style;
 use iced::widget::{button, column, row, text};
 use iced::{Element, Task};
-use vw_api_types::{TaskId, agent_apps::DataManagementTarget, device_sync_task::*};
+use {
+    vw_api_transport::TaskId,
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_types::device_sync_task::*,
+};
 use vw_gateway_client::GatewayClient;
 
 const POLL_LIMIT: u16 = 120;

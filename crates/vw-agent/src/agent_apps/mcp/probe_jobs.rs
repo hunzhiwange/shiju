@@ -4,15 +4,18 @@ use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::mcp::validation::validate_new_name;
-use vw_api_types::{
-    agent_apps_diagnostics::{
-        DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticProbeKind, DiagnosticResult,
-    },
-    id::TaskId,
-    mcp_management::{
-        McpCatalogScope, McpConnectionCheckItem, McpConnectionDefinition, McpCredentialRef,
-        McpFailureCode, McpRecordId,
-    },
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_transport::id::TaskId,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionCheckItem,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordId,
 };
 
 use super::{

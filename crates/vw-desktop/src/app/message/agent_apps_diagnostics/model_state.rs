@@ -5,9 +5,9 @@ use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ModelContext {
     pub scope: Scope,
-    pub project: vw_gateway_client::vw_api_types::ProjectId,
+    pub project: vw_api_transport::ProjectId,
     pub credentials_generation: u64,
-    pub provider: vw_gateway_client::vw_api_types::ProviderId,
+    pub provider: vw_api_transport::ProviderId,
 }
 impl ModelContext {
     pub fn query(&self) -> DiagnosticScopeQuery {

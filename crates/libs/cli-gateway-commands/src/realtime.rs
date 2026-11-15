@@ -7,7 +7,10 @@ use clap::Subcommand;
 use serde_json::{Value, json};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_gateway_client::vw_api_types::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
-use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 use vw_gateway_client::vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 use vw_gateway_client::{
     GatewayAgentRequest, GatewayChatWebSocketEvent, GatewayJsonSseEvent,

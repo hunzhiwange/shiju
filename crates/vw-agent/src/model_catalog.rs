@@ -1,7 +1,10 @@
 //! Sole saved-model storage owner. Immutable deployment revisions prevent mixed provider/catalog saves.
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 use sha2::{Digest, Sha256};
-use vw_api_types::{id::TenantScope, model_catalog::*};
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::*,
+};
 const NAMESPACE: &str = "model_catalog.saved";
 pub(crate) struct ModelCatalogStore(GatewaySettingsStore);
 impl ModelCatalogStore {

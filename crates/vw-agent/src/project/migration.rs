@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use config_runtime_paths::home_config_dir;
 use vw_shared::project::Info;
 

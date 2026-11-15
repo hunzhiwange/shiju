@@ -32,7 +32,7 @@ fn snapshot(
         selected_worktree_slot_id: None,
         selected_worktree_branch: None,
         read_model: AgentSchedulerTaskBoardTaskReadModelDto::default(),
-        updated_at_ms: vw_gateway_client::vw_api_types::common::TimestampMs(0),
+        updated_at_ms: vw_api_transport::TimestampMs(0),
     }
 }
 

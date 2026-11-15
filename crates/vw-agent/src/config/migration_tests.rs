@@ -1,7 +1,7 @@
 // 本文件验证系统配置迁移的备份、校验、冲突保护与幂等性。
 
 use anyhow::Result;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::config::Config;
 
 use super::SystemConfigStore;

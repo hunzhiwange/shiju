@@ -1,6 +1,9 @@
 use super::{account::prepare_account_launch, request::LaunchMaterial};
 use crate::auth::credential_file::{AccountCredential, CredentialFileStore};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 fn private_root() -> tempfile::TempDir {
     let root = tempfile::tempdir().unwrap();

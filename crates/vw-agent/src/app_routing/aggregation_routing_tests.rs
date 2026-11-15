@@ -4,9 +4,10 @@ use axum::{Json, Router, http::StatusCode, routing::post};
 use serde_json::{Value, json};
 use std::time::Duration;
 use tokio::{net::TcpListener, sync::mpsc};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[tokio::test]

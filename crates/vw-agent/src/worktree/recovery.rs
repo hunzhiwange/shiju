@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 fn invalid(error: impl std::fmt::Display) -> Error {
     Error::Invalid(error.to_string())

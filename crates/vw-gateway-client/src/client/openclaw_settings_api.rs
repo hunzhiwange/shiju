@@ -1,7 +1,10 @@
 //! Fixed OpenClaw settings. Provider snapshots and model choices retain their existing SDK owners.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::{id::ProjectId, openclaw_settings::*};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_types::openclaw_settings::*,
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

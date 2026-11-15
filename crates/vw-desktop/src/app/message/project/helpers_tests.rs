@@ -15,9 +15,9 @@ use super::{build_clipboard_image_attachment_path, persist_clipboard_image_attac
 use crate::app::App;
 use std::fs;
 use tempfile::tempdir;
-use vw_gateway_client::vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
-use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectDto, ProjectGitStateDto, ProjectStatus};
 
 async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {

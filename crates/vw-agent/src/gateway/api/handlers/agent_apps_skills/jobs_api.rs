@@ -1,6 +1,12 @@
 use std::path::PathBuf;
 use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::{get, post}};
-use vw_api_types::{agent_apps_skills::{jobs_api::*, repos_api::SkillReposQuery}, id::{ProjectScope, TaskId, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::jobs_api::*,
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 pub(crate) fn router() -> Router {

@@ -15,10 +15,11 @@ use crate::providers::{
 };
 use serde_json::{Map, Value, json};
 use std::{cell::Cell, ffi::OsStr};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::mode_apply::{ModeApplyResult, TargetPublication},
-    id::ProjectScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_apply::ModeApplyResult,
+    vw_api_types::app_providers::mode_apply::TargetPublication,
+    vw_api_transport::id::ProjectScope,
 };
 
 /// The executor supplies authorized saved records and restore/failover proofs,
@@ -134,7 +135,7 @@ pub fn publish(
 /// Plan a candidate state without saving it. The listener supplies its private
 /// endpoint and credential inside its guarded publication callback.
 pub fn plan(
-    tenant: &vw_api_types::id::TenantScope,
+    tenant: &vw_api_transport::TenantScope,
     state: &AppState,
     input: PreviewInput<'_>,
     url: &str,

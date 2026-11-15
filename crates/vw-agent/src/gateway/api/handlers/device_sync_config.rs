@@ -3,11 +3,19 @@
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, Query},
     http::{HeaderMap, StatusCode}, routing::get};
 use serde::Deserialize;
-use vw_api_types::{ProjectId, ProjectScope, TenantScope,
-    agent_apps::DataManagementTarget,
-    device_sync_config::{DeviceSyncTransport, SyncSecretUpdate,
-        UpdateWebDavSyncConfigRequest, WebDavSyncConfigResponse,
-        UpdateS3SyncConfigRequest, S3SyncConfig, S3SyncConfigResponse}};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_types::device_sync_config::DeviceSyncTransport,
+    vw_api_types::device_sync_config::SyncSecretUpdate,
+    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_types::device_sync_config::WebDavSyncConfigResponse,
+    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_types::device_sync_config::S3SyncConfig,
+    vw_api_types::device_sync_config::S3SyncConfigResponse,
+};
 use crate::{device_sync::{status, webdav_settings::WebDavSettingsStore, s3_settings::S3SettingsStore},
     global_database::GlobalDatabase};
 

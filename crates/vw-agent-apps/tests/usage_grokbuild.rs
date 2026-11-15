@@ -3,7 +3,10 @@ use std::{fs::{File, OpenOptions}, io::Write};
 use rusqlite::Connection;
 use serde_json::json;
 use vw_agent_apps::usage::{cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor}, grokbuild::{scan_grokbuild_file, collect_grokbuild_session_files}, store::{initialize_usage_store, StoredUsageRecord}};
-use vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 
 fn context() -> (Connection, ProjectScope, UsageCursorKey) {
     let mut db = Connection::open_in_memory().unwrap();

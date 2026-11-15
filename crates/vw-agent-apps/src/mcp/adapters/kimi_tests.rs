@@ -10,7 +10,10 @@ use serde_json::Value;
 use std::{
     collections::BTreeMap, fs, net::TcpListener, os::unix::fs::PermissionsExt, path::PathBuf,
 };
-use vw_api_types::{TenantScope, mcp_management::McpConnectionDefinition};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+};
 
 struct Fixture {
     home: tempfile::TempDir,

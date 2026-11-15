@@ -1,6 +1,6 @@
 use axum::extract::{Extension, Path, Query};
 use serde_json::{Map, Value, json};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::channels::{
     DingTalkConfig, FeishuConfig, QQConfig, QQReceiveMode, WeChatConfig, WeComConfig,
 };

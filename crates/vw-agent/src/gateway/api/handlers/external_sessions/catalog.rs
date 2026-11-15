@@ -1,6 +1,10 @@
 use axum::{Extension, Json, Router, extract::Query, http::{HeaderMap, StatusCode}, routing::get};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
-use vw_api_types::{ProjectScope, TenantScope, external_session::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 use vw_agent_apps::sessions::catalog::{Catalog, CatalogQuery};
 
 struct Snapshot {

@@ -11,7 +11,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, PermissionsExt, symlink},
     path::PathBuf,
 };
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 struct Fixture {
     home: tempfile::TempDir,

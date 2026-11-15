@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 fn scope(generation: u64) -> ReferenceScope {
     ReferenceScope::Session(RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::default(),
+        tenant: vw_api_transport::TenantScope::default(),
         project: "project".into(),
         provider: "provider".into(),
         session: "session".into(),

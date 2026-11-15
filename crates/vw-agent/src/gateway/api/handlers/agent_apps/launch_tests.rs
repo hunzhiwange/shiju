@@ -52,7 +52,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
     std::fs::write(&policy, value.to_string()).unwrap();
     std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
     let db = GlobalDatabase::for_home(root.path()).unwrap();
-    let tenant = vw_api_types::id::TenantScope::new("p", "c").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("p", "c").unwrap();
     GatewaySettingsStore::new(db.clone())
         .unwrap()
         .upsert(&tenant, "agent_apps_host", "h", r#"{"preferredTerminal":"terminal"}"#)

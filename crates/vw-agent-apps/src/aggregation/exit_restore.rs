@@ -17,7 +17,10 @@ use crate::providers::{
 };
 use serde_json::Value;
 use std::{collections::BTreeSet, ffi::OsStr};
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RestoreError {

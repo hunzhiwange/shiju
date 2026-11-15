@@ -126,7 +126,7 @@ fn acp_model_source_relay_responses_rejects_lossy_requests_and_outputs() {
 fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
     let references = References::default();
     let id = RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::new("responses", "one").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("responses", "one").unwrap(),
         project: "p".into(),
         session: "s".into(),
         provider: "provider".into(),
@@ -140,7 +140,7 @@ fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
     for dimension in 0..6 {
         let mut other = id.clone();
         match dimension {
-            0 => other.tenant = vw_api_types::id::TenantScope::new("responses", "two").unwrap(),
+            0 => other.tenant = vw_api_transport::TenantScope::new("responses", "two").unwrap(),
             1 => other.project = "other".into(),
             2 => other.session = "other".into(),
             3 => other.provider = "other".into(),
@@ -165,7 +165,7 @@ fn native_fixture() -> (crate::provider::provider::Model, RelayIdentity) {
         "cost":{"input":0,"output":0,"cache":{"read":0,"write":0}}
     })).unwrap();
     let identity = RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::new("responses", "inline").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("responses", "inline").unwrap(),
         project: "p".into(),
         session: "s".into(),
         provider: "provider".into(),
@@ -219,7 +219,7 @@ fn acp_model_source_relay_responses_native_real_references_remain_identity_bound
     for dimension in 0..6 {
         let mut other = identity.clone();
         match dimension {
-            0 => other.tenant = vw_api_types::id::TenantScope::new("responses", "other").unwrap(),
+            0 => other.tenant = vw_api_transport::TenantScope::new("responses", "other").unwrap(),
             1 => other.project = "other".into(),
             2 => other.session = "other".into(),
             3 => other.provider = "other".into(),

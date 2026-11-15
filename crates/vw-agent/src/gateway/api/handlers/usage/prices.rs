@@ -4,7 +4,10 @@ use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, St
 use serde::Deserialize;
 use serde_json::{Value, json};
 use vw_agent_apps::{usage as u, apps::lifecycle::operations::{Operation, OperationFailure, Phase}};
-use vw_api_types::{TenantScope, id::ModelId};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_transport::id::ModelId,
+};
 use super::super::external_sessions::usage_scan::{self as host, Intent};
 
 #[derive(Clone)]

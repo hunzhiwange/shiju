@@ -112,7 +112,7 @@ pub struct ToolUseContext {
     run_worktree_owner: Option<run_worktree::RunWorktreeOwner>,
     session: String,
     session_skills: crate::acp::mounts::SessionSkillSources,
-    tenant_scope: vw_api_types::id::TenantScope,
+    tenant_scope: vw_api_transport::TenantScope,
     hook_input: Option<serde_json::Value>,
     hook_contexts: Arc<Mutex<Vec<String>>>,
     pub(crate) async_hooks: Arc<crate::plugins::AsyncHooks>,
@@ -374,7 +374,7 @@ impl ToolUseContext {
         self.delegated_security.as_deref()
     }
 
-    pub(crate) fn tenant_scope(&self) -> vw_api_types::id::TenantScope {
+    pub(crate) fn tenant_scope(&self) -> vw_api_transport::TenantScope {
         self.tenant_scope.clone()
     }
 

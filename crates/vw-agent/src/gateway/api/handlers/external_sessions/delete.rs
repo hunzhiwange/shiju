@@ -9,7 +9,11 @@ use vw_agent_apps::{
     apps::lifecycle::coordinator::ToolLifecycleCoordinator,
     sessions::{cache, source::SourceRegistry},
 };
-use vw_api_types::{TenantScope, agent_apps::AppId, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::external_session::*,
+};
 
 pub(super) async fn single(
     Extension(policy): Extension<Policy>,

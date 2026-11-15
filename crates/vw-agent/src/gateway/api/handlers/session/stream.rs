@@ -17,7 +17,7 @@ use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use vw_api_types::chat::{GatewayChatStreamRequest, ReasoningEffortDto};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 pub(super) use crate::session::runtime::is_successful_finish_reason;
 

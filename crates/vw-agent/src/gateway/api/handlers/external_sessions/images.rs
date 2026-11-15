@@ -1,7 +1,10 @@
 //! Only host-issued image references may reach the bounded execution-host reader.
 use axum::{Extension, Json, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}};
 use vw_agent_apps::sessions::{cache, images};
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 use super::messages::{Failure, failure};
 
 pub(super) async fn read(

@@ -18,7 +18,7 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 const BOOTSTRAP_SOURCE: &str = include_str!("../../bootstrap.rs");
 
@@ -119,8 +119,8 @@ async fn patch_config_route(
             Request::builder()
                 .method("PATCH")
                 .uri("/global/config")
-                .header(vw_api_types::id::PLATFORM_ID_HEADER, tenant.platform_id().as_ref())
-                .header(vw_api_types::id::COMPANY_ID_HEADER, tenant.company_id().as_ref())
+                .header(vw_api_transport::PLATFORM_ID_HEADER, tenant.platform_id().as_ref())
+                .header(vw_api_transport::COMPANY_ID_HEADER, tenant.company_id().as_ref())
                 .header(axum::http::header::CONTENT_TYPE, "application/json")
                 .body(Body::from(patch.to_string()))
                 .expect("request"),
@@ -132,8 +132,8 @@ async fn patch_config_route(
 fn tenant_request(uri: &str, tenant: &TenantScope) -> Request<Body> {
     Request::builder()
         .uri(uri)
-        .header(vw_api_types::id::PLATFORM_ID_HEADER, tenant.platform_id().as_ref())
-        .header(vw_api_types::id::COMPANY_ID_HEADER, tenant.company_id().as_ref())
+        .header(vw_api_transport::PLATFORM_ID_HEADER, tenant.platform_id().as_ref())
+        .header(vw_api_transport::COMPANY_ID_HEADER, tenant.company_id().as_ref())
         .body(Body::empty())
         .expect("request")
 }
@@ -565,8 +565,8 @@ async fn global_config_patch_stateful_concurrent_fields_preserve_both_values() {
         client
             .request(method, &url)
             .bearer_auth(&token)
-            .header(vw_api_types::id::PLATFORM_ID_HEADER, scope.platform_id().as_ref())
-            .header(vw_api_types::id::COMPANY_ID_HEADER, scope.company_id().as_ref())
+            .header(vw_api_transport::PLATFORM_ID_HEADER, scope.platform_id().as_ref())
+            .header(vw_api_transport::COMPANY_ID_HEADER, scope.company_id().as_ref())
     };
     let read_fonts = |response: reqwest::Response| async move {
         assert_eq!(response.status(), StatusCode::OK);

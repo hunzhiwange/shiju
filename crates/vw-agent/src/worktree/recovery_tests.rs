@@ -1,7 +1,10 @@
 use super::{recovery, registry};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 
 // Git children briefly inherit the process FD table before exec. Serialize these
 // subprocess-backed fixtures so one fixture cannot inherit another fixture's flock.

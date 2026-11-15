@@ -3,7 +3,7 @@
 //! 持久化操作按租户隔离，并阻止覆盖或删除内置工作流。
 
 use rusqlite::{Connection, OptionalExtension, params};
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::task_lifecycle::{
     TaskLifecycleWorkflowDeleteResponse, TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
 };

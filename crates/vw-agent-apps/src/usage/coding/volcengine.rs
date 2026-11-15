@@ -3,13 +3,19 @@
 use chrono::{DateTime, SecondsFormat};
 use reqwest::{Request, Response, StatusCode, Url};
 use serde_json::Value;
-use vw_api_types::{
-    TimestampMs,
-    apps_usage::{
-        UsageCredentialState, UsageNumber, UsageQueryData, UsageQueryError, UsageQueryErrorCode,
-        UsageQueryErrorCode::*, UsageQueryKind, UsageQueryOutcome, UsageQueryResult,
-        UsageQuotaWindow, UsageSource,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::apps_usage::UsageCredentialState,
+    vw_api_types::apps_usage::UsageNumber,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryError,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryErrorCode::*,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageQueryResult,
+    vw_api_types::apps_usage::UsageQuotaWindow,
+    vw_api_types::apps_usage::UsageSource,
 };
 
 use super::{

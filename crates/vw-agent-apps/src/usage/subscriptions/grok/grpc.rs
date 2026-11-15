@@ -2,9 +2,10 @@
 
 use chrono::{DateTime, SecondsFormat};
 use reqwest::{RequestBuilder, StatusCode};
-use vw_api_types::{
-    TimestampMs,
-    apps_usage::{UsageQueryErrorCode, UsageQuotaWindow},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQuotaWindow,
 };
 
 use super::{number, transport_error, window};

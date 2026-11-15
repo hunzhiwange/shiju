@@ -1,7 +1,10 @@
 //! Gateway lifetime usage scanning over administrator-bound native sources.
 use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}, sync::{Mutex, OnceLock}, time::Instant};
 use vw_agent_apps::{sessions::{source::SourceRegistry, providers as p}, usage::{self, scan_jobs::*}};
-use vw_api_types::{ProjectScope, external_session::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::external_session::*,
+};
 
 static SCHEDULES: OnceLock<Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>>> = OnceLock::new();
 pub(in super::super) fn schedules() -> &'static Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>> {
@@ -182,7 +185,7 @@ fn dispatch(connection: &mut rusqlite::Connection, scope: &ProjectScope,
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(in super::super) struct Intent {
-    pub(in super::super) project_id: vw_api_types::id::ProjectId,
+    pub(in super::super) project_id: vw_api_transport::ProjectId,
     pub(in super::super) target_host: String,
     pub(in super::super) active: Option<bool>,
     pub(in super::super) paused: Option<bool>,
@@ -192,7 +195,7 @@ pub(super) fn router() -> axum::Router {
         .route("/usage/activity", axum::routing::post(page_activity))
         .route("/usage/scans", axum::routing::post(manual_scan))
 }
-pub(in super::super) fn authorized_owner(policy: Option<&Path>, tenant: vw_api_types::TenantScope,
+pub(in super::super) fn authorized_owner(policy: Option<&Path>, tenant: vw_api_transport::TenantScope,
     headers: &axum::http::HeaderMap, intent: &Intent) -> Result<ScanOwner, axum::http::StatusCode> {
     let scope = ProjectScope::new(tenant, intent.project_id.clone()).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
     let (principal, _, _) = super::super::agent_apps::authorize_external_history(
@@ -202,7 +205,7 @@ pub(in super::super) fn authorized_owner(policy: Option<&Path>, tenant: vw_api_t
 }
 async fn page_activity(
     axum::Extension(policy): axum::Extension<super::catalog::Policy>,
-    axum::Extension(tenant): axum::Extension<vw_api_types::TenantScope>,
+    axum::Extension(tenant): axum::Extension<vw_api_transport::TenantScope>,
     headers: axum::http::HeaderMap, axum::Json(intent): axum::Json<Intent>,
 ) -> Result<axum::http::StatusCode, axum::http::StatusCode> {
     tokio::task::spawn_blocking(move || {
@@ -216,7 +219,7 @@ async fn page_activity(
 }
 async fn manual_scan(
     axum::Extension(policy): axum::Extension<super::catalog::Policy>,
-    axum::Extension(tenant): axum::Extension<vw_api_types::TenantScope>,
+    axum::Extension(tenant): axum::Extension<vw_api_transport::TenantScope>,
     headers: axum::http::HeaderMap, axum::Json(intent): axum::Json<Intent>,
 ) -> Result<(axum::http::StatusCode, axum::Json<ScanJob>), axum::http::StatusCode> {
     tokio::task::spawn_blocking(move || {

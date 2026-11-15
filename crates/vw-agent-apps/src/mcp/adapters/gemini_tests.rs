@@ -8,11 +8,13 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeMap, fs, io::ErrorKind, net::TcpListener, os::unix::fs::PermissionsExt,
 };
-use vw_api_types::{
-    TenantScope,
-    agent_apps::AppId,
-    agent_apps_auth::AuthService,
-    mcp_management::{McpConfigValue, McpConnectionDefinition, McpCredentialRef},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpCredentialRef,
 };
 
 struct Fixture {

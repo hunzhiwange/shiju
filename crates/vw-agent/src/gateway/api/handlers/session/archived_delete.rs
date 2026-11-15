@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_api_types::session::ArchivedChatDeleteResponse;
 
 use super::shared::{has_explicit_directory, lifecycle_api_error, with_tenant_instance};

@@ -267,7 +267,7 @@ async fn dynamic_tools_gateway_bootstrap_mounts_authenticated_host_routes() {
     .await;
     let directory = tempfile::tempdir().unwrap();
     let scope = crate::session::runtime::SessionScope::new(
-        vw_api_types::id::TenantScope::new("gateway-host-bootstrap", "validation").unwrap(),
+        vw_api_transport::TenantScope::new("gateway-host-bootstrap", "validation").unwrap(),
         directory.path(),
     )
     .unwrap();

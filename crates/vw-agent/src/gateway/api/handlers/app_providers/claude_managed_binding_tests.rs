@@ -4,9 +4,10 @@ use crate::{
     app_providers::{AppProviderStore, ClaudeBindingHost, NativeAccountRemoval},
 };
 use vw_agent_apps::auth::credential_file::CredentialFileStore;
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthService},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
 };
 
 fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {

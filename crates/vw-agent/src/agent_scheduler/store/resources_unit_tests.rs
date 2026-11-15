@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use rusqlite::{Connection, params};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::{
     ResourceKind, ResourceLeaseStatus, active_resource_lease_exists, expire_resource_leases,

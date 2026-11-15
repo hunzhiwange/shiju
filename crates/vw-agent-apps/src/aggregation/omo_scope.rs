@@ -4,7 +4,10 @@ use crate::providers::live::{
     stage::FileChange,
     write_guard::{AppWriteGuard, WriteError},
 };
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 pub struct ProjectOmoEdit {
     pub scope: ProjectScope,
     pub expected: AppState,

@@ -7,7 +7,10 @@ use crate::providers::{
     },
 };
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{TenantScope, mcp_management::McpConnectionDefinition};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+};
 
 const EXISTING: &str = r#"# user configuration
 [models]

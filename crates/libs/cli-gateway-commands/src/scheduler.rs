@@ -11,7 +11,10 @@ use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerOutboxDrainRequest, AgentSchedulerScopeDto,
     AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerWakeRequest,
 };
-use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 
 use super::context::ApiContext;
 use super::input::read_json_input;

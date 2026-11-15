@@ -1,6 +1,9 @@
 use super::*;
 use crate::app::state::AgentAppsContext;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{vw_api_types::id::TenantScope}};
+use {
+    gateway_endpoint::GatewayEndpoint,
+    vw_api_transport::id::TenantScope,
+};
 fn selection() -> Selection {
     Selection {
         scope: Scope {

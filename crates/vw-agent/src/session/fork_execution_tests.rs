@@ -28,7 +28,7 @@ async fn fork_execution_boundary_and_start_are_durable_and_scoped() {
         assert!(is_selectable(&project, session).await.unwrap());
         assert!(load_scoped("other-project", session).await.unwrap().is_none());
         super::super::ui_store::with_tenant_scope(
-            vw_api_types::id::TenantScope::new("fork", "other").unwrap(),
+            vw_api_transport::TenantScope::new("fork", "other").unwrap(),
             async {
                 assert!(load_scoped(&project, session).await.unwrap().is_none());
             },

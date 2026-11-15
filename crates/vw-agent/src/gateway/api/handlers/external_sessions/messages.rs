@@ -8,7 +8,10 @@ use vw_agent_apps::sessions::{
     cache, providers as p,
     source::{SourceRegistry, ValidatedSource},
 };
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 
 const MAX_PAYLOAD_BYTES: usize = 32 * 1024 * 1024;
 const MAX_MESSAGES: usize = 100_000;

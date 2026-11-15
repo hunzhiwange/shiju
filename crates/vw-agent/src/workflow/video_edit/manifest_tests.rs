@@ -3,7 +3,7 @@ use crate::global_database::GlobalDatabase;
 
 pub(super) fn candidate() -> VideoEditRunManifest {
     VideoEditRunManifest {
-        tenant: vw_api_types::TenantScope::default(),
+        tenant: vw_api_transport::TenantScope::default(),
         run_id: "run".into(),
         run_key: "key".into(),
         source: VideoSourceIdentity {
@@ -58,7 +58,7 @@ fn ledger_contract(store: VideoEditManifestStore) {
     let c = store.claim(candidate(), "c", 103 + super::manifest::LEASE_MS).unwrap();
     assert_eq!(c.state, VideoPrepareState::CreatingUpload, "expiry must not reset unknown write");
     let mut other = candidate();
-    other.tenant = vw_api_types::TenantScope::new("platform", "different-company").unwrap();
+    other.tenant = vw_api_transport::TenantScope::new("platform", "different-company").unwrap();
     let other = store.claim(other, "other", 104).unwrap();
     assert_eq!(other.state, VideoPrepareState::New);
     store.release(&c).unwrap();

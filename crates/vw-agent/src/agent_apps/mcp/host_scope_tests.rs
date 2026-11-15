@@ -11,7 +11,11 @@ use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt, path::Path, process::Command};
 use tower::ServiceExt;
 use vw_agent_apps::apps::discovery::read::{self, LocalReadEnvironment};
-use vw_api_types::{TenantScope, agent_apps::AppId, mcp_management::McpCatalogScope};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::mcp_management::McpCatalogScope,
+};
 
 const ROOT: &str = "SHIJU_MCP_TASK52_ROOT";
 const TOKEN: &str = "fixture-t52-member-token-at-least-32-bytes";

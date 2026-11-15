@@ -16,7 +16,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 use vw_agent_apps::providers::operations::ProviderOperation;
-use vw_api_types::{app_providers::operations::*, id::TaskId, task::TaskStatus};
+use {
+    vw_api_types::app_providers::operations::*,
+    vw_api_transport::id::TaskId,
+    vw_api_types::task::TaskStatus,
+};
 #[derive(Clone)]
 pub(in crate::gateway::api::handlers) struct State {
     policy: Option<PathBuf>,
@@ -36,7 +40,7 @@ struct Running {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Target {
     target_host_id: String,
-    project_id: Option<vw_api_types::id::ProjectId>,
+    project_id: Option<vw_api_transport::ProjectId>,
 }
 #[cfg(test)]
 pub(in crate::gateway::api::handlers) fn router_with_policy(policy: Option<PathBuf>) -> Router {
@@ -260,11 +264,11 @@ async fn owned(
     host: String,
     id: &str,
     cancel: bool,
-    project: Option<vw_api_types::id::ProjectId>,
+    project: Option<vw_api_transport::ProjectId>,
 ) -> Result<serde_json::Value, StatusCode> {
     let project = project
         .map(|id| {
-            vw_api_types::id::ProjectScope::new(tenant.clone(), id)
+            vw_api_transport::ProjectScope::new(tenant.clone(), id)
                 .map_err(|_| StatusCode::BAD_REQUEST)
         })
         .transpose()?;

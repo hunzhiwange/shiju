@@ -2,13 +2,15 @@
 use super::{AppProviderStore, NAMESPACE};
 use serde_json::Value;
 use vw_agent_apps::models::{edits, fill_service};
-use vw_api_types::{
-    id::TenantScope,
-    model_catalog::{
-        ModelCatalogEditRequest, ModelCatalogFillCommitRequest, ModelCatalogFillPreviewRequest,
-        ModelCatalogFillPreviewResponse, ModelCatalogIdentity, ModelCatalogReadResponse,
-        ModelCatalogWriteResponse,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogFillCommitRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogReadResponse,
+    vw_api_types::model_catalog::ModelCatalogWriteResponse,
 };
 use vw_provider_resolver::models::ModelsSnapshot;
 

@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 use vw_config_types::{
     config::Config, security::IdentityConfig, ui::GatewayClientSystemSettingsConfig,
 };
-use vw_gateway_client::vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 use super::system_settings::load_gateway_client_bootstrap_config;

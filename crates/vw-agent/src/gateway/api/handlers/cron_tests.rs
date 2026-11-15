@@ -807,8 +807,8 @@ async fn history_request(state: AppState) -> (StatusCode, serde_json::Value) {
             .oneshot(
                 axum::http::Request::builder()
                     .uri("/v1/cron/history")
-                    .header(vw_api_types::id::PLATFORM_ID_HEADER, "test-platform")
-                    .header(vw_api_types::id::COMPANY_ID_HEADER, "test-company")
+                    .header(vw_api_transport::PLATFORM_ID_HEADER, "test-platform")
+                    .header(vw_api_transport::COMPANY_ID_HEADER, "test-company")
                     .body(axum::body::Body::empty())
                     .unwrap(),
             )
@@ -979,7 +979,7 @@ async fn cron_wecom_delivery_add_requires_configuration_but_none_does_not() {
 #[tokio::test]
 async fn cron_wecom_delivery_api_roundtrip_and_partial_edit_validate_merged_target() {
     let tenant =
-        vw_api_types::id::TenantScope::new("cron-api-test", uuid::Uuid::new_v4().to_string())
+        vw_api_transport::TenantScope::new("cron-api-test", uuid::Uuid::new_v4().to_string())
             .unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let tmp = tempfile::TempDir::new().unwrap();

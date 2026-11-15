@@ -4,9 +4,11 @@ use super::{
     write_guard::{FilePrivacy, WriteError, lock_app},
 };
 use std::{ffi::OsStr, fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 fn scope(id: &str) -> ProjectScope {
     ProjectScope::new(TenantScope::new("p", "c").unwrap(), ProjectId::from(id)).unwrap()

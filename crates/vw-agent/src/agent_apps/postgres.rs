@@ -1,8 +1,9 @@
 //! Tenant icon mutations under a PostgreSQL row lock, including first writes.
 use super::store::{ICON_KEY, ICON_NAMESPACE, IconLibraryStore, parse_icons};
-use vw_api_types::{
-    agent_apps::{AgentAppsErrorCode, CustomIconEntry},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AgentAppsErrorCode,
+    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_transport::id::TenantScope,
 };
 
 impl IconLibraryStore {

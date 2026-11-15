@@ -12,13 +12,15 @@ use super::{
     vendor_fallback,
 };
 use std::{collections::BTreeMap, time::UNIX_EPOCH};
-use vw_api_types::{
-    agent_apps::AppId,
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState, ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance,
-        ModelMetadataSource, ModelTokenCost,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource,
+    vw_api_types::model_catalog::ModelTokenCost,
 };
 use vw_provider_resolver::models::{Model, ModelsSnapshot, ReasoningOption};
 

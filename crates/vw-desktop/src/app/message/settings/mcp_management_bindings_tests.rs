@@ -26,7 +26,7 @@ fn record(id: &str) -> McpCatalogRecord {
     McpCatalogRecord {
         record: McpRecordRef { id: McpRecordId(id.into()), revision: 4 },
         scope: McpCatalogScope::Tenant {
-            scope: vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),
+            scope: vw_api_transport::TenantScope::new("10000", "100000001").unwrap(),
         },
         name: "中文连接 😀".into(),
         description: None,
@@ -110,8 +110,8 @@ fn cc_mcp_t46_fourteen_applications_and_transport_limits_are_explicit() {
     assert!(!supported(&catalog, &[], AppId::Agy));
     records.push(record("b"));
     records[1].scope = McpCatalogScope::Project {
-        scope: vw_gateway_client::vw_api_types::ProjectScope::new(
-            vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),
+        scope: vw_api_transport::ProjectScope::new(
+            vw_api_transport::TenantScope::new("10000", "100000001").unwrap(),
             "project".into(),
         )
         .unwrap(),
@@ -160,7 +160,7 @@ async fn cc_mcp_t46_single_and_bulk_use_sdk_with_revisions_and_preserve_each_tar
     let client = GatewayClient::new(
         gateway_endpoint::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
             .with_tenant_scope(
-                vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),
+                vw_api_transport::TenantScope::new("10000", "100000001").unwrap(),
             ),
     )
     .unwrap();

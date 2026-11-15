@@ -1,7 +1,10 @@
 //! Scoped Hermes memory access. Model configuration remains read-only.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::{hermes_memory::*, id::ProjectId};
+use {
+    vw_api_types::hermes_memory::*,
+    vw_api_transport::id::ProjectId,
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

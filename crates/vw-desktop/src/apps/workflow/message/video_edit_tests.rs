@@ -96,7 +96,7 @@ fn video_edit_ui_stale_tenant_reply_cannot_replace_current_template() {
     let mut app = App::new().0;
     sync_video_tenant(&mut app);
     let other =
-        vw_gateway_client::vw_api_types::TenantScope::new("10000", "other-company").unwrap();
+        vw_api_transport::TenantScope::new("10000", "other-company").unwrap();
     let _ = update(
         &mut app,
         WorkflowMessage::VideoTemplateLoaded {
@@ -107,7 +107,7 @@ fn video_edit_ui_stale_tenant_reply_cannot_replace_current_template() {
     );
     assert!(app.workflow_state.video_edit.record.is_none());
     app.workflow_state.video_edit.tenant = Some(
-        vw_gateway_client::vw_api_types::TenantScope::new("10000", "previous-company").unwrap(),
+        vw_api_transport::TenantScope::new("10000", "previous-company").unwrap(),
     );
     app.workflow_state.saved_app_search_query = "private".into();
     sync_video_tenant(&mut app);
@@ -197,8 +197,8 @@ fn video_edit_ui_restore_requires_confirmation_and_cancel_keeps_yaml() {
 
 #[test]
 fn video_edit_ui_tenant_switch_restores_own_unsaved_draft_without_restarting_run() {
-    let a = vw_gateway_client::vw_api_types::TenantScope::new("ui", "a").unwrap();
-    let b = vw_gateway_client::vw_api_types::TenantScope::new("ui", "b").unwrap();
+    let a = vw_api_transport::TenantScope::new("ui", "a").unwrap();
+    let b = vw_api_transport::TenantScope::new("ui", "b").unwrap();
     let mut state = WorkflowState::default();
     state.select_tenant(a.clone());
     state.video_edit.editor = Some(text_editor::Content::with_text("tenant A 未保存"));

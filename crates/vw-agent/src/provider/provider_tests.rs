@@ -482,7 +482,7 @@ async fn provider_catalog_read_failure_preserves_config_error_and_recovers() {
     {
         let _fault = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", unavailable.as_os_str());
         assert!(
-            config::get_global_for_tenant(&vw_api_types::id::TenantScope::default()).await.is_err()
+            config::get_global_for_tenant(&vw_api_transport::TenantScope::default()).await.is_err()
         );
         let error = get_model("catalog-recovery", "original").await.unwrap_err();
         assert!(matches!(error, CatalogError::Configuration(_)), "{error}");
@@ -600,7 +600,7 @@ async fn provider_catalog_same_path_tenants_stay_isolated_on_worker() {
     let project_root = home.path().join("project");
     std::fs::create_dir(&project_root).unwrap();
     for model in ["tenant-a", "tenant-b", "tenant-a"] {
-        let tenant = vw_api_types::id::TenantScope::new("catalog", model).unwrap();
+        let tenant = vw_api_transport::TenantScope::new("catalog", model).unwrap();
         let (project, _) = crate::project::from_directory(&tenant, &project_root).await.unwrap();
         config::update_project_for_tenant(
             &tenant,

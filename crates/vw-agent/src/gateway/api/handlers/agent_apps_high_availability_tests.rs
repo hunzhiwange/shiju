@@ -7,11 +7,15 @@ use crate::{
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use std::{fs, time::Duration};
-use vw_api_types::{
-    agent_apps::AppId::Codex,
-    agent_apps_high_availability::{FailoverQueueScope, FailoverQueueVersion},
-    app_providers::{AppProviderWrite, ProviderProtocol, codex_catalog::CodexProfile},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::app_providers::codex_catalog::CodexProfile,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[tokio::test]

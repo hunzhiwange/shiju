@@ -6,14 +6,18 @@ use vw_agent_apps::{
     mcp::import::NativeMcpSource,
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    agent_apps::AppId,
-    agent_apps_auth::AuthService,
-    mcp_management::{
-        McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpCredentialRef,
-        McpDistributionOutcome, McpFailureCode, McpRuntimeSelection,
-    },
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_types::mcp_management::McpDistributionOutcome,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRuntimeSelection,
 };
 
 use super::{

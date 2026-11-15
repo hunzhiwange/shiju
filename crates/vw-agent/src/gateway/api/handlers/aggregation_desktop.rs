@@ -8,7 +8,10 @@ use axum::{
     routing::get,
 };
 use std::path::{Path, PathBuf};
-use vw_api_types::{agent_apps::aggregation::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(super) fn router() -> Router {
@@ -68,7 +71,10 @@ pub(super) fn finish(
     response
 }
 pub(super) fn failure(status: StatusCode, code: &str) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
@@ -95,7 +101,10 @@ mod native {
         claude_desktop::publication as desktop,
         live::commit::{AppState, ExecutionHostId, ProviderTransactions},
     };
-    use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
     pub(super) const APP: AppId = AppId::ClaudeDesktop;
     pub(super) struct Context {
         pub project: ProjectScope,

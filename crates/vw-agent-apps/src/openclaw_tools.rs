@@ -11,7 +11,7 @@ use crate::providers::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// Unknown profiles and extensions survive editing; no implicit full profile.
 /// No Debug because extensions can contain sensitive application settings.

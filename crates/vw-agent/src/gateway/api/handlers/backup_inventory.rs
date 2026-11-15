@@ -1,7 +1,12 @@
 //! Read-only inventory backed by the authorized host-local backup owner.
 use axum::{Extension, Json, Router, extract::Query, http::{HeaderMap, StatusCode}, routing::get};
 use serde::Deserialize;
-use vw_api_types::{ProjectId, ProjectScope, TenantScope, agent_apps::data_management::DataBackupSummary};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::data_management::DataBackupSummary,
+};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

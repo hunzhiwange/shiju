@@ -141,7 +141,7 @@ fn acp_model_source_kiro_control_is_authenticated_bound_and_revocable() {
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", temp.path().join("config"));
     }
-    let tenant = vw_api_types::id::TenantScope::new("kiro", "control").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("kiro", "control").unwrap();
     let root = temp.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();

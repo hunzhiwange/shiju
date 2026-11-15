@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use tokio::sync::Semaphore;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::*;
 

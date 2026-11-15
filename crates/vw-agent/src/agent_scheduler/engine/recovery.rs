@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use crate::agent_scheduler::domain::{ResourceLeaseId, RunId};
 use crate::agent_scheduler::events::AgentEventKind;

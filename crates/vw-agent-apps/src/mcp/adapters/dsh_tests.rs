@@ -12,7 +12,10 @@ use crate::{
 use serde_json::json;
 use serde_yaml::Value as Yaml;
 use std::{fs, net::TcpListener, os::unix::fs::PermissionsExt};
-use vw_api_types::{TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 
 const BEFORE: &str = "# fixture\n- id: custom\n  config: {dynamic: !!js process.env.VALUE}\n";
 const PROFILES: [&str; 3] = ["web", "desktop", "headless"];

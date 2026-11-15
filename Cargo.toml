@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-transport",
   "crates/libs/config-runtime-paths",
   "crates/libs/agent-async",
   "crates/libs/agent-bus",
@@ -113,7 +114,6 @@ members = [
   "crates/vw-webview",
   "crates/vw-provider-resolver",
   "crates/libs/provider-errors",
-  "crates/libs/provider-protocol-routes",
 ]
 exclude = [
   "vendor/iced_winit",

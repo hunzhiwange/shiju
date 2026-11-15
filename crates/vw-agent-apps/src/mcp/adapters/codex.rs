@@ -15,10 +15,11 @@ use crate::{
 use serde_json::Value;
 use std::{collections::BTreeMap, ffi::OsStr};
 use toml_edit::{Array, Item, Table, value};
-use vw_api_types::{
-    TenantScope,
-    agent_apps::AppId,
-    mcp_management::{McpConfigValue, McpConnectionDefinition},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
 };
 
 const CONFIG: &str = "config.toml";

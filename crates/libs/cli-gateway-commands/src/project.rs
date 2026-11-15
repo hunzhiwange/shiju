@@ -5,7 +5,10 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
 use serde_json::json;
-use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 use vw_gateway_client::vw_api_types::project::{
     ListProjectsRequest, ProjectStatus, ResolveProjectRequest, UpdateProjectRequest,
 };

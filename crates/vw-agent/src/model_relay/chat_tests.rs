@@ -83,7 +83,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
             .await
             .unwrap();
     });
-    let tenant = vw_api_types::id::TenantScope::new("chat", "one").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("chat", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();

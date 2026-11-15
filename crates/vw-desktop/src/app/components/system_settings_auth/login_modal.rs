@@ -18,7 +18,10 @@ use iced::{
     Alignment, Element, Length,
     widget::{button, column, container, row, text, text::Wrapping},
 };
-use vw_gateway_client::vw_api_types::{TimestampMs, agent_apps_auth::AuthRegion};
+use {
+    vw_api_transport::TimestampMs,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion,
+};
 
 impl LoginChallenge {
     pub(super) fn detail(&self) -> (&'static str, &str) {

@@ -73,7 +73,7 @@ pub(super) async fn thinking_replays_through_bound_http() {
             .await
             .unwrap();
     });
-    let tenant = vw_api_types::id::TenantScope::new("protocol015", "wire").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("protocol015", "wire").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();

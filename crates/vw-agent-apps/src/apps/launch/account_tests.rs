@@ -1,6 +1,9 @@
 use super::{account::prepare_account_launch, request::LaunchMaterial};
 use crate::auth::credential_file::{AccountCredential, CredentialFileStore};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 #[test]
 fn cc_apps_account_launch_isolation_scoped_storage_process_and_cleanup() {

@@ -3,7 +3,10 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{app_providers::kimi::*, id::TenantScope};
+use {
+    vw_api_types::app_providers::kimi::*,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-kimi-token-with-at-least-32-chars";
 struct Fixture {
@@ -373,10 +376,11 @@ async fn cc04_kimi_bound_official_connection_survives_gateway_edits() {
         },
         providers::live::commit::{ExecutionHostId, ProviderTransactions},
     };
-    use vw_api_types::{
-        TimestampMs,
-        agent_apps_auth::{AuthRegion, AuthService},
-    };
+    use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
+};
     const ID: &str = "managed:kimi-code";
     const ACCOUNT: &str = "fixture-account";
     let f = Fixture::new().await;

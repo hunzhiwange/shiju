@@ -6,14 +6,21 @@ use reqwest::{StatusCode, header};
 use tokio::time::{Instant, timeout};
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::auth::copilot::CopilotAuth;
-use vw_api_types::{
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailure, DiagnosticFailureCode,
-        DiagnosticModelProtocol, DiagnosticOutcome, DiagnosticPhase, DiagnosticReport,
-        DiagnosticResult, DiagnosticTiming, ModelEvidence, ModelProtocolAttempt,
-        ModelProtocolEvidence,
-    },
-    id::{ModelId, ProviderId},
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticReport,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticTiming,
+    vw_api_types::agent_apps_diagnostics::ModelEvidence,
+    vw_api_types::agent_apps_diagnostics::ModelProtocolAttempt,
+    vw_api_types::agent_apps_diagnostics::ModelProtocolEvidence,
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::ProviderId,
 };
 
 use super::super::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError};
@@ -94,7 +101,7 @@ impl ModelProbe {
         let target = self.target;
         let source_protocol = self.source;
         let started = Instant::now();
-        let started_at = vw_api_types::TimestampMs(chrono::Utc::now().timestamp_millis());
+        let started_at = vw_api_transport::TimestampMs(chrono::Utc::now().timestamp_millis());
         let mut endpoint_fingerprint = None;
         let mut phase = DiagnosticPhase::Connect;
         let mut status = None;
@@ -153,7 +160,7 @@ impl ModelProbe {
                         source_protocol: response::public_protocol(source_protocol),
                         upstream_protocol: response::public_protocol(target.protocol),
                         endpoint_fingerprint: fingerprint,
-                        checked_at: vw_api_types::TimestampMs(chrono::Utc::now().timestamp_millis()),
+                        checked_at: vw_api_transport::TimestampMs(chrono::Utc::now().timestamp_millis()),
                         verified_fields: vec!["text".into(), "terminal_status".into(), "model".into()],
                     }),
                 })

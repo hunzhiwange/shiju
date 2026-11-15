@@ -2,9 +2,10 @@
 
 use serde::Serialize;
 use vw_acp::{McpCatalogMount, SessionMountRevision, server::BackendError};
-use vw_api_types::{
-    ProjectScope,
-    mcp_management::{McpCatalogScope, McpFailureCode},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use crate::{

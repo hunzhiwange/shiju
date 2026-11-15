@@ -4,7 +4,7 @@
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
 use crate::agent_scheduler::domain::{AssigneeId, RunId, TaskId, TeamId};

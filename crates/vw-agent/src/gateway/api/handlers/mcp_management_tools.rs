@@ -12,10 +12,13 @@ use axum::{
     extract::{Query, rejection::JsonRejection},
     http::{HeaderMap, StatusCode},
 };
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    agent_apps_diagnostics::{DiagnosticJobIdentity, DiagnosticScope, DiagnosticScopeQuery},
-    mcp_management::McpToolDetailsRequest,
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_types::mcp_management::McpToolDetailsRequest,
 };
 
 pub(super) async fn submit(

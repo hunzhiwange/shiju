@@ -13,7 +13,7 @@ use crate::{
     },
 };
 use serde_json::{Map, Value};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// Complete object, including nested vars/shellEnv and unknown extensions.
 /// No Debug implementation: incidental diagnostics must not expose secrets.

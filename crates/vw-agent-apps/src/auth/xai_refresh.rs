@@ -12,9 +12,10 @@ use crate::providers::validate_identity;
 use reqwest::{Client, Request, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthService},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
 };
 
 const REFRESH_BUFFER_MS: i64 = 60_000;

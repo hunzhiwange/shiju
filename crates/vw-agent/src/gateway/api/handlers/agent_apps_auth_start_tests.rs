@@ -11,7 +11,11 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::Arc};
 use tokio::{net::TcpListener, task::JoinHandle};
-use vw_api_types::{TimestampMs, agent_apps_auth::AuthService, id::TenantScope};
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
 pub(super) const OWNER: &str = "fixture-owner-token-aaaaaaaaaaaa";
 pub(super) const OTHER: &str = "fixture-other-token-bbbbbbbbbbbb";

@@ -12,7 +12,10 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 // Map the default slot to a unique directory-derived service, so the real macOS
 // adapter never reads or writes the user's live Claude entry.

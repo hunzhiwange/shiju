@@ -4,7 +4,11 @@
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use serde_json::json;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 use vw_shared::session::info::{
     Info as AgentSessionInfo, RevertInfo, ShareInfo, Summary, TimeInfo,

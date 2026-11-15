@@ -3,7 +3,10 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{app_providers::claude_desktop::*, id::TenantScope};
+use {
+    vw_api_types::app_providers::claude_desktop::*,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-claude_desktop-token-with-at-least-32-chars";
 struct Fixture {

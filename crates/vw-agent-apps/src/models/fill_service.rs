@@ -5,14 +5,18 @@ use super::{
     metadata::resolve_model_metadata,
 };
 use serde_json::Value;
-use vw_api_types::{
-    id::TenantScope,
-    model_catalog::{
-        ModelCapabilityState::Unknown, ModelCatalogCacheStatus, ModelCatalogFillCommitRequest,
-        ModelCatalogFillPreviewRequest, ModelCatalogFillPreviewResponse, ModelCatalogIdentity,
-        ModelCatalogWriteResponse, ModelMetadataDto, ModelMetadataField,
-        ScopedModelCatalogIdentity,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCapabilityState::Unknown,
+    vw_api_types::model_catalog::ModelCatalogCacheStatus,
+    vw_api_types::model_catalog::ModelCatalogFillCommitRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogWriteResponse,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField,
+    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
 use vw_provider_resolver::models::ModelsSnapshot;
 

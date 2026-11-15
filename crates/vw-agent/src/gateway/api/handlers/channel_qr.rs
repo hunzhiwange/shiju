@@ -13,7 +13,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use uuid::Uuid;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::app::agent::gateway::ApiError;
 

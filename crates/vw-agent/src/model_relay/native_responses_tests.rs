@@ -7,7 +7,7 @@ use serde_json::json;
 #[test]
 fn cc_route_036_native_responses_expected_behavior() {
     let identity = RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::new("platform", "company").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("platform", "company").unwrap(),
         generation: 1,
         project: "p".into(),
         session: "s".into(),
@@ -32,7 +32,7 @@ fn cc_route_036_native_responses_expected_behavior() {
 #[tokio::test]
 async fn cc_route_036_stream_records_references_without_changing_bytes() {
     let identity = RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::new("platform", "company").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("platform", "company").unwrap(),
         generation: 1,
         project: "p".into(),
         session: "s".into(),

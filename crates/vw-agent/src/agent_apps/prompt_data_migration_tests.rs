@@ -2,7 +2,11 @@ use super::{PromptsStore, PromptScope};
 use crate::global_database::GlobalDatabase;
 use serde_json::json;
 use vw_agent_apps::data_management::{source::{SourceScope, read_selected_source}, preview::Decision};
-use vw_api_types::{id::{ProjectScope, TenantScope}, agent_apps::AppId};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 
 #[test]
 fn cc_data_12_owner_import_repeat_skip_replace_and_stale() {

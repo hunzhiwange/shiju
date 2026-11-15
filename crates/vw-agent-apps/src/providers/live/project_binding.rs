@@ -4,9 +4,10 @@ use super::{
     stage::FileChange,
     write_guard::{AppWriteGuard, WriteError},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 impl AppState {

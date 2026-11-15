@@ -11,9 +11,11 @@ use std::path::PathBuf;
 use vw_agent_apps::apps::preferences::{
     HostPlatform, default_user_preferences, normalize_preferences,
 };
-use vw_api_types::{
-    agent_apps::{AppHostPreferences, AppPreferencesPatch as Patch, AppPreferencesResult},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppHostPreferences,
+    vw_api_types::agent_apps::AppPreferencesPatch as Patch,
+    vw_api_types::agent_apps::AppPreferencesResult,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone)]

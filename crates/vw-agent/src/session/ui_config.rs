@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use serde_json::Value;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
@@ -82,7 +82,7 @@ fn set_config_field_in_store(
 /// Reserved UI config field: session IDs map to non-secret model identities.
 fn validate_acp_session_models(value: &Value) -> Result<()> {
     let selections: std::collections::HashMap<
-        vw_api_types::id::SessionId,
+        vw_api_transport::SessionId,
         vw_api_types::acp_model_source::AcpSessionModelSelection,
     > = serde_json::from_value(value.clone()).context("decode ACP session model selections")?;
     if selections.keys().any(|id| id.as_ref().trim().is_empty()) {

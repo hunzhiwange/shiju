@@ -601,7 +601,7 @@ async fn agcollab_child_rejects_cross_workspace_and_tenant() {
     .await;
     assert!(format!("{}", result.unwrap_err()).contains("workspace mismatch"));
     let context = Arc::new(ToolUseContext::new(&parent.id, Some(directory.clone())));
-    let tenant = vw_api_types::id::TenantScope::new("other-platform", "other-company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap();
     let result = crate::session::ui_store::with_tenant_scope(
         tenant,
         scope_tool_use_context(

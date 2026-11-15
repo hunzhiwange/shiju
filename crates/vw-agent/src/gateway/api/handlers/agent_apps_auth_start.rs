@@ -32,12 +32,17 @@ use vw_agent_apps::{
     },
     providers::validate_identity,
 };
-use vw_api_types::{
-    agent_apps_auth::{
-        AuthError, AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod, AuthPasteRequest,
-        AuthService, AuthStartRequest, AuthStartResponse,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthError,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_types::agent_apps_auth::AuthLoginMethod,
+    vw_api_types::agent_apps_auth::AuthPasteRequest,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_transport::id::TenantScope,
 };
 
 #[cfg(target_os = "macos")]

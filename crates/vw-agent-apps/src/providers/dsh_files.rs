@@ -148,7 +148,7 @@ impl DshFiles {
     pub fn apply(
         &mut self,
         tx: &crate::providers::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         expected: &crate::providers::live::commit::AppState,
         pre: &Snapshot,
         next: &Snapshot,
@@ -189,7 +189,7 @@ impl DshFiles {
     pub(crate) fn apply_checked(
         &mut self,
         tx: &ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         target: PendingTarget,
         pre: &Snapshot,
         next: &Snapshot,

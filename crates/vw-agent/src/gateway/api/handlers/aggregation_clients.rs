@@ -7,9 +7,10 @@ use axum::{
     routing::{get, post},
 };
 use std::path::PathBuf;
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -25,7 +26,10 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
 }
 type Failure = (StatusCode, &'static str);
 fn respond(result: Result<Result<CodexClientsState, Failure>, tokio::task::JoinError>) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     let result = result.unwrap_or(Err((StatusCode::BAD_GATEWAY, "target_failed")));
     let mut response = match result {
         Ok(state) => Json(state).into_response(),
@@ -130,7 +134,7 @@ fn execute(
             },
         },
     };
-    let project = vw_api_types::id::ProjectScope::new(tenant.clone(), query.project_id)
+    let project = vw_api_transport::ProjectScope::new(tenant.clone(), query.project_id)
         .map_err(|_| failure(StatusCode::BAD_REQUEST))?;
     vw_agent_apps::providers::validate_identity(&query.target_host_id)
         .map_err(|_| failure(StatusCode::BAD_REQUEST))?;

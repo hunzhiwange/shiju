@@ -3,10 +3,14 @@ use vw_agent_apps::{
     high_availability::queue::{Queue, QueueError},
     providers::failover::ProviderAuth,
 };
-use vw_api_types::{
-    agent_apps::AppId::{Claude, Codex, Pi},
-    app_providers::{AppProviderWrite, ProviderProtocol, codex_catalog::CodexProfile},
-    id::ProjectScope,
+use {
+    vw_api_types::agent_apps::AppId::Claude,
+    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_types::agent_apps::AppId::Pi,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::app_providers::codex_catalog::CodexProfile,
+    vw_api_transport::id::ProjectScope,
 };
 
 #[test]

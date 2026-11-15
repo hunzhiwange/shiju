@@ -6,9 +6,11 @@ use crate::{
 use axum::http::{HeaderMap, StatusCode};
 use std::path::Path;
 use vw_agent_apps::providers::live::commit::{ExecutionHostId, ProviderTransactions};
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::AggregationWriteQuery},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[allow(clippy::too_many_arguments)]

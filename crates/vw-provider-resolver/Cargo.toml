@@ -8,7 +8,6 @@ description = "Provider and model resolver for VibeWindow"
 license = "MIT"
 
 [dependencies]
-provider-protocol-routes = { path = "../libs/provider-protocol-routes", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 provider-errors = { path = "../libs/provider-errors", version = "0.6.0" }

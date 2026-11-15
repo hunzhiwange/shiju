@@ -10,7 +10,11 @@ use std::{
     },
 };
 use vw_agent_apps::providers::{live::commit::*, mode_apply::*};
-use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_apply::*,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-mode-authorized-token-32-characters";
 fn tenant() -> TenantScope {
@@ -462,11 +466,12 @@ impl ProductionFixture {
             app_providers::{AppProviderStore, ClaudeBindingHost},
         };
         use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
-        use vw_api_types::{
-            TimestampMs,
-            agent_apps_auth::AuthService,
-            app_providers::claude::{ClaudeConfig, ClaudeProfile},
-        };
+        use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::app_providers::claude::ClaudeConfig,
+    vw_api_types::app_providers::claude::ClaudeProfile,
+};
 
         let home = tempfile::tempdir().unwrap();
         let root = home.path().join("credentials");

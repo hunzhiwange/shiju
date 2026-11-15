@@ -1188,7 +1188,7 @@ pub async fn execute_task_plan_async(
 
 #[cfg(not(target_arch = "wasm32"))]
 struct GatewayGitContext {
-    project_id: vw_gateway_client::vw_api_types::id::ProjectId,
+    project_id: vw_api_transport::ProjectId,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1753,7 +1753,7 @@ fn execute_task_review_blocking(
 #[cfg(not(target_arch = "wasm32"))]
 struct GatewayMergeTargetLockGuard {
     client: vw_gateway_client::GatewayClient,
-    project_id: vw_gateway_client::vw_api_types::id::ProjectId,
+    project_id: vw_api_transport::ProjectId,
     task_id: String,
     target_branch: String,
     sender: Option<Sender<TaskLogStream>>,
@@ -1765,7 +1765,7 @@ impl Drop for GatewayMergeTargetLockGuard {
         let result = super::block_on_gateway(self.client.task_pool_worktree_merge_unlock(
             &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMergeUnlockRequest {
                 project_id: self.project_id.clone(),
-                task_id: vw_gateway_client::vw_api_types::id::TaskId(self.task_id.clone()),
+                task_id: vw_api_transport::TaskId(self.task_id.clone()),
                 target_branch: self.target_branch.clone(),
             },
         ));
@@ -1823,7 +1823,7 @@ fn lock_merge_target_via_gateway(
                 .task_pool_worktree_merge_lock(
                     &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMergeLockRequest {
                         project_id: project.id.clone(),
-                        task_id: vw_gateway_client::vw_api_types::id::TaskId(task_id),
+                        task_id: vw_api_transport::TaskId(task_id),
                         target_branch,
                     },
                 )

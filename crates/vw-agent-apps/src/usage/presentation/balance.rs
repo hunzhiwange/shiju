@@ -1,9 +1,11 @@
 pub use vw_api_types::apps_usage::recharge_detail_url;
-use vw_api_types::{
-    TimestampMs,
-    apps_usage::{
-        UsageCredentialState, UsageNumber, UsageQueryError, UsageQueryOutcome, UsageScriptPackage,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::apps_usage::UsageCredentialState,
+    vw_api_types::apps_usage::UsageNumber,
+    vw_api_types::apps_usage::UsageQueryError,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageScriptPackage,
 };
 
 use super::tiers::QuotaTone;

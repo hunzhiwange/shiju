@@ -1,7 +1,11 @@
 use std::collections::BTreeMap;
 use rusqlite::Connection;
 use serde_json::json;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use super::{source::*, usage::*, preview::{Decision, PreviewError}};
 
 fn fixture() -> (SourceScope, SourceSnapshot, Connection) {

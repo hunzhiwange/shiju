@@ -3,14 +3,14 @@
 use crate::model_relay::generation::GenerationProtocol;
 use serde_json::Value;
 use vw_agent_apps::providers;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        ProviderProtocol,
-        claude::{ClaudeConfig, ClaudeProfile},
-        gemini::{GeminiConfig, GeminiProfile},
-    },
-    id::ProviderId,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::app_providers::claude::ClaudeConfig,
+    vw_api_types::app_providers::claude::ClaudeProfile,
+    vw_api_types::app_providers::gemini::GeminiConfig,
+    vw_api_types::app_providers::gemini::GeminiProfile,
+    vw_api_transport::id::ProviderId,
 };
 
 #[derive(Clone, Copy)]

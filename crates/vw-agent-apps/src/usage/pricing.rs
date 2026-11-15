@@ -3,7 +3,10 @@ use super::cost::ModelPricing;
 use crate::models::edits::validate_model_id;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::{ModelId, ProjectScope};
+use {
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::ProjectScope,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelPricingInfo {

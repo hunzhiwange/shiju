@@ -6,9 +6,11 @@ use axum::http::StatusCode;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
-use vw_api_types::{
-    app_routing::{RoutingEgressMode, RoutingEgressStatus, RoutingEgressUpdate},
-    id::TenantScope,
+use {
+    vw_api_types::app_routing::RoutingEgressMode,
+    vw_api_types::app_routing::RoutingEgressStatus,
+    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(crate) struct RoutingEgress {

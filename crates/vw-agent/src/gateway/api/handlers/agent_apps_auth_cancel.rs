@@ -13,9 +13,10 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use std::{sync::Arc, time::Instant};
-use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthFlowId},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) async fn cancel(

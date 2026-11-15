@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 #[derive(Default)]
 struct Keychain(Mutex<BTreeMap<Option<PathBuf>, Value>>);
 impl ClaudeKeychain for Keychain {

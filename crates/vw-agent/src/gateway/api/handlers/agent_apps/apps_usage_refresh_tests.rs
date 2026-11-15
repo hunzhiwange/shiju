@@ -257,9 +257,12 @@ fn managed_codex_fixture(fixture: &mut Fixture) -> impl Fn(&str) + use<> {
         auth::credential_file::{AccountCredential, CredentialFileStore},
         providers::codex_catalog,
     };
-    use vw_api_types::{
-        TimestampMs, agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope,
-    };
+    use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
     let root = fixture.path.with_file_name("credentials");
     std::fs::DirBuilder::new().mode(0o700).create(&root).unwrap();

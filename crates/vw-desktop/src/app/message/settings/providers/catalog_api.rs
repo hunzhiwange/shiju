@@ -11,17 +11,20 @@ use crate::app::{
 };
 use iced::Task;
 use std::collections::HashSet;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        common::PaginationRequest,
-        id::ModelId,
-        model_catalog::{
-            ModelCatalogDefaultChange, ModelCatalogDefaultRequest, ModelCatalogEdit,
-            ModelCatalogEditRequest, ModelCatalogIdentity, ModelCatalogPreset, ModelCatalogProject,
-            ModelCatalogQuery, ModelCatalogReadResponse,
-        },
-    },
+use {
+    vw_gateway_client::AgentAppsReadError,
+    vw_gateway_client::GatewayClient,
+    vw_api_transport::common::PaginationRequest,
+    vw_api_transport::id::ModelId,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogDefaultChange,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogDefaultRequest,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogPreset,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogQuery,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogReadResponse,
 };
 
 #[derive(Clone)]

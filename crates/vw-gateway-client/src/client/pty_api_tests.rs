@@ -7,7 +7,7 @@ use std::sync::mpsc;
 
 use serde_json::json;
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::{PtyCreateRequest, PtySizeDto, PtyStatusDto, PtyUpdateRequest};
 use crate::client::test_support;

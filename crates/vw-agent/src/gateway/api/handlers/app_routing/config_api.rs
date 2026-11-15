@@ -15,10 +15,13 @@ use axum::{
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 use std::sync::Arc;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_routing::{AppRoutingConfig, RoutingConfig},
-    id::{ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_routing::AppRoutingConfig,
+    vw_api_types::app_routing::RoutingConfig,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) type ConfigBody = Result<Json<Box<RawValue>>, JsonRejection>;

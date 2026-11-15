@@ -19,7 +19,7 @@ async fn cc04_claude_desktop_sdk_sends_scoped_switch_and_discards_error_body() {
     use super::super::test_support;
     let server = test_support::server_with_tenant_scope(
         vec![(403, serde_json::json!({"secret":"fake-response-secret"}))],
-        vw_api_types::id::TenantScope::new("p", "a").unwrap(),
+        vw_api_transport::TenantScope::new("p", "a").unwrap(),
     );
     let error = server
         .client()
@@ -45,7 +45,7 @@ async fn cc04_claude_desktop_sdk_import_reports_unsupported_without_secret_body(
             422,
             serde_json::json!({"code":"claude_desktop.import_unsupported","secret":"fake-secret"}),
         )],
-        vw_api_types::id::TenantScope::new("p", "a").unwrap(),
+        vw_api_transport::TenantScope::new("p", "a").unwrap(),
     );
     let error = server
         .client()

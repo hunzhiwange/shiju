@@ -20,7 +20,7 @@ use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
 use crate::storage;
 use vw_api_types::file::FileNodeKind;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 const TOOL_CONTENT_TYPES: &[&str] = &["json", "sql", "html"];
 const DESKTOP_PREFERENCES_NAMESPACE: &str = "desktop.preferences";

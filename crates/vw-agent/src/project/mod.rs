@@ -17,7 +17,12 @@ use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::{LazyLock, Mutex};
-use vw_api_types::id::{IdValidationError, ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::IdValidationError,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::global_database::GlobalDatabase;

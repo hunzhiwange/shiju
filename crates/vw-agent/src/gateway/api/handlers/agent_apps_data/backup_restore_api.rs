@@ -21,7 +21,10 @@ use vw_agent_apps::data_management::{
     retention::RetentionPolicy,
     safety_snapshot::*,
 };
-use vw_api_types::{agent_apps::data_management::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::data_management::*,
+    vw_api_transport::id::TenantScope,
+};
 const NAMESPACE: &str = "data_restore_operations";
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);

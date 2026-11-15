@@ -14,15 +14,15 @@ use std::{
     time::Duration,
 };
 use tokio::sync::watch;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::{
-        id::TaskId,
-        model_catalog::{
-            ModelCatalogProject, ModelDiscoveryMethod, ModelDiscoveryRequest, ModelDiscoveryState,
-            ModelDiscoveryStatus,
-        },
-    },
+use {
+    vw_gateway_client::AgentAppsReadError,
+    vw_gateway_client::GatewayClient,
+    vw_api_transport::id::TaskId,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryMethod,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryRequest,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryState,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryStatus,
 };
 
 #[derive(Clone)]
@@ -130,7 +130,7 @@ struct Worker {
     token: String,
     project: ModelCatalogProject,
     request: ModelDiscoveryRequest,
-    context: vw_gateway_client::vw_api_types::id::TenantScope,
+    context: vw_api_transport::TenantScope,
 }
 
 impl Worker {

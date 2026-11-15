@@ -1,7 +1,10 @@
 //! Lazy text reads accept only references issued by the authorized transcript.
 use axum::{Extension, Json, http::{HeaderMap, StatusCode}};
 use vw_agent_apps::sessions::{cache, content_file, content_sqlite};
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 use super::messages::{Failure, failure};
 
 pub(super) async fn read(

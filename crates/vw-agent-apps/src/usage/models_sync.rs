@@ -2,7 +2,7 @@
 use std::{sync::{Arc, Mutex}, time::{Duration, SystemTime, UNIX_EPOCH}};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 use vw_provider_resolver::models::{self, ModelsRefreshStatus};
 use super::{models_selection::{ModelsDevSelectionConfig, flatten_models, resolve_models_dev_selection, to_model_pricing}, pricing::{StoredModelPricing, get_model_pricing, initialize_pricing_store}};
 

@@ -12,7 +12,11 @@ use axum::middleware;
 use axum::routing::get;
 use base64::Engine;
 use tower::util::ServiceExt;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 
 fn auth_value(username: &str, password: &str) -> String {
     let encoded =

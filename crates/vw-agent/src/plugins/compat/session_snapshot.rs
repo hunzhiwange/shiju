@@ -15,7 +15,7 @@ use std::{
 pub(crate) struct PluginSessionSnapshot {
     options: PluginDiscoveryOptions,
     discovery: PluginDiscovery,
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     active: AtomicBool,
     pub(crate) hooks: Option<Arc<HookRunner>>,
     pub(crate) required_hooks: bool,

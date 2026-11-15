@@ -47,7 +47,7 @@ fn codex_plugin_compat_t30_session_binding_uses_real_mcp_and_revokes() {
     }
     assert!(
         crate::session::ui_store::with_tenant_scope_sync(
-            vw_api_types::id::TenantScope::new("other-platform", "other-company").unwrap(),
+            vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap(),
             || mcp_app_execution::call(
                 "t30-real-session",
                 "weather",

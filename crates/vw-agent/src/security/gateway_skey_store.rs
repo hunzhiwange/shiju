@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail};
 use rusqlite::{TransactionBehavior, params};
 use sha2::{Digest, Sha256};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::gateway::GatewaySkey;
 
 use crate::app::agent::security::pairing::masked_skey_name;

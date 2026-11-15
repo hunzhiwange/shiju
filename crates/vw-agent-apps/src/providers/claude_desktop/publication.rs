@@ -13,10 +13,12 @@ use crate::providers::{
 };
 use serde_json::{Value, json};
 use std::{ffi::OsStr, path::Path};
-use vw_api_types::{
-    agent_apps::{AppDesktopObservation, AppId},
-    app_providers::claude_desktop::{ClaudeDesktopConfig, ClaudeDesktopProfile},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppDesktopObservation,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::claude_desktop::ClaudeDesktopConfig,
+    vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile,
+    vw_api_transport::id::TenantScope,
 };
 
 const APP: AppId = AppId::ClaudeDesktop;

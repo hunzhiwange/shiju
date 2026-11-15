@@ -2,7 +2,12 @@
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, rejection::JsonRejection}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::post};
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_api_types::{ProjectId, ProjectScope, TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 use crate::{global_database::GlobalDatabase, agent_apps::prompts_store::{PromptsStore, PromptScope, PromptEntry}};
 
 #[derive(Clone)]
@@ -40,7 +45,10 @@ pub(super) fn router() -> Router {
         .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
 }
 fn error((status, code): Failure) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (status, [(header::CACHE_CONTROL, "no-store")], Json(ApiErrorBody {
         error: ApiErrorDetail { code: code.into(), message: code.into(), details: None },
     })).into_response()

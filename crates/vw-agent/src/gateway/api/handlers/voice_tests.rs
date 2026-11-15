@@ -1,7 +1,7 @@
 use super::*;
 use axum::http::StatusCode;
 use serde_json::json;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 const TOKEN: &str = "sk-voice-fixture-06-private-token";
 struct Server {

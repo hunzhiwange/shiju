@@ -2,10 +2,14 @@ use std::{fs, io::ErrorKind, net::TcpListener, path::Path};
 
 use serde_json::json;
 use vw_agent_apps::mcp::import::NativeMcpSource;
-use vw_api_types::{
-    TenantScope,
-    agent_apps::{AppId, AppInstallationId},
-    mcp_management::{McpAppTarget, McpCatalogScope, McpFailureCode, McpNativeStatus},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_types::mcp_management::McpAppTarget,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpNativeStatus,
 };
 
 use super::{

@@ -7,9 +7,10 @@ use tokio::{
     net::{TcpListener, TcpStream},
     time::timeout,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 

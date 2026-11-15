@@ -1,10 +1,10 @@
 //! Scope-bound failover management. Writes are sent once, including on ambiguous failures.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::{
-    agent_apps_high_availability::*,
-    error::ApiErrorBody,
-    id::ProviderId,
+use {
+    vw_api_types::agent_apps_high_availability::*,
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::id::ProviderId,
 };
 
 /// Structured gateway failures remain available without displaying response payloads or credentials.

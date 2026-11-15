@@ -13,14 +13,18 @@ use tokio::{
     time::{Instant, sleep, timeout},
 };
 use tokio_util::sync::CancellationToken;
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticFailureCode, DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticOutcome,
-        DiagnosticProbeKind, DiagnosticResult,
-    },
-    app_routing::{RoutingEgressMode, RoutingEgressUpdate},
-    id::{ProjectId, TaskId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::app_routing::RoutingEgressMode,
+    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
 };
 use vw_gateway_client::GatewayClient;
 

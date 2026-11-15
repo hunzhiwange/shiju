@@ -3,10 +3,12 @@
 use serde::{Deserialize, Serialize};
 use vw_agent_apps::{providers::validate_identity, usage::scripts::config::UsageTemplate};
 pub use vw_api_types::apps_usage::settings::UsageCredentialId;
-use vw_api_types::{
-    agent_apps::AppId,
-    apps_usage::settings::{MAX_REFRESH_INTERVAL_MINUTES, UsageCodingPlan, valid_usage_team_id},
-    id::ProjectScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::apps_usage::settings::MAX_REFRESH_INTERVAL_MINUTES,
+    vw_api_types::apps_usage::settings::UsageCodingPlan,
+    vw_api_types::apps_usage::settings::valid_usage_team_id,
+    vw_api_transport::id::ProjectScope,
 };
 
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};

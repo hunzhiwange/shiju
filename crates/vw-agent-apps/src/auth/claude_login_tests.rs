@@ -11,7 +11,11 @@ use std::{
     process::Command,
     time::Duration,
 };
-use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
 const TIMEOUT: Duration = Duration::from_secs(8);
 const TRUSTED_URL: &str = "https://claude.com/cai/oauth/authorize?code=true&state=fixture";

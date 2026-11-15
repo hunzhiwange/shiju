@@ -1,5 +1,5 @@
 use super::*;
-use vw_gateway_client::vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 fn identity(company: &str) -> Identity {
     Identity {

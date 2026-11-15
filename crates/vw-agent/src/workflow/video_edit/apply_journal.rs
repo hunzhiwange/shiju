@@ -4,7 +4,7 @@ use super::apply::{VideoApplyJournal, VideoApplyLedger};
 use crate::global_database::{GlobalDatabase, config::DatabaseProvider, run_isolated};
 use anyhow::{Result, ensure};
 use rusqlite::{OptionalExtension, params};
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 
 const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS workflow_video_project_writes (
  platform_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL,

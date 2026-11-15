@@ -1,5 +1,5 @@
 use super::super::test_support;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_universal_sdk_wire_and_error_redaction() {
     let config = serde_json::json!({"name":"Fixture","providerType":"custom","apps":{},"baseUrl":"https://example.com"});

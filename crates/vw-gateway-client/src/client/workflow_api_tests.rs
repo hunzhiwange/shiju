@@ -3,7 +3,10 @@
 //! 覆盖未知事件保留、空帧跳过、回调停止、摘要回退及工作流失败状态的错误映射。
 
 use serde_json::json;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+};
 use vw_api_types::workflow::{
     WorkflowHumanActionDto, WorkflowPauseDto, WorkflowRecordUpsertBody, WorkflowResumeRequest,
 };

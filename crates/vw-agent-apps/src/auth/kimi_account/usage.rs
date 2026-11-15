@@ -1,7 +1,11 @@
 //! Authorized use of an existing Kimi grant without changing model selection.
 
 use reqwest::Request;
-use vw_api_types::{TimestampMs, agent_apps::AppId, agent_apps_auth::AuthErrorCode};
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+};
 
 use super::{
     AccountCredential, CredentialFileStore, KimiAccountTarget, KimiDeviceAuth, KimiNativeTarget,

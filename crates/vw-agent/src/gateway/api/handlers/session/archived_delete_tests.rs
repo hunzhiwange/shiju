@@ -86,7 +86,7 @@ mod persistence {
     use serde_json::Value;
     use tempfile::TempDir;
     use tower::ServiceExt;
-    use vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
 
     fn tenant() -> TenantScope {
         let id = format!("archived-delete-{}", uuid::Uuid::new_v4());

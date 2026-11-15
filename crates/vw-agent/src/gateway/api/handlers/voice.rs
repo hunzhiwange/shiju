@@ -9,12 +9,14 @@ use axum::{
 };
 use sha2::{Digest, Sha256};
 use std::{sync::Arc, time::Duration};
-use vw_api_types::{
-    id::TenantScope,
-    voice::{
-        TranscriptionRequest, TranscriptionResponse, VoiceError, VoiceErrorCode as Code,
-        VoiceErrorResponse, VoiceId,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::voice::TranscriptionRequest,
+    vw_api_types::voice::TranscriptionResponse,
+    vw_api_types::voice::VoiceError,
+    vw_api_types::voice::VoiceErrorCode as Code,
+    vw_api_types::voice::VoiceErrorResponse,
+    vw_api_types::voice::VoiceId,
 };
 
 #[path = "voice_requests.rs"]

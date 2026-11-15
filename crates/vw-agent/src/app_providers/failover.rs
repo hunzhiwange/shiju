@@ -4,7 +4,10 @@ use vw_agent_apps::{
     providers::failover::{ProviderSnapshot, snapshot},
     routing::supports_app,
 };
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 pub(crate) struct FailoverProviderSnapshot {
     pub(crate) provider: ProviderSnapshot,

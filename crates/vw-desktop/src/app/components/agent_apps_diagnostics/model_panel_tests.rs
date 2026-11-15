@@ -2,7 +2,11 @@ use crate::app::{
     message::agent_apps_diagnostics::model_state::*,
     state::{AgentAppsContext, app_providers::list::Scope},
 };
-use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::AppId, agent_apps_diagnostics::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+};
 fn context() -> ModelContext {
     ModelContext {
         scope: Scope {

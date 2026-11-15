@@ -7,7 +7,11 @@ use axum::{
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
 use tower::ServiceExt;
-use vw_api_types::{agent_apps::AppId, app_providers::delete::AppProviderDelete, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::delete::AppProviderDelete,
+    vw_api_transport::id::TenantScope,
+};
 const TOKEN: &str = "fixture-delete-reader-token-over-32-chars";
 fn tenant(company: &str) -> TenantScope {
     TenantScope::new("p", company).unwrap()

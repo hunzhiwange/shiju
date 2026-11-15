@@ -29,7 +29,7 @@ use crate::app::agent::tools::traits::ToolSpec;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 pub(crate) type SharedQueryEngine = Arc<tokio::sync::Mutex<QueryEngine>>;
 pub(crate) type SessionQueryEngineStore =
@@ -133,7 +133,7 @@ pub(crate) struct GatewayChannels {
     pub webhook_disabled: bool,
     /// 在连接重载之间保留聊天执行状态；按租户隔离。
     pub(crate) runtimes: Arc<
-        Mutex<HashMap<vw_api_types::id::TenantScope, Arc<crate::channels::ChannelRuntimeContext>>>,
+        Mutex<HashMap<vw_api_transport::TenantScope, Arc<crate::channels::ChannelRuntimeContext>>>,
     >,
     /// `X-Webhook-Secret` 的 SHA-256 哈希值（十六进制编码）
     ///

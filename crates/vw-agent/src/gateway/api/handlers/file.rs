@@ -30,9 +30,12 @@ use axum::{Extension, Json};
 use base64::Engine;
 use serde::Deserialize;
 use serde::Serialize;
-use vw_api_types::common::OperationAck;
+use vw_api_transport::common::OperationAck;
 use vw_api_types::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest, WriteFileResponse};
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 use crate::app::agent::file;
 use crate::app::agent::gateway::ApiError;

@@ -15,7 +15,10 @@ use std::{
 };
 use tokio::sync::mpsc;
 use vw_agent_apps::apps::lifecycle::operations::Operation;
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 
 #[derive(Clone, Default)]
 pub(super) struct Reads(Arc<Mutex<HashMap<String, Entry>>>);

@@ -12,24 +12,28 @@ use vw_agent_apps::auth::{
     credential_file::{AccountCredential, CredentialFileStore},
     flow::AuthAccountScope,
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailureCode, DiagnosticModelProtocol,
-        DiagnosticOutcome, DiagnosticResult, DiagnosticScope,
-    },
-    app_providers::{
-        AppProviderWrite, ProviderProtocol,
-        claude::{ClaudeConfig, ClaudeProfile},
-        codex_catalog::CodexProfile,
-    },
-    id::ProjectScope,
-    model_catalog::{
-        CodexNativeModel, ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogIdentity,
-        SavedCodexCatalog,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::app_providers::claude::ClaudeConfig,
+    vw_api_types::app_providers::claude::ClaudeProfile,
+    vw_api_types::app_providers::codex_catalog::CodexProfile,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::model_catalog::CodexNativeModel,
+    vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::SavedCodexCatalog,
 };
 
 use super::{ModelPrepareError, ModelProbe};

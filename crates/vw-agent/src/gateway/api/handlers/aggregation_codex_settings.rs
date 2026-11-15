@@ -8,9 +8,10 @@ use axum::{
     routing::get,
 };
 use std::path::PathBuf;
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -30,7 +31,10 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
 }
 type Failure = (StatusCode, &'static str);
 fn error((status, code): Failure) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         Json(ApiErrorBody {
@@ -133,7 +137,7 @@ fn execute(
             write_guard::{FilePrivacy, WriteError, lock_app},
         },
     };
-    use vw_api_types::id::ProjectScope;
+    use vw_api_transport::id::ProjectScope;
     let project = ProjectScope::new(tenant.clone(), query.project_id)
         .map_err(|_| failure(StatusCode::BAD_REQUEST))?;
     vw_agent_apps::providers::validate_identity(&query.target_host_id)

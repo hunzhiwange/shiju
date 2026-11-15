@@ -8,7 +8,10 @@ use axum::{
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tower::ServiceExt;
-use vw_api_types::{TenantScope, mcp_management::McpCatalogScope};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+};
 
 use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
 

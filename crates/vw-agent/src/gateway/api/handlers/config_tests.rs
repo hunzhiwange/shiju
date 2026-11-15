@@ -13,7 +13,7 @@ use std::ffi::{OsStr, OsString};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::global_database::GlobalDatabase;
 

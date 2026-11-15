@@ -234,7 +234,7 @@ fn resolve_scope_from_query_returns_scope_for_directory_query() {
     let headers = HeaderMap::new();
 
     assert!(
-        resolve_scope_from_query(&vw_api_types::id::TenantScope::default(), &query, &headers)
+        resolve_scope_from_query(&vw_api_transport::TenantScope::default(), &query, &headers)
             .is_some()
     );
 }
@@ -249,7 +249,7 @@ fn resolve_scope_from_query_returns_scope_for_directory_header() {
     headers.insert("x-directory", value);
 
     assert!(
-        resolve_scope_from_query(&vw_api_types::id::TenantScope::default(), &query, &headers)
+        resolve_scope_from_query(&vw_api_transport::TenantScope::default(), &query, &headers)
             .is_some()
     );
 }

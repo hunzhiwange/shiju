@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::Result;
 use chrono::DateTime;
 use serde_json::{Value, json};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::artifacts::TaskArtifactWriter;
 use super::domain::{AssigneeId, TaskId};

@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use super::GatewayClient;
 use crate::endpoint::GatewayEndpoint;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[derive(Debug)]
 pub struct RecordedRequest {

@@ -8,7 +8,11 @@ use axum::{
 };
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_api_types::{ProjectId, TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 use crate::global_database::GlobalDatabase;
 
 #[derive(Clone)]
@@ -57,7 +61,10 @@ async fn read(
 }
 
 fn error((status, code): Failure) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (status, [(header::CACHE_CONTROL, "no-store")], Json(ApiErrorBody {
         error: ApiErrorDetail { code: code.into(), message: code.into(), details: None },
     })).into_response()
@@ -72,7 +79,10 @@ fn execute(policy: Option<PathBuf>, tenant: TenantScope, database: Option<Global
     headers: HeaderMap, query: ReadQuery, operation: Operation) -> Result<serde_json::Value, Failure> {
     use crate::agent_apps::prompts_store::{PromptsStore, PromptScope};
     use vw_agent_apps::prompts::{live_file, targets, listing::list_entries};
-    use vw_api_types::{ProjectScope, agent_apps::PromptResource};
+    use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::agent_apps::PromptResource,
+};
     let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, "target_unavailable");
     let conflict = || (StatusCode::CONFLICT, "revision_conflict");
     let project = ProjectScope::new(tenant, query.project_id)

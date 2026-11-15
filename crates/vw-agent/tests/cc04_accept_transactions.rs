@@ -11,10 +11,13 @@ use std::{
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{claude::*, codex_catalog::*, editor_merge::*, mode_state::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::claude::*,
+    vw_api_types::app_providers::codex_catalog::*,
+    vw_api_types::app_providers::editor_merge::*,
+    vw_api_types::app_providers::mode_state::*,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 

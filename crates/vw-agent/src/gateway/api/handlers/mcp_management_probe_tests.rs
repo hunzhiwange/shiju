@@ -22,12 +22,16 @@ use std::{
     time::Duration,
 };
 use tower::ServiceExt;
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    agent_apps_diagnostics::{
-        DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticResult,
-    },
-    mcp_management::{McpCatalogScope, McpConnectionDefinition, McpConnectionOutcome},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpConnectionOutcome,
 };
 
 const TOKEN: &str = "fixture-mcp39-member-token-with-no-secrets";

@@ -314,9 +314,9 @@ async fn worktree_environment_pending_cannot_be_retried_or_opened() {
 async fn isolated_tenant(
     info: &project::Info,
     root: &std::path::Path,
-) -> vw_api_types::id::TenantScope {
+) -> vw_api_transport::TenantScope {
     let tenant =
-        vw_api_types::id::TenantScope::new("environment", uuid::Uuid::new_v4().to_string())
+        vw_api_transport::TenantScope::new("environment", uuid::Uuid::new_v4().to_string())
             .unwrap();
     project::runtime_store().unwrap().create(&tenant, info).unwrap();
     crate::config::update_global_for_tenant(

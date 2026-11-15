@@ -1,7 +1,12 @@
 use super::*;
 use crate::client::test_support;
 use serde_json::json;
-use vw_api_types::id::{PLATFORM_ID_HEADER, ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn worktree_management_encodes_requests() {
     let server = test_support::server(vec![

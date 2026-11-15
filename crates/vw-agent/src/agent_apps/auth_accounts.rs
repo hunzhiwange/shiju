@@ -29,11 +29,14 @@ use vw_agent_apps::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow, AuthService, AuthStartRequest};
-use vw_api_types::{
-    TimestampMs,
-    agent_apps::{AppId, AppInstallation, LaunchRequest},
-    agent_apps_auth::{AuthErrorCode, AuthRegion},
-    id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallation,
+    vw_api_types::agent_apps::LaunchRequest,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_transport::id::TenantScope,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -8,9 +8,10 @@ use crate::{
     security::SecretStore,
 };
 use axum::{Extension, Json, extract::Path, http::HeaderMap};
-use vw_api_types::{
-    app_routing::{RoutingEgressStatus, RoutingEgressUpdate},
-    id::TenantScope,
+use {
+    vw_api_types::app_routing::RoutingEgressStatus,
+    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) fn secrets() -> SecretStore {

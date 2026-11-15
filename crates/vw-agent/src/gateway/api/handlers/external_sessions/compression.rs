@@ -1,7 +1,10 @@
 //! Compression is native host configuration, guarded by explicit maintenance authority.
 use super::catalog::Policy;
 use axum::{Extension, Json, http::{HeaderMap, StatusCode}};
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 
 pub(super) async fn read(
     Extension(policy): Extension<Policy>,

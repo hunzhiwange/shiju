@@ -474,12 +474,12 @@ async fn persist_info(info: &Info) -> Result<(), Error> {
 
 /// Acquire after any history guards; never acquire history while holding this guard.
 pub(crate) async fn lock_metadata_writes(
-    tenant: &vw_api_types::id::TenantScope,
+    tenant: &vw_api_transport::TenantScope,
 ) -> tokio::sync::OwnedMutexGuard<()> {
     super::message::lock_history(&format!("session-metadata/{}", json!(tenant))).await
 }
 
-async fn validate_parent(tenant: &vw_api_types::id::TenantScope, info: &Info) -> Result<(), Error> {
+async fn validate_parent(tenant: &vw_api_transport::TenantScope, info: &Info) -> Result<(), Error> {
     let Some(parent_id) = info.parent_id.clone() else {
         return Ok(());
     };
@@ -730,7 +730,7 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
 }
 
 async fn apply_update(
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     info: Info,
     update: impl FnOnce(&mut Info),
 ) -> Result<Info, Error> {

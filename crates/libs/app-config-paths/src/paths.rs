@@ -299,7 +299,7 @@ pub fn read(
 pub fn agy_profile_directory(
     root: &Path,
     host: &str,
-    tenant: &vw_api_types::id::TenantScope,
+    tenant: &vw_api_transport::TenantScope,
     provider: &str,
 ) -> PathBuf {
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};

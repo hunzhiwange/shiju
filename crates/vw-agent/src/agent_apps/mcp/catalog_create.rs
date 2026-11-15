@@ -1,9 +1,11 @@
 //! Scoped creation of MCP catalog records in the gateway database.
 
 use vw_agent_apps::mcp::catalog::McpCatalogDraft;
-use vw_api_types::{
-    id::TenantScope,
-    mcp_management::{McpCatalogRecord, McpCatalogScope, McpFailureCode},
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use super::{

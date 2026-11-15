@@ -6,7 +6,7 @@ use std::fs;
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use tempfile::TempDir;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_shared::session::info::{
     Info as AgentSessionInfo, RevertInfo, ShareInfo, Summary, TimeInfo,
 };

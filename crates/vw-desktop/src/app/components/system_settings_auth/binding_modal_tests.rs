@@ -22,8 +22,12 @@ use std::{
     net::{TcpListener, TcpStream},
     time::Duration,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService, id::TenantScope}}};
+use {
+    gateway_endpoint::GatewayEndpoint,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
 const HOST: &str = "fixture-mac";
 const PROVIDER: &str = "official-claude";

@@ -8,7 +8,10 @@ use axum::{
     routing::{get, post},
 };
 use std::path::PathBuf;
-use vw_api_types::{agent_apps::aggregation::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 #[derive(Clone, Copy)]
@@ -121,7 +124,10 @@ fn error(status: StatusCode) -> Response {
     )
 }
 fn failure(status: StatusCode, code: &str) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
@@ -153,7 +159,7 @@ mod native {
         aggregation::{omo_read, omo_slim, omo_write},
         providers::live::commit::{AppState, OmoSelection},
     };
-    use vw_api_types::id::ProjectScope;
+    use vw_api_transport::id::ProjectScope;
     #[derive(Serialize)]
     pub(super) struct Snapshot {
         pub standard: Option<omo_write::OmoSnapshot>,
@@ -330,7 +336,10 @@ fn execute(
             validate_identity,
         },
     };
-    use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
     let scope =
         ProjectScope::new(tenant.clone(), query.project_id).map_err(|_| StatusCode::BAD_REQUEST)?;
     validate_identity(&query.target_host_id).map_err(|_| StatusCode::BAD_REQUEST)?;

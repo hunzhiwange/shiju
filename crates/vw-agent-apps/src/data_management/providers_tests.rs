@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 use serde_json::json;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use super::{providers::*, preview::{Decision, PreviewError}, source::*};
 fn fixture() -> (SourceScope, SourceSnapshot) {
     let scope = SourceScope::new(ProjectScope::new(TenantScope::new("fixture-platform", "fixture-company").unwrap(), ProjectId::from("fixture-project")).unwrap(), "fixture-host".into(), "fixture-user".into()).unwrap();

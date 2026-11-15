@@ -1,17 +1,18 @@
 use super::fill_hermes::{HermesModelFill, fill_hermes_model};
 use crate::providers::hermes::normalize_declaration;
 use serde_json::{Value, json};
-use vw_api_types::{
-    app_providers::hermes::HermesProfile,
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState::Supported,
-        ModelMetadataDto,
-        ModelMetadataField::{ContextWindow, InputModalities, MaxOutputTokens},
-        ModelMetadataProvenance,
-        ModelMetadataSource::{ModelsDev, Preset},
-        ModelTokenCost,
-    },
+use {
+    vw_api_types::app_providers::hermes::HermesProfile,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState::Supported,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField::ContextWindow,
+    vw_api_types::model_catalog::ModelMetadataField::InputModalities,
+    vw_api_types::model_catalog::ModelMetadataField::MaxOutputTokens,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
+    vw_api_types::model_catalog::ModelMetadataSource::Preset,
+    vw_api_types::model_catalog::ModelTokenCost,
 };
 
 #[test]

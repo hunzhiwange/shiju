@@ -10,10 +10,11 @@ use axum::{
     routing::{get, post},
 };
 use std::path::PathBuf;
-use vw_api_types::{
-    common::OperationAck,
-    id::{ProjectScope, TenantScope},
-    worktree::*,
+use {
+    vw_api_transport::common::OperationAck,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::worktree::*,
 };
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()

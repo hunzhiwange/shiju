@@ -3,13 +3,16 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::AuthRegion,
-    apps_usage::{
-        UsageCredentialState, UsageQueryData, UsageQueryErrorCode, UsageQueryKind,
-        UsageQueryOutcome, UsageQueryResult, UsageSource,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::apps_usage::UsageCredentialState,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageQueryResult,
+    vw_api_types::apps_usage::UsageSource,
 };
 
 const KEY: &str = "fixture-kimi-key";

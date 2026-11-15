@@ -3,7 +3,7 @@
 // 内容哈希和元数据规范化必须确定性一致，删除与更新不得跨数据集或租户。
 use anyhow::Result;
 use serde_json::{Value, json};
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentListQuery, KnowledgeDocumentStatus, KnowledgeIndexingMode,

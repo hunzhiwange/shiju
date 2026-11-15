@@ -1,8 +1,9 @@
 use super::{GatewayClient, OpenClawSettingsError as Error, OpenClawSettingsScope, test_support};
 use serde_json::json;
-use vw_api_types::{
-    id::{ProjectId, TenantScope},
-    openclaw_settings::*,
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::openclaw_settings::*,
 };
 
 fn scope() -> OpenClawSettingsScope {

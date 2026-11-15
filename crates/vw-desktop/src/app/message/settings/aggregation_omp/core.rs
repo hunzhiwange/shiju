@@ -23,7 +23,7 @@ pub(crate) async fn read(
 #[derive(Clone, Default)]
 pub(crate) struct Form {
     pub state: Option<OmpDirectoryState>,
-    pub project: Option<vw_gateway_client::vw_api_types::id::ProjectId>,
+    pub project: Option<vw_api_transport::ProjectId>,
     pub access: u64,
     pub removing: Option<String>,
     pub id: String,

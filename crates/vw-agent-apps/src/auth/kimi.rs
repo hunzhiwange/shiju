@@ -18,13 +18,18 @@ use std::{
 };
 use tokio::sync::Mutex as AsyncMutex;
 use uuid::Uuid;
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{
-        AuthAccount, AuthCredentialState, AuthErrorCode, AuthFlow, AuthFlowId, AuthRegion,
-        AuthService, AuthStartRequest, AuthStartResponse,
-    },
-    id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthAccount,
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";

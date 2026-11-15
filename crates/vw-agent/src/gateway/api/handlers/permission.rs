@@ -28,7 +28,7 @@ where
 }
 
 async fn permission_list(
-    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
+    Extension(tenant): Extension<vw_api_transport::TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<permission_next::Request>>, ApiError> {
@@ -57,7 +57,7 @@ struct PermissionReplyRequest {
 }
 
 async fn permission_reply(
-    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
+    Extension(tenant): Extension<vw_api_transport::TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Path(request_id): Path<String>,

@@ -95,7 +95,7 @@ pub(super) async fn session_query_engine(
 
 pub(crate) fn session_query_engine_key(
     session_id: &str,
-) -> (vw_api_types::id::TenantScope, String) {
+) -> (vw_api_transport::TenantScope, String) {
     (crate::session::ui_store::current_tenant_scope(), session_id.to_owned())
 }
 

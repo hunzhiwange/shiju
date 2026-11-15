@@ -82,7 +82,7 @@ impl Harness {
             }
             2 | 5 => {
                 lifecycle.operation = Some(AppOperationStatus {
-                    operation_id: vw_gateway_client::vw_api_types::id::TaskId(
+                    operation_id: vw_api_transport::TaskId(
                         "同一操作-恢复后".into(),
                     ),
                     status: if self.case % 6 == 2 {

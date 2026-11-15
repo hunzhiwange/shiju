@@ -3,9 +3,11 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{
-    app_providers::{basic::ProviderBasic, create::ProviderSecretWrite, pi::*},
-    id::TenantScope,
+use {
+    vw_api_types::app_providers::basic::ProviderBasic,
+    vw_api_types::app_providers::create::ProviderSecretWrite,
+    vw_api_types::app_providers::pi::*,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 const TOKEN: &str = "fixture-pi-token-with-at-least-32-chars";

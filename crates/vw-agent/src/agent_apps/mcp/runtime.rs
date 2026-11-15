@@ -7,11 +7,13 @@ use agent_client_protocol::{
 };
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
-use vw_api_types::{
-    ProjectScope,
-    mcp_management::{
-        McpCatalogScope, McpFailureCode, McpRecordRef, McpRuntimeSelection, McpTransport,
-    },
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordRef,
+    vw_api_types::mcp_management::McpRuntimeSelection,
+    vw_api_types::mcp_management::McpTransport,
 };
 
 use super::{McpCatalogStore, McpExecutionConnection, revocation::RuntimeSelectionLease};

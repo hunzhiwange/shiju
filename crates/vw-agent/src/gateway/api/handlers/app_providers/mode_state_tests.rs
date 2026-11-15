@@ -3,7 +3,11 @@ use axum::{Extension, Router, middleware};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::mode_state::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_state::*,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";
 fn write(home: &Path, name: &str, bytes: &[u8]) {
@@ -221,7 +225,7 @@ async fn aggregation_t39_legacy_mode_read_rejects_project_owned_state() {
     let f = Fixture::new().await;
     let (tx, path, _) = seed(&f);
     let scope =
-        vw_api_types::id::ProjectScope::new(tenant(), vw_api_types::id::ProjectId::from("project"))
+        vw_api_transport::ProjectScope::new(tenant(), vw_api_transport::ProjectId::from("project"))
             .unwrap();
     let expected = tx.state(AppId::Claude).unwrap();
     let mut guard = lock_app(AppId::Claude, f.root.path()).unwrap();

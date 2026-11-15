@@ -1,7 +1,11 @@
 //! Opaque, expiring selections bind discovery to tenant/project/host and content.
 use axum::{Extension, Json, Router, extract::{Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, post}};
-use vw_api_types::{agent_apps_skills::import_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::import_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 pub(crate) fn router() -> Router {

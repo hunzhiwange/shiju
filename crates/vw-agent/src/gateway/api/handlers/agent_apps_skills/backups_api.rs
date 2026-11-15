@@ -1,8 +1,12 @@
 //! Scoped backup operations; saved metadata never authorizes a destination.
 use axum::{Extension, Json, Router, extract::{Path, Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, post}};
-use vw_api_types::{agent_apps_skills::{backups_api::*, repos_api::SkillReposQuery},
-    id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::backups_api::*,
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 #[derive(Clone)]

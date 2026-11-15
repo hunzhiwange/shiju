@@ -9,11 +9,12 @@ use std::{
     path::Path,
     sync::{Arc, Mutex},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{operations::*, preview::ProviderPreviewRequest},
-    id::TenantScope,
-    task::TaskStatus,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::operations::*,
+    vw_api_types::app_providers::preview::ProviderPreviewRequest,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::task::TaskStatus,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-security-authorized-token-over-32-chars";

@@ -69,7 +69,10 @@ fn cc_route_088_stale_host_access_and_serial_are_rejected() {
 
 #[test]
 fn cc_route_088_errors_do_not_render_server_payloads() {
-    use vw_gateway_client::vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     let message = error_message(AppRoutingError::Http {
         status: 409,
         body: Some(ApiErrorBody {

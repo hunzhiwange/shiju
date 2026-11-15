@@ -12,9 +12,12 @@ use futures_util::StreamExt;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tower::ServiceExt;
-use vw_api_types::{
-    id::TenantScope,
-    tools::{DynamicToolHostBinding, DynamicToolResponse, ReplaceDynamicToolsRequest, ToolSource},
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::tools::DynamicToolHostBinding,
+    vw_api_types::tools::DynamicToolResponse,
+    vw_api_types::tools::ReplaceDynamicToolsRequest,
+    vw_api_types::tools::ToolSource,
 };
 
 struct Fixture {

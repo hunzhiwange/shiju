@@ -3,7 +3,7 @@
 // 父子与相邻块链接需完整往返，缺失数据集时不得留下部分写入。
 use anyhow::Result;
 use serde_json::{Value, json};
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::knowledge::{
     KnowledgeChunkType, KnowledgeChunkingMode, KnowledgeDatasetCreateRequest,
     KnowledgeDocumentCreateRequest, KnowledgeIndexingMode, KnowledgeRetrievalMode,

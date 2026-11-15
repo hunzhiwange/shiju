@@ -1,4 +1,7 @@
-use vw_api_types::{app_providers::agy::*, id::TenantScope};
+use {
+    vw_api_types::app_providers::agy::*,
+    vw_api_transport::id::TenantScope,
+};
 #[test]
 fn cc04_agy_native_card_is_saved_without_live_activation() {
     let root = tempfile::tempdir().unwrap();

@@ -2,9 +2,10 @@
 //! Callers bind authorization before constructing identities; no paths are opened here.
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
-use vw_api_types::{
-    id::ProjectScope,
-    usage::{UsageRecord, UsageSourceKind},
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::UsageRecord,
+    vw_api_types::usage::UsageSourceKind,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

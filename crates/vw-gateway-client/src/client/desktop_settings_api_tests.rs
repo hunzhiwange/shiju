@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_json::json;
 
 use crate::client::test_support;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Settings {

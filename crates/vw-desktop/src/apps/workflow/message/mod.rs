@@ -69,11 +69,11 @@ pub enum WorkflowMessage {
     OpenVideoTemplate,
     ReloadVideoTemplate,
     ScopedSavedAppsLoaded {
-        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        tenant: vw_api_transport::TenantScope,
         result: Result<Vec<WorkflowSavedAppSummary>, String>,
     },
     VideoTemplateLoaded {
-        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        tenant: vw_api_transport::TenantScope,
         graph: bool,
         result: Result<vw_gateway_client::WorkflowRecord, String>,
     },
@@ -82,7 +82,7 @@ pub enum WorkflowMessage {
     VideoTemplatePathChanged(String),
     PickVideoTemplatePath,
     VideoTemplatePathPicked {
-        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        tenant: vw_api_transport::TenantScope,
         path: Option<String>,
     },
     SaveVideoTemplate,
@@ -90,7 +90,7 @@ pub enum WorkflowMessage {
     CancelVideoTemplateRestore,
     ConfirmVideoTemplateRestore,
     VideoTemplatePersisted {
-        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        tenant: vw_api_transport::TenantScope,
         graph: bool,
         restore: bool,
         result: Result<vw_gateway_client::WorkflowRecord, String>,

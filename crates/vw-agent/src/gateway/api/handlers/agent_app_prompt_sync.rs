@@ -3,7 +3,12 @@ use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap,
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}};
 use vw_agent_apps::{apps::lifecycle::operations::{Operation, OperationFailure, Phase}, prompts::sync::{Outcome, TargetResult}};
-use vw_api_types::{ProjectId, ProjectScope, TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 use crate::{global_database::GlobalDatabase, agent_apps::prompts_store::{PromptScope, PromptsStore}};
 
 #[derive(Clone, Default)]

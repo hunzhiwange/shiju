@@ -39,7 +39,7 @@ use ui_ops::{
     session_ui_get_without_raw, session_ui_message_delta, session_ui_messages,
     session_ui_preview_meta, session_ui_previews, session_ui_save_request, session_ui_summary,
 };
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// 构建会话相关路由器
 ///

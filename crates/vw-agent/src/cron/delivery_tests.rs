@@ -4,7 +4,7 @@ use crate::channels::{WeComChannel, traits::Channel};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio::time::{Duration, timeout};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 fn fixture(tmp: &tempfile::TempDir) -> Config {
     let mut config = Config::default();

@@ -1,6 +1,8 @@
 use super::operations::*;
-use vw_api_types::{
-    app_providers::operations::ProviderOperationPhase, id::TaskId, task::TaskStatus,
+use {
+    vw_api_types::app_providers::operations::ProviderOperationPhase,
+    vw_api_transport::id::TaskId,
+    vw_api_types::task::TaskStatus,
 };
 #[test]
 fn cc04_operations_cancel_before_publish_changes_nothing() {
@@ -48,7 +50,10 @@ fn cc04_operations_real_transaction_settles_files_and_pointer_after_cancel() {
         stage::FileChange,
         write_guard::{FilePrivacy, lock_app},
     };
-    use vw_api_types::{agent_apps::AppId, id::TenantScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
     let root = tempfile::tempdir().unwrap();
     let live = tempfile::tempdir().unwrap();
     std::fs::set_permissions(
@@ -98,7 +103,10 @@ fn cc04_operations_failed_publication_retains_pending_and_recovers() {
         stage::FileChange,
         write_guard::{FilePrivacy, WriteError, lock_app},
     };
-    use vw_api_types::{agent_apps::AppId, id::TenantScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
     let root = tempfile::tempdir().unwrap();
     let live = tempfile::tempdir().unwrap();
     std::fs::set_permissions(
@@ -176,7 +184,10 @@ fn cc04_operations_cancel_during_staging_preserves_native_and_state() {
         stage::FileChange,
         write_guard::{FilePrivacy, lock_app},
     };
-    use vw_api_types::{agent_apps::AppId, id::TenantScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
     let root = tempfile::tempdir().unwrap();
     let live = tempfile::tempdir().unwrap();
     std::fs::write(live.path().join("native"), b"old").unwrap();

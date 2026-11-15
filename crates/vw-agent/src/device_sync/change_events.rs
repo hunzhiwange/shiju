@@ -5,7 +5,7 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 use tokio::sync::watch;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 type TenantKey = (String, String);
 fn key(tenant: &TenantScope) -> TenantKey {

@@ -5,7 +5,7 @@ use anyhow::{Context, Result, bail, ensure};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VideoSourceIdentity {

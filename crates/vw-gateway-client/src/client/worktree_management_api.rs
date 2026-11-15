@@ -1,6 +1,10 @@
 //! Typed management endpoints; legacy path IDs must never be used here.
 use super::{GatewayClient, project_api::encode_path_segment};
-use vw_api_types::{common::OperationAck, project::ProjectScopeDto, worktree::*};
+use {
+    vw_api_transport::common::OperationAck,
+    vw_api_types::project::ProjectScopeDto,
+    vw_api_types::worktree::*,
+};
 impl GatewayClient {
     fn management_path(&self, scope: &ProjectScopeDto, id: Option<&str>) -> Result<String, String> {
         let mut path = format!("{}/managed-worktrees", self.project_scope_path(scope)?);

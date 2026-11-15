@@ -12,9 +12,10 @@ use vw_agent_apps::apps::launch::{
     posix::launch_posix_terminal,
     request::{LaunchMaterial, validate_launch_request},
 };
-use vw_api_types::{
-    agent_apps::{LaunchRequest, LaunchResult},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::LaunchRequest,
+    vw_api_types::agent_apps::LaunchResult,
+    vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]
 pub(super) struct Context {

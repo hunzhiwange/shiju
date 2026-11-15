@@ -3,10 +3,12 @@ use super::{
     source::{SourceCategory, SourceRecord},
 };
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectId, ProjectScope, TenantScope},
-    mcp_management::McpCatalogScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
 };
 fn scope() -> McpCatalogScope {
     McpCatalogScope::Project {

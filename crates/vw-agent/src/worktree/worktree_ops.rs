@@ -38,9 +38,9 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
     let (info, lifecycle) =
         add_worktree(&project, input.as_ref().and_then(|input| input.name.as_deref())).await?;
 
-    let scope = vw_api_types::id::ProjectScope::new(
+    let scope = vw_api_transport::ProjectScope::new(
         crate::session::ui_store::current_tenant_scope(),
-        vw_api_types::id::ProjectId::from(project_id.as_str()),
+        vw_api_transport::ProjectId::from(project_id.as_str()),
     )
     .map_err(|e| Error::Invalid(e.to_string()))?;
     let _ = project::add_sandbox(&scope, &info.directory).await;
@@ -82,9 +82,9 @@ async fn add_worktree(
     if !created.success {
         return Err(Error::Invalid(created.error_text("Failed to create git worktree")));
     }
-    let scope = vw_api_types::id::ProjectScope::new(
+    let scope = vw_api_transport::ProjectScope::new(
         crate::session::ui_store::current_tenant_scope(),
-        vw_api_types::id::ProjectId::from(project.id.as_str()),
+        vw_api_transport::ProjectId::from(project.id.as_str()),
     )
     .map_err(|e| Error::Invalid(e.to_string()))?;
     if let Err(error) = super::registry::register_locked(
@@ -110,9 +110,9 @@ async fn add_worktree(
 pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Error> {
     let project = ensure_git_project()?;
     let (info, lifecycle) = add_worktree(&project, name).await?;
-    let scope = vw_api_types::id::ProjectScope::new(
+    let scope = vw_api_transport::ProjectScope::new(
         crate::session::ui_store::current_tenant_scope(),
-        vw_api_types::id::ProjectId::from(project.id.as_str()),
+        vw_api_transport::ProjectId::from(project.id.as_str()),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
     prepare_checkout(&info, &project.id, "", &scope, &instance::worktree()).await?;
@@ -126,7 +126,7 @@ pub(crate) async fn remove_fork_checkout(directory: String) -> Result<(), Error>
     let tenant = crate::session::ui_store::current_tenant_scope();
     let project = ensure_git_project()?;
     let primary = instance::worktree();
-    let scope = vw_api_types::id::ProjectScope::new(tenant, project.id.into())
+    let scope = vw_api_transport::ProjectScope::new(tenant, project.id.into())
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let _lock = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
     remove_locked(RemoveInput { directory, force: true }, &scope, std::path::Path::new(&primary))
@@ -151,9 +151,12 @@ pub async fn remove(input: RemoveInput) -> Result<bool, Error> {
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn remove_for_tenant(
     input: RemoveInput,
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
 ) -> Result<bool, Error> {
-    use vw_api_types::id::{ProjectId, ProjectScope};
+    use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
     let project = ensure_git_project()?;
     let primary = instance::worktree();
     let scope = ProjectScope::new(tenant, ProjectId::from(project.id.as_str()))
@@ -174,7 +177,7 @@ pub(super) async fn remove_for_tenant(
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn remove_locked(
     input: RemoveInput,
-    scope: &vw_api_types::id::ProjectScope,
+    scope: &vw_api_transport::ProjectScope,
     primary: &std::path::Path,
 ) -> Result<bool, Error> {
     let (directory, _, git_dir, _) =
@@ -358,7 +361,7 @@ pub async fn reset(input: ResetInput) -> Result<bool, Error> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn rollback_checkout(scope: &vw_api_types::id::ProjectScope, primary: &str, directory: &str) {
+async fn rollback_checkout(scope: &vw_api_transport::ProjectScope, primary: &str, directory: &str) {
     if let Err(error) = remove_locked(
         RemoveInput { directory: directory.into(), force: true },
         scope,
@@ -376,7 +379,7 @@ async fn prepare_checkout(
     info: &Info,
     project_id: &str,
     extra: &str,
-    scope: &vw_api_types::id::ProjectScope,
+    scope: &vw_api_transport::ProjectScope,
     primary: &str,
 ) -> Result<(), Error> {
     let checkout = async {
@@ -429,9 +432,9 @@ pub async fn retry_environment(directory: String) -> Result<(), Error> {
     let project = ensure_git_project()?;
     let primary = instance::worktree();
     let _lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
-    let scope = vw_api_types::id::ProjectScope::new(
+    let scope = vw_api_transport::ProjectScope::new(
         crate::session::ui_store::current_tenant_scope(),
-        vw_api_types::id::ProjectId::from(project.id.as_str()),
+        vw_api_transport::ProjectId::from(project.id.as_str()),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
     let directory = std::fs::canonicalize(directory)?;

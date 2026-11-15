@@ -3,17 +3,19 @@ use std::{os::unix::fs::DirBuilderExt, sync::Arc, time::Duration};
 use axum::{Json, extract::State};
 use serde_json::{Value, json};
 use tokio::{io::AsyncReadExt, sync::Notify, time::timeout};
-use vw_api_types::{
-    TenantScope,
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticScope,
-    },
-    id::ProjectScope,
-    mcp_management::{
-        McpCatalogRecord, McpCatalogScope, McpConnectionDefinition, McpConnectionOutcome,
-        McpFailureCode,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpConnectionOutcome,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use super::{

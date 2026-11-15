@@ -343,7 +343,7 @@ pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_bin
         .insert("telegram:default".into(), a.id);
     let first = ChannelChatScope::from_message(&msg);
     crate::session::ui_store::with_tenant_scope(
-        vw_api_types::id::TenantScope::new("scope-platform", "scope-company").unwrap(),
+        vw_api_transport::TenantScope::new("scope-platform", "scope-company").unwrap(),
         async {
             assert_ne!(first, ChannelChatScope::from_message(&msg));
             ctx.project_state.lock().unwrap().tenant =

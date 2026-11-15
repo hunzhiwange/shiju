@@ -3,7 +3,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
 use tower::ServiceExt;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillInstallsStore};
 
 const TOKEN: &str = "skill-install-test-token-00000000000";

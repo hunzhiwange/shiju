@@ -5,9 +5,10 @@ use std::{
     sync::{Arc, Mutex, mpsc},
     time::Duration,
 };
-use vw_api_types::{
-    agent_apps::{LaunchSessionPhase, LaunchSessionStatus},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::LaunchSessionPhase,
+    vw_api_types::agent_apps::LaunchSessionStatus,
+    vw_api_transport::id::TenantScope,
 };
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct Scope {

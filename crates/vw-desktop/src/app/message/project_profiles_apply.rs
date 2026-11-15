@@ -2,7 +2,11 @@
 use super::{Identity, message};
 use crate::app::{App, Message, state::{AgentAppsContext, project_profiles::{Application, Preview}}};
 use iced::Task;
-use vw_gateway_client::{project_profile_api::ProjectProfileApiScope, vw_api_types::{ProjectScope, project_profiles::*}};
+use {
+    vw_gateway_client::project_profile_api::ProjectProfileApiScope,
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::project_profiles::*,
+};
 
 #[derive(Clone)]
 pub enum Event {

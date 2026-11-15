@@ -129,7 +129,7 @@ async fn channel_project_select_other_tenant_cannot_select_project() {
     let (_a, ctx, a) = registered_context().await;
     let mut msg = channel_message(None);
     ctx.project_state.lock().unwrap().tenant =
-        vw_api_types::id::TenantScope::new("select-isolation", "other").unwrap();
+        vw_api_transport::TenantScope::new("select-isolation", "other").unwrap();
     msg.content = format!("/project {}", a.id);
     assert!(handle_project_command(&ctx, &msg).await.contains("失败"));
     assert!(ctx.project_state.lock().unwrap().selections.is_empty());
@@ -239,9 +239,9 @@ async fn channel_project_select_invalid_default_preserves_override_and_session()
 async fn channel_project_select_lists_chinese_names_and_instance_source() {
     let (_a, ctx, a) = registered_context().await;
     crate::project::update(
-        &vw_api_types::id::ProjectScope::new(
+        &vw_api_transport::ProjectScope::new(
             channel_chat_scope(&ctx, &channel_message(None)).tenant,
-            vw_api_types::id::ProjectId::from(a.id.clone()),
+            vw_api_transport::ProjectId::from(a.id.clone()),
         )
         .unwrap(),
         crate::project::UpdateInput {

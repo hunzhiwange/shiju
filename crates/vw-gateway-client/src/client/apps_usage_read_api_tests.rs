@@ -1,11 +1,14 @@
 use super::{GatewayClient, test_support};
 use crate::{AppsUsageDisplay, AppsUsageReadError, GatewayAuth};
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::AuthErrorCode,
-    apps_usage::{UsageQueryData, UsageQueryKind, UsageQueryOutcome, UsageSnapshotQuery},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_transport::id::TenantScope,
 };
 
 fn selection() -> UsageSnapshotQuery {

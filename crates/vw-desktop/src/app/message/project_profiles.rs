@@ -7,7 +7,11 @@ mod apply;
 mod progress;
 pub use apply::Event as ApplyEvent;
 use crate::app::state::project_profiles::{Action, Management};
-use vw_gateway_client::{project_profile_api::ProjectProfileApiScope, vw_api_types::{ProjectScope, project_profiles::*}};
+use {
+    vw_gateway_client::project_profile_api::ProjectProfileApiScope,
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::project_profiles::*,
+};
 #[derive(Clone)]
 pub struct Identity {
     context: AgentAppsContext,

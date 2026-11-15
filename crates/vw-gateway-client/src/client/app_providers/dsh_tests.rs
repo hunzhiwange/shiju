@@ -15,7 +15,7 @@ async fn cc04_dsh_sdk_sends_scoped_add_and_discards_error_body() {
     use super::super::test_support;
     let server = test_support::server_with_tenant_scope(
         vec![(403, serde_json::json!({"secret":"fake-response-secret"}))],
-        vw_api_types::id::TenantScope::new("p", "a").unwrap(),
+        vw_api_transport::TenantScope::new("p", "a").unwrap(),
     );
     let error = server
         .client()
@@ -34,7 +34,7 @@ async fn cc04_dsh_sdk_preserves_only_typed_invalid_binding_code() {
     use super::super::test_support;
     let server = test_support::server_with_tenant_scope(
         vec![(422, serde_json::json!({"code":"invalid_binding"}))],
-        vw_api_types::id::TenantScope::new("p", "a").unwrap(),
+        vw_api_transport::TenantScope::new("p", "a").unwrap(),
     );
     let error = server
         .client()

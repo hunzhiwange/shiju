@@ -1,12 +1,14 @@
 use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
 use std::path::Path;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    id::TenantScope,
-    model_catalog::{
-        ModelCatalogDefaultChange, ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogIdentity,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogDefaultChange,
+    vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
 };
 
 fn open(root: &Path) -> AppProviderStore {

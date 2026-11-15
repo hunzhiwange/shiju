@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 fn identity() -> RelayIdentity {
     RelayIdentity {
-        tenant: vw_api_types::id::TenantScope::new("thinking", "fixture").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("thinking", "fixture").unwrap(),
         project: "project".into(),
         session: "session".into(),
         provider: "provider".into(),
@@ -83,7 +83,7 @@ fn model_protocol_015_receipts_cannot_cross_identity_deployment_or_backend() {
         let mut other = original.clone();
         match field {
             "tenant" => {
-                other.tenant = vw_api_types::id::TenantScope::new("other", "fixture").unwrap()
+                other.tenant = vw_api_transport::TenantScope::new("other", "fixture").unwrap()
             }
             "project" => other.project = "other".into(),
             "session" => other.session = "other".into(),

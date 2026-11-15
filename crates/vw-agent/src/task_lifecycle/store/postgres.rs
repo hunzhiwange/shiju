@@ -1,7 +1,7 @@
 //! 任务生命周期工作流的 PostgreSQL 存储实现。
 
 use anyhow::{Context, Result, bail};
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::task_lifecycle::TaskLifecycleWorkflowDto;
 
 use super::StoredWorkflow;

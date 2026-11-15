@@ -10,7 +10,7 @@ use futures_util::FutureExt;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tempfile::TempDir;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[tokio::test]
 async fn handoff_thread_rejects_unsupported_transfer() {

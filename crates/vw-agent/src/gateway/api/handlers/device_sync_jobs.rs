@@ -1,7 +1,10 @@
 //! Manual portable exports. Authentication is repeated after the shared queue lock.
 use axum::{Extension, Json, Router, extract::{Path, DefaultBodyLimit}, http::{HeaderMap, StatusCode}, routing::post};
 use std::path::PathBuf;
-use vw_api_types::{id::TenantScope, device_sync_task::*};
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::device_sync_task::*,
+};
 use crate::{global_database::GlobalDatabase, device_sync::tasks};
 
 #[derive(Clone)]

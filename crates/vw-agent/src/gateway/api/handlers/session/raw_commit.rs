@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 use anyhow::{Result, bail};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::session::llm_raw::LlmRawArtifact;
 use crate::session::store::LlmRawStepKey;

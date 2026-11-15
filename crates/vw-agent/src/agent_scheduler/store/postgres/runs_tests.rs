@@ -2,7 +2,7 @@
 //! 空可选字段合法，但非法标识、状态和尝试次数不得构造领域记录。
 
 use anyhow::Result;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::map_run_row;
 use crate::agent_scheduler::domain::AgentRunStatus;

@@ -10,8 +10,11 @@ use crate::providers::validate_identity;
 use reqwest::{Client, Request, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::{
-    TimestampMs, agent_apps::AppId, agent_apps_auth::AuthErrorCode, id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_transport::id::TenantScope,
 };
 
 const MAX_RESPONSE_BYTES: usize = 1024 * 1024;

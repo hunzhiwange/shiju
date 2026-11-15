@@ -1,5 +1,9 @@
 use super::{source::{SourceCategory, SourceFormat, SourceScope}, sql_stage::stage_sql};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn scope() -> SourceScope {
     SourceScope::new(ProjectScope::new(

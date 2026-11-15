@@ -1,7 +1,11 @@
 use std::{fs, path::Path};
 use rusqlite::Connection;
 use serde_json::json;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use super::source::{read_selected_source, SourceCategory, SourceError, SourceFormat, SourceScope};
 
 fn scope_project() -> ProjectScope {

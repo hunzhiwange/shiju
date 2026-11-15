@@ -12,7 +12,10 @@ use rust_decimal::Decimal;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::Path};
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpenCodeSchema {

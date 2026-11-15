@@ -4,7 +4,7 @@ use axum::http::{HeaderMap, StatusCode};
 use vw_api_types::apps_usage::{UsageCredentialState, UsageQueryData, UsageQueryOutcome, UsageQueryResult};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Account(pub vw_api_types::id::TenantScope, pub String, pub String, pub String);
+pub(crate) struct Account(pub vw_api_transport::TenantScope, pub String, pub String, pub String);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Decision { Unknown, Available, Exhausted }
 struct Reading { at: Instant, windows: Vec<(f64, Option<i64>)> }

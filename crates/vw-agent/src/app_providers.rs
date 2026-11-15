@@ -8,10 +8,13 @@ use vw_agent_apps::{
     },
     providers::{validate_identity, validate_profile},
 };
-use vw_api_types::{
-    agent_apps::{AppId, AppInstallation},
-    app_providers::{AppProviderSummary, AppProviderWrite, ProviderLaunchRequest},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallation,
+    vw_api_types::app_providers::AppProviderSummary,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderLaunchRequest,
+    vw_api_transport::id::TenantScope,
 };
 
 const NAMESPACE: &str = "app_providers.records";

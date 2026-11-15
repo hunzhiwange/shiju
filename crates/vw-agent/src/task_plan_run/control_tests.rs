@@ -3,7 +3,7 @@
 
 use super::PlanRunControlRegistry;
 use crate::session::child_agent::coordinator::ChildAgentCoordinator;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_api_types::task::{TaskPlanRunStatus, TaskPlanRunStreamEventDto};
 
 #[test]

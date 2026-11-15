@@ -269,7 +269,7 @@ impl GatewayClient {
     /// 列出同一项目下各工作树中的会话。
     pub async fn session_list_for_project<T: DeserializeOwned>(
         &self,
-        project_id: &vw_api_types::id::ProjectId,
+        project_id: &vw_api_transport::ProjectId,
     ) -> Result<T, String> {
         self.get_json("/v1/session", &[("projectID".into(), project_id.0.clone())]).await
     }

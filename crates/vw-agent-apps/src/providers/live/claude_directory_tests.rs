@@ -1,7 +1,7 @@
 use super::commit::{ExecutionHostId, ProviderTransactions};
 use crate::providers::claude::ClaudeFile;
 use std::os::unix::fs::PermissionsExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[test]
 fn cc04_ui_paths_reopens_saved_native_directory_and_refuses_replacement() {

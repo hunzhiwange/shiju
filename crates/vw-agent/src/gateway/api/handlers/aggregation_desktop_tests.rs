@@ -10,9 +10,12 @@ use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
 use tower::ServiceExt;
 use vw_agent_apps::providers::{claude_desktop::ClaudeDesktopFiles, live::commit::*};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 const TOKEN: &str = "fixture-desktop-manager-token-longer-than-32";
 struct Fixture {

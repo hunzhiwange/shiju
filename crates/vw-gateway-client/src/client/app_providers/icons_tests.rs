@@ -1,6 +1,8 @@
 use super::super::test_support;
-use vw_api_types::{
-    agent_apps::AppId, app_providers::icons::AppProviderIconChange as Change, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::icons::AppProviderIconChange as Change,
+    vw_api_transport::id::TenantScope,
 };
 #[tokio::test]
 async fn cc04_icons_sdk_wire_and_redaction() {

@@ -11,7 +11,10 @@ use std::{
     path::Path,
     sync::{Arc, atomic::Ordering},
 };
-use vw_api_types::{chat::GatewayChatStreamRequest, id::TenantScope};
+use {
+    vw_api_types::chat::GatewayChatStreamRequest,
+    vw_api_transport::id::TenantScope,
+};
 
 fn external(session: &str, scenario: Arc<Scenario>) -> entry_test_transport::TransportGuard {
     entry_test_transport::install_external(

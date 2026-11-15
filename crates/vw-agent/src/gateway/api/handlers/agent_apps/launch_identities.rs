@@ -10,7 +10,10 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use serde::Deserialize;
-use vw_api_types::{agent_apps::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Target {

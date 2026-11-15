@@ -1,7 +1,8 @@
 use super::*;
-use vw_gateway_client::vw_api_types::{
-    TenantScope,
-    agent_apps::{AppId, AppInstallationId},
+use {
+    vw_api_transport::TenantScope,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::AppInstallationId,
 };
 fn fixture() -> McpCatalogResponse {
     McpCatalogResponse {
@@ -182,7 +183,7 @@ fn cc_mcp_t44_stale_response_preserves_new_gateway_result() {
     let mut variants = vec![current.clone(); 4];
     variants[0].endpoint.gateway = "http://localhost:2".into();
     variants[1].endpoint.tenant =
-        vw_gateway_client::vw_api_types::TenantScope::new("other", "tenant").unwrap();
+        vw_api_transport::TenantScope::new("other", "tenant").unwrap();
     variants[2].host = "other".into();
     variants[3].credentials_generation = 1;
     for old in variants {

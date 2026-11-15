@@ -141,7 +141,7 @@ pub fn history(target: &DataManagementTarget, transport: DeviceSyncTransport) ->
 
 /// Read without initialization: observing settings must not interrupt live workers.
 pub fn connection_status(database: GlobalDatabase, target: &DataManagementTarget,
-    transport: DeviceSyncTransport) -> Result<(Option<SyncTaskStatus>, Option<vw_api_types::id::TaskId>)> {
+    transport: DeviceSyncTransport) -> Result<(Option<SyncTaskStatus>, Option<vw_api_transport::TaskId>)> {
     let store = GatewaySettingsStore::new(database).map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
     let raw = store.get(target.scope.tenant_scope(), NAMESPACE, &key(target)?)
         .map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
@@ -156,7 +156,7 @@ pub fn connection_status(database: GlobalDatabase, target: &DataManagementTarget
 /// Live state includes warnings that could not be persisted; after restart the
 /// durable record remains the polling source until execution ownership recovers it.
 pub fn task_status(database: GlobalDatabase, target: &DataManagementTarget,
-    id: &vw_api_types::id::TaskId) -> Result<SyncTaskStatus> {
+    id: &vw_api_transport::TaskId) -> Result<SyncTaskStatus> {
     match super::tasks::status(target, id) {
         Ok(status) => return Ok(status),
         Err(SyncErrorCode::Unauthorized) => {},

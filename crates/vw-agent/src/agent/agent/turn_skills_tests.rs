@@ -242,7 +242,7 @@ async fn codex_skills_core_agent_tenant_deny_is_preserved_across_permission_brid
     .await;
     crate::config::update(serde_json::json!({"providers":{"model-recovery":{"models":{"original":{"limit":{"context":100000,"output":1024}}}}}})).await.unwrap();
     let (_workspace, config, skill) = skill_fixture();
-    let tenant = vw_api_types::id::TenantScope::new("platform", "core-skills-denied").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("platform", "core-skills-denied").unwrap();
     crate::session::ui_config::set_config_field_result(
         &tenant,
         "permission",

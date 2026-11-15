@@ -9,9 +9,10 @@ use reqwest::{Request, Url, header};
 use serde_json::{Value, json};
 use std::{cell::Cell, collections::VecDeque, os::unix::fs::PermissionsExt};
 use tokio::task::JoinHandle;
-use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
 };
 
 fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {

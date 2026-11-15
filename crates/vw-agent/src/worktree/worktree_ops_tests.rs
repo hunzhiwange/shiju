@@ -261,9 +261,9 @@ async fn worktree_registry_fork_creation_registers_and_legacy_remove_checks_owne
     in_project(&fixture.primary, || {
         Box::pin(async {
             let project = instance::project().unwrap();
-            let scope = vw_api_types::id::ProjectScope::new(
+            let scope = vw_api_transport::ProjectScope::new(
                 crate::session::ui_store::current_tenant_scope(),
-                vw_api_types::id::ProjectId::from(project.id.as_str()),
+                vw_api_transport::ProjectId::from(project.id.as_str()),
             )
             .unwrap();
             let info =
@@ -277,7 +277,7 @@ async fn worktree_registry_fork_creation_registers_and_legacy_remove_checks_owne
                     .iter()
                     .any(|r| r.directory == std::fs::canonicalize(&info.directory).unwrap())
             );
-            let other = vw_api_types::id::TenantScope::new("foreign", "foreign").unwrap();
+            let other = vw_api_transport::TenantScope::new("foreign", "foreign").unwrap();
             assert!(
                 super::ops::remove_for_tenant(
                     RemoveInput { directory: info.directory.clone(), force: true },

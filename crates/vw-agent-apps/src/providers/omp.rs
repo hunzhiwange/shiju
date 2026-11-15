@@ -412,7 +412,7 @@ impl OmpFiles {
     pub fn apply(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         expected: &super::live::commit::AppState,
         name: &str,
         pre: Option<&[u8]>,
@@ -426,7 +426,7 @@ impl OmpFiles {
     pub fn apply_project(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        scope: &vw_api_types::id::ProjectScope,
+        scope: &vw_api_transport::ProjectScope,
         expected: &super::live::commit::AppState,
         name: &str,
         pre: Option<&[u8]>,
@@ -448,8 +448,8 @@ impl OmpFiles {
     fn apply_inner(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
-        scope: Option<&vw_api_types::id::ProjectScope>,
+        tenant: &vw_api_transport::TenantScope,
+        scope: Option<&vw_api_transport::ProjectScope>,
         expected: &super::live::commit::AppState,
         name: &str,
         pre: Option<&[u8]>,

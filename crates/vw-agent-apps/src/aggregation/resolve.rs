@@ -1,6 +1,9 @@
 //! Exact routing for model IDs from the effective aggregation publication.
 
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 use crate::providers::{
     desktop_mapping::catalog::{DesktopModel, is_reserved as is_desktop_reserved},

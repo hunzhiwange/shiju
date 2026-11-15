@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::safety_snapshot_files as files;
 

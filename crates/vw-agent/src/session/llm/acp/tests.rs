@@ -27,7 +27,7 @@ fn cached_client(
     Arc::new(CachedAcpClient {
         worktree_use: Default::default(),
         permission_confirmation: Default::default(),
-        tenant: vw_api_types::id::TenantScope::default(),
+        tenant: vw_api_transport::TenantScope::default(),
         runtime_identity: None,
         client,
         prompt_lock: Arc::new(tokio::sync::Mutex::new(())),

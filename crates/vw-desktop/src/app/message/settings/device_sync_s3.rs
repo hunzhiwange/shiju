@@ -7,8 +7,10 @@ use crate::app::components::system_settings_device_sync::task_panel::{
 use crate::app::message::SettingsMessage;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::vw_api_types::{
-    ProjectScope, agent_apps::DataManagementTarget, device_sync_config::*,
+use {
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::agent_apps::DataManagementTarget,
+    vw_gateway_client::vw_api_types::device_sync_config::*,
 };
 use vw_gateway_client::{DeviceSyncOperationsError, DeviceSyncSelection};
 

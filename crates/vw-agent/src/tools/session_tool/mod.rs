@@ -21,7 +21,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use vw_api_types::chat::GatewayChatStreamRequest;
-use vw_api_types::id::{SessionId, TenantScope};
+use {
+    vw_api_transport::id::SessionId,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::session::session_utils::encode_task_session_source_marker;
 
 pub(crate) const MAX_SESSION_READ_CHARS: usize = 64 * 1024;

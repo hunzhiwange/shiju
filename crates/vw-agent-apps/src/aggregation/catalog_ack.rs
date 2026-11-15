@@ -9,7 +9,7 @@ use crate::providers::{
 };
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Acknowledged {

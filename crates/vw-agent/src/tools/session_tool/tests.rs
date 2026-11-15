@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::oneshot;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[test]
 fn session_tool_read_bounds_output() {

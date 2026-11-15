@@ -79,8 +79,8 @@ async fn checkpoint_rejects_changed_tool_arguments() {
 async fn checkpoint_isolated_by_tenant() {
     let session = format!("checkpoint-{}", uuid::Uuid::new_v4());
     let source = vec![json!({"role":"user","content":"private"})];
-    let first = vw_api_types::id::TenantScope::new("platform", "company-a").unwrap();
-    let second = vw_api_types::id::TenantScope::new("platform", "company-b").unwrap();
+    let first = vw_api_transport::TenantScope::new("platform", "company-a").unwrap();
+    let second = vw_api_transport::TenantScope::new("platform", "company-b").unwrap();
     crate::session::ui_store::with_tenant_scope(
         first.clone(),
         save(&session, &source, "private summary", None),

@@ -2,15 +2,14 @@
 use super::{SettingsMessage, WorktreeSettingsMessage};
 use crate::app::{App, Message, state::WorktreeSettingsIdentity};
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::{
-    GatewayClient,
-    vw_api_types::{
-        id::ProjectScope,
-        project::{
-            CommandsUpdateDto, ListProjectsRequest, ProjectDto, ResolveProjectRequest,
-            UpdateProjectRequest,
-        },
-    },
+use {
+    vw_gateway_client::GatewayClient,
+    vw_api_transport::id::ProjectScope,
+    vw_gateway_client::vw_api_types::project::CommandsUpdateDto,
+    vw_gateway_client::vw_api_types::project::ListProjectsRequest,
+    vw_gateway_client::vw_api_types::project::ProjectDto,
+    vw_gateway_client::vw_api_types::project::ResolveProjectRequest,
+    vw_gateway_client::vw_api_types::project::UpdateProjectRequest,
 };
 
 #[derive(Debug, Clone)]

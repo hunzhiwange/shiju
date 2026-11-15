@@ -8,7 +8,11 @@ use vw_agent_apps::usage::{
     gemini::{collect_gemini_session_files, parse_gemini_tokens, scan_gemini_file},
     store::{StoredUsageRecord, initialize_usage_store},
 };
-use vw_api_types::{id::{ProjectId, ProjectScope}, usage::*};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 fn context() -> (Connection, ProjectScope, UsageCursorKey) {
     let mut db = Connection::open_in_memory().unwrap();

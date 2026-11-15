@@ -1,16 +1,18 @@
 use super::metadata::resolve_model_metadata;
 use serde_json::{Value, json};
 use std::time::{Duration, UNIX_EPOCH};
-use vw_api_types::{
-    agent_apps::AppId::Codex,
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState::{Supported, Unsupported},
-        ModelMetadataDto,
-        ModelMetadataField::{ContextWindow, Cost, MaxOutputTokens},
-        ModelMetadataProvenance,
-        ModelMetadataSource::{ModelsDev, Preset},
-    },
+use {
+    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState::Supported,
+    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField::ContextWindow,
+    vw_api_types::model_catalog::ModelMetadataField::Cost,
+    vw_api_types::model_catalog::ModelMetadataField::MaxOutputTokens,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
+    vw_api_types::model_catalog::ModelMetadataSource::Preset,
 };
 use vw_provider_resolver::models::ModelsSnapshot;
 

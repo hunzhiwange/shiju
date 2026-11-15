@@ -1,8 +1,10 @@
 //! 租户可编辑的内置入口目录。正式 YAML 由装配方提供，目录不生成业务流程。
 use sha2::{Digest, Sha256};
-use vw_api_types::{
-    TenantScope,
-    workflow::{VideoEditTemplateOptions, WorkflowRecord, WorkflowRecordUpsertBody},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::workflow::VideoEditTemplateOptions,
+    vw_api_types::workflow::WorkflowRecord,
+    vw_api_types::workflow::WorkflowRecordUpsertBody,
 };
 
 pub use super::store::WorkflowStoreError;

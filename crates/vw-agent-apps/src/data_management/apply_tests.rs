@@ -2,7 +2,11 @@ use super::{apply::*, source::*, usage};
 use rusqlite::Connection;
 use serde_json::json;
 use std::collections::BTreeMap;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn fixture() -> (SourceScope, SourceSnapshot, Connection) {
     let scope = SourceScope::new(

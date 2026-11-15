@@ -65,7 +65,7 @@ impl From<id::Error> for Error {
 }
 
 struct Pending {
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     sensitive: bool,
     info: Request,
     tx: oneshot::Sender<Result<Vec<Answer>, RejectedError>>,

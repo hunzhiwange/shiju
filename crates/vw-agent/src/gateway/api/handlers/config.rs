@@ -31,7 +31,7 @@ use axum::{
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::app::agent::config;
 use crate::app::agent::config::schema::{save_config, validate_config};

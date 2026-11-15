@@ -3,7 +3,10 @@ use crate::app::{App, Message, message::SettingsMessage};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task};
 use iced::widget::{button, column, text};
-use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::agent_apps::data_management::*,
+};
 
 #[derive(Clone, Default)]
 pub(crate) struct State {

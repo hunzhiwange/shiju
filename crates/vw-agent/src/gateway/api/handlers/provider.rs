@@ -8,7 +8,7 @@ use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::{InstanceQuery, resolve_directory, with_instance};

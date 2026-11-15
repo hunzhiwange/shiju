@@ -219,7 +219,7 @@ fn worktree_state_maps_every_gateway_variant() {
 
 #[test]
 fn gateway_snapshot_conversion_preserves_empty_boundary() {
-    use vw_gateway_client::vw_api_types::id::ProjectId;
+    use vw_api_transport::id::ProjectId;
     use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse;
 
     let snapshot =

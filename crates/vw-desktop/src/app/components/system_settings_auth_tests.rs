@@ -8,11 +8,14 @@ use std::{
     net::TcpListener,
     time::Duration,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AgentAppsAuthCredentials, GatewayClient, vw_api_types::{
-        agent_apps_auth::{AuthCredentialState, AuthService},
-        id::TenantScope,
-    }}};
+use {
+    gateway_endpoint::GatewayEndpoint,
+    vw_gateway_client::AgentAppsAuthCredentials,
+    vw_gateway_client::GatewayClient,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
 const PRINCIPAL: &str = "fixture-agent-apps-auth-principal-token";
 

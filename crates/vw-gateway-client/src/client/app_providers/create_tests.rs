@@ -14,7 +14,7 @@ fn request() -> AppProviderCreate {
     }
 }
 use super::super::test_support;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_create_sdk_sends_explicit_intent_and_tenant_to_create_route() {
     let server = test_support::server_with_tenant_scope(

@@ -1,23 +1,29 @@
 use super::fill_opencode::{OpenCodeModelFill, fill_opencode_model};
 use crate::providers::{dsh, mcode, opencode};
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps::AppId::{self, Dsh, Mcode, OpenCode},
-    app_providers::{
-        dsh::{DshActivation, DshProfile},
-        mcode::McodeProfile,
-        opencode::{OpenCodeFormat, OpenCodeProfile},
-    },
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState::{Supported, Unsupported},
-        ModelMetadataDto,
-        ModelMetadataField::{
-            ContextWindow, InputModalities, MaxOutputTokens, OutputModalities, Reasoning, ToolCalls,
-        },
-        ModelMetadataProvenance,
-        ModelMetadataSource::{ModelsDev, Preset},
-    },
+use {
+    vw_api_types::agent_apps::AppId::self,
+    vw_api_types::agent_apps::AppId::Dsh,
+    vw_api_types::agent_apps::AppId::Mcode,
+    vw_api_types::agent_apps::AppId::OpenCode,
+    vw_api_types::app_providers::dsh::DshActivation,
+    vw_api_types::app_providers::dsh::DshProfile,
+    vw_api_types::app_providers::mcode::McodeProfile,
+    vw_api_types::app_providers::opencode::OpenCodeFormat,
+    vw_api_types::app_providers::opencode::OpenCodeProfile,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState::Supported,
+    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField::ContextWindow,
+    vw_api_types::model_catalog::ModelMetadataField::InputModalities,
+    vw_api_types::model_catalog::ModelMetadataField::MaxOutputTokens,
+    vw_api_types::model_catalog::ModelMetadataField::OutputModalities,
+    vw_api_types::model_catalog::ModelMetadataField::Reasoning,
+    vw_api_types::model_catalog::ModelMetadataField::ToolCalls,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
+    vw_api_types::model_catalog::ModelMetadataSource::Preset,
 };
 
 fn draft_fill(app: AppId, row: &Value, resolved: &ModelMetadataDto) -> OpenCodeModelFill {

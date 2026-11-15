@@ -4,7 +4,10 @@ use crate::global_database::config::DatabaseProvider;
 use anyhow::Result;
 use vw_agent_apps::icons::library;
 use vw_api_types::agent_apps::{AddCustomIconResult, AgentAppsErrorCode};
-use vw_api_types::{agent_apps::CustomIconEntry, id::TenantScope};
+use {
+    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_transport::id::TenantScope,
+};
 
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 

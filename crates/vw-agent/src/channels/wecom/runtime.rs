@@ -9,7 +9,7 @@ use std::{
 };
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct WeComRuntimeScope {

@@ -4,7 +4,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_catalog_api_lists_only_authenticated_tenant_and_application() {
     let root = tempfile::tempdir().unwrap();

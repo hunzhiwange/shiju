@@ -20,7 +20,10 @@ use std::{
     },
     path::Path,
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 /// HOME and host identify the authorized executor, never client-supplied paths.
 /// Default layout uses HOME/.claude.json; a saved override uses its own

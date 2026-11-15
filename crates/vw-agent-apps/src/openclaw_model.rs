@@ -12,7 +12,7 @@ use crate::providers::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpenClawDefaultModel {

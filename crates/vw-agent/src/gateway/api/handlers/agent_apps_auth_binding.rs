@@ -34,7 +34,10 @@ use vw_agent_apps::{
 };
 #[cfg(target_os = "macos")]
 use vw_api_types::agent_apps_auth::AuthService;
-use vw_api_types::{agent_apps_auth::AuthErrorCode, id::TenantScope};
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

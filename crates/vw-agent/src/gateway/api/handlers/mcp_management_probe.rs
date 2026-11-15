@@ -8,8 +8,10 @@ use axum::{
     response::Response,
 };
 use serde::Deserialize;
-use vw_api_types::{
-    TenantScope, agent_apps_diagnostics::DiagnosticScopeQuery, mcp_management::McpRecordId,
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_types::mcp_management::McpRecordId,
 };
 
 #[derive(Deserialize)]

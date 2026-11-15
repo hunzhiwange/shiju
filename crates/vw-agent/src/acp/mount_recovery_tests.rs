@@ -24,7 +24,7 @@ async fn recovery_process_worker() {
     let root = std::path::PathBuf::from(root);
     let backend = if phase_is_foreign() {
         VibeWindowBackend::new(
-            vw_api_types::id::TenantScope::new("foreign-platform", "foreign-company").unwrap(),
+            vw_api_transport::TenantScope::new("foreign-platform", "foreign-company").unwrap(),
         )
     } else {
         VibeWindowBackend::default()

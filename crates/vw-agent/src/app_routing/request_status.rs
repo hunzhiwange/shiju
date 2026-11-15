@@ -3,10 +3,12 @@ use axum::{body::Body, response::Response};
 use futures_util::StreamExt;
 use parking_lot::Mutex;
 use std::{collections::VecDeque, sync::Arc, time::Instant};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_routing::{RoutingRequestState as State, RoutingRequestStatus, RoutingRequestsStatus},
-    id::ProjectScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_routing::RoutingRequestState as State,
+    vw_api_types::app_routing::RoutingRequestStatus,
+    vw_api_types::app_routing::RoutingRequestsStatus,
+    vw_api_transport::id::ProjectScope,
 };
 
 #[derive(Default)]

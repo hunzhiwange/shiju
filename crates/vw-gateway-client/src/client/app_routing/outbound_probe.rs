@@ -3,11 +3,13 @@
 use super::AppRoutingError;
 use crate::GatewayClient;
 use reqwest::Method;
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{DiagnosticJobIdentity, DiagnosticJobSnapshot},
-    app_routing::RoutingOutboundProbeRequest,
-    id::{ProjectId, TaskId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::app_routing::RoutingOutboundProbeRequest,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
 };
 
 impl GatewayClient {

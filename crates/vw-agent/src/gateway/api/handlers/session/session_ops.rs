@@ -669,7 +669,7 @@ fn legacy_successful_title_source(history: &[agent_session::message::WithParts])
 }
 
 async fn fork_before_turn(
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     directory: Option<String>,
     session_id: String,
     boundary: String,

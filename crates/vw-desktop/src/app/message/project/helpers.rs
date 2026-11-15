@@ -16,7 +16,10 @@ use vw_gateway_client::vw_api_types::file::{
     CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
     ListFilesRequest, MoveFileRequest,
 };
-use vw_gateway_client::vw_api_types::id::{ProjectId, WorktreeId};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::WorktreeId,
+};
 use vw_gateway_client::vw_api_types::project::{
     ListProjectsRequest, ProjectDto, ResolveProjectRequest,
 };
@@ -678,7 +681,7 @@ pub(crate) async fn gateway_session_project_path(
     client: &vw_gateway_client::GatewayClient,
     info: &vw_shared::session::info::Info,
 ) -> Result<String, String> {
-    let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(
+    let scope = vw_api_transport::ProjectScope::new(
         client.endpoint().tenant_scope().clone(),
         info.project_id.as_str().into(),
     )

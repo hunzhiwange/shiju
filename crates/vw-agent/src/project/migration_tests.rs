@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use config_runtime_paths::{global_database_path, home_config_dir};
 use vw_shared::project::{Info, TimeInfo};
 

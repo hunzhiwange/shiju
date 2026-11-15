@@ -7,7 +7,11 @@ use axum::{
     routing::post,
 };
 use std::path::PathBuf;
-use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_apply::*,
+    vw_api_transport::id::TenantScope,
+};
 
 #[cfg(target_os = "macos")]
 use super::super::app_routing::RoutingControl;
@@ -50,7 +54,7 @@ async fn apply(
             && request.project_id.is_some()
             && app == AppId::Claude
         {
-            let project = vw_api_types::id::ProjectScope::new(
+            let project = vw_api_transport::ProjectScope::new(
                 tenant.clone(),
                 request.project_id.clone().ok_or(StatusCode::BAD_REQUEST)?,
             )
@@ -119,7 +123,7 @@ async fn apply(
                 )?;
                 return Err(StatusCode::FORBIDDEN);
             };
-            let project = vw_api_types::id::ProjectScope::new(tenant, project_id)
+            let project = vw_api_transport::ProjectScope::new(tenant, project_id)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
             let Extension(control) = control.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
             let (root, principal) =
@@ -241,7 +245,7 @@ fn prepare_proxy_route(
     listener: &crate::app_routing::RoutingListener,
     store: &crate::app_providers::AppProviderStore,
     root: &std::path::Path,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     scope: &vw_agent_apps::providers::mode_apply::RouteScope<'_>,
     principal: &str,
     provider_id: &str,
@@ -332,7 +336,10 @@ fn prepare_proxy_route(
 
 #[cfg(target_os = "macos")]
 fn publication_unavailable() -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
 
     (
         StatusCode::SERVICE_UNAVAILABLE,

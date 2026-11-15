@@ -16,9 +16,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use toml_edit::DocumentMut;
-use vw_api_types::{
-    external_session::{ExternalSessionIdentity, SessionProvider, SessionSource},
-    id::ProjectScope,
+use {
+    vw_api_types::external_session::ExternalSessionIdentity,
+    vw_api_types::external_session::SessionProvider,
+    vw_api_types::external_session::SessionSource,
+    vw_api_transport::id::ProjectScope,
 };
 
 /// Executor-resolved binding, never constructed from client paths. A generation

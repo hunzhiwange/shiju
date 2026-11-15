@@ -4,7 +4,11 @@ use crate::usage::source_settings::{
 };
 use rusqlite::Connection;
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn scope() -> SafetySnapshotScope {
     SafetySnapshotScope {

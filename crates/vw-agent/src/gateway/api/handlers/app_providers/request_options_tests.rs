@@ -6,10 +6,12 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::os::unix::fs::PermissionsExt;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{claude::*, codex_catalog::*, request_options::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::claude::*,
+    vw_api_types::app_providers::codex_catalog::*,
+    vw_api_types::app_providers::request_options::*,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-options-token-with-at-least-32-characters";

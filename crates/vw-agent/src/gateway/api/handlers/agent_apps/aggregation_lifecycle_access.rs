@@ -37,7 +37,7 @@ pub(crate) fn aggregation_lifecycle_host(
 #[cfg(target_os = "macos")]
 pub(crate) fn authorize_aggregation_lifecycle(
     path: &Path,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     host: &str,
     app: AppId,
     saved_principal: Option<&str>,

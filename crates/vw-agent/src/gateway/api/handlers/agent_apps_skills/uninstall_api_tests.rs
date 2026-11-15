@@ -1,7 +1,7 @@
 use axum::{Extension, body::Body, http::{Request, StatusCode}};
 use serde_json::{json, Value};
 use tower::ServiceExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use crate::global_database::GlobalDatabase;
 use std::{fs, os::unix::fs::PermissionsExt};
 use sha2::{Digest, Sha256};
@@ -25,7 +25,7 @@ async fn call(allowed: bool, path: &str, body: Value) -> (StatusCode, Value) {
     fs::create_dir(&source).unwrap();
     fs::write(source.join("SKILL.md"), "---\nname: Tool\ndescription: Example\n---\nContent").unwrap();
     let store = crate::gateway::agent_apps_skills_store::SkillInstallsStore::new(db.clone()).unwrap();
-    let project = vw_api_types::id::ProjectScope::new(TenantScope::new("p", "c").unwrap(), "project".into()).unwrap();
+    let project = vw_api_transport::ProjectScope::new(TenantScope::new("p", "c").unwrap(), "project".into()).unwrap();
     store.install_local(&project, "h", 0, &ssot, &source, "tool").unwrap();
     let app = super::uninstall_api::router_with_policy(Some(policy))
         .layer(Extension(TenantScope::new("p", "c").unwrap())).layer(Extension(db));

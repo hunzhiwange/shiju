@@ -68,8 +68,8 @@ async fn project_routes_require_explicit_tenant_scope() {
         .oneshot(
             Request::builder()
                 .uri("/projects/platforms/platform-a/companies/company-a")
-                .header(vw_api_types::id::PLATFORM_ID_HEADER, "platform-a")
-                .header(vw_api_types::id::COMPANY_ID_HEADER, "company-a")
+                .header(vw_api_transport::PLATFORM_ID_HEADER, "platform-a")
+                .header(vw_api_transport::COMPANY_ID_HEADER, "company-a")
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -81,8 +81,8 @@ async fn project_routes_require_explicit_tenant_scope() {
         .oneshot(
             Request::builder()
                 .uri("/projects")
-                .header(vw_api_types::id::PLATFORM_ID_HEADER, "platform-a")
-                .header(vw_api_types::id::COMPANY_ID_HEADER, "company-a")
+                .header(vw_api_transport::PLATFORM_ID_HEADER, "platform-a")
+                .header(vw_api_transport::COMPANY_ID_HEADER, "company-a")
                 .body(Body::empty())
                 .expect("request"),
         )

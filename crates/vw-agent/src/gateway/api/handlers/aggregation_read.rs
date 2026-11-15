@@ -8,9 +8,10 @@ use axum::{
     routing::{get, post},
 };
 use std::path::PathBuf;
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -91,7 +92,10 @@ fn error(status: StatusCode) -> Response {
     error_with_code(status, code)
 }
 fn error_with_code(status: StatusCode, code: &str) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
@@ -127,7 +131,7 @@ fn execute(
         live::commit::{ExecutionHostId, ProviderTransactions},
         mode_state,
     };
-    use vw_api_types::id::ProjectScope;
+    use vw_api_transport::id::ProjectScope;
     let project =
         ProjectScope::new(tenant.clone(), query.project_id).map_err(|_| StatusCode::BAD_REQUEST)?;
     vw_agent_apps::providers::validate_identity(&query.target_host_id)

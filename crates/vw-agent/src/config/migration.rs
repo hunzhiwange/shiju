@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail};
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use serde_json::Value;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::config::Config;
 
 use super::SystemConfigStore;

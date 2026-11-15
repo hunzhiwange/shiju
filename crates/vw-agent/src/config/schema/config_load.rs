@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs;
 
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::config::Config;
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -5,16 +5,17 @@ use super::{
 };
 use serde_json::{Value, json};
 use std::time::{Duration, UNIX_EPOCH};
-use vw_api_types::{
-    agent_apps::AppId::*,
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState::{Supported, Unknown, Unsupported},
-        ModelMetadataField::*,
-        ModelMetadataProvenance,
-        ModelMetadataSource::{ModelsDev, Preset},
-        ModelTokenCost,
-    },
+use {
+    vw_api_types::agent_apps::AppId::*,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState::Supported,
+    vw_api_types::model_catalog::ModelCapabilityState::Unknown,
+    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_types::model_catalog::ModelMetadataField::*,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
+    vw_api_types::model_catalog::ModelMetadataSource::Preset,
+    vw_api_types::model_catalog::ModelTokenCost,
 };
 use vw_provider_resolver::models::ModelsSnapshot;
 

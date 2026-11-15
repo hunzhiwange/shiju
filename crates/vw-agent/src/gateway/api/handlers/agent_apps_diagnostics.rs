@@ -26,14 +26,21 @@ use axum::{
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use vw_agent_apps::{auth::copilot::CopilotAuth, diagnostics::endpoints};
-use vw_api_types::{
-    agent_apps_diagnostics::{
-        DiagnosticEndpointCandidate, DiagnosticEndpointCandidatesQuery,
-        DiagnosticEndpointCandidatesResponse, DiagnosticEndpointId, DiagnosticJobIdentity,
-        DiagnosticProbeKind, DiagnosticScope, DiagnosticScopeQuery, DiagnosticStartRequest,
-    },
-    error::{ApiErrorBody, ApiErrorDetail},
-    id::{ProjectScope, TaskId, TenantScope},
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidate,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidatesQuery,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidatesResponse,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest,
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone)]

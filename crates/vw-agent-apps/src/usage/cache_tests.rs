@@ -3,11 +3,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::AuthService,
-    apps_usage::{UsageQueryErrorCode, UsageQueryKind, UsageQueryOutcome, UsageQueryResult},
-    id::{ProjectId, ProjectScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageQueryResult,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
 };
 
 use super::{

@@ -1714,7 +1714,7 @@ async fn cron_wecom_delivery_none_makes_zero_webhook_requests() {
 #[tokio::test]
 async fn cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receipts() {
     let tenant =
-        vw_api_types::id::TenantScope::new("cron-trigger-test", uuid::Uuid::new_v4().to_string())
+        vw_api_transport::TenantScope::new("cron-trigger-test", uuid::Uuid::new_v4().to_string())
             .unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let tmp = TempDir::new().unwrap();
@@ -1754,7 +1754,7 @@ async fn cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receip
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent() {
-    let tenant = vw_api_types::id::TenantScope::new(
+    let tenant = vw_api_transport::TenantScope::new(
         "cron-best-effort-test",
         uuid::Uuid::new_v4().to_string(),
     )

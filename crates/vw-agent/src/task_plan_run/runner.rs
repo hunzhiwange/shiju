@@ -60,12 +60,12 @@ pub trait SessionRunner: Send + Sync {
 /// 默认实现：走 gateway/session processor。
 #[derive(Debug, Default, Clone)]
 pub struct GatewaySessionRunner {
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     parent_session_id: Option<String>,
 }
 
 impl GatewaySessionRunner {
-    pub fn new(tenant: vw_api_types::id::TenantScope, parent_session_id: Option<String>) -> Self {
+    pub fn new(tenant: vw_api_transport::TenantScope, parent_session_id: Option<String>) -> Self {
         Self { tenant, parent_session_id }
     }
 

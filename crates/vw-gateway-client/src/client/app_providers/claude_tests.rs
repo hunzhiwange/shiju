@@ -1,5 +1,8 @@
 use super::super::test_support;
-use vw_api_types::{app_providers::claude::*, id::TenantScope};
+use {
+    vw_api_types::app_providers::claude::*,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_claude_sdk_uses_native_route_and_discards_secret_errors() {
     let server = test_support::server_with_tenant_scope(

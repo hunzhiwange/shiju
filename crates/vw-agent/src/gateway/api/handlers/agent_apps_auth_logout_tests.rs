@@ -21,11 +21,12 @@ use vw_agent_apps::auth::{
     claude_keychain::{ClaudeKeychain, MacOsKeychain},
     credential_file::{AccountCredential, CredentialFileStore, KimiCredential},
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps::AppId,
-    agent_apps_auth::{AuthRegion, AuthService},
-    id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
 };
 
 const OWNER: &str = "fixture-logout-owner-token-aaaaaaaa";

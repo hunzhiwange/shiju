@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 app-provider-validation = { path = "../app-provider-validation" }
 app-routing-policy = { path = "../app-routing-policy" }
 vw-api-types = { path = "../../vw-api-types" }

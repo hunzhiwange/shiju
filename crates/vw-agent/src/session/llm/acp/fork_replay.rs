@@ -18,7 +18,7 @@ struct Delivery {
 
 pub(super) struct ForkReplay {
     store: GatewaySettingsStore,
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     key: String,
     delivery: Option<Delivery>,
 }

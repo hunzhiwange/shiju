@@ -3,7 +3,10 @@
 //! 固件同时锁定状态角色结构与默认租户请求头，避免自定义工作流跨租户发送。
 
 use serde_json::json;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+};
 use vw_api_types::task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
     TaskLifecycleWorkflowUpsertBody,

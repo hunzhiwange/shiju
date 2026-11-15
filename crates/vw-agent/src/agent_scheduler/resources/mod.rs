@@ -3,7 +3,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
-use vw_api_types::id::TaskId;
+use vw_api_transport::id::TaskId;
 
 use crate::agent_scheduler::domain::{HolderId, ResourceId};
 use crate::agent_scheduler::store::resources::ResourceKind;

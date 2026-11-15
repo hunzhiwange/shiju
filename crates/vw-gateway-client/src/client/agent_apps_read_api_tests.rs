@@ -1,9 +1,10 @@
 use super::{AgentAppsReadError, GatewayClient, test_support};
 use crate::endpoint::{GatewayAuth, GatewayEndpoint};
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::{AppId, AppReadResponse},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppReadResponse,
+    vw_api_transport::id::TenantScope,
 };
 
 #[tokio::test]

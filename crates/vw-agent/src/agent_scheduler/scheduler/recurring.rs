@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Duration as ChronoDuration, SecondsFormat, Utc};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use crate::cron::{Schedule, next_run_for_schedule};
 

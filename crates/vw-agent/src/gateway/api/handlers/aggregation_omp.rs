@@ -7,7 +7,10 @@ use axum::{
     routing::put,
 };
 use std::path::PathBuf;
-use vw_api_types::{agent_apps::aggregation::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
@@ -57,7 +60,10 @@ fn respond(result: Result<Result<OmpDirectoryState, Error>, tokio::task::JoinErr
     }
 }
 pub(super) fn failure(status: StatusCode, code: &str) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
@@ -89,7 +95,11 @@ fn execute(
         live::{commit::*, write_guard::lock_app},
         omp::{self, OmpFiles},
     };
-    use vw_api_types::{agent_apps::AppId, app_providers::omp::OmpActivation, id::ProjectScope};
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::omp::OmpActivation,
+    vw_api_transport::id::ProjectScope,
+};
     let project = ProjectScope::new(tenant.clone(), query.project_id)
         .map_err(|_| (StatusCode::BAD_REQUEST, "invalid_input"))?;
     vw_agent_apps::providers::validate_identity(&query.target_host_id)
@@ -244,7 +254,7 @@ fn project_state(
 }
 #[cfg(target_os = "macos")]
 fn make_revision(
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     host: &str,
     principal: &str,
     state: &vw_agent_apps::providers::live::commit::AppState,

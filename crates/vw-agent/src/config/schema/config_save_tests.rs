@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 use tempfile::TempDir;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::{
     Config, GatewaySkey,

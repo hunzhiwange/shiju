@@ -1,13 +1,16 @@
 use std::{net::TcpListener, sync::Barrier};
 
 use serde_json::Value;
-use vw_api_types::{
-    agent_apps_auth::AuthService,
-    id::{ProjectScope, TenantScope},
-    mcp_management::{
-        McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpCredentialRef, McpFailureCode,
-        McpTransport,
-    },
+use {
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpTransport,
 };
 
 use super::{

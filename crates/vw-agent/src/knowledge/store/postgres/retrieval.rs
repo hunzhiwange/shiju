@@ -4,7 +4,7 @@ use anyhow::Context;
 use postgres::{GenericClient, Row};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::knowledge::{
     KnowledgeChunkDto, KnowledgeChunkType, KnowledgeMatchType, KnowledgeRetrievalMode,
     KnowledgeRetrieveRequest, KnowledgeRetrieveResponse,

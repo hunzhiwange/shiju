@@ -1,8 +1,9 @@
 use super::test_support;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_transport::id::TenantScope,
 };
 #[tokio::test]
 async fn cc_apps_provider_launch_isolation_sdk_uses_domain_identity_and_tenant() {

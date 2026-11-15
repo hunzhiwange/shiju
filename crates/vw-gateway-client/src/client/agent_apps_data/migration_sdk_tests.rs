@@ -1,5 +1,9 @@
 use super::super::{test_support, DataMigrationError};
-use vw_api_types::{agent_apps::data_management::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps::data_management::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use serde_json::json;
 
 fn target() -> DataManagementTarget {

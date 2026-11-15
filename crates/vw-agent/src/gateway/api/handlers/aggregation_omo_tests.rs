@@ -15,9 +15,11 @@ use vw_agent_apps::providers::live::{
     commit::{ExecutionHostId, OmoSelection, PendingTarget, ProviderTransactions},
     write_guard::lock_app,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 const TOKEN: &str = "t47-synthetic-bearer-credential-000000000000";
 fn tenant() -> TenantScope {

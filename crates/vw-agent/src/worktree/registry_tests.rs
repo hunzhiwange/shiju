@@ -1,7 +1,11 @@
 use super::registry;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn git(root: &Path, args: &[&str]) {
     assert!(Command::new("git").arg("-C").arg(root).args(args).output().unwrap().status.success());

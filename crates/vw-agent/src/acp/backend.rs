@@ -13,7 +13,7 @@ use vw_acp::server::{
     BackendRole, BackendSession, BackendTermination, BackendToolStatus, PromptContent,
     SessionBackend,
 };
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::agent::loop_::approval::NonCliApprovalContext;
 use crate::app::agent::approval::ApprovalManager;

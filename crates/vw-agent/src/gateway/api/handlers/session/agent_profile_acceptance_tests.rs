@@ -466,7 +466,7 @@ for line in sys.stdin:
 async fn agent_profile_acceptance_catalog_uses_request_tenant() {
     use axum::{body::Body, extract::Extension, http::Request};
     use tower::ServiceExt;
-    use vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
 
     let _env = crate::test_support::global_async_env_lock().lock().await;
     let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(

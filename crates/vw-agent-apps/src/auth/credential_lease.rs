@@ -16,8 +16,9 @@ use vw_api_types::agent_apps::AppId;
 use vw_api_types::agent_apps_auth::AuthErrorCode;
 #[cfg(target_os = "macos")]
 use {
-    super::claude_login_files::Directory, crate::providers::live::write_guard::WriteError,
-    vw_api_types::TenantScope,
+    super::claude_login_files::Directory,
+    crate::providers::live::write_guard::WriteError,
+    vw_api_transport::TenantScope,
 };
 
 const CREDENTIAL_GENERATION_CHANGED: &str = "official credential changed before publication";

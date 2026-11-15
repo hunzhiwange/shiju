@@ -7,7 +7,10 @@ use axum::{
     routing::post,
 };
 use std::path::PathBuf;
-use vw_api_types::{agent_apps::data_management::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::data_management::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(crate) fn router() -> Router {

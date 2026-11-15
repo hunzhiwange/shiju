@@ -97,7 +97,7 @@ fn task_pool_claim_runner_waits_without_creating_run() -> Result<()> {
         state_machine::{AgentTaskKind, AgentTaskStatus},
         store::{AgentSchedulerStore, tasks::NewAgentTask},
     };
-    use vw_api_types::common::TimestampMs;
+    use vw_api_transport::common::TimestampMs;
     struct Executor;
     impl LocalAgentExecutor for Executor {
         fn lease_workspace(&self, r: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
@@ -195,7 +195,7 @@ fn recovery_fixture() -> Result<(
             last_executed_at: None,
             dag: vec![],
             metadata: serde_json::json!({"prompt":"test"}),
-            created_at_ms: vw_api_types::common::TimestampMs(1000),
+            created_at_ms: vw_api_transport::TimestampMs(1000),
         },
     )?;
     Ok((project, store, id))
@@ -232,7 +232,7 @@ fn task_pool_recovery_cancel_waits_for_execution_shutdown() -> Result<()> {
 fn recovery_waits_for_writer(expire: bool) -> Result<()> {
     use super::local::*;
     use crate::agent_scheduler::state_machine::AgentTaskStatus;
-    use vw_api_types::common::TimestampMs;
+    use vw_api_transport::common::TimestampMs;
     let (project, store, id) = recovery_fixture()?;
     let entered = std::sync::Barrier::new(2);
     let stopped = std::sync::Barrier::new(2);
@@ -314,7 +314,7 @@ fn task_pool_recovery_old_run_cannot_release_new_owner() -> Result<()> {
 #[test]
 fn task_pool_recovery_failure_preserves_user_directory() -> Result<()> {
     use super::local::*;
-    use vw_api_types::common::TimestampMs;
+    use vw_api_transport::common::TimestampMs;
     let (project, store, id) = recovery_fixture()?;
     let user_file = project.path().join("uncommitted.txt");
     std::fs::write(&user_file, "user content")?;
@@ -334,7 +334,7 @@ fn task_pool_recovery_failure_preserves_user_directory() -> Result<()> {
 #[test]
 fn task_pool_recovery_unconfirmed_shutdown_cannot_be_retried() -> Result<()> {
     use super::local::*;
-    use vw_api_types::common::TimestampMs;
+    use vw_api_transport::common::TimestampMs;
     let (project, store, id) = recovery_fixture()?;
     let calls = std::sync::atomic::AtomicUsize::new(0);
     let executor = RecoveryExecutor(|| {

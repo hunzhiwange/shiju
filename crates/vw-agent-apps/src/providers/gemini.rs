@@ -147,7 +147,7 @@ impl GeminiFiles {
     pub fn apply(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         id: &str,
         profile: &GeminiProfile,

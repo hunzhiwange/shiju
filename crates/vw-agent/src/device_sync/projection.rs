@@ -82,7 +82,7 @@ pub(super) async fn refresh(jobs: Vec<ProjectionJob<'_>>) -> Vec<ProjectionWarni
 /// failure semantics rather than treating an outer Ok as complete success.
 pub fn skill_job<'a>(
     store: &'a crate::gateway::agent_apps_skills_store::SkillInstallsStore,
-    scope: &'a vw_api_types::id::ProjectScope,
+    scope: &'a vw_api_transport::ProjectScope,
     host: &'a str,
     ssot: &'a std::path::Path,
     targets: &'a [vw_agent_apps::skills::bulk_sync::SkillSyncTarget],

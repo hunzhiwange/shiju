@@ -1,6 +1,9 @@
 use super::access::*;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
-use vw_api_types::{agent_apps::AppLifecycleAction, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppLifecycleAction,
+    vw_api_transport::id::TenantScope,
+};
 
 #[test]
 fn local_apps_generated_grant_uses_existing_authorization_and_rejects_other_scopes() {

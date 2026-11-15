@@ -707,7 +707,7 @@ impl GatewayWorktreePoolClient for FakeWorktreePool {
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
     ) -> GatewayFuture<'a, TaskPoolWorktreeReleaseResponse> {
         self.release_calls.lock().push((
             normalize_project_path(Path::new(&project.worktree)),
@@ -720,7 +720,7 @@ impl GatewayWorktreePoolClient for FakeWorktreePool {
     fn recycle_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
         taint_reason: Option<String>,
     ) -> GatewayFuture<'a, TaskPoolWorktreeRecycleResponse> {
         self.recycle_calls.lock().push((

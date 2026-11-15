@@ -61,7 +61,7 @@ pub(crate) struct ArchivedChatDeleteTarget {
 #[derive(Clone, PartialEq, Eq)]
 pub struct ArchivedChatsIdentity {
     pub(crate) gateway: String,
-    pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    pub(crate) tenant: vw_api_transport::TenantScope,
     pub(crate) auth_fingerprint: [u8; 32],
 }
 

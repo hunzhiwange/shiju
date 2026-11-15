@@ -7,12 +7,12 @@ use axum::{
     routing::post,
 };
 use std::path::PathBuf;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::preview::{
-        ProviderPreviewRequest, SavedProviderPreview, SavedProviderPreviewRequest,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::preview::ProviderPreviewRequest,
+    vw_api_types::app_providers::preview::SavedProviderPreview,
+    vw_api_types::app_providers::preview::SavedProviderPreviewRequest,
+    vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]
 struct PolicyFile(Option<PathBuf>);

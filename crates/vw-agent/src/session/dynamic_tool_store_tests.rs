@@ -7,7 +7,11 @@ use crate::tools::{Tool, ToolResult};
 use anyhow::Result;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::project::{Info, TimeInfo};
 use vw_shared::session::ui_types::ChatSession;
 

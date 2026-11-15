@@ -6,7 +6,10 @@ use axum::{
     middleware,
 };
 use tower::ServiceExt;
-use vw_api_types::{agent_apps::CustomIconEntry, id::TenantScope};
+use {
+    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_transport::id::TenantScope,
+};
 
 fn router(database: GlobalDatabase) -> Router {
     Router::new()

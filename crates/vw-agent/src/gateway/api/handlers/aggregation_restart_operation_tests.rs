@@ -6,7 +6,7 @@ async fn aggregation_t45_cancel_after_handoff_retains_real_terminal_result() {
     let owner = Owner {
         project: ProjectScope::new(
             TenantScope::new("p", "c").unwrap(),
-            vw_api_types::id::ProjectId::from("project"),
+            vw_api_transport::ProjectId::from("project"),
         )
         .unwrap(),
         host: "host".into(),

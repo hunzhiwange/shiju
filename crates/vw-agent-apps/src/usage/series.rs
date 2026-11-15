@@ -3,7 +3,10 @@ use chrono::{DateTime, Duration, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 use super::summary::{UsageSummary, UsageSummaryError, accumulate, load};
 

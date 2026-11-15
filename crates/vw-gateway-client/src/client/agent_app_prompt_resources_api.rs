@@ -1,7 +1,12 @@
 //! Native Pi resources and saved-state synchronization. Content is never expanded locally.
 use super::{GatewayClient, AgentAppsLifecycleError, AgentAppPromptsError};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use vw_api_types::{ProjectId, agent_apps::{AppId, AppOperationStatus}, id::TaskId};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppOperationStatus,
+    vw_api_transport::id::TaskId,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PiPromptResourcesScope {

@@ -11,10 +11,13 @@ use axum::{
     routing::get,
 };
 use vw_agent_apps::providers::validate_identity;
-use vw_api_types::{
-    agent_apps_auth::{AuthError, AuthErrorCode},
-    apps_usage::{UsageSnapshotQuery, UsageSnapshotResponse},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps_auth::AuthError,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_types::apps_usage::UsageSnapshotResponse,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[cfg(target_os = "macos")]

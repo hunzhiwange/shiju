@@ -222,7 +222,7 @@ fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {
         Ok(_) => panic!("project-disabled MCP must reject admission"),
     };
     assert!(error.to_string().contains("MCP capability is disabled"));
-    let tenant = vw_api_types::id::TenantScope::new("native-platform", "other-company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("native-platform", "other-company").unwrap();
     let result = runtime.block_on(crate::session::ui_store::with_tenant_scope(tenant, async {
         super::capability_policy::native_agent_defaults(
             &config,

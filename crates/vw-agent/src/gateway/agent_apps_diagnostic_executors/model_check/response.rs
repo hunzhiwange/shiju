@@ -1,9 +1,10 @@
 //! Fixed request and bounded public evidence for a model connectivity probe.
 
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps_diagnostics::{DiagnosticFailureCode, DiagnosticModelProtocol},
-    id::ModelId,
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticModelProtocol,
+    vw_api_transport::id::ModelId,
 };
 
 use crate::model_relay::generation::GenerationProtocol;

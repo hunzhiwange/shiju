@@ -4,7 +4,11 @@
 use std::{collections::BTreeMap, fs, path::PathBuf};
 use anyhow::Result;
 use vw_agent_apps::skills::{app_paths, bulk_sync::SkillSyncTarget, link_deploy::SyncMethod};
-use vw_api_types::{agent_apps::AppId, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillInstallsStore};
 
 struct Fixture {

@@ -2,7 +2,11 @@ use super::*;
 use crate::providers::live::{commit::*, write_guard::lock_app};
 use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 #[test]
 fn aggregation_t48_native_directory_write_preserves_project_and_protected_files() {
     let home = tempfile::tempdir().unwrap();

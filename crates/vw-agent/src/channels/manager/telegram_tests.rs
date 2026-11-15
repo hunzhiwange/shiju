@@ -47,7 +47,7 @@ fn telegram_config(allowed_users: Vec<String>) -> crate::app::agent::config::Tel
 fn persisted_allowed_users(home: &Path) -> Vec<String> {
     let payload = SystemConfigStore::new(GlobalDatabase::for_home(home).expect("database"))
         .expect("config store")
-        .get(&vw_api_types::id::TenantScope::default())
+        .get(&vw_api_transport::TenantScope::default())
         .expect("read config")
         .expect("stored config");
     serde_json::from_str::<Config>(&payload)

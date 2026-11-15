@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 /// Parsed client input; never interpreted by a shell.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VideoEditCommand {

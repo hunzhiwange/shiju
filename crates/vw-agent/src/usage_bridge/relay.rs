@@ -4,7 +4,10 @@ use axum::{body::Body, response::Response};
 use futures_util::StreamExt;
 use serde_json::Value;
 use vw_agent_apps::usage::{store::{self, StoredUsageRecord, UsageFailure, UsageSourceIdentity}, tokens::{parse_response, UsageProtocol}};
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 use crate::{global_database::GlobalDatabase, model_relay::{generation::GenerationProtocol, stream_observer::StreamObserver}};
 
 pub(crate) struct RequestUsage {

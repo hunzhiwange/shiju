@@ -2,10 +2,11 @@ use super::binding::{
     UnboundUsageAccount, UsageAccount, UsageAccountSelection, resolve_usage_credential,
 };
 use crate::auth::flow::AuthAccountScope;
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
 };
 
 #[test]

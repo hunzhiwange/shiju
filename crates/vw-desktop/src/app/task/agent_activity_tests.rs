@@ -63,7 +63,10 @@ fn task_pool_employee_disabled_or_deleted_agent_keeps_run_history() {
 #[test]
 fn task_pool_employee_gateway_projection_preserves_run_identity() {
     use crate::app::task::WorktreePoolSnapshot;
-    use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};
+    use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
+};
     use vw_gateway_client::vw_api_types::task::{
         TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto, TaskPoolWorktreeSnapshotResponse,
     };

@@ -137,7 +137,7 @@ async fn model_protocol_016_thinking_http_errors_never_issue_success() {
     use std::sync::Arc;
     let context = Context::new(
         &RelayIdentity {
-            tenant: vw_api_types::id::TenantScope::new("stream", "fixture").unwrap(),
+            tenant: vw_api_transport::TenantScope::new("stream", "fixture").unwrap(),
             project: "project".into(),
             session: "session".into(),
             provider: "provider".into(),

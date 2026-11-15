@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio_util::sync::CancellationToken;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// Trusted identity supplied by the session owner, never reconstructed from HTTP headers.
 #[derive(Clone, PartialEq, Eq)]

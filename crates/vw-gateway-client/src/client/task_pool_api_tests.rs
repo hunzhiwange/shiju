@@ -3,7 +3,11 @@
 //! 测试区分终止事件、连接提前结束和调用方主动停止，并检查所选租户作用域随请求发送。
 
 use serde_json::json;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 use vw_api_types::task::{
     TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
     TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeMaintenanceRequest,

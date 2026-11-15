@@ -97,7 +97,7 @@ async fn recovery_window_gateway_fixture() {
     let model_server = tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     });
-    let tenant = vw_api_types::id::TenantScope::new("recovery-window", "validation").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("recovery-window", "validation").unwrap();
     crate::config::update_global_for_tenant(&tenant, json!({
         "providers": {"recovery-window": {"api":format!("http://127.0.0.1:{model_port}/v1"), "env":["VW_RECOVERY_WINDOW_API_KEY"], "models":{"original":{"status":"active"}}}},
         "default_provider":"recovery-window", "default_model":"recovery-window/original",

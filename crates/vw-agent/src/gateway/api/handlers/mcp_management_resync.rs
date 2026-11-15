@@ -17,10 +17,12 @@ use std::{
 use vw_agent_apps::apps::lifecycle::operations::Operation;
 #[cfg(target_os = "macos")]
 use vw_agent_apps::apps::lifecycle::operations::Phase;
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    agent_apps::{AppId, AppInstallationId},
-    mcp_management::*,
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_types::mcp_management::*,
 };
 
 #[derive(Clone, Default)]

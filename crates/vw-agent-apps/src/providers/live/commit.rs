@@ -16,7 +16,11 @@ use std::{
     },
     path::Path,
 };
-use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthRegion, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionHostId(String);
@@ -68,7 +72,7 @@ pub struct PendingTarget {
     pub omo: Option<OmoSelection>,
     /// Set only by the executor after authorizing the physical project slot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project_scope: Option<vw_api_types::id::ProjectScope>,
+    pub project_scope: Option<vw_api_transport::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_aggregation_settings:
         Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
@@ -119,7 +123,7 @@ pub struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub omo: Option<OmoSelection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project_scope: Option<vw_api_types::id::ProjectScope>,
+    pub project_scope: Option<vw_api_transport::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_aggregation_settings:
         Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
@@ -162,7 +166,7 @@ pub struct Pending {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_record: Option<super::record_publication::ProviderRecordChange>,
     #[serde(default)]
-    pub project_preimage: Option<vw_api_types::id::ProjectScope>,
+    pub project_preimage: Option<vw_api_transport::ProjectScope>,
     pub version: u32,
     pub host: ExecutionHostId,
     pub app: AppId,

@@ -8,9 +8,10 @@ use tokio::{
     time::timeout,
 };
 use vw_agent_apps::routing::lifecycle_state::LifecycleState;
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 const GUARD: Duration = Duration::from_secs(4);

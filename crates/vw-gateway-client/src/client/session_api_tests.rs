@@ -841,7 +841,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn session_todo_get_blocking_uses_same_route_and_directory_query() {
-    let tenant = vw_api_types::id::TenantScope::new("platform-session", "company-session")
+    let tenant = vw_api_transport::TenantScope::new("platform-session", "company-session")
         .expect("tenant scope");
     let server = test_support::server_with_tenant_scope(
         vec![(
@@ -857,8 +857,8 @@ fn session_todo_get_blocking_uses_same_route_and_directory_query() {
     assert_eq!(todos[0].content, "Blocking");
     let request = server.take_request();
     assert_eq!(request.path, "/v1/session/s1/todo?directory=%2Frepo");
-    assert_eq!(request.header(vw_api_types::id::PLATFORM_ID_HEADER), Some("platform-session"));
-    assert_eq!(request.header(vw_api_types::id::COMPANY_ID_HEADER), Some("company-session"));
+    assert_eq!(request.header(vw_api_transport::PLATFORM_ID_HEADER), Some("platform-session"));
+    assert_eq!(request.header(vw_api_transport::COMPANY_ID_HEADER), Some("company-session"));
     server.join();
 }
 

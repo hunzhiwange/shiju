@@ -8,8 +8,10 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use vw_api_types::{
-    agent_apps::AppId, app_providers::presentation::AppProviderPresentation, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::presentation::AppProviderPresentation,
+    vw_api_transport::id::TenantScope,
 };
 fn seed(db: &GlobalDatabase) {
     let settings = GatewaySettingsStore::new(db.clone()).unwrap();

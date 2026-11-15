@@ -1,5 +1,9 @@
 use super::lifecycle::LifecycleState;
-use vw_gateway_client::vw_api_types::{agent_apps::*, id::TaskId, task::TaskStatus};
+use {
+    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_transport::id::TaskId,
+    vw_gateway_client::vw_api_types::task::TaskStatus,
+};
 fn status(id: &str, phase: AppOperationPhase, status: TaskStatus) -> AppOperationStatus {
     AppOperationStatus { operation_id: TaskId(id.into()), status, phase }
 }

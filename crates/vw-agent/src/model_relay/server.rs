@@ -267,7 +267,7 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         };
         let identity = &state.binding.identity;
         let result = (|| -> anyhow::Result<_> {
-            let scope = vw_api_types::id::ProjectScope::new(identity.tenant.clone(), identity.project.clone().into())?;
+            let scope = vw_api_transport::ProjectScope::new(identity.tenant.clone(), identity.project.clone().into())?;
             crate::usage_bridge::relay::RequestUsage::new(
                 crate::usage_bridge::context::database()?, scope, crate::usage_bridge::context::local_host()?,
                 "shiju-relay".into(), Some(identity.provider.clone()), Some(identity.model.clone()),

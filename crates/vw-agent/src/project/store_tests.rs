@@ -3,8 +3,12 @@
 use anyhow::Result;
 use rusqlite::Connection;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::id::{
-    DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, ProjectId, ProjectScope, TenantScope,
+use {
+    vw_api_transport::id::DEFAULT_COMPANY_ID,
+    vw_api_transport::id::DEFAULT_PLATFORM_ID,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 use vw_shared::project::{Commands, Icon, Info, TimeInfo, Vcs};
 

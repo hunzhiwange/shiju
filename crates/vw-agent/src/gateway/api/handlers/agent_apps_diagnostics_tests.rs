@@ -20,11 +20,13 @@ use std::{
     time::Duration,
 };
 use tower::ServiceExt;
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{DiagnosticJobIdentity, DiagnosticJobState},
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_transport::id::TenantScope,
 };
 
 const TOKEN: &str = "fixture-diagnostic-member-token-00001";
@@ -85,7 +87,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
             },
         )
         .map_err(anyhow::Error::msg)?;
-    let project = vw_api_types::id::ProjectScope::new(tenant.clone(), "project".into())?;
+    let project = vw_api_transport::ProjectScope::new(tenant.clone(), "project".into())?;
     let catalog = crate::agent_apps::mcp::McpCatalogStore::new(database.clone()).unwrap();
     let mcp_scope = vw_api_types::mcp_management::McpCatalogScope::Project { scope: project };
     let mcp_url = format!("{url}/mcp");
@@ -263,7 +265,7 @@ async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()
     // Saturate the same production registry; queued work must not bypass host capacity.
     let owner = DiagnosticJobOwner {
         scope: vw_api_types::agent_apps_diagnostics::DiagnosticScope {
-            project: vw_api_types::id::ProjectScope::new(
+            project: vw_api_transport::ProjectScope::new(
                 TenantScope::new("platform", "company")?,
                 "project".into(),
             )?,
@@ -418,7 +420,7 @@ async fn diagnostic_api_read_and_cancel_are_scope_bound() -> anyhow::Result<()> 
     let tenant = TenantScope::new("platform", "company")?;
     let owner = DiagnosticJobOwner {
         scope: DiagnosticScope {
-            project: vw_api_types::id::ProjectScope::new(tenant.clone(), "project".into())?,
+            project: vw_api_transport::ProjectScope::new(tenant.clone(), "project".into())?,
             target_host_id: "host".into(),
             app_id: AppId::Claude,
         },

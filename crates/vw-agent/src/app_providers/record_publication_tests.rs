@@ -6,7 +6,7 @@ use vw_agent_apps::providers::live::{
     stage::FileChange,
     write_guard::{FilePrivacy, WriteError, lock_app},
 };
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 struct Fixture {
     _root: tempfile::TempDir,

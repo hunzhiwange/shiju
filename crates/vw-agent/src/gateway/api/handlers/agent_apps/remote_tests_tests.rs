@@ -3,10 +3,11 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path, time::Duration};
 use vw_agent_apps::apps::launch::request::LaunchMaterial;
-use vw_api_types::{
-    agent_apps::*,
-    id::{TaskId, TenantScope},
-    task::TaskStatus,
+use {
+    vw_api_types::agent_apps::*,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::task::TaskStatus,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsLifecycleError, GatewayClient}};
 fn terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {

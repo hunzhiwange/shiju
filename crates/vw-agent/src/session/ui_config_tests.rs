@@ -4,7 +4,7 @@
 use super::*;
 use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 static GLOBAL_PATHS_ENV_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> =
     std::sync::OnceLock::new();

@@ -1,16 +1,20 @@
 use super::fill_kimi::{KimiModelFill, fill_kimi_model};
 use crate::providers::kimi;
 use serde_json::{Value, json};
-use vw_api_types::{
-    app_providers::kimi::{KimiActivation, KimiProfile},
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState::{Supported, Unsupported},
-        ModelMetadataDto,
-        ModelMetadataField::{ContextWindow, InputModalities, MaxOutputTokens, Reasoning},
-        ModelMetadataProvenance,
-        ModelMetadataSource::{ModelsDev, Preset},
-    },
+use {
+    vw_api_types::app_providers::kimi::KimiActivation,
+    vw_api_types::app_providers::kimi::KimiProfile,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState::Supported,
+    vw_api_types::model_catalog::ModelCapabilityState::Unsupported,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField::ContextWindow,
+    vw_api_types::model_catalog::ModelMetadataField::InputModalities,
+    vw_api_types::model_catalog::ModelMetadataField::MaxOutputTokens,
+    vw_api_types::model_catalog::ModelMetadataField::Reasoning,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource::ModelsDev,
+    vw_api_types::model_catalog::ModelMetadataSource::Preset,
 };
 
 fn metadata() -> ModelMetadataDto {

@@ -10,7 +10,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt, path::Path, process::Command, time::Duration};
 use tower::ServiceExt;
-use vw_api_types::{TenantScope, mcp_management::McpCatalogScope};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+};
 
 const ENV: &str = "SHIJU_MCP_TASK51_ROOT";
 const A: &str = "fixture-t51-member-a-token-at-least-32-bytes";
@@ -183,7 +186,11 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
             AuthAccountMetadata, AuthAccountScope, AuthAccountStore,
         };
         use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
-        use vw_api_types::{TimestampMs, agent_apps::AppId, agent_apps_auth::AuthService};
+        use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+};
         let tenant = TenantScope::new("p", company).unwrap();
         let private = root.join(company).join("private");
         let credentials = CredentialFileStore::new(&private).unwrap();
@@ -282,7 +289,7 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
     // Project writes require a separate grant; establish the fixture through the real store.
     assert_eq!(status, StatusCode::FORBIDDEN);
     let project = McpCatalogScope::Project {
-        scope: vw_api_types::ProjectScope::new(
+        scope: vw_api_transport::ProjectScope::new(
             TenantScope::new("p", "a").unwrap(),
             "project".into(),
         )

@@ -5,10 +5,12 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::{path::Path, sync::LazyLock};
 use vw_agent_apps::{aggregation::preview as native, providers::live::commit::AppState};
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::{ProjectScope, TenantScope},
-    model_catalog::SavedCodexCatalog,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::SavedCodexCatalog,
 };
 
 #[derive(Serialize)]

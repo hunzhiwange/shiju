@@ -1,8 +1,13 @@
 //! Authorized update API. All sources and filesystem roots are server-owned.
 use axum::{Extension, Json, Router, extract::{Path, Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, post}};
-use vw_api_types::{agent_apps_skills::{updates_api::*, repos_api::SkillReposQuery},
-    id::{ProjectScope, TenantScope, TaskId}};
+use {
+    vw_api_types::agent_apps_skills::updates_api::*,
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_transport::id::TaskId,
+};
 use crate::global_database::GlobalDatabase;
 
 #[derive(Clone)]

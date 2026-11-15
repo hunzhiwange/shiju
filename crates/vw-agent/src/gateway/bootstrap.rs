@@ -24,7 +24,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 // Keep management and health endpoints available when the default provider is unusable.
 fn gateway_provider(config: &Config) -> Arc<dyn Provider> {

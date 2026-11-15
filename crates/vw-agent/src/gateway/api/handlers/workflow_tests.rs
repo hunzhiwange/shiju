@@ -45,7 +45,7 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::workflow::{
     WorkflowHumanActionDto, WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto,
     WorkflowRecordUpsertBody, WorkflowRunRequest, WorkflowRunResponse, WorkflowRunStatus,
@@ -1289,8 +1289,8 @@ async fn talking_head_api_request(
     use tower::ServiceExt;
     let mut request = axum::http::Request::post(path)
         .header("content-type", "application/json")
-        .header(vw_api_types::id::PLATFORM_ID_HEADER, "talking-head-api")
-        .header(vw_api_types::id::COMPANY_ID_HEADER, company);
+        .header(vw_api_transport::PLATFORM_ID_HEADER, "talking-head-api")
+        .header(vw_api_transport::COMPANY_ID_HEADER, company);
     if authenticated {
         request = request.header("authorization", "Bearer talking-head-test-skey");
     }
@@ -1499,8 +1499,8 @@ async fn talking_head_api_live_configured_gateway_returns_validated_plans() {
         let response = client
             .post(format!("http://{address}/v1/workflow/applications/chat-messages"))
             .header("authorization", "Bearer talking-head-test-skey")
-            .header(vw_api_types::id::PLATFORM_ID_HEADER, "talking-head-api-live")
-            .header(vw_api_types::id::COMPANY_ID_HEADER, "local-acceptance")
+            .header(vw_api_transport::PLATFORM_ID_HEADER, "talking-head-api-live")
+            .header(vw_api_transport::COMPANY_ID_HEADER, "local-acceptance")
             .json(&body)
             .send()
             .await

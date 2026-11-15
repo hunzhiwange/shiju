@@ -4,7 +4,7 @@ async fn cc04_mode_state_sdk_scopes_query_and_discards_sensitive_error() {
     let status = serde_json::json!({"mode":"direct","directProvider":"saved","inUseProvider":"saved","proxyRoute":null,"attached":false,"hasContract":true,"stack":{"enabled":false,"active":false,"members":[]},"decision":"skipRewrite","routeRuntime":"unavailable"});
     let server = super::super::test_support::server_with_tenant_scope(
         vec![(200, status), (503, serde_json::json!({"key":"fake-sensitive"}))],
-        vw_api_types::id::TenantScope::new("p", "c").unwrap(),
+        vw_api_transport::TenantScope::new("p", "c").unwrap(),
     );
     let q = ModeStateQuery {
         target_host_id: "host".into(),

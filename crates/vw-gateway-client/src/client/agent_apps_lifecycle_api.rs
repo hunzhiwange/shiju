@@ -1,7 +1,10 @@
 //! Typed lifecycle requests. Recovery reads the existing operation; writes are never replayed.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::{agent_apps::*, id::TaskId};
+use {
+    vw_api_types::agent_apps::*,
+    vw_api_transport::id::TaskId,
+};
 
 /// Transport, malformed responses and original gateway business errors stay distinct.
 #[derive(Debug, Clone, PartialEq)]

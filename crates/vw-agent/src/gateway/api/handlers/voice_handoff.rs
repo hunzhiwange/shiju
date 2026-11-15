@@ -70,7 +70,7 @@ pub(crate) fn bounded_text(mut text: String) -> String {
 
 #[derive(Clone)]
 pub(crate) struct Binding {
-    pub tenant: vw_api_types::id::TenantScope,
+    pub tenant: vw_api_transport::TenantScope,
     pub chat_session: VoiceId,
     pub directory: String,
 }

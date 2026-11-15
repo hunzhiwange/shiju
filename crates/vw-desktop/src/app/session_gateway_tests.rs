@@ -5,7 +5,7 @@
 async fn stop_stub(
     status: &'static str,
     body: &'static str,
-    tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
 ) -> (vw_gateway_client::GatewayClient, tokio::task::JoinHandle<String>) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -134,7 +134,11 @@ fn desktop_project_calls_use_active_tenant_scope() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn task_plan_run_stop_gateway_boundary_preserves_task_and_tenant_scope() {
-    use vw_gateway_client::vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+    use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 
     let tenant = TenantScope::new("platform-nested", "company-nested").expect("tenant scope");
     let (client, request) = stop_stub(
@@ -166,7 +170,7 @@ async fn task_plan_run_stop_gateway_boundary_preserves_task_and_tenant_scope() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn task_plan_run_stop_gateway_boundary_surfaces_unknown_and_cross_tenant_errors() {
-    use vw_gateway_client::vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
 
     for (status, body) in [
         ("404 Not Found", r#"{"error":"task-plan-run 不存在"}"#),
@@ -531,7 +535,7 @@ async fn session_message_delta_refreshes_count_for_conflict_and_gap() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn session_message_delta_rejects_invalid_requests_and_keeps_outages_retryable() {
-    use vw_gateway_client::vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
     for (status, permanent) in [
         ("400 Bad Request", true),
         ("403 Forbidden", true),
@@ -566,7 +570,7 @@ async fn session_message_delta_rejects_invalid_requests_and_keeps_outages_retrya
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn session_history_conflict_does_not_rebase_and_retry_wrong_rows() {
-    use vw_gateway_client::vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
     let (client, request) = stop_stub(
         "409 Conflict",
         r#"{"error":"session history conflict at seq_no 0"}"#,

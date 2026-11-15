@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use vw_agent_apps::project_profiles::snapshot::{SnapshotReadFailure, SnapshotScope};
 use vw_api_types::app_providers::mode_state::ProviderModeStatus;
 use vw_api_types::project_profiles::ProjectProfileSkillRef;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_api_types::project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileScope};
 
 use crate::global_database::GlobalDatabase;

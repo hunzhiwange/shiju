@@ -1,7 +1,7 @@
 //! Receiving resources uses the existing installation state and deployment owner.
 use anyhow::{Result, Context, ensure};
 use crate::{gateway::{agent_apps_skills_store::{SkillInstallsStore, SkillInstallsState}, settings_store::GatewaySettingsStore}, global_database::GlobalDatabase};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 use std::{collections::{BTreeMap, BTreeSet}, path::Path};
 use vw_agent_apps::{data_management::{shared_snapshot::SharedSkill, safety_snapshot::*}, device_sync::skill_update::BatchSkillUpdate, skills::update_apply::SkillUpdateMetadata};
 

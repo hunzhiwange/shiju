@@ -2,7 +2,7 @@
 use super::exchange::{CachedRates, Currency, ExchangeSettings, RateMode, TARGET_CURRENCIES};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use std::collections::BTreeMap;
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 #[derive(Default)]
 pub struct DisplayPatch {

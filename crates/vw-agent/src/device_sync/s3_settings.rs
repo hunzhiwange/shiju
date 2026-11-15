@@ -9,9 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::device_sync::s3_config::S3Config;
-use vw_api_types::{
-    device_sync_config::{S3SyncConfig, SyncSecretUpdate, UpdateS3SyncConfigRequest},
-    id::TenantScope,
+use {
+    vw_api_types::device_sync_config::S3SyncConfig,
+    vw_api_types::device_sync_config::SyncSecretUpdate,
+    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_transport::id::TenantScope,
 };
 
 const NAMESPACE: &str = "device_sync.s3.local.v1";

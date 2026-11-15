@@ -1,6 +1,9 @@
 use super::*;
 use crate::app::state::AgentAppsContext;
-use vw_gateway_client::vw_api_types::{TenantScope, agent_apps_auth::AuthService};
+use {
+    vw_api_transport::TenantScope,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthService,
+};
 fn context() -> catalog::Context {
     catalog::Context {
         endpoint: AgentAppsContext {

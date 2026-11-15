@@ -1,5 +1,8 @@
 use serde_json::json;
-use vw_api_types::{agent_apps::CustomIconEntry, id::TenantScope};
+use {
+    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_transport::id::TenantScope,
+};
 
 use super::{GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;

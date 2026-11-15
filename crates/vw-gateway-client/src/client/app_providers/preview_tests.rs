@@ -1,5 +1,9 @@
 use super::super::test_support;
-use vw_api_types::{agent_apps::AppId, app_providers::preview::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::preview::*,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_preview_sdk_encodes_target_and_redacts_denial() {
     let server = test_support::server_with_tenant_scope(

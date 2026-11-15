@@ -61,7 +61,7 @@ async fn gemini_chat_child() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let upstream = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-    let tenant = vw_api_types::id::TenantScope::new("gemini-chat", "wire").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("gemini-chat", "wire").unwrap();
     let root = home.join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = vw_agent::project::from_directory(&tenant, &root).await.unwrap();

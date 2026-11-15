@@ -2,7 +2,7 @@
 //! follow the host API's f64 contract and never change ledger amounts.
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use vw_api_types::id::ModelId;
+use vw_api_transport::id::ModelId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelPricingInfo {

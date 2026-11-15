@@ -1,6 +1,11 @@
 //! Execution-host storage confirmation; callers never supply filesystem paths.
 use axum::{Extension, Json, Router, extract::{Query, DefaultBodyLimit}, http::{HeaderMap, StatusCode}, routing::{get, post}};
-use vw_api_types::{agent_apps_skills::{storage_api::*, repos_api::SkillReposQuery}, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::storage_api::*,
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 pub(crate) fn router() -> Router {

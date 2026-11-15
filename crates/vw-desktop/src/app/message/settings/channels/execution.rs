@@ -61,7 +61,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
             let client = client?;
             let directory = match project {
                 Some(project) => {
-                    let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(
+                    let scope = vw_api_transport::ProjectScope::new(
                         client.endpoint().tenant_scope().clone(),
                         project.into(),
                     )

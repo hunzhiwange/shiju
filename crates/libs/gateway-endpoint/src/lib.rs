@@ -2,7 +2,7 @@
 //!
 //! 本模块只负责描述“请求发到哪里”以及“请求如何认证”，不包含任何实际网络逻辑。
 
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// 网关服务地址，负责统一描述主机与端口。
 ///

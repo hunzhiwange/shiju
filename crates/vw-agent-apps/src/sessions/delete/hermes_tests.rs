@@ -1,7 +1,11 @@
 use super::hermes::delete_session;
 use crate::sessions::{cache::TranscriptCache, providers::hermes::scan_sessions, source::SourceRegistry};
 use std::{fs, io, path::PathBuf};
-use vw_api_types::{ProjectId, ProjectScope, external_session::*};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_types::external_session::*,
+};
 
 fn fixture() -> (tempfile::TempDir, PathBuf, SourceRegistry, ExternalSessionIdentity) {
     let root = tempfile::tempdir().unwrap();

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::store::SessionStore;
 use crate::tools::catalog::{ToolCatalog, ToolCatalogSnapshot};

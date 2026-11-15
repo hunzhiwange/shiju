@@ -20,7 +20,7 @@ fn query_for(path: &std::path::Path) -> Query<InstanceQuery> {
 
 async fn route_status(method: Method, uri: &str) -> StatusCode {
     router::<()>()
-        .layer(Extension(vw_api_types::id::TenantScope::default()))
+        .layer(Extension(vw_api_transport::TenantScope::default()))
         .oneshot(
             Request::builder()
                 .method(method)
@@ -171,7 +171,7 @@ async fn agent_profile_api_catalog_includes_disabled_only_when_requested() {
     let home = tempfile::tempdir().unwrap();
     let _home = ProfileEnvGuard::set("HOME", home.path());
     let _config = ProfileEnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path());
-    crate::config::update_global_for_tenant(&vw_api_types::id::TenantScope::default(), serde_json::json!({"agents":{"acp-claude":{"api_key":"profile-secret", "options":{"api_key":"profile-secret"}}}})).await.unwrap();
+    crate::config::update_global_for_tenant(&vw_api_transport::TenantScope::default(), serde_json::json!({"agents":{"acp-claude":{"api_key":"profile-secret", "options":{"api_key":"profile-secret"}}}})).await.unwrap();
     let runtime = with_instance(home.path().to_string_lossy().into_owned(), || {
         Box::pin(async { Ok(agent::get("acp-snow").await) })
     })
@@ -222,7 +222,7 @@ async fn agent_profile_api_copy_has_unique_custom_identity_and_survives_reload()
     let home = tempfile::tempdir().unwrap();
     let _home = ProfileEnvGuard::set("HOME", home.path());
     let _config = ProfileEnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path());
-    let tenant = vw_api_types::id::TenantScope::new("profile-copy", "company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("profile-copy", "company").unwrap();
     let mut keys = std::collections::HashSet::new();
     for _ in 0..2 {
         let Json(copy) = agent_copy(
@@ -241,7 +241,7 @@ async fn agent_profile_api_copy_has_unique_custom_identity_and_survives_reload()
         assert_eq!(saved.agents[&copy.key].runtime, copy.definition.runtime);
     }
     assert!(
-        crate::config::get_global_for_tenant(&vw_api_types::id::TenantScope::default())
+        crate::config::get_global_for_tenant(&vw_api_transport::TenantScope::default())
             .await
             .unwrap()
             .agents
@@ -256,8 +256,8 @@ async fn agent_config_cleanup_catalog_copy_is_global_and_tenant_isolated() {
     let home = tempfile::tempdir().unwrap();
     let _home = ProfileEnvGuard::set("HOME", home.path());
     let _config = ProfileEnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path());
-    let tenant = vw_api_types::id::TenantScope::new("cleanup", "copy").unwrap();
-    let other = vw_api_types::id::TenantScope::new("cleanup", "other").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("cleanup", "copy").unwrap();
+    let other = vw_api_transport::TenantScope::new("cleanup", "other").unwrap();
     crate::config::update_global_for_tenant(
         &tenant,
         serde_json::json!({"agents":{"main":{"description":"global"}}}),

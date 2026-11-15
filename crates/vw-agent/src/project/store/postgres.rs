@@ -5,7 +5,10 @@ use std::convert::TryFrom;
 use anyhow::{Context, Result, bail};
 use postgres::{GenericClient, Row};
 use serde::de::DeserializeOwned;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::project::{Info, TimeInfo};
 
 use super::{

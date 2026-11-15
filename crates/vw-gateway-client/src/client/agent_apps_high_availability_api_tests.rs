@@ -1,10 +1,11 @@
 use super::{AgentAppsHighAvailabilityError as Error, GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_high_availability::*,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[tokio::test]

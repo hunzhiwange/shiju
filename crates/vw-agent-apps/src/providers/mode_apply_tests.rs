@@ -1,7 +1,11 @@
 use super::{claude::ClaudeFile, live::commit::*, mode_apply::*};
 use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt, sync::Mutex};
-use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_apply::*,
+    vw_api_transport::id::TenantScope,
+};
 struct Runtime {
     path: std::path::PathBuf,
     published: Mutex<Vec<Option<String>>>,

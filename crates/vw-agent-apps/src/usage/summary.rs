@@ -8,7 +8,10 @@ use std::{
 use rusqlite::Connection;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 use super::{
     retention::{UsageDailyRollup, UsageRollupDimensions, load_daily_rollups},

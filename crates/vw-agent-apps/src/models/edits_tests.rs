@@ -2,13 +2,17 @@ use super::edits::{edit, read};
 use serde_json::{Value, json};
 use std::{fs, io::Write};
 use tempfile::TempDir;
-use vw_api_types::{
-    agent_apps::AppId,
-    id::TenantScope,
-    model_catalog::{
-        ModelCapabilityState, ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogIdentity,
-        ModelCatalogReadResponse, ModelCatalogWriteResponse, ModelMetadataDto, ModelTokenCost,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCapabilityState,
+    vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogReadResponse,
+    vw_api_types::model_catalog::ModelCatalogWriteResponse,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelTokenCost,
 };
 
 struct Fixture {

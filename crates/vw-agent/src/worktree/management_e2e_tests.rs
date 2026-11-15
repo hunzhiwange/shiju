@@ -7,7 +7,10 @@ use axum::{
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use tower::ServiceExt;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_config_types::worktree::WorktreeSettings;
 
 // A process owns all lazy stores and environment variables. Never mutate a live

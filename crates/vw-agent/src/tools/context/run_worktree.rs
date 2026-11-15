@@ -4,7 +4,7 @@ use crate::agent_scheduler::{
     store::{AgentSchedulerStore, artifacts::RecordTaskArtifactRequest},
 };
 use std::path::PathBuf;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 #[derive(Clone)]
 pub(crate) struct RunWorktreeOwner {

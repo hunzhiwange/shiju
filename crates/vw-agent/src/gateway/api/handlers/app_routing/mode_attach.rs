@@ -6,10 +6,11 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Response},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_routing::RoutingModeRequest,
-    id::{ProjectId, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_routing::RoutingModeRequest,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(crate) async fn attach_mode(
@@ -39,10 +40,11 @@ pub(crate) async fn attach_mode(
         // Awaiting the task does not cancel a native transaction when the caller disconnects.
         tokio::task::spawn_blocking(move || {
             use axum::http::StatusCode;
-            use vw_api_types::{
-                error::{ApiErrorBody, ApiErrorDetail},
-                id::ProjectScope,
-            };
+            use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+    vw_api_transport::id::ProjectScope,
+};
             let apply = || {
                 let project = ProjectScope::new(tenant.clone(), project)
                     .map_err(|_| StatusCode::BAD_REQUEST)?;

@@ -287,7 +287,7 @@ impl PiFiles {
     pub fn apply(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         expected: &super::live::commit::AppState,
         name: &str,
         pre: Option<&[u8]>,

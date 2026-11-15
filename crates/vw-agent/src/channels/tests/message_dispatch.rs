@@ -196,7 +196,7 @@ async fn channel_command_flow_concurrent_instances_rooms_threads_and_tenant_reje
         assert!(!sender_session_store().lock().unwrap().contains_key(&scope));
         assert_eq!(command_flow_id(&ctx, &msg).await, id);
     }
-    let tenant = vw_api_types::id::TenantScope::new("flow", uuid::Uuid::new_v4().to_string()).unwrap();
+    let tenant = vw_api_transport::TenantScope::new("flow", uuid::Uuid::new_v4().to_string()).unwrap();
     let mut foreign = ctx.as_ref().clone();
     foreign.project_state = Arc::new(Mutex::new(Default::default()));
     foreign.project_state.lock().unwrap().tenant = tenant;

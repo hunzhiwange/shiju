@@ -10,9 +10,10 @@ use axum::{
     routing::put,
 };
 use std::path::PathBuf;
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
 };
 #[cfg(not(target_os = "macos"))]
 #[derive(Clone)]
@@ -117,7 +118,10 @@ async fn default_provider(
 #[derive(Debug)]
 struct Failure(StatusCode, &'static str);
 fn failure(status: StatusCode, code: &str) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (
         status,
         [(header::CACHE_CONTROL, "no-store")],
@@ -198,7 +202,10 @@ fn execute(
             mode_state,
         },
     };
-    use vw_api_types::{agent_apps_auth::AuthService, id::ProjectScope};
+    use {
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::ProjectScope,
+};
     let invalid = || Failure(StatusCode::BAD_REQUEST, "invalid_request");
     let unavailable = || Failure(StatusCode::SERVICE_UNAVAILABLE, "target_unavailable");
     let project = ProjectScope::new(tenant.clone(), query.project_id).map_err(|_| invalid())?;

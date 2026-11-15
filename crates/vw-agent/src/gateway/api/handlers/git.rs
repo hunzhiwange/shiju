@@ -87,7 +87,7 @@ async fn git_merge_v1(
 
 async fn resolve_git_directory(
     project_id: &str,
-    worktree_id: Option<&vw_api_types::id::WorktreeId>,
+    worktree_id: Option<&vw_api_transport::WorktreeId>,
 ) -> Result<String, ApiError> {
     let info = load_project(project_id).await?;
     let project_directory = project_context_directory(&info)?;

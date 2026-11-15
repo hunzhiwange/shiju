@@ -11,7 +11,7 @@ use std::path::Path;
 use std::pin::Pin;
 
 use serde::{Deserialize, Serialize};
-use vw_api_types::common::OperationAck;
+use vw_api_transport::common::OperationAck;
 use vw_api_types::file::{
     CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
     ListFilesRequest, ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest,
@@ -273,9 +273,9 @@ impl GatewayClient {
         project_id: &T,
         worktree_id: Option<&U>,
     ) -> Result<String, String> {
-        let scope = vw_api_types::id::ProjectScope::new(
+        let scope = vw_api_transport::ProjectScope::new(
             self.endpoint().tenant_scope().clone(),
-            vw_api_types::id::ProjectId::from(project_id.as_ref()),
+            vw_api_transport::ProjectId::from(project_id.as_ref()),
         )
         .map_err(|error| error.to_string())?;
         if let Some(worktree_id) = worktree_id {

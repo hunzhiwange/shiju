@@ -1,6 +1,10 @@
 #![cfg(target_os = "macos")]
 use axum::{Router, middleware};
-use vw_api_types::{agent_apps::AppId, app_providers::preview::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::preview::*,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
     use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};

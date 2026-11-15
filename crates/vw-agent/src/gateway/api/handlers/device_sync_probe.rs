@@ -11,11 +11,13 @@ use axum::{
 };
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_api_types::{
-    device_sync_config::{
-        DeviceSyncTransport, UpdateS3SyncConfigRequest, UpdateWebDavSyncConfigRequest,
-    },
-    id::{ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::device_sync_config::DeviceSyncTransport,
+    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone)]

@@ -1,7 +1,11 @@
 //! Deferred verification: these tests have not been executed by task 37.
 use rusqlite::Connection;
 use vw_agent_apps::usage::{logs::*, store::*};
-use vw_api_types::{id::{ProjectId, ProjectScope}, usage::*};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 fn scope(project: &str) -> ProjectScope {
     ProjectScope::for_default_tenant(ProjectId(project.into())).unwrap()

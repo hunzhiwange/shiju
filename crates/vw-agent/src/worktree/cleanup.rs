@@ -1,7 +1,7 @@
 //! Cleanup proposals and guarded host maintenance; proposals never authorize deletion.
 use super::registry::Record;
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 use vw_config_types::worktree::WorktreeSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

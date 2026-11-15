@@ -682,7 +682,7 @@ pub(crate) async fn channel_session_lifecycle_resume_isolates_projects_and_tenan
     other_msg.thread_ts = msg.thread_ts.clone();
     other.message_snapshot = None;
     assert!(lifecycle_call(&other, &other_msg, &format!("/resume {id}")).await.contains("失败"));
-    let tenant = vw_api_types::id::TenantScope::new(
+    let tenant = vw_api_transport::TenantScope::new(
         format!("lifecycle-{}", std::process::id()),
         format!("user-{id}"),
     )

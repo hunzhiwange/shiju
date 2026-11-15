@@ -18,13 +18,19 @@ use tokio::{sync::Semaphore, time::Instant};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use vw_agent_apps::apps::lifecycle::operations::{Operation, OperationFailure};
-use vw_api_types::{
-    agent_apps_diagnostics::{
-        DiagnosticFailure, DiagnosticFailureCode, DiagnosticJobIdentity, DiagnosticJobSnapshot,
-        DiagnosticJobState, DiagnosticOutcome, DiagnosticPhase, DiagnosticProbeKind,
-        DiagnosticProgress, DiagnosticResult, DiagnosticScope,
-    },
-    id::TaskId,
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProgress,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_transport::id::TaskId,
 };
 
 mod endpoints;

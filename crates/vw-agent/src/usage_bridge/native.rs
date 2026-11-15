@@ -1,6 +1,9 @@
 //! Per-attempt native observations. UI/session totals are never ledger inputs.
 use vw_agent_apps::usage::store::{self, StoredUsageRecord, UsageFailure, UsageSourceIdentity};
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 tokio::task_local! {
     static SESSION: String;

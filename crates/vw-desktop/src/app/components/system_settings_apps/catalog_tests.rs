@@ -43,7 +43,7 @@ fn cc_apps_desktop_catalog_state_retry_and_stale_response() {
     use crate::app::state::{AgentAppsContext, AppsCatalogState};
     let context = AgentAppsContext {
         gateway: "http://gateway".into(),
-        tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("p", "c").unwrap(),
         project: None,
     };
     let mut state = AppsCatalogState::default();
@@ -204,7 +204,7 @@ fn cc_apps_desktop_catalog_state_context_switch_releases_pending_load() {
     use crate::app::state::{AgentAppsContext, AppsCatalogState};
     let old = AgentAppsContext {
         gateway: "old".into(),
-        tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("p", "c").unwrap(),
         project: None,
     };
     let current = AgentAppsContext { gateway: "new".into(), ..old.clone() };
@@ -270,7 +270,7 @@ fn catalog_cache_expires_and_invalidates_after_failure_or_context_change() {
     use crate::app::state::{AgentAppsContext, AppsCatalogState};
     let context = AgentAppsContext {
         gateway: "http://gateway".into(),
-        tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),
+        tenant: vw_api_transport::TenantScope::new("p", "c").unwrap(),
         project: None,
     };
     let mut state =

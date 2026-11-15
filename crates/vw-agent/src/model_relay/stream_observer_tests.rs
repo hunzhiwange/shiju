@@ -184,7 +184,7 @@ async fn shared_stream_observer_native_converters_preserve_client_model_mapping(
                 response,
                 responses_stream::Output {
                     identity: RelayIdentity {
-                        tenant: vw_api_types::id::TenantScope::default(),
+                        tenant: vw_api_transport::TenantScope::default(),
                         project: "project".into(),
                         session: "session".into(),
                         provider: "provider".into(),

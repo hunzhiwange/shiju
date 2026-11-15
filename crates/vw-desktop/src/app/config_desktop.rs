@@ -12,7 +12,11 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::watch;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_types::id::TenantScope}};
+use {
+    gateway_endpoint::GatewayEndpoint,
+    vw_gateway_client::GatewayClient,
+    vw_api_transport::id::TenantScope,
+};
 
 #[path = "config_project_chat.rs"]
 mod project_chat;

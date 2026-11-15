@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 use vw_api_types::external_session::{ExternalSessionErrorCode, SessionMeta, SessionProvider};
-use vw_api_types::ProjectScope;
+use vw_api_transport::ProjectScope;
 
 const SNAPSHOT_TTL: Duration = Duration::from_secs(300);
 const MAX_SESSIONS: usize = 50_000;

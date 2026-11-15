@@ -5,15 +5,16 @@ use super::{
 };
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsSettingsError, GatewayClient,
-    mcp_management_distribution::*,
-    vw_api_types::{
-        TaskId,
-        agent_apps::{AppActionExecutionResult, AppId, AppOperationPhase},
-        mcp_management::*,
-        task::TaskStatus,
-    },
+use {
+    vw_gateway_client::AgentAppsSettingsError,
+    vw_gateway_client::GatewayClient,
+    vw_gateway_client::mcp_management_distribution::*,
+    vw_api_transport::TaskId,
+    vw_gateway_client::vw_api_types::agent_apps::AppActionExecutionResult,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::AppOperationPhase,
+    vw_gateway_client::vw_api_types::mcp_management::*,
+    vw_gateway_client::vw_api_types::task::TaskStatus,
 };
 
 #[derive(Debug, Clone, Default)]

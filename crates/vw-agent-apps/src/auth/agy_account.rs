@@ -23,7 +23,7 @@ pub struct AgyNativeTarget<'a> {
 pub(crate) fn query_access_token(
     scope: AuthAccountScope<'_>,
     account_id: &str,
-    now: vw_api_types::TimestampMs,
+    now: vw_api_transport::TimestampMs,
 ) -> Result<Option<String>, AuthErrorCode> {
     validate_scope(scope)?;
     validate_account_id(account_id)?;

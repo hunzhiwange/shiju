@@ -2,13 +2,18 @@
 //! Native paths, credential resolution and transactions remain on the execution host.
 use super::{AgentAppsLifecycleError, AgentAppsSettingsError, GatewayClient};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use vw_api_types::{
-    ProjectId, TaskId,
-    agent_apps::{AppActionExecutionResult, AppId, AppInstallationId},
-    mcp_management::{
-        McpAppTarget, McpDistributionResult, McpFailureCode, McpRecordId, McpRecordRef,
-        McpResyncOperationStatus,
-    },
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::TaskId,
+    vw_api_types::agent_apps::AppActionExecutionResult,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_types::mcp_management::McpAppTarget,
+    vw_api_types::mcp_management::McpDistributionResult,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordId,
+    vw_api_types::mcp_management::McpRecordRef,
+    vw_api_types::mcp_management::McpResyncOperationStatus,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

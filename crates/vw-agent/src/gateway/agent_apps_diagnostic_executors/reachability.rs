@@ -10,15 +10,20 @@ use vw_agent_apps::{
     auth::{copilot::CopilotAuth, flow::AuthAccountScope},
     providers,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailure, DiagnosticFailureCode, DiagnosticOutcome,
-        DiagnosticPhase, DiagnosticReport, DiagnosticResult, DiagnosticTiming,
-        ReachabilityEvidence,
-    },
-    id::ProviderId,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticReport,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticTiming,
+    vw_api_types::agent_apps_diagnostics::ReachabilityEvidence,
+    vw_api_transport::id::ProviderId,
 };
 
 use super::super::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError};

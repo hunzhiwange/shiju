@@ -286,7 +286,7 @@ pub(crate) fn schedule_worktree_action_log_tick() -> iced::Task<crate::app::Mess
 
 pub(crate) async fn resolve_task_board_project_id(
     project_path: &str,
-) -> Result<vw_gateway_client::vw_api_types::id::ProjectId, String> {
+) -> Result<vw_api_transport::ProjectId, String> {
     let client = crate::app::config::gateway_client()?;
     let response = client
         .project_resolve(
@@ -325,7 +325,7 @@ pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<cr
 }
 
 async fn load_agent_scheduler_logs(
-    project_id: vw_gateway_client::vw_api_types::id::ProjectId,
+    project_id: vw_api_transport::ProjectId,
     task_ids: Vec<String>,
 ) -> Result<
     Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse>,
@@ -365,7 +365,7 @@ pub(crate) fn sync_agent_scheduler_logs_for_project_path(
 
 pub(crate) fn sync_agent_scheduler_logs(
     project_path: String,
-    project_id: vw_gateway_client::vw_api_types::id::ProjectId,
+    project_id: vw_api_transport::ProjectId,
     task_ids: Vec<String>,
 ) -> iced::Task<crate::app::Message> {
     if task_ids.is_empty() {
@@ -677,7 +677,7 @@ fn agent_scheduler_create_task_request(
             "task_board.status_role": status_role,
             "task_board.status_key_map": status_key_map,
         }),
-        created_at_ms: vw_gateway_client::vw_api_types::common::TimestampMs(
+        created_at_ms: vw_api_transport::TimestampMs(
             i64::try_from(task.created_at_ms).unwrap_or(i64::MAX),
         ),
     }
@@ -792,7 +792,7 @@ pub(crate) fn send_agent_scheduler_command(
                 .agent_scheduler_command(
                     &scope,
 	                    &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {
-	                        task_id: vw_gateway_client::vw_api_types::id::TaskId(task_id.clone()),
+	                        task_id: vw_api_transport::TaskId(task_id.clone()),
                         command,
                         dispatch_mode,
                         max_concurrent,
@@ -895,7 +895,7 @@ async fn recycle_task_worktree_via_gateway(
             .task_pool_worktree_recycle(
                 &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeRecycleRequest {
                     project_id,
-                    task_id: vw_gateway_client::vw_api_types::id::TaskId(task_id.clone()),
+                    task_id: vw_api_transport::TaskId(task_id.clone()),
                     taint_reason,
                 },
             )

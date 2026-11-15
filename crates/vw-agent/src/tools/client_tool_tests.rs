@@ -129,7 +129,7 @@ async fn dynamic_tools_callback_execution_rejects_wrong_tenant_workspace_and_mis
     for owner in [
         DynamicCallOwner::new(
             SessionScope::new(
-                vw_api_types::id::TenantScope::new("other", "company").unwrap(),
+                vw_api_transport::TenantScope::new("other", "company").unwrap(),
                 host.owner().scope.directory(),
             )
             .unwrap(),

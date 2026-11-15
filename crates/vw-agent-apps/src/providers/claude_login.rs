@@ -8,7 +8,10 @@ use crate::auth::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{fs::File, path::Path};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 const ACCOUNT_CACHE_KEYS: &[&str] = &[
     "additionalModelOptionsCache",
     "additionalModelOptionsAnsweredAt",
@@ -352,7 +355,7 @@ impl LoginHost {
 }
 impl LoginMaterial {
     /// The same normalized OAuth generation used by the native rotation check.
-    pub fn credential_generation(&self) -> Result<Option<vw_api_types::TimestampMs>, WriteError> {
+    pub fn credential_generation(&self) -> Result<Option<vw_api_transport::TimestampMs>, WriteError> {
         crate::auth::claude_rotation::expiry(self.oauth().and_then(|oauth| oauth.get("expiresAt")))
     }
 

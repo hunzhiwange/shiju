@@ -1,11 +1,13 @@
 //! Persistence for the managed MCP catalog.
 
 use serde::{Deserialize, Serialize};
-use vw_api_types::{
-    id::TenantScope,
-    mcp_management::{
-        McpCatalogRecord, McpCatalogScope, McpCliBinding, McpConnectionDefinition, McpFailureCode,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpCliBinding,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};

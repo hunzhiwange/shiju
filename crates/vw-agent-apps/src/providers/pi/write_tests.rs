@@ -8,7 +8,11 @@ use super::{
 use crate::providers::live::commit::{ExecutionHostId, HOOK, Phase, ProviderTransactions};
 use serde_json::json;
 use std::{cell::Cell, fs, os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{agent_apps::AppId, app_providers::pi::PiProfile, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::pi::PiProfile,
+    vw_api_transport::id::TenantScope,
+};
 
 struct Fixture {
     home: tempfile::TempDir,

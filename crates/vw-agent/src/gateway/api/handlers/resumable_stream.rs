@@ -15,7 +15,7 @@ use axum::response::{IntoResponse, Response, Sse};
 use futures_util::stream;
 use sha2::{Digest, Sha256};
 use tokio::sync::watch;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::app::agent::gateway::ApiError;
 

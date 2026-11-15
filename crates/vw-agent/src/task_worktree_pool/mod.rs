@@ -7,7 +7,10 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-use vw_api_types::id::{ProjectId, TaskId};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
+};
 use vw_api_types::task::{
     TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeMaintenanceResponse,
     TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeMergeLockResponse,

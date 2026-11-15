@@ -18,7 +18,7 @@ pub(crate) struct RecordedLlmRequest {
     pub(crate) system: Vec<String>,
     pub(crate) model: Option<String>,
     pub(crate) directory: String,
-    pub(crate) tenant: vw_api_types::id::TenantScope,
+    pub(crate) tenant: vw_api_transport::TenantScope,
     pub(crate) messages: Vec<serde_json::Value>,
     pub(crate) options: serde_json::Value,
 }

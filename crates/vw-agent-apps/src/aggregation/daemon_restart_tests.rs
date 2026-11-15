@@ -8,7 +8,10 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
 };
-use vw_api_types::id::{ProjectId, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+};
 struct Fixture {
     home: tempfile::TempDir,
     _root: tempfile::TempDir,

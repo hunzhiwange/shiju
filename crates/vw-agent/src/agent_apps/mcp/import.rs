@@ -5,12 +5,15 @@ use vw_agent_apps::mcp::{
     import::{self, NativeMcpCandidate, NativeMcpSource},
     validation::validate_new_name,
 };
-use vw_api_types::{
-    TenantScope,
-    mcp_management::{
-        McpAppTarget, McpCatalogRecord, McpCatalogScope, McpCliBinding, McpFailureCode,
-        McpNativeStatus, McpRecordId,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpAppTarget,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpCliBinding,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpNativeStatus,
+    vw_api_types::mcp_management::McpRecordId,
 };
 
 use super::{

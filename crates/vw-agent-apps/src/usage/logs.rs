@@ -5,7 +5,10 @@ use std::collections::BTreeMap;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use vw_api_types::{id::ProjectScope, usage::*};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::*,
+};
 
 use super::{ranges::resolve_usage_range, store::StoredUsageRecord};
 

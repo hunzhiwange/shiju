@@ -6,7 +6,7 @@ use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_config_types::config::Config;
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -7,7 +7,7 @@ use std::{
     path::Path,
     sync::{Mutex, OnceLock},
 };
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[derive(Clone)]
 struct Binding {

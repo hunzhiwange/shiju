@@ -253,7 +253,7 @@ fn pins_data_dir() -> Result<std::path::PathBuf, String> {
 }
 
 fn pins_scope(project: &str) -> String {
-    let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();
+    let tenant = vw_api_transport::TenantScope::default();
     vw_shared::session::ui_store::pinned_threads_scope(
         tenant.platform_id().as_ref(),
         tenant.company_id().as_ref(),

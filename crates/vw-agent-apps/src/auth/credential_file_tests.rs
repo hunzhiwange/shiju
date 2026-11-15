@@ -4,7 +4,10 @@ use std::{
     os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt, symlink},
     path::{Path, PathBuf},
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 fn private_dir(path: &Path) {
     fs::DirBuilder::new().mode(0o700).create(path).unwrap();

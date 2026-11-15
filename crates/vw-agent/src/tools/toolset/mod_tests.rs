@@ -998,7 +998,7 @@ async fn codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant() {
     config.workspace_dir = root.path().join("workspace");
     config.config_path = root.path().join("config/shiju.json");
     let tenant =
-        vw_api_types::id::TenantScope::new("snapshot-platform", "snapshot-company").unwrap();
+        vw_api_transport::TenantScope::new("snapshot-platform", "snapshot-company").unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let turn = crate::plugins::session_snapshot::PluginTurnSnapshot::capture(&config).unwrap();
         let context = Arc::new(

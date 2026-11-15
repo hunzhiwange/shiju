@@ -2,7 +2,11 @@
 use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::{get, post}};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}};
 use vw_agent_apps::apps::lifecycle::operations::{Operation, Phase};
-use vw_api_types::{hermes_dashboard::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::hermes_dashboard::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Clone, Default)]
 struct State {

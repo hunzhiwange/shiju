@@ -3,7 +3,7 @@
 //! 初始化时先拒绝缺少租户列的历史表，防止在不安全结构上继续读写或自动覆盖。
 
 use anyhow::{Context, Result, bail};
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpsertBody};
 
 use crate::global_database::GlobalDatabase;

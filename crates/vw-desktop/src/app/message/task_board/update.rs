@@ -132,7 +132,7 @@ fn task_status_from_agent_scheduler_log(
         .or_else(|| status.map(task_status_from_agent_scheduler_status))
 }
 
-fn timestamp_ms_to_u64(timestamp_ms: vw_gateway_client::vw_api_types::common::TimestampMs) -> u64 {
+fn timestamp_ms_to_u64(timestamp_ms: vw_api_transport::TimestampMs) -> u64 {
     u64::try_from(timestamp_ms.0).unwrap_or_default()
 }
 

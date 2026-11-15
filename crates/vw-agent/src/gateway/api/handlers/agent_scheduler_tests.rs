@@ -20,7 +20,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto,
     AgentTaskStatusDto,
 };
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 use vw_api_types::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
@@ -39,8 +39,8 @@ async fn agent_scheduler_routes_require_header_tenant_scope() {
         .oneshot(
             Request::builder()
                 .uri("/agent-scheduler/platforms/platform-a/companies/company-a/projects/project-a/tasks")
-                .header(vw_api_types::id::PLATFORM_ID_HEADER, "platform-a")
-                .header(vw_api_types::id::COMPANY_ID_HEADER, "company-a")
+                .header(vw_api_transport::PLATFORM_ID_HEADER, "platform-a")
+                .header(vw_api_transport::COMPANY_ID_HEADER, "company-a")
                 .body(Body::empty())
                 .expect("request"),
         )

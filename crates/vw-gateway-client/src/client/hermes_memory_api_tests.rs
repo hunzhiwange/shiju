@@ -1,6 +1,10 @@
 use super::{GatewayClient, HermesMemoryError, HermesMemoryScope, test_support};
 use serde_json::json;
-use vw_api_types::{hermes_memory::HermesMemoryKind as Kind, id::{ProjectId, TenantScope}};
+use {
+    vw_api_types::hermes_memory::HermesMemoryKind as Kind,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+};
 
 fn scope() -> HermesMemoryScope {
     HermesMemoryScope { project_id: ProjectId::new("project").unwrap(), target_host_id: "主机 /?".into() }

@@ -1,10 +1,12 @@
 use super::{AgentAppsReadError, test_support};
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::AppId,
-    common::PaginationRequest,
-    id::TenantScope,
-    model_catalog::{ModelCatalogIdentity, ModelCatalogProject, ModelCatalogQuery},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::common::PaginationRequest,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogProject,
+    vw_api_types::model_catalog::ModelCatalogQuery,
 };
 
 const TOKEN: &str = "model-catalog-test-token";

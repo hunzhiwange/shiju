@@ -17,7 +17,11 @@ use vw_agent_apps::data_management::{
     operations::ImportOperation, post_import, preview::Decision,
     safety_snapshot::SafetySnapshotReceipt,
 };
-use vw_api_types::{agent_apps::data_management::*, id::TenantScope, task::TaskStatus};
+use {
+    vw_api_types::agent_apps::data_management::*,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::task::TaskStatus,
+};
 
 const NAMESPACE: &str = "agent_apps.data_import.operations";
 #[derive(Clone, Serialize, Deserialize)]

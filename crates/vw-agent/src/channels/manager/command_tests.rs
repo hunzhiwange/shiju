@@ -119,7 +119,7 @@ async fn handle_command_bind_telegram_persists_new_identity() {
 
     let payload = SystemConfigStore::new(GlobalDatabase::for_home(tmp.path()).expect("database"))
         .expect("config store")
-        .get(&vw_api_types::id::TenantScope::default())
+        .get(&vw_api_transport::TenantScope::default())
         .expect("read config")
         .expect("stored config");
     let persisted: Config = serde_json::from_str(&payload).expect("parse config");

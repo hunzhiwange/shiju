@@ -1,8 +1,9 @@
 //! Typed application routing requests over the existing authenticated gateway transport.
 use crate::GatewayClient;
-use vw_api_types::{
-    app_routing::{RoutingHealth, RoutingStatus},
-    error::ApiErrorBody,
+use {
+    vw_api_types::app_routing::RoutingHealth,
+    vw_api_types::app_routing::RoutingStatus,
+    vw_api_transport::error::ApiErrorBody,
 };
 
 #[derive(Debug, Clone, PartialEq)]

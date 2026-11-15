@@ -26,13 +26,17 @@ use vw_agent_apps::{
         live::commit::{ExecutionHostId, ProviderTransactions},
     },
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps::AppId,
-    agent_apps_auth::{
-        AuthAccount, AuthCredentialState, AuthErrorCode, AuthFlow, AuthFlowId, AuthService,
-        AuthStartRequest, AuthStartResponse,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthAccount,
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
 };
 
 const CLAUDE_LIFETIME: Duration = Duration::from_secs(600);

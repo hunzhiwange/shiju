@@ -279,7 +279,7 @@ where
 pub async fn logout(
     server: &agent_client_protocol::McpServerHttp,
     session: String,
-    tenant: vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
 ) -> Result<()> {
     let owner = FormOwner { session, tenant };
     let _guard = lock(server, &owner).await?;

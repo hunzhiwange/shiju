@@ -9,7 +9,10 @@ use crate::providers::live::{
     write_guard::{AppWriteGuard, FilePrivacy, WriteError},
 };
 #[cfg(target_os = "macos")]
-use vw_api_types::{TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 #[cfg(not(target_os = "macos"))]
 #[derive(Debug, PartialEq, Eq)]
 pub enum McodePromptError {

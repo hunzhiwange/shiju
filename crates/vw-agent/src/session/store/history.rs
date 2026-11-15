@@ -3,7 +3,7 @@
 use anyhow::Result;
 use postgres::GenericClient;
 use rusqlite::{Connection, OptionalExtension, params};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::{ChatMessage, ChatRole, ChatSession, SessionMessageDelta, SessionMessageDeltaError};
 

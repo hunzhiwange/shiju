@@ -5,7 +5,11 @@ use vw_agent_apps::auth::{
     credential_file::{AccountCredential, CredentialFileStore, GeminiCredential},
     gemini_refresh::{GeminiRefresh, GeminiScope},
 };
-use vw_api_types::{TimestampMs, agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 #[test]
 fn cc_route_031_adapter_selection_expected_behavior() {
@@ -188,7 +192,7 @@ async fn cc_route_031_listener_uses_current_managed_credential_on_wire() {
     let listener = RoutingListener::default();
     let address = listener.start(0).unwrap();
     let binding = super::VerifiedRouteBinding::new(
-        vw_api_types::id::ProjectScope::new(tenant.clone(), "fixture-project".into()).unwrap(),
+        vw_api_transport::ProjectScope::new(tenant.clone(), "fixture-project".into()).unwrap(),
         "fixture-host".into(),
         AppId::Codex,
         "fixture-account".into(),

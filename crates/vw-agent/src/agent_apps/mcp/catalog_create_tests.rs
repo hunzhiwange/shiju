@@ -2,11 +2,14 @@ use std::{net::TcpListener, sync::Barrier};
 
 use serde_json::Value;
 use vw_agent_apps::mcp::catalog::McpCatalogDraft;
-use vw_api_types::{
-    id::{ProjectScope, TenantScope},
-    mcp_management::{
-        McpCatalogScope, McpConnectionDefinition, McpFailureCode, McpRecordId, McpTransport,
-    },
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordId,
+    vw_api_types::mcp_management::McpTransport,
 };
 
 use super::{McpCatalogStore, catalog_create::catalog_location};

@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Instant, Duration}};
 use crate::{global_database::GlobalDatabase, gateway::settings_store::GatewaySettingsStore};
-use vw_api_types::{agent_apps::{data_management::*, AppUserPreferences}, id::TenantScope};
+use {
+    vw_api_types::agent_apps::data_management::*,
+    vw_api_types::agent_apps::AppUserPreferences,
+    vw_api_transport::id::TenantScope,
+};
 use vw_agent_apps::data_management::{export, safety_snapshot::SafetySnapshotScope};
 #[derive(Clone)]
 struct State { policy: Option<PathBuf>, downloads: Arc<Mutex<HashMap<String, Download>>> }

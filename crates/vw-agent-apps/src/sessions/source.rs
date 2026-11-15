@@ -6,7 +6,7 @@ use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use vw_api_types::external_session::{ExternalSessionIdentity, SessionMeta, SessionProvider, SessionSource};
-use vw_api_types::ProjectScope;
+use vw_api_transport::ProjectScope;
 
 /// A verified location is deliberately not a wire type. Re-resolve it immediately
 /// before use; retaining it does not authorize a later filesystem mutation.

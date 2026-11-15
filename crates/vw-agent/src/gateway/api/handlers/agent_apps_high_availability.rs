@@ -26,14 +26,20 @@ use std::collections::HashMap;
 use vw_agent_apps::{
     high_availability::queue::Queue, providers::validate_identity, routing::supports_app,
 };
-use vw_api_types::{
-    agent_apps_high_availability::{
-        FailoverCandidatesResponse, FailoverQueueEnabledRequest, FailoverQueueEntry,
-        FailoverQueueMemberRequest, FailoverQueueQuery, FailoverQueueReorderRequest,
-        FailoverQueueResponse, FailoverQueueScope, FailoverQueueVersion,
-    },
-    error::{ApiErrorBody, ApiErrorDetail},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps_high_availability::FailoverCandidatesResponse,
+    vw_api_types::agent_apps_high_availability::FailoverQueueEnabledRequest,
+    vw_api_types::agent_apps_high_availability::FailoverQueueEntry,
+    vw_api_types::agent_apps_high_availability::FailoverQueueMemberRequest,
+    vw_api_types::agent_apps_high_availability::FailoverQueueQuery,
+    vw_api_types::agent_apps_high_availability::FailoverQueueReorderRequest,
+    vw_api_types::agent_apps_high_availability::FailoverQueueResponse,
+    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Clone, Copy)]

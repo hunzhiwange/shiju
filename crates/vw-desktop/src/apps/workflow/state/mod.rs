@@ -747,7 +747,7 @@ pub struct WorkflowCanvasContextMenu {
 
 #[derive(Debug, Default)]
 pub struct WorkflowState {
-    pub tenant_drafts: HashMap<vw_gateway_client::vw_api_types::TenantScope, Box<WorkflowState>>,
+    pub tenant_drafts: HashMap<vw_api_transport::TenantScope, Box<WorkflowState>>,
     pub video_edit: video_edit::VideoEditUiState,
     pub apps: Vec<WorkflowAppEntry>,
     pub active_app_id: Option<String>,

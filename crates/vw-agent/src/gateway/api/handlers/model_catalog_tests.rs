@@ -6,12 +6,13 @@ use axum::{Extension, Router, middleware};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::os::unix::fs::PermissionsExt;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    common::PaginationRequest,
-    id::TenantScope,
-    model_catalog::*,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_transport::common::PaginationRequest,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::*,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 

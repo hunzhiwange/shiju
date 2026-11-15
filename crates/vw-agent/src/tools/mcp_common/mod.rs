@@ -301,7 +301,7 @@ async fn merge_runtime_mcp_servers(
     merge_enabled_plugin_mcp_servers(&mut config.mcp_servers, &plugin_options)?;
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(project_id) = project_id {
-        let project = vw_api_types::ProjectScope::new(tenant, project_id.into())?;
+        let project = vw_api_transport::ProjectScope::new(tenant, project_id.into())?;
         let selected = crate::agent_apps::mcp::runtime::selected_runtime_servers(
             &project,
             workspace,

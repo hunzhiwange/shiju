@@ -1,7 +1,11 @@
 //! Ordinary prompt publication. Callers hold the fixed target's guard across
 //! catalog reads and commit, and authorize the physical host/project beforehand.
 use std::ffi::OsStr;
-use vw_api_types::{agent_apps::{AppId, PromptResource}, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::PromptResource,
+    vw_api_transport::id::ProjectScope,
+};
 use crate::providers::live::{
     commit::{PendingTarget, ProviderTransactions},
     stage::{FileChange, WholeFile},

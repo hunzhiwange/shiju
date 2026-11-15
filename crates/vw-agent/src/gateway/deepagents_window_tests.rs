@@ -40,7 +40,7 @@ async fn acp_onboarding_deepagents_desktop_gateway_fixture() {
     let endpoint = std::env::var("SHIJU_DEEPAGENTS_TEST_ENDPOINT").unwrap();
     assert!(endpoint.starts_with("http://127.0.0.1:"));
     let model_port = reqwest::Url::parse(&endpoint).unwrap().port().unwrap();
-    let tenant = vw_api_types::id::TenantScope::new("deepagents-window", "validation").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("deepagents-window", "validation").unwrap();
     crate::config::update_global_for_tenant(&tenant, json!({
         "providers":{"deepagents-window":{"api":endpoint, "env":["OPENAI_API_KEY"],"models":{"gpt-4o":{"status":"active"}}}},
         "default_provider":"deepagents-window","default_model":"deepagents-window/gpt-4o",

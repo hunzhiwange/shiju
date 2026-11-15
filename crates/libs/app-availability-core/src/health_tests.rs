@@ -6,13 +6,15 @@ use std::{
     num::NonZeroUsize,
     time::{Duration, Instant},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_high_availability::{
-        CircuitBreakerPolicy,
-        FailoverHealthState::{Closed, HalfOpen, Open, Unknown},
-    },
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState::Closed,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState::HalfOpen,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState::Open,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState::Unknown,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[test]

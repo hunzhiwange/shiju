@@ -6,12 +6,13 @@ use axum::{
     extract::{DefaultBodyLimit, Path, rejection::JsonRejection},
     routing::{get, patch},
 };
-use vw_api_types::{
-    agent_apps::{
-        AddCustomIconRequest, AddCustomIconResult, AgentAppsErrorCode, CustomIconEntry,
-        RenameCustomIconRequest,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AddCustomIconRequest,
+    vw_api_types::agent_apps::AddCustomIconResult,
+    vw_api_types::agent_apps::AgentAppsErrorCode,
+    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_types::agent_apps::RenameCustomIconRequest,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(crate) fn router() -> Router {

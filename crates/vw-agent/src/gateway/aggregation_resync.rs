@@ -33,7 +33,10 @@ use vw_agent_apps::{
         mode_state::ClientConfiguration,
     },
 };
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 /// Construct only after project aggregation-write and (when attached) route grants.
 /// No user-selected paths or raw provider payloads cross an HTTP boundary here.

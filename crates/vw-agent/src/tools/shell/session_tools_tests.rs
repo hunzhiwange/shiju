@@ -154,7 +154,7 @@ async fn shell_session_tools_preserve_security_checks() {
     let other_workspace = tempfile::tempdir().unwrap();
     let other_tools = registry(security(other_workspace.path()));
     let tenant_tools = crate::session::ui_store::with_tenant_scope(
-        vw_api_types::id::TenantScope::new("fixture-platform", "other-company").unwrap(),
+        vw_api_transport::TenantScope::new("fixture-platform", "other-company").unwrap(),
         async { registry(security(dir.path())) },
     )
     .await;

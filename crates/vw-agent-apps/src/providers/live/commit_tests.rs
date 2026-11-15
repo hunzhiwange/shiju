@@ -8,7 +8,10 @@ use std::{
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 fn target() -> PendingTarget {
     PendingTarget {
         pointer: Some("provider-b".into()),

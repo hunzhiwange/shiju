@@ -9,7 +9,7 @@ use std::thread;
 use anyhow::{Context, Result, anyhow, bail};
 use serde_json::{Map, Value, json};
 use vw_api_types::chat::GatewayChatStreamRequest;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 use vw_api_types::task::{TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseResponse};
 
 use crate::agent_scheduler::domain::{RunId, TaskId};
@@ -33,13 +33,13 @@ trait GatewayWorktreePoolClient: Send + Sync {
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
     ) -> GatewayFuture<'a, TaskPoolWorktreeReleaseResponse>;
 
     fn recycle_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
         taint_reason: Option<String>,
     ) -> GatewayFuture<'a, TaskPoolWorktreeRecycleResponse>;
 }
@@ -51,7 +51,7 @@ impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
     ) -> GatewayFuture<'a, TaskPoolWorktreeReleaseResponse> {
         Box::pin(async move {
             crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
@@ -63,7 +63,7 @@ impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
     fn recycle_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
         taint_reason: Option<String>,
     ) -> GatewayFuture<'a, TaskPoolWorktreeRecycleResponse> {
         Box::pin(async move {
@@ -79,7 +79,7 @@ impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
     ) -> GatewayFuture<'a, TaskPoolWorktreeReleaseResponse> {
         Box::pin(async move {
             crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
@@ -91,7 +91,7 @@ impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
     fn recycle_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
+        task_id: &'a vw_api_transport::TaskId,
         taint_reason: Option<String>,
     ) -> GatewayFuture<'a, TaskPoolWorktreeRecycleResponse> {
         Box::pin(async move {
@@ -211,7 +211,7 @@ fn lease_gateway_local_agent_workspace(
 ) -> Result<LocalAgentWorkspace> {
     run_gateway_future("create agent scheduler gateway worktree lease runtime", async move {
         let project = project_for_local_workspace(&request.project_path).await?;
-        let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
+        let task_id = vw_api_transport::TaskId(request.task_id.as_str().to_string());
         let run_id = request.run_id.as_str().to_string();
         let agent = request.agent.clone();
         let workspace = lease_gateway_local_agent_workspace_for_project(
@@ -256,7 +256,7 @@ fn release_gateway_local_agent_workspace(request: LocalAgentWorkspaceReleaseRequ
         crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
             .finish_run(
                 &project,
-                &vw_api_types::id::TaskId(request.task_id.as_str().to_string()),
+                &vw_api_transport::TaskId(request.task_id.as_str().to_string()),
                 request.run_id.as_str(),
                 None,
             )
@@ -278,7 +278,7 @@ async fn release_gateway_local_agent_workspace_for_project(
     if request.workspace.slot_id.is_none() {
         return Ok(());
     }
-    let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
+    let task_id = vw_api_transport::TaskId(request.task_id.as_str().to_string());
     let response = pool
         .release_task_slot(project, &task_id)
         .await
@@ -295,7 +295,7 @@ fn recycle_gateway_local_agent_workspace(request: LocalAgentWorkspaceRecycleRequ
         crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
             .finish_run(
                 &project,
-                &vw_api_types::id::TaskId(request.task_id.as_str().to_string()),
+                &vw_api_transport::TaskId(request.task_id.as_str().to_string()),
                 request.run_id.as_str(),
                 Some(request.taint_reason.clone()),
             )
@@ -317,7 +317,7 @@ async fn recycle_gateway_local_agent_workspace_for_project(
     if request.workspace.slot_id.is_none() {
         return Ok(());
     }
-    let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
+    let task_id = vw_api_transport::TaskId(request.task_id.as_str().to_string());
     let response = pool
         .recycle_task_slot(project, &task_id, Some(request.taint_reason))
         .await

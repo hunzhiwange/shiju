@@ -12,7 +12,7 @@ use tower::ServiceExt;
 
 use crate::session::message::{Part, ToolState, WithParts};
 use crate::session::session::Info;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_api_types::session::{GatewaySessionMessagePage, GatewaySessionUiSummary};
 use vw_shared::session::ui_types::{ChatRole, SessionMessageRecord};
 

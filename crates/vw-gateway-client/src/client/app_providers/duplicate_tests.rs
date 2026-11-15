@@ -1,6 +1,8 @@
 use super::super::test_support;
-use vw_api_types::{
-    agent_apps::AppId, app_providers::duplicate::AppProviderDuplicate, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::duplicate::AppProviderDuplicate,
+    vw_api_transport::id::TenantScope,
 };
 #[tokio::test]
 async fn cc04_duplicate_sdk_sends_scoped_copy_and_redacts_errors() {

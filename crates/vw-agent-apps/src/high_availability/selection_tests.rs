@@ -7,9 +7,11 @@ use crate::{
     },
 };
 use std::time::{Duration, Instant};
-use vw_api_types::{
-    agent_apps::AppId, agent_apps_high_availability::CircuitBreakerPolicy,
-    app_providers::AppProviderSummary, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+    vw_api_types::app_providers::AppProviderSummary,
+    vw_api_transport::id::TenantScope,
 };
 
 #[test]

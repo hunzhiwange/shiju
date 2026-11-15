@@ -5,13 +5,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use vw_api_types::{
-    id::{ModelId, TenantScope},
-    model_catalog::{
-        ModelCatalogDefaultChange, ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogEntry,
-        ModelCatalogIdentity, ModelCatalogReadResponse, ModelCatalogWriteResponse,
-        ModelMetadataDto, ScopedModelCatalogIdentity,
-    },
+use {
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogDefaultChange,
+    vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogEntry,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogReadResponse,
+    vw_api_types::model_catalog::ModelCatalogWriteResponse,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
 
 const CATALOGS: &str = "deploymentModelCatalogs";

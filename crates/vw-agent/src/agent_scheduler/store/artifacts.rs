@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use serde_json::Value;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use crate::agent_scheduler::domain::{RunId, TaskId};
 

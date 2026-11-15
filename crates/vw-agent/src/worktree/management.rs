@@ -1,7 +1,11 @@
 //! Management composes the existing registry, protection and recovery services.
 use super::{Error, cleanup, environment, recovery, registry};
 use std::path::Path;
-use vw_api_types::{common::TimestampMs, id::ProjectScope, worktree::*};
+use {
+    vw_api_transport::common::TimestampMs,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::worktree::*,
+};
 use vw_config_types::worktree::WorktreeSettings;
 
 fn invalid(error: impl std::fmt::Display) -> Error {

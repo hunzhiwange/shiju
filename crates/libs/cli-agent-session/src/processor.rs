@@ -18,7 +18,7 @@ use vw_shared::session::ui_types as models;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use vw_gateway_client::vw_api_types::id::SessionId;
+use vw_api_transport::id::SessionId;
 use vw_gateway_client::{GatewayChatStreamRequest, GatewayChatUsage};
 
 use cli_gateway_runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};

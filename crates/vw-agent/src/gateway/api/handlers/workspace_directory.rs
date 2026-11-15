@@ -3,7 +3,13 @@ use axum::{extract::Query, http::{HeaderMap, StatusCode}, routing::post, Extensi
 use serde::Deserialize;
 use std::path::PathBuf;
 use vw_agent_apps::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory as Directory};
-use vw_api_types::{id::{ProjectId, ProjectScope, TenantScope}, workspace_memory::{WorkspaceDirectory, WorkspaceOpenDirectoryRequest}};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::workspace_memory::WorkspaceDirectory,
+    vw_api_types::workspace_memory::WorkspaceOpenDirectoryRequest,
+};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

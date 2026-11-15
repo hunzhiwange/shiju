@@ -1,7 +1,7 @@
 //! Persisted skill task snapshots. IDs are opaque; storage must authorize scope
 //! and execution host before returning any snapshot. No operation is replayed.
 use serde::{Deserialize, Serialize};
-use vw_api_types::id::TaskId;
+use vw_api_transport::id::TaskId;
 
 pub const MAX_RETAINED_JOBS: usize = 128;
 

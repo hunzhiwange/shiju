@@ -23,7 +23,7 @@ impl App {
             async move {
                 let mut details = SessionHoverDetails::default();
                 if let Ok(client) = crate::app::gateway_client() {
-                    let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(
+                    let scope = vw_api_transport::ProjectScope::new(
                         client.endpoint().tenant_scope().clone(),
                         project_id.into(),
                     );

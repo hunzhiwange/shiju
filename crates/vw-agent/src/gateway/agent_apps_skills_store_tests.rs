@@ -1,6 +1,9 @@
 use anyhow::Result;
 use vw_agent_apps::skills::repos::SkillRepo;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 use super::{
     agent_apps_skills_store::{

@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 async fn parent_context(project: &TempDir) -> (SessionScope, ToolRuntimeContext) {
     let scope = SessionScope::new(TenantScope::default(), project.path()).expect("scope");

@@ -145,7 +145,10 @@ fn managed_worktree_path_requires_slot_dash_leaf_name() {
 
 #[test]
 fn desktop_worktree_snapshot_maps_gateway_dto() {
-    use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};
+    use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
+};
     use vw_gateway_client::vw_api_types::task::{
         TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto,
         TaskPoolWorktreeSnapshotResponse,

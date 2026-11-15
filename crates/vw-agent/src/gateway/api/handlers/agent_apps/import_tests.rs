@@ -2,7 +2,10 @@ use super::access::import_provider_policy;
 use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
 use serde_json::json;
 use std::os::unix::fs::PermissionsExt;
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 #[test]
 fn cc04_import_startup_consumes_only_authorized_empty_catalogs() {
     let root = tempfile::tempdir().unwrap();

@@ -20,7 +20,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 fn router(db: GlobalDatabase, company: &str) -> axum::Router {
     crate::gateway::router::handler_router()
         .layer(Extension(db))

@@ -5,12 +5,15 @@ use tokio::{
     net::TcpListener,
     time::timeout,
 };
-use vw_api_types::{
-    TimestampMs,
-    apps_usage::{
-        UsageCredentialState, UsageQueryData, UsageQueryErrorCode, UsageQueryKind,
-        UsageQueryOutcome, UsageQueryResult, UsageSource,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::apps_usage::UsageCredentialState,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageQueryResult,
+    vw_api_types::apps_usage::UsageSource,
 };
 
 use super::{client_builder, query_at, query_opencode_go};

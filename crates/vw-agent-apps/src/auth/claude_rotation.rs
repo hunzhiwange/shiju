@@ -6,8 +6,11 @@ use crate::providers::{
 };
 use serde_json::Value;
 use std::path::Path;
-use vw_api_types::{
-    TimestampMs, agent_apps::AppId, agent_apps_auth::AuthCredentialState, id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Debug, PartialEq, Eq)]

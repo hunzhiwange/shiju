@@ -2,7 +2,10 @@
 use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap, StatusCode}, middleware, response::{IntoResponse, Response}, routing::{get, post}};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vw_api_types::{computer_control::*, id::TenantScope};
+use {
+    vw_api_types::computer_control::*,
+    vw_api_transport::id::TenantScope,
+};
 use vw_config_types::computer_control::GrantDecision;
 use crate::{computer_control::{policy::{ComputerControlPolicy, ControlFeature, GrantScope}, office::sessions::OfficeSurface}, tools::computer_control::NativeControlRuntime};
 

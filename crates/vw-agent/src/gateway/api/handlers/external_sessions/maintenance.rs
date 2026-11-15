@@ -11,7 +11,10 @@ use std::{
 };
 #[cfg(target_os = "macos")]
 use vw_agent_apps::sessions::maintenance::{MaintenanceOperation, MaintenancePhase};
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 #[cfg(target_os = "macos")]
 pub(super) mod host;
 

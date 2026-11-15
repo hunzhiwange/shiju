@@ -190,7 +190,7 @@ fn acp_model_source_launch_profile_references_separate_every_identity_boundary()
             2 => changed.provider = "other-provider".into(),
             3 => changed.model = "other-model".into(),
             4 => changed.generation += 1,
-            _ => changed.tenant = vw_api_types::id::TenantScope::new("other", "tenant").unwrap(),
+            _ => changed.tenant = vw_api_transport::TenantScope::new("other", "tenant").unwrap(),
         }
         let other = AcpLaunchProfile::new(&Default::default(), changed).unwrap();
         assert_ne!(reference, &other.config().env[profile::REFERENCE_ENV]);

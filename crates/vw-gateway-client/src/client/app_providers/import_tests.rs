@@ -6,7 +6,7 @@ async fn cc04_import_sdk_scopes_trigger_and_discards_sensitive_error() {
             (200, serde_json::json!({"imported":2})),
             (422, serde_json::json!({"key":"fake-secret"})),
         ],
-        vw_api_types::id::TenantScope::new("p", "a").unwrap(),
+        vw_api_transport::TenantScope::new("p", "a").unwrap(),
     );
     let body = ProviderImport { target_host_id: "host".into(), trigger: ImportTrigger::Startup };
     assert_eq!(

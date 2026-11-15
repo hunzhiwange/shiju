@@ -20,7 +20,7 @@ pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 
 async fn import_local(
-    axum::Extension(tenant): axum::Extension<vw_api_types::id::TenantScope>,
+    axum::Extension(tenant): axum::Extension<vw_api_transport::TenantScope>,
     peer: Option<axum::Extension<ConnectInfo<SocketAddr>>>,
     headers: HeaderMap,
     Json(body): Json<LocalImportRequest>,

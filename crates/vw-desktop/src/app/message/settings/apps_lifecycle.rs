@@ -35,9 +35,9 @@ pub struct LifecycleFailure {
 pub(crate) enum Work {
     Preview(AppActionPreviewRequest),
     Submit(AppActionSubmitRequest),
-    Read(vw_gateway_client::vw_api_types::id::TaskId),
-    Poll(vw_gateway_client::vw_api_types::id::TaskId),
-    Cancel(vw_gateway_client::vw_api_types::id::TaskId),
+    Read(vw_api_transport::TaskId),
+    Poll(vw_api_transport::TaskId),
+    Cancel(vw_api_transport::TaskId),
 }
 fn context(client: &GatewayClient, app: &App) -> AgentAppsContext {
     AgentAppsContext {

@@ -134,7 +134,7 @@ fn job(context: &tools::Context) -> DiagnosticJobIdentity {
         correlation_id: "details".into(),
         kind: DiagnosticProbeKind::Mcp,
         scope: DiagnosticScope {
-            project: vw_gateway_client::vw_api_types::ProjectScope::new(
+            project: vw_api_transport::ProjectScope::new(
                 context.diagnostics.tenant.clone(),
                 context.diagnostics.query.project_id.clone(),
             )

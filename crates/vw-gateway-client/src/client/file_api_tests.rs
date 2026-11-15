@@ -569,7 +569,7 @@ async fn file_list_propagates_nested_directory_errors() {
 #[tokio::test]
 async fn local_import_client_sends_scoped_request() {
     use vw_api_types::file::LocalImportRequest;
-    use vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
     let server = test_support::server_with_tenant_scope(
         vec![(
             200,
@@ -630,7 +630,7 @@ async fn file_list_preserves_endpoint_tenant_and_empty_directory() {
             (200, json!([{"path":"空目录","name":"空目录","type":"directory"}])),
             (200, json!([])),
         ],
-        vw_api_types::id::TenantScope::new("10001", "100010005").unwrap(),
+        vw_api_transport::TenantScope::new("10001", "100010005").unwrap(),
     );
     let result = server
         .client()

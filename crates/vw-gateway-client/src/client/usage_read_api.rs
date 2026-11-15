@@ -2,7 +2,10 @@
 //! the endpoint identity; selectors never grant access by themselves.
 use super::{GatewayClient, usage_read_types::*};
 use serde::de::DeserializeOwned;
-use vw_api_types::{id::ProjectId, usage::*};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_types::usage::*,
+};
 use std::collections::BTreeMap;
 
 /// Explicit target and timezone for every read; no implicit host or project.

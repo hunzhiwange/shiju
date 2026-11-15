@@ -8,12 +8,15 @@ use crate::auth::{
 use reqwest::{Request, Url, header};
 use serde_json::json;
 use std::fs;
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthRegion},
-    apps_usage::{
-        UsageCredentialState, UsageQueryData, UsageQueryErrorCode, UsageQueryOutcome, UsageSource,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::apps_usage::UsageCredentialState,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageSource,
 };
 
 const NOW: TimestampMs = TimestampMs(1_700_000_000_000);

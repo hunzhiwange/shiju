@@ -2,7 +2,11 @@
 use std::path::PathBuf;
 use axum::{Extension, Json, Router, extract::DefaultBodyLimit,
     http::{HeaderMap, StatusCode}, routing::post};
-use vw_api_types::{agent_apps_skills::install_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::install_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 pub(crate) fn router() -> Router {

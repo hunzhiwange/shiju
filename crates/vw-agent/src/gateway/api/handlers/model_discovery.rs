@@ -23,12 +23,15 @@ use vw_agent_apps::{
     apps::{discovery::read::LocalReadEnvironment, lifecycle::operations::Operation},
     providers,
 };
-use vw_api_types::{
-    id::{ProjectId, TaskId, TenantScope},
-    model_catalog::{
-        ModelCatalogIdentity, ModelDiscoveryFailure, ModelDiscoveryRequest, ModelDiscoveryState,
-        ModelDiscoveryStatus,
-    },
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelDiscoveryFailure,
+    vw_api_types::model_catalog::ModelDiscoveryRequest,
+    vw_api_types::model_catalog::ModelDiscoveryState,
+    vw_api_types::model_catalog::ModelDiscoveryStatus,
 };
 
 #[path = "model_discovery/source.rs"]

@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result, bail, ensure};
 use postgres::{IsolationLevel, types::ToSql};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::{GatewaySetting, current_timestamp_ms, validate_identifier};
 use crate::global_database::GlobalDatabase;

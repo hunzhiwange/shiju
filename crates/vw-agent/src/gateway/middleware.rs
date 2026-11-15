@@ -29,7 +29,11 @@ use axum::middleware::Next;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use base64::Engine;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 
 use crate::app::agent::flag;
 use crate::app::agent::gateway::ApiError;

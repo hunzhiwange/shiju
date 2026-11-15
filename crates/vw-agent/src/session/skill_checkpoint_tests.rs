@@ -82,8 +82,8 @@ async fn codex_skills_replay_checkpoint_isolates_tenant_project_session_and_agen
     let record = InvokedSkillRecord::new("fixture", &source, None).unwrap();
     let session = format!("skills-{}", uuid::Uuid::new_v4());
     let history = vec![json!({"role":"user","content":"private task"})];
-    let first = vw_api_types::id::TenantScope::new("platform", "first").unwrap();
-    let second = vw_api_types::id::TenantScope::new("platform", "second").unwrap();
+    let first = vw_api_transport::TenantScope::new("platform", "first").unwrap();
+    let second = vw_api_transport::TenantScope::new("platform", "second").unwrap();
     crate::session::ui_store::with_tenant_scope(
         first.clone(),
         save(&session, "main", &history, &[record.clone()]),

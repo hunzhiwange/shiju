@@ -12,12 +12,16 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{
-        AuthAccount, AuthCredentialState, AuthErrorCode, AuthFlow, AuthFlowId, AuthService,
-        AuthStartRequest, AuthStartResponse,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthAccount,
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
 };
 
 pub(super) const PUBLIC_AUTHORITY: &str = "github.com";

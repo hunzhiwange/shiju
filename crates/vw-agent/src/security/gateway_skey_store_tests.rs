@@ -3,7 +3,7 @@
 use super::*;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 fn skey(name: &str, hash: &str) -> GatewaySkey {
     GatewaySkey {

@@ -1,6 +1,10 @@
 use super::AppRoutingError;
 use crate::GatewayClient;
-use vw_api_types::{agent_apps::AppId, app_routing::RoutingRequestsStatus, id::ProjectId};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_routing::RoutingRequestsStatus,
+    vw_api_transport::id::ProjectId,
+};
 impl GatewayClient {
     pub async fn app_routing_requests(
         &self,

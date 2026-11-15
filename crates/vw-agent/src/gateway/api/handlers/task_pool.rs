@@ -4,7 +4,7 @@ use axum::Json;
 use axum::Router;
 use axum::routing::post;
 use std::sync::LazyLock;
-use vw_api_types::id::TaskId;
+use vw_api_transport::id::TaskId;
 use vw_api_types::task::{
     TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
     TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,

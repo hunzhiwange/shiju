@@ -1,5 +1,9 @@
 use super::super::test_support;
-use vw_api_types::{agent_apps::AppId, app_providers::editor_merge::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::editor_merge::*,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_editor_merge_sdk_uses_bound_route_and_conceals_errors() {
     let server = test_support::server_with_tenant_scope(

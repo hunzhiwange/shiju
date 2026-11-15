@@ -21,7 +21,7 @@ mod tests {
         MattermostConfig, SlackConfig, WebhookConfig,
     };
     use tempfile::TempDir;
-    use vw_api_types::common::TimestampMs;
+    use vw_api_transport::common::TimestampMs;
     use vw_config_types::channels::{WeChatConfig, WeComConfig};
 
     /// 创建用于测试的配置对象

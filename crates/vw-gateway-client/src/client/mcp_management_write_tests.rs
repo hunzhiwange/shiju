@@ -1,7 +1,10 @@
 use super::{AgentAppsSettingsError, GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;
 use serde_json::json;
-use vw_api_types::{TenantScope, mcp_management::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::*,
+};
 
 fn create_request() -> McpCreateRequest {
     serde_json::from_value(json!({"targetHostId":"主机 /?&+","projectId":"project","id":"文档 /?&+","name":"文档","tags":["docs"],"connection":{"transport":"streamable_http","url":"https://example.com/mcp","headers":{"Authorization":{"kind":"credential","reference":{"service":"claude_official","accountId":"fixture-account"}}}}})).unwrap()

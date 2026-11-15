@@ -4,7 +4,11 @@ use crate::providers::{
     live::{commit::*, write_guard::WriteError},
 };
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 struct Fixture {
     home: tempfile::TempDir,

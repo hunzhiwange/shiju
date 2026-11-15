@@ -9,9 +9,10 @@ use reqwest::{Request, Url};
 use serde_json::{Value, json};
 use std::{os::unix::fs::PermissionsExt, time::Duration};
 use tokio::{net::TcpListener, time::timeout};
-use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) const ACCOUNT: &str = "fixture-account";

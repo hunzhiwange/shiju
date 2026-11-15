@@ -1,7 +1,11 @@
 //! Observe durable jobs independently of the lifetime of their dialog.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::{agent_apps_skills::{jobs_api::*, repos_api::SkillReposQuery}, id::TaskId};
+use {
+    vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::*,
+    vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::TaskId,
+};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct State {

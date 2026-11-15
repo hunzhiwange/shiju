@@ -19,11 +19,16 @@ use vw_agent_apps::models::{
     capabilities::resolve_model_capabilities, codex_template::codex_custom_template,
     user_agent_presets::USER_AGENT_PRESETS,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    common::PaginatedResponse,
-    id::{ModelId, ProjectId, ProjectScope, TenantScope},
-    model_catalog::{ModelCatalogCapabilities, ModelCatalogIdentity, ModelCatalogTemplates},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::common::PaginatedResponse,
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogCapabilities,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogTemplates,
 };
 
 #[path = "model_catalog/presets.rs"]

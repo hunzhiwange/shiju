@@ -359,7 +359,7 @@ fn gateway_health_probe_sends_tenant_headers() {
         String::from_utf8(request).expect("tenant health request should be utf8")
     });
     let endpoint = GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(
-        vw_gateway_client::vw_api_types::id::TenantScope::new("20000", "200000001").unwrap(),
+        vw_api_transport::TenantScope::new("20000", "200000001").unwrap(),
     );
 
     assert!(gateway_health_ready(&endpoint));

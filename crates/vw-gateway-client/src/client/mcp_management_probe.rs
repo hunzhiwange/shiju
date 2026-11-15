@@ -1,10 +1,12 @@
 //! Explicit MCP checks and status snapshots share the execution host's diagnostic jobs.
 use super::{AgentAppsSettingsError, GatewayClient};
 use serde::Serialize;
-use vw_api_types::{
-    TaskId,
-    agent_apps_diagnostics::{DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticScopeQuery},
-    mcp_management::McpRecordId,
+use {
+    vw_api_transport::TaskId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_types::mcp_management::McpRecordId,
 };
 
 impl GatewayClient {

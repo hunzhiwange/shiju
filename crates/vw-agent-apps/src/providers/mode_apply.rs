@@ -4,7 +4,11 @@ use super::{
     live::{commit::*, write_guard::WriteError},
 };
 use serde_json::Value;
-use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::mode_apply::*,
+    vw_api_transport::id::TenantScope,
+};
 
 /// Observe the existing mode transaction before any route preparation. Recovery
 /// and configuration writes remain owned by the mode publication path.

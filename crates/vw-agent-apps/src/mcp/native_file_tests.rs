@@ -17,7 +17,10 @@ use std::{
     sync::mpsc,
     time::Duration,
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 const FILE: &str = "settings.json";
 const BEFORE: &[u8] = br#"{"mcpServers":{"managed":{"command":"old"},"user":{"command":"keep"}}}"#;

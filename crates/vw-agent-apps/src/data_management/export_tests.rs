@@ -1,7 +1,12 @@
 use super::{export::*, safety_snapshot::*};
 use std::{fs, os::unix::fs::PermissionsExt};
 use serde_json::json;
-use vw_api_types::{agent_apps::data_management::DataCategory, id::{ProjectScope, ProjectId, TenantScope}};
+use {
+    vw_api_types::agent_apps::data_management::DataCategory,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+};
 fn scope() -> SafetySnapshotScope {
     SafetySnapshotScope {
         project: ProjectScope::new(TenantScope::new("fixture", "fixture").unwrap(), ProjectId::from("fixture")).unwrap(),

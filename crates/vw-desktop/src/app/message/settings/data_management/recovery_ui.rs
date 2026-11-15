@@ -3,7 +3,10 @@ use super::export_ui::{identity, Identity};
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
 use vw_gateway_client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress};
-use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::agent_apps::data_management::*,
+};
 
 #[derive(Clone, Default)]
 pub(crate) struct State {

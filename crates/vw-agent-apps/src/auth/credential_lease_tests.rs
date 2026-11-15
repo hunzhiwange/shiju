@@ -7,7 +7,10 @@ use std::{
         unix::{fs::PermissionsExt, net::UnixStream, process::CommandExt},
     },
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 #[test]
 fn cc_apps_credential_lease_release_does_not_wait_for_unrelated_exec() {
     let root = tempfile::tempdir().unwrap();

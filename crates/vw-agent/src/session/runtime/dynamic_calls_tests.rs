@@ -43,7 +43,7 @@ async fn dynamic_tools_callback_response_owner_is_validated() {
     assert!(host.respond(&wrong, &request.call_id, response()).is_err());
     wrong = owner.clone();
     wrong.scope = SessionScope::new(
-        vw_api_types::id::TenantScope::new("other", "company").unwrap(),
+        vw_api_transport::TenantScope::new("other", "company").unwrap(),
         owner.scope.directory(),
     )
     .unwrap();

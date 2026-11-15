@@ -3,7 +3,10 @@ use crate::providers::{
     live::commit::{AppState, Mode, ModeState},
     mode_state::StackState,
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 #[test]
 fn aggregation_t12_failover_guard_preserves_contract() {

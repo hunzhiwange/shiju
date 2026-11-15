@@ -4,14 +4,16 @@ use super::{
 };
 use crate::providers::pi::{declarations, patch};
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::pi::{PiActivation, PiProfile},
-    common::TimestampMs,
-    model_catalog::{
-        ModelCapabilityState, ModelMetadataDto, ModelMetadataField::ReasoningEfforts,
-        ModelMetadataProvenance, ModelMetadataSource,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::pi::PiActivation,
+    vw_api_types::app_providers::pi::PiProfile,
+    vw_api_transport::common::TimestampMs,
+    vw_api_types::model_catalog::ModelCapabilityState,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField::ReasoningEfforts,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource,
 };
 
 const MOONSHOT: &str = "https://api.moonshot.cn/v1";

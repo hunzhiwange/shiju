@@ -1,7 +1,10 @@
 //! Versioned template editing and handoff to the existing native chat channel.
 use super::*;
 pub(super) use crate::apps::workflow::state::video_edit::TEMPLATE_ID;
-use vw_gateway_client::{WorkflowRecord, vw_api_types::TenantScope};
+use {
+    vw_gateway_client::WorkflowRecord,
+    vw_api_transport::TenantScope,
+};
 
 pub(super) fn load_template(graph: bool) -> Task<Message> {
     let tenant = crate::app::session_gateway::active_tenant_scope();

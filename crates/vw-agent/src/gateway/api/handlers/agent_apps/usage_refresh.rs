@@ -29,14 +29,20 @@ use vw_agent_apps::{
         subscriptions::codex::ManagedCodexUsage,
     },
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::AuthErrorCode,
-    app_providers::AppProviderWrite,
-    apps_usage::{
-        UsageCredentialState, UsageQueryData, UsageQueryError, UsageQueryErrorCode, UsageQueryKind,
-        UsageQueryOutcome, UsageQueryResult, UsageSnapshot, UsageSnapshotResponse, UsageSource,
-    },
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::apps_usage::UsageCredentialState,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryError,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_types::apps_usage::UsageQueryResult,
+    vw_api_types::apps_usage::UsageSnapshot,
+    vw_api_types::apps_usage::UsageSnapshotResponse,
+    vw_api_types::apps_usage::UsageSource,
 };
 
 use super::{

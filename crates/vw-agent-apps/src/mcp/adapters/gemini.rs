@@ -13,10 +13,12 @@ use crate::{
 };
 use serde_json::{Map, Value, json};
 use std::{collections::BTreeMap, ffi::OsStr};
-use vw_api_types::{
-    TenantScope,
-    agent_apps::AppId,
-    mcp_management::{McpConfigValue, McpConnectionDefinition, McpTransport},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpTransport,
 };
 
 const SERVERS: &str = "mcpServers";

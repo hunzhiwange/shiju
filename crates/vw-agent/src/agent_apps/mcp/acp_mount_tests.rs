@@ -4,9 +4,12 @@ use serde_json::json;
 use vw_acp::{
     McpCatalogMount, SessionMountRevision, SetSessionMountsRequest, server::SessionBackend,
 };
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{McpCatalogScope, McpConnectionDefinition, McpRuntimeSelection},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpRuntimeSelection,
 };
 
 use super::{McpCatalogStore, catalog_create_tests::http_draft};

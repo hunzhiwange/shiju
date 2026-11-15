@@ -1,7 +1,9 @@
 use super::super::test_support;
-use vw_api_types::{
-    agent_apps::AppId, app_providers::import::ImportTrigger, app_providers::operations::*,
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::import::ImportTrigger,
+    vw_api_types::app_providers::operations::*,
+    vw_api_transport::id::TenantScope,
 };
 #[tokio::test]
 async fn cc04_operations_sdk_scopes_requests_and_redacts_denial() {

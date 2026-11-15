@@ -4,10 +4,12 @@ use crate::{
 };
 use axum::Extension;
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, create::AppProviderCreate, update::AppProviderUpdate},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::create::AppProviderCreate,
+    vw_api_types::app_providers::update::AppProviderUpdate,
+    vw_api_transport::id::TenantScope,
 };
 #[tokio::test]
 async fn cc04_validation_sdk_api_persists_options_and_rejects_bypass_without_mutation() {

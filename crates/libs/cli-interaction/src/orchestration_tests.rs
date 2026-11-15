@@ -7,7 +7,11 @@ use std::time::Duration;
 
 use serde_json::json;
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
-use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_gateway_client::vw_api_types::workflow::{WorkflowHumanActionDto, WorkflowPauseDto};
 use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint, GatewayWorkflowStreamEvent};
 use vw_tui::{V3Action, V3ApprovalDecision};

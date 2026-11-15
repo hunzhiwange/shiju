@@ -51,7 +51,7 @@ async fn channel_reload_starts_from_empty_and_rotates_live_telegram_credentials(
     use crate::app::agent::config::{SystemConfigStore, schema::ChannelConfigWatcher};
     use crate::global_database::GlobalDatabase;
     use axum::{Json, Router, extract::OriginalUri, routing::any};
-    use vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
 
     let temp = tempfile::TempDir::new().unwrap();
     let store =
@@ -148,7 +148,7 @@ async fn wecom_runtime_manager_stop_and_drop_release_authenticated_connection() 
     config.config_path = temp.path().join("config.json");
     config.workspace_dir = temp.path().into();
     let scope =
-        WeComRuntimeScope::from_config(&config, vw_api_types::id::TenantScope::default()).unwrap();
+        WeComRuntimeScope::from_config(&config, vw_api_transport::TenantScope::default()).unwrap();
     for stop in [true, false] {
         let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let channel = WeComChannel::new_for_test(
@@ -202,7 +202,7 @@ async fn wecom_runtime_manager_stop_and_drop_release_authenticated_connection() 
 async fn channel_reload_captures_nondefault_tenant_before_poll() {
     use crate::config::{SystemConfigStore, schema::ChannelConfigWatcher};
     use crate::global_database::GlobalDatabase;
-    use vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
     let temp = tempfile::TempDir::new().unwrap();
     let store =
         SystemConfigStore::new(GlobalDatabase::new(temp.path().join("config.sqlite3")).unwrap())

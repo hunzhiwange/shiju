@@ -1,7 +1,7 @@
 //! 从事务发件箱认领待发消息，经通道适配器投递并记录成功或可重试失败。
 
 use anyhow::{Context, Result, bail};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::adapters::dispatch::{RemoteDispatchAdapter, RemoteDispatchRequest};
 use super::store::outbox::StoredOutboxMessage;

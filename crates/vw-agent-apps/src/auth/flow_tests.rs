@@ -9,14 +9,18 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps::AppId,
-    agent_apps_auth::{
-        AuthAccount, AuthCredentialState, AuthErrorCode, AuthFlow, AuthFlowId, AuthLoginMethod,
-        AuthService, AuthStartRequest,
-    },
-    id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthAccount,
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthFlowId,
+    vw_api_types::agent_apps_auth::AuthLoginMethod,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_transport::id::TenantScope,
 };
 
 fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {

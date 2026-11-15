@@ -7,7 +7,10 @@ use vw_agent_apps::usage::{
     dsh::scan_dsh_file,
     store::{StoredUsageRecord, initialize_usage_store},
 };
-use vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 
 fn open(path: &std::path::Path) -> Connection {
     let mut db = Connection::open(path).unwrap();

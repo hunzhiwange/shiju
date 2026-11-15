@@ -4,7 +4,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde_json::json;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use super::recurring::{
     RecurringDecision, RecurringSchedule, RecurringWaitReason, record_executed,

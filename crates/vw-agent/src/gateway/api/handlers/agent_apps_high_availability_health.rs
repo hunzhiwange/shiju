@@ -22,12 +22,16 @@ use vw_agent_apps::{
     providers::{failover::ProviderAuth, validate_identity},
     routing::supports_app,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_high_availability::{
-        FailoverHealthResponse, FailoverHealthState, FailoverPolicy, FailoverQueueScope,
-    },
-    id::{ProjectId, ProjectScope, ProviderId, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::FailoverHealthResponse,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState,
+    vw_api_types::agent_apps_high_availability::FailoverPolicy,
+    vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::ProviderId,
+    vw_api_transport::id::TenantScope,
 };
 
 #[derive(Deserialize)]

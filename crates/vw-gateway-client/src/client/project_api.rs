@@ -6,7 +6,7 @@
 //! - 变更记录查询
 //! - worktree 的创建、读取、删除与重置
 
-use vw_api_types::common::OperationAck;
+use vw_api_transport::common::OperationAck;
 use vw_api_types::project::{
     GetProjectResponse, ListProjectChangeRecordsResponse, ListProjectsRequest,
     ListProjectsResponse, ProjectScopeDto, ResolveProjectRequest, ResolveProjectResponse,

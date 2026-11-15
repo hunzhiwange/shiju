@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use crate::agent_scheduler::domain::{AgentRunStatus, RunId, TaskId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};

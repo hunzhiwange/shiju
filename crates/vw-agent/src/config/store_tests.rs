@@ -1,7 +1,7 @@
 // 覆盖配置存储后端选择、租户读写及兼容行为。
 
 use anyhow::Result;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::SystemConfigStore;
 use crate::app::agent::security::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};

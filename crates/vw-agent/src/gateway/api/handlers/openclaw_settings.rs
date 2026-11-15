@@ -3,7 +3,12 @@ use axum::{extract::{DefaultBodyLimit, Query}, http::{HeaderMap, StatusCode}, ro
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::PathBuf;
-use vw_api_types::{id::{ProjectId, ProjectScope, TenantScope}, openclaw_settings::*};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::openclaw_settings::*,
+};
 use vw_agent_apps::{openclaw_catalog, openclaw_defaults, openclaw_model, openclaw_env, openclaw_tools, openclaw_health, providers::{openclaw::{self, OpenClawFiles}, live::{commit::{ExecutionHostId, ProviderTransactions}, write_guard::WriteError}}};
 
 #[derive(Clone)]

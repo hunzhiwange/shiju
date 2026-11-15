@@ -1,6 +1,9 @@
 use crate::client::{test_support, agent_apps_skills::SkillJobError};
 use serde_json::json;
-use vw_api_types::{agent_apps_skills::repos_api::SkillReposQuery, id::TaskId};
+use {
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::TaskId,
+};
 
 #[tokio::test]
 async fn cp12_jobs_api_success() {

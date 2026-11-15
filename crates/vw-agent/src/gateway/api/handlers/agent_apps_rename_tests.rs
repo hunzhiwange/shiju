@@ -5,9 +5,11 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use vw_api_types::{
-    agent_apps::{AgentAppsErrorCode, AgentAppsErrorResponse, CustomIconEntry},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AgentAppsErrorCode,
+    vw_api_types::agent_apps::AgentAppsErrorResponse,
+    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_transport::id::TenantScope,
 };
 
 const PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";

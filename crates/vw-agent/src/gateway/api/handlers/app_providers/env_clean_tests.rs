@@ -4,7 +4,7 @@ use axum::{
     middleware,
 };
 use tower::ServiceExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_env_clean_registered_route_requires_gateway_authentication() {
     let app = crate::gateway::router::handler_router()
@@ -36,11 +36,12 @@ mod execution {
     use axum::{Router, middleware};
     use sha2::{Digest, Sha256};
     use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-    use vw_api_types::{
-        agent_apps::AppId,
-        app_providers::{env_clean::*, env_diagnose::*},
-        id::TenantScope,
-    };
+    use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::env_clean::*,
+    vw_api_types::app_providers::env_diagnose::*,
+    vw_api_transport::id::TenantScope,
+};
     use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
     const TOKEN: &str = "fixture-config-cleaner-token-over-32-chars";
     fn policy(home: &Path, private: &Path) -> std::path::PathBuf {

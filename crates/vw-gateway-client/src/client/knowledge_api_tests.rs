@@ -3,7 +3,10 @@
 //! 所有请求均检查默认租户作用域，并覆盖同步导入、异步作业、批量操作和嵌入测试。
 
 use serde_json::json;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+};
 use vw_api_types::knowledge::{
     KnowledgeCapabilitiesDto, KnowledgeChunkingMode, KnowledgeDatasetCreateRequest,
     KnowledgeDocumentCreateRequest, KnowledgeDocumentImportRequest, KnowledgeDocumentListQuery,

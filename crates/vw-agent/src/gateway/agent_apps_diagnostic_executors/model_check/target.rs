@@ -8,12 +8,14 @@ use vw_agent_apps::{
     models::edits,
     providers::validation,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    agent_apps_diagnostics::DiagnosticFailureCode,
-    id::{ModelId, ProviderId},
-    model_catalog::ModelCatalogIdentity,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::ProviderId,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
 };
 
 use super::{DiagnosticJobOwner, GlobalDatabase};
@@ -172,7 +174,7 @@ impl ModelTarget {
     /// production selector; a client protocol never authorizes another URL.
     pub(super) fn select_protocol(&self, source: GenerationProtocol) -> Result<()> {
         use crate::model_relay::routing;
-        use provider_protocol_routes::RouteCapability;
+        use vw_provider_resolver::protocol_routes::RouteCapability;
         use vw_shared::provider::protocols::{
             ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence, ProtocolEvidenceKind,
             ProtocolModelScope,

@@ -18,11 +18,15 @@ use serde_json::{Value, json};
 use tokio::sync::{Notify, Semaphore};
 use tower::ServiceExt;
 use vw_agent_apps::usage::cache::UsageCacheResult;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    apps_usage::{UsageQueryData, UsageQueryErrorCode, UsageQueryOutcome},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::apps_usage::UsageQueryData,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryOutcome,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 use super::usage_refresh::{RefreshError, UsageRefresh};

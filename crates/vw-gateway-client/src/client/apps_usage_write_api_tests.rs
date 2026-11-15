@@ -4,12 +4,16 @@ use crate::{
     AppsUsageWriteError, GatewayAuth,
 };
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps::{AppId, AppOperationPhase},
-    agent_apps_auth::AuthErrorCode,
-    apps_usage::{UsageQueryErrorCode, UsageQueryKind, UsageSnapshotQuery},
-    id::{TaskId, TenantScope},
-    task::TaskStatus,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppOperationPhase,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryKind,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::task::TaskStatus,
 };
 
 const TOKEN: &str = "fixture-apps-principal-token";

@@ -1,7 +1,11 @@
 //! Project profile maintenance runs exclusively on the authorized gateway host.
 use super::{GatewayClient, project_api::encode_path_segment};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use vw_api_types::{ProjectId, ProjectScope, project_profiles::*};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_types::project_profiles::*,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProjectProfileApiError {

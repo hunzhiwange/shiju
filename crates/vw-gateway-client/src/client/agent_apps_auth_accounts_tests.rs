@@ -4,7 +4,7 @@ use crate::{
     GatewayAuth, GatewayClient,
 };
 use serde_json::{Value, json};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 const HOST: &str = "mac-local";
 const ACCOUNT: &str = "account_a";

@@ -7,7 +7,7 @@ use std::process::Output;
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use vw_api_types::ReasoningEffortDto;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 use crate::agent_scheduler::domain::{RunId, TaskId};
 use crate::agent_scheduler::engine::dispatch::ready_queued_finite_task;

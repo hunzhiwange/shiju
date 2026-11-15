@@ -1,7 +1,11 @@
 //! 消息身份、项目解析和不可变执行快照。绑定失败时拒绝执行，不发现或创建项目。
 use super::*;
 use serde::Serialize;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub(crate) struct ChannelChatScope {

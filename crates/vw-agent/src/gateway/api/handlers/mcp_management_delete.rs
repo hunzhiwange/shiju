@@ -12,13 +12,19 @@ use axum::{
     extract::{Path, rejection::JsonRejection},
     http::{HeaderMap, StatusCode},
 };
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{
-        McpBatchOutcome, McpCatalogScope, McpDeleteRequest, McpDistributionItem,
-        McpDistributionOutcome, McpDistributionResult, McpFailureCode, McpNativeStatus,
-        McpRecordId, McpRecordRef,
-    },
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpBatchOutcome,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpDeleteRequest,
+    vw_api_types::mcp_management::McpDistributionItem,
+    vw_api_types::mcp_management::McpDistributionOutcome,
+    vw_api_types::mcp_management::McpDistributionResult,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpNativeStatus,
+    vw_api_types::mcp_management::McpRecordId,
+    vw_api_types::mcp_management::McpRecordRef,
 };
 
 pub(super) async fn delete_catalog_record(

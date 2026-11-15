@@ -5,13 +5,15 @@ use tokio::{
     net::{TcpListener, TcpStream},
     time::{Instant, sleep, timeout},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticEndpointSource, DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticScope,
-        SpeedEvidence,
-    },
-    id::{ProjectScope, TaskId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::agent_apps_diagnostics::SpeedEvidence,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TaskId,
 };
 
 use super::*;

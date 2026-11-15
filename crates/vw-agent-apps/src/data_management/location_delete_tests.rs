@@ -2,7 +2,11 @@ use super::{
     location_delete::*, locations::BackupLocationRoots, safety_snapshot::SafetySnapshotScope,
 };
 use std::{fs, os::unix::fs::symlink};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 fn scope() -> SafetySnapshotScope {
     SafetySnapshotScope {

@@ -100,7 +100,7 @@ fn gateway_remote_publish_fetch_pull_and_divergence_use_git2_only() {
 async fn gateway_repository_validates_requests_and_project_scope() {
     let _router = router::<()>();
     let invalid = repository(Json(GitRepositoryRequest {
-        project_id: vw_api_types::id::ProjectId("missing".into()),
+        project_id: vw_api_transport::ProjectId("missing".into()),
         worktree_id: None,
         limit: 0,
     }))
@@ -108,7 +108,7 @@ async fn gateway_repository_validates_requests_and_project_scope() {
     .unwrap_err();
     assert_eq!(invalid.status, axum::http::StatusCode::BAD_REQUEST);
     let missing = repository(Json(GitRepositoryRequest {
-        project_id: vw_api_types::id::ProjectId("missing".into()),
+        project_id: vw_api_transport::ProjectId("missing".into()),
         worktree_id: None,
         limit: 100,
     }))
@@ -116,7 +116,7 @@ async fn gateway_repository_validates_requests_and_project_scope() {
     .unwrap_err();
     assert_eq!(missing.status, axum::http::StatusCode::NOT_FOUND);
     let invalid = detail(Json(GitHistoryDetailRequest {
-        project_id: vw_api_types::id::ProjectId("missing".into()),
+        project_id: vw_api_transport::ProjectId("missing".into()),
         worktree_id: None,
         sha: "HEAD;invalid".into(),
     }))
@@ -151,7 +151,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
         sandboxes: vec![],
     })
     .unwrap();
-    let project_id = vw_api_types::id::ProjectId(id);
+    let project_id = vw_api_transport::ProjectId(id);
     let Json(result) = repository(Json(GitRepositoryRequest {
         project_id: project_id.clone(),
         worktree_id: None,
@@ -174,7 +174,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
     options.reference(Some(branch.get()));
     let linked_path = other.path().join("linked");
     let _linked = repo.worktree("history-side", &linked_path, Some(&options)).unwrap();
-    let linked_id = vw_api_types::id::WorktreeId(
+    let linked_id = vw_api_transport::WorktreeId(
         base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(linked_path.canonicalize().unwrap().to_str().unwrap()),
     );
@@ -186,7 +186,7 @@ async fn gateway_repository_routes_use_registered_projects_and_reject_foreign_wo
     .await
     .unwrap();
     assert_eq!(linked.branch.as_deref(), Some("history-side"));
-    let foreign = vw_api_types::id::WorktreeId(
+    let foreign = vw_api_transport::WorktreeId(
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(other.path().to_str().unwrap()),
     );
     let error = repository(Json(GitRepositoryRequest {

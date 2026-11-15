@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use serde_json::{Value, json};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 use vw_api_types::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,

@@ -7,9 +7,10 @@ use tokio::{
     net::{TcpListener, TcpStream},
     time::timeout,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 async fn read_head(reader: &mut BufReader<TcpStream>) -> String {

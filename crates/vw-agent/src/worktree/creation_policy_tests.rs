@@ -128,7 +128,7 @@ async fn worktree_creation_policy_normal_and_fork_share_tenant_settings() {
     let (temp, primary, _) = fixture();
     let root = temp.path().join("selected");
     let tenant =
-        vw_api_types::id::TenantScope::new("creation-policy", uuid::Uuid::new_v4().to_string())
+        vw_api_transport::TenantScope::new("creation-policy", uuid::Uuid::new_v4().to_string())
             .unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         // Initialization reads the authoritative project settings in the active tenant.

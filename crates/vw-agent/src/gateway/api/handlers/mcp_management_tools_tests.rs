@@ -10,7 +10,11 @@ use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
 use tower::ServiceExt;
 use vw_acp::server::SessionBackend;
-use vw_api_types::{ProjectScope, TenantScope, mcp_management::McpAcpUsage};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpAcpUsage,
+};
 const TOKEN: &str = "fixture-task50-authorized-session-reader";
 
 #[tokio::test]

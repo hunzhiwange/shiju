@@ -10,8 +10,13 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::oneshot;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    GatewayClient, vw_api_types::{TimestampMs, agent_apps_auth::AuthRegion, id::TenantScope}}};
+use {
+    gateway_endpoint::GatewayEndpoint,
+    vw_gateway_client::GatewayClient,
+    vw_api_transport::TimestampMs,
+    vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_transport::id::TenantScope,
+};
 
 const FLOW: &str = "743b63aa-a8b8-4c1d-8c99-40324b431d92";
 const NEXT: &str = "7cb10748-4eb9-4424-a67d-d4ec08509645";

@@ -1,7 +1,11 @@
 //! Provider publication boundaries on the existing host operation executor.
 use crate::apps::lifecycle::operations::Operation;
 use std::sync::{Arc, Mutex};
-use vw_api_types::{app_providers::operations::*, id::TaskId, task::TaskStatus};
+use {
+    vw_api_types::app_providers::operations::*,
+    vw_api_transport::id::TaskId,
+    vw_api_types::task::TaskStatus,
+};
 #[derive(Clone)]
 pub struct ProviderOperation {
     executor: Operation,

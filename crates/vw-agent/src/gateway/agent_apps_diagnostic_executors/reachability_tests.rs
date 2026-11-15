@@ -12,17 +12,24 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::high_availability::circuit_breaker::{AttemptOutcome, CircuitBreaker};
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::AuthErrorCode,
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource::ControlledFixture, DiagnosticFailure, DiagnosticFailureCode,
-        DiagnosticJobState, DiagnosticOutcome, DiagnosticPhase, DiagnosticProbeKind,
-        DiagnosticResult, DiagnosticScope, ReachabilityEvidence,
-    },
-    agent_apps_high_availability::{CircuitBreakerPolicy, FailoverHealthState},
-    app_providers::claude::{ClaudeConfig, ClaudeProfile},
-    id::ProjectScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource::ControlledFixture,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_types::agent_apps_diagnostics::ReachabilityEvidence,
+    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState,
+    vw_api_types::app_providers::claude::ClaudeConfig,
+    vw_api_types::app_providers::claude::ClaudeProfile,
+    vw_api_transport::id::ProjectScope,
 };
 
 use super::{DiagnosticProbeError, Endpoint, ReachabilityPrepareError, ReachabilityProbe, probe};

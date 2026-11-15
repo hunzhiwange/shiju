@@ -3,7 +3,11 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::os::unix::fs::PermissionsExt;
-use vw_api_types::{agent_apps::AppId, app_providers::snippets::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::snippets::*,
+    vw_api_transport::id::TenantScope,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-snippet-token-at-least-32-chars";
 struct Fixture {
@@ -201,8 +205,8 @@ async fn cc04_snippets_denial_invalid_input_and_corruption_have_no_side_effects(
     ] {
         let response = reqwest::Client::new()
             .put(format!("http://127.0.0.1:{}/v1/app-providers/claude/config/snippet", f.port))
-            .header(vw_api_types::id::PLATFORM_ID_HEADER, "p")
-            .header(vw_api_types::id::COMPANY_ID_HEADER, "a")
+            .header(vw_api_transport::PLATFORM_ID_HEADER, "p")
+            .header(vw_api_transport::COMPANY_ID_HEADER, "a")
             .header("x-agent-apps-token", TOKEN)
             .json(&content)
             .send()

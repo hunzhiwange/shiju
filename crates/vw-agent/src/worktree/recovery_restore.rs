@@ -5,7 +5,7 @@ use git2::{Index, Oid, Repository};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 /// Restore a durable snapshot into a fresh managed checkout under current tenant settings.
 /// Lifecycle locking and a persisted recovery ID reject concurrent and repeated restores.

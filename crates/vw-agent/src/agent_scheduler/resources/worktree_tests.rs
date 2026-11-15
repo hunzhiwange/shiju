@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::Result;
-use vw_api_types::id::TaskId;
+use vw_api_transport::id::TaskId;
 use vw_api_types::task::{TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto};
 
 use super::worktree::WorktreeResourceProvider;

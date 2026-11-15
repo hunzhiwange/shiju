@@ -16,8 +16,12 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest,
     AgentSchedulerWakeRequest, AgentTaskKindDto, AgentTaskStatusDto,
 };
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_transport::common::TimestampMs;
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_api_types::project::ListProjectsRequest;
 use vw_api_types::project::TenantScopeDto;
 use vw_api_types::task::{
@@ -89,11 +93,11 @@ async fn agent_scheduler_client_reads_and_replaces_task_graph() {
     assert_eq!(put.body["edges"][0]["successor_task_id"], "task/review");
     for request in [&get, &put] {
         assert_eq!(
-            request.header(vw_api_types::id::PLATFORM_ID_HEADER),
+            request.header(vw_api_transport::PLATFORM_ID_HEADER),
             Some(tenant.platform_id().as_ref())
         );
         assert_eq!(
-            request.header(vw_api_types::id::COMPANY_ID_HEADER),
+            request.header(vw_api_transport::COMPANY_ID_HEADER),
             Some(tenant.company_id().as_ref())
         );
     }

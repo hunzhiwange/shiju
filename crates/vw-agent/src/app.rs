@@ -77,7 +77,7 @@ pub(crate) mod config {
     /// 返回序列化为 `serde_json::Value` 的配置快照；读取失败时由底层
     /// 配置模块决定默认值或错误表示。
     pub fn load_app_config() -> serde_json::Value {
-        crate::session::ui_config::load_app_config(&vw_api_types::id::TenantScope::default())
+        crate::session::ui_config::load_app_config(&vw_api_transport::TenantScope::default())
     }
 
     /// 设置单个配置字段。
@@ -93,7 +93,7 @@ pub(crate) mod config {
     /// 行为由底层 UI 配置模块处理。
     pub fn set_config_field(key: &str, value: serde_json::Value) {
         crate::session::ui_config::set_config_field(
-            &vw_api_types::id::TenantScope::default(),
+            &vw_api_transport::TenantScope::default(),
             key,
             value,
         )

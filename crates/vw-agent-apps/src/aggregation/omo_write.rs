@@ -10,7 +10,11 @@ use crate::providers::{
 };
 use serde_json::{Map, Value};
 use std::{ffi::OsStr, fs::File, io::Read, os::unix::fs::MetadataExt, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::paths::ConfigPathState, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::paths::ConfigPathState,
+    vw_api_transport::id::TenantScope,
+};
 
 const SECTION: &str = "[opencode]";
 const DIRECTORY: &str = ".omo";

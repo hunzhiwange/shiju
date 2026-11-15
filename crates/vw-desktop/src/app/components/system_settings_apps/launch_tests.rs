@@ -226,7 +226,7 @@ fn cc_apps_desktop_launch_state_explains_disabled_action_and_blocks_uncertain_re
 #[test]
 fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant() {
     let home = tempfile::tempdir().unwrap();
-    let tenant = vw_gateway_client::vw_api_types::id::TenantScope::new(
+    let tenant = vw_api_transport::TenantScope::new(
         "fixture-platform",
         "fixture-company",
     )
@@ -235,7 +235,7 @@ fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant()
         vw_shared::local_apps::initialize(home.path(), "fixture-platform", "fixture-company")
             .unwrap();
     let directory =
-        |tenant: &vw_gateway_client::vw_api_types::id::TenantScope, token: &str, project| {
+        |tenant: &vw_api_transport::TenantScope, token: &str, project| {
             super::local::verified_launch_directory(home.path(), tenant, token, project)
         };
     assert_eq!(
@@ -248,7 +248,7 @@ fn cc_apps_desktop_launch_state_defaults_only_for_matching_private_local_grant()
     );
     assert!(directory(&tenant, "unrelated-credential", None).is_none());
     let other =
-        vw_gateway_client::vw_api_types::id::TenantScope::new("fixture-platform", "other-company")
+        vw_api_transport::TenantScope::new("fixture-platform", "other-company")
             .unwrap();
     assert!(directory(&other, &credentials.token, None).is_none());
     let remote = vw_gateway_client::GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(

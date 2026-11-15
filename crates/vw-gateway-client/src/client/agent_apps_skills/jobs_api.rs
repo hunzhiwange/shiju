@@ -1,5 +1,9 @@
 use super::super::GatewayClient;
-use vw_api_types::{agent_apps_skills::{jobs_api::SkillJobResponse, repos_api::SkillReposQuery}, id::TaskId};
+use {
+    vw_api_types::agent_apps_skills::jobs_api::SkillJobResponse,
+    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_transport::id::TaskId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillJobError { Transport, Decode, InvalidTaskId, Http { status: u16 } }

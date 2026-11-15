@@ -2,13 +2,16 @@
 
 use super::list::Scope;
 use std::sync::Arc;
-use vw_gateway_client::vw_api_types::{
-    id::ModelId,
-    model_catalog::{
-        ModelCatalogFillPreviewResponse, ModelCatalogIdentity, ModelCatalogPreset,
-        ModelCatalogProject, ModelCatalogReadResponse, ModelDiscoveryFailure, ModelDiscoveryMethod,
-        ScopedModelCatalogIdentity,
-    },
+use {
+    vw_api_transport::id::ModelId,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogPreset,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogProject,
+    vw_gateway_client::vw_api_types::model_catalog::ModelCatalogReadResponse,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryFailure,
+    vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryMethod,
+    vw_gateway_client::vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

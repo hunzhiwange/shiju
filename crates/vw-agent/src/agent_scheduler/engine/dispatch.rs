@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;

@@ -25,7 +25,7 @@ mod native {
         stage::{FileChange, WholeFile},
         write_guard::{AppWriteGuard, FilePrivacy, WriteError},
     };
-    use vw_api_types::TenantScope;
+    use vw_api_transport::TenantScope;
 
     pub enum Change {
         /// Existing-entry edit. Updating a disabled duplicate never writes the file.

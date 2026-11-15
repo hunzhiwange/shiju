@@ -7,8 +7,11 @@ use anyhow::Result;
 use rusqlite::params;
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::{ProjectId, TenantScope};
+use vw_api_transport::common::TimestampMs;
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::{AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId};

@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use agent_client_protocol::{ContentBlock, SessionNotification};
 use serde_json::{Map, Value};
-use vw_api_types::id::ToolId;
+use vw_api_transport::id::ToolId;
 use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};
 
 use crate::prompt_content::{PromptInput, text_prompt};

@@ -7,13 +7,15 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt, path::Path, sync::Arc, time::Duration};
 use tokio::sync::Notify;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        AppProviderWrite, ProviderProtocol, agy::AgyProfile, opencode::OpenCodeProfile,
-    },
-    id::{TaskId, TenantScope},
-    model_catalog::*,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::app_providers::agy::AgyProfile,
+    vw_api_types::app_providers::opencode::OpenCodeProfile,
+    vw_api_transport::id::TaskId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::*,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
 

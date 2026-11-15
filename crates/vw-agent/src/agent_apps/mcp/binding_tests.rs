@@ -5,14 +5,20 @@ use vw_agent_apps::{
     mcp::import::NativeMcpSource,
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{
-    TenantScope,
-    agent_apps::{AppId, AppInstallation, AppInstallationId},
-    agent_apps_auth::AuthService,
-    mcp_management::{
-        McpAppTarget, McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpCredentialRef,
-        McpDistributionOutcome, McpFailureCode, McpNativeStatus,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallation,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::mcp_management::McpAppTarget,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpCredentialRef,
+    vw_api_types::mcp_management::McpDistributionOutcome,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpNativeStatus,
 };
 
 use super::{
@@ -229,7 +235,7 @@ fn cc_mcp_t24_binding_requires_credential_permission_before_sse_projection() -> 
     use vw_agent_apps::auth::credential_file::{
         AccountCredential, CredentialFileStore, XaiCredential,
     };
-    use vw_api_types::TimestampMs;
+    use vw_api_transport::TimestampMs;
 
     use super::catalog_create::catalog_location;
     use crate::{

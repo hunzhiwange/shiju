@@ -8,7 +8,10 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use axum::http::header;
 use tower::ServiceExt;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+};
 
 fn tenant_request(path: &str) -> Request<Body> {
     Request::get(path)

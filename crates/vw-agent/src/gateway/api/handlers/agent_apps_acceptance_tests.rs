@@ -1,8 +1,9 @@
 //! macOS loopback acceptance: production router, SDK and real isolated databases.
 use crate::global_database::{GlobalDatabase, test_support::PostgresTestDatabase};
-use vw_api_types::{
-    agent_apps::{AddCustomIconRequest, RenameCustomIconRequest},
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AddCustomIconRequest,
+    vw_api_types::agent_apps::RenameCustomIconRequest,
+    vw_api_transport::id::TenantScope,
 };
 
 const PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";

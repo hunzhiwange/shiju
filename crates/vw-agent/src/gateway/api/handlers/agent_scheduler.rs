@@ -44,8 +44,12 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerWorkspaceContextDto, AgentTaskDto, AgentTaskKindDto, AgentTaskStatusDto,
     TaskDependencyNodeDto,
 };
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_transport::common::TimestampMs;
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_api_types::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use crate::agent_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
@@ -1944,7 +1948,7 @@ fn owned_scheduler_context(
     .map_err(map_scheduler_error)
 }
 
-fn task_id_from_api(task_id: &vw_api_types::id::TaskId) -> Result<TaskId, ApiError> {
+fn task_id_from_api(task_id: &vw_api_transport::TaskId) -> Result<TaskId, ApiError> {
     TaskId::new(task_id.as_ref().to_string()).map_err(map_bad_request)
 }
 

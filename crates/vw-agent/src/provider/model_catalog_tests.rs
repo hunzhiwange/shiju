@@ -4,15 +4,20 @@ use crate::{
     session::ui_store::with_tenant_scope,
 };
 use serde_json::json;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-    id::TenantScope,
-    model_catalog::{
-        ModelCapabilityState, ModelCatalogDefaultChange, ModelCatalogEdit, ModelCatalogEditRequest,
-        ModelCatalogIdentity, ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance,
-        ModelMetadataSource,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCapabilityState,
+    vw_api_types::model_catalog::ModelCatalogDefaultChange,
+    vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource,
 };
 
 const PROVIDER: &str = "projection-fixture";

@@ -3,7 +3,7 @@
 //! 表结构与 SQLite 门面保持相同主键语义，时间戳由上层统一生成后传入。
 
 use anyhow::{Context, Result, bail};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::app::agent::security::gateway_skey_store::GatewaySkeyReplacement;
 use crate::global_database::GlobalDatabase;

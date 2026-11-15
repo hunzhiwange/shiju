@@ -5,9 +5,11 @@ use vw_agent_apps::data_management::{
     preview::Decision,
     source::{SourceScope, read_selected_source},
 };
-use vw_api_types::{
-    id::{ProjectScope, TenantScope},
-    mcp_management::{McpCatalogScope, McpFailureCode},
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 #[test]

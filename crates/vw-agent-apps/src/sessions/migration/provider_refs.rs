@@ -7,7 +7,10 @@ use crate::providers::live::{
 };
 use std::{collections::BTreeSet, ffi::OsStr};
 use toml_edit::{DocumentMut, Item};
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 const LEGACY_IDS: &[&str] = &[
     "ccswitch",

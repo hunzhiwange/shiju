@@ -18,13 +18,16 @@ use axum::{
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
 use vw_agent_apps::providers;
-use vw_api_types::{
-    id::TenantScope,
-    model_catalog::{
-        ModelCatalogDefaultRequest, ModelCatalogEditRequest, ModelCatalogFillCommitRequest,
-        ModelCatalogFillPreviewRequest, ModelCatalogFillPreviewResponse, ModelCatalogIdentity,
-        ModelCatalogProject, ModelCatalogWriteResponse,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogDefaultRequest,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogFillCommitRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogProject,
+    vw_api_types::model_catalog::ModelCatalogWriteResponse,
 };
 use vw_provider_resolver::models::{self, ModelsSnapshot};
 

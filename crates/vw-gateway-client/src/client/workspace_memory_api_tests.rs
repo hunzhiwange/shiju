@@ -1,6 +1,10 @@
 use super::{test_support, WorkspaceMemoryScope, WorkspaceMemoryError};
 use serde_json::json;
-use vw_api_types::{id::{ProjectId, TenantScope}, workspace_memory::WorkspaceFilename};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::workspace_memory::WorkspaceFilename,
+};
 
 fn scope() -> WorkspaceMemoryScope {
     WorkspaceMemoryScope { project_id: ProjectId::new("project").unwrap(), target_host_id: "主机 /?".into() }

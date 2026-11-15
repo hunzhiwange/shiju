@@ -7,10 +7,12 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_high_availability::{CircuitBreakerPolicy, FailoverHealthState},
-    id::{ProjectScope, ProviderId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+    vw_api_types::agent_apps_high_availability::FailoverHealthState,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::ProviderId,
 };
 
 /// Built from the verified route and provider resolved by the production caller.

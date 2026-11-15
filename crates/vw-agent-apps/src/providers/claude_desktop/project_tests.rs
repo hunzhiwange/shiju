@@ -5,9 +5,10 @@ use crate::providers::{
     mode_state::StackState,
 };
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 #[test]

@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Clone)]
 pub(crate) struct FormOwner {
     pub(crate) session: String,
-    pub(crate) tenant: vw_api_types::id::TenantScope,
+    pub(crate) tenant: vw_api_transport::TenantScope,
 }
 fn invalid() -> ErrorData {
     ErrorData::invalid_params("Invalid MCP form schema or user response", None)

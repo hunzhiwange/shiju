@@ -5,7 +5,7 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
 };
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 fn metadata() -> TranscriptionRequest {
     serde_json::from_value(json!({"request_id":"req/06?","chat_session_id":"chat06","generation":1,"provider_id":"openai"})).unwrap()
 }

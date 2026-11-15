@@ -2,7 +2,11 @@ use super::{
     cleanup::*,
     registry::{Lifecycle, Record},
 };
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_config_types::worktree::WorktreeSettings;
 
 fn scope(project: &str) -> ProjectScope {

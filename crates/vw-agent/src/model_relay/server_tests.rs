@@ -15,7 +15,7 @@ async fn kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model()
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(std::env::var_os("VIBEWINDOW_CONFIG_DIR"));
     unsafe { std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config")) };
-    let tenant = vw_api_types::id::TenantScope::new("kiro", "local-flag").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("kiro", "local-flag").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
@@ -165,7 +165,7 @@ async fn acp_model_source_relay_binding_http_isolation_limits_and_lifecycle() {
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
     }
-    let tenant = vw_api_types::id::TenantScope::new("relay", "one").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("relay", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
@@ -398,7 +398,7 @@ async fn acp_model_source_relay_expiry_cancels_an_established_http_stream() {
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
     }
-    let tenant = vw_api_types::id::TenantScope::new("relay-expiry", "one").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("relay-expiry", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();

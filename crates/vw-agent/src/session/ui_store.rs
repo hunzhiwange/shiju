@@ -21,9 +21,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::sync::Mutex;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::id::{ProjectId, ProjectScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+};
 
 use vw_shared::session::path;
 use vw_shared::session::ui_store;

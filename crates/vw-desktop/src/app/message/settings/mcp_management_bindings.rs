@@ -2,10 +2,13 @@
 use super::{McpMessage, SettingsMessage, mcp_management_list as catalog};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    GatewayClient,
-    mcp_management_distribution::{McpBindingRequest, McpBulkRequest},
-    vw_api_types::{ProjectId, agent_apps::AppId, mcp_management::*},
+use {
+    vw_gateway_client::GatewayClient,
+    vw_gateway_client::mcp_management_distribution::McpBindingRequest,
+    vw_gateway_client::mcp_management_distribution::McpBulkRequest,
+    vw_api_transport::ProjectId,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::mcp_management::*,
 };
 
 pub(crate) const APPS: [AppId; 14] = [

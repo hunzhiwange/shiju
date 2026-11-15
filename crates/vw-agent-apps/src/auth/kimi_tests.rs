@@ -10,12 +10,15 @@ use std::{
     collections::VecDeque,
     time::{Duration, Instant},
 };
-use vw_api_types::{
-    agent_apps_auth::{
-        AuthErrorCode, AuthFlow, AuthLoginMethod, AuthRegion, AuthService, AuthStartRequest,
-        AuthStartResponse,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthLoginMethod,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_transport::id::TenantScope,
 };
 
 fn scope(tenant: &TenantScope) -> AuthAccountScope<'_> {

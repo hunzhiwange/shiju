@@ -1,6 +1,9 @@
 //! Tenant-owned editor draft; server versions are kept outside the YAML.
 use iced::widget::text_editor;
-use vw_gateway_client::vw_api_types::{TenantScope, workflow::WorkflowRecord};
+use {
+    vw_api_transport::TenantScope,
+    vw_gateway_client::vw_api_types::workflow::WorkflowRecord,
+};
 
 pub use vw_gateway_client::vw_api_types::workflow::VIDEO_EDIT_TEMPLATE_UUID as TEMPLATE_ID;
 

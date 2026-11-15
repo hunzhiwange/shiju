@@ -1,13 +1,15 @@
 use super::AppRoutingError;
 use crate::client::test_support;
 use serde_json::{Value, json};
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticJobIdentity, DiagnosticJobState, DiagnosticOutcome, DiagnosticProbeKind,
-        DiagnosticResult,
-    },
-    id::{ProjectId, TaskId},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TaskId,
 };
 
 fn identity() -> Value {

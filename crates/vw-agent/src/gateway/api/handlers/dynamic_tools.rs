@@ -21,12 +21,12 @@ use axum::{
 };
 use futures_util::stream;
 use std::convert::Infallible;
-use vw_api_types::{
-    id::TenantScope,
-    tools::{
-        DynamicToolHostBinding, DynamicToolResponse, ReplaceDynamicToolsRequest,
-        ReplaceDynamicToolsResponse,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::tools::DynamicToolHostBinding,
+    vw_api_types::tools::DynamicToolResponse,
+    vw_api_types::tools::ReplaceDynamicToolsRequest,
+    vw_api_types::tools::ReplaceDynamicToolsResponse,
 };
 
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {

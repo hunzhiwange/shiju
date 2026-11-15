@@ -20,13 +20,18 @@ use tracing::{
     span::{Attributes, Id, Record},
 };
 use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::{
-        AuthCredentialState, AuthError, AuthErrorCode, AuthFlow, AuthLoginMethod, AuthPasteRequest,
-        AuthService, AuthStartRequest, AuthStartResponse,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_types::agent_apps_auth::AuthError,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthLoginMethod,
+    vw_api_types::agent_apps_auth::AuthPasteRequest,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
+    vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
     AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient}};

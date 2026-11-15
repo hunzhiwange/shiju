@@ -18,19 +18,25 @@ use tokio::{
     sync::{Notify, broadcast},
     time::timeout,
 };
-use vw_api_types::{
-    TenantScope,
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailureCode, DiagnosticJobIdentity,
-        DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
-        DiagnosticScope,
-    },
-    id::ProjectScope,
-    mcp_management::{
-        McpCatalogRecord, McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpFailureCode,
-        McpRecordId, McpTransport,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScope,
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordId,
+    vw_api_types::mcp_management::McpTransport,
 };
 
 use super::{

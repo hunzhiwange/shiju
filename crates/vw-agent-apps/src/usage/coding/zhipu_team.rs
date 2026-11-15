@@ -4,9 +4,10 @@ use reqwest::{
     ClientBuilder,
     header::{ACCEPT_LANGUAGE, AUTHORIZATION, CONTENT_TYPE, HeaderValue},
 };
-use vw_api_types::{
-    TimestampMs,
-    apps_usage::{UsageQueryErrorCode, UsageQueryResult},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageQueryResult,
 };
 
 use super::zhipu::{

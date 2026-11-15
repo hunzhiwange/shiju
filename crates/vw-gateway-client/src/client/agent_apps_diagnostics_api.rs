@@ -1,12 +1,14 @@
 //! Diagnostic submission and polling; probes and credentials stay on the execution host.
 use super::{AgentAppsSettingsError, GatewayClient};
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::{
-    TaskId,
-    agent_apps_diagnostics::{
-        DiagnosticEndpointCandidatesQuery, DiagnosticEndpointCandidatesResponse,
-        DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticScopeQuery, DiagnosticStartRequest,
-    },
+use {
+    vw_api_transport::TaskId,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidatesQuery,
+    vw_api_types::agent_apps_diagnostics::DiagnosticEndpointCandidatesResponse,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
+    vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_api_types::agent_apps_diagnostics::DiagnosticScopeQuery,
+    vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest,
 };
 
 impl GatewayClient {

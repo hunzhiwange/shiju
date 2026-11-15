@@ -7,7 +7,7 @@ async fn cc04_desktop_mapping_sdk_scopes_import_and_discards_error_payload() {
             (200, serde_json::json!({"imported":2})),
             (403, serde_json::json!({"secret":"fake-response-secret"})),
         ],
-        vw_api_types::id::TenantScope::new("p", "a").unwrap(),
+        vw_api_transport::TenantScope::new("p", "a").unwrap(),
     );
     let client = server.client();
     let target = ClaudeDesktopTarget { target_host_id: "host".into() };

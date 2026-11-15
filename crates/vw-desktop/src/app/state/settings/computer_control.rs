@@ -4,7 +4,7 @@ use vw_gateway_client::vw_api_types::computer_control::*;
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ControlIdentity {
     gateway: String,
-    tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    tenant: vw_api_transport::TenantScope,
     auth_fingerprint: [u8; 32],
 }
 impl ControlIdentity {

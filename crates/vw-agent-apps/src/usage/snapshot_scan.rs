@@ -2,7 +2,10 @@
 use std::path::{Path, PathBuf};
 use rusqlite::{Connection, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
-use vw_api_types::{ProjectScope, usage::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::usage::*,
+};
 use super::{cursors::{UsageCursorError, UsageCursorKey}, store::{self, StoredUsageRecord, UsageSourceIdentity}};
 
 pub fn scan_codex(connection: &mut Connection, scope: &ProjectScope, key: &UsageCursorKey,

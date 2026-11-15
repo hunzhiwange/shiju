@@ -112,7 +112,7 @@ fn diagnostic_desktop_endpoint_selection_requires_save() {
             task_id: "speed-job".into(),
             correlation_id: "controlled".into(),
             scope: DiagnosticScope {
-                project: vw_gateway_client::vw_api_types::ProjectScope::new(
+                project: vw_api_transport::ProjectScope::new(
                     context.scope.context.tenant.clone(),
                     context.project.clone(),
                 )

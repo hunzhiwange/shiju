@@ -8,7 +8,10 @@ use axum::{
 };
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_api_types::{ProjectId, TenantScope};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::TenantScope,
+};
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -71,7 +74,10 @@ async fn delete(Extension(p): Extension<Policy>, Extension(t): Extension<TenantS
         Operation::Delete(q.expected_revision)).await
 }
 fn error((status, code): Failure) -> Response {
-    use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+    use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
     (status, [(header::CACHE_CONTROL, "no-store")], Json(ApiErrorBody {
         error: ApiErrorDetail { code: code.into(), message: code.into(), details: None },
     })).into_response()
@@ -95,7 +101,10 @@ fn execute(p: Option<PathBuf>, t: TenantScope, h: HeaderMap, q: ReadRequest, op:
         prompts::pi_system_files::{PiPromptFileService as Service, PiPromptFileKind, PiPromptFileError},
         providers::{pi::PiFiles, live::{commit::{ExecutionHostId, ProviderTransactions}, write_guard::WriteError}},
     };
-    use vw_api_types::{ProjectScope, agent_apps::AppId};
+    use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::agent_apps::AppId,
+};
     let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, "target_unavailable");
     let conflict = || (StatusCode::CONFLICT, "revision_conflict");
     let auth_error = |s| (s, if s == StatusCode::UNAUTHORIZED { "unauthenticated" } else { "forbidden" });

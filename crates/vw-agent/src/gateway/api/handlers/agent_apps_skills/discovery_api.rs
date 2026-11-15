@@ -3,7 +3,11 @@ use std::{collections::BTreeMap, sync::Arc};
 use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap, StatusCode}, routing::post};
 use tokio::sync::Mutex;
 use vw_agent_apps::skills::{discovery_cache::SkillDiscoveryCache, repos::SkillRepo};
-use vw_api_types::{agent_apps_skills::discovery_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::discovery_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps_skills_store::SkillReposStore};
 
 #[derive(Clone)]

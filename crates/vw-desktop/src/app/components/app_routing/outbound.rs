@@ -9,13 +9,16 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
-use vw_gateway_client::vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_diagnostics::{
-        DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
-    },
-    app_routing::{RoutingEgressMode, RoutingEgressStatus, RoutingEgressUpdate},
-    id::ProjectId,
+use {
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_gateway_client::vw_api_types::app_routing::RoutingEgressMode,
+    vw_gateway_client::vw_api_types::app_routing::RoutingEgressStatus,
+    vw_gateway_client::vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_transport::id::ProjectId,
 };
 
 #[derive(Clone, Debug, Default)]

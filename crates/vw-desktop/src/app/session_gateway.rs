@@ -29,7 +29,7 @@ use vw_gateway_client::SkillMarketSkillSetDetailDto;
 use vw_gateway_client::SkillMarketSkillSetPageDto;
 use vw_gateway_client::SkillMarketSourceDto;
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
-use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
 use vw_gateway_client::{
     ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto,
@@ -1307,7 +1307,7 @@ pub(crate) async fn gateway_skills_import_request(
 
 pub(crate) async fn gateway_skills_job(
     scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
-    id: vw_gateway_client::vw_api_types::id::TaskId,
+    id: vw_api_transport::TaskId,
     token: String,
     cancel: bool,
 ) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobResponse, String> {

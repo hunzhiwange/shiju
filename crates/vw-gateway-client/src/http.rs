@@ -12,7 +12,10 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing::{debug, error, warn};
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+};
 
 use crate::endpoint::GatewayEndpoint;
 

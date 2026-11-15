@@ -6,7 +6,10 @@ use cli_gateway_runtime::gateway::normalize_optional_str_ref;
 use cli_interaction_model::{PermissionMode, PromptSubmission, ReasoningEffort};
 use cli_interaction_model::paste::{PromptAttachment, PromptAttachmentKind};
 use cli_interaction_state::TuiState;
-use vw_gateway_client::{GatewayChatStreamRequest, vw_api_types::id::SessionId};
+use {
+    vw_gateway_client::GatewayChatStreamRequest,
+    vw_api_transport::id::SessionId,
+};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole};
 
 /// 根据当前状态和提交快照构造 Gateway 请求，并在此收紧工具与权限选项。

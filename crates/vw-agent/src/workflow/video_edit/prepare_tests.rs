@@ -341,7 +341,7 @@ fn video_edit_prepare_streaming_hash_obeys_security_and_cancellation() {
 async fn video_edit_prepare_cross_tenant_runs_and_native_mismatch_are_isolated() {
     let (root, db, cloud, req) = fixture();
     let first = prepare(db.clone(), &cloud, &req).await.unwrap();
-    let tenant = vw_api_types::TenantScope::new("other-platform", "other-company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let mut other = cloud.clone();
         other.ctx = ToolRuntimeContext::new(

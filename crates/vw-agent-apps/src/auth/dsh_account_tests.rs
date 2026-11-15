@@ -14,12 +14,14 @@ use std::{
 };
 use tokio::{net::TcpListener, time::timeout};
 use uuid::Uuid;
-use vw_api_types::{
-    agent_apps_auth::{
-        AuthCredentialState, AuthErrorCode, AuthFlow, AuthLoginMethod, AuthService,
-        AuthStartRequest,
-    },
-    id::TenantScope,
+use {
+    vw_api_types::agent_apps_auth::AuthCredentialState,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthLoginMethod,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::agent_apps_auth::AuthStartRequest,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) const ISSUER: &str = "https://platform.deepseek.com";

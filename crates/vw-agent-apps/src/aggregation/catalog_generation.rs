@@ -10,7 +10,10 @@ use crate::providers::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::ffi::OsStr;
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 pub const HISTORY_FILENAME: &str = "shiju-codex-client-history.json";
 const LIMIT: usize = 32;

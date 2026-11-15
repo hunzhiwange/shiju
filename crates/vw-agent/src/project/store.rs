@@ -9,7 +9,10 @@ use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use serde::de::DeserializeOwned;
-use vw_api_types::id::{ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use vw_shared::project::{Info, TimeInfo, Vcs};
 
 use crate::global_database::GlobalDatabase;

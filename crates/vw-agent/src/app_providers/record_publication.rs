@@ -6,7 +6,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 #[cfg(target_os = "macos")]
 use vw_agent_apps::providers::live::{record_publication::*, write_guard::WriteError};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[cfg(target_os = "macos")]
 type ResyncContext = std::sync::Arc<crate::gateway::aggregation_resync::RecordPublicationContext>;
@@ -33,7 +33,7 @@ struct Reservation {
 struct RecordReservation {
     operation_id: String,
     host: vw_agent_apps::providers::live::commit::ExecutionHostId,
-    project: vw_api_types::id::ProjectScope,
+    project: vw_api_transport::ProjectScope,
     app: vw_api_types::agent_apps::AppId,
     record: ProviderRecordDelta,
 }

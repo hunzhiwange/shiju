@@ -2,7 +2,7 @@ use axum::{Extension, body::Body, http::{Request, StatusCode}};
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt};
 use tower::ServiceExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use serde_json::json;
 
 const TOKEN: &str = "claude-control-test-token-000000000000";

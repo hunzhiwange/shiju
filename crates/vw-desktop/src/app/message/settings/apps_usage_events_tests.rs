@@ -3,7 +3,7 @@ use crate::app::components::apps_usage_cards::{
     Failure,
     tests::{gateway, request, respond},
 };
-use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 
 const QUEUED: &str = r#"{"operationId":"op-1","status":"queued"}"#;
 const ITEMS: &str = r#"[

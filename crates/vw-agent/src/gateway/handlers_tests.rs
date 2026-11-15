@@ -972,7 +972,7 @@ async fn channel_reload_saved_credentials_update_existing_webhook_router() {
     use crate::app::agent::config::{SystemConfigStore, schema::ChannelConfigWatcher};
     use crate::global_database::GlobalDatabase;
     use tower::ServiceExt;
-    use vw_api_types::id::TenantScope;
+    use vw_api_transport::id::TenantScope;
 
     let temp = tempfile::TempDir::new().unwrap();
     let store =

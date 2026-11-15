@@ -10,10 +10,12 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command, sync::Arc};
 use tempfile::TempDir;
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthRegion, AuthService},
-    id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(crate) const CONFIG: &str = r#"# Kimi configuration

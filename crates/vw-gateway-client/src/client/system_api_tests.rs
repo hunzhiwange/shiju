@@ -1,7 +1,7 @@
 //! 系统状态与发现客户端的线协议测试。
 
 use serde_json::{Value, json};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use crate::client::test_support;
 

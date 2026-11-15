@@ -3,9 +3,11 @@ use super::codex_catalog::CodexCatalogRow;
 use crate::providers::live::commit::AppState;
 use serde_json::{Map, Value};
 use toml_edit::DocumentMut;
-use vw_api_types::{
-    agent_apps::AppId, agent_apps_auth::AuthService,
-    app_providers::desktop_mapping::DesktopMapping, id::TenantScope,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::app_providers::desktop_mapping::DesktopMapping,
+    vw_api_transport::id::TenantScope,
 };
 
 pub enum Catalog<'a> {

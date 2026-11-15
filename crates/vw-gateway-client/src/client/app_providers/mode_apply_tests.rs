@@ -9,7 +9,7 @@ async fn cc04_mode_apply_sdk_sends_typed_operation_and_discards_error_payload() 
             ),
             (503, serde_json::json!({"secret":"fake-sensitive"})),
         ],
-        vw_api_types::id::TenantScope::new("p", "c").unwrap(),
+        vw_api_transport::TenantScope::new("p", "c").unwrap(),
     );
     let request = ModeApplyRequest {
         target_host_id: "host".into(),

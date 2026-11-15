@@ -87,7 +87,7 @@ fn codex_plugin_compat_t57_rejects_invalid_input() {
         discover_for_runtime(&foreign)
     });
     assert!(result.is_err(), "a snapshot must reject a foreign workspace even when it is empty");
-    let tenant = vw_api_types::id::TenantScope::new("other-platform", "other-company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap();
     assert!(
         crate::session::ui_store::with_tenant_scope_sync(tenant, || {
             crate::tools::scope_tool_use_context_sync(context.clone(), || {

@@ -15,13 +15,17 @@ use vw_agent_apps::{
     apps::catalog,
     mcp::{native_capability, presets},
 };
-use vw_api_types::{
-    TenantScope,
-    agent_apps::{AppId, AppInstallationId},
-    mcp_management::{
-        McpCatalogResponse, McpCatalogScope, McpFailureCode, McpFailureResponse, McpNativePreview,
-        McpPresetDraftView, McpPresetsResponse,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_types::mcp_management::McpCatalogResponse,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpFailureResponse,
+    vw_api_types::mcp_management::McpNativePreview,
+    vw_api_types::mcp_management::McpPresetDraftView,
+    vw_api_types::mcp_management::McpPresetsResponse,
 };
 
 use super::agent_apps;

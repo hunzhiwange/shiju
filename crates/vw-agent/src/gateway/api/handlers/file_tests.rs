@@ -574,8 +574,8 @@ async fn file_move_copy_and_delete_v1_use_worktree_id_root() {
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
     let registered = RegisteredFileProject::new(&root);
-    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
-    let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
+    let project_id = vw_api_transport::ProjectId(registered.0.clone());
+    let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
     let _ = file_copy_v1(
         Extension(TenantScope::default()),
@@ -630,8 +630,8 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
     let registered = RegisteredFileProject::new(&root);
-    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
-    let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
+    let project_id = vw_api_transport::ProjectId(registered.0.clone());
+    let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
     let missing = file_copy_v1(
         Extension(TenantScope::default()),
@@ -756,8 +756,8 @@ async fn file_copy_and_delete_v1_handle_directories_recursively() {
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
     let registered = RegisteredFileProject::new(&root);
-    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
-    let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
+    let project_id = vw_api_transport::ProjectId(registered.0.clone());
+    let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
     let _ = file_copy_v1(
         Extension(TenantScope::default()),
@@ -798,8 +798,8 @@ async fn file_move_copy_and_delete_v1_reject_workspace_escapes() {
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
     let registered = RegisteredFileProject::new(&root);
-    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
-    let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
+    let project_id = vw_api_transport::ProjectId(registered.0.clone());
+    let worktree_id = Some(vw_api_transport::WorktreeId(encoded));
 
     let copy_error = file_copy_v1(
         Extension(TenantScope::default()),

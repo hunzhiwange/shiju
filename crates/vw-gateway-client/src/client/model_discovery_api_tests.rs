@@ -1,6 +1,10 @@
 use super::{AgentAppsReadError, test_support};
 use serde_json::json;
-use vw_api_types::{agent_apps::AppId, id::TenantScope, model_catalog::*};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::*,
+};
 
 const TOKEN: &str = "model-discovery-test-token";
 

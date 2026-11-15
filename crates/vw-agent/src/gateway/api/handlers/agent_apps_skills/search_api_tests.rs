@@ -1,6 +1,9 @@
 use axum::{Extension, body::Body, http::{Request, StatusCode}};
 use tower::ServiceExt;
-use vw_api_types::{id::TenantScope, agent_apps_skills::search_api::MarketSearchFailure};
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::agent_apps_skills::search_api::MarketSearchFailure,
+};
 
 #[tokio::test]
 async fn cp12_search_api_rejects_without_side_effects() {

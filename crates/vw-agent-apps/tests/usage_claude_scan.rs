@@ -11,7 +11,12 @@ use vw_agent_apps::{
         store::{StoredUsageRecord, initialize_usage_store},
     },
 };
-use vw_api_types::{ProjectId, ProjectScope, external_session::*, usage::UsageMeasurementKind};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_types::external_session::*,
+    vw_api_types::usage::UsageMeasurementKind,
+};
 
 struct Fixture {
     _root: TempDir,

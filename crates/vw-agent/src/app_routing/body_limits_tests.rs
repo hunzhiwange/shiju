@@ -9,10 +9,12 @@ use tokio::{
     net::{TcpListener, TcpStream},
     time::timeout,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::validation::{ProviderRequestOptions, ProviderRequestOverrides},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::validation::ProviderRequestOptions,
+    vw_api_types::app_providers::validation::ProviderRequestOverrides,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 const LIMIT: usize = 4 * 1024 * 1024;

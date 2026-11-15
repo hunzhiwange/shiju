@@ -25,7 +25,10 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::aggregation::model_ids::{Decoded, ModelIdError, decode};
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 #[cfg(target_os = "macos")]
 use {
     super::{

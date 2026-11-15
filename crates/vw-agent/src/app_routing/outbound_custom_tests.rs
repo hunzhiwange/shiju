@@ -9,9 +9,10 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 const GUARD: Duration = Duration::from_secs(5);

@@ -11,7 +11,7 @@ pub enum WorktreesTab {
 #[derive(Clone, PartialEq, Eq)]
 pub struct WorktreeSettingsIdentity {
     pub(crate) gateway: String,
-    pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    pub(crate) tenant: vw_api_transport::TenantScope,
     pub(crate) auth_fingerprint: [u8; 32],
     pub(crate) project: Option<String>,
 }

@@ -6,9 +6,13 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use vw_agent_apps::mcp::catalog::McpCatalogDraft;
-use vw_api_types::{
-    ProjectScope, TenantScope,
-    mcp_management::{McpCatalogRecord, McpCatalogScope, McpCreateRequest, McpFailureCode},
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogRecord,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpCreateRequest,
+    vw_api_types::mcp_management::McpFailureCode,
 };
 
 use super::{

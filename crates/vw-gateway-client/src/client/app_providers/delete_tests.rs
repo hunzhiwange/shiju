@@ -1,5 +1,9 @@
 use super::super::test_support;
-use vw_api_types::{agent_apps::AppId, app_providers::delete::AppProviderDelete, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::delete::AppProviderDelete,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_delete_sdk_scopes_request_and_redacts_errors() {
     let server = test_support::server_with_tenant_scope(

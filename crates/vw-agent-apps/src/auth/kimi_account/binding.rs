@@ -178,7 +178,7 @@ impl KimiNativeTarget<'_> {
     pub(super) fn binding<'a>(
         &self,
         state: &'a AppState,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         principal: &str,
     ) -> Result<Option<&'a KimiBinding>, AuthErrorCode> {
         let binding = state.kimi_bindings.get(self.provider_id);

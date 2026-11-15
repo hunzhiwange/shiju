@@ -4,7 +4,10 @@ use crate::providers::{
     mode_state::StackState,
 };
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 struct Fixture {
     home: tempfile::TempDir,

@@ -7,7 +7,10 @@ use crate::{
         mode_state::observe,
     },
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SelectionError {

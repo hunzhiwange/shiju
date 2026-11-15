@@ -18,7 +18,10 @@ use crate::providers::{
     mode_state::observe,
     validate_identity,
 };
-use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
+use {
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_transport::id::TenantScope,
+};
 
 /// Metadata resolved from a saved provider in the authorized application scope.
 pub struct SavedMember<'a> {
@@ -80,7 +83,7 @@ pub fn set_member(
 pub fn set_member_project(
     transactions: &ProviderTransactions,
     guard: &mut AppWriteGuard,
-    project: &vw_api_types::id::ProjectScope,
+    project: &vw_api_transport::ProjectScope,
     expected: &AppState,
     change: MembershipChange<'_>,
     unchanged: impl Fn() -> bool,
@@ -102,7 +105,7 @@ fn set_member_inner(
     transactions: &ProviderTransactions,
     guard: &mut AppWriteGuard,
     tenant: &TenantScope,
-    project: Option<&vw_api_types::id::ProjectScope>,
+    project: Option<&vw_api_transport::ProjectScope>,
     expected: &AppState,
     change: MembershipChange<'_>,
     unchanged: impl Fn() -> bool,

@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt, path::Path};
 
 use rusqlite::{Connection, OpenFlags, types::ValueRef};
 use serde_json::{Map, Value};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::{source_files, source_json};
 

@@ -13,9 +13,14 @@ use vw_agent_apps::providers::{
     live::{commit::*, write_guard::lock_app},
     mode_state::StackState,
 };
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, ProjectId, ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 const TOKEN: &str = "aggregation-t40-local-test-bearer-token-32-bytes";
 fn tenant() -> TenantScope {

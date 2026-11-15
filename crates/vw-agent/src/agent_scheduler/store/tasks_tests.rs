@@ -6,8 +6,12 @@ use std::path::Path;
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_transport::common::TimestampMs;
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 use super::domain::{AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};

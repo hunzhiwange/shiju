@@ -23,7 +23,11 @@ use tokio::{
     sync::{Mutex, OnceCell},
 };
 use tokio_util::sync::CancellationToken;
-use vw_api_types::{computer_control::*, id::TenantScope, tools::ToolResultContentDto};
+use {
+    vw_api_types::computer_control::*,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::tools::ToolResultContentDto,
+};
 use vw_config_types::computer_control::ComputerControlConfig;
 
 static GATEWAY_RUNTIME: RwLock<Weak<NativeControlRuntime>> = RwLock::new(Weak::new());

@@ -2,7 +2,10 @@
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, rejection::JsonRejection}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::post};
 use std::path::PathBuf;
 use crate::global_database::GlobalDatabase;
-use vw_api_types::{TenantScope, agent_apps::ImportPromptShareApiRequest};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::ImportPromptShareApiRequest,
+};
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -27,7 +30,10 @@ async fn import(Extension(policy): Extension<Policy>, Extension(tenant): Extensi
     match result {
         Ok(value) => ([(header::CACHE_CONTROL, "no-store")], Json(value)).into_response(),
         Err((status, code)) => {
-            use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+            use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
             (status, [(header::CACHE_CONTROL, "no-store")], Json(ApiErrorBody {
                 error: ApiErrorDetail { code: code.into(), message: code.into(), details: None },
             })).into_response()
@@ -43,7 +49,10 @@ fn execute(_: Option<PathBuf>, _: TenantScope, _: HeaderMap, _: GlobalDatabase,
 fn execute(policy: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, db: GlobalDatabase,
     q: ImportPromptShareApiRequest) -> Result<vw_api_types::agent_apps::ImportPromptShareResult, Failure> {
     use crate::agent_apps::prompts_store::{PromptScope, PromptsStore, PromptEntry as StoredEntry, PromptCatalog};
-    use vw_api_types::{ProjectScope, agent_apps::*};
+    use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::agent_apps::*,
+};
     use vw_agent_apps::prompts::{shared_import::{self, SharedImportError, SharedImportResult}, live_file};
     let invalid = || (StatusCode::BAD_REQUEST, "invalid_request");
     let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, "storage_or_target_unavailable");

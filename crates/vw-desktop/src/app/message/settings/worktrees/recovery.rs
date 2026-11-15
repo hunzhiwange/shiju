@@ -5,8 +5,10 @@ use crate::app::{
     state::{WorktreeRecoveryProject, WorktreeSettingsIdentity},
 };
 use iced::Task;
-use vw_gateway_client::vw_api_types::{
-    id::ProjectScope, project::ListProjectsRequest, worktree::*,
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_gateway_client::vw_api_types::project::ListProjectsRequest,
+    vw_gateway_client::vw_api_types::worktree::*,
 };
 
 #[derive(Debug, Clone)]

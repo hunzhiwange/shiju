@@ -8,7 +8,10 @@ use crate::providers::{
 };
 use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 
 fn snapshot(path: &Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
     let mut result = vec![];

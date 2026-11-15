@@ -13,7 +13,11 @@ use tracing::{Event, Metadata};
 
 use crate::client::test_support;
 use crate::endpoint::{GatewayAuth, GatewayEndpoint};
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Clone, Default)]
 struct CapturedEvents(Arc<Mutex<Vec<String>>>);

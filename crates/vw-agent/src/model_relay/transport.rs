@@ -9,7 +9,7 @@ use axum::{
     response::Response,
 };
 use tokio_util::sync::CancellationToken;
-use provider_protocol_routes::RouteCapability as C;
+use vw_provider_resolver::protocol_routes::RouteCapability as C;
 
 /// Resolves current configuration and credentials for every request. Contains no session secrets.
 pub struct ProviderRelayBackend {

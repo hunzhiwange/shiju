@@ -9,7 +9,7 @@ async fn agent_session_identity_storage_round_trip_is_scoped_and_secret_free() {
         None,
     )
     .await;
-    let tenant = vw_api_types::id::TenantScope::new("binding-platform", "binding-company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("binding-platform", "binding-company").unwrap();
     crate::session::ui_store::with_tenant_scope(tenant, async {
         let project = format!("project-{}", uuid::Uuid::new_v4());
         let definition = AgentDefinitionConfig {
@@ -32,7 +32,7 @@ async fn agent_session_identity_storage_round_trip_is_scoped_and_secret_free() {
         assert!(matches!(restored.defaults.skills, AgentDefault::Fixed(ids) if ids.is_empty()));
         assert!(load_scoped("other-project", "session").await.unwrap().is_none());
         crate::session::ui_store::with_tenant_scope(
-            vw_api_types::id::TenantScope::new("other-platform", "binding-company").unwrap(),
+            vw_api_transport::TenantScope::new("other-platform", "binding-company").unwrap(),
             async {
                 assert!(load_scoped(&project, "session").await.unwrap().is_none());
             },

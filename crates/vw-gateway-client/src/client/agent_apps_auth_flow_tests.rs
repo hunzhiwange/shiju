@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use tracing::field::Field;
 use tracing::span::{Attributes, Id, Record};
 use tracing::{Event, Metadata, Subscriber};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 const HOST: &str = "mac-local";
 const CLAUDE: AuthService = AuthService::ClaudeOfficial;

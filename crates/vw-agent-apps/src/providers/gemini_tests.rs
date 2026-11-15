@@ -4,7 +4,11 @@ use super::{
 };
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{agent_apps::AppId, app_providers::gemini::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::gemini::*,
+    vw_api_transport::id::TenantScope,
+};
 fn third() -> GeminiProfile {
     GeminiProfile {
         name: "Fixture".into(),

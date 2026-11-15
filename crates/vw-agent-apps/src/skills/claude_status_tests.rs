@@ -7,7 +7,7 @@ use crate::providers::live::{
     write_guard::WriteError,
 };
 use std::{fs, os::unix::fs::{DirBuilderExt, symlink}, path::PathBuf};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 struct Fixture {
     home: tempfile::TempDir,

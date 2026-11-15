@@ -36,7 +36,7 @@ fn job(context: &Context) -> DiagnosticJobIdentity {
         task_id: "job".into(),
         correlation_id: "correlation".into(),
         scope: DiagnosticScope {
-            project: vw_gateway_client::vw_api_types::ProjectScope::new(
+            project: vw_api_transport::ProjectScope::new(
                 context.tenant.clone(),
                 context.query.project_id.clone(),
             )

@@ -9,7 +9,10 @@ use std::{
     os::unix::fs::{PermissionsExt, symlink},
     time::{SystemTime, UNIX_EPOCH},
 };
-use vw_api_types::id::{ProjectId, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::TenantScope,
+};
 struct IsolatedDaemon {
     executable: PathBuf,
     home: tempfile::TempDir,

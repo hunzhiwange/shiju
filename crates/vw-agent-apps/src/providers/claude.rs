@@ -262,7 +262,7 @@ impl ClaudeFile {
     pub fn apply(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         previous: Option<&Value>,
         target: &Value,
@@ -275,7 +275,7 @@ impl ClaudeFile {
     pub fn apply_with_login(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         previous: Option<&Value>,
         target: &Value,
@@ -300,7 +300,7 @@ impl ClaudeFile {
     pub fn apply_with_managed_login(
         &mut self,
         tx: &super::live::commit::ProviderTransactions,
-        tenant: &vw_api_types::id::TenantScope,
+        tenant: &vw_api_transport::TenantScope,
         state: &super::live::commit::AppState,
         previous: Option<&Value>,
         target: &Value,

@@ -1,9 +1,18 @@
 //! Durable device-sync execution records. Authorization remains with the caller.
 use std::{future::Future, sync::{Mutex, OnceLock}};
-use vw_api_types::{agent_apps::DataManagementTarget, id::TaskId, device_sync_task::{
-    SyncStartRequest, SyncTaskOrigin, SyncTaskStatus, SyncTaskPhase, SyncTaskState,
-    SyncError, SyncErrorCode, SyncRemoteSnapshot, SyncTaskWarning,
-}};
+use {
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_transport::id::TaskId,
+    vw_api_types::device_sync_task::SyncStartRequest,
+    vw_api_types::device_sync_task::SyncTaskOrigin,
+    vw_api_types::device_sync_task::SyncTaskStatus,
+    vw_api_types::device_sync_task::SyncTaskPhase,
+    vw_api_types::device_sync_task::SyncTaskState,
+    vw_api_types::device_sync_task::SyncError,
+    vw_api_types::device_sync_task::SyncErrorCode,
+    vw_api_types::device_sync_task::SyncRemoteSnapshot,
+    vw_api_types::device_sync_task::SyncTaskWarning,
+};
 
 type Result<T> = std::result::Result<T, SyncErrorCode>;
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

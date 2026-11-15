@@ -17,7 +17,10 @@ use std::{
     os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::{Path, PathBuf},
 };
-use vw_api_types::{TenantScope, agent_apps::AppId};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+};
 
 const BEFORE: &str = r#"{
   "projects": {"/fixture": {"mcpServers":{"project":{"command":"project-tool"}}}},

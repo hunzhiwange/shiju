@@ -4,8 +4,11 @@ use super::{
     gemini_refresh::{GeminiRefresh, GeminiScope},
 };
 use serde_json::json;
-use vw_api_types::{
-    TimestampMs, agent_apps::AppId, agent_apps_auth::AuthErrorCode, id::TenantScope,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_transport::id::TenantScope,
 };
 #[tokio::test]
 async fn cc_route_031_gemini_refresh_and_invalid_grant() {

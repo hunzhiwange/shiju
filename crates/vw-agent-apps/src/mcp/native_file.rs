@@ -7,7 +7,7 @@ use crate::providers::live::{
 };
 use serde_json::{Map, Value};
 use std::ffi::OsStr;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// A direct child selected by adapter code under the same guard as provider writes.
 /// The executor must acquire the guard from its authorized app/profile paths.

@@ -4,9 +4,9 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use axum::{Extension, Json};
-use vw_api_types::common::OperationAck;
+use vw_api_transport::common::OperationAck;
 use vw_api_types::file::DuplicateFileRequest;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::file_import::{copy_entry, io_error, publish_no_replace, target_directory};
 use super::{ApiError, resolve_file_root};

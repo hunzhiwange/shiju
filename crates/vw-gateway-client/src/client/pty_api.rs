@@ -169,7 +169,10 @@ impl GatewayClient {
     ) -> Result<PtyConnection, String> {
         use tokio_tungstenite::tungstenite::client::IntoClientRequest;
         use tokio_tungstenite::tungstenite::http::HeaderValue;
-        use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+        use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+};
 
         let pty_id = required_pty_id(pty_id)?;
         let mut url = reqwest::Url::parse(&format!(

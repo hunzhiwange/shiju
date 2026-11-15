@@ -1,5 +1,9 @@
 use super::LifecycleState;
-use vw_gateway_client::vw_api_types::{agent_apps::*, id::TaskId, task::TaskStatus};
+use {
+    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_transport::id::TaskId,
+    vw_gateway_client::vw_api_types::task::TaskStatus,
+};
 
 #[test]
 fn desktop_integration_20_preserves_expected_behavior() {

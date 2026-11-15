@@ -153,14 +153,14 @@ async fn acp_session_options_follow_capabilities_isolate_tenant_connections() {
     };
     let options = super::super::ParsedAcpOptions::default();
     let first = crate::session::ui_store::with_tenant_scope(
-        vw_api_types::id::TenantScope::new("platform", "company-a").unwrap(),
+        vw_api_transport::TenantScope::new("platform", "company-a").unwrap(),
         async {
             super::super::session::get_cached_acp_client("fixture", &config, temp.path(), &options)
         },
     )
     .await;
     let second = crate::session::ui_store::with_tenant_scope(
-        vw_api_types::id::TenantScope::new("platform", "company-b").unwrap(),
+        vw_api_transport::TenantScope::new("platform", "company-b").unwrap(),
         async {
             super::super::session::get_cached_acp_client("fixture", &config, temp.path(), &options)
         },
@@ -214,7 +214,7 @@ async fn acp_model_source_session_controls_busy_guard_is_session_scoped() {
     );
     assert!(super::super::lifecycle::try_lock(&session, "/other").is_ok());
     let other = crate::session::ui_store::with_tenant_scope(
-        vw_api_types::id::TenantScope::new("platform", "other-company").unwrap(),
+        vw_api_transport::TenantScope::new("platform", "other-company").unwrap(),
         async { super::super::lifecycle::try_lock(&session, "/workspace") },
     )
     .await;

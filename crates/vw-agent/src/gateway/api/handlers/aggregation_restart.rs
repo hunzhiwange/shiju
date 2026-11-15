@@ -8,9 +8,11 @@ use axum::{
     routing::post,
 };
 use sha2::{Digest, Sha256};
-use vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 pub(super) fn router() -> Router {
@@ -41,7 +43,10 @@ impl From<StatusCode> for Failure {
 }
 impl IntoResponse for Failure {
     fn into_response(self) -> Response {
-        use vw_api_types::error::{ApiErrorBody, ApiErrorDetail};
+        use {
+    vw_api_transport::error::ApiErrorBody,
+    vw_api_transport::error::ApiErrorDetail,
+};
         (
             self.0,
             [(header::CACHE_CONTROL, "no-store")],

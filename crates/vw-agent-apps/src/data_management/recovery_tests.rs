@@ -4,7 +4,11 @@ use super::{
     safety_snapshot::*,
 };
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 #[test]
 fn cc_data_27_recovery_lists_backups_with_corrupt_target() {

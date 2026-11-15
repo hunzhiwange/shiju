@@ -7,15 +7,15 @@ use crate::app::{
     },
 };
 use iced::Task;
-use {gateway_endpoint::{GatewayAuth}, vw_gateway_client::{
-    AggregationOmoError, GatewayClient,
-    vw_api_types::{
-        agent_apps::{
-            AppId,
-            aggregation::{OmoApplyRequest, OmoDisableRequest},
-        },
-        id::ProjectId,
-    }}};
+use {
+    gateway_endpoint::GatewayAuth,
+    vw_gateway_client::AggregationOmoError,
+    vw_gateway_client::GatewayClient,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::OmoApplyRequest,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::OmoDisableRequest,
+    vw_api_transport::id::ProjectId,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Context {

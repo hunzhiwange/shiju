@@ -1,6 +1,9 @@
 //! Backup inventory is scoped to the authenticated gateway principal.
 use super::{GatewayClient, agent_apps_read_api::AgentAppsReadError};
-use vw_api_types::{ProjectScope, agent_apps::data_management::DataBackupSummary};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_types::agent_apps::data_management::DataBackupSummary,
+};
 impl GatewayClient {
     pub async fn data_backup_inventory(&self, project: &ProjectScope, host: &str)
         -> Result<Vec<DataBackupSummary>, AgentAppsReadError> {

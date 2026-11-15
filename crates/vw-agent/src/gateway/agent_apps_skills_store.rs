@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use vw_agent_apps::skills::repos::{SkillRepo, SkillRepos};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
@@ -737,7 +737,7 @@ impl SkillInstallsStore {
     /// Caller must authorize this project and execution host just as for install_repo.
     /// A snapshot is sufficient to resume observation after a transport disconnect.
     pub fn job_snapshot(
-        &self, scope: &ProjectScope, host: &str, task_id: &vw_api_types::id::TaskId,
+        &self, scope: &ProjectScope, host: &str, task_id: &vw_api_transport::TaskId,
     ) -> Result<vw_agent_apps::skills::jobs::SkillJob> {
         self.update_jobs(scope, host, |jobs| {
             jobs.iter().find(|job| &job.snapshot.task_id == task_id)
@@ -748,7 +748,7 @@ impl SkillInstallsStore {
     /// Uses the same project/host storage boundary as job_snapshot.
     /// Cancellation is acknowledged only after the worker releases staged files.
     pub fn cancel_job(
-        &self, scope: &ProjectScope, host: &str, task_id: &vw_api_types::id::TaskId,
+        &self, scope: &ProjectScope, host: &str, task_id: &vw_api_transport::TaskId,
     ) -> Result<vw_agent_apps::skills::jobs::SkillJob> {
         self.update_jobs(scope, host, |jobs| {
             let job = jobs.iter_mut().find(|job| &job.snapshot.task_id == task_id)
@@ -760,7 +760,7 @@ impl SkillInstallsStore {
     /// Ownership is checked inside the same transaction as cancellation.
     /// Missing, legacy and differently bound jobs are indistinguishable.
     pub fn owned_job(
-        &self, scope: &ProjectScope, host: &str, id: &vw_api_types::id::TaskId,
+        &self, scope: &ProjectScope, host: &str, id: &vw_api_transport::TaskId,
         principal: &str, root: &std::path::Path, cancel: bool,
     ) -> Result<Option<vw_agent_apps::skills::jobs::SkillJob>> {
         let canonical_root = std::fs::canonicalize(root).ok();
@@ -778,7 +778,7 @@ impl SkillInstallsStore {
     }
 
     fn check_job_cancel(
-        &self, scope: &ProjectScope, host: &str, id: &vw_api_types::id::TaskId,
+        &self, scope: &ProjectScope, host: &str, id: &vw_api_transport::TaskId,
     ) -> std::io::Result<()> {
         self.update_jobs(scope, host, |jobs| {
             let job = jobs.iter().find(|job| &job.snapshot.task_id == id)
@@ -888,7 +888,7 @@ impl SkillInstallsStore {
     }
 
     fn set_job_phase(
-        &self, scope: &ProjectScope, host: &str, id: &vw_api_types::id::TaskId,
+        &self, scope: &ProjectScope, host: &str, id: &vw_api_transport::TaskId,
         phase: vw_agent_apps::skills::jobs::SkillJobPhase, directory: Option<String>,
     ) -> Result<()> {
         use vw_agent_apps::skills::jobs::SkillJobPhase;
@@ -921,7 +921,7 @@ struct SkillJobExit {
     store: SkillInstallsStore,
     scope: ProjectScope,
     host: String,
-    id: vw_api_types::id::TaskId,
+    id: vw_api_transport::TaskId,
 }
 
 #[cfg(target_os = "macos")]

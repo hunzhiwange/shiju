@@ -198,7 +198,7 @@ async fn channel_command_cancel_isolates_instance_room_thread_sender_and_tenant(
     let mut other_ctx = ctx.as_ref().clone();
     let mut other_state = ctx.project_state.lock().unwrap().clone();
     other_state.tenant =
-        vw_api_types::id::TenantScope::new("other-cancel-platform", "other-cancel-tenant").unwrap();
+        vw_api_transport::TenantScope::new("other-cancel-platform", "other-cancel-tenant").unwrap();
     other_ctx.project_state = Arc::new(Mutex::new(other_state));
     assert!(stop_channel_task(&other_ctx, &msg).await.contains("没有正在执行"));
     assert!(!active_channel_task(&ctx, &msg).unwrap().cancellation.is_cancelled());

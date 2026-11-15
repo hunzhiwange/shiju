@@ -12,10 +12,12 @@ use vw_agent_apps::{
         live::commit::{ExecutionHostId, ProviderTransactions},
     },
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthRegion, AuthService},
-    app_providers::kimi::KimiActivation,
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
+    vw_api_types::app_providers::kimi::KimiActivation,
 };
 
 const HOST: &str = "host";

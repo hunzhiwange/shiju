@@ -29,10 +29,12 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Arc};
 use toml_edit::{DocumentMut, value};
-use vw_api_types::{
-    TimestampMs,
-    agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthRegion, AuthService},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthRegion,
+    vw_api_types::agent_apps_auth::AuthService,
 };
 
 /// The scoped metadata verified when the managed account signed in.

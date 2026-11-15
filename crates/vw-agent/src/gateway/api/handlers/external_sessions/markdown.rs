@@ -1,7 +1,10 @@
 //! Markdown export accepts only a host-discovered session and optional reader turn.
 use axum::{Extension, Json, http::{HeaderMap, StatusCode}};
 use vw_agent_apps::sessions::markdown::{MarkdownOptions, export_session_markdown};
-use vw_api_types::{TenantScope, external_session::*};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::external_session::*,
+};
 use super::messages::{Failure, failure};
 
 pub(super) async fn read(

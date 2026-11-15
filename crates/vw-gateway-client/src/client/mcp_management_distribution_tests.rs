@@ -2,11 +2,12 @@ use super::mcp_management_distribution::*;
 use super::{AgentAppsSettingsError, GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;
 use serde_json::{Value, json};
-use vw_api_types::{
-    TenantScope,
-    agent_apps::{AppId, AppInstallationId},
-    mcp_management::*,
-    task::TaskStatus,
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_types::mcp_management::*,
+    vw_api_types::task::TaskStatus,
 };
 
 fn target() -> McpAppTarget {

@@ -8,7 +8,7 @@ use anyhow::{Result, bail};
 use rusqlite::Connection;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 #[cfg(test)]
-use vw_api_types::id::ProjectId;
+use vw_api_transport::id::ProjectId;
 
 use super::domain::AgentSchedulerContext;
 use crate::global_database::GlobalDatabase;

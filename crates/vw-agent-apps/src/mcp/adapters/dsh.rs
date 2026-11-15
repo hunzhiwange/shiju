@@ -17,9 +17,10 @@ use std::{
     collections::{BTreeMap, BTreeSet, btree_map::Entry},
     ops::Range,
 };
-use vw_api_types::{
-    TenantScope,
-    mcp_management::{McpConfigValue, McpConnectionDefinition},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpConfigValue,
+    vw_api_types::mcp_management::McpConnectionDefinition,
 };
 
 const PLUGIN: &str = "@deepseek-ai/dsh-mcp-client";

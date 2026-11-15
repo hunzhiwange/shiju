@@ -6,7 +6,7 @@
 
 use axum::http::HeaderMap;
 use serde::Deserialize;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_api_types::session::GatewaySessionCreateBody;
 
 use crate::app::agent::gateway::ApiError;
@@ -74,7 +74,7 @@ pub(super) struct UiSessionListQuery {
     pub(super) directory: Option<String>,
     /// 可选项目过滤，涵盖项目的全部工作树。
     #[serde(rename = "projectID")]
-    pub(super) project_id: Option<vw_api_types::id::ProjectId>,
+    pub(super) project_id: Option<vw_api_transport::ProjectId>,
     /// 是否只返回根会话。
     pub(super) roots: Option<bool>,
     /// 只返回更新时间不早于该时间戳的会话。

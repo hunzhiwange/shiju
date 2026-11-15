@@ -2,7 +2,10 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use super::SettingsMessage;
 use iced::{Element, Task};
-use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::DataBackupSummary};
+use {
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::agent_apps::data_management::DataBackupSummary,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Identity {

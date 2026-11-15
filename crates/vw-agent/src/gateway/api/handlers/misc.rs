@@ -50,7 +50,7 @@ struct AgentListQuery {
 
 #[axum::debug_handler]
 async fn agent_list(
-    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
+    Extension(tenant): Extension<vw_api_transport::TenantScope>,
     Query(query): Query<AgentListQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<agent::Info>>, ApiError> {
@@ -88,7 +88,7 @@ async fn agent_list(
 }
 
 async fn agent_copy(
-    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
+    Extension(tenant): Extension<vw_api_transport::TenantScope>,
     Path(key): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,

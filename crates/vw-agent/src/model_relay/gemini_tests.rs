@@ -114,7 +114,7 @@ async fn http(run_cli: bool) {
             .await
             .unwrap();
     });
-    let tenant = vw_api_types::id::TenantScope::new("gemini", "one").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("gemini", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
@@ -394,7 +394,7 @@ async fn http(run_cli: bool) {
         assert_eq!(request["generationConfig"], media["generationConfig"]);
     }
     let mut other_id = identity.clone();
-    other_id.tenant = vw_api_types::id::TenantScope::new("gemini", "two").unwrap();
+    other_id.tenant = vw_api_transport::TenantScope::new("gemini", "two").unwrap();
     let other = RelayBinding::new(other_id, Duration::from_secs(60)).unwrap();
     let other_server =
         RelayServer::start(other.clone(), backend.clone(), context.clone()).await.unwrap();
@@ -575,7 +575,7 @@ fn acp_model_source_relay_gemini_matches_idless_tools_and_preserves_reasoning_us
 
 #[test]
 fn model_protocol_018_gemini_native_requirements_are_selected_explicitly() {
-    use provider_protocol_routes::RouteCapability as C;
+    use vw_provider_resolver::protocol_routes::RouteCapability as C;
     for (extra, capability) in [
         (json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":1024}}}), C::Thinking),
         (json!({"generationConfig":{"responseMimeType":"application/json"}}), C::StructuredOutput),

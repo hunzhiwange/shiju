@@ -11,7 +11,7 @@ use crate::providers::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// Complete section, including unknown extensions and model/catalog fields.
 /// Avoid Debug: extensions may contain sensitive application configuration.

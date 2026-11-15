@@ -8,9 +8,11 @@ use super::{
 };
 use serde_json::json;
 use std::time::{Duration, Instant};
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthFlow, AuthStartResponse},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthFlow,
+    vw_api_types::agent_apps_auth::AuthStartResponse,
 };
 
 const INIT: &str = "/auth-api/v0/dsh/auth_init";
@@ -321,7 +323,7 @@ async fn auth6_revoke_race_commits_expected_scoped_result() {
     use super::codex_refresh_tests as codex;
     use vw_api_types::agent_apps::AppId;
 
-    let tenant = vw_api_types::id::TenantScope::new("platform", "company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("platform", "company").unwrap();
     let scope = codex::scope(&tenant);
     if let Some((root, action)) = revoke_race_child() {
         let store = super::credential_file::CredentialFileStore::new(&root).unwrap();
@@ -390,7 +392,7 @@ async fn auth6_revoke_race_rejects_invalid_or_stale_input() {
     use super::xai_refresh_tests as xai;
     use tokio::io::AsyncWriteExt;
 
-    let tenant = vw_api_types::id::TenantScope::new("platform", "company").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("platform", "company").unwrap();
     let scope = xai::scope(&tenant);
     if let Some((root, action)) = revoke_race_child() {
         let store = super::credential_file::CredentialFileStore::new(&root).unwrap();

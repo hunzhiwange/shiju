@@ -8,7 +8,11 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use vw_api_types::{agent_apps::AppId, app_providers::update::AppProviderUpdate, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::update::AppProviderUpdate,
+    vw_api_transport::id::TenantScope,
+};
 const NS: &str = "app_providers.records";
 const KEY: &str = "\"claude\":fixture";
 fn tenant(company: &str) -> TenantScope {

@@ -7,7 +7,11 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use vw_api_types::{agent_apps::AppId, app_providers::AppProviderWrite, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::AppProviderWrite,
+    vw_api_transport::id::TenantScope,
+};
 
 pub(crate) fn router() -> Router {
     let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);

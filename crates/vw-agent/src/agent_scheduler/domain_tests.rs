@@ -7,8 +7,8 @@ use vw_api_types::agent_scheduler::{
     AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
     AgentTaskStatusDto, TaskDependencyNodeDto,
 };
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::ProjectId;
+use vw_api_transport::common::TimestampMs;
+use vw_api_transport::id::ProjectId;
 
 use super::domain::{
     AgentCapabilityKind, AgentResourceLease, AgentResourceLeaseStatus, AgentRun, AgentRunStatus,

@@ -4,12 +4,14 @@ use super::runtime::{CreateSessionInput, SessionScope, create_session};
 use crate::tools::{ToolSpec, ToolUseContext};
 use serde_json::json;
 use std::sync::Arc;
-use vw_api_types::{
-    id::TenantScope,
-    tools::{
-        DynamicToolContent, DynamicToolHostBinding, DynamicToolRegistration, DynamicToolResponse,
-        ReplaceDynamicToolsRequest, ToolSource,
-    },
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::tools::DynamicToolContent,
+    vw_api_types::tools::DynamicToolHostBinding,
+    vw_api_types::tools::DynamicToolRegistration,
+    vw_api_types::tools::DynamicToolResponse,
+    vw_api_types::tools::ReplaceDynamicToolsRequest,
+    vw_api_types::tools::ToolSource,
 };
 use vw_gateway_client::GatewayClient;
 use gateway_endpoint::GatewayEndpoint;

@@ -2,7 +2,7 @@
 //! Durable ledger revisions are read after commit; no mutation hooks can emit
 //! rolled-back data. A new subscription always sends a recovery snapshot.
 use std::{collections::BTreeMap, sync::OnceLock};
-use vw_api_types::ProjectScope;
+use vw_api_transport::ProjectScope;
 use vw_agent_apps::usage::cache::UsageCacheKey;
 
 #[derive(Clone)]

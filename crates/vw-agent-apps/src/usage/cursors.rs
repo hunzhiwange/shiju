@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use vw_api_types::id::ProjectScope;
+use vw_api_transport::id::ProjectScope;
 
 use super::store::{
     StoredUsageRecord, UsageSourceIdentity, UsageStoreError, save_usage_record_in_transaction,

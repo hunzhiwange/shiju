@@ -6,7 +6,7 @@ use crate::app::agent::security::SecretStore;
 use crate::global_database::GlobalDatabase;
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 pub(crate) struct ChannelConfigWatcher {
     store: SystemConfigStore,

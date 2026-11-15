@@ -2,7 +2,11 @@
 use std::{collections::BTreeMap, convert::Infallible, path::PathBuf, time::Duration};
 use axum::{Extension, Router, extract::Query, http::{HeaderMap, StatusCode},
     response::{IntoResponse, sse::{Event, KeepAlive, Sse}}, routing::get};
-use vw_api_types::{ProjectScope, TenantScope, id::ProjectId};
+use {
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_transport::id::ProjectId,
+};
 use crate::usage_bridge::events as bridge;
 
 #[derive(serde::Deserialize)]

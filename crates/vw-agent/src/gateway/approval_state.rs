@@ -10,7 +10,7 @@ use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config;
 use crate::app::agent::project::instance;
 use crate::session::ui_store::current_tenant_scope;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 pub(crate) use crate::approval::ACP_APPROVAL_CHANNEL;
 

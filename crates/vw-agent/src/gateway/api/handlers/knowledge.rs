@@ -12,7 +12,7 @@ use axum::{
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Instant;
-use vw_api_types::TenantScope;
+use vw_api_transport::TenantScope;
 use vw_api_types::knowledge::{
     KnowledgeChunkDto, KnowledgeDatasetCreateRequest, KnowledgeDatasetDto,
     KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse,

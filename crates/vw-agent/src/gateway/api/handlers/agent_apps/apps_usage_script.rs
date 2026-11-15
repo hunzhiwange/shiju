@@ -30,12 +30,14 @@ use vw_agent_apps::{
         },
     },
 };
-use vw_api_types::{
-    agent_apps_auth::AuthErrorCode,
-    apps_usage::{
-        UsageQueryError, UsageQueryErrorCode, UsageSnapshotQuery, settings::UsageCodingPlan,
-    },
-    id::{ProjectScope, TenantScope},
+use {
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::apps_usage::UsageQueryError,
+    vw_api_types::apps_usage::UsageQueryErrorCode,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_types::apps_usage::settings::UsageCodingPlan,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 use super::{

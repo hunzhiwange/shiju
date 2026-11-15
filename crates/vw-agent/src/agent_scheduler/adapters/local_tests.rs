@@ -3,7 +3,7 @@
 
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
 use crate::agent_scheduler::domain::{RunId, TaskId};
-use vw_api_types::common::TimestampMs;
+use vw_api_transport::common::TimestampMs;
 
 fn local_dispatch_request(
     task_id: &str,

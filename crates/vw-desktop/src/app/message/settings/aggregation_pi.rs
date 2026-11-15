@@ -3,18 +3,16 @@ use crate::app::message::app_providers::list::{self, ListMessage};
 use crate::app::state::app_providers::list::Scope;
 use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::{
-    AggregationApiError, GatewayClient,
-    vw_api_types::{
-        agent_apps::{
-            AppId,
-            aggregation::{
-                AggregationQuery, PiDirectoryChange, PiDirectoryState, PiDirectoryWrite,
-            },
-        },
-        app_providers::pi::PiProfile,
-        id::ProjectId,
-    },
+use {
+    vw_gateway_client::AggregationApiError,
+    vw_gateway_client::GatewayClient,
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationQuery,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryChange,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryState,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryWrite,
+    vw_gateway_client::vw_api_types::app_providers::pi::PiProfile,
+    vw_api_transport::id::ProjectId,
 };
 
 #[derive(Clone)]

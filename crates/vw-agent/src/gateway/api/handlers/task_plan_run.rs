@@ -10,7 +10,7 @@ use axum::{
     routing::{get, post},
 };
 use futures_util::FutureExt;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_api_types::task::{
     TaskPlanRunRequest, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
 };

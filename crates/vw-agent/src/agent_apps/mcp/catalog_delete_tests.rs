@@ -1,9 +1,14 @@
-use vw_api_types::{
-    agent_apps::{AppId, AppInstallationId},
-    id::{ProjectScope, TenantScope},
-    mcp_management::{
-        McpAppTarget, McpCatalogScope, McpCliBinding, McpFailureCode, McpNativeStatus, McpRecordRef,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::mcp_management::McpAppTarget,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpCliBinding,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpNativeStatus,
+    vw_api_types::mcp_management::McpRecordRef,
 };
 
 use super::{

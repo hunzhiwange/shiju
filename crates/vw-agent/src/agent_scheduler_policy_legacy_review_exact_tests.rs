@@ -9,7 +9,7 @@ fn agent_scheduler_policy_no_longer_reads_legacy_review_switch() -> anyhow::Resu
     use crate::agent_scheduler::store::AgentSchedulerStore;
     use crate::agent_scheduler::store::tasks::NewAgentTask;
     use serde_json::json;
-    use vw_api_types::common::TimestampMs;
+    use vw_api_transport::common::TimestampMs;
 
     let source = include_str!("agent_scheduler/policy.rs");
     assert!(!source.contains("code_review_enabled"));

@@ -6,17 +6,25 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 use tempfile::TempDir;
-use vw_api_types::{
-    agent_apps::AppId,
-    common::TimestampMs,
-    id::TenantScope,
-    model_catalog::{
-        ModelCapabilityState, ModelCatalogEdit, ModelCatalogEditRequest, ModelCatalogEntry,
-        ModelCatalogFillCommitRequest, ModelCatalogFillPreviewRequest,
-        ModelCatalogFillPreviewResponse, ModelCatalogIdentity, ModelCatalogReadResponse,
-        ModelCatalogWriteResponse, ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance,
-        ModelMetadataSource, ScopedModelCatalogIdentity,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::common::TimestampMs,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCapabilityState,
+    vw_api_types::model_catalog::ModelCatalogEdit,
+    vw_api_types::model_catalog::ModelCatalogEditRequest,
+    vw_api_types::model_catalog::ModelCatalogEntry,
+    vw_api_types::model_catalog::ModelCatalogFillCommitRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewRequest,
+    vw_api_types::model_catalog::ModelCatalogFillPreviewResponse,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelCatalogReadResponse,
+    vw_api_types::model_catalog::ModelCatalogWriteResponse,
+    vw_api_types::model_catalog::ModelMetadataDto,
+    vw_api_types::model_catalog::ModelMetadataField,
+    vw_api_types::model_catalog::ModelMetadataProvenance,
+    vw_api_types::model_catalog::ModelMetadataSource,
+    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
 use vw_provider_resolver::models::ModelsSnapshot;
 

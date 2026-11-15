@@ -1,7 +1,11 @@
 //! Non-atomic distribution preserves every pair's outcome.
 use axum::{Extension, Json, Router, extract::{Path, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{post, get}};
-use vw_api_types::{agent_apps_skills::bindings_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::bindings_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 pub(crate) fn router() -> Router {

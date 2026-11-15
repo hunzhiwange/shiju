@@ -3,7 +3,7 @@
 use super::*;
 use axum::Json;
 use axum::http::StatusCode;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 use vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto};
 
 fn sample_request() -> TaskPlanRunRequest {

@@ -7,9 +7,10 @@ use vw_agent_apps::{
     apps::launch::request::LaunchMaterial,
     auth::credential_file::{AccountCredential, CredentialFileStore},
 };
-use vw_api_types::{
-    TimestampMs,
-    agent_apps_auth::{AuthErrorCode, AuthService},
+use {
+    vw_api_transport::TimestampMs,
+    vw_api_types::agent_apps_auth::AuthErrorCode,
+    vw_api_types::agent_apps_auth::AuthService,
 };
 
 #[test]

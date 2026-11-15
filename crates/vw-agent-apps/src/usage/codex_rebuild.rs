@@ -1,6 +1,9 @@
 //! Atomic native Codex detail rebuild. Archived accounting remains authoritative.
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
-use vw_api_types::{id::ProjectScope, usage::UsageSourceKind};
+use {
+    vw_api_transport::id::ProjectScope,
+    vw_api_types::usage::UsageSourceKind,
+};
 
 use crate::apps::lifecycle::operations::Operation;
 use super::{

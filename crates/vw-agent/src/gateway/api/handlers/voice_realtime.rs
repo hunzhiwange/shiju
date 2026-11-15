@@ -20,7 +20,10 @@ use std::{
 };
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::CancellationToken;
-use vw_api_types::{id::TenantScope, voice::*};
+use {
+    vw_api_transport::id::TenantScope,
+    vw_api_types::voice::*,
+};
 use vw_config_types::voice::VoiceConfig;
 
 const CONNECTION: &str = "x-shiju-voice-connection-id";

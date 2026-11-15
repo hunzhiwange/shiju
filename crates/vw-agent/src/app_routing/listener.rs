@@ -27,7 +27,10 @@ use tokio::{
 };
 use vw_agent_apps::routing::lifecycle_state::{Lifecycle, LifecycleState};
 #[cfg(target_os = "macos")]
-use vw_api_types::{app_routing::RoutingEgressStatus, id::TenantScope};
+use {
+    vw_api_types::app_routing::RoutingEgressStatus,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ListenerError {
@@ -90,7 +93,7 @@ pub struct RoutingListener {
 
 impl RoutingListener {
     #[cfg(target_os = "macos")]
-    pub(crate) fn request_status(&self, project: &vw_api_types::id::ProjectScope, host: &str, app: vw_api_types::agent_apps::AppId) -> vw_api_types::app_routing::RoutingRequestsStatus {
+    pub(crate) fn request_status(&self, project: &vw_api_transport::ProjectScope, host: &str, app: vw_api_types::agent_apps::AppId) -> vw_api_types::app_routing::RoutingRequestsStatus {
         self.auth.requests.snapshot(project, host, app)
     }
 
@@ -238,7 +241,7 @@ impl RoutingListener {
     #[cfg(target_os = "macos")]
     pub(crate) fn aggregation_revision(
         &self,
-        project: &vw_api_types::id::ProjectScope,
+        project: &vw_api_transport::ProjectScope,
         host: &str,
         app: vw_api_types::agent_apps::AppId,
     ) -> Option<String> {

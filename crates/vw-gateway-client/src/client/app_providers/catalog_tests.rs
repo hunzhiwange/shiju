@@ -1,5 +1,8 @@
 use super::super::test_support;
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 #[tokio::test]
 async fn cc04_catalog_sdk_lists_without_secret_body() {
     let server = test_support::server_with_tenant_scope(

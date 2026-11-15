@@ -271,7 +271,7 @@ pub async fn managed_target(
 pub struct ManagedCredential {
     pub owner: std::sync::Arc<crate::agent_apps::auth_accounts::AuthAccountStore>,
     pub account_adapter: AccountAdapter,
-    pub tenant: vw_api_types::id::TenantScope,
+    pub tenant: vw_api_transport::TenantScope,
     pub principal: String,
     pub host: String,
     pub account: String,

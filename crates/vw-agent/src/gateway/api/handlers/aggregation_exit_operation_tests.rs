@@ -10,7 +10,11 @@ use axum::{
 use serde_json::{Value, json};
 use std::os::unix::fs::PermissionsExt;
 use tower::ServiceExt;
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, ProjectId};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::ProjectId,
+};
 #[tokio::test]
 async fn aggregation_t42_processing_cancel_waits_for_worker_and_preserves_published_result() {
     let root = tempfile::tempdir().unwrap();

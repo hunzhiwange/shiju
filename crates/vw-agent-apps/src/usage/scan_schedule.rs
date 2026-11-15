@@ -113,11 +113,11 @@ impl ScanSchedule {
         })
     }
 
-    pub fn job(&self, id: &vw_api_types::id::TaskId) -> Result<ScanJob, ScanJobError> {
+    pub fn job(&self, id: &vw_api_transport::TaskId) -> Result<ScanJob, ScanJobError> {
         self.jobs.get(&self.owner, id)
     }
 
-    pub fn cancel(&self, id: &vw_api_types::id::TaskId) -> Result<ScanJob, ScanJobError> {
+    pub fn cancel(&self, id: &vw_api_transport::TaskId) -> Result<ScanJob, ScanJobError> {
         self.jobs.cancel(&self.owner, id)
     }
 

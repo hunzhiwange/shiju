@@ -11,9 +11,11 @@ use axum::{
 use std::sync::Arc;
 use tokio::sync::Barrier;
 use tower::ServiceExt;
-use vw_api_types::{
-    TenantScope,
-    workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpsertBody},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::workflow::WorkflowRecord,
+    vw_api_types::workflow::WorkflowRecordSummary,
+    vw_api_types::workflow::WorkflowRecordUpsertBody,
 };
 
 fn yaml(sentinel: &str, parallel: &str) -> String {

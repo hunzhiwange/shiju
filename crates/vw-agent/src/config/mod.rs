@@ -38,7 +38,7 @@ use serde_json::{Map, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod migration;

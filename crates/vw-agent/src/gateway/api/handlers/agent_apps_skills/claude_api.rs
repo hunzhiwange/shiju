@@ -2,7 +2,11 @@
 use axum::{Extension, Json, Router, extract::{Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, post}};
 use std::path::PathBuf;
-use vw_api_types::{agent_apps_skills::claude_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::claude_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);

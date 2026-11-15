@@ -2,7 +2,12 @@
 use super::lifecycle::{self, Context};
 use crate::app::{App, Message, components::system_settings_common::*, state::AppsCatalogState};
 use iced::{Element, Task, widget::{button, column, container, text}};
-use vw_gateway_client::vw_api_types::{agent_apps::AppId, app_routing::{RoutingRequestState, RoutingRequestsStatus}, id::ProjectId};
+use {
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::app_routing::RoutingRequestState,
+    vw_gateway_client::vw_api_types::app_routing::RoutingRequestsStatus,
+    vw_api_transport::id::ProjectId,
+};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {

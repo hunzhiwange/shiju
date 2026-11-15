@@ -2,7 +2,7 @@
 
 // 提供方矩阵复用相同断言，确保列举、删除和空值校验在各后端一致。
 use anyhow::Result;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 use super::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;

@@ -80,7 +80,7 @@ async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
         }),
     );
     let upstream = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-    let tenant = vw_api_types::id::TenantScope::new("compaction", "fixture").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("compaction", "fixture").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
@@ -244,7 +244,7 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
             .await
             .unwrap();
     });
-    let tenant = vw_api_types::id::TenantScope::new("responses", "one").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("responses", "one").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
@@ -635,7 +635,7 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
         200
     );
     assert_eq!(captured.lock().last().unwrap().1["previous_response_id"], "resp-native");
-    let other_tenant = vw_api_types::id::TenantScope::new("responses", "two").unwrap();
+    let other_tenant = vw_api_transport::TenantScope::new("responses", "two").unwrap();
     let other_root = dir.path().join("other-project");
     std::fs::create_dir(&other_root).unwrap();
     let (other_project, _) =
@@ -784,7 +784,7 @@ async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_ss
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let upstream = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
-    let tenant = vw_api_types::id::TenantScope::new("responses-017", "fixture").unwrap();
+    let tenant = vw_api_transport::TenantScope::new("responses-017", "fixture").unwrap();
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();

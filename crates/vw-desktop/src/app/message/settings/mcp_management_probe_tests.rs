@@ -111,7 +111,10 @@ fn cc_mcp_t49_catalog_load_draws_unchecked_without_starting_probe() {
 }
 
 use iced::Task;
-use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps_diagnostics::*};
+use {
+    vw_api_transport::ProjectScope,
+    vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
+};
 fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap()
 }

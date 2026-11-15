@@ -2,7 +2,12 @@
 use axum::{Extension, Json, Router, extract::{Query, DefaultBodyLimit, rejection::{QueryRejection, JsonRejection}}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::get};
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_api_types::{ProjectId, ProjectScope, TenantScope, project_profiles::ProjectProfileScope};
+use {
+    vw_api_transport::ProjectId,
+    vw_api_transport::ProjectScope,
+    vw_api_transport::TenantScope,
+    vw_api_types::project_profiles::ProjectProfileScope,
+};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps::profile_store::ProjectProfileStore};
 
 #[path = "project_profiles_maintenance.rs"]

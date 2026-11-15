@@ -6,12 +6,18 @@ use reqwest::{StatusCode, header};
 use tokio::time::{Instant, timeout};
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::auth::copilot::CopilotAuth;
-use vw_api_types::{
-    agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailure, DiagnosticFailureCode, DiagnosticOutcome,
-        DiagnosticPhase, DiagnosticReport, DiagnosticResult, DiagnosticTiming, StreamingEvidence,
-    },
-    id::{ModelId, ProviderId},
+use {
+    vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailure,
+    vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
+    vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
+    vw_api_types::agent_apps_diagnostics::DiagnosticPhase,
+    vw_api_types::agent_apps_diagnostics::DiagnosticReport,
+    vw_api_types::agent_apps_diagnostics::DiagnosticResult,
+    vw_api_types::agent_apps_diagnostics::DiagnosticTiming,
+    vw_api_types::agent_apps_diagnostics::StreamingEvidence,
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::ProviderId,
 };
 
 use super::super::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticProbeError};

@@ -4,8 +4,8 @@
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::common::TimestampMs;
-use vw_api_types::id::ProjectId;
+use vw_api_transport::common::TimestampMs;
+use vw_api_transport::id::ProjectId;
 
 use super::{ensure_run_matches_task, map_artifact_row};
 use crate::agent_scheduler::domain::{RunId, TaskId};

@@ -201,8 +201,8 @@ async fn repository_history_and_remote_use_typed_gateway_endpoints() {
         (200, json!({"ok":true})),
     ]);
     let client = server.client();
-    let project_id = vw_api_types::id::ProjectId("project".into());
-    let worktree_id = Some(vw_api_types::id::WorktreeId("worktree".into()));
+    let project_id = vw_api_transport::ProjectId("project".into());
+    let worktree_id = Some(vw_api_transport::WorktreeId("worktree".into()));
     let snapshot = client
         .git_repository(&GitRepositoryRequest {
             project_id: project_id.clone(),

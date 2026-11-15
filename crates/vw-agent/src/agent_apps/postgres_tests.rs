@@ -1,6 +1,9 @@
 use super::store::IconLibraryStore;
 use std::sync::{Arc, Barrier};
-use vw_api_types::{agent_apps::AgentAppsErrorCode, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AgentAppsErrorCode,
+    vw_api_transport::id::TenantScope,
+};
 const IMAGES: [&str; 2] = [
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==",
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEAsTj2FAAAAABJRU5ErkJggg==",

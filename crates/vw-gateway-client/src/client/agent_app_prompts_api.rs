@@ -1,9 +1,11 @@
 //! Prompt catalog and native selection API. Each call owns its complete scope.
 use super::GatewayClient;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use vw_api_types::{
-    ProjectId,
-    agent_apps::{AppId, PromptResource, PromptTargetPreview},
+use {
+    vw_api_transport::ProjectId,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::PromptResource,
+    vw_api_types::agent_apps::PromptTargetPreview,
 };
 
 #[derive(Debug, Clone, Serialize)]

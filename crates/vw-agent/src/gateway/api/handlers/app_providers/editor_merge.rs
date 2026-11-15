@@ -18,7 +18,11 @@ use vw_agent_apps::providers::{
     editor_merge as business,
     live::commit::{AppState, ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{agent_apps::AppId, app_providers::editor_merge::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::editor_merge::*,
+    vw_api_transport::id::TenantScope,
+};
 #[derive(Clone)]
 pub(super) struct Editor {
     policy: Option<PathBuf>,

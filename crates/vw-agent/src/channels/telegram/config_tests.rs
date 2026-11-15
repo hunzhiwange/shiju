@@ -71,7 +71,7 @@ async fn seed_system_config(home: &Path, mut config: Config) -> std::path::PathB
 fn stored_system_config(home: &Path) -> String {
     SystemConfigStore::new(GlobalDatabase::for_home(home).expect("global database"))
         .expect("system config store")
-        .get(&vw_api_types::id::TenantScope::default())
+        .get(&vw_api_transport::TenantScope::default())
         .expect("read system config")
         .expect("stored system config")
 }
@@ -275,7 +275,7 @@ async fn load_config_without_env_initializes_default_and_reports_invalid_databas
     let store =
         SystemConfigStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
             .expect("system config store");
-    store.upsert(&vw_api_types::id::TenantScope::default(), "{").expect("write invalid payload");
+    store.upsert(&vw_api_transport::TenantScope::default(), "{").expect("write invalid payload");
 
     let parse = TelegramChannel::load_config_without_env().await.unwrap_err().to_string();
     assert!(parse.contains("Failed to parse tenant system config payload"));

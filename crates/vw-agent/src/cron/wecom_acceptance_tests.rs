@@ -82,7 +82,7 @@ async fn request(router: &Router, method: &str, path: &str, body: Value, company
 #[tokio::test]
 async fn wecom_delivery_acceptance_saved_api_jobs_reload_and_receipts() {
     let company = uuid::Uuid::new_v4().to_string();
-    let tenant = vw_api_types::id::TenantScope::new("wecom-acceptance", &company).unwrap();
+    let tenant = vw_api_transport::TenantScope::new("wecom-acceptance", &company).unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let tmp = tempfile::tempdir().unwrap();
         let mut config = Config::default();

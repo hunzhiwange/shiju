@@ -7,7 +7,11 @@ use crate::providers::{
     live::commit::*,
 };
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 fn snapshot(change: bool, external: bool) -> Snapshot {
     let home = tempfile::tempdir().unwrap();
     let root = tempfile::tempdir().unwrap();

@@ -7,7 +7,7 @@ use crate::session::store::FirstResponseCommit;
 use crate::session::ui_store;
 use crate::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use std::path::Path;
-use vw_api_types::id::TenantScope;
+use vw_api_transport::id::TenantScope;
 
 /// 按固定 ID 预留 plan-run 会话，重试复用原会话及其提交状态。
 pub(crate) async fn ensure_plan_run_session_info(

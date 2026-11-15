@@ -218,7 +218,7 @@ fn shell_long_running_rejects_cross_session_poll() {
             assert_eq!(denied, unknown);
         }
         let denied = crate::session::ui_store::with_tenant_scope_sync(
-            vw_api_types::id::TenantScope::new("fixture-platform", "foreign-company").unwrap(),
+            vw_api_transport::TenantScope::new("fixture-platform", "foreign-company").unwrap(),
             || {
                 execute_tool_call(name, &args, &context(root.path(), process.session))
                     .unwrap_err()

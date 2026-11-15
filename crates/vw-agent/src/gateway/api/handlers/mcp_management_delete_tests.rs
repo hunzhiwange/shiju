@@ -8,7 +8,10 @@ use axum::{
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tower::ServiceExt;
-use vw_api_types::{TenantScope, mcp_management::McpCatalogScope};
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpCatalogScope,
+};
 
 use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
 
@@ -189,7 +192,7 @@ async fn cc_mcp_t35_delete_revokes_each_target_and_retries_only_failures() {
     assert!(remaining["mcpServers"].get("fixture").is_none());
     assert!(remaining["mcpServers"].get("other").is_some());
     let project_scope = McpCatalogScope::Project {
-        scope: vw_api_types::ProjectScope::new(
+        scope: vw_api_transport::ProjectScope::new(
             TenantScope::new("p", "a").unwrap(),
             "project".into(),
         )

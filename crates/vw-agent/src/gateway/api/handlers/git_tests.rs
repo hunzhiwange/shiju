@@ -415,7 +415,7 @@ async fn git_commit_v1_trims_message_and_commits_registered_project() {
     std::fs::write(repo.path().join("created.txt"), "created\n").expect("created file");
     let (project_id, _cleanup) = store_git_test_project(&repo);
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId(project_id),
+        project_id: vw_api_transport::ProjectId(project_id),
         worktree_id: None,
         message: "  add created file  \n".to_string(),
         stage_all: true,
@@ -439,7 +439,7 @@ async fn git_commit_v1_trims_message_and_commits_registered_project() {
 #[tokio::test]
 async fn git_merge_v1_rejects_head_source_before_project_lookup() {
     let request = GitMergeRequest {
-        project_id: vw_api_types::id::ProjectId("missing-project".to_string()),
+        project_id: vw_api_transport::ProjectId("missing-project".to_string()),
         source_branch: " HEAD ".to_string(),
         target_branch: " main ".to_string(),
     };
@@ -464,7 +464,7 @@ async fn git_merge_v1_merges_registered_project_branches() {
     run_git(repo.path_str(), &["checkout", "main"]).expect("checkout main");
     let (project_id, _cleanup) = store_git_test_project(&repo);
     let request = GitMergeRequest {
-        project_id: vw_api_types::id::ProjectId(project_id),
+        project_id: vw_api_transport::ProjectId(project_id),
         source_branch: " feature ".to_string(),
         target_branch: " main ".to_string(),
     };
@@ -502,7 +502,7 @@ async fn resolve_git_directory_accepts_primary_worktree_and_rejects_unknown_work
     let (project_id, _cleanup) = store_git_test_project(&repo);
     let encoded_repo =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(repo.path_str().as_bytes());
-    let worktree_id = vw_api_types::id::WorktreeId(encoded_repo);
+    let worktree_id = vw_api_transport::WorktreeId(encoded_repo);
 
     assert_eq!(
         resolve_git_directory(&project_id, None).await.expect("primary directory"),
@@ -514,7 +514,7 @@ async fn resolve_git_directory_accepts_primary_worktree_and_rejects_unknown_work
     );
 
     let unknown = tempfile::tempdir().expect("unknown dir");
-    let unknown_id = vw_api_types::id::WorktreeId(
+    let unknown_id = vw_api_transport::WorktreeId(
         base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(unknown.path().to_string_lossy().as_bytes()),
     );
@@ -542,7 +542,7 @@ fn validate_repo_relative_path_rejects_nested_parent_escape() {
 #[test]
 fn collect_file_selections_merges_files_hunks_and_lines() {
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "commit".to_string(),
         stage_all: false,
@@ -573,7 +573,7 @@ fn collect_file_selections_merges_files_hunks_and_lines() {
 #[test]
 fn collect_file_selections_rejects_escaping_paths() {
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "commit".to_string(),
         stage_all: false,
@@ -974,7 +974,7 @@ fn commit_selected_blocking_stage_all_creates_commit() {
     let repo = init_repo();
     std::fs::write(repo.path().join("created.txt"), "created\n").expect("created file");
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "add created".to_string(),
         stage_all: true,
@@ -1000,7 +1000,7 @@ fn commit_selected_blocking_stage_all_succeeds_without_changes() {
     run_git(repo.path_str(), &["commit", "-m", "initial"]).expect("initial commit");
     let head = git_head_sha(repo.path_str()).expect("head");
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "no changes".to_string(),
         stage_all: true,
@@ -1026,7 +1026,7 @@ fn commit_selected_blocking_selected_noop_succeeds_without_changes() {
     run_git(repo.path_str(), &["commit", "-m", "initial"]).expect("initial commit");
     let head = git_head_sha(repo.path_str()).expect("head");
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "noop selection".to_string(),
         stage_all: false,
@@ -1048,7 +1048,7 @@ fn commit_selected_blocking_selected_noop_succeeds_without_changes() {
 fn commit_selected_blocking_rejects_empty_selection() {
     let repo = init_repo();
     let request = GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "nothing".to_string(),
         stage_all: false,
@@ -1488,7 +1488,7 @@ fn store_git_test_project(repo: &TestRepo) -> (String, StoredProjectCleanup) {
 
 fn empty_commit_request() -> GitCommitRequest {
     GitCommitRequest {
-        project_id: vw_api_types::id::ProjectId("project".to_string()),
+        project_id: vw_api_transport::ProjectId("project".to_string()),
         worktree_id: None,
         message: "commit".to_string(),
         stage_all: false,

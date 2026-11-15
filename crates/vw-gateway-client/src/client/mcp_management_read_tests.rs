@@ -1,9 +1,12 @@
 use super::{AgentAppsReadError, GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;
 use serde_json::json;
-use vw_api_types::{
-    TenantScope,
-    mcp_management::{McpAppTarget, McpCatalogResponse, McpNativePreview, McpPresetsResponse},
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::mcp_management::McpAppTarget,
+    vw_api_types::mcp_management::McpCatalogResponse,
+    vw_api_types::mcp_management::McpNativePreview,
+    vw_api_types::mcp_management::McpPresetsResponse,
 };
 
 #[tokio::test]

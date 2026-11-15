@@ -13,20 +13,23 @@ use vw_agent_apps::{
     },
     providers::{self, codex_catalog},
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        ProviderProtocol,
-        agy::AgyProfile,
-        claude::{ClaudeConfig, ClaudeProfile},
-        endpoints::AppProviderEndpointKind,
-        gemini::{GeminiConfig, GeminiProfile},
-    },
-    id::{ModelId, TenantScope},
-    model_catalog::{
-        ModelCatalogEntry, ModelCatalogIdentity, ModelDiscoveryFailure as Failure,
-        ModelDiscoveryMethod, ModelDiscoveryRequest, ScopedModelCatalogIdentity,
-    },
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::ProviderProtocol,
+    vw_api_types::app_providers::agy::AgyProfile,
+    vw_api_types::app_providers::claude::ClaudeConfig,
+    vw_api_types::app_providers::claude::ClaudeProfile,
+    vw_api_types::app_providers::endpoints::AppProviderEndpointKind,
+    vw_api_types::app_providers::gemini::GeminiConfig,
+    vw_api_types::app_providers::gemini::GeminiProfile,
+    vw_api_transport::id::ModelId,
+    vw_api_transport::id::TenantScope,
+    vw_api_types::model_catalog::ModelCatalogEntry,
+    vw_api_types::model_catalog::ModelCatalogIdentity,
+    vw_api_types::model_catalog::ModelDiscoveryFailure as Failure,
+    vw_api_types::model_catalog::ModelDiscoveryMethod,
+    vw_api_types::model_catalog::ModelDiscoveryRequest,
+    vw_api_types::model_catalog::ScopedModelCatalogIdentity,
 };
 
 pub(super) enum Work {

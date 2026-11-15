@@ -1,7 +1,11 @@
 //! Backup-first removal through the existing scoped settings transaction.
 use axum::{Extension, Json, Router, extract::{Path, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::delete};
-use vw_api_types::{agent_apps_skills::uninstall_api::*, id::{ProjectScope, TenantScope}};
+use {
+    vw_api_types::agent_apps_skills::uninstall_api::*,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+};
 use crate::global_database::GlobalDatabase;
 
 #[derive(Clone)]

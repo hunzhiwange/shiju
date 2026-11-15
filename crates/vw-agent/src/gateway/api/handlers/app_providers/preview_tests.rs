@@ -2,7 +2,11 @@
 use axum::{Router, middleware};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::preview::*, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::app_providers::preview::*,
+    vw_api_transport::id::TenantScope,
+};
 const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
 pub(super) fn policy(root: &Path) -> std::path::PathBuf {
     std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700)).unwrap();

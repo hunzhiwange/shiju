@@ -88,7 +88,7 @@ async fn isolation_worker() {
     assert!(backend.mounted_runtime(&second.session.id).0.mounts().is_empty());
     assert_eq!(backend.mounted_runtime(&first.session.id).0.mounts().len(), 1);
     let foreign = VibeWindowBackend::new(
-        vw_api_types::id::TenantScope::new("other-platform", "other-company").unwrap(),
+        vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap(),
     );
     assert!(
         foreign.load_session_with_mounts(&first.session.id, root.clone(), empty()).await.is_err()

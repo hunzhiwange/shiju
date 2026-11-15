@@ -4,13 +4,16 @@ use vw_agent_apps::{
     mcp::import::NativeMcpSource,
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
-use vw_api_types::{
-    TenantScope,
-    agent_apps::AppId,
-    mcp_management::{
-        McpBatchOutcome, McpCatalogScope, McpConnectionDefinition, McpDistributionOutcome,
-        McpFailureCode, McpRecordId, McpRecordRef,
-    },
+use {
+    vw_api_transport::TenantScope,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::mcp_management::McpBatchOutcome,
+    vw_api_types::mcp_management::McpCatalogScope,
+    vw_api_types::mcp_management::McpConnectionDefinition,
+    vw_api_types::mcp_management::McpDistributionOutcome,
+    vw_api_types::mcp_management::McpFailureCode,
+    vw_api_types::mcp_management::McpRecordId,
+    vw_api_types::mcp_management::McpRecordRef,
 };
 
 use super::{

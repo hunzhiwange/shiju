@@ -13,7 +13,10 @@ use std::{
     cell::{Cell, RefCell},
     ffi::OsStr,
 };
-use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::ProjectScope,
+};
 
 impl ClaudeMode<'_> {
     /// Recover only a plain mode intent belonging to this authorized project.

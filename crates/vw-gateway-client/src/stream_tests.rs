@@ -18,7 +18,11 @@ use super::{
     GatewayStreamEvent, GatewayStreamResume, GatewayTypedChatStreamEvent,
 };
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use {
+    vw_api_transport::id::COMPANY_ID_HEADER,
+    vw_api_transport::id::PLATFORM_ID_HEADER,
+    vw_api_transport::id::TenantScope,
+};
 
 #[test]
 fn stream_http_failure_message_humanizes_payload_too_large() {

@@ -95,7 +95,7 @@ async fn agcollab_mailbox_runtime_identity_and_tenant_are_enforced() {
             assert_eq!(c.consume_team_messages(&receiver).await.unwrap(), vec![message]);
             assert!(c.consume_team_messages(&receiver).await.unwrap().is_empty());
             let tenant =
-                vw_api_types::id::TenantScope::new("other-platform", "other-company").unwrap();
+                vw_api_transport::TenantScope::new("other-platform", "other-company").unwrap();
             let result = crate::session::ui_store::with_tenant_scope(
                 tenant,
                 c.send_team_message(&sender, &child.id, 7, TeamMessageKind::Message, "bad".into()),

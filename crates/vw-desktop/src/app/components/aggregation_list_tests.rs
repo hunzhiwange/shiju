@@ -9,9 +9,10 @@ use iced::{
     mouse,
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::{
-    agent_apps::{AppId, aggregation::*},
-    id::TenantScope,
+use {
+    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_gateway_client::vw_api_types::agent_apps::aggregation::*,
+    vw_api_transport::id::TenantScope,
 };
 
 #[tokio::test]

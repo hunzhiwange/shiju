@@ -3,7 +3,10 @@ use crate::app::{App, Message, state::app_providers::list::Scope};
 use super::app_providers::list::{self, ListMessage};
 use iced::Task;
 use vw_gateway_client::{GatewayClient, AgentAppsHighAvailabilityError as Error};
-use vw_gateway_client::vw_api_types::{agent_apps_high_availability::*, ProviderId};
+use {
+    vw_gateway_client::vw_api_types::agent_apps_high_availability::*,
+    vw_api_transport::ProviderId,
+};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Context {
     scope: Scope,

@@ -66,7 +66,7 @@ fn client(server: &test_support::TestServer) -> GatewayClient {
 async fn aggregation_t52_write_ack_restart_preserve_wire_contract_and_identity() {
     let server = test_support::server_with_tenant_scope(
         vec![(200, settings()), (200, clients()), (200, clients()), (202, progress())],
-        vw_api_types::id::TenantScope::new("platform", "company").unwrap(),
+        vw_api_transport::TenantScope::new("platform", "company").unwrap(),
     );
     let client = client(&server);
     assert_eq!(

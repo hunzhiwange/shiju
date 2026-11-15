@@ -14,7 +14,10 @@ use std::{
     fs,
     os::unix::fs::{PermissionsExt, symlink},
 };
-use vw_api_types::{agent_apps::AppId, id::TenantScope};
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_transport::id::TenantScope,
+};
 fn login(user: &str, workspace: &str, generation: &str) -> Value {
     let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#);
     let payload = URL_SAFE_NO_PAD.encode(json!({"sub":user}).to_string());

@@ -1,11 +1,17 @@
 //! Device synchronization operations use native transport without retries or redirects.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::{
-    agent_apps::{AppId, DataManagementTarget},
-    device_sync_config::{DeviceSyncTransport, DeviceSyncRemoteResponse, UpdateWebDavSyncConfigRequest, UpdateS3SyncConfigRequest},
-    device_sync_task::{SyncExpectedRemote, SyncRemoteSnapshot, SyncTaskStatus},
-    id::ProjectId,
+use {
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_types::device_sync_config::DeviceSyncTransport,
+    vw_api_types::device_sync_config::DeviceSyncRemoteResponse,
+    vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,
+    vw_api_types::device_sync_config::UpdateS3SyncConfigRequest,
+    vw_api_types::device_sync_task::SyncExpectedRemote,
+    vw_api_types::device_sync_task::SyncRemoteSnapshot,
+    vw_api_types::device_sync_task::SyncTaskStatus,
+    vw_api_transport::id::ProjectId,
 };
 
 /// Explicit selection; empty collections never select all objects.

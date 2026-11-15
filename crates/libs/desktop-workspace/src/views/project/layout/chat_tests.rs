@@ -4,7 +4,9 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Background, Color, Font, Pixels, Rectangle, Size, Theme};
 
-use crate::app::App;
+fn chat_area(spacing:f32, radius:f32, padding:f32) -> iced::Element<'static,()> {
+    super::chat_area(iced::widget::text("chat").into(),iced::widget::text("input").into(),false,desktop_theme::theme_catalog::ChromeStyleOverrides::default(),spacing,radius,padding)
+}
 
 #[test]
 fn test_module_is_wired() {
@@ -14,8 +16,7 @@ fn test_module_is_wired() {
 }
 
 fn render_chat_area(spacing: f32, corner_radius: f32, chat_content_pad: f32) {
-    let (app, _task) = App::new();
-    let element = super::chat_area(&app, spacing, corner_radius, chat_content_pad);
+    let element = chat_area( spacing, corner_radius, chat_content_pad);
 
     std::hint::black_box(element);
 }
@@ -41,8 +42,7 @@ async fn chat_area_draws_captured_surface_style() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let (app, _task) = App::new();
-    let mut element = super::chat_area(&app, 8.0, 12.0, 16.0);
+    let mut element = chat_area( 8.0, 12.0, 16.0);
 
     draw_element(&mut element, &mut renderer, &Theme::Dark);
 }
@@ -50,7 +50,7 @@ async fn chat_area_draws_captured_surface_style() {
 #[test]
 fn chat_area_style_uses_light_theme_surface() {
     let style = super::chat_area_style(&Theme::Light, 16.0, None);
-    let expected = crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.985);
+    let expected = desktop_theme::theme_catalog::panel_surface_color(&Theme::Light, 0.985);
 
     assert_eq!(style.background, Some(Background::Color(expected)));
     assert_eq!(style.border.width, 1.0);
@@ -67,7 +67,7 @@ fn chat_area_style_uses_light_theme_surface() {
 #[test]
 fn chat_area_style_uses_dark_theme_surface() {
     let style = super::chat_area_style(&Theme::Dark, 4.0, None);
-    let expected = crate::app::theme_catalog::panel_surface_color(&Theme::Dark, 0.985);
+    let expected = desktop_theme::theme_catalog::panel_surface_color(&Theme::Dark, 0.985);
 
     assert_eq!(style.background, Some(Background::Color(expected)));
     assert_eq!(style.border.width, 1.0);
@@ -95,7 +95,7 @@ fn chat_area_style_follows_custom_palette_background() {
         },
     );
     let style = super::chat_area_style(&green, 8.0, None);
-    let expected = crate::app::theme_catalog::panel_surface_color(&green, 0.985);
+    let expected = desktop_theme::theme_catalog::panel_surface_color(&green, 0.985);
     assert_eq!(style.background, Some(Background::Color(expected)));
 }
 
@@ -120,7 +120,7 @@ fn chat_area_style_uses_default_shadow() {
 fn chat_area_style_applies_wallpaper_panel_alpha() {
     use std::path::PathBuf;
 
-    use crate::app::theme_catalog::{
+    use desktop_theme::theme_catalog::{
         ActiveThemeSkin, DEFAULT_WALLPAPER_PANEL_ALPHA, ThemeChrome, resolve_chrome_style_from_skin,
     };
 
@@ -148,7 +148,7 @@ fn chat_area_style_applies_wallpaper_panel_alpha() {
 }
 
 fn draw_element(
-    element: &mut iced::Element<'_, crate::app::Message>,
+    element: &mut iced::Element<'_, ()>,
     renderer: &mut iced::Renderer,
     theme: &Theme,
 ) {

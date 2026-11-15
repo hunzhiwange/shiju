@@ -4,35 +4,12 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
-use crate::app::assets::Icon;
 use crate::app::state::WorkResourceMode;
 use crate::app::{App, Screen};
 
-use super::work_resources::{self, ResourceBodyKind, panel_style, resource_header_icons};
+use super::work_resources::{self, ResourceBodyKind};
 
 const VIEWPORT: Size = Size::new(760.0, 720.0);
-
-#[test]
-fn browser_resource_surface_has_no_panel_border() {
-    let browser = panel_style(&Theme::Dark, WorkResourceMode::Browser);
-    let overview = panel_style(&Theme::Dark, WorkResourceMode::Overview);
-
-    assert_eq!(browser.border.width, 0.0);
-    assert_eq!(browser.border.radius, 0.0.into());
-    assert!(overview.border.width > 0.0);
-}
-
-#[test]
-fn work_resource_header_uses_direction_and_fullscreen_icons() {
-    assert_eq!(
-        resource_header_icons(false),
-        [Icon::ArrowLeft, Icon::ArrowRight, Icon::LayoutTextWindow, Icon::Fullscreen]
-    );
-    assert_eq!(
-        resource_header_icons(true),
-        [Icon::ArrowLeft, Icon::ArrowRight, Icon::LayoutTextWindow, Icon::FullscreenExit]
-    );
-}
 
 fn code_panel_snapshot(app: &App) -> (bool, bool, f32, bool, bool, bool) {
     (

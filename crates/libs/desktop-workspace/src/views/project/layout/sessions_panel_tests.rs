@@ -8,7 +8,6 @@ use super::{
     project_sessions_panel_container, project_sessions_panel_container_style,
     project_sessions_panel_width,
 };
-use crate::app::App;
 
 #[test]
 fn test_module_is_wired() {
@@ -19,8 +18,7 @@ fn test_module_is_wired() {
 
 #[test]
 fn project_sessions_panel_container_uses_scaled_available_width() {
-    let (app, _task) = App::new();
-    let element = project_sessions_panel_container(&app, 320.0, 80.0, 0.5, 12.0, None);
+    let element = project_sessions_panel_container::<()>(iced::widget::text("sessions").into(), 320.0, 80.0, 0.5, 12.0);
     let size = element.as_widget().size();
 
     assert_eq!(size.width, Length::Fixed(120.0));
@@ -29,14 +27,12 @@ fn project_sessions_panel_container_uses_scaled_available_width() {
 
 #[test]
 fn project_sessions_panel_container_clamps_negative_width_to_zero() {
-    let (app, _task) = App::new();
-    let element = project_sessions_panel_container(
-        &app,
+    let element = project_sessions_panel_container::<()>(
+        iced::widget::text("sessions").into(),
         80.0,
         120.0,
         1.25,
         8.0,
-        Some("/tmp/project".to_string()),
     );
     let size = element.as_widget().size();
 
@@ -50,8 +46,7 @@ async fn project_sessions_panel_container_draws_captured_style() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let (app, _task) = App::new();
-    let mut element = project_sessions_panel_container(&app, 320.0, 80.0, 0.5, 12.0, None);
+    let mut element = project_sessions_panel_container::<()>(iced::widget::text("sessions").into(), 320.0, 80.0, 0.5, 12.0);
 
     draw_element(&mut element, &mut renderer, &Theme::Dark);
 }
@@ -94,7 +89,7 @@ fn project_sessions_panel_container_style_keeps_light_theme_shadow() {
 }
 
 fn draw_element(
-    element: &mut iced::Element<'_, crate::app::Message>,
+    element: &mut iced::Element<'_, ()>,
     renderer: &mut iced::Renderer,
     theme: &Theme,
 ) {

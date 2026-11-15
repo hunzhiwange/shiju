@@ -4,6 +4,8 @@ use iced::widget::button;
 use iced::{Background, Color, Theme};
 
 use super::*;
+use super::super::super::badge_styles::{content_panel_style,panel_style_no_border,project_item_button_style};
+use super::super::super::row_styles::{session_row_highlight_color,tooltip_bubble};
 
 const EPSILON: f32 = 0.000_01;
 
@@ -86,7 +88,7 @@ fn content_panel_style_sets_dark_and_light_surfaces() {
 
     assert_color_close(
         background_color(dark),
-        crate::app::theme_catalog::panel_surface_color(&Theme::Dark, 0.98),
+        desktop_theme::theme_catalog::panel_surface_color(&Theme::Dark, 0.98),
     );
     assert_close(dark.border.width, 1.0);
     assert_close(dark.border.radius.top_left, 18.0);
@@ -98,7 +100,7 @@ fn content_panel_style_sets_dark_and_light_surfaces() {
 
     assert_color_close(
         background_color(light),
-        crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.985),
+        desktop_theme::theme_catalog::panel_surface_color(&Theme::Light, 0.985),
     );
     assert_color_close(
         light.border.color,
@@ -122,7 +124,7 @@ fn content_panel_style_follows_custom_palette_background() {
     );
     let style = content_panel_style(&green);
     let bg = background_color(style);
-    assert_color_close(bg, crate::app::theme_catalog::panel_surface_color(&green, 0.98));
+    assert_color_close(bg, desktop_theme::theme_catalog::panel_surface_color(&green, 0.98));
     assert!(
         (bg.g - Color::from_rgb8(0x12, 0x4A, 0x2E).g).abs() < 1.0e-5,
         "content panel should keep custom green background, got {bg:?}"
@@ -169,7 +171,7 @@ fn session_panel_style_uses_radius_and_theme_palette() {
 
     assert_color_close(
         background_color(light),
-        crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
+        desktop_theme::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
     );
     assert_color_close(
         light.border.color,
@@ -194,7 +196,7 @@ fn right_column_inner_style_uses_themed_background_without_border() {
     assert_close(dark_inner.border.radius.top_left, 16.0);
     assert_color_close(
         background_color(light_inner),
-        crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
+        desktop_theme::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
     );
     assert_close(light_inner.border.radius.top_left, 20.0);
 }

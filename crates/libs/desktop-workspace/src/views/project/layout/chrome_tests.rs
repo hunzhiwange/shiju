@@ -4,8 +4,6 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
-use crate::app::state::WorkspaceMode;
-
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -16,7 +14,7 @@ fn test_module_is_wired() {
 #[test]
 fn right_column_chrome_builds_with_positive_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, 8.0, false);
 
     assert_eq!(chrome.as_widget().size().width, iced::Length::Fill);
     assert_eq!(chrome.as_widget().size().height, iced::Length::Fill);
@@ -26,7 +24,7 @@ fn right_column_chrome_builds_with_positive_radius() {
 #[test]
 fn right_column_chrome_builds_with_zero_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 0.0, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, 0.0, false);
 
     std::hint::black_box(chrome);
 }
@@ -34,7 +32,7 @@ fn right_column_chrome_builds_with_zero_radius() {
 #[test]
 fn right_column_chrome_builds_with_negative_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, -1.0, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, -1.0, false);
 
     std::hint::black_box(chrome);
 }
@@ -42,7 +40,7 @@ fn right_column_chrome_builds_with_negative_radius() {
 #[test]
 fn right_column_chrome_builds_with_large_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 100.0, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, 100.0, false);
 
     std::hint::black_box(chrome);
 }
@@ -50,7 +48,7 @@ fn right_column_chrome_builds_with_large_radius() {
 #[test]
 fn right_column_chrome_builds_with_very_small_positive_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 0.001, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, 0.001, false);
 
     std::hint::black_box(chrome);
 }
@@ -58,7 +56,7 @@ fn right_column_chrome_builds_with_very_small_positive_radius() {
 #[test]
 fn right_column_chrome_accepts_rich_element_content() {
     let content = iced::widget::column![iced::widget::text("a"), iced::widget::text("b")].into();
-    let chrome = super::right_column_chrome(content, 6.0, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, 6.0, false);
 
     std::hint::black_box(chrome);
 }
@@ -66,7 +64,7 @@ fn right_column_chrome_accepts_rich_element_content() {
 #[test]
 fn right_column_chrome_accepts_empty_container_content() {
     let content = iced::widget::container(iced::widget::text("")).into();
-    let chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
+    let chrome = super::right_column_chrome::<()>(content, 8.0, false);
 
     std::hint::black_box(chrome);
 }
@@ -79,10 +77,10 @@ async fn right_column_chrome_leaves_no_inset_for_an_outer_border() {
             .expect("tiny-skia headless renderer should be available");
     let bounds = Size::new(320.0, 480.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
-    for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
+    for mode in [false, true] {
         let content =
             iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
-        let mut chrome = super::right_column_chrome(content.into(), 8.0, mode);
+        let mut chrome = super::right_column_chrome::<()>(content.into(), 8.0, mode);
         let mut tree = Tree::new(chrome.as_widget());
         let node = chrome.as_widget_mut().layout(&mut tree, &renderer, &limits);
         let content =
@@ -101,7 +99,7 @@ async fn work_chrome_draws_its_background_without_an_outer_border() {
                 .await
                 .expect("tiny-skia headless renderer should be available");
         let content = iced::widget::Space::new().into();
-        let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Work);
+        let mut chrome = super::right_column_chrome::<()>(content, 8.0, true);
 
         draw_element(&mut chrome, &mut renderer, &theme);
 
@@ -120,7 +118,7 @@ async fn work_chrome_draws_its_background_without_an_outer_border() {
 
 #[test]
 fn overlay_divider_builds_when_spacing_is_below_hit_width() {
-    let divider = super::overlay_divider(2.0);
+    let divider = super::overlay_divider::<()>(2.0);
 
     assert_eq!(
         divider.as_widget().size().width,
@@ -132,7 +130,7 @@ fn overlay_divider_builds_when_spacing_is_below_hit_width() {
 
 #[test]
 fn overlay_divider_builds_when_spacing_matches_hit_width() {
-    let divider = super::overlay_divider(super::HResizeHandle::HIT_WIDTH);
+    let divider = super::overlay_divider::<()>(super::HResizeHandle::HIT_WIDTH);
 
     assert_eq!(divider.as_widget().size().width, iced::Length::Fixed(1.0));
     assert_eq!(divider.as_widget().size().height, iced::Length::Fill);
@@ -140,7 +138,7 @@ fn overlay_divider_builds_when_spacing_matches_hit_width() {
 
 #[test]
 fn overlay_divider_builds_when_spacing_exceeds_hit_width() {
-    let divider = super::overlay_divider(super::HResizeHandle::HIT_WIDTH + 8.0);
+    let divider = super::overlay_divider::<()>(super::HResizeHandle::HIT_WIDTH + 8.0);
 
     assert_eq!(divider.as_widget().size().width, iced::Length::Fixed(1.0));
     assert_eq!(divider.as_widget().size().height, iced::Length::Fill);
@@ -148,7 +146,7 @@ fn overlay_divider_builds_when_spacing_exceeds_hit_width() {
 
 #[test]
 fn overlay_divider_builds_with_zero_spacing() {
-    let divider = super::overlay_divider(0.0);
+    let divider = super::overlay_divider::<()>(0.0);
 
     assert_eq!(
         divider.as_widget().size().width,
@@ -158,14 +156,14 @@ fn overlay_divider_builds_with_zero_spacing() {
 
 #[test]
 fn overlay_divider_builds_with_large_spacing() {
-    let divider = super::overlay_divider(1_000.0);
+    let divider = super::overlay_divider::<()>(1_000.0);
 
     assert_eq!(divider.as_widget().size().width, iced::Length::Fixed(1.0));
 }
 
 #[test]
 fn overlay_divider_builds_with_negative_spacing() {
-    let divider = super::overlay_divider(-5.0);
+    let divider = super::overlay_divider::<()>(-5.0);
 
     assert_eq!(
         divider.as_widget().size().width,
@@ -260,7 +258,7 @@ fn overlay_divider_width_never_below_one_for_any_spacing() {
 }
 
 fn draw_element(
-    element: &mut iced::Element<'_, crate::app::Message>,
+    element: &mut iced::Element<'_, ()>,
     renderer: &mut iced::Renderer,
     theme: &Theme,
 ) {

@@ -67,14 +67,13 @@ fn display_drag_path_normalizes_windows_separators_after_project_strip() {
 fn clamp_badge_position_offsets_top_chrome() {
     let cursor = Point::new(320.0, 180.0);
 
-    let (x, y) = super::clamp_badge_position(cursor, (1200.0, 800.0));
+    let (x, y) = super::clamp_badge_position(cursor, (1200.0, 800.0), 80.0);
 
     assert_eq!(x, 320.0);
     assert_eq!(
         y,
         cursor.y
-            - crate::app::components::top_bar::TOP_BAR_HEIGHT
-            - crate::app::components::tab_bar::TAB_BAR_HEIGHT
+            - 80.0
     );
 }
 
@@ -82,7 +81,7 @@ fn clamp_badge_position_offsets_top_chrome() {
 fn clamp_badge_position_never_goes_negative() {
     let cursor = Point::new(-20.0, -30.0);
 
-    let (x, y) = super::clamp_badge_position(cursor, (1200.0, 800.0));
+    let (x, y) = super::clamp_badge_position(cursor, (1200.0, 800.0), 80.0);
 
     assert_eq!((x, y), (0.0, 0.0));
 }
@@ -91,7 +90,7 @@ fn clamp_badge_position_never_goes_negative() {
 fn clamp_badge_position_respects_badge_bounds() {
     let cursor = Point::new(2_000.0, 2_000.0);
 
-    let (x, y) = super::clamp_badge_position(cursor, (500.0, 120.0));
+    let (x, y) = super::clamp_badge_position(cursor, (500.0, 120.0), 80.0);
 
     assert_eq!((x, y), (240.0, 78.0));
 }
@@ -100,7 +99,7 @@ fn clamp_badge_position_respects_badge_bounds() {
 fn clamp_badge_position_handles_tiny_window() {
     let cursor = Point::new(20.0, 80.0);
 
-    let (x, y) = super::clamp_badge_position(cursor, (120.0, 30.0));
+    let (x, y) = super::clamp_badge_position(cursor, (120.0, 30.0), 80.0);
 
     assert_eq!((x, y), (0.0, 0.0));
 }
@@ -109,7 +108,7 @@ fn clamp_badge_position_handles_tiny_window() {
 fn clamp_badge_position_allows_origin_when_window_matches_badge_size() {
     let cursor = Point::new(30.0, 160.0);
 
-    let (x, y) = super::clamp_badge_position(cursor, (260.0, 42.0));
+    let (x, y) = super::clamp_badge_position(cursor, (260.0, 42.0), 80.0);
 
     assert_eq!((x, y), (0.0, 0.0));
 }
@@ -164,19 +163,10 @@ fn badge_container_style_uses_dark_theme_surface_and_shadow() {
 
 #[test]
 fn drag_badge_layer_builds_empty_layer_without_paths() {
-    let (app, _task) = crate::app::App::new();
-
-    let _element = super::drag_badge_layer(&app);
+    let _element = super::drag_badge_layer::<()>(&[], None, Point::ORIGIN, (800.0, 600.0), 80.0);
 }
-
 #[test]
 fn drag_badge_layer_builds_badge_for_dragging_paths() {
-    let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/workspace/app".to_string());
-    app.file_tree_interaction.dragging_file_paths =
-        vec!["/workspace/app/src/main.rs".to_string(), "/workspace/app/README.md".to_string()];
-    app.cursor_position = Point::new(360.0, 220.0);
-    app.window_size = (960.0, 640.0);
-
-    let _element = super::drag_badge_layer(&app);
+    let paths = vec!["/workspace/app/src/main.rs".into(), "/workspace/app/README.md".into()];
+    let _element = super::drag_badge_layer::<()>(&paths, Some("/workspace/app"), Point::new(360.0,220.0), (960.0,640.0),80.0);
 }

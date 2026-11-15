@@ -19,3 +19,13 @@ pub fn build_base_layout<'a, Message: 'a>(workspace: Element<'a, Message>, botto
         .into()
     }
 }
+
+pub mod styles;
+pub mod chat;
+pub mod chrome;
+pub mod drag;
+pub mod main;
+pub mod sessions_panel;
+pub mod sidebar;
+pub mod work;
+pub mod work_resources;

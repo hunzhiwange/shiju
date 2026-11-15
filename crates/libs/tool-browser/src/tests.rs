@@ -17,15 +17,15 @@ use super::*;
 #[allow(dead_code)]
 mod tests {
     use super::*;
-    use crate::app::agent::tools::browser::actions::is_computer_use_only_action;
-    use crate::app::agent::tools::browser::backend::{
+    use crate::actions::is_computer_use_only_action;
+    use crate::backend::{
         BrowserBackendKind, ResolvedBackend, unavailable_action_for_backend_error,
     };
-    use crate::app::agent::tools::browser::helpers::{
+    use crate::helpers::{
         extract_host, host_matches_allowlist, is_private_host, is_recoverable_rust_native_error,
         normalize_domains,
     };
-    use crate::app::agent::tools::traits::Tool;
+    use tool_types::Tool;
     use std::path::Path;
 
     /// 创建目录符号链接（Unix平台实现）

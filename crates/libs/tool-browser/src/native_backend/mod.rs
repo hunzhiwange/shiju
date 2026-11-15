@@ -26,8 +26,8 @@
 //! # 示例
 //!
 //! ```ignore
-//! use crate::app::agent::tools::browser::native_backend::NativeBrowserState;
-//! use crate::app::agent::tools::browser::BrowserAction;
+//! use crate::native_backend::NativeBrowserState;
+//! use crate::BrowserAction;
 //!
 //! let mut state = NativeBrowserState::default();
 //! let result = state.execute_action(

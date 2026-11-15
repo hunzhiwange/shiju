@@ -2,7 +2,7 @@
 //! 构造与克隆都必须保留策略对象、域名白名单、会话和坐标限制。
 
 use super::*;
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use std::sync::Arc;
 
 #[test]

@@ -26,8 +26,8 @@
 //! ```
 
 use super::BrowserTool;
-use crate::app::agent::tools::browser::actions::BrowserAction;
-use crate::app::agent::tools::traits::ToolResult;
+use crate::actions::BrowserAction;
+use tool_types::ToolResult;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::process::Stdio;

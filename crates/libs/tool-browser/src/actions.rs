@@ -13,7 +13,7 @@
 //!
 //! ```ignore
 //! use serde_json::json;
-//! use crate::app::agent::tools::browser::actions::{parse_browser_action, BrowserAction};
+//! use tool_browser::actions::{parse_browser_action, BrowserAction};
 //!
 //! let args = json!({"url": "https://example.com"});
 //! let action = parse_browser_action("open", &args)?;

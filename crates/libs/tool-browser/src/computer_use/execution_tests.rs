@@ -2,7 +2,7 @@
 //! 本地伪 sidecar 记录完整 HTTP 请求，验证认证裁剪、策略元数据、截图路径和断连上下文。
 
 use super::*;
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

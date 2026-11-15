@@ -30,7 +30,7 @@
 /// # 示例
 ///
 /// ```rust
-/// use vibe_agent::tools::browser::backend::BrowserBackendKind;
+/// use tool_browser::backend::BrowserBackendKind;
 ///
 /// let backend = BrowserBackendKind::parse("native")?;
 /// assert_eq!(backend, BrowserBackendKind::RustNative);
@@ -101,7 +101,7 @@ impl BrowserBackendKind {
     /// # 示例
     ///
     /// ```rust
-    /// use vibe_agent::tools::browser::backend::BrowserBackendKind;
+    /// use tool_browser::backend::BrowserBackendKind;
     ///
     /// // 支持不同格式
     /// assert_eq!(BrowserBackendKind::parse("native")?, BrowserBackendKind::RustNative);
@@ -142,7 +142,7 @@ impl BrowserBackendKind {
     /// # 示例
     ///
     /// ```rust
-    /// use vibe_agent::tools::browser::backend::BrowserBackendKind;
+    /// use tool_browser::backend::BrowserBackendKind;
     ///
     /// assert_eq!(BrowserBackendKind::RustNative.as_str(), "rust_native");
     /// assert_eq!(BrowserBackendKind::Auto.as_str(), "auto");
@@ -175,7 +175,7 @@ impl BrowserBackendKind {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_agent::tools::browser::backend::{ResolvedBackend, backend_name};
+/// use tool_browser::backend::{ResolvedBackend, backend_name};
 ///
 /// assert_eq!(backend_name(ResolvedBackend::RustNative), "rust_native");
 /// assert_eq!(backend_name(ResolvedBackend::AgentBrowser), "agent_browser");
@@ -204,7 +204,7 @@ pub fn backend_name(backend: ResolvedBackend) -> &'static str {
 /// # 示例
 ///
 /// ```rust
-/// use vibe_agent::tools::browser::backend::{ResolvedBackend, unavailable_action_for_backend_error};
+/// use tool_browser::backend::{ResolvedBackend, unavailable_action_for_backend_error};
 ///
 /// let error_msg = unavailable_action_for_backend_error("screenshot", ResolvedBackend::AgentBrowser);
 /// assert_eq!(error_msg, "Action 'screenshot' is unavailable for backend 'agent_browser'");

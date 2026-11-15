@@ -29,7 +29,7 @@
 //!     └── response     -> 边车响应结构
 //! ```
 
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use std::sync::Arc;
 
 mod config;

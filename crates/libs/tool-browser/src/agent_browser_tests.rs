@@ -2,7 +2,7 @@
 //! 失败退出仍优先解析结构化响应；文件网址和未授权域名必须在启动命令前拒绝。
 
 use super::*;
-use crate::app::agent::security::SecurityPolicy;
+use agent_security::SecurityPolicy;
 use std::sync::Arc;
 
 #[test]

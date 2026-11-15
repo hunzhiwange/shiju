@@ -1,0 +1,37 @@
+[package]
+name = "tool-browser"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+browser-native = ["dep:fantoccini", "dep:base64"]
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1.89"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "process", "fs", "net", "io-util"] }
+directories = "5"
+fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
+base64 = { version = "0.23", optional = true }
+agent-security = { path = "../agent-security", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+shell-command = { path = "../shell-command", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+axum = { version = "0.8.8", features = ["json", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "test-util"] }

@@ -12,8 +12,8 @@ use super::computer_use::ComputerUseClient;
 #[cfg(feature = "browser-native")]
 use super::helpers::is_recoverable_rust_native_error;
 use super::helpers::normalize_domains;
-use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::tools::traits::{
+use agent_security::SecurityPolicy;
+use tool_types::{
     Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult, ToolSpec,
 };
 #[cfg(feature = "browser-native")]
@@ -535,12 +535,12 @@ impl Tool for BrowserTool {
 
     fn spec(&self) -> ToolSpec {
         ToolSpec::new(
-            crate::app::agent::tools::BROWSER_TOOL_ID,
+            crate::BROWSER_TOOL_ID,
             self.description(),
             self.parameters_schema(),
         )
-        .with_display_name(crate::app::agent::tools::BROWSER_TOOL_ID)
-        .with_aliases(vec![crate::app::agent::tools::BROWSER_TOOL_ALIAS.to_string()])
+        .with_display_name(crate::BROWSER_TOOL_ID)
+        .with_aliases(vec![crate::BROWSER_TOOL_ALIAS.to_string()])
         .with_read_only(false)
         .with_destructive(false)
         .with_concurrency_safe(false)
@@ -555,7 +555,7 @@ impl Tool for BrowserTool {
         if !legacy.success {
             let mut result = ToolCallResult::from_legacy_result(legacy);
             result.render_hint = Some(ToolRenderHint {
-                title: Some(crate::app::agent::tools::BROWSER_TOOL_ID.to_string()),
+                title: Some(crate::BROWSER_TOOL_ID.to_string()),
                 kind: Some("browser".to_string()),
                 summary: Some(format!("Failed to run {action}")),
                 metadata: json!({ "action": action }),
@@ -580,7 +580,7 @@ impl Tool for BrowserTool {
             model_result: Value::String(legacy.output),
             content_blocks: vec![ToolResultContentDto::Json { value: data.clone() }],
             render_hint: Some(ToolRenderHint {
-                title: Some(crate::app::agent::tools::BROWSER_TOOL_ID.to_string()),
+                title: Some(crate::BROWSER_TOOL_ID.to_string()),
                 kind: Some("browser".to_string()),
                 summary: Some(summary),
                 metadata: json!({

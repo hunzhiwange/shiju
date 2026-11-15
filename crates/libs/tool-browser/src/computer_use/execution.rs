@@ -10,7 +10,7 @@ impl ComputerUseClient {
         &self,
         action: &str,
         args: &Value,
-    ) -> anyhow::Result<crate::app::agent::tools::traits::ToolResult> {
+    ) -> anyhow::Result<tool_types::ToolResult> {
         let endpoint = self.endpoint_url()?;
 
         let mut params = args
@@ -47,7 +47,7 @@ impl ComputerUseClient {
             }
         });
 
-        let client = crate::app::agent::config::build_runtime_proxy_client("tool.browser");
+        let client = agent_config::runtime::build_runtime_proxy_client("tool.browser");
         let mut request = client
             .post(endpoint)
             .timeout(Duration::from_millis(self.config.timeout_ms))
@@ -82,7 +82,7 @@ impl ComputerUseClient {
                         .unwrap_or_default()
                     });
 
-                return Ok(crate::app::agent::tools::traits::ToolResult {
+                return Ok(tool_types::ToolResult {
                     success: true,
                     output,
                     error: None,
@@ -97,7 +97,7 @@ impl ComputerUseClient {
                 }
             });
 
-            return Ok(crate::app::agent::tools::traits::ToolResult {
+            return Ok(tool_types::ToolResult {
                 success: false,
                 output: String::new(),
                 error,
@@ -105,14 +105,14 @@ impl ComputerUseClient {
         }
 
         if status.is_success() {
-            return Ok(crate::app::agent::tools::traits::ToolResult {
+            return Ok(tool_types::ToolResult {
                 success: true,
                 output: body,
                 error: None,
             });
         }
 
-        Ok(crate::app::agent::tools::traits::ToolResult {
+        Ok(tool_types::ToolResult {
             success: false,
             output: String::new(),
             error: Some(format!(

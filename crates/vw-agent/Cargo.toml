@@ -354,7 +354,7 @@ async-imap = { version = "0.11", features = ["runtime-tokio"], default-features 
 axum = { version = "0.8.8", features = ["json", "ws", "macros", "multipart"] }
 crossterm = "0.29"
 dialoguer = "0.11"
-fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
+tool-browser = { path = "../libs/tool-browser", version = "0.6.0" }
 git-discovery = { path = "../libs/git-discovery", version = "0.6.0" }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 hostname = "0.4"
@@ -429,7 +429,7 @@ default = [
   "shell-ast",
   "channel-lark",
 ]
-"browser-native" = ["dep:fantoccini"]
+"browser-native" = ["tool-browser/browser-native"]
 "rag-pdf" = ["agent-knowledge/rag-pdf"]
 firecrawl = ["tool-web/firecrawl"]
 "web-fetch-html2md" = ["tool-web/web-fetch-html2md"]

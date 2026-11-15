@@ -2,8 +2,8 @@
 //! 端点、目标网址与输出路径分别校验；网络探测和建目录只能发生在静态验证之后。
 
 use super::*;
-use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::tools::browser::computer_use::ComputerUseConfig;
+use agent_security::SecurityPolicy;
+use crate::computer_use::ComputerUseConfig;
 use std::sync::Arc;
 use tempfile::TempDir;
 

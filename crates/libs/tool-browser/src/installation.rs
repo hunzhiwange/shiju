@@ -1,5 +1,5 @@
 //! 代理浏览器用户级安装与运行入口；固定包来源，不修改系统 PATH。
-use crate::app::agent::shell::tokio_command;
+use shell_command::tokio_command;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -95,7 +95,7 @@ async fn run(
 }
 
 /// 在网关主机安装固定版本 CLI、下载 Chrome，再实际启动无头浏览器验证依赖。
-pub(crate) async fn install() -> Result<(), String> {
+pub async fn install() -> Result<(), String> {
     if !cfg!(any(target_os = "macos", target_os = "linux", target_os = "windows")) {
         return Err("当前系统不支持一键安装代理浏览器".into());
     }

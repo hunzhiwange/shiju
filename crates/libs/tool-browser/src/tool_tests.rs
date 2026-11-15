@@ -2,7 +2,7 @@
 //! 后端解析与安全策略先于执行；结构化失败不得误转为成功输出，截图路径先本地校验。
 
 use super::*;
-use crate::app::agent::security::AutonomyLevel;
+use agent_security::AutonomyLevel;
 use std::path::PathBuf;
 use tempfile::TempDir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -413,10 +413,10 @@ fn tool_contract_exposes_browser_schema_and_safety_flags() {
     );
 
     let spec = tool.spec();
-    assert_eq!(spec.id, crate::app::agent::tools::BROWSER_TOOL_ID);
-    assert_eq!(spec.display_name, crate::app::agent::tools::BROWSER_TOOL_ID);
-    assert_eq!(spec.name, crate::app::agent::tools::BROWSER_TOOL_ID);
-    assert_eq!(spec.aliases, vec![crate::app::agent::tools::BROWSER_TOOL_ALIAS.to_string()]);
+    assert_eq!(spec.id, crate::BROWSER_TOOL_ID);
+    assert_eq!(spec.display_name, crate::BROWSER_TOOL_ID);
+    assert_eq!(spec.name, crate::BROWSER_TOOL_ID);
+    assert_eq!(spec.aliases, vec![crate::BROWSER_TOOL_ALIAS.to_string()]);
     assert_eq!(spec.input_schema, schema);
     assert_eq!(spec.parameters, spec.input_schema);
     assert!(!spec.read_only);
@@ -533,7 +533,7 @@ async fn call_lifts_policy_failure_into_structured_result() {
     assert_eq!(result.telemetry.as_ref().map(|telemetry| telemetry.success), Some(false));
 
     let hint = result.render_hint.expect("failure should include a render hint");
-    assert_eq!(hint.title.as_deref(), Some(crate::app::agent::tools::BROWSER_TOOL_ID));
+    assert_eq!(hint.title.as_deref(), Some(crate::BROWSER_TOOL_ID));
     assert_eq!(hint.kind.as_deref(), Some("browser"));
     assert_eq!(hint.summary.as_deref(), Some("Failed to run click"));
     assert_eq!(hint.metadata, serde_json::json!({"action": "click"}));

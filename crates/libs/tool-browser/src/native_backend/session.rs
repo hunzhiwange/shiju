@@ -13,7 +13,7 @@
 //! ## 使用示例
 //!
 //! ```rust,ignore
-//! use crate::app::agent::tools::browser::native_backend::session::NativeBrowserState;
+//! use crate::native_backend::session::NativeBrowserState;
 //!
 //! let mut state = NativeBrowserState::default();
 //!

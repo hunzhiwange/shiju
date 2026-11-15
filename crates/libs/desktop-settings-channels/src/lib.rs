@@ -38,3 +38,5 @@ mod enterprise_channels_tests;
 mod extended_channels_tests;
 
 pub mod update;
+
+pub mod save_feedback;

@@ -81,3 +81,5 @@ impl NetworkTabDescriptor {
 }
 
 pub mod system_settings_search;
+
+pub mod save_feedback;

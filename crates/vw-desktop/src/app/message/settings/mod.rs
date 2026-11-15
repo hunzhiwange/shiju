@@ -95,39 +95,135 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
     let save_error = raw_error.as_ref().map(server_config_unreachable_error);
 
     match tag {
-        "heartbeat" => app.heartbeat_settings.save_error = save_error,
-        "cron" => app.cron_settings.save_error = save_error,
-        "scheduler" => app.scheduler_settings.save_error = save_error,
-        "reliability" => app.reliability_settings.save_error = save_error,
-        "memory" => app.memory_settings.save_error = save_error,
-        "security" => app.security_settings.save_error = save_error,
-        "channels_config" => app.channels_settings.save_error = save_error,
-        "observability" => app.observability_settings.save_error = save_error,
-        "storage" => app.storage_settings.save_error = save_error,
-        "proxy" => app.proxy_settings.save_error = save_error,
-        "browser" => app.browser_settings.save_error = save_error,
-        "http_request" => app.http_request_settings.save_error = save_error,
-        "multimodal" => app.multimodal_settings.save_error = save_error,
-        "web_search" => app.web_search_settings.save_error = save_error,
-        "tunnel" => app.tunnel_settings.save_error = save_error,
-        "hooks" => app.hooks_settings.save_error = save_error,
-        "skills" => app.skills_settings.save_error = save_error,
-        "runtime" => app.runtime_settings.save_error = save_error,
-        "model_routes" => {
-            app.model_routes_settings.save_error =
-                raw_error.map(crate::app::i18n::settings_models::messages::Feedback::gateway)
+        "heartbeat" => {
+            desktop_settings_cron::save_feedback::heartbeat_saved(
+                &mut app.heartbeat_settings,
+                save_error,
+            )
         }
-        "embedding_routes" => {
-            app.embedding_routes_settings.save_success = raw_error.is_none();
-            app.embedding_routes_settings.save_error =
-                raw_error.map(crate::app::i18n::settings_models::messages::Feedback::gateway);
+        "cron" => {
+            desktop_settings_cron::save_feedback::cron_saved(
+                &mut app.cron_settings,
+                save_error,
+            )
         }
-        "gateway" => {
-            app.gateway_settings.save_error =
-                raw_error.map(crate::app::i18n::settings_models::messages::Feedback::gateway)
+        "scheduler" => {
+            desktop_settings_cron::save_feedback::scheduler_saved(
+                &mut app.scheduler_settings,
+                save_error,
+            )
         }
-        "query_classification" => app.query_classification_settings.save_error = save_error,
-        "autonomy" => app.autonomy_settings.save_error = save_error,
+        "reliability" => {
+            desktop_settings_runtime::save_feedback::reliability_saved(
+                &mut app.reliability_settings,
+                save_error,
+            )
+        }
+        "memory" => {
+            desktop_settings_memory::save_feedback::memory_saved(
+                &mut app.memory_settings,
+                save_error,
+            )
+        }
+        "security" => {
+            desktop_settings_security::save_feedback::security_saved(
+                &mut app.security_settings,
+                save_error,
+            )
+        }
+        "channels_config" => {
+            desktop_settings_channels::save_feedback::channels_config_saved(
+                &mut app.channels_settings,
+                save_error,
+            )
+        }
+        "observability" => {
+            desktop_settings_runtime::save_feedback::observability_saved(
+                &mut app.observability_settings,
+                save_error,
+            )
+        }
+        "storage" => {
+            desktop_settings_memory::save_feedback::storage_saved(
+                &mut app.storage_settings,
+                save_error,
+            )
+        }
+        "proxy" => {
+            desktop_settings_network::save_feedback::proxy_saved(
+                &mut app.proxy_settings,
+                save_error,
+            )
+        }
+        "browser" => {
+            desktop_settings_network::save_feedback::browser_saved(
+                &mut app.browser_settings,
+                save_error,
+            )
+        }
+        "http_request" => {
+            desktop_settings_network::save_feedback::http_request_saved(
+                &mut app.http_request_settings,
+                save_error,
+            )
+        }
+        "multimodal" => {
+            desktop_settings_runtime::save_feedback::multimodal_saved(
+                &mut app.multimodal_settings,
+                save_error,
+            )
+        }
+        "web_search" => {
+            desktop_settings_network::save_feedback::web_search_saved(
+                &mut app.web_search_settings,
+                save_error,
+            )
+        }
+        "tunnel" => {
+            desktop_settings_network::save_feedback::tunnel_saved(
+                &mut app.tunnel_settings,
+                save_error,
+            )
+        }
+        "hooks" => {
+            desktop_settings_runtime::save_feedback::hooks_saved(
+                &mut app.hooks_settings,
+                save_error,
+            )
+        }
+        "skills" => {
+            desktop_settings_skills::save_feedback::skills_saved(
+                &mut app.skills_settings,
+                save_error,
+            )
+        }
+        "runtime" => {
+            desktop_settings_runtime::save_feedback::runtime_saved(
+                &mut app.runtime_settings,
+                save_error,
+            )
+        }
+        "model_routes" => desktop_settings_providers::save_feedback::model_routes_saved(
+            &mut app.model_routes_settings.save_error, raw_error,
+        ),
+        "embedding_routes" => desktop_settings_providers::save_feedback::embedding_routes_saved(
+            &mut app.embedding_routes_settings, raw_error,
+        ),
+        "gateway" => desktop_settings_network::save_feedback::gateway_saved(
+            &mut app.gateway_settings, raw_error,
+        ),
+        "query_classification" => {
+            desktop_settings_runtime::save_feedback::query_classification_saved(
+                &mut app.query_classification_settings,
+                save_error,
+            )
+        }
+        "autonomy" => {
+            desktop_settings_security::save_feedback::autonomy_saved(
+                &mut app.autonomy_settings,
+                save_error,
+            )
+        }
         _ => {}
     }
 }

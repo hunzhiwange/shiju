@@ -56,3 +56,5 @@ mod provider_dispatch_tests;
 pub mod settings_message;
 
 pub mod settings_util;
+
+pub mod save_feedback;

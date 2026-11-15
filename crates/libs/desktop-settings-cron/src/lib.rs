@@ -9,3 +9,5 @@ pub mod system_settings_heartbeat;
 pub mod system_settings_scheduler;
 
 pub mod update;
+
+pub mod save_feedback;

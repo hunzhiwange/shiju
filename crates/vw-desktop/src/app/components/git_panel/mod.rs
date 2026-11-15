@@ -43,9 +43,6 @@ mod ui;
 mod utils;
 
 #[cfg(test)]
-#[path = "filter_options_tests.rs"]
-mod filter_options_tests;
-#[cfg(test)]
 #[path = "header_tests.rs"]
 mod header_tests;
 #[cfg(test)]

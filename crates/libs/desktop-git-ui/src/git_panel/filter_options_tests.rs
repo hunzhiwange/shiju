@@ -1,7 +1,7 @@
 //! 验证 Git 过滤控件的帮助文案、消息映射、计数与主题样式。
 //! 空查询、大计数和所有开关组合用于确认输入值被原样传递。
 
-use crate::app::{Message, message};
+use super::filter_options::{FilterMessage, FilterState};
 use iced::widget::{button, svg};
 use iced::{Background, Theme};
 
@@ -11,9 +11,7 @@ fn task_717_test_module_is_wired() {
     assert!(path.ends_with("filter_options_tests.rs"));
 }
 
-fn app() -> crate::app::App {
-    crate::app::App::new().0
-}
+fn app() -> FilterState<'static> { FilterState::default() }
 
 #[test]
 fn help_copy_is_stable_and_mentions_all_filter_controls() {
@@ -36,7 +34,7 @@ fn view_builds_with_empty_filters_and_zero_counts() {
 #[test]
 fn view_builds_with_active_query_and_all_toggles() {
     let mut app = app();
-    app.git_filter_query = "src/lib".to_string();
+    app.git_filter_query = "src/lib";
     app.git_filter_included = true;
     app.git_filter_excluded = true;
     app.git_filter_new = true;
@@ -56,7 +54,7 @@ fn view_builds_with_large_counts() {
 #[test]
 fn event_helpers_emit_git_filter_messages() {
     match super::filter_options::filter_query_changed("src".to_string()) {
-        Message::Git(message::GitMessage::FilterQueryChanged(query)) => assert_eq!(query, "src"),
+        FilterMessage::FilterQueryChanged(query) => assert_eq!(query, "src"),
         other => panic!("unexpected message: {other:?}"),
     }
 
@@ -68,11 +66,11 @@ fn event_helpers_emit_git_filter_messages() {
         (super::filter_options::filter_toggle_deleted(true), "deleted"),
     ] {
         match (message, expected) {
-            (Message::Git(message::GitMessage::FilterToggleIncluded(true)), "included") => {}
-            (Message::Git(message::GitMessage::FilterToggleExcluded(false)), "excluded") => {}
-            (Message::Git(message::GitMessage::FilterToggleNew(true)), "new") => {}
-            (Message::Git(message::GitMessage::FilterToggleModified(false)), "modified") => {}
-            (Message::Git(message::GitMessage::FilterToggleDeleted(true)), "deleted") => {}
+            (FilterMessage::FilterToggleIncluded(true), "included") => {}
+            (FilterMessage::FilterToggleExcluded(false), "excluded") => {}
+            (FilterMessage::FilterToggleNew(true), "new") => {}
+            (FilterMessage::FilterToggleModified(false), "modified") => {}
+            (FilterMessage::FilterToggleDeleted(true), "deleted") => {}
             (other, label) => panic!("unexpected {label} message: {other:?}"),
         }
     }
@@ -81,7 +79,7 @@ fn event_helpers_emit_git_filter_messages() {
 #[test]
 fn event_helpers_preserve_empty_queries_and_toggle_boolean_values() {
     match super::filter_options::filter_query_changed(String::new()) {
-        Message::Git(message::GitMessage::FilterQueryChanged(query)) => assert!(query.is_empty()),
+        FilterMessage::FilterQueryChanged(query) => assert!(query.is_empty()),
         other => panic!("unexpected empty query message: {other:?}"),
     }
 
@@ -178,21 +176,21 @@ fn help_button_style_keeps_geometry_stable_across_statuses() {
     }
 }
 
-fn assert_toggle_value(message: Message, label: &str, expected: bool) {
+fn assert_toggle_value(message: FilterMessage, label: &str, expected: bool) {
     match (message, label) {
-        (Message::Git(message::GitMessage::FilterToggleIncluded(value)), "included") => {
+        (FilterMessage::FilterToggleIncluded(value), "included") => {
             assert_eq!(value, expected);
         }
-        (Message::Git(message::GitMessage::FilterToggleExcluded(value)), "excluded") => {
+        (FilterMessage::FilterToggleExcluded(value), "excluded") => {
             assert_eq!(value, expected);
         }
-        (Message::Git(message::GitMessage::FilterToggleNew(value)), "new") => {
+        (FilterMessage::FilterToggleNew(value), "new") => {
             assert_eq!(value, expected);
         }
-        (Message::Git(message::GitMessage::FilterToggleModified(value)), "modified") => {
+        (FilterMessage::FilterToggleModified(value), "modified") => {
             assert_eq!(value, expected);
         }
-        (Message::Git(message::GitMessage::FilterToggleDeleted(value)), "deleted") => {
+        (FilterMessage::FilterToggleDeleted(value), "deleted") => {
             assert_eq!(value, expected);
         }
         (other, label) => panic!("unexpected {label} message: {other:?}"),

@@ -3,8 +3,9 @@
 
 use iced::Color;
 
-use crate::app::state::{GitDiffLineRange, GitDiffSelectedLine};
-use crate::app::{DiffTheme, Message};
+use super::GitDiffLineRange;
+use super::test_support::{Fixture, GitDiffSelectedLine};
+use crate::DiffTheme;
 
 #[test]
 fn task_716_test_module_is_wired() {
@@ -12,9 +13,7 @@ fn task_716_test_module_is_wired() {
     assert!(path.ends_with("text_diff_tests.rs"));
 }
 
-fn app() -> crate::app::App {
-    crate::app::App::new().0
-}
+fn app() -> Fixture { Fixture::default() }
 
 fn colors() -> (Color, Color, Color, Color, Color) {
     (
@@ -42,12 +41,12 @@ fn custom_text_diff_builds_merge_view_for_equal_insert_and_delete_lines() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _element = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "Example".to_string(),
         Some("src/lib.rs".to_string()),
         "same\nold\n".to_string(),
         "same\nnew\n".to_string(),
-        Some(Message::None),
+        Some(iced::widget::text("close").into()),
         DiffTheme::GitHub,
         bg,
         add_line,
@@ -67,7 +66,7 @@ fn custom_text_diff_builds_split_view_with_context_menu_wrapping() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _element = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "Example".to_string(),
         None,
         "a\nb\nc\n".to_string(),
@@ -90,7 +89,7 @@ fn custom_text_diff_applies_equal_line_hover_in_merge_and_split_views() {
     merge_app.merge_view = true;
     merge_app.git_diff_hovered_line = Some(("src/main.rs".to_string(), 0, false));
     let merge = super::text_diff::view_custom_text_diff(
-        &merge_app,
+        &merge_app.view_state(), &merge_app.render_ctx(),
         "main".to_string(),
         Some("src/main.rs".to_string()),
         "same\nold\n".to_string(),
@@ -109,7 +108,7 @@ fn custom_text_diff_applies_equal_line_hover_in_merge_and_split_views() {
     split_app.merge_view = false;
     split_app.git_diff_hovered_line = Some(("main".to_string(), 0, false));
     let split = super::text_diff::view_custom_text_diff(
-        &split_app,
+        &split_app.view_state(), &split_app.render_ctx(),
         "main".to_string(),
         None,
         "same\nold\n".to_string(),
@@ -131,7 +130,7 @@ fn custom_text_diff_handles_empty_old_or_new_content() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _added = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "added.txt".to_string(),
         Some("added.txt".to_string()),
         String::new(),
@@ -146,7 +145,7 @@ fn custom_text_diff_handles_empty_old_or_new_content() {
     );
 
     let _deleted = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "deleted.txt".to_string(),
         Some("deleted.txt".to_string()),
         "one\ntwo\n".to_string(),
@@ -167,12 +166,12 @@ fn custom_text_diff_handles_both_inputs_empty() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _element = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "empty.txt".to_string(),
         Some("empty.txt".to_string()),
         String::new(),
         String::new(),
-        Some(Message::None),
+        Some(iced::widget::text("close").into()),
         DiffTheme::GitHub,
         bg,
         add_line,
@@ -201,12 +200,12 @@ fn split_view_with_diff_line_selection() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _element = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "test.rs".to_string(),
         None,
         "a\nb\n".to_string(),
         "A\nb\n".to_string(),
-        Some(Message::None),
+        Some(iced::widget::text("close").into()),
         DiffTheme::GitHub,
         bg,
         add_line,
@@ -222,7 +221,7 @@ fn handles_content_without_trailing_newlines() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _element = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "no_newline.txt".to_string(),
         None,
         "line one".to_string(),
@@ -243,7 +242,7 @@ fn handles_unicode_content() {
     let (bg, add_line, add_word, del_line, del_word) = colors();
 
     let _element = super::text_diff::view_custom_text_diff(
-        &app,
+        &app.view_state(), &app.render_ctx(),
         "unicode.txt".to_string(),
         None,
         "你好\n世界\n".to_string(),

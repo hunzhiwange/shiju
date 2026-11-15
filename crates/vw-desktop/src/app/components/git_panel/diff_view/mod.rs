@@ -45,9 +45,6 @@ mod header_tests;
 mod mod_tests;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "text_diff_tests.rs"]
-mod text_diff_tests;
 
 pub use file_view::view_file;
 pub use text_diff::view_custom_text_diff;

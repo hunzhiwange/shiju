@@ -145,3 +145,7 @@ pub mod header;
 pub mod history;
 #[cfg(test)]
 mod header_tests;
+
+pub mod text_diff;
+#[cfg(test)]
+mod text_diff_tests;

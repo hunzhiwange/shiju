@@ -2,6 +2,7 @@
 members = [
   "crates/libs/gateway-device-sync",
   "crates/libs/gateway-usage-read",
+  "crates/libs/gateway-usage-scan",
   "crates/libs/api-hermes-dashboard",
   "crates/libs/api-project-profiles",
   "crates/libs/gateway-app-usage",

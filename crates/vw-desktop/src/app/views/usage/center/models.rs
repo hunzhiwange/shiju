@@ -3,7 +3,8 @@ use super::{identity, Identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, checkbox, column, row, text}};
-use vw_gateway_client::client::{ModelsDevEntry, ModelsDevSyncConfig, ModelsDevSyncState, UsageScanScope};
+use vw_gateway_client::client::{ModelsDevEntry, ModelsDevSyncConfig, ModelsDevSyncState};
+use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
 pub struct State {
@@ -119,7 +120,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
                         _ => {
                             let result = async {
                                 let job = job.ok_or_else(|| "尚无同步任务".to_string())?;
-                                let snapshot = client.usage_job(&request_scope, &job).await.map_err(|e| e.to_string())?;
+                                let snapshot = gateway_usage_scan::GatewayUsageScanClient::new(client.transport().clone()).usage_job(&request_scope, &job).await.map_err(|e| e.to_string())?;
                                 let config = client.usage_models_dev_config(&request_scope).await.map_err(|e| e.to_string())?;
                                 Ok((serde_json::to_string(&snapshot.progress).map_err(|e| e.to_string())?, config))
                             }.await;

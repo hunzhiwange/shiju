@@ -3,7 +3,8 @@ use super::{identity, Identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_gateway_client::client::{Currency, RateMode, UsageDisplayPatch, UsageRatesState, UsageScanScope};
+use vw_gateway_client::client::{Currency, RateMode, UsageDisplayPatch, UsageRatesState};
+use gateway_usage_scan::UsageScanScope;
 
 #[derive(Default)]
 pub struct State {

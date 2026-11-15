@@ -422,7 +422,7 @@ pub use gateway_usage_read::*;
 mod usage_read_api;
 
 mod usage_scan_api;
-pub use usage_scan_api::*;
+pub use gateway_usage_scan::*;
 
 mod usage_price_types;
 pub use usage_price_types::*;

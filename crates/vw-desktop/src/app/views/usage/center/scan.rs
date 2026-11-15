@@ -2,7 +2,7 @@
 use super::{Identity, identity};
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, Length, widget::{button, checkbox, column, row, text}};
-use vw_gateway_client::{UsageJobSnapshot, UsageScanScope, UsageSourceSettingsState, UsageLastScan};
+use gateway_usage_scan::{UsageJobSnapshot, UsageScanScope, UsageSourceSettingsState, UsageLastScan};
 use crate::app::components::system_settings_common::*;
 
 #[derive(Default)]
@@ -106,7 +106,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let target = UsageScanScope { project_id: scope.project.clone().into(), target_host: scope.host.clone() };
             return Task::perform(async move {
                 let result = async {
-                    let client = client?;
+                    let client = gateway_usage_scan::GatewayUsageScanClient::new(client?.transport().clone());
                     let result = match action {
                         Action::Load => Ok(Reply::Settings(client.usage_source_settings(&target).await.map_err(|e| e.to_string())?, client.usage_last_scan(&target).await.map_err(|e| e.to_string())?)),
                         Action::Sync => client.usage_start_scan(&target).await.map(Reply::Job),
@@ -122,7 +122,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
                             Ok(Reply::Settings(client.usage_source_settings(&target).await.map_err(|e| e.to_string())?, client.usage_last_scan(&target).await.map_err(|e| e.to_string())?))
                         }
                     };
-                    result.map_err(|e: vw_gateway_client::UsageScanError| e.to_string())
+                    result.map_err(|e: gateway_usage_scan::UsageScanError| e.to_string())
                 }.await;
                 (scope, result)
             }, move |(scope, result)| message(Event::Done(sequence, scope, result)));
@@ -183,7 +183,7 @@ pub fn activity(app: &App, active: bool) -> Task<Message> {
     let paused = app.usage_center.scan.paused;
     let client = crate::app::config::gateway_client();
     Task::perform(async move {
-        let client = client?;
+        let client = gateway_usage_scan::GatewayUsageScanClient::new(client?.transport().clone());
         client.usage_activity(&UsageScanScope { project_id: scope.project.into(), target_host: scope.host }, active, paused)
             .await.map_err(|e| e.to_string())
     }, |result| message(Event::ActivityDone(result)))

@@ -26,3 +26,21 @@ gateway-mcp-write = { path = "../gateway-mcp-write", version = "0.6.0" }
 gateway-mcp-distribution = { path = "../gateway-mcp-distribution", version = "0.6.0" }
 serde = "1"
 vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+
+gateway-mcp-read = { path = "../gateway-mcp-read", version = "0.6.0" }
+gateway-mcp-probe = { path = "../gateway-mcp-probe", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+gateway-app-settings = { path = "../gateway-app-settings", version = "0.6.0" }
+vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
+desktop-settings-apps = { path = "../desktop-settings-apps", version = "0.6.0" }
+tokio = { version = "1", features = ["time"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Window"] }
+
+[dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

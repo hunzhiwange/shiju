@@ -6,57 +6,12 @@ use crate::app::{
     },
 };
 use iced::Task;
-use {vw_gateway_client::GatewayClient, vw_api_app_diagnostics::*};
+use vw_api_app_diagnostics::*;
 
-#[derive(Clone)]
-pub struct ProbeTransport {
-    pub(crate) client: GatewayClient,
-    pub(crate) token: String,
-}
-impl std::fmt::Debug for ProbeTransport {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProbeTransport").finish_non_exhaustive()
-    }
-}
-pub(crate) fn cleanup(
-    transport: ProbeTransport,
-    context: Context,
-    job: DiagnosticJobIdentity,
-) -> Task<Message> {
-    Task::perform(
-        async move {
-            let result = async {
-                let mut snapshot = gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
-                    .mcp_management_check_cancel(&context.query, &job.task_id, &transport.token)
-                    .await
-                    .map_err(|_| ())?;
-                loop {
-                    if snapshot.job != job {
-                        return Err(());
-                    }
-                    if matches!(
-                        snapshot.state,
-                        DiagnosticJobState::Succeeded {}
-                            | DiagnosticJobState::Failed { .. }
-                            | DiagnosticJobState::Cancelled {}
-                            | DiagnosticJobState::Interrupted {}
-                    ) {
-                        return Ok(());
-                    }
-                    crate::app::message::sleep(std::time::Duration::from_millis(350)).await;
-                    snapshot = gateway_mcp_probe::GatewayMcpProbeClient::new(transport.client.transport().clone())
-                    .mcp_management_check_status(&context.query, &job.task_id, &transport.token)
-                        .await
-                        .map_err(|_| ())?;
-                }
-            }
-            .await;
-            Event::Cleaned(
-                result.map_err(|()| "旧 MCP 检查取消未确认，请在原主机核对作业".to_owned()),
-            )
-        },
-        diagnostics::message,
-    )
+pub use desktop_settings_mcp::management_probe::ProbeTransport;
+pub(crate) fn cleanup(transport: ProbeTransport, context: Context, job: DiagnosticJobIdentity) -> Task<Message> {
+    desktop_settings_mcp::management_probe::cleanup(transport, context, job)
+        .map(|result| diagnostics::message(Event::Cleaned(result)))
 }
 /// Called after navigation/context/mutations settle; it never starts a connection check.
 pub(crate) fn invalidate(app: &mut App) -> Task<Message> {

@@ -3,22 +3,12 @@ use {
     vw_gateway_client::GatewayClient,
     vw_api_types::agent_apps::AppId,
     vw_api_app_diagnostics::*,
-    vw_api_mcp_management::McpCatalogRecord,
     vw_api_mcp_management::McpConnectionOutcome,
     vw_api_mcp_management::McpRecordId,
     vw_api_mcp_management::McpRecordRef,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Context {
-    pub(crate) gateway: String,
-    pub(crate) tenant: vw_api_transport::TenantScope,
-    pub(crate) project_path: Option<String>,
-    pub(crate) credentials_generation: u64,
-    pub(crate) query: DiagnosticScopeQuery,
-    pub(crate) records: Vec<McpRecordRef>,
-    pub(crate) connections: Vec<McpCatalogRecord>,
-}
+pub use desktop_settings_mcp::diagnostic_context::Context;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Phase {
     Queued,

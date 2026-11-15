@@ -1,4 +1,4 @@
-//! MCP configuration projection and capability preview widgets.
+//! MCP settings views, state, and authorized gateway operations.
 use config_ui::DesktopLocale;
 use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::settings_muted_text_style;
@@ -323,3 +323,10 @@ pub mod management_context;
 pub mod management_form;
 pub mod management_bindings;
 pub mod management_import;
+
+pub mod diagnostic_context;
+pub mod management_list;
+pub mod management_probe;
+pub mod management_resync;
+pub mod management_tools;
+pub mod management_effect;

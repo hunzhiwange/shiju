@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-pty",
   "crates/libs/gateway-inference",
   "crates/libs/gateway-mcp-distribution",
   "crates/libs/desktop-web-install",

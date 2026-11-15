@@ -10,8 +10,9 @@ use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use vw_api_transport::id::TenantScope;
 
 use super::{PtyCreateRequest, PtySizeDto, PtyStatusDto, PtyUpdateRequest};
-use crate::client::test_support;
-use crate::{GatewayAuth, GatewayClient, GatewayEndpoint};
+use crate::test_support;
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
+use crate::GatewayPtyClient;
 
 #[tokio::test]
 async fn pty_api_uses_http_and_websocket_routes() {
@@ -93,12 +94,12 @@ async fn pty_api_uses_http_and_websocket_routes() {
     server.join();
 
     let (endpoint, handshake) = websocket_server(false);
-    let client = GatewayClient::new(
+    let client = GatewayPtyClient::new(gateway_http::GatewayTransport::new(
         endpoint
             .with_tenant_scope(TenantScope::new("platform-a", "company-b").expect("scope"))
             .with_auth(GatewayAuth { skey: Some("secret-token".to_string()) }),
     )
-    .expect("websocket client");
+    .expect("websocket client"));
     let mut connection = client
         .pty_connect("pty /one", Some("/tmp/project root"), Some(42))
         .await
@@ -116,7 +117,7 @@ async fn pty_api_uses_http_and_websocket_routes() {
     assert_eq!(request.authorization.as_deref(), Some("Bearer secret-token"));
 
     let (endpoint, rejected_handshake) = websocket_server(true);
-    let client = GatewayClient::new(endpoint).expect("rejected websocket client");
+    let client = GatewayPtyClient::new(gateway_http::GatewayTransport::new(endpoint).expect("rejected websocket client"));
     let error = match client.pty_connect("pty-rejected", None, None).await {
         Ok(_) => panic!("failed WebSocket handshake must propagate"),
         Err(error) => error,

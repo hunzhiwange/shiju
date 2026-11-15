@@ -5,7 +5,8 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result, bail};
 use clap::{Subcommand, ValueEnum};
 use serde_json::{Value, json};
-use vw_gateway_client::{PendingPermissionReplyDto, PtyCreateRequest, PtyUpdateRequest};
+use vw_gateway_client::PendingPermissionReplyDto;
+use gateway_pty::{GatewayPtyClient, PtyCreateRequest, PtyUpdateRequest};
 
 use cli_api_core::ApiOutputFormat;
 use cli_api_core::context::ApiContext;
@@ -196,41 +197,44 @@ pub async fn run(
                 json!(client.question_reject(&request_id).await.map_err(anyhow::Error::msg)?)
             }
         },
-        InteractiveCommands::Pty { command } => match command {
-            PtyCommands::List => {
-                json!(client.pty_list(context.directory()).await.map_err(anyhow::Error::msg)?)
-            }
-            PtyCommands::Create { input } => {
-                let request = parse_input::<PtyCreateRequest>(&input, stdin, "PTY create")?;
-                json!(
+        InteractiveCommands::Pty { command } => {
+            let client = GatewayPtyClient::new(context.client().transport().clone());
+            match command {
+                PtyCommands::List => {
+                    json!(client.pty_list(context.directory()).await.map_err(anyhow::Error::msg)?)
+                }
+                PtyCommands::Create { input } => {
+                    let request = parse_input::<PtyCreateRequest>(&input, stdin, "PTY create")?;
+                    json!(
+                        client
+                            .pty_create(&request, context.directory())
+                            .await
+                            .map_err(anyhow::Error::msg)?
+                    )
+                }
+                PtyCommands::Detail { pty_id } => json!(
+                    client.pty_get(&pty_id, context.directory()).await.map_err(anyhow::Error::msg)?
+                ),
+                PtyCommands::Update { pty_id, input } => {
+                    let request = parse_input::<PtyUpdateRequest>(&input, stdin, "PTY update")?;
+                    json!(
+                        client
+                            .pty_update(&pty_id, &request, context.directory())
+                            .await
+                            .map_err(anyhow::Error::msg)?
+                    )
+                }
+                PtyCommands::Delete { pty_id } => json!(
                     client
-                        .pty_create(&request, context.directory())
+                        .pty_delete(&pty_id, context.directory())
                         .await
                         .map_err(anyhow::Error::msg)?
-                )
+                ),
+                PtyCommands::Connect { pty_id, cursor, messages } => {
+                    return run_pty_connect(context, &pty_id, cursor, messages, writer).await;
+                }
             }
-            PtyCommands::Detail { pty_id } => json!(
-                client.pty_get(&pty_id, context.directory()).await.map_err(anyhow::Error::msg)?
-            ),
-            PtyCommands::Update { pty_id, input } => {
-                let request = parse_input::<PtyUpdateRequest>(&input, stdin, "PTY update")?;
-                json!(
-                    client
-                        .pty_update(&pty_id, &request, context.directory())
-                        .await
-                        .map_err(anyhow::Error::msg)?
-                )
-            }
-            PtyCommands::Delete { pty_id } => json!(
-                client
-                    .pty_delete(&pty_id, context.directory())
-                    .await
-                    .map_err(anyhow::Error::msg)?
-            ),
-            PtyCommands::Connect { pty_id, cursor, messages } => {
-                return run_pty_connect(context, &pty_id, cursor, messages, writer).await;
-            }
-        },
+        }
     };
 
     output::write_json(writer, &response, context.output_format())
@@ -243,8 +247,8 @@ async fn run_pty_connect(
     messages: Vec<String>,
     writer: &mut impl Write,
 ) -> Result<()> {
-    let mut connection = context
-        .client()
+    let client = GatewayPtyClient::new(context.client().transport().clone());
+    let mut connection = client
         .pty_connect(pty_id, context.directory(), cursor)
         .await
         .map_err(anyhow::Error::msg)?;

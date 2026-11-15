@@ -2,7 +2,7 @@
 use crate::app::{Message, message::project_profiles::{Event, ApplyEvent, message}, state::project_profiles::{State, PreviewAction}};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, widget::{button, column, row, text}};
-use vw_gateway_client::vw_api_types::project_profiles::*;
+use vw_api_project_profiles::*;
 
 pub(super) fn action(profile: &ProjectProfile, scope: ProjectProfileScope, enabled: bool) -> Element<'_, Message> {
     button(text("预览并应用")).padding([8, 12]).style(primary_action_btn_style)

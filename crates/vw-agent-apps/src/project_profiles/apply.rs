@@ -1,6 +1,6 @@
 //! Sequential aggregation; domain callbacks retain their native transaction owners.
 use anyhow::Result;
-use vw_api_types::project_profiles::{
+use vw_api_project_profiles::{
     ProjectProfileApplyResult, ProjectProfileApplyStatus as State, ProjectProfileCategory as Category,
     ProjectProfileItemResult as Item, ProjectProfileItemStatus as Status, ProjectProfilePayload,
 };

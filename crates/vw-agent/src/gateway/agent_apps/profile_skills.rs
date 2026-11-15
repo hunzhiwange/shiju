@@ -8,7 +8,7 @@ use vw_agent_apps::{
     },
     skills::bulk_sync::SkillSyncTarget,
 };
-use vw_api_types::project_profiles::ProjectProfilePayload;
+use vw_api_project_profiles::ProjectProfilePayload;
 
 use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
 

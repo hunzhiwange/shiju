@@ -1,9 +1,9 @@
 //! Provider-slot orchestration. Native projection and publication stay with the
 //! existing provider transaction owner on the authorized execution host.
-use vw_api_types::{project_profiles::{
+use vw_api_project_profiles::{
         ProjectProfileCategory, ProjectProfileItemResult, ProjectProfileItemStatus,
         ProjectProfilePayload,
-    }};
+    };
 use vw_api_app_provider_environment::mode_state::ProviderMode;
 use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
 

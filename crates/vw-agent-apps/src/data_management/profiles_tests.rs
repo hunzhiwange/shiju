@@ -4,7 +4,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::project_profiles::*,
+    vw_api_project_profiles::*,
 };
 use super::{profiles::*, preview::{Decision, Difference, PreviewError}, source::*};
 

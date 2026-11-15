@@ -1,4 +1,4 @@
-use super::project_profiles::*;
+use super::*;
 use serde_json::json;
 
 #[test]
@@ -49,7 +49,7 @@ fn profile_t02_empty_prompt_is_explicit_deactivation() {
 
 #[test]
 fn profile_t02_unknown_groups_are_rejected() {
-    use crate::agent_apps::catalog::AppId;
+    use vw_api_app_identity::AppId;
     assert_eq!(ProjectProfileScope::for_app(AppId::Gemini), None);
     for key in ["gemini", "claude_desktop", "Claude", "pi"] {
         assert!(serde_json::from_value::<ProjectProfileScope>(json!(key)).is_err());

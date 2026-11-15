@@ -172,9 +172,9 @@ fn project(scope: SnapshotScope<'_>, selected: &SnapshotSelection, root: &Path,
     if !selected.profiles.is_empty() {
         let raw = required(get("project_profiles", "state_v1")?)?;
         #[derive(serde::Deserialize)]
-        struct Profiles { profiles: BTreeMap<String, vw_api_types::project_profiles::ProjectProfile> }
+        struct Profiles { profiles: BTreeMap<String, vw_api_project_profiles::ProjectProfile> }
         let state: Profiles = serde_json::from_str(&raw).map_err(|_| anyhow::anyhow!("invalid profile state"))?;
-        use vw_api_types::project_profiles::ProjectProfileScope;
+        use vw_api_project_profiles::ProjectProfileScope;
         for id in &selected.profiles {
             let profile = state.profiles.get(id).ok_or_else(|| anyhow::anyhow!("selected profile is missing"))?;
             ensure!(profile.id.0 == *id, "profile identity mismatch");

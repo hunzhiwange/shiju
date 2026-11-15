@@ -1,5 +1,5 @@
 //! Read state for the three independent application groups.
-use vw_gateway_client::vw_api_types::project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfilePerApp};
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfilePerApp};
 #[derive(Clone, Default)]
 pub(crate) struct Group {
     pub profiles: Vec<ProjectProfile>,
@@ -9,7 +9,7 @@ pub(crate) struct Group {
     pub loaded: bool,
     pub error: bool,
     /// Historical group outcome; never confirms an in-flight application.
-    pub stored_result: Option<vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyResult>,
+    pub stored_result: Option<vw_api_project_profiles::ProjectProfileApplyResult>,
     pub result_error: bool,
 }
 #[derive(Clone, Default)]
@@ -45,7 +45,7 @@ impl Action {
 }
 #[derive(Clone)]
 pub(crate) struct Management {
-    pub scope: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,
+    pub scope: vw_api_project_profiles::ProjectProfileScope,
     pub action: Action,
     pub name: String,
     pub busy: bool,
@@ -54,7 +54,7 @@ pub(crate) struct Management {
 /// A submitted write is never replayed from this modal, even after transport failure.
 #[derive(Clone)]
 pub(crate) struct Application {
-    pub scope: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,
+    pub scope: vw_api_project_profiles::ProjectProfileScope,
     pub owner: crate::app::message::project_profiles::Identity,
     pub operation_id: Option<String>,
     pub cancelling: bool,
@@ -64,21 +64,21 @@ pub(crate) struct Application {
     pub loading: bool,
     pub submitted: bool,
     pub preview: Option<Preview>,
-    pub result: Option<vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyResult>,
+    pub result: Option<vw_api_project_profiles::ProjectProfileApplyResult>,
     pub error: Option<&'static str>,
 }
 /// Fail closed until the executor supplies this complete, structured preview.
 #[derive(Clone, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Preview {
-    pub group: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,
+    pub group: vw_api_project_profiles::ProjectProfileScope,
     pub captured: bool,
     pub items: Vec<PreviewItem>,
 }
 #[derive(Clone, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct PreviewItem {
-    pub category: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileCategory,
+    pub category: vw_api_project_profiles::ProjectProfileCategory,
     pub reference_id: String,
     pub action: PreviewAction,
 }

@@ -1,5 +1,5 @@
 //! Capture before inserting; creation never selects or applies a profile.
-use vw_api_types::{project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileSkillRef}};
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileSkillRef};
 use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
 
 use super::snapshot::{SnapshotError, SnapshotReadFailure, SnapshotScope, snapshot_current};

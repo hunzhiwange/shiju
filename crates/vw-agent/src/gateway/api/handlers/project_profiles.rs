@@ -6,7 +6,7 @@ use {
     vw_api_transport::ProjectId,
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::project_profiles::ProjectProfileScope,
+    vw_api_project_profiles::ProjectProfileScope,
 };
 use crate::{global_database::GlobalDatabase, gateway::agent_apps::profile_store::ProjectProfileStore};
 

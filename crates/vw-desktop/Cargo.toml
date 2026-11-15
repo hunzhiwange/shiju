@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+vw-api-project-profiles = { path = "../libs/api-project-profiles", version = "0.6.0" }
 gateway-app-usage = { path = "../libs/gateway-app-usage", version = "0.6.0" }
 vw-api-openclaw-settings = { path = "../libs/api-openclaw-settings", version = "0.6.0" }
 gateway-openclaw-settings = { path = "../libs/gateway-openclaw-settings", version = "0.6.0" }

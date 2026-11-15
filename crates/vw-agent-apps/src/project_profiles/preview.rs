@@ -1,7 +1,7 @@
 //! Pure differences over executor-authorized observations, never configuration writes.
 use std::collections::{BTreeMap, BTreeSet};
 
-use vw_api_types::project_profiles::{
+use vw_api_project_profiles::{
     ProjectProfileCategory, ProjectProfilePayload, ProjectProfileScope,
     PROJECT_PROFILE_NO_ACTIVE_PROMPT,
 };

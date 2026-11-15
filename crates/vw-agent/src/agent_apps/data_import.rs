@@ -29,7 +29,7 @@ use vw_agent_apps::{
     },
     skills::bulk_sync::SkillSyncTarget,
 };
-use vw_api_types::project_profiles::{ProjectProfileCategory, ProjectProfileScope};
+use vw_api_project_profiles::{ProjectProfileCategory, ProjectProfileScope};
 
 type Decisions<'a> = &'a [(Uuid, Decision)];
 

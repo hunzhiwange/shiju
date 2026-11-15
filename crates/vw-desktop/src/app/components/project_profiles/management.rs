@@ -2,7 +2,7 @@
 use crate::app::{Message, message::project_profiles::{Event, message}, state::project_profiles::{Action, State}};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, widget::{button, column, row, text}};
-use vw_gateway_client::vw_api_types::project_profiles::{ProjectProfile, ProjectProfileScope};
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileScope};
 
 pub(super) fn actions(profile: &ProjectProfile, scope: ProjectProfileScope, enabled: bool) -> Element<'_, Message> {
     let mut actions = row![].spacing(8);

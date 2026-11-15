@@ -10,7 +10,7 @@ use crate::app::state::project_profiles::{Action, Management};
 use {
     gateway_project_profile::ProjectProfileApiScope,
     vw_api_transport::ProjectScope,
-    vw_api_types::project_profiles::*,
+    vw_api_project_profiles::*,
 };
 #[derive(Clone)]
 pub struct Identity {

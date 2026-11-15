@@ -74,7 +74,7 @@ impl Drop for ProfileWriteGuard {
 #[derive(Clone)]
 pub(crate) struct ProfileApplyOperation {
     lifecycle: vw_agent_apps::apps::lifecycle::operations::Operation,
-    domain: tokio::sync::watch::Sender<Option<vw_api_types::project_profiles::ProjectProfileCategory>>,
+    domain: tokio::sync::watch::Sender<Option<vw_api_project_profiles::ProjectProfileCategory>>,
 }
 
 impl ProfileApplyOperation {
@@ -92,7 +92,7 @@ impl ProfileApplyOperation {
     /// Progress contains only the domain enum, never native paths, IDs or errors.
     pub(crate) fn subscribe_domain(
         &self,
-    ) -> tokio::sync::watch::Receiver<Option<vw_api_types::project_profiles::ProjectProfileCategory>> {
+    ) -> tokio::sync::watch::Receiver<Option<vw_api_project_profiles::ProjectProfileCategory>> {
         self.domain.subscribe()
     }
 
@@ -104,7 +104,7 @@ impl ProfileApplyOperation {
             + Send + 'static,
     {
         use vw_agent_apps::apps::lifecycle::operations::OperationFailure;
-        use vw_api_types::project_profiles::ProjectProfileApplyStatus as Status;
+        use vw_api_project_profiles::ProjectProfileApplyStatus as Status;
         let domain = self.domain.clone();
         self.lifecycle.start_task(async move {
             let outcome = work.await;
@@ -122,7 +122,7 @@ impl ProfileApplyOperation {
 
     pub(super) fn boundary(
         &self,
-        domain: Option<vw_api_types::project_profiles::ProjectProfileCategory>,
+        domain: Option<vw_api_project_profiles::ProjectProfileCategory>,
     ) -> bool {
         if self.lifecycle.is_cancelled() {
             return true;

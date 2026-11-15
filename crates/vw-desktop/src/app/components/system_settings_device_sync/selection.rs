@@ -5,11 +5,11 @@ use iced::{
     Element,
     widget::{checkbox, column, text},
 };
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileScope};
 use vw_gateway_client::{
     DeviceSyncSelection,
     vw_api_types::{
         agent_apps::AppId,
-        project_profiles::{ProjectProfile, ProjectProfileScope},
     },
 };
 

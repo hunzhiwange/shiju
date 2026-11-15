@@ -6,7 +6,7 @@ use vw_agent_apps::{
     prompts::{activation, targets},
     providers::live::{commit::ProviderTransactions, write_guard::{lock_app, WriteError}},
 };
-use vw_api_types::project_profiles::ProjectProfilePayload;
+use vw_api_project_profiles::ProjectProfilePayload;
 
 impl PromptsStore {
     /// Executor-owned paths and authorization only. The outer profile operation

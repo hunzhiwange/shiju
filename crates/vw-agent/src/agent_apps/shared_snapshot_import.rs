@@ -110,13 +110,13 @@ pub fn preview_shared_snapshot(database: &GlobalDatabase, scope: SnapshotScope<'
         ensure!(identities.insert(("profile",p.id.clone())) && selected.profiles.contains(&p.id), "duplicate or unselected profile");
         edit("project_profiles","state_v1".into(), &mut |v| {
             let slot=v.get_mut("profiles").and_then(|v| v.get_mut(&p.id)).ok_or_else(||anyhow::anyhow!("profile requires local setup"))?;
-            let mut profile: vw_api_types::project_profiles::ProjectProfile=serde_json::from_value(slot.clone())?;
+            let mut profile: vw_api_project_profiles::ProjectProfile=serde_json::from_value(slot.clone())?;
             let before=profile.clone();
             ensure!(!p.name.trim().is_empty() && p.name.len()<=128,"invalid profile name");
             profile.name=p.name.clone();
             let mut groups=std::collections::BTreeSet::new();
             for group in &p.groups {
-                let app=vw_api_types::project_profiles::ProjectProfileScope::for_app(group.app_id).ok_or_else(||anyhow::anyhow!("unsupported profile app"))?;
+                let app=vw_api_project_profiles::ProjectProfileScope::for_app(group.app_id).ok_or_else(||anyhow::anyhow!("unsupported profile app"))?;
                 ensure!(groups.insert(format!("{:?}",app)),"duplicate profile group");
                 ensure!(group.provider.as_ref().is_none_or(|id| selected.providers.contains(&(group.app_id,id.clone()))),"unmapped profile provider");
                 ensure!(group.mcp.as_ref().is_none_or(|ids| ids.iter().all(|id|selected.mcp.contains(id))),"unmapped profile MCP");
@@ -126,7 +126,7 @@ pub fn preview_shared_snapshot(database: &GlobalDatabase, scope: SnapshotScope<'
                     let mut matches=selected.profile_skill_directories.iter().filter(|(_,d)| *d==dir);
                     let (id,_)=matches.next().ok_or_else(||anyhow::anyhow!("local skill mapping required"))?;
                     ensure!(matches.next().is_none(),"ambiguous local skill mapping");
-                    Ok(vw_api_types::project_profiles::ProjectProfileSkillRef { installation_id:id.clone() })
+                    Ok(vw_api_project_profiles::ProjectProfileSkillRef { installation_id:id.clone() })
                 }).collect::<Result<Vec<_>>>()).transpose()?;
                 *profile.payload.providers.get_mut(app)=group.provider.clone();
                 *profile.payload.mcp.get_mut(app)=group.mcp.clone();

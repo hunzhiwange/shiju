@@ -142,13 +142,13 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.prompts.invalidate();
             if app.apps_catalog.expanded.is_some() && !matches!(id, vw_api_app_identity::AppId::ClaudeDesktop | vw_api_app_identity::AppId::OpenClaw) {
                 let prompts = super::prompts::update(app, super::prompts::Event::Open(id));
-                let profiles = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id)
+                let profiles = vw_api_project_profiles::ProjectProfileScope::for_app(id)
                     .map(|scope| crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope)))
                     .unwrap_or_else(Task::none);
                 return Task::batch([prompts, profiles]);
             }
             if app.apps_catalog.expanded == Some(id) {
-                if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id) {
+                if let Some(scope) = vw_api_project_profiles::ProjectProfileScope::for_app(id) {
                     return crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope));
                 }
             }

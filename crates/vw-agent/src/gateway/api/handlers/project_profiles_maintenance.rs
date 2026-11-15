@@ -1,7 +1,7 @@
 //! Narrow maintenance endpoints; no caller-controlled command or snapshot payload.
 use super::*;
 use axum::{extract::Path, routing::{delete, post}};
-use vw_api_types::project_profiles::ProjectProfileId;
+use vw_api_project_profiles::ProjectProfileId;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

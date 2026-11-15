@@ -1,6 +1,6 @@
 //! Singleton prompt application; publication stays with the prompt domain owner.
 use std::collections::BTreeSet;
-use vw_api_types::project_profiles::{ProjectProfilePayload, PROJECT_PROFILE_NO_ACTIVE_PROMPT};
+use vw_api_project_profiles::{ProjectProfilePayload, PROJECT_PROFILE_NO_ACTIVE_PROMPT};
 use super::snapshot::SnapshotScope;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

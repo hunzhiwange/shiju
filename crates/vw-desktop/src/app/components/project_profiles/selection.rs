@@ -7,7 +7,7 @@ use crate::app::state::project_profiles::Action;
 use crate::app::{Message, state::project_profiles::State, message::project_profiles::{Event, message}};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, widget::{button, column, text}};
-use vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope;
+use vw_api_project_profiles::ProjectProfileScope;
 pub(crate) fn view(state: &State, scope: ProjectProfileScope) -> Element<'_, Message> {
     let group = state.groups.get(scope);
     let mut content = column![text("项目配置组合").size(15),
@@ -32,7 +32,7 @@ pub(crate) fn view(state: &State, scope: ProjectProfileScope) -> Element<'_, Mes
         if group.result_error {
             content = content.push(text("最近保存结果读取失败，请刷新重试").style(settings_muted_text_style));
         } else if let Some(result) = &group.stored_result {
-            use vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyStatus;
+            use vw_api_project_profiles::ProjectProfileApplyStatus;
             let status = match result.status {
                 ProjectProfileApplyStatus::Applied => "已应用",
                 ProjectProfileApplyStatus::Partial => "部分应用失败",

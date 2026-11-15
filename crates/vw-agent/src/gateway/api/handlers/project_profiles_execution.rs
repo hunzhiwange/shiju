@@ -2,7 +2,7 @@
 //! their domain owners before captured compositions can be previewed or applied.
 use super::*;
 use axum::{extract::Path, routing::{get, post}};
-use vw_api_types::project_profiles::ProjectProfileId;
+use vw_api_project_profiles::ProjectProfileId;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -1,6 +1,6 @@
 //! Replace one complete group without changing shared metadata or other groups.
 use anyhow::{Context, Result, ensure};
-use vw_api_types::project_profiles::{ProjectProfile, ProjectProfilePayload, ProjectProfileScope};
+use vw_api_project_profiles::{ProjectProfile, ProjectProfilePayload, ProjectProfileScope};
 
 /// Called by the storage owner inside its version-checked transaction, with a
 /// complete snapshot from `snapshot_current` and executor-owned time. The scope

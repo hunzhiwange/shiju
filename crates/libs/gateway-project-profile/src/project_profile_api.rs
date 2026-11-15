@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use {
     vw_api_transport::ProjectId,
     vw_api_transport::ProjectScope,
-    vw_api_types::project_profiles::*,
+    vw_api_project_profiles::*,
 };
 
 #[derive(Debug, Clone, PartialEq)]

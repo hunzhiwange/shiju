@@ -1,7 +1,7 @@
 //! Skill enablement orchestration over executor-authorized observations.
 use std::collections::{BTreeMap, BTreeSet};
 
-use vw_api_types::project_profiles::{ProjectProfilePayload, ProjectProfileScope};
+use vw_api_project_profiles::{ProjectProfilePayload, ProjectProfileScope};
 
 use super::snapshot::SnapshotScope;
 

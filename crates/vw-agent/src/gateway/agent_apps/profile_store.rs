@@ -7,12 +7,12 @@ use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use vw_agent_apps::project_profiles::snapshot::{SnapshotReadFailure, SnapshotScope};
 use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
-use vw_api_types::project_profiles::ProjectProfileSkillRef;
+use vw_api_project_profiles::ProjectProfileSkillRef;
 use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_types::project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileScope};
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileScope};
 
 use crate::global_database::GlobalDatabase;
 use crate::gateway::settings_store::GatewaySettingsStore;
@@ -35,7 +35,7 @@ pub(crate) struct ProfileSelection {
     pub(crate) project_id: String,
     pub(crate) profile_id: ProjectProfileId,
     #[serde(default)]
-    pub(crate) application: Option<vw_api_types::project_profiles::ProjectProfileApplyResult>,
+    pub(crate) application: Option<vw_api_project_profiles::ProjectProfileApplyResult>,
 }
 
 #[derive(Clone)]
@@ -220,7 +220,7 @@ impl ProfileOperation<'_> {
         preview: &vw_agent_apps::data_management::profiles::ProfilePreview,
         decisions: &[(uuid::Uuid, vw_agent_apps::data_management::preview::Decision)],
         exists: impl FnMut(
-            vw_api_types::project_profiles::ProjectProfileCategory,
+            vw_api_project_profiles::ProjectProfileCategory,
             ProjectProfileScope, &str,
         ) -> bool,
     ) -> Result<usize> {
@@ -322,14 +322,14 @@ impl ProfileOperation<'_> {
         provider: P, mcp: M, skills: S, prompt: R,
     ) -> Result<vw_agent_apps::project_profiles::apply::ApplyOutcome>
     where
-        P: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
-            -> Option<vw_api_types::project_profiles::ProjectProfileItemResult>,
-        M: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
-            -> Vec<vw_api_types::project_profiles::ProjectProfileItemResult>,
-        S: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
+        P: FnOnce(&SnapshotScope<'_>, &vw_api_project_profiles::ProjectProfilePayload)
+            -> Option<vw_api_project_profiles::ProjectProfileItemResult>,
+        M: FnOnce(&SnapshotScope<'_>, &vw_api_project_profiles::ProjectProfilePayload)
+            -> Vec<vw_api_project_profiles::ProjectProfileItemResult>,
+        S: FnOnce(&SnapshotScope<'_>, &vw_api_project_profiles::ProjectProfilePayload)
             -> Result<vw_agent_apps::project_profiles::apply_skills::SkillsApplyResult,
                 vw_agent_apps::project_profiles::apply_skills::SkillApplyFailure>,
-        R: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
+        R: FnOnce(&SnapshotScope<'_>, &vw_api_project_profiles::ProjectProfilePayload)
             -> Option<Result<(), vw_agent_apps::project_profiles::apply_prompt::PromptApplyFailure>>,
     {
         let version = prepared.target.version;
@@ -346,7 +346,7 @@ impl ProfileOperation<'_> {
         &self,
         scope: &SnapshotScope<'_>,
         expected_version: u64,
-        result: &vw_api_types::project_profiles::ProjectProfileApplyResult,
+        result: &vw_api_project_profiles::ProjectProfileApplyResult,
     ) -> Result<()> {
         ensure!(scope.target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         ensure!(result.group == scope.group && result.selected, "invalid application result scope");
@@ -373,7 +373,7 @@ impl ProfileOperation<'_> {
     pub(crate) fn application_result(
         &self,
         scope: &SnapshotScope<'_>,
-    ) -> Result<Option<vw_api_types::project_profiles::ProjectProfileApplyResult>> {
+    ) -> Result<Option<vw_api_project_profiles::ProjectProfileApplyResult>> {
         self.current(scope.project, scope.target_host_id, scope.group)?;
         Ok(self.read(scope.project.tenant_scope())?.selections.into_iter().find(|selection|
             selection.target_host_id == scope.target_host_id && selection.group == scope.group

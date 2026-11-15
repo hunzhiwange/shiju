@@ -1,6 +1,6 @@
 //! Prepare a switch before applying any target configuration.
 use anyhow::{Result, ensure};
-use vw_api_types::project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileScope};
+use vw_api_project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileScope};
 
 /// Warning codes contain no backend errors, native payloads or credentials.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

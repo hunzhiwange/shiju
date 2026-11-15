@@ -14,8 +14,8 @@ use {
     vw_api_mcp_management::McpCredentialRef,
     vw_api_mcp_management::McpFailureCode,
     vw_api_mcp_management::McpNativeStatus,
-    vw_api_types::project_profiles::ProjectProfileItemResult,
-    vw_api_types::project_profiles::ProjectProfilePayload,
+    vw_api_project_profiles::ProjectProfileItemResult,
+    vw_api_project_profiles::ProjectProfilePayload,
 };
 
 use super::{McpBindingTarget, McpCatalogStore};

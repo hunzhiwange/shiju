@@ -1,7 +1,7 @@
 //! Rename metadata without replacing snapshots or touching selection records.
 
 use anyhow::{Context, Result, ensure};
-use vw_api_types::project_profiles::ProjectProfile;
+use vw_api_project_profiles::ProjectProfile;
 
 /// The storage owner calls this inside its tenant transaction and supplies time
 /// from the executor clock. Validate everything before changing the entity.

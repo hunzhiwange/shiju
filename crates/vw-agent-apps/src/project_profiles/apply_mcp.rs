@@ -10,11 +10,11 @@ use {
     vw_api_mcp_management::McpDistributionOutcome,
     vw_api_mcp_management::McpFailureCode,
     vw_api_mcp_management::McpRecordRef,
-    vw_api_types::project_profiles::ProjectProfileCategory,
-    vw_api_types::project_profiles::ProjectProfileItemResult,
-    vw_api_types::project_profiles::ProjectProfileItemStatus,
-    vw_api_types::project_profiles::ProjectProfilePayload,
-    vw_api_types::project_profiles::ProjectProfileScope,
+    vw_api_project_profiles::ProjectProfileCategory,
+    vw_api_project_profiles::ProjectProfileItemResult,
+    vw_api_project_profiles::ProjectProfileItemStatus,
+    vw_api_project_profiles::ProjectProfilePayload,
+    vw_api_project_profiles::ProjectProfileScope,
 };
 
 /// Complete catalog references and effective enablement for exactly this target.

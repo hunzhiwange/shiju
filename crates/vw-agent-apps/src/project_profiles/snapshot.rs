@@ -1,5 +1,5 @@
 //! Read one group without publishing partial or fabricated snapshots.
-use {vw_api_transport::id::ProjectScope, vw_api_types::project_profiles::PROJECT_PROFILE_NO_ACTIVE_PROMPT, vw_api_types::project_profiles::ProjectProfileCategory, vw_api_types::project_profiles::ProjectProfilePayload, vw_api_types::project_profiles::ProjectProfileScope, vw_api_types::project_profiles::ProjectProfileSkillRef};
+use {vw_api_transport::id::ProjectScope, vw_api_project_profiles::PROJECT_PROFILE_NO_ACTIVE_PROMPT, vw_api_project_profiles::ProjectProfileCategory, vw_api_project_profiles::ProjectProfilePayload, vw_api_project_profiles::ProjectProfileScope, vw_api_project_profiles::ProjectProfileSkillRef};
 use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
 
 /// Executor-owned context, assembled after host/project and domain authorization.

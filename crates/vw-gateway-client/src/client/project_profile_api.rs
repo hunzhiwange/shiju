@@ -1,7 +1,7 @@
 //! 项目档案 API 的兼容转发。
 use super::GatewayClient;
 pub use gateway_project_profile::project_profile_api::*;
-use vw_api_types::project_profiles::*;
+use vw_api_project_profiles::*;
 
 impl GatewayClient {
     pub async fn project_profile_list(&self, scope: &ProjectProfileApiScope) -> Result<Vec<ProjectProfile>, ProjectProfileApiError> {

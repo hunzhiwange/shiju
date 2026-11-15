@@ -3,7 +3,7 @@ use super::{Identity, Event, message, apply::Event as ApplyEvent};
 use crate::app::{App, Message};
 use iced::Task;
 use gateway_project_profile::{GatewayProjectProfileClient, ProjectProfileApiScope};
-use vw_api_types::project_profiles::*;
+use vw_api_project_profiles::*;
 
 /// Required executor envelope. Until this is supplied, fail closed with an unknown outcome.
 #[derive(serde::Deserialize)]

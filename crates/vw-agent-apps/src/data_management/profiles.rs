@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use vw_api_types::project_profiles::*;
+use vw_api_project_profiles::*;
 
 use super::{preview::{self, Decision, ImportPreview, PreviewCandidate, PreviewError}, source::*};
 

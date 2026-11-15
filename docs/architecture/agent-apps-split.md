@@ -2333,3 +2333,23 @@ providers/dsh.rs 与 dsh_files.rs，后者还依赖 live 和投影，任务 24 �
 时使用标准库文本核对，不声称完成 TOML 解析。未运行 Cargo、单元及实机测试，
 统一验收待授权：新包与直接调用者编译、迁移定向测试、macOS/Windows/Linux
 条件及锁文件一致性。本任务完成指独立登录迁移和静态审阅完成。
+
+
+### 任务 21：Gemini 认证协议下沉
+
+app-auth-gemini::protocol 接收 gemini_refresh.rs 的客户端构造、RefreshResponse
+和 exchange（GeminiOAuth），通过 app-auth-core::response 复用原 send、
+read_body_limited 与 utc_now 的基础实现。保留 1 MiB 响应限制、超时、
+无重定向、表单字段及所有 HTTP/解析错误映射；新包仅在非 wasm 平台启用。
+
+覆盖历史所有权表：GeminiRefresh/GeminiScope、GeminiCredential::apply_refresh
+及凭据租约发布仍依赖原生存储，留原位置交任务 22 闭合；独立
+gemini_refresh_tests.rs 依赖这些类型与 copilot_tests::oauth_server，保持原
+unix/non-wasm 注册和私有访问，随任务 22 迁移。无资源路径需要调整。
+新协议由原 GeminiRefresh 直接调用，外部 adapter_selection 与 gemini 账户
+调用路径保持不变；身份规则改为直接调用 app-provider-validation 的同一实现。
+不增加包根别名或空重导出。父包依赖仍有其它调用者，未删除。
+
+静态审阅：workspace 与直接路径依赖存在；新包无门面回依赖，协议唯一
+实现，无资源复制。未运行 Cargo、单元及实机测试，统一验收待授权：新包与
+调用者编译、现有 Gemini 刷新定向测试和平台条件。

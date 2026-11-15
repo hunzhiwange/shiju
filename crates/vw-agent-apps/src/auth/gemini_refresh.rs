@@ -1,15 +1,13 @@
 //! Host-internal resolution of a scoped Gemini access token.
 
 use super::{
-    codex_device::send,
-    copilot::{read_body_limited, utc_now},
     credential_file::{AccountCredential, CredentialFileStore, GeminiCredential},
     credential_lease::{refresh_publication_error, refresh_publication_lease},
 };
-use crate::providers::validate_identity;
-use reqwest::{Client, Request, StatusCode};
-use serde::Deserialize;
-use serde_json::Value;
+use app_auth_core::response::utc_now;
+use app_auth_gemini::protocol::{GeminiOAuth, RefreshResponse};
+use app_provider_validation::validate_identity;
+use reqwest::Request;
 use {
     vw_api_transport::TimestampMs,
     vw_api_app_identity::AppId,
@@ -17,7 +15,6 @@ use {
     vw_api_transport::id::TenantScope,
 };
 
-const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
 const REFRESH_BUFFER_MS: i64 = 60_000;
 fn valid_token(token: &str) -> bool {
     !token.is_empty() && token.len() <= 16384 && token.bytes().all(|b| b.is_ascii_graphic())
@@ -33,26 +30,12 @@ pub struct GeminiScope<'a> {
 }
 
 pub struct GeminiRefresh {
-    client: Client,
-}
-
-#[derive(Deserialize)]
-struct RefreshResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    expires_in: Option<i64>,
+    oauth: GeminiOAuth,
 }
 
 impl GeminiRefresh {
     pub fn new() -> Result<Self, AuthErrorCode> {
-        Ok(Self {
-            client: Client::builder()
-                .redirect(reqwest::redirect::Policy::none())
-                .timeout(std::time::Duration::from_secs(30))
-                .user_agent("ShiJu-Gemini-OAuth")
-                .build()
-                .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?,
-        })
+        Ok(Self { oauth: GeminiOAuth::new()? })
     }
 
     /// Resolve a managed account's access token for use on the authorized host.
@@ -94,7 +77,12 @@ impl GeminiRefresh {
         }
 
         drop(lease);
-        let result = match self.exchange(&current, &mut route).await {
+        let result = match self.oauth.exchange(
+            &current.client_id,
+            &current.client_secret,
+            &current.refresh_token,
+            &mut route,
+        ).await {
             Ok(refreshed) => {
                 current.apply_refresh(refreshed)?;
                 Ok(current.access_token.clone())
@@ -110,49 +98,6 @@ impl GeminiRefresh {
             .save_refreshed(&generation, &AccountCredential::GeminiOauth(current))
             .map_err(refresh_publication_error)?;
         result
-    }
-
-    async fn exchange(
-        &self,
-        current: &GeminiCredential,
-        route: &mut impl FnMut(&mut Request),
-    ) -> Result<RefreshResponse, AuthErrorCode> {
-        let endpoint = "https://oauth2.googleapis.com/token";
-        let response = send(
-            &self.client,
-            self.client.post(endpoint).form(&[
-                ("grant_type", "refresh_token"),
-                ("client_id", current.client_id.as_str()),
-                ("client_secret", current.client_secret.as_str()),
-                ("refresh_token", current.refresh_token.as_str()),
-            ]),
-            route,
-        )
-        .await?;
-        let status = response.status();
-        if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
-            return Err(AuthErrorCode::ReauthRequired);
-        }
-        if status.is_server_error() || status == StatusCode::TOO_MANY_REQUESTS {
-            return Err(AuthErrorCode::UpstreamFailure);
-        }
-        // Only a fully received malformed 400 is a Gemini rejection. A truncated,
-        // oversized or unreadable response remains an upstream failure.
-        let body = read_body_limited(response, MAX_RESPONSE_BYTES).await?;
-        let payload: Value = serde_json::from_slice(&body).map_err(|_| {
-            if status == StatusCode::BAD_REQUEST {
-                AuthErrorCode::ReauthRequired
-            } else {
-                AuthErrorCode::UpstreamFailure
-            }
-        })?;
-        match payload.get("error").and_then(Value::as_str) {
-            Some("invalid_grant" | "invalid_token") => Err(AuthErrorCode::ReauthRequired),
-            None if status.is_success() => {
-                serde_json::from_value(payload).map_err(|_| AuthErrorCode::UpstreamFailure)
-            }
-            _ => Err(AuthErrorCode::UpstreamFailure),
-        }
     }
 }
 

@@ -20,3 +20,5 @@ pub mod panel;
 
 #[cfg(test)]
 mod slice_view_fixture;
+
+pub mod page;

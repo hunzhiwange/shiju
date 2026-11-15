@@ -19,19 +19,19 @@
 //! 该模块主要用于任务看板面板中，当用户查看或编辑任务详情时，
 //! 提供子任务列表的展示和交互功能。
 
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_field_label,
 };
-use crate::app::components::text_editor_context_menu::{
+use desktop_ui_controls::text_editor_context_menu::{
     TextEditorContextMenuMessages, TextEditorContextMenuState, wrap_with_context_menu,
 };
-use crate::app::components::text_editor_scroll_panel::{
+use desktop_ui_controls::text_editor_scroll_panel::{
     TextEditorScrollPanelMetrics, text_editor_scroll_panel,
 };
-use crate::app::message::TaskBoardMessage;
-use crate::app::task::Task;
-use crate::app::{App, Message};
+use crate::message::TaskBoardMessage;
+use desktop_task_model::Task;
+use super::{PanelView, PanelMessage as Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
     Space, button, column, container, responsive, row, scrollable, text, text_editor, text_input,
@@ -90,12 +90,12 @@ fn format_subtask_started_at(ms: u64) -> String {
 /// // 将两个元素分别渲染到界面上
 /// ```
 pub fn build_edit_mode_subtasks<'a>(
-    app: &'a App,
+    app: PanelView<'a>,
     task: &'a Task,
 ) -> (Element<'a, Message>, Element<'a, Message>) {
     // 初始化子任务列容器，设置子元素间距为6像素
     let mut subtasks_col = column![].spacing(6);
-    let now_ms = crate::app::time::now_ms();
+    let now_ms = runtime_time::now_ms();
 
     // 遍历任务的所有子任务，为每个子任务构建UI组件
     for (idx, subtask) in task.subtasks.iter().enumerate() {
@@ -137,7 +137,7 @@ pub fn build_edit_mode_subtasks<'a>(
         // 构建子任务内容输入框
         // 输入内容变更时触发更新消息
         let subtask_input = text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
+            desktop_i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
             &subtask.content,
         )
         .on_input(move |v| {
@@ -171,25 +171,25 @@ pub fn build_edit_mode_subtasks<'a>(
         let timing_label = subtask
             .display_execution_duration_ms(now_ms)
             .map(|ms| {
-                crate::app::i18n::I18n::new(app.desktop_locale)
+                desktop_i18n::I18n::new(app.desktop_locale)
                     .format("耗时 %us", &[(ms / 1000).into()])
                     .expect("valid duration template")
             })
             .unwrap_or_else(|| {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("耗时 -").to_string()
+                desktop_i18n::I18n::new(app.desktop_locale).__("耗时 -").to_string()
             });
         let started_label = subtask
             .execution_started_at_ms
             .map(|ms| {
-                crate::app::i18n::I18n::new(app.desktop_locale)
+                desktop_i18n::I18n::new(app.desktop_locale)
                     .format("开始 %s", &[format_subtask_started_at(ms).into()])
                     .expect("valid start template")
             })
             .unwrap_or_else(|| {
-                crate::app::i18n::I18n::new(app.desktop_locale).__("开始 -").to_string()
+                desktop_i18n::I18n::new(app.desktop_locale).__("开始 -").to_string()
             });
         let status_pill = container(
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__(subtask_status_label(status)))
+            text(desktop_i18n::I18n::new(app.desktop_locale).__(subtask_status_label(status)))
                 .size(10)
                 .style(move |theme: &Theme| subtask_status_text_style(theme, status)),
         )
@@ -252,7 +252,7 @@ pub fn build_edit_mode_subtasks<'a>(
 /// let subtasks_view = build_draft_mode_subtasks(&app);
 /// // 将视图渲染到界面上
 /// ```
-pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
+pub fn build_draft_mode_subtasks<'a>(app: PanelView<'a>) -> Element<'a, Message> {
     // 初始化子任务列容器
     let mut subtasks_col = column![].spacing(6);
 
@@ -278,7 +278,7 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
         // 构建子任务内容输入框
         // 草稿模式下使用索引而非ID来标识子任务
         let subtask_input = text_input(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
+            desktop_i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
             subtask,
         )
         .on_input(move |v| {
@@ -307,13 +307,13 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 构建"新增子任务"按钮
     let add_subtask_btn =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增子任务")).size(11))
+        button(text(desktop_i18n::I18n::new(app.desktop_locale).__("新增子任务")).size(11))
             .on_press(Message::TaskBoard(TaskBoardMessage::AddDraftSubtask))
             .padding([6, 10])
             .style(rounded_action_btn_style);
 
     // 构建标题文本
-    let subtasks_title = text(crate::app::i18n::I18n::new(app.desktop_locale).__("子任务"))
+    let subtasks_title = text(desktop_i18n::I18n::new(app.desktop_locale).__("子任务"))
         .size(13)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
 
@@ -350,16 +350,16 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
 /// ```ignore
 /// let add_section = build_add_subtask_section(&app, "task-123");
 /// ```
-fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Message> {
+fn build_add_subtask_section<'a>(app: PanelView<'a>, task_id: &str) -> Element<'a, Message> {
     // 标题文本
     let add_subtask_title =
-        settings_field_label(crate::app::i18n::I18n::new(app.desktop_locale).__("添加子任务"));
+        settings_field_label(desktop_i18n::I18n::new(app.desktop_locale).__("添加子任务"));
 
     // 子任务内容输入框
     // 绑定到应用状态中的 task_board_new_subtask_content 字段
     let add_subtask_input = text_input(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
-        &app.task_board_new_subtask_content,
+        desktop_i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
+        app.task_board_new_subtask_content.as_str(),
     )
     .on_input(|v| Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(v)))
     .padding(SETTINGS_CONTROL_PADDING)
@@ -368,13 +368,13 @@ fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Mes
     .style(input_style);
 
     // 克隆数据用于闭包捕获
-    let content_for_add = app.task_board_new_subtask_content.clone();
+    let content_for_add = app.task_board_new_subtask_content.to_string();
     let task_id_for_add = task_id.to_string();
 
     // 添加按钮
     // 点击时发送添加子任务消息
     let add_subtask_btn =
-        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加")).size(11))
+        button(text(desktop_i18n::I18n::new(app.desktop_locale).__("添加")).size(11))
             .on_press(Message::TaskBoard(TaskBoardMessage::AddSubTask {
                 task_id: task_id_for_add,
                 content: content_for_add,
@@ -659,15 +659,15 @@ fn build_draft_delete_button<'a>(idx: usize) -> Element<'a, Message> {
 /// ```ignore
 /// let logs_view = build_task_logs(&app);
 /// ```
-pub fn build_task_logs<'a>(app: &'a App) -> Element<'a, Message> {
+pub fn build_task_logs<'a>(app: PanelView<'a>) -> Element<'a, Message> {
     let panel = responsive(move |size| build_task_logs_panel(app, size)).height(Length::Fill);
 
     container(panel).width(Length::Fill).height(Length::Fill).into()
 }
 
-fn build_task_logs_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
-    let editor = text_editor(&app.task_board_logs_editor)
-        .id(app.task_board_logs_editor_id.clone())
+fn build_task_logs_panel<'a>(app: PanelView<'a>, size: Size) -> Element<'a, Message> {
+    let editor = text_editor(app.task_board_logs_editor)
+        .id((*app.task_board_logs_editor_id).clone())
         .on_action(|action| Message::TaskBoard(TaskBoardMessage::LogsViewerEditorAction(action)))
         .size(11)
         .padding(0)
@@ -684,7 +684,7 @@ fn build_task_logs_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
         });
 
     let editor = wrap_with_context_menu(
-        crate::app::i18n::I18n::new(app.desktop_locale),
+        desktop_i18n::I18n::new(app.desktop_locale),
         editor,
         TextEditorContextMenuState {
             open: app.task_board_logs_context_menu_open,

@@ -34,6 +34,12 @@ display-format = { path = "../display-format", version = "0.6.0" }
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 tracing = "0.1"
 
+time = { version = "0.3", features = ["formatting"] }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+desktop-settings-agents = { path = "../desktop-settings-agents", version = "0.6.0" }
+
+desktop-chat-view = { path = "../desktop-chat-view", version = "0.6.0" }
+
 [dev-dependencies]
 tempfile = "3"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "macros"] }

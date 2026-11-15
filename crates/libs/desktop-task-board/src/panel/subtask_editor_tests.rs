@@ -1,7 +1,7 @@
 //! 子任务区域的测试，覆盖编辑态与草稿态列表、动作按钮和日志面板。
 //! fixture 包含空列表、混合状态及无效时间戳，验证展示回退与禁用分支。
-use crate::app::task::{SubTask, Task};
-use crate::app::{App, Message};
+use desktop_task_model::{SubTask, Task};
+use super::super::{test_support::Fixture as App, PanelMessage as Message};
 use iced::advanced::widget::Tree;
 use iced::widget::text_editor;
 use iced::{Element, Size};
@@ -70,12 +70,12 @@ fn edit_mode_subtasks_build_empty_and_mixed_states() {
     app.task_board_new_subtask_content = "新增子任务".to_string();
 
     let empty_task = Task::default();
-    let (empty_list, empty_add_section) = super::build_edit_mode_subtasks(&app, &empty_task);
+    let (empty_list, empty_add_section) = super::build_edit_mode_subtasks(app.view(), &empty_task);
     assert_eq!(child_count(empty_list), 1);
     assert_eq!(child_count(empty_add_section), 3);
 
     let mixed_task = task_with_mixed_subtasks();
-    let (subtasks_view, add_section) = super::build_edit_mode_subtasks(&app, &mixed_task);
+    let (subtasks_view, add_section) = super::build_edit_mode_subtasks(app.view(), &mixed_task);
     assert_eq!(child_count(subtasks_view), 1);
     assert_eq!(child_count(add_section), 3);
 }
@@ -84,13 +84,13 @@ fn edit_mode_subtasks_build_empty_and_mixed_states() {
 fn draft_mode_subtasks_build_empty_and_populated_lists() {
     let mut app = test_app();
 
-    assert_eq!(child_count(super::build_draft_mode_subtasks(&app)), 5);
+    assert_eq!(child_count(super::build_draft_mode_subtasks(app.view())), 5);
 
     app.task_board_draft.subtasks = vec!["起草需求".to_string(), "补充测试".to_string()];
-    assert_eq!(child_count(super::build_draft_mode_subtasks(&app)), 5);
+    assert_eq!(child_count(super::build_draft_mode_subtasks(app.view())), 5);
 
     app.task_board_draft.subtasks.clear();
-    assert_eq!(child_count(super::build_draft_mode_subtasks(&app)), 5);
+    assert_eq!(child_count(super::build_draft_mode_subtasks(app.view())), 5);
 }
 
 #[test]
@@ -123,11 +123,11 @@ fn task_logs_build_root_and_panel_for_context_menu_variants() {
         "[12:00:00] first line\n/tmp/demo.txt\nhttps://example.com",
     );
 
-    std::hint::black_box(super::build_task_logs(&app));
-    assert!(child_count(super::build_task_logs_panel(&app, Size::new(960.0, 420.0))) > 0);
+    std::hint::black_box(super::build_task_logs(app.view()));
+    assert!(child_count(super::build_task_logs_panel(app.view(), Size::new(960.0, 420.0))) > 0);
 
     app.task_board_logs_context_menu_open = true;
     app.task_board_logs_context_menu_pos = Some((24.0, 32.0));
     app.task_board_logs_scroll_top_line = 1.0;
-    assert!(child_count(super::build_task_logs_panel(&app, Size::new(640.0, 260.0))) > 0);
+    assert!(child_count(super::build_task_logs_panel(app.view(), Size::new(640.0, 260.0))) > 0);
 }

@@ -2,7 +2,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
-use vw_provider_resolver::models::{Model, Provider};
+use provider_model_catalog::{Model, Provider};
 
 use super::pricing::ModelPricingInfo;
 

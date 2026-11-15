@@ -216,7 +216,7 @@ fn bundled_shiju_definition_controls_visible_effort_choices() {
     use crate::app::state::{ModelSummary, ProviderModelsSummary};
     let data: serde_json::Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vw-provider-resolver/assets/model/shiju.json"
+        "/../libs/provider-model-catalog/assets/model/shiju.json"
     )))
     .unwrap();
     let raw: vw_shared::provider::models::Provider =

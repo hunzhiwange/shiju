@@ -17,8 +17,8 @@ use agent_client_protocol::{
     ReadTextFileRequest, ReadTextFileResponse, WriteTextFileRequest, WriteTextFileResponse,
 };
 
-use acp_types::errors::{AcpxErrorOptions, ErrorSource, PermissionDeniedError};
-use acp_types::types::{
+use crate::errors::{AcpxErrorOptions, ErrorSource, PermissionDeniedError};
+use crate::types::{
     ClientOperation, ClientOperationMethod, ClientOperationStatus, NonInteractivePermissionPolicy,
     OutputErrorCode, OutputErrorOrigin, PermissionMode,
 };
@@ -66,7 +66,7 @@ impl FileSystemHandlers {
     }
 
     /// Scoped mount sources permit reads only; writes and terminal policy stay unchanged.
-    pub fn with_skill_read_roots(mut self, roots: Vec<PathBuf>) -> Self {
+    pub(crate) fn with_skill_read_roots(mut self, roots: Vec<PathBuf>) -> Self {
         self.skill_read_roots = roots;
         self
     }
@@ -134,7 +134,7 @@ impl FileSystemHandlers {
         self.write_text_file_with_policy(params, None).await
     }
 
-    pub async fn write_text_file_with_policy(
+    pub(crate) async fn write_text_file_with_policy(
         &self,
         params: &WriteTextFileRequest,
         workspace: Option<&Path>,

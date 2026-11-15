@@ -8,7 +8,7 @@ fn model(provider: &str, id: &str, adapter: &str, url: &str) -> Model {
     let raw_model = if provider == "shiju" {
         let catalog: Value = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../vw-provider-resolver/assets/model/shiju.json"
+            "/../libs/provider-model-catalog/assets/model/shiju.json"
         )))
         .unwrap();
         serde_json::from_value(catalog["shiju"]["models"][id].clone()).unwrap()

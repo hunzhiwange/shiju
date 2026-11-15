@@ -296,7 +296,7 @@ pub fn merge_remote_models(
             }
         }
         if provider.id == "shiju"
-            && let Some(metadata) = crate::models::shiju_model_metadata(catalog, &remote_id)
+            && let Some(metadata) = provider_model_catalog::shiju_model_metadata(catalog, &remote_id)
         {
             // Only model metadata crosses providers. Routing, credentials, prices,
             // headers and provider-specific request options stay on Shiju.

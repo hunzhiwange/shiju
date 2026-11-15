@@ -8,9 +8,9 @@ use std::sync::Arc;
 use agent_client_protocol::{ReadTextFileRequest, WriteTextFileRequest};
 use parking_lot::Mutex;
 
-use acp_types::errors::ErrorSource;
+use super::errors::ErrorSource;
 use super::filesystem::{FileSystemHandlers, FileSystemHandlersOptions};
-use acp_types::types::{
+use super::types::{
     ClientOperation, ClientOperationMethod, ClientOperationStatus, NonInteractivePermissionPolicy,
     PermissionMode,
 };

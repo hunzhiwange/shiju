@@ -1,5 +1,5 @@
 //! Exhaustive source identities, independently selected through the production catalog.
-use crate::{models, protocol_routes::*};
+use crate::protocol_routes::*;
 use serde_json::{Value, json};
 use vw_shared::provider::protocols::{ModelProtocol as P, ProtocolAuthentication as A};
 
@@ -10,7 +10,7 @@ fn matrix() -> Value {
         "../../../docs/dev/model-protocols/catalog-inventory.json"
     ))
     .unwrap();
-    let catalog = models::bundled_models("offline_matrix");
+    let catalog = provider_model_catalog::bundled_models("offline_matrix");
     let research: Vec<Value> = [
         include_str!("../../../docs/dev/model-protocols/research/group-01.json"),
         include_str!("../../../docs/dev/model-protocols/research/group-02.json"),

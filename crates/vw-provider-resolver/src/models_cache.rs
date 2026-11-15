@@ -1,5 +1,5 @@
 use super::{ModelsRefresh, ModelsRefreshStatus, ModelsSnapshot, Provider};
-use super::{bundled_models, merge_bundled_protocols, merge_bundled_shiju, parse_models_text};
+use provider_model_catalog::{bundled_models, merge_bundled_protocols, merge_bundled_shiju, parse_models_text};
 use provider_request_identity::installation;
 use std::collections::HashMap;
 use std::fs::File;

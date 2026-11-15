@@ -266,3 +266,9 @@ mod pi;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/pi_tests.rs"]
 mod pi_tests;
+
+#[path = "app_providers/omp.rs"]
+mod omp;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/omp_tests.rs"]
+mod omp_tests;

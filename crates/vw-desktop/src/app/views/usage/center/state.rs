@@ -8,7 +8,7 @@ pub struct State {
     pub charts: super::charts::State,
     pub logs: super::logs::State,
     pub groups: super::groups::State,
-    pub query: vw_gateway_client::vw_api_types::usage::UsageQuery,
+    pub query: vw_api_usage::UsageQuery,
     pub open: bool,
     pub sequence: u64,
     pub loading: bool,

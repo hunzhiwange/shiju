@@ -11,7 +11,7 @@ pub mod overview;
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, widget::{button, column, row, text}};
 use vw_gateway_client::{UsageReadScope, UsageSummary};
-use vw_gateway_client::vw_api_types::usage::UsageRange;
+use vw_api_usage::UsageRange;
 use crate::app::state::agent_apps_auth::Scope;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

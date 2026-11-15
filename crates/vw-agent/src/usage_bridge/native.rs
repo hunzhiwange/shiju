@@ -2,7 +2,7 @@
 use vw_agent_apps::usage::store::{self, StoredUsageRecord, UsageFailure, UsageSourceIdentity};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 tokio::task_local! {

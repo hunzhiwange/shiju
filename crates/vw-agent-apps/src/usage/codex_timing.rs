@@ -1,7 +1,7 @@
 //! Codex request timing inferred from rollout events, never wall-clock measurements.
 use chrono::DateTime;
 use serde_json::Value;
-use vw_api_types::usage::{UsageMeasurement, UsageMeasurementKind, UsagePerformance, UsageTokens};
+use vw_api_usage::{UsageMeasurement, UsageMeasurementKind, UsagePerformance, UsageTokens};
 
 use super::codex_delta::Counters;
 

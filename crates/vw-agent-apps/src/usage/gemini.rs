@@ -9,7 +9,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 use super::cost::{ModelPricing, calculate};

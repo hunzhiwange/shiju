@@ -1,5 +1,6 @@
 //! Read-only limits projection over the authorized usage cache and canonical ledger.
 //! No credentials are refreshed and no parallel quota counters are maintained here.
+use vw_api_usage::{UsageCostSource, UsageInputSemantics, UsageProvider, UsageReasoningSemantics, UsageTokens};
 use std::{str::FromStr, time::Instant};
 
 use rusqlite::{Connection, params};
@@ -7,9 +8,6 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 use vw_api_types::{
     apps_usage::{UsageCredentialState, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow},
-    usage::{
-        UsageCostSource, UsageInputSemantics, UsageProvider, UsageReasoningSemantics, UsageTokens,
-    },
 };
 
 use super::{

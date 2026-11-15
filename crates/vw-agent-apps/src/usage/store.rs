@@ -4,8 +4,8 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use serde::{Deserialize, Serialize};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::UsageRecord,
-    vw_api_types::usage::UsageSourceKind,
+    vw_api_usage::UsageRecord,
+    vw_api_usage::UsageSourceKind,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

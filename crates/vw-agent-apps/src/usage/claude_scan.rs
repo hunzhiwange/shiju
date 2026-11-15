@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
-use vw_api_types::usage::{
+use vw_api_usage::{
     UsageCost, UsageCostSource, UsageMeasurement, UsageMeasurementKind, UsageModels,
     UsagePerformance, UsageRecord, UsageRequestStatus, UsageSourceKind, UsageSourceRef,
     UsageUnixSeconds,

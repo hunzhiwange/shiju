@@ -162,7 +162,7 @@ fn execute(o: &ScanOwner, home: &std::path::Path, instances: Vec<super::super::a
             drop(statement);
             for identity in identities {
                 let identity: u::store::UsageSourceIdentity = serde_json::from_str(&identity)?;
-                if identity.app == "codex" && identity.kind == vw_api_types::usage::UsageSourceKind::Native {
+                if identity.app == "codex" && identity.kind == vw_api_usage::UsageSourceKind::Native {
                     anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_external_session::SessionProvider::Codex && i.instance_id == identity.instance_id),"partial Codex authority");
                 }
             }

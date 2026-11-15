@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::Path};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

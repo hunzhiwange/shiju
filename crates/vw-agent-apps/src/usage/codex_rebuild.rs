@@ -2,7 +2,7 @@
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::UsageSourceKind,
+    vw_api_usage::UsageSourceKind,
 };
 
 use crate::apps::lifecycle::operations::Operation;
@@ -98,7 +98,7 @@ pub fn rebuild_codex_usage(
         let payload: String = row.get(1).map_err(storage)?;
         let stored: StoredUsageRecord = serde_json::from_str(&payload)
             .map_err(|_| CodexRebuildError::StorageUnavailable)?;
-        let native_codex = |source: &vw_api_types::usage::UsageSourceRef| {
+        let native_codex = |source: &vw_api_usage::UsageSourceRef| {
             source.app == "codex" && source.kind == UsageSourceKind::Native
         };
         if !stored.record.sources.iter().any(native_codex) { continue; }

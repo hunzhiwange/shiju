@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Datelike, Days, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
-use vw_api_types::usage::{
+use vw_api_usage::{
     UsageCalendarPeriod, UsageRange, UsageResolvedRange, UsageUnixSeconds,
 };
 

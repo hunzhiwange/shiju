@@ -9,7 +9,7 @@ use std::str::FromStr;
 use rust_decimal::Decimal;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use vw_api_types::usage::{
+use vw_api_usage::{
     UsageCost, UsageCostSource, UsageInputSemantics, UsageProvider,
     UsageReasoningSemantics, UsageTokens, UsageUnixSeconds,
 };

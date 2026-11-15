@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 use super::{ranges::resolve_usage_range, store::StoredUsageRecord};

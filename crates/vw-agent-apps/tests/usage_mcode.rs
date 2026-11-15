@@ -9,8 +9,8 @@ use vw_agent_apps::usage::{
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::UsageCostSource,
-    vw_api_types::usage::UsageReasoningSemantics,
+    vw_api_usage::UsageCostSource,
+    vw_api_usage::UsageReasoningSemantics,
 };
 
 #[test]

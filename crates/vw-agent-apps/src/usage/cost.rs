@@ -2,7 +2,7 @@
 
 use rust_decimal::Decimal;
 use std::str::FromStr;
-use vw_api_types::usage::{
+use vw_api_usage::{
     UsageCost, UsageCostSource, UsageInputSemantics, UsageReasoningSemantics, UsageTokens,
 };
 

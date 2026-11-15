@@ -474,8 +474,8 @@ mod updates_tests;
 
 /// Only explicitly request-scoped metadata is eligible for the request ledger.
 /// Standard session usage snapshots remain UI-only.
-pub(super) fn request_usage(message: &AcpJsonRpcMessage) -> Option<(String, vw_api_types::usage::UsageTokens)> {
-    use vw_api_types::usage::*;
+pub(super) fn request_usage(message: &AcpJsonRpcMessage) -> Option<(String, vw_api_usage::UsageTokens)> {
+    use vw_api_usage::*;
     let update = session_update_payload_from_message(message)?;
     if update.get("sessionUpdate")?.as_str()? != "usage_update" { return None; }
     let usage = update.get("_meta")?.get("usage")?;

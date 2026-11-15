@@ -11,7 +11,7 @@ use vw_agent_apps::usage::{
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 fn context() -> (Connection, ProjectScope, UsageCursorKey) {

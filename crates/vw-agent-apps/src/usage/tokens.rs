@@ -1,6 +1,6 @@
 //! Protocol usage projections. Counters are snapshots, never stream increments.
 use serde_json::Value;
-use vw_api_types::usage::{UsageInputSemantics, UsageReasoningSemantics, UsageTokens};
+use vw_api_usage::{UsageInputSemantics, UsageReasoningSemantics, UsageTokens};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UsageProtocol {

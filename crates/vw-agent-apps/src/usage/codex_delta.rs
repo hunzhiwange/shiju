@@ -2,7 +2,7 @@
 use std::{collections::HashMap, io::{self, BufRead}};
 
 use serde_json::Value;
-use vw_api_types::usage::{UsageInputSemantics, UsageReasoningSemantics, UsageTokens};
+use vw_api_usage::{UsageInputSemantics, UsageReasoningSemantics, UsageTokens};
 
 use super::tokens::ParsedUsage;
 use super::codex_timing::{CodexTiming, RequestTimer};

@@ -1,5 +1,5 @@
 //! One remembered query drives every ledger panel; calendar bounds belong to the service.
-use vw_gateway_client::vw_api_types::usage::{UsageFilter, UsageQuery, UsageRange, UsageCalendarPeriod, UsageSourceKind, UsageProvider};
+use vw_api_usage::{UsageFilter, UsageQuery, UsageRange, UsageCalendarPeriod, UsageSourceKind, UsageProvider};
 use crate::app::{Message, message::ViewMessage};
 use iced::{Element, widget::{button, column, row, text, text_input}};
 use super::Event;

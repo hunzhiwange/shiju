@@ -1,6 +1,6 @@
 //! Wire responses for the gateway usage ledger read API.
 use serde::{Deserialize, Serialize};
-use vw_api_types::usage::*;
+use vw_api_usage::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageLogDetail {

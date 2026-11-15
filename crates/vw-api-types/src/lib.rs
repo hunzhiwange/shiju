@@ -120,7 +120,4 @@ pub mod hermes_dashboard;
 mod openclaw_settings_tests;
 
 #[cfg(test)]
-mod usage_tests;
-
-#[cfg(test)]
 mod project_profiles_tests;

@@ -4,7 +4,7 @@ use rusqlite::{Connection, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 use super::{cursors::{UsageCursorError, UsageCursorKey}, store::{self, StoredUsageRecord, UsageSourceIdentity}};
 

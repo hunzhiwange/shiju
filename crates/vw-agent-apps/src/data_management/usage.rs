@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use vw_api_types::{usage::*};
+use vw_api_usage::*;
 use vw_api_app_identity::{AppId};
 use crate::usage::store::{self, StoredUsageRecord, UsageSourceIdentity};
 use super::{preview::{self, Decision, ImportPreview, PreviewCandidate, PreviewError}, source::*};

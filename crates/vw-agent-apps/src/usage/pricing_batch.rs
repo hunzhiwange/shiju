@@ -5,7 +5,7 @@ use rust_decimal::Decimal;
 use {
     vw_api_transport::id::ModelId,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::UsageCostSource,
+    vw_api_usage::UsageCostSource,
 };
 use super::{cost::calculate, pricing::{ModelPricingInfo, StoredModelPricing, get_model_pricing},
     source_settings::advance_statistics_revision, store::StoredUsageRecord};

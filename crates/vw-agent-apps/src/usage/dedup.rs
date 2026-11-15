@@ -1,6 +1,6 @@
 //! Conservative cross-source reconciliation. Fingerprints alone never erase usage.
 use rusqlite::{Connection, OptionalExtension, params};
-use vw_api_types::usage::UsageSourceKind;
+use vw_api_usage::UsageSourceKind;
 use super::store::{StoredUsageRecord, UsageSourceIdentity, UsageStoreError};
 
 fn storage(_: rusqlite::Error) -> UsageStoreError { UsageStoreError::StorageUnavailable }

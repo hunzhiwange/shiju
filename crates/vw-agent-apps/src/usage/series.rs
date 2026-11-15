@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 use super::summary::{UsageSummary, UsageSummaryError, accumulate, load};

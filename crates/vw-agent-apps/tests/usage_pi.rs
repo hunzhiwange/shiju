@@ -1,6 +1,6 @@
 use std::io::Write;
 use vw_agent_apps::usage::pi::{parse_file, parse_reader};
-use vw_api_types::usage::{UsageCostSource, UsageProvider};
+use vw_api_usage::{UsageCostSource, UsageProvider};
 
 const HEADER: &str = "{\"type\":\"session\",\"id\":\"session-a\",\"timestamp\":\"2023-11-14T22:13:20Z\"}\n";
 

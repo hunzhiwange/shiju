@@ -10,7 +10,7 @@ use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
     vw_api_transport::id::ProjectId,
-    vw_api_types::usage::*,
+    vw_api_usage::*,
 };
 
 #[derive(Clone)]

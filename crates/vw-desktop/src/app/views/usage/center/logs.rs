@@ -3,7 +3,7 @@ use super::{Identity, identity, Event as CenterEvent};
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, Length, widget::{button, column, row, text, container, scrollable}};
 use vw_gateway_client::{UsageLogResult, UsageLogDetail, UsageReadScope};
-use vw_gateway_client::vw_api_types::usage::*;
+use vw_api_usage::*;
 
 #[derive(Default)]
 pub struct State {

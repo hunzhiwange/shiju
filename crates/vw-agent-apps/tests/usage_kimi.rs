@@ -7,7 +7,7 @@ use vw_agent_apps::usage::{cost::ModelPricing, cursors::{UsageCursorKey, initial
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::usage::UsageCostSource,
+    vw_api_usage::UsageCostSource,
 };
 
 fn message() -> Value {

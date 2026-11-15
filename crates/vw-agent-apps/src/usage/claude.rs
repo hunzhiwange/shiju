@@ -5,7 +5,7 @@ use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
 use serde_json::Value;
-use vw_api_types::usage::{UsageProvider, UsageUnixSeconds};
+use vw_api_usage::{UsageProvider, UsageUnixSeconds};
 
 use super::tokens::{ParsedUsage, UsageProtocol, parse_response};
 

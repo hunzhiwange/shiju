@@ -1,4 +1,4 @@
-use crate::usage::*;
+use crate::*;
 use serde_json::json;
 
 #[test]

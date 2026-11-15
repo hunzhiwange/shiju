@@ -1,6 +1,6 @@
 use serde_json::json;
 use vw_agent_apps::usage::tokens::{UsageProtocol, parse_response, parse_stream};
-use vw_api_types::usage::{UsageInputSemantics, UsageReasoningSemantics};
+use vw_api_usage::{UsageInputSemantics, UsageReasoningSemantics};
 
 #[test]
 fn usage17_tokens_protocol_variants_preserve_billable_tokens() {

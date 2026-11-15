@@ -7,8 +7,6 @@ use clap::Subcommand;
 use serde_json::json;
 use vw_api_workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
 use gateway_workflow::{GatewayWorkflowDefaultStreamRequest, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest};
-use vw_gateway_client::{
-    };
 
 use cli_api_core::context::ApiContext;
 use cli_api_core::input::read_json_input;

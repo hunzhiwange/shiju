@@ -8,8 +8,7 @@ use vw_api_workflow::{
     WorkflowPauseDto, WorkflowResumeRequest, WorkflowRunResponse, WorkflowRunStatus,
 };
 use gateway_workflow::{GatewayWorkflowResponseMode, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest};
-use vw_gateway_client::{
-    GatewayStreamAttemptResult, };
+use vw_gateway_client::GatewayStreamAttemptResult;
 
 use cli_interaction_model::UiQuestionOverlay;
 use cli_interaction_model::overlay::workflow_action_label;

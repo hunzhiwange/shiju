@@ -2041,7 +2041,7 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
             usage: Default::default(),
             assistant_message_id: Some("assistant-id".into()),
             parent_message_id: Some("user-id".into()),
-            publication: Some(Box::new(super::stream::draft::DraftPublication::fixture(
+            publication: Some(Box::new(super::stream::draft::publication_fixture(
                 session_info(&session_id, "", "/repo"),
                 session_ui_types::ChatSessionMeta {
                     id: session_id.clone(),

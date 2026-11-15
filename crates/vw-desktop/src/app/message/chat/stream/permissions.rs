@@ -1,6 +1,7 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
+pub(super) use desktop_session::message::chat::stream::permissions::{split_auto_approved_permission_requests, sync_permission_requests, advance_permission_requests_after_reply};
 use super::ChatMessage;
 use crate::app::session_gateway;
 use crate::app::{App, Message};
@@ -16,41 +17,13 @@ fn permission_directory(app: &App) -> Option<String> {
 }
 
 fn clear_permission_modal(app: &mut App) {
-    app.permission_modal_request_id = None;
-    app.permission_modal_request = None;
-    app.permission_modal_requests.clear();
+    desktop_session::message::chat::stream::permissions::clear_permission_modal(&mut permission_state(app));
 }
 
 fn current_full_access_session_id(app: &App) -> Option<&str> {
     app.current_session_runtime_ref()
         .filter(|runtime| runtime.full_access_enabled)
         .and_then(|_| app.active_session_id.as_deref())
-}
-
-/// 模块内可见函数，执行 split_auto_approved_permission_requests 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn split_auto_approved_permission_requests(
-    session_id: Option<&str>,
-    requests: Vec<PendingPermissionRequestDto>,
-) -> (Vec<PendingPermissionRequestDto>, Vec<String>) {
-    let Some(session_id) = session_id else {
-        return (requests, Vec::new());
-    };
-
-    let mut remaining_requests = Vec::new();
-    let mut auto_approve_request_ids = Vec::new();
-    for request in requests {
-        if request.session_id == session_id
-            && request.metadata.get("requested_channel").and_then(serde_json::Value::as_str)
-                != Some("desktop-acp")
-        {
-            auto_approve_request_ids.push(request.id);
-        } else {
-            remaining_requests.push(request);
-        }
-    }
-
-    (remaining_requests, auto_approve_request_ids)
 }
 
 fn submit_permission_replies(
@@ -78,80 +51,12 @@ fn submit_permission_replies(
     )
 }
 
-/// 模块内可见函数，执行 sync_permission_requests 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn sync_permission_requests(
-    current_request_id: Option<&str>,
-    mut requests: Vec<PendingPermissionRequestDto>,
-) -> (Vec<PendingPermissionRequestDto>, Option<String>) {
-    requests.sort_by(|a, b| a.id.cmp(&b.id));
-    if requests.is_empty() {
-        return (requests, None);
-    }
-
-    let selected_request_id = current_request_id
-        .filter(|current| requests.iter().any(|request| request.id == *current))
-        .map(ToOwned::to_owned)
-        .or_else(|| requests.first().map(|request| request.id.clone()));
-
-    (requests, selected_request_id)
-}
-
-/// 模块内可见函数，执行 advance_permission_requests_after_reply 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn advance_permission_requests_after_reply(
-    current_request_id: Option<&str>,
-    requests: Vec<PendingPermissionRequestDto>,
-) -> (Vec<PendingPermissionRequestDto>, Option<String>) {
-    let (mut requests, selected_request_id) =
-        sync_permission_requests(current_request_id, requests);
-    let Some(selected_request_id) = selected_request_id else {
-        return (requests, None);
-    };
-    let Some(selected_idx) = requests.iter().position(|request| request.id == selected_request_id)
-    else {
-        return (requests, None);
-    };
-
-    requests.remove(selected_idx);
-    if requests.is_empty() {
-        return (requests, None);
-    }
-
-    let next_idx = selected_idx.min(requests.len().saturating_sub(1));
-    let next_request_id = requests.get(next_idx).map(|request| request.id.clone());
-    (requests, next_request_id)
-}
-
 fn apply_current_permission_request(app: &mut App, request_id: Option<String>) {
-    let Some(request_id) = request_id else {
-        app.permission_modal_request_id = None;
-        app.permission_modal_request = None;
-        return;
-    };
-
-    let Some(request) =
-        app.permission_modal_requests.iter().find(|candidate| candidate.id == request_id).cloned()
-    else {
-        app.permission_modal_request_id = None;
-        app.permission_modal_request = None;
-        return;
-    };
-
-    app.permission_modal_request_id = Some(request.id.clone());
-    app.permission_modal_request = Some(request);
+    desktop_session::message::chat::stream::permissions::apply_current_permission_request(&mut permission_state(app), request_id);
 }
 
 fn apply_permission_request(app: &mut App, requests: Vec<PendingPermissionRequestDto>) {
-    let (pending_requests, selected_request_id) =
-        sync_permission_requests(app.permission_modal_request_id.as_deref(), requests);
-    if pending_requests.is_empty() {
-        clear_permission_modal(app);
-        return;
-    }
-
-    app.permission_modal_requests = pending_requests;
-    apply_current_permission_request(app, selected_request_id);
+    desktop_session::message::chat::stream::permissions::apply_permission_request(&mut permission_state(app), requests);
 }
 
 /// 模块内可见函数，执行 handle_permission_poll_tick 对应的应用流程。
@@ -342,3 +247,11 @@ fn submit_permission_reply(app: &mut App, reply: PendingPermissionReplyDto) -> T
 #[cfg(test)]
 #[path = "permissions_tests.rs"]
 mod permissions_tests;
+
+fn permission_state(app: &mut App) -> desktop_session::message::chat::stream::permissions::PermissionState<'_> {
+    desktop_session::message::chat::stream::permissions::PermissionState {
+    permission_modal_request_id: &mut app.permission_modal_request_id,
+    permission_modal_request: &mut app.permission_modal_request,
+    permission_modal_requests: &mut app.permission_modal_requests,
+    }
+}

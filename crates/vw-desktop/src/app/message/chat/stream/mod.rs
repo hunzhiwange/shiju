@@ -19,10 +19,6 @@ pub(crate) use stream_events::append_stream_delta_for_performance_probe;
 mod permission_tests;
 
 #[cfg(test)]
-#[path = "delta_scheduler_tests.rs"]
-mod delta_scheduler_tests;
-
-#[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
 

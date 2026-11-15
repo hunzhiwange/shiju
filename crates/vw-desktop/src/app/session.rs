@@ -4,6 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::App;
+pub(crate) use desktop_session::message::chat::stream::{bind_message_model_to_step, assign_message_model_to_step};
 use super::models::{
     ChatMessage, ChatRenderCacheEntry, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep,
     TokenUsage,
@@ -45,41 +46,6 @@ pub(crate) use self::view_cache::SessionViewCache;
 use self::chat_ui::{explore_summary_animation_key, prioritize_chat_ui_chunk_starts};
 
 const EMPTY_SESSION_ID: &str = "__empty__";
-
-pub(crate) fn bind_message_model_to_step(
-    messages: &mut [ChatMessage],
-    step_index: u32,
-    model: &str,
-) {
-    assign_message_model_to_step(messages, step_index, model, true);
-}
-
-fn assign_message_model_to_step(
-    messages: &mut [ChatMessage],
-    step_index: u32,
-    model: &str,
-    overwrite: bool,
-) {
-    let model = model.trim();
-    if model.is_empty() || step_index == 0 {
-        return;
-    }
-
-    let mut assistant_count = 0u32;
-    for message in messages {
-        let message_step = match message.role {
-            ChatRole::User => assistant_count.saturating_add(1),
-            ChatRole::Assistant => {
-                assistant_count = assistant_count.saturating_add(1);
-                assistant_count
-            }
-            ChatRole::System | ChatRole::Developer | ChatRole::Tool => continue,
-        };
-        if message_step == step_index && (overwrite || message.model.is_none()) {
-            message.model = Some(model.to_string());
-        }
-    }
-}
 
 #[allow(dead_code)] // Used only by the retained full-session compatibility loader.
 pub(crate) fn backfill_message_models_from_steps(

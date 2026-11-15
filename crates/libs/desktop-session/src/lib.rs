@@ -7,6 +7,7 @@ pub mod message {
         pub mod session;
         pub mod request;
         pub mod processing_timing;
+        pub mod stream;
         #[cfg(test)]
         mod processing_timing_tests;
         pub mod input {

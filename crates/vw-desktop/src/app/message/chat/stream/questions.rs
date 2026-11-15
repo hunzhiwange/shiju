@@ -7,48 +7,11 @@ use crate::app::{App, Message};
 use iced::Task;
 
 fn clear_question_modal(app: &mut App) {
-    app.question_modal_request_id = None;
-    app.question_modal_request = None;
-    app.question_modal_answers.clear();
-    app.question_modal_custom.clear();
+    desktop_session::message::chat::stream::questions::clear_question_modal(&mut question_state(app));
 }
 
 fn apply_question_request(app: &mut App, requests: Vec<question_types::Request>) {
-    let mut pending = requests;
-    if pending.is_empty() {
-        clear_question_modal(app);
-        return;
-    }
-    pending.sort_by(|a, b| a.id.cmp(&b.id));
-    let req = pending[0].clone();
-    let reset = app.question_modal_request_id.as_deref() != Some(req.id.as_str());
-    app.question_modal_request = Some(req.clone());
-    if reset {
-        app.question_modal_request_id = Some(req.id.clone());
-        app.question_modal_answers = req
-            .questions
-            .iter()
-            .map(|q| {
-                let allow_multi = q.multiple.unwrap_or(false);
-                if allow_multi {
-                    return Vec::new();
-                }
-                if q.options.iter().any(|o| o.label == "once") {
-                    return vec!["once".to_string()];
-                }
-                Vec::new()
-            })
-            .collect();
-        app.question_modal_custom = vec![String::new(); req.questions.len()];
-    } else {
-        let qlen = req.questions.len();
-        if app.question_modal_answers.len() != qlen {
-            app.question_modal_answers.resize_with(qlen, Vec::new);
-        }
-        if app.question_modal_custom.len() != qlen {
-            app.question_modal_custom.resize_with(qlen, String::new);
-        }
-    }
+    desktop_session::message::chat::stream::questions::apply_question_request(&mut question_state(app), requests);
 }
 
 /// 模块内可见函数，执行 handle_question_poll_tick 对应的应用流程。
@@ -82,23 +45,7 @@ pub(super) fn handle_question_option_toggled(
     q_idx: usize,
     label: String,
 ) -> Task<Message> {
-    let Some(req) = app.question_modal_request.as_ref() else {
-        return Task::none();
-    };
-    let allow_multi = req.questions.get(q_idx).and_then(|q| q.multiple).unwrap_or(false);
-    let Some(existing) = app.question_modal_answers.get_mut(q_idx) else {
-        return Task::none();
-    };
-    if allow_multi {
-        if let Some(pos) = existing.iter().position(|v| v == &label) {
-            existing.remove(pos);
-        } else {
-            existing.push(label);
-        }
-    } else {
-        existing.clear();
-        existing.push(label);
-    }
+    desktop_session::message::chat::stream::questions::handle_question_option_toggled(&mut question_state(app), q_idx, label);
     Task::none()
 }
 
@@ -109,10 +56,7 @@ pub(super) fn handle_question_custom_changed(
     q_idx: usize,
     value: String,
 ) -> Task<Message> {
-    let Some(existing) = app.question_modal_custom.get_mut(q_idx) else {
-        return Task::none();
-    };
-    *existing = value;
+    desktop_session::message::chat::stream::questions::handle_question_custom_changed(&mut question_state(app), q_idx, value);
     Task::none()
 }
 
@@ -126,24 +70,7 @@ pub(super) fn handle_question_submit(app: &mut App) -> Task<Message> {
         return Task::none();
     };
 
-    let mut answers: Vec<Vec<String>> = Vec::with_capacity(req.questions.len());
-    for i in 0..req.questions.len() {
-        let allow_multi = req.questions.get(i).and_then(|q| q.multiple).unwrap_or(false);
-        let allow_custom = req.questions.get(i).and_then(|q| q.custom).unwrap_or(false);
-        let mut a = app.question_modal_answers.get(i).cloned().unwrap_or_default();
-        let custom =
-            app.question_modal_custom.get(i).cloned().unwrap_or_default().trim().to_string();
-        if allow_custom && !custom.is_empty() {
-            if allow_multi {
-                if !a.contains(&custom) {
-                    a.push(custom);
-                }
-            } else {
-                a = vec![custom];
-            }
-        }
-        answers.push(a);
-    }
+    let answers = desktop_session::message::chat::stream::questions::collect_answers(&req, &app.question_modal_answers, &app.question_modal_custom);
 
     if req.mcp_form.as_ref().is_some_and(|form| !crate::app::mcp_form::valid(form, &answers)) {
         return app.show_localized_toast(
@@ -192,3 +119,12 @@ pub(super) fn handle_question_rejected(res: Result<(), String>) -> Task<Message>
 #[cfg(test)]
 #[path = "questions_tests.rs"]
 mod questions_tests;
+
+fn question_state(app: &mut App) -> desktop_session::message::chat::stream::questions::QuestionState<'_> {
+    desktop_session::message::chat::stream::questions::QuestionState {
+    question_modal_request_id: &mut app.question_modal_request_id,
+    question_modal_request: &mut app.question_modal_request,
+    question_modal_answers: &mut app.question_modal_answers,
+    question_modal_custom: &mut app.question_modal_custom,
+    }
+}

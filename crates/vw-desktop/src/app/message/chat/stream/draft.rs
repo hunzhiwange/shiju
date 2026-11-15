@@ -6,20 +6,8 @@ use iced::Task;
 use std::time::Duration;
 use vw_gateway_client::GatewayClient;
 use session_info::Info;
-use session_ui_types::ChatSessionMeta;
 
-#[derive(Debug, Clone)]
-pub struct DraftPublication {
-    pub(super) info: Info,
-    pub(super) preview: Option<ChatSessionMeta>,
-}
-
-#[cfg(test)]
-impl DraftPublication {
-    pub(in crate::app::message::chat) fn fixture(info: Info, preview: ChatSessionMeta) -> Self {
-        Self { info, preview: Some(preview) }
-    }
-}
+pub use desktop_session::message::chat::stream::draft::{DraftPublication, RecoveredDraft};
 
 pub(super) fn reload_after_response(
     session_id: String,
@@ -34,7 +22,7 @@ pub(super) fn reload_after_response(
         async move {
             let result = async {
                 let client = GatewayClient::new(endpoint)?;
-                read_publication(&client, &session_id, &directory).await
+                desktop_session::message::chat::stream::draft::read_publication(&client, &session_id, &directory).await
             }
             .await;
             match result {
@@ -57,27 +45,6 @@ pub(super) fn reload_after_response(
     )
 }
 
-pub(super) async fn read_publication(
-    client: &GatewayClient,
-    session_id: &str,
-    directory: &str,
-) -> Result<Option<DraftPublication>, String> {
-    let info = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Info>(session_id, Some(directory)).await?;
-    if info.id != session_id || info.is_first_response_pending() || info.time.archived.is_some() {
-        return Ok(None);
-    }
-    let preview = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_preview_meta_get(session_id, Some(directory)).await.ok().flatten();
-    Ok(Some(DraftPublication { info, preview }))
-}
-
-#[derive(Debug, Clone)]
-pub struct RecoveredDraft {
-    publication: DraftPublication,
-    snapshot: models::ChatSession,
-    assistant_id: String,
-    user_id: String,
-}
-
 pub(super) fn recover_expired_replay(
     id: u64,
     error: String,
@@ -89,30 +56,7 @@ pub(super) fn recover_expired_replay(
     Task::perform(
         async move {
             let client = GatewayClient::new(endpoint).ok()?;
-            let publication = read_publication(&client, &session_id, &directory).await.ok()??;
-            let snapshot = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                .session_ui_get_without_raw(&session_id, Some(&directory))
-                .await
-                .ok()??
-                .session;
-            let [.., user, assistant] = snapshot.messages.as_slice() else {
-                return None;
-            };
-            let [.., Some(user_id), Some(assistant_id)] = snapshot.message_ids.as_slice() else {
-                return None;
-            };
-            if snapshot.id != session_id
-                || snapshot.messages.len() != snapshot.message_ids.len()
-                || user.role != models::ChatRole::User
-                || user.content != query
-                || assistant.role != models::ChatRole::Assistant
-                || assistant.content.trim().is_empty()
-            {
-                return None;
-            }
-            let user_id = user_id.clone();
-            let assistant_id = assistant_id.clone();
-            Some(Box::new(RecoveredDraft { publication, snapshot, assistant_id, user_id }))
+            desktop_session::message::chat::stream::draft::recover(&client, &session_id, &directory, &query).await
         },
         move |recovered| {
             Message::Chat(ChatMessage::DraftReplayChecked { id, error: error.clone(), recovered })
@@ -239,4 +183,9 @@ pub(super) fn apply_published_title(app: &mut App, info: &Info) {
     if changed {
         app.refresh_task_pet_session_title(&info.id, &info.title);
     }
+}
+
+#[cfg(test)]
+pub(in crate::app::message::chat) fn publication_fixture(info: Info, preview: session_ui_types::ChatSessionMeta) -> DraftPublication {
+ DraftPublication { info, preview: Some(preview) }
 }

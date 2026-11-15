@@ -46,7 +46,7 @@ pub(super) async fn select_route(
         return Err("当前云端语音传输仅支持本机网关。".into());
     }
     let client = GatewayClient::new(endpoint.clone()).map_err(|_| "无法连接语音网关。")?;
-    let config: vw_config_types::voice::VoiceConfig =
+    let config: config_voice::VoiceConfig =
         client.voice_config().await.map_err(|_| "无法读取云端语音设置。")?;
     if !config.dictation_enabled {
         return Err("请先在网关设置中启用云端听写。".into());

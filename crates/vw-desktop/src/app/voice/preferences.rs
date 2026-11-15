@@ -1,7 +1,7 @@
 //! Physical device preferences stay on this computer, outside tenant configuration.
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use vw_config_types::voice::VoiceConfig;
+use config_voice::VoiceConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

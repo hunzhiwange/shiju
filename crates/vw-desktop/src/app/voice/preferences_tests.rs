@@ -9,7 +9,7 @@ fn voice_task_13_voice_settings_cancel_preserves_values() {
     let mut edit = Edit::new(config.clone(), Preferences::read(&path).unwrap());
     edit.local.microphone = Some("device-b".into());
     edit.config.dictionary.push("识矩".into());
-    edit.config.language = vw_config_types::voice::RecognitionLanguage::Zh;
+    edit.config.language = config_voice::RecognitionLanguage::Zh;
     let (cancelled, cancelled_local) = edit.cancel();
     assert_eq!(cancelled, config);
     assert_eq!(cancelled_local, local);
@@ -32,7 +32,7 @@ fn voice_task_13_patch_only_changed_fields_and_validates_dictionary() {
     let config = VoiceConfig { provider_id: Some("openai".into()), ..Default::default() };
     let mut edit = Edit::new(config, Preferences::default());
     edit.config.provider_id = None;
-    edit.config.voice = vw_config_types::voice::VoiceName::Cedar;
+    edit.config.voice = config_voice::VoiceName::Cedar;
     assert_eq!(edit.patch().unwrap(), serde_json::json!({"provider_id":null,"voice":"cedar"}));
     edit.config.dictionary.push("<bad>".into());
     assert!(edit.patch().is_err());

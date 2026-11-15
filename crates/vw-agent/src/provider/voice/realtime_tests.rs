@@ -3,7 +3,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::Message;
 use vw_api_types::voice::*;
-use vw_config_types::voice::VoiceConfig;
+use config_voice::VoiceConfig;
 
 fn ident(s: &str) -> VoiceId {
     s.to_owned().try_into().unwrap()

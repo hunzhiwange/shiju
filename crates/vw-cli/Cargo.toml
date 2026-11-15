@@ -19,6 +19,7 @@ path = "src/bin/vibe-agent.rs"
 
 [dependencies]
 cli-runtime-status = { path = "../libs/cli-runtime-status", version = "0.6.0" }
+cli-runtime-status = { path = "../libs/cli-runtime-status", version = "0.6.0" }
 cli-security-commands = { path = "../libs/cli-security-commands", version = "0.6.0" }
 cli-task-commands = { path = "../libs/cli-task-commands", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }

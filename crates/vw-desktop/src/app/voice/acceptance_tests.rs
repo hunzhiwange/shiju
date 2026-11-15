@@ -10,7 +10,7 @@ use std::{
     sync::mpsc,
     time::{Duration, Instant},
 };
-use vw_config_types::voice::VoiceName;
+use config_voice::VoiceName;
 use gateway_endpoint::GatewayEndpoint;
 
 #[test]

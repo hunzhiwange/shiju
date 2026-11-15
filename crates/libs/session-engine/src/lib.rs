@@ -13,6 +13,7 @@ pub mod processor_events;
 pub mod recovery;
 pub mod llm_step;
 pub mod compaction_summary;
+pub mod compaction;
 pub mod compaction_checkpoint;
 pub mod skill_checkpoint;
 pub mod retry_delay;

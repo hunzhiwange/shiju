@@ -1,7 +1,7 @@
 //! Desktop Chat 发送模型前的确定性上下文治理。
 
 use crate::app::agent::provider::provider::ModelLimit;
-use crate::app::agent::skills::InvokedSkillReplay;
+// Invoked skill replay restoration belongs to session-engine.
 use crate::app::agent::tools::ToolSpec;
 use crate::session::session::{Role, Session};
 use serde_json::Value;
@@ -11,10 +11,10 @@ pub(crate) const STALE_TOOL_RESULT_PLACEHOLDER: &str =
     "[Earlier tool result cleared to preserve conversation context]";
 // Compaction threshold constants are owned by session_engine::compaction_budget.
 
-const INVOKED_SKILL_SOURCE_FIELD: &str = "vw_invoked_skill_source";
+// Stable invoked skill source key belongs to session-engine.
 
 /// 重放技能时恢复的上下文更新，顺序与技能调用顺序一致。
-pub(crate) use session_engine::invoked_skill_context::InvokedSkillContextUpdate;
+// InvokedSkillContextUpdate has a single owner in session-engine.
 
 const ESTIMATED_CHARS_PER_TOKEN: u64 = 4;
 // Image data is encoded as a transport payload, not as text tokens. Counting
@@ -138,64 +138,8 @@ fn message_role(message: &Value) -> Option<&str> {
     message.get("role").and_then(Value::as_str)
 }
 
-/// 在压缩清理后将已调用技能的临时元用户消息放回历史前方。
-///
-/// 该函数按稳定来源标识替换旧注入，因此可以在每次压缩后调用而不会重复注入。
-pub(crate) fn restore_invoked_skill_context(
-    messages: &mut Vec<Value>,
-    replays: &[InvokedSkillReplay],
-) -> Vec<InvokedSkillContextUpdate> {
-    messages.retain(|message| {
-        message.get(INVOKED_SKILL_SOURCE_FIELD).is_none()
-            && message
-                .get("_vw_source")
-                .and_then(|source| source.get("form"))
-                .and_then(Value::as_str)
-                != Some("invoked_skill")
-    });
-
-    let mut restored_messages = replays
-        .iter()
-        .map(|replay| {
-            serde_json::json!({
-                "role": "user",
-                "content": replay.content,
-                INVOKED_SKILL_SOURCE_FIELD: replay.stable_id,
-            })
-        })
-        .collect::<Vec<_>>();
-    restored_messages.append(messages);
-    *messages = restored_messages;
-
-    replays
-        .iter()
-        .flat_map(|replay| {
-            let mut updates = vec![InvokedSkillContextUpdate {
-                key: "skill.name".to_string(),
-                value: Value::String(replay.stable_id.clone()),
-            }];
-            if !replay.allowed_tools.is_empty() {
-                updates.push(InvokedSkillContextUpdate {
-                    key: "skill.allowed_tools".to_string(),
-                    value: serde_json::json!(replay.allowed_tools),
-                });
-            }
-            if let Some(model) = &replay.model {
-                updates.push(InvokedSkillContextUpdate {
-                    key: "skill.model".to_string(),
-                    value: Value::String(model.clone()),
-                });
-            }
-            if let Some(effort) = &replay.effort {
-                updates.push(InvokedSkillContextUpdate {
-                    key: "skill.effort".to_string(),
-                    value: Value::String(effort.clone()),
-                });
-            }
-            updates
-        })
-        .collect()
-}
+#[cfg(test)]
+pub(crate) use session_engine::invoked_skill_context::restore_invoked_skill_context;
 
 /// 在下一次 LLM 请求前计算是否必须调用内部压缩服务。
 ///

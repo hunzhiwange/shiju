@@ -1,0 +1,24 @@
+[package]
+name = "agent-doctor"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-daemon = { path = "../agent-daemon", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-providers = { path = "../agent-providers", version = "0.6.0" }
+agent-observability = { path = "../agent-observability", version = "0.6.0" }
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false }
+
+[dev-dependencies]
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt"] }

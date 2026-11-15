@@ -2,7 +2,7 @@
 
 use super::Severity;
 use super::daemon_checks::check_daemon_state;
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use chrono::{Duration as ChronoDuration, Utc};
 use tempfile::TempDir;
 
@@ -17,7 +17,7 @@ fn test_config(tmp: &TempDir) -> Config {
 }
 
 fn write_state(config: &Config, value: serde_json::Value) {
-    let path = crate::app::agent::daemon::state_file_path(config);
+    let path = agent_daemon::state_file_path(config);
     std::fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
 }
 
@@ -40,7 +40,7 @@ fn missing_state_file_reports_daemon_error() {
 fn invalid_state_json_is_reported() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp);
-    let path = crate::app::agent::daemon::state_file_path(&config);
+    let path = agent_daemon::state_file_path(&config);
     std::fs::write(path, "{not-json").unwrap();
     let mut items = Vec::new();
 
@@ -55,7 +55,7 @@ fn invalid_state_json_is_reported() {
 fn unreadable_state_file_is_reported() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp);
-    let path = crate::app::agent::daemon::state_file_path(&config);
+    let path = agent_daemon::state_file_path(&config);
     std::fs::create_dir_all(path).unwrap();
     let mut items = Vec::new();
 

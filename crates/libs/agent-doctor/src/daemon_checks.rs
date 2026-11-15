@@ -8,7 +8,7 @@ use super::{
     CHANNEL_STALE_SECONDS, DAEMON_STALE_SECONDS, DiagItem, SCHEDULER_STALE_SECONDS,
     utils::parse_rfc3339,
 };
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use chrono::{DateTime, Utc};
 
 /// 检查 daemon 状态文件并追加诊断项。
@@ -22,7 +22,7 @@ use chrono::{DateTime, Utc};
 /// 无效都会转换为 `DiagItem::error`，让 doctor 汇总输出保持完整。
 pub(super) fn check_daemon_state(config: &Config, items: &mut Vec<DiagItem>) {
     let cat = "daemon";
-    let state_file = crate::app::agent::daemon::state_file_path(config);
+    let state_file = agent_daemon::state_file_path(config);
 
     if !state_file.exists() {
         items.push(DiagItem::error(

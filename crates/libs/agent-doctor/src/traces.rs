@@ -4,7 +4,7 @@
 //! 也可以按事件类型、文本包含关系和数量限制列出最近事件摘要。
 
 use super::utils::truncate_for_display;
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use anyhow::Result;
 
 /// 查询并打印运行时 trace。
@@ -29,13 +29,13 @@ pub fn run_traces(
     contains: Option<&str>,
     limit: usize,
 ) -> Result<()> {
-    let path = crate::app::agent::observability::runtime_trace::resolve_trace_path(
+    let path = agent_observability::runtime_trace::resolve_trace_path(
         &config.observability,
         &config.workspace_dir,
     );
 
     if let Some(target_id) = id.map(str::trim).filter(|value| !value.is_empty()) {
-        match crate::app::agent::observability::runtime_trace::find_event_by_id(&path, target_id)? {
+        match agent_observability::runtime_trace::find_event_by_id(&path, target_id)? {
             Some(event) => {
                 println!("{}", serde_json::to_string_pretty(&event)?);
             }
@@ -62,7 +62,7 @@ pub fn run_traces(
     // limit 为 0 时通常来自命令行默认值或用户误填；提升为 1 可以保持输出语义明确，
     // 同时避免“成功但永远无结果”的困惑。
     let safe_limit = limit.max(1);
-    let events = crate::app::agent::observability::runtime_trace::load_events(
+    let events = agent_observability::runtime_trace::load_events(
         &path,
         safe_limit,
         event_filter,

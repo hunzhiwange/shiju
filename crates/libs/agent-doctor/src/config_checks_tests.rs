@@ -4,7 +4,7 @@ use super::Severity;
 use super::config_checks::{
     check_config_semantics, embedding_provider_validation_error, provider_validation_error,
 };
-use crate::app::agent::config::{
+use agent_config::runtime::{
     Config, DelegateAgentConfig, EmbeddingRouteConfig, ModelRouteConfig, TelegramConfig,
 };
 use std::path::PathBuf;

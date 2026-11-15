@@ -5,7 +5,7 @@
 //! probe 文件来验证写权限。
 
 use super::DiagItem;
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 

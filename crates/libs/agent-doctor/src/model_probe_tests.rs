@@ -4,7 +4,7 @@ use super::model_probe::{
     ModelProbeOutcome, classify_model_probe_error, doctor_model_targets,
     report_model_probe_targets, resolve_model_probe_targets, run_models,
 };
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 
 // 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
@@ -61,7 +61,9 @@ fn classify_model_probe_error_recognizes_numeric_access_statuses() {
 async fn run_models_accepts_trimmed_provider_override() {
     let config = Config::default();
 
-    run_models(&config, Some(" openrouter "), false).await.expect("provider override should run");
+    run_models(&config, Some(" openrouter "), false, provider_keys())
+        .await
+        .expect("provider override should run");
 }
 
 #[test]
@@ -115,16 +117,20 @@ fn report_model_probe_targets_accepts_non_empty_targets() {
 
 #[tokio::test]
 async fn doctor_model_targets_with_override_returns_only_trimmed_provider() {
-    let targets = doctor_model_targets(Some(" openrouter ")).await.unwrap();
+    let targets = doctor_model_targets(Some(" openrouter "), provider_keys()).await.unwrap();
 
     assert_eq!(targets, vec!["openrouter"]);
 }
 
 #[tokio::test]
 async fn doctor_model_targets_without_override_returns_sorted_provider_keys() {
-    let targets = doctor_model_targets(None).await.unwrap();
+    let targets = doctor_model_targets(None, provider_keys()).await.unwrap();
     let mut sorted = targets.clone();
     sorted.sort();
 
     assert_eq!(targets, sorted);
+}
+
+async fn provider_keys() -> anyhow::Result<Vec<String>> {
+    Ok(agent_provider::provider::list().await?.into_keys().collect())
 }

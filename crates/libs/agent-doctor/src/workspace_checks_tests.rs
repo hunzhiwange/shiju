@@ -5,7 +5,7 @@ use super::workspace_checks::{
     parse_df_available_mb, workspace_probe_path,
 };
 use super::{DiagItem, Severity};
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 
 fn config_for_workspace(path: std::path::PathBuf) -> Config {
     Config { workspace_dir: path, ..Config::default() }

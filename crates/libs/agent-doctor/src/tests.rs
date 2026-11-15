@@ -270,7 +270,7 @@ mod tests {
     fn config_validation_warns_empty_model_route() {
         let mut config = Config::default();
         // 配置一个模型名称为空的路由
-        config.model_routes = vec![crate::app::agent::config::ModelRouteConfig {
+        config.model_routes = vec![agent_config::runtime::ModelRouteConfig {
             hint: "fast".into(),
             provider: "groq".into(),
             model: String::new(), // 空模型名称
@@ -293,7 +293,7 @@ mod tests {
     fn config_validation_warns_empty_embedding_route_model() {
         let mut config = Config::default();
         // 配置一个模型名称为空的嵌入路由
-        config.embedding_routes = vec![crate::app::agent::config::EmbeddingRouteConfig {
+        config.embedding_routes = vec![agent_config::runtime::EmbeddingRouteConfig {
             hint: "semantic".into(),
             provider: "openai".into(),
             model: String::new(), // 空模型名称
@@ -319,7 +319,7 @@ mod tests {
     fn config_validation_warns_invalid_embedding_route_provider() {
         let mut config = Config::default();
         // 配置使用不支持嵌入功能的 Provider
-        config.embedding_routes = vec![crate::app::agent::config::EmbeddingRouteConfig {
+        config.embedding_routes = vec![agent_config::runtime::EmbeddingRouteConfig {
             hint: "semantic".into(),
             provider: "groq".into(), // Groq 不支持嵌入功能
             model: "text-embedding-3-small".into(),
@@ -429,7 +429,7 @@ mod tests {
         // 插入两个委托代理，故意以非字母顺序插入
         config.agents.insert(
             "zeta".into(),
-            crate::app::agent::config::DelegateAgentConfig {
+            agent_config::runtime::DelegateAgentConfig {
                 runtime: Default::default(),
                 recommended_prompts: Vec::new(),
                 defaults: Default::default(),
@@ -466,7 +466,7 @@ mod tests {
         );
         config.agents.insert(
             "alpha".into(),
-            crate::app::agent::config::DelegateAgentConfig {
+            agent_config::runtime::DelegateAgentConfig {
                 runtime: Default::default(),
                 recommended_prompts: Vec::new(),
                 defaults: Default::default(),

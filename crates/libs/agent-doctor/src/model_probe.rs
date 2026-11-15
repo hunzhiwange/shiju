@@ -3,7 +3,7 @@
 //! 本模块负责确定需要探测的 provider 列表，并为 doctor 的模型目录探测命令
 //! 提供输出入口。目前真实探测能力被显式禁用，因此这里只报告目标 provider。
 
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use anyhow::Result;
 
 #[cfg(test)]
@@ -82,12 +82,15 @@ pub(super) fn resolve_model_probe_targets(
     providers
 }
 
-pub(super) async fn doctor_model_targets(provider_override: Option<&str>) -> Result<Vec<String>> {
+pub(super) async fn doctor_model_targets(
+    provider_override: Option<&str>,
+    provider_keys: impl std::future::Future<Output = Result<Vec<String>>>,
+) -> Result<Vec<String>> {
     if provider_override.map(str::trim).is_some_and(|value| !value.is_empty()) {
         return Ok(resolve_model_probe_targets(provider_override, Vec::<String>::new()));
     }
 
-    let providers = crate::app::agent::provider::provider::list().await?.into_keys();
+    let providers = provider_keys.await?;
     Ok(resolve_model_probe_targets(provider_override, providers))
 }
 
@@ -108,6 +111,7 @@ pub(super) fn report_model_probe_targets(targets: Vec<String>) -> Result<()> {
 /// - `_config`：doctor 运行配置；当前探测禁用，暂未读取。
 /// - `provider_override`：可选 provider 过滤。
 /// - `_use_cache`：缓存开关占位；当前探测禁用，暂未使用。
+/// - `provider_keys`：宿主当前请求的目录查询，仅未指定 provider 时轮询。
 ///
 /// 返回值：
 /// 成功时打印当前状态并返回 `Ok(())`。
@@ -119,7 +123,8 @@ pub async fn run_models(
     _config: &Config,
     provider_override: Option<&str>,
     _use_cache: bool,
+    provider_keys: impl std::future::Future<Output = Result<Vec<String>>>,
 ) -> Result<()> {
-    let targets = doctor_model_targets(provider_override).await?;
+    let targets = doctor_model_targets(provider_override, provider_keys).await?;
     report_model_probe_targets(targets)
 }

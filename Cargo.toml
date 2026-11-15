@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/agent-doctor",
   "crates/libs/tool-git",
   "crates/libs/gateway-misc",
   "crates/libs/gateway-git",

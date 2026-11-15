@@ -41,6 +41,7 @@ agent-service = { path = "../libs/agent-service", version = "0.6.0" }
 tool-agents = { path = "../libs/tool-agents", version = "0.6.0" }
 agent-scheduler-core = { path = "../libs/agent-scheduler-core", version = "0.6.0" }
 agent-observability = { path = "../libs/agent-observability", version = "0.6.0" }
+agent-doctor = { path = "../libs/agent-doctor", version = "0.6.0" }
 agent-integrations = { path = "../libs/agent-integrations", version = "0.6.0" }
 agent-installation = { path = "../libs/agent-installation", version = "0.6.0" }
 agent-health = { path = "../libs/agent-health", version = "0.6.0" }

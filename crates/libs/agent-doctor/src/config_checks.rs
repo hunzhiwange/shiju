@@ -4,8 +4,8 @@
 //! 默认模型和温度范围合理，并对路由、embedding 与 agent 配置给出可操作的诊断项。
 
 use super::DiagItem;
-use crate::app::agent::config::Config;
-use crate::app::agent::config::schema::ChannelsConfigExt;
+use agent_config::runtime::Config;
+use agent_config::runtime_schema::ChannelsConfigExt;
 
 /// 检查已加载配置的语义一致性。
 ///
@@ -179,7 +179,7 @@ pub(super) fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>)
 /// 参数 `name` 是配置中的 provider 名称。返回 `None` 表示有效；返回 `Some` 时包含
 /// 首行错误原因，供诊断输出保持简短。
 pub(super) fn provider_validation_error(name: &str) -> Option<String> {
-    match crate::app::agent::providers::create_provider(name, None) {
+    match agent_providers::create_provider(name, None) {
         Ok(_) => None,
         Err(err) => Some(err.to_string().lines().next().unwrap_or("invalid provider").into()),
     }

@@ -1,7 +1,7 @@
 // 覆盖诊断流程的检查顺序、结构化结果与命令返回语义。
 
 use super::{Severity, diagnose, run};
-use crate::app::agent::config::{Config, TelegramConfig};
+use agent_config::runtime::{Config, TelegramConfig};
 use chrono::Utc;
 use tempfile::TempDir;
 
@@ -37,7 +37,7 @@ fn test_config(tmp: &TempDir) -> Config {
 
 fn write_fresh_state(config: &Config) {
     let now = Utc::now().to_rfc3339();
-    let path = crate::app::agent::daemon::state_file_path(config);
+    let path = agent_daemon::state_file_path(config);
     std::fs::write(
         path,
         serde_json::to_vec(&serde_json::json!({

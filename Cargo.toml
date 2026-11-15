@@ -1,7 +1,6 @@
 [workspace]
 members = [
   "crates/libs/gateway-skill-market",
-  "crates/libs/gateway-skill-market",
   "crates/libs/app-providers",
   "crates/libs/gateway-shiju-skill",
   "crates/libs/gateway-shiju-knowledge",
@@ -214,6 +213,7 @@ members = [
   "crates/libs/app-availability",
   "crates/libs/app-routing-policy",
   "crates/libs/app-availability-core",
+  "crates/libs/app-availability",
   "crates/libs/cli-terminal",
   "crates/libs/cli-transcript",
   "crates/libs/cli-interaction-model",

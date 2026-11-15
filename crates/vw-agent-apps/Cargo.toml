@@ -56,7 +56,7 @@ vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }
 vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 app-model-catalog = { path = "../libs/app-model-catalog" }
 app-routing-policy = { path = "../libs/app-routing-policy" }
-app-availability-core = { path = "../libs/app-availability-core" }
+app-availability = { path = "../libs/app-availability" }
 app-catalog = { path = "../libs/app-catalog" }
 app-config-patch = { path = "../libs/app-config-patch" }
 app-provider-validation = { path = "../libs/app-provider-validation" }

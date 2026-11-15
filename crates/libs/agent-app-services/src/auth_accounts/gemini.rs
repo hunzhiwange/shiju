@@ -61,7 +61,7 @@ impl AuthAccountStore {
         account: &str,
     ) -> Result<String, AuthErrorCode> {
         let key = key(scope, account)?;
-        crate::global_database::run_sync_database(|| {
+        agent_database::run_sync_database(|| {
             self.metadata.get(scope.tenant, MANAGED_ACCOUNT_NAMESPACE, &key)
         })
         .map_err(|_| AuthErrorCode::StorageUnavailable)?

@@ -9,7 +9,7 @@ use vw_agent_apps::auth::credential_file::AccountCredential;
 use vw_api_app_auth::{AuthAccount, AuthCredentialState};
 
 impl AuthAccountStore {
-    pub(crate) fn scoped_account_rows(
+    pub fn scoped_account_rows(
         &self,
         scope: AuthAccountScope<'_>,
     ) -> Result<Vec<(String, String)>, AuthErrorCode> {
@@ -30,7 +30,7 @@ impl AuthAccountStore {
         Ok(scoped)
     }
 
-    pub(crate) fn read_managed_accounts(
+    pub fn read_managed_accounts(
         &self,
         scope: AuthAccountScope<'_>,
         home: &Path,
@@ -103,7 +103,7 @@ impl AuthAccountStore {
     }
 
     #[cfg(target_os = "macos")]
-    pub(crate) fn read_kimi_default(
+    pub fn read_kimi_default(
         &self,
         scope: AuthAccountScope<'_>,
         native: &vw_agent_apps::auth::kimi_account::KimiNativeTarget<'_>,

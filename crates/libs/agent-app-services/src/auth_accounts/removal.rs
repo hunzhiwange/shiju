@@ -9,7 +9,7 @@ use vw_agent_apps::auth::accounts::{
 };
 
 impl AuthAccountStore {
-    pub(crate) fn lease_device_removal(
+    pub fn lease_device_removal(
         &self,
         scope: AuthAccountScope<'_>,
         account_id: &str,
@@ -27,7 +27,7 @@ impl AuthAccountStore {
     }
 
     /// The caller holds the scoped lease and has already checked all provider references.
-    pub(crate) fn remove_managed_file_account(
+    pub fn remove_managed_file_account(
         &self,
         scope: AuthAccountScope<'_>,
         account_id: &str,

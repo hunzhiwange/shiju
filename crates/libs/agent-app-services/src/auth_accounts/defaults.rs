@@ -32,7 +32,7 @@ impl AuthAccountStore {
         scope.validate()?;
         match (scope.service, native) {
             (AuthService::AgyOauth, Some(NativeAccountDefault::Agy(target))) => {
-                crate::global_database::run_sync_database(|| {
+                agent_database::run_sync_database(|| {
                     Ok(switch_default_account(scope, account_id, target))
                 })
                 .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
@@ -53,7 +53,7 @@ impl AuthAccountStore {
             #[cfg(target_os = "macos")]
             (AuthService::AgyOauth | AuthService::KimiOauth, None) => Err(AuthErrorCode::Forbidden),
             (_, Some(_)) => Err(AuthErrorCode::Unsupported),
-            (_, None) => crate::global_database::run_sync_database(|| {
+            (_, None) => agent_database::run_sync_database(|| {
                 Ok(self.set_managed_default_account(scope, account_id))
             })
             .map_err(|_| AuthErrorCode::StorageUnavailable)?,

@@ -22,7 +22,7 @@ use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
-use config_voice::VoiceConfig;
+use vw_config_types::voice::VoiceConfig;
 
 #[derive(Clone, Debug)]
 enum Message {

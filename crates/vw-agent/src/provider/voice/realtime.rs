@@ -12,7 +12,7 @@ use tokio_tungstenite::{
     },
 };
 use vw_api_types::voice::*;
-use config_voice::VoiceConfig;
+use vw_config_types::voice::VoiceConfig;
 
 type Result<T> = std::result::Result<T, VoiceErrorCode>;
 type Socket = WebSocketStream<reqwest::Upgraded>;

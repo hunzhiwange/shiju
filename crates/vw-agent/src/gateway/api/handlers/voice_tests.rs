@@ -313,7 +313,7 @@ async fn voice_task_07_config_requires_owner_and_excludes_credentials() {
     assert_eq!(response.headers()["cache-control"], "no-store");
     let bytes = response.bytes().await.unwrap();
     assert!(!std::str::from_utf8(&bytes).unwrap().contains(TOKEN));
-    let config: config_voice::VoiceConfig = serde_json::from_slice(&bytes).unwrap();
+    let config: vw_config_types::voice::VoiceConfig = serde_json::from_slice(&bytes).unwrap();
     assert!(!config.dictation_enabled);
     let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert!(value.get("gateway").is_none());

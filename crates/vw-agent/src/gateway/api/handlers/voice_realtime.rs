@@ -24,7 +24,7 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_types::voice::*,
 };
-use config_voice::VoiceConfig;
+use vw_config_types::voice::VoiceConfig;
 
 const CONNECTION: &str = "x-shiju-voice-connection-id";
 const QUEUE: usize = 8;
@@ -106,7 +106,7 @@ fn connection(headers: &HeaderMap) -> Result<VoiceId, VoiceErrorCode> {
         .map_err(|_| VoiceErrorCode::InvalidRequest)
 }
 fn configured_voice(config: &VoiceConfig) -> VoiceName {
-    use config_voice::VoiceName as Config;
+    use vw_config_types::voice::VoiceName as Config;
     match config.voice {
         Config::Alloy => VoiceName::Alloy,
         Config::Ash => VoiceName::Ash,

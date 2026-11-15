@@ -16,7 +16,7 @@ use {
     vw_api_types::voice::VoiceErrorCode as Code,
     vw_api_types::voice::VoiceEvent,
 };
-use config_voice::{VoiceConfig, VoiceName};
+use vw_config_types::voice::{VoiceConfig, VoiceName};
 
 pub(super) async fn save(
     Extension(tenant): Extension<TenantScope>,

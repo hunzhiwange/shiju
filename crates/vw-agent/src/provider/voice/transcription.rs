@@ -2,7 +2,7 @@
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use vw_api_types::voice::VoiceErrorCode;
-use config_voice::VoiceConfig;
+use vw_config_types::voice::VoiceConfig;
 
 pub struct TranscriptionProvider {
     client: reqwest::Client,
@@ -77,7 +77,7 @@ impl TranscriptionProvider {
         config.validate().map_err(|_| service(VoiceErrorCode::InvalidRequest))?;
         validate_wav(&audio, media_type)?;
         let model = match config.transcription_model {
-            config_voice::TranscriptionModel::GptTranscribe => "gpt-transcribe",
+            vw_config_types::voice::TranscriptionModel::GptTranscribe => "gpt-transcribe",
         };
         let file = reqwest::multipart::Part::bytes(audio)
             .file_name("dictation.wav")

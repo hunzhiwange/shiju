@@ -8,7 +8,7 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use config_voice::VoiceName;
+use vw_config_types::voice::VoiceName;
 use gateway_endpoint::GatewayEndpoint;
 
 #[test]

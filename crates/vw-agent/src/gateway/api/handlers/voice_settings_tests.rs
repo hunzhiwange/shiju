@@ -44,7 +44,7 @@ async fn voice_task_13_gateway_save_persists_language_dictionary_and_voice_witho
     let saved = crate::config::get_global_for_tenant(&tenant).await.unwrap().app_ui.voice;
     assert!(saved.dictation_enabled);
     assert_eq!(saved.provider_id.as_deref(), Some("openai"));
-    assert_eq!(saved.language, config_voice::RecognitionLanguage::Zh);
+    assert_eq!(saved.language, vw_config_types::voice::RecognitionLanguage::Zh);
     assert_eq!(saved.dictionary, ["识矩"]);
     assert_eq!(saved.voice, VoiceName::Cedar);
 }

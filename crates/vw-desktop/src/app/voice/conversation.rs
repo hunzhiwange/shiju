@@ -224,7 +224,7 @@ async fn connected(
         return Err("当前语音传输仅支持本机网关。");
     }
     let client = GatewayClient::new(endpoint.clone()).map_err(|_| "无法连接语音网关。")?;
-    let config: config_voice::VoiceConfig =
+    let config: vw_config_types::voice::VoiceConfig =
         client.voice_config().await.map_err(|_| "无法读取语音设置。")?;
     if !config.realtime_enabled {
         return Err("请先在网关设置中启用语音聊天。");

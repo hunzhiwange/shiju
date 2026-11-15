@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/libs/config-voice",
   "crates/libs/display-format",
   "crates/libs/config-computer-control",
   "crates/libs/json-extract",
@@ -76,6 +75,7 @@ members = [
   "crates/libs/cli-gateway-commands",
   "crates/libs/cli-task-commands",
   "crates/libs/cli-security-commands",
+  "crates/libs/cli-runtime-status",
   "crates/libs/cli-api-core",
   "crates/libs/cli-api-system",
   "crates/libs/cli-api-workspace",

@@ -60,7 +60,7 @@ pub(super) fn failure(code: Code, id: VoiceId) -> Response {
 async fn authenticate(
     tenant: &TenantScope,
     headers: &axum::http::HeaderMap,
-) -> Result<(Owner, config_voice::VoiceConfig), Code> {
+) -> Result<(Owner, vw_config_types::voice::VoiceConfig), Code> {
     if headers.get_all(axum::http::header::AUTHORIZATION).iter().count() != 1 {
         return Err(Code::Unauthorized);
     }
@@ -83,7 +83,7 @@ async fn authenticate(
 pub(super) async fn realtime_identity(
     tenant: &TenantScope,
     headers: &axum::http::HeaderMap,
-) -> Result<([u8; 32], config_voice::VoiceConfig), Code> {
+) -> Result<([u8; 32], vw_config_types::voice::VoiceConfig), Code> {
     authenticate(tenant, headers).await.map(|(owner, config)| (owner.principal, config))
 }
 async fn voice_config(
@@ -131,7 +131,7 @@ async fn transcribe(
 }
 async fn execute_transcription(
     owner: Owner,
-    config: config_voice::VoiceConfig,
+    config: vw_config_types::voice::VoiceConfig,
     requests: Arc<Requests>,
     metadata: TranscriptionRequest,
     audio: Vec<u8>,

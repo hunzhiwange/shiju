@@ -12,7 +12,6 @@ autotests = false
 doctest = false
 
 [dependencies]
-config-voice = { path = "../libs/config-voice", version = "0.6.0" }
 display-format = { path = "../libs/display-format", version = "0.6.0" }
 vw-api-chat = { path = "../libs/api-chat", version = "0.6.0" }
 config-computer-control = { path = "../libs/config-computer-control", version = "0.6.0" }

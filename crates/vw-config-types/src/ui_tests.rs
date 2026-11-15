@@ -713,26 +713,3 @@ fn terminal_typography_preserves_explicit_font_sizes() {
         assert_eq!(restored.terminal_font_size, size);
     }
 }
-
-#[test]
-fn voice_task_02_ui_defaults_preserve_voice_defaults() {
-    let config: config_voice::VoiceConfig = serde_json::from_str("{}").unwrap();
-    let legacy: AppUiConfig = serde_json::from_str("{}").unwrap();
-    assert_eq!(legacy.voice, config);
-}
-
-#[test]
-fn voice_task_02_config_roundtrip_preserves_gateway_reference() {
-    use config_voice::{RealtimeModel, TranscriptionModel};
-    use serde_json::json;
-
-    let value = json!({"voice":{"dictation_enabled":true,"realtime_enabled":true,
-        "provider_id":"voice_primary","language":"zh","dictionary":["ShiJu"],"voice":"cedar"}});
-    let config: AppUiConfig = serde_json::from_value(value).unwrap();
-    let roundtrip: AppUiConfig =
-        serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
-    assert_eq!(roundtrip, config);
-    assert_eq!(config.voice.provider_id.as_deref(), Some("voice_primary"));
-    assert_eq!(config.voice.transcription_model, TranscriptionModel::GptTranscribe);
-    assert_eq!(config.voice.realtime_model, RealtimeModel::GptRealtime21);
-}

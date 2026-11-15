@@ -139,7 +139,7 @@ async fn voice_task_11_end_cancels_pending_gateway_connection() {
             headers.push(byte[0]);
             assert!(headers.len() < 8192);
         }
-        let body = serde_json::to_string(&config_voice::VoiceConfig {
+        let body = serde_json::to_string(&vw_config_types::voice::VoiceConfig {
             realtime_enabled: true,
             provider_id: Some("openai".into()),
             ..Default::default()

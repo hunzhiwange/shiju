@@ -8,7 +8,6 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
-config-voice = { path = "../libs/config-voice", version = "0.6.0" }
 config-computer-control = { path = "../libs/config-computer-control", version = "0.6.0" }
 config-proxy = { path = "../libs/config-proxy", version = "0.6.0" }
 config-skills = { path = "../libs/config-skills", version = "0.6.0" }

@@ -1,11 +1,13 @@
-use crate::*;
+use crate::{ui::AppUiConfig, voice::*};
 use serde_json::json;
 
 #[test]
 fn voice_task_02_config_defaults_disable_capture() {
     let config: VoiceConfig = serde_json::from_str("{}").unwrap();
+    let legacy: AppUiConfig = serde_json::from_str("{}").unwrap();
     assert!(!config.dictation_enabled, "missing config must disable dictation");
     assert!(!config.realtime_enabled, "missing config must disable realtime capture");
+    assert_eq!(legacy.voice, config);
     assert!(config.provider_id.is_none());
     assert_eq!(config.voice, VoiceName::Marin);
     assert_eq!(config.language.service_code(), None);
@@ -60,4 +62,17 @@ fn voice_task_02_dictionary_and_prompt_enforce_unicode_boundaries() {
     }
     let edited = VoiceConfig { dictionary: vec!["<bad>".into()], ..Default::default() };
     assert!(edited.validate().is_err());
+}
+
+#[test]
+fn voice_task_02_config_roundtrip_preserves_gateway_reference() {
+    let value = json!({"voice":{"dictation_enabled":true,"realtime_enabled":true,
+        "provider_id":"voice_primary","language":"zh","dictionary":["ShiJu"],"voice":"cedar"}});
+    let config: AppUiConfig = serde_json::from_value(value).unwrap();
+    let roundtrip: AppUiConfig =
+        serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
+    assert_eq!(roundtrip, config);
+    assert_eq!(config.voice.provider_id.as_deref(), Some("voice_primary"));
+    assert_eq!(config.voice.transcription_model, TranscriptionModel::GptTranscribe);
+    assert_eq!(config.voice.realtime_model, RealtimeModel::GptRealtime21);
 }

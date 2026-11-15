@@ -174,7 +174,7 @@ pub struct QuickMessageConfig {
 pub struct AppUiConfig {
     /// Gateway service configuration, independent of local desktop device preferences.
     #[serde(default)]
-    pub voice: config_voice::VoiceConfig,
+    pub voice: crate::voice::VoiceConfig,
     /// System settings values managed by the desktop UI.
     #[serde(default)]
     pub system_settings: AppSystemSettingsConfig,

@@ -2,7 +2,7 @@ use super::realtime::RealtimeSession;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::Message;
-use config_voice::VoiceConfig;
+use vw_config_types::voice::VoiceConfig;
 
 #[tokio::test]
 async fn voice_task_13_voice_preview_does_not_capture_microphone() {

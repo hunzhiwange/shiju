@@ -7,7 +7,7 @@ pub mod transcription;
 
 use transcription::{TranscriptionError, TranscriptionProvider};
 use vw_api_types::voice::VoiceErrorCode;
-use config_voice::VoiceConfig;
+use vw_config_types::voice::VoiceConfig;
 
 impl TranscriptionProvider {
     /// Resolves only gateway-owned API credentials in the caller's tenant/project scope.

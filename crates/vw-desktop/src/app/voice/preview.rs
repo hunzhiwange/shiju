@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::watch;
-use config_voice::VoiceName;
+use vw_config_types::voice::VoiceName;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 pub(crate) struct Preview {

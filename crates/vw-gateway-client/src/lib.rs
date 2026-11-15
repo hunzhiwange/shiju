@@ -261,3 +261,6 @@ pub use gateway_task_lifecycle::GatewayTaskLifecycleClient;
 pub use gateway_task_pool::GatewayTaskPoolClient;
 
 pub use gateway_cron::GatewayCronClient;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use gateway_host_tools::GatewayHostToolsClient;

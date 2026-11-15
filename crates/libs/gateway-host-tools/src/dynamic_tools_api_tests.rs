@@ -1,8 +1,6 @@
-use super::{GatewayClient, test_support::server};
-use crate::{
-    endpoint::{GatewayAuth, GatewayEndpoint},
-    stream::GatewayStreamAttemptResult,
-};
+use super::{GatewayHostToolsClient, test_support::server};
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
+use gateway_chat_stream::GatewayStreamAttemptResult;
 use serde_json::{Value, json};
 use std::{
     io::{Read, Write},
@@ -52,7 +50,7 @@ impl WireReply {
     }
 }
 struct Loopback {
-    client: GatewayClient,
+    client: GatewayHostToolsClient,
     requests: mpsc::Receiver<String>,
     closed: mpsc::Receiver<()>,
     thread: thread::JoinHandle<()>,
@@ -104,7 +102,7 @@ impl Loopback {
         });
         let endpoint = GatewayEndpoint::new("127.0.0.1", port)
             .with_auth(GatewayAuth { skey: Some("gateway-key".into()) });
-        Self { client: GatewayClient::new(endpoint).unwrap(), requests, closed, thread }
+        Self { client: GatewayHostToolsClient::new(gateway_http::GatewayTransport::new(endpoint).unwrap()), requests, closed, thread }
     }
     fn request(&self) -> String {
         self.requests.recv_timeout(Duration::from_secs(5)).unwrap()
@@ -382,7 +380,7 @@ async fn dynamic_tools_client_malformed_stream_is_rejected() {
 
 #[tokio::test]
 async fn dynamic_tools_client_invalid_ids_and_binding_fail_before_network() {
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 1)).unwrap();
+    let client = GatewayHostToolsClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("127.0.0.1", 1)).unwrap());
     for id in ["", " ", ".", ".."] {
         assert!(client.register_dynamic_tool_host(id, None).await.err().unwrap().contains("ID"));
         assert!(
@@ -419,7 +417,7 @@ async fn dynamic_tools_client_response_transport_failure_is_not_retried() {
         listener.set_nonblocking(true).unwrap();
         assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
     });
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+    let client = GatewayHostToolsClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap());
     assert!(
         client
             .respond_dynamic_tool_call("session", None, &binding(), "call", &response())
@@ -441,7 +439,7 @@ async fn dynamic_tools_client_redirect_is_rejected_before_forwarding_binding() {
         assert!(request.contains("x-vibewindow-tool-host: binding-secret"));
         socket.write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: http://127.0.0.1:1/forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
     });
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+    let client = GatewayHostToolsClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap());
     let error = client
         .respond_dynamic_tool_call("session", None, &binding(), "call", &response())
         .await

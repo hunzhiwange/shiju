@@ -355,6 +355,7 @@ path = "tests/model_protocol_015_messages.rs"
 name = "acp_gemini_chat"
 path = "tests/acp_gemini_chat.rs"
 
+gateway-host-tools = { path = "../libs/gateway-host-tools", version = "0.6.0" }
 [dev-dependencies]
 gateway-inference = { path = "../libs/gateway-inference", version = "0.6.0" }
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }

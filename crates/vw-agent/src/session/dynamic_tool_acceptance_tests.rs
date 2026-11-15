@@ -66,7 +66,7 @@ impl Fixture {
         self.directory.path().to_str().unwrap()
     }
     async fn register(&self) -> DynamicToolHostBinding {
-        self.client.register_dynamic_tool_host(&self.session, Some(self.directory())).await.unwrap()
+        gateway_host_tools::GatewayHostToolsClient::new(self.client.transport().clone()).register_dynamic_tool_host(&self.session, Some(self.directory())).await.unwrap()
     }
     async fn replace(
         &self,
@@ -74,7 +74,7 @@ impl Fixture {
         name: &str,
         persist: bool,
     ) -> Result<u64, String> {
-        self.client
+        gateway_host_tools::GatewayHostToolsClient::new(self.client.transport().clone())
             .replace_dynamic_tools(
                 &self.session,
                 Some(self.directory()),
@@ -177,7 +177,7 @@ async fn dynamic_tools_acceptance_replacement_survives_resume() {
     assert!(f.entry(&rebound).catalog.snapshot().bind("deployment").is_ok());
     assert!(f.entry(&rebound).catalog.snapshot().bind("release").is_err());
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .replace_dynamic_tools(
                 &f.session,
                 Some(f.directory()),
@@ -191,7 +191,7 @@ async fn dynamic_tools_acceptance_replacement_survives_resume() {
     let (stream, mut receive) = host_stream(&f, &rebound).await;
     let call = execute(&f, &rebound, "deployment").await;
     let request = next_call(&mut receive).await;
-    f.client
+    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
         .respond_dynamic_tool_call(
             &f.session,
             Some(f.directory()),
@@ -219,7 +219,7 @@ async fn host_stream(
     let directory = f.directory().to_owned();
     let binding = binding.clone();
     let task = tokio::spawn(async move {
-        let _ = client
+        let _ = gateway_host_tools::GatewayHostToolsClient::new(client.transport().clone())
             .stream_dynamic_tool_calls(&session, Some(&directory), &binding, |call| {
                 send.send(call).is_ok()
             })
@@ -259,7 +259,7 @@ async fn dynamic_tools_acceptance_default_policy_and_cross_session_are_denied() 
     .await
     .unwrap();
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .replace_dynamic_tools(
                 &other.info.id,
                 Some(f.directory()),
@@ -278,7 +278,7 @@ async fn dynamic_tools_acceptance_default_policy_and_cross_session_are_denied() 
     )
     .unwrap();
     assert!(
-        wrong_tenant
+        gateway_host_tools::GatewayHostToolsClient::new(wrong_tenant.transport().clone())
             .register_dynamic_tool_host(&f.session, Some(f.directory()))
             .await
             .err()
@@ -300,7 +300,7 @@ async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() {
     // Old pending execution remains answerable while the next request sees the replacement.
     f.replace(&binding, "deployment", true).await.unwrap();
     assert!(f.entry(&binding).catalog.snapshot().bind("release").is_err());
-    f.client
+    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
         .respond_dynamic_tool_call(
             &f.session,
             Some(f.directory()),
@@ -312,7 +312,7 @@ async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() {
         .unwrap();
     assert!(call.await.unwrap().unwrap().result.is_success());
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .respond_dynamic_tool_call(
                 &f.session,
                 Some(f.directory()),
@@ -329,7 +329,7 @@ async fn dynamic_tools_acceptance_replacement_cancellation_and_revocation() {
     cancelled.abort();
     assert!(cancelled.await.unwrap_err().is_cancelled());
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .respond_dynamic_tool_call(
                 &f.session,
                 Some(f.directory()),
@@ -356,7 +356,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
         gateway_session::GatewaySessionClient::new(f.client.transport().clone()).session_fork(&f.session, Some(f.directory()), &None).await.unwrap();
     let fork = fork["id"].as_str().unwrap();
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .replace_dynamic_tools(
                 fork,
                 Some(f.directory()),
@@ -368,7 +368,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
             .contains("403")
     );
     let fork_binding =
-        f.client.register_dynamic_tool_host(fork, Some(f.directory())).await.unwrap();
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone()).register_dynamic_tool_host(fork, Some(f.directory())).await.unwrap();
     let fork_entry = super::runtime::dynamic_hosts::SessionHost::authenticate(
         &f.scope,
         fork,
@@ -377,7 +377,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
     .unwrap();
     assert!(fork_entry.catalog.snapshot().bind("release").is_err());
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .replace_dynamic_tools(
                 fork,
                 Some(f.directory()),
@@ -387,7 +387,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
             .await
             .is_err()
     );
-    f.client
+    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
         .replace_dynamic_tools(
             fork,
             Some(f.directory()),
@@ -398,7 +398,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
         .unwrap();
     assert!(fork_entry.catalog.snapshot().bind("release").is_ok());
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .respond_dynamic_tool_call(fork, Some(f.directory()), &binding, "forged", &response())
             .await
             .unwrap_err()
@@ -408,7 +408,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
     let call = execute(&f, &binding, "release").await;
     let request = next_call(&mut receive).await;
     assert!(
-        f.client
+        gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
             .respond_dynamic_tool_call(
                 fork,
                 Some(f.directory()),
@@ -420,7 +420,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
             .unwrap_err()
             .contains("403")
     );
-    f.client
+    gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone())
         .respond_dynamic_tool_call(
             &f.session,
             Some(f.directory()),
@@ -471,7 +471,7 @@ fn dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary() {
             let request = next_call(&mut receive).await;
             assert_eq!(request.tool_id.as_ref(), "release");
             f.replace(&binding, "deployment", true).await.unwrap();
-            f.client.respond_dynamic_tool_call(&f.session, Some(f.directory()), &binding, &request.call_id, &response()).await.unwrap();
+            gateway_host_tools::GatewayHostToolsClient::new(f.client.transport().clone()).respond_dynamic_tool_call(&f.session, Some(f.directory()), &binding, &request.call_id, &response()).await.unwrap();
         };
         let body = serde_json::from_value(json!({"session_id":f.session,"model":"model-recovery/original","allowed_tools":["tool_search","release","deployment","read"],"messages":[{"role":"user","content":"perform action"}],"options":{"allowed_tools":["tool_search","release","deployment","read"],"full_access":true}})).unwrap();
         let mut events = Vec::new();

@@ -75,9 +75,6 @@ mod cron_api;
 pub mod desktop_settings_api;
 #[cfg(not(target_arch = "wasm32"))]
 mod dynamic_tools_api;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "dynamic_tools_api_tests.rs"]
-mod dynamic_tools_api_tests;
 mod file_api;
 mod git_api;
 mod inference_api;

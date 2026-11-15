@@ -39,7 +39,7 @@ pub fn default_home_dir() -> Option<PathBuf> {
 }
 
 pub fn queue_base_dir(home_dir: impl AsRef<Path>) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home_dir).join("acp").join("queues")
+    config_runtime_paths::home_config_dir(home_dir).join("acp").join("queues")
 }
 
 pub fn default_queue_base_dir() -> Option<PathBuf> {

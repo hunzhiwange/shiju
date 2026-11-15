@@ -274,7 +274,7 @@ pub fn agent_workspace_root(agent_key: Option<&str>) -> Option<PathBuf> {
     }
 
     std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).map(
-        |home| vw_config_types::paths::home_config_dir(home).join(format!("workspace{suffix}")),
+        |home| config_runtime_paths::home_config_dir(home).join(format!("workspace{suffix}")),
     )
 }
 

@@ -8,7 +8,7 @@ const PACKAGE: &str = "agent-browser@0.42.0";
 
 fn install_root() -> Result<PathBuf, String> {
     let home = directories::BaseDirs::new().ok_or("无法确定用户主目录")?;
-    Ok(vw_config_types::paths::home_config_dir(home.home_dir())
+    Ok(config_runtime_paths::home_config_dir(home.home_dir())
         .join("browser-runtime/agent-browser-0.42.0"))
 }
 

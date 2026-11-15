@@ -55,7 +55,7 @@ fn log_ignored_config_key(path: &str) {
 ///
 /// 参数 `vibewindow_dir` 是已经解析好的 VibeWindow 配置目录；函数只拼接文件名，不访问文件系统。
 pub(crate) fn config_json_path(vibewindow_dir: &Path) -> PathBuf {
-    vibewindow_dir.join(vw_config_types::paths::CONFIG_JSON_FILENAME)
+    vibewindow_dir.join(config_runtime_paths::CONFIG_JSON_FILENAME)
 }
 
 /// 从旧 TOML 配置文件加载完整配置。

@@ -1,4 +1,4 @@
-use crate::{OfficeCapability, OfficeSessions, OfficeSurface};
+use super::sessions::{OfficeCapability, OfficeSessions, OfficeSurface};
 use std::time::{Duration, Instant};
 use vw_api_types::computer_control::{
     ComputerControlAction, ComputerControlTarget, ControlDocumentId, ControlErrorCode,
@@ -27,7 +27,7 @@ fn register(
     sessions: &mut OfficeSessions,
     id: &str,
     now: Instant,
-) -> crate::OfficeHandle {
+) -> super::sessions::OfficeHandle {
     sessions
         .register(
             owner(),

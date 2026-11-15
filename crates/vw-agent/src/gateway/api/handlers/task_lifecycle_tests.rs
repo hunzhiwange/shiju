@@ -32,7 +32,7 @@ async fn task_lifecycle_default_router_registers_workflow_routes() {
 #[tokio::test(flavor = "multi_thread")]
 async fn task_lifecycle_routes_crud_custom_workflows() {
     let home = tempfile::tempdir().expect("temp home");
-    let expected_path = vw_config_types::paths::global_database_path(home.path());
+    let expected_path = config_runtime_paths::global_database_path(home.path());
     let paths = StorePaths { home: home.path().to_path_buf() };
     let tenant = TenantScope::new("platform-lifecycle", "company-lifecycle").expect("tenant");
     let app =

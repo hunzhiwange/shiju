@@ -7,7 +7,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
-use vw_config_types::paths::home_config_dir;
+use config_runtime_paths::home_config_dir;
 
 const CACHE_FILE_NAME: &str = "shiju-package-version.json";
 const MAX_CACHE_BYTES: u64 = 4 * 1024;

@@ -36,7 +36,7 @@ fn target(home: &Path, config_dir: &str) -> std::path::PathBuf {
 #[test]
 fn native_shiju_skill_sync_writes_only_native_directory() {
     let home = tempfile::tempdir().unwrap();
-    let native = target(home.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let native = target(home.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
     let workbuddy = home.path().join(".workbuddy/skills/shiju");
     for directory in [&native, &workbuddy] {
         fs::create_dir_all(directory).unwrap();
@@ -49,12 +49,12 @@ fn native_shiju_skill_sync_writes_only_native_directory() {
 }
 
 fn other_config_dir() -> &'static str {
-    if vw_config_types::paths::HOME_CONFIG_DIR_NAME
-        == vw_config_types::paths::DEV_HOME_CONFIG_DIR_NAME
+    if config_runtime_paths::HOME_CONFIG_DIR_NAME
+        == config_runtime_paths::DEV_HOME_CONFIG_DIR_NAME
     {
-        vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME
+        config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME
     } else {
-        vw_config_types::paths::DEV_HOME_CONFIG_DIR_NAME
+        config_runtime_paths::DEV_HOME_CONFIG_DIR_NAME
     }
 }
 
@@ -62,7 +62,7 @@ fn other_config_dir() -> &'static str {
 fn valid_archive_installs_only_current_environment() {
     let temp = tempfile::tempdir().expect("fixture home");
     let home = temp.path();
-    for config_dir in [vw_config_types::paths::HOME_CONFIG_DIR_NAME, other_config_dir()] {
+    for config_dir in [config_runtime_paths::HOME_CONFIG_DIR_NAME, other_config_dir()] {
         let existing = target(home, config_dir);
         fs::create_dir_all(&existing).expect("create existing install");
         fs::write(existing.join("old.txt"), "old").expect("write old install");
@@ -76,7 +76,7 @@ fn valid_archive_installs_only_current_environment() {
     let report =
         install_shiju_archive_at_home(&archive_path, home).expect("install valid shiju archive");
 
-    let installed = target(home, vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let installed = target(home, config_runtime_paths::HOME_CONFIG_DIR_NAME);
     assert_eq!(report.installed_dir, installed);
     assert_eq!(
         fs::read_to_string(installed.join("SKILL.md")).expect("read installed skill"),
@@ -161,7 +161,7 @@ fn symlink_or_missing_skill_manifest_is_rejected() {
 #[test]
 fn local_installation_reads_manifest_version_and_detects_newer_release() {
     let temp = tempfile::tempdir().expect("fixture home");
-    let installed = target(temp.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let installed = target(temp.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
     fs::create_dir_all(&installed).expect("create installed skill");
     fs::write(installed.join("SKILL.md"), "---\nname: shiju\nversion: 3.0.3\n---\n# shiju\n")
         .expect("write skill manifest");
@@ -188,7 +188,7 @@ fn local_installation_reads_manifest_version_and_detects_newer_release() {
 #[test]
 fn uninstall_removes_only_current_environment_and_rejects_symlink() {
     let temp = tempfile::tempdir().expect("fixture home");
-    let current = target(temp.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let current = target(temp.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
     let other = target(temp.path(), other_config_dir());
     fs::create_dir_all(&current).expect("create current install");
     fs::create_dir_all(&other).expect("create other install");
@@ -216,7 +216,7 @@ fn uninstall_removes_only_current_environment_and_rejects_symlink() {
 #[test]
 fn sync_shiju_key_updates_only_target_entry() {
     let temp = tempfile::tempdir().expect("fixture home");
-    let skill_dir = target(temp.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let skill_dir = target(temp.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
     fs::create_dir_all(&skill_dir).expect("create installed skill");
     fs::write(
         skill_dir.join(".env"),
@@ -234,7 +234,7 @@ fn sync_shiju_key_updates_only_target_entry() {
     );
 
     let append_home = tempfile::tempdir().expect("fixture append home");
-    let append_skill_dir = target(append_home.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let append_skill_dir = target(append_home.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
     fs::create_dir_all(&append_skill_dir).expect("create append skill");
     fs::write(append_skill_dir.join(".env"), "OTHER=value")
         .expect("write env without target entry");
@@ -250,7 +250,7 @@ fn sync_shiju_key_updates_only_target_entry() {
 #[test]
 fn sync_shiju_key_creates_env_for_existing_skill() {
     let temp = tempfile::tempdir().expect("fixture home");
-    let skill_dir = target(temp.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let skill_dir = target(temp.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
     fs::create_dir_all(&skill_dir).expect("create installed skill");
     let skey = SecretSkey::new("new-secret").expect("valid skey");
 
@@ -278,11 +278,11 @@ fn sync_shiju_key_rejects_unsafe_targets() {
         sync_shiju_key_at_home(missing_home.path(), &skey).expect("skip missing skill"),
         ShijuKeySyncOutcome::SkillNotInstalled
     );
-    assert!(!vw_config_types::paths::home_config_dir(missing_home.path()).exists());
+    assert!(!config_runtime_paths::home_config_dir(missing_home.path()).exists());
 
     let non_file_home = tempfile::tempdir().expect("fixture non-file home");
     let non_file_env =
-        target(non_file_home.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME).join(".env");
+        target(non_file_home.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME).join(".env");
     fs::create_dir_all(&non_file_env).expect("create non-file env");
     let error = sync_shiju_key_at_home(non_file_home.path(), &skey)
         .expect_err("reject non-file env target");
@@ -293,7 +293,7 @@ fn sync_shiju_key_rejects_unsafe_targets() {
     {
         let skill_symlink_home = tempfile::tempdir().expect("fixture skill symlink home");
         let skills_root =
-            vw_config_types::paths::home_config_dir(skill_symlink_home.path()).join("skills");
+            config_runtime_paths::home_config_dir(skill_symlink_home.path()).join("skills");
         let outside_skill = skill_symlink_home.path().join("outside-skill");
         fs::create_dir_all(&skills_root).expect("create skills root");
         fs::create_dir(&outside_skill).expect("create outside skill");
@@ -307,7 +307,7 @@ fn sync_shiju_key_rejects_unsafe_targets() {
         assert!(!outside_skill.join(".env").exists());
 
         let symlink_home = tempfile::tempdir().expect("fixture symlink home");
-        let skill_dir = target(symlink_home.path(), vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+        let skill_dir = target(symlink_home.path(), config_runtime_paths::HOME_CONFIG_DIR_NAME);
         fs::create_dir_all(&skill_dir).expect("create installed skill");
         let outside = symlink_home.path().join("outside.env");
         fs::write(&outside, "UNCHANGED=true\n").expect("write symlink target");
@@ -356,7 +356,7 @@ fn install_targets_resolve_documented_global_and_project_paths() {
         .expect("resolve project targets");
 
     let expected_global_roots = [
-        home.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("skills"),
+        home.join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("skills"),
         home.join(".agents/skills"),
         home.join(".codex/skills"),
         home.join(".workbuddy/skills"),
@@ -368,7 +368,7 @@ fn install_targets_resolve_documented_global_and_project_paths() {
         home.join(".codeium/windsurf/skills"),
     ];
     let expected_project_roots = [
-        project.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("skills"),
+        project.join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("skills"),
         project.join(".agents/skills"),
         project.join(".codex/skills"),
         project.join(".workbuddy/skills"),

@@ -53,7 +53,7 @@ fn safe_session_id_handles_empty_and_reserved_ascii() {
 #[test]
 fn session_event_paths_use_safe_session_id_under_base_dir() {
     let home = Path::new("/tmp/home");
-    let base = vw_config_types::paths::home_config_dir(home).join("acp").join("sessions");
+    let base = config_runtime_paths::home_config_dir(home).join("acp").join("sessions");
 
     assert_eq!(session_base_dir(home), base);
     assert_eq!(session_event_active_path("a b", home), base.join("a%20b.stream.ndjson"));

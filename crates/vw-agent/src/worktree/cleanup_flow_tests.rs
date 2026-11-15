@@ -431,7 +431,7 @@ async fn worktree_cleanup_flow_host_refreshes_deduplicates_and_stops() {
     }
     assert!(refreshed, "startup must enumerate the existing scoped registry");
     assert!(old.directory.exists(), "no desktop connection authorizes default deletion");
-    let path = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    let path = config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage/worktree-cleanup/host.lock");
     let lock = std::fs::OpenOptions::new().read(true).write(true).open(path).unwrap();
     assert!(lock.try_lock().is_err(), "host must own the deduplication lock");
@@ -623,7 +623,7 @@ async fn worktree_cleanup_flow_status_is_queryable_during_removal() {
     let old = f.checkout("old").await;
     f.checkout("new").await;
     let mut report = refresh(&f.scope, &f.primary, &f.settings).await.unwrap();
-    let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    let root = config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage/worktree-cleanup");
     let pass = std::fs::OpenOptions::new()
         .read(true)

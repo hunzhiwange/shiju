@@ -157,7 +157,7 @@ pub(crate) fn discover_local_skill_source_dirs_with_provider(
                 &mut dirs,
                 &mut seen,
                 LocalSkillSourceKind::Global,
-                vw_config_types::paths::home_config_dir(&home_dir).join("skills"),
+                config_runtime_paths::home_config_dir(&home_dir).join("skills"),
             );
             push_skill_source_dir(
                 &mut dirs,

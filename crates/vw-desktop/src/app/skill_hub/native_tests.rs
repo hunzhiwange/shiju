@@ -20,7 +20,7 @@ fn archive() -> NamedTempFile {
 }
 
 fn native_dir(home: &Path) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home).join("skills/shiju")
+    config_runtime_paths::home_config_dir(home).join("skills/shiju")
 }
 
 #[tokio::test]
@@ -193,7 +193,7 @@ async fn native_shiju_skill_rejects_symlink_before_download() {
     let outside = tempfile::tempdir().unwrap();
     std::os::unix::fs::symlink(
         outside.path(),
-        vw_config_types::paths::home_config_dir(home.path()),
+        config_runtime_paths::home_config_dir(home.path()),
     )
     .unwrap();
     let state = NativeShijuSkillState::default();

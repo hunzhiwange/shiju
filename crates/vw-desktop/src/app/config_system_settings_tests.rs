@@ -300,7 +300,7 @@ fn gateway_client_bootstrap_cache_path_uses_vibewindow_home_file() {
 
     assert_eq!(
         path,
-        vw_config_types::paths::home_config_dir(home.path()).join("gateway-client-bootstrap.json")
+        config_runtime_paths::home_config_dir(home.path()).join("gateway-client-bootstrap.json")
     );
 }
 
@@ -322,7 +322,7 @@ fn save_gateway_client_bootstrap_config_writes_loadable_json() {
     super::save_gateway_client_bootstrap_config(&config).unwrap();
 
     let path =
-        vw_config_types::paths::home_config_dir(home.path()).join("gateway-client-bootstrap.json");
+        config_runtime_paths::home_config_dir(home.path()).join("gateway-client-bootstrap.json");
     let saved = std::fs::read_to_string(path).expect("bootstrap json should be written");
     assert!(saved.contains("10.0.0.8"));
     assert_eq!(super::load_gateway_client_bootstrap_config(), config);
@@ -332,7 +332,7 @@ fn save_gateway_client_bootstrap_config_writes_loadable_json() {
 #[cfg(not(target_arch = "wasm32"))]
 fn load_gateway_client_bootstrap_config_ignores_invalid_json() {
     let (_lock, home, _guard) = temp_home();
-    let cache_dir = vw_config_types::paths::home_config_dir(home.path());
+    let cache_dir = config_runtime_paths::home_config_dir(home.path());
     std::fs::create_dir_all(&cache_dir).expect("cache dir should be created");
     std::fs::write(cache_dir.join("gateway-client-bootstrap.json"), "{not-json")
         .expect("invalid cache should be written");
@@ -392,7 +392,7 @@ fn load_gateway_client_bootstrap_config_does_not_fall_back_after_invalid_home_ca
     let legacy = gateway_config("legacy.gateway", 7777);
     std::fs::write(&legacy_path, serde_json::to_string(&legacy).expect("config should serialize"))
         .expect("legacy cache should be written");
-    let current_dir = vw_config_types::paths::home_config_dir(home.path());
+    let current_dir = config_runtime_paths::home_config_dir(home.path());
     std::fs::create_dir_all(&current_dir).expect("current cache dir should be created");
     std::fs::write(current_dir.join("gateway-client-bootstrap.json"), "{not-json")
         .expect("invalid current cache should be written");

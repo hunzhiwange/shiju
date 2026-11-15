@@ -419,7 +419,7 @@ impl Default for SecuritySettingsState {
             otp_gated_domains: Vec::new(),
             otp_gated_domain_categories: Vec::new(),
             estop_enabled: false,
-            estop_state_file: vw_config_types::paths::estop_state_file_path(),
+            estop_state_file: config_runtime_paths::estop_state_file_path(),
             estop_require_otp_to_resume: true,
             syscall_anomaly_enabled: false,
             syscall_anomaly_strict_mode: false,

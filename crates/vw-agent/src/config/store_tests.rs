@@ -79,7 +79,7 @@ fn project_config_store_isolation(store: &SystemConfigStore) -> Result<()> {
 fn system_config_store_keeps_sqlite_path_contract() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let database = GlobalDatabase::for_home(temp_dir.path())?;
-    let expected_path = vw_config_types::paths::global_database_path(temp_dir.path());
+    let expected_path = config_runtime_paths::global_database_path(temp_dir.path());
     assert_eq!(database.path(), expected_path);
     assert_eq!(
         database.path().file_name().and_then(|name| name.to_str()),

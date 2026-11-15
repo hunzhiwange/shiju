@@ -18,7 +18,7 @@ fn database_config_defaults_to_sqlite_and_requires_safe_postgres_input() -> Resu
     })?;
     assert!(matches!(missing.provider(), DatabaseProvider::Sqlite));
 
-    let config_path = vw_config_types::paths::global_database_config_path(home.path());
+    let config_path = config_runtime_paths::global_database_config_path(home.path());
     std::fs::create_dir_all(config_path.parent().expect("database config parent"))?;
     std::fs::write(&config_path, r#"{"provider":"sqlite"}"#)?;
     let sqlite = DatabaseConfig::load_for_home(home.path(), |_| {
@@ -86,7 +86,7 @@ fn database_config_defaults_to_sqlite_and_requires_safe_postgres_input() -> Resu
 fn database_config_reports_read_and_parse_context_without_reading_environment() -> Result<()> {
     let unreadable_home = tempfile::tempdir()?;
     let unreadable_path =
-        vw_config_types::paths::global_database_config_path(unreadable_home.path());
+        config_runtime_paths::global_database_config_path(unreadable_home.path());
     std::fs::create_dir_all(&unreadable_path)?;
 
     let read_error = DatabaseConfig::load_for_home(unreadable_home.path(), |_| {
@@ -96,7 +96,7 @@ fn database_config_reports_read_and_parse_context_without_reading_environment() 
     assert!(format!("{read_error:#}").contains("read global database config"));
 
     let malformed_home = tempfile::tempdir()?;
-    let malformed_path = vw_config_types::paths::global_database_config_path(malformed_home.path());
+    let malformed_path = config_runtime_paths::global_database_config_path(malformed_home.path());
     std::fs::create_dir_all(malformed_path.parent().expect("database config parent"))?;
     std::fs::write(&malformed_path, r#"{"provider":"postgres""#)?;
 
@@ -112,7 +112,7 @@ fn database_config_reports_read_and_parse_context_without_reading_environment() 
 #[test]
 fn postgres_schema_enforces_identifier_byte_limit_and_trims_url() -> Result<()> {
     let home = tempfile::tempdir()?;
-    let config_path = vw_config_types::paths::global_database_config_path(home.path());
+    let config_path = config_runtime_paths::global_database_config_path(home.path());
     std::fs::create_dir_all(config_path.parent().expect("database config parent"))?;
 
     let boundary_schema = format!("_{}", "a".repeat(62));

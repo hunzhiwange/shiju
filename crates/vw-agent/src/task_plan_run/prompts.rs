@@ -39,7 +39,7 @@ pub fn plan_dir_name(task_id: &str) -> String {
 
 /// 用户级计划目录：`<home>/<HOME_CONFIG_DIR_NAME>/storage/plan/task-<sanitized-id>`。
 pub fn plan_dir_abs(home: impl AsRef<Path>, task_id: &str) -> PathBuf {
-    vw_config_types::paths::task_plan_storage_dir(home).join(plan_dir_name(task_id))
+    config_runtime_paths::task_plan_storage_dir(home).join(plan_dir_name(task_id))
 }
 
 /// 构建规划阶段提示词（对齐桌面 `build_task_split_prompt`）。

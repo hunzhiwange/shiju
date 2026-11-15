@@ -875,7 +875,7 @@ async fn run_agent_job_delivers_task_pool_jobs_with_trimmed_agent_and_default_mo
     assert!(
         config
             .workspace_dir
-            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
             .join("tasks/_index.sqlite3")
             .is_file()
     );

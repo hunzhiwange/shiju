@@ -244,7 +244,7 @@ async fn local_global_config_route_writes_shared_database_only() {
     assert_eq!(get_response.status(), StatusCode::OK);
     assert_ne!(response_json(get_response).await["api_key"], "local-plain-secret");
     assert!(!temp.path().join("vibewindow.json").exists());
-    assert!(!vw_config_types::paths::home_config_dir(temp.path()).join("vibewindow.json").exists());
+    assert!(!config_runtime_paths::home_config_dir(temp.path()).join("vibewindow.json").exists());
 }
 
 #[tokio::test]
@@ -272,7 +272,7 @@ async fn global_config_api_projects_shared_skeys_and_ignores_conflicting_legacy_
         .expect("seed shared skey");
 
     let legacy_path =
-        vw_config_types::paths::home_config_dir(temp.path()).join("gateway").join("skeys.sqlite");
+        config_runtime_paths::home_config_dir(temp.path()).join("gateway").join("skeys.sqlite");
     std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
         .expect("create legacy parent");
     let legacy = rusqlite::Connection::open(&legacy_path).expect("legacy sqlite");

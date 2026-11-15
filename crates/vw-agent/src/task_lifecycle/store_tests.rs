@@ -227,7 +227,7 @@ async fn task_lifecycle_store_ignores_legacy_table_and_file_without_mutation() {
         .expect("legacy task lifecycle table");
     drop(connection);
     let legacy_path =
-        vw_config_types::paths::home_config_dir(home.path()).join("task-workflows.json");
+        config_runtime_paths::home_config_dir(home.path()).join("task-workflows.json");
     std::fs::create_dir_all(legacy_path.parent().expect("legacy file parent"))
         .expect("create legacy file parent");
     let legacy_contents = br#"[{"id":"legacy-file","label":"Legacy File","statuses":[]}]"#;

@@ -114,7 +114,7 @@ pub(crate) fn checkout(
 }
 
 fn scope_lock(scope: &ProjectScope) -> Result<std::fs::File, Error> {
-    let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    let root = config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage")
         .join("managed-worktrees");
     std::fs::create_dir_all(&root)?;
@@ -299,7 +299,7 @@ pub(crate) fn record_use(
     used_at_ms: u64,
 ) -> Result<(), Error> {
     let _scope_lock = scope_lock(scope)?;
-    let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    let root = config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage")
         .join("managed-worktrees");
     let path = root.join(format!("{}.json", key(scope)));

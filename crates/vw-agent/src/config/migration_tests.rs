@@ -10,7 +10,7 @@ use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 
 fn write_source(home: &std::path::Path, config: &Config) -> Result<std::path::PathBuf> {
-    let config_dir = vw_config_types::paths::home_config_dir(home);
+    let config_dir = config_runtime_paths::home_config_dir(home);
     std::fs::create_dir_all(&config_dir)?;
     let source = config_dir.join("vibewindow.json");
     std::fs::write(&source, serde_json::to_vec_pretty(config)?)?;
@@ -18,7 +18,7 @@ fn write_source(home: &std::path::Path, config: &Config) -> Result<std::path::Pa
 }
 
 fn backup_path(home: &std::path::Path) -> std::path::PathBuf {
-    vw_config_types::paths::home_config_dir(home)
+    config_runtime_paths::home_config_dir(home)
         .join("database/migration-backups/system-config/vibewindow.json")
 }
 
@@ -27,7 +27,7 @@ fn system_config_migration_reports_no_source_without_creating_storage() -> Resul
     let temp_home = tempfile::tempdir()?;
 
     assert_eq!(migrate_user_config(temp_home.path())?, MigrationOutcome::NoSource);
-    assert!(!vw_config_types::paths::global_database_path(temp_home.path()).exists());
+    assert!(!config_runtime_paths::global_database_path(temp_home.path()).exists());
 
     let database = GlobalDatabase::for_home(temp_home.path())?;
     assert_eq!(
@@ -158,7 +158,7 @@ fn system_config_migration_conflict(
 #[test]
 fn system_config_migration_preserves_invalid_source() -> Result<()> {
     let temp_home = tempfile::tempdir()?;
-    let config_dir = vw_config_types::paths::home_config_dir(temp_home.path());
+    let config_dir = config_runtime_paths::home_config_dir(temp_home.path());
     std::fs::create_dir_all(&config_dir)?;
     let source = config_dir.join("vibewindow.json");
     let mut invalid_config = Config::default();
@@ -178,7 +178,7 @@ fn system_config_migration_preserves_invalid_source() -> Result<()> {
 #[test]
 fn system_config_migration_accepts_legacy_toml_source() -> Result<()> {
     let temp_home = tempfile::tempdir()?;
-    let config_dir = vw_config_types::paths::home_config_dir(temp_home.path());
+    let config_dir = config_runtime_paths::home_config_dir(temp_home.path());
     std::fs::create_dir_all(&config_dir)?;
     let source = config_dir.join("vibewindow.json");
     let mut source_config = Config::default();

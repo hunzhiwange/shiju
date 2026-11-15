@@ -266,13 +266,13 @@ fn resolve_invoking_user_config_dir() -> Option<PathBuf> {
                 let entry = String::from_utf8_lossy(&output.stdout);
                 let fields: Vec<&str> = entry.trim().split(':').collect();
                 if fields.len() >= 6 {
-                    return Some(vw_config_types::paths::home_config_dir(PathBuf::from(fields[5])));
+                    return Some(config_runtime_paths::home_config_dir(PathBuf::from(fields[5])));
                 }
             }
         }
     }
 
-    std::env::var("HOME").ok().map(PathBuf::from).map(vw_config_types::paths::home_config_dir)
+    std::env::var("HOME").ok().map(PathBuf::from).map(config_runtime_paths::home_config_dir)
 }
 
 /// 在首次安装 OpenRC 时迁移已有运行状态。

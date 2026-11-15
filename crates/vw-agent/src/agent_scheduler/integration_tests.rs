@@ -324,7 +324,7 @@ fn isolation_task(label: &str) -> Result<NewAgentTask> {
 }
 
 fn assert_project_local_databases_absent(project_path: &Path) {
-    let project_config = project_path.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let project_config = project_path.join(config_runtime_paths::HOME_CONFIG_DIR_NAME);
     for domain in ["agent_scheduler", "tasks"] {
         let database = project_config.join(domain).join("_index.sqlite3");
         assert!(!database.exists(), "project-local database was recreated: {}", database.display());

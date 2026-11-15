@@ -84,7 +84,7 @@ pub fn default_config_and_workspace_dirs() -> Result<(PathBuf, PathBuf)> {
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn default_config_dir() -> Result<PathBuf> {
     let home = crate::config::runtime_home::config_home()?;
-    Ok(vw_config_types::paths::home_config_dir(home))
+    Ok(config_runtime_paths::home_config_dir(home))
 }
 
 /// 获取默认的配置目录路径（WASM 平台实现）
@@ -93,7 +93,7 @@ pub(crate) fn default_config_dir() -> Result<PathBuf> {
 /// 这是由于 WASM 环境中文件系统访问的特殊限制。
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn default_config_dir() -> Result<PathBuf> {
-    Ok(vw_config_types::paths::root_config_dir())
+    Ok(config_runtime_paths::root_config_dir())
 }
 
 /// 构建活动工作空间状态标记文件的完整路径

@@ -108,7 +108,7 @@ fn write_json(path: &Path, value: serde_json::Value) {
 }
 
 fn bootstrap_config_path(home: &Path) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home).join("gateway-client-bootstrap.json")
+    config_runtime_paths::home_config_dir(home).join("gateway-client-bootstrap.json")
 }
 
 fn write_gateway_bootstrap_config(home: &Path, cfg: &GatewayClientSystemSettingsConfig) {

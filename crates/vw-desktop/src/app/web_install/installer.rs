@@ -31,7 +31,7 @@ struct Asset {
 
 pub(super) fn root() -> Result<PathBuf> {
     let home = directories::BaseDirs::new().context("无法获取用户目录")?;
-    Ok(vw_config_types::paths::home_config_dir(home.home_dir()).join("web"))
+    Ok(config_runtime_paths::home_config_dir(home.home_dir()).join("web"))
 }
 
 pub(super) fn installed() -> Result<Option<PathBuf>> {

@@ -397,12 +397,12 @@ fn merge_agent_maps(
 #[cfg(windows)]
 fn default_vibewindow_config_dir() -> Result<PathBuf, ConfigError> {
     if let Some(home) = env::var_os("USERPROFILE") {
-        return Ok(vw_config_types::paths::home_config_dir(PathBuf::from(home)));
+        return Ok(config_runtime_paths::home_config_dir(PathBuf::from(home)));
     }
     let Some(home) = env::var_os("HOME") else {
         return Err(ConfigError::HomeDirUnavailable);
     };
-    Ok(vw_config_types::paths::home_config_dir(PathBuf::from(home)))
+    Ok(config_runtime_paths::home_config_dir(PathBuf::from(home)))
 }
 
 #[cfg(not(windows))]
@@ -410,7 +410,7 @@ fn default_vibewindow_config_dir() -> Result<PathBuf, ConfigError> {
     let Some(home) = env::var_os("HOME") else {
         return Err(ConfigError::HomeDirUnavailable);
     };
-    Ok(vw_config_types::paths::home_config_dir(PathBuf::from(home)))
+    Ok(config_runtime_paths::home_config_dir(PathBuf::from(home)))
 }
 
 fn project_config_override_path(project_path: &Path) -> PathBuf {

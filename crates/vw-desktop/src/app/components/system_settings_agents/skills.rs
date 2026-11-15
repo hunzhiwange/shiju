@@ -165,11 +165,11 @@ pub(super) fn discovery_order_text(app: &App) -> String {
             "发现顺序：%s/skills -> %s/.agents/skills -> 父级 skills、.agents/skills -> %s/skills",
             project_path.as_str(),
             project_path.as_str(),
-            vw_config_types::paths::tilde_config_path("").as_str()
+            config_runtime_paths::tilde_config_path("").as_str()
         )
         .expect("valid discovery order template")
     } else {
-        vw_config_types::paths::tilde_config_path("skills")
+        config_runtime_paths::tilde_config_path("skills")
     }
 }
 

@@ -58,7 +58,7 @@ fn telegram_config(allowed_users: Vec<String>) -> TelegramConfig {
 }
 
 async fn seed_system_config(home: &Path, mut config: Config) -> std::path::PathBuf {
-    let config_dir = vw_config_types::paths::home_config_dir(home);
+    let config_dir = config_runtime_paths::home_config_dir(home);
     let config_path = config_dir.join("vibewindow.json");
     config.config_path = config_path.clone();
     config.workspace_dir = config_dir.join("workspace");
@@ -254,7 +254,7 @@ async fn load_config_without_env_reads_database_and_sets_runtime_paths() {
     assert_eq!(loaded.config_path, config_path);
     assert_eq!(
         loaded.workspace_dir,
-        vw_config_types::paths::home_config_dir(home.path()).join("workspace")
+        config_runtime_paths::home_config_dir(home.path()).join("workspace")
     );
     assert_eq!(
         loaded.channels_config.telegram.expect("telegram config").allowed_users,

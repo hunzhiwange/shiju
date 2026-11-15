@@ -27,7 +27,7 @@ impl WeComRuntimeScope {
         anyhow::ensure!(home.is_absolute(), "Could not resolve an absolute runtime home directory");
         Ok(Self {
             tenant,
-            config_store: vw_config_types::paths::global_database_config_path(home),
+            config_store: config_runtime_paths::global_database_config_path(home),
             config_source: config.config_path.clone(),
             workspace: config.workspace_dir.clone(),
             instance: "default",

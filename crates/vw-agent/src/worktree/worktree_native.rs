@@ -17,7 +17,7 @@ pub(super) fn worktree_root(project: &project::Info) -> Result<PathBuf, Error> {
     }
     let base = UserDirs::new()
         .map_or_else(|| PathBuf::from(&project.worktree), |dirs| dirs.home_dir().to_path_buf());
-    Ok(vw_config_types::paths::task_worktrees_dir(base))
+    Ok(config_runtime_paths::task_worktrees_dir(base))
 }
 
 /// 验证并获取当前 Git 项目信息

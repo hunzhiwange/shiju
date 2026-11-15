@@ -323,7 +323,7 @@ impl Default for Config {
         let home =
             UserDirs::new().map_or_else(|| PathBuf::from("."), |u| u.home_dir().to_path_buf());
 
-        let vibewindow_dir = crate::paths::home_config_dir(home);
+        let vibewindow_dir = config_runtime_paths::home_config_dir(home);
         let providers = HashMap::from([(
             "shiju".to_string(),
             serde_json::json!({
@@ -341,7 +341,7 @@ impl Default for Config {
 
         Self {
             workspace_dir: vibewindow_dir.join("workspace"),
-            config_path: vibewindow_dir.join(crate::paths::CONFIG_JSON_FILENAME),
+            config_path: vibewindow_dir.join(config_runtime_paths::CONFIG_JSON_FILENAME),
             enabled_providers: Vec::new(),
             popular_providers: vec!["shiju".to_string()],
             providers,

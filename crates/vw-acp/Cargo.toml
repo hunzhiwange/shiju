@@ -13,6 +13,9 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+acp-access-policy = { path = "../libs/acp-access-policy", version = "0.6.0" }
+vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
+config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }
 acp-types = { path = "../libs/acp-types", version = "0.6.0" }
 acp-paths = { path = "../libs/acp-paths", version = "0.6.0" }
 clap = { version = "4.5", features = ["derive"] }

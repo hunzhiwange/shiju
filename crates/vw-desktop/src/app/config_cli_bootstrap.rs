@@ -101,7 +101,7 @@ fn bootstrap_cli_service() -> Result<(), String> {
     }
 
     let home = resolve_home_dir()?;
-    let config_dir = vw_config_types::paths::home_config_dir(&home);
+    let config_dir = config_runtime_paths::home_config_dir(&home);
     let cli = ensure_cli_installed(&home)?;
     let cli_build_id = vw_shared::build_identity::executable_build_id(&cli)
         .map_err(|error| format!("计算 CLI 构建标识失败 {}: {error}", cli.display()))?;
@@ -145,7 +145,7 @@ fn bootstrap_cli_service() -> Result<(), String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
-    let install_dir = vw_config_types::paths::home_config_dir(home).join("bin");
+    let install_dir = config_runtime_paths::home_config_dir(home).join("bin");
     let target_bin = install_dir.join(cli_binary_name());
     let source_bin = resolve_agent_binary_path()
         .map_err(|error| format!("{error}。请重新安装包含 shiju 的完整安装包。"))?;
@@ -159,7 +159,7 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     if target_bin.is_file() {
         run_cli_command(
             &target_bin,
-            &vw_config_types::paths::home_config_dir(home),
+            &config_runtime_paths::home_config_dir(home),
             &["service", "stop"],
         )?;
         windows_install::stop_installed_daemon(&target_bin, &load_gateway_runtime_endpoint(home)?)?;
@@ -376,7 +376,7 @@ fn should_refresh_gateway_client_bootstrap(
 
 #[cfg(not(target_arch = "wasm32"))]
 fn load_gateway_runtime_endpoint(home: &Path) -> Result<GatewayRuntimeEndpoint, String> {
-    let config_dir = vw_config_types::paths::home_config_dir(home);
+    let config_dir = config_runtime_paths::home_config_dir(home);
     let config_path = config_dir.join("gateway-client-bootstrap.json");
     let config = fs::read_to_string(config_path)
         .ok()
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn load_gateway_runtime_endpoint_reads_bootstrap_cache() {
         let tmp = tempfile::tempdir().unwrap();
-        let config_dir = vw_config_types::paths::home_config_dir(tmp.path());
+        let config_dir = config_runtime_paths::home_config_dir(tmp.path());
         fs::create_dir_all(&config_dir).unwrap();
         let config = GatewayClientSystemSettingsConfig {
             host: "0.0.0.0".to_string(),

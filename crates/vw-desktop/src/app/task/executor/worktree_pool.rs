@@ -47,13 +47,13 @@ pub(super) fn parse_worktree_list(output: &str) -> Vec<WorktreeEntry> {
 
 pub(super) fn worktree_pool_root(repo_root: &str) -> PathBuf {
     let home = super::programs::user_home_dir().unwrap_or_else(|| PathBuf::from(repo_root));
-    vw_config_types::paths::task_worktrees_dir(home)
+    config_runtime_paths::task_worktrees_dir(home)
 }
 
 fn legacy_worktree_pool_root(repo_root: &str) -> PathBuf {
     Path::new(repo_root)
-        .join(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
-        .join(vw_config_types::paths::TASK_WORKTREES_DIR_NAME)
+        .join(config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME)
+        .join(config_runtime_paths::TASK_WORKTREES_DIR_NAME)
 }
 
 fn managed_worktree_roots(repo_root: &str) -> [PathBuf; 2] {

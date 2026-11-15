@@ -312,7 +312,7 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
     security.estop.enabled = estop_enabled;
     // 如果状态文件路径为空，使用默认值
     security.estop.state_file = if estop_state_file.is_empty() {
-        vw_config_types::paths::estop_state_file_path()
+        config_runtime_paths::estop_state_file_path()
     } else {
         estop_state_file
     };

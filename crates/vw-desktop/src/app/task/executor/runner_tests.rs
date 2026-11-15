@@ -176,7 +176,7 @@ mod task_board_execution_worktree_gateway_runner {
             "runner".to_string(),
         );
         let path =
-            vw_config_types::paths::home_config_dir(home).join("gateway-client-bootstrap.json");
+            config_runtime_paths::home_config_dir(home).join("gateway-client-bootstrap.json");
         std::fs::create_dir_all(path.parent().expect("config parent")).expect("config dir");
         std::fs::write(path, serde_json::to_string(&config).expect("json")).expect("config");
     }
@@ -263,7 +263,7 @@ mod task_board_execution_worktree_gateway_runner {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn task_plan_root_path(home: &std::path::Path) -> std::path::PathBuf {
-    vw_config_types::paths::task_plan_storage_dir(home)
+    config_runtime_paths::task_plan_storage_dir(home)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -784,7 +784,7 @@ fn task_plan_paths_use_user_storage_directory() {
     let dir = super::task_plan_dir(home, "T1.unsafe/中文");
     let file = super::task_plan_file_path(home, "T1.unsafe/中文");
 
-    let plan_root = vw_config_types::paths::task_plan_storage_dir(home);
+    let plan_root = config_runtime_paths::task_plan_storage_dir(home);
     let task_dir = plan_root.join("task-T1-unsafe");
     assert_eq!(root, plan_root);
     assert_eq!(dir, task_dir);

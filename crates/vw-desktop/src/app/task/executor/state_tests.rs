@@ -11,8 +11,8 @@ fn test_module_is_wired() {
 fn legacy_worktree_root(repo_root: &str) -> String {
     format!(
         "{repo_root}/{}/{}",
-        vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME,
-        vw_config_types::paths::TASK_WORKTREES_DIR_NAME
+        config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME,
+        config_runtime_paths::TASK_WORKTREES_DIR_NAME
     )
 }
 

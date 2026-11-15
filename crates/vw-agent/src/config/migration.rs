@@ -31,7 +31,7 @@ pub enum MigrationOutcome {
 ///
 /// 数据库写入和回读核验在同一事务内完成。只有提交成功且语义核验一致后，来源文件才会移动到迁移备份目录。
 pub fn migrate_user_config(home: &Path) -> Result<MigrationOutcome> {
-    let source_path = vw_config_types::paths::home_config_dir(home).join(SOURCE_FILE);
+    let source_path = config_runtime_paths::home_config_dir(home).join(SOURCE_FILE);
     if !source_path.exists() {
         return Ok(MigrationOutcome::NoSource);
     }
@@ -43,7 +43,7 @@ pub(crate) fn migrate_user_config_with_database(
     home: &Path,
     database: GlobalDatabase,
 ) -> Result<MigrationOutcome> {
-    let config_dir = vw_config_types::paths::home_config_dir(home);
+    let config_dir = config_runtime_paths::home_config_dir(home);
     let source_path = config_dir.join(SOURCE_FILE);
     if !source_path.exists() {
         return Ok(MigrationOutcome::NoSource);

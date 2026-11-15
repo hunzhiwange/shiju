@@ -67,7 +67,7 @@ fn filepath_uses_global_paths_and_legacy_auth_location() {
 
     let path = super::filepath();
 
-    let home_auth = Path::new(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("auth.json");
+    let home_auth = Path::new(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("auth.json");
     assert!(path.ends_with(home_auth) || path.ends_with("auth.json"));
 }
 

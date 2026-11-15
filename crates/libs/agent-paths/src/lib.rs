@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 /// 应用目录名。
-pub const APP: &str = vw_config_types::paths::APP_DIR_NAME;
+pub const APP: &str = config_runtime_paths::APP_DIR_NAME;
 /// 缓存结构版本；变更后会清理旧缓存内容。
 pub const CACHE_VERSION: &str = "21";
 

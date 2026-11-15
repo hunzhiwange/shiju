@@ -34,7 +34,7 @@ impl DatabaseConfig {
         home: impl AsRef<Path>,
         read_environment: impl FnOnce(&str) -> Option<String>,
     ) -> Result<Self> {
-        let path = vw_config_types::paths::global_database_config_path(home);
+        let path = config_runtime_paths::global_database_config_path(home);
         let contents = match std::fs::read_to_string(&path) {
             Ok(contents) => contents,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Self::sqlite()),

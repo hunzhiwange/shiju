@@ -14,7 +14,7 @@ fn ui_config_round_trips_through_gateway_settings() {
     let home = tempfile::tempdir().expect("temporary home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");
     let store = GatewaySettingsStore::new(database.clone()).expect("gateway settings store");
-    let legacy_path = vw_config_types::paths::home_config_dir(home.path())
+    let legacy_path = config_runtime_paths::home_config_dir(home.path())
         .join("storage/desktop/preferences.json");
     std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
         .expect("create legacy directory");

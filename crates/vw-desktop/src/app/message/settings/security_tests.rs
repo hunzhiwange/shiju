@@ -398,7 +398,7 @@ fn apply_security_settings_to_config_maps_defaults_lists_and_clamped_values() {
     assert_eq!(config.otp.gated_domains, vec!["admin.example", "ops.example"]);
     assert_eq!(config.otp.gated_domain_categories, vec!["finance", "prod"]);
     assert!(config.estop.enabled);
-    assert_eq!(config.estop.state_file, vw_config_types::paths::estop_state_file_path());
+    assert_eq!(config.estop.state_file, config_runtime_paths::estop_state_file_path());
     assert!(config.estop.require_otp_to_resume);
     assert!(config.syscall_anomaly.enabled);
     assert!(config.syscall_anomaly.strict_mode);

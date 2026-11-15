@@ -546,7 +546,7 @@ pub(super) fn knowledge_db_path() -> PathBuf {
     GlobalDatabase::for_home(&crate::global::paths().home)
         .map(|database| database.path().to_path_buf())
         .unwrap_or_else(|_| {
-            vw_config_types::paths::global_database_path(&crate::global::paths().home)
+            config_runtime_paths::global_database_path(&crate::global::paths().home)
         })
 }
 

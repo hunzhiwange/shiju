@@ -222,7 +222,7 @@ fn cli_command_helpers_return_trimmed_stdout_and_prefer_stderr_failures() {
 #[test]
 fn load_gateway_runtime_endpoint_prefers_local_server_and_defaults_missing_port() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let config_dir = vw_config_types::paths::home_config_dir(tmp.path());
+    let config_dir = config_runtime_paths::home_config_dir(tmp.path());
     fs::create_dir_all(&config_dir).expect("config dir");
     let config = GatewayClientSystemSettingsConfig {
         host: "gateway.internal".to_string(),
@@ -267,7 +267,7 @@ fn load_gateway_runtime_endpoint_uses_defaults_for_missing_or_invalid_cache() {
     assert_eq!(endpoint.host, "127.0.0.1");
     assert_eq!(endpoint.port, DEFAULT_GATEWAY_PORT);
 
-    let config_dir = vw_config_types::paths::home_config_dir(tmp.path());
+    let config_dir = config_runtime_paths::home_config_dir(tmp.path());
     fs::create_dir_all(&config_dir).expect("config dir");
     fs::write(config_dir.join("gateway-client-bootstrap.json"), "{bad json").expect("bad config");
     let invalid_endpoint = load_gateway_runtime_endpoint(tmp.path()).expect("invalid endpoint");

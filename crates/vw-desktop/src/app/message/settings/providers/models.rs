@@ -20,9 +20,9 @@ pub(super) fn auth_filepath() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let data = base
         .as_ref()
-        .map(|b| std::path::PathBuf::from(b.data_dir()).join(vw_config_types::paths::APP_DIR_NAME))
+        .map(|b| std::path::PathBuf::from(b.data_dir()).join(config_runtime_paths::APP_DIR_NAME))
         .unwrap_or_else(|| {
-            home.join(".local").join("share").join(vw_config_types::paths::APP_DIR_NAME)
+            home.join(".local").join("share").join(config_runtime_paths::APP_DIR_NAME)
         });
     shared_auth::store::resolve_filepath(&home, &data)
 }

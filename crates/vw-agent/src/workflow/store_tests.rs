@@ -24,7 +24,7 @@ fn body(name: &str, workflow_yaml: &str) -> WorkflowRecordUpsertBody {
 // 临时 SQLite 数据库用于快速契约测试，目录守卫负责维持文件生命周期。
 fn database() -> (TempDir, GlobalDatabase) {
     let home = tempfile::tempdir().expect("temp home");
-    let expected_path = vw_config_types::paths::global_database_path(home.path());
+    let expected_path = config_runtime_paths::global_database_path(home.path());
     let database = GlobalDatabase::for_home(home.path()).expect("global database");
     assert_eq!(database.path(), expected_path);
     (home, database)

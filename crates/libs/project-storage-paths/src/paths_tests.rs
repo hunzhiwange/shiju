@@ -36,7 +36,7 @@ fn project_data_dir_is_user_scoped() {
     let path = project_data_dir(workspace.path()).unwrap();
     let home = directories::UserDirs::new().unwrap().home_dir().to_path_buf();
 
-    assert!(path.starts_with(vw_config_types::paths::home_config_dir(home).join("worktree")));
+    assert!(path.starts_with(config_runtime_paths::home_config_dir(home).join("worktree")));
     assert!(!path.starts_with(workspace.path()));
     assert!(path.components().any(|component| component.as_os_str() == "projects"));
 }
@@ -70,7 +70,7 @@ fn fallback_project_data_dir_uses_temp_worktree_projects_scope() {
     let fallback = fallback_project_data_dir(workspace.path());
 
     assert!(fallback.starts_with(
-        std::env::temp_dir().join(vw_config_types::paths::APP_DIR_NAME).join("worktree")
+        std::env::temp_dir().join(config_runtime_paths::APP_DIR_NAME).join("worktree")
     ));
     assert!(fallback.components().any(|component| component.as_os_str() == "projects"));
     assert!(fallback.file_name().and_then(|name| name.to_str()).unwrap().contains('-'));

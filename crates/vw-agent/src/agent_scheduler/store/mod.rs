@@ -117,7 +117,7 @@ impl AgentSchedulerStore {
     pub fn for_home(home: impl AsRef<Path>) -> Self {
         let home = home.as_ref().to_path_buf();
         Self {
-            database_path: vw_config_types::paths::global_database_path(&home),
+            database_path: config_runtime_paths::global_database_path(&home),
             home: Some(home),
             database: Arc::new(Mutex::new(None)),
             #[cfg(test)]
@@ -156,7 +156,7 @@ impl AgentSchedulerStore {
     pub(crate) fn new_for_tests() -> Result<Self> {
         let test_home = TEST_HOME.clone();
         Ok(Self {
-            database_path: vw_config_types::paths::global_database_path(test_home.path()),
+            database_path: config_runtime_paths::global_database_path(test_home.path()),
             home: Some(test_home.path().to_path_buf()),
             database: Arc::new(Mutex::new(None)),
             test_home: Some(test_home),

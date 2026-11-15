@@ -42,7 +42,7 @@ impl Fixture {
         )
         .unwrap();
         let db =
-            GlobalDatabase::new(vw_config_types::paths::global_database_path(root.path())).unwrap();
+            GlobalDatabase::new(config_runtime_paths::global_database_path(root.path())).unwrap();
         let store = GatewaySettingsStore::new(db.clone()).unwrap();
         for (id, category) in [("standard", "omo"), ("slim", "omo-slim")] {
             store.upsert(&tenant(),"app_providers.records",&format!("\"opencode\":{id}"),&json!({"name":id,"category":category,"settingsConfig":{"agents":{"builder":{"model":"vendor/model"}},"categories":{"quick":{"model":"vendor/fast"}},"user_option":true}}).to_string()).unwrap();

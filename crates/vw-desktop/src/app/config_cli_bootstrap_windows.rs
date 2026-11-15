@@ -122,7 +122,7 @@ mod tests;
 pub(super) fn record_startup(message: &str) {
     use std::io::Write;
     let Ok(home) = super::resolve_home_dir() else { return };
-    let logs = vw_config_types::paths::home_config_dir(home).join("logs");
+    let logs = config_runtime_paths::home_config_dir(home).join("logs");
     let _ = fs::create_dir_all(&logs);
     let desktop = std::env::current_exe().unwrap_or_default();
     if let Ok(mut log) =

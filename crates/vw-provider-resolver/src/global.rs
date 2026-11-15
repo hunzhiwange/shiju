@@ -9,7 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 /// 应用目录名。
-pub const APP: &str = vw_config_types::paths::APP_DIR_NAME;
+pub const APP: &str = config_runtime_paths::APP_DIR_NAME;
 /// 缓存目录版本号；变更时会触发缓存清理。
 pub const CACHE_VERSION: &str = "21";
 

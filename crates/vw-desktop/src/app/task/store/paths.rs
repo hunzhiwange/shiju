@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[cfg(any(target_arch = "wasm32", test))]
 /// 返回旧版项目内任务目录。
 pub(super) fn get_task_dir(project_path: &str) -> PathBuf {
-    PathBuf::from(project_path).join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
+    PathBuf::from(project_path).join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks")
 }
 
 #[cfg(any(target_arch = "wasm32", test))]

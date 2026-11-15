@@ -424,7 +424,7 @@ pub(crate) fn recover_providers_on_startup() -> Result<(), String> {
     // The configured runtime root locates existing tenant policies only. Live
     // resource paths always come from previously persisted executor registration.
     let directory =
-        vw_config_types::paths::home_config_dir(&crate::global::paths().home).join("local-apps");
+        config_runtime_paths::home_config_dir(&crate::global::paths().home).join("local-apps");
     let entries = match std::fs::read_dir(directory) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),

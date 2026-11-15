@@ -77,9 +77,9 @@ impl PostgresTestDatabase {
         let schema = format!("vw_test_{}", Uuid::new_v4().simple());
         Self::validate_cleanup_schema(&schema)?;
         let home = tempfile::tempdir()?;
-        let config_path = vw_config_types::paths::global_database_config_path(home.path());
+        let config_path = config_runtime_paths::global_database_config_path(home.path());
         std::fs::create_dir_all(config_path.parent().expect("database config parent"))?;
-        std::fs::write(vw_config_types::paths::global_database_path(home.path()), SQLITE_SENTINEL)?;
+        std::fs::write(config_runtime_paths::global_database_path(home.path()), SQLITE_SENTINEL)?;
         std::fs::write(&config_path, format!(r#"{{"provider":"postgres","schema":"{schema}"}}"#))?;
 
         let settings = PostgresPoolSettings {
@@ -126,7 +126,7 @@ impl PostgresTestDatabase {
 
     /// 读取 SQLite 对照文件，证明 PostgreSQL 测试未改动本地库。
     pub(super) fn sqlite_sentinel(&self) -> Result<Vec<u8>> {
-        Ok(std::fs::read(vw_config_types::paths::global_database_path(self.home.path()))?)
+        Ok(std::fs::read(config_runtime_paths::global_database_path(self.home.path()))?)
     }
 
     /// 使用相同配置重新打开全局数据库。

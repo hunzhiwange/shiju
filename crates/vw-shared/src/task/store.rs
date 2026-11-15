@@ -13,7 +13,7 @@ use time::OffsetDateTime;
 use super::models::{Task, TaskIndex, TaskStatus};
 
 fn get_task_dir(project_path: &str) -> PathBuf {
-    PathBuf::from(project_path).join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
+    PathBuf::from(project_path).join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks")
 }
 
 fn get_task_log_dir(project_path: &str) -> PathBuf {

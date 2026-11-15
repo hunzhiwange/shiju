@@ -452,7 +452,7 @@ pub(crate) mod task {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn task_dir(project_path: &str) -> PathBuf {
-        PathBuf::from(project_path).join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
+        PathBuf::from(project_path).join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks")
     }
 
     #[cfg(not(target_arch = "wasm32"))]

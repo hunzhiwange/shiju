@@ -26,7 +26,7 @@ pub fn safe_session_id(session_id: &str) -> String {
 }
 
 pub fn session_base_dir(home_dir: impl AsRef<Path>) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home_dir).join("acp").join("sessions")
+    config_runtime_paths::home_config_dir(home_dir).join("acp").join("sessions")
 }
 
 pub fn default_session_base_dir() -> Option<PathBuf> {

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use vw_api_types::id::TenantScope;
-use vw_config_types::paths::{global_database_path, home_config_dir};
+use config_runtime_paths::{global_database_path, home_config_dir};
 use vw_shared::project::{Info, TimeInfo};
 
 use super::{ensure_unique_project_id, migrate_project_registry};

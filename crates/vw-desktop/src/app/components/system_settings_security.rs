@@ -851,7 +851,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         app,
         security_text(locale, "E-Stop 状态文件"),
         security_text(locale, "指定紧急停止状态文件位置。"),
-        vw_config_types::paths::ESTOP_STATE_FILE_PATH,
+        config_runtime_paths::ESTOP_STATE_FILE_PATH,
         &s.estop_state_file,
         |v| Message::Settings(message::SettingsMessage::SecurityEstopStateFileChanged(v)),
     );

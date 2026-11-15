@@ -900,7 +900,7 @@ fn resolve_directory_or_agent_root_prefers_directory_and_home_fallback() {
     let expected = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(std::path::PathBuf::from)
-        .map(|home| vw_config_types::paths::home_config_dir(home).join("workspace-worker"))
+        .map(|home| config_runtime_paths::home_config_dir(home).join("workspace-worker"))
         .map(|path| path.to_string_lossy().into_owned());
     assert_eq!(resolve_agent_workspace_root(Some("worker")), expected);
     assert_eq!(

@@ -49,7 +49,7 @@ mod tests {
         assert!(!runtime.supports_long_running());
         assert_eq!(
             runtime.storage_path(),
-            PathBuf::from("/workspace").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            PathBuf::from("/workspace").join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
         );
 
         let runtime = DockerRuntime::new(DockerRuntimeConfig {
@@ -59,7 +59,7 @@ mod tests {
         assert!(!runtime.has_filesystem_access());
         assert_eq!(
             runtime.storage_path(),
-            PathBuf::from("/tmp").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            PathBuf::from("/tmp").join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
         );
     }
 

@@ -114,7 +114,7 @@ fn invalid_board_settings_fall_back_to_defaults() {
 fn task_paths_stay_under_project_metadata_directory() {
     let project = tempfile::tempdir().expect("temp project");
     let project_path = project.path().to_string_lossy();
-    let expected = project.path().join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks");
+    let expected = project.path().join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks");
 
     assert_eq!(get_task_root_dir(&project_path), expected);
     assert_eq!(get_task_logs_dir(&project_path), expected.join("logs"));

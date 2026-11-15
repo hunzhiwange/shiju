@@ -44,7 +44,7 @@ fn local_apps_restore_rejects_exposed_or_replaced_credentials() {
 #[test]
 fn local_apps_initialization_rejects_shared_or_symlinked_storage() {
     let home = tempfile::tempdir().unwrap();
-    let config = vw_config_types::paths::home_config_dir(home.path());
+    let config = config_runtime_paths::home_config_dir(home.path());
     std::fs::create_dir(&config).unwrap();
     let root = config.join("local-apps");
     std::fs::create_dir(&root).unwrap();

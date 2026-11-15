@@ -182,9 +182,9 @@ impl RuntimeAdapter for DockerRuntime {
     /// 该路径是容器内部的路径，用于存储运行时状态和临时文件
     fn storage_path(&self) -> PathBuf {
         if self.config.mount_workspace {
-            PathBuf::from("/workspace").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            PathBuf::from("/workspace").join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
         } else {
-            PathBuf::from("/tmp").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            PathBuf::from("/tmp").join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
         }
     }
 

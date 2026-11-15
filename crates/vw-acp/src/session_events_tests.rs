@@ -153,7 +153,7 @@ async fn stat_size_and_count_existing_segments_handle_missing_and_existing_files
     tokio::fs::write(&segment_path, b"segment").await.expect("write segment");
 
     assert!(session_dir.ends_with(
-        PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("acp").join("sessions")
+        PathBuf::from(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("acp").join("sessions")
     ));
     assert!(path_exists(&active_path).await);
     assert_eq!(stat_size(&active_path).await, 6);

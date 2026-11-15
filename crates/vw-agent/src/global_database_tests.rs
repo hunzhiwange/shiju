@@ -48,7 +48,7 @@ async fn run_isolated_reports_worker_termination_before_result() {
 async fn for_home_uses_thread_local_test_home_inside_isolated_worker() -> Result<()> {
     let build_home = option_env!("HOME").context("test build HOME must be available")?;
     let expected =
-        vw_config_types::paths::global_database_path(current_test_global_database_home());
+        config_runtime_paths::global_database_path(current_test_global_database_home());
 
     let direct = GlobalDatabase::for_home(Path::new(build_home))?;
     let isolated = run_isolated(move || {
@@ -231,7 +231,7 @@ fn remove_if_exists_reports_non_file_removal_context() -> Result<()> {
 fn global_database_configures_connection_and_secure_permissions() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let home = temp_dir.path().join("home");
-    let database_path = vw_config_types::paths::global_database_path(&home);
+    let database_path = config_runtime_paths::global_database_path(&home);
     let database_dir = database_path.parent().expect("global database parent");
     let database = GlobalDatabase::new(&database_path)?;
     ProjectStore::new(database.clone())?;
@@ -244,7 +244,7 @@ fn global_database_configures_connection_and_secure_permissions() -> Result<()> 
     assert_eq!(scheduler.database_path(), database.path());
     assert_eq!(
         database.path(),
-        vw_config_types::paths::home_config_dir(&home).join("database/vibe-window.sqlite3")
+        config_runtime_paths::home_config_dir(&home).join("database/vibe-window.sqlite3")
     );
     assert!(!legacy_database_path(&home).exists());
     assert_eq!(connection.query_row("PRAGMA foreign_keys", [], |row| row.get::<_, i64>(0))?, 1);
@@ -269,7 +269,7 @@ fn global_database_configures_connection_and_secure_permissions() -> Result<()> 
 #[test]
 fn global_database_pins_one_backend_without_cross_backend_access_or_hot_switch() -> Result<()> {
     let home = tempfile::tempdir()?;
-    let sqlite_path = vw_config_types::paths::global_database_path(home.path());
+    let sqlite_path = config_runtime_paths::global_database_path(home.path());
     let database = GlobalDatabase::for_home_with_environment(home.path(), |_| {
         panic!("default SQLite startup must not read the PostgreSQL URL")
     })?;
@@ -281,7 +281,7 @@ fn global_database_pins_one_backend_without_cross_backend_access_or_hot_switch()
     assert_eq!(database.sqlite_path()?, sqlite_path);
     assert!(database.connect_postgres().is_err());
 
-    let config_path = vw_config_types::paths::global_database_config_path(home.path());
+    let config_path = config_runtime_paths::global_database_config_path(home.path());
     fs::write(&config_path, r#"{"provider":"postgres","schema":"changed_after_start"}"#)?;
 
     assert_eq!(database.provider(), DatabaseProvider::Sqlite);
@@ -298,7 +298,7 @@ fn global_database_pins_one_backend_without_cross_backend_access_or_hot_switch()
 
     let postgres_home = tempfile::tempdir()?;
     let postgres_config_path =
-        vw_config_types::paths::global_database_config_path(postgres_home.path());
+        config_runtime_paths::global_database_config_path(postgres_home.path());
     fs::create_dir_all(postgres_config_path.parent().expect("database config parent"))?;
     fs::write(postgres_config_path, r#"{"provider":"postgres","schema":"invalid_tls_test"}"#)?;
     let secret_url = "postgres://secret-user:secret-password@localhost/database?sslmode=prefer";
@@ -325,7 +325,7 @@ fn global_database_for_home_moves_previous_shared_database_filename_once() -> Re
 
     let database = GlobalDatabase::for_home(home.path())?;
 
-    assert_eq!(database.path(), vw_config_types::paths::global_database_path(home.path()));
+    assert_eq!(database.path(), config_runtime_paths::global_database_path(home.path()));
     assert!(!previous_path.exists());
     assert!(!previous_path.with_extension("sqlite3-wal").exists());
     assert!(!previous_path.with_extension("sqlite3-shm").exists());
@@ -342,7 +342,7 @@ fn global_database_for_home_moves_legacy_scheduler_database_once() -> Result<()>
 
     let first = GlobalDatabase::for_home(home.path())?;
 
-    let target_path = vw_config_types::paths::global_database_path(home.path());
+    let target_path = config_runtime_paths::global_database_path(home.path());
     assert_eq!(first.path(), target_path);
     assert!(!legacy_path.exists());
     assert!(!legacy_path.with_extension("sqlite3-wal").exists());
@@ -380,14 +380,14 @@ fn global_database_for_home_rejects_two_legacy_source_paths() -> Result<()> {
     assert!(message.contains("both source paths"));
     assert_eq!(read_marker(&previous_path)?, "previous");
     assert_eq!(read_marker(&legacy_path)?, "legacy");
-    assert!(!vw_config_types::paths::global_database_path(home.path()).exists());
+    assert!(!config_runtime_paths::global_database_path(home.path()).exists());
     Ok(())
 }
 
 #[test]
 fn global_database_for_home_ignores_legacy_workflow_databases() -> Result<()> {
     let home = tempfile::tempdir()?;
-    let lifecycle_path = vw_config_types::paths::home_config_dir(home.path())
+    let lifecycle_path = config_runtime_paths::home_config_dir(home.path())
         .join("task-lifecycle/workflows.sqlite");
     let saved_workflow_path = home.path().join("workflow/workflows.sqlite");
     drop(create_legacy_database(&lifecycle_path, "lifecycle")?);
@@ -396,7 +396,7 @@ fn global_database_for_home_ignores_legacy_workflow_databases() -> Result<()> {
     let database = GlobalDatabase::for_home(home.path())?;
     let connection = database.connect()?;
 
-    assert_eq!(database.path(), vw_config_types::paths::global_database_path(home.path()));
+    assert_eq!(database.path(), config_runtime_paths::global_database_path(home.path()));
     assert_eq!(read_marker(&lifecycle_path)?, "lifecycle");
     assert_eq!(read_marker(&saved_workflow_path)?, "saved-workflow");
     assert_eq!(
@@ -434,7 +434,7 @@ fn agent_scheduler_for_home_defers_cutover_until_database_open() -> Result<()> {
     let home = tempfile::tempdir()?;
     let legacy_path = legacy_database_path(home.path());
     drop(create_legacy_database(&legacy_path, "deferred")?);
-    let target_path = vw_config_types::paths::global_database_path(home.path());
+    let target_path = config_runtime_paths::global_database_path(home.path());
 
     let store = crate::agent_scheduler::store::AgentSchedulerStore::for_home(home.path());
 
@@ -449,7 +449,7 @@ fn global_database_path_cutover_rejects_conflicting_source_and_target() -> Resul
     let home = tempfile::tempdir()?;
     let legacy_path = legacy_database_path(home.path());
     drop(create_legacy_database(&legacy_path, "legacy")?);
-    let target_path = vw_config_types::paths::global_database_path(home.path());
+    let target_path = config_runtime_paths::global_database_path(home.path());
     drop(create_legacy_database(&target_path, "target")?);
 
     let error = GlobalDatabase::for_home(home.path()).expect_err("path conflict must fail");
@@ -499,7 +499,7 @@ fn move_legacy_database_reports_target_directory_creation_context() -> Result<()
 fn move_legacy_database_rejects_active_write_connection() -> Result<()> {
     let home = tempfile::tempdir()?;
     let source = legacy_database_path(home.path());
-    let target = vw_config_types::paths::global_database_path(home.path());
+    let target = config_runtime_paths::global_database_path(home.path());
     let connection = create_legacy_database(&source, "busy")?;
     connection.execute_batch(
         "BEGIN IMMEDIATE;
@@ -560,7 +560,7 @@ fn global_database_path_cutover_preserves_invalid_source() -> Result<()> {
 
     assert!(error.to_string().contains("integrity"));
     assert_eq!(fs::read(&legacy_path)?, b"not a sqlite database");
-    assert!(!vw_config_types::paths::global_database_path(home.path()).exists());
+    assert!(!config_runtime_paths::global_database_path(home.path()).exists());
     Ok(())
 }
 
@@ -579,16 +579,16 @@ fn global_database_path_cutover_preserves_locked_source() -> Result<()> {
 
     assert!(error.to_string().contains("lock"));
     assert_eq!(read_marker(&legacy_path)?, "locked");
-    assert!(!vw_config_types::paths::global_database_path(home.path()).exists());
+    assert!(!config_runtime_paths::global_database_path(home.path()).exists());
     Ok(())
 }
 
 fn legacy_database_path(home: &Path) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home).join("agent_scheduler").join("_index.sqlite3")
+    config_runtime_paths::home_config_dir(home).join("agent_scheduler").join("_index.sqlite3")
 }
 
 fn previous_shared_database_path(home: &Path) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home).join("database").join("_index.sqlite3")
+    config_runtime_paths::home_config_dir(home).join("database").join("_index.sqlite3")
 }
 
 fn create_legacy_database(path: &Path, marker: &str) -> Result<Connection> {

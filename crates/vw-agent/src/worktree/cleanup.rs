@@ -320,7 +320,7 @@ pub async fn refresh(
     stop: &tokio_util::sync::CancellationToken,
 ) -> Result<FlowStatus, Error> {
     // Per-scope nonblocking host pass lock prevents overlapping startup/create/timer passes.
-    let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    let root = config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage")
         .join("worktree-cleanup");
     std::fs::create_dir_all(&root)?;
@@ -369,7 +369,7 @@ pub async fn flow_status(scope: &ProjectScope) -> Result<FlowStatus, Error> {
     match crate::storage::read::<FlowStatus>(&["worktree-cleanup", &registry::key(scope)]).await {
         Ok(mut report) => {
             if report.running.is_some() {
-                let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+                let root = config_runtime_paths::home_config_dir(&crate::global::paths().home)
                     .join("storage")
                     .join("worktree-cleanup");
                 std::fs::create_dir_all(&root)?;

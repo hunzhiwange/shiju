@@ -38,11 +38,11 @@ fn queue_base_dir_and_lock_file_path_use_home_directory() {
 
     assert_eq!(
         queue_base_dir(home_dir),
-        vw_config_types::paths::home_config_dir(home_dir).join("acp").join("queues")
+        config_runtime_paths::home_config_dir(home_dir).join("acp").join("queues")
     );
     assert_eq!(
         queue_lock_file_path("session-123", home_dir),
-        vw_config_types::paths::home_config_dir(home_dir)
+        config_runtime_paths::home_config_dir(home_dir)
             .join("acp")
             .join("queues")
             .join("b9c84322f82434cb46e239d2.lock")
@@ -54,7 +54,7 @@ fn queue_base_dir_accepts_relative_home_directory() {
     assert_eq!(
         queue_base_dir(Path::new("relative-home")),
         PathBuf::from("relative-home")
-            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
             .join("acp")
             .join("queues")
     );

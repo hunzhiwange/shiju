@@ -19,7 +19,7 @@ fn test_home() -> &'static PathBuf {
     HOME.get_or_init(|| {
         let home = std::env::temp_dir()
             .join(format!("vw-agent-auth-handler-tests-{}", std::process::id()));
-        let auth_file = vw_config_types::paths::home_config_dir(&home).join("auth.json");
+        let auth_file = config_runtime_paths::home_config_dir(&home).join("auth.json");
         std::fs::create_dir_all(auth_file.parent().expect("auth.json should have parent"))
             .expect("should create auth test directory");
         std::fs::write(&auth_file, "{}").expect("should seed auth file");

@@ -85,7 +85,7 @@ fn storage_root_dir_uses_home_vibewindow_directory() {
     let home = Path::new("/tmp/vw-home");
     let path = storage_root_dir_for_home(home);
 
-    assert_eq!(path, home.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("storage"));
+    assert_eq!(path, home.join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("storage"));
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -15,7 +15,7 @@ pub struct Credentials {
 
 pub fn policy_path(home: &Path, platform: &str, company: &str) -> PathBuf {
     let scope = serde_json::to_vec(&(platform, company)).expect("string tuple serializes");
-    vw_config_types::paths::home_config_dir(home)
+    config_runtime_paths::home_config_dir(home)
         .join("local-apps")
         .join(hex::encode(Sha256::digest(scope)))
         .join("access.json")
@@ -232,7 +232,7 @@ pub fn initialize(home: &Path, platform: &str, company: &str) -> anyhow::Result<
     // Publish both files together; never overwrite an existing grant or credential.
     let staging = tempfile::Builder::new().prefix(".initialize-").tempdir_in(root)?;
     std::fs::set_permissions(staging.path(), std::fs::Permissions::from_mode(0o700))?;
-    let prefix = vw_config_types::paths::home_config_dir(home).join("apps");
+    let prefix = config_runtime_paths::home_config_dir(home).join("apps");
     create_private_directory(&prefix)?;
     check_directory(&prefix)?;
     let prefix = prefix.canonicalize()?;

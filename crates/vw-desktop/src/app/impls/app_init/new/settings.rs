@@ -559,7 +559,7 @@ pub(super) fn build_security_settings(
         estop_enabled: security_cfg.estop.enabled,
         estop_state_file: {
             let value = security_cfg.estop.state_file.trim().to_string();
-            if value.is_empty() { vw_config_types::paths::estop_state_file_path() } else { value }
+            if value.is_empty() { config_runtime_paths::estop_state_file_path() } else { value }
         },
         estop_require_otp_to_resume: security_cfg.estop.require_otp_to_resume,
         syscall_anomaly_enabled: security_cfg.syscall_anomaly.enabled,

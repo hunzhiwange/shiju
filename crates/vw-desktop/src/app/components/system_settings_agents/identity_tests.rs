@@ -8,7 +8,7 @@ use super::identity::{
 
 #[test]
 fn default_workspace_identity_root_uses_agent_key() {
-    let config_root = format!("~/{}", vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let config_root = format!("~/{}", config_runtime_paths::HOME_CONFIG_DIR_NAME);
 
     assert_eq!(default_workspace_identity_root("main"), format!("{config_root}/workspace"));
     assert_eq!(default_workspace_identity_root("coder"), format!("{config_root}/workspace-coder"));
@@ -38,7 +38,7 @@ fn workspace_identity_hint_uses_default_root_for_main_and_workers() {
         ),
         format!(
             "编辑身份文件 `AGENTS.md`，保存会直接写回 `~/{}/workspace/AGENTS.md`。",
-            vw_config_types::paths::HOME_CONFIG_DIR_NAME
+            config_runtime_paths::HOME_CONFIG_DIR_NAME
         )
     );
     assert_eq!(
@@ -50,7 +50,7 @@ fn workspace_identity_hint_uses_default_root_for_main_and_workers() {
         ),
         format!(
             "编辑身份文件 `AGENTS.md`，保存会直接写回 `~/{}/workspace-reviewer/AGENTS.md`。",
-            vw_config_types::paths::HOME_CONFIG_DIR_NAME
+            config_runtime_paths::HOME_CONFIG_DIR_NAME
         )
     );
 }

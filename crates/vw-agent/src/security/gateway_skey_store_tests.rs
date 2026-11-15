@@ -125,7 +125,7 @@ fn gateway_skey_store_sqlite_does_not_persist_plaintext() {
 fn gateway_skey_store_ignores_conflicting_legacy_sqlite() {
     let temp = tempfile::tempdir().expect("temp dir");
     let legacy_path =
-        vw_config_types::paths::home_config_dir(temp.path()).join("gateway").join("skeys.sqlite");
+        config_runtime_paths::home_config_dir(temp.path()).join("gateway").join("skeys.sqlite");
     std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
         .expect("create legacy parent");
     let legacy = rusqlite::Connection::open(&legacy_path).expect("legacy sqlite");

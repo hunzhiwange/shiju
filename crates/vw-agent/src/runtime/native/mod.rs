@@ -393,8 +393,8 @@ fn missing_shell_error() -> &'static str {
 
 fn storage_path_from_home_dir(home_dir: Option<&Path>) -> PathBuf {
     match home_dir {
-        Some(home_dir) => vw_config_types::paths::home_config_dir(home_dir),
-        None => PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME),
+        Some(home_dir) => config_runtime_paths::home_config_dir(home_dir),
+        None => PathBuf::from(config_runtime_paths::HOME_CONFIG_DIR_NAME),
     }
 }
 

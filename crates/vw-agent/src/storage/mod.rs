@@ -151,7 +151,7 @@ fn storage_root_dir() -> PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn storage_root_dir_for_home(home: &Path) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home).join("storage")
+    config_runtime_paths::home_config_dir(home).join("storage")
 }
 
 #[cfg(not(target_arch = "wasm32"))]

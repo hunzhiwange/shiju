@@ -131,12 +131,12 @@ impl GlobalDatabase {
                 root.is_absolute() && root.is_dir(),
                 "window test root must exist and be absolute"
             );
-            return Self::new(vw_config_types::paths::global_database_path(root));
+            return Self::new(config_runtime_paths::global_database_path(root));
         }
         let home = home.as_ref();
         #[cfg(test)]
         if option_env!("HOME").is_some_and(|build_home| home == Path::new(build_home)) {
-            return Self::new(vw_config_types::paths::global_database_path(
+            return Self::new(config_runtime_paths::global_database_path(
                 current_test_global_database_home(),
             ));
         }
@@ -157,8 +157,8 @@ impl GlobalDatabase {
     }
 
     fn for_sqlite_home(home: &Path) -> Result<Self> {
-        let target_path = vw_config_types::paths::global_database_path(home);
-        let config_directory = vw_config_types::paths::home_config_dir(home);
+        let target_path = config_runtime_paths::global_database_path(home);
+        let config_directory = config_runtime_paths::home_config_dir(home);
         let previous_path = config_directory.join("database").join(PREVIOUS_DATABASE_FILE);
         let legacy_path =
             config_directory.join(LEGACY_DATABASE_DIRECTORY).join(PREVIOUS_DATABASE_FILE);
@@ -193,7 +193,7 @@ impl GlobalDatabase {
     ) -> Result<Self> {
         let home = home.as_ref();
         let config_path =
-            absolute_config_path(&vw_config_types::paths::global_database_config_path(home))?;
+            absolute_config_path(&config_runtime_paths::global_database_config_path(home))?;
         let mut backends = BACKENDS_BY_CONFIG_PATH
             .lock()
             .map_err(|_| anyhow::anyhow!("lock global database backend registry"))?;

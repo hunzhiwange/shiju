@@ -249,7 +249,7 @@ impl App {
 
 fn pins_data_dir() -> Result<std::path::PathBuf, String> {
     let home = directories::BaseDirs::new().ok_or_else(|| "无法定位置顶会话目录".to_string())?;
-    Ok(vw_config_types::paths::home_config_dir(home.home_dir()))
+    Ok(config_runtime_paths::home_config_dir(home.home_dir()))
 }
 
 fn pins_scope(project: &str) -> String {

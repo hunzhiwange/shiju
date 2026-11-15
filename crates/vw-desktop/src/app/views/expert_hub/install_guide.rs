@@ -18,7 +18,7 @@ use iced::widget::text::Wrapping;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, progress_bar, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Font, Length, Theme};
-use vw_config_types::paths::HOME_CONFIG_DIR_NAME;
+use config_runtime_paths::HOME_CONFIG_DIR_NAME;
 
 /// 安装向导纵向滚动条的固定宽度。
 pub(super) const SCROLLBAR_WIDTH: u32 = 4;

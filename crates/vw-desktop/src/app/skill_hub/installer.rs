@@ -11,7 +11,7 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 use tempfile::{Builder, NamedTempFile, TempDir};
-use vw_config_types::paths::{HOME_CONFIG_DIR_NAME, home_config_dir, tilde_config_path};
+use config_runtime_paths::{HOME_CONFIG_DIR_NAME, home_config_dir, tilde_config_path};
 use zip::ZipArchive;
 
 const MAX_ARCHIVE_BYTES: u64 = 100 * 1024 * 1024;

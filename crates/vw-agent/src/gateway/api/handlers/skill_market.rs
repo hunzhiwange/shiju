@@ -16,7 +16,7 @@ use axum::{Json, Router};
 use directories::BaseDirs;
 use serde::Deserialize;
 use serde_json::Value;
-use vw_config_types::paths::HOME_CONFIG_DIR_NAME;
+use config_runtime_paths::HOME_CONFIG_DIR_NAME;
 use vw_gateway_client::{
     DesktopSkillPathDto, SkillMarketCoordinateDto, SkillMarketEnvelope, SkillMarketInstallScopeDto,
     SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillLocatorDto,

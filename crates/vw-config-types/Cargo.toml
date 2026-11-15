@@ -8,6 +8,7 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }
 chrono-tz = "0.10.4"
 directories = "5"
 schemars = "1.2"

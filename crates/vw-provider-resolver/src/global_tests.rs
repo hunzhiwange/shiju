@@ -5,7 +5,7 @@
 
 #[test]
 fn constants_match_application_cache_contract() {
-    assert_eq!(super::APP, vw_config_types::paths::APP_DIR_NAME);
+    assert_eq!(super::APP, config_runtime_paths::APP_DIR_NAME);
     assert_eq!(super::CACHE_VERSION, "21");
 }
 

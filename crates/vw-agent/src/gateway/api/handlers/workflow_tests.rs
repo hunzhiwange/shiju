@@ -318,7 +318,7 @@ async fn workflow_handlers_keep_shared_uuid_isolated_by_request_tenant() {
 async fn workflow_uuid_hydration_is_isolated_by_tenant_and_ignores_legacy_table() {
     let home = tempfile::tempdir().expect("temp home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");
-    assert_eq!(database.path(), vw_config_types::paths::global_database_path(home.path()));
+    assert_eq!(database.path(), config_runtime_paths::global_database_path(home.path()));
     assert_workflow_uuid_hydration_is_isolated_by_tenant_and_ignores_legacy_table(database).await;
 
     let fixture = crate::global_database::test_support::postgres_test_database_unit!();

@@ -125,7 +125,7 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
     let home = temp_dir.path().join("home");
     let project_path = temp_dir.path().join("project");
     std::fs::create_dir_all(&project_path)?;
-    let db_path = vw_config_types::paths::global_database_path(&home);
+    let db_path = config_runtime_paths::global_database_path(&home);
     let project_store = ProjectStore::new(GlobalDatabase::new(&db_path)?)?;
     project_store.create(
         &TenantScope::default(),
@@ -328,7 +328,7 @@ fn assert_sqlite_rejects_unprefixed_scheduler_tables() -> Result<()> {
         let home = temp_dir.path().join("home");
         let project_path = temp_dir.path().join("project");
         std::fs::create_dir_all(&project_path)?;
-        let db_path = vw_config_types::paths::global_database_path(&home);
+        let db_path = config_runtime_paths::global_database_path(&home);
         let project_store = ProjectStore::new(GlobalDatabase::new(&db_path)?)?;
         project_store.create(
             &TenantScope::default(),

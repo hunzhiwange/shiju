@@ -98,7 +98,7 @@ fn create_task_normalizes_blank_fields_and_allocates_sequences() {
 
     let conn = rusqlite::Connection::open(
         temp.path()
-            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
             .join("tasks")
             .join("_index.sqlite3"),
     )
@@ -159,7 +159,7 @@ fn create_task_returns_io_error_when_project_path_is_file() {
 #[cfg(not(target_arch = "wasm32"))]
 fn task_database(temp: &tempfile::TempDir) -> std::path::PathBuf {
     temp.path()
-        .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+        .join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
         .join("tasks")
         .join("_index.sqlite3")
 }

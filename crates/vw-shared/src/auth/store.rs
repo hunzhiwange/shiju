@@ -7,7 +7,7 @@ use super::Info;
 
 /// 解析鉴权文件路径，优先兼容旧目录，其次使用当前数据目录。
 pub fn resolve_filepath(home: &Path, data: &Path) -> PathBuf {
-    let legacy = vw_config_types::paths::home_config_dir(home).join("auth.json");
+    let legacy = config_runtime_paths::home_config_dir(home).join("auth.json");
     if legacy.exists() {
         return legacy;
     }

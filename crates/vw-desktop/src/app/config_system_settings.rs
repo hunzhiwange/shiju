@@ -173,7 +173,7 @@ fn gateway_client_bootstrap_cache_path() -> Option<std::path::PathBuf> {
         return Some(std::path::PathBuf::from(directory).join("gateway-client-bootstrap.json"));
     }
     std::env::var_os("HOME").map(std::path::PathBuf::from).map(|home| {
-        vw_config_types::paths::home_config_dir(home).join("gateway-client-bootstrap.json")
+        config_runtime_paths::home_config_dir(home).join("gateway-client-bootstrap.json")
     })
 }
 

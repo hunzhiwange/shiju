@@ -83,7 +83,7 @@ pub fn default_runtime_log_dir() -> PathBuf {
         .map(|path| path.join(RUNTIME_LOG_DIR_NAME))
         .or_else(|| home_dir().map(|home| default_home_runtime_log_dir(&home)))
         .unwrap_or_else(|| {
-            PathBuf::from(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
+            PathBuf::from(config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME)
                 .join(RUNTIME_LOG_DIR_NAME)
         })
 }
@@ -123,7 +123,7 @@ fn home_dir() -> Option<PathBuf> {
 }
 
 fn default_home_runtime_log_dir(home: &Path) -> PathBuf {
-    home.join(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME).join(RUNTIME_LOG_DIR_NAME)
+    home.join(config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME).join(RUNTIME_LOG_DIR_NAME)
 }
 
 #[cfg(test)]

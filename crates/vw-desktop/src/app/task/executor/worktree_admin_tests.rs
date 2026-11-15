@@ -4,8 +4,8 @@
 fn legacy_worktree_path(repo_root: &str, leaf: &str) -> String {
     format!(
         "{repo_root}/{}/{}/{leaf}",
-        vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME,
-        vw_config_types::paths::TASK_WORKTREES_DIR_NAME
+        config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME,
+        config_runtime_paths::TASK_WORKTREES_DIR_NAME
     )
 }
 
@@ -74,7 +74,7 @@ fn create_git_repo() -> (tempfile::TempDir, std::path::PathBuf) {
 }
 
 fn managed_slot_path(home: &std::path::Path, leaf: &str) -> std::path::PathBuf {
-    vw_config_types::paths::task_worktrees_dir(home).join(leaf)
+    config_runtime_paths::task_worktrees_dir(home).join(leaf)
 }
 
 fn add_worktree(repo: &std::path::Path, path: &std::path::Path, branch: &str) {

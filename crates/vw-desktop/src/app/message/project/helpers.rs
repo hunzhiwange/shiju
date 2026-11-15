@@ -44,7 +44,7 @@ const CHAT_IMAGE_ATTACHMENT_DIR: &str = "chat_image_attachments";
 
 fn chat_image_attachment_dir() -> Option<PathBuf> {
     directories::UserDirs::new().map(|dirs| {
-        vw_config_types::paths::home_config_dir(dirs.home_dir()).join(CHAT_IMAGE_ATTACHMENT_DIR)
+        config_runtime_paths::home_config_dir(dirs.home_dir()).join(CHAT_IMAGE_ATTACHMENT_DIR)
     })
 }
 

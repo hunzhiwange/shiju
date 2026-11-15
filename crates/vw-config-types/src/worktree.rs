@@ -48,7 +48,7 @@ impl WorktreeSettings {
         self.validate()?;
         let root = self.root.trim();
         if root.is_empty() {
-            Ok(crate::paths::task_worktrees_dir(home))
+            Ok(config_runtime_paths::task_worktrees_dir(home))
         } else {
             Ok(PathBuf::from(root))
         }

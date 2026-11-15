@@ -48,7 +48,7 @@ async fn file_tree_move_drop_http_counts_requests_for_both_release_orders_and_co
         }],
         "move-test".into(),
     );
-    let config_path = vw_config_types::paths::home_config_dir(std::env::var_os("HOME").unwrap())
+    let config_path = config_runtime_paths::home_config_dir(std::env::var_os("HOME").unwrap())
         .join("gateway-client-bootstrap.json");
     std::fs::create_dir_all(config_path.parent().unwrap()).unwrap();
     std::fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();

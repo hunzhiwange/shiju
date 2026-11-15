@@ -338,7 +338,7 @@ fn resolve_workspace_identity_root(agent_key: &str) -> Option<PathBuf> {
         format!("-{normalized_agent_key}")
     };
     std::env::var_os("HOME").map(PathBuf::from).map(|home| {
-        vw_config_types::paths::home_config_dir(home).join(format!("workspace{suffix}"))
+        config_runtime_paths::home_config_dir(home).join(format!("workspace{suffix}"))
     })
 }
 

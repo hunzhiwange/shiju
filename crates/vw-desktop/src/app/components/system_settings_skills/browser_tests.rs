@@ -125,7 +125,7 @@ fn scope_titles_cover_all_scopes() {
 #[test]
 fn provider_paths_match_directory_provider_contract() {
     let vibewindow_global =
-        format!("~/{}/skills, ~/.skills", vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+        format!("~/{}/skills, ~/.skills", config_runtime_paths::HOME_CONFIG_DIR_NAME);
     let cases = [
         (
             SkillsDirectoryProvider::Vibewindow,

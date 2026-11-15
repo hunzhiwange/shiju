@@ -378,7 +378,7 @@ fn assign_task_execution_worktree_does_not_create_local_pool_slot() {
         .expect("assignment should not fail");
 
     assert_eq!(assigned, None);
-    assert!(!vw_config_types::paths::task_worktrees_dir(home.path()).exists());
+    assert!(!config_runtime_paths::task_worktrees_dir(home.path()).exists());
 }
 
 #[test]
@@ -409,5 +409,5 @@ fn resolve_task_execution_workspace_uses_project_path_without_gateway_lease() {
     assert_eq!(workspace.selected_worktree_branch, None);
     assert_eq!(workspace.merge_target_branch.as_deref(), Some("main"));
     assert_eq!(workspace.selected_worktree_path, None);
-    assert!(!vw_config_types::paths::task_worktrees_dir(home.path()).exists());
+    assert!(!config_runtime_paths::task_worktrees_dir(home.path()).exists());
 }

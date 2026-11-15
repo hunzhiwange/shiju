@@ -20,7 +20,7 @@ fn plan_dir_abs_uses_user_storage_and_sanitizes_task_id() {
 
     assert_eq!(
         super::plan_dir_abs(home, "unsafe/id.part"),
-        vw_config_types::paths::task_plan_storage_dir(home).join("task-unsafeid-part")
+        config_runtime_paths::task_plan_storage_dir(home).join("task-unsafeid-part")
     );
 }
 

@@ -10,7 +10,7 @@ doctest = false
 [dependencies]
 sha2 = "0.11"
 hex = "0.4"
-vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt", "sync"] }

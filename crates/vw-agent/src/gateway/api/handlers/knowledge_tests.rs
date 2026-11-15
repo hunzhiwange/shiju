@@ -135,7 +135,7 @@ async fn knowledge_gateway_writes_shared_database_without_touching_legacy_file()
     let suffix = uuid::Uuid::new_v4().to_string();
     let paths = crate::global::paths();
     let database = GlobalDatabase::for_home(&paths.home).expect("global database");
-    let legacy_path = vw_config_types::paths::home_config_dir(&paths.home)
+    let legacy_path = config_runtime_paths::home_config_dir(&paths.home)
         .join("knowledge")
         .join("knowledge.sqlite");
     let legacy_contents = format!("legacy-knowledge-{suffix}").into_bytes();

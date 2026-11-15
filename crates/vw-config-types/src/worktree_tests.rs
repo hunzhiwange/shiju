@@ -22,7 +22,7 @@ fn worktree_settings_rejects_invalid_values() {
     for root in ["", "  ", "\t\n"] {
         let settings = WorktreeSettings { root: root.into(), ..Default::default() };
         assert!(settings.validate().is_ok());
-        assert_eq!(settings.resolve_root(&home).unwrap(), crate::paths::task_worktrees_dir(&home));
+        assert_eq!(settings.resolve_root(&home).unwrap(), config_runtime_paths::task_worktrees_dir(&home));
     }
     let absolute = home.join("managed trees");
     let settings = WorktreeSettings {

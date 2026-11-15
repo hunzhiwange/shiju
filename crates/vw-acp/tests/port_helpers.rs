@@ -57,7 +57,7 @@ fn session_event_log_helpers_build_expected_paths() {
     let home_dir = PathBuf::from("/tmp/vwacp-home");
     let session_id = "session 1/中文";
     let sessions_dir =
-        vw_config_types::paths::home_config_dir(&home_dir).join("acp").join("sessions");
+        config_runtime_paths::home_config_dir(&home_dir).join("acp").join("sessions");
     let active_path = sessions_dir.join("session%201%2F%E4%B8%AD%E6%96%87.stream.ndjson");
 
     assert_eq!(safe_session_id(session_id), "session%201%2F%E4%B8%AD%E6%96%87");

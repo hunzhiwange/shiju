@@ -7,11 +7,11 @@ fn config_defaults_promote_shiju_as_primary_provider() {
     let config = super::Config::default();
     assert!(
         config.workspace_dir.ends_with(
-            std::path::PathBuf::from(crate::paths::HOME_CONFIG_DIR_NAME).join("workspace")
+            std::path::PathBuf::from(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("workspace")
         )
     );
     assert!(config.config_path.ends_with(
-        std::path::PathBuf::from(crate::paths::HOME_CONFIG_DIR_NAME).join("shiju.json")
+        std::path::PathBuf::from(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("shiju.json")
     ));
     assert_eq!(config.default_provider.as_deref(), Some("shiju"));
     assert_eq!(config.default_model.as_deref(), Some("shiju/deepseek-v4.1-flash"));
@@ -81,12 +81,12 @@ fn config_deserialization_preserves_explicit_provider_and_model() {
 fn global_database_path_uses_shared_database_directory() {
     let home = std::path::Path::new("/tmp/vibewindow-home");
     assert_eq!(
-        crate::paths::global_database_path(home),
-        crate::paths::home_config_dir(home).join("database/vibe-window.sqlite3")
+        config_runtime_paths::global_database_path(home),
+        config_runtime_paths::home_config_dir(home).join("database/vibe-window.sqlite3")
     );
     assert_eq!(
-        crate::paths::global_database_config_path(home),
-        crate::paths::home_config_dir(home).join("database/config.json")
+        config_runtime_paths::global_database_config_path(home),
+        config_runtime_paths::home_config_dir(home).join("database/config.json")
     );
 }
 

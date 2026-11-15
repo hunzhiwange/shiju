@@ -65,7 +65,7 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(security.otp_gated_domains.is_empty());
     assert!(security.otp_gated_domain_categories.is_empty());
     assert!(!security.estop_enabled);
-    assert_eq!(security.estop_state_file, vw_config_types::paths::ESTOP_STATE_FILE_PATH);
+    assert_eq!(security.estop_state_file, config_runtime_paths::ESTOP_STATE_FILE_PATH);
     assert!(security.estop_require_otp_to_resume);
     assert!(!security.syscall_anomaly_enabled);
     assert!(!security.syscall_anomaly_strict_mode);

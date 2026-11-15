@@ -62,7 +62,7 @@ fn queue_key_for_session_hides_path_like_input() {
 fn queue_paths_are_scoped_under_vibewindow_home() {
     let home = Path::new("/tmp/home");
     let key = queue_key_for_session("session-1");
-    let base = vw_config_types::paths::home_config_dir(home).join("acp").join("queues");
+    let base = config_runtime_paths::home_config_dir(home).join("acp").join("queues");
 
     assert_eq!(queue_base_dir(home), base);
     assert_eq!(queue_lock_file_path("session-1", home), base.join(format!("{key}.lock")));
@@ -76,7 +76,7 @@ fn queue_paths_are_scoped_under_vibewindow_home() {
 fn queue_base_dir_accepts_relative_home_directory() {
     assert_eq!(
         queue_base_dir(Path::new("relative-home")),
-        vw_config_types::paths::home_config_dir("relative-home").join("acp").join("queues")
+        config_runtime_paths::home_config_dir("relative-home").join("acp").join("queues")
     );
 }
 

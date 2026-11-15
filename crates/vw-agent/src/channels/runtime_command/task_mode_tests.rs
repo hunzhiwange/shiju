@@ -234,7 +234,7 @@ async fn task_mode_keeps_auto_model_when_route_uses_auto() {
 
     let conn = rusqlite::Connection::open(
         temp.path()
-            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join(config_runtime_paths::HOME_CONFIG_DIR_NAME)
             .join("tasks")
             .join("_index.sqlite3"),
     )

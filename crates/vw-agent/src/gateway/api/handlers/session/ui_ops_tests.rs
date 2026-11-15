@@ -474,7 +474,7 @@ fn agent_session(id: &str, project_id: &str, title: &str, updated: u64) -> Agent
 }
 
 fn old_project_database_path(scope: &str) -> std::path::PathBuf {
-    vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage/session/scoped")
         .join(vw_shared::session::path::session_scope_key(scope))
         .join("index.sqlite3")

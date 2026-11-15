@@ -491,7 +491,7 @@ fn load_resolved_config_uses_default_paths_and_global_fallback_values() {
     env.set("HOME", temp.path());
 
     let global_path =
-        vw_config_types::paths::home_config_dir(temp.path()).join("acp").join("config.json");
+        config_runtime_paths::home_config_dir(temp.path()).join("acp").join("config.json");
     write_json(
         &global_path,
         json!({
@@ -672,7 +672,7 @@ fn default_and_project_config_paths_point_to_expected_files() {
 
     assert_eq!(
         default_global_config_path().expect("global path"),
-        vw_config_types::paths::home_config_dir(temp.path()).join("acp").join("config.json")
+        config_runtime_paths::home_config_dir(temp.path()).join("acp").join("config.json")
     );
     assert_eq!(
         project_config_path(temp.join("project")).expect("project path"),
@@ -1255,7 +1255,7 @@ fn init_global_config_file_uses_default_global_path() {
     assert_eq!(
         result.path,
         path_to_string(
-            &vw_config_types::paths::home_config_dir(temp.path()).join("acp").join("config.json")
+            &config_runtime_paths::home_config_dir(temp.path()).join("acp").join("config.json")
         )
     );
 }

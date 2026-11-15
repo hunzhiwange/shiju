@@ -39,7 +39,7 @@ fn hygiene_state_path_uses_user_worktree_dir() {
     let home = directories::UserDirs::new().unwrap().home_dir().to_path_buf();
 
     assert!(
-        path.starts_with(vw_config_types::paths::home_config_dir(home).join("worktree")),
+        path.starts_with(config_runtime_paths::home_config_dir(home).join("worktree")),
         "state path should stay in the user VibeWindow worktree state directory"
     );
     assert!(path.components().any(|component| component.as_os_str() == "workspaces"));

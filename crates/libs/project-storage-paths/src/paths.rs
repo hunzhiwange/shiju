@@ -20,7 +20,7 @@ pub fn project_data_dir_best_effort(workspace_dir: &Path) -> PathBuf {
 
 fn fallback_project_data_dir(workspace_dir: &Path) -> PathBuf {
     std::env::temp_dir()
-        .join(vw_config_types::paths::APP_DIR_NAME)
+        .join(config_runtime_paths::APP_DIR_NAME)
         .join("worktree")
         .join("projects")
         .join(project_state_id(workspace_dir))
@@ -36,12 +36,12 @@ fn user_worktree_root() -> Result<PathBuf> {
     let home = directories::UserDirs::new()
         .map(|u| u.home_dir().to_path_buf())
         .context("Could not find home directory for memory data")?;
-    Ok(vw_config_types::paths::home_config_dir(home).join("worktree"))
+    Ok(config_runtime_paths::home_config_dir(home).join("worktree"))
 }
 
 #[cfg(target_arch = "wasm32")]
 fn user_worktree_root() -> Result<PathBuf> {
-    Ok(vw_config_types::paths::root_config_dir().join("worktree"))
+    Ok(config_runtime_paths::root_config_dir().join("worktree"))
 }
 
 fn project_state_id(workspace_dir: &Path) -> String {

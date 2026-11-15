@@ -18,7 +18,7 @@ fn skill_discovery_loads_global_skills_from_unicode_userprofile_without_home() {
     let home = root.path().join("熊战役");
     let _home = EnvVarGuard::unset("HOME");
     let _profile = EnvVarGuard::set("USERPROFILE", home.to_str().unwrap());
-    let skill_root = vw_config_types::paths::home_config_dir(&home).join("skills");
+    let skill_root = config_runtime_paths::home_config_dir(&home).join("skills");
     write_skill(&skill_root.join("shiju"), "# Shiju\nUser profile skill\n");
 
     let sources = discover_local_skill_source_dirs(None);
@@ -38,7 +38,7 @@ fn skill_discovery_uses_userprofile_when_home_is_empty() {
     let home = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", "");
     let _profile = EnvVarGuard::set("USERPROFILE", home.path().to_str().unwrap());
-    let skill_root = vw_config_types::paths::home_config_dir(home.path()).join("skills");
+    let skill_root = config_runtime_paths::home_config_dir(home.path()).join("skills");
     write_skill(&skill_root.join("shiju"), "# Shiju\n");
 
     let sources = discover_local_skill_source_dirs(None);

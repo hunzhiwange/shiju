@@ -194,7 +194,7 @@ async fn batch_delete_http_attempts_every_root_once_and_reports_partial_failure(
         }],
         "batch-delete-test".into(),
     );
-    let config_path = vw_config_types::paths::home_config_dir(std::env::var_os("HOME").unwrap())
+    let config_path = config_runtime_paths::home_config_dir(std::env::var_os("HOME").unwrap())
         .join("gateway-client-bootstrap.json");
     std::fs::create_dir_all(config_path.parent().unwrap()).unwrap();
     std::fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();

@@ -6,7 +6,7 @@
 use super::*;
 
 fn legacy_task_dir(project: &std::path::Path) -> std::path::PathBuf {
-    project.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
+    project.join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks")
 }
 
 fn assert_native_cutover(error: io::Error) {

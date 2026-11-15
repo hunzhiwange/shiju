@@ -44,7 +44,7 @@ fn session_event_log_uses_default_rotation_limits() {
 
     assert_eq!(
         log.active_path,
-        vw_config_types::paths::home_config_dir("/tmp/home")
+        config_runtime_paths::home_config_dir("/tmp/home")
             .join("acp")
             .join("sessions")
             .join("s1.stream.ndjson")

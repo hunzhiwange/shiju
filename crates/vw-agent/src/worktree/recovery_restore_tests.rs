@@ -275,7 +275,7 @@ async fn worktree_recovery_restore_registration_failure_rolls_back_only_new_reso
         encode(record.scope.company_id().as_ref()),
         encode(record.scope.project_id().as_ref())
     );
-    let lock_path = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+    let lock_path = config_runtime_paths::home_config_dir(&crate::global::paths().home)
         .join("storage/managed-worktrees")
         .join(format!("{key}.lock"));
     let lock = std::fs::OpenOptions::new().read(true).write(true).open(lock_path).unwrap();

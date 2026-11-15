@@ -23,8 +23,8 @@ fn desktop_task_executor_no_local_worktree_pool_exports() {
 fn legacy_worktree_path(repo_root: &str, leaf: &str) -> String {
     format!(
         "{repo_root}/{}/{}/{leaf}",
-        vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME,
-        vw_config_types::paths::TASK_WORKTREES_DIR_NAME
+        config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME,
+        config_runtime_paths::TASK_WORKTREES_DIR_NAME
     )
 }
 
@@ -105,8 +105,8 @@ fn managed_worktree_path_accepts_current_and_legacy_pool_roots() {
     let current_fork = super::worktree_pool_root(repo_root).join("fork-1");
     let current_sibling = super::worktree_pool_root(repo_root).with_file_name("task-worktrees-old");
     let legacy_root = std::path::Path::new(repo_root)
-        .join(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
-        .join(vw_config_types::paths::TASK_WORKTREES_DIR_NAME);
+        .join(config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME)
+        .join(config_runtime_paths::TASK_WORKTREES_DIR_NAME);
     let legacy_slot = legacy_root.join("slot-2");
     let legacy_fork = legacy_root.join("fork-2");
     let unrelated_slot = std::path::Path::new(repo_root).join("other").join("slot-3");
@@ -126,8 +126,8 @@ fn managed_worktree_path_accepts_current_and_legacy_pool_roots() {
 fn managed_worktree_path_requires_slot_dash_leaf_name() {
     let repo_root = "/repo";
     let legacy_root = std::path::Path::new(repo_root)
-        .join(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
-        .join(vw_config_types::paths::TASK_WORKTREES_DIR_NAME);
+        .join(config_runtime_paths::PROD_HOME_CONFIG_DIR_NAME)
+        .join(config_runtime_paths::TASK_WORKTREES_DIR_NAME);
 
     assert!(super::is_managed_worktree_path(
         repo_root,

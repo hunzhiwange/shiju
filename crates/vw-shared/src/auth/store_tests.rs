@@ -36,7 +36,7 @@ fn resolve_filepath_prefers_legacy_auth_file_when_present() {
     let temp = tempfile::tempdir().expect("temp dir should be created");
     let home = temp.path().join("home");
     let data = temp.path().join("data");
-    let legacy = vw_config_types::paths::home_config_dir(&home).join("auth.json");
+    let legacy = config_runtime_paths::home_config_dir(&home).join("auth.json");
     let primary = data.join("auth.json");
 
     fs::create_dir_all(legacy.parent().unwrap()).expect("legacy parent should be created");
@@ -68,7 +68,7 @@ fn resolve_filepath_falls_back_to_legacy_path_when_no_file_exists() {
 
     assert_eq!(
         resolve_filepath(&home, &data),
-        vw_config_types::paths::home_config_dir(&home).join("auth.json")
+        config_runtime_paths::home_config_dir(&home).join("auth.json")
     );
 }
 

@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "5"

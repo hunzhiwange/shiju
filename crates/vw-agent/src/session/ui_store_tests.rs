@@ -106,13 +106,13 @@ struct FacadeFixture {
 impl FacadeFixture {
     fn new(project_id: &str) -> Result<Self> {
         let temp = tempfile::tempdir()?;
-        let database_path = vw_config_types::paths::global_database_path(temp.path());
+        let database_path = config_runtime_paths::global_database_path(temp.path());
         let database = GlobalDatabase::new(&database_path)?;
         let project_store = ProjectStore::new(database.clone())?;
         create_project(&project_store, temp.path(), project_id)?;
         let store_override = override_session_store_for_test(SessionStore::new(database)?);
         Ok(Self {
-            data_dir: vw_config_types::paths::home_config_dir(temp.path()),
+            data_dir: config_runtime_paths::home_config_dir(temp.path()),
             database_path,
             project_id: project_id.to_owned(),
             project_store,

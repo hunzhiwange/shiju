@@ -6,7 +6,7 @@ use super::*;
 #[test]
 fn task_paths_are_derived_from_the_project_config_directory() {
     let project = std::path::Path::new("project-root");
-    let task_directory = project.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks");
+    let task_directory = project.join(config_runtime_paths::HOME_CONFIG_DIR_NAME).join("tasks");
 
     assert_eq!(get_task_dir("project-root"), task_directory);
     assert_eq!(
@@ -41,7 +41,7 @@ fn ensure_task_dir_accepts_an_existing_directory() {
 #[test]
 fn ensure_task_dir_returns_error_when_config_root_is_a_file() {
     let project = tempfile::tempdir().expect("temp project");
-    let config_root = project.path().join(vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    let config_root = project.path().join(config_runtime_paths::HOME_CONFIG_DIR_NAME);
     std::fs::write(config_root, b"not a directory").expect("create blocking file");
     let project_path = project.path().to_string_lossy();
 

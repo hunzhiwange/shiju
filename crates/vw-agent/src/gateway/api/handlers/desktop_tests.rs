@@ -171,7 +171,7 @@ fn preferences_handlers_default_patch_and_persist_values() {
     let home = tempfile::tempdir().expect("temporary home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");
     let store = GatewaySettingsStore::new(database.clone()).expect("gateway settings store");
-    let preferences_file = vw_config_types::paths::home_config_dir(home.path())
+    let preferences_file = config_runtime_paths::home_config_dir(home.path())
         .join("storage/desktop/preferences.json");
 
     let tenant = TenantScope::default();
@@ -213,7 +213,7 @@ fn preferences_handlers_default_patch_and_persist_values() {
         GlobalDatabase::for_home(legacy_home.path()).expect("legacy global database"),
     )
     .expect("legacy gateway settings store");
-    let legacy_path = vw_config_types::paths::home_config_dir(legacy_home.path())
+    let legacy_path = config_runtime_paths::home_config_dir(legacy_home.path())
         .join("storage/desktop/preferences.json");
     std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
         .expect("create legacy directory");
@@ -339,7 +339,7 @@ fn project_preferences_handlers_report_missing_and_round_trip() {
     let home = tempfile::tempdir().expect("temporary home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");
     let store = GatewaySettingsStore::new(database.clone()).expect("gateway settings store");
-    let project_file = vw_config_types::paths::home_config_dir(home.path())
+    let project_file = config_runtime_paths::home_config_dir(home.path())
         .join("storage/desktop/project_prefs/tmp_vw_project_prefs_work_demo.json");
 
     let tenant = TenantScope::default();
@@ -394,7 +394,7 @@ fn project_preferences_handlers_report_missing_and_round_trip() {
         GlobalDatabase::for_home(legacy_home.path()).expect("legacy global database"),
     )
     .expect("legacy gateway settings store");
-    let legacy_path = vw_config_types::paths::home_config_dir(legacy_home.path())
+    let legacy_path = config_runtime_paths::home_config_dir(legacy_home.path())
         .join("storage/desktop/project_prefs/tmp_vw_project_prefs_work_demo.json");
     std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
         .expect("create legacy project directory");

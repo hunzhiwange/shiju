@@ -611,7 +611,7 @@ pub struct EstopConfig {
 }
 
 fn default_estop_state_file() -> String {
-    crate::paths::estop_state_file_path()
+    config_runtime_paths::estop_state_file_path()
 }
 
 impl Default for EstopConfig {

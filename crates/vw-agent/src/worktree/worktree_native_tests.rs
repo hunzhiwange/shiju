@@ -415,7 +415,7 @@ fn worktree_root_uses_shared_task_worktrees_directory() {
 
     assert_eq!(
         root.file_name().and_then(|value| value.to_str()),
-        Some(vw_config_types::paths::TASK_WORKTREES_DIR_NAME)
+        Some(config_runtime_paths::TASK_WORKTREES_DIR_NAME)
     );
 }
 

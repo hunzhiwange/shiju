@@ -626,7 +626,7 @@ pub struct TaskPlanSubTask {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn task_plan_root_dir(home: &std::path::Path) -> std::path::PathBuf {
-    vw_config_types::paths::task_plan_storage_dir(home)
+    config_runtime_paths::task_plan_storage_dir(home)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

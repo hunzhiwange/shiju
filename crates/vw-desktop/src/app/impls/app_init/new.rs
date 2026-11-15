@@ -1324,7 +1324,7 @@ impl App {
                 estop_enabled: security_cfg.estop.enabled,
                 estop_state_file: {
                     let v = security_cfg.estop.state_file.trim().to_string();
-                    if v.is_empty() { vw_config_types::paths::estop_state_file_path() } else { v }
+                    if v.is_empty() { config_runtime_paths::estop_state_file_path() } else { v }
                 },
                 estop_require_otp_to_resume: security_cfg.estop.require_otp_to_resume,
                 // 系统调用异常检测配置

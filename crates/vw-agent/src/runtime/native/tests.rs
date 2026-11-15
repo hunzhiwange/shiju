@@ -84,11 +84,11 @@ mod tests {
 
         assert_eq!(
             storage_path_from_home_dir(Some(home)),
-            vw_config_types::paths::home_config_dir(home)
+            config_runtime_paths::home_config_dir(home)
         );
         assert_eq!(
             storage_path_from_home_dir(None),
-            PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            PathBuf::from(config_runtime_paths::HOME_CONFIG_DIR_NAME)
         );
     }
 

@@ -46,7 +46,7 @@ fn configure(host: &str, port: u16) {
         }],
         "external-test".into(),
     );
-    let path = vw_config_types::paths::home_config_dir(std::env::var_os("HOME").unwrap())
+    let path = config_runtime_paths::home_config_dir(std::env::var_os("HOME").unwrap())
         .join("gateway-client-bootstrap.json");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, serde_json::to_vec(&config).unwrap()).unwrap();

@@ -360,7 +360,7 @@ fn run_tenant_operation<T>(
 
 fn resolve_session_data_dir() -> PathBuf {
     let paths = crate::global::paths();
-    let session_data_dir = vw_config_types::paths::home_config_dir(&paths.home);
+    let session_data_dir = config_runtime_paths::home_config_dir(&paths.home);
     let _ = std::fs::create_dir_all(session_data_dir.join("storage").join("session"));
     backfill_scope_project_metadata(&session_data_dir, &paths.data.join("storage").join("project"));
     tracing::debug!(

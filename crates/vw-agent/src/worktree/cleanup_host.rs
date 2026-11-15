@@ -21,7 +21,7 @@ impl HostCleanup {
     /// OS ownership deduplicates gateways sharing a home, independent of UI connections.
     /// Dropping the owner cancels future passes; an in-flight removal finishes safely.
     pub fn start() -> Result<Self, Error> {
-        let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+        let root = config_runtime_paths::home_config_dir(&crate::global::paths().home)
             .join("storage")
             .join("worktree-cleanup");
         std::fs::create_dir_all(&root)?;

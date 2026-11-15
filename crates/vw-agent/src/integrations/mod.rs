@@ -310,7 +310,7 @@ fn show_integration_info(config: &Config, name: &str) -> Result<()> {
             println!("  Built-in:");
             println!(
                 "    Schedule tasks in {}/",
-                vw_config_types::paths::tilde_config_path("workspace/cron")
+                config_runtime_paths::tilde_config_path("workspace/cron")
             );
             println!("    Run: shiju cron list");
         }

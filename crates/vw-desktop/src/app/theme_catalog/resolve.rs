@@ -23,7 +23,7 @@ thread_local! {
 
 /// 返回 `home_config_dir/themes` 路径。
 pub fn themes_root(home: impl AsRef<Path>) -> PathBuf {
-    vw_config_types::paths::home_config_dir(home).join("themes")
+    config_runtime_paths::home_config_dir(home).join("themes")
 }
 
 /// 测试用：覆盖默认 themes 根目录；传入 `None` 恢复。

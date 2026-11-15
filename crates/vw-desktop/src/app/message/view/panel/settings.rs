@@ -963,7 +963,7 @@ fn restart_application() -> Result<(), String> {
 #[cfg(not(target_arch = "wasm32"))]
 fn install_cli_tool() -> Result<String, String> {
     let home = resolve_home_dir()?;
-    let install_dir = vw_config_types::paths::home_config_dir(&home).join("bin");
+    let install_dir = config_runtime_paths::home_config_dir(&home).join("bin");
     fs::create_dir_all(&install_dir).map_err(|e| format!("创建安装目录失败: {e}"))?;
 
     let target_name = if cfg!(windows) { "shiju.exe" } else { "shiju" };
@@ -978,8 +978,8 @@ fn install_cli_tool() -> Result<String, String> {
     } else {
         return Err(format!(
             "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 {}\n2) 重命名为 shiju 或 shiju.exe\n3) 确保 PATH 包含 {} 后重启终端",
-            vw_config_types::paths::tilde_config_path("bin"),
-            vw_config_types::paths::tilde_config_path("bin")
+            config_runtime_paths::tilde_config_path("bin"),
+            config_runtime_paths::tilde_config_path("bin")
         ));
     }
 
@@ -1223,7 +1223,7 @@ fn extract_version_output(stdout: Vec<u8>, stderr: Vec<u8>) -> Result<String, St
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_cli_binary_path() -> Result<PathBuf, String> {
     let home = resolve_home_dir()?;
-    let cli_path = vw_config_types::paths::home_config_dir(home)
+    let cli_path = config_runtime_paths::home_config_dir(home)
         .join("bin")
         .join(if cfg!(windows) { "shiju.exe" } else { "shiju" });
     if cli_path.exists() {

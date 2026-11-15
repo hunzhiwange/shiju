@@ -182,7 +182,7 @@ async fn path_get_reports_global_and_instance_paths() {
     let home = directories::UserDirs::new().unwrap();
     assert_eq!(
         info.task_worktrees_root,
-        vw_config_types::paths::task_worktrees_dir(home.home_dir()).to_string_lossy()
+        config_runtime_paths::task_worktrees_dir(home.home_dir()).to_string_lossy()
     );
     assert!(!info.state.is_empty());
     assert!(!info.config.is_empty());

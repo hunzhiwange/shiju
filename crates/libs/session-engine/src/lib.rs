@@ -4,6 +4,9 @@ pub mod capability_policy;
 
 pub mod child_agent;
 pub mod context_injection;
+pub mod compaction_budget;
+pub mod invoked_skill_context;
+pub mod request_overflow;
 pub mod fork_execution;
 pub mod binding_store;
 pub mod admission;

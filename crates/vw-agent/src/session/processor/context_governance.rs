@@ -9,16 +9,12 @@ use serde_json::Value;
 pub(crate) const RECENT_TOOL_RESULTS_TO_KEEP: usize = 8;
 pub(crate) const STALE_TOOL_RESULT_PLACEHOLDER: &str =
     "[Earlier tool result cleared to preserve conversation context]";
-pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 90;
+// Compaction threshold constants are owned by session_engine::compaction_budget.
 
 const INVOKED_SKILL_SOURCE_FIELD: &str = "vw_invoked_skill_source";
 
 /// 重放技能时恢复的上下文更新，顺序与技能调用顺序一致。
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct InvokedSkillContextUpdate {
-    pub(crate) key: String,
-    pub(crate) value: Value,
-}
+pub(crate) use session_engine::invoked_skill_context::InvokedSkillContextUpdate;
 
 const ESTIMATED_CHARS_PER_TOKEN: u64 = 4;
 // Image data is encoded as a transport payload, not as text tokens. Counting
@@ -40,59 +36,10 @@ pub(crate) struct ContextCompactionDecision {
     pub(crate) needs_internal_compaction: bool,
 }
 
-/// 计算可用于当前请求输入的窗口。
-///
-/// 显式输入限制优先；没有输入限制时，从总窗口中预留最大输出空间。
-pub(crate) fn effective_input_window(limit: &ModelLimit) -> u64 {
-    model_state::effective_input_window(limit)
-}
-
-/// Unknown windows use the existing runtime fallback, not a claimed provider capability.
-pub(crate) fn compaction_context_window(limit: &ModelLimit) -> u64 {
-    if limit.context > 0 {
-        limit.context
-    } else {
-        limit
-            .input
-            .filter(|input| *input > 0)
-            .unwrap_or(model_state::DEFAULT_MODEL_CONTEXT_LIMIT)
-    }
-}
-
-/// Reserve the summary's request allocation, never the model's entire output capacity.
-pub(crate) fn summary_output_budget(limit: &ModelLimit) -> u64 {
-    let output = if limit.output > 0 {
-        limit.output
-    } else {
-        model_state::DEFAULT_MODEL_OUTPUT_LIMIT
-    };
-    output.min(20_000).min((compaction_context_window(limit) / 4).max(1))
-}
-
-pub(crate) fn compaction_input_window(limit: &ModelLimit) -> u64 {
-    let context = compaction_context_window(limit);
-    let input = limit.input.filter(|input| *input > 0).unwrap_or(context);
-    // An input-only limit does not describe a combined input/output window.
-    if limit.context == 0 && limit.input.is_some_and(|input| input > 0) {
-        input
-    } else {
-        input.min(context.saturating_sub(summary_output_budget(limit)))
-    }
-}
-
-/// 判断当前输入是否达到自动压缩边界。
-pub(crate) fn should_compact(input_tokens: u64, limit: &ModelLimit) -> bool {
-    let window = compaction_input_window(limit);
-    if window == 0 {
-        return input_tokens > 0;
-    }
-
-    let total = compaction_context_window(limit);
-    let threshold = ((u128::from(total) * u128::from(AUTO_COMPACTION_THRESHOLD_PERCENT))
-        .div_ceil(100) as u64)
-        .min(window);
-    input_tokens >= threshold
-}
+pub(crate) use session_engine::compaction_budget::{
+    effective_input_window, summary_output_budget,
+    compaction_input_window, should_compact,
+};
 
 fn estimate_bytes_as_tokens(bytes: usize) -> u64 {
     (bytes as u64).saturating_add(ESTIMATED_CHARS_PER_TOKEN - 1) / ESTIMATED_CHARS_PER_TOKEN

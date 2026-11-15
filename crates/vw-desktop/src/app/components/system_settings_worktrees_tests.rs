@@ -1,6 +1,6 @@
 use crate::app::message::settings::worktrees::{WorktreeSettingsMessage as Event, apply};
 use crate::app::state::{WorktreeSettingsIdentity as Identity, WorktreeSettingsState as State};
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 fn identity() -> Identity {
     Identity {

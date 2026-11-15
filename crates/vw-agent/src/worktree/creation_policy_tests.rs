@@ -2,7 +2,7 @@ use super::creation_policy::prepare;
 use crate::project;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 fn git(path: &Path, args: &[&str]) -> String {
     let output = Command::new("git").arg("-C").arg(path).args(args).output().unwrap();

@@ -41,7 +41,7 @@ async fn context(
 }
 async fn settings(
     scope: &ProjectScope,
-) -> Result<vw_config_types::worktree::WorktreeSettings, ApiError> {
+) -> Result<config_worktree::WorktreeSettings, ApiError> {
     Ok(crate::config::get_global_for_tenant(scope.tenant_scope())
         .await
         .map_err(error)?

@@ -8,6 +8,7 @@ description = "Configuration types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+config-worktree = { path = "../libs/config-worktree", version = "0.6.0" }
 config-agent = { path = "../libs/config-agent", version = "0.6.0" }
 config-agent-profile = { path = "../libs/config-agent-profile", version = "0.6.0" }
 config-tools = { path = "../libs/config-tools", version = "0.6.0" }

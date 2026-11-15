@@ -38,7 +38,7 @@ fn worktree_cleanup_flow_rejects_stale_confirmation() {
 #[test]
 fn worktree_cleanup_flow_ignored_files_require_separate_acknowledgement() {
     let mut app = app();
-    app.worktree_settings.saved = Some(vw_config_types::worktree::WorktreeSettings {
+    app.worktree_settings.saved = Some(config_worktree::WorktreeSettings {
         ask_before_delete: false,
         ..Default::default()
     });

@@ -6,7 +6,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_worktree::*,
 };
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 fn invalid(error: impl std::fmt::Display) -> Error {
     Error::Invalid(error.to_string())

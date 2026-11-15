@@ -78,7 +78,7 @@ impl Harness {
                     Some("二进制修改将保存到恢复快照；忽略文件需要额外确认".into());
             }
             3 => {
-                state.draft = Some(vw_config_types::worktree::WorktreeSettings::default().into());
+                state.draft = Some(config_worktree::WorktreeSettings::default().into());
             }
             _ => {}
         }

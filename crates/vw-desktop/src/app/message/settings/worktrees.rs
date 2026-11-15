@@ -1,6 +1,6 @@
 //! Worktree policy editor events and gateway effects.
 use crate::app::state::{WorktreeSettingsIdentity, WorktreeSettingsState, WorktreesTab};
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 pub(crate) mod environment;
 mod managed;

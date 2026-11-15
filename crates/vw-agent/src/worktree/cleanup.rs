@@ -2,7 +2,7 @@
 use super::registry::Record;
 use serde::{Deserialize, Serialize};
 use vw_api_transport::id::ProjectScope;
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ProtectionReason {

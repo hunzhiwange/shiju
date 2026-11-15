@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{project, shell::git_tokio_command};
 use std::path::{Path, PathBuf};
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 pub(super) async fn prepare(
     project: &project::Info,

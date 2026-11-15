@@ -38,7 +38,7 @@ use crate::tools::{
     BrowserConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig, WebSearchConfig,
 };
 use crate::ui::AppUiConfig;
-use crate::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 /// ACP 代理进程配置。
 ///

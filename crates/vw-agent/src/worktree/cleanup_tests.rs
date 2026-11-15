@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 fn scope(project: &str) -> ProjectScope {
     ProjectScope::for_default_tenant(ProjectId::from(project)).unwrap()

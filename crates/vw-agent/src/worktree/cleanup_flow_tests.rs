@@ -12,7 +12,7 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_worktree::DeleteManagedWorktreeRequest,
 };
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 // A process owns all lazy stores and environment variables. Never mutate a live
 // test runner's environment or share tenant databases with a parallel fixture.

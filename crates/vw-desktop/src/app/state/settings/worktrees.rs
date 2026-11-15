@@ -1,5 +1,5 @@
 //! Gateway-owned worktree policy and its unsubmitted editor draft.
-use vw_config_types::worktree::WorktreeSettings;
+use config_worktree::WorktreeSettings;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum WorktreesTab {

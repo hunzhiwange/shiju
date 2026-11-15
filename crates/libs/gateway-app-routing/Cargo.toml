@@ -4,6 +4,9 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 
+[lib]
+doctest = false
+
 [dependencies]
 vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
 vw-api-app-routing = { path = "../api-app-routing", version = "0.6.0" }
@@ -12,7 +15,7 @@ gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 serde = "1"
-serde_json = "1"
+serde_json = { version = "1", features = ["raw_value"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
@@ -22,3 +25,19 @@ reqwest = { version = "0.13", features = ["json"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+axum = { version = "0.8.8", default-features = false, features = ["json"] }
+agent-gateway = { path = "../agent-gateway", version = "0.6.0" }
+app-routing-policy = { path = "../app-routing-policy", version = "0.6.0" }
+tokio = { version = "1", features = ["rt", "net", "time", "macros"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+desktop-release = { path = "../desktop-release", version = "0.6.0" }
+app-routing-services = { path = "../app-routing-services", version = "0.6.0" }
+app-access-service = { path = "../app-access-service", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+vw-api-app-failover = { path = "../api-app-failover", version = "0.6.0" }
+secret-store = { path = "../secret-store", version = "0.6.0" }
+anyhow = "1"
+tracing = "0.1"

@@ -45,3 +45,6 @@ impl GatewayAppRoutingClient {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod test_support;
+
+#[cfg(target_os = "macos")]
+pub mod server;

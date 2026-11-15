@@ -1,0 +1,22 @@
+//! Server-side application routing HTTP contracts.
+mod error;
+mod config_body;
+pub use error::ControlError;
+pub use config_body::{ConfigBody, decode};
+mod observation;
+mod client_host;
+mod request_status;
+pub use observation::RoutingObservation;
+pub use client_host::{get_client_host, put_client_host};
+pub use request_status::request_status;
+mod lifecycle_read;
+pub use lifecycle_read::{status, health};
+mod diagnostics;
+pub use diagnostics::RoutingDiagnostics;
+pub mod outbound_scan;
+pub mod outbound_probe;
+pub use diagnostics::{ProbeEgress, RoutingProbe};
+pub mod lifecycle_api;
+pub mod config_api;
+pub mod outbound_api;
+pub mod mode_attach;

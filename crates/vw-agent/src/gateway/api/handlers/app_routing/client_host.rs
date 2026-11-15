@@ -1,37 +1,24 @@
-//! Authorized host observations. Updating awaits an executor-wide native transaction.
+//! Concrete host wiring for routing client-host endpoints.
 use super::lifecycle_api::{ControlError, RoutingControl};
 use axum::{Extension, Json, extract::{Path, rejection::JsonRejection}, http::HeaderMap};
-use {
-    vw_api_app_routing::RoutingClientHost,
-    vw_api_app_routing::RoutingClientHostUpdate,
-    vw_api_app_routing::normalize_routing_client_host,
-    vw_api_app_routing::routing_client_host_from_bind,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_routing::{RoutingClientHost, RoutingClientHostUpdate};
+use vw_api_transport::id::TenantScope;
 
 pub(crate) async fn get_client_host(
     control: Option<Extension<RoutingControl>>,
-    Extension(tenant): Extension<TenantScope>,
-    Path(host): Path<String>,
+    tenant: Extension<TenantScope>,
+    host: Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<RoutingClientHost>, ControlError> {
-    let (control, _) = RoutingControl::authorize(control, headers, tenant, host, None, false).await?;
-    let bind = control.config().await?.bind.ip();
-    Ok(Json(RoutingClientHost { host: None, effective_host: routing_client_host_from_bind(bind) }))
+    gateway_app_routing::server::get_client_host(control, tenant, host, headers).await
 }
 
 pub(crate) async fn put_client_host(
     control: Option<Extension<RoutingControl>>,
-    Extension(tenant): Extension<TenantScope>,
-    Path(host): Path<String>,
+    tenant: Extension<TenantScope>,
+    host: Path<String>,
     headers: HeaderMap,
     body: Result<Json<RoutingClientHostUpdate>, JsonRejection>,
 ) -> Result<Json<RoutingClientHost>, ControlError> {
-    let _ = RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
-    let Json(input) = body.map_err(|_| ControlError::InvalidConfig)?;
-    normalize_routing_client_host(input.host.as_deref()).map_err(|_| ControlError::InvalidConfig)?;
-    // TODO(task 87): require one native transaction that authorizes every affected
-    // project/app, reprojects all attachments and commits the host only on success.
-    // Neither changing a setting first nor replaying independent mode writes is atomic.
-    Err(ControlError::ClientProjectionUnsupported)
+    gateway_app_routing::server::put_client_host(control, tenant, host, headers, body).await
 }

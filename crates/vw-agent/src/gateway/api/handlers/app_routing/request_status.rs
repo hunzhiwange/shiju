@@ -1,27 +1,15 @@
+//! Concrete host wiring for request observations.
 use super::lifecycle_api::{ControlError, RoutingControl};
 use axum::{Extension, Json, extract::Path, http::HeaderMap};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_app_routing::RoutingRequestsStatus,
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_routing::RoutingRequestsStatus;
+use vw_api_transport::id::{ProjectId, TenantScope};
+
 pub(crate) async fn request_status(
     control: Option<Extension<RoutingControl>>,
-    Extension(tenant): Extension<TenantScope>,
-    Path((host, project, app)): Path<(String, ProjectId, AppId)>,
+    tenant: Extension<TenantScope>,
+    path: Path<(String, ProjectId, AppId)>,
     headers: HeaderMap,
 ) -> Result<Json<RoutingRequestsStatus>, ControlError> {
-    let (control, _) = RoutingControl::authorize(
-        control,
-        headers,
-        tenant.clone(),
-        host.clone(),
-        Some((project.clone(), app)),
-        false,
-    )
-    .await?;
-    let project = ProjectScope::new(tenant, project).map_err(|_| ControlError::InvalidInput)?;
-    Ok(Json(control.routing.request_status(&project, &host, app)))
+    gateway_app_routing::server::request_status(control, tenant, path, headers).await
 }

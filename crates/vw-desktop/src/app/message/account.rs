@@ -149,7 +149,7 @@ pub(crate) enum AccountMessage {
 /// 在后台加载账号仓储，并将结果送回账号消息循环。
 pub(crate) fn load_repository() -> Task<Message> {
     Task::perform(
-        async { crate::app::account::load_repository() },
+        async { AccountRepository::load().map_err(|error| error.to_string()) },
         |result| Message::Account(AccountMessage::RepositoryLoaded(result)),
     )
 }
@@ -174,7 +174,7 @@ fn persist_task(
 ) -> Task<Message> {
     Task::perform(
         async move {
-            crate::app::account::save_repository(&repository)?;
+            repository.save().map_err(|error| error.to_string())?;
             Ok(repository)
         },
         move |result| {
@@ -252,7 +252,7 @@ fn profile_update_task(
 fn profile_persist_task(repository: AccountRepository, generation: u64) -> Task<Message> {
     Task::perform(
         async move {
-            crate::app::account::save_repository(&repository)?;
+            repository.save().map_err(|error| error.to_string())?;
             Ok(repository)
         },
         move |result| Message::Account(AccountMessage::ProfilePersisted { generation, result }),

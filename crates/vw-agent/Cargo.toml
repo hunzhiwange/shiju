@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+acp-client = { path = "../libs/acp-client", version = "0.6.0" }
 question-types = { path = "../libs/question-types", version = "0.6.0" }
 permission-types = { path = "../libs/permission-types", version = "0.6.0" }
 vw-api-todo = { path = "../libs/api-todo", version = "0.6.0" }

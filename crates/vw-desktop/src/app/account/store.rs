@@ -10,22 +10,27 @@ use std::fs::{self, OpenOptions};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
 use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 use vw_gateway_client::ShijuAccountMeDto;
 
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
+#[cfg(not(target_arch = "wasm32"))]
+const STORE_FILE_NAME: &str = "shiju-accounts.json";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 /// 记录账号凭据进入仓储的登录来源。
-pub enum AccountOrigin {
+pub(crate) enum AccountOrigin {
     ManualSkey,
     BrowserLogin,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 仓储中的账号记录；密钥保持私有，只通过受控访问器使用。
-pub struct StoredAccount {
+pub(crate) struct StoredAccount {
     id: String,
     identity: AccountIdentity,
     profile: Option<AccountProfile>,
@@ -34,15 +39,15 @@ pub struct StoredAccount {
 }
 
 impl StoredAccount {
-    pub fn id(&self) -> &str {
+    pub(crate) fn id(&self) -> &str {
         &self.id
     }
 
-    pub fn identity(&self) -> &AccountIdentity {
+    pub(crate) fn identity(&self) -> &AccountIdentity {
         &self.identity
     }
 
-    pub fn profile(&self) -> Option<&AccountProfile> {
+    pub(crate) fn profile(&self) -> Option<&AccountProfile> {
         self.profile.as_ref()
     }
 
@@ -58,34 +63,34 @@ impl StoredAccount {
 
     #[allow(dead_code)]
     /// 为异步技能中心任务复制凭据，避免暴露仓储内部记录。
-    pub fn skill_hub_credential(&self) -> SecretSkey {
+    pub(crate) fn skill_hub_credential(&self) -> SecretSkey {
         self.skey.clone()
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// 多账号仓储，保证账号 ID 唯一且活动账号至多一个。
-pub struct AccountRepository {
+pub(crate) struct AccountRepository {
     accounts: Vec<StoredAccount>,
     active_account_id: Option<String>,
 }
 
 impl AccountRepository {
-    pub fn accounts(&self) -> &[StoredAccount] {
+    pub(crate) fn accounts(&self) -> &[StoredAccount] {
         &self.accounts
     }
 
-    pub fn active_account_id(&self) -> Option<&str> {
+    pub(crate) fn active_account_id(&self) -> Option<&str> {
         self.active_account_id.as_deref()
     }
 
-    pub fn active_account(&self) -> Option<&StoredAccount> {
+    pub(crate) fn active_account(&self) -> Option<&StoredAccount> {
         let active_id = self.active_account_id.as_deref()?;
         self.accounts.iter().find(|account| account.id == active_id)
     }
 
     /// 按密钥派生的稳定 ID 插入或替换账号，并将其设为活动账号。
-    pub fn upsert_verified(
+    pub(crate) fn upsert_verified(
         &mut self,
         verified: VerifiedAccount,
         origin: AccountOrigin,
@@ -103,7 +108,7 @@ impl AccountRepository {
     }
 
     /// 激活指定账号；不存在的 ID 返回错误且不改变当前选择。
-    pub fn activate(&mut self, id: &str) -> Result<(), AccountStoreError> {
+    pub(crate) fn activate(&mut self, id: &str) -> Result<(), AccountStoreError> {
         if !self.accounts.iter().any(|account| account.id == id) {
             return Err(AccountStoreError::new("无法激活不存在的账户"));
         }
@@ -112,12 +117,12 @@ impl AccountRepository {
     }
 
     /// 退出当前账号但保留所有已保存记录，便于稍后重新选择。
-    pub fn sign_out(&mut self) {
+    pub(crate) fn sign_out(&mut self) {
         self.active_account_id = None;
     }
 
     /// 删除指定账号；若其为活动账号，同时清除活动选择。
-    pub fn remove(&mut self, id: &str) -> Result<(), AccountStoreError> {
+    pub(crate) fn remove(&mut self, id: &str) -> Result<(), AccountStoreError> {
         let Some(index) = self.accounts.iter().position(|account| account.id == id) else {
             return Err(AccountStoreError::new("无法删除不存在的账户"));
         };
@@ -129,7 +134,7 @@ impl AccountRepository {
     }
 
     /// 使用网关响应刷新活动账号资料，不改变其身份和凭据。
-    pub fn refresh_active_profile(
+    pub(crate) fn refresh_active_profile(
         &mut self,
         dto: ShijuAccountMeDto,
     ) -> Result<(), AccountStoreError> {
@@ -164,9 +169,21 @@ impl AccountRepository {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn load() -> Result<Self, AccountStoreError> {
+        let path = default_path()?;
+        Self::load_from(&path)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn save(&self) -> Result<(), AccountStoreError> {
+        let path = default_path()?;
+        self.save_to(&path)
+    }
+
     /// 从指定文件加载并校验仓储，同时兼容缺少资料字段的旧记录。
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn load_from(path: &Path) -> Result<Self, AccountStoreError> {
+    pub(crate) fn load_from(path: &Path) -> Result<Self, AccountStoreError> {
         let bytes = match fs::read(path) {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -225,7 +242,7 @@ impl AccountRepository {
 
     /// 以仅限当前用户的权限写入账号文件，并在写入前验证仓储不变量。
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn save_to(&self, path: &Path) -> Result<(), AccountStoreError> {
+    pub(crate) fn save_to(&self, path: &Path) -> Result<(), AccountStoreError> {
         self.validate().map_err(|error| AccountStoreError::at(path, error.message))?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
@@ -273,7 +290,7 @@ impl AccountRepository {
 
     // Browser credentials live only for the current tab session.
     #[cfg(target_arch = "wasm32")]
-    pub fn load() -> Result<Self, AccountStoreError> {
+    pub(crate) fn load() -> Result<Self, AccountStoreError> {
         let storage = browser_storage()?;
         let value = storage
             .get_item("shiju-accounts")
@@ -285,7 +302,7 @@ impl AccountRepository {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn save(&self) -> Result<(), AccountStoreError> {
+    pub(crate) fn save(&self) -> Result<(), AccountStoreError> {
         let bytes = self.encode(Path::new("浏览器会话"))?;
         let value = std::str::from_utf8(&bytes)
             .map_err(|_| AccountStoreError::new("无法编码浏览器账户存储"))?;
@@ -313,6 +330,13 @@ fn browser_storage() -> Result<web_sys::Storage, AccountStoreError> {
     web_sys::window()
         .and_then(|window| window.session_storage().ok().flatten())
         .ok_or_else(|| AccountStoreError::new("浏览器会话存储不可用"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn default_path() -> Result<PathBuf, AccountStoreError> {
+    crate::app::project_dirs()
+        .map(|directories| directories.config_dir().join(STORE_FILE_NAME))
+        .ok_or_else(|| AccountStoreError::new("无法确定账户配置目录"))
 }
 
 fn account_id(skey: &SecretSkey) -> String {
@@ -366,7 +390,7 @@ impl From<&AccountProfile> for StoreProfile {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 账号仓储加载、校验或写入失败。
-pub struct AccountStoreError {
+pub(crate) struct AccountStoreError {
     message: String,
 }
 

@@ -960,14 +960,14 @@ async fn acp_diagnostic_post(
     }
     let _guard = AcpProbeGuard(id.clone());
     let result =
-        vw_acp::AcpClient::new("diagnostic", config).diagnose_connection(cancellation).await;
+        acp_client::AcpClient::new("diagnostic", config).diagnose_connection(cancellation).await;
     let status = match result {
-        vw_acp::ConnectionDiagnostic::StartupFailed => "startup_failed",
-        vw_acp::ConnectionDiagnostic::HandshakeFailed => "handshake_failed",
-        vw_acp::ConnectionDiagnostic::AuthenticationRequired => "authentication_required",
-        vw_acp::ConnectionDiagnostic::Connected => "connected",
-        vw_acp::ConnectionDiagnostic::TimedOut => "timed_out",
-        vw_acp::ConnectionDiagnostic::Cancelled => "cancelled",
+        acp_client::ConnectionDiagnostic::StartupFailed => "startup_failed",
+        acp_client::ConnectionDiagnostic::HandshakeFailed => "handshake_failed",
+        acp_client::ConnectionDiagnostic::AuthenticationRequired => "authentication_required",
+        acp_client::ConnectionDiagnostic::Connected => "connected",
+        acp_client::ConnectionDiagnostic::TimedOut => "timed_out",
+        acp_client::ConnectionDiagnostic::Cancelled => "cancelled",
     };
     Ok(Json(status.into()))
 }

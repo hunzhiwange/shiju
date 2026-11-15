@@ -31,7 +31,7 @@ use acp_agent_registry::agent_registry;
 pub mod cli;
 mod cli_core;
 mod cli_public;
-mod client;
+use acp_client as client;
 use acp_config::config;
 use acp_host_io::filesystem;
 use acp_config::mcp_servers;
@@ -68,9 +68,6 @@ mod version;
 #[cfg(test)]
 #[path = "access_policy_tests.rs"]
 mod access_policy_tests;
-#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
-#[path = "client/claude_fallback_acceptance.rs"]
-mod claude_fallback_acceptance;
 #[cfg(test)]
 #[path = "queue_owner_env_tests.rs"]
 mod queue_owner_env_tests;

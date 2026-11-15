@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/libs/desktop-account",
   "crates/libs/question-types",
   "crates/libs/desktop-assets",
   "crates/libs/permission-types",
@@ -75,6 +74,7 @@ members = [
   "crates/libs/plugin-types",
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
+  "crates/libs/acp-client",
   "crates/libs/acp-lifecycle",
   "crates/libs/acp-async-control",
   "crates/libs/acp-agent-registry",

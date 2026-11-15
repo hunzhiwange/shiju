@@ -53,7 +53,7 @@ use cli_interaction_model::{
     UiOverlay, UiPermissionOverlay, UiStepState, UiTodoOverlay, UiTurnTerminal, UiUserMessage,
 };
 use cli_gateway_runtime::capabilities::load_session_capabilities_blocking;
-use cli_gateway_runtime::cron::{
+use cli_gateway_automation::cron::{
     CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
@@ -69,7 +69,7 @@ use cli_gateway_runtime::integrations::{
     mutate_memory_and_refresh_blocking, query_memory_blocking, set_integration_enabled_blocking,
 };
 use cli_gateway_transport::interaction::InteractionSnapshot;
-use cli_gateway_runtime::orchestration::{
+use cli_gateway_automation::orchestration::{
     control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
 };
@@ -79,7 +79,7 @@ use cli_gateway_session::plan_run::{
 use cli_gateway_session::session_diff::load_session_diff_blocking;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
-use cli_gateway_runtime::workflow_run::{
+use cli_gateway_automation::workflow_run::{
     OwnedWorkflowRunRequest, WorkflowRunOwnership, resume_workflow_run_blocking,
     stream_workflow_run_blocking, workflow_run_request,
 };

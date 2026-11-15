@@ -22,16 +22,16 @@ use super::commands::{
 };
 use cli_interaction_model::UiOverlay;
 use cli_interaction_model::background_task::{CanonicalTaskStatus, TaskControlAction};
-use cli_gateway_runtime::cron::{
+use cli_gateway_automation::cron::{
     CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
 use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime, block_on_gateway};
-use cli_gateway_runtime::orchestration::{
+use cli_gateway_automation::orchestration::{
     control_owned_task_blocking, load_orchestration, load_owned_task_detail_blocking,
     load_owned_workflow_detail_blocking,
 };
-use cli_gateway_runtime::workflow_run::WorkflowRunOwnership;
+use cli_gateway_automation::workflow_run::WorkflowRunOwnership;
 use cli_interaction_state::{TuiAction, TuiState, reduce_tui_state};
 
 fn runtime(port: u16) -> GatewayUiRuntime {

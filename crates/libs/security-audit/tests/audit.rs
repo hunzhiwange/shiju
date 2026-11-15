@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tempfile::TempDir;
-use vibe_agent::app::agent::config::AuditConfig;
-use vibe_agent::app::agent::security::audit::{
+use vw_config_types::security::AuditConfig;
+use security_audit::{
     AuditEvent, AuditEventType, AuditLogger, CommandExecutionLog,
 };
 

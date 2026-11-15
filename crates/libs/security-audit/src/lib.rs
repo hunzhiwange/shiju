@@ -18,7 +18,7 @@
 //! ## 使用示例
 //!
 //! ```ignore
-//! use vibe_agent::security::audit::{AuditLogger, AuditEvent, AuditEventType};
+//! use security_audit::{AuditLogger, AuditEvent, AuditEventType};
 //!
 //! // 创建审计事件
 //! let event = AuditEvent::new(AuditEventType::CommandExecution)
@@ -30,7 +30,7 @@
 //! logger.log(&event)?;
 //! ```
 
-use crate::app::agent::config::AuditConfig;
+use vw_config_types::security::AuditConfig;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
@@ -447,7 +447,7 @@ impl AuditLogger {
     /// # 示例
     ///
     /// ```ignore
-    /// use vibe_agent::config::AuditConfig;
+    /// use vw_config_types::security::AuditConfig;
     /// use std::path::PathBuf;
     ///
     /// let config = AuditConfig::default();

@@ -42,7 +42,7 @@
 //! 4. **可审计性**：所有安全相关操作可追踪
 
 /// 安全审计模块：记录安全相关事件（如认证失败、策略违规等）
-pub mod audit;
+pub use security_audit as audit;
 
 /// Bubblewrap 沙箱模块：使用 Flatpak 的 Bubblewrap 实现轻量级命名空间隔离
 /// 需启用 `sandbox-bubblewrap` 特性

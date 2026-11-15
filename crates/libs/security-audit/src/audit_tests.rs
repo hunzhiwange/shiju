@@ -1,7 +1,7 @@
 //! 验证安全审计事件构造、JSONL 写入、轮转与文件错误传播。
 
 use super::*;
-use crate::app::agent::config::AuditConfig;
+use vw_config_types::security::AuditConfig;
 
 #[test]
 fn audit_event_builder_preserves_actor_action_and_result() {

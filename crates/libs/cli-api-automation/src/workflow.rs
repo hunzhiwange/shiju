@@ -15,7 +15,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum WorkflowCommands {
+pub enum WorkflowCommands {
     /// 恢复暂停的 Workflow 运行。
     Resume {
         #[arg(long, value_parser = required)]
@@ -60,7 +60,7 @@ pub(super) enum WorkflowCommands {
 }
 
 impl WorkflowCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Resume { .. } => Some("resume workflow run".to_string()),
             Self::Create { .. } => Some("create workflow application".to_string()),
@@ -75,7 +75,7 @@ impl WorkflowCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: WorkflowCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

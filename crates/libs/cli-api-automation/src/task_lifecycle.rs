@@ -12,7 +12,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum TaskLifecycleCommands {
+pub enum TaskLifecycleCommands {
     List,
     Create {
         #[arg(long, value_parser = required)]
@@ -39,7 +39,7 @@ pub(super) enum TaskLifecycleCommands {
 }
 
 impl TaskLifecycleCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Create { .. } => Some("create task lifecycle workflow".to_string()),
             Self::Update { id, .. } => Some(format!("update task lifecycle workflow '{id}'")),
@@ -50,7 +50,7 @@ impl TaskLifecycleCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: TaskLifecycleCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

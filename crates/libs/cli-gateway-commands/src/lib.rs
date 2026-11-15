@@ -17,14 +17,14 @@ use cli_api_workspace::knowledge::{self, KnowledgeCommands};
 use self::operations::OperationsCommands;
 use cli_api_workspace::project::{self, ProjectCommands};
 use cli_api_session::realtime::{self, RealtimeCommands};
-use self::scheduler::SchedulerCommands;
+use cli_api_automation::scheduler::{self, SchedulerCommands};
 use cli_api_session::session::{self, SessionCommands};
 use cli_api_session::session_content::{self, SessionContentCommands};
 use self::shiju_apps::ShijuAppsCommands;
 use self::skill_market::SkillMarketCommands;
-use self::task_lifecycle::TaskLifecycleCommands;
-use self::task_pool::TaskPoolCommands;
-use self::workflow::WorkflowCommands;
+use cli_api_automation::task_lifecycle::{self, TaskLifecycleCommands};
+use cli_api_automation::task_pool::{self, TaskPoolCommands};
+use cli_api_automation::workflow::{self, WorkflowCommands};
 use cli_api_workspace::workspace::{self, WorkspaceCommands};
 
 mod config;
@@ -32,13 +32,9 @@ mod control;
 mod desktop;
 mod extensions;
 mod operations;
-mod scheduler;
 mod shiju_apps;
 mod skill_market;
 mod system;
-mod task_lifecycle;
-mod task_pool;
-mod workflow;
 
 use self::system::SystemCommands;
 

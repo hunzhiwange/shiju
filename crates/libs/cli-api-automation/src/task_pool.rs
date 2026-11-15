@@ -17,7 +17,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum TaskPoolCommands {
+pub enum TaskPoolCommands {
     Snapshot {
         #[arg(long, value_parser = required)]
         input: String,
@@ -53,7 +53,7 @@ pub(super) enum TaskPoolCommands {
 }
 
 impl TaskPoolCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Maintain { .. } => Some("maintain task-pool worktrees".to_string()),
             Self::Acquire { .. } => Some("acquire task-pool worktree lease".to_string()),
@@ -67,7 +67,7 @@ impl TaskPoolCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: TaskPoolCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

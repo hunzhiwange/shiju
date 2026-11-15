@@ -22,7 +22,7 @@ use cli_api_core::output;
 
 /// Agent Scheduler 的非流式用户与运维操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum SchedulerCommands {
+pub enum SchedulerCommands {
     /// 读取项目 workflow 快照。
     Workflow {
         #[arg(value_parser = required)]
@@ -108,7 +108,7 @@ pub(super) enum SchedulerCommands {
 }
 
 impl SchedulerCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::Create { project_id, .. } => {
                 Some(format!("create scheduler task in project '{project_id}'"))
@@ -140,7 +140,7 @@ impl SchedulerCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: SchedulerCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

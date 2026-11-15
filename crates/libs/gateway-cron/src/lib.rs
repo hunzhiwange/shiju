@@ -16,3 +16,10 @@ pub use types::*;
 mod cron_api;
 #[cfg(test)]
 mod test_support;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod handlers;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod requests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod state;

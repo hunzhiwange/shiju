@@ -1,12 +1,12 @@
 //! 将网关日期字段转换为领域调度；预览与写入共享校验和窗口计算。
-use super::super::super::types::{CronAddBody, CronUpdateBody};
-use crate::app::agent::cron::{self, CronJob, Schedule};
+use crate::requests::{CronAddBody, CronUpdateBody};
+use agent_cron::{self, CronJob, Schedule};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use serde_json::{Value, json};
 
 type Instant = DateTime<Utc>;
-pub(super) type WindowPatch = (Option<Option<Instant>>, Option<Option<Instant>>);
+pub type WindowPatch = (Option<Option<Instant>>, Option<Option<Instant>>);
 
 fn timezone(value: Option<&str>) -> Result<Tz, String> {
     value.unwrap_or("UTC").parse().map_err(|_| "timezone: invalid IANA timezone".into())
@@ -30,7 +30,7 @@ fn local_instant(local: NaiveDateTime, tz: Tz, field: &str) -> Result<Instant, S
         .ok_or_else(|| format!("{field}: local time is nonexistent or ambiguous in {tz}"))
 }
 
-pub(super) fn cron_add_schedule(body: &CronAddBody) -> Result<Schedule, String> {
+pub fn cron_add_schedule(body: &CronAddBody) -> Result<Schedule, String> {
     let tz = timezone(body.timezone.as_deref())?;
     let kind = super::effective_schedule_kind(body);
     if !matches!(kind.as_str(), "cron" | "at" | "every" | "biweekly") {
@@ -108,7 +108,7 @@ pub(super) fn cron_add_schedule(body: &CronAddBody) -> Result<Schedule, String> 
     }
 }
 
-pub(super) fn window_patch(
+pub fn window_patch(
     starts_at: &Option<Option<String>>,
     ends_at: &Option<Option<String>>,
     start_date: &Option<Option<String>>,
@@ -152,7 +152,7 @@ pub(super) fn window_patch(
     ))
 }
 
-pub(super) fn validate_candidates(
+pub fn validate_candidates(
     schedule: &Schedule,
     start: Option<Instant>,
     end: Option<Instant>,
@@ -182,7 +182,7 @@ pub(super) fn validate_candidates(
     Ok(candidates)
 }
 
-pub(super) fn schedule_json(schedule: &Schedule) -> Value {
+pub fn schedule_json(schedule: &Schedule) -> Value {
     match schedule {
         Schedule::Cron { expr, tz } => {
             json!({"schedule_kind":"cron", "schedule":expr, "expression":expr, "timezone":tz.as_deref().unwrap_or("UTC")})
@@ -199,7 +199,7 @@ pub(super) fn schedule_json(schedule: &Schedule) -> Value {
     }
 }
 
-pub(super) fn preview(body: &CronAddBody, now: Instant) -> Result<Value, String> {
+pub fn preview(body: &CronAddBody, now: Instant) -> Result<Value, String> {
     let schedule = cron_add_schedule(body)?;
     let (start, end) = window_patch(
         &body.starts_at,
@@ -219,7 +219,7 @@ pub(super) fn preview(body: &CronAddBody, now: Instant) -> Result<Value, String>
     )
 }
 
-pub(super) fn cron_update_schedule(
+pub fn cron_update_schedule(
     body: &CronUpdateBody,
     current: Option<&CronJob>,
 ) -> Result<Option<Schedule>, String> {

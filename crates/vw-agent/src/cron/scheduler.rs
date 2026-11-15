@@ -63,7 +63,7 @@ use agent_cron::scheduler::{cron_gateway_agent_request, format_gateway_agent_out
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use agent_cron::scheduler::cron_gateway_options;
 
-pub(super) struct Host;
+pub(crate) struct Host;
 #[async_trait::async_trait]
 impl agent_cron::scheduler::SchedulerHost for Host {
     async fn deliver_agent_job_to_task_pool(&self, config: &Config, job: &CronJob, prompt: &str, model: String) -> Result<String> {

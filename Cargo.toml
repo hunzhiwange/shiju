@@ -3,6 +3,7 @@ members = [
   "crates/libs/agent-async",
   "crates/libs/agent-context",
   "crates/libs/agent-identity",
+  "crates/libs/agent-log",
   "crates/libs/agent-paths",
   "crates/libs/agent-text",
   "crates/libs/app-routing-policy",

@@ -6,7 +6,7 @@ use super::analysis::{
 use super::assets::{ImageAssetScope, ImageAssetStore};
 use super::image_compression::{compress_image_bytes, per_image_output_budget};
 use super::ocr::{ImageTextExtractor, OCR_TEXT_MAX_CHARS};
-use crate::app::agent::config::MultimodalConfig;
+use config_tools::MultimodalConfig;
 use async_trait::async_trait;
 use image::{DynamicImage, ImageBuffer, ImageFormat, Rgb};
 use std::io::Cursor;

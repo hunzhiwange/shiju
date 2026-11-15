@@ -6,7 +6,7 @@ use super::ocr::{
     prepare_messages_with_ocr,
 };
 use super::{MultimodalError, parse_image_markers};
-use crate::app::agent::config::MultimodalConfig;
+use config_tools::MultimodalConfig;
 use model_types::ChatMessage;
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};

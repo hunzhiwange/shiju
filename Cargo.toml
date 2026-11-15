@@ -282,6 +282,7 @@ members = [
   "crates/libs/agent-identity-loader",
   "crates/libs/agent-log",
   "crates/libs/agent-paths",
+  "crates/libs/agent-multimodal",
   "crates/libs/computer-control",
   "crates/libs/agent-mcp",
   "crates/libs/agent-app-services",

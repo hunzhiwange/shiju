@@ -16,7 +16,7 @@ use super::{
     IMAGE_MARKER_PREFIX, MaterializedImage, MultimodalError, materialize_image_reference,
     parse_image_markers,
 };
-use crate::app::agent::config::MultimodalConfig;
+use config_tools::MultimodalConfig;
 use model_types::ChatMessage;
 use anyhow::Result;
 

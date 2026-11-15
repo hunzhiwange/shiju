@@ -134,7 +134,7 @@ impl ImageAssetStore {
 
     /// 使用进程全局持久 `data` 目录；不使用可版本清理的 cache。
     pub fn from_global_paths() -> Self {
-        Self::new(crate::global::paths().data.clone())
+        Self::new(agent_paths::paths().data.clone())
     }
 
     /// 存储根目录（`{data}/multimodal/image_assets`）。

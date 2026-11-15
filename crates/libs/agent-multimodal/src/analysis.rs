@@ -9,7 +9,7 @@ use super::ocr::{
     neutralize_untrusted_fragment, validated_model_ref,
 };
 use super::{IMAGE_MARKER_PREFIX, MultimodalError};
-use crate::app::agent::config::MultimodalConfig;
+use config_tools::MultimodalConfig;
 use anyhow::{Context, Result};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use parking_lot::Mutex;

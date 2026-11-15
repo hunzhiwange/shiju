@@ -1202,7 +1202,7 @@ fn resolve_gateway_git_context(
     git_directory: &str,
 ) -> Result<GatewayGitContext, String> {
     let client = crate::app::config::gateway_client()?;
-    let project = super::block_on_gateway(client.project_resolve(
+    let project = super::block_on_gateway(gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
         &crate::app::session_gateway::active_tenant_scope(),
         &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
             directory: project_path.to_string(),
@@ -1217,7 +1217,7 @@ fn resolve_gateway_git_context(
     }
 
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let worktree_id = super::block_on_gateway(client.project_worktrees(&project_scope))?
+    let worktree_id = super::block_on_gateway(gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope))?
         .items
         .into_iter()
         .find(|worktree| normalize_gateway_path(&worktree.directory) == target_directory)
@@ -1809,8 +1809,7 @@ fn lock_merge_target_via_gateway(
         let task_id = task.id.clone();
         let target_branch = target_branch.to_string();
         async move {
-            let project = client
-                .project_resolve(
+            let project = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
                     &crate::app::session_gateway::active_tenant_scope(),
                     &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
                         directory: project_path,

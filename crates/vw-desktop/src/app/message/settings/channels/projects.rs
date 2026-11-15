@@ -84,8 +84,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
             let client = client?;
             let mut projects = Vec::with_capacity(choices.len());
             for (directory, name) in choices {
-                let response = client
-                    .project_resolve(
+                let response = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
                         client.endpoint().tenant_scope(),
                         &ResolveProjectRequest { directory, create_if_missing: true },
                     )

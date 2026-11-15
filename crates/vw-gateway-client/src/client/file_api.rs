@@ -279,13 +279,12 @@ impl GatewayClient {
         )
         .map_err(|error| error.to_string())?;
         if let Some(worktree_id) = worktree_id {
-            return self
-                .worktree_get(&scope, worktree_id.as_ref())
+            return gateway_project::GatewayProjectClient::new(self.transport().clone()).worktree_get(&scope, worktree_id.as_ref())
                 .await
                 .map(|response| response.worktree.directory);
         }
 
-        self.project_get(&scope).await.map(|response| response.project.directory)
+        gateway_project::GatewayProjectClient::new(self.transport().clone()).project_get(&scope).await.map(|response| response.project.directory)
     }
 
     /// 递归列出目录，并构造统一的 `FileNodeDto` 树节点。

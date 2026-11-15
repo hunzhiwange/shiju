@@ -287,7 +287,7 @@ pub(super) async fn load_git_worktree_options(
     });
 
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let mut worktrees = client.project_worktrees(&project_scope).await?.items;
+    let mut worktrees = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope).await?.items;
     worktrees.sort_by(|left, right| {
         left.name
             .cmp(&right.name)

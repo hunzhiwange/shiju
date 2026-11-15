@@ -1,5 +1,5 @@
 use super::*;
-use crate::client::test_support;
+use crate::test_support;
 use serde_json::json;
 use {
     vw_api_transport::id::PLATFORM_ID_HEADER,

@@ -157,8 +157,7 @@ pub async fn run(
     let tenant = client.endpoint().tenant_scope();
     let response = match command {
         ProjectCommands::List { cursor, limit, query, status } => json!(
-            client
-                .project_list(
+            gateway_project::GatewayProjectClient::new(client.transport().clone()).project_list(
                     tenant,
                     &ListProjectsRequest { cursor, limit, query, status: status.map(Into::into) },
                 )
@@ -173,19 +172,17 @@ pub async fn run(
                     &format!("resolve and create project for '{}'", request.directory),
                 )?;
             }
-            json!(client.project_resolve(tenant, &request).await.map_err(anyhow::Error::msg)?)
+            json!(gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(tenant, &request).await.map_err(anyhow::Error::msg)?)
         }
         ProjectCommands::Detail { project_id } => json!(
-            client
-                .project_get(&project_scope(context, &project_id)?)
+            gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&project_scope(context, &project_id)?)
                 .await
                 .map_err(anyhow::Error::msg)?
         ),
         ProjectCommands::Update { project_id, input } => {
             let request = parse_input::<UpdateProjectRequest>(&input, stdin, "project update")?;
             json!(
-                client
-                    .project_update(&project_scope(context, &project_id)?, &request)
+                gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(&project_scope(context, &project_id)?, &request)
                     .await
                     .map_err(anyhow::Error::msg)?
             )
@@ -196,16 +193,14 @@ pub async fn run(
                 .filter(|value| !value.trim().is_empty())
                 .context("project change-records requires --directory")?;
             json!(
-                client
-                    .project_change_records(&project_scope(context, &project_id)?, directory)
+                gateway_project::GatewayProjectClient::new(client.transport().clone()).project_change_records(&project_scope(context, &project_id)?, directory)
                     .await
                     .map_err(anyhow::Error::msg)?
             )
         }
         ProjectCommands::Worktree { command } => match command {
             WorktreeCommands::List { project_id } => json!(
-                client
-                    .project_worktrees(&project_scope(context, &project_id)?)
+                gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope(context, &project_id)?)
                     .await
                     .map_err(anyhow::Error::msg)?
             ),
@@ -213,15 +208,13 @@ pub async fn run(
                 let request =
                     parse_input::<CreateWorktreeRequest>(&input, stdin, "worktree create")?;
                 json!(
-                    client
-                        .project_worktree_create(&project_scope(context, &project_id)?, &request)
+                    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktree_create(&project_scope(context, &project_id)?, &request)
                         .await
                         .map_err(anyhow::Error::msg)?
                 )
             }
             WorktreeCommands::Detail { project_id, worktree_id } => json!(
-                client
-                    .worktree_get(&project_scope(context, &project_id)?, &worktree_id)
+                gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_get(&project_scope(context, &project_id)?, &worktree_id)
                     .await
                     .map_err(anyhow::Error::msg)?
             ),
@@ -229,8 +222,7 @@ pub async fn run(
                 let request =
                     parse_input::<DeleteWorktreeRequest>(&input, stdin, "worktree delete")?;
                 json!(
-                    client
-                        .worktree_delete(
+                    gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_delete(
                             &project_scope(context, &project_id)?,
                             &worktree_id,
                             &request,
@@ -242,8 +234,7 @@ pub async fn run(
             WorktreeCommands::Reset { project_id, worktree_id, input } => {
                 let request = parse_input::<ResetWorktreeRequest>(&input, stdin, "worktree reset")?;
                 json!(
-                    client
-                        .worktree_reset(
+                    gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_reset(
                             &project_scope(context, &project_id)?,
                             &worktree_id,
                             &request,

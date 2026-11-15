@@ -61,7 +61,7 @@ pub(crate) async fn save_command(
     project: &ProjectDto,
     patch: &UpdateProjectRequest,
 ) -> Result<(), String> {
-    client.project_update(&scope(client, project)?, patch).await.map(|_| ())
+    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(&scope(client, project)?, patch).await.map(|_| ())
 }
 pub(crate) async fn load_projects(
     client: &GatewayClient,
@@ -72,8 +72,7 @@ pub(crate) async fn load_projects(
     let mut seen = std::collections::HashSet::new();
     let mut projects = Vec::new();
     loop {
-        let page = client
-            .project_list(
+        let page = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_list(
                 client.endpoint().tenant_scope(),
                 &ListProjectsRequest { cursor, limit: Some(100), ..Default::default() },
             )
@@ -95,8 +94,7 @@ pub(crate) async fn load_projects(
     if can_add(client.endpoint()) {
         for directory in recent {
             // Resolve canonical gateway identity; never send local recent paths to a remote host.
-            if let Ok(result) = client
-                .project_resolve(
+            if let Ok(result) = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
                     client.endpoint().tenant_scope(),
                     &ResolveProjectRequest { directory, create_if_missing: false },
                 )
@@ -272,8 +270,7 @@ pub(crate) fn update(app: &mut App, event: EnvironmentMessage) -> Task<Message> 
                     if !can_add(client.endpoint()) {
                         return Err("远程网关不支持选择本机目录。".into());
                     }
-                    client
-                        .project_resolve(
+                    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
                             client.endpoint().tenant_scope(),
                             &ResolveProjectRequest { directory, create_if_missing: true },
                         )
@@ -337,8 +334,7 @@ pub(crate) fn update(app: &mut App, event: EnvironmentMessage) -> Task<Message> 
         return Task::perform(
             async move {
                 let client = client?;
-                client
-                    .project_get(&scope(&client, &project)?)
+                gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope(&client, &project)?)
                     .await
                     .map(|r| r.commands.and_then(|c| c.start))
             },

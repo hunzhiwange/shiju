@@ -919,8 +919,7 @@ pub async fn gateway_project_change_records_async(
     directory: &str,
 ) -> Result<Vec<ProjectChangeRecordDto>, String> {
     let client = gateway_client()?;
-    let project = client
-        .project_resolve(
+    let project = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
             &active_tenant_scope(),
             &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
                 directory: directory.to_string(),
@@ -930,7 +929,7 @@ pub async fn gateway_project_change_records_async(
         .await?
         .project;
     let scope = active_project_scope(project.id)?;
-    client.project_change_records(&scope, directory).await.map(|response| response.items)
+    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_change_records(&scope, directory).await.map(|response| response.items)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1167,7 +1166,7 @@ pub async fn gateway_plugin_discard_async(token: String) -> Result<(), String> {
 
 /// Resolve the selected project without creating it; repository authorization remains server-side.
 pub async fn gateway_skill_repos_scope(directory: &str, host: String) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery, String> {
-    let project = gateway_client()?.project_resolve(&active_tenant_scope(),
+    let project = gateway_project::GatewayProjectClient::new(gateway_client()?.transport().clone()).project_resolve(&active_tenant_scope(),
         &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
             directory: directory.to_owned(), create_if_missing: false,
         }).await?.project;

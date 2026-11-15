@@ -66,7 +66,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
                         project.into(),
                     )
                     .map_err(|e| e.to_string())?;
-                    Some(client.project_get(&scope).await?.project.directory)
+                    Some(gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope).await?.project.directory)
                 }
                 None => (!fallback.is_empty()).then_some(fallback),
             };

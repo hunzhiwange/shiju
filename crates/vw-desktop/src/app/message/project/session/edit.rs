@@ -521,8 +521,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                 .await?;
                         let scope =
                             crate::app::session_gateway::active_project_scope(project.id.clone())?;
-                        client
-                            .project_update(
+                        gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(
                                 &scope,
                                 &vw_gateway_client::vw_api_types::project::UpdateProjectRequest {
                                     name: Some(final_name_for_runtime),

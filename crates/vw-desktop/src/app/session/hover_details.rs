@@ -30,7 +30,7 @@ impl App {
                     let (project, summary) = tokio::join!(
                         async {
                             let scope = scope.map_err(|error| error.to_string())?;
-                            client.project_get(&scope).await
+                            gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope).await
                         },
                         client.session_ui_summary(&session_id, Some(&directory)),
                     );

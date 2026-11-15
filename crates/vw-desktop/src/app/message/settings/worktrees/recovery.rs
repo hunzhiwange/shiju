@@ -133,7 +133,7 @@ pub(crate) fn update(app: &mut App, event: RecoveryMessage) -> Task<Message> {
                 .map_err(|e| e.to_string());
             let worktree = target.1.clone();
             Task::perform(
-                async move { client?.managed_worktree_delete(&scope?, &worktree, &request).await },
+                async move { gateway_project::GatewayProjectClient::new(client?.transport().clone()).managed_worktree_delete(&scope?, &worktree, &request).await },
                 move |result| {
                     message(RecoveryMessage::Deleted {
                         identity: current.clone(),
@@ -192,8 +192,7 @@ pub(crate) fn update(app: &mut App, event: RecoveryMessage) -> Task<Message> {
                     let mut seen = std::collections::HashSet::new();
                     let mut projects = Vec::new();
                     loop {
-                        let page = client
-                            .project_list(
+                        let page = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_list(
                                 client.endpoint().tenant_scope(),
                                 &ListProjectsRequest {
                                     cursor,
@@ -215,8 +214,8 @@ pub(crate) fn update(app: &mut App, event: RecoveryMessage) -> Task<Message> {
                             )
                             .map_err(|e| e.to_string())?;
                             let snapshots =
-                                client.worktree_snapshots(&scope).await.map(|list| list.items);
-                            let proposal = client.worktree_cleanup_proposal(&scope).await;
+                                gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_snapshots(&scope).await.map(|list| list.items);
+                            let proposal = gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_cleanup_proposal(&scope).await;
                             projects.push(WorktreeRecoveryProject { project, snapshots, proposal });
                         }
                         cursor = page.next_cursor.filter(|c| !c.is_empty());
@@ -285,7 +284,7 @@ pub(crate) fn update(app: &mut App, event: RecoveryMessage) -> Task<Message> {
                 .map_err(|e| e.to_string());
             let client = crate::app::gateway_client();
             Task::perform(
-                async move { client?.worktree_snapshot_restore(&scope?, &snapshot).await },
+                async move { gateway_project::GatewayProjectClient::new(client?.transport().clone()).worktree_snapshot_restore(&scope?, &snapshot).await },
                 move |result| {
                     message(RecoveryMessage::Restored {
                         identity: current.clone(),

@@ -288,8 +288,7 @@ pub(crate) async fn resolve_task_board_project_id(
     project_path: &str,
 ) -> Result<vw_api_transport::ProjectId, String> {
     let client = crate::app::config::gateway_client()?;
-    let response = client
-        .project_resolve(
+    let response = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
             &crate::app::session_gateway::active_tenant_scope(),
             &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
                 directory: project_path.to_string(),

@@ -76,8 +76,7 @@ pub(crate) async fn load_groups(
     let mut seen = std::collections::HashSet::new();
     let mut groups = Vec::new();
     loop {
-        let page = client
-            .project_list(
+        let page = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_list(
                 client.endpoint().tenant_scope(),
                 &ListProjectsRequest { cursor, limit: Some(100), ..Default::default() },
             )
@@ -86,8 +85,7 @@ pub(crate) async fn load_groups(
             if !seen.insert(project.id.as_ref().to_owned()) {
                 continue;
             }
-            let result = client
-                .managed_worktrees(
+            let result = gateway_project::GatewayProjectClient::new(client.transport().clone()).managed_worktrees(
                     &ProjectScope::new(
                         client.endpoint().tenant_scope().clone(),
                         project.id.clone(),
@@ -156,7 +154,7 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
             let client = crate::app::gateway_client();
             let scope = scope(&current, &project);
             Task::perform(
-                async move { client?.managed_worktree_retry(&scope?, &worktree).await.map(|_| ()) },
+                async move { gateway_project::GatewayProjectClient::new(client?.transport().clone()).managed_worktree_retry(&scope?, &worktree).await.map(|_| ()) },
                 move |result| {
                     message(ManagedMessage::Retried {
                         identity: current.clone(),
@@ -227,9 +225,8 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
                     let scope =
                         ProjectScope::new(client.endpoint().tenant_scope().clone(), project.into())
                             .map_err(|e| e.to_string())?;
-                    let project = client.project_get(&scope).await?.project;
-                    let item = client
-                        .managed_worktrees(&scope)
+                    let project = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope).await?.project;
+                    let item = gateway_project::GatewayProjectClient::new(client.transport().clone()).managed_worktrees(&scope)
                         .await?
                         .items
                         .into_iter()
@@ -275,8 +272,7 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
                     let scope = scope(&current, &target.0);
                     let used = Task::perform(
                         async move {
-                            client?
-                                .managed_worktree_record_use(&scope?, &target.1)
+                            gateway_project::GatewayProjectClient::new(client?.transport().clone()).managed_worktree_record_use(&scope?, &target.1)
                                 .await
                                 .map(|_| ())
                         },
@@ -312,7 +308,7 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
             let scope = scope(&current, &project);
             let client = crate::app::gateway_client();
             Task::perform(
-                async move { client?.managed_worktree_deletion_preflight(&scope?, &worktree).await },
+                async move { gateway_project::GatewayProjectClient::new(client?.transport().clone()).managed_worktree_deletion_preflight(&scope?, &worktree).await },
                 move |result| {
                     message(ManagedMessage::PreflightLoaded {
                         identity: current.clone(),

@@ -509,8 +509,7 @@ pub(crate) async fn resolve_gateway_file_context(
 
     let client = gateway_client()?;
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let maybe_worktree = client
-        .project_worktrees(&project_scope)
+    let maybe_worktree = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope)
         .await?
         .items
         .into_iter()
@@ -607,8 +606,7 @@ pub(crate) fn map_loaded_project_info(
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) async fn load_gateway_recent_projects()
 -> Result<Vec<crate::app::RecentProjectMeta>, String> {
-    let mut projects = gateway_client()?
-        .project_list(
+    let mut projects = gateway_project::GatewayProjectClient::new(gateway_client()?.transport().clone()).project_list(
             &crate::app::session_gateway::active_tenant_scope(),
             &ListProjectsRequest { cursor: None, limit: Some(100), query: None, status: None },
         )
@@ -654,8 +652,7 @@ async fn resolve_gateway_project_with_client(
     project_path: &str,
     create_if_missing: bool,
 ) -> Result<ProjectDto, String> {
-    client
-        .project_resolve(
+    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
             client.endpoint().tenant_scope(),
             &ResolveProjectRequest { directory: project_path.to_string(), create_if_missing },
         )
@@ -686,7 +683,7 @@ pub(crate) async fn gateway_session_project_path(
         info.project_id.as_str().into(),
     )
     .map_err(|error| error.to_string())?;
-    client.project_get(&scope).await.map(|response| response.project.directory)
+    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_get(&scope).await.map(|response| response.project.directory)
 }
 
 /// load_project_info_task 处理当前模块对应的消息或状态转换。
@@ -714,7 +711,7 @@ pub(crate) async fn load_project_worktree_picker_options(
     let client = gateway_client()?;
     let project = resolve_gateway_project(project_path).await?;
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let mut worktrees = client.project_worktrees(&project_scope).await?.items;
+    let mut worktrees = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope).await?.items;
     worktrees.sort_by(|left, right| {
         left.name.cmp(&right.name).then(left.directory.cmp(&right.directory))
     });
@@ -757,8 +754,7 @@ pub(crate) async fn create_gateway_session_worktree(
     let client = gateway_client()?;
     let project = resolve_gateway_project(&project_path).await?;
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
-    let worktree = client
-        .project_worktree_create(
+    let worktree = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktree_create(
             &project_scope,
             &CreateWorktreeRequest {
                 name: requested_name.clone(),
@@ -777,8 +773,7 @@ async fn find_gateway_worktree(project_path: &str, directory: &str) -> Result<Wo
     let project = resolve_gateway_project(project_path).await?;
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
     let target = normalize_path(directory);
-    client
-        .project_worktrees(&project_scope)
+    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_worktrees(&project_scope)
         .await?
         .items
         .into_iter()
@@ -799,8 +794,7 @@ pub(crate) async fn delete_gateway_worktree(
     let worktree = find_gateway_worktree(project_path, directory).await?;
     let project_scope =
         crate::app::session_gateway::active_project_scope(worktree.project_id.clone())?;
-    let ack = client
-        .worktree_delete(&project_scope, &worktree.id.0, &DeleteWorktreeRequest { force })
+    let ack = gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_delete(&project_scope, &worktree.id.0, &DeleteWorktreeRequest { force })
         .await?;
     if ack.ok {
         Ok(())
@@ -821,8 +815,7 @@ pub(crate) async fn reset_gateway_worktree(
     let worktree = find_gateway_worktree(project_path, directory).await?;
     let project_scope =
         crate::app::session_gateway::active_project_scope(worktree.project_id.clone())?;
-    let ack = client
-        .worktree_reset(
+    let ack = gateway_project::GatewayProjectClient::new(client.transport().clone()).worktree_reset(
             &project_scope,
             &worktree.id.0,
             &ResetWorktreeRequest { mode: ResetMode::Hard, target_ref: None },

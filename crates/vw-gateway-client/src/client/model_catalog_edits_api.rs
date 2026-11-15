@@ -14,7 +14,8 @@ impl GatewayClient {
         input: &ModelCatalogEditRequest,
         token: &str,
     ) -> Result<ModelCatalogWriteResponse, Error> {
-        self.catalog_post("edits", project, input, token).await
+        gateway_model_catalog::GatewayModelCatalogClient::new(self.transport.clone())
+            .edit_model_catalog(project, input, token).await
     }
 
     pub async fn set_model_catalog_default(
@@ -23,7 +24,8 @@ impl GatewayClient {
         input: &ModelCatalogDefaultRequest,
         token: &str,
     ) -> Result<ModelCatalogWriteResponse, Error> {
-        self.catalog_post("defaults", project, input, token).await
+        gateway_model_catalog::GatewayModelCatalogClient::new(self.transport.clone())
+            .set_model_catalog_default(project, input, token).await
     }
 
     pub async fn preview_model_catalog_fill(
@@ -32,7 +34,8 @@ impl GatewayClient {
         input: &ModelCatalogFillPreviewRequest,
         token: &str,
     ) -> Result<ModelCatalogFillPreviewResponse, Error> {
-        self.catalog_post("fill-preview", project, input, token).await
+        gateway_model_catalog::GatewayModelCatalogClient::new(self.transport.clone())
+            .preview_model_catalog_fill(project, input, token).await
     }
 
     pub async fn commit_model_catalog_fill(
@@ -41,43 +44,8 @@ impl GatewayClient {
         input: &ModelCatalogFillCommitRequest,
         token: &str,
     ) -> Result<ModelCatalogWriteResponse, Error> {
-        self.catalog_post("fill-commit", project, input, token).await
+        gateway_model_catalog::GatewayModelCatalogClient::new(self.transport.clone())
+            .commit_model_catalog_fill(project, input, token).await
     }
 
-    async fn catalog_post<T: serde::de::DeserializeOwned>(
-        &self,
-        resource: &str,
-        project: &ModelCatalogProject,
-        input: &impl serde::Serialize,
-        token: &str,
-    ) -> Result<T, Error> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = (resource, project, input, token);
-            Err(Error::Transport("model catalog requires native transport".into()))
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
-            let request = self.transport.dynamic_host_client()
-                .post(format!("{}/v1/model-catalog/{resource}", self.transport.endpoint().base_url()))
-                .header("x-agent-apps-token", credential)
-                .query(project)
-                .json(input);
-            let response = crate::http::apply_request_context(request, self.transport.endpoint())
-                .send()
-                .await
-                .map_err(|_| Error::Transport("model catalog request failed".into()))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(Error::Http { status: status.as_u16(), body: serde_json::Value::Null });
-            }
-            response
-                .json()
-                .await
-                .map_err(|_| Error::Decode("invalid model catalog response".into()))
-        }
-    }
 }

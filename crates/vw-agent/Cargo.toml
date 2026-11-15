@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 display-format = { path = "../libs/display-format", version = "0.6.0" }
+vw-api-chat = { path = "../libs/api-chat", version = "0.6.0" }
 config-computer-control = { path = "../libs/config-computer-control", version = "0.6.0" }
 json-extract = { path = "../libs/json-extract", version = "0.6.0" }
 todo-types = { path = "../libs/todo-types", version = "0.6.0" }
@@ -270,6 +271,7 @@ path = "tests/acp_gemini_chat.rs"
 
 [dev-dependencies]
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
+gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.6.0" }
 gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }
 gateway-http = { path = "../libs/gateway-http", version = "0.6.0" }
 provider-runtime-paths = { path = "../libs/provider-runtime-paths", version = "0.6.0" }

@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use vw_api_types::chat::GatewayChatStreamRequest;
+use vw_api_chat::chat::GatewayChatStreamRequest;
 use {
     vw_api_transport::id::SessionId,
     vw_api_transport::id::TenantScope,

@@ -15,6 +15,7 @@ app-auth-copilot = { path = "../libs/app-auth-copilot" }
 app-auth-xai = { path = "../libs/app-auth-xai" }
 app-auth-kimi = { path = "../libs/app-auth-kimi" }
 app-auth-core = { path = "../libs/app-auth-core" }
+app-auth-dsh = { path = "../libs/app-auth-dsh" }
 app-openclaw-config-rules = { path = "../libs/app-openclaw-config-rules" }
 app-config-write = { path = "../libs/app-config-write" }
 app-provider-core = { path = "../libs/app-provider-core" }

@@ -14,6 +14,7 @@ members = [
   "crates/libs/gateway-workflow",
   "crates/libs/app-auth-codex",
   "crates/libs/app-auth-core",
+  "crates/libs/app-auth-dsh",
   "crates/libs/app-auth-xai",
   "crates/libs/app-auth-kimi",
   "crates/libs/app-auth-copilot",

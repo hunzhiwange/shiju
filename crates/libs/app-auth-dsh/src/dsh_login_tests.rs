@@ -1,5 +1,5 @@
 use super::{
-    copilot_tests::oauth_server,
+    test_support::oauth_server,
     dsh_login::{DshDevice, DshLogin},
     flow::{AuthAccountScope, AuthFlows},
 };

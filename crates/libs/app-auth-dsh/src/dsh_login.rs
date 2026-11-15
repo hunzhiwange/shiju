@@ -1,8 +1,8 @@
 //! DeepSeek Harness browser authorization on the authorized execution host.
 
-use super::{
+use app_auth_core::{
     browser_callback::{LoopbackCallback, PreparedCallback},
-    copilot::{read_json_limited, utc_now, valid_token},
+    response::{read_json_limited, utc_now, valid_token},
     flow::{AuthAccountScope, AuthFlowTiming, AuthFlows},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -28,8 +28,8 @@ use {
     vw_api_app_auth::AuthStartResponse,
 };
 
-pub(super) const PLATFORM_ORIGIN: &str = "https://platform.deepseek.com";
-pub(super) const GRANT_RECORD: &str = "deepseek-account-platform/default";
+pub const PLATFORM_ORIGIN: &str = "https://platform.deepseek.com";
+pub const GRANT_RECORD: &str = "deepseek-account-platform/default";
 const CALLBACK_PATH: &str = "/oauth/callback";
 const LOGIN_LIFETIME: Duration = Duration::from_secs(600);
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
@@ -102,7 +102,7 @@ impl DshLogin {
         Self::start_with(flows, scope, request, browser_on_execution_host, device, |_| {}).await
     }
 
-    pub(super) async fn start_with(
+    pub async fn start_with(
         flows: &AuthFlows,
         scope: AuthAccountScope<'_>,
         request: AuthStartRequest,
@@ -221,7 +221,7 @@ impl DshLogin {
         self.poll_with(flows, scope, |_| {}, persist).await
     }
 
-    pub(super) async fn poll_with(
+    pub async fn poll_with(
         &self,
         flows: &AuthFlows,
         scope: AuthAccountScope<'_>,
@@ -337,7 +337,7 @@ fn authorization_url(value: &str) -> Result<String, AuthErrorCode> {
     Ok(url.into())
 }
 
-pub(super) fn account(
+pub fn account(
     scope: AuthAccountScope<'_>,
     credential_state: AuthCredentialState,
     authenticated_at: Option<TimestampMs>,
@@ -363,7 +363,7 @@ pub(super) fn account(
     })
 }
 
-pub(super) fn platform_client() -> Result<Client, AuthErrorCode> {
+pub fn platform_client() -> Result<Client, AuthErrorCode> {
     Client::builder()
         .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
@@ -372,7 +372,7 @@ pub(super) fn platform_client() -> Result<Client, AuthErrorCode> {
         .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
 }
 
-pub(super) fn platform_identity(
+pub fn platform_identity(
     request: RequestBuilder,
     locale: &str,
     timezone_offset_seconds: i32,

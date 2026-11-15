@@ -2309,3 +2309,27 @@ accounts_tests 的 AGY 默认切换断言与移除场景、logout_tests 的 AGY 
 系统 Python 无 tomllib，使用标准库读取清单及路径核对，未执行 TOML 解析。
 未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、
 迁移定向测试（含子进程过滤）、macOS/Windows/Linux 条件及锁文件一致性。
+
+
+## 任务 20 静态迁移结果（2026-11-15）
+
+`app-auth-dsh` 接收 auth/dsh_login.rs、dsh_login_tests.rs；macOS 条件不变。
+原 auth 模块重导出同一 dsh_login 模块，lib.rs 既有 auth 导出无需修改。
+响应限制、时钟、token 验证和回调直接消费 app-auth-core；不依赖 Copilot
+或门面。原有登录测试完整迁移，共用 HTTP 夹具局部复用到独立 test_support，
+未新增测试。无 include 或资源路径。账户和注销的真实跨包调用所需
+start_with、poll_with、account、GRANT_RECORD、PLATFORM_ORIGIN、platform_client、
+platform_identity 最小公开，函数体、错误和授权语义不变。
+
+覆盖基线所有权：dsh_account.rs、dsh_account_tests.rs 暂留原位置，任务 22
+接收账户编排和测试；其中 DshCredentials、credential_document 仍来自
+providers/dsh.rs 与 dsh_files.rs，后者还依赖 live 和投影，任务 24 接收并
+闭合原生存储后，由任务 22 完成账户归入 app-auth-dsh。logout 与其测试也由
+任务 22 接收。不通过回依赖或跨包 path/include 隐藏边界。
+原包直接依赖均有其它消费者，保留；Cargo.lock 未修改。
+
+静态证据：两文件迁移、函数体及测试断言对照、原调用路径检索、无门面回依赖、
+清单直接路径存在及 cfg/特性审阅、git diff --check。系统 Python 缺少 tomllib
+时使用标准库文本核对，不声称完成 TOML 解析。未运行 Cargo、单元及实机测试，
+统一验收待授权：新包与直接调用者编译、迁移定向测试、macOS/Windows/Linux
+条件及锁文件一致性。本任务完成指独立登录迁移和静态审阅完成。

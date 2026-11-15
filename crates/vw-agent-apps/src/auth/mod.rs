@@ -106,9 +106,7 @@ pub use app_auth_agy::agy_account;
 pub use app_auth_agy::agy_refresh;
 
 #[cfg(target_os = "macos")]
-pub mod dsh_login;
-#[cfg(all(test, target_os = "macos"))]
-mod dsh_login_tests;
+pub use app_auth_dsh::dsh_login;
 
 #[cfg(target_os = "macos")]
 pub mod dsh_account;

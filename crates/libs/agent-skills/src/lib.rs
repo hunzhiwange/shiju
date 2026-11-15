@@ -30,6 +30,9 @@ pub mod session_mounts;
 pub mod shiju;
 
 #[cfg(test)]
+mod tests;
+
+#[cfg(test)]
 mod session_state_tests;
 #[cfg(test)]
 mod session_mounts_tests;

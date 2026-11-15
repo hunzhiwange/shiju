@@ -8,7 +8,9 @@
 //! - 工具信息包含
 //! - XML 内容转义
 
-use super::super::*;
+use crate::{Skill, SkillTool};
+use crate::prompt::{skills_to_prompt, skills_to_prompt_with_mode};
+use std::path::Path;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -87,7 +89,7 @@ fn skills_to_prompt_compact_mode_omits_instructions_and_tools() {
     let prompt = skills_to_prompt_with_mode(
         &skills,
         Path::new("/tmp/workspace"),
-        crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        config_skills::SkillsPromptInjectionMode::Compact,
     );
 
     // 验证包含的元素

@@ -13,8 +13,8 @@
 //! - **源别名**：将简短的技能名称映射到完整的下载 URL 或本地源标识
 //! - **预加载源**：系统默认提供的一组常用技能源，开箱即用
 
-use super::super::*;
-use crate::app::agent::skill::{SkillDownloadPolicy, resolve_skill_source_alias};
+use crate::types::SkillDownloadPolicy;
+use crate::policy::resolve_skill_source_alias;
 
 /// 测试默认下载策略是否包含必需的预加载技能源
 ///

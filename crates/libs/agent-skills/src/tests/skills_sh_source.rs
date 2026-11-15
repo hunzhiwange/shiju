@@ -6,8 +6,7 @@
 //! - 拒绝无效的 URL 格式
 //! - 规范化技能目录名称（保留连字符，转换为小写）
 
-use super::super::*;
-use crate::app::agent::skills::source::{normalize_skills_sh_dir_name, parse_skills_sh_source};
+use crate::source::{normalize_skills_sh_dir_name, parse_skills_sh_source};
 
 /// 测试解析标准格式的 skills.sh URL
 ///

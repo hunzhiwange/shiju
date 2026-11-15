@@ -13,8 +13,7 @@
 //! 1. **合法 Git 源识别**：验证远程 URL 和 SCP 风格地址被正确识别
 //! 2. **非法输入拒绝**：验证本地路径、不完整地址和无效字符串被正确拒绝
 
-use super::super::*;
-use crate::app::agent::skills::installer::is_git_source;
+use crate::installer::is_git_source;
 
 /// 测试 Git 源识别函数接受远程协议和 SCP 风格地址
 ///

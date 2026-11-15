@@ -1,51 +1,6 @@
-//! 技能系统测试模块
-//!
-//! 本模块是技能子系统（`skills`）的测试套件入口，包含所有与技能相关的功能测试。
-//! 技能系统允许用户通过声明式配置扩展代理的能力，包括自定义提示词、工具和元数据。
-//!
-//! # 测试范围
-//!
-//! 本模块覆盖以下功能区域：
-//!
-//! - **域名信任**：验证受信任域名及其子域名的匹配规则
-//! - **下载策略**：验证技能源的别名解析和默认下载策略
-//! - **Git 源检测**：验证各种 Git 协议格式的识别
-//! - **技能加载**：验证从文件系统加载技能元数据和行为
-//! - **技能初始化**：验证技能目录的默认文件结构创建
-//! - **提示词生成**：验证技能转换为代理可用提示词的逻辑
-//! - **skills.sh 源解析**：验证 skills.sh URL 格式的解析和目录名规范化
-//!
-//! # 测试原则
-//!
-//! 所有测试遵循以下原则：
-//!
-//! - **隔离性**：每个测试使用独立的临时目录，避免状态污染
-//! - **幂等性**：测试可重复运行，不依赖外部环境
-//! - **清晰性**：测试名称描述预期行为，断言包含失败消息
-//!
-//! # 子模块结构
-//!
-//! - [`helpers`] - 测试辅助工具，包括环境变量锁定和清理机制
-//! - [`domain_trust`] - 受信任域名匹配测试
-//! - [`download_policy`] - 下载策略和别名解析测试
-//! - [`git_source`] - Git 源格式检测测试
-//! - [`load_skills`] - 从文件系统加载技能的测试
-//! - [`skills_init`] - 技能目录初始化测试
-//! - [`skills_prompt`] - 技能提示词生成测试
-//! - [`skills_sh_source`] - skills.sh URL 解析测试
+//! Host integration tests for the real local/plugin inventory and bundled initialization.
+//! Keep the shared environment lock with all callers that mutate host discovery paths.
 
 pub(crate) mod helpers;
-
-mod domain_trust;
-
-mod download_policy;
-
-mod git_source;
-
 mod load_skills;
-
 mod skills_init;
-
-mod skills_prompt;
-
-mod skills_sh_source;

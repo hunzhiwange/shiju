@@ -373,11 +373,13 @@ mod mcp_management_bindings_tests;
 
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_resync_tests.rs"]
 mod aggregation_resync_tests;
 
 mod aggregation_desktop;
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_resync_codex_tests.rs"]
 mod aggregation_resync_codex_tests;
 
 #[cfg(target_os = "macos")]
@@ -418,6 +420,7 @@ mod mcp_management_probe;
 mod aggregation_clients;
 
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_restart_tests.rs"]
 mod aggregation_restart_tests;
 
 mod aggregation_restart;

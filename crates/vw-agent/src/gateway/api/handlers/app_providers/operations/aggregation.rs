@@ -216,7 +216,7 @@ fn replay(
 }
 
 #[cfg(all(test, target_os = "macos"))]
-#[path = "../../aggregation_restart_operation_tests.rs"]
+#[path = "../../../../../../../libs/gateway-aggregation/tests/host/aggregation_restart_operation_tests.rs"]
 mod restart_tests;
 
 #[cfg(all(test, target_os = "macos"))]

@@ -1,4 +1,12 @@
 //! Scoped aggregation membership and publication requests.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aggregation_restart;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod restart_host;
+#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
+pub mod aggregation_resync;
+#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
+pub mod resync_host;
 #[derive(Debug, Clone)]
 pub struct GatewayAggregationClient {
     transport: gateway_http::GatewayTransport,

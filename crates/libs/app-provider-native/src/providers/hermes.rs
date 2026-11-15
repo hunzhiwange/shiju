@@ -396,7 +396,7 @@ pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
     let parts = directory_components(home, std::env::var_os("HERMES_HOME").as_deref())?;
     let mut components: Vec<&str> = parts.iter().map(String::as_str).collect();
     components.push("config.yaml");
-    super::catalog::read_file(home, &components).map_err(|_| WriteError::InvalidResource)
+    app_auth::providers::catalog::read_file(home, &components).map_err(|_| WriteError::InvalidResource)
 }
 pub struct HermesFiles {
     pub guard: super::live::write_guard::AppWriteGuard,

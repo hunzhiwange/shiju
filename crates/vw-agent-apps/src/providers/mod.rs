@@ -86,35 +86,23 @@ pub mod desktop_mapping;
 mod desktop_mapping_tests;
 
 #[cfg(target_os = "macos")]
-pub mod hermes;
-#[cfg(all(test, target_os = "macos"))]
-mod hermes_tests;
+pub use app_provider_native::providers::hermes;
 #[cfg(target_os = "macos")]
-pub mod openclaw;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_tests;
+pub use app_provider_native::providers::openclaw;
 #[cfg(target_os = "macos")]
-pub mod opencode;
-#[cfg(all(test, target_os = "macos"))]
-mod opencode_tests;
+pub use app_provider_native::providers::opencode;
 
 #[cfg(target_os = "macos")]
 pub(crate) use app_provider_projection::opencode_schema;
 
 #[cfg(target_os = "macos")]
-pub mod pi;
-#[cfg(all(test, target_os = "macos"))]
-mod pi_tests;
+pub use app_provider_native::providers::pi;
 
 #[cfg(target_os = "macos")]
-pub mod omp;
-#[cfg(all(test, target_os = "macos"))]
-mod omp_tests;
+pub use app_provider_native::providers::omp;
 
 #[cfg(target_os = "macos")]
-pub mod mcode;
-#[cfg(all(test, target_os = "macos"))]
-mod mcode_tests;
+pub use app_provider_native::providers::mcode;
 
 #[cfg(target_os = "macos")]
 pub use app_auth::providers::kimi;
@@ -165,3 +153,9 @@ mod mode_apply_publication;
 
 #[cfg(all(test, target_os = "macos"))]
 mod mode_apply_publication_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod hermes_catalog_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod openclaw_catalog_tests;

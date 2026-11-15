@@ -2403,3 +2403,24 @@ app-auth 仅为测试依赖，现无回边。原包直接依赖仍有其它调�
 标准库 TOML 路径及依赖无环审阅。未运行 Cargo、单元及实机测试，统一验收待授权：
 新增库与直接调用方编译、迁移单测、macOS 事务恢复及拒绝路径、其它平台条件。
 本任务无留存编排符号交给后继。
+
+## 任务 24 静态迁移结果
+
+app-provider-native 拥有 Hermes、OpenClaw、OpenCode、Pi、OMP、Mcode 的原生格式、
+表单与文件适配及相邻测试（包括原清单未列出的 *_form、omp_validation）。
+原 providers 路径重导出；共享事务仍唯一归 app-auth，read_file 直接使用其有界读取。
+所有模块保持原 macOS 条件；内部 path 与测试子模块保持同目录，无静态资源。
+Hermes/OpenClaw 的目录与删除分发集成测试分别留在 *_catalog_tests，交任务 29，
+其余测试随实现移动。OpenCode 的目录打开与预检仅为既有聚合/MCP 调用者公开。
+
+Claude Desktop 的四文件事务与 publication 共享私有 commit_profile_record、patch、
+profile_fields，并依赖 desktop_mapping 和 mode_apply::ClientEndpoint；整体保留交任务 29，
+避免将模式编排引入原生包或新增跨包内部接口。Agy 的 prepare/prepare_checked 同时
+构造启动所有者并持有私有 Lease，整个 agy/agy_files/agy_tests 留交任务 35，届时须
+收完原生叶子与启动编排；本轮不拆出仅供未来使用的空壳接口。DSH/Kimi 已归任务 22
+的 app-auth，不重搬。这些明确留存项覆盖原所有权表任务 24 的对应行。
+
+静态证据：移动文件与 HEAD 对照、模块及 path 注册、真实调用者和清单路径审阅，
+新包不回依赖 vw-agent-apps；原直接依赖仍有其它调用者，保留。git diff --check
+通过。未运行 Cargo、rustc、单元及实机测试，统一验收待授权：新库与门面编译、
+迁移测试及门面集成测试、macOS 原生恢复与拒绝行为、其它平台 cfg 和锁文件一致性。

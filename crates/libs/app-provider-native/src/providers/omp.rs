@@ -220,7 +220,7 @@ fn read_first(
     let mut path: Vec<&str> = parts.iter().map(String::as_str).collect();
     for &name in names {
         path.push(name);
-        let bytes = super::catalog::read_file(home, &path)?;
+        let bytes = app_auth::providers::catalog::read_file(home, &path)?;
         path.pop();
         if let Some(bytes) = bytes {
             return Ok(Some((name, bytes)));

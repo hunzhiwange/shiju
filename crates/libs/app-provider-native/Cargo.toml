@@ -1,0 +1,28 @@
+[package]
+name = "app-provider-native"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-auth = { path = "../app-auth" }
+app-provider-core = { path = "../app-provider-core" }
+app-provider-validation = { path = "../app-provider-validation" }
+app-provider-projection = { path = "../app-provider-projection" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.6.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-hermes-memory = { path = "../api-hermes-memory", version = "0.6.0" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+serde_yaml = "0.9"
+base64 = "0.23"
+sha2 = "0.11"
+libc = "0.2"
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+app-auth = { path = "../app-auth", features = ["test-support"] }
+tempfile = "3"

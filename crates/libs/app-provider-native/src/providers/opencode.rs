@@ -195,7 +195,7 @@ pub fn patch(
 /// Read without creating directories, locks, files or transaction state.
 pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
     for name in ["opencode.jsonc", "opencode.json"] {
-        let bytes = super::catalog::read_file(home, &[".config", "opencode", name])
+        let bytes = app_auth::providers::catalog::read_file(home, &[".config", "opencode", name])
             .map_err(|_| WriteError::InvalidResource)?;
         if bytes.is_some() {
             return Ok(bytes);
@@ -208,7 +208,7 @@ pub struct OpenCodeFiles {
     directory: std::fs::File,
 }
 /// Open or provision an already-authorized OpenCode directory beneath the host home.
-pub(crate) fn open_config_directory(
+pub fn open_config_directory(
     home: &Path,
     directory: &Path,
 ) -> Result<std::fs::File, WriteError> {
@@ -278,7 +278,7 @@ impl OpenCodeFiles {
         }
     }
     /// Detect a higher-precedence file appearing before a JSON fallback is published.
-    pub(crate) fn selected_file_preflight(
+    pub fn selected_file_preflight(
         &self,
         name: &str,
     ) -> Result<impl Fn() -> Result<(), WriteError> + use<>, WriteError> {

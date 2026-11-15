@@ -142,7 +142,7 @@ fn read_native_file(
 ) -> Result<Option<Vec<u8>>, ProviderReadUnavailable> {
     let mut components: Vec<&str> = parts.iter().map(String::as_str).collect();
     components.push(name);
-    super::catalog::read_file(home, &components)
+    app_auth::providers::catalog::read_file(home, &components)
 }
 
 #[derive(Debug, PartialEq, Eq)]

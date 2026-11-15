@@ -238,7 +238,7 @@ pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
     let parts = components(home)?;
     let mut components: Vec<&str> = parts.iter().map(String::as_str).collect();
     components.push("config.yaml");
-    super::catalog::read_file(home, &components).map_err(|_| WriteError::InvalidResource)
+    app_auth::providers::catalog::read_file(home, &components).map_err(|_| WriteError::InvalidResource)
 }
 pub struct McodeFiles {
     native_lock: NativeLock,

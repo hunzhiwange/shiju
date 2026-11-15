@@ -177,7 +177,7 @@ pub fn patch(
 }
 /// Read-only, fixed authorized HOME; JSON5 is decoded by the shared configuration parser.
 pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
-    super::catalog::read_file(home, &[".openclaw", "openclaw.json"])
+    app_auth::providers::catalog::read_file(home, &[".openclaw", "openclaw.json"])
         .map_err(|_| WriteError::InvalidResource)
 }
 pub struct OpenClawFiles {

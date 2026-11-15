@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：26，线性顺序 26；依赖：前一批次 25。符号依赖卡：无额外前置。不并行。
 
@@ -32,3 +32,11 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-app-provider crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 落地归属与静态证据
+
+- 九个公开操作及私有 openclaw_request 归入 gateway-app-provider/src/app_providers/openclaw.rs；原包仅显式转发。
+- 两个原有行为测试归入同目录 openclaw_tests.rs，使用领域测试工厂；身份拒绝门面兼容测试留原包。
+- 桌面调用与服务端验收 fixture 直接使用 GatewayAppProviderClient；复用已落地 workspace 成员、依赖和 GatewayTransport，无新增依赖。
+- 静态核对方法、路径、正文、原生/wasm 分支、凭据敏感标志及错误脱敏保持不变；无领域库反向依赖。
+- 按用户覆盖要求，未运行 Cargo、测试及实机验证；未来另行统一验证。

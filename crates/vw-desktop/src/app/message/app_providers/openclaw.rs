@@ -7,7 +7,7 @@ use crate::app::{
     },
 };
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_app_provider::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_gateway_client::vw_api_types::agent_apps::AppId;
 use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderMembership;
@@ -36,7 +36,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<OpenClawFormView, String> {
-    client
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .openclaw_form_read(id, &OpenClawTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
@@ -48,6 +48,7 @@ pub(crate) async fn save(
     form: EditForm,
     token: String,
 ) -> Result<OpenClawLiveResult, String> {
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let draft = form.openclaw.ok_or("此档案的 OpenClaw 节点不可编辑。")?;
     let api_key = if form.clear_key {
         ProviderSecretWrite::Clear
@@ -136,6 +137,7 @@ pub(crate) fn change_membership(app: &mut App, id: String, add: bool) -> Task<Me
     state.generation = state.generation.wrapping_add(1);
     let generation = state.generation;
     let token = app.apps_catalog.token.clone();
+    let client = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone());
     let target = OpenClawTarget { target_host_id: scope.host.clone() };
     Task::perform(
         async move {

@@ -7,13 +7,13 @@ use {
     vw_api_types::app_providers::openclaw::*,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_provider::GatewayAppProviderClient};
 const TOKEN: &str = "fixture-openclaw-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
     db: GlobalDatabase,
     port: u16,
-    client: GatewayClient,
+    client: GatewayAppProviderClient,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -46,11 +46,10 @@ impl Fixture {
         let server = tokio::spawn(async move {
             axum::serve(listener, Router::new().nest("/v1", router)).await.unwrap()
         });
-        let client = GatewayClient::new(
+        let client = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", port)
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
-        )
-        .unwrap();
+        ).unwrap());
         Self { root, db, port, client, server }
     }
     fn file(&self) -> PathBuf {
@@ -172,11 +171,10 @@ async fn cc04_openclaw_permission_tenant_and_host_denials_leave_no_changes() {
     let mut bad = f.request(OpenClawActivation::Add);
     bad.target_host_id = "foreign".into();
     assert!(f.client.openclaw_provider_save("one", &bad, TOKEN).await.is_err());
-    let foreign = GatewayClient::new(
+    let foreign = GatewayAppProviderClient::new(gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", f.port)
             .with_tenant_scope(TenantScope::new("p", "b").unwrap()),
-    )
-    .unwrap();
+    ).unwrap());
     assert!(
         foreign
             .openclaw_provider_save("one", &f.request(OpenClawActivation::Add), TOKEN)
@@ -293,7 +291,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
 #[tokio::test]
 async fn cc04_ui_openclaw_sdk_rejects_invalid_stale_and_unauthorized_writes() {
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-    use vw_gateway_client::AgentAppsReadError;
+    use gateway_app_provider::AgentAppsReadError;
     let f = Fixture::new().await;
     f.client
         .openclaw_provider_save("one", &f.request(OpenClawActivation::Add), TOKEN)

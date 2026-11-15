@@ -254,3 +254,9 @@ mod hermes;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "app_providers/hermes_tests.rs"]
 mod hermes_tests;
+
+#[path = "app_providers/openclaw.rs"]
+mod openclaw;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/openclaw_tests.rs"]
+mod openclaw_tests;

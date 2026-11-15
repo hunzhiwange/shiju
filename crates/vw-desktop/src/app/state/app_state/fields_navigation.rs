@@ -262,10 +262,8 @@
     pub(crate) last_call_log_path: Option<String>,
     /// 最近一次会话快照文件路径
     pub(crate) last_session_snapshot_path: Option<String>,
-    /// 搜索文本输入
-    pub(crate) search_text: String,
-    /// 是否显示搜索覆盖层
-    pub(crate) show_search_overlay: bool,
+    /// 搜索领域状态
+    pub(crate) search: desktop_search::State,
     /// 文件索引缓存（路径 -> 子文件列表）
     pub(crate) file_index_cache: HashMap<String, Vec<String>>,
     /// 文件索引版本号，用于搜索缓存失效判断

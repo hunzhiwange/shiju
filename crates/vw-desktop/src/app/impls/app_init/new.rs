@@ -516,8 +516,7 @@ impl App {
             last_session_snapshot_path: None,
 
             // ========== 搜索和缓存 ==========
-            search_text: String::new(),
-            show_search_overlay: false,
+            search: desktop_search::State::default(),
             file_index_cache: HashMap::new(),
             file_index_revision: 0,
             file_tree_model_cache: HashMap::new(),

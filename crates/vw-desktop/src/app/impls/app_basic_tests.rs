@@ -165,7 +165,7 @@ fn title_covers_each_screen_and_pet_window_override() {
 fn file_index_cache_tracks_project_results_and_tree_model() {
     let mut app = new_app();
     app.project_path = Some("/workspace".to_string());
-    app.search_text = " SRC\\LIB ".to_string();
+    app.search.search_text = " SRC\\LIB ".to_string();
     app.file_search_query = "src".to_string();
 
     app.set_file_index(
@@ -201,7 +201,7 @@ fn file_index_cache_tracks_project_results_and_tree_model() {
 fn search_panel_file_cache_limits_to_first_eight_matches() {
     let mut app = new_app();
     app.project_path = Some("/workspace".to_string());
-    app.search_text = "src".to_string();
+    app.search.search_text = "src".to_string();
     app.set_file_index(
         "/workspace",
         (0..10).map(|idx| format!("src/file_{idx}.rs")).collect::<Vec<_>>(),
@@ -218,7 +218,7 @@ fn search_caches_keep_entries_when_cache_keys_match() {
     app.project_path = Some("/workspace".to_string());
     app.file_index_revision = 9;
 
-    app.search_text = " SRC\\ ".to_string();
+    app.search.search_text = " SRC\\ ".to_string();
     app.search_panel_file_cache_query = "src/".to_string();
     app.search_panel_file_cache_project_path = Some("/workspace".to_string());
     app.search_panel_file_cache_revision = 9;
@@ -249,7 +249,7 @@ fn search_caches_invalidate_for_query_project_and_revision_changes() {
     app.file_index_cache.insert("/other".to_string(), vec!["src/library.rs".to_string()]);
     app.project_path = Some("/workspace".to_string());
     app.file_index_revision = 10;
-    app.search_text = " SRC\\LIB ".to_string();
+    app.search.search_text = " SRC\\LIB ".to_string();
     app.file_search_query = String::new();
 
     app.refresh_search_panel_file_cache();
@@ -286,7 +286,7 @@ fn set_file_index_overwrites_existing_files_and_wraps_revision() {
     app.file_tree_model_cache.clear();
     app.file_index_cache.insert("/workspace".to_string(), vec!["old.rs".to_string()]);
     app.project_path = Some("/workspace".to_string());
-    app.search_text = "new".to_string();
+    app.search.search_text = "new".to_string();
     app.file_search_query = "new".to_string();
     app.file_index_revision = u64::MAX;
 

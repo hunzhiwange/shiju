@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/desktop-search",
   "crates/libs/desktop-workspace",
   "crates/libs/desktop-provider-apps",
   "crates/libs/desktop-apps-ui",

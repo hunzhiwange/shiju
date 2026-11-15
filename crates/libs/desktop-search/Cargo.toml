@@ -1,0 +1,12 @@
+[package]
+name = "desktop-search"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = "0.14"
+session-info = { path = "../session-info", version = "0.6.0" }

@@ -75,19 +75,19 @@ async fn task_contains_widget_action(task: Task<Message>) -> bool {
 #[test]
 fn input_changed_refreshes_cache_without_closing_overlay_for_blank_query() {
     let mut app = app();
-    app.show_search_overlay = true;
+    app.search.show_search_overlay = true;
     app.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/query.rs".to_string(), "src/other.rs".to_string()]);
 
     update(&mut app, SearchMessage::InputChanged("  query  ".to_string()));
-    assert_eq!(app.search_text, "  query  ");
-    assert!(app.show_search_overlay);
+    assert_eq!(app.search.search_text, "  query  ");
+    assert!(app.search.show_search_overlay);
     assert_eq!(app.search_panel_file_cache_query, "query");
     assert_eq!(app.cached_search_panel_file_results(), ["src/query.rs"]);
 
     update(&mut app, SearchMessage::InputChanged("   ".to_string()));
-    assert_eq!(app.search_text, "   ");
-    assert!(app.show_search_overlay);
+    assert_eq!(app.search.search_text, "   ");
+    assert!(app.search.show_search_overlay);
     assert!(app.search_panel_file_cache_query.is_empty());
     assert_eq!(app.cached_search_panel_file_results(), ["src/query.rs", "src/other.rs"]);
 }
@@ -97,27 +97,16 @@ async fn open_clears_previous_query_shows_overlay_and_focuses_input() {
     let mut app = app();
     app.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/lib.rs".to_string()]);
-    app.search_text = "missing".to_string();
+    app.search.search_text = "missing".to_string();
     app.refresh_search_panel_file_cache();
     assert!(app.cached_search_panel_file_results().is_empty());
 
     let task = update(&mut app, SearchMessage::Open);
 
-    assert!(app.search_text.is_empty());
-    assert!(app.show_search_overlay);
+    assert!(app.search.search_text.is_empty());
+    assert!(app.search.show_search_overlay);
     assert_eq!(app.cached_search_panel_file_results(), ["src/lib.rs"]);
     assert!(task_contains_widget_action(task).await);
-}
-
-#[test]
-fn toggle_sets_overlay_visibility_directly() {
-    let mut app = app();
-
-    update(&mut app, SearchMessage::Toggle(true));
-    assert!(app.show_search_overlay);
-
-    update(&mut app, SearchMessage::Toggle(false));
-    assert!(!app.show_search_overlay);
 }
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
@@ -125,18 +114,18 @@ fn toggle_sets_overlay_visibility_directly() {
 #[test]
 fn select_file_sets_file_input_and_hides_overlay() {
     let mut app = app();
-    app.show_search_overlay = true;
+    app.search.show_search_overlay = true;
 
     update(&mut app, SearchMessage::SelectFile("/tmp/data.json".to_string()));
 
     assert_eq!(app.file_url_input, "/tmp/data.json");
-    assert!(!app.show_search_overlay);
+    assert!(!app.search.show_search_overlay);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn select_session_with_known_directory_routes_to_project_session() {
     let mut app = app();
-    app.show_search_overlay = true;
+    app.search.show_search_overlay = true;
     app.sessions = vec![session_info("session-1", "/workspace")];
 
     let messages = collect_task_messages(update(
@@ -145,7 +134,7 @@ async fn select_session_with_known_directory_routes_to_project_session() {
     ))
     .await;
 
-    assert!(!app.show_search_overlay);
+    assert!(!app.search.show_search_overlay);
     assert!(app.active_session_id.is_none());
     assert!(matches!(
         messages.as_slice(),
@@ -184,9 +173,9 @@ async fn child_session_navigation_search_without_directory_defers_to_project_rou
 #[test]
 fn select_project_hides_overlay_before_returning_open_task() {
     let mut app = app();
-    app.show_search_overlay = true;
+    app.search.show_search_overlay = true;
 
     update(&mut app, SearchMessage::SelectProject("/tmp/project".to_string()));
 
-    assert!(!app.show_search_overlay);
+    assert!(!app.search.show_search_overlay);
 }

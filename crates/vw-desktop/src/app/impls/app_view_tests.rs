@@ -191,7 +191,7 @@ fn view_builds_with_about_cli_search_and_rename_overlays() {
     app.cli_install_modal_current_version = "1.0.0".to_string();
     app.cli_install_modal_server_version = "1.1.0".to_string();
     app.cli_install_modal_show_install_action = true;
-    app.show_search_overlay = true;
+    app.search.show_search_overlay = true;
     app.file_tree_interaction.file_tree_rename_path = Some("src/lib.rs".to_string());
     app.file_tree_interaction.file_tree_rename_value = "main.rs".to_string();
     app.session_rename_id = Some("session-1".to_string());

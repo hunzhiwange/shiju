@@ -181,7 +181,7 @@ impl App {
     /// 模块内可见函数，执行 refresh_search_panel_file_cache 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn refresh_search_panel_file_cache(&mut self) {
-        let query = Self::normalize_file_search_query(&self.search_text);
+        let query = Self::normalize_file_search_query(&self.search.search_text);
         let project_path = self.project_path.clone();
 
         if self.search_panel_file_cache_query == query

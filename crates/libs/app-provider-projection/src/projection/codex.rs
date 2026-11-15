@@ -1,7 +1,7 @@
 //! Shared Codex TOML projection, with a separate editor display step. No file publication.
 use super::codex_route::{CodexProjection, Route, RowInput, requires_openai_auth};
 use super::{Error, Projected, fields, patch, toml, value};
-use crate::providers::live::patch_toml::TomlPatch;
+use app_config_patch::patch_toml::TomlPatch;
 use serde_json::{Map, Value};
 use toml_edit::{DocumentMut, Item};
 use vw_api_app_provider_edit::preview::PreviewUnavailable;
@@ -88,7 +88,7 @@ fn profile_references(before: &Value, id: &str) -> bool {
 }
 
 /// Strict native path: no draft placeholder or display credential removal.
-pub(crate) fn native(
+pub fn native(
     live: DocumentMut,
     row: &Value,
     previous: Option<&Value>,
@@ -112,7 +112,7 @@ fn apply(
 ) -> Result<DocumentMut, Error> {
     match &projection.route {
         Route::Custom { table, .. } | Route::BuiltIn { table: Some(table), .. } => {
-            crate::providers::validation::native_request(
+            app_provider_validation::validation::native_request(
                 table.get("base_url"),
                 table.get("http_headers"),
             )

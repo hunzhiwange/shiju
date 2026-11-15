@@ -41,6 +41,7 @@ app-availability-core = { path = "../libs/app-availability-core" }
 app-catalog = { path = "../libs/app-catalog" }
 app-config-patch = { path = "../libs/app-config-patch" }
 app-provider-validation = { path = "../libs/app-provider-validation" }
+app-provider-projection = { path = "../libs/app-provider-projection" }
 app-config-paths = { path = "../libs/app-config-paths" }
 app-icons = { path = "../libs/app-icons" }
 prost = "0.14"

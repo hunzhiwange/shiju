@@ -33,7 +33,7 @@ pub fn project(
 ) -> Result<NativeProjection, ProjectionError> {
     project_owned(live, settings, previous, login_on_disk, None)
 }
-pub(crate) fn project_owned(
+pub fn project_owned(
     live: &str,
     settings: &Value,
     previous: Option<&Value>,

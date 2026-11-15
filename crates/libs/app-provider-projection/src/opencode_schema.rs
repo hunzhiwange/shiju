@@ -1,6 +1,6 @@
 //! Validation of native declarations, matching the source OpenCode V2 known fields.
 use serde_json::{Map, Value};
-pub(super) fn native_provider_problem(value: &Value) -> Option<String> {
+pub fn native_provider_problem(value: &Value) -> Option<String> {
     let Some(obj) = value.as_object() else {
         return Some(String::new());
     };

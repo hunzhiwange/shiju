@@ -1,12 +1,12 @@
 //! Grok whole-model-table projection, including retired tables and summary following.
 use super::{Error, Projected, patch, toml, value};
-use crate::providers::live::patch_toml::TomlPatch;
+use app_config_patch::patch_toml::TomlPatch;
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item, Table, TableLike};
 fn path(p: &[&str]) -> Vec<String> {
     p.iter().map(|s| (*s).into()).collect()
 }
-pub(crate) fn selected(doc: &DocumentMut) -> Option<String> {
+pub fn selected(doc: &DocumentMut) -> Option<String> {
     let tables = doc.get("model")?.as_table_like()?;
     let default =
         doc.get("models").and_then(|p| p.get("default")).and_then(Item::as_str).map(str::trim);
@@ -26,7 +26,7 @@ fn valid(table: &dyn TableLike) -> bool {
         && (nonempty("api_key") || nonempty("env_key"))
         && table.get("context_window").and_then(Item::as_integer).is_some_and(|v| v > 0)
 }
-pub(crate) fn document(
+pub fn document(
     live: DocumentMut,
     row: &Value,
     previous: Option<&Value>,
@@ -51,7 +51,7 @@ pub(crate) fn document(
     }
     if let Some(table) = target.as_ref().and_then(|id| row_doc.get("model").and_then(|m| m.get(id)))
     {
-        crate::providers::validation::native_request(
+        app_provider_validation::validation::native_request(
             table.get("base_url"),
             table.get("extra_headers"),
         )

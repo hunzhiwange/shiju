@@ -1,0 +1,19 @@
+[package]
+name = "app-provider-projection"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-config-patch = { path = "../app-config-patch" }
+app-provider-validation = { path = "../app-provider-validation" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+toml = "0.9"
+toml_edit = "0.22"
+
+[dev-dependencies]
+tempfile = "3"

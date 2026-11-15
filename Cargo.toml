@@ -189,6 +189,7 @@ members = [
   "crates/libs/app-catalog",
   "crates/libs/app-config-patch",
   "crates/libs/app-provider-validation",
+  "crates/libs/app-provider-projection",
   "crates/libs/app-config-paths",
   "crates/libs/app-icons",
   "crates/libs/app-model-catalog",

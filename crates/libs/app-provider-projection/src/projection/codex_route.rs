@@ -18,7 +18,7 @@ const BUILT_IN_IDS: &[&str] =
 const RESERVED_TABLE_IDS: &[&str] = &["openai", "ollama", "lmstudio"];
 const BEDROCK_IDS: &[&str] = &["amazon-bedrock", "amazon-bedrock-runtime"];
 /// 顶层的关键字段里，直接取行里值的那几个（选路、凭据、模型目录指针另算）。
-pub(crate) const ROW_TOP_FIELDS: &[&str] = &[
+pub const ROW_TOP_FIELDS: &[&str] = &[
     "model",
     "review_model",
     "model_reasoning_effort",

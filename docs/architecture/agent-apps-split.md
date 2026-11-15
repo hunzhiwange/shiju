@@ -2087,3 +2087,15 @@ workspace_paths → providers
 静态完成条件：全部当前源文件有归属，新增两卡与既有 10—72 入口存在，已删除 1—9 有提交与产物；既有资源表涵盖 presets/fixture/include，迁移时按实际相对路径复核，不复制资源。没有修改业务源码、Cargo.toml、Cargo.lock 或 plan.md。
 
 同深度的外依赖数量排序证据（源码命中数，不能替代 Cargo 图）：72=0；36=1；51=1；73=1；47=2；74=2；32=3；38=3；39=3；44=3；65=3；70=3；71=3；4=4；8=4；23=4；25=4；34=4；37=4；46=4；48=4；49=4；30=5；31=5；35=5；64=5；69=5；10=6；16=6；17=6；22=6；33=6；40=6；41=6；45=6；50=6；52=6；53=6；57=6；60=6；61=6；11=7；12=7；15=7；18=7；21=7；24=7；54=7；67=7；13=8；14=8；19=8；20=8；27=8；43=8；62=8；66=8；28=9；42=9；58=9；59=9；68=9；55=10；56=10；63=10；29=12；26=14。依赖方向优先于该次序，串行入口以 prompt 为准。
+
+
+## 任务 10 迁移结果（2026-11-15）
+
+静态拆分完成；未运行 Cargo、单元及实机测试，统一验收待授权。
+
+- `providers/projection/{mod,codex,codex_route,fields,grok,json}.rs`、`providers/codex.rs`、`providers/codex_tests.rs`、`providers/opencode_schema.rs` 已移入 `app-provider-projection/src`，原 providers 模块重导出。Projected、Error、fields、codex_route 以及真实跨包调用的投影入口公开；TomlPatch 直接来自 app-config-patch，校验来自 app-provider-validation，无 live 提交依赖。
+- Codex 独立测试保留 cfg(test) 注册；OpenCode schema 保留 macOS 条件。迁移文件无 include 资源。preview、codex_catalog/form、claude/gemini/grok 仍从原门面调用同一实现；无副本。
+- 本节覆盖历史逐文件所有权表：`claude.rs/claude_form.rs/claude_tests.rs`、`gemini.rs/gemini_form.rs/gemini_tests.rs`、`grok.rs/grok_tests.rs`、`dsh_form.rs/kimi_form.rs/mcode_form.rs/openclaw_form.rs/opencode_form.rs/omp_validation.rs` 暂留原位置，任务 24 接收。原因：WriteError/AppWriteGuard/ProviderTransactions/AppState 归任务 12，表单又调用 basic（任务 11）和具体适配器 validate/official；kimi_form 依赖任务 18 的 binding_region。不能令纯投影包反向依赖服务或 live。
+- `grok_form.rs` 调用 preview::editor_category，依历史符号切口由任务 24 接纯叶子、任务 29 收剩余表单编排；`desktop_mapping.rs/desktop_mapping/catalog.rs/desktop_mapping_tests.rs` 依赖 claude_desktop::settings 和 aggregation::model_ids，任务 24 梳理、任务 28 在任务 27 完成后接收整个映射边界。相邻测试原注册保留，随最终所有者迁移。
+- 原包 serde_json/toml/toml_edit/tempfile 仍有其他真实使用者，不能删除。新包直接依赖仅 patch、validation、preview 契约、serde_json（arbitrary_precision）、toml、toml_edit；tempfile 仅测试。
+- 静态证据：差异空白检查、移动内容/路径与导出审阅、TOML 路径审阅、新包无旧门面引用；后续统一验收须覆盖新包和 preview/codex_catalog/原生适配器编译、迁移测试及三平台条件。静态审阅不代表行为通过。

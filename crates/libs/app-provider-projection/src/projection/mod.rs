@@ -3,27 +3,27 @@ use serde_json::Value;
 use vw_api_app_provider_edit::preview::PreviewParseError;
 use vw_api_app_provider_edit::preview::PreviewUnavailable;
 mod codex;
-pub(super) mod codex_route;
-pub(crate) mod fields;
+pub mod codex_route;
+pub mod fields;
 mod grok;
 mod json;
-pub(crate) use codex::{native as codex_native, project as codex};
-pub(crate) use grok::{document as grok_document, project as grok, selected as grok_selected};
-pub(crate) use json::{claude, claude_with_residue, gemini};
-pub(crate) struct Projected {
+pub use codex::{native as codex_native, project as codex};
+pub use grok::{document as grok_document, project as grok, selected as grok_selected};
+pub use json::{claude, claude_with_residue, gemini};
+pub struct Projected {
     pub before: Value,
     pub settings: Value,
     pub inactive: Vec<Vec<String>>,
     pub difference: Option<(Value, Value)>,
 }
-pub(crate) enum Error {
+pub enum Error {
     Keyless,
     Draft(Value),
     Parse(PreviewParseError),
     Shape,
     Unavailable(PreviewUnavailable),
 }
-pub(crate) fn toml(text: &str, source: &str) -> Result<toml_edit::DocumentMut, Error> {
+pub fn toml(text: &str, source: &str) -> Result<toml_edit::DocumentMut, Error> {
     text.parse::<toml_edit::DocumentMut>().map_err(|e| {
         let offset = e.span().map(|s| s.start).unwrap_or(0).min(text.len());
         let prefix = &text.as_bytes()[..offset];
@@ -34,12 +34,12 @@ pub(crate) fn toml(text: &str, source: &str) -> Result<toml_edit::DocumentMut, E
         })
     })
 }
-pub(crate) fn value(doc: &toml_edit::DocumentMut) -> Result<Value, Error> {
+pub fn value(doc: &toml_edit::DocumentMut) -> Result<Value, Error> {
     ::toml::from_str::<Value>(&doc.to_string()).map_err(|_| Error::Shape)
 }
 pub(crate) fn patch(
     doc: &toml_edit::DocumentMut,
-    patch: crate::providers::live::patch_toml::TomlPatch,
+    patch: app_config_patch::patch_toml::TomlPatch,
 ) -> Result<toml_edit::DocumentMut, Error> {
     let bytes = patch.apply(Some(doc.to_string().as_bytes())).map_err(|_| Error::Shape)?;
     toml(std::str::from_utf8(&bytes).map_err(|_| Error::Shape)?, "projection")

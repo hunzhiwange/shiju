@@ -18,7 +18,7 @@ pub fn claude(
 }
 /// Mode exits have a durable value owner; legacy residue guesses must not erase
 /// a different externally edited value, even if it matches an old preset.
-pub(crate) fn claude_with_residue(
+pub fn claude_with_residue(
     live: Value,
     row: &Value,
     previous: Option<&Value>,
@@ -27,7 +27,7 @@ pub(crate) fn claude_with_residue(
 ) -> Result<Projected, Error> {
     for path in ["/apiBaseUrl", "/env/ANTHROPIC_BASE_URL"] {
         if let Some(url) = row.pointer(path) {
-            crate::providers::validation::endpoint(url.as_str().ok_or(Error::Shape)?)
+            app_provider_validation::validation::endpoint(url.as_str().ok_or(Error::Shape)?)
                 .map_err(|_| Error::Shape)?;
         }
     }
@@ -108,7 +108,7 @@ pub fn gemini(
     official: bool,
 ) -> Result<Projected, Error> {
     if let Some(url) = row.pointer("/env/GOOGLE_GEMINI_BASE_URL") {
-        crate::providers::validation::endpoint(url.as_str().ok_or(Error::Shape)?)
+        app_provider_validation::validation::endpoint(url.as_str().ok_or(Error::Shape)?)
             .map_err(|_| Error::Shape)?;
     }
     let mut out = live_env.clone();

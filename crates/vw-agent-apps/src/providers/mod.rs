@@ -49,7 +49,7 @@ pub mod preview;
 #[cfg(all(test, target_os = "macos"))]
 mod preview_tests;
 
-mod projection;
+pub(crate) use app_provider_projection::projection;
 pub(crate) use projection::fields;
 
 pub use app_provider_validation::validation;
@@ -73,9 +73,7 @@ pub mod claude_login;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_login_tests;
 
-pub mod codex;
-#[cfg(test)]
-mod codex_tests;
+pub use app_provider_projection::codex;
 
 #[cfg(target_os = "macos")]
 pub mod codex_login;
@@ -121,7 +119,7 @@ pub mod opencode;
 mod opencode_tests;
 
 #[cfg(target_os = "macos")]
-mod opencode_schema;
+pub(crate) use app_provider_projection::opencode_schema;
 
 #[cfg(target_os = "macos")]
 pub mod pi;

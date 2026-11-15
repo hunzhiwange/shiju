@@ -492,4 +492,3 @@ fn parse_exit_code(text: &str) -> Option<i32> {
         .parse()
         .ok()
 }
-

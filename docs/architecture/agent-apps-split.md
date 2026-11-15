@@ -2709,6 +2709,6 @@ app-session-gemini/src 唯一拥有 gemini.rs 与 gemini_document.rs，原 provi
 
 PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门面路径。PiTranscript 因 OpenClaw 真实使用最小公开；Dialect、load_messages_for、scan_files_for、verify_omp_session_id 因 OMP 真实使用最小公开；verify_pi_session_id 因删除服务使用最小公开。函数体保持不变，只调整基础库导入及上述跨包可见性。无独立测试、平台 cfg、include 或资源需搬迁。跨适配器分发仍由任务 54 接收，OpenClaw 与 OMP 由任务 50 接收；本任务无未闭合叶子实现。
 
-新包直接依赖 app-session-core、vw-api-external-session、serde（derive）及 serde_json（arbitrary_precision）。原包这些依赖仍有其它使用者，保留。静态证据：三份迁移源码与 HEAD 基线逐字比较，仅导入/可见性差异；标准库 TOML 读取（系统 Python 无 tomllib 时使用已有 pip._vendor.tomli）确认 workspace 注册、直接路径存在，五个传递生产路径清单无旧门面回边；源码检索新包无 vw-agent-apps/vw_agent_apps。git diff --check 通过。
+新包直接依赖 app-session-core、vw-api-external-session、serde（derive）及 serde_json（arbitrary_precision）。原包这些依赖仍有其它使用者，保留。静态证据：三份迁移源码与 HEAD 基线逐字比较，仅导入/可见性差异及移除原有 EOF 空行；标准库 TOML 读取（系统 Python 无 tomllib 时使用已有 pip._vendor.tomli）确认 workspace 注册、直接路径存在，五个传递生产路径清单无旧门面回边；源码检索新包无 vw-agent-apps/vw_agent_apps。git diff --check 通过。
 
 未运行 Cargo、单元及实机测试，统一验收待授权：覆盖 app-session-pi、Pi 删除、OpenClaw 和 OMP 调用者编译及原平台行为。静态审阅不代表编译或行为验收；Cargo.lock 未触碰。

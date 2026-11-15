@@ -426,4 +426,3 @@ pub(crate) fn is_valid_tree_id(id: &str) -> bool {
             .iter()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
 }
-

@@ -1,6 +1,6 @@
 use super::request::LaunchMaterial;
 use super::windows::terminal_commands;
-use crate::apps::discovery::wsl::parse_target;
+use app_catalog::wsl::parse_target;
 
 fn material() -> LaunchMaterial {
     LaunchMaterial {

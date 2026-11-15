@@ -1,0 +1,28 @@
+[package]
+name = "app-launch"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-auth = { path = "../app-auth" }
+app-catalog = { path = "../app-catalog" }
+app-provider-validation = { path = "../app-provider-validation" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-provider-base = { path = "../api-app-provider-base" }
+base64 = "0.23"
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+tempfile = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-providers = { path = "../app-providers" }
+app-config-paths = { path = "../app-config-paths" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
+vw-api-transport = { path = "../api-transport" }
+sha2 = "0.11"
+
+[dev-dependencies]
+app-auth = { path = "../app-auth", features = ["test-support"] }

@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-launch = { path = "../libs/app-launch" }
 app-lifecycle = { path = "../libs/app-lifecycle" }
 app-uninstall = { path = "../libs/app-uninstall" }
 app-discovery = { path = "../libs/app-discovery" }

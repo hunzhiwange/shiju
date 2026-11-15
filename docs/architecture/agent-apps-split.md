@@ -2548,3 +2548,10 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 保留全部平台 cfg、命令参数、错误和权限校验，无资源 include 路径变化。清单仅声明实际依赖；原包其余实现仍使用相关直接依赖，未删除。根 workspace 与门面直接路径依赖已注册。
 - 静态证据：迁移文件/测试注册及真实调用者、cfg/path、导出与重复实现检索已审阅；TOML 用 Python 现有 pip._vendor.tomli 只读解析（系统无 tomllib），核对 68 个传递生产路径依赖，无门面回边；git diff --check 通过。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：新库及直接调用者目标编译、迁移单测、macOS/Windows/Linux/WSL 原行为及锁文件一致性。Cargo.lock 未修改。
+
+## 任务 35：应用启动迁移结果
+
+- app-launch 接收 host、posix、windows、provider、terminal_session 及六个独立测试；平台 cfg 保持一致，根模块组合启动适配。
+- 接收任务 24 的 agy、agy_files、agy_tests；prepare/prepare_checked 与 ProviderLaunch 私有 Lease 同包闭合。account/request 及测试继续归 app-auth，由新包重导出。
+- 原 apps::launch 与 providers::agy 薄导出保持 vw-agent 与 sessions 调用路径。WSL 类型引用 app-catalog；验证引用 app-provider-validation；Agy 事务引用 app-auth，路径引用 app-config-paths；无门面回依赖。
+- 静态审阅包括 TOML 路径、传递依赖无环、测试注册与文件迁移；无 include 资源。本任务差异空白检查通过；全局 diff --check 有其它任务的 recordings.rs 既有尾部空行。未运行 Cargo、单元及实机测试，统一验收待授权，覆盖新库及调用者编译和 macOS/Windows/WSL/POSIX 行为。

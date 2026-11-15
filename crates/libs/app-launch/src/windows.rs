@@ -1,6 +1,6 @@
 //! Windows execution-host adapter. Call only with freshly authorized host material.
 use super::request::LaunchMaterial;
-use crate::apps::discovery::wsl::{WslShell, WslTarget, parse_target};
+use app_catalog::wsl::{WslShell, WslTarget, parse_target};
 use base64::Engine;
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 //! Agy selects a persistent terminal profile; it has no global current provider.
-use super::live::{commit::*, patch_json::JsonPatch, stage::FileChange, write_guard::*};
-use crate::apps::launch::{provider::ProviderLaunch, request::LaunchMaterial};
+use app_auth::providers::live::{commit::*, patch_json::JsonPatch, stage::FileChange, write_guard::*};
+use crate::{provider::ProviderLaunch, request::LaunchMaterial};
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -23,7 +23,7 @@ pub struct Scope<'a> {
 }
 impl Scope<'_> {
     pub fn directory(&self) -> PathBuf {
-        super::paths::agy_profile_directory(
+        app_config_paths::agy_profile_directory(
             self.private_root,
             self.host,
             self.tenant,
@@ -48,8 +48,8 @@ pub fn prepare_checked(
 ) -> Result<ProviderLaunch, String> {
     validate(p)?;
     let catalog = Some(catalog_lease(scope, false).map_err(safe)?);
-    super::validate_identity(scope.provider)?;
-    super::validate_identity(scope.host)?;
+    app_provider_validation::validate_identity(scope.provider)?;
+    app_provider_validation::validate_identity(scope.host)?;
     if scope.home.to_str().is_none()
         || scope.private_root.to_str().is_none()
         || !scope.home.is_absolute()

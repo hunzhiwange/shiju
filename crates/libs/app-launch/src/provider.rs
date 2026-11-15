@@ -1,6 +1,6 @@
 //! Authorized provider processes; temporary profiles or a persistent Agy profile lease.
 use super::request::LaunchMaterial;
-use crate::providers::validate_profile;
+use app_provider_validation::validate_profile;
 use std::{
     fs,
     io::Write,
@@ -18,7 +18,7 @@ pub struct ProviderLaunch {
     pub(crate) env: Vec<(&'static str, String)>,
     pub(crate) private: Option<tempfile::TempDir>,
     #[cfg(target_os = "macos")]
-    pub(crate) agy: Option<crate::providers::agy::Lease>,
+    pub(crate) agy: Option<crate::agy::Lease>,
     #[cfg(target_os = "macos")]
     pub(crate) agy_catalog: Option<std::fs::File>,
     #[cfg(target_os = "macos")]

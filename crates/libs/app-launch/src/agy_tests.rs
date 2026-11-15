@@ -1,5 +1,5 @@
 use super::agy::*;
-use crate::apps::launch::request::LaunchMaterial;
+use crate::request::LaunchMaterial;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 use vw_api_app_provider_profiles::agy::AgyProfile;
 use vw_api_transport::id::TenantScope;
@@ -243,7 +243,7 @@ fn cc04_agy_wrong_link_and_directory_replacement_are_rejected() {
 }
 #[test]
 fn cc04_agy_pending_recovers_settings_without_global_pointer_or_native_writes() {
-    use super::live::commit::{ExecutionHostId, HOOK, Phase, ProviderTransactions};
+    use app_auth::providers::live::commit::{ExecutionHostId, HOOK, Phase, ProviderTransactions};
     for phase in
         [Phase::Intent, Phase::Marked, Phase::FilePublished, Phase::Published, Phase::Settled]
     {
@@ -263,7 +263,7 @@ fn cc04_agy_pending_recovers_settings_without_global_pointer_or_native_writes() 
         p.model = Some("New Model".into());
         HOOK.with_borrow_mut(|h| {
             *h = Some(Box::new(move |_, _, at| {
-                if at == phase { Err(super::live::write_guard::WriteError::Io) } else { Ok(()) }
+                if at == phase { Err(app_auth::providers::live::write_guard::WriteError::Io) } else { Ok(()) }
             }))
         });
         let failed = prepare(&scope, &p, material(t.path()));

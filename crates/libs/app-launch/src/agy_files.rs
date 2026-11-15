@@ -138,7 +138,7 @@ impl Lease {
         Ok(Self { dirs, profile, settings, shared, _lock: lock })
     }
     pub fn guard(&self) -> Result<AppWriteGuard, WriteError> {
-        super::super::live::write_guard::lock_directory(
+        app_auth::providers::live::write_guard::lock_directory(
             AppId::Agy,
             self.dirs[self.settings].file.try_clone().map_err(|_| WriteError::Io)?,
         )
@@ -213,7 +213,7 @@ impl Lease {
 pub fn catalog_lease(scope: &Scope<'_>, exclusive: bool) -> Result<File, WriteError> {
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use sha2::{Digest, Sha256};
-    super::super::validate_identity(scope.provider).map_err(|_| WriteError::InvalidResource)?;
+    app_provider_validation::validate_identity(scope.provider).map_err(|_| WriteError::InvalidResource)?;
     let root = Directory::root(scope.private_root, true)?;
     let identity = serde_json::to_vec(&(scope.tenant, scope.provider))
         .map_err(|_| WriteError::InvalidResource)?;

@@ -6,6 +6,7 @@ members = [
   "crates/libs/app-discovery",
   "crates/libs/app-lifecycle",
   "crates/libs/app-uninstall",
+  "crates/libs/app-launch",
   "crates/libs/gateway-desktop-settings",
   "crates/libs/app-versions",
   "crates/libs/tool-types",

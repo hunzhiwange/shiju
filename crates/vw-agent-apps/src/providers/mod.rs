@@ -9,8 +9,6 @@ pub(crate) mod codex_login_material {
     pub(crate) use app_auth_codex::identity::extract_codex_auth_user_identity;
 }
 #[cfg(target_os = "macos")]
-pub mod agy;
-#[cfg(all(test, target_os = "macos"))]
-mod agy_tests;
+pub use app_launch::agy;
 #[cfg(test)]
 mod validation_tests;

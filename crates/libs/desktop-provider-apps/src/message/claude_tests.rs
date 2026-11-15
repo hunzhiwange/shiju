@@ -1,12 +1,7 @@
 use super::claude;
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{
-        claude::Draft,
-        edit::{EditForm, Mode},
-        list::{ListState, Scope},
-    },
-};
+use crate::{AgentAppsContext, Scope, state::{claude::Draft, edit::{EditForm, Mode}}};
+use super::edit_test_state::ListState;
+
 use std::io::{Read, Write};
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
@@ -106,7 +101,7 @@ async fn cc04_ui_claude_validation_failure_preserves_draft() {
     let result = claude::save(client, scope.clone(), form, "fake-host-token".into()).await;
     assert!(server.join().unwrap(), "Claude 草稿必须通过正式 SDK 提交给服务校验");
     assert!(result.as_ref().unwrap_err().contains("执行端未接受"));
-    assert!(claude::finish(&mut state, &scope, generation, &result));
+    assert!(claude::finish(&mut state.borrowed(), &scope, generation, &result));
     let form = state.form.unwrap();
     assert_eq!(form.fields.name, "中文草稿");
     assert_eq!(form.claude.unwrap().model, "保留模型");
@@ -126,12 +121,12 @@ use vw_api_app_provider_base::claude::ClaudeLiveResult;
     new.saving = true;
     state.form = Some(new);
 
-    assert!(!claude::finish(&mut state, &scope, old_generation, &Ok(ClaudeLiveResult::Applied)));
+    assert!(!claude::finish(&mut state.borrowed(), &scope, old_generation, &Ok(ClaudeLiveResult::Applied)));
     let mut old_scope = scope.clone();
     old_scope.host = "old-host".into();
-    assert!(!claude::finish(&mut state, &old_scope, generation, &Err("过期错误".into())));
+    assert!(!claude::finish(&mut state.borrowed(), &old_scope, generation, &Err("过期错误".into())));
     assert_eq!(state.form.as_ref().unwrap().fields.name, "新草稿");
     assert!(state.form.as_ref().unwrap().saving);
-    assert!(claude::finish(&mut state, &scope, generation, &Ok(ClaudeLiveResult::NotAttempted)));
+    assert!(claude::finish(&mut state.borrowed(), &scope, generation, &Ok(ClaudeLiveResult::NotAttempted)));
     assert!(state.form.is_none());
 }

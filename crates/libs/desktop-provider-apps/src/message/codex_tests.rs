@@ -1,12 +1,7 @@
 use super::codex;
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{
-        codex::Draft,
-        edit::{EditForm, Mode},
-        list::{ListState, Scope},
-    },
-};
+use crate::{AgentAppsContext, Scope, state::{codex::Draft, edit::{EditForm, Mode}}};
+use super::edit_test_state::ListState;
+
 use std::io::{Read, Write};
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
@@ -108,7 +103,7 @@ async fn cc04_ui_codex_validation_failure_preserves_draft() {
     let result = codex::save(client, scope.clone(), form, "fake-host-token".into()).await;
     assert!(server.join().unwrap(), "Codex 草稿必须通过正式 SDK 提交给服务校验");
     assert!(result.as_ref().unwrap_err().contains("执行端未接受"));
-    assert!(codex::finish(&mut state, &scope, generation, &result));
+    assert!(codex::finish(&mut state.borrowed(), &scope, generation, &result));
     let form = state.form.unwrap();
     assert_eq!(form.fields.name, "中文草稿");
     let draft = form.codex.unwrap();
@@ -130,12 +125,12 @@ fn cc04_ui_codex_stale_response_is_ignored() {
     new.saving = true;
     state.form = Some(new);
 
-    assert!(!codex::finish(&mut state, &scope, old_generation, &Ok(CodexLiveResult::Applied)));
+    assert!(!codex::finish(&mut state.borrowed(), &scope, old_generation, &Ok(CodexLiveResult::Applied)));
     let mut old_scope = scope.clone();
     old_scope.host = "old-host".into();
-    assert!(!codex::finish(&mut state, &old_scope, generation, &Err("过期错误".into())));
+    assert!(!codex::finish(&mut state.borrowed(), &old_scope, generation, &Err("过期错误".into())));
     assert_eq!(state.form.as_ref().unwrap().fields.name, "新草稿");
     assert!(state.form.as_ref().unwrap().saving);
-    assert!(codex::finish(&mut state, &scope, generation, &Ok(CodexLiveResult::NotAttempted)));
+    assert!(codex::finish(&mut state.borrowed(), &scope, generation, &Ok(CodexLiveResult::NotAttempted)));
     assert!(state.form.is_none());
 }

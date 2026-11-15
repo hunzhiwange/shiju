@@ -1,12 +1,6 @@
 use super::agy;
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{
-        agy::Draft,
-        edit::{EditForm, Mode},
-        list::{ListState, Scope},
-    },
-};
+use crate::{AgentAppsContext, Scope, state::{agy::Draft, edit::{EditForm, Mode}}};
+use super::edit_test_state::ListState;
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -103,7 +97,7 @@ async fn cc04_ui_agy_validation_failure_preserves_draft() {
     let result = agy::save(client, scope.clone(), form, "fake-host-token".into()).await;
     assert!(server.join().unwrap(), "Agy 草稿必须通过 SDK 交给执行端校验");
     assert!(result.as_ref().unwrap_err().contains("执行端未接受"));
-    assert!(agy::finish(&mut state, &scope, generation, &result));
+    assert!(agy::finish(&mut state.borrowed(), &scope, generation, &result));
     let form = state.form.unwrap();
     assert!(!form.saving);
     assert_eq!(form.fields.name, "中文草稿");
@@ -120,12 +114,12 @@ fn cc04_ui_agy_stale_response_is_ignored() {
     form.fields.name = "当前草稿".into();
     state.form = Some(form);
 
-    assert!(!agy::finish(&mut state, &scope, old, &Ok(())));
+    assert!(!agy::finish(&mut state.borrowed(), &scope, old, &Ok(())));
     let mut old_scope = scope.clone();
     old_scope.host = "old-host".into();
-    assert!(!agy::finish(&mut state, &old_scope, current, &Err("过期错误".into())));
+    assert!(!agy::finish(&mut state.borrowed(), &old_scope, current, &Err("过期错误".into())));
     assert_eq!(state.form.as_ref().unwrap().fields.name, "当前草稿");
     assert!(state.form.as_ref().unwrap().saving);
-    assert!(agy::finish(&mut state, &scope, current, &Ok(())));
+    assert!(agy::finish(&mut state.borrowed(), &scope, current, &Ok(())));
     assert!(state.form.is_none());
 }

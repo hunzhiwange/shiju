@@ -17,3 +17,15 @@ pub mod endpoints;
 pub mod env;
 pub mod edit;
 pub mod desktop;
+
+pub mod mode;
+
+pub mod paths;
+
+pub mod preview;
+
+pub mod snippets;
+
+pub mod universal;
+
+pub mod list;

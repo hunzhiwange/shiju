@@ -184,3 +184,10 @@ impl EditForm {
         result.is_ok()
     }
 }
+
+/// Borrowed edit transaction fields used to reject stale provider responses.
+pub struct ProviderEditState<'a> {
+    pub scope: Option<&'a crate::Scope>,
+    pub generation: u64,
+    pub form: &'a mut Option<EditForm>,
+}

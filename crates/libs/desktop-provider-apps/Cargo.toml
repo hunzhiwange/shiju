@@ -29,3 +29,11 @@ vw-api-app-provider-environment = { path = "../api-app-provider-environment", ve
 gateway-http = { path = "../gateway-http", version = "0.6.0" }
 base64 = "0.22"
 image = "0.25.9"
+
+serde_json = "1"
+gateway-app-provider = { path = "../gateway-app-provider", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+
+[dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -16,3 +16,15 @@ pub mod icons;
 pub mod endpoints;
 pub mod env;
 pub mod desktop;
+
+#[cfg(test)]
+mod edit_test_state;
+
+#[cfg(test)]
+mod agy_tests;
+
+#[cfg(test)]
+mod claude_tests;
+
+#[cfg(test)]
+mod codex_tests;

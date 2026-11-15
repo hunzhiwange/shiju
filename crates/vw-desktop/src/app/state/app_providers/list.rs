@@ -1,13 +1,7 @@
 use vw_api_types::agent_apps::AppId;
-use vw_api_app_provider_edit::catalog::ProviderCatalog;
 use vw_api_app_provider_edit::presentation::AppProviderPresentation;
-use vw_api_app_provider_edit::presentation::AppProviderPresentationEntry;
 pub use desktop_provider_apps::Scope;
-#[derive(Clone, Debug)]
-pub struct Snapshot {
-    pub catalog: ProviderCatalog,
-    pub presentation: Vec<AppProviderPresentationEntry>,
-}
+pub use desktop_provider_apps::state::list::Snapshot;
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ListState {
     pub leave: super::leave::LeaveState,

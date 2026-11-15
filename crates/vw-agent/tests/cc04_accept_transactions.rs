@@ -124,7 +124,7 @@ impl Fixture {
                     let endpoint = GatewayEndpoint::new("127.0.0.1", port)
                         .with_tenant_scope(TenantScope::new("p", "a").unwrap());
                     let client = GatewayClient::new(endpoint).unwrap();
-                    if client.system_health().await.is_ok() {
+                    if gateway_system::GatewaySystemClient::new(client.transport().clone()).system_health().await.is_ok() {
                         return client;
                     }
                 }

@@ -154,7 +154,7 @@ async fn cc_route_030_production_gateway_preserves_fixed_candidates_and_job_boun
             if let Some(port) = text.lines().find_map(|line| {
                 line.strip_prefix("VibeWindow Gateway listening on http://127.0.0.1:")
                     .and_then(|port| port.parse::<u16>().ok())
-            }) && client(port, "owner").system_health().await.is_ok()
+            }) && gateway_system::GatewaySystemClient::new(client(port, "owner").transport().clone()).system_health().await.is_ok()
             {
                 break port;
             }

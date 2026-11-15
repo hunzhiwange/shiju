@@ -1,0 +1,18 @@
+[package]
+name = "cli-api-system"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+gateway-system = { path = "../gateway-system", version = "0.6.0" }
+gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
+gateway-cron = { path = "../gateway-cron", version = "0.6.0" }
+gateway-model-provider = { path = "../gateway-model-provider", version = "0.6.0" }
+gateway-config = { path = "../gateway-config", version = "0.6.0" }
+cli-api-core = { path = "../cli-api-core", version = "0.6.0" }
+anyhow = "1"
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }

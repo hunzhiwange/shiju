@@ -342,7 +342,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
                         config.get("worktree_settings").cloned().ok_or("网关未返回工作树设置。")?,
                     )
                     .map_err(|e| e.to_string())?;
-                    let paths = client.system_path(None).await?;
+                    let paths = gateway_system::GatewaySystemClient::new(client.transport().clone()).system_path(None).await?;
                     let root = paths
                         .get("task_worktrees_root")
                         .and_then(|v| v.as_str())

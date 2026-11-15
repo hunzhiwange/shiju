@@ -39,7 +39,6 @@ mod status_state;
 mod status_surfaces;
 mod streaming;
 mod tool_lifecycle;
-mod transcript;
 mod turn_lifecycle;
 
 #[cfg(test)]
@@ -63,7 +62,7 @@ pub use status_state::V3ChatStatus;
 
 use input_queue::InputQueueState;
 use status_state::StatusState;
-use transcript::{TranscriptMouseAction, TranscriptState};
+use tui_transcript::{TranscriptMouseAction, TranscriptState};
 use tui_contracts::presentation::UserMessage;
 
 enum ChatOverlay {

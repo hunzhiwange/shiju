@@ -92,8 +92,7 @@ impl ChatWidget {
 
     pub(super) fn sync_exec_group(&mut self) {
         if let Some(cell) = self.exec_state.snapshot() {
-            self.transcript.active_cell = Some(Box::new(cell));
-            self.transcript.bump_active_cell_revision();
+            self.transcript.set_active_cell(Box::new(cell));
             self.transcript.set_live_tail_event(None);
         }
     }

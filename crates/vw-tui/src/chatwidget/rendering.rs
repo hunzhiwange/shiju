@@ -3,7 +3,6 @@
 //! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::status_surfaces::StatusSurface;
-use super::transcript::{ActiveCellLayoutCache, ActiveCellLayoutCacheKey};
 use super::*;
 use crate::render::Insets;
 use crate::render::renderable::{FlexRenderable, Renderable, RenderableExt, RenderableItem};
@@ -56,7 +55,7 @@ impl TranscriptAreaRenderable<'_> {
     fn dynamic_lines(&self, width: u16, has_committed: bool) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         let mut has_previous = has_committed;
-        for cell in [self.transcript.active_cell.as_deref(), self.transcript.live_tail.as_deref()]
+        for cell in [self.transcript.active_cell(), self.transcript.live_tail()]
             .into_iter()
             .flatten()
         {
@@ -67,27 +66,6 @@ impl TranscriptAreaRenderable<'_> {
             has_previous = true;
         }
         lines
-    }
-
-    fn active_desired_height(&self, width: u16) -> u16 {
-        let Some(cell) = self.transcript.active_cell.as_ref() else {
-            return 0;
-        };
-        let key = ActiveCellLayoutCacheKey {
-            cell_identity: cell.as_ref() as *const dyn HistoryCell as *const () as usize,
-            revision: self.transcript.active_cell_revision,
-            width,
-            syntax_theme_revision: crate::render::highlight::syntax_theme_revision(),
-        };
-        if let Some(layout) = self.transcript.active_cell_layout.get()
-            && layout.key == key
-        {
-            return layout.desired_height;
-        }
-
-        let desired_height = cell.desired_height(width.max(1));
-        self.transcript.active_cell_layout.set(Some(ActiveCellLayoutCache { key, desired_height }));
-        desired_height
     }
 }
 
@@ -136,7 +114,7 @@ impl Renderable for TranscriptAreaRenderable<'_> {
         // Keep the copied active-cell height cache hot while measuring the full
         // static transcript; committed and live cells remain immutable inputs.
         // 测量完整静态对话记录时保持活动单元高度缓存可用；已提交单元与活动单元仍作为不可变输入。
-        let _ = self.active_desired_height(width);
+        let _ = self.transcript.active_desired_height(width);
         let width = width.max(1);
         let committed_height = self.transcript.committed_line_count(width, true);
         let dynamic_height = self.dynamic_lines(width, committed_height > 0).len();

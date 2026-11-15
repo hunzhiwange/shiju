@@ -85,7 +85,7 @@ fn committed_history_reuses_layout_when_render_width_alternates() {
 #[test]
 fn session_header_metadata_updates_in_place() {
     let mut state = TranscriptState::default();
-    let display = |title: &str| crate::V3SessionDisplayData {
+    let display = |title: &str| tui_cells::V3SessionDisplayData {
         version: "0.4.0".into(),
         cwd: "/workspace".into(),
         gateway_endpoint: "127.0.0.1:42617".into(),
@@ -93,10 +93,10 @@ fn session_header_metadata_updates_in_place() {
         permissions: "Default · full access".into(),
         session_id: Some("session-1".into()),
         session_title: Some(title.into()),
-        token_usage: crate::V3TokenUsage::default(),
+        token_usage: tui_cells::V3TokenUsage::default(),
         resumed: true,
     };
-    state.push_cell(Box::new(crate::history_cell::SessionHistoryCell::header(display("Old"))));
+    state.push_cell(Box::new(tui_cells::history_cell::SessionHistoryCell::header(display("Old"))));
     state.push_history(V3DisplayEvent::System { text: "history".into() });
 
     state.set_session_header(display("Generated title"));

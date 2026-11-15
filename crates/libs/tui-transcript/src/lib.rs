@@ -1,11 +1,11 @@
-//! Committed, active, and live-tail cells owned by `ChatWidget`.
+//! Committed, active, and live-tail transcript state and layout caches.
 //! 本模块负责已提交、活动与实时尾部对话单元。
 //! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use std::cell::{Cell, RefCell};
 
-use crate::history_cell::{HistoryCell, history_cell_for};
-use crate::vibe::event::V3DisplayEvent;
+use tui_cells::history_cell::{HistoryCell, history_cell_for};
+use tui_contracts::event::V3DisplayEvent;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -16,18 +16,18 @@ const COMMITTED_HISTORY_LAYOUT_CACHE_CAPACITY: usize = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// 描述 `ActiveCellLayoutCacheKey` 在当前界面流程中传递的数据。
-pub(super) struct ActiveCellLayoutCacheKey {
-    pub(super) cell_identity: usize,
-    pub(super) revision: u64,
-    pub(super) width: u16,
-    pub(super) syntax_theme_revision: u64,
+struct ActiveCellLayoutCacheKey {
+    cell_identity: usize,
+    revision: u64,
+    width: u16,
+    syntax_theme_revision: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// 描述 `ActiveCellLayoutCache` 在本模块状态转换中传递的数据。
-pub(super) struct ActiveCellLayoutCache {
-    pub(super) key: ActiveCellLayoutCacheKey,
-    pub(super) desired_height: u16,
+struct ActiveCellLayoutCache {
+    key: ActiveCellLayoutCacheKey,
+    desired_height: u16,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,12 +45,12 @@ struct CommittedHistoryLayoutCache {
     separated_line_count: usize,
 }
 
-pub(super) struct TranscriptState {
-    pub(super) committed_history: Vec<Box<dyn HistoryCell>>,
-    pub(super) active_cell: Option<Box<dyn HistoryCell>>,
-    pub(super) live_tail: Option<Box<dyn HistoryCell>>,
-    pub(super) active_cell_revision: u64,
-    pub(super) active_cell_layout: Cell<Option<ActiveCellLayoutCache>>,
+pub struct TranscriptState {
+    committed_history: Vec<Box<dyn HistoryCell>>,
+    active_cell: Option<Box<dyn HistoryCell>>,
+    live_tail: Option<Box<dyn HistoryCell>>,
+    active_cell_revision: u64,
+    active_cell_layout: Cell<Option<ActiveCellLayoutCache>>,
     committed_history_layout: RefCell<Vec<CommittedHistoryLayoutCache>>,
     scroll_top: Cell<usize>,
     follow_bottom: Cell<bool>,
@@ -63,11 +63,11 @@ pub(super) struct TranscriptState {
     selection_anchor: Cell<Option<(u16, u16)>>,
     selection_head: Cell<Option<(u16, u16)>>,
     selecting: Cell<bool>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     last_projected_committed_line_count: Cell<usize>,
 }
 
-pub(super) enum TranscriptMouseAction {
+pub enum TranscriptMouseAction {
     None,
     Copy(String),
 }
@@ -92,49 +92,83 @@ impl Default for TranscriptState {
             selection_anchor: Cell::new(None),
             selection_head: Cell::new(None),
             selecting: Cell::new(false),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             last_projected_committed_line_count: Cell::new(0),
         }
     }
 }
 
 impl TranscriptState {
+    pub fn active_desired_height(&self, width: u16) -> u16 {
+        let Some(cell) = self.active_cell.as_ref() else {
+            return 0;
+        };
+        let key = ActiveCellLayoutCacheKey {
+            cell_identity: cell.as_ref() as *const dyn HistoryCell as *const () as usize,
+            revision: self.active_cell_revision,
+            width,
+            syntax_theme_revision: tui_highlight::syntax_theme_revision(),
+        };
+        if let Some(layout) = self.active_cell_layout.get()
+            && layout.key == key
+        {
+            return layout.desired_height;
+        }
+
+        let desired_height = cell.desired_height(width.max(1));
+        self.active_cell_layout.set(Some(ActiveCellLayoutCache { key, desired_height }));
+        desired_height
+    }
+
+    pub fn active_cell(&self) -> Option<&dyn HistoryCell> {
+        self.active_cell.as_deref()
+    }
+
+    pub fn live_tail(&self) -> Option<&dyn HistoryCell> {
+        self.live_tail.as_deref()
+    }
+
+    pub fn set_active_cell(&mut self, cell: Box<dyn HistoryCell>) {
+        self.active_cell = Some(cell);
+        self.bump_active_cell_revision();
+    }
+
     // 构造并展示 `push_cell` 对应的界面内容。
-    pub(super) fn push_cell(&mut self, cell: Box<dyn HistoryCell>) {
+    pub fn push_cell(&mut self, cell: Box<dyn HistoryCell>) {
         self.committed_history.push(cell);
         self.invalidate_committed_history_layout();
     }
 
-    pub(super) fn push_history(&mut self, event: V3DisplayEvent) {
+    pub fn push_history(&mut self, event: V3DisplayEvent) {
         self.committed_history.push(history_cell_for(&event));
         self.invalidate_committed_history_layout();
     }
 
-    pub(super) fn set_session_header(&mut self, data: crate::V3SessionDisplayData) {
+    pub fn set_session_header(&mut self, data: tui_cells::V3SessionDisplayData) {
         if let Some(cell) = self
             .committed_history
             .iter_mut()
-            .find(|cell| cell.as_any().is::<crate::history_cell::SessionHistoryCell>())
+            .find(|cell| cell.as_any().is::<tui_cells::history_cell::SessionHistoryCell>())
         {
-            *cell = Box::new(crate::history_cell::SessionHistoryCell::header(data));
+            *cell = Box::new(tui_cells::history_cell::SessionHistoryCell::header(data));
         } else {
             self.committed_history
-                .insert(0, Box::new(crate::history_cell::SessionHistoryCell::header(data)));
+                .insert(0, Box::new(tui_cells::history_cell::SessionHistoryCell::header(data)));
         }
         self.invalidate_committed_history_layout();
     }
 
-    pub(super) fn set_active_event(&mut self, event: Option<V3DisplayEvent>) {
+    pub fn set_active_event(&mut self, event: Option<V3DisplayEvent>) {
         self.active_cell = event.as_ref().map(history_cell_for);
         self.bump_active_cell_revision();
     }
 
     // 更新 `set_live_tail_event` 对应的本地展示状态。
-    pub(super) fn set_live_tail_event(&mut self, event: Option<V3DisplayEvent>) {
+    pub fn set_live_tail_event(&mut self, event: Option<V3DisplayEvent>) {
         self.live_tail = event.as_ref().map(history_cell_for);
     }
 
-    pub(super) fn commit_active_cell(&mut self) {
+    pub fn commit_active_cell(&mut self) {
         if let Some(cell) = self.active_cell.take() {
             self.committed_history.push(cell);
             self.invalidate_committed_history_layout();
@@ -142,12 +176,12 @@ impl TranscriptState {
         }
     }
 
-    pub(super) fn bump_active_cell_revision(&mut self) {
+    fn bump_active_cell_revision(&mut self) {
         self.active_cell_revision = self.active_cell_revision.wrapping_add(1);
         self.active_cell_layout.set(None);
     }
 
-    pub(super) fn history_len(&self) -> usize {
+    pub fn history_len(&self) -> usize {
         self.committed_history.len()
     }
 
@@ -158,7 +192,7 @@ impl TranscriptState {
     fn ensure_committed_layout(&self, width: u16) -> CommittedHistoryLayoutCacheKey {
         let key = CommittedHistoryLayoutCacheKey {
             width,
-            syntax_theme_revision: crate::render::highlight::syntax_theme_revision(),
+            syntax_theme_revision: tui_highlight::syntax_theme_revision(),
         };
         let needs_refresh =
             !self.committed_history_layout.borrow().iter().any(|cached| cached.key == key);
@@ -194,7 +228,7 @@ impl TranscriptState {
         key
     }
 
-    pub(super) fn committed_line_count(&self, width: u16, separated: bool) -> usize {
+    pub fn committed_line_count(&self, width: u16, separated: bool) -> usize {
         let key = self.ensure_committed_layout(width);
         let cached = self.committed_history_layout.borrow();
         let layout = cached
@@ -204,7 +238,7 @@ impl TranscriptState {
         if separated { layout.separated_line_count } else { layout.line_count }
     }
 
-    pub(super) fn committed_lines_range(
+    pub fn committed_lines_range(
         &self,
         width: u16,
         separated: bool,
@@ -249,23 +283,23 @@ impl TranscriptState {
                 }
             }
         }
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         self.last_projected_committed_line_count.set(lines.len());
         lines
     }
 
-    pub(super) fn committed_lines(&self, width: u16, separated: bool) -> Vec<Line<'static>> {
+    pub fn committed_lines(&self, width: u16, separated: bool) -> Vec<Line<'static>> {
         let line_count = self.committed_line_count(width, separated);
         self.committed_lines_range(width, separated, 0..line_count)
     }
 
-    #[cfg(test)]
-    pub(super) fn last_projected_committed_line_count(&self) -> usize {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn last_projected_committed_line_count(&self) -> usize {
         self.last_projected_committed_line_count.get()
     }
 
     // 计算 `scroll_lines` 所需的界面结果。
-    pub(super) fn scroll_lines(&self, delta: isize) {
+    pub fn scroll_lines(&self, delta: isize) {
         let max_top =
             self.last_content_height.get().saturating_sub(self.last_viewport_height.get().max(1));
         let current = if self.follow_bottom.get() { max_top } else { self.scroll_top.get() };
@@ -275,22 +309,22 @@ impl TranscriptState {
         self.clear_selection();
     }
 
-    pub(super) fn scroll_page(&self, pages: isize) {
+    pub fn scroll_page(&self, pages: isize) {
         let lines = isize::try_from(self.last_viewport_height.get().max(1)).unwrap_or(isize::MAX);
         self.scroll_lines(lines.saturating_mul(pages));
     }
 
-    pub(super) fn scroll_to_top(&self) {
+    pub fn scroll_to_top(&self) {
         self.scroll_top.set(0);
         self.follow_bottom.set(false);
     }
 
-    pub(super) fn scroll_to_bottom(&self) {
+    pub fn scroll_to_bottom(&self) {
         self.follow_bottom.set(true);
     }
 
     // 计算 `viewport_scroll_top` 所需的界面结果。
-    pub(super) fn viewport_scroll_top(
+    pub fn viewport_scroll_top(
         &self,
         content_height: usize,
         viewport_height: usize,
@@ -305,7 +339,7 @@ impl TranscriptState {
         top
     }
 
-    pub(super) fn transcript_lines(&self, width: u16, include_active: bool) -> Vec<Line<'static>> {
+    pub fn transcript_lines(&self, width: u16, include_active: bool) -> Vec<Line<'static>> {
         let mut lines = self.committed_lines(width, false);
         if include_active {
             if let Some(cell) = self.active_cell.as_ref() {
@@ -318,7 +352,7 @@ impl TranscriptState {
         lines
     }
 
-    pub(super) fn finish_render(&self, area: Rect, content_area: Rect, buf: &mut Buffer) {
+    pub fn finish_render(&self, area: Rect, content_area: Rect, buf: &mut Buffer) {
         self.last_area.set(area);
         self.last_content_area.set(content_area);
         let visible_cells = content_area
@@ -334,7 +368,7 @@ impl TranscriptState {
         self.render_selection(content_area, buf);
     }
 
-    pub(super) fn handle_mouse_event(&self, event: MouseEvent) -> TranscriptMouseAction {
+    pub fn handle_mouse_event(&self, event: MouseEvent) -> TranscriptMouseAction {
         match event.kind {
             MouseEventKind::ScrollUp => {
                 self.scroll_lines(-3);

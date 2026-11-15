@@ -3,7 +3,7 @@
 //! 当前运行时没有稳定远端触发后端，因此测试锁定显式不支持的返回语义。
 
 use super::RemoteTriggerTool;
-use crate::app::agent::tools::Tool;
+use tool_types::Tool;
 use serde_json::{Value, json};
 
 #[test]

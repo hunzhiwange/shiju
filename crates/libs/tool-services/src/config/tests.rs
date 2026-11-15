@@ -8,10 +8,10 @@ use super::{
     read_setting_value, setting_spec, supported_settings_description, value_label,
     write_nested_value,
 };
-use crate::app::agent::config::Config;
-use crate::app::agent::config::schema::ConfigExt;
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::Tool;
+use agent_config::runtime::Config;
+use agent_config::runtime_schema::ConfigExt;
+use agent_security::{AutonomyLevel, SecurityPolicy};
+use tool_types::Tool;
 use serde_json::json;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -28,12 +28,12 @@ async fn test_config() -> (TempDir, Arc<Config>) {
 }
 
 async fn persisted_config(config: &Config) -> Config {
-    crate::app::agent::config::get_project_without_env(&config.workspace_dir)
+    agent_config::runtime::get_project_without_env(&config.workspace_dir)
         .await
         .expect("persisted config should load")
 }
 
-fn parse_output(result: &crate::app::agent::tools::ToolResult) -> serde_json::Value {
+fn parse_output(result: &tool_types::ToolResult) -> serde_json::Value {
     serde_json::from_str(&result.output).expect("config output should be json")
 }
 

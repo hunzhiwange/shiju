@@ -7,7 +7,15 @@ license = "MIT"
 [lib]
 doctest = false
 
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+agent-config = { path = "../agent-config", version = "0.6.0", features = ["test-support"] }
+
 [dependencies]
+agent-config = { path = "../agent-config", version = "0.6.0" }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }
 tool-types = { path = "../tool-types", version = "0.6.0" }
 tool-context = { path = "../tool-context", version = "0.6.0" }
 tool-files = { path = "../tool-files", version = "0.6.0" }
@@ -23,3 +31,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs", "sync"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-question = { path = "../agent-question", version = "0.6.0" }

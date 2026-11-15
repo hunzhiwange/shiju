@@ -10,10 +10,21 @@
 //! - `question_schema_has_required_fields`: 验证 JSON schema 符合规范
 //! - `header_from_question_limits_length`: 验证字符串截断逻辑
 
-use super::super::*;
-use crate::app::agent::question as runtime_question;
-use crate::app::agent::tools::question::header_from_question;
-use crate::app::agent::tools::traits::Tool;
+use super::{ASK_USER_QUESTION_TOOL_ID, QUESTION_TOOL_ALIAS};
+#[derive(Clone)]
+struct TestHost;
+impl super::QuestionHost for TestHost {
+    fn current_tenant_scope() -> vw_api_transport::TenantScope { Default::default() }
+}
+type QuestionTool = super::QuestionTool<TestHost>;
+mod runtime_question {
+    pub use agent_question::*;
+    pub fn list() -> Vec<Request> { agent_question::list(Default::default()) }
+    pub fn reply(input: ReplyInput) { agent_question::reply(input, Default::default()); }
+    pub fn reject(id: String) { agent_question::reject(id, Default::default()); }
+}
+use super::header_from_question;
+use tool_types::Tool;
 use serde_json::{Value, json};
 use tokio::time::{Duration, sleep};
 

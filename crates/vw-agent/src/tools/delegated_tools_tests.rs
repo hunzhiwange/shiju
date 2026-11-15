@@ -2,6 +2,9 @@
 //! 递归批处理始终禁用；技能工具按已解析能力裁剪并保持稳定名称、参数与执行转发。
 
 use super::*;
+use super::super::traits::ToolResult;
+use async_trait::async_trait;
+use serde_json::{Value, json};
 use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
 
 fn delegated_config(

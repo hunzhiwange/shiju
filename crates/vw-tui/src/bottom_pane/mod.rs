@@ -20,12 +20,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::WidgetRef;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct MentionBinding {
-    pub(crate) sigil: char,
-    pub(crate) mention: String,
-    pub(crate) path: String,
-}
+pub(crate) use tui_contracts::presentation::MentionBinding;
 
 #[path = "bottom_pane_view.rs"]
 mod bottom_pane_view;

@@ -41,7 +41,6 @@ mod streaming;
 mod tool_lifecycle;
 mod transcript;
 mod turn_lifecycle;
-mod user_messages;
 
 #[cfg(test)]
 #[path = "chatwidget/tests/exec_flow.rs"]
@@ -65,7 +64,7 @@ pub use status_state::V3ChatStatus;
 use input_queue::InputQueueState;
 use status_state::StatusState;
 use transcript::{TranscriptMouseAction, TranscriptState};
-use user_messages::UserMessage;
+use tui_contracts::presentation::UserMessage;
 
 enum ChatOverlay {
     Approval(Box<ApprovalOverlay>),

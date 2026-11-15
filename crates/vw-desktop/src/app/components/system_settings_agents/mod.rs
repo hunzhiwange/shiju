@@ -7,6 +7,7 @@ mod basic;
 pub(super) mod domain;
 #[cfg(test)]
 mod basic_profile;
+#[cfg(test)]
 mod catalog;
 #[cfg(test)]
 mod catalog_tests;
@@ -41,19 +42,16 @@ mod tests;
 mod tools_tests;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_error_banner,
-    settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_page_heading_with_help, settings_tab_row,
+    settings_error_banner, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::{I18n, settings_extensions::text as tr};
-use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
+use crate::app::i18n::settings_extensions::text as tr;
+use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
 use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
 use iced::widget::{
-    button, column, container, scrollable,
+    column, container, scrollable,
     scrollable::{Direction, Scrollbar},
-    text,
 };
 use iced::{Element, Length};
 
@@ -135,14 +133,7 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
 ];
 
 pub(super) fn agent_project_options(app: &App) -> Vec<String> {
-    let mut options = Vec::new();
-    for path in app.project_path.iter().chain(app.recent_projects.iter()) {
-        let path = path.trim();
-        if !path.is_empty() && !options.iter().any(|option: &String| option.as_str() == path) {
-            options.push(path.to_string());
-        }
-    }
-    options
+    desktop_settings_agents::agents_view::agent_project_options(app.project_path.as_deref(), &app.recent_projects)
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -279,70 +270,11 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
     }
 }
 
-use desktop_settings_agents::profile_modal::AGENT_CONFIGURATION_HELP;
 
 fn agents_view(app: &App) -> Element<'_, Message> {
-    let settings = &app.agents_settings;
-    let title = settings_page_heading_with_help(
-        I18n::new(app.desktop_locale),
-        &app.app_theme,
-        tr(app.desktop_locale, "智能体配置"),
-        tr(app.desktop_locale, AGENT_CONFIGURATION_HELP),
-    );
-    if !settings.config_ready {
-        return column![
-            title,
-            settings_group_card(
-                column![
-                    settings_group_heading(
-                        tr(app.desktop_locale, "配置尚未就绪"),
-                        tr(
-                            app.desktop_locale,
-                            "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。"
-                        ),
-                    ),
-                    text(tr(
-                        app.desktop_locale,
-                        "正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。"
-                    ))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                    button(
-                        text(tr(app.desktop_locale, "重新加载")).size(SETTINGS_CONTROL_TEXT_SIZE)
-                    )
-                    .padding([8, 14])
-                    .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
-                    .style(rounded_action_btn_style),
-                ]
-                .spacing(10),
-            )
-            .padding([16, 16]),
-        ]
-        .spacing(14)
-        .width(Length::Fill)
-        .into();
-    }
-
-    let mut content = column![
-        title,
-        catalog::controls(app),
-        scrollable(container(catalog::grid(app)).padding([0, 7]))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill),
-    ]
-    .spacing(14)
-    .width(Length::Fill)
-    .height(Length::Fill);
-
-    if settings.loading {
-        content = content.push(
-            text(tr(app.desktop_locale, "正在刷新提供商 / 模型 / 工具列表 ..."))
-                .size(12)
-                .style(settings_muted_text_style),
-        );
-    }
-
-    content.into()
+ desktop_settings_agents::agents_view::agents_view(desktop_settings_agents::agents_view::Input {
+ state: &app.agents_settings, catalog: domain::catalog_input(app), theme: &app.app_theme,
+ }).map(domain::event)
 }
 
 #[cfg(test)]

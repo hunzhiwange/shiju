@@ -1,8 +1,6 @@
 //! 验证代理设置测试子模块已正确接入。
 //! 各标签页的行为由细分测试覆盖，此处仅防止测试模块装配回归。
 
-const SOURCE: &str = include_str!("mod.rs");
-
 #[test]
 fn agents_view_builds_default_loading_and_error_states() {
     let (mut app, _) = crate::app::App::new();
@@ -37,11 +35,6 @@ fn agent_config_tabs_render_each_existing_settings_page() {
 }
 
 #[test]
-fn agent_catalog_reserves_space_between_content_and_scrollbar() {
-    assert!(SOURCE.contains("container(catalog::grid(app)).padding([0, 7])"));
-}
-
-#[test]
 fn agents_error_banner_follows_agent_tabs() {
     let (mut app, _) = crate::app::App::new();
     app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Agents;
@@ -71,23 +64,6 @@ fn agents_error_banner_follows_agent_tabs() {
         app.agents_settings.active_config_tab = tab;
         assert_eq!(super::active_tab_save_error(&app), expected);
     }
-}
-
-#[test]
-fn agent_project_options_put_current_first_and_deduplicate_recent_paths() {
-    let (mut app, _) = crate::app::App::new();
-    app.project_path = Some("/repo/current".to_string());
-    app.recent_projects = vec![
-        "/repo/other".to_string(),
-        "/repo/current".to_string(),
-        "  /repo/third  ".to_string(),
-        String::new(),
-    ];
-
-    assert_eq!(
-        super::agent_project_options(&app),
-        vec!["/repo/current".to_string(), "/repo/other".to_string(), "/repo/third".to_string(),]
-    );
 }
 
 #[test]

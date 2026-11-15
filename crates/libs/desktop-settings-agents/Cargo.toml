@@ -28,7 +28,7 @@ desktop-config = { path = "../desktop-config", version = "0.6.0" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 config-security = { path = "../config-security", version = "0.6.0" }
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "rt"] }
 
 model-types = { path = "../model-types", version = "0.6.0" }
 gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
@@ -38,5 +38,9 @@ gateway-files = { path = "../gateway-files", version = "0.6.0" }
 desktop-settings-providers = { path = "../desktop-settings-providers", version = "0.6.0" }
 serde = { version = "1", features = ["derive"] }
 
-[dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"
+iced_runtime = "0.14"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

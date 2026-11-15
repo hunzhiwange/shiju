@@ -35,3 +35,6 @@ pub mod agents_state;
 pub mod agents_update;
 pub mod agents_update_message;
 pub mod autonomy_update;
+
+pub mod dialogue_flow_update;
+pub mod agents_view;

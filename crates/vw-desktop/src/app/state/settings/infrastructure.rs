@@ -312,7 +312,7 @@ pub(crate) struct SecuritySettingsState {
     /// 当前显示的安全配置页签
     pub(crate) active_tab: SecuritySettingsTab,
     /// Bash 命令执行前安全检查的完整分层配置
-    pub(crate) bash: vw_config_types::security::BashSecurityConfig,
+    pub(crate) bash: config_security::BashSecurityConfig,
     /// 沙箱启用状态输入
     pub(crate) sandbox_enabled_input: String,
     /// 沙箱后端输入
@@ -393,7 +393,7 @@ impl Default for SecuritySettingsState {
     fn default() -> Self {
         Self {
             active_tab: SecuritySettingsTab::Bash,
-            bash: vw_config_types::security::BashSecurityConfig::default(),
+            bash: config_security::BashSecurityConfig::default(),
             sandbox_enabled_input: "false".to_string(),
             sandbox_backend_input: "none".to_string(),
             sandbox_firejail_args: Vec::new(),
@@ -549,7 +549,7 @@ pub(crate) struct AutonomySettingsState {
     /// 当前显示的自治配置页签
     pub(crate) active_tab: AutonomySettingsTab,
     /// 自主性级别
-    pub(crate) level: vw_config_types::security::AutonomyLevel,
+    pub(crate) level: config_security::AutonomyLevel,
     /// 是否限制在工作区
     pub(crate) workspace_only: bool,
     /// 允许的命令列表
@@ -565,7 +565,7 @@ pub(crate) struct AutonomySettingsState {
     /// 是否阻止高风险命令
     pub(crate) block_high_risk_commands: bool,
     /// Shell 重定向策略
-    pub(crate) shell_redirect_policy: vw_config_types::security::ShellRedirectPolicy,
+    pub(crate) shell_redirect_policy: config_security::ShellRedirectPolicy,
     /// Shell 环境变量透传
     pub(crate) shell_env_passthrough: Vec<String>,
     /// 自动审批的操作
@@ -582,7 +582,7 @@ pub(crate) struct AutonomySettingsState {
     pub(crate) non_cli_approval_approvers_input: String,
     /// 非 CLI 自然语言审批模式
     pub(crate) non_cli_natural_language_approval_mode:
-        vw_config_types::security::NonCliNaturalLanguageApprovalMode,
+        config_security::NonCliNaturalLanguageApprovalMode,
     /// 按 channel 的非 CLI 自然语言审批模式输入
     pub(crate) non_cli_natural_language_approval_mode_by_channel_input: String,
     /// 是否显示帮助对话框
@@ -602,12 +602,12 @@ pub enum AutonomySettingsTab {
 
 impl Default for AutonomySettingsState {
     fn default() -> Self {
-        Self::from_config(&vw_config_types::security::AutonomyConfig::default())
+        Self::from_config(&config_security::AutonomyConfig::default())
     }
 }
 
 impl AutonomySettingsState {
-    pub(crate) fn from_config(config: &vw_config_types::security::AutonomyConfig) -> Self {
+    pub(crate) fn from_config(config: &config_security::AutonomyConfig) -> Self {
         Self {
             active_tab: AutonomySettingsTab::Permissions,
             level: config.level,
@@ -632,13 +632,13 @@ impl AutonomySettingsState {
                 .iter()
                 .map(|(channel, mode)| {
                     let mode = match mode {
-                        vw_config_types::security::NonCliNaturalLanguageApprovalMode::Disabled => {
+                        config_security::NonCliNaturalLanguageApprovalMode::Disabled => {
                             "disabled"
                         }
-                        vw_config_types::security::NonCliNaturalLanguageApprovalMode::RequestConfirm => {
+                        config_security::NonCliNaturalLanguageApprovalMode::RequestConfirm => {
                             "request_confirm"
                         }
-                        vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct => {
+                        config_security::NonCliNaturalLanguageApprovalMode::Direct => {
                             "direct"
                         }
                     };

@@ -14,7 +14,7 @@ fn unique_provider_api(models: &HashMap<String, Model>) -> Option<(String, Strin
 
 
 pub(crate) fn apply_overrides(database: &mut HashMap<String, Info>, config_providers: &[(String, Value)]) {
-    let reasoning_model_ids = model_state::catalog_reasoning_model_ids(database);
+    let reasoning_model_ids = vw_shared::provider::state::catalog_reasoning_model_ids(database);
 
     // 再将用户配置覆盖到基线上，生成最终 provider 视图。
     for (provider_id, provider) in config_providers.iter() {
@@ -136,7 +136,7 @@ pub(crate) fn apply_overrides(database: &mut HashMap<String, Info>, config_provi
                     .filter(|value| *value > 0);
                 let configured_output =
                     config_limit.and_then(|limit| limit.get("output")).and_then(Value::as_u64);
-                let limit = model_state::resolve_model_limit_with_base(
+                let limit = vw_shared::provider::state::resolve_model_limit_with_base(
                     configured_context,
                     configured_input,
                     configured_output,
@@ -180,7 +180,7 @@ pub(crate) fn apply_overrides(database: &mut HashMap<String, Info>, config_provi
                 .get("models")
                 .and_then(Value::as_object)
                 .and_then(|models| models.get(id));
-            model_state::apply_api_overrides(
+            vw_shared::provider::state::apply_api_overrides(
                 &mut model.api,
                 provider,
                 configured,

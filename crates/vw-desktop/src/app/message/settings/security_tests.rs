@@ -4,7 +4,7 @@
 use super::*;
 use crate::app::App;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
-use vw_config_types::security::{OtpMethod, SandboxBackend, SecurityConfig};
+use config_security::{OtpMethod, SandboxBackend, SecurityConfig};
 
 fn app() -> App {
     App::new().0

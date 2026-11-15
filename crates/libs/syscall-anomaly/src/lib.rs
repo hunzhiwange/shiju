@@ -17,7 +17,7 @@
 //!
 //! ```ignore
 //! use syscall_anomaly::SyscallAnomalyDetector;
-//! use vw_config_types::security::{SyscallAnomalyConfig, AuditConfig};
+//! use config_security::{SyscallAnomalyConfig, AuditConfig};
 //!
 //! let config = SyscallAnomalyConfig::default();
 //! let audit_config = AuditConfig::default();
@@ -33,7 +33,7 @@
 //! ```
 
 use security_audit::{AuditEvent, AuditEventType, AuditLogger};
-use vw_config_types::security::{AuditConfig, SyscallAnomalyConfig};
+use config_security::{AuditConfig, SyscallAnomalyConfig};
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use regex::Regex;
@@ -222,7 +222,7 @@ impl SyscallAnomalyDetector {
     /// # 示例
     ///
     /// ```ignore
-    /// use vw_config_types::security::{SyscallAnomalyConfig, AuditConfig};
+    /// use config_security::{SyscallAnomalyConfig, AuditConfig};
     ///
     /// let config = SyscallAnomalyConfig {
     ///     enabled: true,

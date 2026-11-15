@@ -7,7 +7,7 @@ use crate::app::{App, Message};
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::{text, text_input};
-use vw_config_types::security::{
+use config_security::{
     AutonomyLevel, NonCliNaturalLanguageApprovalMode, ShellRedirectPolicy,
 };
 

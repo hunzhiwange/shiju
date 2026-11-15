@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tempfile::TempDir;
-use vw_config_types::security::AuditConfig;
+use config_security::AuditConfig;
 use security_audit::{
     AuditEvent, AuditEventType, AuditLogger, CommandExecutionLog,
 };

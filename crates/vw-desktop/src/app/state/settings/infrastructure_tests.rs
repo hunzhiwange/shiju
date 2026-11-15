@@ -85,7 +85,7 @@ fn acp_security_and_autonomy_defaults_are_populated() {
 
     let autonomy = AutonomySettingsState::default();
     assert_eq!(autonomy.active_tab, AutonomySettingsTab::Permissions);
-    assert_eq!(autonomy.level, vw_config_types::security::AutonomyLevel::Full);
+    assert_eq!(autonomy.level, config_security::AutonomyLevel::Full);
     assert!(!autonomy.workspace_only);
     assert!(autonomy.allowed_commands.contains(&"cargo".to_string()));
     assert!(autonomy.forbidden_paths.contains(&"/etc".to_string()));
@@ -95,7 +95,7 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(!autonomy.block_high_risk_commands);
     assert_eq!(
         autonomy.shell_redirect_policy,
-        vw_config_types::security::ShellRedirectPolicy::Allow
+        config_security::ShellRedirectPolicy::Allow
     );
     assert!(autonomy.shell_env_passthrough.is_empty());
     assert!(autonomy.auto_approve.contains(&"file_read".to_string()));
@@ -108,7 +108,7 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(autonomy.non_cli_approval_approvers_input.is_empty());
     assert_eq!(
         autonomy.non_cli_natural_language_approval_mode,
-        vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct
+        config_security::NonCliNaturalLanguageApprovalMode::Direct
     );
     assert!(autonomy.non_cli_natural_language_approval_mode_by_channel_input.is_empty());
     assert!(!autonomy.show_help_modal);
@@ -124,7 +124,7 @@ fn autonomy_settings_defaults_keep_agent_tool_available() {
 
 #[test]
 fn autonomy_settings_from_config_preserves_unknown_saved_tools() {
-    let mut config = vw_config_types::security::AutonomyConfig::default();
+    let mut config = config_security::AutonomyConfig::default();
     config.auto_approve = vec!["known_tool".to_string(), "retired_tool".to_string()];
     config.always_ask = vec!["missing_tool".to_string()];
     config.non_cli_excluded_tools = vec!["legacy_tool".to_string()];

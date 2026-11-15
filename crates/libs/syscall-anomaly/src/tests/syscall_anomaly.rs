@@ -3,7 +3,7 @@ use crate::{
     SyscallAnomalyAlert, SyscallAnomalyDetector, SyscallAnomalyKind,
     map_linux_x86_64_syscall, normalize_baseline, parse_syscall_signal,
 };
-use vw_config_types::security::{AuditConfig, SyscallAnomalyConfig};
+use config_security::{AuditConfig, SyscallAnomalyConfig};
 
 fn detector_with(config: SyscallAnomalyConfig) -> SyscallAnomalyDetector {
     let tmp = tempdir().expect("tempdir");

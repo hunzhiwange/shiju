@@ -8,7 +8,7 @@ use regex::Regex;
 use crate::security::policy::allowlist::is_allowlist_entry_match;
 use crate::tools::shell::ast::ParsedCommand;
 use crate::tools::shell::security::{SecurityPipeline, Severity};
-use vw_config_types::security::BashValidatorChecksConfig;
+use config_security::BashValidatorChecksConfig;
 
 use super::mode::PermissionMode;
 use super::sandbox_allow::SandboxAutoAllow;

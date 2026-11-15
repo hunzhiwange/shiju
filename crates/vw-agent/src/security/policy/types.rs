@@ -4,7 +4,7 @@
 //! 主策略实现文件同时承担类型定义与授权流程。
 
 /// 重导出配置层的自治级别，确保策略层与配置 schema 使用同一组取值。
-pub use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
+pub use config_security::{AutonomyLevel, ShellRedirectPolicy};
 
 use std::fmt;
 

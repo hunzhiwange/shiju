@@ -8,7 +8,7 @@ use provider_model_cache as models;
 async fn cross_layer_unknown_model_uses_shared_default_limit() {
     let env = ProviderTestEnv::new().await;
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../model-state/assets/provider/cross_layer_unknown_model.json"
+        "../../../vw-shared/assets/provider/cross_layer_unknown_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let provider_id = fixture["provider_id"].as_str().unwrap();
@@ -23,7 +23,7 @@ async fn cross_layer_unknown_model_uses_shared_default_limit() {
     env.write_config(config_with_default(Value::Null, Value::Object(provider_map))).await;
 
     let model = list_for_settings().await[provider_id].models[model_id].clone();
-    let expected = model_state::resolve_model_limit(None, None, None);
+    let expected = vw_shared::provider::state::resolve_model_limit(None, None, None);
     assert_eq!(model.limit.context, expected.context);
     assert_eq!(model.limit.input, expected.input);
     assert_eq!(model.limit.output, expected.output);
@@ -33,7 +33,7 @@ async fn cross_layer_unknown_model_uses_shared_default_limit() {
 async fn cross_layer_explicit_model_preserves_limits_and_capabilities_after_reload() {
     let env = ProviderTestEnv::new().await;
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../model-state/assets/provider/cross_layer_explicit_model.json"
+        "../../../vw-shared/assets/provider/cross_layer_explicit_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let provider_id = fixture["provider_id"].as_str().unwrap();
@@ -129,9 +129,9 @@ async fn custom_model_without_limits_uses_shared_defaults_and_explicit_limits_wi
     let fallback = get_model("custom-limit-provider", "fallback-model")
         .await
         .expect("fallback model should resolve");
-    assert_eq!(fallback.limit.context, model_state::DEFAULT_MODEL_CONTEXT_LIMIT);
-    assert_eq!(fallback.limit.input, Some(model_state::DEFAULT_MODEL_INPUT_LIMIT));
-    assert_eq!(fallback.limit.output, model_state::DEFAULT_MODEL_OUTPUT_LIMIT);
+    assert_eq!(fallback.limit.context, vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT);
+    assert_eq!(fallback.limit.input, Some(vw_shared::provider::state::DEFAULT_MODEL_INPUT_LIMIT));
+    assert_eq!(fallback.limit.output, vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT);
 
     let explicit = get_model("custom-limit-provider", "explicit-model")
         .await

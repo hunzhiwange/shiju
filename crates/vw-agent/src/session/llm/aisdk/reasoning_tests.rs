@@ -15,7 +15,7 @@ fn model(provider: &str, id: &str, adapter: &str, url: &str) -> Model {
     } else {
         serde_json::from_value(json!({"id": id, "reasoning": true})).unwrap()
     };
-    model_state::from_models_dev_model(&raw_provider, &raw_model)
+    vw_shared::provider::state::from_models_dev_model(&raw_provider, &raw_model)
 }
 
 #[test]

@@ -5,7 +5,6 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-model-state = { path = "../model-state", version = "0.6.0" }
 model-catalog-types = { path = "../model-catalog-types", version = "0.6.0" }
 model-reasoning = { path = "../model-reasoning", version = "0.6.0" }
 model-protocols = { path = "../model-protocols", version = "0.6.0" }

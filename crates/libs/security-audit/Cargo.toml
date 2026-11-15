@@ -8,13 +8,13 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-security = { path = "../config-security", version = "0.6.0" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
 
 [dev-dependencies]
 tempfile = "3"

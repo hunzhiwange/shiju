@@ -5,7 +5,7 @@
 
 use super::ast::{ParsedCommand, parse_command};
 use crate::security::AutonomyLevel;
-use vw_config_types::security::BashValidatorChecksConfig;
+use config_security::BashValidatorChecksConfig;
 
 pub mod injection;
 pub mod obfuscation;

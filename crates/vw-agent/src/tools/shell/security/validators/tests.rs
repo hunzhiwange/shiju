@@ -5,7 +5,7 @@ use super::*;
 use crate::tools::shell::ast::ParsedCommand;
 use regex::Regex;
 use std::sync::LazyLock;
-use vw_config_types::security::BashValidatorChecksConfig;
+use config_security::BashValidatorChecksConfig;
 
 static WORD_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\bdanger\b").expect("valid test regex"));

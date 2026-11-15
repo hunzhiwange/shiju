@@ -155,7 +155,7 @@ fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
 }
 
 fn native_fixture() -> (crate::provider::provider::Model, RelayIdentity) {
-    let mut capabilities = model_state::default_model_capabilities();
+    let mut capabilities = vw_shared::provider::state::default_model_capabilities();
     capabilities.reasoning = true;
     capabilities.input.image = true;
     let model = serde_json::from_value(json!({

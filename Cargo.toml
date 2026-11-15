@@ -1,9 +1,9 @@
 [workspace]
 members = [
-  "crates/libs/model-state",
   "crates/libs/api-task",
   "crates/libs/model-types",
   "crates/libs/config-worktree",
+  "crates/libs/config-security",
   "crates/libs/api-task-lifecycle",
   "crates/libs/model-catalog-types",
   "crates/libs/model-reasoning",

@@ -61,7 +61,7 @@ pub fn merge_remote_models(
         if let Some(raw_provider) = catalog.get(&provider.id)
             && let Some(metadata) = raw_provider.models.values().find(|model| model.id == remote_id)
         {
-            let matched = model_state::from_models_dev_model(raw_provider, metadata);
+            let matched = vw_shared::provider::state::from_models_dev_model(raw_provider, metadata);
             if matched.api.url.trim_end_matches('/') == api_base.trim_end_matches('/') {
                 model = matched;
                 model.status = "active".to_string();
@@ -82,7 +82,7 @@ pub fn merge_remote_models(
                 env: Vec::new(),
                 models: HashMap::new(),
             };
-            let matched = model_state::from_models_dev_model(&raw_provider, metadata);
+            let matched = vw_shared::provider::state::from_models_dev_model(&raw_provider, metadata);
             model.name = matched.name;
             model.family = matched.family;
             model.capabilities = matched.capabilities;

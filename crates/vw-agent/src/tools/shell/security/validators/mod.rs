@@ -59,7 +59,7 @@ use super::{SecurityCategory, SecurityFinding, SecurityValidator, Severity};
 use crate::tools::shell::ast::{CommandInfo, ParsedCommand, RedirectKind};
 use regex::Regex;
 use std::sync::LazyLock;
-use vw_config_types::security::BashValidatorChecksConfig;
+use config_security::BashValidatorChecksConfig;
 
 /// 构建默认 shell 安全校验器集合。
 ///

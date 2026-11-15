@@ -51,12 +51,12 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "provider": "session-provider",
         "supports_images": false,
         "max_context_length": if profile.model_context_limit == 0 {
-            model_state::DEFAULT_MODEL_CONTEXT_LIMIT
+            vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT
         } else {
             profile.model_context_limit
         },
         "max_output_tokens": if profile.model_output_limit == 0 {
-            model_state::DEFAULT_MODEL_OUTPUT_LIMIT
+            vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
         } else {
             profile.model_output_limit
         },

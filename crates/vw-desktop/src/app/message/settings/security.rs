@@ -24,7 +24,7 @@ use crate::app::config::update_security_config_async;
 use crate::app::state::{SecurityListKind, SecuritySettingsState};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::security::SecurityConfig;
+use config_security::SecurityConfig;
 
 use super::messages::SettingsMessage;
 
@@ -261,12 +261,12 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
 
     // 配置沙箱后端类型
     security.sandbox.backend = match sandbox_backend.as_str() {
-        "landlock" => vw_config_types::security::SandboxBackend::Landlock,
-        "firejail" => vw_config_types::security::SandboxBackend::Firejail,
-        "bubblewrap" => vw_config_types::security::SandboxBackend::Bubblewrap,
-        "docker" => vw_config_types::security::SandboxBackend::Docker,
-        "none" => vw_config_types::security::SandboxBackend::None,
-        _ => vw_config_types::security::SandboxBackend::Auto,
+        "landlock" => config_security::SandboxBackend::Landlock,
+        "firejail" => config_security::SandboxBackend::Firejail,
+        "bubblewrap" => config_security::SandboxBackend::Bubblewrap,
+        "docker" => config_security::SandboxBackend::Docker,
+        "none" => config_security::SandboxBackend::None,
+        _ => config_security::SandboxBackend::Auto,
     };
 
     // 配置 Firejail 自定义参数
@@ -295,9 +295,9 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
     // 配置 OTP 认证
     security.otp.enabled = otp_enabled;
     security.otp.method = match otp_method.as_str() {
-        "pairing" => vw_config_types::security::OtpMethod::Pairing,
-        "cli-prompt" => vw_config_types::security::OtpMethod::CliPrompt,
-        _ => vw_config_types::security::OtpMethod::Totp,
+        "pairing" => config_security::OtpMethod::Pairing,
+        "cli-prompt" => config_security::OtpMethod::CliPrompt,
+        _ => config_security::OtpMethod::Totp,
     };
     // OTP 令牌有效期：1 秒 - 10 分钟
     security.otp.token_ttl_secs = otp_token_ttl_secs;

@@ -33,8 +33,8 @@ use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::security::NonCliNaturalLanguageApprovalMode;
-use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
+use config_security::NonCliNaturalLanguageApprovalMode;
+use config_security::{AutonomyLevel, ShellRedirectPolicy};
 
 const CONTROL_WIDTH: f32 = 240.0;
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;

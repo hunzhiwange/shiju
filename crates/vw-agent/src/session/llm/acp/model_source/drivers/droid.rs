@@ -43,7 +43,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             "apiKey": profile.binding.bearer_token(),
             "provider": "generic-chat-completion-api",
             "maxOutputTokens": if profile.model_output_limit == 0 {
-                model_state::DEFAULT_MODEL_OUTPUT_LIMIT
+                vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
             } else { profile.model_output_limit }
         }],
         "model": model_id, "specModel": model_id,

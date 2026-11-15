@@ -49,7 +49,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     env.insert(
         "CLAUDE_CODE_MAX_OUTPUT_TOKENS".into(),
         if profile.model_output_limit == 0 {
-            model_state::DEFAULT_MODEL_OUTPUT_LIMIT.to_string()
+            vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT.to_string()
         } else {
             profile.model_output_limit.to_string()
         },

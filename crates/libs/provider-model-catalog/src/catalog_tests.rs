@@ -3,7 +3,7 @@ use super::*;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use model_state::from_models_dev_model;
+use vw_shared::provider::state::from_models_dev_model;
 
 fn provider_json(id: &str) -> String {
     format!(

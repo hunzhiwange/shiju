@@ -1,0 +1,13 @@
+[package]
+name = "config-security"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+schemars = "1.2"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

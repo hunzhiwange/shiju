@@ -40,7 +40,7 @@ fn from_config_maps_all_fields() {
 fn from_configs_uses_bash_security_master_switch() {
     let autonomy_config = AutonomyConfig::default();
     let workspace = PathBuf::from("/tmp/test-workspace");
-    let mut security_config = vw_config_types::security::SecurityConfig::default();
+    let mut security_config = config_security::SecurityConfig::default();
 
     let disabled = SecurityPolicy::from_configs(&autonomy_config, &security_config, &workspace);
     assert!(!disabled.bash_security_enabled);

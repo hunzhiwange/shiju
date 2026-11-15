@@ -15,8 +15,7 @@ pub use model_catalog_types as models;
 pub use model_protocols as protocols;
 /// Historical reasoning module path.
 pub use model_reasoning as reasoning;
-/// Historical model catalog conversion module path.
-pub use model_state as state;
+pub mod state;
 pub mod types;
 
 pub use protocols::*;

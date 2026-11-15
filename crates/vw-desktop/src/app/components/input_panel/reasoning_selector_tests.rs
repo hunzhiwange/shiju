@@ -229,7 +229,7 @@ fn bundled_shiju_definition_controls_visible_effort_choices() {
             .models
             .values()
             .map(|raw_model| {
-                let model = model_state::from_models_dev_model(&raw, raw_model);
+                let model = vw_shared::provider::state::from_models_dev_model(&raw, raw_model);
                 ModelSummary {
                     id: model.id.clone(),
                     name: model.name.clone(),

@@ -40,7 +40,7 @@ use std::sync::{Arc, LazyLock};
 #[cfg(not(target_arch = "wasm32"))]
 use provider_model_discovery::{discover_and_merge_provider, is_real_bearer};
 
-pub use model_state::{
+pub use vw_shared::provider::state::{
     State, as_string_map, builtin_model_limit, default_model_capabilities, from_models_dev_model,
     from_models_dev_provider, normalize_adapter, resolve_model_capabilities, resolve_model_limit,
 };
@@ -444,7 +444,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
         .map(|(k, v)| (k, from_models_dev_provider(v)))
         .collect::<HashMap<_, _>>();
 
-    let reasoning_model_ids = model_state::catalog_reasoning_model_ids(&database);
+    let reasoning_model_ids = vw_shared::provider::state::catalog_reasoning_model_ids(&database);
 
     // 将所有模型初始化为 disabled 状态
     for provider in database.values_mut() {
@@ -592,7 +592,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
                     .filter(|value| *value > 0);
                 let configured_output =
                     config_limit.and_then(|limit| limit.get("output")).and_then(Value::as_u64);
-                let limit = model_state::resolve_model_limit_with_base(
+                let limit = vw_shared::provider::state::resolve_model_limit_with_base(
                     configured_context,
                     configured_input,
                     configured_output,
@@ -638,7 +638,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
         for (id, model) in models.iter_mut() {
             let configured =
                 provider.get("models").and_then(Value::as_object).and_then(|models| models.get(id));
-            model_state::apply_api_overrides(&mut model.api, provider, configured);
+            vw_shared::provider::state::apply_api_overrides(&mut model.api, provider, configured);
         }
 
         database.insert(

@@ -46,7 +46,7 @@ use super::util::parse_comma_or_newline_list;
 /// ```
 fn parse_non_cli_mode_by_channel(
     input: &str,
-) -> std::collections::HashMap<String, vw_config_types::security::NonCliNaturalLanguageApprovalMode>
+) -> std::collections::HashMap<String, config_security::NonCliNaturalLanguageApprovalMode>
 {
     let mut out = std::collections::HashMap::new();
 
@@ -66,13 +66,13 @@ fn parse_non_cli_mode_by_channel(
         // 解析模式（支持多种格式）
         let mode = match mode_raw.trim().to_ascii_lowercase().as_str() {
             // 直接执行模式
-            "direct" => vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct,
+            "direct" => config_security::NonCliNaturalLanguageApprovalMode::Direct,
             // 请求确认模式（支持多种格式变体）
             "request_confirm" | "request-confirm" | "requestconfirm" => {
-                vw_config_types::security::NonCliNaturalLanguageApprovalMode::RequestConfirm
+                config_security::NonCliNaturalLanguageApprovalMode::RequestConfirm
             }
             // 禁用模式
-            "disabled" => vw_config_types::security::NonCliNaturalLanguageApprovalMode::Disabled,
+            "disabled" => config_security::NonCliNaturalLanguageApprovalMode::Disabled,
             // 无效模式，跳过该条目
             _ => continue,
         };
@@ -123,7 +123,7 @@ fn persist_autonomy_settings(app: &mut App) -> Task<Message> {
 
 fn apply_autonomy_settings_to_config(
     settings: &AutonomySettingsState,
-    autonomy: &mut vw_config_types::security::AutonomyConfig,
+    autonomy: &mut config_security::AutonomyConfig,
 ) {
     autonomy.level = settings.level;
     autonomy.workspace_only = settings.workspace_only;
@@ -150,7 +150,7 @@ fn apply_autonomy_settings_to_config(
 
 #[cfg(test)]
 fn config_list(
-    config: &vw_config_types::security::AutonomyConfig,
+    config: &config_security::AutonomyConfig,
     kind: AutonomyListKind,
 ) -> &[String] {
     match kind {

@@ -17,7 +17,7 @@ pub use types::{AutonomyLevel, CommandRiskLevel, QuoteState, ShellRedirectPolicy
 
 use std::path::{Path, PathBuf};
 
-use vw_config_types::security::{BashPolicyChecksConfig, BashSecurityConfig};
+use config_security::{BashPolicyChecksConfig, BashSecurityConfig};
 
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::compound::CompoundCommandAnalyzer;
@@ -697,7 +697,7 @@ impl SecurityPolicy {
     /// 应在会话策略组装阶段显式关闭 `bash_security_enabled`。
     pub fn from_configs(
         autonomy_config: &crate::app::agent::config::AutonomyConfig,
-        security_config: &vw_config_types::security::SecurityConfig,
+        security_config: &config_security::SecurityConfig,
         workspace_dir: &Path,
     ) -> Self {
         Self::from_autonomy_config(autonomy_config, workspace_dir, security_config.bash.clone())

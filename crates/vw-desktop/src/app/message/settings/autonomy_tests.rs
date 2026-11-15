@@ -4,7 +4,7 @@
 use super::*;
 use crate::app::App;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
-use vw_config_types::security::{
+use config_security::{
     AutonomyLevel, NonCliNaturalLanguageApprovalMode, ShellRedirectPolicy,
 };
 
@@ -197,7 +197,7 @@ fn structured_lists_are_cloned_directly_into_persisted_autonomy_config() {
     app.autonomy_settings.always_ask = vec!["shell".to_string()];
     app.autonomy_settings.allowed_roots = vec!["/工作区".to_string()];
     app.autonomy_settings.non_cli_excluded_tools = vec!["retired_tool".to_string()];
-    let mut config = vw_config_types::security::AutonomyConfig::default();
+    let mut config = config_security::AutonomyConfig::default();
 
     apply_autonomy_settings_to_config(&app.autonomy_settings, &mut config);
 

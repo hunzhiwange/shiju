@@ -30,7 +30,7 @@
 //! logger.log(&event)?;
 //! ```
 
-use vw_config_types::security::AuditConfig;
+use config_security::AuditConfig;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
@@ -447,7 +447,7 @@ impl AuditLogger {
     /// # 示例
     ///
     /// ```ignore
-    /// use vw_config_types::security::AuditConfig;
+    /// use config_security::AuditConfig;
     /// use std::path::PathBuf;
     ///
     /// let config = AuditConfig::default();

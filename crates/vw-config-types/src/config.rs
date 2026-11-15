@@ -32,7 +32,7 @@ use config_proxy::ProxyConfig;
 use config_reliability::ReliabilityConfig;
 use config_routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig};
 use config_runtime::RuntimeConfig;
-use crate::security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityConfig};
+use config_security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityConfig};
 use config_skills::SkillsConfig;
 use crate::tools::{
     BrowserConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig, WebSearchConfig,

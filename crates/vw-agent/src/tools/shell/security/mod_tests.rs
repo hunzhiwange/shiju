@@ -5,7 +5,7 @@ use crate::security::AutonomyLevel;
 use crate::tools::shell::security::{
     SecurityCategory, SecurityFinding, SecurityPipeline, SecurityReport, Severity,
 };
-use vw_config_types::security::BashValidatorChecksConfig;
+use config_security::BashValidatorChecksConfig;
 
 #[test]
 fn block_message_returns_none_without_blocking_findings() {

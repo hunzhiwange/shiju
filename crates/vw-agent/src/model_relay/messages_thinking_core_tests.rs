@@ -142,7 +142,7 @@ fn model_protocol_015_model_modes_preserve_budgets_or_explicitly_reject_them() {
         },
         name: "selected".into(),
         family: None,
-        capabilities: model_state::default_model_capabilities(),
+        capabilities: vw_shared::provider::state::default_model_capabilities(),
         cost: ModelCost {
             input: 0.0,
             output: 0.0,

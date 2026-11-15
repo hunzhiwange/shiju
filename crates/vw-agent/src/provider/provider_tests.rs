@@ -239,7 +239,7 @@ async fn agent_provider_unknown_model_uses_shared_limit_and_capability_defaults(
 
     let state = load_state_impl(false).await;
     let model = state.providers["agent-default-provider"].models["agent-unknown-model"].clone();
-    let expected = model_state::resolve_model_limit(None, None, None);
+    let expected = vw_shared::provider::state::resolve_model_limit(None, None, None);
 
     assert_eq!(model.limit.context, expected.context);
     assert_eq!(model.limit.input, expected.input);
@@ -258,7 +258,7 @@ async fn agent_cross_layer_fixture_uses_the_same_default_limit() {
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../libs/model-state/assets/provider/cross_layer_unknown_model.json"
+        "../../../vw-shared/assets/provider/cross_layer_unknown_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let provider_id = fixture["provider_id"].as_str().unwrap();
@@ -276,7 +276,7 @@ async fn agent_cross_layer_fixture_uses_the_same_default_limit() {
 
     let state = load_state_impl(false).await;
     let model = &state.providers[provider_id].models[model_id];
-    let expected = model_state::resolve_model_limit(None, None, None);
+    let expected = vw_shared::provider::state::resolve_model_limit(None, None, None);
     assert_eq!(model.limit.context, expected.context);
     assert_eq!(model.limit.input, expected.input);
     assert_eq!(model.limit.output, expected.output);
@@ -292,7 +292,7 @@ async fn agent_cross_layer_explicit_model_reaches_the_next_request_with_metadata
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../libs/model-state/assets/provider/cross_layer_explicit_model.json"
+        "../../../vw-shared/assets/provider/cross_layer_explicit_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let provider_id = fixture["provider_id"].as_str().unwrap();

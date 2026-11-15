@@ -426,7 +426,3 @@ pub fn builtin_model_limit(_provider_id: &str, _model_id: &str) -> Option<(u64, 
 #[cfg(test)]
 #[path = "state_tests.rs"]
 mod state_tests;
-
-#[cfg(test)]
-#[path = "types_tests.rs"]
-mod types_tests;

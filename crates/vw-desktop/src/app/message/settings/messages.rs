@@ -10,7 +10,7 @@ use crate::app::state::{
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
-use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
+use config_security::{AutonomyLevel, ShellRedirectPolicy};
 use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
@@ -1166,7 +1166,7 @@ pub enum SettingsMessage {
     AutonomyShellRedirectPolicyChanged(ShellRedirectPolicy),
     AutonomyNonCliApprovalApproversChanged(String),
     AutonomyNonCliNaturalLanguageApprovalModeChanged(
-        vw_config_types::security::NonCliNaturalLanguageApprovalMode,
+        config_security::NonCliNaturalLanguageApprovalMode,
     ),
     AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged(String),
     AutonomySave,

@@ -35,7 +35,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "advancedModel": profile.model_alias,
         "basicModel": profile.model_alias,
         "maxTokens": if profile.model_output_limit == 0 {
-            model_state::DEFAULT_MODEL_OUTPUT_LIMIT
+            vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
         } else {
             profile.model_output_limit
         },

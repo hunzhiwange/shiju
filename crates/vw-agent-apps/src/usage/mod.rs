@@ -27,7 +27,7 @@ pub use app_usage_core::presentation;
 pub use app_usage_core::ranges;
 pub mod pi;
 pub mod pi_children;
-pub mod scripts;
+pub use app_usage_scripts as scripts;
 pub use app_usage_store::store;
 pub use app_usage_store::source_settings;
 #[cfg(target_os = "macos")]

@@ -13,7 +13,7 @@ use super::{
     },
     run::RunError,
 };
-use crate::apps::lifecycle::operations::Operation;
+use app_lifecycle::operations::Operation;
 
 const DEADLINE: Duration = Duration::from_secs(2);
 

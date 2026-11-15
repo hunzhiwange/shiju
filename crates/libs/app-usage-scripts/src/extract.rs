@@ -6,7 +6,7 @@ use serde_json::Value;
 use vw_api_apps_usage::apps_usage::UsageScriptPackage;
 
 use super::{config::PreparedUsageScript, runtime::RuntimeError};
-use crate::apps::lifecycle::operations::Operation;
+use app_lifecycle::operations::Operation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtractError {

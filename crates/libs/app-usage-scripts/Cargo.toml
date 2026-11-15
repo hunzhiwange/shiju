@@ -1,0 +1,28 @@
+[package]
+name = "app-usage-scripts"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-usage-core = { path = "../app-usage-core" }
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-lifecycle = { path = "../app-lifecycle" }
+app-provider-validation = { path = "../app-provider-validation" }
+vw-api-apps-usage = { path = "../api-apps-usage" }
+libc = "0.2"
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+rquickjs = { version = "0.14", default-features = false, features = ["std"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+tokio = { version = "1", features = ["io-util", "net", "time"] }

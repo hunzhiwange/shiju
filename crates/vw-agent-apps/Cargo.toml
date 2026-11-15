@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-usage-scripts = { path = "../libs/app-usage-scripts" }
 app-usage-coding = { path = "../libs/app-usage-coding" }
 app-usage-balances = { path = "../libs/app-usage-balances" }
 app-usage-store = { path = "../libs/app-usage-store" }
@@ -110,7 +111,6 @@ app-session-terminal = { path = "../libs/app-session-terminal" }
 app-openclaw = { path = "../libs/app-openclaw" }
 app-workspace-memory = { path = "../libs/app-workspace-memory" }
 app-workspace-paths = { path = "../libs/app-workspace-paths" }
-rquickjs = { version = "0.14", default-features = false, features = ["std"] }
 tokio = { version = "1", features = ["io-util", "process", "time"] }
 
 [target.'cfg(unix)'.dependencies]

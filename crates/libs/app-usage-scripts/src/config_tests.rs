@@ -2,7 +2,7 @@ use super::config::{
     AccountUsage, NativeTemplate, PreparedUsage, ProviderDefaults, ScriptParameter,
     ScriptParameters, TemplateError, UsageTemplate,
 };
-use crate::usage::detect::{ZhipuPlanSelection, detect_native_usage};
+use app_usage_core::detect::{ZhipuPlanSelection, detect_native_usage};
 
 #[test]
 fn usage_scripts_config_returns_expected_result() {

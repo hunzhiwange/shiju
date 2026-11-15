@@ -4,7 +4,7 @@ use std::fmt::{self, Write};
 
 use serde::{Deserialize, Serialize};
 
-use crate::usage::detect::NativeUsageCapability;
+use app_usage_core::detect::NativeUsageCapability;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

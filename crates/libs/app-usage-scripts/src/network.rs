@@ -11,7 +11,7 @@ use super::{
     config::{PreparedUsageScript, UsageTemplate},
     runtime::{MEMORY_LIMIT, RuntimeError},
 };
-use crate::providers::validation::header_value;
+use app_provider_validation::validation::header_value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetworkError {

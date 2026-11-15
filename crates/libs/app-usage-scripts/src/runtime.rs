@@ -8,7 +8,7 @@ use rquickjs::{
 use serde_json::Value;
 
 use super::config::PreparedUsageScript;
-use crate::apps::lifecycle::operations::Operation;
+use app_lifecycle::operations::Operation;
 
 const CPU_BUDGET: Duration = Duration::from_secs(5);
 pub(super) const MEMORY_LIMIT: usize = 16 * 1024 * 1024;

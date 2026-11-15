@@ -1227,17 +1227,17 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/retention.rs` → `app-usage-store/src/retention.rs` | 266 | 56 |
 | `usage/scan_jobs.rs` | 199 | 63 |
 | `usage/scan_schedule.rs` | 127 | 63 |
-| `usage/scripts/config.rs` | 313 | 60 |
-| `usage/scripts/config_tests.rs` | 134 | 60 |
-| `usage/scripts/extract.rs` | 84 | 60 |
-| `usage/scripts/extract_tests.rs` | 127 | 60 |
-| `usage/scripts/mod.rs` | 23 | 60 |
-| `usage/scripts/network.rs` | 189 | 60 |
-| `usage/scripts/network_tests.rs` | 211 | 60 |
-| `usage/scripts/run.rs` | 63 | 60 |
-| `usage/scripts/run_tests.rs` | 153 | 60 |
-| `usage/scripts/runtime.rs` | 182 | 60 |
-| `usage/scripts/runtime_tests.rs` | 113 | 60 |
+| `usage/scripts/config.rs` → `app-usage-scripts/src/config.rs` | 313 | 60 |
+| `usage/scripts/config_tests.rs` → `app-usage-scripts/src/config_tests.rs` | 134 | 60 |
+| `usage/scripts/extract.rs` → `app-usage-scripts/src/extract.rs` | 84 | 60 |
+| `usage/scripts/extract_tests.rs` → `app-usage-scripts/src/extract_tests.rs` | 127 | 60 |
+| `usage/scripts/mod.rs` → `app-usage-scripts/src/lib.rs` | 23 | 60 |
+| `usage/scripts/network.rs` → `app-usage-scripts/src/network.rs` | 189 | 60 |
+| `usage/scripts/network_tests.rs` → `app-usage-scripts/src/network_tests.rs` | 211 | 60 |
+| `usage/scripts/run.rs` → `app-usage-scripts/src/run.rs` | 63 | 60 |
+| `usage/scripts/run_tests.rs` → `app-usage-scripts/src/run_tests.rs` | 153 | 60 |
+| `usage/scripts/runtime.rs` → `app-usage-scripts/src/runtime.rs` | 182 | 60 |
+| `usage/scripts/runtime_tests.rs` → `app-usage-scripts/src/runtime_tests.rs` | 113 | 60 |
 | `usage/series.rs` → `app-usage-store/src/series.rs` | 193 | 56 |
 | `usage/snapshot_scan.rs` | 109 | 63 |
 | `usage/source_settings.rs` → `app-usage-store/src/source_settings.rs` | 175 | 56 |
@@ -1586,11 +1586,11 @@ models/presets 全部 11 个 JSON 归任务 9；data_management/fixtures/schema_
 | `usage/mcode.rs` | `crate::sessions::providers::mcode::open_database` |
 | `usage/opencode.rs` | `crate::sessions::providers::opencode_sqlite::open` |
 | `usage/pricing.rs` | `crate::models::edits::validate_model_id` |
-| `usage/scripts/extract.rs` | `crate::apps::lifecycle::operations::Operation` |
-| `usage/scripts/network.rs` | `crate::providers::validation::header_value` |
-| `usage/scripts/run.rs` | `crate::apps::lifecycle::operations::Operation` |
-| `usage/scripts/run_tests.rs` | `crate::apps::lifecycle::operations::Operation` |
-| `usage/scripts/runtime.rs` | `crate::apps::lifecycle::operations::Operation` |
+| `usage/scripts/extract.rs` → `app-usage-scripts/src/extract.rs` | `crate::apps::lifecycle::operations::Operation` |
+| `usage/scripts/network.rs` → `app-usage-scripts/src/network.rs` | `crate::providers::validation::header_value` |
+| `usage/scripts/run.rs` → `app-usage-scripts/src/run.rs` | `crate::apps::lifecycle::operations::Operation` |
+| `usage/scripts/run_tests.rs` → `app-usage-scripts/src/run_tests.rs` | `crate::apps::lifecycle::operations::Operation` |
+| `usage/scripts/runtime.rs` → `app-usage-scripts/src/runtime.rs` | `crate::apps::lifecycle::operations::Operation` |
 | `usage/subscriptions/claude.rs` → `app-usage-subscriptions/src/claude.rs` | `crate::providers::validation::header_value` |
 | `usage/subscriptions/kimi_tests.rs` → `app-usage-subscriptions/src/kimi_tests.rs` | `crate::auth::{     copilot_tests::oauth_server,     credential_file::AccountCredential,     kimi::KimiDeviceAuth,     kimi_account_tests::{ACCOUNT, CONFIG, Fixture}` |
 | `workspace_files.rs` | `crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory}` |
@@ -2824,3 +2824,14 @@ app-usage-subscriptions 唯一拥有原 subscriptions 的16个文件（mod.rs �
 新包整体及其依赖保留 macOS 条件。凭据选择依赖 app-auth、用量绑定依赖 app-usage-core，HTTP 读取复用 app-usage-coding，CLI 定位与启动分别依赖 app-discovery 和 app-launch；直接路径依赖闭包无旧门面及回环。认证测试复用既有 test-support；缓存测试依赖仅在 dev-dependencies 声明 app-usage-store。Grok gRPC 子模块原样迁移，无资源/include 路径。原门面 security-framework 已无调用，移除；prost 仍由 agy_native 使用，保留。
 
 静态证据：Python 3.12 标准库 tomllib 解析清单、核验路径及依赖闭包；15个叶子实现/测试文件去除 use 后与迁移前一致（仅调整一处完整限定调用和测试可见范围）；导出及网关真实调用者检索、diff --check 通过。未运行 Cargo、单元及实机测试，未修改 Cargo.lock。统一验收待授权：新包及网关调用方目标编译、迁移测试、macOS 凭据选择与 Grok gRPC 行为。
+
+
+### 任务60：用量脚本执行迁移结果
+
+app-usage-scripts 唯一拥有原 usage/scripts 全部11个文件（mod.rs 改为 lib.rs），六个业务模块及五个独立测试文件完整迁移。usage::scripts 重导出新包，lib.rs 既有 usage 入口无需改动；无待后继接收的符号。仅调整导入路径，未改变函数体、签名、错误语义或可见性。
+
+模板检测直接依赖 app-usage-core::detect；macOS 执行依赖 app-lifecycle::operations::Operation 与 app-provider-validation::validation::header_value，保持原类型身份。rquickjs、libc、HTTP、执行器与用量 API 仅在 macOS 声明；原模块及测试 cfg 原样保留。门面已无 rquickjs 调用，移除其直接依赖，libc 等仍被其它模块使用而保留。原内存、栈、CPU 预算、取消和网络授权限制均保持，无资源/include 路径需调整。
+
+静态证据：逐文件与 HEAD 对照，仅替换四类 use 路径；模块及独立测试注册完整、原目录移除；标准库 TOML 核验成员、直接依赖路径和依赖闭包无循环及门面回依赖；git diff --check 通过。未运行 Cargo、单元及实机测试，未运行脚本、未修改 Cargo.lock。统一验收待授权：新包及直接调用者编译、迁移定向测试、macOS 脚本限制和其它平台模板行为、锁文件一致性。
+
+任务60导航补充：RustCodeGraph status 可读，但 explore 长时间无输出，已取消；未更新索引，调用者以源码检索核实，现有 vw-agent::agent_apps::usage_settings 继续通过门面使用 UsageTemplate。标准库 TOML 审阅使用本机 Python 3.13，共94份递归清单。

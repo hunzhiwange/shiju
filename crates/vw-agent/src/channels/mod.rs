@@ -113,7 +113,7 @@ pub use mattermost::MattermostChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use nextcloud_talk::NextcloudTalkChannel;
 #[cfg(not(target_arch = "wasm32"))]
-pub use nostr::NostrChannel;
+pub use channel_nostr::NostrChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use qq::QQChannel;
 #[cfg(not(target_arch = "wasm32"))]

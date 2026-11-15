@@ -61,7 +61,7 @@ fn pty_connect_query_preserves_cursor_boundaries_and_blank_directory() {
 async fn pty_list_returns_empty_for_new_instance() {
     let temp = tempfile::tempdir().expect("tempdir");
 
-    let Json(items) = pty_list(instance_query(&temp), HeaderMap::new())
+    let Json(items) = pty_list::<Host>(instance_query(&temp), HeaderMap::new())
         .await
         .expect("new instance should list PTYs");
 
@@ -72,7 +72,7 @@ async fn pty_list_returns_empty_for_new_instance() {
 #[tokio::test]
 async fn pty_create_rejects_blank_cwd_without_starting_process() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let error = pty_create(
+    let error = pty_create::<Host>(
         instance_query(&temp),
         HeaderMap::new(),
         Json(pty::pty::CreateInput {
@@ -94,7 +94,7 @@ async fn pty_create_rejects_blank_cwd_without_starting_process() {
 async fn pty_get_missing_session_returns_not_found() {
     let temp = tempfile::tempdir().expect("tempdir");
 
-    let error = pty_get(Path("missing-pty".to_string()), instance_query(&temp), HeaderMap::new())
+    let error = pty_get::<Host>(Path("missing-pty".to_string()), instance_query(&temp), HeaderMap::new())
         .await
         .expect_err("missing session should be a not found error");
 
@@ -106,7 +106,7 @@ async fn pty_get_missing_session_returns_not_found() {
 async fn pty_update_missing_session_returns_not_found() {
     let temp = tempfile::tempdir().expect("tempdir");
 
-    let error = pty_update(
+    let error = pty_update::<Host>(
         Path("missing-pty".to_string()),
         instance_query(&temp),
         HeaderMap::new(),
@@ -124,7 +124,7 @@ async fn pty_remove_missing_session_is_idempotent() {
     let temp = tempfile::tempdir().expect("tempdir");
 
     let Json(removed) =
-        pty_remove(Path("missing-pty".to_string()), instance_query(&temp), HeaderMap::new())
+        pty_remove::<Host>(Path("missing-pty".to_string()), instance_query(&temp), HeaderMap::new())
             .await
             .expect("missing remove is idempotent");
 

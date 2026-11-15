@@ -5,7 +5,12 @@ edition = "2024"
 license = "MIT"
 [lib]
 doctest = false
+[features]
+acceptance-fixture = ["dep:serde_json", "dep:tempfile"]
+
 [dependencies]
+serde_json = { version = "1", optional = true }
+tempfile = { version = "3", optional = true }
 iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
 sha2 = "0.11"
 session-info = { path = "../session-info", version = "0.6.0" }

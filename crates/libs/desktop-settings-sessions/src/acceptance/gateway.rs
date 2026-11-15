@@ -1,5 +1,5 @@
 //! Loopback-only HTTP boundary. All mutable data lives in a temporary directory.
-use super::fixture;
+use super::fixture::fixture;
 use std::io::{Read, Write};
 use std::sync::{
     Arc, Mutex,
@@ -7,7 +7,7 @@ use std::sync::{
 };
 use session_info::Info;
 
-pub(super) struct Gateway {
+pub struct Gateway {
     pub port: u16,
     pub requests: Arc<Mutex<Vec<String>>>,
     stop: Arc<AtomicBool>,

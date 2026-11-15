@@ -4,7 +4,7 @@
 //! 归约过程不执行 I/O，也不拥有 Gateway、会话、审批或命令执行权限。
 
 use super::*;
-use tui_contracts::event::V3Event;
+use crate::vibe::event::V3Event;
 
 impl ChatWidget {
     /// Applies one product-neutral UI lifecycle event.

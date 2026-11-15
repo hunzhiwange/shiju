@@ -33,8 +33,8 @@ pub use agent_apps_lifecycle_api::AgentAppsLifecycleError;
 #[cfg(test)]
 mod agent_apps_lifecycle_api_tests;
 mod agent_apps_high_availability_api;
-pub use agent_apps_high_availability_api::AgentAppsHighAvailabilityError;
-#[cfg(test)]
+pub use gateway_app_failover::AgentAppsHighAvailabilityError;
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod agent_apps_high_availability_api_tests;
 mod agent_apps_read_api;
 pub use agent_apps_read_api::AgentAppsReadError;

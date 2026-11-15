@@ -3,7 +3,7 @@
 //! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
-use tui_bottom_pane::BottomPaneParams;
+use crate::bottom_pane::BottomPaneParams;
 
 /// Read-only display configuration for a `ChatWidget`.
 /// “ChatWidget”的只读显示配置。

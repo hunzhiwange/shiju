@@ -1,6 +1,6 @@
 //! TUI 上层交互装配。
 //!
-//! 保留兼容导出和 surface；聊天组件、底部面板与终端生命周期由独立库提供。
+//! 保留聊天组件和 surface；底部面板与终端生命周期由独立库提供。
 //! 契约、文本、渲染、主题、流式处理、终端后端及剪贴板由 `tui-*` 库提供；
 //! 对外重导出保持既有消费者入口和底层类型所有权。
 
@@ -55,6 +55,8 @@ pub(crate) use tui_pickers::resume_picker;
 pub use tui_widgets::selection_list;
 #[allow(dead_code)]
 pub use tui_cells::status;
+#[allow(dead_code)]
+mod status_indicator_widget;
 #[allow(dead_code)]
 pub(crate) use tui_stream::streaming;
 #[allow(dead_code)]

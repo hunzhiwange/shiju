@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::app_providers::list::Scope};
 use super::app_providers::list::{self, ListMessage};
 use iced::Task;
 use {
-    vw_gateway_client::vw_api_types::agent_apps_high_availability::*,
+    vw_api_types::agent_apps_high_availability::*,
     vw_api_transport::id::ProviderId,
 };
 
@@ -120,6 +120,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             state.route = None;
             let serial = state.serial;
             return Task::perform(async move {
+                let client = gateway_app_failover::GatewayAppFailoverClient::new(client.transport().clone());
                 let result = async {
                     let health = if reset {
                         client.agent_apps_failover_reset_health(&context.query, &context.provider, Some(&token)).await

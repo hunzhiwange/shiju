@@ -4,8 +4,8 @@
 
 use super::status_surfaces::StatusSurface;
 use super::*;
-use tui_render::Insets;
-use tui_render::renderable::{FlexRenderable, Renderable, RenderableExt, RenderableItem};
+use crate::render::Insets;
+use crate::render::renderable::{FlexRenderable, Renderable, RenderableExt, RenderableItem};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{
     Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget, Wrap,

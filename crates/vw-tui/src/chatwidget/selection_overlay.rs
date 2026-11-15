@@ -2,11 +2,11 @@
 //!
 //! 调用方只提供 surface、稳定条目 ID 与展示文本；该层不解析业务对象或执行副作用。
 
-use tui_widgets::list_selection_view::{
+use crate::bottom_pane::list_selection_view::{
     ListSelectionView, SelectionItem, SelectionViewParams,
 };
-use tui_render::renderable::Renderable;
-use tui_contracts::action::{V3Action, V3SelectionItem};
+use crate::render::renderable::Renderable;
+use crate::{V3Action, V3SelectionItem};
 use crossterm::event::KeyEvent;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;

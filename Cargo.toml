@@ -298,6 +298,7 @@ members = [
   "crates/libs/acp-owner-process",
   "crates/libs/gateway-model-provider",
   "crates/libs/gateway-model-catalog",
+  "crates/libs/gateway-model",
   "crates/libs/gateway-app-read",
   "crates/libs/gateway-app-provider",
   "crates/libs/gateway-app-lifecycle",

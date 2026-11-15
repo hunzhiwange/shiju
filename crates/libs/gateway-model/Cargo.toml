@@ -1,0 +1,31 @@
+[package]
+name = "gateway-model"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+app-provider-services = { path = "../app-provider-services", version = "0.6.0" }
+provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
+vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+futures-util = "0.3.32"
+tokio-util = { version = "0.7.18", features = ["rt"] }
+uuid = { version = "1.11", features = ["v4", "js"] }

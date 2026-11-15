@@ -1,5 +1,6 @@
 //! Convert authorized, saved provider records into fixed native discovery inputs.
-use crate::{app_providers::AppProviderStore, global_database::GlobalDatabase};
+use app_provider_services::AppProviderStore;
+use agent_database::GlobalDatabase;
 use axum::http::StatusCode;
 use serde_json::Value;
 use std::collections::BTreeMap;

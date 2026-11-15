@@ -1,11 +1,10 @@
 //! Authenticated model edits use the provider catalog transaction.
 
-use super::{agent_apps::authorize_provider_config_access, model_catalog::registered_instance};
-use crate::{
-    app_providers::AppProviderStore,
-    global_database::GlobalDatabase,
-    project::{self, store::ProjectStore},
-};
+use super::model_catalog::registered_instance;
+use crate::Authorization;
+use app_provider_services::AppProviderStore;
+use agent_database::GlobalDatabase;
+use agent_project::{self as project, store::ProjectStore};
 use axum::{
     Extension, Json, Router,
     extract::{
@@ -61,6 +60,7 @@ trait CatalogOperation: DeserializeOwned + Send + 'static {
 }
 
 async fn handle<T: CatalogOperation>(
+    Extension(authorization): Extension<Authorization>,
     Extension(policy): Extension<Policy>,
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
@@ -78,7 +78,7 @@ async fn handle<T: CatalogOperation>(
     let scope_matches = scope.is_none_or(|scope| scope == &tenant);
     let owner = tenant.clone();
     let store = tokio::task::spawn_blocking(move || {
-        authorize_provider_config_access(
+        (authorization.authorize_provider_config_access)(
             policy.0.as_deref(),
             &headers,
             &owner,
@@ -99,7 +99,7 @@ async fn handle<T: CatalogOperation>(
                 (database, projects)
             }
             None => (
-                GlobalDatabase::for_home(&crate::global::paths().home)
+                GlobalDatabase::for_home(&agent_paths::paths().home)
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
                 project::runtime_store().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
             ),

@@ -1,6 +1,8 @@
 //! Scoped model discovery tasks. Cancellation is ordered against result publication.
-use super::{agent_apps::provider_discovery_host, model_catalog::registered_instance};
-use crate::{global_database::GlobalDatabase, project::store::ProjectStore};
+use super::model_catalog::registered_instance;
+use crate::Authorization;
+use agent_database::GlobalDatabase;
+use agent_project::store::ProjectStore;
 use axum::{
     Extension, Json, Router,
     extract::{
@@ -42,6 +44,7 @@ const MAX_RUNNING: usize = 16;
 
 #[derive(Clone)]
 struct Service {
+    authorization: Authorization,
     policy: Option<PathBuf>,
     tasks: Arc<Mutex<HashMap<String, Arc<Task>>>>,
 }
@@ -139,14 +142,15 @@ fn active(state: &ModelDiscoveryState) -> bool {
     )
 }
 
-pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
+pub(super) fn router_with_policy(policy: Option<PathBuf>, authorization: Authorization) -> Router {
     Router::new()
         .route("/model-catalog/discoveries", post(submit).layer(DefaultBodyLimit::max(8192)))
         .route("/model-catalog/discoveries/{id}", get(read).delete(cancel))
-        .layer(Extension(Service { policy, tasks: Arc::default() }))
+        .layer(Extension(Service { authorization, policy, tasks: Arc::default() }))
 }
 
 fn authorize(
+    authorization: Authorization,
     policy: Option<PathBuf>,
     headers: HeaderMap,
     tenant: TenantScope,
@@ -154,10 +158,10 @@ fn authorize(
     database: Option<Extension<GlobalDatabase>>,
 ) -> Result<(Owner, LocalReadEnvironment, GlobalDatabase), StatusCode> {
     let (host, principal) =
-        provider_discovery_host(policy.as_deref(), &headers, &tenant, &target.target_host_id)?;
+        (authorization.provider_discovery_host)(policy.as_deref(), &headers, &tenant, &target.target_host_id)?;
     let database = match database {
         Some(Extension(database)) => database,
-        None => GlobalDatabase::for_home(&crate::global::paths().home)
+        None => GlobalDatabase::for_home(&agent_paths::paths().home)
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
     };
     let projects =
@@ -194,7 +198,7 @@ async fn submit(
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     let policy = service.policy.clone();
     let (owner, work, deployment) = tokio::task::spawn_blocking(move || {
-        let (owner, host, database) = authorize(policy, headers, tenant, target, database)?;
+        let (owner, host, database) = authorize(service.authorization, policy, headers, tenant, target, database)?;
         let work = source::prepare(&database, &owner.tenant, host, &input)?;
         Ok::<_, StatusCode>((owner, work, input.deployment))
     })
@@ -237,7 +241,7 @@ async fn owned(
     let Query(target) = query.map_err(|_| StatusCode::BAD_REQUEST)?;
     let policy = service.policy.clone();
     let owner = tokio::task::spawn_blocking(move || {
-        authorize(policy, headers, tenant, target, database).map(|(owner, _, _)| owner)
+        authorize(service.authorization, policy, headers, tenant, target, database).map(|(owner, _, _)| owner)
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)??;

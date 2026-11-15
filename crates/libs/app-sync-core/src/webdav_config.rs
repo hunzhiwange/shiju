@@ -79,7 +79,7 @@ fn validate_path(value: &str) -> Result<(), &'static str> {
 }
 
 /// Decode exactly once, rejecting separators, dot segments and nested escapes.
-pub(super) fn decode_path_segment(segment: &str) -> Result<String, &'static str> {
+pub fn decode_path_segment(segment: &str) -> Result<String, &'static str> {
     // Decode once, rejecting residual percent signs to prevent nested encodings.
     let mut decoded = Vec::with_capacity(segment.len());
     let mut bytes = segment.bytes();

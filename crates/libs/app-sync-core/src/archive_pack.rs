@@ -48,7 +48,7 @@ mod native {
     use zip::{CompressionMethod, DateTime, ZipWriter, write::SimpleFileOptions};
 
     use super::{PackedSkillsArchive, SyncArtifact};
-    use crate::device_sync::artifact::MAX_ARTIFACT_SIZE;
+    use crate::artifact::MAX_ARTIFACT_SIZE;
 
     const MAX_ENTRIES: usize = 10_000;
 

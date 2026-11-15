@@ -1,15 +1,15 @@
 //! Device synchronization primitives; authorization and persistence belong to Gateway.
 
-pub mod s3_config;
-pub mod artifact;
-pub mod webdav_config;
-pub mod manifest;
-pub mod archive_pack;
-pub mod archive_extract;
-pub mod webdav_url;
-pub mod s3_signing;
+pub use app_sync_core::s3_config;
+pub use app_sync_core::artifact;
+pub use app_sync_core::webdav_config;
+pub use app_sync_core::manifest;
+pub use app_sync_core::archive_pack;
+pub use app_sync_core::archive_extract;
+pub use app_sync_core::webdav_url;
+pub use app_sync_core::s3_signing;
 pub mod webdav_transport;
-pub mod conflict;
+pub use app_sync_core::conflict;
 pub mod s3_transport;
 pub mod webdav_remote;
 pub mod s3_remote;

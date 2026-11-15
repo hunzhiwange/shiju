@@ -4,6 +4,24 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 64：设备同步格式与归档迁移结果
+
+九个实现 `device_sync/{archive_extract,archive_pack,artifact,conflict,manifest,s3_config,s3_signing,webdav_config,webdav_url}.rs`
+迁至 `crates/libs/app-sync-core/src/` 同名模块；原 device_sync 模块重导出，
+lib.rs 继续注册 device_sync，保留 vw-agent 的设置、上传下载、快照和 Gateway 调用路径。
+归档内部 artifact 引用改为新包路径；decode_path_segment 因原包 WebDAV/S3
+传输模块的真实调用最小公开，其余实现与原文件完全一致。
+九文件没有独立测试注册或资源引用；unix/非 unix 归档分支原样保留。
+传输、remote 和 macOS skill_update 及根模块连线留任务 65 接收，无遗失叶子函数。
+
+新包直接依赖 reqwest、serde、serde_json（保留 arbitrary_precision）、sha2、hmac、
+chrono、tempfile、zip 及 unix libc。原包 hmac 已无调用并移除，其余依赖仍有消费者。
+新包仅依赖第三方库，无旧门面回依赖及内部包循环；成员与直接路径依赖已注册。
+静态证据：九文件逐一与 HEAD 对照，仅上述两处调整；实现无重复，路径存在，
+模块导出与真实调用者已检索。系统 Python 无 tomllib 时采用逐行清单审阅及标准库路径检查。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包及直接调用者编译、
+既有同步场景单测、三平台归档/签名/冲突行为及清单锁文件一致性；Cargo.lock 未修改。
+
 ## 任务 43：技能部署与更新迁移结果
 
 原 `skills/` 的剩余 37 个实现和独立测试文件迁至 `crates/libs/app-skills/src/`，
@@ -643,23 +661,23 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `data_management/sql_stage_tests.rs` | 73 | 66 |
 | `data_management/usage.rs` | 142 | 68 |
 | `data_management/usage_tests.rs` | 44 | 68 |
-| `device_sync/archive_extract.rs` | 151 | 64 |
-| `device_sync/archive_pack.rs` | 210 | 64 |
-| `device_sync/artifact.rs` | 132 | 64 |
-| `device_sync/conflict.rs` | 120 | 64 |
-| `device_sync/manifest.rs` | 119 | 64 |
+| `device_sync/archive_extract.rs` | 151 | 64 → `app-sync-core/src/archive_extract.rs` |
+| `device_sync/archive_pack.rs` | 210 | 64 → `app-sync-core/src/archive_pack.rs` |
+| `device_sync/artifact.rs` | 132 | 64 → `app-sync-core/src/artifact.rs` |
+| `device_sync/conflict.rs` | 120 | 64 → `app-sync-core/src/conflict.rs` |
+| `device_sync/manifest.rs` | 119 | 64 → `app-sync-core/src/manifest.rs` |
 | `device_sync/mod.rs` | 18 | 65 |
-| `device_sync/s3_config.rs` | 130 | 64 |
+| `device_sync/s3_config.rs` | 130 | 64 → `app-sync-core/src/s3_config.rs` |
 | `device_sync/s3_remote.rs` | 62 | 65 |
-| `device_sync/s3_signing.rs` | 163 | 64 |
+| `device_sync/s3_signing.rs` | 163 | 64 → `app-sync-core/src/s3_signing.rs` |
 | `device_sync/s3_transport.rs` | 190 | 65 |
 | `device_sync/s3_transport/download.rs` | 205 | 65 |
 | `device_sync/skill_update.rs` | 117 | 65 |
-| `device_sync/webdav_config.rs` | 113 | 64 |
+| `device_sync/webdav_config.rs` | 113 | 64 → `app-sync-core/src/webdav_config.rs` |
 | `device_sync/webdav_remote.rs` | 91 | 65 |
 | `device_sync/webdav_transport.rs` | 237 | 65 |
 | `device_sync/webdav_transport/download.rs` | 147 | 65 |
-| `device_sync/webdav_url.rs` | 52 | 64 |
+| `device_sync/webdav_url.rs` | 52 | 64 → `app-sync-core/src/webdav_url.rs` |
 | `diagnostics/endpoints.rs` | 135 | 71 |
 | `diagnostics/endpoints_tests.rs` | 95 | 71 |
 | `diagnostics/mod.rs` | 5 | 71 |

@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-sync-core = { path = "../libs/app-sync-core" }
 app-usage = { path = "../libs/app-usage" }
 app-usage-import = { path = "../libs/app-usage-import" }
 app-usage-codex = { path = "../libs/app-usage-codex" }
@@ -96,7 +97,6 @@ serde_yaml = "0.9"
 toml = "0.9"
 toml_edit = "0.22"
 semver = "1"
-hmac = "0.13.0"
 sha2 = "0.11"
 chrono-tz = "0.10.4"
 chrono = { version = "0.4", default-features = false, features = ["std"] }

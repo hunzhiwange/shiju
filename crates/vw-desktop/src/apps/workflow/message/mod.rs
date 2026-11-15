@@ -3,18 +3,20 @@
 //! 该模块定义 workflow 的消息类型，并将 UI、文件、导出和编辑操作分发到状态更新逻辑。
 
 use super::model::{
-    LoadedWorkflow, WorkflowAppMeta, WorkflowConnectionEndpoint, create_blank_workflow,
-    load_document_from_path, load_document_from_value, suggested_workflow_file_name,
+    LoadedWorkflow, load_document_from_path, load_document_from_value, suggested_workflow_file_name,
 };
+#[cfg(test)]
+use super::model::{WorkflowAppMeta, WorkflowConnectionEndpoint, create_blank_workflow};
 use super::model::{WorkflowViewport, load_document_from_text, serialize_workflow_yaml};
-use super::state::{
-    WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowDataNodeEdit,
-    WorkflowHttpRequestEdit, WorkflowNodeEditorTab, WorkflowNodeFieldEdit, WorkflowRunInputDraft,
-    WorkflowSavedAppSummary, WorkflowStructuredNodeEdit, WorkflowVariablePanelKind,
-};
+use super::state::WorkflowSavedAppSummary;
+#[cfg(test)]
+use super::state::*;
 use crate::app::{App, Message};
+#[cfg(test)]
+use iced::Point;
+use iced::Task;
+#[cfg(test)]
 use iced::widget::text_editor;
-use iced::{Point, Task, Vector};
 use {vw_api_workflow::WorkflowRecordSummary, vw_api_workflow::WorkflowRecordUpsertBody};
 
 #[cfg(test)]
@@ -64,303 +66,7 @@ fn render_workflow_svg_to_png(svg_data: &str) -> Option<Vec<u8>> {
     pixmap.encode_png().ok()
 }
 
-#[derive(Debug, Clone)]
-pub enum WorkflowMessage {
-    OpenVideoTemplate,
-    ReloadVideoTemplate,
-    ScopedSavedAppsLoaded {
-        tenant: vw_api_transport::TenantScope,
-        result: Result<Vec<WorkflowSavedAppSummary>, String>,
-    },
-    VideoTemplateLoaded {
-        tenant: vw_api_transport::TenantScope,
-        graph: bool,
-        result: Result<vw_api_workflow::WorkflowRecord, String>,
-    },
-    CloseVideoTemplate,
-    VideoTemplateYamlAction(text_editor::Action),
-    VideoTemplatePathChanged(String),
-    PickVideoTemplatePath,
-    VideoTemplatePathPicked {
-        tenant: vw_api_transport::TenantScope,
-        path: Option<String>,
-    },
-    SaveVideoTemplate,
-    RequestVideoTemplateRestore,
-    CancelVideoTemplateRestore,
-    ConfirmVideoTemplateRestore,
-    VideoTemplatePersisted {
-        tenant: vw_api_transport::TenantScope,
-        graph: bool,
-        restore: bool,
-        result: Result<vw_api_workflow::WorkflowRecord, String>,
-    },
-    StartNativeVideoEdit,
-
-    LoadSavedApps,
-    LoadSavedAppsFinished(Result<Vec<WorkflowSavedAppSummary>, String>),
-    OpenSavedApp(String),
-    OpenSavedAppFinished(Result<LoadedWorkflow, crate::app::i18n::workflow::Feedback>),
-    ShowSavedApps,
-    SavedAppSearchChanged(String),
-    ToggleSavedAppActions(String),
-    CloseSavedAppActions,
-    CopySavedAppUuid(String),
-    ClearCopiedSavedAppUuid(String),
-    OpenSavedAppRunPrompt(String),
-    SavedAppRunPromptLoaded {
-        uuid: String,
-        result: Result<Vec<WorkflowRunInputDraft>, String>,
-    },
-    SavedAppRunQueryChanged(String),
-    SavedAppRunInputChanged(usize, String),
-    SavedAppRunInputToggled(usize, bool),
-    CancelSavedAppRunPrompt,
-    SubmitSavedAppRunPrompt,
-    SavedAppRunEvent {
-        uuid: String,
-        event: gateway_workflow::GatewayWorkflowStreamEvent,
-    },
-    SavedAppRunFinished {
-        uuid: String,
-        result: Result<(), String>,
-    },
-    CancelSavedAppRun,
-    RetrySavedAppRunPreview,
-    CloseSavedAppRunPreview,
-    OpenSavedAppRunNodeDetail(usize),
-    OpenSavedAppRunOutputDetail,
-    SavedAppRunDetailAction(text_editor::Action),
-    CloseSavedAppRunDetail,
-    CopySavedAppRunError,
-    ClearSavedAppRunErrorCopied,
-    RequestDeleteSavedApp(String),
-    CancelDeleteSavedApp,
-    DeleteSavedApp(String),
-    DeleteSavedAppFinished(Result<String, crate::app::i18n::workflow::Feedback>),
-    OpenInlineYaml {
-        workflow_yaml: String,
-        focus_node_id: Option<String>,
-    },
-    OpenFile,
-    OpenFileFinished(Result<Option<LoadedWorkflow>, crate::app::i18n::workflow::Feedback>),
-    SelectApp(String),
-    OpenCreateAppEditor,
-    OpenEditAppEditor(Option<String>),
-    CloseAppEditor,
-    AppEditorNameChanged(String),
-    AppEditorDescriptionChanged(String),
-    AppEditorIconChanged(String),
-    AppEditorUseIconAsAnswerIconChanged(bool),
-    AppEditorMaxActiveRequestsChanged(String),
-    OrganizeActiveApp,
-    SubmitAppEditor,
-    ToggleQuickInsertPanel,
-    InsertSuggestedNode(String),
-    OpenCreateNodeEditor(String),
-    OpenCreateNodeEditorAt(String, Point),
-    CreateContextNode(String),
-    OpenDownstreamNodePicker(String),
-    OpenEditNodeEditor(Option<String>),
-    CloseNodeEditor,
-    NodeEditorTabSelected(WorkflowNodeEditorTab),
-    NodeEditorTitleChanged(String),
-    NodeEditorDescriptionChanged(String),
-    NodeEditorDescriptionAction(text_editor::Action),
-    NodeEditorScrollCaptured,
-    NodeEditorStartAddVariable,
-    NodeEditorStartVariableHovered(Option<usize>),
-    NodeEditorStartRemoveVariable(usize),
-    NodeEditorStartSelectVariable(usize),
-    NodeEditorStartCloseVariableEditor,
-    NodeEditorStartSubmitVariableEditor,
-    NodeEditorStartVariableEditorLabelChanged(String),
-    NodeEditorStartVariableEditorNameChanged(String),
-    NodeEditorStartVariableEditorTypeChanged(String),
-    NodeEditorStartVariableEditorRequiredChanged(bool),
-    NodeEditorStartVariableEditorHiddenChanged(bool),
-    NodeEditorStartVariableEditorDefaultChanged(String),
-    NodeEditorStartVariableEditorDefaultAction(text_editor::Action),
-    NodeEditorStartVariableEditorMaxLengthChanged(String),
-    NodeEditorStartVariableEditorAddOption,
-    NodeEditorStartVariableEditorRemoveOption(usize),
-    NodeEditorStartVariableEditorOptionChanged(usize, String),
-    NodeEditorStartVariableEditorToggleFileType(String),
-    NodeEditorStartVariableEditorExtensionsChanged(String),
-    NodeEditorStartVariableEditorUploadMethodChanged(String),
-    NodeEditorStartVariableEditorPickDefaultFile,
-    NodeEditorStartVariableEditorPickDefaultFileFinished(Result<Option<String>, String>),
-    NodeEditorStartVariableEditorRemoveDefaultFile(usize),
-    NodeEditorStartVariableEditorOpenDefaultFileUrlInput,
-    NodeEditorStartVariableEditorCloseDefaultFileUrlInput,
-    NodeEditorStartVariableEditorDefaultFileUrlChanged(String),
-    NodeEditorStartVariableEditorSubmitDefaultFileUrl,
-    NodeEditorStartVariableLabelChanged(usize, String),
-    NodeEditorStartVariableNameChanged(usize, String),
-    NodeEditorStartVariableTypeChanged(usize, String),
-    NodeEditorStartVariableRequiredChanged(usize, bool),
-    NodeEditorStartVariableDefaultChanged(usize, String),
-    NodeEditorStartVariablePlaceholderChanged(usize, String),
-    NodeEditorStartVariableHintChanged(usize, String),
-    NodeEditorStartVariableMaxLengthChanged(usize, String),
-    InsertDownstreamNode(String, String),
-    InsertDownstreamNodeFromHandle(String, String, String),
-    NodeEditorShowRawDataEditorChanged(bool),
-    NodeEditorIfElseAddCase,
-    NodeEditorIfElseCaseLogicalOperatorChanged(usize, String),
-    NodeEditorIfElseAddCondition(usize),
-    NodeEditorIfElseRemoveCondition(usize, usize),
-    NodeEditorIfElseConditionSelectorChanged(usize, usize, String),
-    NodeEditorIfElseConditionOperatorChanged(usize, usize, String),
-    NodeEditorIfElseConditionValueChanged(usize, usize, String),
-    NodeEditorIfElseConditionVarTypeChanged(usize, usize, String),
-    NodeEditorKnowledgeQuerySelectorChanged(String),
-    NodeEditorKnowledgeQueryAttachmentSelectorChanged(String),
-    NodeEditorKnowledgeDatasetIdsChanged(String),
-    NodeEditorKnowledgeRetrievalModeChanged(String),
-    NodeEditorKnowledgeTopKChanged(String),
-    NodeEditorKnowledgeScoreThresholdEnabledChanged(bool),
-    NodeEditorKnowledgeScoreThresholdChanged(String),
-    NodeEditorKnowledgeRerankingEnabledChanged(bool),
-    NodeEditorKnowledgeRerankingModelAction(text_editor::Action),
-    NodeEditorKnowledgeMetadataFilteringModeChanged(String),
-    NodeEditorKnowledgeMetadataModelConfigAction(text_editor::Action),
-    NodeEditorKnowledgeSingleModelProviderChanged(String),
-    NodeEditorKnowledgeSingleModelNameChanged(String),
-    NodeEditorKnowledgeSingleModelModeChanged(String),
-    NodeEditorToolProviderIdChanged(String),
-    NodeEditorToolProviderTypeChanged(String),
-    NodeEditorToolProviderNameChanged(String),
-    NodeEditorToolNameChanged(String),
-    NodeEditorToolLabelChanged(String),
-    NodeEditorToolDescriptionChanged(String),
-    NodeEditorToolCredentialIdChanged(String),
-    NodeEditorToolPluginUniqueIdentifierChanged(String),
-    NodeEditorToolParametersAction(text_editor::Action),
-    NodeEditorToolConfigurationsAction(text_editor::Action),
-    NodeEditorAgentStrategyProviderChanged(String),
-    NodeEditorAgentStrategyNameChanged(String),
-    NodeEditorAgentStrategyLabelChanged(String),
-    NodeEditorAgentPluginUniqueIdentifierChanged(String),
-    NodeEditorAgentOutputSchemaAction(text_editor::Action),
-    NodeEditorAgentParametersAction(text_editor::Action),
-    NodeEditorAgentMemoryEnabledChanged(bool),
-    NodeEditorAgentMemoryWindowSizeChanged(String),
-    NodeEditorAgentMemoryPromptAction(text_editor::Action),
-    NodeEditorLlmProviderChanged(String),
-    NodeEditorLlmModelNameChanged(String),
-    NodeEditorLlmModelModeChanged(String),
-    NodeEditorLlmEnableThinkingChanged(bool),
-    NodeEditorLlmCompletionParamsAction(text_editor::Action),
-    NodeEditorLlmStructuredOutputAction(text_editor::Action),
-    NodeEditorLlmMemoryAction(text_editor::Action),
-    NodeEditorLlmContextEnabledChanged(bool),
-    NodeEditorLlmContextSelectorChanged(String),
-    NodeEditorLlmSystemPromptAction(text_editor::Action),
-    NodeEditorLlmUserPromptAction(text_editor::Action),
-    NodeEditorLlmVisionEnabledChanged(bool),
-    NodeEditorLlmVisionSelectorChanged(String),
-    NodeEditorAnswerAction(text_editor::Action),
-    NodeEditorEndFieldEdit(WorkflowNodeFieldEdit),
-    NodeEditorTemplateFieldEdit(WorkflowNodeFieldEdit),
-    NodeEditorTemplateAction(text_editor::Action),
-    NodeEditorDocumentSelectorChanged(String),
-    NodeEditorStructuredFieldEdit(WorkflowStructuredNodeEdit),
-    NodeEditorClassifierAddClass,
-    NodeEditorClassifierRemoveClass(usize),
-    NodeEditorClassifierClassIdChanged(usize, String),
-    NodeEditorClassifierClassNameChanged(usize, String),
-    NodeEditorExtractorAddParameter,
-    NodeEditorExtractorRemoveParameter(usize),
-    NodeEditorHttpRequestEdit(WorkflowHttpRequestEdit),
-    NodeEditorDataNodeEdit(WorkflowDataNodeEdit),
-    NodeEditorCodeLanguageChanged(String),
-    NodeEditorCodeAddInputVariable,
-    NodeEditorCodeRemoveInputVariable(usize),
-    NodeEditorCodeInputVariableNameChanged(usize, String),
-    NodeEditorCodeInputVariableSelectorChanged(usize, String, String),
-    NodeEditorCodeAddOutputVariable,
-    NodeEditorCodeRemoveOutputVariable(usize),
-    NodeEditorCodeOutputNameChanged(usize, String),
-    NodeEditorCodeOutputTypeChanged(usize, String),
-    NodeEditorCodeRetryEnabledChanged(bool),
-    NodeEditorCodeRetryMaxRetriesChanged(u8),
-    NodeEditorCodeRetryIntervalChanged(u16),
-    NodeEditorCodeErrorStrategyChanged(String),
-    NodeEditorCodeAction(text_editor::Action),
-    NodeEditorCodeDefaultValueAction(text_editor::Action),
-    NodeEditorDataAction(text_editor::Action),
-    NodeEditorDslOpenContextMenu {
-        x: f32,
-        y: f32,
-    },
-    NodeEditorDslCloseContextMenu,
-    NodeEditorDslUndo,
-    NodeEditorDslRedo,
-    NodeEditorDslContextMenuCopy,
-    NodeEditorDslContextMenuCut,
-    NodeEditorDslContextMenuPaste,
-    NodeEditorDslContextMenuDelete,
-    SubmitNodeEditor,
-    OpenVariablePanel(WorkflowVariablePanelKind),
-    CloseVariablePanel,
-    OpenCreateEnvironmentVariableEditor,
-    OpenEditEnvironmentVariableEditor(String),
-    OpenCreateConversationVariableEditor,
-    OpenEditConversationVariableEditor(String),
-    CloseVariableEditor,
-    VariableEditorNameChanged(String),
-    VariableEditorDescriptionChanged(String),
-    VariableEditorTypeChanged(String),
-    VariableEditorValueAction(text_editor::Action),
-    SubmitVariableEditor,
-    DeleteEnvironmentVariable(String),
-    DeleteConversationVariable(String),
-    ToggleActionMenu,
-    CloseFloatingPanels,
-    SaveActiveApp,
-    SaveActiveAppAs,
-    SaveActiveAppFinished(Result<Option<WorkflowSaveTarget>, crate::app::i18n::workflow::Feedback>),
-    ExportPng,
-    ExportJpeg,
-    ExportSvg,
-    ExportFinished(Result<(), crate::app::i18n::workflow::Feedback>),
-    Reload,
-    SelectNode(String),
-    SelectEdge(String),
-    ClearSelection,
-    PanBy(Vector),
-    Zoom(f32, Option<Point>),
-    ZoomSet(f32),
-    ZoomFit,
-    ToggleZoomMenu,
-    NodeDragStart(String),
-    NodeDragged(String, Vector),
-    FinishNodeDrag,
-    StartConnection(WorkflowConnectionEndpoint, Point),
-    UpdateConnectionCursor(Point),
-    FinishConnection(WorkflowConnectionEndpoint),
-    CancelConnection,
-    CancelInteraction,
-    OpenCanvasContextMenu(WorkflowCanvasContextMenuTarget, Point, Point),
-    CanvasContextMenuScrollCaptured,
-    CloseCanvasContextMenu,
-    DuplicateSelectedNode,
-    DeleteSelectedNode,
-    DeleteSelectedEdge,
-    DeleteNodeById(String),
-    DeleteEdgeById(String),
-    JumpToNode(String),
-    Undo,
-    Redo,
-    DismissError,
-}
-
-#[derive(Debug, Clone)]
-pub enum WorkflowSaveTarget {
-    LocalUuid(String),
-    FilePath(String),
-}
+pub use desktop_workflow_ui::message::{WorkflowMessage, WorkflowSaveTarget};
 
 pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
     sync_video_tenant(app);
@@ -388,7 +94,9 @@ pub(crate) fn load_saved_apps_task() -> Task<Message> {
     Task::perform(
         async move {
             let client = client?;
-            let records = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_applications_list().await?;
+            let records = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
+                .workflow_applications_list()
+                .await?;
             Ok(records.into_iter().map(saved_app_summary_from_record).collect())
         },
         move |result| {
@@ -420,7 +128,10 @@ pub(super) fn open_saved_app_task(uuid: String) -> Task<Message> {
         Task::perform(
             async move {
                 let client = crate::app::config::gateway_client()?;
-                let record = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_get(&uuid).await?;
+                let record =
+                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
+                        .workflow_application_get(&uuid)
+                        .await?;
                 let mut loaded = load_document_from_text(None, record.workflow_yaml)?;
                 loaded.local_uuid = Some(record.uuid);
                 if !record.name.trim().is_empty() {
@@ -458,7 +169,10 @@ pub(super) fn delete_saved_app_task(uuid: String) -> Task<Message> {
         Task::perform(
             async move {
                 let client = crate::app::config::gateway_client()?;
-                let response = gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_delete(&uuid).await?;
+                let response =
+                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
+                        .workflow_application_delete(&uuid)
+                        .await?;
                 if response.deleted {
                     Ok(response.uuid)
                 } else {
@@ -494,6 +208,7 @@ pub(super) fn save_active_app(app: &mut App, force_picker: bool) -> Task<Message
     save_entry(entry, force_picker)
 }
 
+#[cfg(test)]
 pub(super) fn suggested_new_node_position(app: &App) -> Point {
     let zoom = app.workflow_state.zoom.max(0.0001);
     let center_screen = Point::new(app.window_size.0 * 0.52, app.window_size.1 * 0.5);
@@ -528,8 +243,16 @@ pub(super) fn save_entry(
                     workflow_yaml: content,
                 };
                 let record = match entry.local_uuid.as_deref() {
-                    Some(uuid) => gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_update(uuid, &body).await?,
-                    None => gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_application_create(&body).await?,
+                    Some(uuid) => {
+                        gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
+                            .workflow_application_update(uuid, &body)
+                            .await?
+                    }
+                    None => {
+                        gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
+                            .workflow_application_create(&body)
+                            .await?
+                    }
                 };
                 return Ok(Some(WorkflowSaveTarget::LocalUuid(record.uuid)));
             }

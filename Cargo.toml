@@ -403,6 +403,7 @@ members = [
   "crates/libs/desktop-workflow-model",
   "crates/libs/desktop-workflow-state",
   "crates/libs/desktop-workflow-canvas",
+  "crates/libs/desktop-workflow-ui",
   "crates/libs/desktop-task-executor",
   "crates/libs/theme-model",
   "crates/libs/theme-store",

@@ -1,8 +1,8 @@
 //! 工作流应用编辑器视图测试模块，覆盖创建、编辑和 UUID 展示分支。
 
 use super::*;
-use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
-use crate::apps::workflow::state::{
+use desktop_workflow_model::{WorkflowAppMeta, WorkflowDocument};
+use desktop_workflow_state::state::{
     WorkflowAppEditorDraft, WorkflowAppEditorMode, WorkflowAppEntry, WorkflowHistorySnapshot,
 };
 use iced::Vector;
@@ -12,7 +12,7 @@ use serde_yaml::Value;
 fn app_editor_modal_renders_empty_placeholder_when_editor_is_closed() {
     let state = WorkflowState::default();
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -22,7 +22,7 @@ fn app_editor_modal_renders_create_form() {
         ..WorkflowState::default()
     };
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn app_editor_modal_renders_edit_form_without_active_organize_action() {
         None,
     );
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn app_editor_modal_renders_active_edit_form_with_organize_action() {
         None,
     );
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn app_editor_modal_renders_copied_uuid_state() {
         Some("uuid-1"),
     );
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn app_editor_modal_renders_uuid_as_not_copied_when_copy_marker_differs() {
         Some("uuid-2"),
     );
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn app_editor_modal_renders_inactive_app_with_matching_copy_marker() {
         Some("uuid-1"),
     );
 
-    let element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size(), iced::Size::new(Length::Fill, Length::Fill));
 }
@@ -97,7 +97,7 @@ fn app_editor_modal_renders_empty_fields_zero_limit_and_disabled_icon_replacemen
     draft.max_active_requests_input = "0".to_string();
     let state = WorkflowState { app_editor: Some(draft), ..WorkflowState::default() };
 
-    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _element = build_app_editor_modal(desktop_i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn app_uuid_field_renders_missing_uuid_state() {
     );
 
     let _element =
-        build_app_uuid_field(crate::app::i18n::I18n::new(Default::default()), &state, "app_1");
+        build_app_uuid_field(desktop_i18n::I18n::new(Default::default()), &state, "app_1");
 }
 
 #[test]
@@ -122,16 +122,13 @@ fn app_uuid_field_renders_missing_target_state() {
         None,
     );
 
-    let _element = build_app_uuid_field(
-        crate::app::i18n::I18n::new(Default::default()),
-        &state,
-        "missing_app",
-    );
+    let _element =
+        build_app_uuid_field(desktop_i18n::I18n::new(Default::default()), &state, "missing_app");
 }
 
 #[test]
 fn app_organize_field_renders_action_button() {
-    let _element = build_app_organize_field(crate::app::i18n::I18n::new(Default::default()));
+    let _element = build_app_organize_field(desktop_i18n::I18n::new(Default::default()));
 }
 
 fn workflow_state_with_editor(
@@ -198,4 +195,33 @@ fn editor_draft(mode: WorkflowAppEditorMode) -> WorkflowAppEditorDraft {
         use_icon_as_answer_icon: true,
         max_active_requests_input: "8".to_string(),
     }
+}
+
+// These construction tests use local workflow messages. Selectable-help rendering
+// remains covered by the host's combined dialog rendering tests.
+fn build_app_editor_modal(
+    i18n: desktop_i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, WorkflowMessage> {
+    super::build_app_editor_modal(
+        i18n,
+        state,
+        std::convert::identity,
+        |_, _, label, description| {
+            desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
+                label,
+                text(description).into(),
+            )
+        },
+    )
+}
+fn build_app_uuid_field<'a>(
+    i18n: desktop_i18n::I18n,
+    state: &'a WorkflowState,
+    target_id: &'a str,
+) -> Element<'a, WorkflowMessage> {
+    super::build_app_uuid_field(i18n, state, target_id, std::convert::identity)
+}
+fn build_app_organize_field(i18n: desktop_i18n::I18n) -> Element<'static, WorkflowMessage> {
+    super::build_app_organize_field(i18n, std::convert::identity)
 }

@@ -1,25 +1,20 @@
 //! Versioned template editing and handoff to the existing native chat channel.
 use super::*;
 pub(super) use crate::apps::workflow::state::video_edit::TEMPLATE_ID;
-use {
-    vw_api_workflow::WorkflowRecord,
-    vw_api_transport::TenantScope,
-};
+use {vw_api_transport::TenantScope, vw_api_workflow::WorkflowRecord};
 
 pub(super) fn load_template(graph: bool) -> Task<Message> {
-    let tenant = crate::app::session_gateway::active_tenant_scope();
-    let client = crate::app::config::gateway_client();
-    Task::perform(
-        async move {
-            let result = async { gateway_workflow::GatewayWorkflowClient::new(client?.transport().clone()).workflow_application_get(TEMPLATE_ID).await }.await;
-            (tenant, result)
-        },
-        move |(tenant, result)| {
-            Message::WorkflowTool(WorkflowMessage::VideoTemplateLoaded { tenant, graph, result })
-        },
+    desktop_workflow_ui::message::video_edit::load_template(
+        crate::app::session_gateway::active_tenant_scope(),
+        workflow_client(),
+        graph,
     )
+    .map(Message::WorkflowTool)
 }
-
+fn workflow_client() -> Result<gateway_workflow::GatewayWorkflowClient, String> {
+    crate::app::config::gateway_client()
+        .map(|client| gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()))
+}
 fn persist(
     tenant: TenantScope,
     record: WorkflowRecord,
@@ -27,40 +22,15 @@ fn persist(
     graph: bool,
     restore: bool,
 ) -> Task<Message> {
-    let client = crate::app::config::gateway_client();
-    Task::perform(
-        async move {
-            let result = async {
-                let client = client?;
-                if restore {
-                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()).workflow_template_restore(TEMPLATE_ID, record.updated_at_ms, true).await
-                } else {
-                    gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
-                        .workflow_template_update(
-                            TEMPLATE_ID,
-                            &vw_api_workflow::WorkflowRecordUpsertBody {
-                                uuid: Some(TEMPLATE_ID.into()),
-                                name: record.name,
-                                description: record.description,
-                                workflow_yaml: yaml,
-                            },
-                            record.updated_at_ms,
-                        )
-                        .await
-                }
-            }
-            .await;
-            (tenant, result)
-        },
-        move |(tenant, result)| {
-            Message::WorkflowTool(WorkflowMessage::VideoTemplatePersisted {
-                tenant,
-                graph,
-                restore,
-                result,
-            })
-        },
+    desktop_workflow_ui::message::video_edit::persist(
+        workflow_client(),
+        tenant,
+        record,
+        yaml,
+        graph,
+        restore,
     )
+    .map(Message::WorkflowTool)
 }
 
 pub(super) fn save_graph(
@@ -89,6 +59,13 @@ pub(super) fn save_graph(
 }
 
 pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Message>> {
+    if desktop_workflow_ui::message::video_edit::handle(
+        &mut app.workflow_state,
+        app.window_size,
+        message.clone(),
+    ) {
+        return Some(Task::none());
+    }
     Some(match message {
         WorkflowMessage::ScopedSavedAppsLoaded { tenant, result } => {
             if tenant == crate::app::session_gateway::active_tenant_scope() {
@@ -146,23 +123,6 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 }
                 Err(e) => app.workflow_state.video_edit.error = Some(e),
             }
-            Task::none()
-        }
-        WorkflowMessage::CloseVideoTemplate => {
-            app.workflow_state.video_edit.open = false;
-            app.workflow_state.video_edit.restore_confirm = false;
-            Task::none()
-        }
-        WorkflowMessage::VideoTemplateYamlAction(action) => {
-            if !app.workflow_state.video_edit.busy
-                && let Some(editor) = &mut app.workflow_state.video_edit.editor
-            {
-                editor.perform(action);
-            }
-            Task::none()
-        }
-        WorkflowMessage::VideoTemplatePathChanged(path) => {
-            app.workflow_state.video_edit.path = path;
             Task::none()
         }
         #[cfg(target_arch = "wasm32")]
@@ -223,14 +183,6 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 false,
                 restore,
             )
-        }
-        WorkflowMessage::RequestVideoTemplateRestore => {
-            app.workflow_state.video_edit.restore_confirm = true;
-            Task::none()
-        }
-        WorkflowMessage::CancelVideoTemplateRestore => {
-            app.workflow_state.video_edit.restore_confirm = false;
-            Task::none()
         }
         WorkflowMessage::VideoTemplatePersisted { tenant, graph, restore, result } => {
             if tenant != crate::app::session_gateway::active_tenant_scope() {

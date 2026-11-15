@@ -6,77 +6,14 @@ use super::*;
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
 pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Message>> {
+    if desktop_workflow_ui::message::document::handle(
+        &mut app.workflow_state,
+        app.window_size,
+        message.clone(),
+    ) {
+        return Some(Task::none());
+    }
     Some(match message {
-        WorkflowMessage::OpenVariablePanel(kind) => {
-            app.workflow_state.open_variable_panel(kind);
-            Task::none()
-        }
-        WorkflowMessage::CloseVariablePanel => {
-            app.workflow_state.close_variable_panel();
-            Task::none()
-        }
-        WorkflowMessage::OpenCreateEnvironmentVariableEditor => {
-            app.workflow_state.open_create_environment_variable_editor();
-            Task::none()
-        }
-        WorkflowMessage::OpenEditEnvironmentVariableEditor(id) => {
-            if let Err(error) = app.workflow_state.open_edit_environment_variable_editor(&id) {
-                app.workflow_state.set_error(error);
-            }
-            Task::none()
-        }
-        WorkflowMessage::OpenCreateConversationVariableEditor => {
-            app.workflow_state.open_create_conversation_variable_editor();
-            Task::none()
-        }
-        WorkflowMessage::OpenEditConversationVariableEditor(id) => {
-            if let Err(error) = app.workflow_state.open_edit_conversation_variable_editor(&id) {
-                app.workflow_state.set_error(error);
-            }
-            Task::none()
-        }
-        WorkflowMessage::CloseVariableEditor => {
-            app.workflow_state.close_variable_editor();
-            Task::none()
-        }
-        WorkflowMessage::VariableEditorNameChanged(value) => {
-            app.workflow_state.set_variable_editor_name(value);
-            Task::none()
-        }
-        WorkflowMessage::VariableEditorDescriptionChanged(value) => {
-            app.workflow_state.set_variable_editor_description(value);
-            Task::none()
-        }
-        WorkflowMessage::VariableEditorTypeChanged(value) => {
-            app.workflow_state.set_variable_editor_type(value);
-            Task::none()
-        }
-        WorkflowMessage::VariableEditorValueAction(action) => {
-            app.workflow_state.variable_editor_action(action);
-            Task::none()
-        }
-        WorkflowMessage::SubmitVariableEditor => {
-            if let Err(error) = app.workflow_state.submit_variable_editor() {
-                app.workflow_state.set_error(error);
-            }
-            Task::none()
-        }
-        WorkflowMessage::DeleteEnvironmentVariable(id) => {
-            app.workflow_state.delete_environment_variable(&id);
-            Task::none()
-        }
-        WorkflowMessage::DeleteConversationVariable(id) => {
-            app.workflow_state.delete_conversation_variable(&id);
-            Task::none()
-        }
-        WorkflowMessage::ToggleActionMenu => {
-            app.workflow_state.toggle_action_menu();
-            Task::none()
-        }
-        WorkflowMessage::CloseFloatingPanels => {
-            app.workflow_state.close_floating_panels();
-            Task::none()
-        }
         WorkflowMessage::SaveActiveApp => {
             app.workflow_state.close_floating_panels();
             save_active_app(app, false)

@@ -7,14 +7,17 @@ use vw_api_workflow::is_builtin_workflow_uuid;
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
 pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Message>> {
+    if desktop_workflow_ui::message::app::handle(
+        &mut app.workflow_state,
+        app.window_size,
+        message.clone(),
+    ) {
+        return Some(Task::none());
+    }
     Some(match message {
         WorkflowMessage::LoadSavedApps => {
             app.workflow_state.begin_saved_apps_load();
             load_saved_apps_task()
-        }
-        WorkflowMessage::LoadSavedAppsFinished(result) => {
-            app.workflow_state.finish_saved_apps_load(result);
-            Task::none()
         }
         WorkflowMessage::OpenSavedApp(uuid) => {
             if uuid == super::video_edit::TEMPLATE_ID {
@@ -51,18 +54,6 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 Task::none()
             }
         }
-        WorkflowMessage::SavedAppSearchChanged(query) => {
-            app.workflow_state.set_saved_app_search_query(query);
-            Task::none()
-        }
-        WorkflowMessage::ToggleSavedAppActions(uuid) => {
-            app.workflow_state.toggle_saved_app_actions(uuid);
-            Task::none()
-        }
-        WorkflowMessage::CloseSavedAppActions => {
-            app.workflow_state.close_saved_app_actions();
-            Task::none()
-        }
         WorkflowMessage::CopySavedAppUuid(uuid) => {
             app.workflow_state.mark_saved_app_uuid_copied(uuid.clone());
             Task::batch(vec![
@@ -73,19 +64,11 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 ),
             ])
         }
-        WorkflowMessage::ClearCopiedSavedAppUuid(uuid) => {
-            app.workflow_state.clear_saved_app_uuid_copied(&uuid);
-            Task::none()
-        }
         WorkflowMessage::RequestDeleteSavedApp(uuid) => {
             if is_builtin_workflow_uuid(&uuid) {
                 return Some(app.show_error_toast("内置工作流不可删除"));
             }
             app.workflow_state.open_saved_app_delete_confirm(uuid);
-            Task::none()
-        }
-        WorkflowMessage::CancelDeleteSavedApp => {
-            app.workflow_state.close_saved_app_delete_confirm();
             Task::none()
         }
         WorkflowMessage::DeleteSavedApp(uuid) => {
@@ -157,66 +140,14 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             }
             Task::none()
         }
-        WorkflowMessage::OpenCreateAppEditor => {
-            app.workflow_state.open_create_editor();
-            Task::none()
-        }
-        WorkflowMessage::OpenEditAppEditor(id) => {
-            app.workflow_state.open_edit_editor(id.as_deref());
-            Task::none()
-        }
-        WorkflowMessage::CloseAppEditor => {
-            app.workflow_state.close_editor();
-            Task::none()
-        }
-        WorkflowMessage::AppEditorNameChanged(value) => {
-            app.workflow_state.set_editor_name(value);
-            Task::none()
-        }
-        WorkflowMessage::AppEditorDescriptionChanged(value) => {
-            app.workflow_state.set_editor_description(value);
-            Task::none()
-        }
-        WorkflowMessage::AppEditorIconChanged(value) => {
-            app.workflow_state.set_editor_icon(value);
-            Task::none()
-        }
-        WorkflowMessage::AppEditorUseIconAsAnswerIconChanged(value) => {
-            app.workflow_state.set_editor_use_icon_as_answer_icon(value);
-            Task::none()
-        }
-        WorkflowMessage::AppEditorMaxActiveRequestsChanged(value) => {
-            app.workflow_state.set_editor_max_active_requests_input(value);
-            Task::none()
-        }
-        WorkflowMessage::OrganizeActiveApp => {
-            if let Err(error) = app.workflow_state.organize_active_app(app.window_size) {
-                app.workflow_state.set_error(error);
-            }
-            Task::none()
-        }
         WorkflowMessage::SubmitAppEditor => {
-            let mode = app.workflow_state.app_editor.as_ref().map(|draft| draft.mode.clone());
-            let Some(mode) = mode else {
-                return Some(Task::none());
-            };
-
-            let template = match mode {
-                WorkflowAppEditorMode::Create | WorkflowAppEditorMode::Edit(_) => {
-                    match create_blank_workflow(WorkflowAppMeta::default()) {
-                        Ok(loaded) => loaded,
-                        Err(error) => {
-                            app.workflow_state.set_error(error);
-                            return Some(Task::none());
-                        }
-                    }
-                }
-            };
-
-            if let Err(error) = app.workflow_state.submit_editor(app.window_size, template) {
-                app.workflow_state.set_error(error);
-            } else {
-                crate::apps::workflow::sync_top_tab(app);
+            match desktop_workflow_ui::message::app::submit_editor(
+                &mut app.workflow_state,
+                app.window_size,
+            ) {
+                Ok(true) => crate::apps::workflow::sync_top_tab(app),
+                Ok(false) => {}
+                Err(error) => app.workflow_state.set_error(error),
             }
             Task::none()
         }

@@ -48,3 +48,69 @@ pub fn card_grid(cards: Vec<Element<'static, Message>>) -> Element<'static, Mess
 
     grid.into()
 }
+
+use iced::widget::{button, text};
+use iced::Length;
+use desktop_apps_ui::shiju_apps::ShijuAppsMessage;
+use desktop_app_launch::ShijuAppsTab;
+pub fn tab_specs() -> &'static [(&'static str, ShijuAppsTab)] {
+    &[("我的应用", ShijuAppsTab::Mine), ("应用商店", ShijuAppsTab::Store)]
+}
+
+fn tab_button(
+    i18n: desktop_i18n::I18n,
+    label: &'static str,
+    tab: ShijuAppsTab,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(i18n.__(label)).size(14))
+        .on_press(Message::ShijuApps(ShijuAppsMessage::SelectTab(tab)))
+        .padding([8, 14])
+        .style(move |theme, status| styles::tab_style(theme, status, selected))
+        .into()
+}
+
+/// 组合应用页签、详情与密钥绑定覆盖层。
+pub fn view<'a, M: Clone + 'a>(app: &ViewInput<'a>, tabs: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+    let content = if let Some(target) = app.shiju_apps.detail {
+        detail::view(app, target)
+    } else {
+        let tabs = tab_specs().iter().fold(row!().spacing(8), |tabs, (label, tab)| {
+            tabs.push(tab_button(
+                desktop_i18n::I18n::new(app.desktop_locale),
+                label,
+                *tab,
+                app.shiju_apps.tab == *tab,
+            ))
+        });
+        let body = match app.shiju_apps.tab {
+            ShijuAppsTab::Store => store::view(
+                desktop_i18n::I18n::new(app.desktop_locale),
+                &app.shiju_apps.store,
+            ),
+            ShijuAppsTab::Mine => mine::view(
+                desktop_i18n::I18n::new(app.desktop_locale),
+                &app.shiju_apps.mine,
+            ),
+        };
+
+        column![
+            text(desktop_i18n::I18n::new(app.desktop_locale).__("识矩应用")).size(24),
+            text(
+                desktop_i18n::I18n::new(app.desktop_locale)
+                    .__("浏览平台应用，或查看当前账户已经安装的应用。")
+            )
+            .size(13)
+            .style(styles::muted_text_style),
+            tabs,
+            body,
+        ]
+        .spacing(14)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+    };
+
+    let base = super::shell::view(tabs, content.map(map));
+    api_key_binding::with_overlay(app, base, map)
+}

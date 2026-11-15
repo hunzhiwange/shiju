@@ -38,3 +38,9 @@ pub mod shiju_apps;
 #[cfg(test)] mod public_skills_tests;
 
 pub mod knowledge_workspace;
+
+pub mod shell;
+
+#[cfg(test)] mod shiju_apps_tests;
+#[cfg(test)] mod shiju_knowledge_view_tests;
+#[cfg(test)] mod shiju_knowledge_reader_tests;

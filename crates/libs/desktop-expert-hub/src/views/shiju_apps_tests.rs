@@ -7,11 +7,17 @@ use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 use gateway_shiju_app::{ShijuAppCatalogDto, ShijuAppListDto, ShijuCatalogAppDto, ShijuIamApiKeyDto, ShijuInstalledAppDto};
 
 use super::shiju_apps;
-use crate::app::message::ShijuAppsMessage;
-use crate::app::shiju_apps::{
+use desktop_apps_ui::shiju_apps::ShijuAppsMessage;
+use desktop_app_launch::{
     ShijuAppDetailTarget, ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsTab,
 };
-use crate::app::{App, Message};
+use super::shiju_apps::Message;
+#[derive(Default)]
+struct App { shiju_apps: desktop_app_launch::ShijuAppsState }
+impl App { fn new() -> (Self, ()) { (Self::default(), ()) } }
+fn view(app: &App) -> iced::Element<'_, Message> {
+    shiju_apps::view(&shiju_apps::ViewInput { shiju_apps: &app.shiju_apps, desktop_locale: Default::default() }, iced::widget::text("").into(), |message| message)
+}
 
 fn catalog_app(installed: bool) -> ShijuCatalogAppDto {
     ShijuCatalogAppDto {
@@ -77,14 +83,14 @@ fn shiju_apps_view_builds_store_mine_and_details() {
         &[("我的应用", ShijuAppsTab::Mine), ("应用商店", ShijuAppsTab::Store),]
     );
 
-    keep_element(shiju_apps::view(&app));
+    keep_element(view(&app));
     app.shiju_apps.tab = ShijuAppsTab::Store;
-    keep_element(shiju_apps::view(&app));
+    keep_element(view(&app));
 
     app.shiju_apps.detail = Some(ShijuAppDetailTarget::Store(0));
-    keep_element(shiju_apps::view(&app));
+    keep_element(view(&app));
     app.shiju_apps.detail = Some(ShijuAppDetailTarget::Mine(0));
-    keep_element(shiju_apps::view(&app));
+    keep_element(view(&app));
 }
 
 #[test]
@@ -98,7 +104,7 @@ fn shiju_apps_view_exposes_loading_empty_error_and_login_states() {
     ];
     for state in states {
         app.shiju_apps.store = state;
-        keep_element(shiju_apps::view(&app));
+        keep_element(view(&app));
     }
 }
 
@@ -177,7 +183,7 @@ fn api_key_binding_overlay_appears_only_after_unconfigured_binding() {
     for state in states {
         app.shiju_apps.launch = state;
         assert!(shiju_apps::api_key_binding::is_visible(&app.shiju_apps.launch));
-        let element = shiju_apps::view(&app);
+        let element = view(&app);
         assert_eq!(
             element.as_widget().children().len(),
             2,
@@ -267,7 +273,7 @@ fn api_key_binding_actions_follow_selected_enabled_key() {
 }
 
 async fn assert_draws(app: &App, theme: Theme) {
-    let mut element = shiju_apps::view(app);
+    let mut element = view(app);
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await

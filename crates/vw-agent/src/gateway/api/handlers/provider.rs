@@ -1,110 +1,62 @@
-//! Provider 路由模块
-
-use std::collections::HashMap;
-
-use axum::Router;
-use axum::extract::{Path, Query};
-use axum::http::HeaderMap;
-use axum::routing::{get, post};
-use axum::{Extension, Json};
-use serde::{Deserialize, Serialize};
+//! Provider routes with the existing tenant/project context adapter.
+use axum::{Router, http::HeaderMap};
+use gateway_provider::{HostFuture, InstanceQuery, ProviderHost};
+use gateway_types::ApiError;
 use vw_api_transport::id::TenantScope;
 
-use crate::app::agent::gateway::ApiError;
-use crate::app::agent::gateway::instance::{InstanceQuery, resolve_directory, with_instance};
-use crate::app::agent::provider;
+struct Host;
 
-pub(crate) fn router<S>() -> Router<S>
-where
-    S: Clone + Send + Sync + 'static,
-{
-    Router::new()
-        .route("/provider", get(provider_list))
-        .route("/provider/auth", get(provider_auth_methods))
-        .route("/provider/{provider_id}/oauth/authorize", post(provider_oauth_authorize))
-        .route("/provider/{provider_id}/oauth/callback", post(provider_oauth_callback))
+impl ProviderHost for Host {
+    fn settings_provider_list() -> HostFuture<Result<
+        (std::collections::HashMap<String, agent_provider::provider::Info>, std::collections::HashMap<String, String>),
+        agent_provider::provider::CatalogError,
+    >> {
+        Box::pin(crate::provider::provider::settings_provider_list())
+    }
+
+    fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String {
+        crate::gateway::instance::resolve_directory(
+            &crate::gateway::instance::InstanceQuery { directory: query.directory.clone() },
+            headers,
+        )
+    }
+
+    fn with_context<T: Send + 'static>(
+        tenant: TenantScope,
+        directory: String,
+        action: impl FnOnce() -> HostFuture<Result<T, ApiError>> + Send + 'static,
+    ) -> HostFuture<Result<T, ApiError>> {
+        Box::pin(crate::session::ui_store::with_tenant_scope(
+            tenant,
+            crate::gateway::instance::with_instance(directory, action),
+        ))
+    }
 }
 
-#[derive(Debug, Serialize)]
-struct ProviderListResponse {
-    all: Vec<provider::provider::Info>,
-    default: HashMap<String, String>,
-    connected: Vec<String>,
-}
-
-async fn provider_list(
-    Extension(tenant): Extension<TenantScope>,
-    Query(query): Query<InstanceQuery>,
-    headers: HeaderMap,
-) -> Result<Json<ProviderListResponse>, ApiError> {
-    let dir = resolve_directory(&query, &headers);
-    let result = crate::session::ui_store::with_tenant_scope(
-        tenant,
-        with_instance(dir, move || {
-            Box::pin(async move {
-                let (providers, mut defaults) = provider::provider::settings_provider_list()
-                    .await
-                    .map_err(|error| ApiError::internal(error.to_string()))?;
-                let mut out = Vec::new();
-                let mut connected = Vec::new();
-                for p in providers.into_values() {
-                    if p.key.as_deref().is_some_and(|k| !k.trim().is_empty()) {
-                        connected.push(p.id.clone());
-                    }
-                    if !defaults.contains_key(&p.id) {
-                        let models = provider::provider::sort(
-                            p.models.values().cloned().collect::<Vec<_>>(),
-                        );
-                        if let Some(m) = models.first() {
-                            defaults.insert(p.id.clone(), m.id.clone());
-                        }
-                    }
-                    out.push(p);
-                }
-                connected.sort();
-                Ok(ProviderListResponse { all: out, default: defaults, connected })
-            })
-        }),
-    )
-    .await?;
-    Ok(Json(result))
-}
-
-async fn provider_auth_methods() -> Json<HashMap<String, Vec<provider::auth::Method>>> {
-    Json(provider::auth::methods().await)
-}
-
-#[derive(Debug, Deserialize)]
-struct OAuthAuthorizeRequest {
-    method: usize,
-}
-
-async fn provider_oauth_authorize(
-    Path(provider_id): Path<String>,
-    Json(body): Json<OAuthAuthorizeRequest>,
-) -> Result<Json<Option<provider::auth::Authorization>>, ApiError> {
-    let result = provider::auth::authorize(&provider_id, body.method)
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
-    Ok(Json(result))
-}
-
-#[derive(Debug, Deserialize)]
-struct OAuthCallbackRequest {
-    method: usize,
-    code: Option<String>,
-}
-
-async fn provider_oauth_callback(
-    Path(provider_id): Path<String>,
-    Json(body): Json<OAuthCallbackRequest>,
-) -> Result<Json<bool>, ApiError> {
-    provider::auth::callback(&provider_id, body.method, body.code.as_deref())
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
-    Ok(Json(true))
+pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
+    gateway_provider::router::<S, Host>()
 }
 
 #[cfg(test)]
-#[path = "provider_tests.rs"]
+use gateway_provider::{
+    OAuthAuthorizeRequest, OAuthCallbackRequest, ProviderListResponse,
+    provider_auth_methods, provider_oauth_authorize, provider_oauth_callback,
+};
+#[cfg(test)]
+use agent_provider as provider;
+#[cfg(test)]
+use std::collections::HashMap;
+#[cfg(test)]
+use axum::{Extension, Json, extract::Query};
+#[cfg(test)]
+async fn provider_list(
+    tenant: Extension<TenantScope>,
+    query: Query<InstanceQuery>,
+    headers: HeaderMap,
+) -> Result<Json<ProviderListResponse>, ApiError> {
+    gateway_provider::provider_list::<Host>(tenant, query, headers).await
+}
+
+#[cfg(test)]
+#[path = "../../../../../libs/gateway-provider/src/provider_tests.rs"]
 mod provider_tests;

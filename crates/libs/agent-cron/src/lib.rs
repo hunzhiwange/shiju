@@ -30,3 +30,7 @@ mod commands_acceptance_tests;
 
 #[cfg(test)]
 mod active_runs_tests;
+
+#[cfg(test)]
+#[path = "tests/scheduler.rs"]
+mod scheduler_acceptance_tests;

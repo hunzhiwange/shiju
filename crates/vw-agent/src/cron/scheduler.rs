@@ -53,15 +53,12 @@ use agent_security::SecurityPolicy;
 use chrono::{DateTime, Utc};
 #[cfg(test)]
 use std::sync::Arc;
-#[cfg(test)]
-use agent_cron::execution::*;
-#[cfg(test)]
-use agent_cron::scheduler::{run_job_command, run_job_command_with_timeout, cron_agent_prompt, cron_full_access_config, is_one_shot_auto_delete, warn_if_high_frequency_agent_job, is_high_frequency_agent_job, wait_for_schedule_scan};
+// Execution rule tests live in agent-cron.
+// Shell command and pure scheduling tests live in agent-cron.
 pub(crate) use agent_cron::scheduler::notify_schedule_changed;
 #[cfg(not(target_arch = "wasm32"))]
 use agent_cron::scheduler::{cron_gateway_agent_request, format_gateway_agent_output};
-#[cfg(all(test, not(target_arch = "wasm32")))]
-use agent_cron::scheduler::cron_gateway_options;
+// Gateway request options are tested by their agent-cron owner.
 
 pub(crate) struct Host;
 #[async_trait::async_trait]

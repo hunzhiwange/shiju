@@ -275,3 +275,30 @@ impl tool_files::FileToolHost for context::AgentContextHost {
         crate::skill::dirs().await
     }
 }
+
+impl tool_services::client_tool::ClientConnection
+    for crate::session::runtime::dynamic_calls::ClientToolHost
+{
+    fn owner_tenant(&self) -> &vw_api_transport::TenantScope {
+        self.owner().scope.tenant()
+    }
+
+    fn owner_session(&self) -> &str {
+        &self.owner().session
+    }
+
+    fn owner_directory(&self) -> &std::path::Path {
+        self.owner().scope.directory()
+    }
+
+    fn request<'a>(
+        self: &'a std::sync::Arc<Self>,
+        spec: &'a traits::ToolSpec,
+        args: serde_json::Value,
+        turn_id: String,
+    ) -> impl Future<Output = anyhow::Result<vw_api_tools::DynamicToolResponse>>
+        + tool_context::host::HostFuture + 'a
+    {
+        Self::request(self, spec, args, turn_id)
+    }
+}

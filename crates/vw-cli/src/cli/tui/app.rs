@@ -3,6 +3,7 @@
 //! 本模块负责终端生命周期、会话恢复、流式请求启动和事件循环；
 //! Gateway 事件到界面事件的语义转换留在 `bridge`，不在主循环中重复。
 
+use super::runtime::stream_adapter::terminal_from_error_message;
 use crate::app::agent::config::Config;
 use crate::cli::setup::CliSetup;
 use anyhow::{Result, anyhow};
@@ -81,7 +82,8 @@ use super::runtime::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
 use super::runtime::session_diff::load_session_diff_blocking;
-use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+
 use super::runtime::workflow_run::{
     OwnedWorkflowRunRequest, WorkflowRunOwnership, resume_workflow_run_blocking,
     stream_workflow_run_blocking, workflow_run_request,
@@ -394,7 +396,7 @@ impl ActiveRunner {
                         ActiveStreamKind::Chat => {
                             stream.cancel.store(true, Ordering::Release);
                             app.accept_runtime_event(UiRuntimeEvent::Terminal(
-                                UiRuntimeTerminalEvent::from_error_message(
+                                terminal_from_error_message(
                                     "cancelled by user".to_string(),
                                 ),
                             ));
@@ -1950,7 +1952,7 @@ impl ActiveRunner {
         if let Some(error) = stream_error {
             if kind == ActiveStreamKind::Chat {
                 app.accept_runtime_event(UiRuntimeEvent::Terminal(
-                    UiRuntimeTerminalEvent::from_error_message(error),
+                    terminal_from_error_message(error),
                 ));
             } else {
                 push_runner_error(app, error);

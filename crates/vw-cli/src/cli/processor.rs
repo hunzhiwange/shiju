@@ -22,7 +22,7 @@ use vw_gateway_client::vw_api_types::id::SessionId;
 use vw_gateway_client::{GatewayChatStreamRequest, GatewayChatUsage};
 
 use super::tui::runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
-use super::tui::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 /// legacy CLI 链路当前暴露给交互层的成功结果。
 #[derive(Debug, Clone, PartialEq, Eq)]

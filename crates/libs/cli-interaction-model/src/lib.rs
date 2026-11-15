@@ -13,6 +13,7 @@ pub mod attachment;
 pub mod background_task;
 pub mod editor;
 pub mod elicitation;
+pub mod git_workspace;
 pub mod integration;
 pub mod message_action;
 pub mod notification;
@@ -20,6 +21,7 @@ pub mod overlay;
 pub mod paste;
 pub mod permission;
 pub mod prompt;
+pub mod runtime_event;
 pub mod schedule_panel;
 pub mod search;
 pub mod session_mode;
@@ -71,3 +73,9 @@ pub use ui_message::{
     UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCall, UiToolCallState,
     UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
+
+pub use git_workspace::GitWorkspaceStatus;
+pub use runtime_event::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+
+#[cfg(test)]
+mod git_workspace_tests;

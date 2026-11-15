@@ -1,7 +1,9 @@
 //! CLI 工作区摘要与 Git porcelain 解析测试。
 
+use cli_interaction_model::GitWorkspaceStatus;
+
 use super::session::{
-    GitWorkspaceStatus, build_project_info, collect_git_workspace_status, collect_modified_files,
+    build_project_info, collect_git_workspace_status, collect_modified_files,
     parse_git_status_porcelain_path,
 };
 
@@ -26,25 +28,6 @@ impl Drop for TestDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
     }
-}
-
-#[test]
-fn git_workspace_status_defaults_to_unavailable() {
-    assert_eq!(GitWorkspaceStatus::default(), GitWorkspaceStatus::Unavailable);
-}
-
-#[test]
-fn git_workspace_status_exposes_dirty_files_in_original_order() {
-    let files = vec!["src/lib.rs".to_string(), "Cargo.toml".to_string()];
-    let status = GitWorkspaceStatus::ReadyDirty(files.clone());
-
-    assert_eq!(status.modified_files(), files.as_slice());
-}
-
-#[test]
-fn git_workspace_status_returns_empty_files_for_non_dirty_states() {
-    assert_eq!(GitWorkspaceStatus::ReadyClean.modified_files(), &[] as &[String]);
-    assert_eq!(GitWorkspaceStatus::Unavailable.modified_files(), &[] as &[String]);
 }
 
 #[test]

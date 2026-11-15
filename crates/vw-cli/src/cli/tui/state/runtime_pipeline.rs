@@ -20,7 +20,7 @@ use cli_interaction_model::{
     UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCallState,
     UiTurnTerminal,
 };
-use crate::cli::tui::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 /// Canonical and API-compat thinking open tags. Prefer longer match when both could apply.
 const THINK_OPEN_TAGS: &[&str] = &["<thinking>", "<think>"];

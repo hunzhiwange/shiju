@@ -12,7 +12,9 @@
 //! - 不提前定义“为以后准备”的胖接口。
 //! - 只保留后续 slice 一定会复用的稳定入口。
 
-use super::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_gateway_stream_event};
+use super::stream_adapter::terminal_from_error_message;
+use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+use super::stream_adapter::adapt_gateway_stream_event;
 use crate::app::agent::config::Config;
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -707,7 +709,7 @@ fn finalize_stream_terminal(
         Ok(()) => {
             UiRuntimeTerminalEvent::Error("gateway stream closed before terminal event".to_string())
         }
-        Err(err) => UiRuntimeTerminalEvent::from_error_message(err),
+        Err(err) => terminal_from_error_message(err),
     }
 }
 

@@ -4,6 +4,7 @@
 //! - 将 gateway client 暴露的 typed stream 事件转换为 CLI 内部事件
 //! - 统一终态控制语义，把 done/error/cancel/timeout 收口为稳定枚举
 
+use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use serde_json::Value;
 use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{
@@ -16,88 +17,25 @@ use cli_interaction_model::{
     UiMessageOrigin, UiProgressMessage, UiUnknownMessage,
 };
 
-/// CLI 新 TUI 在 runtime 边界统一消费的终态事件。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UiRuntimeTerminalEvent {
-    /// 当前 chat stream 正常结束。
-    Done {
-        finish_reason: Option<String>,
-        usage: Option<GatewayChatUsage>,
-        message_id: Option<String>,
-        parent_message_id: Option<String>,
-    },
-    /// 当前 chat stream 被主动取消或被中断终止。
-    Cancelled {
-        reason: Option<String>,
-        usage: Option<GatewayChatUsage>,
-        message_id: Option<String>,
-        parent_message_id: Option<String>,
-    },
-    /// 当前 chat stream 以超时结束。
-    TimedOut {
-        message: String,
-        usage: Option<GatewayChatUsage>,
-        message_id: Option<String>,
-        parent_message_id: Option<String>,
-    },
-    /// 当前 chat stream 以错误结束。
-    Error(String),
-}
+/// 基于错误文本归类统一终态语义。
+pub(crate) fn terminal_from_error_message(error: String) -> UiRuntimeTerminalEvent {
+    let message = normalize_optional_string(Some(error))
+        .unwrap_or_else(|| "gateway stream failed".to_string());
 
-impl UiRuntimeTerminalEvent {
-    /// 基于错误文本归类统一终态语义。
-    pub(crate) fn from_error_message(error: String) -> Self {
-        let message = normalize_optional_string(Some(error))
-            .unwrap_or_else(|| "gateway stream failed".to_string());
-
-        match classify_terminal_marker(Some(&message)) {
-            TerminalMarker::Done => Self::Error(message),
-            TerminalMarker::Cancelled => Self::Cancelled {
-                reason: Some(message),
-                usage: None,
-                message_id: None,
-                parent_message_id: None,
-            },
-            TerminalMarker::TimedOut => {
-                Self::TimedOut { message, usage: None, message_id: None, parent_message_id: None }
+    match classify_terminal_marker(Some(&message)) {
+        TerminalMarker::Done => UiRuntimeTerminalEvent::Error(message),
+        TerminalMarker::Cancelled => UiRuntimeTerminalEvent::Cancelled {
+            reason: Some(message),
+            usage: None,
+            message_id: None,
+            parent_message_id: None,
+        },
+        TerminalMarker::TimedOut => {
+            UiRuntimeTerminalEvent::TimedOut {
+                message, usage: None, message_id: None, parent_message_id: None,
             }
         }
     }
-}
-
-/// CLI 新 TUI 在 runtime 边界统一消费的事件枚举。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UiRuntimeEvent {
-    /// 后台计划运行已分配任务 ID，可用于停止控制面。
-    PlanRunTaskStarted { task_id: String },
-    /// 助手文本增量。
-    Delta(String),
-    /// 本轮实际加载的上下文指令文件。
-    ContextLoaded { paths: Vec<String> },
-    /// gateway 已标准化的非文本内容块。
-    Message(UiMessage),
-    /// 一个新的推理步骤开始执行。
-    StepStart { step_index: u32, created_ms: u64, model: Option<String> },
-    /// 一个推理步骤执行完成。
-    StepFinish {
-        step_index: u32,
-        finished_ms: u64,
-        usage: GatewayChatUsage,
-        finish_reason: Option<String>,
-        model: Option<String>,
-    },
-    /// 当前工具轮次已完成，下一次模型请求尚未开始。
-    PostToolRound,
-    /// 当前 chat stream 的终态控制事件。
-    Terminal(UiRuntimeTerminalEvent),
-    /// 会话任务侧数据已变化，需从 runtime 重新同步 question/todo 状态。
-    TaskStateChanged { session_id: Option<String> },
-    /// 会话元数据已变化，需刷新标题、scope、path 或 preview。
-    SessionMetadataChanged { session_id: Option<String>, title: Option<String> },
-    /// 用量快照已变化；当前先显式识别，避免误记为 unknown warning。
-    UsageUpdated { session_id: Option<String>, usage: GatewayChatUsage },
-    /// 当前 runtime 尚未识别的事件类型。
-    Unknown { event_type: Option<String> },
 }
 
 /// 将计划运行事件投影到既有 TUI 消息与终态管线。
@@ -495,7 +433,7 @@ pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRun
             parent_message_id,
         )),
         GatewayTypedChatStreamEvent::Error(error) => {
-            UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::from_error_message(error))
+            UiRuntimeEvent::Terminal(terminal_from_error_message(error))
         }
         GatewayTypedChatStreamEvent::TodoUpdated { session_id }
         | GatewayTypedChatStreamEvent::QuestionRaised { session_id }

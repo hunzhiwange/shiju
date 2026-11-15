@@ -29,7 +29,7 @@ use cli_interaction_model::{
     UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming,
     UiTodoOverlay, UiTokenUsage, UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
-use crate::cli::session::GitWorkspaceStatus;
+use cli_interaction_model::GitWorkspaceStatus;
 
 pub(crate) mod reducer;
 mod runtime_pipeline;

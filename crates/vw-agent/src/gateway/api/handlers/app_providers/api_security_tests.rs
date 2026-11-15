@@ -10,7 +10,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use vw_api_app_identity::AppId;
-use vw_api_types::app_providers::operations::*;
+use vw_api_app_aggregation::operations::*;
 use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
 use vw_api_transport::id::TenantScope;
 use vw_api_task::TaskStatus;

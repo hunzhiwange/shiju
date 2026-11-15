@@ -1,6 +1,6 @@
 use super::{GatewayClient, test_support};
 use serde_json::json;
-use vw_api_types::agent_apps::aggregation::*;
+use vw_api_app_aggregation::*;
 fn scope() -> AggregationQuery {
     AggregationQuery { target_host_id: "host & one".into(), project_id: "project/one".into() }
 }

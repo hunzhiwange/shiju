@@ -5,15 +5,13 @@ use crate::app::{
     state::app_providers::{desktop::Form, list::Scope},
 };
 use iced::Task;
-use {
-    gateway_endpoint::GatewayAuth,
-    vw_gateway_client::AgentAppsSettingsError,
-    vw_gateway_client::GatewayClient,
-    vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::*,
-    vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationProgress,
-    vw_api_transport::id::ProjectId,
-};
+use gateway_endpoint::GatewayAuth;
+use vw_gateway_client::AgentAppsSettingsError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_app_aggregation::operations::ProviderOperationProgress;
+use vw_api_transport::id::ProjectId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Binding {

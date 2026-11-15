@@ -7,10 +7,8 @@ use axum::{
     routing::put,
 };
 use std::path::PathBuf;
-use {
-    vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::TenantScope;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 type DirectoryResult = Result<PiDirectoryState, (StatusCode, &'static str)>;

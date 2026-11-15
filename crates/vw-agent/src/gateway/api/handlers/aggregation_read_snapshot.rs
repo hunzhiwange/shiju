@@ -5,13 +5,11 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::{path::Path, sync::LazyLock};
 use vw_agent_apps::{aggregation::preview as native, providers::live::commit::AppState};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-    vw_api_model_catalog::SavedCodexCatalog,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
+use vw_api_model_catalog::SavedCodexCatalog;
 
 #[derive(Serialize)]
 pub(crate) struct Snapshot {

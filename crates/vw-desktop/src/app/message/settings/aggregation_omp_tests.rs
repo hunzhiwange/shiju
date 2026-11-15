@@ -3,8 +3,9 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    GatewayClient, vw_api_types::agent_apps::aggregation::AggregationQuery}};
+use gateway_endpoint::GatewayEndpoint;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_aggregation::AggregationQuery;
 
 #[tokio::test]
 async fn aggregation_t66_aggregation_omp_preserves_contract() {
@@ -74,9 +75,8 @@ async fn aggregation_t66_aggregation_omp_preserves_contract() {
 
 #[tokio::test]
 async fn aggregation_t66_write_failure_keeps_yaml_and_allows_correction() {
-    use vw_gateway_client::vw_api_types::agent_apps::aggregation::{
-        OmpDirectoryChange, OmpDirectoryState,
-    };
+    use vw_api_app_aggregation::OmpDirectoryChange;
+use vw_api_app_aggregation::OmpDirectoryState;
     let query = AggregationQuery { target_host_id: "host".into(), project_id: "project".into() };
     let mut form = Form {
         state: Some(OmpDirectoryState {
@@ -175,7 +175,7 @@ async fn aggregation_t66_write_failure_keeps_yaml_and_allows_correction() {
 
 #[tokio::test]
 async fn aggregation_t66_success_keeps_default_profile_and_advances_revision() {
-    use vw_gateway_client::vw_api_types::agent_apps::aggregation::OmpDirectoryState;
+    use vw_api_app_aggregation::OmpDirectoryState;
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(GatewayEndpoint::new(
         "127.0.0.1",

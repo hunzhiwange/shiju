@@ -1,13 +1,16 @@
 //! Project-scoped Desktop resources; native configuration remains gateway-owned.
 use super::{AgentAppsSettingsError, GatewayClient};
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::agent_apps::aggregation::{
-    AggregationExitRequest, AggregationPreview, AggregationPreviewRequest,
-    AggregationPublishRequest, AggregationQuery, DesktopMappingChange, DesktopMappingView,
-    DesktopProfileStatus,
-};
+use vw_api_app_aggregation::AggregationExitRequest;
+use vw_api_app_aggregation::AggregationPreview;
+use vw_api_app_aggregation::AggregationPreviewRequest;
+use vw_api_app_aggregation::AggregationPublishRequest;
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::DesktopMappingChange;
+use vw_api_app_aggregation::DesktopMappingView;
+use vw_api_app_aggregation::DesktopProfileStatus;
 
-use vw_api_types::app_providers::operations::ProviderOperationProgress;
+use vw_api_app_aggregation::operations::ProviderOperationProgress;
 
 impl GatewayClient {
     /// Read installation, applied mode and recovery without local file access.

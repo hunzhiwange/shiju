@@ -15,15 +15,13 @@ use vw_agent_apps::providers::{
     live::{commit::*, write_guard::lock_app},
     mode_state::StackState,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::COMPANY_ID_HEADER;
+use vw_api_transport::id::PLATFORM_ID_HEADER;
+use vw_api_transport::id::ProjectId;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 const TOKEN: &str = "task43-fixture-token-with-32-characters";
 struct Fixture {
     root: tempfile::TempDir,

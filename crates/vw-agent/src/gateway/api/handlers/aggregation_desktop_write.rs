@@ -16,12 +16,10 @@ use axum::{
 use serde_json::Value;
 use std::path::Path;
 use vw_agent_apps::providers::{claude_desktop::publication::DesktopInstallation, desktop_mapping};
-use {
-    vw_api_types::agent_apps::aggregation::AggregationQuery,
-    vw_api_types::agent_apps::aggregation::DesktopMappingChange,
-    vw_api_types::agent_apps::aggregation::DesktopMappingView,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::DesktopMappingChange;
+use vw_api_app_aggregation::DesktopMappingView;
+use vw_api_transport::id::TenantScope;
 fn unavailable<T>(_: T) -> StatusCode {
     StatusCode::SERVICE_UNAVAILABLE
 }

@@ -1,11 +1,13 @@
 //! Codex settings and client hints stay gateway-owned; writes are never replayed.
 use super::{AgentAppsSettingsError, GatewayClient};
 use serde::de::DeserializeOwned;
-use vw_api_types::agent_apps::aggregation::{
-    AggregationQuery, CodexAggregationSettings, CodexClientsAckRequest, CodexClientsState,
-    CodexRestartRequest, CodexSettingsRequest,
-};
-use vw_api_types::app_providers::operations::ProviderOperationProgress;
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::CodexAggregationSettings;
+use vw_api_app_aggregation::CodexClientsAckRequest;
+use vw_api_app_aggregation::CodexClientsState;
+use vw_api_app_aggregation::CodexRestartRequest;
+use vw_api_app_aggregation::CodexSettingsRequest;
+use vw_api_app_aggregation::operations::ProviderOperationProgress;
 
 impl GatewayClient {
     /// Read requested and effective settings separately at the selected scope.

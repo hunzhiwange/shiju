@@ -17,7 +17,8 @@ fn aggregation_t41_publish_dto_rejects_untrusted_configuration_and_requires_conf
 
 #[test]
 fn aggregation_t41_operation_progress_preserves_legacy_wire_and_typed_failure() {
-    use crate::{app_providers::operations::*, task::TaskStatus};
+    use crate::operations::*;
+    use vw_api_task::TaskStatus;
     let mut progress = ProviderOperationProgress {
         operation_id: "operation".into(),
         request_id: "request".into(),

@@ -72,7 +72,7 @@ async fn aggregation_t42_exit_restores_direct_and_replay_is_action_scoped() {
     assert_eq!(terminal["aggregationOutcome"]["kind"], "exited");
     assert_eq!(terminal["aggregationOutcome"]["state"]["recovery"], "restored");
     assert_eq!(terminal["aggregationOutcome"]["state"]["mode"], "direct");
-    let _: vw_api_types::app_providers::operations::ProviderOperationProgress =
+    let _: vw_api_app_aggregation::operations::ProviderOperationProgress =
         serde_json::from_value(terminal).unwrap();
     let state = f.tx.state(AppId::Claude).unwrap();
     assert!(!state.stack.enabled && !state.mode.unwrap().attached);

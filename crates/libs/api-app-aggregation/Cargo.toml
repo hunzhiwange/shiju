@@ -1,0 +1,16 @@
+[package]
+name = "vw-api-app-aggregation"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
+vw-api-app-provider-terminal = { path = "../api-app-provider-terminal", version = "0.6.0" }
+vw-api-app-provider-edit = { path = "../api-app-provider-edit", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }

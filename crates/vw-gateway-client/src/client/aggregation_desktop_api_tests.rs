@@ -1,10 +1,8 @@
 use super::{AgentAppsSettingsError, GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;
 use serde_json::json;
-use {
-    vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::TenantScope;
 
 fn scope() -> AggregationQuery {
     AggregationQuery { target_host_id: "host +&".into(), project_id: "project +&".into() }

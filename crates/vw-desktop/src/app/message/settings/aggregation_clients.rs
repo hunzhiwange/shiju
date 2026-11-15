@@ -2,13 +2,13 @@
 use super::{Selection, current};
 use crate::app::{App, Message};
 use iced::Task;
-use {gateway_endpoint::{GatewayAuth}, vw_gateway_client::{
-    AgentAppsSettingsError, GatewayClient,
-    vw_api_types::{
-        agent_apps::{AppId, aggregation::*},
-        app_providers::operations::ProviderOperationProgress,
-        task::TaskStatus,
-    }}};
+use gateway_endpoint::GatewayAuth;
+use vw_gateway_client::AgentAppsSettingsError;
+use vw_gateway_client::GatewayClient;
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_app_aggregation::operations::ProviderOperationProgress;
+use vw_gateway_client::vw_api_types::task::TaskStatus;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Session {

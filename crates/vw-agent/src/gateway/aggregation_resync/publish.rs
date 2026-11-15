@@ -62,11 +62,11 @@ impl RecordPublicationContext {
     /// journal and listener have both settled. No private record enters results.
     pub(crate) fn published_state(
         &self,
-    ) -> Result<vw_api_types::agent_apps::aggregation::AggregationState, StatusCode> {
+    ) -> Result<vw_api_app_aggregation::AggregationState, StatusCode> {
         use crate::gateway::api::handlers::aggregation_read_snapshot as snapshot;
-        use vw_api_types::agent_apps::aggregation::{
-            AggregationMode, AggregationState, RecoveryState,
-        };
+        use vw_api_app_aggregation::AggregationMode;
+use vw_api_app_aggregation::AggregationState;
+use vw_api_app_aggregation::RecoveryState;
         let _guard = vw_agent_apps::providers::live::write_guard::lock_app(self.app, &self.home)
             .map_err(failed)?;
         let tx = ProviderTransactions::open_existing(

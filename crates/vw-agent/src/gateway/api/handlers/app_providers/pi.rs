@@ -129,9 +129,9 @@ async fn state(
     Extension(t): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
     h: HeaderMap,
-    body: Result<Json<vw_api_types::agent_apps::aggregation::PiDirectoryRead>, JsonRejection>,
+    body: Result<Json<vw_api_app_aggregation::PiDirectoryRead>, JsonRejection>,
 ) -> Response {
-    use vw_api_types::agent_apps::aggregation::PiDirectoryRead;
+    use vw_api_app_aggregation::PiDirectoryRead;
     let Ok(Json(body)) = body else { return super::super::aggregation_pi::invalid_request() };
     match body {
         PiDirectoryRead::Scoped(query) => {

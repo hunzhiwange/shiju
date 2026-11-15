@@ -5,9 +5,8 @@ use iced::{
     mouse,
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::app_providers::operations::{
-    ProviderOperationPhase, ProviderOperationProgress,
-};
+use vw_api_app_aggregation::operations::ProviderOperationPhase;
+use vw_api_app_aggregation::operations::ProviderOperationProgress;
 fn preview() -> AggregationPreview {
     AggregationPreview {
         revision: "r1".into(),

@@ -10,13 +10,13 @@ use vw_api_app_provider_profiles::desktop_mapping::*;
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 enum FormRequest {
-    Scoped(vw_api_types::agent_apps::aggregation::AggregationQuery),
+    Scoped(vw_api_app_aggregation::AggregationQuery),
     Legacy(ClaudeDesktopTarget),
 }
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 enum MappingRequest {
-    Scoped(vw_api_types::agent_apps::aggregation::DesktopMappingChange),
+    Scoped(vw_api_app_aggregation::DesktopMappingChange),
     Legacy(DesktopMappingWrite),
 }
 #[derive(Clone)]

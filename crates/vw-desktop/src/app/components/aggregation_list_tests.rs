@@ -9,11 +9,9 @@ use iced::{
     mouse,
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
-use {
-    vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::TenantScope;
 
 #[tokio::test]
 async fn aggregation_t56_chinese_directory_shapes_and_draws_in_both_themes() {

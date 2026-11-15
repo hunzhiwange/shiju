@@ -1,9 +1,10 @@
 //! OMO and Slim keep separate resources and response types. Writes are never replayed.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::agent_apps::aggregation::{
-    OmoApplyRequest, OmoDisableRequest, OmoSlimState, OmoState,
-};
+use vw_api_app_aggregation::OmoApplyRequest;
+use vw_api_app_aggregation::OmoDisableRequest;
+use vw_api_app_aggregation::OmoSlimState;
+use vw_api_app_aggregation::OmoState;
 use vw_api_transport::id::ProjectId;
 
 /// Preserve gateway status and structured errors instead of returning an empty catalog.

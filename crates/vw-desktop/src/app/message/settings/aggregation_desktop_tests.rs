@@ -4,7 +4,7 @@ use crate::app::state::{
     app_providers::{desktop::Form, list::Scope},
 };
 use std::io::{Read, Write};
-use vw_gateway_client::vw_api_types::agent_apps::aggregation::*;
+use vw_api_app_aggregation::*;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_app_identity::AppId}};
 fn fixture(

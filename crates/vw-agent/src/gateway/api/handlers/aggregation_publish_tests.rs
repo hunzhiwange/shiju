@@ -13,15 +13,13 @@ use vw_agent_apps::providers::{
     live::{commit::*, write_guard::lock_app},
     mode_state::StackState,
 };
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::COMPANY_ID_HEADER;
+use vw_api_transport::id::PLATFORM_ID_HEADER;
+use vw_api_transport::id::ProjectId;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 const TOKEN: &str = "aggregation-t40-local-test-bearer-token-32-bytes";
 fn tenant() -> TenantScope {
     TenantScope::new("platform", "company").unwrap()
@@ -349,7 +347,7 @@ async fn aggregation_t41_initial_publication_reuses_catalog_transaction_and_live
     assert_eq!(terminal["aggregationOutcome"]["kind"], "published");
     assert_eq!(terminal["aggregationOutcome"]["state"]["mode"], "aggregation");
     assert_eq!(terminal["aggregationOutcome"]["state"]["defaultProviderId"], "beta");
-    let _: vw_api_types::app_providers::operations::ProviderOperationProgress =
+    let _: vw_api_app_aggregation::operations::ProviderOperationProgress =
         serde_json::from_value(terminal.clone()).unwrap();
     let state = f.tx.state(AppId::Claude).unwrap();
     assert!(state.stack.enabled && state.mode.as_ref().unwrap().attached);

@@ -1,7 +1,6 @@
-use vw_gateway_client::{
-    AggregationOmoError,
-    vw_api_types::agent_apps::aggregation::{OmoSlimState, OmoState},
-};
+use vw_gateway_client::AggregationOmoError;
+use vw_api_app_aggregation::OmoSlimState;
+use vw_api_app_aggregation::OmoState;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Variant {

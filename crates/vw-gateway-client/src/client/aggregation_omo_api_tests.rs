@@ -1,11 +1,9 @@
 use super::{AggregationOmoError, GatewayClient, test_support};
 use crate::GatewayAuth;
 use serde_json::{Value, json};
-use {
-    vw_api_types::agent_apps::aggregation::OmoApplyRequest,
-    vw_api_types::agent_apps::aggregation::OmoDisableRequest,
-    vw_api_transport::id::ProjectId,
-};
+use vw_api_app_aggregation::OmoApplyRequest;
+use vw_api_app_aggregation::OmoDisableRequest;
+use vw_api_transport::id::ProjectId;
 
 fn state(slim: bool, current: Option<&str>) -> Value {
     let mut value = json!({"revision":"opaque-revision", "currentProviderId":current,

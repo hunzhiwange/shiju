@@ -1,7 +1,7 @@
 use super::test_support;
 use crate::{AggregationApiError, GatewayClient};
 use serde_json::{Value, json};
-use vw_api_types::{agent_apps::aggregation::*};
+use vw_api_app_aggregation::*;
 use vw_api_app_identity::{AppId};
 
 fn state() -> Value {

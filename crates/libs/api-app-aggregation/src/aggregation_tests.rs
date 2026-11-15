@@ -1,4 +1,4 @@
-use super::aggregation::*;
+use crate::*;
 use serde_json::json;
 #[test]
 fn aggregation_t39_requests_reject_unknown_inputs_and_use_contract_names() {

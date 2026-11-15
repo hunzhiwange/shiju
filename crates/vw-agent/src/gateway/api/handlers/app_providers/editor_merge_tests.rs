@@ -283,7 +283,7 @@ async fn cc04_editor_merge_registered_route_requires_gateway_authentication() {
     assert_eq!(response.status(), 401);
 }
 
-use vw_api_types::app_providers::operations::*;
+use vw_api_app_aggregation::operations::*;
 use vw_api_app_provider_edit::preview::SavedProviderPreviewRequest;
 use vw_api_task::TaskStatus;
 

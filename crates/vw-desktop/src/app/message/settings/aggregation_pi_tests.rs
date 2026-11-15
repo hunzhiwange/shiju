@@ -1,8 +1,8 @@
 use crate::app::message::settings::aggregation_pi::Form;
 use iced::widget::text_editor::Content;
-use vw_gateway_client::vw_api_types::agent_apps::aggregation::{
-    AggregationQuery, PiDirectoryChange, PiDirectoryState,
-};
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::PiDirectoryChange;
+use vw_api_app_aggregation::PiDirectoryState;
 #[test]
 fn aggregation_t65_aggregation_pi_preserves_contract() {
     let query = AggregationQuery { target_host_id: "host".into(), project_id: "project".into() };

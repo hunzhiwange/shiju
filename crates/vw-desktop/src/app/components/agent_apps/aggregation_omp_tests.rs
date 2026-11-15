@@ -6,7 +6,7 @@ use iced::{
     widget::{Space, text_editor},
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::agent_apps::aggregation::OmpDirectoryState;
+use vw_api_app_aggregation::OmpDirectoryState;
 
 #[derive(Default)]
 struct Geometry {

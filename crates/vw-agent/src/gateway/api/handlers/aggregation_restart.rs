@@ -8,12 +8,10 @@ use axum::{
     routing::post,
 };
 use sha2::{Digest, Sha256};
-use {
-    vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::aggregation::*,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::*;
+use vw_api_transport::id::ProjectScope;
+use vw_api_transport::id::TenantScope;
 
 pub(super) fn router() -> Router {
     Router::new()

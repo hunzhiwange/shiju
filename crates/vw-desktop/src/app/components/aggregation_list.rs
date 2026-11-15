@@ -39,9 +39,8 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
     }
     if let Some(snapshot) = &form.snapshot {
         let state = &snapshot.state;
-        use vw_gateway_client::vw_api_types::agent_apps::aggregation::{
-            AggregationMode, RecoveryState,
-        };
+        use vw_api_app_aggregation::AggregationMode;
+use vw_api_app_aggregation::RecoveryState;
         let mode = match state.mode {
             AggregationMode::Direct => "直连",
             AggregationMode::Routing => "路由",
@@ -169,7 +168,7 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
         button(text("回到直连"))
             .padding([8, 14]).style(rounded_action_btn_style)
             .on_press_maybe((!form.loading && form.snapshot.as_ref().is_some_and(|s|
-                s.state.mode != vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationMode::Direct))
+                s.state.mode != vw_api_app_aggregation::AggregationMode::Direct))
                 .then(|| message(Event::Publish(crate::app::message::settings::aggregation_list::publish::Event::OpenExit)))),
         button(text("刷新"))
             .padding([8, 14])
@@ -190,9 +189,9 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
 mod tests;
 
 fn notice_label(
-    notice: vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationNotice,
+    notice: vw_api_app_aggregation::AggregationNotice,
 ) -> &'static str {
-    use vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationNotice::*;
+    use vw_api_app_aggregation::AggregationNotice::*;
     match notice {
         ModelReselect => "请重新选择模型",
         NewSession => "请新建会话以使用新目录",

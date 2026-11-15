@@ -10,7 +10,7 @@ use crate::providers::live::{
     patch_toml::TomlPatch,
 };
 use serde_json::Value;
-use vw_api_types::{agent_apps::aggregation::*};
+use vw_api_app_aggregation::*;
 use vw_api_app_identity::{AppId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsError {

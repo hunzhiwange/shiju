@@ -15,9 +15,8 @@ use iced::{
     Element, Length,
     widget::{button, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::agent_apps::aggregation::{
-    DesktopInstallation, DesktopProfileMode,
-};
+use vw_api_app_aggregation::DesktopInstallation;
+use vw_api_app_aggregation::DesktopProfileMode;
 pub(crate) fn overlay<'a>(
     form: &'a Form,
     help: Help<'_>,

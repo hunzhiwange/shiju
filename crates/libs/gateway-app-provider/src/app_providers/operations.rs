@@ -1,7 +1,8 @@
 //! Fixed provider operation endpoints; raw worker errors never leave the host.
 use gateway_app_read::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_types::{agent_apps::aggregation::AggregationQuery, app_providers::operations::*};
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::operations::*;
 impl GatewayAppProviderClient {
     pub async fn provider_operation_start(
         &self,

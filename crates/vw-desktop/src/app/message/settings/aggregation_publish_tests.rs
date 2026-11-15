@@ -84,7 +84,7 @@ pub(super) fn selection(app: vw_api_app_identity::AppId) -> Selection {
     }
 }
 pub(super) fn progress(status: TaskStatus, cancelled: bool) -> ProviderOperationProgress {
-    use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationPhase;
+    use vw_api_app_aggregation::operations::ProviderOperationPhase;
     ProviderOperationProgress {
         operation_id: "operation".into(),
         request_id: "request".into(),

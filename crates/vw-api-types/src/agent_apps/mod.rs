@@ -6,8 +6,6 @@ mod actions;
 pub use actions::*;
 
 pub mod aggregation;
-#[cfg(test)]
-mod aggregation_tests;
 
 mod prompts;
 pub use prompts::*;

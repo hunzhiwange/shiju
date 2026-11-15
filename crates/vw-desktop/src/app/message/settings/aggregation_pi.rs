@@ -3,17 +3,15 @@ use crate::app::message::app_providers::list::{self, ListMessage};
 use crate::app::state::app_providers::list::Scope;
 use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
-use {
-    vw_gateway_client::AggregationApiError,
-    vw_gateway_client::GatewayClient,
-    vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationQuery,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryChange,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryState,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::PiDirectoryWrite,
-    vw_gateway_client::vw_api_app_provider_terminal::pi::PiProfile,
-    vw_api_transport::id::ProjectId,
-};
+use vw_gateway_client::AggregationApiError;
+use vw_gateway_client::GatewayClient;
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::PiDirectoryChange;
+use vw_api_app_aggregation::PiDirectoryState;
+use vw_api_app_aggregation::PiDirectoryWrite;
+use vw_gateway_client::vw_api_app_provider_terminal::pi::PiProfile;
+use vw_api_transport::id::ProjectId;
 
 #[derive(Clone)]
 pub enum Event {

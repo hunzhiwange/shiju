@@ -1,5 +1,6 @@
 use crate::app::state::aggregation_omo::*;
-use vw_gateway_client::{AggregationOmoError, vw_api_types::agent_apps::aggregation::*};
+use vw_gateway_client::AggregationOmoError;
+use vw_api_app_aggregation::*;
 fn standard(revision: &str, current: Option<&str>) -> Snapshot {
     Snapshot::Standard(OmoState {
         revision: revision.into(),

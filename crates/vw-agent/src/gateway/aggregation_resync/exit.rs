@@ -1,7 +1,9 @@
 //! Explicit exit through the original native restoration and route owners.
 use super::*;
 use vw_agent_apps::aggregation::exit_restore::{self, Restore, RestoreError};
-use vw_api_types::agent_apps::aggregation::{AggregationMode, AggregationState, RecoveryState};
+use vw_api_app_aggregation::AggregationMode;
+use vw_api_app_aggregation::AggregationState;
+use vw_api_app_aggregation::RecoveryState;
 impl RecordPublicationContext {
     pub(crate) fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), StatusCode> {
         let routing = self.routing.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;

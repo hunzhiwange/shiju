@@ -10,7 +10,7 @@ use iced::{
     widget::{button, column, row, text, text_editor},
 };
 use vw_api_app_provider_edit::editor_merge::EditorChoice;
-use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationPhase;
+use vw_api_app_aggregation::operations::ProviderOperationPhase;
 use vw_api_app_provider_edit::preview::PreviewChangeKind;
 
 fn action(

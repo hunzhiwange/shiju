@@ -1,8 +1,10 @@
 //! Project-scoped Pi and OMP directories. Native paths and profile selection stay remote.
 use super::{AggregationApiError as Error, GatewayClient};
-use vw_api_types::agent_apps::aggregation::{
-    AggregationQuery, OmpDirectoryState, OmpDirectoryWrite, PiDirectoryState, PiDirectoryWrite,
-};
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_app_aggregation::OmpDirectoryState;
+use vw_api_app_aggregation::OmpDirectoryWrite;
+use vw_api_app_aggregation::PiDirectoryState;
+use vw_api_app_aggregation::PiDirectoryWrite;
 
 impl GatewayClient {
     /// Read Pi directory metadata without changing native defaults or login.

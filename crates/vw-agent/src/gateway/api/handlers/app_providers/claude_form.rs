@@ -53,7 +53,7 @@ pub(super) async fn write(
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<
-        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+        vw_api_app_aggregation::AggregationWriteQuery,
     >,
     #[cfg(target_os = "macos")] control: Option<
         Extension<super::super::super::app_routing::RoutingControl>,

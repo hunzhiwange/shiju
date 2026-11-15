@@ -117,7 +117,7 @@ async fn save(
     policy: Option<Extension<claude::Policy>>,
     headers: axum::http::HeaderMap,
     axum::extract::Query(query): axum::extract::Query<
-        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+        vw_api_app_aggregation::AggregationWriteQuery,
     >,
     #[cfg(target_os = "macos")] control: Option<Extension<super::app_routing::RoutingControl>>,
     body: Result<
@@ -343,7 +343,7 @@ mod request_options_tests;
 
 #[derive(Default)]
 struct PublicationInput {
-    query: vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    query: vw_api_app_aggregation::AggregationWriteQuery,
     #[cfg(target_os = "macos")]
     routing: Option<super::app_routing::RoutingControl>,
 }

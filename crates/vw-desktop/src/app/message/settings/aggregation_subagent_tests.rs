@@ -1,6 +1,6 @@
 use super::aggregation_subagent::*;
 use vw_api_chat_identity::ReasoningEffortDto as Effort;
-use vw_gateway_client::vw_api_types::agent_apps::aggregation::*;
+use vw_api_app_aggregation::*;
 fn snapshot() -> CodexAggregationSettings {
     let requested = CodexSettingsValues {
         subagent_model_id: Some("published-a".into()),

@@ -75,7 +75,7 @@ pub struct PendingTarget {
     pub project_scope: Option<vw_api_transport::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_aggregation_settings:
-        Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
+        Option<vw_api_app_aggregation::CodexSettingsValues>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<crate::providers::mode_state::StackState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -126,7 +126,7 @@ pub struct AppState {
     pub project_scope: Option<vw_api_transport::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_aggregation_settings:
-        Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
+        Option<vw_api_app_aggregation::CodexSettingsValues>,
     #[serde(default, skip_serializing_if = "crate::providers::mode_state::StackState::is_empty")]
     pub stack: crate::providers::mode_state::StackState,
     #[serde(default)]

@@ -71,8 +71,6 @@ pub mod env_clean;
 pub mod env_restore;
 
 pub mod operations;
-#[cfg(test)]
-mod operations_tests;
 
 
 pub mod request_options;

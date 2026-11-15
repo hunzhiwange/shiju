@@ -7,11 +7,9 @@ use crate::app::{
 };
 pub(crate) use core::*;
 use iced::{Task, widget::text_editor};
-use {
-    vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationQuery,
-    vw_api_transport::id::ProjectId,
-};
+use vw_api_app_identity::AppId;
+use vw_api_app_aggregation::AggregationQuery;
+use vw_api_transport::id::ProjectId;
 #[derive(Clone)]
 pub enum Event {
     Open,
@@ -31,7 +29,7 @@ pub enum Event {
         generation: u64,
         writing: bool,
         result: Result<
-            vw_gateway_client::vw_api_types::agent_apps::aggregation::OmpDirectoryState,
+            vw_api_app_aggregation::OmpDirectoryState,
             String,
         >,
     },

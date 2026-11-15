@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-app-lifecycle = { path = "../gateway-app-lifecycle", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 rand = "0.8"
 desktop-apps-ui = { path = "../desktop-apps-ui", version = "0.6.0" }
@@ -37,5 +38,6 @@ tokio = { version = "1", default-features = false, features = ["rt", "macros", "
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 
 [dev-dependencies]
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
 tempfile = "3"

@@ -332,24 +332,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             let host = app.apps_catalog.host.clone();
             let token = app.apps_catalog.token.clone();
             app.apps_catalog.connection_open = false;
-            let local = client.endpoint().is_loopback() && host == local_app_auth::HOST_ID;
-            return Task::perform(catalog::load(client, host.clone(), token), move |result| {
+            return Task::perform(desktop_settings_apps::system_settings_apps::catalog_requests::load(client, host.clone(), token), move |result| {
                 Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Loaded {
-                    context: context.clone(),
-                    host: host.clone(),
-                    generation,
-                    result: result.map_err(|e| {
-                        if local
-                            && matches!(
-                                e,
-                                gateway_http::AgentAppsReadError::Http { status: 503, .. }
-                            )
-                        {
-                            "本机应用服务尚未就绪，请重启新版网关后重试".into()
-                        } else {
-                            catalog::error_label(&e).into()
-                        }
-                    }),
+                    context: context.clone(), host: host.clone(), generation, result,
                 }))
             });
         }

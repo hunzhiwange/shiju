@@ -2,7 +2,7 @@ use super::*;
 use serde_json::json;
 #[test]
 fn video_edit_ui_progress_keeps_failure_and_budget_visible() {
-    let progress = vw_gateway_client::vw_api_types::workflow::VideoEditProgress {
+    let progress = vw_api_workflow::VideoEditProgress {
         run_id: "run-1".into(),
         sequence: 8,
         stage: "合并".into(),

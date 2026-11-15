@@ -84,9 +84,6 @@ mod knowledge_tests;
 #[cfg(test)]
 #[path = "question_tests.rs"]
 mod question_tests;
-#[cfg(test)]
-#[path = "workflow_tests.rs"]
-mod workflow_tests;
 
 pub use vw_api_chat_identity::ReasoningEffortDto;
 pub use common::*;

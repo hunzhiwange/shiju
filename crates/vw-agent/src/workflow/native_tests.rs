@@ -345,7 +345,7 @@ async fn native_workflow_cloud_graph_gates_execution_on_valid_plan_and_preview()
             document_extractor: None,
             pause_store: None,
         };
-        let request = vw_api_types::workflow::WorkflowRunRequest {
+        let request = vw_api_workflow::WorkflowRunRequest {
             workflow_yaml: Some(
                 include_str!("../../testdata/workflow/talking_head_cloud.yaml").into(),
             ),
@@ -363,7 +363,7 @@ async fn native_workflow_cloud_graph_gates_execution_on_valid_plan_and_preview()
         let response = crate::workflow::run_workflow(runtime, request).await.unwrap();
         let success = !invalid_assets && preview_ready;
         assert_eq!(
-            response.status == vw_api_types::workflow::WorkflowRunStatus::Succeeded,
+            response.status == vw_api_workflow::WorkflowRunStatus::Succeeded,
             success
         );
         assert_eq!(count.load(std::sync::atomic::Ordering::SeqCst), usize::from(!invalid_assets));
@@ -379,7 +379,7 @@ async fn action_graph(
     root: &std::path::Path,
     actions: Vec<serde_json::Value>,
     allowed: Vec<&str>,
-) -> vw_api_types::workflow::WorkflowRunResponse {
+) -> vw_api_workflow::WorkflowRunResponse {
     let mut nodes = vec![json!({"id":"start","data":{"type":"start"}})];
     let mut edges = vec![];
     let mut previous = "start".to_string();
@@ -422,7 +422,7 @@ async fn action_graph(
     };
     crate::workflow::run_workflow(
         runtime,
-        vw_api_types::workflow::WorkflowRunRequest {
+        vw_api_workflow::WorkflowRunRequest {
             workflow_yaml: Some(
                 json!({"workflow":{"graph":{"nodes":nodes,"edges":edges}}}).to_string(),
             ),
@@ -454,7 +454,7 @@ async fn task_pool_actions_absent_steps_have_no_side_effects() {
     let repo = git2::Repository::open(dir.path()).unwrap();
     let before = repo.head().unwrap().target();
     let response = action_graph(dir.path(), vec![], vec![]).await;
-    assert_eq!(response.status, vw_api_types::workflow::WorkflowRunStatus::Succeeded);
+    assert_eq!(response.status, vw_api_workflow::WorkflowRunStatus::Succeeded);
     assert_eq!(repo.head().unwrap().target(), before);
     assert!(repo.index().unwrap().is_empty());
     assert_eq!(std::fs::read_to_string(dir.path().join("output.txt")).unwrap(), "result");
@@ -483,10 +483,10 @@ async fn task_pool_actions_explicit_git_steps_use_native_tool_permissions() {
         json!({"type":"tool","provider":"shiju","tool_name":"git_operations","inputs":{"operation":"merge","source":"feature","target":target}}),
     ];
     let denied = action_graph(dir.path(), steps.clone(), vec![]).await;
-    assert_eq!(denied.status, vw_api_types::workflow::WorkflowRunStatus::Failed);
+    assert_eq!(denied.status, vw_api_workflow::WorkflowRunStatus::Failed);
     assert_eq!(repo.head().unwrap().target(), before);
     let allowed = action_graph(dir.path(), steps, vec!["git_operations"]).await;
-    assert_eq!(allowed.status, vw_api_types::workflow::WorkflowRunStatus::Succeeded, "{allowed:?}");
+    assert_eq!(allowed.status, vw_api_workflow::WorkflowRunStatus::Succeeded, "{allowed:?}");
     assert_ne!(repo.head().unwrap().target(), before);
     let merged = repo.head().unwrap().peel_to_commit().unwrap();
     assert_eq!(merged.parent_count(), 2);
@@ -501,6 +501,6 @@ async fn task_pool_actions_upstream_failure_skips_downstream_send() {
         json!({"type":"tool","provider":"shiju","tool_name":"git_operations","inputs":{"operation":"commit","message":"non git"}}),
         json!({"type":"tool","provider":"shiju","tool_name":"send_message_to_thread","inputs":{"thread_id":"unavailable","prompt":"never send"}}),
     ], vec!["git_operations","send_message_to_thread"]).await;
-    assert_eq!(response.status, vw_api_types::workflow::WorkflowRunStatus::Failed);
+    assert_eq!(response.status, vw_api_workflow::WorkflowRunStatus::Failed);
     assert!(!response.nodes.iter().any(|node| node.node_id == "action1"));
 }

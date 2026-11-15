@@ -32,7 +32,7 @@ pub(crate) async fn build(
     request: &crate::session::processor::Request,
     context: &ToolRuntimeContext,
     skills: &[Skill],
-) -> Result<(WorkflowRuntime, vw_api_types::workflow::WorkflowRunRequest)> {
+) -> Result<(WorkflowRuntime, vw_api_workflow::WorkflowRunRequest)> {
     let query = command_query(&request.query);
     let video = prepare_video_edit_request(&query, context)?.context("not a video command")?;
     ensure!(
@@ -92,7 +92,7 @@ pub(crate) async fn build(
     };
     Ok((
         runtime,
-        vw_api_types::workflow::WorkflowRunRequest {
+        vw_api_workflow::WorkflowRunRequest {
             workflow_yaml: Some(yaml),
             query: Some(query),
             max_steps: 10_000,

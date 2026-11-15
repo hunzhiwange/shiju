@@ -13,9 +13,9 @@ use tokio::sync::Barrier;
 use tower::ServiceExt;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::workflow::WorkflowRecord,
-    vw_api_types::workflow::WorkflowRecordSummary,
-    vw_api_types::workflow::WorkflowRecordUpsertBody,
+    vw_api_workflow::WorkflowRecord,
+    vw_api_workflow::WorkflowRecordSummary,
+    vw_api_workflow::WorkflowRecordUpsertBody,
 };
 
 fn yaml(sentinel: &str, parallel: &str) -> String {

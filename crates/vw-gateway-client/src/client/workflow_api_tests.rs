@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::COMPANY_ID_HEADER,
     vw_api_transport::id::PLATFORM_ID_HEADER,
 };
-use vw_api_types::workflow::{
+use vw_api_workflow::{
     WorkflowHumanActionDto, WorkflowPauseDto, WorkflowRecordUpsertBody, WorkflowResumeRequest,
 };
 

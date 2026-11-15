@@ -60,7 +60,7 @@ async fn video_edit_concurrency_production_iteration_preserves_order_and_isolati
     let response = run_workflow(runtime(Arc::new(Echo)), request()).await.unwrap();
     assert_eq!(
         response.status,
-        vw_api_types::workflow::WorkflowRunStatus::Succeeded,
+        vw_api_workflow::WorkflowRunStatus::Succeeded,
         "{:?}",
         response.error
     );

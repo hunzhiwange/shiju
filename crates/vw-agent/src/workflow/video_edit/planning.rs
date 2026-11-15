@@ -62,7 +62,7 @@ pub async fn plan_video_edit(
     use anyhow::{Context, ensure};
     use serde_json::json;
     use std::collections::BTreeMap;
-    use vw_api_types::workflow::{WorkflowRunRequest, WorkflowRunStatus};
+    use vw_api_workflow::{WorkflowRunRequest, WorkflowRunStatus};
     super::merge::validate_segments(transcript, segments)?;
     ensure!(
         !requirements.instructions.trim().is_empty() && !context.brief.trim().is_empty(),

@@ -5,7 +5,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use uuid::Uuid;
 use vw_api_transport::TenantScope;
-use vw_api_types::workflow::{
+use vw_api_workflow::{
     WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
     is_builtin_workflow_uuid,
 };

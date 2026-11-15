@@ -9,7 +9,7 @@ pub fn load_document_from_value(
     raw_root: Value,
 ) -> Result<LoadedWorkflow, crate::app::i18n::workflow::Feedback> {
     if let Some(options) = raw_root.get("workflow").and_then(|w| w.get("video_edit")) {
-        serde_yaml::from_value::<vw_gateway_client::vw_api_types::workflow::VideoEditTemplateOptions>(options.clone())
+        serde_yaml::from_value::<vw_api_workflow::VideoEditTemplateOptions>(options.clone())
             .map_err(|error| crate::app::i18n::workflow::Feedback::new("视频剪辑并发必须为 1..5: %s", vec![error.to_string()]))?;
     }
     if raw_root.get("workflow").and_then(|w| w.get("video_edit")).is_some() {

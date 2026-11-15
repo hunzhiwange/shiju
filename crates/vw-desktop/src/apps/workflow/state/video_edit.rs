@@ -2,10 +2,10 @@
 use iced::widget::text_editor;
 use {
     vw_api_transport::TenantScope,
-    vw_gateway_client::vw_api_types::workflow::WorkflowRecord,
+    vw_api_workflow::WorkflowRecord,
 };
 
-pub use vw_gateway_client::vw_api_types::workflow::VIDEO_EDIT_TEMPLATE_UUID as TEMPLATE_ID;
+pub use vw_api_workflow::VIDEO_EDIT_TEMPLATE_UUID as TEMPLATE_ID;
 
 #[derive(Debug, Default)]
 pub struct VideoEditUiState {

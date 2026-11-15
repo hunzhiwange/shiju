@@ -12,7 +12,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_gateway_client::vw_api_types::workflow::{WorkflowHumanActionDto, WorkflowPauseDto};
+use vw_api_workflow::{WorkflowHumanActionDto, WorkflowPauseDto};
 use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint, GatewayWorkflowStreamEvent};
 use vw_tui::{V3Action, V3ApprovalDecision};
 

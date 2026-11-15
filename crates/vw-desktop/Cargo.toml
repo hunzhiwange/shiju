@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+vw-api-workflow = { path = "../libs/api-workflow", version = "0.6.0" }
 vw-api-agent-scheduler = { path = "../libs/api-agent-scheduler", version = "0.6.0" }
 config-channel-types = { path = "../libs/config-channel-types", version = "0.6.0" }
 config-channel-types = { path = "../libs/config-channel-types", version = "0.6.0" }

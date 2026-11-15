@@ -1,6 +1,6 @@
 //! Only typed counters and the immutable template digest cross the UI boundary.
 use super::*;
-use vw_api_types::workflow::{VideoEditProgress, WorkflowNodeRunStatus};
+use vw_api_workflow::{VideoEditProgress, WorkflowNodeRunStatus};
 #[derive(Default)]
 pub(super) struct Progress {
     value: VideoEditProgress,

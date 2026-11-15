@@ -82,7 +82,7 @@ async fn voice_task_10_upgrade_auth_and_tenant_desktop_isolation() {
     assert_eq!(create(&server, "other").await.status(), StatusCode::FORBIDDEN);
     let response = create(&server, "owner").await;
     assert_eq!(response.status(), StatusCode::OK);
-    let session: vw_api_types::voice::VoiceSessionStarted = response.json().await.unwrap();
+    let session: vw_api_voice::VoiceSessionStarted = response.json().await.unwrap();
     let id = session.voice_session_id.as_ref();
     assert_eq!(rejected_upgrade(&server, id, "owner", "desktop-a", false).await, 401);
     assert_eq!(rejected_upgrade(&server, id, "other", "desktop-a", true).await, 403);

@@ -55,16 +55,16 @@ fn voice_task_12_failed_work_and_control_heavy_results_are_bounded() {
     assert_eq!(outcome.finish("success claim".into()).0, HandoffStatus::Failed);
     let (_, text) = Outcome::default().finish("中\n\u{0001}".repeat(20000));
     assert!(text.len() <= 16 * 1024);
-    let frame = vw_api_types::voice::VoiceFrame {
+    let frame = vw_api_voice::VoiceFrame {
         voice_session_id: id("voice"),
         generation: VoiceCounter::FIRST,
         seq: VoiceCounter::FIRST,
-        event: vw_api_types::voice::VoiceEvent::HandoffStatus {
+        event: vw_api_voice::VoiceEvent::HandoffStatus {
             call_id: id("call"),
             status: HandoffStatus::Completed,
             text,
         },
     };
     let wire = serde_json::to_vec(&frame).unwrap();
-    assert!(vw_api_types::voice::VoiceFrame::parse(&wire).is_ok());
+    assert!(vw_api_voice::VoiceFrame::parse(&wire).is_ok());
 }

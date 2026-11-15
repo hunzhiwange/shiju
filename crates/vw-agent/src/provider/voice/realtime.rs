@@ -11,7 +11,7 @@ use tokio_tungstenite::{
         protocol::{Role, WebSocketConfig},
     },
 };
-use vw_api_types::voice::*;
+use vw_api_voice::*;
 use config_voice::VoiceConfig;
 
 type Result<T> = std::result::Result<T, VoiceErrorCode>;

@@ -13,8 +13,8 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::Semaphore;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::voice::VoiceErrorCode as Code,
-    vw_api_types::voice::VoiceEvent,
+    vw_api_voice::VoiceErrorCode as Code,
+    vw_api_voice::VoiceEvent,
 };
 use config_voice::{VoiceConfig, VoiceName};
 
@@ -126,7 +126,7 @@ pub(super) async fn preview(
                                 );
                             }
                             VoiceEvent::ResponseDone { status, .. } => {
-                                if status != vw_api_types::voice::ResponseStatus::Completed {
+                                if status != vw_api_voice::ResponseStatus::Completed {
                                     return Err(std::io::Error::other("voice preview incomplete"));
                                 }
                                 done = true;

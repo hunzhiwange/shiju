@@ -6,7 +6,7 @@ mod realtime_tests;
 pub mod transcription;
 
 use transcription::{TranscriptionError, TranscriptionProvider};
-use vw_api_types::voice::VoiceErrorCode;
+use vw_api_voice::VoiceErrorCode;
 use config_voice::VoiceConfig;
 
 impl TranscriptionProvider {
@@ -53,8 +53,8 @@ impl realtime::RealtimeSession {
     /// Caller establishes tenant/project scope before resolving the provider reference.
     pub async fn from_config(
         config: &VoiceConfig,
-        voice_session_id: vw_api_types::voice::VoiceId,
-        mode: vw_api_types::voice::TurnMode,
+        voice_session_id: vw_api_voice::VoiceId,
+        mode: vw_api_voice::TurnMode,
     ) -> Result<Self, VoiceErrorCode> {
         config.validate().map_err(|_| VoiceErrorCode::InvalidRequest)?;
         if !config.realtime_enabled {

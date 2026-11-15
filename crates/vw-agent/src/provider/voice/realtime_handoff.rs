@@ -3,7 +3,7 @@ use super::realtime::{id, voice_id};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use vw_api_types::voice::{VoiceCounter, VoiceErrorCode, VoiceId};
+use vw_api_voice::{VoiceCounter, VoiceErrorCode, VoiceId};
 type Result<T> = std::result::Result<T, VoiceErrorCode>;
 
 pub(crate) fn tools() -> Value {

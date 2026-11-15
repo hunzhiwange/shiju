@@ -6,7 +6,7 @@ use crate::app::{
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::Task;
-use vw_gateway_client::vw_api_types::voice::{ScreenPayload, VoiceCounter};
+use vw_api_voice::{ScreenPayload, VoiceCounter};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Owner {

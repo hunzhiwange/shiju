@@ -2,7 +2,7 @@ use super::transcription::*;
 use std::{sync::Arc, time::Duration};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
-use vw_api_types::voice::VoiceErrorCode;
+use vw_api_voice::VoiceErrorCode;
 use config_voice::{RecognitionLanguage, VoiceConfig};
 
 struct Fixture {

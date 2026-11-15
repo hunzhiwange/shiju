@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 use tokio::sync::watch;
-use vw_gateway_client::vw_api_types::voice::*;
+use vw_api_voice::*;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, VoiceStream}};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

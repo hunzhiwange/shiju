@@ -8,6 +8,7 @@ description = "API types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-voice = { path = "../libs/api-voice", version = "0.6.0" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }
 vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }
 vw-api-external-session = { path = "../libs/api-external-session", version = "0.6.0" }

@@ -100,8 +100,6 @@ pub mod model_catalog;
 #[cfg(test)]
 mod computer_control_tests;
 
-#[cfg(test)]
-mod voice_tests;
 
 pub mod agent_apps_skills;
 

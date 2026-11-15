@@ -8,8 +8,8 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::voice::TranscriptionResponse,
-    vw_api_types::voice::VoiceErrorCode as Code,
+    vw_api_voice::TranscriptionResponse,
+    vw_api_voice::VoiceErrorCode as Code,
 };
 pub(super) type Outcome = Result<TranscriptionResponse, Code>;
 #[derive(Clone, PartialEq, Eq, Hash)]

@@ -298,7 +298,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         "acceptance".into()
     };
-    let _: vw_gateway_client::vw_api_types::voice::VoiceId =
+    let _: vw_api_voice::VoiceId =
         session.clone().try_into().map_err(|_| "invalid acceptance chat session ID")?;
     let storage = tempfile::tempdir()?;
     // SAFETY: before starting the Tokio runtime, Iced or any worker thread.

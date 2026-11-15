@@ -81,7 +81,7 @@ async fn voice_task_06_client_rejects_mismatched_generation() {
 #[tokio::test]
 async fn voice_task_06_client_redacts_gateway_error_and_encodes_cancel_id() {
     let mut error =
-        vw_api_types::voice::VoiceError::new(VoiceErrorCode::ProviderAuth, metadata().request_id);
+        vw_api_voice::VoiceError::new(VoiceErrorCode::ProviderAuth, metadata().request_id);
     error.message = "fixture-private-secret".into();
     let (client, task) =
         fixture(502, serde_json::to_string(&VoiceErrorResponse { error }).unwrap());

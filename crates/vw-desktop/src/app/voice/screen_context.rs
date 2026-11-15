@@ -35,7 +35,7 @@ pub(crate) struct State {
     delivered: bool,
     pub epoch: u64,
     pub selecting: bool,
-    pub generation: Option<vw_gateway_client::vw_api_types::voice::VoiceCounter>,
+    pub generation: Option<vw_api_voice::VoiceCounter>,
 }
 impl State {
     pub fn set_enabled(&mut self, enabled: bool) {
@@ -127,7 +127,7 @@ pub(crate) fn capture(ticket: &Ticket) -> Result<Vec<u8>, String> {
 }
 #[cfg(any(target_os = "macos", test))]
 pub(crate) fn encode(width: u32, height: u32, rgba: Vec<u8>) -> Result<Vec<u8>, String> {
-    use vw_gateway_client::vw_api_types::voice::{MAX_SCREEN_BYTES, MAX_SCREEN_EDGE};
+    use vw_api_voice::{MAX_SCREEN_BYTES, MAX_SCREEN_EDGE};
     if width == 0 || height == 0 || width > MAX_SCREEN_EDGE || height > MAX_SCREEN_EDGE {
         return Err("屏幕分辨率超过限制。".into());
     }

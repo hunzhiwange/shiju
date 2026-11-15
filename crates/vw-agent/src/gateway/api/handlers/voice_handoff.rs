@@ -1,6 +1,6 @@
 //! Connection-owned work admission and result projection. No permission overrides.
 use std::collections::HashMap;
-use vw_api_types::voice::{HandoffStatus, VoiceCounter, VoiceErrorCode, VoiceId};
+use vw_api_voice::{HandoffStatus, VoiceCounter, VoiceErrorCode, VoiceId};
 
 pub(crate) use crate::provider::voice::realtime_handoff::HandoffCall;
 #[derive(Default)]

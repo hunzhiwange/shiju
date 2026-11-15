@@ -68,13 +68,13 @@ pub(crate) fn overlay_screen<'a>(
         body = body.push(text(error).size(14));
     }
     let mentions_screen = state.captions.iter().any(|c| {
-        c.role == vw_gateway_client::vw_api_types::voice::TranscriptRole::User
+        c.role == vw_api_voice::TranscriptRole::User
             && (c.text.contains("屏幕") || c.text.to_lowercase().contains("screen"))
     });
     for caption in state.captions {
         let role = match caption.role {
-            vw_gateway_client::vw_api_types::voice::TranscriptRole::User => "你",
-            vw_gateway_client::vw_api_types::voice::TranscriptRole::Assistant => "ShiJu",
+            vw_api_voice::TranscriptRole::User => "你",
+            vw_api_voice::TranscriptRole::Assistant => "ShiJu",
         };
         body = body.push(column![text(role).size(12), text(caption.text).size(15)].spacing(4));
     }

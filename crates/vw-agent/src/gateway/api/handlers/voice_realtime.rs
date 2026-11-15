@@ -22,7 +22,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio_util::sync::CancellationToken;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::voice::*,
+    vw_api_voice::*,
 };
 use config_voice::VoiceConfig;
 

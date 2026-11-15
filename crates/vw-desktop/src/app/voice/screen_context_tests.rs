@@ -70,7 +70,7 @@ fn voice_task_17_screen_owner_drop_retires_inflight_worker() {
 #[test]
 fn voice_task_17_screen_encodes_bounded_png_and_rejects_untrusted_wire() {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
-    use vw_gateway_client::vw_api_types::voice::*;
+    use vw_api_voice::*;
     // High-entropy pixels exercise actual resizing/encoding rather than a tiny fixture.
     let mut value = 123u32;
     let rgba: Vec<u8> = (0..1024 * 1024 * 4)

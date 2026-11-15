@@ -1,7 +1,7 @@
 //! Completed-recording transcription; never uses the generic chat capability trait.
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use vw_api_types::voice::VoiceErrorCode;
+use vw_api_voice::VoiceErrorCode;
 use config_voice::VoiceConfig;
 
 pub struct TranscriptionProvider {

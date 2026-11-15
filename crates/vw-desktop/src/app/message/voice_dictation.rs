@@ -10,7 +10,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use vw_gateway_client::vw_api_types::voice::{TranscriptionRequest, VoiceCounter, VoiceId};
+use vw_api_voice::{TranscriptionRequest, VoiceCounter, VoiceId};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 
 #[derive(Clone)]

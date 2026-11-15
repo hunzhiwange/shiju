@@ -2,7 +2,7 @@
 use super::GatewayClient;
 use crate::http::apply_request_context;
 use futures_util::StreamExt;
-use vw_api_types::voice::{
+use vw_api_voice::{
     MAX_METADATA_BYTES, MAX_WAV_BYTES, TranscriptionRequest, TranscriptionResponse, VoiceErrorCode,
     VoiceErrorResponse,
 };
@@ -208,7 +208,7 @@ impl GatewayClient {
     /// Idempotently cancel only a request owned by this authenticated endpoint.
     pub async fn voice_cancel_transcription(
         &self,
-        request_id: &vw_api_types::voice::VoiceId,
+        request_id: &vw_api_voice::VoiceId,
     ) -> Result<(), VoiceApiError> {
         // The shared endpoint currently supports HTTP only. Remote voice must
         // wait for TLS support in that transport instead of exposing recordings.

@@ -1,6 +1,6 @@
 //! Parse only bounded recording bytes and typed metadata, never paths or URLs.
 use axum::extract::{FromRequest, Multipart, Request};
-use vw_api_types::voice::{
+use vw_api_voice::{
     MAX_METADATA_BYTES, MAX_WAV_BYTES, TranscriptionRequest, VoiceErrorCode as Code,
 };
 pub(super) const MAX_BODY: usize = 24_100_000;

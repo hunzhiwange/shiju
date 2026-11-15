@@ -2,7 +2,7 @@ use super::realtime::*;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::Message;
-use vw_api_types::voice::*;
+use vw_api_voice::*;
 use config_voice::VoiceConfig;
 
 fn ident(s: &str) -> VoiceId {

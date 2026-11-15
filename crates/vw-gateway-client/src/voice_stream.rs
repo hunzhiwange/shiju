@@ -10,7 +10,7 @@ use tokio_tungstenite::{
         protocol::{Role, WebSocketConfig},
     },
 };
-use vw_api_types::voice::*;
+use vw_api_voice::*;
 type Result<T> = std::result::Result<T, VoiceApiError>;
 
 /// Bound to the endpoint and tenant passed at creation. The desktop must close/drop

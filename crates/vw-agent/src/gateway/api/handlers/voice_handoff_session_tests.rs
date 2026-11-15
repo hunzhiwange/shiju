@@ -2,7 +2,7 @@
 use super::voice_handoff::*;
 use crate::session::{llm::StreamEvent, processor, session};
 use serde_json::json;
-use vw_api_types::voice::*;
+use vw_api_voice::*;
 
 async fn binding(directory: String) -> Binding {
     let tenant = crate::session::ui_store::current_tenant_scope();

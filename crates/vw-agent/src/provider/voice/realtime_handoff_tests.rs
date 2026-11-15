@@ -2,7 +2,7 @@ use super::*;
 use crate::provider::voice::realtime::RealtimeSession;
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::tungstenite::Message;
-use vw_api_types::voice::*;
+use vw_api_voice::*;
 use config_voice::VoiceConfig;
 fn ident(value: &str) -> VoiceId {
     value.to_owned().try_into().unwrap()

@@ -1,6 +1,6 @@
 //! Local screen frames use the ordinary chat image path and its existing permissions.
 use super::*;
-use vw_gateway_client::vw_api_types::voice::ScreenPayload;
+use vw_api_voice::ScreenPayload;
 
 pub(in crate::app::message::voice) fn screen_call(app: &App) -> Result<u128, &'static str> {
     let chat = app.voice.local_conversation.as_ref().ok_or("语音通话已结束。")?;

@@ -17,7 +17,7 @@ use super::*;
 /// 涵盖配置验证、权限检查和事件解析等场景。
 #[allow(dead_code)]
 mod tests {
-    use crate::app::agent::config::traits::ChannelConfig;
+    use agent_config::traits::ChannelConfig;
 
     use super::*;
     use std::time::Duration;

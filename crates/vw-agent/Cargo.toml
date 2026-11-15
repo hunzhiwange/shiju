@@ -43,6 +43,7 @@ tool-context = { path = "../libs/tool-context", version = "0.6.0" }
 storage-types = { path = "../libs/storage-types", version = "0.6.0" }
 session-port = { path = "../libs/session-port", version = "0.6.0" }
 channel-types = { path = "../libs/channel-types", version = "0.6.0" }
+channel-clawdtalk = { path = "../libs/channel-clawdtalk", version = "0.6.0" }
 channel-cli = { path = "../libs/channel-cli", version = "0.6.0" }
 channel-support = { path = "../libs/channel-support", version = "0.6.0" }
 channel-whatsapp = { path = "../libs/channel-whatsapp", version = "0.6.0" }

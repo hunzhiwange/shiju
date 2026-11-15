@@ -40,8 +40,7 @@ mod file_search_integration_tests;
 pub(crate) mod file_search_popup;
 use tui_composer::{footer, footer_state};
 pub(crate) use tui_widgets::list_selection_view;
-#[path = "request_user_input/mod.rs"]
-pub(crate) mod request_user_input;
+pub(crate) use tui_user_input as request_user_input;
 pub(crate) use tui_widgets::scroll_state;
 pub(crate) use tui_widgets::selection_popup_common;
 #[allow(unused_imports)]

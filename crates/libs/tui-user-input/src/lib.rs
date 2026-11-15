@@ -18,19 +18,19 @@
 mod layout;
 mod render;
 
-use crate::bottom_pane::ChatComposer;
-use crate::bottom_pane::bottom_pane_view::BottomPaneView;
-use crate::bottom_pane::scroll_state::ScrollState;
-use crate::bottom_pane::selection_popup_common::GenericDisplayRow;
-use crate::render::renderable::Renderable;
-use crate::vibe::action::{V3Action, V3UserInputAnswer, V3UserInputQuestion, V3UserInputRequest};
+use tui_composer::ChatComposer;
+use tui_widgets::bottom_pane_view::BottomPaneView;
+use tui_widgets::scroll_state::ScrollState;
+use tui_widgets::selection_popup_common::GenericDisplayRow;
+use tui_render::renderable::Renderable;
+use tui_contracts::action::{V3Action, V3UserInputAnswer, V3UserInputQuestion, V3UserInputRequest};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use unicode_width::UnicodeWidthStr;
 
-pub(super) const TIP_SEPARATOR: &str = " | ";
-pub(super) const DESIRED_SPACERS_BETWEEN_SECTIONS: u16 = 2;
+const TIP_SEPARATOR: &str = " | ";
+const DESIRED_SPACERS_BETWEEN_SECTIONS: u16 = 2;
 const OTHER_OPTION_LABEL: &str = "None of the above";
 const OTHER_OPTION_DESCRIPTION: &str = "Optionally, add details in notes (tab).";
 const UNANSWERED_CONFIRM_TITLE: &str = "Submit with unanswered questions?";
@@ -50,9 +50,9 @@ struct AnswerState {
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct FooterTip {
-    pub(super) text: String,
-    pub(super) highlight: bool,
+struct FooterTip {
+    text: String,
+    highlight: bool,
 }
 
 impl FooterTip {
@@ -65,7 +65,7 @@ impl FooterTip {
     }
 }
 
-pub(crate) struct RequestUserInputOverlay {
+pub struct RequestUserInputOverlay {
     request: V3UserInputRequest,
     composer: ChatComposer,
     answers: Vec<AnswerState>,
@@ -77,7 +77,7 @@ pub(crate) struct RequestUserInputOverlay {
 
 impl RequestUserInputOverlay {
     #[must_use]
-    pub(crate) fn new(request: V3UserInputRequest) -> Self {
+    pub fn new(request: V3UserInputRequest) -> Self {
         let answers = request
             .questions
             .iter()
@@ -110,12 +110,12 @@ impl RequestUserInputOverlay {
     }
 
     #[must_use]
-    pub(crate) fn is_complete(&self) -> bool {
+    pub fn is_complete(&self) -> bool {
         self.done
     }
 
     #[must_use]
-    pub(crate) fn request(&self) -> &V3UserInputRequest {
+    pub fn request(&self) -> &V3UserInputRequest {
         &self.request
     }
 
@@ -303,7 +303,7 @@ impl RequestUserInputOverlay {
         if rows.is_empty() {
             0
         } else {
-            crate::bottom_pane::selection_popup_common::measure_rows_height(
+            tui_widgets::selection_popup_common::measure_rows_height(
                 &rows,
                 &ScrollState { selected_idx: self.selected_option_index(), scroll_top: 0 },
                 rows.len(),
@@ -489,49 +489,4 @@ impl Renderable for RequestUserInputOverlay {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::vibe::action::{V3UserInputOption, V3UserInputQuestion};
-
-    fn request() -> V3UserInputRequest {
-        V3UserInputRequest::new(
-            "input-1",
-            vec![V3UserInputQuestion::new(
-                "mode",
-                "Mode",
-                "Choose a mode",
-                vec![
-                    V3UserInputOption::new("Safe", "Read-only work"),
-                    V3UserInputOption::new("Fast", "Allow broader work"),
-                ],
-            )],
-        )
-    }
-
-    // 验证 `request_user_input_emits_data_without_reply_side_effect` 场景的触发条件与预期结果。
-    #[test]
-    fn request_user_input_emits_data_without_reply_side_effect() {
-        let mut overlay = RequestUserInputOverlay::new(request());
-        assert_eq!(
-            overlay.handle_key_event(KeyEvent::from(KeyCode::Enter)),
-            V3Action::AnswerUserInput {
-                request_id: "input-1".into(),
-                answers: vec![V3UserInputAnswer {
-                    question_id: "mode".into(),
-                    values: vec!["Safe".into()],
-                }],
-            }
-        );
-    }
-
-    // 验证 `unanswered_confirmation_keeps_go_back_path` 场景的触发条件与预期结果。
-    #[test]
-    fn unanswered_confirmation_keeps_go_back_path() {
-        let mut question = request();
-        question.questions[0].options.clear();
-        let mut overlay = RequestUserInputOverlay::new(question);
-        assert_eq!(overlay.handle_key_event(KeyEvent::from(KeyCode::Enter)), V3Action::None);
-        assert_eq!(overlay.handle_key_event(KeyEvent::from(KeyCode::Esc)), V3Action::None);
-        assert!(!overlay.is_complete());
-    }
-}
+mod tests;

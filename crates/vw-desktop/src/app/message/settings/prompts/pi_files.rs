@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_prompts::pi_files::{State, kind};
 use iced::{Task, widget::text_editor};
 use gateway_app_prompts::{AgentAppPromptsError};
-use vw_gateway_client::{PiPromptResourcesScope, PiPromptFileSnapshot};
+use gateway_app_prompt_resources::{PiPromptResourcesScope, PiPromptFileSnapshot};
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
     Open, Close, Select(usize), Edit(text_editor::Action), Read, Save, Delete, AcceptRevision,
@@ -82,6 +82,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let revision = file.base.as_ref().map(|s| s.revision.clone()).unwrap_or_default();
     let content = file.draft.text();
     let token = app.apps_catalog.token.clone();
+    let client = gateway_app_prompt_resources::GatewayAppPromptResourcesClient::new(client.transport().clone());
     Task::perform(async move {
         let result = if delete {
             client.pi_prompt_file_delete(&scope, kind(index), &revision, &token).await.map(|_| PiPromptFileSnapshot { exists: false, revision: "missing".into(), content: String::new() })

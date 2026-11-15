@@ -2,7 +2,7 @@
 use crate::app::{Message, components::system_settings_common::*};
 use crate::app::message::settings::prompts::templates::{Event, message};
 use iced::{Element, widget::{button, column, row, text, text_editor}};
-use vw_gateway_client::{PiPromptResourcesScope, PiPromptTemplate};
+use gateway_app_prompt_resources::{PiPromptResourcesScope, PiPromptTemplate};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Draft {

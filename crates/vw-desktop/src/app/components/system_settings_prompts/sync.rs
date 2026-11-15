@@ -3,7 +3,7 @@ use vw_api_app_operations::{AppOperationPhase};
 use crate::app::{Message, state::AgentAppsContext, components::system_settings_common::*};
 use crate::app::message::settings::prompts::sync::{Event, message};
 use iced::{Element, widget::{button, column, row, text}};
-use vw_gateway_client::{AgentAppPromptSync, PiPromptResourcesScope, AgentAppPromptSyncTargetStatus};
+use gateway_app_prompt_resources::{AgentAppPromptSync, PiPromptResourcesScope, AgentAppPromptSyncTargetStatus};
 use vw_gateway_client::vw_api_types::agent_apps::{AppId};
 
 #[derive(Clone, Debug, Default)]

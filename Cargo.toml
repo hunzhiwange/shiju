@@ -15,6 +15,7 @@ members = [
   "crates/libs/gateway-app-data",
   "crates/libs/gateway-app-skills",
   "crates/libs/gateway-app-prompts",
+  "crates/libs/gateway-app-prompt-resources",
   "crates/libs/api-app-provider-edit",
   "crates/libs/api-app-provider-extended",
   "crates/libs/runtime-log",

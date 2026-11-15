@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_prompts::templates::{State, Draft};
 use iced::{Task, widget::text_editor};
 use gateway_app_prompts::{AgentAppPromptsError};
-use vw_gateway_client::{PiPromptResourcesScope, PiPromptTemplate};
+use gateway_app_prompt_resources::{PiPromptResourcesScope, PiPromptTemplate};
 
 #[derive(Debug, Clone)]
 pub(crate) enum Event {
@@ -72,6 +72,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         let content = if d.edited { d.body.text() } else { d.original.as_ref().map(|e| e.content.clone()).unwrap_or_default() };
         (d.slug, d.original, content)
     });
+    let client = gateway_app_prompt_resources::GatewayAppPromptResourcesClient::new(client.transport().clone());
     Task::perform(async move {
         let result = match event {
             Event::Save => {

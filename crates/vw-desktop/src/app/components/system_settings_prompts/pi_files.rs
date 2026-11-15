@@ -1,7 +1,7 @@
 //! Revision-bound editors for the two external Pi system resources.
 use crate::app::{Message, components::system_settings_common::*, message::settings::prompts::{message, Event}};
 use iced::{Element, Length, widget::{button, column, row, text, text_editor}};
-use vw_gateway_client::{PiPromptFileKind, PiPromptFileSnapshot, PiPromptResourcesScope};
+use gateway_app_prompt_resources::{PiPromptFileKind, PiPromptFileSnapshot, PiPromptResourcesScope};
 use crate::app::message::settings::prompts::pi_files::Event as FileEvent;
 
 #[derive(Debug, Default)]

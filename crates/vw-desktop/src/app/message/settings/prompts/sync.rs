@@ -1,7 +1,7 @@
 //! Only explicit user actions submit writes; progress queries never replay a submission.
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::{AgentAppPromptSync, PiPromptResourcesScope};
+use gateway_app_prompt_resources::{AgentAppPromptSync, PiPromptResourcesScope};
 use vw_api_app_identity::AppId;
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
@@ -61,6 +61,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     state.generation = state.generation.wrapping_add(1);
     let generation = state.generation;
     let token = app.apps_catalog.token.clone();
+    let client = gateway_app_prompt_resources::GatewayAppPromptResourcesClient::new(client.transport().clone());
     Task::perform(async move {
         let result = if submit { client.agent_app_prompts_sync(&scope, &apps, &token).await }
             else if let Some(id) = id {

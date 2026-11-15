@@ -4,48 +4,13 @@
 
 use super::*;
 
-pub(super) fn default_if_else_case_draft() -> WorkflowIfElseCaseDraft {
-    let case_id = generate_case_id();
-    WorkflowIfElseCaseDraft {
-        raw_case: yaml_map_for_state(vec![
-            ("case_id", Value::String(case_id.clone())),
-            ("conditions", Value::Sequence(vec![default_if_else_condition_value()])),
-            ("id", Value::String(case_id.clone())),
-            ("logical_operator", Value::String("and".to_string())),
-        ]),
-        case_id,
-        logical_operator: "and".to_string(),
-        conditions: vec![default_if_else_condition_draft()],
-    }
-}
+pub(super) use desktop_workflow_state::default_if_else_case_draft;
 
-pub(super) fn default_if_else_condition_draft() -> WorkflowIfElseConditionDraft {
-    WorkflowIfElseConditionDraft {
-        raw_condition: default_if_else_condition_value(),
-        variable_selector_input: String::new(),
-        comparison_operator: "contains".to_string(),
-        compare_value: String::new(),
-        var_type: "string".to_string(),
-    }
-}
+pub(super) use desktop_workflow_state::default_if_else_condition_draft;
 
-pub(super) fn default_if_else_condition_value() -> Value {
-    yaml_map_for_state(vec![
-        ("comparison_operator", Value::String("contains".to_string())),
-        ("id", Value::String(generate_condition_id())),
-        ("value", Value::String(String::new())),
-        ("varType", Value::String("string".to_string())),
-        ("variable_selector", Value::Sequence(Vec::new())),
-    ])
-}
+pub(super) use desktop_workflow_state::default_if_else_condition_value;
 
-pub(super) fn yaml_map_for_state(entries: Vec<(&str, Value)>) -> Value {
-    let mut map = Mapping::new();
-    for (key, value) in entries {
-        map.insert(yaml_key(key), value);
-    }
-    Value::Mapping(map)
-}
+pub(super) use desktop_workflow_state::yaml_map_for_state;
 
 pub(super) fn initial_start_variable_focus(
     visual_draft: Option<&WorkflowNodeVisualDraft>,

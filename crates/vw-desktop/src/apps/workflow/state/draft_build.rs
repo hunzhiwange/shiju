@@ -858,28 +858,7 @@ pub(super) fn default_code_default_value_value(outputs: &[WorkflowCodeOutputDraf
     )
 }
 
-pub(super) fn parse_code_default_value_yaml(
-    text: &str,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
-    if text.trim().is_empty() {
-        return Ok(Value::Sequence(Vec::new()));
-    }
-
-    let value = serde_yaml::from_str::<Value>(text).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new(
-            "代码节点 default_value YAML 解析失败: %s",
-            vec![error.to_string()],
-        )
-    })?;
-    if value.is_sequence() {
-        Ok(value)
-    } else {
-        Err(crate::app::i18n::workflow::Feedback::new(
-            "代码节点 default_value 必须是数组（YAML sequence）",
-            vec![],
-        ))
-    }
-}
+pub(super) use desktop_workflow_state::parse_code_default_value_yaml;
 
 fn default_code_default_value_for_type(value_type: &str) -> Value {
     match value_type {

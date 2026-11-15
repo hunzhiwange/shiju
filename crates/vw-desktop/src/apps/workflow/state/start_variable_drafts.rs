@@ -348,48 +348,9 @@ pub(super) fn merge_if_else_condition_value(
     Ok(raw_condition)
 }
 
-pub(super) fn scalar_value_to_string(value: &Value) -> String {
-    match value {
-        Value::String(text) => text.clone(),
-        Value::Bool(value) => value.to_string(),
-        Value::Number(value) => value.to_string(),
-        Value::Null => String::new(),
-        _ => value_yaml_for_editor(value),
-    }
-}
+pub(super) use desktop_workflow_state::scalar_value_to_string;
 
-pub(super) fn default_start_variable_draft() -> WorkflowStartVariableDraft {
-    let variable_name = generate_start_variable_name();
-    WorkflowStartVariableDraft {
-        raw_variable: yaml_map_for_state(vec![
-            ("default", Value::String(String::new())),
-            ("hide", Value::Bool(false)),
-            ("hint", Value::String(String::new())),
-            ("label", Value::String("新变量".to_string())),
-            ("max_length", serde_yaml::to_value(48_u64).unwrap_or(Value::String("48".to_string()))),
-            ("options", Value::Sequence(Vec::new())),
-            ("placeholder", Value::String(String::new())),
-            ("required", Value::Bool(true)),
-            ("type", Value::String("text-input".to_string())),
-            ("variable", Value::String(variable_name.clone())),
-        ]),
-        label: "新变量".to_string(),
-        variable: variable_name,
-        input_type: "text-input".to_string(),
-        required: true,
-        hidden: false,
-        options: Vec::new(),
-        allowed_file_types: Vec::new(),
-        allowed_file_extensions: Vec::new(),
-        allowed_file_extensions_input: String::new(),
-        allowed_file_upload_methods: Vec::new(),
-        default_value: String::new(),
-        default_file_values: Vec::new(),
-        placeholder: String::new(),
-        hint: String::new(),
-        max_length_input: "48".to_string(),
-    }
-}
+pub(super) use desktop_workflow_state::default_start_variable_draft;
 
 #[cfg(test)]
 #[path = "start_variable_drafts_tests.rs"]

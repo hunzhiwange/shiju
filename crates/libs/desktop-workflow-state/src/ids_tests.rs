@@ -8,7 +8,7 @@ fn test_module_is_wired() {
 }
 
 use super::*;
-use crate::apps::workflow::model::{WorkflowHandleSide, WorkflowViewport};
+use desktop_workflow_model::{WorkflowHandleSide, WorkflowViewport};
 use iced::Size;
 
 fn assert_approx_eq(actual: f32, expected: f32) {

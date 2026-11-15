@@ -15,22 +15,10 @@ impl WorkflowState {
         self.quick_insert_panel_open = false;
         self.action_menu_open = false;
         self.zoom_menu_open = false;
-        match &target {
-            WorkflowCanvasContextMenuTarget::Canvas => {
-                self.selected_node_id = None;
-                self.selected_edge_id = None;
-            }
-            WorkflowCanvasContextMenuTarget::Node(node_id)
-            | WorkflowCanvasContextMenuTarget::NodeInsert(node_id) => {
-                self.selected_node_id = Some(node_id.clone());
-                self.selected_edge_id = None;
-            }
-            WorkflowCanvasContextMenuTarget::Edge(edge_id) => {
-                self.selected_edge_id = Some(edge_id.clone());
-                self.selected_node_id = None;
-            }
-        }
-        self.context_menu = Some(WorkflowCanvasContextMenu { target, anchor, world });
+        let (menu, node, edge) = desktop_workflow_state::app_ui::open_context_menu(target, anchor, world);
+        self.selected_node_id = node;
+        self.selected_edge_id = edge;
+        self.context_menu = Some(menu);
         self.sync_selection_flags();
     }
 
@@ -39,47 +27,28 @@ impl WorkflowState {
     }
 
     pub fn context_menu_new_node_position(&self) -> Point {
-        let Some(menu) = self.context_menu.as_ref() else {
-            return Point::new(80.0, 80.0);
-        };
-
-        match &menu.target {
-            WorkflowCanvasContextMenuTarget::Canvas | WorkflowCanvasContextMenuTarget::Edge(_) => {
-                menu.world
-            }
-            WorkflowCanvasContextMenuTarget::Node(node_id)
-            | WorkflowCanvasContextMenuTarget::NodeInsert(node_id) => self
-                .document
-                .node(node_id)
-                .map(|node| {
-                    Point::new(node.position.x + node.size.width + 120.0, node.position.y + 18.0)
-                })
-                .unwrap_or(menu.world),
-        }
+        desktop_workflow_state::app_ui::context_menu_new_node_position(self.context_menu.as_ref(), &self.document)
     }
 
     pub(super) fn context_menu_auto_connect_source_node_id(&self) -> Option<String> {
-        self.context_menu.as_ref().and_then(|menu| match &menu.target {
-            WorkflowCanvasContextMenuTarget::NodeInsert(node_id) => Some(node_id.clone()),
-            _ => None,
-        })
+        desktop_workflow_state::app_ui::context_menu_auto_connect_source_node_id(self.context_menu.as_ref())
     }
 
     pub fn set_editor_name(&mut self, value: String) {
         if let Some(editor) = self.app_editor.as_mut() {
-            editor.name = value;
+            editor.set_name(value);
         }
     }
 
     pub fn set_editor_description(&mut self, value: String) {
         if let Some(editor) = self.app_editor.as_mut() {
-            editor.description = value;
+            editor.set_description(value);
         }
     }
 
     pub fn set_editor_icon(&mut self, value: String) {
         if let Some(editor) = self.app_editor.as_mut() {
-            editor.icon = value;
+            editor.set_icon(value);
         }
     }
 

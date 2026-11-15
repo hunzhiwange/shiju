@@ -700,17 +700,7 @@ pub(super) fn apply_visual_draft_to_yaml(
     Ok(yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string())
 }
 
-pub(super) fn parse_http_value(
-    input: &str,
-    label: &str,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
-    if input.trim().is_empty() {
-        return Ok(Value::String(String::new()));
-    }
-    serde_yaml::from_str(input).map_err(|_| {
-        crate::app::i18n::workflow::Feedback::new("%s必须是合法 YAML", vec![label.to_string()])
-    })
-}
+pub(super) use desktop_workflow_state::parse_http_value;
 
 fn named_values_value(values: &[WorkflowNamedValueDraft], include_type: bool) -> Value {
     Value::Sequence(
@@ -748,28 +738,7 @@ fn merge_model_value(data_map: &mut Mapping, model: &WorkflowModelDraft) {
     set_mapping_string(model_map, "mode", &model.mode);
 }
 
-pub(super) fn parse_node_data_yaml_value(
-    text: &str,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
-    if text.trim().is_empty() {
-        return Ok(Value::Mapping(Mapping::new()));
-    }
-
-    let value = serde_yaml::from_str::<Value>(text).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new(
-            "节点 data YAML 解析失败: %s",
-            vec![error.to_string()],
-        )
-    })?;
-    if value.is_mapping() {
-        Ok(value)
-    } else {
-        Err(crate::app::i18n::workflow::Feedback::new(
-            "节点 data 必须是对象映射（YAML map）",
-            vec![],
-        ))
-    }
-}
+pub(super) use desktop_workflow_state::parse_node_data_yaml_value;
 
 pub(super) fn ensure_root_mapping(value: Value) -> Value {
     if value.is_mapping() { value } else { Value::Mapping(Mapping::new()) }

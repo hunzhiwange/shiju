@@ -4,29 +4,7 @@
 
 use super::*;
 
-pub(super) fn parse_mapping_yaml(
-    text: &str,
-    label: &str,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
-    if text.trim().is_empty() {
-        return Ok(Value::Mapping(Mapping::new()));
-    }
-
-    let value = serde_yaml::from_str::<Value>(text).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new(
-            "%s YAML 解析失败: %s",
-            vec![label.to_string(), error.to_string()],
-        )
-    })?;
-    if value.is_mapping() {
-        Ok(value)
-    } else {
-        Err(crate::app::i18n::workflow::Feedback::new(
-            "%s 必须是对象映射（YAML map）",
-            vec![label.to_string()],
-        ))
-    }
-}
+pub(super) use desktop_workflow_state::parse_mapping_yaml;
 
 pub(super) fn string_list_input_from_value(value: Option<&Value>) -> String {
     value
@@ -140,10 +118,7 @@ pub(super) fn yaml_key(key: &str) -> Value {
     Value::String(key.to_string())
 }
 
-pub(super) fn value_yaml_for_editor(value: &Value) -> String {
-    let yaml = serde_yaml::to_string(value).unwrap_or_else(|_| String::new());
-    yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string()
-}
+pub(super) use desktop_workflow_state::value_yaml_for_editor;
 
 pub(super) fn parse_yaml_editor_value(
     text: &str,

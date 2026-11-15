@@ -1,0 +1,15 @@
+[package]
+name = "desktop-workflow-state"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+desktop-workflow-model = { path = "../desktop-workflow-model", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+iced = { version = "0.14", default-features = false, features = ["advanced"] }
+serde_yaml = "0.9"
+web-time = "1.1.0"

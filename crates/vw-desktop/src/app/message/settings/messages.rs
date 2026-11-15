@@ -711,7 +711,7 @@ pub enum AgentsMessage {
     AllowedToolsInvertSelection(String),
     AllowedToolsApplyPreset(String, String),
     ToolsListTabSelected(String),
-    SkillPolicyChanged(String, vw_config_types::agent::DelegateCapabilityPolicy),
+    SkillPolicyChanged(String, config_agent::DelegateCapabilityPolicy),
     AllowedSkillToggled(String, String, bool),
     AllowedSkillsSelectAll(String, crate::app::state::SkillsDirectoryScope),
     AllowedSkillsInvertSelection(String, crate::app::state::SkillsDirectoryScope),

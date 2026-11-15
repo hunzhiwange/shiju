@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 #[derive(Clone)]
 pub(crate) struct CoreSkillSession {
@@ -53,7 +53,7 @@ impl CoreSkillSession {
         let mut session = Self::new(
             config.workspace_dir.clone(),
             Vec::new(),
-            vw_config_types::agent::effective_main_agent_config(&config.agents),
+            config_agent::effective_main_agent_config(&config.agents),
         );
         session.config = Some(config);
         session.session_id = Some(session_id.to_string());

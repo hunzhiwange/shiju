@@ -18,7 +18,7 @@ fn fixture_config(workspace: &std::path::Path) -> Config {
     config.default_model = Some("model-recovery/original".into());
     config.agents.insert(
         "main".into(),
-        vw_config_types::agent::AgentDefinitionConfig {
+        config_agent::AgentDefinitionConfig {
             allowed_skills: vec!["fixture-review".into()],
             compact_context: true,
             ..Default::default()

@@ -1,7 +1,7 @@
 //! Official presets are derived from the ACP registry, independently of CLI availability.
 use std::collections::HashMap;
 use config_agent_profile::AgentRuntime;
-use vw_config_types::agent::{AgentDefinitionConfig, merged_agent_configs};
+use config_agent::{AgentDefinitionConfig, merged_agent_configs};
 
 /// Combine native role limits with editable official ACP presets and custom agents.
 /// Missing official keys are regenerated; overrides cannot change their source or backend.

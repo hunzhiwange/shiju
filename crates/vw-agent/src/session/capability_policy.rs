@@ -4,7 +4,7 @@
 //! 技能/MCP 目录，不从模型文本解析能力或权限。
 
 use std::collections::{BTreeMap, BTreeSet};
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 
 /// 能力策略的解析结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,7 +151,7 @@ pub(crate) async fn native_agent_defaults(
 ) -> anyhow::Result<Option<NativeAgentDefaults>> {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
     use config_agent_profile::{AgentDefault, AgentModelReference, AgentRuntime};
-    let agents = vw_config_types::agent::merged_agent_configs(&config.agents);
+    let agents = config_agent::merged_agent_configs(&config.agents);
     let agent = agents.get(key).ok_or_else(|| anyhow::anyhow!("unknown agent: {key}"))?;
     if !matches!(agent.runtime, AgentRuntime::Native) {
         return Ok(None);

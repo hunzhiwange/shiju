@@ -7,7 +7,7 @@ use crate::app::{
 };
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::agent::builtin_agent_spec;
+use config_agent::builtin_agent_spec;
 
 fn message(value: AgentsMessage) -> Message {
     Message::Settings(SettingsMessage::Agents(value))

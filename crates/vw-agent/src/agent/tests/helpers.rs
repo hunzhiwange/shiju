@@ -25,7 +25,7 @@ use crate::app::agent::tools::{Tool, ToolResult};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 /// 脚本化 LLM Provider
 ///

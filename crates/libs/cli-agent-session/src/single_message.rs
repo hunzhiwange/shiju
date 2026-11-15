@@ -155,7 +155,7 @@ pub(crate) async fn run_single_message(
         approval,
         setup.channel_name,
         &config.multimodal,
-        vw_config_types::agent::effective_main_agent_config(&config.agents).max_iterations,
+        config_agent::effective_main_agent_config(&config.agents).max_iterations,
         None, // 无特定系统提示覆盖
         None, // 无特定工具约束
         None, // 无特定上下文约束

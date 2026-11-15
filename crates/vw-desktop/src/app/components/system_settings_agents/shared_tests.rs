@@ -37,7 +37,7 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
         max_depth: 1,
         agentic: false,
         allowed_tools: Vec::new(),
-        skill_policy: vw_config_types::agent::DelegateCapabilityPolicy::default(),
+        skill_policy: config_agent::DelegateCapabilityPolicy::default(),
         allowed_skills: Vec::new(),
         enabled_identity_files: Vec::new(),
         max_iterations: 50_000,

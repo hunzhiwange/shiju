@@ -124,7 +124,7 @@ fn catalogs(
 }
 
 pub(crate) fn validation_error(app: &App, draft: &DelegateAgentSettingsEntry) -> Option<String> {
-    if draft.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+    if draft.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
         && let AgentDefault::Fixed(ids) = &draft.defaults.skills
         && ids.iter().any(|id| !draft.allowed_skills.contains(id))
     {

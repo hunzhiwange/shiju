@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 struct CoreTestProvider;
 

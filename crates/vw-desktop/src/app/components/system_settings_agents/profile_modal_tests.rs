@@ -446,7 +446,7 @@ fn agent_runtime_creation_failed_save_allows_retry_and_cancel_leaves_no_entry() 
 #[test]
 fn agent_runtime_creation_reloaded_custom_and_builtin_reject_changes() {
     use config_agent_profile::AgentRuntime;
-    use vw_config_types::agent::DelegateAgentConfig;
+    use config_agent::DelegateAgentConfig;
     let mut app = App::new().0;
     app.agents_settings.config_ready = true;
     app.acp_agents = vec!["codex".into(), "claude".into()];

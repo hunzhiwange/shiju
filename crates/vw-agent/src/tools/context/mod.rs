@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 
 /// 单次工具循环允许排队重看的图片数量上限。
 pub const MAX_PENDING_IMAGE_RELOADS: usize = 4;

@@ -18,7 +18,7 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use std::fmt;
 use config_agent_profile::AgentDefault;
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 use vw_config_types::ui::DesktopLocale;
 
 pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {

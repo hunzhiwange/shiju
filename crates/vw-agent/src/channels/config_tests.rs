@@ -186,7 +186,7 @@ fn runtime_defaults_prefer_complete_main_agent_model_binding() {
     };
     config.agents.insert(
         "main".to_string(),
-        vw_config_types::agent::AgentDefinitionConfig {
+        config_agent::AgentDefinitionConfig {
             provider: " token-plan ".to_string(),
             model: " deepseek-v4.1-flash-1017 ".to_string(),
             ..Default::default()
@@ -210,7 +210,7 @@ fn runtime_defaults_ignore_incomplete_main_agent_model_binding() {
     };
     config.agents.insert(
         "main".to_string(),
-        vw_config_types::agent::AgentDefinitionConfig {
+        config_agent::AgentDefinitionConfig {
             provider: "token-plan".to_string(),
             model: " ".to_string(),
             ..Default::default()

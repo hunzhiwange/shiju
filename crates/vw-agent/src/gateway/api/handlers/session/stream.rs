@@ -543,7 +543,7 @@ struct DelegateRequestOverrides {
     temperature: Option<f64>,
     top_p: Option<f64>,
     default_allowed_skills: Option<Vec<String>>,
-    skill_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
+    skill_policy: Option<config_agent::DelegateCapabilityPolicy>,
     trusted_user_selected_skills: Option<Vec<String>>,
 }
 
@@ -897,7 +897,7 @@ async fn resolve_delegate_request_overrides(
 
 async fn resolve_delegate_overrides_from_config(
     agent_name: String,
-    config: vw_config_types::agent::AgentDefinitionConfig,
+    config: config_agent::AgentDefinitionConfig,
     runtime_config: &crate::config::Config,
     explicit_allowed_tools: Option<Vec<String>>,
     explicit_model: Option<String>,
@@ -980,7 +980,7 @@ async fn resolve_delegate_overrides_from_config(
 fn merge_delegate_capability_policy_options(
     mut options: Value,
     default_allowed_skills: Option<Vec<String>>,
-    skill_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
+    skill_policy: Option<config_agent::DelegateCapabilityPolicy>,
     trusted_user_selected_skills: Option<Vec<String>>,
 ) -> Value {
     if let Some(options) = options.as_object_mut() {
@@ -993,7 +993,7 @@ fn merge_delegate_capability_policy_options(
             .unwrap_or_default();
         let default_allowed_skills = if inherited_strict {
             Some(match skill_policy {
-                Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict) => {
+                Some(config_agent::DelegateCapabilityPolicy::Strict) => {
                     default_allowed_skills
                         .unwrap_or_default()
                         .into_iter()
@@ -1008,7 +1008,7 @@ fn merge_delegate_capability_policy_options(
             default_allowed_skills
         };
         let skill_policy = if inherited_strict {
-            Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict)
+            Some(config_agent::DelegateCapabilityPolicy::Strict)
         } else {
             skill_policy
         };

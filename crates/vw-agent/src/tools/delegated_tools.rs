@@ -55,7 +55,7 @@ pub(crate) fn build_agentic_tools(
             }
             if tool_id == "skill" {
                 if agent_config.skill_policy
-                    == vw_config_types::agent::DelegateCapabilityPolicy::Unrestricted
+                    == config_agent::DelegateCapabilityPolicy::Unrestricted
                 {
                     return Some(Box::new(DelegatedToolRef::new(tool.clone())) as Box<dyn Tool>);
                 }

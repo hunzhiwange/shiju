@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::agent::{DelegateAgentConfig, WorkspacesConfig};
+use config_agent::{DelegateAgentConfig, WorkspacesConfig};
 use crate::automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use crate::channels::ChannelsConfig;
 use config_computer_control::ComputerControlConfig;

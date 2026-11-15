@@ -17,7 +17,7 @@ use crate::gateway::api::handlers::session::stream::{
     GatewayChatStreamCollected, collect_gateway_chat_stream, commit_collected_child_agent_turn,
     persist_child_agent_turn,
 };
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 
 use super::{message, session};
 

@@ -1,6 +1,6 @@
 //! Desktop Chat 单回合执行预算。
 
-use vw_config_types::agent::DEFAULT_MAX_ITERATIONS;
+use config_agent::DEFAULT_MAX_ITERATIONS;
 pub(crate) const DEFAULT_MAX_HISTORY_MESSAGES: usize = 100;
 pub(crate) const MAX_HISTORY_MESSAGES: usize = 1_000;
 
@@ -15,7 +15,7 @@ impl ChatTurnPolicy {
     pub(crate) fn from_config(config: &crate::config::Config, agent_key: Option<&str>) -> Self {
         let selected_agent =
             agent_key.map(str::trim).filter(|key| !key.is_empty()).unwrap_or("main");
-        let agents = vw_config_types::agent::merged_agent_configs(&config.agents);
+        let agents = config_agent::merged_agent_configs(&config.agents);
         let main_agent = agents.get("main").expect("builtin main agent configuration exists");
         let selected_agent = agents.get(selected_agent).unwrap_or(main_agent);
         let configured_max_iterations = selected_agent.max_iterations;

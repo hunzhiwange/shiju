@@ -33,7 +33,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
 };
-use vw_config_types::agent::DelegateAgentConfig;
+use config_agent::DelegateAgentConfig;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::channels::MattermostConfig;
 

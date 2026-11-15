@@ -13,7 +13,7 @@ pub(crate) struct AgentActivity {
 }
 
 pub(crate) fn agent_available(key: &str, entries: &[DelegateAgentSettingsEntry]) -> bool {
-    !vw_config_types::agent::is_retired_builtin_agent_key(key)
+    !config_agent::is_retired_builtin_agent_key(key)
         && (key == TASK_AGENT_MAIN || entries.iter().any(|e| e.key == key && e.enabled))
 }
 

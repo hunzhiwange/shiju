@@ -126,7 +126,7 @@ fn child_agent_stream_request_registers_configured_tools_and_preserves_skill_pol
         Vec::new(),
         vec!["file_read".to_string()],
         vec!["review".to_string()],
-        vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+        config_agent::DelegateCapabilityPolicy::Strict,
         vec!["rustcodegraph".to_string()],
     );
 
@@ -532,7 +532,7 @@ async fn agcollab_child_snapshot_is_immutable_and_none_keeps_task_separate() {
                 ])
                 .with_tool_exposure_snapshot(["file_read".to_string()])
                 .with_delegate_skill_policy(
-                    vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                    config_agent::DelegateCapabilityPolicy::Strict,
                     ["allowed"],
                 ),
         );

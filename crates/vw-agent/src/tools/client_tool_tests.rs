@@ -100,7 +100,7 @@ async fn dynamic_tools_callback_registration_rejects_source_schema_and_direct_ex
 async fn dynamic_tools_callback_permission_denial_never_emits_request() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
     use config_agent_profile::AgentDefault;
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     let (host, mut requests, spec, context) = setup();
     let tools: Vec<Box<dyn Tool>> = vec![Box::new(ClientTool::new(spec, host.clone()).unwrap())];
     let mut agent = AgentDefinitionConfig::default();

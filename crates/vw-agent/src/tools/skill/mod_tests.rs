@@ -108,7 +108,7 @@ async fn full_access_preserves_delegate_and_model_invocation_restrictions() {
         ToolUseContext::new("full-access-restricted-skill-test", None)
             .with_full_access_enabled(true)
             .with_delegate_skill_policy(
-                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                config_agent::DelegateCapabilityPolicy::Strict,
                 ["expert-main"],
             ),
     );
@@ -224,7 +224,7 @@ async fn expert_package_body_does_not_expand_permissions() {
         ToolUseContext::new("expert-policy-test", Some(workspace.path().display().to_string()))
             .with_explicitly_requested_skills(["expert-main"])
             .with_delegate_skill_policy(
-                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                config_agent::DelegateCapabilityPolicy::Strict,
                 ["expert-main"],
             ),
     );
@@ -385,7 +385,7 @@ async fn strict_skill_policy_ignores_temporary_skill_selection() {
         ToolUseContext::new("child", Some("/workspace".to_string()))
             .with_trusted_user_selected_skills(["trusted"])
             .with_delegate_skill_policy(
-                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                config_agent::DelegateCapabilityPolicy::Strict,
                 ["default"],
             ),
     );

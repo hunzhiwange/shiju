@@ -12,7 +12,7 @@ use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind, SkillsDirectorySco
 use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Theme};
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 
 #[test]
 fn skill_source_label_maps_known_and_unknown_sources() {

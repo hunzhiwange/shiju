@@ -156,7 +156,7 @@ fn load_agent_configs_merges_configured_agents_with_builtins() {
     assert_eq!(agents["custom"].mode, "sub_agent");
     assert_eq!(
         agents["main"].label.as_deref(),
-        Some(vw_config_types::agent::builtin_agent_spec("main").unwrap().label)
+        Some(config_agent::builtin_agent_spec("main").unwrap().label)
     );
     assert!(agents["main"].builtin);
 

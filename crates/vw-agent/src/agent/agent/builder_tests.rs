@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 struct TestProvider;
 

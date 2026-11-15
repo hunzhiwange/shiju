@@ -1,6 +1,6 @@
 use crate::app::state::DelegateAgentSettingsEntry;
 use config_agent_profile::{AgentDefault, AgentDefaults, AgentRuntime};
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 #[test]
 fn agent_defaults_form_roundtrips_explicit_empty_lists() {
@@ -134,7 +134,7 @@ fn agent_config_cleanup_single_model_group_prevents_conflict() {
 fn agent_config_cleanup_strict_skill_defaults_reject_save_outside_boundary() {
     let app = crate::app::App::new().0;
     let mut draft = app.agents_settings.entries[0].clone();
-    draft.skill_policy = vw_config_types::agent::DelegateCapabilityPolicy::Strict;
+    draft.skill_policy = config_agent::DelegateCapabilityPolicy::Strict;
     draft.allowed_skills = vec![];
     draft.defaults.skills = AgentDefault::Fixed(vec!["outside".into()]);
     assert!(super::defaults::validation_error(&app, &draft).is_some());

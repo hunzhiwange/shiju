@@ -130,7 +130,7 @@ async fn session_fork_before_turn_keeps_only_complete_earlier_turns() {
     }
     let binding = agent_binding::AgentBinding::from_definition(
         "agent-fixture".into(),
-        &vw_config_types::agent::AgentDefinitionConfig::default(),
+        &config_agent::AgentDefinitionConfig::default(),
     );
     agent_binding::save_scoped(&source.project_id, &source.id, &binding).await.unwrap();
     assert!(

@@ -1,7 +1,7 @@
 //! 将实例执行配置解析为模型路由与服务端会话绑定。
 use super::*;
 use config_agent_profile::{AgentDefault, AgentRuntime};
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 use vw_config_types::channels::ChannelExecutionConfig;
 
 pub(super) fn execution_route(

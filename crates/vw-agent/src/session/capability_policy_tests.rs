@@ -1,7 +1,7 @@
 //! 验证技能能力策略只解析配置模式，不允许模型自行扩权。
 
 use super::capability_policy::{CapabilityPolicyResolution, resolve_skill_capabilities};
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 
 #[test]
 // 模型只能在预先配置的能力范围内选择，不能借输出内容自行扩大权限。
@@ -242,7 +242,7 @@ fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {
 fn agent_config_cleanup_strict_skill_boundary_survives_fixed_selection() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
     use config_agent_profile::AgentDefault;
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     let mut agent = AgentDefinitionConfig::default();
     agent.skill_policy = DelegateCapabilityPolicy::Strict;
     agent.allowed_skills = vec!["allowed".into()];

@@ -304,7 +304,7 @@ pub(super) async fn run_channels(
     let message_timeout_secs =
         effective_channel_message_timeout_secs(config.channels_config.message_timeout_secs);
     let interrupt_on_new_message = channel_interrupt_on_new_message(&config);
-    let main_agent = vw_config_types::agent::effective_main_agent_config(&config.agents);
+    let main_agent = config_agent::effective_main_agent_config(&config.agents);
 
     // 构建通道运行时上下文
     let runtime_ctx = Arc::new(ChannelRuntimeContext {
@@ -444,7 +444,7 @@ fn build_channel_tool_descriptions(
 }
 
 fn bootstrap_max_chars(config: &Config) -> Option<usize> {
-    vw_config_types::agent::effective_main_agent_config(&config.agents)
+    config_agent::effective_main_agent_config(&config.agents)
         .compact_context
         .then_some(6000)
 }

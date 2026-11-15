@@ -74,7 +74,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
             struct Agent {
                 key: String,
                 #[serde(flatten)]
-                definition: vw_config_types::agent::AgentDefinitionConfig,
+                definition: config_agent::AgentDefinitionConfig,
             }
             let agents: Vec<Agent> =
                 serde_json::from_value(gateway_config::GatewayConfigClient::new(client.transport().clone()).agent_profiles(directory.as_deref(), false).await?)

@@ -1,0 +1,13 @@
+[package]
+name = "config-agent"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }
+schemars = "1.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shellexpand = "3.1"

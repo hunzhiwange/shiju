@@ -21,7 +21,7 @@ use anyhow::Result;
 use chrono_tz::Tz;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
-use vw_config_types::agent::merged_agent_configs;
+use config_agent::merged_agent_configs;
 
 use super::context::build_context;
 use super::core::agent_turn;
@@ -277,7 +277,7 @@ impl QueryEngine {
         let skills =
             crate::app::agent::skills::load_skills_with_config(&config.workspace_dir, &config);
         let tool_descs = build_tool_descriptions(&config);
-        let main_agent = vw_config_types::agent::effective_main_agent_config(&config.agents);
+        let main_agent = config_agent::effective_main_agent_config(&config.agents);
         let bootstrap_max_chars = main_agent.compact_context.then_some(6000);
         let native_tools = provider.supports_native_tools();
 

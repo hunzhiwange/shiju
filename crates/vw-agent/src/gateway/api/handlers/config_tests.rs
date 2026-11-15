@@ -1350,7 +1350,7 @@ async fn agent_profile_api_persists_changes_after_reload() {
 #[test]
 fn agent_profile_api_rejects_invalid_identity_and_model_conflicts() {
     use config_agent_profile::{AgentDefault, AgentModelReference, AgentRuntime};
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     for key in ["", "../escape", "white space"] {
         let mut cfg = config::Config::default();
         cfg.agents.insert(key.into(), AgentDefinitionConfig::default());
@@ -1379,7 +1379,7 @@ fn agent_profile_api_rejects_invalid_identity_and_model_conflicts() {
 
 #[test]
 fn agent_profile_api_native_metadata_and_empty_rules_are_editable() {
-    use vw_config_types::agent::{AgentDefinitionConfig, merged_agent_configs};
+    use config_agent::{AgentDefinitionConfig, merged_agent_configs};
     let configured = std::collections::HashMap::from([(
         "explore".into(),
         AgentDefinitionConfig {
@@ -1532,7 +1532,7 @@ async fn agent_runtime_lock_patch_is_scoped_to_each_tenant() {
 #[tokio::test]
 async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     use config_agent_profile::AgentRuntime;
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
@@ -1621,7 +1621,7 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
 #[tokio::test]
 async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
     use config_agent_profile::AgentRuntime;
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());

@@ -1,7 +1,7 @@
 use super::defaults::*;
 use serde_json::json;
 use config_agent_profile::{AgentDefault, AgentModelReference};
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 #[test]
 fn agent_defaults_respects_explicit_and_fixed_precedence() {

@@ -5,7 +5,7 @@ use anyhow::{Result, bail};
 use serde_json::Value;
 use std::collections::HashMap;
 use config_agent_profile::{AgentDefault, AgentModelReference};
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 #[derive(Default)]
 pub struct DefaultSelection {
@@ -139,7 +139,7 @@ pub fn resolve(
         select(&explicit.skills, &agent.defaults.skills, &inherited.skills).unwrap_or_default();
     let mcp = select(&explicit.mcp, &agent.defaults.mcp, &inherited.mcp).unwrap_or_default();
     validate_ids(&skills, &context.skills, "skill")?;
-    if agent.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+    if agent.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
         && skills.iter().any(|id| !agent.allowed_skills.contains(id))
     {
         bail!("default skill is outside the strict agent skill boundary");

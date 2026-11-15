@@ -20,7 +20,7 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
 use crate::app::task::{Task, TaskSplitMode};
 use crate::app::{App, Message};
-use vw_config_types::agent::is_retired_builtin_agent_key;
+use config_agent::is_retired_builtin_agent_key;
 
 use super::common::button_style_success;
 

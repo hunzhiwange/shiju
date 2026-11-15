@@ -61,7 +61,7 @@ fn catalog_config() -> vw_config_types::config::Config {
         "trae",
     ] {
         let mut value =
-            serde_json::to_value(vw_config_types::agent::DelegateAgentConfig::default()).unwrap();
+            serde_json::to_value(config_agent::DelegateAgentConfig::default()).unwrap();
         let fields = serde_json::json!({"builtin":true, "enabled": backend == "codex", "label":backend,
             "runtime":{"kind":"acp","backend":backend}});
         value.as_object_mut().unwrap().extend(fields.as_object().unwrap().clone());

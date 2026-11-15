@@ -12,8 +12,8 @@ use config_runtime::RuntimeConfig;
 use iced::Task;
 use std::collections::{BTreeMap, HashMap};
 use config_skills::SkillsConfig;
+use config_agent::DelegateAgentConfig;
 use vw_config_types::{
-    agent::DelegateAgentConfig,
     channels::ChannelsConfig,
     config::{AcpAgentConfig, Config},
     gateway::{GatewayConfig, TunnelConfig},

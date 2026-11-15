@@ -2,7 +2,7 @@
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use config_agent_profile::{AgentDefaults, AgentRuntime};
-use vw_config_types::agent::{AgentDefinitionConfig, DelegateCapabilityPolicy};
+use config_agent::{AgentDefinitionConfig, DelegateCapabilityPolicy};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

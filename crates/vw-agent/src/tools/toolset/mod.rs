@@ -14,7 +14,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use vw_config_types::agent::merged_agent_configs;
+use config_agent::merged_agent_configs;
 
 /// Claude Tools V2 运行时上下文。
 ///
@@ -1067,7 +1067,7 @@ fn enabled_delegate_agents_with_project_skills(
 
     for config in enabled.values_mut() {
         // Defaults must never expand an explicitly strict access boundary.
-        if config.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+        if config.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
             || matches!(config.defaults.skills, config_agent_profile::AgentDefault::Fixed(_))
         {
             continue;

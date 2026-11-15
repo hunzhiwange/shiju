@@ -200,7 +200,7 @@ pub async fn run() -> Result<()> {
             if let Some(n) = max_actions_per_hour {
                 config.autonomy.max_actions_per_hour = n;
             }
-            let main_agent = vw_config_types::agent::ensure_main_agent_config(&mut config.agents);
+            let main_agent = config_agent::ensure_main_agent_config(&mut config.agents);
             // 应用工具迭代次数限制
             if let Some(n) = max_iterations {
                 main_agent.max_iterations = n;

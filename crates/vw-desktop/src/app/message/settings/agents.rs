@@ -16,7 +16,7 @@ use iced::widget::text_editor;
 use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::UNIX_EPOCH;
-use vw_config_types::agent::builtin_agent_spec;
+use config_agent::builtin_agent_spec;
 use vw_shared::provider::types as provider_types;
 use vw_shared::provider::types::Info;
 
@@ -143,7 +143,7 @@ fn refresh_skill_catalog(app: &mut App) -> Task<Message> {
 struct CatalogAgent {
     key: String,
     #[serde(flatten)]
-    definition: vw_config_types::agent::DelegateAgentConfig,
+    definition: config_agent::DelegateAgentConfig,
 }
 
 async fn load_catalog_config() -> Result<vw_config_types::config::Config, String> {
@@ -1426,7 +1426,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 if enabled
                     && (!available
                         || (entry.skill_policy
-                            == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+                            == config_agent::DelegateCapabilityPolicy::Strict
                             && !entry.allowed_skills.contains(&skill_id)))
                 {
                     return catalog_error(
@@ -1465,7 +1465,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             {
                 for id in available {
                     if entry.skill_policy
-                        == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+                        == config_agent::DelegateCapabilityPolicy::Strict
                         && !entry.allowed_skills.contains(&id)
                     {
                         continue;

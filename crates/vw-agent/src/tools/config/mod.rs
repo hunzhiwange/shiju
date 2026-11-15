@@ -413,7 +413,7 @@ fn read_setting_value(config: &Config, spec: &SettingSpec) -> anyhow::Result<Val
 
 fn materialize_setting_defaults(config: &mut Config, spec: &SettingSpec) {
     if spec.path.starts_with(&["agents", "main"]) {
-        vw_config_types::agent::ensure_main_agent_config(&mut config.agents);
+        config_agent::ensure_main_agent_config(&mut config.agents);
     }
 }
 

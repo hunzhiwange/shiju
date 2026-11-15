@@ -468,7 +468,7 @@ fn delegated_skill_policy_resolution(
     options: &Value,
 ) -> Option<crate::session::capability_policy::CapabilityPolicyResolution> {
     let policy = options.get("delegate_skill_policy").cloned().and_then(|value| {
-        serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
+        serde_json::from_value::<config_agent::DelegateCapabilityPolicy>(value).ok()
     })?;
     let defaults = option_string_values(options, "delegate_default_allowed_skills");
     let boundary = if options.get("delegate_allowed_skills").is_some() {
@@ -601,7 +601,7 @@ fn run_in_project(
         }
         if defaults.skills_fixed
             || !defaults.effective.skills.is_empty()
-            || defaults.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+            || defaults.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
         {
             let inherited_strict =
                 req.options.get("delegate_skill_policy").and_then(Value::as_str) == Some("strict");
@@ -718,7 +718,7 @@ fn run_in_project(
     plugin_turn.own_async_hooks(tool_use_context.async_hooks.clone());
     let delegated_skill_policy = match req.options.get("delegate_skill_policy") {
         Some(value) => match serde_json::from_value::<
-            vw_config_types::agent::DelegateCapabilityPolicy,
+            config_agent::DelegateCapabilityPolicy,
         >(value.clone())
         {
             Ok(policy) => Some(policy),

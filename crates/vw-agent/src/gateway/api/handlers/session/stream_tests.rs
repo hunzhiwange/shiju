@@ -207,7 +207,7 @@ fn codex_skills_defaults_gateway_empty_defaults_replace_untrusted_request_allowa
     let options = merge_delegate_capability_policy_options(
         serde_json::json!({"delegate_default_allowed_skills":["unconfigured"],"delegate_skill_policy":"unrestricted","allowed_tools":["file_read"]}),
         None,
-        Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict),
+        Some(config_agent::DelegateCapabilityPolicy::Strict),
         None,
     );
     assert_eq!(options["delegate_default_allowed_skills"], serde_json::json!([]));
@@ -725,7 +725,7 @@ fn delegated_gateway_options_preserve_tool_registration_and_pass_skill_policy() 
             None,
         ),
         Some(vec!["review".to_string()]),
-        Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict),
+        Some(config_agent::DelegateCapabilityPolicy::Strict),
         Some(vec!["rustcodegraph".to_string()]),
     );
 
@@ -1947,7 +1947,7 @@ fn recovery_event_preserves_status_without_assistant_content() {
 
 #[test]
 fn agcollab_gateway_keeps_inherited_skill_ceiling() {
-    use vw_config_types::agent::DelegateCapabilityPolicy;
+    use config_agent::DelegateCapabilityPolicy;
     for role in [DelegateCapabilityPolicy::Strict, DelegateCapabilityPolicy::Unrestricted] {
         let options = merge_delegate_capability_policy_options(
             serde_json::json!({"delegate_skill_policy":"strict","delegate_default_allowed_skills":["shared","parent-only"]}),

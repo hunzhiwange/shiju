@@ -180,7 +180,7 @@ async fn serve_gateway(
     let tools_registry: Arc<Vec<ToolSpec>> =
         Arc::new(tools_registry_exec.iter().map(|t| t.spec()).collect());
     let max_iterations =
-        vw_config_types::agent::effective_main_agent_config(&config.agents).max_iterations;
+        config_agent::effective_main_agent_config(&config.agents).max_iterations;
     let multimodal_config = config.multimodal.clone();
 
     let (event_tx, _event_rx) = tokio::sync::broadcast::channel::<serde_json::Value>(256);

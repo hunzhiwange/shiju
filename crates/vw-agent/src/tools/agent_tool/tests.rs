@@ -237,7 +237,7 @@ fn spec_and_schema_describe_configured_agents() {
 
 #[test]
 fn default_agent_tool_schema_uses_chinese_role_catalog() {
-    let agents = vw_config_types::agent::merged_agent_configs(&HashMap::new())
+    let agents = config_agent::merged_agent_configs(&HashMap::new())
         .into_iter()
         .filter(|(_, config)| config.enabled && config.allow_as_subagent)
         .collect();

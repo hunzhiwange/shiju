@@ -1,4 +1,4 @@
-use crate::agent::AgentDefinitionConfig;
+use crate::AgentDefinitionConfig;
 use serde_json::json;
 
 #[test]
@@ -74,11 +74,11 @@ fn agent_profile_builtin_merge_preserves_defaults_and_runtime_binding() {
         "recommended_prompts": ["检查"], "defaults": {"skills": {"mode": "fixed", "value": []}}
     }))
     .unwrap();
-    let merged = crate::agent::merged_agent_configs(&std::collections::HashMap::from([(
+    let merged = crate::merged_agent_configs(&std::collections::HashMap::from([(
         "main".into(),
         config.clone(),
     )]));
-    assert_eq!(merged["main"].runtime, crate::agent_profile::AgentRuntime::Native);
+    assert_eq!(merged["main"].runtime, config_agent_profile::AgentRuntime::Native);
     assert_eq!(merged["main"].defaults, config.defaults);
     assert_eq!(merged["main"].recommended_prompts, config.recommended_prompts);
 }

@@ -316,7 +316,7 @@ pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<
         let official_backend = key
             .strip_prefix("acp-")
             .filter(|backend| vw_acp::built_in_agent_specs().contains_key(*backend));
-        let native = vw_config_types::agent::builtin_agent_spec(key).is_some();
+        let native = config_agent::builtin_agent_spec(key).is_some();
         if official_backend.is_none() && !native {
             continue;
         }
@@ -345,7 +345,7 @@ pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<
 
 fn validate_agent_profiles(config: &Config) -> Result<()> {
     use config_agent_profile::{AgentDefault, AgentRuntime};
-    use vw_config_types::agent::builtin_agent_spec;
+    use config_agent::builtin_agent_spec;
     let backends = vw_acp::built_in_agent_specs();
     for (key, agent) in &config.agents {
         if key.is_empty()
@@ -377,7 +377,7 @@ fn validate_agent_profiles(config: &Config) -> Result<()> {
         if agent.force_model_selection && !agent.has_complete_model_binding() {
             anyhow::bail!("agent {key} forced model requires provider and model");
         }
-        if agent.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
+        if agent.skill_policy == config_agent::DelegateCapabilityPolicy::Strict
             && let AgentDefault::Fixed(ids) = &agent.defaults.skills
             && ids.iter().any(|id| !agent.allowed_skills.contains(id))
         {

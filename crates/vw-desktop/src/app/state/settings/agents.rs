@@ -4,7 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::*;
-use vw_config_types::agent::{
+use config_agent::{
     BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config,
     builtin_agent_keys, builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
 };

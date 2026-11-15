@@ -12,7 +12,7 @@
 
 use crate::app::agent::agent::dispatcher::NativeToolDispatcher;
 use crate::app::agent::providers::{ChatMessage, ToolCall};
-use vw_config_types::agent::AgentDefinitionConfig;
+use config_agent::AgentDefinitionConfig;
 
 use super::helpers::{
     EchoTool, ScriptedProvider, build_agent_with, build_agent_with_config, text_response,

@@ -17,7 +17,7 @@ use crate::app::state::{
     AgentSettingsEntryKind, MAIN_AGENT_KEY, WORKSPACE_IDENTITY_FILES,
 };
 use std::collections::HashMap;
-use vw_config_types::agent::{DelegateAgentConfig, builtin_agent_keys};
+use config_agent::{DelegateAgentConfig, builtin_agent_keys};
 
 #[test]
 fn delegate_agent_entry_uses_main_kind_and_forces_main_enabled() {
@@ -249,7 +249,7 @@ fn default_allowed_tools_preserves_builtin_role_defaults() {
     apply_default_allowed_tools(&mut entries, &available_tools);
 
     for entry in entries {
-        let expected = vw_config_types::agent::builtin_agent_config(&entry.key)
+        let expected = config_agent::builtin_agent_config(&entry.key)
             .expect("builtin config")
             .allowed_tools;
         assert_eq!(entry.allowed_tools, expected, "{} must retain its role tools", entry.key);

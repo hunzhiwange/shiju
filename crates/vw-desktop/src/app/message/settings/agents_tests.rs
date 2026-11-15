@@ -17,7 +17,7 @@ use iced::widget::text_editor;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use vw_config_types::agent::DelegateCapabilityPolicy;
+use config_agent::DelegateCapabilityPolicy;
 use vw_shared::provider::types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
@@ -49,7 +49,7 @@ fn entry_mut<'a>(app: &'a mut App, key: &str) -> &'a mut DelegateAgentSettingsEn
 fn config_with_main_skills(skills: &[&str]) -> Box<vw_config_types::config::Config> {
     let mut config = vw_config_types::config::Config::default();
     let main = config.agents.entry("main".to_string()).or_insert_with(|| {
-        vw_config_types::agent::builtin_agent_config("main").unwrap_or_default()
+        config_agent::builtin_agent_config("main").unwrap_or_default()
     });
     main.allowed_skills = skills.iter().map(|skill| (*skill).to_string()).collect();
     Box::new(config)
@@ -340,7 +340,7 @@ fn agents_settings_patch_removes_legacy_general_entry() {
     let mut config = vw_config_types::config::Config::default();
     config
         .agents
-        .insert("general".to_string(), vw_config_types::agent::DelegateAgentConfig::default());
+        .insert("general".to_string(), config_agent::DelegateAgentConfig::default());
     let entries = crate::app::state::agent_settings_entries_from_config(&config);
 
     assert!(entries.iter().all(|entry| entry.key != "general"));
@@ -458,7 +458,7 @@ fn skill_policy_round_trips_without_rewriting_tool_selection() {
     assert_eq!(patch["agents"]["main"]["allowed_tools"], serde_json::json!(["read"]));
     assert_eq!(patch["agents"]["main"]["allowed_skills"], serde_json::json!(["skill-a"]));
 
-    let reloaded_config: vw_config_types::agent::DelegateAgentConfig =
+    let reloaded_config: config_agent::DelegateAgentConfig =
         serde_json::from_value(patch["agents"]["main"].clone())
             .expect("main agent patch should deserialize");
     let reloaded_main =
@@ -1285,7 +1285,7 @@ fn config_loaded_after_tool_catalog_removes_stale_selections_without_creating_us
     app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
 
     let mut config = vw_config_types::config::Config::default();
-    let mut custom = vw_config_types::agent::DelegateAgentConfig::default();
+    let mut custom = config_agent::DelegateAgentConfig::default();
     custom.allowed_tools = vec!["removed_a".to_string(), "removed_b".to_string()];
     config.agents.insert("custom".to_string(), custom);
 
@@ -1723,7 +1723,7 @@ fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
     app.project_path = Some("/tmp/unified-agent-fixture".into());
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "acp-codex",
-        Some(vw_config_types::agent::AgentDefinitionConfig {
+        Some(config_agent::AgentDefinitionConfig {
             runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
             ..Default::default()
         }),
@@ -1841,7 +1841,7 @@ impl AgentConfigCleanupGateway {
                     } else if path.contains("/copy") {
                         {
                             let mut value = serde_json::to_value(
-                                vw_config_types::agent::DelegateAgentConfig::default(),
+                                config_agent::DelegateAgentConfig::default(),
                             )
                             .unwrap();
                             value["key"] = "copy-agent".into();
@@ -2133,7 +2133,7 @@ fn agent_config_cleanup_skill_selection_preserves_inherit_and_rejects_unavailabl
 #[test]
 fn session_entry_catalog_launch_preserves_profile_runtime() {
     use config_agent_profile::AgentRuntime;
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     for runtime in [AgentRuntime::Native, AgentRuntime::Acp { backend: "codex".into() }] {
         let mut app = test_app();
         app.show_settings = true;
@@ -2245,7 +2245,7 @@ fn optional_tools_can_be_cancelled_and_remain_cancelled_after_reload() {
     let patch = build_agents_settings_patch(&app.agents_settings.entries).unwrap();
     let main = serde_json::from_value(patch["agents"]["main"].clone()).unwrap();
     let configured = std::collections::HashMap::from([("main".to_string(), main)]);
-    let merged = vw_config_types::agent::merged_agent_configs(&configured);
+    let merged = config_agent::merged_agent_configs(&configured);
     assert_eq!(&merged["main"].allowed_tools, selected);
     let mut restored = crate::app::state::DelegateAgentSettingsEntry::from_config(
         "main",

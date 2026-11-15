@@ -2,7 +2,7 @@ use super::load_agent_configs;
 use serde_json::json;
 use std::collections::HashSet;
 use config_agent_profile::AgentRuntime;
-use vw_config_types::agent::BUILTIN_AGENT_SPECS;
+use config_agent::BUILTIN_AGENT_SPECS;
 
 #[test]
 fn agent_catalog_covers_thirty_unique_backends() {
@@ -226,7 +226,7 @@ fn acp_onboarding_grok_builtin_preset_metadata() {
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "grok".into() });
     assert_eq!(
         serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(vw_config_types::agent::AgentDefinitionConfig::default().defaults)
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
             .unwrap()
     );
 }
@@ -254,7 +254,7 @@ fn acp_onboarding_nova_builtin_preset_metadata() {
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "nova".into() });
     assert_eq!(
         serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(vw_config_types::agent::AgentDefinitionConfig::default().defaults)
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
             .unwrap()
     );
 }
@@ -282,7 +282,7 @@ fn acp_onboarding_sigit_builtin_preset_metadata() {
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "sigit".into() });
     assert_eq!(
         serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(vw_config_types::agent::AgentDefinitionConfig::default().defaults)
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
             .unwrap()
     );
 }
@@ -310,7 +310,7 @@ fn acp_onboarding_amp_acp_builtin_preset_metadata() {
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "amp-acp".into() });
     assert_eq!(
         serde_json::to_value(&entry.defaults).unwrap(),
-        serde_json::to_value(vw_config_types::agent::AgentDefinitionConfig::default().defaults)
+        serde_json::to_value(config_agent::AgentDefinitionConfig::default().defaults)
             .unwrap()
     );
 }

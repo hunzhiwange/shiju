@@ -624,7 +624,7 @@ fn canonical_agent_tool_registers_when_delegate_agent_exists() {
     std::fs::create_dir_all(&workspace).unwrap();
     let memory = test_memory(&workspace);
     let mut root_config = test_config(&workspace);
-    vw_config_types::agent::ensure_main_agent_config(&mut root_config.agents).compact_context =
+    config_agent::ensure_main_agent_config(&mut root_config.agents).compact_context =
         true;
 
     let mut agents = HashMap::new();
@@ -1028,7 +1028,7 @@ async fn codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant() {
 #[test]
 fn agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary() {
     use config_agent_profile::AgentDefault;
-    use vw_config_types::agent::DelegateCapabilityPolicy;
+    use config_agent::DelegateCapabilityPolicy;
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path();
     std::fs::create_dir_all(workspace.join(".git")).unwrap();

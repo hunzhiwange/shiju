@@ -55,7 +55,7 @@ fn skill_agent(
         .memory(Arc::new(NoneMemory))
         .observer(Arc::new(NoopObserver))
         .security(security)
-        .config(vw_config_types::agent::effective_main_agent_config(&config.agents))
+        .config(config_agent::effective_main_agent_config(&config.agents))
         .skills(vec![skill])
         .workspace_dir(config.workspace_dir.clone())
         .model_name("model-recovery/original".into())

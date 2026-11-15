@@ -167,7 +167,7 @@ fn bootstrap_and_listener_backoff_use_runtime_defaults() {
         (DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS, DEFAULT_CHANNEL_MAX_BACKOFF_SECS)
     );
 
-    vw_config_types::agent::ensure_main_agent_config(&mut config.agents).compact_context = true;
+    config_agent::ensure_main_agent_config(&mut config.agents).compact_context = true;
     config.reliability.channel_initial_backoff_secs = DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS + 7;
     config.reliability.channel_max_backoff_secs = DEFAULT_CHANNEL_MAX_BACKOFF_SECS + 9;
 

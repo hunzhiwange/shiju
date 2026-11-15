@@ -371,7 +371,7 @@ pub async fn handle_api_config_put(
 
     // Full replacement must not erase already saved builtin profiles.
     for key in current_config.agents.keys() {
-        let builtin = vw_config_types::agent::builtin_agent_spec(key).is_some()
+        let builtin = config_agent::builtin_agent_spec(key).is_some()
             || key
                 .strip_prefix("acp-")
                 .is_some_and(|backend| vw_acp::built_in_agent_specs().contains_key(backend));

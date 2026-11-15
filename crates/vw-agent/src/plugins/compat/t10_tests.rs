@@ -241,7 +241,7 @@ async fn codex_plugin_compat_t10_preserves_delegate_identity_boundaries() {
         ToolUseContext::new("t10", None)
             .with_full_access_enabled(true)
             .with_delegate_skill_policy(
-                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                config_agent::DelegateCapabilityPolicy::Strict,
                 ["invocation-pack@first:review"],
             )
             .with_explicitly_requested_skills(["invocation-pack@second:review"]),

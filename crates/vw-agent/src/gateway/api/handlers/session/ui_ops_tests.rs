@@ -1573,7 +1573,7 @@ async fn agent_unified_selection_summary_projects_server_owned_identity() {
     let project = TempDir::new().unwrap();
     let body = scoped_session("unified-summary", "Summary", "secret-body", 20);
     let scope = save_runtime_session(project.path(), &body);
-    let definition = vw_config_types::agent::AgentDefinitionConfig {
+    let definition = config_agent::AgentDefinitionConfig {
         label: Some("已固化的名称".into()),
         runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
         system_prompt: Some("DO_NOT_PROJECT_RULES".into()),

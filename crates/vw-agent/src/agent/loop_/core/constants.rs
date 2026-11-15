@@ -77,8 +77,8 @@ pub(crate) const STREAM_CHUNK_MIN_CHARS: usize = 5;
 ///
 /// # See Also
 ///
-/// - [`vw_config_types::agent::AgentDefinitionConfig::max_iterations`]
-pub(crate) use vw_config_types::agent::DEFAULT_MAX_ITERATIONS;
+/// - [`config_agent::AgentDefinitionConfig::max_iterations`]
+pub(crate) use config_agent::DEFAULT_MAX_ITERATIONS;
 
 /// Default maximum number of messages to retain in conversation history.
 ///

@@ -60,7 +60,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use vw_config_types::agent::DelegateAgentConfig;
+use config_agent::DelegateAgentConfig;
 
 /// 代理生成提示词模板
 ///

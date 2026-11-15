@@ -107,7 +107,7 @@ async fn render_catalog(theme: iced::Theme, click: bool) {
     use iced::advanced::{Layout, Shell, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Event, Font, Pixels, Rectangle, Size};
     use config_agent_profile::AgentRuntime;
-    use vw_config_types::agent::AgentDefinitionConfig;
+    use config_agent::AgentDefinitionConfig;
     let mut app = App::new().0;
     app.agents_settings.entries = [
         AgentRuntime::Native,

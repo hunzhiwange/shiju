@@ -341,7 +341,7 @@ async fn agent_config_cleanup_global_model_and_legacy_project_record_survive_reo
     };
     base.agents.insert(
         "main".into(),
-        vw_config_types::agent::AgentDefinitionConfig {
+        config_agent::AgentDefinitionConfig {
             provider: "custom".into(),
             model: "saved-model".into(),
             ..Default::default()

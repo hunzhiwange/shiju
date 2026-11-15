@@ -50,7 +50,7 @@ mod config_validate_tests;
 #[path = "workspace_tests.rs"]
 mod workspace_tests;
 
-// Tier-1 types migrated to vw-config-types; re-export for backward compatibility
+// Re-export domain-owned configuration types for backward compatibility.
 pub use config_agent as agent;
 pub use config_gateway as gateway;
 pub use config_hooks as hooks;

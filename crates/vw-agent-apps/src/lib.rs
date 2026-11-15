@@ -30,7 +30,7 @@ pub mod high_availability;
 
 pub mod diagnostics;
 
-pub mod skills;
+pub use app_skills as skills;
 
 #[cfg(target_os = "macos")]
 pub mod workspace_paths;

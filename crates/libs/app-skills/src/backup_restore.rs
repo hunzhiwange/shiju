@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fs, io::Read, path::{Path, PathBuf}};
 use serde::{Deserialize, Serialize};
 use super::{app_paths::AppSkillsPath, copy_deploy::{binding_fingerprint, CopyBinding, CopyDeploy},
     local_install::{LocalInstall, LocalInstallError, LocalSkill}};
-use crate::providers::paths::open_beneath;
+use app_config_paths::open_beneath;
 
 type Result<T> = std::result::Result<T, LocalInstallError>;
 #[derive(Deserialize)]

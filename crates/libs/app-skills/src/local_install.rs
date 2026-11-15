@@ -15,7 +15,7 @@ use std::{
 use tempfile::TempDir;
 
 use super::archive::{MAX_ARCHIVE_ENTRIES, MAX_ARCHIVE_TOTAL_BYTES};
-use crate::providers::paths::open_beneath;
+use app_config_paths::open_beneath;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalSkill {
@@ -341,7 +341,7 @@ fn read_metadata(tree: &Path, directory: &str, source: PathBuf) -> Result<LocalS
 }
 
 /// Shared bounded copier for application projections; never executes copied files.
-pub(crate) fn copy_skill_tree(source: &Path, destination: &Path) -> Result<()> {
+pub fn copy_skill_tree(source: &Path, destination: &Path) -> Result<()> {
     let source = fs::canonicalize(source)?;
     let mut budget = CopyBudget { entries: 0, bytes: 0 };
     copy_tree(&source, &source, destination, &mut Vec::new(), &mut budget, &|| Ok(()))?;

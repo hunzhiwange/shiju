@@ -6,7 +6,7 @@ use super::{
     copy_deploy::{CopyBinding, binding_fingerprint},
     local_install::{LocalInstallError, rename_exclusive, validate_directory},
 };
-use crate::providers::paths::open_beneath;
+use app_config_paths::open_beneath;
 
 #[derive(Debug)]
 pub enum DisableError {
@@ -68,7 +68,7 @@ impl DisableDeploy {
         Self::prepare_tree_locked(directory, binding, None)
     }
 
-    pub(crate) fn prepare_tree_locked(directory: &Path, binding: &CopyBinding,
+    pub fn prepare_tree_locked(directory: &Path, binding: &CopyBinding,
         locked: Option<&File>) -> Result<Self, DisableError> {
         validate_directory(&binding.directory)?;
         if binding.destination != directory.join(&binding.directory) {

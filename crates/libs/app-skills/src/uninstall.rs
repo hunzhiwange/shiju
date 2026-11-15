@@ -49,14 +49,14 @@ impl SkillUninstall {
         }
         // Missing SSOT is an error: an application directory cannot stand in as
         // the backup source or prove ownership of external data.
-        crate::providers::paths::open_beneath(root, root, true)
+        app_config_paths::open_beneath(root, root, true)
             .map_err(|_| DisableError::Preserved)?;
-        crate::providers::paths::open_beneath(backup_root, backup_root, true)
+        app_config_paths::open_beneath(backup_root, backup_root, true)
             .map_err(|_| DisableError::Preserved)?;
         let root = fs::canonicalize(root)?;
         let backup_root = fs::canonicalize(backup_root)?;
         if overlaps(&root, &backup_root) { return Err(DisableError::Preserved); }
-        let backup_dir = crate::providers::paths::open_beneath(&backup_root, &backup_root, true)
+        let backup_dir = app_config_paths::open_beneath(&backup_root, &backup_root, true)
             .map_err(|_| DisableError::Preserved)?;
         let source = root.join(&saved.directory);
         let fingerprint = binding_fingerprint(&source, None)?;
@@ -127,7 +127,7 @@ impl SkillUninstall {
         let backup = &self.result.backup_path;
         let source = backup.join("skill");
         let mut metadata = Vec::new();
-        crate::providers::paths::open_beneath(backup, &backup.join("meta.json"), false)
+        app_config_paths::open_beneath(backup, &backup.join("meta.json"), false)
             .map_err(|_| DisableError::Preserved)?
             .take(self.metadata.len() as u64 + 1).read_to_end(&mut metadata)?;
         if metadata != self.metadata { return Err(DisableError::Preserved); }
@@ -176,7 +176,7 @@ fn sync_tree(root: &Path, path: &Path) -> io::Result<()> {
     } else if !metadata.is_file() {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "unsafe uninstall backup"));
     }
-    crate::providers::paths::open_beneath(root, path, metadata.is_dir())
+    app_config_paths::open_beneath(root, path, metadata.is_dir())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "unsafe uninstall backup"))?
         .sync_all()
 }

@@ -53,7 +53,7 @@ pub fn scan_unmanaged(
         if !root.is_absolute() || !root.starts_with(home)
             || root.starts_with(ssot) || ssot.starts_with(root)
         { return Err(invalid()); }
-        match crate::providers::paths::open_beneath(home, root, true) {
+        match app_config_paths::open_beneath(home, root, true) {
             Ok(_) => {}
             Err(ConfigPathState::Absent) => continue,
             Err(_) => return Err(invalid()),

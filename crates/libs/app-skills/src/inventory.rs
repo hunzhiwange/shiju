@@ -22,7 +22,7 @@ fn invalid() -> io::Error {
 }
 
 fn open_safe(root: &Path, path: &Path, directory: bool) -> io::Result<fs::File> {
-    crate::providers::paths::open_beneath(root, path, directory).map_err(|_| invalid())
+    app_config_paths::open_beneath(root, path, directory).map_err(|_| invalid())
 }
 
 /// Persisted records own identity; marketplace metadata must not add inventory rows.

@@ -4,6 +4,29 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 43：技能部署与更新迁移结果
+
+原 `skills/` 的剩余 37 个实现和独立测试文件迁至 `crates/libs/app-skills/src/`，
+原 mod.rs 成为新包 lib.rs，保留全部模块注册与 macOS/test cfg。
+其中包含任务 42 留存的 job_cancel_tests；技能目录八模块仍重导出 app-skill-catalog。
+门面 lib.rs 通过 `pub use app_skills as skills` 保留真实调用者的全部路径。
+原包直接依赖改为 app-skills，已无 app-skill-catalog 的直接源码调用。
+
+路径安全入口直接来自 app-config-paths；Claude 事务、补丁和写保护使用
+app-auth::providers::live 的既有导出，未依赖上层 provider 服务。
+仅 copy_skill_tree、CopyDeploy::prepare_tree_locked、DisableDeploy::prepare_tree_locked
+因 data_management/skills 和 device_sync/skill_update 的真实调用最小公开；
+其余私有辅助函数不变，无未闭合符号或后继移交。原包其余依赖仍有消费者，保留。
+
+静态证据：全部 38 个 Rust 文件逐一对照 HEAD，仅上述导入与三个可见性变化；
+无重复实现，无 include 资源或相对路径变化，独立测试注册及 cfg 完整保留。
+新包无门面回依赖；依赖链 app-auth/app-config-paths/app-skill-catalog 无新包回边；
+workspace 和门面路径已注册，Python 标准库核实直接依赖路径存在。
+系统 Python 无 tomllib，采用逐行清单审阅，未安装工具。
+git diff --check 无空白错误。未运行 Cargo、单元及实机测试，统一验收待授权：
+新包与调用者编译、全部迁移定向单测、三平台条件、安全部署/更新/恢复行为、
+清单与 Cargo.lock 一致性；Cargo.lock 未修改。
+
 ## 任务 42：技能目录与发现迁移结果
 
 `skills/{app_paths,archive,discovery,discovery_cache,job_cancel,jobs,market_search,repos}.rs`

@@ -3,7 +3,7 @@ use std::{fs::{self, File}, os::{fd::AsRawFd, unix::fs::{symlink, MetadataExt}},
 use serde::{Deserialize, Serialize};
 use super::{copy_deploy::{CopyBinding, binding_fingerprint},
     local_install::{copy_skill_tree, rename_exclusive, validate_directory, LocalInstallError}};
-use crate::providers::paths::open_beneath;
+use app_config_paths::open_beneath;
 
 /// Validate an existing destination beneath the authorized execution-host HOME.
 pub fn validate_destination(home: &Path, destination: &Path) -> std::result::Result<(), LocalInstallError> {

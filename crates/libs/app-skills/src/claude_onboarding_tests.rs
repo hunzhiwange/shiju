@@ -2,7 +2,7 @@ use super::{
     claude_onboarding::{apply_claude_onboarding_skip, clear_claude_onboarding_skip},
     claude_status::ClaudeStatusError,
 };
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{ExecutionHostId, ProviderTransactions},
     write_guard::WriteError,
 };

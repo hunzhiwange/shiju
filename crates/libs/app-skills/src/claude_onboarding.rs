@@ -1,14 +1,14 @@
 //! Explicit first-launch confirmation control, separate from plugin installation
 //! and account authorization. Only hasCompletedOnboarding is edited.
 use super::claude_status::ClaudeStatusError;
-use crate::providers::{
+use app_config_paths::open_beneath;
+use app_auth::providers::{
     live::{
         commit::{PendingTarget, ProviderTransactions},
         patch_json::JsonPatch,
         stage::{FileChange, WholeFile},
         write_guard::{FilePrivacy, WriteError, lock_directory},
     },
-    paths::open_beneath,
 };
 use serde_json::Value;
 use std::{

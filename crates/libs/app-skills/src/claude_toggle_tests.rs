@@ -2,7 +2,7 @@ use super::{
     claude_status::{ClaudeStatusError, is_claude_plugin_applied},
     claude_toggle::apply_claude_plugin_config,
 };
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{ExecutionHostId, ProviderTransactions},
     write_guard::WriteError,
 };

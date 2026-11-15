@@ -4,7 +4,7 @@ use std::{fs::{self, File}, io::{self, Read}, os::{fd::AsRawFd, unix::ffi::OsStr
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use super::{app_paths::AppSkillsPath, local_install::{LocalInstallError, copy_skill_tree, rename_exclusive, validate_directory}};
-use crate::providers::paths::open_beneath;
+use app_config_paths::open_beneath;
 
 type Result<T> = std::result::Result<T, LocalInstallError>;
 
@@ -45,7 +45,7 @@ impl CopyDeploy {
         Self::prepare_tree_locked(ssot, destination_root, directory, saved, method, None)
     }
 
-    pub(crate) fn prepare_tree_locked(ssot: &Path, destination_root: &Path, directory: &str,
+    pub fn prepare_tree_locked(ssot: &Path, destination_root: &Path, directory: &str,
         saved: Option<&CopyBinding>, method: super::link_deploy::SyncMethod,
         locked: Option<&File>) -> Result<Self> {
         use super::link_deploy::SyncMethod;

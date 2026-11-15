@@ -28,7 +28,7 @@ struct Metadata {
 fn invalid() -> io::Error { io::Error::new(io::ErrorKind::InvalidData, "invalid skill backup") }
 fn open_root(root: &Path) -> io::Result<File> {
     if !root.is_absolute() { return Err(invalid()); }
-    crate::providers::paths::open_beneath(root, root, true).map_err(|_| invalid())
+    app_config_paths::open_beneath(root, root, true).map_err(|_| invalid())
 }
 fn id_name(id: &str) -> io::Result<CString> {
     if !id.starts_with("skill-uninstall-") || id.len() > 255

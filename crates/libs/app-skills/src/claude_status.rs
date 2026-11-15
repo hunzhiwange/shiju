@@ -1,12 +1,12 @@
 //! Read-only Claude control marker observations on an authorized execution host.
 //!
 //! This is config.json, independent of settings.json and installed plugin manifests.
-use crate::providers::{
+use app_config_paths::open_beneath;
+use app_auth::providers::{
     live::{
         commit::ProviderTransactions,
         write_guard::{WriteError, lock_directory},
     },
-    paths::open_beneath,
 };
 use serde::Serialize;
 use std::{ffi::OsStr, path::Path};

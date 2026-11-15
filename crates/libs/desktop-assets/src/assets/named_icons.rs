@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-static NAMED_ICON_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../assets/icons");
+static NAMED_ICON_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../../assets/icons");
 
 static NAMED_ICON_IMAGES: Lazy<Mutex<HashMap<String, image::Handle>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));

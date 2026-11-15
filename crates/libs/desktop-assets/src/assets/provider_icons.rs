@@ -137,7 +137,7 @@ static PROVIDER_ICONS: Lazy<HashMap<&'static str, svg::Handle>> = Lazy::new(|| {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::assets::get_provider_icon;
+/// use desktop_assets::assets::get_provider_icon;
 ///
 /// let openai_icon = get_provider_icon("openai");
 /// let unknown_icon = get_provider_icon("unknown-provider"); // 返回 "agent" 图标

@@ -43,7 +43,7 @@ static ICONS: Lazy<HashMap<Icon, svg::Handle>> = Lazy::new(|| {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::assets::{get_icon, Icon};
+/// use desktop_assets::assets::{get_icon, Icon};
 ///
 /// let save_icon = get_icon(Icon::Save);
 /// // 在 UI 中使用 save_icon

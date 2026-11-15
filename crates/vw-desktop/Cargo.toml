@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-assets = { path = "../libs/desktop-assets", version = "0.6.0" }
 gateway-project-profile = { path = "../libs/gateway-project-profile", version = "0.6.0" }
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }
 desktop-i18n = { path = "../libs/desktop-i18n", version = "0.6.0" }
@@ -163,9 +164,6 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Syste
 
 [features]
 default = []
-
-[build-dependencies]
-serde_json = "1"
 
 [dev-dependencies]
 tokio-tungstenite = "0.29"

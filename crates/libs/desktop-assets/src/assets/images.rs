@@ -89,7 +89,7 @@ static IMAGES: Lazy<HashMap<Icon, image::Handle>> = Lazy::new(|| {
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::assets::{get_image, Icon};
+/// use desktop_assets::assets::{get_image, Icon};
 ///
 /// let logo = get_image(Icon::Logo);
 /// // 在 UI 中使用 logo

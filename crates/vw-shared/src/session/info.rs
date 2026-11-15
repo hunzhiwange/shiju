@@ -1,5 +1,5 @@
 use crate::permission::Ruleset;
-use crate::snapshot::FileDiff;
+use snapshot_types::FileDiff;
 use serde::{Deserialize, Serialize};
 
 const PENDING_FIRST_RESPONSE_SLUG_PREFIX: &str = "pending-first-response:";

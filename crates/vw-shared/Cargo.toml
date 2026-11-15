@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+snapshot-types = { path = "../libs/snapshot-types", version = "0.6.0" }
 config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }
 anyhow = "1"
 getrandom = { version = "0.4", features = ["wasm_js"] }

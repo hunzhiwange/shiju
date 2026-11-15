@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+snapshot-types = { path = "../snapshot-types", version = "0.6.0" }
 cli-gateway-transport = { path = "../cli-gateway-transport", version = "0.6.0" }
 gateway-config = { path = "../gateway-config", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }

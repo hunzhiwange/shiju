@@ -5,7 +5,7 @@
 use serde_json::{Map, Value, json};
 
 use super::*;
-use crate::snapshot::{DiffStatus, FileDiff};
+use snapshot_types::{DiffStatus, FileDiff};
 
 fn base(id: &str) -> PartBase {
     PartBase {

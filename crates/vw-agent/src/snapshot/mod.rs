@@ -42,7 +42,7 @@ mod native;
 mod wasm;
 
 pub use common::{Error, Patch};
-pub use vw_shared::snapshot::{DiffStatus, FileDiff};
+pub use snapshot_types::{DiffStatus, FileDiff};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::{cleanup, diff, diff_full, init, patch, restore, revert, track};

@@ -1,6 +1,6 @@
 //! 消息与消息片段的共享类型定义。
 
-use crate::snapshot;
+use snapshot_types as snapshot;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 

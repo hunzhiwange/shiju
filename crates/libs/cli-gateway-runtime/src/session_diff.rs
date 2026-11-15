@@ -2,7 +2,7 @@
 
 use similar::TextDiff;
 use vw_gateway_client::vw_api_types::session::GatewaySessionDiffQuery;
-use vw_shared::snapshot::{DiffStatus, FileDiff};
+use snapshot_types::{DiffStatus, FileDiff};
 use vw_tui::{V3FileChange, V3FileDiff, V3FileDiffEntry};
 
 use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};

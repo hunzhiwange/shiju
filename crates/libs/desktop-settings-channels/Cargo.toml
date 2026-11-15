@@ -19,6 +19,17 @@ config-channels = { path = "../config-channels", version = "0.6.0" }
 config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
 gateway-channel-qr = { path = "../gateway-channel-qr", version = "0.6.0" }
 
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
+base64 = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-project = { path = "../api-project", version = "0.6.0" }
+config-agent = { path = "../config-agent", version = "0.6.0" }
+gateway-project = { path = "../gateway-project", version = "0.6.0" }
+gateway-config = { path = "../gateway-config", version = "0.6.0" }
+gateway-model-provider = { path = "../gateway-model-provider", version = "0.6.0" }
+
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-base64 = "0.23"

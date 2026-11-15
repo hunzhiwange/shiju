@@ -2,11 +2,11 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
+use crate::state::ChannelsSettingsState as App;
 use config_channel_services::{LarkReceiveMode, QQReceiveMode};
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
@@ -39,50 +39,50 @@ fn toggle_enabled_creates_static_channel_defaults() {
         toggle_enabled(&mut app, channel, true);
     }
 
-    let telegram = app.channels_settings.telegram.as_ref().expect("telegram");
+    let telegram = app.telegram.as_ref().expect("telegram");
     assert!(telegram.bot_token.is_empty());
     assert_eq!(telegram.draft_update_interval_ms, 1000);
     assert!(!telegram.interrupt_on_new_message);
-    assert!(app.channels_settings.discord.as_ref().expect("discord").guild_id.is_none());
-    assert!(app.channels_settings.slack.as_ref().expect("slack").app_token.is_none());
-    let mattermost = app.channels_settings.mattermost.as_ref().expect("mattermost");
+    assert!(app.discord.as_ref().expect("discord").guild_id.is_none());
+    assert!(app.slack.as_ref().expect("slack").app_token.is_none());
+    let mattermost = app.mattermost.as_ref().expect("mattermost");
     assert_eq!(mattermost.thread_replies, Some(true));
     assert_eq!(mattermost.mention_only, Some(false));
-    let webhook = app.channels_settings.webhook.as_ref().expect("webhook");
+    let webhook = app.webhook.as_ref().expect("webhook");
     assert_eq!(webhook.port, 8787);
     assert!(webhook.secret.is_none());
-    assert!(app.channels_settings.imessage.as_ref().expect("imessage").allowed_contacts.is_empty());
-    let signal = app.channels_settings.signal.as_ref().expect("signal");
+    assert!(app.imessage.as_ref().expect("imessage").allowed_contacts.is_empty());
+    let signal = app.signal.as_ref().expect("signal");
     assert!(signal.http_url.is_empty());
     assert!(!signal.ignore_attachments);
     assert!(!signal.ignore_stories);
-    let whatsapp = app.channels_settings.whatsapp.as_ref().expect("whatsapp");
+    let whatsapp = app.whatsapp.as_ref().expect("whatsapp");
     assert!(whatsapp.access_token.is_none());
     assert!(whatsapp.session_path.is_none());
-    assert!(app.channels_settings.linq.as_ref().expect("linq").api_token.is_empty());
-    let wati = app.channels_settings.wati.as_ref().expect("wati");
+    assert!(app.linq.as_ref().expect("linq").api_token.is_empty());
+    let wati = app.wati.as_ref().expect("wati");
     assert_eq!(wati.api_url, "https://live-mt-server.wati.io");
     assert!(wati.tenant_id.is_none());
     assert!(
-        app.channels_settings.nextcloud_talk.as_ref().expect("nextcloud talk").base_url.is_empty()
+        app.nextcloud_talk.as_ref().expect("nextcloud talk").base_url.is_empty()
     );
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let email = app.channels_settings.email.as_ref().expect("email");
+        let email = app.email.as_ref().expect("email");
         assert_eq!(email.imap_port, 993);
         assert_eq!(email.smtp_port, 465);
         assert!(email.smtp_tls);
     }
-    let irc = app.channels_settings.irc.as_ref().expect("irc");
+    let irc = app.irc.as_ref().expect("irc");
     assert_eq!(irc.port, 6697);
     assert_eq!(irc.verify_tls, Some(true));
-    let lark = app.channels_settings.lark.as_ref().expect("lark");
+    let lark = app.lark.as_ref().expect("lark");
     assert_eq!(lark.receive_mode, LarkReceiveMode::Websocket);
     assert_eq!(lark.draft_update_interval_ms, 3000);
     assert_eq!(lark.max_draft_edits, 20);
-    assert_eq!(app.channels_settings.qq.as_ref().expect("qq").receive_mode, QQReceiveMode::Webhook);
+    assert_eq!(app.qq.as_ref().expect("qq").receive_mode, QQReceiveMode::Webhook);
     assert_eq!(
-        app.channels_settings
+        app
             .nostr
             .as_ref()
             .expect("nostr")
@@ -97,7 +97,7 @@ fn toggle_enabled_creates_static_channel_defaults() {
             "wss://relay.snort.social",
         ]
     );
-    assert!(app.channels_settings.clawdtalk.as_ref().expect("clawdtalk").webhook_secret.is_none());
+    assert!(app.clawdtalk.as_ref().expect("clawdtalk").webhook_secret.is_none());
 }
 
 #[test]
@@ -129,24 +129,24 @@ fn toggle_enabled_disables_every_static_channel() {
         toggle_enabled(&mut app, channel, false);
     }
 
-    assert!(app.channels_settings.telegram.is_none());
-    assert!(app.channels_settings.discord.is_none());
-    assert!(app.channels_settings.slack.is_none());
-    assert!(app.channels_settings.mattermost.is_none());
-    assert!(app.channels_settings.webhook.is_none());
-    assert!(app.channels_settings.imessage.is_none());
-    assert!(app.channels_settings.signal.is_none());
-    assert!(app.channels_settings.whatsapp.is_none());
-    assert!(app.channels_settings.linq.is_none());
-    assert!(app.channels_settings.wati.is_none());
-    assert!(app.channels_settings.nextcloud_talk.is_none());
+    assert!(app.telegram.is_none());
+    assert!(app.discord.is_none());
+    assert!(app.slack.is_none());
+    assert!(app.mattermost.is_none());
+    assert!(app.webhook.is_none());
+    assert!(app.imessage.is_none());
+    assert!(app.signal.is_none());
+    assert!(app.whatsapp.is_none());
+    assert!(app.linq.is_none());
+    assert!(app.wati.is_none());
+    assert!(app.nextcloud_talk.is_none());
     #[cfg(not(target_arch = "wasm32"))]
-    assert!(app.channels_settings.email.is_none());
-    assert!(app.channels_settings.irc.is_none());
-    assert!(app.channels_settings.lark.is_none());
-    assert!(app.channels_settings.qq.is_none());
-    assert!(app.channels_settings.nostr.is_none());
-    assert!(app.channels_settings.clawdtalk.is_none());
+    assert!(app.email.is_none());
+    assert!(app.irc.is_none());
+    assert!(app.lark.is_none());
+    assert!(app.qq.is_none());
+    assert!(app.nostr.is_none());
+    assert!(app.clawdtalk.is_none());
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn toggle_enabled_ignores_unknown_channel() {
 
     toggle_enabled(&mut app, "unknown", false);
     toggle_enabled(&mut app, "unknown", true);
-    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Global);
+    assert_eq!(app.active_tab, crate::state::ChannelsSettingsTab::Global);
 }
 
 #[test]

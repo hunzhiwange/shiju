@@ -1,11 +1,9 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
-mod changes;
 mod execution;
-mod helpers;
+#[cfg(test)]
 pub(crate) mod persist;
 mod projects;
-mod toggles;
 mod updates;
 mod wecom_delivery;
 

@@ -4,8 +4,8 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
-use crate::app::message::settings::channels::toggles;
+use crate::state::ChannelsSettingsState as App;
+use super::super::toggles;
 use config_channel_types::GroupReplyMode;
 use config_channel_services::{
     DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
@@ -13,7 +13,7 @@ use config_channel_services::{
 };
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
@@ -34,7 +34,7 @@ fn channel_changes_apply_text_bool_number_and_modes() {
     apply_receive_mode_change(&mut app, "lark.receive_mode", "webhook".to_string());
     apply_receive_mode_change(&mut app, "qq.receive_mode", "websocket".to_string());
 
-    let telegram = app.channels_settings.telegram.as_ref().expect("telegram enabled");
+    let telegram = app.telegram.as_ref().expect("telegram enabled");
     assert_eq!(telegram.bot_token, "token");
     assert_eq!(
         telegram.group_reply.as_ref().expect("group reply").allowed_sender_ids,
@@ -42,13 +42,13 @@ fn channel_changes_apply_text_bool_number_and_modes() {
     );
     assert!(telegram.mention_only);
     assert_eq!(telegram.draft_update_interval_ms, 100);
-    assert_eq!(app.channels_settings.webhook.as_ref().expect("webhook").port, 1);
+    assert_eq!(app.webhook.as_ref().expect("webhook").port, 1);
     assert_eq!(
-        app.channels_settings.lark.as_ref().expect("lark").receive_mode,
+        app.lark.as_ref().expect("lark").receive_mode,
         LarkReceiveMode::Webhook
     );
     assert_eq!(
-        app.channels_settings.qq.as_ref().expect("qq").receive_mode,
+        app.qq.as_ref().expect("qq").receive_mode,
         QQReceiveMode::Websocket
     );
 }
@@ -64,16 +64,16 @@ fn channel_text_changes_clear_optional_fields_and_ignore_disabled_or_unknown_key
     apply_text_change(&mut app, "discord.bot_token", "ignored".to_string());
     apply_text_change(&mut app, "unknown.field", "ignored".to_string());
 
-    assert_eq!(app.channels_settings.telegram.as_ref().unwrap().base_url, None);
-    assert!(app.channels_settings.discord.is_none());
+    assert_eq!(app.telegram.as_ref().unwrap().base_url, None);
+    assert!(app.discord.is_none());
 }
 
 #[test]
 fn unknown_instance_fields_and_channel_keys_preserve_existing_values() {
     let mut app = app();
     toggles::add_channel_instance(&mut app, "feishu");
-    app.channels_settings.feishu_instances[0].config.port = Some(8080);
-    app.channels_settings.feishu_instances[0].config.receive_mode = LarkReceiveMode::Webhook;
+    app.feishu_instances[0].config.port = Some(8080);
+    app.feishu_instances[0].config.receive_mode = LarkReceiveMode::Webhook;
 
     apply_number_change(&mut app, "feishu_instances.0.unknown", 1);
     apply_number_change(&mut app, "unknown.number", 1);
@@ -81,7 +81,7 @@ fn unknown_instance_fields_and_channel_keys_preserve_existing_values() {
     apply_receive_mode_change(&mut app, "unknown.mode", "websocket".to_string());
     apply_bool_change(&mut app, "unknown.flag", true);
 
-    let feishu = &app.channels_settings.feishu_instances[0].config;
+    let feishu = &app.feishu_instances[0].config;
     assert_eq!(feishu.port, Some(8080));
     assert_eq!(feishu.receive_mode, LarkReceiveMode::Webhook);
 }
@@ -112,20 +112,20 @@ fn channel_number_changes_enforce_lower_and_upper_bounds() {
         apply_number_change(&mut app, "email.idle_timeout_secs", 1);
     }
 
-    assert_eq!(app.channels_settings.telegram.as_ref().unwrap().draft_update_interval_ms, 100);
-    assert_eq!(app.channels_settings.webhook.as_ref().unwrap().port, u16::MAX);
-    assert_eq!(app.channels_settings.irc.as_ref().unwrap().port, 1);
-    let lark = app.channels_settings.lark.as_ref().unwrap();
+    assert_eq!(app.telegram.as_ref().unwrap().draft_update_interval_ms, 100);
+    assert_eq!(app.webhook.as_ref().unwrap().port, u16::MAX);
+    assert_eq!(app.irc.as_ref().unwrap().port, 1);
+    let lark = app.lark.as_ref().unwrap();
     assert_eq!(lark.port, Some(u16::MAX));
     assert_eq!(lark.draft_update_interval_ms, 100);
     assert_eq!(lark.max_draft_edits, 1);
-    let feishu = app.channels_settings.feishu.as_ref().unwrap();
+    let feishu = app.feishu.as_ref().unwrap();
     assert_eq!(feishu.port, Some(1));
     assert_eq!(feishu.draft_update_interval_ms, 100);
     assert_eq!(feishu.max_draft_edits, 1);
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let email = app.channels_settings.email.as_ref().unwrap();
+        let email = app.email.as_ref().unwrap();
         assert_eq!(email.imap_port, 1);
         assert_eq!(email.smtp_port, u16::MAX);
         assert_eq!(email.idle_timeout_secs, 60);
@@ -154,27 +154,27 @@ fn channel_receive_mode_changes_cover_group_and_transport_modes() {
     apply_receive_mode_change(&mut app, "qq.receive_mode", "unknown".to_string());
 
     assert_eq!(
-        app.channels_settings.telegram.as_ref().unwrap().effective_group_reply_mode(),
+        app.telegram.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::MentionOnly
     );
     assert_eq!(
-        app.channels_settings.discord.as_ref().unwrap().effective_group_reply_mode(),
+        app.discord.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::MentionOnly
     );
     assert_eq!(
-        app.channels_settings.slack.as_ref().unwrap().effective_group_reply_mode(),
+        app.slack.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::MentionOnly
     );
     assert_eq!(
-        app.channels_settings.mattermost.as_ref().unwrap().effective_group_reply_mode(),
+        app.mattermost.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::MentionOnly
     );
-    assert_eq!(app.channels_settings.lark.as_ref().unwrap().receive_mode, LarkReceiveMode::Webhook);
+    assert_eq!(app.lark.as_ref().unwrap().receive_mode, LarkReceiveMode::Webhook);
     assert_eq!(
-        app.channels_settings.feishu.as_ref().unwrap().receive_mode,
+        app.feishu.as_ref().unwrap().receive_mode,
         LarkReceiveMode::Websocket
     );
-    assert_eq!(app.channels_settings.qq.as_ref().unwrap().receive_mode, QQReceiveMode::Webhook);
+    assert_eq!(app.qq.as_ref().unwrap().receive_mode, QQReceiveMode::Webhook);
 }
 
 #[test]
@@ -184,9 +184,9 @@ fn disabled_channel_changes_are_ignored_and_group_modes_fallback_to_all_messages
     apply_bool_change(&mut app, "telegram.mention_only", true);
     apply_number_change(&mut app, "webhook.port", 443);
     apply_receive_mode_change(&mut app, "lark.receive_mode", "webhook".to_string());
-    assert!(app.channels_settings.telegram.is_none());
-    assert!(app.channels_settings.webhook.is_none());
-    assert!(app.channels_settings.lark.is_none());
+    assert!(app.telegram.is_none());
+    assert!(app.webhook.is_none());
+    assert!(app.lark.is_none());
 
     for channel in ["telegram", "discord", "slack", "mattermost", "lark", "feishu"] {
         toggles::toggle_enabled(&mut app, channel, true);
@@ -203,27 +203,27 @@ fn disabled_channel_changes_are_ignored_and_group_modes_fallback_to_all_messages
     }
 
     assert_eq!(
-        app.channels_settings.telegram.as_ref().unwrap().effective_group_reply_mode(),
+        app.telegram.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::AllMessages
     );
     assert_eq!(
-        app.channels_settings.discord.as_ref().unwrap().effective_group_reply_mode(),
+        app.discord.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::AllMessages
     );
     assert_eq!(
-        app.channels_settings.slack.as_ref().unwrap().effective_group_reply_mode(),
+        app.slack.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::AllMessages
     );
     assert_eq!(
-        app.channels_settings.mattermost.as_ref().unwrap().effective_group_reply_mode(),
+        app.mattermost.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::AllMessages
     );
     assert_eq!(
-        app.channels_settings.lark.as_ref().unwrap().effective_group_reply_mode(),
+        app.lark.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::AllMessages
     );
     assert_eq!(
-        app.channels_settings.feishu.as_ref().unwrap().effective_group_reply_mode(),
+        app.feishu.as_ref().unwrap().effective_group_reply_mode(),
         GroupReplyMode::AllMessages
     );
 }
@@ -238,7 +238,7 @@ fn instance_number_changes_clamp_feishu_port_to_valid_lower_bound() {
     apply_number_change(&mut app, "feishu_instances.0.port", 0);
     apply_number_change(&mut app, "feishu_instances.0.draft_update_interval_ms", 100);
 
-    let feishu = &app.channels_settings.feishu_instances[0].config;
+    let feishu = &app.feishu_instances[0].config;
     assert_eq!(feishu.port, Some(1));
     assert_eq!(feishu.draft_update_interval_ms, 100);
 }

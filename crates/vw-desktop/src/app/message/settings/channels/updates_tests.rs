@@ -290,7 +290,12 @@ fn channel_qr_authorization_defaults_empty_allowed_users_and_preserves_restricti
                     .map(|key| (key.to_string(), serde_json::Value::String(format!("qr-{key}")))),
             );
             if let Some(users) = existing_users.as_ref() {
-                fill_confirmed_credentials(&mut app, channel, &credentials).unwrap();
+                app.channels_settings.qr_flow.channel = Some(channel.into());
+                let generation = app.channels_settings.qr_flow.generation;
+                let _ = update(&mut app, SettingsMessage::Channels(ChannelsMessage::QrPolled {
+                    channel: channel.into(), generation,
+                    result: Ok(ChannelQrStatusResponseDto { status: ChannelQrStatusDto::Authorized, credentials: Some(credentials.clone()) }),
+                }));
                 match channel {
                     "dingtalk" => {
                         app.channels_settings.dingtalk.as_mut().unwrap().allowed_users =

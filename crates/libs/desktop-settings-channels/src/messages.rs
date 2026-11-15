@@ -2,6 +2,7 @@ use crate::state::*;
 use iced::widget::text_editor;
 #[derive(Debug, Clone)]
 pub enum ChannelsMessage {
+    Effect(Box<crate::update::Effect>),
     ExecutionChoicesRequested(String),
     ExecutionChoicesLoaded {
         tenant: String,

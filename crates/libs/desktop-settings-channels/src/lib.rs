@@ -36,3 +36,5 @@ pub mod wecom_delivery_modal;
 mod enterprise_channels_tests;
 #[cfg(test)]
 mod extended_channels_tests;
+
+pub mod update;

@@ -4,14 +4,14 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
-use crate::app::message::settings::channels::toggles;
+use crate::state::ChannelsSettingsState as App;
+use super::super::toggles;
 use config_channel_services::{
     DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
 };
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 mod channel_instance_settings {

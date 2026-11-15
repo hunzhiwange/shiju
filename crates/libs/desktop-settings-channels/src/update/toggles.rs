@@ -1,6 +1,6 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
-use crate::app::App;
+use crate::state::ChannelsSettingsState;
 use std::collections::BTreeSet;
 use config_channel_services::ClawdTalkConfig;
 #[cfg(not(target_arch = "wasm32"))]
@@ -20,10 +20,10 @@ use super::helpers::{default_dingtalk_config, default_feishu_config};
 /// 处理 `toggle_enabled` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
-pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
+pub(super) fn toggle_enabled(app: &mut ChannelsSettingsState, channel: &str, enabled: bool) {
     match channel {
         "telegram" => {
-            app.channels_settings.telegram = enabled.then(|| TelegramConfig {
+            app.telegram = enabled.then(|| TelegramConfig {
                 bot_token: String::new(),
                 allowed_users: Vec::new(),
                 stream_mode: Default::default(),
@@ -35,7 +35,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "discord" => {
-            app.channels_settings.discord = enabled.then(|| DiscordConfig {
+            app.discord = enabled.then(|| DiscordConfig {
                 bot_token: String::new(),
                 guild_id: None,
                 allowed_users: Vec::new(),
@@ -45,7 +45,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "slack" => {
-            app.channels_settings.slack = enabled.then(|| SlackConfig {
+            app.slack = enabled.then(|| SlackConfig {
                 bot_token: String::new(),
                 app_token: None,
                 channel_id: None,
@@ -54,7 +54,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "mattermost" => {
-            app.channels_settings.mattermost = enabled.then(|| MattermostConfig {
+            app.mattermost = enabled.then(|| MattermostConfig {
                 url: String::new(),
                 bot_token: String::new(),
                 channel_id: None,
@@ -65,15 +65,15 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "webhook" => {
-            app.channels_settings.webhook =
+            app.webhook =
                 enabled.then_some(WebhookConfig { port: 8787, secret: None })
         }
         "imessage" => {
-            app.channels_settings.imessage =
+            app.imessage =
                 enabled.then(|| IMessageConfig { allowed_contacts: Vec::new() })
         }
         "signal" => {
-            app.channels_settings.signal = enabled.then(|| SignalConfig {
+            app.signal = enabled.then(|| SignalConfig {
                 http_url: String::new(),
                 account: String::new(),
                 group_id: None,
@@ -83,7 +83,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "whatsapp" => {
-            app.channels_settings.whatsapp = enabled.then(|| WhatsAppConfig {
+            app.whatsapp = enabled.then(|| WhatsAppConfig {
                 access_token: None,
                 phone_number_id: None,
                 verify_token: None,
@@ -95,7 +95,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "linq" => {
-            app.channels_settings.linq = enabled.then(|| LinqConfig {
+            app.linq = enabled.then(|| LinqConfig {
                 api_token: String::new(),
                 from_phone: String::new(),
                 signing_secret: None,
@@ -103,7 +103,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "wati" => {
-            app.channels_settings.wati = enabled.then(|| WatiConfig {
+            app.wati = enabled.then(|| WatiConfig {
                 api_token: String::new(),
                 api_url: "https://live-mt-server.wati.io".to_string(),
                 tenant_id: None,
@@ -111,7 +111,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "nextcloud_talk" => {
-            app.channels_settings.nextcloud_talk = enabled.then(|| NextcloudTalkConfig {
+            app.nextcloud_talk = enabled.then(|| NextcloudTalkConfig {
                 base_url: String::new(),
                 app_token: String::new(),
                 webhook_secret: None,
@@ -119,9 +119,9 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         #[cfg(not(target_arch = "wasm32"))]
-        "email" => app.channels_settings.email = enabled.then(EmailConfig::default),
+        "email" => app.email = enabled.then(EmailConfig::default),
         "irc" => {
-            app.channels_settings.irc = enabled.then(|| IrcConfig {
+            app.irc = enabled.then(|| IrcConfig {
                 server: String::new(),
                 port: 6697,
                 nickname: String::new(),
@@ -135,7 +135,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "lark" => {
-            app.channels_settings.lark = enabled.then(|| LarkConfig {
+            app.lark = enabled.then(|| LarkConfig {
                 app_id: String::new(),
                 app_secret: String::new(),
                 encrypt_key: None,
@@ -152,22 +152,22 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
         }
         "feishu" => {
             if enabled {
-                app.channels_settings.feishu.get_or_insert_with(default_feishu_config);
+                app.feishu.get_or_insert_with(default_feishu_config);
             } else {
-                app.channels_settings.feishu = None;
-                app.channels_settings.feishu_instances.clear();
+                app.feishu = None;
+                app.feishu_instances.clear();
             }
         }
         "dingtalk" => {
             if enabled {
-                app.channels_settings.dingtalk.get_or_insert_with(default_dingtalk_config);
+                app.dingtalk.get_or_insert_with(default_dingtalk_config);
             } else {
-                app.channels_settings.dingtalk = None;
-                app.channels_settings.dingtalk_instances.clear();
+                app.dingtalk = None;
+                app.dingtalk_instances.clear();
             }
         }
         "qq" => {
-            app.channels_settings.qq = enabled.then(|| QQConfig {
+            app.qq = enabled.then(|| QQConfig {
                 app_id: String::new(),
                 app_secret: String::new(),
                 allowed_users: Vec::new(),
@@ -175,17 +175,17 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "wecom" => {
-            app.channels_settings.wecom =
+            app.wecom =
                 enabled.then(|| WeComConfig { bot_id: String::new(), secret: String::new() })
         }
         "wechat" => {
-            app.channels_settings.wechat = enabled.then(|| WeChatConfig {
+            app.wechat = enabled.then(|| WeChatConfig {
                 bot_token: String::new(),
                 base_url: config_channel_services::DEFAULT_WECHAT_BASE_URL.to_string(),
             })
         }
         "nostr" => {
-            app.channels_settings.nostr = enabled.then(|| NostrConfig {
+            app.nostr = enabled.then(|| NostrConfig {
                 private_key: String::new(),
                 relays: vec![
                     "wss://relay.damus.io".to_string(),
@@ -197,7 +197,7 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
             })
         }
         "clawdtalk" => {
-            app.channels_settings.clawdtalk = enabled.then(|| ClawdTalkConfig {
+            app.clawdtalk = enabled.then(|| ClawdTalkConfig {
                 api_key: String::new(),
                 connection_id: String::new(),
                 from_number: String::new(),
@@ -231,26 +231,26 @@ fn next_instance_id<'a>(
     unreachable!("unbounded channel instance id search should return");
 }
 
-pub(super) fn add_channel_instance(app: &mut App, channel: &str) {
+pub(super) fn add_channel_instance(app: &mut ChannelsSettingsState, channel: &str) {
     match channel {
         "feishu" => {
             let id = next_instance_id(
-                app.channels_settings.feishu.is_some(),
-                app.channels_settings.feishu_instances.iter().map(|instance| instance.id.as_str()),
+                app.feishu.is_some(),
+                app.feishu_instances.iter().map(|instance| instance.id.as_str()),
             );
-            app.channels_settings
+            app
                 .feishu_instances
                 .push(FeishuInstanceConfig { id, config: default_feishu_config() });
         }
         "dingtalk" => {
             let id = next_instance_id(
-                app.channels_settings.dingtalk.is_some(),
-                app.channels_settings
+                app.dingtalk.is_some(),
+                app
                     .dingtalk_instances
                     .iter()
                     .map(|instance| instance.id.as_str()),
             );
-            app.channels_settings
+            app
                 .dingtalk_instances
                 .push(DingTalkInstanceConfig { id, config: default_dingtalk_config() });
         }
@@ -258,16 +258,16 @@ pub(super) fn add_channel_instance(app: &mut App, channel: &str) {
     }
 }
 
-pub(super) fn remove_channel_instance(app: &mut App, channel: &str, index: usize) {
+pub(super) fn remove_channel_instance(app: &mut ChannelsSettingsState, channel: &str, index: usize) {
     match channel {
         "feishu" => {
-            if index < app.channels_settings.feishu_instances.len() {
-                app.channels_settings.feishu_instances.remove(index);
+            if index < app.feishu_instances.len() {
+                app.feishu_instances.remove(index);
             }
         }
         "dingtalk" => {
-            if index < app.channels_settings.dingtalk_instances.len() {
-                app.channels_settings.dingtalk_instances.remove(index);
+            if index < app.dingtalk_instances.len() {
+                app.dingtalk_instances.remove(index);
             }
         }
         _ => {}

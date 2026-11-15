@@ -1,6 +1,6 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
-use crate::app::message::settings::util::parse_comma_or_newline_list;
+use super::parse_comma_or_newline_list;
 use config_channel_types::{GroupReplyConfig, GroupReplyMode};
 use config_channel_services::{DingTalkConfig, FeishuConfig, LarkReceiveMode, QQReceiveMode};
 

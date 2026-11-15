@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/app-data-management",
+  "crates/libs/app-project-profiles",
   "crates/libs/app-data-projection",
   "crates/libs/app-data-backup",
   "crates/libs/app-data-format",

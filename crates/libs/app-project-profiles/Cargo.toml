@@ -1,0 +1,17 @@
+[package]
+name = "app-project-profiles"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+app-provider-validation = { path = "../app-provider-validation" }
+vw-api-project-profiles = { path = "../api-project-profiles", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-mcp-management = { path = "../api-mcp-management", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+uuid = { version = "1.11", features = ["v4", "js"] }

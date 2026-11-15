@@ -84,7 +84,7 @@ where
         if scope.target_host_id.trim().is_empty() {
             return Err(ProviderApplyFailure::Denied);
         }
-        crate::providers::validate_identity(id)
+        app_provider_validation::validate_identity(id)
             .map_err(|_| ProviderApplyFailure::InvalidReference)?;
         let before = read(scope, id)?;
         if !consistent(&before) {

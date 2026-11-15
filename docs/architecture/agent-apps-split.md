@@ -410,7 +410,7 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | 67 | `app-data-backup` | 数据备份文件 |
 | 68 | `app-data-projection` | 数据领域投影 |
 | 69 | `app-data-management` | 数据恢复编排 |
-| 70 | `app-project-profiles` | 项目配置档案 |
+| 70 | `app-project-profiles` | 项目配置档案（已迁移，静态完成） |
 | 71 | `app-diagnostics` | 应用诊断 |
 
 ## 全量文件所有权
@@ -2938,3 +2938,12 @@ app-data-management 接收 apply、rollback、operations、post_import、package
 Operation 直接引用 app-auth 已公开执行器；格式来自 app-data-format，备份来自 app-data-backup；领域投影和 usage-store 仅供已有测试。失败回滚、持久化顺序、错误语义及 macOS cfg 均保持，无资源/include 路径变化。父包依赖仍服务其它门面与实现，未删除。
 
 静态证据：迁移源码逐文件对照仅依赖路径变化；五组独立测试注册保持；Python 标准库 TOML 路径及无循环审阅、门面调用检索、git diff --check 完成。未运行 Cargo、单元及实机测试，统一验收待授权，覆盖新包与调用方编译、迁移单测及各平台恢复行为。Cargo.lock 未修改。
+
+
+### 任务70：项目配置档案（静态完成）
+
+app-project-profiles 唯一拥有 project_profiles 的全部12个文件，mod.rs 改为新包 lib.rs，11个操作模块及公开符号保持。原 lib.rs 通过 pub use app_project_profiles as project_profiles 保留调用路径；网关 profile_store、profile_skills、profile_operations 与 agent_apps 的 MCP、prompt 适配器无需修改。snapshot/apply/autosave 操作边界、存储所有权、授权及宿主分发仍由调用方持有，无上层编排遗留或后继移交。
+
+仅 apply_provider 的身份校验从旧门面改为直接连接 app-provider-validation，原门面本就重导出同一函数。其余源码逐文件与 HEAD 对照一致。直接依赖为 anyhow、uuid、app-provider-validation 及四个 API 包；移除父包已无 Rust 调用者的 uuid 和 vw-api-project-profiles，其余依赖仍有调用。无独立测试、cfg 或资源/include 路径需要迁移，无新增公开私有 API。
+
+静态证据：12个文件逐一对照、调用者/导出及无反向依赖检索、Python 3.13 标准库 TOML 路径与13包依赖闭包无环审阅通过。本任务差异空白检查通过；全工作区 git diff --check 提示既有无关 crates/vw-agent/src/config/mod.rs 文件末空行，未改动。未运行 Cargo、单元及实机测试，统一验收待授权：新包及直接调用者编译、各平台配置快照/应用/自动保存行为与清单锁文件一致性。Cargo.lock 未修改。

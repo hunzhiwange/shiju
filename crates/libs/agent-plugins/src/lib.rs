@@ -65,3 +65,9 @@ pub use plugin_types::CodexHooksManifest;
 pub use plugin_install::marketplace::{add_plugin_marketplace, list_plugin_marketplaces, registered_plugin_entry, read_registered_marketplace};
 
 pub mod hook_handler;
+
+pub mod mcp;
+#[cfg(test)]
+mod mcp_tests;
+
+pub mod skills;

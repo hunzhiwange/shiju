@@ -1,0 +1,227 @@
+//! 从已启用插件中加载 MCP 服务器配置。
+//!
+//! 加载结果需经过清单路径审计，并与用户配置按稳定优先级合并。
+
+use agent_config::runtime::Config;
+use agent_client_protocol::McpServer;
+use anyhow::{Context, Result};
+use serde_json::Value;
+use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use super::PluginDiscoveryOptions;
+use super::PluginManifest;
+use plugin_mcp::mcp_legacy::{PluginMcpParseOutcome, parse_legacy_mcp};
+use plugin_mcp::mcp_portable::parse_portable_mcp;
+
+/// Build plugin discovery inputs from the loaded agent runtime config.
+/// 根据代理配置构建插件 MCP 发现范围。
+pub fn plugin_mcp_discovery_options(config: &Config) -> PluginDiscoveryOptions {
+    PluginDiscoveryOptions::new(
+        config.workspace_dir.clone(),
+        plugin_config_dir(config),
+        config.plugins.clone(),
+    )
+}
+
+/// Read a plugin `.mcp.json` file and parse its MCP server declarations.
+/// 读取并严格解析单个插件声明的 MCP 服务器列表。
+#[cfg(test)]
+pub fn load_plugin_mcp_servers_from_path(path: &Path) -> Result<Vec<McpServer>> {
+    load_plugin_mcp_declarations_from_path(path)?.into_runtime_servers(&path.to_string_lossy())
+}
+
+/// 单项诊断保留合法兄弟声明；实际运行准入仍拒绝含错误的整份配置。
+pub fn load_plugin_mcp_declarations_from_path(path: &Path) -> Result<PluginMcpParseOutcome> {
+    parse_legacy_mcp(read_mcp_document(path)?, &path.to_string_lossy())
+}
+
+pub fn load_portable_mcp_declarations_from_path(
+    path: &Path,
+) -> Result<PluginMcpParseOutcome> {
+    parse_portable_mcp(read_mcp_document(path)?)
+}
+
+fn read_mcp_document(path: &Path) -> Result<Value> {
+    let bytes = fs::read(path)
+        .with_context(|| format!("failed to read plugin MCP config: {}", path.display()))?;
+    serde_json::from_slice(&bytes)
+        .with_context(|| format!("failed to parse plugin MCP config: {}", path.display()))
+}
+
+/// Append MCP servers from enabled plugins after the user's ACP servers.
+/// 将已启用插件的 MCP 服务器追加到用户配置。
+///
+/// 用户声明的同名服务器保持优先；不同插件重名时保留来源限定路由，同包重复声明仍按原有顺序准入。
+pub fn merge_enabled_plugin_mcp_servers(
+    servers: &mut Vec<McpServer>,
+    options: &PluginDiscoveryOptions,
+    select: &dyn Fn(&PluginDiscoveryOptions) -> Result<(super::PluginDiscovery, PluginDiscoveryOptions)>,
+) -> Result<()> {
+    let (discovery, options) = select(options)
+        .context("failed to discover plugin MCP servers")?;
+    let user_server_names =
+        servers.iter().map(|server| mcp_server_name(server).to_string()).collect::<HashSet<_>>();
+    let mut merged_names = user_server_names.clone();
+
+    for plugin in discovery.enabled {
+        let (mut outcome, source_path) = load_plugin_mcp_declarations(&plugin.manifest)?;
+        let mut original_names = std::collections::HashMap::new();
+        for declaration in &mut outcome.servers {
+            use plugin_mcp::mcp_legacy::PluginMcpDeclaration;
+            let name = match declaration {
+                PluginMcpDeclaration::Legacy { name, .. }
+                | PluginMcpDeclaration::Portable { name, .. } => name,
+                PluginMcpDeclaration::Acp(McpServer::Stdio(s)) => &mut s.name,
+                PluginMcpDeclaration::Acp(McpServer::Http(s)) => &mut s.name,
+                PluginMcpDeclaration::Acp(McpServer::Sse(s)) => &mut s.name,
+                _ => anyhow::bail!("unsupported plugin MCP transport"),
+            };
+            if merged_names.contains(name) && !user_server_names.contains(name) {
+                let original = name.clone();
+                *name = format!("plugin__{}__{}", plugin.identity.as_key(), name);
+                if merged_names.contains(name) {
+                    anyhow::bail!("ambiguous plugin MCP server namespace");
+                }
+                original_names.insert(name.clone(), original);
+            }
+        }
+        let plugin_servers = plugin_mcp::mcp_environment::resolve_servers(
+            outcome,
+            &plugin.manifest,
+            &plugin.source_dir,
+            &plugin.identity,
+            &options.config_dir,
+            &source_path.to_string_lossy(),
+            &original_names,
+        )
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers for plugin '{}': {}",
+                plugin.manifest.name,
+                source_path.display()
+            )
+        })?;
+
+        for server in plugin_servers {
+            let name = mcp_server_name(&server);
+            if user_server_names.contains(name) {
+                tracing::warn!(
+                    plugin = plugin.manifest.name.as_str(),
+                    server = name,
+                    "skipping plugin MCP server because ACP config already defines it"
+                );
+                continue;
+            }
+            if !merged_names.insert(name.to_string()) {
+                tracing::warn!(
+                    plugin = plugin.manifest.name.as_str(),
+                    server = name,
+                    "skipping duplicate plugin MCP server"
+                );
+                continue;
+            }
+            servers.push(server);
+        }
+    }
+
+    Ok(())
+}
+
+/// 发现与运行准入共用声明入口；便携包缺省 mcp.json 可不存在，但已有路径须重新审计。
+pub fn load_plugin_mcp_declarations(
+    manifest: &PluginManifest,
+) -> Result<(PluginMcpParseOutcome, PathBuf)> {
+    let portable = manifest.manifest_path == manifest.root.join("plugin.json");
+    let source = match &manifest.mcp_servers {
+        Some(source) => source.clone(),
+        None => {
+            let legacy = manifest
+                .manifest_path
+                .parent()
+                .and_then(Path::file_name)
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    matches!(name, ".codex-plugin" | ".claude-plugin" | ".cursor-plugin")
+                });
+            if !legacy {
+                return Ok((PluginMcpParseOutcome::default(), manifest.manifest_path.clone()));
+            }
+            if fs::symlink_metadata(manifest.root.join(".mcp.json"))
+                .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+            {
+                return Ok((PluginMcpParseOutcome::default(), manifest.root.join(".mcp.json")));
+            }
+            super::PluginMcpServers::Path(super::audit::resolve_component_path(
+                &manifest.root,
+                "mcpServers",
+                "./.mcp.json",
+            )?)
+        }
+    };
+    let source_path = match &source {
+        super::PluginMcpServers::Path(path) => path.canonical_path.clone(),
+        super::PluginMcpServers::Inline(_) => manifest.manifest_path.clone(),
+    };
+    let result: Result<PluginMcpParseOutcome> = (|| {
+        let mut outcome = match source {
+            super::PluginMcpServers::Path(path) if portable => {
+                if fs::symlink_metadata(manifest.root.join("mcp.json"))
+                    .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                {
+                    return Ok(PluginMcpParseOutcome::default());
+                }
+                let path =
+                    super::audit::resolve_component_path(&manifest.root, "mcpServers", &path.raw)?;
+                load_portable_mcp_declarations_from_path(&path.canonical_path)?
+            }
+            super::PluginMcpServers::Path(path) => {
+                load_plugin_mcp_declarations_from_path(&path.canonical_path)?
+            }
+            super::PluginMcpServers::Inline(servers) => {
+                parse_legacy_mcp(Value::Object(servers), &source_path.to_string_lossy())?
+            }
+        };
+        if portable {
+            plugin_mcp::mcp_portable_overlay::apply_env_overlay(&OverlaySource, &manifest.root, &mut outcome)?;
+        }
+        Ok(outcome)
+    })();
+    result
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers for plugin '{}': {}",
+                manifest.name,
+                source_path.display()
+            )
+        })
+        .map(|outcome| (outcome, source_path))
+}
+
+fn plugin_config_dir(config: &Config) -> PathBuf {
+    config
+        .config_path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| config.workspace_dir.clone())
+}
+
+fn mcp_server_name(server: &McpServer) -> &str {
+    match server {
+        McpServer::Http(server) => &server.name,
+        McpServer::Sse(server) => &server.name,
+        McpServer::Stdio(server) => &server.name,
+        _ => "unknown",
+    }
+}
+
+struct OverlaySource;
+impl plugin_mcp::mcp_portable_overlay::OverlayHost for OverlaySource {
+    fn resolve_component_path(&self, root: &Path, field: &str, raw: &str) -> Result<super::PluginPath> {
+        super::audit::resolve_component_path(root, field, raw)
+    }
+    fn parse_legacy_manifest(&self, root: &Path, path: &Path, bytes: &[u8]) -> Result<PluginManifest> {
+        super::legacy_manifest::parse_legacy_manifest(root, path, bytes)
+    }
+}

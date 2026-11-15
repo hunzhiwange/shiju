@@ -2,10 +2,10 @@
 
 use super::PluginDiscoveryOptions;
 use super::mcp::{
-    load_plugin_mcp_servers_from_path, merge_enabled_plugin_mcp_servers,
+    load_plugin_mcp_servers_from_path,
     plugin_mcp_discovery_options,
 };
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 use agent_client_protocol::McpServer;
 use serde_json::json;
 use std::fs;
@@ -264,4 +264,10 @@ fn invalid_plugin_mcp_config_reports_plugin_context() {
     assert!(message.contains("failed to load MCP servers for plugin 'broken-plugin'"));
     assert!(message.contains(".mcp.json"));
     assert!(servers.is_empty());
+}
+
+fn merge_enabled_plugin_mcp_servers(servers: &mut Vec<McpServer>, options: &PluginDiscoveryOptions) -> anyhow::Result<()> {
+    super::mcp::merge_enabled_plugin_mcp_servers(servers, options, &|options| {
+        Ok((super::discover_plugins(options)?, options.clone()))
+    })
 }

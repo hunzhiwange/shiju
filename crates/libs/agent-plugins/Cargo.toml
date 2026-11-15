@@ -41,5 +41,10 @@ tool-context = { path = "../tool-context", version = "0.6.0" }
 tool-shell = { path = "../tool-shell", version = "0.6.0" }
 async-trait = "0.1"
 
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[dev-dependencies]
+acp-config = { path = "../acp-config", version = "0.6.0" }

@@ -10,9 +10,7 @@ use super::shared::{
 use crate::app::{App, Message};
 use iced::Task;
 
-fn same_directory(left: &str, right: &str) -> bool {
-    left.replace('\\', "/").trim_end_matches('/') == right.replace('\\', "/").trim_end_matches('/')
-}
+
 
 /// update 处理当前模块对应的消息或状态转换。
 ///
@@ -23,33 +21,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
     match message {
         GitMessage::RefreshGitPanelData => refresh_git_panel_data_task(),
         GitMessage::RefreshWorktreeOptions => {
-            let Some(project_path) = app.project_path.clone() else {
-                app.git_worktree_options.clear();
-                app.selected_git_worktree_directory = None;
-                app.git_worktree_options_loading = false;
-                app.git_worktree_options_project_path = None;
-                app.git_worktree_menu_open = false;
-                return Task::none();
-            };
-
-            #[cfg(not(target_arch = "wasm32"))]
-            if git2::Repository::discover(&project_path).is_err() {
-                app.git_worktree_options.clear();
-                app.selected_git_worktree_directory = None;
-                app.git_worktree_options_loading = false;
-                app.git_worktree_options_project_path = None;
-                app.git_worktree_menu_open = false;
-                return Task::none();
-            }
-
-            if app.git_worktree_options_loading
-                && app.git_worktree_options_project_path.as_deref() == Some(project_path.as_str())
-            {
-                return Task::none();
-            }
-
-            app.git_worktree_options_loading = true;
-            app.git_worktree_options_project_path = Some(project_path.clone());
+            let Some(project_path) = desktop_git_ui::message_git::refresh::prepare_worktrees(&mut app.project_path, &mut app.git_worktree_options, &mut app.selected_git_worktree_directory, &mut app.git_worktree_options_loading, &mut app.git_worktree_options_project_path, &mut app.git_worktree_menu_open) else { return Task::none(); };
             Task::perform(
                 async move {
                     let result = load_git_worktree_options(project_path.clone()).await;
@@ -61,88 +33,27 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             )
         }
         GitMessage::WorktreeOptionsReady { project_path, result } => {
-            if app.git_worktree_options_project_path.as_deref() != Some(project_path.as_str()) {
-                return Task::none();
-            }
-            app.git_worktree_options_loading = false;
-            match result {
-                Ok(options) => {
-                    let current_directory = app
-                        .selected_git_worktree_directory
-                        .clone()
-                        .or_else(|| crate::app::components::git_panel::git_repo_path_for_app(app))
-                        .or_else(|| app.project_path.clone());
-                    app.git_worktree_options = options;
-                    app.selected_git_worktree_directory = current_directory
-                        .as_ref()
-                        .and_then(|directory| {
-                            app.git_worktree_options
-                                .iter()
-                                .find(|option| same_directory(&option.directory, directory))
-                        })
-                        .or_else(|| app.git_worktree_options.first())
-                        .map(|option| option.directory.clone());
-                    if let Some(selected) =
-                        app.selected_git_worktree_directory.as_ref().and_then(|directory| {
-                            app.git_worktree_options
-                                .iter()
-                                .find(|option| option.directory.as_str() == directory.as_str())
-                        })
-                    {
-                        app.selected_branch = selected.branch.clone();
-                    }
-                }
-                Err(error) => {
-                    app.git_worktree_options.clear();
-                    app.selected_git_worktree_directory = None;
-                    app.git_worktree_menu_open = false;
-                    app.set_localized_input_error(
-                        crate::app::i18n::input::ErrorField::General,
-                        "读取 Git worktree 失败: %s",
-                        vec![error.into()],
-                    );
-                }
+            let current_directory = app.selected_git_worktree_directory.clone()
+                .or_else(|| crate::app::components::git_panel::git_repo_path_for_app(app))
+                .or_else(|| app.project_path.clone());
+            if let Some(error) = desktop_git_ui::message_git::refresh::apply_worktrees(&mut app.git_worktree_options_project_path, &mut app.git_worktree_options_loading, &mut app.git_worktree_options, &mut app.selected_git_worktree_directory, &mut app.selected_branch, &mut app.git_worktree_menu_open, project_path, result, current_directory) {
+                app.set_localized_input_error(crate::app::i18n::input::ErrorField::General,
+                    "读取 Git worktree 失败: %s", vec![error.into()]);
             }
             Task::none()
         }
         GitMessage::SelectGitWorktree(option) => {
-            app.git_worktree_menu_open = false;
-            app.selected_git_worktree_directory = Some(option.directory.clone());
-            app.selected_branch = option.branch.clone();
-            app.git_changed_files.clear();
-            app.git_changed_files_loading = false;
-            app.git_changed_files_repo_path = None;
-            app.git_diff_file_metas.clear();
-            app.git_diff_file_metas_loading = false;
-            app.git_diff_file_metas_repo_path = None;
-            app.git_diff_contents.clear();
-            app.git_diff_contents_loading.clear();
-            app.git_diff_selected_lines.clear();
-            app.git_diff_selected_range = None;
-            app.git_diff_comment_draft = None;
+            desktop_git_ui::message_git::refresh::select_git_worktree(&mut app.git_worktree_menu_open, &mut app.selected_git_worktree_directory, &mut app.selected_branch, &mut app.git_changed_files, &mut app.git_changed_files_loading, &mut app.git_changed_files_repo_path, &mut app.git_diff_file_metas, &mut app.git_diff_file_metas_loading, &mut app.git_diff_file_metas_repo_path, &mut app.git_diff_contents, &mut app.git_diff_contents_loading, &mut app.git_diff_selected_lines, &mut app.git_diff_selected_range, &mut app.git_diff_comment_draft, option);
             refresh_git_panel_data_task()
         }
         GitMessage::ToggleGitWorktreeMenu(open) => {
-            app.git_worktree_menu_open = open;
+            desktop_git_ui::message_git::refresh::toggle_git_worktree_menu(&mut app.git_worktree_menu_open, open);
             Task::none()
         }
         GitMessage::RefreshChangedFiles => {
-            app.git_diff_context_menu = None;
-            if app.git_changed_files_loading {
-                return Task::none();
-            }
-            let Some(path) = crate::app::components::git_panel::git_repo_path_for_app(app) else {
-                app.git_changed_files.clear();
-                app.git_changed_files_loading = false;
-                app.git_changed_files_repo_path = None;
-                app.file_manager.file_manager_changes_refreshing = false;
-                return Task::none();
-            };
-
-            app.git_changed_files_loading = true;
-            app.git_changed_files_repo_path = Some(path.clone());
+            let repo_path = crate::app::components::git_panel::git_repo_path_for_app(app);
+            let Some(path) = desktop_git_ui::message_git::refresh::prepare_changed_files(&mut app.git_diff_context_menu, &mut app.git_changed_files_loading, &mut app.git_changed_files, &mut app.git_changed_files_repo_path, &mut app.file_manager.file_manager_changes_refreshing, repo_path) else { return Task::none(); };
             let result_repo_path = path.clone();
-            // 耗时或平台相关操作交给异步任务，避免阻塞界面消息循环。
             Task::perform(
                 async move {
                     let repo_path = path.clone();
@@ -161,26 +72,8 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             )
         }
         GitMessage::RefreshDiffFileMetas => {
-            app.git_diff_context_menu = None;
             let repo_path = crate::app::components::git_panel::git_repo_path_for_app(app);
-            let Some(path) = repo_path.clone() else {
-                app.git_diff_file_metas.clear();
-                app.git_diff_file_metas_loading = false;
-                app.git_diff_file_metas_repo_path = None;
-                app.git_diff_contents.clear();
-                app.git_diff_contents_loading.clear();
-                return Task::none();
-            };
-
-            if app.git_diff_file_metas_loading
-                && app.git_diff_file_metas_repo_path.as_deref() == Some(path.as_str())
-            {
-                return Task::none();
-            }
-
-            app.git_diff_file_metas_loading = true;
-            app.git_diff_file_metas_repo_path = Some(path.clone());
-
+            let Some(path) = desktop_git_ui::message_git::refresh::prepare_diff_metas(&mut app.git_diff_context_menu, &mut app.git_diff_file_metas, &mut app.git_diff_file_metas_loading, &mut app.git_diff_file_metas_repo_path, &mut app.git_diff_contents, &mut app.git_diff_contents_loading, repo_path) else { return Task::none(); };
             Task::perform(
                 async move {
                     let repo_path = path.clone();
@@ -199,17 +92,9 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             )
         }
         GitMessage::ChangedFilesReady { repo_path, files } => {
-            if app.git_changed_files_repo_path != repo_path {
-                return Task::none();
-            }
-            app.git_changed_files = files;
-            app.git_changed_files_loading = false;
+            if !desktop_git_ui::message_git::refresh::apply_changed_files(&mut app.git_changed_files_repo_path, &mut app.git_changed_files, &mut app.git_changed_files_loading, &mut app.git_diff_selected_lines, &mut app.git_diff_selected_range, &mut app.git_diff_comment_draft, repo_path, files) { return Task::none(); }
             let was_manual_refresh = app.file_manager.file_manager_changes_refreshing;
             app.file_manager.file_manager_changes_refreshing = false;
-            app.git_diff_selected_lines.clear();
-            app.git_diff_selected_range = None;
-            app.git_diff_comment_draft = None;
-
             let save_task = if app.file_manager.file_manager_show_changes {
                 for key in crate::app::components::file_tree::change_list_expand_keys(
                     app.git_changed_files.iter().map(String::as_str),
@@ -235,26 +120,11 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             }
         }
         GitMessage::DiffFileMetasReady { repo_path, metas } => {
-            if app.git_diff_file_metas_repo_path != repo_path {
-                return Task::none();
-            }
-            app.git_diff_file_metas = metas;
-            app.git_diff_file_metas_loading = false;
-            app.git_diff_contents.clear();
-            app.git_diff_contents_loading.clear();
-            load_missing_diff_contents(app, app.expanded_files.clone())
+            if desktop_git_ui::message_git::refresh::apply_diff_metas(&mut app.git_diff_file_metas_repo_path, &mut app.git_diff_file_metas, &mut app.git_diff_file_metas_loading, &mut app.git_diff_contents, &mut app.git_diff_contents_loading, repo_path, metas) { load_missing_diff_contents(app, app.expanded_files.clone()) } else { Task::none() }
         }
         GitMessage::LoadDiffContent(file) => load_missing_diff_contents(app, std::iter::once(file)),
         GitMessage::DiffContentReady { repo_path, file, old_content, new_content } => {
-            if app.git_diff_file_metas_repo_path != repo_path {
-                return Task::done(Message::Git(GitMessage::RefreshDiffFileMetas));
-            }
-            app.git_diff_contents_loading.remove(&file);
-            if !app.git_diff_file_metas.iter().any(|meta| meta.path == file) {
-                return Task::none();
-            }
-            app.git_diff_contents.insert(file, (old_content, new_content));
-            Task::none()
+            if desktop_git_ui::message_git::refresh::apply_diff_content(&mut app.git_diff_file_metas_repo_path, &mut app.git_diff_contents_loading, &mut app.git_diff_file_metas, &mut app.git_diff_contents, repo_path, file, old_content, new_content) { Task::done(Message::Git(GitMessage::RefreshDiffFileMetas)) } else { Task::none() }
         }
         _ => unreachable!("unexpected refresh git message"),
     }

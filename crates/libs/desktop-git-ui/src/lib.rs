@@ -6,4 +6,6 @@ pub mod code_review;
 #[cfg(test)]
 mod code_review_tests;
 
+pub mod message_git;
+
 pub mod modal_overlays;

@@ -434,15 +434,7 @@ pub enum GitMessage {
     CommitSelectedFinished(Result<(), String>),
 }
 
-#[derive(Debug, Clone)]
-struct SelectedCommitRequest {
-    message: String,
-    stage_all: bool,
-    selected_files: Vec<String>,
-    selected_hunks: Vec<(String, usize)>,
-    selected_lines: Vec<(String, usize)>,
-    selected_old_lines: Vec<(String, usize)>,
-}
+use desktop_git_ui::message_git::shared::SelectedCommitRequest;
 
 /// 处理 Git 消息并更新应用状态
 ///

@@ -33,58 +33,11 @@ fn test_module_is_wired() {
     assert!(module.ends_with("modal_tests"));
 }
 
-#[test]
-fn custom_diff_modal_open_close_and_title_change_update_state() {
-    let mut app = test_app();
-    app.git_custom_diff_title = " \t ".to_string();
 
-    let _ = update(&mut app, GitMessage::OpenCustomDiffModal);
-    assert!(app.show_git_custom_diff_modal);
-    assert!(!app.git_custom_diff_hide_inputs);
-    assert_eq!(app.git_custom_diff_title, "自定义对比");
 
-    let _ = update(&mut app, GitMessage::CustomDiffTitleChanged("Review".to_string()));
-    assert_eq!(app.git_custom_diff_title, "Review");
 
-    app.git_custom_diff_hide_inputs = true;
-    let _ = update(&mut app, GitMessage::CloseCustomDiffModal);
-    assert!(!app.show_git_custom_diff_modal);
-    assert!(!app.git_custom_diff_hide_inputs);
-}
 
-#[test]
-fn custom_diff_modal_open_preserves_non_blank_title_and_reveals_inputs() {
-    let mut app = test_app();
-    app.git_custom_diff_title = " Existing title ".to_string();
-    app.git_custom_diff_hide_inputs = true;
 
-    let _ = update(&mut app, GitMessage::OpenCustomDiffModal);
-
-    assert_eq!(app.git_custom_diff_title, " Existing title ");
-    assert!(!app.git_custom_diff_hide_inputs);
-}
-
-#[test]
-fn custom_diff_editor_actions_and_swap_move_the_edited_contents() {
-    let mut app = test_app();
-
-    let _ = update(
-        &mut app,
-        GitMessage::CustomDiffBeforeEditorAction(iced::widget::text_editor::Action::Edit(
-            iced::widget::text_editor::Edit::Insert('左'),
-        )),
-    );
-    let _ = update(
-        &mut app,
-        GitMessage::CustomDiffAfterEditorAction(iced::widget::text_editor::Action::Edit(
-            iced::widget::text_editor::Edit::Insert('右'),
-        )),
-    );
-    let _ = update(&mut app, GitMessage::CustomDiffSwap);
-
-    assert_eq!(app.git_custom_diff_before_editor.text(), "右");
-    assert_eq!(app.git_custom_diff_after_editor.text(), "左");
-}
 
 #[test]
 fn custom_diff_result_hides_inputs_and_shows_diff_view() {

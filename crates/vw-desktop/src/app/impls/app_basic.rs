@@ -31,7 +31,7 @@ impl App {
     /// 模块内可见函数，执行 is_diff_file_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn is_diff_file_expanded(&self, path: &str) -> bool {
-        self.expanded_files_set.contains(path)
+        desktop_git_ui::message_git::diff::is_diff_file_expanded(&self.expanded_files_set, path)
     }
 
     /// 模块内可见函数，执行 toggle_diff_file_expanded 对应的应用流程。
@@ -51,9 +51,7 @@ impl App {
     /// 模块内可见函数，执行 ensure_diff_file_expanded 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn ensure_diff_file_expanded(&mut self, path: String) {
-        if self.expanded_files_set.insert(path.clone()) {
-            self.expanded_files.push(path);
-        }
+        desktop_git_ui::message_git::diff::ensure_diff_file_expanded(&mut self.expanded_files_set, &mut self.expanded_files, path)
     }
 
     /// 模块内可见函数，执行 replace_expanded_files 对应的应用流程。
@@ -67,17 +65,13 @@ impl App {
     /// 模块内可见函数，执行 clear_expanded_files 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn clear_expanded_files(&mut self) {
-        self.expanded_files.clear();
-        self.expanded_files_set.clear();
+        desktop_git_ui::message_git::diff::clear_expanded_files(&mut self.expanded_files, &mut self.expanded_files_set)
     }
 
     /// 模块内可见函数，执行 set_single_expanded_file 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn set_single_expanded_file(&mut self, path: String) {
-        self.expanded_files.clear();
-        self.expanded_files_set.clear();
-        self.expanded_files_set.insert(path.clone());
-        self.expanded_files.push(path);
+        desktop_git_ui::message_git::diff::set_single_expanded_file(&mut self.expanded_files, &mut self.expanded_files_set, path)
     }
 
     /// 模块内可见函数，执行 is_file_tree_dir_expanded 对应的应用流程。

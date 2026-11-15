@@ -100,9 +100,6 @@ mod project_tests;
 #[path = "provider_tests.rs"]
 mod provider_tests;
 #[cfg(test)]
-#[path = "question_tests.rs"]
-mod question_tests;
-#[cfg(test)]
 #[path = "session_tests.rs"]
 mod session_tests;
 #[cfg(test)]

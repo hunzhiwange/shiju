@@ -21,6 +21,19 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 pub(super) fn map_message(message: desktop_settings_network::Message) -> Message {
     use desktop_settings_network::Message as Local;
     match message {
+        Local::HttpRequest(message) => Message::Settings(SettingsMessage::HttpRequest(message)),
+        Local::WebSearch(message) => Message::Settings(SettingsMessage::WebSearch(message)),
+        Local::Tunnel(message) => Message::Settings(SettingsMessage::Tunnel(message)),
+        Local::ProxyEnabledToggled(value) => Message::Settings(SettingsMessage::ProxyEnabledToggled(value)),
+        Local::ProxyScopeTextChanged(value) => Message::Settings(SettingsMessage::ProxyScopeTextChanged(value)),
+        Local::ProxyHttpChanged(value) => Message::Settings(SettingsMessage::ProxyHttpChanged(value)),
+        Local::ProxyHttpsChanged(value) => Message::Settings(SettingsMessage::ProxyHttpsChanged(value)),
+        Local::ProxyAllChanged(value) => Message::Settings(SettingsMessage::ProxyAllChanged(value)),
+        Local::ProxyNoProxyChanged(value) => Message::Settings(SettingsMessage::ProxyNoProxyChanged(value)),
+        Local::ProxyServicesChanged(value) => Message::Settings(SettingsMessage::ProxyServicesChanged(value)),
+        Local::ProxyHelpOpen => Message::Settings(SettingsMessage::ProxyHelpOpen),
+        Local::ProxyHelpClose => Message::Settings(SettingsMessage::ProxyHelpClose),
+        Local::NetworkTabSelected(tab) => Message::Settings(SettingsMessage::SystemTabSelected(match tab { desktop_settings_network::NetworkTab::WebSearch => super::system_settings::SystemTab::WebSearch,desktop_settings_network::NetworkTab::HttpRequest => super::system_settings::SystemTab::HttpRequest,desktop_settings_network::NetworkTab::Browser => super::system_settings::SystemTab::Browser,desktop_settings_network::NetworkTab::Proxy => super::system_settings::SystemTab::Proxy,desktop_settings_network::NetworkTab::Tunnel => super::system_settings::SystemTab::Tunnel, })),
         Local::None => Message::None,
         Local::Browser(message) => Message::Settings(SettingsMessage::Browser(message)),
         Local::Gateway(message) => Message::Settings(SettingsMessage::Gateway(message)),

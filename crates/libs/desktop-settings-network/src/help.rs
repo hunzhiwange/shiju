@@ -24,10 +24,14 @@ pub(crate) fn settings_flexible_row_with_help<'a>(render: HelpRenderer, i18n: I1
     panels::settings_flexible_row_with_label(label, width, control)
 }
 pub(crate) fn with_settings_help_modal<'a>(locale: config_ui::DesktopLocale, last_copied_code_hash: Option<u64>, base: Element<'a, Message>, title: &'a str, help_text: impl Into<String>, close: Message) -> Element<'a, Message> {
+    with_settings_help_modal_mapped(locale, last_copied_code_hash, base, title, help_text, close, |message| message)
+}
+
+pub(crate) fn with_settings_help_modal_mapped<'a, M: Clone + 'static>(locale: config_ui::DesktopLocale, last_copied_code_hash: Option<u64>, base: Element<'a, M>, title: &'a str, help_text: impl Into<String>, close: Message, map: fn(Message) -> M) -> Element<'a, M> {
     let i18n = I18n::new(locale);
     let help_text = help_text.into();
     let help_text = i18n.__(&help_text).to_string();
     let (icon, tip) = shared::settings_help_copy_state(last_copied_code_hash, &help_text);
     let tip = desktop_i18n::settings_runtime::text(locale, tip);
-    shared::with_settings_help_modal(base, i18n.__(title).to_string(), help_text.clone(), icon, tip, Message::CopyCode(help_text), close)
+    shared::with_settings_help_modal(base, i18n.__(title).to_string(), help_text.clone(), icon, tip, map(Message::CopyCode(help_text)), map(close))
 }

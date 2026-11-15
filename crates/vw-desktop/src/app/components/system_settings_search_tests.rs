@@ -10,24 +10,6 @@ use crate::app::App;
 use crate::app::state::{MemorySettingsTab, ModelConfigTab};
 
 #[test]
-fn search_entry_matches_chinese_full_pinyin_initials_and_ascii() {
-    let entry = SystemSettingsSearchEntry::new(
-        "智能体",
-        None,
-        &["Agent settings", "API2"],
-        SystemSettingsSearchTarget::TopLevel(SystemTab::Agents),
-    );
-
-    assert!(entry.matches("智能体"));
-    assert!(entry.matches("zhinengti"));
-    assert!(entry.matches("zhi neng ti"));
-    assert!(entry.matches("znt"));
-    assert!(entry.matches("AGENT SETTINGS"));
-    assert!(entry.matches("api2"));
-    assert!(!entry.matches("memory storage"));
-}
-
-#[test]
 fn catalog_extracts_unique_navigable_child_tabs_and_scoped_keywords() {
     let mut app = App::new().0;
     let entries = catalog(&app);

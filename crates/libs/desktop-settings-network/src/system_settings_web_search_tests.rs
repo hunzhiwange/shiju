@@ -3,15 +3,13 @@
 //! 各提供商夹具只启用自身条件字段，未知提供商则保留通用接口配置入口。
 
 use super::*;
-use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
-use crate::app::{App, Message};
+use crate::messages::*;
+use crate::Message;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
-fn test_app() -> App {
-    App::new().0
-}
+fn test_app() -> Fixture { Fixture::default() }
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
@@ -62,30 +60,30 @@ fn generic_api_key_and_url_visibility_stay_in_lockstep() {
 #[test]
 fn row_helpers_build_empty_and_populated_controls() {
     let app = test_app();
-    keep_element(field_row(&app, "", "", text("")));
-    keep_element(field_row(&app, "标签", "说明", text("control")));
+    keep_element(field_row(app.inputs(), "", "", text("")));
+    keep_element(field_row(app.inputs(), "标签", "说明", text("control")));
 
     for checked in [false, true] {
-        keep_element(bool_row(&app, "启用", "说明", checked, "启用搜索", |value| {
-            Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::EnabledToggled(value)))
+        keep_element(bool_row(app.inputs(), "启用", "说明", checked, "启用搜索", |value| {
+            Message::WebSearch(WebSearchMessage::EnabledToggled(value))
         }));
     }
 
     for value in ["", "key"] {
-        keep_element(text_row(&app, "密钥", "说明", "placeholder", value, |value| {
-            Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(value)))
+        keep_element(text_row(app.inputs(), "密钥", "说明", "placeholder", value, |value| {
+            Message::WebSearch(WebSearchMessage::ApiKeyChanged(value))
         }));
         keep_element(text_row_with_hint(
-            &app,
+            app.inputs(),
             "密钥",
             "说明",
             "placeholder",
             value,
             "提示",
             |value| {
-                Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(
+                Message::WebSearch(WebSearchMessage::ApiKeyChanged(
                     value,
-                )))
+                ))
             },
         ));
     }
@@ -111,8 +109,8 @@ fn view_builds_supported_and_fallback_provider_layouts() {
                 populated.then_some("30").unwrap_or("").into();
             app.web_search_settings.user_agent =
                 populated.then_some("VibeWindow/Test").unwrap_or("").into();
-            keep_element(view(&app));
-            keep_element(content(&app));
+            keep_element(view(app.inputs()));
+            keep_element(content(app.inputs()));
         }
     }
 }
@@ -123,7 +121,7 @@ fn provider_layouts_include_only_their_conditional_rows() {
 
     for (provider, expected_controls) in [("duckduckgo", 1), ("brave", 5), ("serper", 3)] {
         app.web_search_settings.provider = provider.to_string();
-        let element = content(&app);
+        let element = content(app.inputs());
         let tree = Tree::new(element.as_widget());
         let provider_section = &tree.children[2];
         let provider_panel = &provider_section.children[1];
@@ -133,3 +131,7 @@ fn provider_layouts_include_only_their_conditional_rows() {
         assert_eq!(provider_panel.children.len(), expected_controls, "provider={provider}");
     }
 }
+
+#[derive(Default)]
+struct Fixture { web_search_settings: crate::app_init::state::WebSearchSettingsState }
+impl Fixture { fn inputs(&self) -> View<'_> { View { web_search_settings: &self.web_search_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &iced::Theme::Dark, render_help: |title, body, _, _| iced::widget::column![iced::widget::text(title), iced::widget::text(body)].into(), } } }

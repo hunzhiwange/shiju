@@ -71,36 +71,13 @@ pub enum AgentConfigTabMessage {
 pub use desktop_settings_network::messages::BrowserMessage;
 
 /// 网页搜索工具设置页消息。
-#[derive(Debug, Clone)]
-pub enum WebSearchMessage {
-    Refresh,
-    EnabledToggled(bool),
-    ProviderChanged(String),
-    ApiKeyChanged(String),
-    ApiUrlChanged(String),
-    BraveApiKeyChanged(String),
-    MaxResultsChanged(String),
-    TimeoutSecsChanged(String),
-    UserAgentChanged(String),
-    HelpOpen,
-    HelpClose,
-}
+pub use desktop_settings_network::messages::WebSearchMessage;
 
 /// 记忆系统设置页消息。
 pub use desktop_settings_memory::messages::MemoryMessage;
 
 /// HTTP 请求工具设置页消息。
-#[derive(Debug, Clone)]
-pub enum HttpRequestMessage {
-    Refresh,
-    EnabledToggled(bool),
-    NewAllowedDomainChanged(String),
-    AddAllowedDomain,
-    RemoveAllowedDomain(usize),
-    MaxResponseSizeChanged(u32),
-    TimeoutSecsChanged(u32),
-    UserAgentChanged(String),
-}
+pub use desktop_settings_network::messages::HttpRequestMessage;
 
 /// 渠道设置页消息。
 pub use desktop_settings_channels::messages::ChannelsMessage;
@@ -209,18 +186,7 @@ pub enum McpMessage {
 }
 
 /// 隧道设置页消息。
-#[derive(Debug, Clone)]
-pub enum TunnelMessage {
-    ProviderChanged(String),
-    CloudflareTokenChanged(String),
-    TailscaleFunnelToggled(bool),
-    TailscaleHostnameChanged(String),
-    NgrokAuthTokenChanged(String),
-    NgrokDomainChanged(String),
-    CustomStartCommandChanged(String),
-    CustomHealthUrlChanged(String),
-    CustomUrlPatternChanged(String),
-}
+pub use desktop_settings_network::messages::TunnelMessage;
 
 /// 主题编辑器调色板字段。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -2,15 +2,13 @@
 //! 非整数和越界输入先舍入再限制，域名列表保持一项对应一行。
 
 use super::*;
-use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
-use crate::app::{App, Message};
+use crate::messages::*;
+use crate::Message;
 use iced::Element;
 use iced::widget::text;
 
 // HTTP 设置用统一空允许列表作为基线，再分别覆盖零值和上界配置。
-fn test_app() -> App {
-    App::new().0
-}
+fn test_app() -> Fixture { Fixture::default() }
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
@@ -35,20 +33,20 @@ fn normalize_number_value_rounds_then_clamps_to_bounds() {
 #[test]
 fn row_helpers_build_each_http_request_control() {
     let app = test_app();
-    keep_element(field_row(&app, "标签", "说明", text("control")));
-    keep_element(text_row(&app, "User-Agent", "说明", "placeholder", "agent", |value| {
-        Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::UserAgentChanged(value)))
+    keep_element(field_row(app.inputs(), "标签", "说明", text("control")));
+    keep_element(text_row(app.inputs(), "User-Agent", "说明", "placeholder", "agent", |value| {
+        Message::HttpRequest(HttpRequestMessage::UserAgentChanged(value))
     }));
-    keep_element(bool_row(&app, "启用", "说明", true, "启用网络请求工具", |value| {
-        Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::EnabledToggled(value)))
+    keep_element(bool_row(app.inputs(), "启用", "说明", true, "启用网络请求工具", |value| {
+        Message::HttpRequest(HttpRequestMessage::EnabledToggled(value))
     }));
-    keep_element(number_row(&app, "无限制", "说明", 0, 0, u32::MAX, "", None, |value| {
-        Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::MaxResponseSizeChanged(
+    keep_element(number_row(app.inputs(), "无限制", "说明", 0, 0, u32::MAX, "", None, |value| {
+        Message::HttpRequest(HttpRequestMessage::MaxResponseSizeChanged(
             value,
-        )))
+        ))
     }));
     keep_element(number_row(
-        &app,
+        app.inputs(),
         "超时",
         "说明",
         30,
@@ -57,9 +55,9 @@ fn row_helpers_build_each_http_request_control() {
         "秒",
         Some("安全提示"),
         |value| {
-            Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
+            Message::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
                 value,
-            )))
+            ))
         },
     ));
 }
@@ -71,7 +69,7 @@ fn view_builds_empty_allowlist_and_zero_limit_state() {
     app.http_request_settings.max_response_size = 0;
     app.http_request_settings.timeout_secs = 0;
 
-    keep_element(view(&app));
+    keep_element(view(app.inputs()));
 }
 
 #[test]
@@ -85,5 +83,9 @@ fn view_builds_enabled_populated_allowlist_and_upper_bounds() {
     app.http_request_settings.timeout_secs = 86_400;
     app.http_request_settings.user_agent = "VibeWindow-Test/1.0".to_string();
 
-    keep_element(view(&app));
+    keep_element(view(app.inputs()));
 }
+
+#[derive(Default)]
+struct Fixture { http_request_settings: crate::app_init::state::HttpRequestSettingsState }
+impl Fixture { fn inputs(&self) -> View<'_> { View { http_request_settings: &self.http_request_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &iced::Theme::Dark, render_help: |title, body, _, _| iced::widget::column![iced::widget::text(title), iced::widget::text(body)].into(), } } }

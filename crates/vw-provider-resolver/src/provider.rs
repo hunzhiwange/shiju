@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use std::time::UNIX_EPOCH;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::auth;
+use provider_auth_reader as auth;
 #[cfg(not(target_arch = "wasm32"))]
 use serde_json::Value;
 

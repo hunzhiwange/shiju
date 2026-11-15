@@ -8,6 +8,7 @@ description = "Provider and model resolver for VibeWindow"
 license = "MIT"
 
 [dependencies]
+provider-auth-reader = { path = "../libs/provider-auth-reader", version = "0.6.0" }
 provider-config-reader = { path = "../libs/provider-config-reader", version = "0.6.0" }
 provider-model-cache = { path = "../libs/provider-model-cache", version = "0.6.0" }
 provider-model-catalog = { path = "../libs/provider-model-catalog", version = "0.6.0" }
@@ -31,6 +32,3 @@ tokio = { version = "1", default-features = false, features = ["rt-multi-thread"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", features = ["json"] }
-
-[dev-dependencies]
-config-runtime-paths = { path = "../libs/config-runtime-paths", version = "0.6.0" }

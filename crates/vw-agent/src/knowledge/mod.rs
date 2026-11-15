@@ -12,6 +12,4 @@ mod store;
 /// 知识库对外存储门面；名称为兼容既有调用者保留。
 pub use store::SqliteKnowledgeStore;
 
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
+// 组合测试随实现分别归入 agent-knowledge 与 workflow-engine。

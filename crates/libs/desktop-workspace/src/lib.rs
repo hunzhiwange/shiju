@@ -28,3 +28,5 @@ pub mod profile_update;
 pub mod projects;
 
 pub mod workspace_state;
+
+pub mod project_edit_view;

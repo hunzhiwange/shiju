@@ -3,7 +3,7 @@
 //! 颜色样例覆盖空白、重复井号、越界值和非数值，明确解析与格式化的容错边界。
 
 use super::*;
-use crate::app::state::ProjectEditTab;
+use crate::project_message::edit::ProjectEditTab;
 use iced::Color;
 
 fn assert_color_near(actual: Color, expected: Color) {

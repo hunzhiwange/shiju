@@ -5,10 +5,7 @@
 use super::*;
 use iced::advanced::widget::Tree;
 
-fn test_app() -> App {
-    let (app, _task) = App::new();
-    app
-}
+fn test_app() -> super::super::Fixture { super::super::Fixture::new() }
 
 #[test]
 fn workflow_option_displays_label_instead_of_stable_id() {
@@ -23,31 +20,18 @@ fn workflow_option_displays_label_instead_of_stable_id() {
 #[test]
 fn workflow_cache_hint_reports_lifecycle_loading() {
     let mut app = test_app();
-    let mut registry = crate::app::task::workflow::TaskWorkflowRegistry::new();
-    crate::app::views::workflow_manager::update(
-        &mut app.workflow_manager,
-        &mut registry,
-        crate::app::views::workflow_manager::WorkflowManagerMessage::RefreshLifecycles,
-    );
+    app.workflow_manager.loading = true;
 
-    assert_eq!(workflow_cache_hint(&app).as_deref(), Some("生命周期列表正在从网关加载。"));
+    assert_eq!(workflow_cache_hint(&app.view()).as_deref(), Some("生命周期列表正在从网关加载。"));
 }
 
 #[test]
 fn workflow_cache_hint_reports_lifecycle_load_error() {
     let mut app = test_app();
-    let mut registry = crate::app::task::workflow::TaskWorkflowRegistry::new();
-    crate::app::views::workflow_manager::update(
-        &mut app.workflow_manager,
-        &mut registry,
-        crate::app::views::workflow_manager::WorkflowManagerMessage::LifecycleWorkflowsLoaded {
-            result: Err("gateway unavailable".to_string()),
-            notify_error: false,
-        },
-    );
+    app.workflow_manager.error = Some("gateway unavailable");
 
     assert_eq!(
-        workflow_cache_hint(&app).as_deref(),
+        workflow_cache_hint(&app.view()).as_deref(),
         Some("生命周期列表加载失败：gateway unavailable")
     );
 }
@@ -57,7 +41,7 @@ fn workflow_cache_hint_reports_local_cache_before_initial_load() {
     let app = test_app();
 
     assert_eq!(
-        workflow_cache_hint(&app).as_deref(),
+        workflow_cache_hint(&app.view()).as_deref(),
         Some("生命周期列表尚未从网关加载，当前显示本地缓存。")
     );
 }
@@ -65,11 +49,9 @@ fn workflow_cache_hint_reports_local_cache_before_initial_load() {
 #[test]
 fn workflow_cache_hint_is_absent_after_lifecycles_are_loaded() {
     let mut app = test_app();
-    let registry = crate::app::task::workflow::TaskWorkflowRegistry::new();
-    app.workflow_manager =
-        crate::app::views::workflow_manager::WorkflowManagerState::from_registry(&registry);
+    app.workflow_manager.loaded = true;
 
-    assert_eq!(workflow_cache_hint(&app), None);
+    assert_eq!(workflow_cache_hint(&app.view()), None);
 }
 
 #[test]
@@ -87,7 +69,8 @@ fn labels_distinguish_wake_and_pool_promote_intervals_in_project_edit_scheduling
 fn scheduling_tab_builds_with_default_settings() {
     let app = test_app();
 
-    let element = scheduling_tab(&app);
+    let view = app.view();
+    let element = scheduling_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -104,7 +87,8 @@ fn scheduling_tab_clamps_low_values_for_stepper_controls() {
     app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 0;
     app.project_editor.project_edit_task_board_settings.recycle_worktree_on_task_finish = true;
 
-    let element = scheduling_tab(&app);
+    let view = app.view();
+    let element = scheduling_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -120,7 +104,8 @@ fn scheduling_tab_clamps_high_values_for_stepper_controls() {
     app.project_editor.project_edit_task_board_settings.running_timeout_minutes = 9999;
     app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 9999;
 
-    let element = scheduling_tab(&app);
+    let view = app.view();
+    let element = scheduling_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -130,7 +115,8 @@ fn scheduling_tab_falls_back_when_configured_workflow_is_unknown() {
     let mut app = test_app();
     app.project_editor.project_edit_task_board_settings.workflow_id = "missing-workflow".to_string();
 
-    let element = scheduling_tab(&app);
+    let view = app.view();
+    let element = scheduling_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -138,14 +124,12 @@ fn scheduling_tab_falls_back_when_configured_workflow_is_unknown() {
 #[test]
 fn scheduling_tab_builds_without_cache_hint_after_lifecycles_loaded() {
     let mut app = test_app();
-    let registry = crate::app::task::workflow::TaskWorkflowRegistry::new();
-    app.workflow_manager =
-        crate::app::views::workflow_manager::WorkflowManagerState::from_registry(&registry);
+    app.workflow_manager.loaded = true;
     app.project_editor.project_edit_task_board_settings.workflow_id =
-        crate::app::task::DEFAULT_TASK_WORKFLOW_ID.to_string();
+        desktop_task_model::DEFAULT_TASK_WORKFLOW_ID.to_string();
 
-    assert_eq!(workflow_cache_hint(&app), None);
-    std::hint::black_box(scheduling_tab(&app));
+    assert_eq!(workflow_cache_hint(&app.view()), None);
+    std::hint::black_box(scheduling_tab(&app.view()));
 }
 
 #[test]
@@ -159,7 +143,8 @@ fn scheduling_tab_keeps_summary_and_midrange_controls_in_separate_sections() {
     app.project_editor.project_edit_task_board_settings.running_timeout_minutes = 120;
     app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 300;
 
-    let element = scheduling_tab(&app);
+    let view = app.view();
+    let element = scheduling_tab(&view);
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 2);

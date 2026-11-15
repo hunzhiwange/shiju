@@ -3,12 +3,9 @@
 //! 间隔输入覆盖空白、非法、上下界和步进操作，确保控件值与保存值一致。
 
 use super::*;
-use crate::app::message::project::ProjectMessage;
+use crate::project_message::edit::Event as ProjectMessage;
 
-fn test_app() -> App {
-    let (app, _task) = App::new();
-    app
-}
+fn test_app() -> super::super::Fixture { super::super::Fixture::new() }
 
 fn unwrap_project_message(message: Message) -> ProjectMessage {
     let Message::Project(message) = message else {
@@ -77,7 +74,8 @@ fn task_board_refresh_message_builders_preserve_step_and_raw_input() {
 fn refresh_tab_builds_with_default_refresh_settings() {
     let app = test_app();
 
-    let element = refresh_tab(&app);
+    let view = app.view();
+    let element = refresh_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -90,7 +88,8 @@ fn refresh_tab_clamps_invalid_and_low_intervals_for_controls() {
     app.project_editor.project_edit_task_board_auto_refresh = false;
     app.project_editor.project_edit_session_auto_refresh = false;
 
-    let element = refresh_tab(&app);
+    let view = app.view();
+    let element = refresh_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -101,7 +100,8 @@ fn refresh_tab_clamps_high_intervals_for_controls() {
     app.project_editor.project_edit_session_refresh_interval_seconds_input = "9000".to_string();
     app.project_editor.project_edit_task_board_settings.refresh_interval_seconds = 9000;
 
-    let element = refresh_tab(&app);
+    let view = app.view();
+    let element = refresh_tab(&view);
 
     std::hint::black_box(element);
 }

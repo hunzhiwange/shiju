@@ -3,12 +3,9 @@
 //! 工作树开关控制条件区块，编辑器动作则要求无损封装到项目消息。
 
 use super::*;
-use crate::app::message::project::ProjectMessage;
+use crate::project_message::edit::Event as ProjectMessage;
 
-fn test_app() -> App {
-    let (app, _task) = App::new();
-    app
-}
+fn test_app() -> super::super::Fixture { super::super::Fixture::new() }
 
 fn unwrap_project_message(message: Message) -> ProjectMessage {
     let Message::Project(message) = message else {
@@ -47,7 +44,8 @@ fn launch_tab_builds_when_worktree_is_disabled() {
         iced::widget::text_editor::Content::with_text(&app.project_editor.project_edit_start_script);
     app.project_editor.project_edit_worktree_enabled = false;
 
-    let element = launch_tab(&app);
+    let view = app.view();
+    let element = launch_tab(&view);
 
     std::hint::black_box(element);
 }
@@ -59,7 +57,8 @@ fn launch_tab_builds_when_worktree_is_enabled() {
     app.project_editor.project_edit_start_script_editor = iced::widget::text_editor::Content::new();
     app.project_editor.project_edit_worktree_enabled = true;
 
-    let element = launch_tab(&app);
+    let view = app.view();
+    let element = launch_tab(&view);
 
     std::hint::black_box(element);
 }

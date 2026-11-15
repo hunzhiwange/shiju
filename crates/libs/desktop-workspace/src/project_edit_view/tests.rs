@@ -3,14 +3,11 @@
 //! 基础弹窗与颜色选择器分层构造，确认缺少编辑路径时不会残留孤立浮层。
 
 use super::*;
-use crate::app::components::color_picker::ColorFormat;
-use crate::app::state::ProjectEditTab;
+use desktop_ui_controls::color_picker::ColorFormat;
+use crate::project_message::edit::ProjectEditTab;
 use iced::advanced::widget::Tree;
 
-fn test_app() -> App {
-    let (app, _task) = App::new();
-    app
-}
+fn test_app() -> super::Fixture { super::Fixture::new() }
 
 fn root_element() -> Element<'static, Message> {
     text("root").into()
@@ -33,7 +30,8 @@ fn assert_project_modal_layers(tree: &Tree) {
 fn with_project_edit_returns_root_when_no_project_is_being_edited() {
     let app = test_app();
 
-    let element = with_project_edit(&app, root_element());
+    let view = app.view();
+    let element = with_project_edit(view, root_element(), |m| m);
     let tree = element_tree(&element);
 
     assert!(tree.children.is_empty(), "the root text should not gain modal layers");
@@ -44,7 +42,8 @@ fn with_project_edit_ignores_color_picker_when_edit_path_is_absent() {
     let mut app = test_app();
     app.project_editor.project_edit_icon_color_picker_open = true;
 
-    let element = with_project_edit(&app, root_element());
+    let view = app.view();
+    let element = with_project_edit(view, root_element(), |m| m);
     let tree = element_tree(&element);
 
     assert!(tree.children.is_empty(), "a stale picker flag must not open an edit modal");
@@ -64,7 +63,8 @@ fn with_project_edit_builds_all_tab_variants() {
         app.project_editor.project_edit_name = "Project".to_string();
         app.project_editor.project_edit_icon_color = "#60a5fa".to_string();
 
-        let element = with_project_edit(&app, root_element());
+        let view = app.view();
+        let element = with_project_edit(view, root_element(), |m| m);
         let tree = element_tree(&element);
 
         assert_project_modal_layers(&tree);
@@ -86,7 +86,8 @@ fn with_project_edit_stacks_color_picker_over_project_modal_for_each_color_path_
         app.project_editor.project_edit_icon_color = color.to_string();
         app.project_editor.project_edit_icon_color_format = format;
 
-        let element = with_project_edit(&app, root_element());
+        let view = app.view();
+        let element = with_project_edit(view, root_element(), |m| m);
         let tree = element_tree(&element);
 
         assert_eq!(tree.children.len(), 2, "project modal and color picker should be stacked");

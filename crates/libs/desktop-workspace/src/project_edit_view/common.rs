@@ -1,14 +1,14 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     rounded_action_btn_style, settings_field_label, settings_tab_button, settings_text_input,
 };
-use crate::app::state::ProjectEditTab;
+use crate::project_message::edit::ProjectEditTab;
 use iced::widget::{button, row, text};
 use iced::{Alignment, Color, Element, Length};
 
-use super::super::Message;
+use super::Message;
 
 /// 模块内可见函数，执行 parse_hex_color 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -57,7 +57,7 @@ pub(super) fn tab_button(
         label,
         selected,
         Some(Message::Project(
-            crate::app::message::project::ProjectMessage::ProjectEditTabSelected(tab),
+            crate::project_message::edit::Event::ProjectEditTabSelected(tab),
         )),
     )
     .into()

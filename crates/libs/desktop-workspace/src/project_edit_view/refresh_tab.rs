@@ -1,15 +1,17 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
-use crate::app::components::system_settings_common::{
-    settings_field_label, settings_group_heading_with_help, settings_panel, settings_toggle,
+use super::headings::*;
+
+use desktop_ui_controls::system_settings_common::{
+    settings_field_label, settings_panel, settings_toggle,
 };
-use crate::app::i18n::I18n;
+use desktop_i18n::I18n;
 use iced::widget::{column, row};
 use iced::{Element, Length};
 
 use super::common::numeric_row;
-use super::{App, Message};
+use super::{View, Message};
 
 fn normalized_session_refresh_interval(input: &str) -> u64 {
     input.trim().parse::<u64>().ok().map(|value| value.clamp(1, 3600)).unwrap_or(60)
@@ -22,19 +24,19 @@ fn refresh_interval_step_targets(value: u64) -> (u64, u64) {
 
 fn task_board_auto_refresh_toggled(value: bool) -> Message {
     Message::Project(
-        crate::app::message::project::ProjectMessage::ProjectEditTaskBoardAutoRefreshToggled(value),
+        crate::project_message::edit::Event::ProjectEditTaskBoardAutoRefreshToggled(value),
     )
 }
 
 fn session_auto_refresh_toggled(value: bool) -> Message {
     Message::Project(
-        crate::app::message::project::ProjectMessage::ProjectEditSessionAutoRefreshToggled(value),
+        crate::project_message::edit::Event::ProjectEditSessionAutoRefreshToggled(value),
     )
 }
 
 fn session_refresh_interval_changed(value: u64) -> Message {
     Message::Project(
-        crate::app::message::project::ProjectMessage::ProjectEditSessionRefreshIntervalSecondsChanged(
+        crate::project_message::edit::Event::ProjectEditSessionRefreshIntervalSecondsChanged(
             value,
         ),
     )
@@ -42,7 +44,7 @@ fn session_refresh_interval_changed(value: u64) -> Message {
 
 fn session_refresh_interval_input_changed(value: String) -> Message {
     Message::Project(
-        crate::app::message::project::ProjectMessage::ProjectEditSessionRefreshIntervalSecondsInputChanged(
+        crate::project_message::edit::Event::ProjectEditSessionRefreshIntervalSecondsInputChanged(
             value,
         ),
     )
@@ -50,7 +52,7 @@ fn session_refresh_interval_input_changed(value: String) -> Message {
 
 fn task_board_refresh_interval_changed(value: u64) -> Message {
     Message::Project(
-        crate::app::message::project::ProjectMessage::ProjectEditTaskBoardRefreshIntervalSecondsChanged(
+        crate::project_message::edit::Event::ProjectEditTaskBoardRefreshIntervalSecondsChanged(
             value,
         ),
     )
@@ -58,7 +60,7 @@ fn task_board_refresh_interval_changed(value: u64) -> Message {
 
 fn task_board_refresh_interval_input_changed(value: String) -> Message {
     Message::Project(
-        crate::app::message::project::ProjectMessage::ProjectEditTaskBoardRefreshIntervalSecondsInputChanged(
+        crate::project_message::edit::Event::ProjectEditTaskBoardRefreshIntervalSecondsInputChanged(
             value,
         ),
     )
@@ -66,7 +68,8 @@ fn task_board_refresh_interval_input_changed(value: String) -> Message {
 
 /// 模块内可见函数，执行 refresh_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
+pub(super) fn refresh_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
+    let app = *app;
     let i18n = I18n::new(app.desktop_locale);
     let settings = &app.project_editor.project_edit_task_board_settings;
     let session_refresh_interval_seconds = normalized_session_refresh_interval(
@@ -111,9 +114,9 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     );
 
     column![
-        settings_group_heading_with_help(
+        settings_group_heading_with_help(app.help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("刷新策略"),
             i18n.__("统一项目会话与任务看板刷新策略。"),
         ),

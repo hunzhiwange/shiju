@@ -1,17 +1,19 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
-use crate::app::components::system_settings_common::{
+use super::headings::*;
+
+use desktop_ui_controls::system_settings_common::{
     rounded_action_btn_style, settings_checkbox_style, settings_field_label,
-    settings_group_heading_with_help, settings_muted_text_style, settings_panel, settings_select,
+    settings_muted_text_style, settings_panel, settings_select,
 };
-use crate::app::i18n::I18n;
-use crate::app::message::ProjectMessage;
+use desktop_i18n::I18n;
+use crate::project_message::edit::Event as ProjectMessage;
 use iced::widget::{button, checkbox, column, row, text};
 use iced::{Element, Length};
 
 use super::common::numeric_row;
-use super::{App, Message};
+use super::{View, Message};
 
 /// 工作流选择项，承载稳定 id 与展示标签，仅用于调度页内置工作流选择控件。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +30,8 @@ impl std::fmt::Display for WorkflowOption {
 
 /// 模块内可见函数，执行 scheduling_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
+pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
+    let app = *app;
     let i18n = I18n::new(app.desktop_locale);
     let settings = &app.project_editor.project_edit_task_board_settings;
     let max_concurrent = settings.max_concurrent.clamp(1, 10);
@@ -41,7 +44,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let pr_submitted_stall_timeout_seconds =
         settings.pr_submitted_stall_timeout_seconds.clamp(5, 3600);
 
-    let workflow_options: Vec<WorkflowOption> = crate::app::task::all_task_workflows()
+    let workflow_options: Vec<WorkflowOption> = desktop_task_model::all_task_workflows()
         .into_iter()
         .map(|workflow| WorkflowOption { id: workflow.id, label: workflow.label })
         .collect();
@@ -58,9 +61,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
             })
             .width(Length::Fill),
             button(text(i18n.__("管理工作流")).size(13))
-                .on_press(Message::View(
-                    crate::app::message::view::ViewMessage::OpenWorkflowManager
-                ))
+                .on_press(Message::OpenWorkflowManager)
                 .padding([9, 12])
                 .style(rounded_action_btn_style),
         ]
@@ -68,7 +69,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .align_y(iced::Alignment::Center),
     ]
     .spacing(8);
-    if let Some(hint) = workflow_cache_hint(app) {
+    if let Some(hint) = workflow_cache_hint(&app) {
         workflow_controls =
             workflow_controls.push(text(hint).size(13).style(settings_muted_text_style));
     }
@@ -201,9 +202,9 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     );
 
     column![
-        settings_group_heading_with_help(
+        settings_group_heading_with_help(app.help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             i18n.__("调度与保护"),
             i18n.__("限制并发、设置重试与超时，并控制 worktree 回收与合并锁。")
         ),
@@ -226,22 +227,22 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .into()
 }
 
-fn workflow_cache_hint(app: &App) -> Option<String> {
+fn workflow_cache_hint(app: &View) -> Option<String> {
     if app.workflow_manager.lifecycles_loading() {
         Some(
-            crate::app::i18n::I18n::new(app.desktop_locale)
+            desktop_i18n::I18n::new(app.desktop_locale)
                 .__("生命周期列表正在从网关加载。")
                 .to_string(),
         )
     } else if let Some(error) = app.workflow_manager.lifecycles_error() {
         Some(
-            crate::app::i18n::I18n::new(app.desktop_locale)
+            desktop_i18n::I18n::new(app.desktop_locale)
                 .format("生命周期列表加载失败：%s", &[error.into()])
                 .expect("valid lifecycle error template"),
         )
     } else if !app.workflow_manager.lifecycles_loaded() {
         Some(
-            crate::app::i18n::I18n::new(app.desktop_locale)
+            desktop_i18n::I18n::new(app.desktop_locale)
                 .__("生命周期列表尚未从网关加载，当前显示本地缓存。")
                 .to_string(),
         )

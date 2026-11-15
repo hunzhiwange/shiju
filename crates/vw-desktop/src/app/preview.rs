@@ -73,38 +73,11 @@ pub fn preview_open_error_message(path: &str) -> Option<crate::app::i18n::format
     None
 }
 
-pub fn safe_preview(path: &str) -> (String, bool) {
-    use preview_content::{FilePreview, UnsupportedPreviewKind};
-    let kind = match preview_content::read_file_preview(path) {
-        FilePreview::Text { content, truncated } => return (content, truncated),
-        FilePreview::Image => "图片",
-        FilePreview::Unsupported(UnsupportedPreviewKind::Archive) => "压缩包",
-        FilePreview::Unsupported(UnsupportedPreviewKind::Pdf) => "PDF",
-        FilePreview::Binary => "二进制文件",
-    };
-    let name = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
-    let info = if kind == "图片" {
-        format!("文件: {}\n类型: 图片\n", name)
-    } else {
-        format!("文件: {}\n类型: {}\n不支持文本预览\n", name, kind)
-    };
-    (info, false)
-}
+pub use desktop_editor::preview::tab::safe_preview;
 
 #[cfg(test)]
 #[path = "preview_tests.rs"]
 mod preview_tests;
 
 /// Semantic metadata for previews that cannot display editable text.
-pub fn preview_description(path: &str) -> Option<crate::app::i18n::format::Message> {
-    use crate::app::i18n::format::Message;
-    let name =
-        std::path::Path::new(path).file_name().and_then(|name| name.to_str()).unwrap_or(path);
-    let kind = unsupported_preview_kind(path)?;
-    let kind =
-        if kind == "PDF" { Message::literal(kind.into()) } else { Message::new(kind, vec![]) };
-    Some(Message::nested(
-        "文件: %s\n类型: %s\n不支持文本预览\n".into(),
-        vec![Message::literal(name.into()), kind],
-    ))
-}
+pub use desktop_editor::preview::tab::preview_description;

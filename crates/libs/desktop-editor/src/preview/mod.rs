@@ -111,3 +111,5 @@ impl std::fmt::Debug for PreviewTab {
 pub mod message;
 
 pub mod selection;
+
+pub mod tab;

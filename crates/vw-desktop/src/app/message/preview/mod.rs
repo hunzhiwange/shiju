@@ -31,11 +31,7 @@ pub mod tab;
 pub use desktop_editor::preview::message::PreviewMessage;
 
 pub(crate) fn dismiss_preview_popup_menus(app: &mut App) {
-    app.show_preview_context_menu = false;
-    app.preview_context_menu_pos = None;
-    app.preview_nav_popup = None;
-    app.preview_tab_menu_path = None;
-    app.preview_tab_menu_pos = None;
+    desktop_editor::preview::tab::dismiss_preview_popup_menus(&mut tab::state(app));
 }
 
 /// 处理预览模块的消息

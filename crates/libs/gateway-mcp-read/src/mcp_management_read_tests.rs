@@ -1,5 +1,5 @@
-use super::{AgentAppsReadError, GatewayClient, test_support};
-use crate::endpoint::GatewayAuth;
+use super::{AgentAppsReadError, GatewayMcpReadClient, test_support};
+use gateway_endpoint::GatewayAuth;
 use serde_json::json;
 use {
     vw_api_transport::TenantScope,
@@ -18,10 +18,10 @@ async fn cc_mcp_t40_reads_typed_views_with_scoped_credentials_and_encoded_target
         vec![(200, catalog.clone()), (200, presets.clone()), (200, native.clone())],
         TenantScope::new("p", "c").unwrap(),
     );
-    let client = GatewayClient::new(
+    let client = test_support::client(
         server
             .client()
-            .endpoint()
+            .transport.endpoint()
             .clone()
             .with_auth(GatewayAuth { skey: Some("fixture-skey".into()) }),
     )
@@ -126,7 +126,7 @@ async fn cc_mcp_t40_invalid_credential_and_unreachable_gateway_return_transport_
     let port = listener.local_addr().unwrap().port();
     drop(listener);
     let client =
-        GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+        test_support::client(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
     assert!(matches!(
         client.mcp_management_catalog("remote", "fixture\ninjected").await,
         Err(AgentAppsReadError::Transport(_))

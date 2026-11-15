@@ -174,8 +174,7 @@ pub(crate) fn update(app: &mut App, event: ToolsMessage) -> Task<Message> {
                         project_id: context.diagnostics.query.project_id.clone(),
                         session_id: session.clone().into(),
                     };
-                    let result = transport
-                        .client
+                    let result = gateway_mcp_read::GatewayMcpReadClient::new(transport.client.transport().clone())
                         .mcp_management_acp_usage(&query, &transport.token)
                         .await
                         .map_err(|_| "ACP 挂载未验证，请检查会话身份及独立读取授权".to_owned());

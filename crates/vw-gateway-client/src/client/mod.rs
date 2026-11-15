@@ -90,8 +90,6 @@ mod mcp_management_probe;
 #[cfg(test)]
 mod mcp_management_probe_tests;
 mod mcp_management_read;
-#[cfg(test)]
-mod mcp_management_read_tests;
 mod mcp_management_write;
 #[cfg(test)]
 mod mcp_management_write_tests;

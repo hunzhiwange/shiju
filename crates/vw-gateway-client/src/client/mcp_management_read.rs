@@ -11,16 +11,8 @@ impl GatewayClient {
         query: &vw_api_mcp_management::McpAcpUsageQuery,
         token: &str,
     ) -> Result<vw_api_mcp_management::McpAcpUsage, AgentAppsReadError> {
-        self.agent_apps_read_request(
-            "/v1/agent-apps/mcp/acp-mounts/query",
-            &[
-                ("targetHostId", query.target_host_id.clone()),
-                ("projectId", query.project_id.as_ref().to_owned()),
-                ("sessionId", query.session_id.as_ref().to_owned()),
-            ],
-            Some(token),
-        )
-        .await
+        gateway_mcp_read::GatewayMcpReadClient::new(self.transport.clone())
+            .mcp_management_acp_usage(query, token).await
     }
 
     /// Read public catalog records, desired bindings and native adapter capabilities.
@@ -29,12 +21,8 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<McpCatalogResponse, AgentAppsReadError> {
-        self.agent_apps_read_request(
-            "/v1/agent-apps/mcp",
-            &[("targetHostId", host.into())],
-            Some(token),
-        )
-        .await
+        gateway_mcp_read::GatewayMcpReadClient::new(self.transport.clone())
+            .mcp_management_catalog(host, token).await
     }
 
     /// Read disabled built-in preset drafts without connecting to their servers.
@@ -43,12 +31,8 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<McpPresetsResponse, AgentAppsReadError> {
-        self.agent_apps_read_request(
-            "/v1/agent-apps/mcp/presets",
-            &[("targetHostId", host.into())],
-            Some(token),
-        )
-        .await
+        gateway_mcp_read::GatewayMcpReadClient::new(self.transport.clone())
+            .mcp_management_presets(host, token).await
     }
 
     /// Read redacted native state for a trusted installation. Claude requires its managed account ID.
@@ -58,19 +42,7 @@ impl GatewayClient {
         account_id: Option<&str>,
         token: &str,
     ) -> Result<McpNativePreview, AgentAppsReadError> {
-        let serde_json::Value::String(app_id) = serde_json::to_value(target.app_id)
-            .map_err(|err| AgentAppsReadError::Decode(err.to_string()))?
-        else {
-            return Err(AgentAppsReadError::Decode("invalid application identity".into()));
-        };
-        let mut query = vec![
-            ("targetHostId", target.target_host_id.clone()),
-            ("appId", app_id),
-            ("installationId", target.installation_id.0.clone()),
-        ];
-        if let Some(account_id) = account_id {
-            query.push(("accountId", account_id.into()));
-        }
-        self.agent_apps_read_request("/v1/agent-apps/mcp/native", &query, Some(token)).await
+        gateway_mcp_read::GatewayMcpReadClient::new(self.transport.clone())
+            .mcp_management_native(target, account_id, token).await
     }
 }

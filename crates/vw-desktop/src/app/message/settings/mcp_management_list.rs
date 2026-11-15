@@ -43,7 +43,7 @@ pub(crate) async fn load(
     host: &str,
     token: &str,
 ) -> Result<McpCatalogResponse, AgentAppsReadError> {
-    client.mcp_management_catalog(host, token).await
+    gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone()).mcp_management_catalog(host, token).await
 }
 impl CatalogState {
     fn finish(

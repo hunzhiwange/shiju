@@ -319,7 +319,7 @@ pub(crate) fn update(app: &mut App, event: FormMessage) -> Task<Message> {
                 let generation = app.mcp_settings.connection_form.as_ref().unwrap().generation;
                 return Task::perform(
                     async move {
-                        let result = client
+                        let result = gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
                             .mcp_management_presets(&context.host, &token)
                             .await
                             .map_err(|_| "预设读取失败，可手动编辑".into());

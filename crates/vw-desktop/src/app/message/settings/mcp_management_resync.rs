@@ -167,7 +167,7 @@ pub(crate) async fn execute(
                     installation_id: target.installation_id,
                     target_host_id: host.clone(),
                 };
-                let status = client
+                let status = gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
                     .mcp_management_native(&expected, target.account_id.as_deref(), &token)
                     .await
                     .ok()
@@ -178,7 +178,7 @@ pub(crate) async fn execute(
             Ok(ResyncResult::Observed(observed))
         }
         Work::Submit(request) => {
-            client.mcp_management_catalog(&host, &token).await.map_err(|_| ResyncFailure {
+            gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone()).mcp_management_catalog(&host, &token).await.map_err(|_| ResyncFailure {
                 label: "无法刷新实际目录；未提交重同步".into(),
                 uncertain: false,
             })?;
@@ -188,7 +188,7 @@ pub(crate) async fn execute(
                     installation_id: target.installation_id.clone(),
                     target_host_id: host.clone(),
                 };
-                let preview = client
+                let preview = gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
                     .mcp_management_native(&expected, target.account_id.as_deref(), &token)
                     .await
                     .map_err(|_| ResyncFailure {

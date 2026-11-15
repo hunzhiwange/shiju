@@ -282,7 +282,7 @@ pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             return Task::perform(
                 async move {
-                    let result = client
+                    let result = gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
                         .mcp_management_native(&target, account.as_deref(), &token)
                         .await
                         .map_err(|_| "原生预览失败，请检查主机、账号与权限".into())

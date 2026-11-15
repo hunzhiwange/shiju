@@ -132,22 +132,4 @@ async fn acp_model_source_launch_profile_http_reissue_isolates_old_credentials()
     );
 }
 
-#[test]
-fn acp_model_source_launch_profile_references_separate_every_identity_boundary() {
-    let original = identity("one");
-    let profile = AcpLaunchProfile::new(&Default::default(), original.clone()).unwrap();
-    let reference = &profile.config().env[profile::REFERENCE_ENV];
-    for boundary in 0..6 {
-        let mut changed = original.clone();
-        match boundary {
-            0 => changed.session = "two".into(),
-            1 => changed.project = "other-project".into(),
-            2 => changed.provider = "other-provider".into(),
-            3 => changed.model = "other-model".into(),
-            4 => changed.generation += 1,
-            _ => changed.tenant = vw_api_transport::TenantScope::new("other", "tenant").unwrap(),
-        }
-        let other = AcpLaunchProfile::new(&Default::default(), changed).unwrap();
-        assert_ne!(reference, &other.config().env[profile::REFERENCE_ENV]);
-    }
-}
+// Profile identity-boundary coverage lives with its owner in llm-runtime.

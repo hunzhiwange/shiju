@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/desktop-web-install",
   "crates/libs/gateway-mcp-read",
   "crates/libs/gateway-mcp-write",
   "crates/libs/local-app-auth",

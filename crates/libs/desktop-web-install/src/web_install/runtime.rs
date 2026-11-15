@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 #[derive(Debug, Default)]
-pub(crate) struct Runtime {
+pub struct Runtime {
     inner: Mutex<Inner>,
 }
 
@@ -149,7 +149,7 @@ impl Runtime {
         Ok(())
     }
 
-    pub(crate) fn shutdown(&self) {
+    pub fn shutdown(&self) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.closed = true;
             inner.process = None;

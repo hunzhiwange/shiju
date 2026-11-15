@@ -1,15 +1,9 @@
 //! Narrow Codex bucket rewrite. Authorization, lifecycle exclusion and durable
 //! backup ownership belong to the maintenance operation invoking this primitive.
-use crate::{
-    providers::{
-        live::write_guard::{WriteError, lock_directory, prepare_private_child},
-        paths::open_beneath,
-    },
-    sessions::{
-        rollout,
-        source::{SourceRegistry, ValidatedSource},
-    },
-};
+use app_config_write::write_guard::{WriteError, lock_directory, prepare_private_child};
+use app_config_paths::open_beneath;
+use app_session_codex::rollout;
+use app_session_core::source::{SourceRegistry, ValidatedSource};
 use serde_json::Value;
 use std::{
     collections::BTreeSet,
@@ -50,7 +44,7 @@ pub fn migrate(
         return Err(invalid());
     }
     for id in source_ids.iter().map(String::as_str).chain(std::iter::once(target_id)) {
-        crate::providers::validate_identity(id).map_err(|_| invalid())?;
+        app_provider_validation::validate_identity(id).map_err(|_| invalid())?;
     }
     let source = registry.resolve(identity)?;
     if !rollout::is_rollout_file(source.path()) {

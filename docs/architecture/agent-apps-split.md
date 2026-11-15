@@ -1041,11 +1041,11 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/maintenance.rs` | 346 | 54 |
 | `sessions/markdown.rs` | 183 | 53 |
 | `sessions/migration/mod.rs` | 14 | 52 |
-| `sessions/migration/provider_refs.rs` | 267 | 52 |
-| `sessions/migration/restore.rs` | 278 | 52 |
-| `sessions/migration/rollout.rs` | 200 | 52 |
-| `sessions/migration/state_db.rs` | 244 | 52 |
-| `sessions/migration/unify.rs` | 348 | 52 |
+| `sessions/migration/provider_refs.rs` | 267 | 52 → `crates/libs/app-session-migration/src/provider_refs.rs` |
+| `sessions/migration/restore.rs` | 278 | 52 → `crates/libs/app-session-migration/src/restore.rs` |
+| `sessions/migration/rollout.rs` | 200 | 52 → `crates/libs/app-session-migration/src/rollout.rs` |
+| `sessions/migration/state_db.rs` | 244 | 52 → `crates/libs/app-session-migration/src/state_db.rs` |
+| `sessions/migration/unify.rs` | 348 | 52 → `crates/libs/app-session-migration/src/unify.rs` |
 | `sessions/mod.rs` | 43 | 54 |
 | `sessions/providers/agy.rs` | 301 | 50 → `crates/libs/app-session-native/src/agy.rs` |
 | `sessions/providers/claude.rs` | 320 | 46 → `crates/libs/app-session-claude/src/claude.rs` |
@@ -2737,3 +2737,12 @@ PiSessionContext、根目录解析、scan_sessions、load_messages 沿用原门�
 - 新包仅在 macOS 直接依赖 app-launch，后者已有 request 与 TerminalSession 的实际公开导出。无新增回调 trait、配置或门面回依赖。旧门面仅在 macOS 添加新包路径依赖，原 app-launch 及外部会话 API 仍有真实调用者，保留。
 - 静态证据：七个 launch_command 从 HOME 提取直到函数及后续辅助实现与 HEAD 原文逐字一致；custom 的授权能力实现也逐字一致（仅导入位置改变）。七个旧包装签名与 HEAD 一致，新旧模块 cfg 一致；标准库核对所有路径，既有 pip._vendor.tomli 解析 TOML（系统 Python 3.9 无 tomllib），递归生产路径依赖无环且无旧门面回边。源码检索和 git diff --check 通过。RustCodeGraph 索引仍指向已迁移旧路径并返回无源码，本任务改用源码检索，不更新索引。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：新包、app-launch 与网关调用者目标编译，macOS 终端恢复、凭据隔离、参数转义和自定义模板授权边界，以及 Windows/Linux cfg。禁止实际唤起终端；静态审阅不代表行为验收，Cargo.lock 未修改。
+
+
+### 任务 52：会话迁移结果
+
+- app-session-migration/src 唯一拥有 provider_refs、restore、rollout、state_db、unify；原 migration/mod.rs 仅重导出，根模块的五处 macOS cfg 完整保留于新 lib.rs。原 lib.rs 经 sessions 提供原路径，无需重复导出。无独立测试、include 或外部资源路径需迁移。
+- SourceRegistry/ValidatedSource 所在 source.rs 从任务 53 提前原样下沉 app-session-core，沿用已有 identity 校验与 API 依赖；原 source.rs 仅重导出。任务 53 接收内容/存储编排并沿用此路径，不重复搬迁。这样迁移实现不依赖上层内容包或门面；maintenance 编排仍由任务 54 收口，无未闭合叶子符号。
+- 新包直接使用 app-auth 的事务与记录发布、app-config-write、app-config-paths、app-provider-validation、app-session-core、app-session-codex 及实际 API/序列化/SQLite/压缩依赖；全部置于 macOS target 段，保留 rusqlite bundled/hooks/limits 与 serde_json arbitrary_precision。原包这些依赖仍有其它调用者，保留。
+- 静态证据：五份源码与 HEAD 差异仅导入路径，source.rs 逐字一致；标准库路径审阅配合已有 pip._vendor.tomli 读取清单，46 个传递生产依赖清单均存在且无旧门面回依赖；workspace 和直接路径依赖已注册。maintenance 与网关 host 继续通过原公开符号调用，git diff --check 通过。
+- 未运行 Cargo、单元及实机测试，统一验收待授权：新增包、基础 source 与维护/网关调用者编译、迁移恢复与授权路径定向测试及原平台行为。静态证据不代表行为通过；Cargo.lock 未修改，未执行数据迁移。

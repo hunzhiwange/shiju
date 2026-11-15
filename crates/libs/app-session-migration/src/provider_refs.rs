@@ -1,5 +1,5 @@
 //! Executor-only trusted legacy template migration. No provider store or completion marker.
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{AppState, PendingTarget, ProviderTransactions},
     record_publication::{ProviderRecordChange, ProviderRecordParticipant},
     stage::{FileChange, WholeFile},

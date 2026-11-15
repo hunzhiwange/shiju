@@ -5,7 +5,8 @@ use super::{
     rollout, state_db,
     unify::{BackupGeneration, GenerationBinding},
 };
-use crate::sessions::{rollout as rollout_files, source::SourceRegistry};
+use app_session_codex::rollout as rollout_files;
+use app_session_core::source::SourceRegistry;
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 use std::{

@@ -2,10 +2,9 @@
 //! The caller owns native-writer lifecycle exclusion across this entire operation,
 //! including retries and ledger access. Never hold an AppWriteGuard when calling.
 use super::{rollout, state_db};
-use crate::{
-    providers::{live::write_guard::prepare_private_child, paths::open_beneath},
-    sessions::source::SourceRegistry,
-};
+use app_config_write::write_guard::prepare_private_child;
+use app_config_paths::open_beneath;
+use app_session_core::source::SourceRegistry;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{

@@ -1,8 +1,6 @@
 //! Executor-only Codex state bucket migration; never accepts a client path.
-use crate::providers::{
-    live::write_guard::{WriteError, lock_directory},
-    paths::open_beneath,
-};
+use app_config_write::write_guard::{WriteError, lock_directory};
+use app_config_paths::open_beneath;
 use rusqlite::{Connection, OpenFlags, TransactionBehavior, params_from_iter};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -46,12 +44,12 @@ pub fn migrate(
     mut backup: impl FnMut(&Path, &StateDbBackup) -> io::Result<()>,
 ) -> io::Result<usize> {
     if db_path.file_name().and_then(|s| s.to_str())
-        != Some(crate::sessions::codex_state::CODEX_STATE_DB_FILENAME)
+        != Some(app_session_core::codex_state::CODEX_STATE_DB_FILENAME)
     {
         return Err(invalid());
     }
     for id in source_ids.iter().map(String::as_str).chain(std::iter::once(target_id)) {
-        crate::providers::validate_identity(id).map_err(|_| invalid())?;
+        app_provider_validation::validate_identity(id).map_err(|_| invalid())?;
     }
     if thread_ids
         .iter()

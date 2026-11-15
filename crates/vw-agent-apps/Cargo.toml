@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-session-migration = { path = "../libs/app-session-migration" }
 app-session-native = { path = "../libs/app-session-native" }
 app-session-sqlite = { path = "../libs/app-session-sqlite" }
 app-session-core = { path = "../libs/app-session-core" }

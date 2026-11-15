@@ -5,7 +5,7 @@ use crate::app::message::settings::worktrees::ManagedMessage;
 use crate::app::{Message, i18n::I18n, state::ManagedWorktreesState};
 use iced::widget::{button, column, row, text, tooltip};
 use iced::{Alignment, Element, Length};
-use vw_gateway_client::vw_api_types::worktree::{
+use vw_api_worktree::{
     WorktreeProtectionReason as Reason, WorktreeStatus,
 };
 fn event(value: ManagedMessage) -> Message {

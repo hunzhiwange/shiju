@@ -8,6 +8,7 @@ description = "API types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 vw-api-git = { path = "../libs/api-git", version = "0.6.0" }
 vw-api-file = { path = "../libs/api-file", version = "0.6.0" }
 vw-api-chat = { path = "../libs/api-chat", version = "0.6.0" }

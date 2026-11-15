@@ -403,7 +403,7 @@ pub(super) fn content_fingerprint(
 pub async fn list(
     scope: &ProjectScope,
     primary: &Path,
-) -> Result<Vec<vw_api_types::worktree::WorktreeSnapshotSummary>, Error> {
+) -> Result<Vec<vw_api_worktree::WorktreeSnapshotSummary>, Error> {
     let _lock = registry::lifecycle_lock(primary)?;
     let records = registry::records(scope).await?;
     let repo = Repository::open(primary).map_err(invalid)?;
@@ -416,7 +416,7 @@ pub async fn list(
             Err(_) => continue,
         };
         let manifest = snapshot.manifest;
-        items.push(vw_api_types::worktree::WorktreeSnapshotSummary {
+        items.push(vw_api_worktree::WorktreeSnapshotSummary {
             id: id.to_owned(),
             original_worktree_id: manifest.record.id,
             directory: manifest.record.directory.to_string_lossy().into_owned(),

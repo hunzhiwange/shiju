@@ -14,7 +14,7 @@ use {
     vw_api_transport::common::OperationAck,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::worktree::*,
+    vw_api_worktree::*,
 };
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()

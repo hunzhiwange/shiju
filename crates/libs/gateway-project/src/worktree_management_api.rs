@@ -3,7 +3,7 @@ use super::{GatewayProjectClient, project_api::encode_path_segment};
 use {
     vw_api_transport::common::OperationAck,
     vw_api_types::project::ProjectScopeDto,
-    vw_api_types::worktree::*,
+    vw_api_worktree::*,
 };
 impl GatewayProjectClient {
     fn management_path(&self, scope: &ProjectScopeDto, id: Option<&str>) -> Result<String, String> {

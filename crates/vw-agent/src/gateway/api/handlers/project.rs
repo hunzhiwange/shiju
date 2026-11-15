@@ -24,7 +24,7 @@ use vw_api_types::project::{
     ListProjectsRequest, ProjectChangeRecordDto, ProjectDto, ProjectGitStateDto, ProjectStatus,
     ResolveProjectRequest, ResolveProjectResponse, UpdateProjectRequest,
 };
-use vw_api_types::worktree::{
+use vw_api_worktree::{
     CreateWorktreeRequest, CreateWorktreeResponse, DeleteWorktreeRequest, GetWorktreeResponse,
     ListWorktreesResponse, ResetMode, ResetWorktreeRequest, WorktreeDto, WorktreeStatus,
 };

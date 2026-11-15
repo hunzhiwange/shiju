@@ -76,7 +76,7 @@ fn worktree_managed_ui_refresh_keeps_groups_stable() {
     assert!(state.groups[0].collapsed);
 }
 
-fn item(id: &str) -> vw_gateway_client::vw_api_types::worktree::ManagedWorktreeDto {
+fn item(id: &str) -> vw_api_worktree::ManagedWorktreeDto {
     serde_json::from_value(serde_json::json!({
         "worktree":{"id":"checkout", "project_id":id,"name":"现有工作树", "branch":"feature",
             "directory":"/工作树/很长的中文路径用于验证换行和字形整形/原目录", "status":"ready", "created_at_ms":1,"updated_at_ms":2},
@@ -168,7 +168,7 @@ fn worktree_managed_ui_rejects_stale_refresh_and_navigation() {
 #[test]
 fn worktree_managed_ui_preflight_is_scoped_and_never_deletes() {
     use crate::app::message::settings::worktrees::ManagedMessage as Event;
-    use vw_gateway_client::vw_api_types::worktree::{
+    use vw_api_worktree::{
         WorktreeDeletionPreflight, WorktreeProtectionReason,
     };
     let mut app = managed_app();

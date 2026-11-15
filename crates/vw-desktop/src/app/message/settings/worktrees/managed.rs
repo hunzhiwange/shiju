@@ -10,9 +10,9 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_gateway_client::vw_api_types::project::ListProjectsRequest,
     vw_gateway_client::vw_api_types::project::ProjectDto,
-    vw_gateway_client::vw_api_types::worktree::ManagedWorktreeDto,
-    vw_gateway_client::vw_api_types::worktree::WorktreeDeletionPreflight,
-    vw_gateway_client::vw_api_types::worktree::WorktreeStatus,
+    vw_api_worktree::ManagedWorktreeDto,
+    vw_api_worktree::WorktreeDeletionPreflight,
+    vw_api_worktree::WorktreeStatus,
 };
 
 #[derive(Debug, Clone)]

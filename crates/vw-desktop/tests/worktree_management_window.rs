@@ -15,7 +15,7 @@ use crate::app::state::WorktreesTab;
 use crate::app::{App, Message as AppMessage};
 use iced::widget::{container, text};
 use iced::{Element, Length, Task, Theme, window};
-use vw_gateway_client::vw_api_types::worktree::WorktreeDeletionPreflight;
+use vw_api_worktree::WorktreeDeletionPreflight;
 
 #[derive(Debug, Clone)]
 enum Message {

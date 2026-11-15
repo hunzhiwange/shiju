@@ -12,7 +12,7 @@ use vw_api_types::project::{
     ListProjectsResponse, ProjectScopeDto, ResolveProjectRequest, ResolveProjectResponse,
     TenantScopeDto, UpdateProjectRequest,
 };
-use vw_api_types::worktree::{
+use vw_api_worktree::{
     CreateWorktreeRequest, CreateWorktreeResponse, DeleteWorktreeRequest, GetWorktreeResponse,
     ListWorktreesResponse, ResetWorktreeRequest,
 };

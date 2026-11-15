@@ -4,7 +4,7 @@ use std::path::Path;
 use {
     vw_api_transport::common::TimestampMs,
     vw_api_transport::id::ProjectScope,
-    vw_api_types::worktree::*,
+    vw_api_worktree::*,
 };
 use vw_config_types::worktree::WorktreeSettings;
 

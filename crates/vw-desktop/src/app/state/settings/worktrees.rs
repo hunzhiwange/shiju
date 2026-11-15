@@ -90,8 +90,8 @@ pub(crate) struct WorktreeSettingsState {
 
 use vw_gateway_client::vw_api_types::{
     project::ProjectDto,
-    worktree::{ManagedWorktreeDto, WorktreeDeletionPreflight},
 };
+use vw_api_worktree::{ManagedWorktreeDto, WorktreeDeletionPreflight};
 
 #[derive(Debug, Clone)]
 pub struct ManagedWorktreeGroup {
@@ -167,7 +167,7 @@ pub(crate) struct WorktreeRecoveryState {
 pub struct WorktreeRecoveryProject {
     pub(crate) project: ProjectDto,
     pub(crate) snapshots:
-        Result<Vec<vw_gateway_client::vw_api_types::worktree::WorktreeSnapshotSummary>, String>,
+        Result<Vec<vw_api_worktree::WorktreeSnapshotSummary>, String>,
     pub(crate) proposal:
-        Result<vw_gateway_client::vw_api_types::worktree::WorktreeCleanupProposal, String>,
+        Result<vw_api_worktree::WorktreeCleanupProposal, String>,
 }

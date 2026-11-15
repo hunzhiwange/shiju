@@ -105,9 +105,6 @@ mod task_tests;
 #[cfg(test)]
 #[path = "workflow_tests.rs"]
 mod workflow_tests;
-#[cfg(test)]
-#[path = "worktree_tests.rs"]
-mod worktree_tests;
 
 pub use vw_api_chat_identity::ReasoningEffortDto;
 pub use common::*;

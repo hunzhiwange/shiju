@@ -10,7 +10,7 @@ use tower::ServiceExt;
 use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
-    vw_api_types::worktree::DeleteManagedWorktreeRequest,
+    vw_api_worktree::DeleteManagedWorktreeRequest,
 };
 use vw_config_types::worktree::WorktreeSettings;
 

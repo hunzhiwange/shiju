@@ -9,7 +9,7 @@ fn worktree_cleanup_flow_cancel_does_not_delete() {
 }
 
 use crate::app::state::{WorktreeRecoveryProject, WorktreeSettingsIdentity};
-use vw_gateway_client::vw_api_types::worktree::*;
+use vw_api_worktree::*;
 fn app() -> crate::app::App {
     let mut app = crate::app::App::new().0;
     let identity = WorktreeSettingsIdentity::current(&app);

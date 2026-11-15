@@ -23,7 +23,7 @@ use {
 use vw_gateway_client::vw_api_types::project::{
     ListProjectsRequest, ProjectDto, ResolveProjectRequest,
 };
-use vw_gateway_client::vw_api_types::worktree::{
+use vw_api_worktree::{
     CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, ResetWorktreeRequest, WorktreeDto,
 };
 

@@ -10,7 +10,7 @@ use {
 use vw_api_types::project::{
     ListProjectsRequest, ProjectStatus, ResolveProjectRequest, UpdateProjectRequest,
 };
-use vw_api_types::worktree::{
+use vw_api_worktree::{
     CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, ResetWorktreeRequest,
 };
 

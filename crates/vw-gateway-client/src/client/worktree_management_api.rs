@@ -3,7 +3,7 @@ use super::GatewayClient;
 use {
     vw_api_transport::common::OperationAck,
     vw_api_types::project::ProjectScopeDto,
-    vw_api_types::worktree::*,
+    vw_api_worktree::*,
 };
 impl GatewayClient {
     pub async fn managed_worktrees(

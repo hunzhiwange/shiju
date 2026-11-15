@@ -53,7 +53,7 @@ fn cc_route_042_tools_refusal_order_and_cache_usage() {
     );
     // The older session bridge still rejects refusal blocks.
     assert!(
-        super::protocol_bridge::response(vw_shared::provider::ModelProtocol::Responses, &body)
+        super::protocol_bridge::response(model_protocols::ModelProtocol::Responses, &body)
             .is_err()
     );
 }

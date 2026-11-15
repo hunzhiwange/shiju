@@ -79,11 +79,11 @@ pub(super) fn attach(chat: &mut Value, plans: Vec<(String, Vec<Value>)>) {
 /// Keep the shared text bridge strict. Resident media travels through explicit
 /// request-local placeholders and is restored only in protocol content arrays.
 pub(super) fn request(
-    target: vw_shared::provider::ModelProtocol,
+    target: model_protocols::ModelProtocol,
     chat: &Value,
 ) -> Result<Value, axum::http::StatusCode> {
     use axum::http::StatusCode;
-    use vw_shared::provider::ModelProtocol;
+    use model_protocols::ModelProtocol;
     let mut normalized = chat.clone();
     let mut replacements = Vec::new();
     for message in normalized["messages"].as_array_mut().ok_or(StatusCode::BAD_REQUEST)? {

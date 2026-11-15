@@ -3,7 +3,7 @@ use super::{messages::object_keys, responses::ChatTools};
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use vw_shared::provider::ModelProtocol;
+use model_protocols::ModelProtocol;
 
 const BAD: StatusCode = StatusCode::BAD_REQUEST;
 const UNSUPPORTED: StatusCode = StatusCode::UNPROCESSABLE_ENTITY;

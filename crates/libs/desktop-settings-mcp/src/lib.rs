@@ -71,14 +71,14 @@ pub(crate) fn configured_mcp_server_rows(
 
 pub(crate) fn inspect_for_server<'a>(
     inspect: Option<&'a McpInspectResponse>,
-    pub name: &str,
+    name: &str,
 ) -> Option<&'a McpServerInspectDto> {
     inspect?.servers.iter().find(|server| server.name == name)
 }
 
 pub(crate) fn connection_status_label_and_tone(
     inspect: Option<&McpServerInspectDto>,
-    pub enabled: bool,
+    enabled: bool,
 ) -> (&'static str, McpStatusTone) {
     match inspect.map(|entry| &entry.connection_status) {
         Some(McpConnectionStatusDto::Connected) => ("已连通", McpStatusTone::Connected),
@@ -116,7 +116,7 @@ pub(crate) fn status_badge_style(theme: &iced::Theme) -> iced::widget::container
 pub(crate) fn status_badge<Message: Clone + 'static>(
     locale: DesktopLocale,
     inspect: Option<&McpServerInspectDto>,
-    pub enabled: bool,
+    enabled: bool,
 ) -> Element<'static, Message> {
     let (label, tone) = connection_status_label_and_tone(inspect, enabled);
     container(
@@ -316,3 +316,10 @@ pub mod bindings;
 pub mod page;
 pub mod state;
 pub mod catalog;
+
+pub mod configuration;
+pub mod configuration_update;
+pub mod management_context;
+pub mod management_form;
+pub mod management_bindings;
+pub mod management_import;

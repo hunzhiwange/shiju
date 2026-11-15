@@ -20,3 +20,9 @@ vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+gateway-mcp-write = { path = "../gateway-mcp-write", version = "0.6.0" }
+gateway-mcp-distribution = { path = "../gateway-mcp-distribution", version = "0.6.0" }
+serde = "1"
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }

@@ -1,118 +1,25 @@
 //! Native bindings use trusted installation identities; runtime and ACP stay independent.
 use super::{McpMessage, SettingsMessage, mcp_management_list as catalog};
 use crate::app::{App, Message};
+#[cfg(test)]
+use gateway_mcp_distribution::{McpBindingRequest, McpBulkRequest};
 use iced::Task;
-use {
-    vw_gateway_client::GatewayClient,
-    gateway_mcp_distribution::McpBindingRequest,
-    gateway_mcp_distribution::McpBulkRequest,
-    vw_api_mcp_management::*,
-};
+use vw_api_mcp_management::*;
+#[cfg(test)]
+use vw_gateway_client::GatewayClient;
 
-pub(crate) use desktop_settings_mcp::distribution::{unsupported_reason, project, supported, summary};
 #[cfg(test)]
 use desktop_settings_mcp::distribution::{APPS, item_label};
-#[derive(Debug, Clone, Default)]
-pub(crate) struct BindingsState {
-    pub(crate) context: Option<catalog::Context>,
-    pub(crate) selected: Vec<McpCatalogRecord>,
-    pub(crate) running: bool,
-    generation: u64,
-    pub(crate) result: Option<Result<McpDistributionResult, String>>,
-}
-#[derive(Debug, Clone)]
-pub enum BindingsMessage {
-    Select(McpCatalogRecord, bool),
-    Apply(McpAppTarget, bool),
-    RetryFailed,
-    Finished {
-        context: catalog::Context,
-        generation: u64,
-        result: Result<McpDistributionResult, String>,
-    },
-}
+pub(crate) use desktop_settings_mcp::distribution::{
+    project, summary, supported, unsupported_reason,
+};
+pub use desktop_settings_mcp::management_bindings::{BindingsMessage, BindingsState, apply};
 pub(crate) fn message(value: BindingsMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(McpMessage::Bindings(value)))
 }
 pub(crate) fn visible(app: &App) -> Option<&BindingsState> {
     let state = &app.mcp_settings.bindings;
     (catalog::context(app).as_ref() == state.context.as_ref()).then_some(state)
-}
-pub(crate) async fn apply(
-    client: GatewayClient,
-    records: Vec<McpCatalogRecord>,
-    target: McpAppTarget,
-    enabled: bool,
-    token: String,
-) -> Result<McpDistributionResult, String> {
-    let project_id = project(&records)?;
-    let response = if records.len() == 1 {
-        gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
-            .mcp_management_bind(
-                &records[0].record.id,
-                &McpBindingRequest {
-                    target: target.clone(),
-                    project_id,
-                    expected_revision: records[0].record.revision,
-                    enabled,
-                },
-                &token,
-            )
-            .await
-    } else {
-        gateway_mcp_distribution::GatewayMcpDistributionClient::new(client.transport().clone())
-            .mcp_management_bulk(
-                &McpBulkRequest {
-                    target: target.clone(),
-                    project_id,
-                    records: records.iter().map(|r| r.record.clone()).collect(),
-                    enabled,
-                },
-                &token,
-            )
-            .await
-    }
-    .map_err(|_| "绑定请求失败；请刷新目录核实期望与原生状态".to_owned())?;
-    // Do not call an incomplete, duplicate or foreign response successful.
-    if response.items.len() != records.len()
-        || records.iter().any(|record| {
-            response
-                .items
-                .iter()
-                .filter(|item| {
-                    item.record.id == record.record.id
-                        && item.record.revision >= record.record.revision
-                        && item.target == target
-                        && item.enabled == enabled
-                })
-                .count()
-                != 1
-        })
-    {
-        return Err("响应不完整或目标不匹配；请刷新核实结果".into());
-    }
-    Ok(response)
-}
-impl BindingsState {
-    fn finish(
-        &mut self,
-        current: &catalog::Context,
-        request: &catalog::Context,
-        generation: u64,
-        result: Result<McpDistributionResult, String>,
-    ) -> bool {
-        if current != request
-            || self.context.as_ref() != Some(request)
-            || self.generation != generation
-            || !self.running
-        {
-            return false;
-        }
-        self.running = false;
-        self.selected.clear();
-        self.result = Some(result);
-        true
-    }
 }
 pub(crate) fn update(app: &mut App, value: BindingsMessage) -> Task<Message> {
     let Some(context) = catalog::context(app) else {
@@ -152,9 +59,7 @@ pub(crate) fn update(app: &mut App, value: BindingsMessage) -> Task<Message> {
             let failed: Vec<_> = result
                 .items
                 .iter()
-                .filter(|item| {
-                    matches!(item.native_outcome, McpDistributionOutcome::Failed { .. })
-                })
+                .filter(|item| matches!(item.native_outcome, McpDistributionOutcome::Failed { .. }))
                 .collect();
             let Some(first) = failed.first() else {
                 return Task::none();
@@ -186,7 +91,24 @@ pub(crate) fn update(app: &mut App, value: BindingsMessage) -> Task<Message> {
             }
             let records = app.mcp_settings.bindings.selected.clone();
             let valid_catalog = matches!(catalog::visible(app), Some(Ok(c)) if records.iter().all(|r| c.records.contains(r)) && supported(c, &records, target.app_id));
-            let valid_installation = app.apps_catalog.context.as_ref() == Some(&context.endpoint) && !app.apps_catalog.loading && !app.apps_catalog.token.is_empty() && target.target_host_id == context.host && app.apps_catalog.rows.iter().any(|row| row.entry.id == target.app_id && row.observation.as_ref().is_ok_and(|observation| observation.installations.iter().any(|i| i.app_id == target.app_id && i.id == target.installation_id && i.target_host_id == context.host && matches!(i.environment, vw_api_app_identity::AppInstallationEnvironment::Macos))));
+            let valid_installation = app.apps_catalog.context.as_ref() == Some(&context.endpoint)
+                && !app.apps_catalog.loading
+                && !app.apps_catalog.token.is_empty()
+                && target.target_host_id == context.host
+                && app.apps_catalog.rows.iter().any(|row| {
+                    row.entry.id == target.app_id
+                        && row.observation.as_ref().is_ok_and(|observation| {
+                            observation.installations.iter().any(|i| {
+                                i.app_id == target.app_id
+                                    && i.id == target.installation_id
+                                    && i.target_host_id == context.host
+                                    && matches!(
+                                        i.environment,
+                                        vw_api_app_identity::AppInstallationEnvironment::Macos
+                                    )
+                            })
+                        })
+                });
             if !valid_catalog || !valid_installation || project(&records).is_err() {
                 return app.show_error_toast(
                     "选择无效、修订已变更或目标不支持；请刷新并选择同一作用域目录项",

@@ -8,12 +8,7 @@ use {
     vw_api_mcp_management::*,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Context {
-    pub(crate) endpoint: AgentAppsContext,
-    pub(crate) host: String,
-    pub(crate) credentials_generation: u64,
-}
+pub use desktop_settings_mcp::management_context::Context;
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CatalogState {
     context: Option<Context>,

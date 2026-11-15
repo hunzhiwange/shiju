@@ -50,7 +50,6 @@ encoding_rs = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10.4"
 clap = { version = "4.5", features = ["derive"] }
-clap_complete = "4.5"
 console = { version = "0.16" }
 command-arity = { path = "../libs/command-arity", version = "0.6.0" }
 canary-guard = { path = "../libs/canary-guard", version = "0.6.0" }
@@ -84,8 +83,6 @@ postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 pulldown-cmark = "0.13"
 rand = "0.10.3"
 regex = "1"
-rhai = { version = "1.23", features = ["serde"] }
-rust-embed = "8.11.0"
 rustls-pki-types = "1.14.0"
 schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
@@ -107,7 +104,6 @@ tower-http = { version = "0.6", features = ["limit", "timeout", "cors", "decompr
 tracing = "0.1"
 tree-sitter = { version = "0.26.10", optional = true }
 tree-sitter-bash = { version = "0.23", optional = true }
-unicode-width = "0.2"
 urlencoding = "2.1"
 url = "2"
 uuid = { version = "1.11", features = ["v4", "js"] }

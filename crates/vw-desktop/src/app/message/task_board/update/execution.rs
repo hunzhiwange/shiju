@@ -1,31 +1,7 @@
-//! 处理任务看板状态更新分支，将 UI 消息转换为应用状态变更和异步任务。
-//!
-//! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
-//! 不改变任何运行时行为。
-
 use super::*;
-use vw_api_agent_scheduler::{
-    AgentSchedulerCommandKindDto, AgentSchedulerWakeResponse,
-};
+use taskboard::update::execution::{ExecutionState, ExecutionEffect, WakeKind};
+use vw_api_agent_scheduler::AgentSchedulerWakeResponse;
 use vw_api_transport::common::TimestampMs;
-
-fn should_continue_existing_session_for_manual_retry(task: &Task, manual: bool) -> bool {
-    manual && task.status == TaskStatus::Failed
-}
-
-fn add_agent_scheduler_command_log_once(task: &mut Task, message: &str) {
-    if !task.logs.iter().rev().take(16).any(|entry| entry.message == message) {
-        task.add_localized_log(message, vec![]);
-    }
-}
-
-fn agent_scheduler_lifecycle_error(app: &crate::app::App) -> Option<String> {
-    let workflow_id = app.task_board_settings.workflow_id.clone();
-    task_workflow_by_id(&workflow_id)
-        .is_none()
-        .then(|| format!("Agent Scheduler 已阻塞：任务生命周期未加载: {workflow_id}"))
-}
-
 fn wake_agent_scheduler_after_registering_pending(
     app: &crate::app::App,
     mapper: fn(Result<AgentSchedulerWakeResponse, String>) -> TaskBoardMessage,
@@ -33,7 +9,7 @@ fn wake_agent_scheduler_after_registering_pending(
     let Some(project_path) = app.project_path.clone() else {
         return iced::Task::none();
     };
-    if let Some(error) = agent_scheduler_lifecycle_error(app) {
+    if let Some(error) = taskboard::update::execution::agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id) {
         tracing::warn!(error = %error, "agent scheduler pending registration skipped");
         return iced::Task::none();
     }
@@ -66,276 +42,65 @@ fn wake_agent_scheduler_after_registering_pending(
     )
 }
 
-fn dispatch_agent_scheduler_execution_wake(
-    app: &mut crate::app::App,
-    _response: AgentSchedulerWakeResponse,
-) -> iced::Task<crate::app::Message> {
-    iced::Task::batch(vec![
-        sync_agent_scheduler_status_for_current_project(app),
-        schedule_scheduler_tick_with_deadline(app),
-    ])
-}
-
-fn dispatch_agent_scheduler_promote_wake(
-    app: &mut crate::app::App,
-    _response: AgentSchedulerWakeResponse,
-) -> iced::Task<crate::app::Message> {
-    iced::Task::batch(vec![
-        sync_agent_scheduler_status_for_current_project(app),
-        schedule_auto_promote_tick_with_deadline(app),
-    ])
-}
-
-fn dispatch_agent_scheduler_merge_wake(
-    app: &mut crate::app::App,
-    _response: AgentSchedulerWakeResponse,
-) -> iced::Task<crate::app::Message> {
-    iced::Task::batch(vec![
-        sync_agent_scheduler_status_for_current_project(app),
-        schedule_auto_merge_tick_with_deadline(app),
-    ])
-}
-
-/// 执行 update 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(super) fn update(
-    app: &mut crate::app::App,
-    message: TaskBoardMessage,
-) -> iced::Task<crate::app::Message> {
-    dispatch_task_board_messages!(message,
-    TaskBoardMessage::StartExecution => {
-        if !app.project_path.as_deref().is_some_and(|path| std::path::Path::new(path).is_dir()) {
-            return app.show_error_toast("项目目录不存在".to_string());
-        }
-        app.task_board_executor_running = true;
-        app.task_board_last_log_flush_at_ms = 0;
-        app.task_board_log_scan_cursor = 0;
-        app.task_board_timeout_scan_cursor = 0;
-        app.task_board_schedule_scan_cursor = 0;
-        app.task_board_next_scheduler_tick_at_ms = next_deadline_ms(scheduler_tick_interval_secs(app));
-        iced::Task::done(Message::TaskBoard(TaskBoardMessage::ExecutionTick))
+pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> iced::Task<Message> {
+    if matches!(&message, TaskBoardMessage::ExecutionTick) {
+        flush_running_task_logs_throttled(app, false, web_time::Instant::now());
     }
-    TaskBoardMessage::StopExecution => {
-        app.task_board_executor_running = false;
-        iced::Task::none()
-    }
-        TaskBoardMessage::ExecutionTick => {
-        let tick_started_at = web_time::Instant::now();
-        flush_running_task_logs_throttled(app, false, tick_started_at);
-
-        if !app.task_board_executor_running {
-            return iced::Task::none();
-        }
-
-            let maintenance = app.project_path.clone().map(|path| {
-                schedule_worktree_pool_maintenance(app, &path, 0)
-            }).unwrap_or_else(iced::Task::none);
-            iced::Task::batch(vec![maintenance, wake_agent_scheduler_after_registering_pending(
-                app,
-                TaskBoardMessage::AgentSchedulerExecutionWakeCompleted,
-            )])
-        }
-        TaskBoardMessage::AgentSchedulerExecutionWakeCompleted(result) => {
-            let response = match result {
-                Ok(response) => response,
-                Err(error) => {
-                    if agent_scheduler_gateway_unavailable(&error) {
-                        tracing::debug!(
-                            error = %error,
-                            "agent scheduler execution wake skipped because gateway is unavailable"
-                        );
+    let deadline = next_deadline_ms(scheduler_tick_interval_secs(app));
+    let mut state = ExecutionState {
+        project_path: &mut app.project_path,
+        task_board_settings: &mut app.task_board_settings,
+        task_board_tasks: &mut app.task_board_tasks,
+        task_board_executor: &mut app.task_board_executor,
+        task_board_executor_running: &mut app.task_board_executor_running,
+        task_board_last_log_flush_at_ms: &mut app.task_board_last_log_flush_at_ms,
+        task_board_log_scan_cursor: &mut app.task_board_log_scan_cursor,
+        task_board_timeout_scan_cursor: &mut app.task_board_timeout_scan_cursor,
+        task_board_schedule_scan_cursor: &mut app.task_board_schedule_scan_cursor,
+        task_board_next_scheduler_tick_at_ms: &mut app.task_board_next_scheduler_tick_at_ms,
+        next_deadline_ms: deadline, effects: vec![],
+    };
+    let result = taskboard::update::execution::update(&mut state, message);
+    let mut effects = std::mem::take(&mut state.effects);
+    effects.extend(result);
+    drop(state);
+    let mut tasks = Vec::new();
+    for effect in effects {
+        match effect {
+            ExecutionEffect::Message(message) => tasks.push(iced::Task::done(Message::TaskBoard(message))),
+            ExecutionEffect::Error(error) => tasks.push(app.show_error_toast(error)),
+            ExecutionEffect::SyncLogs(task) => {
+                if let Some(task) = task {
+                    if app.task_board_viewing_logs.as_ref().is_some_and(|viewing| viewing.id == task.id) {
+                        set_viewing_logs(app, Some(task));
                     } else {
-                        tracing::warn!(error = %error, "agent scheduler execution wake failed");
+                        refresh_task_log_cache(app, &task);
                     }
-                    return schedule_scheduler_tick_with_deadline(app);
                 }
-            };
-            dispatch_agent_scheduler_execution_wake(app, response)
+            },
+            ExecutionEffect::Maintain(path) => tasks.push(schedule_worktree_pool_maintenance(app, &path, 0)),
+            ExecutionEffect::ScheduleTick => tasks.push(schedule_scheduler_tick_with_deadline(app)),
+            ExecutionEffect::SchedulePromote => tasks.push(schedule_auto_promote_tick_with_deadline(app)),
+            ExecutionEffect::ScheduleMerge => tasks.push(schedule_auto_merge_tick_with_deadline(app)),
+            ExecutionEffect::SyncStatus(path) => tasks.push(sync_agent_scheduler_status(path)),
+            ExecutionEffect::SyncInFlight(path, id) => tasks.push(schedule_agent_scheduler_command_in_flight_status_sync(path, id)),
+            ExecutionEffect::Command(path, task, workflow, kind, mode, max, reason) => tasks.push(send_agent_scheduler_command(path, task, workflow, kind, mode, max, reason)),
+            ExecutionEffect::Wake(kind) => tasks.push(wake_agent_scheduler_after_registering_pending(app, match kind {
+                WakeKind::Execution => TaskBoardMessage::AgentSchedulerExecutionWakeCompleted,
+                WakeKind::Promote => TaskBoardMessage::AgentSchedulerPoolWakeCompleted,
+                WakeKind::Merge => TaskBoardMessage::AgentSchedulerAutoMergeWakeCompleted,
+            })),
+            ExecutionEffect::WakeCompleted(kind) => {
+                tasks.push(sync_agent_scheduler_status_for_current_project(app));
+                tasks.push(match kind {
+                    WakeKind::Execution => schedule_scheduler_tick_with_deadline(app),
+                    WakeKind::Promote => schedule_auto_promote_tick_with_deadline(app),
+                    WakeKind::Merge => schedule_auto_merge_tick_with_deadline(app),
+                });
+            }
         }
-    TaskBoardMessage::AgentSchedulerCommandInFlightStatusTick { project_path, task_id } => {
-        if !task_board_project_matches(app, &project_path) {
-            return iced::Task::none();
-        }
-        let Some(task) = app
-            .task_board_tasks
-            .iter_mut()
-            .find(|task| task.id == task_id && task.status == TaskStatus::PrSubmitted)
-        else {
-            return iced::Task::none();
-        };
-        add_agent_scheduler_command_log_once(
-            task,
-            "Agent Scheduler 合并命令等待返回，正在同步网关状态/日志",
-        );
-        sync_viewing_logs(app, &task_id);
-        iced::Task::batch(vec![
-            sync_agent_scheduler_status(project_path.clone()),
-            schedule_agent_scheduler_command_in_flight_status_sync(project_path, task_id),
-        ])
     }
-    TaskBoardMessage::AgentSchedulerMergeReadyPersisted { project_path, task, result } => {
-        if !task_board_project_matches(app, &project_path) {
-            return iced::Task::none();
-        }
-        let task_id = task.id.clone();
-        if let Some(task_in_list) = app.task_board_tasks.iter_mut().find(|item| item.id == task_id)
-        {
-            match result {
-                Ok(()) => {
-                    add_agent_scheduler_command_log_once(
-                        task_in_list,
-                        "已发送 Agent Scheduler 合并命令",
-                    );
-                }
-                Err(error) => {
-                    task_in_list.mark_paused(format!(
-                        "本地合并状态保存失败，未发送 Agent Scheduler 合并命令: {error}"
-                    ));
-                    sync_viewing_logs(app, &task_id);
-                    return iced::Task::none();
-                }
-            }
-        }
-            sync_viewing_logs(app, &task_id);
-            if let Some(error) = agent_scheduler_lifecycle_error(app) {
-                if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
-                    task.mark_paused(error.clone());
-                }
-                return app.show_error_toast(error);
-            }
-            iced::Task::batch(vec![
-                send_agent_scheduler_command(
-                    project_path.clone(),
-                    task,
-                    app.task_board_settings.workflow_id.clone(),
-                AgentSchedulerCommandKindDto::Merge,
-                app.task_board_settings.agent_scheduler_dispatch_mode,
-                None,
-                Some("自动审核已跳过，进入合并阶段".to_string()),
-            ),
-            schedule_agent_scheduler_command_in_flight_status_sync(project_path, task_id),
-        ])
-    }
-    TaskBoardMessage::AutoCodeReviewTick => { iced::Task::none() }
-    TaskBoardMessage::SimulateStep { task_id } => {
-        if !app.task_board_executor_running {
-            return iced::Task::none();
-        }
-
-        if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id) {
-            let current_status = task.status;
-            if let Some(new_status) = crate::app::task::simulate_task_execution_step(
-                &app.project_path.clone().unwrap_or_default(),
-                &task_id,
-                current_status,
-            ) {
-                app.task_board_executor.finish_task(&task_id);
-                return iced::Task::batch(vec![
-                    iced::Task::done(Message::TaskBoard(TaskBoardMessage::TaskStatusChanged {
-                        task_id: task_id.clone(),
-                        new_status,
-                    })),
-                    schedule_scheduler_tick_with_deadline(app),
-                ]);
-            }
-        }
-
-        app.task_board_executor.finish_task(&task_id);
-        schedule_scheduler_tick_with_deadline(app)
-        }
-        TaskBoardMessage::PromotePoolTasksTick => {
-            if app.project_path.is_none() {
-                return schedule_auto_promote_tick_with_deadline(app);
-            }
-            iced::Task::batch(vec![
-                wake_agent_scheduler_after_registering_pending(
-                    app,
-                    TaskBoardMessage::AgentSchedulerPoolWakeCompleted,
-                ),
-            ])
-        }
-        TaskBoardMessage::AgentSchedulerPoolWakeCompleted(result) => {
-            let response = match result {
-                Ok(response) => response,
-                Err(error) => {
-                    tracing::warn!(error = %error, "agent scheduler promote wake failed");
-                    return schedule_auto_promote_tick_with_deadline(app);
-                }
-            };
-            dispatch_agent_scheduler_promote_wake(app, response)
-        }
-    TaskBoardMessage::AutoMergeTick => { iced::Task::none() }
-        TaskBoardMessage::AgentSchedulerAutoMergeWakeCompleted(result) => {
-            let response = match result {
-                Ok(response) => response,
-                Err(error) => {
-                    tracing::warn!(error = %error, "agent scheduler merge wake failed");
-                    return schedule_auto_merge_tick_with_deadline(app);
-                }
-            };
-            dispatch_agent_scheduler_merge_wake(app, response)
-        }
-        TaskBoardMessage::ExecuteTask { task_id } => {
-            if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
-                if let Some(project_path) = &app.project_path {
-                    let path = project_path.clone();
-                    if app.task_board_executor.is_running(&task_id) {
-                        if let Some(task_in_list) =
-                            app.task_board_tasks.iter_mut().find(|t| t.id == task_id)
-                        {
-                            task_in_list.add_localized_log("任务已在执行或等待工作区，忽略重复启动", vec![]);
-                        }
-                        sync_viewing_logs(app, &task_id);
-                        return iced::Task::none();
-                    }
-                    if let Some(task_in_list) =
-                        app.task_board_tasks.iter_mut().find(|t| t.id == task_id)
-                    {
-                        let preparing_log =
-                            if should_continue_existing_session_for_manual_retry(&task, true) {
-                                "手工重试任务，已发送 Agent Scheduler 重试命令"
-                            } else {
-                                "已发送 Agent Scheduler 启动命令"
-                            };
-                        add_agent_scheduler_command_log_once(task_in_list, preparing_log);
-                    }
-                    sync_viewing_logs(app, &task_id);
-                    let command =
-                        if should_continue_existing_session_for_manual_retry(&task, true) {
-                            AgentSchedulerCommandKindDto::Retry
-                        } else {
-                            AgentSchedulerCommandKindDto::Start
-                        };
-                    if let Some(error) = agent_scheduler_lifecycle_error(app) {
-                        if let Some(task_in_list) =
-                            app.task_board_tasks.iter_mut().find(|t| t.id == task_id)
-                        {
-                            task_in_list.mark_execution_failed(error.clone());
-                            sync_viewing_logs(app, &task_id);
-                        }
-                        return app.show_error_toast(error);
-                    }
-                    return send_agent_scheduler_command(
-                        path,
-                        task,
-                        app.task_board_settings.workflow_id.clone(),
-                        command,
-                        app.task_board_settings.agent_scheduler_dispatch_mode,
-                        Some(app.task_board_settings.max_concurrent.clamp(1, 10)),
-                        None,
-                    );
-                } else if let Some(task_in_list) =
-                    app.task_board_tasks.iter_mut().find(|t| t.id == task_id)
-                {
-                    task_in_list.mark_execution_failed("缺少项目路径".to_string());
-                    sync_viewing_logs(app, &task_id);
-                }
-            }
-            iced::Task::none()
-        }
-        )
+    iced::Task::batch(tasks)
 }
 #[cfg(test)]
 #[path = "execution_tests.rs"]

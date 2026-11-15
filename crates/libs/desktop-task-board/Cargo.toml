@@ -29,6 +29,12 @@ runtime-time = { path = "../runtime-time", version = "0.6.0" }
 
 vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 
+display-format = { path = "../display-format", version = "0.6.0" }
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+tracing = "0.1"
+
 [dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "macros"] }
 desktop-task-model = { path = "../desktop-task-model", version = "0.6.0", features = ["test-support"] }
 vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.6.0" }

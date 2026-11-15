@@ -1,10 +1,12 @@
 //! 任务看板主体的测试，覆盖列生成、卡片排序、状态标签与拖拽绘制。
 //! fixture 包含自定义工作流和归档任务，用于验证筛选及未知配置回退。
-use crate::app::task::{
+use desktop_task_model::{
     OwnedStatusDefinition, OwnedTaskWorkflow, StatusRole, SubTask, Task, TaskStatus,
     register_runtime_task_workflow,
 };
-use crate::app::{App, Message};
+use crate::message::TaskBoardMessage as Message;
+use super::{BoardView, BoardSlots};
+use std::rc::Rc;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Element, Font, Pixels, Rectangle, Size, Theme};
@@ -78,7 +80,7 @@ fn bulk_actions_exclude_only_archived_status() {
 
 #[test]
 fn kanban_columns_follow_selected_workflow() {
-    let _cache_lock = crate::app::task::runtime_task_lifecycle_cache_test_lock();
+    let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     let custom_status = custom_status("kanban_waiting_review");
     let workflow = OwnedTaskWorkflow {
         id: "board_custom_workflow".to_string(),
@@ -101,7 +103,7 @@ fn kanban_columns_follow_selected_workflow() {
     let mut app = app();
     app.task_board_settings.workflow_id = "board_custom_workflow".to_string();
 
-    let columns = super::kanban_columns(&app);
+    let columns = super::kanban_columns(&app.view());
 
     assert_eq!(
         columns.iter().map(|column| column.status).collect::<Vec<_>>(),
@@ -118,7 +120,7 @@ fn kanban_falls_back_to_default_on_unknown_workflow() {
     let mut app = app();
     app.task_board_settings.workflow_id = "missing_workflow".to_string();
 
-    let columns = super::kanban_columns(&app);
+    let columns = super::kanban_columns(&app.view());
     let default_statuses =
         TaskStatus::all().into_iter().filter(|status| *status != TaskStatus::Archived);
 
@@ -202,9 +204,9 @@ fn kanban_board_builds_columns_and_filters_archived_tasks() {
     archived.archived = true;
     app.task_board_tasks = vec![archived, deleted, visible];
 
-    keep_element(super::build_kanban_board(&app));
-    keep_element(super::build_status_column(&app, TaskStatus::Pending, 1_000));
-    keep_element(super::build_status_column(&app, TaskStatus::Archived, 1_000));
+    keep_element(super::build_kanban_board(&app.view()));
+    keep_element(super::build_status_column(&app.view(), TaskStatus::Pending, 1_000));
+    keep_element(super::build_status_column(&app.view(), TaskStatus::Archived, 1_000));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -219,7 +221,7 @@ async fn kanban_board_draws_dragging_card_and_column_styles() {
     running.execution_started_at_ms = Some(1_000);
     app.task_board_tasks = vec![running];
     app.task_board_dragging = Some(("dragging".to_string(), TaskStatus::Running));
-    let mut element = super::build_kanban_board(&app);
+    let mut element = super::build_kanban_board(&app.view());
 
     draw_element(&mut element, &mut renderer, &Theme::Dark);
 }
@@ -228,7 +230,7 @@ async fn kanban_board_draws_dragging_card_and_column_styles() {
 fn status_column_builds_empty_and_selected_bulk_modes() {
     let mut app = app();
     app.task_board_bulk_active_status = Some(TaskStatus::Planning);
-    keep_element(super::build_status_column(&app, TaskStatus::Planning, 1_000));
+    keep_element(super::build_status_column(&app.view(), TaskStatus::Planning, 1_000));
 
     let selected = task("selected-planning", TaskStatus::Planning, 20);
     app.task_board_selected_tasks.insert(selected.id.clone());
@@ -238,7 +240,7 @@ fn status_column_builds_empty_and_selected_bulk_modes() {
     app.task_board_bulk_agent = "agent-specialist".to_string();
     app.task_board_bulk_acp_agent = Some("codex".to_string());
 
-    keep_element(super::build_status_column(&app, TaskStatus::Planning, 1_000));
+    keep_element(super::build_status_column(&app.view(), TaskStatus::Planning, 1_000));
 }
 
 #[test]
@@ -251,7 +253,7 @@ fn status_column_builds_pr_submitted_bulk_merge_and_drag_targets() {
     app.task_board_dragging = Some(("selected-pr".to_string(), TaskStatus::PrSubmitted));
     app.task_board_column_has_vertical_scrollbar.insert(TaskStatus::PrSubmitted, true);
 
-    keep_element(super::build_status_column(&app, TaskStatus::PrSubmitted, 2_000));
+    keep_element(super::build_status_column(&app.view(), TaskStatus::PrSubmitted, 2_000));
 }
 
 #[test]
@@ -273,7 +275,7 @@ fn task_card_builds_running_failed_paused_and_context_menu_variants() {
     running.retry_count = 2;
     running.subtasks = vec![completed_subtask("done"), SubTask::new("todo".to_string())];
     keep_element(super::build_task_card(
-        &app,
+        &app.view(),
         &running,
         TaskStatus::Running,
         false,
@@ -289,7 +291,7 @@ fn task_card_builds_running_failed_paused_and_context_menu_variants() {
     failed.last_error = Some("boom".to_string());
     failed.last_execution_duration_ms = Some(65_000);
     keep_element(super::build_task_card(
-        &app,
+        &app.view(),
         &failed,
         TaskStatus::Failed,
         true,
@@ -303,7 +305,7 @@ fn task_card_builds_running_failed_paused_and_context_menu_variants() {
     paused.model = "local-model".to_string();
     paused.pause_reason = Some("manual review".to_string());
     keep_element(super::build_task_card(
-        &app,
+        &app.view(),
         &paused,
         TaskStatus::Paused,
         false,
@@ -322,7 +324,7 @@ fn task_card_builds_completed_code_complete_and_plain_priority_variants() {
     completed.model = "anthropic/claude".to_string();
     completed.last_execution_duration_ms = Some(1_500);
     keep_element(super::build_task_card(
-        &app,
+        &app.view(),
         &completed,
         TaskStatus::Completed,
         false,
@@ -336,7 +338,7 @@ fn task_card_builds_completed_code_complete_and_plain_priority_variants() {
     code_complete.model = "standalone-model".to_string();
     code_complete.subtasks.clear();
     keep_element(super::build_task_card(
-        &app,
+        &app.view(),
         &code_complete,
         TaskStatus::CodeComplete,
         false,
@@ -348,7 +350,7 @@ fn task_card_builds_completed_code_complete_and_plain_priority_variants() {
 }
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 fn task(id: &str, status: TaskStatus, priority: u32) -> Task {
@@ -451,3 +453,44 @@ fn assert_color_eq(actual: iced::Color, expected: iced::Color) {
     assert!((actual.b - expected.b).abs() < f32::EPSILON);
     assert!((actual.a - expected.a).abs() < f32::EPSILON);
 }
+
+#[derive(Default)]
+struct App {
+    task_board_settings: desktop_task_model::TaskBoardSettings,
+    task_board_tasks: Vec<Task>,
+    task_board_selected_tasks: std::collections::HashSet<String>,
+    task_board_bulk_active_status: Option<TaskStatus>,
+    task_board_bulk_priority_input: String,
+    task_board_bulk_acp_agent: Option<String>,
+    task_board_bulk_reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
+    task_board_bulk_task_split_mode: desktop_task_model::TaskSplitMode,
+    task_board_dragging: Option<(String, TaskStatus)>,
+    cursor_position: iced::Point,
+    task_board_context_menu: Option<(String, f32, f32)>,
+    task_board_column_has_vertical_scrollbar: std::collections::HashMap<TaskStatus, bool>,
+    desktop_locale: config_ui::DesktopLocale,
+    task_board_bulk_model_input: String,
+    task_board_bulk_agent: String,
+}
+impl App { fn view(&self) -> BoardView<'_, Message> { BoardView {
+    task_board_settings: &self.task_board_settings,
+    task_board_tasks: &self.task_board_tasks,
+    task_board_selected_tasks: &self.task_board_selected_tasks,
+    task_board_bulk_active_status: self.task_board_bulk_active_status,
+    task_board_bulk_priority_input: &self.task_board_bulk_priority_input,
+    task_board_bulk_acp_agent: &self.task_board_bulk_acp_agent,
+    task_board_bulk_reasoning_effort: self.task_board_bulk_reasoning_effort,
+    task_board_bulk_task_split_mode: self.task_board_bulk_task_split_mode,
+    task_board_dragging: &self.task_board_dragging,
+    cursor_position: self.cursor_position,
+    task_board_context_menu: &self.task_board_context_menu,
+    task_board_column_has_vertical_scrollbar: &self.task_board_column_has_vertical_scrollbar,
+    desktop_locale: self.desktop_locale,
+slots: BoardSlots {
+    model: Rc::new(|| iced::widget::Space::new().into()),
+    agent: Rc::new(|| iced::widget::Space::new().into()),
+    executor: Rc::new(|| iced::widget::Space::new().into()),
+    reasoning_effort: Rc::new(|| None),
+    task_split: Rc::new(|| iced::widget::Space::new().into()),
+    context_menu: Rc::new(|_| iced::widget::Space::new().into()),
+} } } }

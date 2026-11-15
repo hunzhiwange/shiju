@@ -1,5 +1,8 @@
 //! Exercise native shell construction and the shared Windows process host together.
 use super::*;
+use agent_runtime::native::test_support::*;
+use runtime_types::RuntimeAdapter;
+use std::path::PathBuf;
 use crate::tools::shell::processes::{
     ShellProcessScope, ShellProcessSnapshot, ShellProcessState, ShellProcesses,
 };

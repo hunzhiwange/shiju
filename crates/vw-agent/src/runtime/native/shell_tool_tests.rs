@@ -1,4 +1,7 @@
 use super::*;
+use agent_runtime::native::test_support::*;
+use runtime_types::RuntimeAdapter;
+use std::path::PathBuf;
 use crate::tools::shell::ShellTool;
 use crate::tools::traits::Tool;
 use std::sync::Arc;

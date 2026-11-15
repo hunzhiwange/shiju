@@ -3,15 +3,16 @@ use std::{collections::BTreeMap, path::PathBuf, sync::{Arc, Mutex}};
 use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::{get, post}};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use vw_agent_apps::{usage as u, apps::lifecycle::operations::{Operation, OperationFailure, Phase}};
+use crate::usage as u;
+use app_lifecycle::operations::{Operation, OperationFailure, Phase};
 use {
     vw_api_transport::TenantScope,
     vw_api_transport::id::ModelId,
 };
-use super::super::external_sessions::usage_scan::{self as host, Intent};
+use crate::host::Intent;
 
 #[derive(Clone)]
-struct Policy(Option<PathBuf>);
+struct Policy(Option<PathBuf>, crate::Host);
 type Response = Result<Json<Value>, StatusCode>;
 fn unavailable<T>(_: T) -> StatusCode { StatusCode::SERVICE_UNAVAILABLE }
 fn domain(error: String) -> StatusCode {
@@ -21,7 +22,7 @@ fn domain(error: String) -> StatusCode {
 fn output(value: impl serde::Serialize) -> Response {
     serde_json::to_value(value).map(Json).map_err(unavailable)
 }
-pub(super) fn router() -> Router {
+pub(super) fn router(host: crate::Host) -> Router {
     Router::new()
         .route("/usage/prices", get(list).post(create))
         .route("/usage/prices/{id}", axum::routing::put(replace).delete(delete))
@@ -33,17 +34,17 @@ pub(super) fn router() -> Router {
         .route("/usage/rates", get(display))
         .route("/usage/rates/refresh", post(refresh))
         .route("/usage/display", get(display).put(save_display))
-        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
+        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from), host)))
 }
 fn authorize(p: &Policy, t: TenantScope, h: &HeaderMap, i: &Intent, write: bool) -> Result<u::scan_jobs::ScanOwner, StatusCode> {
-    let owner = host::authorized_owner(p.0.as_deref(), t, h, i)?;
+    let owner = (p.1.authorized_owner)(p.0.as_deref(), t, h, i)?;
     if write {
-        super::super::agent_apps::authorize_external_history_maintenance(p.0.as_deref(),h,&owner.scope,&owner.target_host)?;
+        (p.1.authorize_maintenance)(p.0.as_deref(),h,&owner.scope,&owner.target_host)?;
     }
     Ok(owner)
 }
-fn connection() -> Result<rusqlite::Connection, StatusCode> {
-    let db = crate::usage_bridge::context::database().map_err(unavailable)?;
+fn connection(host: crate::Host) -> Result<rusqlite::Connection, StatusCode> {
+    let db = (host.database)().map_err(unavailable)?;
     let c = db.connect_sqlite().map_err(unavailable)?;
     u::models_sync::initialize_models_sync(&c).map_err(unavailable)?;
     u::exchange_store::initialize_exchange_store(&c).map_err(unavailable)?;
@@ -66,7 +67,7 @@ enum Read { Prices, Config, Display }
 async fn read(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Read) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = authorize(&p,t,&h,&i,false)?;
-        let c = connection()?;
+        let c = connection(p.1)?;
         match kind {
             Read::Prices => output(u::pricing::list_model_pricing(&c,&o.scope,&o.target_host).map_err(domain)?),
             Read::Config => output(u::models_sync::get_models_sync_config(&c,&o.scope,&o.target_host).map_err(domain)?),
@@ -87,7 +88,7 @@ enum Write { Price(u::pricing::ModelPricingInfo,Option<String>), Delete(String),
 async fn write(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Write) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = authorize(&p,t,&h,&i,true)?;
-        let mut c = connection()?;
+        let mut c = connection(p.1)?;
         match kind {
             Write::Price(price,id) => {
                 if id.is_some_and(|id| id != price.model_id.as_ref()) { return Err(StatusCode::BAD_REQUEST); }
@@ -122,11 +123,12 @@ async fn candidates(Extension(p): Extension<Policy>,Extension(t): Extension<Tena
     output(u::models_selection::flatten_models(&provider_model_cache::snapshot().await.providers))
 }
 async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Response {
+    let host_context = p.1;
     let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,true)).await.map_err(unavailable)??;
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).build().map_err(unavailable)?;
     let result = u::exchange::fetch_usd_rates(&client,chrono::Utc::now().timestamp_millis()).await;
     tokio::task::spawn_blocking(move || {
-        let s = u::exchange_store::save_refresh_result(&mut connection()?,&o.scope,&o.target_host,result).map_err(unavailable)?;
+        let s = u::exchange_store::save_refresh_result(&mut connection(host_context)?,&o.scope,&o.target_host,result).map_err(unavailable)?;
         output(json!({"display":s.resolve(chrono::Utc::now().timestamp_millis()),"settings":s}))
     }).await.map_err(unavailable)?
 }
@@ -137,9 +139,10 @@ async fn sync_auto(Extension(p): Extension<Policy>,Extension(t): Extension<Tenan
     sync_request(p, t, h, i, false).await
 }
 async fn sync_request(p: Policy, t: TenantScope, h: HeaderMap, i: Intent, force: bool) -> Result<(StatusCode,Json<Value>),StatusCode> {
+    let host_context = p.1;
     let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,true)).await.map_err(unavailable)??;
     let sync = tokio::task::spawn_blocking({ let o=o.clone(); move || {
-        u::models_sync::ModelsSync::new(Arc::new(Mutex::new(connection()?)),o.scope,o.target_host).map_err(unavailable)
+        u::models_sync::ModelsSync::new(Arc::new(Mutex::new(connection(host_context)?)),o.scope,o.target_host).map_err(unavailable)
     }}).await.map_err(unavailable)??;
     let mut jobs = super::scan::jobs().lock().map_err(unavailable)?;
     if jobs.values().any(|j| j.owner.scope==o.scope && j.owner.target_host==o.target_host && j.operation.snapshot().phase!=Phase::Terminal) { return Err(StatusCode::CONFLICT); }

@@ -462,6 +462,7 @@ members = [
   "crates/libs/gateway-types",
   "crates/libs/gateway-auth",
   "crates/libs/gateway-agent-apps",
+  "crates/libs/gateway-usage",
   "crates/libs/app-access-service",
   "crates/libs/gateway-endpoint",
   "crates/libs/gateway-chat-stream",

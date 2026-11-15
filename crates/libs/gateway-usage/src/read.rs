@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::get};
 use serde::Deserialize;
 use serde_json::Value;
-use vw_agent_apps::usage::{groups, logs, ranges, series, summary};
+use crate::usage::{groups, logs, ranges, series, summary};
 use {
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
@@ -14,7 +14,7 @@ use {
 };
 
 #[derive(Clone)]
-struct Policy(Option<PathBuf>);
+struct Policy(Option<PathBuf>, crate::Host);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -27,7 +27,7 @@ struct ReadQuery {
     interval: Option<series::UsageSeriesInterval>,
 }
 
-pub(crate) fn router() -> Router {
+pub(crate) fn router(host: crate::Host) -> Router {
     Router::new()
         .route("/usage/logs", get(logs))
         .route("/usage/logs/{id}", get(detail))
@@ -40,7 +40,7 @@ pub(crate) fn router() -> Router {
         .route("/usage/stats/models", get(models))
         .route("/usage/trends", get(trends))
         .route("/usage/heatmap", get(heatmap))
-        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
+        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from), host)))
 }
 
 #[derive(Clone, Copy)]
@@ -107,9 +107,9 @@ fn execute(policy: Policy, tenant: TenantScope, headers: HeaderMap, request: Rea
     kind: Read, id: Option<String>) -> Response {
     let scope = ProjectScope::new(tenant, request.project_id).map_err(|_| StatusCode::BAD_REQUEST)?;
     // Authorization precedes query decoding, resource lookup and database opening.
-    super::super::agent_apps::authorize_usage_ledger_read(
+    (policy.1.authorize_read)(
         policy.0.as_deref(), &headers, &scope, &request.target_host)?;
-    let local_host = crate::usage_bridge::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let local_host = agent_usage::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if request.target_host != local_host { return Err(StatusCode::FORBIDDEN); }
     let query: UsageQuery = match request.query {
         Some(value) => serde_json::from_str(&value).map_err(|_| StatusCode::BAD_REQUEST)?,
@@ -123,7 +123,7 @@ fn execute(policy: Policy, tenant: TenantScope, headers: HeaderMap, request: Rea
         || (request.interval.is_some() && !matches!(kind, Read::Trends)) {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let database = crate::usage_bridge::context::database().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let database = (policy.1.database)().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     // No migrations, scanning or backfill in a GET handler.
     let connection = rusqlite::Connection::open_with_flags(
         database.sqlite_path().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,

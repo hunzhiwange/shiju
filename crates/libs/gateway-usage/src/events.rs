@@ -7,17 +7,18 @@ use {
     vw_api_transport::TenantScope,
     vw_api_transport::id::ProjectId,
 };
-use crate::usage_bridge::events as bridge;
+use agent_usage::events as bridge;
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Selector { project_id: ProjectId, target_host: String }
 
-pub(super) fn router() -> Router {
-    Router::new().route("/usage/events", get(subscribe))
+pub(super) fn router(host: crate::Host) -> Router {
+    Router::new().route("/usage/events", get(subscribe)).layer(Extension(host))
 }
 
 async fn subscribe(
+    Extension(host_context): Extension<crate::Host>,
     Extension(tenant): Extension<TenantScope>, headers: HeaderMap,
     Query(selector): Query<Selector>,
 ) -> Result<axum::response::Response, StatusCode> {
@@ -27,9 +28,9 @@ async fn subscribe(
     let authorization_scope = scope.clone();
     let authorization_host = host.clone();
     let authorize = move || -> Result<String, StatusCode> {
-        let principal = super::super::agent_apps::authorize_usage_events(
+        let principal = (host_context.authorize_events)(
             policy.as_deref(), &headers, &authorization_scope, &authorization_host)?;
-        if crate::usage_bridge::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? != authorization_host {
+        if agent_usage::context::local_host().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? != authorization_host {
             return Err(StatusCode::FORBIDDEN);
         }
         Ok(principal)
@@ -38,15 +39,15 @@ async fn subscribe(
     let receiver = bridge::cache_channel().subscribe();
     let state = (receiver, None::<BTreeMap<String, u64>>, true, authorize, scope, host, principal);
     let stream = futures_util::stream::unfold(state,
-        |(mut receiver, previous, initial, authorize, scope, host, principal)| async move {
+        move |(mut receiver, previous, initial, authorize, scope, host, principal)| async move {
             loop {
                 tokio::time::sleep(Duration::from_millis(200)).await;
                 // Revocation ends the stream before reading or publishing data.
                 if authorize().ok().as_deref() != Some(principal.as_str()) { return None; }
                 let read_scope = scope.clone();
                 let read_host = host.clone();
-                let current = match tokio::task::spawn_blocking(move ||
-                    bridge::revisions(&read_scope, &read_host)).await {
+                let current = match tokio::task::spawn_blocking(move || {
+                    bridge::revisions(&(host_context.database)()?, &read_scope, &read_host) }).await {
                     Ok(Ok(value)) => value,
                     _ => return None,
                 };

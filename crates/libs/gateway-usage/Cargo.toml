@@ -1,0 +1,37 @@
+[package]
+name = "gateway-usage"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-usage = { path = "../agent-usage", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-usage = { path = "../api-usage", version = "0.6.0" }
+vw-api-external-session = { path = "../api-external-session", version = "0.6.0" }
+provider-model-cache = { path = "../provider-model-cache", version = "0.6.0" }
+app-usage = { path = "../app-usage", version = "0.6.0" }
+app-usage-core = { path = "../app-usage-core", version = "0.6.0" }
+app-usage-store = { path = "../app-usage-store", version = "0.6.0" }
+app-usage-codex = { path = "../app-usage-codex", version = "0.6.0" }
+app-lifecycle = { path = "../app-lifecycle", version = "0.6.0" }
+anyhow = "1"
+axum = { version = "0.8.8", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
+futures-util = "0.3.32"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"

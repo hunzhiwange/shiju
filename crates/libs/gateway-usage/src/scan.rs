@@ -3,23 +3,24 @@ use std::{collections::HashMap, path::PathBuf, sync::{Mutex, OnceLock}};
 use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::{get, post}};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use vw_agent_apps::{usage as u, apps::lifecycle::operations::{Operation, OperationFailure, Phase}};
+use crate::usage as u;
+use app_lifecycle::operations::{Operation, OperationFailure, Phase};
 use {
     vw_api_transport::TenantScope,
     vw_api_transport::id::TaskId,
 };
-use super::super::external_sessions::usage_scan::{self as host, Intent};
+use crate::host::{self, Intent};
 use u::scan_jobs::ScanOwner;
 
 #[derive(Clone)]
-struct Policy(Option<PathBuf>);
+struct Policy(Option<PathBuf>, crate::Host);
 pub(super) struct Job { pub(super) owner: ScanOwner, pub(super) operation: Operation, pub(super) result: std::sync::Arc<Mutex<Option<Value>>> }
 static JOBS: OnceLock<Mutex<HashMap<String, Job>>> = OnceLock::new();
 pub(super) fn jobs() -> &'static Mutex<HashMap<String, Job>> { JOBS.get_or_init(Default::default) }
 type Response = Result<Json<Value>, StatusCode>;
 fn unavailable<T>(_: T) -> StatusCode { StatusCode::SERVICE_UNAVAILABLE }
 
-pub(super) fn router() -> Router {
+pub(super) fn router(host: crate::Host) -> Router {
     Router::new()
         .route("/usage/scans/last", get(last))
         .route("/usage/jobs/{id}", get(job))
@@ -28,15 +29,15 @@ pub(super) fn router() -> Router {
         .route("/usage/maintenance/codex-rebuild", post(rebuild))
         .route("/usage/maintenance/rollup", post(rollup))
         .route("/usage/maintenance/backfill", post(backfill))
-        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
+        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from), host)))
 }
 fn owner(policy: &Policy, tenant: TenantScope, headers: &HeaderMap, intent: &Intent) -> Result<ScanOwner, StatusCode> {
-    host::authorized_owner(policy.0.as_deref(), tenant, headers, intent)
+    (policy.1.authorized_owner)(policy.0.as_deref(), tenant, headers, intent)
 }
 async fn last(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Query(i): Query<Intent>) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = owner(&p,t,&h,&i)?;
-        let schedules = host::schedules().lock().map_err(unavailable)?;
+        let schedules = (p.1.schedules)().lock().map_err(unavailable)?;
         let timestamp = schedules.get(&o).map(|s| s.last_complete_scan()).transpose().map_err(unavailable)?.flatten();
         Ok(Json(json!({"last_complete_scan": timestamp})))
     }).await.map_err(unavailable)?
@@ -52,13 +53,13 @@ async fn lookup(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,id: String,cance
         let o = owner(&p,t,&h,&i)?;
         let map = jobs().lock().map_err(unavailable)?;
         if let Some(j) = map.get(&id).filter(|j| j.owner == o) {
-            super::super::agent_apps::authorize_external_history_maintenance(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
+            (p.1.authorize_maintenance)(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
             if cancel { j.operation.cancel(); }
             let progress = j.operation.snapshot();
             return Ok(Json(json!({"task_id":id,"status":progress.status,"phase":format!("{:?}",progress.phase),"result":j.result.lock().map_err(unavailable)?.clone()})));
         }
         drop(map);
-        let schedules = host::schedules().lock().map_err(unavailable)?;
+        let schedules = (p.1.schedules)().lock().map_err(unavailable)?;
         let schedule = schedules.get(&o).ok_or(StatusCode::NOT_FOUND)?;
         let id = TaskId::from(id);
         let result = if cancel { schedule.cancel(&id) } else { schedule.job(&id) };
@@ -71,11 +72,11 @@ struct SettingsUpdate { project_id: vw_api_transport::ProjectId, target_host: St
 async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<TenantScope>, h: HeaderMap, Query(i): Query<Intent>) -> Response {
     tokio::task::spawn_blocking(move || {
         let o = owner(&p,t,&h,&i)?;
-        let db = crate::usage_bridge::context::database().map_err(unavailable)?;
+        let db = (p.1.database)().map_err(unavailable)?;
         let connection = db.connect_sqlite().map_err(unavailable)?;
         u::source_settings::initialize_source_settings(&connection).map_err(unavailable)?;
         let mut rows = Vec::new();
-        for (_,app,_) in host::ADAPTERS {
+        for app in (p.1.apps)() {
             let state = u::source_settings::load_source_settings(&connection,&o.scope,&o.target_host,app).map_err(unavailable)?;
             rows.push(json!({"app":app,"settings":state.settings,"revision":state.settings_revision}));
         }
@@ -87,9 +88,9 @@ async fn save_settings(Extension(p): Extension<Policy>, Extension(t): Extension<
         let i = Intent {project_id:r.project_id,target_host:r.target_host,active:None,paused:None};
         let o = owner(&p,t,&h,&i)?;
         // Writing settings requires the explicit maintenance grant as well.
-        super::super::agent_apps::authorize_external_history_maintenance(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
-        if !host::ADAPTERS.iter().any(|(_,app,_)| *app == r.app) { return Err(StatusCode::BAD_REQUEST); }
-        let db = crate::usage_bridge::context::database().map_err(unavailable)?;
+        (p.1.authorize_maintenance)(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
+        if !(p.1.apps)().iter().any(|app| *app == r.app) { return Err(StatusCode::BAD_REQUEST); }
+        let db = (p.1.database)().map_err(unavailable)?;
         let mut c = db.connect_sqlite().map_err(unavailable)?;
         u::source_settings::initialize_source_settings(&c).map_err(unavailable)?;
         let s = u::source_settings::save_source_settings(&mut c,&o.scope,&o.target_host,&r.app,r.expected_revision,r.settings).map_err(|e| match e {
@@ -111,9 +112,10 @@ submit_handler!(rebuild,Rebuild);
 submit_handler!(rollup,Rollup);
 submit_handler!(backfill,Backfill);
 async fn submit(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Maintenance) -> Result<(StatusCode,Json<Value>),StatusCode> {
+    let host_context = p.1;
     let (o,home,instances) = tokio::task::spawn_blocking(move || {
         let o = owner(&p,t,&h,&i)?;
-        let (_,home,instances,_) = super::super::agent_apps::authorize_external_history_maintenance(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
+        let (_,home,instances,_) = (p.1.authorize_maintenance)(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
         Ok::<_,StatusCode>((o,home,instances))
     }).await.map_err(unavailable)??;
     let id = uuid::Uuid::new_v4().to_string();
@@ -129,16 +131,16 @@ async fn submit(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Maintenanc
     map.insert(id.clone(),Job {owner:o.clone(),operation:operation.clone(),result:Default::default()});
     if operation.start_task(async move {
         tokio::task::spawn_blocking(move || {
-            let result = execute(&o,&home,instances,kind,&worker);
+            let result = execute(host_context,&o,&home,instances,kind,&worker);
             if worker.is_cancelled() { Err(OperationFailure::Cancelled) }
             else { result.map_err(|_| OperationFailure::Failed) }
         }).await.map_err(|_| OperationFailure::Failed)?
     }).is_err() { map.remove(&id); return Err(StatusCode::SERVICE_UNAVAILABLE); }
     Ok((StatusCode::ACCEPTED,Json(json!({"task_id":id,"status":"queued"}))))
 }
-fn execute(o: &ScanOwner, home: &std::path::Path, instances: Vec<super::super::agent_apps::ExternalHistoryInstance>, kind: Maintenance, operation: &Operation) -> anyhow::Result<()> {
+fn execute(host_context: crate::Host, o: &ScanOwner, home: &std::path::Path, instances: Vec<host::Source>, kind: Maintenance, operation: &Operation) -> anyhow::Result<()> {
     anyhow::ensure!(!operation.is_cancelled(),"cancelled");
-    let db = crate::usage_bridge::context::database()?;
+    let db = (host_context.database)()?;
     let mut c = db.connect_sqlite()?;
     u::store::initialize_usage_store(&mut c)?;
     u::source_settings::initialize_source_settings(&c)?;
@@ -152,7 +154,7 @@ fn execute(o: &ScanOwner, home: &std::path::Path, instances: Vec<super::super::a
         Maintenance::Rebuild => {
             let settings = u::source_settings::load_source_settings(&c,&o.scope,&o.target_host,"codex")?;
             anyhow::ensure!(settings.settings.scan_enabled,"scan disabled");
-            let project = crate::project::store::ProjectStore::new(db)?.get(&o.scope)?.ok_or_else(|| anyhow::anyhow!("project unavailable"))?;
+            let project = agent_project::store::ProjectStore::new(db)?.get(&o.scope)?.ok_or_else(|| anyhow::anyhow!("project unavailable"))?;
             anyhow::ensure!(instances.iter().any(|i| i.provider == vw_api_external_session::SessionProvider::Codex),"Codex source not authorized");
             // Rebuild replaces all native Codex rows for this host/scope. Reject
             // partial instance authority before entering that destructive transaction.
@@ -167,7 +169,7 @@ fn execute(o: &ScanOwner, home: &std::path::Path, instances: Vec<super::super::a
                 }
             }
             let instances = instances.into_iter().map(|i| (home.to_path_buf(),i)).collect::<Vec<_>>();
-            let files = host::discover(&o.scope,&o.target_host,vw_api_external_session::SessionProvider::Codex,&instances,&project.worktree)?;
+            let files = (host_context.discover)(&o.scope,&o.target_host,vw_api_external_session::SessionProvider::Codex,&instances,&project.worktree)?;
             let mut lineage = u::codex_lineage::CodexLineage::new(files.iter().map(|f| f.path.clone()).collect())?;
             u::codex_rebuild::rebuild_codex_usage(&mut c,&o.scope,&o.target_host,&mut lineage,operation,|writer,lineage| {
                 for file in files {

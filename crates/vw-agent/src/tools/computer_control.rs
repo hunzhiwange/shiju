@@ -24,7 +24,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use {
-    vw_api_types::computer_control::*,
+    vw_api_computer_control::*,
     vw_api_transport::id::TenantScope,
     vw_api_tools::ToolResultContentDto,
 };

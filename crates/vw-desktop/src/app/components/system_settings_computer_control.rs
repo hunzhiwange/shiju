@@ -6,7 +6,7 @@ use crate::app::state::{ComputerControlSettingsState, ControlIdentity};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::{Alignment, Element, Length};
-use vw_gateway_client::vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 pub(crate) const FEATURES: [(ControlSetting, &str); 5] = [
     (ControlSetting::NativeApps, "任意应用"),

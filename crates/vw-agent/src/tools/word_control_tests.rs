@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use std::{sync::Arc, time::Duration};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 use config_computer_control::GrantDecision;
 
 type Client = tokio_tungstenite::WebSocketStream<tokio_rustls::client::TlsStream<TcpStream>>;

@@ -1,5 +1,5 @@
 use super::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
-use vw_api_types::computer_control::{ComputerControlTarget, ControlDocumentId, PermissionVersion};
+use vw_api_computer_control::{ComputerControlTarget, ControlDocumentId, PermissionVersion};
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 fn app(id: &str) -> ComputerControlTarget {

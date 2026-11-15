@@ -182,7 +182,7 @@ async fn cc_control_12_commands_require_owner_target_and_matching_result() {
     let target =
         ComputerControlTarget::ExcelWorkbook { document_id: ControlDocumentId("book".into()) };
     let action = ComputerControlAction::Excel {
-        command: vw_api_types::computer_control::ExcelCommand::ReadRange {
+        command: vw_api_computer_control::ExcelCommand::ReadRange {
             sheet: "Sheet1".into(),
             range: "A1".into(),
         },
@@ -273,7 +273,7 @@ await connection.ready;
     let target =
         ComputerControlTarget::ExcelWorkbook { document_id: ControlDocumentId("book".into()) };
     let action = ComputerControlAction::Excel {
-        command: vw_api_types::computer_control::ExcelCommand::ReadRange {
+        command: vw_api_computer_control::ExcelCommand::ReadRange {
             sheet: "Sheet1".into(),
             range: "A1".into(),
         },
@@ -303,7 +303,7 @@ async fn cc_control_12_command_timeout_invalidates_connection_and_pending_result
         let target =
             ComputerControlTarget::ExcelWorkbook { document_id: ControlDocumentId("book".into()) };
         let action = ComputerControlAction::Excel {
-            command: vw_api_types::computer_control::ExcelCommand::ReadRange {
+            command: vw_api_computer_control::ExcelCommand::ReadRange {
                 sheet: "Sheet1".into(),
                 range: "A1".into(),
             },

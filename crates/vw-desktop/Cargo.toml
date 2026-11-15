@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.6.0" }
 gateway-external-session = { path = "../libs/gateway-external-session", version = "0.6.0" }
 vw-api-voice = { path = "../libs/api-voice", version = "0.6.0" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }

@@ -11,7 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
-use vw_api_types::computer_control::{
+use vw_api_computer_control::{
     ComputerControlAction, ComputerControlTarget, ControlDocumentId, ControlErrorCode,
     ControlSessionId, ExcelCommand, WordCommand,
 };

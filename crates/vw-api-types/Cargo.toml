@@ -8,6 +8,7 @@ description = "API types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.6.0" }
 vw-api-voice = { path = "../libs/api-voice", version = "0.6.0" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }
 vw-api-usage = { path = "../libs/api-usage", version = "0.6.0" }

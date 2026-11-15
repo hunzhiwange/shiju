@@ -3,7 +3,7 @@
 //! the existing user-private configuration store before acknowledging a settings edit.
 //! Authorization does not prove backend readiness, system permission or lock support.
 
-use vw_api_types::computer_control::{ComputerControlTarget, ControlErrorCode, PermissionVersion};
+use vw_api_computer_control::{ComputerControlTarget, ControlErrorCode, PermissionVersion};
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 //! Exact HTTP origins and connection-local document leases. No cached grant survives
 //! a document replacement, even if Chrome later returns to the same URL.
 use super::bridge::ChromeTarget;
-use vw_api_types::computer_control::ControlErrorCode;
+use vw_api_computer_control::ControlErrorCode;
 
 pub fn canonical_origin(value: &str) -> Result<String, ControlErrorCode> {
     let url = url::Url::parse(value).map_err(|_| ControlErrorCode::InvalidRequest)?;

@@ -1,6 +1,6 @@
 use crate::{OfficeCapability, OfficeSessions, OfficeSurface};
 use std::time::{Duration, Instant};
-use vw_api_types::computer_control::{
+use vw_api_computer_control::{
     ComputerControlAction, ComputerControlTarget, ControlDocumentId, ControlErrorCode,
     ControlSessionId, ExcelCommand, WordCommand,
 };
@@ -234,7 +234,7 @@ fn cc_control_11_invalid_registration_and_forged_handle_do_not_replace_live_docu
 
 #[test]
 fn cc_control_11_each_word_command_requires_its_own_advertisement() {
-    use vw_api_types::computer_control::WordInsertPosition;
+    use vw_api_computer_control::WordInsertPosition;
     let now = Instant::now();
     let mut sessions = registry();
     let cases = [

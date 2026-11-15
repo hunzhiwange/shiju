@@ -1,7 +1,7 @@
 //! Lock observation is separate from authorization and execution capability.
 //! No authentication changes, unlock operations or login-window input live here.
 
-use vw_api_types::computer_control::{
+use vw_api_computer_control::{
     ComputerControlAction, ComputerControlTarget, ChromeCommand, ControlErrorCode,
     WordCommand, WordInsertPosition, NativeInput, MouseButton,
 };

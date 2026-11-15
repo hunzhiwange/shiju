@@ -2,7 +2,7 @@ use super::bridge::{ChromeBridge, EXTENSION_ID};
 use crate::computer_control::host::{read_frame, write_frame};
 use serde_json::{Value, json};
 use tokio::net::UnixStream;
-use vw_api_types::computer_control::ControlSessionId;
+use vw_api_computer_control::ControlSessionId;
 
 async fn paired() -> (ChromeBridge, UnixStream) {
     let (bridge, mut extension) = UnixStream::pair().unwrap();
@@ -90,7 +90,7 @@ async fn cc_control_09_authenticated_host_and_live_revocation() {
     use parking_lot::RwLock;
     use std::sync::{Arc, atomic::AtomicBool};
     use std::time::Duration;
-    use vw_api_types::computer_control::*;
+    use vw_api_computer_control::*;
     use config_computer_control::{ComputerControlConfig, GrantDecision};
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     let mut policy = ComputerControlPolicy::new(ComputerControlConfig::default());

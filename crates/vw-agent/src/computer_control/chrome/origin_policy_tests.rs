@@ -1,7 +1,7 @@
 use super::bridge::ChromeTarget;
 use super::origin_policy::{DocumentBinding, canonical_origin};
 use crate::computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 fn target(url: &str) -> ChromeTarget {

@@ -1,4 +1,4 @@
-use crate::computer_control::*;
+use crate::*;
 use serde_json::{Value, json};
 
 fn feature(state: &str) -> Value {

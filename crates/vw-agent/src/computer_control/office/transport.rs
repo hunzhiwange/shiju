@@ -34,7 +34,7 @@ use tokio::{
 use tokio_tungstenite::tungstenite::{Message, protocol::WebSocketConfig};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use vw_api_types::computer_control::{
+use vw_api_computer_control::{
     ComputerControlAction, ComputerControlTarget, ControlDocumentId, ControlSessionId,
 };
 

@@ -8,5 +8,5 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-computer-control = { path = "../../libs/api-computer-control", version = "0.6.0" }
 uuid = { version = "1.11", features = ["v4", "js"] }
-vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }

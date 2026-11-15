@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-computer-control",
   "crates/libs/api-voice",
   "crates/libs/api-external-session",
   "crates/libs/api-usage",

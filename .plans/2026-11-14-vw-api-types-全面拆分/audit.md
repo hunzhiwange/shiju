@@ -2714,3 +2714,7 @@
 - 依赖仅 serde、应用身份与 transport 身份；serde_json 仅用于测试，无运行时或旧门面反向依赖。
 - 实际消费者：vw-agent、vw-agent-apps、vw-desktop、vw-gateway-client、app-availability-core、gateway-app-failover；同步直接依赖和源码路径。
 - 静态核对 serde 属性、校验错误、独立测试注册与原断言，git diff --check 通过。未运行 Cargo、测试及实机验证；未来验收仍需覆盖序列化、拒绝输入与路由/健康观测。
+
+## 任务43静态迁移记录
+
+计算机控制定义（含宏生成的三类 ID、截图私有校验）与六个既有测试迁入 `vw-api-computer-control`；旧模块显式重导出同一类型。agent、desktop、gateway-client 及已从 agent 提取的 `office-control-sessions` 直接依赖新库；后者移除旧门面依赖。新库仅依赖 serde/serde_json，无反向依赖。仅完成静态检查；未运行 Cargo、测试及实机验证，未来验收仍按任务43原列行为执行。

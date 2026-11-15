@@ -1,6 +1,6 @@
 use super::{ComputerControlApiError, test_support};
 use serde_json::json;
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 #[tokio::test]
 async fn cc_control_18_client_decodes_version_after_save() {

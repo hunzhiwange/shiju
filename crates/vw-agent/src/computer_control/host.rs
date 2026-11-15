@@ -24,7 +24,7 @@ use tokio::{
     time::{Instant, timeout},
 };
 use tokio_util::sync::CancellationToken;
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 const MAX_FRAME: usize = 1024 * 1024;
 const IO_TIMEOUT: Duration = Duration::from_secs(5);

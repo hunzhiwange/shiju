@@ -1,7 +1,7 @@
 //! Desktop management requests are sent once; errors retain HTTP status without raw payloads.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComputerControlApiError { Transport, Decode, Http(u16) }

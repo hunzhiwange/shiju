@@ -1,6 +1,6 @@
 use super::computer_control::{feature, scope, setting};
 use crate::computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 #[test]

@@ -97,8 +97,7 @@ pub mod app_providers;
 
 pub mod model_catalog;
 
-#[cfg(test)]
-mod computer_control_tests;
+
 
 
 pub mod agent_apps_skills;

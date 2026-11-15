@@ -16,7 +16,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::timeout,
 };
-use vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 pub const EXTENSION_ID: &str = "ogfgcnpdhnmkpcbaclbglefaclanipmg";
 const DEADLINE: Duration = Duration::from_secs(10);

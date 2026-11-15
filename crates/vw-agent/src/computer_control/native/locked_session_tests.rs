@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::computer_control::{ControlDocumentId, NativeInput};
+use vw_api_computer_control::{ControlDocumentId, NativeInput};
 
 #[test]
 fn cc_control_17_unknown_state_keeps_native_input_closed() {

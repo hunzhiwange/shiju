@@ -4,7 +4,7 @@ use crate::app::message::SettingsMessage;
 use crate::app::state::ToastKind;
 use crate::app::state::{ControlIdentity, OfficePairingDraft, PairingCredential};
 use iced::Task;
-use vw_gateway_client::vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 #[derive(Debug, Clone)]
 pub(crate) enum Event {

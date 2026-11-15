@@ -3,7 +3,7 @@ use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap,
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use {
-    vw_api_types::computer_control::*,
+    vw_api_computer_control::*,
     vw_api_transport::id::TenantScope,
 };
 use config_computer_control::GrantDecision;

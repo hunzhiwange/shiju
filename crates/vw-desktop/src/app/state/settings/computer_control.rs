@@ -1,5 +1,5 @@
 //! Server-owned control settings; UI snapshots never grant execution authority.
-use vw_gateway_client::vw_api_types::computer_control::*;
+use vw_api_computer_control::*;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ControlIdentity {

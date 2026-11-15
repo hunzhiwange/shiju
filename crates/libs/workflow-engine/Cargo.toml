@@ -1,0 +1,40 @@
+[package]
+name = "workflow-engine"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+workflow-core = { path = "../workflow-core", version = "0.6.0" }
+model-protocol = { path = "../model-protocol", version = "0.6.0" }
+futures-util = "0.3.32"
+async-trait = "0.1.89"
+model-types = { path = "../model-types", version = "0.6.0" }
+vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
+workflow-video-edit = { path = "../workflow-video-edit", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio-util = { version = "0.7.18", features = ["compat"] }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+sha2 = "0.11"
+hex = "0.4"
+axum = { version = "0.8.8", features = ["json"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "socks", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+tempfile = "3"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "process", "net", "io-util"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+reqwest = { version = "0.13", features = ["json", "multipart", "stream"] }
+tokio = { version = "1", features = ["sync", "macros", "time", "rt", "process", "signal"] }
+
+[dev-dependencies]
+anyhow = "1"

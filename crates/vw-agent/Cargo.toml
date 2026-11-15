@@ -16,6 +16,7 @@ task-plan-runner = { path = "../libs/task-plan-runner", version = "0.6.0" }
 tool-memory = { path = "../libs/tool-memory", version = "0.6.0" }
 gateway-backup-inventory = { path = "../libs/gateway-backup-inventory", version = "0.6.0" }
 task-worktree-pool = { path = "../libs/task-worktree-pool", version = "0.6.0" }
+workflow-engine = { path = "../libs/workflow-engine", version = "0.6.0" }
 workflow-core = { path = "../libs/workflow-core", version = "0.6.0" }
 workflow-video-edit = { path = "../libs/workflow-video-edit", version = "0.6.0" }
 workflow-template-contract = { path = "../libs/workflow-template-contract", version = "0.6.0" }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::workflow::{WorkflowChildContext, WorkflowNodeFinishedEvent, WorkflowNodeStartedEvent};
+use crate::{WorkflowChildContext, WorkflowNodeFinishedEvent, WorkflowNodeStartedEvent};
 use vw_api_workflow::WorkflowNodeRunDto;
 fn child(event: WorkflowRunEvent) -> WorkflowRunEvent {
     WorkflowRunEvent::Child {
@@ -32,7 +32,7 @@ fn finish(status: WorkflowNodeRunStatus) -> WorkflowRunEvent {
 }
 #[tokio::test]
 async fn video_edit_ui_reverse_chunk_events_keep_failures_and_shared_peak() {
-    let budget = crate::workflow::budget::VideoEditRunBudget::default();
+    let budget = workflow_video_edit::budget::VideoEditRunBudget::default();
     let mut permits = Vec::new();
     for _ in 0..5 {
         permits.push(budget.acquire().await.unwrap());
@@ -48,7 +48,7 @@ async fn video_edit_ui_reverse_chunk_events_keep_failures_and_shared_peak() {
         index: 0,
     })));
     progress.observe(&finish(WorkflowNodeRunStatus::Succeeded));
-    let StreamEvent::Tool(event) = progress.event(&budget) else { panic!("tool") };
+    let event = progress.event(&budget, || 0);
     let p = &event.payload["metadata"]["video_edit_progress"];
     assert_eq!(p["failed"], 1);
     assert_eq!(p["completed"], 0);

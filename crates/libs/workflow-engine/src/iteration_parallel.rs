@@ -8,7 +8,7 @@ pub(super) fn parallel_limit(node: &WorkflowNode) -> Result<Option<usize>, Strin
         return Ok(None);
     }
     let limit =
-        crate::workflow::budget::VideoEditRunBudget::from_value(node.data.get("max_parallel"))?
+        workflow_video_edit::budget::VideoEditRunBudget::from_value(node.data.get("max_parallel"))?
             .limit();
     if iteration_error_strategy(node) != "terminate" {
         return Err("parallel iteration requires terminate error strategy".into());

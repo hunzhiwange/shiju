@@ -1,15 +1,19 @@
 //! Only typed counters and the immutable template digest cross the UI boundary.
-use super::*;
+use crate::WorkflowRunEvent;
+use session_port::{ToolCallStatus, ToolEvent, ToolEventKind};
+use serde_json::{Value, json};
+use std::collections::BTreeMap;
+use vw_api_workflow::WorkflowRunStatus;
 use vw_api_workflow::{VideoEditProgress, WorkflowNodeRunStatus};
 #[derive(Default)]
-pub(super) struct Progress {
+pub struct Progress {
     value: VideoEditProgress,
     chunks: BTreeMap<String, u8>,
     terminal: bool,
     last: Option<VideoEditProgress>,
 }
 impl Progress {
-    pub(super) fn new(source: &str) -> Self {
+    pub fn new(source: &str) -> Self {
         use sha2::{Digest, Sha256};
         Self {
             value: VideoEditProgress {
@@ -19,10 +23,10 @@ impl Progress {
             ..Default::default()
         }
     }
-    pub(super) fn ready(&self) -> bool {
+    pub fn ready(&self) -> bool {
         !self.value.run_id.is_empty()
     }
-    pub(super) fn finish(&mut self, succeeded: bool, cancelled: bool) {
+    pub fn finish(&mut self, succeeded: bool, cancelled: bool) {
         self.terminal = true;
         self.value.stage = if cancelled {
             "已取消"
@@ -34,7 +38,7 @@ impl Progress {
         .into();
     }
 
-    pub(super) fn observe(&mut self, event: &WorkflowRunEvent) {
+    pub fn observe(&mut self, event: &WorkflowRunEvent) {
         match event {
             WorkflowRunEvent::WorkflowStarted { run_id } => {
                 self.value.run_id = run_id.clone();
@@ -97,12 +101,13 @@ impl Progress {
             _ => {}
         }
     }
-    pub(super) fn event_changed(
+    pub fn event_changed(
         &mut self,
-        budget: &crate::workflow::budget::VideoEditRunBudget,
-    ) -> Option<StreamEvent> {
+        budget: &workflow_video_edit::budget::VideoEditRunBudget,
+        now_ms: fn() -> u64,
+    ) -> Option<ToolEvent> {
         let sequence = self.value.sequence;
-        let event = self.event(budget);
+        let event = self.event(budget, now_ms);
         let mut current = self.value.clone();
         current.sequence = 0;
         if self.last.as_ref() == Some(&current) {
@@ -112,10 +117,11 @@ impl Progress {
         self.last = Some(current);
         Some(event)
     }
-    pub(super) fn event(
+    pub fn event(
         &mut self,
-        budget: &crate::workflow::budget::VideoEditRunBudget,
-    ) -> StreamEvent {
+        budget: &workflow_video_edit::budget::VideoEditRunBudget,
+        now_ms: fn() -> u64,
+    ) -> ToolEvent {
         self.value.sequence += 1;
         self.value.limit = budget.limit();
         self.value.peak = budget.peak();
@@ -141,7 +147,7 @@ impl Progress {
             "running"
         };
         let call_id = format!("workflow:{}:video-progress", self.value.run_id);
-        StreamEvent::Tool(ToolEvent {
+        ToolEvent {
             call_id: call_id.clone(),
             name: "workflow_node".into(),
             kind: if self.value.sequence == 1 {
@@ -160,10 +166,10 @@ impl Progress {
             } else {
                 ToolCallStatus::Running
             },
-            occurred_ms: crate::session::session::now_ms(),
+            occurred_ms: now_ms(),
             payload: json!({"tool_call_id":call_id,"status":status,"summary":"单视频运行，最多五路",
                 "metadata":{"title":"云端剪辑进度","video_edit_progress":self.value}}),
-        })
+        }
     }
 }
 

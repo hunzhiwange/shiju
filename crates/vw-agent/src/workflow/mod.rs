@@ -3,7 +3,6 @@
 //! 当前实现面向桌面端已能编辑/加载的 Dify YAML，提供最小可用的本地执行闭环。
 
 mod code_runner;
-mod code_runner_http;
 mod conditions;
 mod model;
 #[cfg(not(target_arch = "wasm32"))]

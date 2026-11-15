@@ -30,7 +30,7 @@ impl Provider for Echo {
 }
 fn runtime(provider: Arc<dyn Provider>) -> WorkflowRuntime {
     WorkflowRuntime {
-        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
+        video_edit_budget: workflow_video_edit::budget::VideoEditRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -315,7 +315,7 @@ async fn video_edit_concurrency_lower_limits_and_shared_step_exhaustion() {
         let (provider, mut entered, _) = controlled();
         let mut runtime = runtime(provider.clone());
         runtime.video_edit_budget =
-            crate::workflow::budget::VideoEditRunBudget::new(run_limit).unwrap();
+            workflow_video_edit::budget::VideoEditRunBudget::new(run_limit).unwrap();
         let mut request = request();
         edit_request(&mut request, |data| data["max_parallel"] = json!(iteration_limit));
         let limit = run_limit.min(iteration_limit);
@@ -386,7 +386,7 @@ async fn video_edit_concurrency_streaming_holds_permit_and_releases_after_failur
     for fail in [false, true] {
         let (provider, mut entered, _) = controlled();
         let mut runtime = runtime(Arc::new(Streaming(provider.clone())));
-        runtime.video_edit_budget = crate::workflow::budget::VideoEditRunBudget::new(1).unwrap();
+        runtime.video_edit_budget = workflow_video_edit::budget::VideoEditRunBudget::new(1).unwrap();
         let budget = runtime.video_edit_budget.clone();
         let mut request = request();
         request

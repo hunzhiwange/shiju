@@ -784,7 +784,7 @@ impl Provider for ExplicitModelStreamProvider {
 async fn workflow_explicit_model_streaming_error_does_not_fall_back() {
     let provider = Arc::new(ExplicitModelStreamProvider { calls: Default::default() });
     let runtime = WorkflowRuntime {
-        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
+        video_edit_budget: workflow_video_edit::budget::VideoEditRunBudget::default(),
         provider: provider.clone(),
         knowledge_provider: None,
         document_extractor: None,

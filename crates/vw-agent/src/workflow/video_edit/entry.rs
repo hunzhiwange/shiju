@@ -38,13 +38,7 @@ pub(crate) async fn build(
     Ok((runtime, built.request))
 }
 
-#[async_trait::async_trait]
-impl WorkflowToolProvider for ShijuVideoEntryProvider {
-    async fn call(&self, request: WorkflowToolRequest) -> std::result::Result<WorkflowToolResult, String> {
-        let (result, text) = self.execute(&request.provider, &request.tool_name, request.action.as_deref(), request.credential_id.as_deref(), &request.inputs).await.map_err(|e| format!("云端剪辑失败: {e:#}"))?;
-        Ok(WorkflowToolResult { result: result.clone(), json: Some(result), text: Some(text), files: vec![] })
-    }
-}
+// WorkflowToolProvider 的实现由 workflow-engine 的 trait 所有者提供。
 
 struct NativeVideoEntryHost<'a> {
     #[cfg(test)]

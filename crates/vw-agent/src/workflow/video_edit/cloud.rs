@@ -1,7 +1,7 @@
 pub use workflow_video_edit::cloud::*;
 use crate::skills::Skill;
 use crate::tools::ToolRuntimeContext;
-use crate::workflow::{WorkflowToolProvider, WorkflowToolRequest, WorkflowToolResult};
+// 工作流 trait 实现已归属 workflow-engine。
 use serde_json::Value;
 use std::{path::PathBuf, sync::Arc};
 pub(super) fn visible_shiju_root(skills: &[Skill]) -> Result<PathBuf, String> {
@@ -23,10 +23,4 @@ pub async fn discover(context: ToolRuntimeContext, skills: &[Skill], allowed_too
     let hub_root = visible_shiju_root(skills)?;
     ShijuCloudVideoToolProvider::discover(Arc::new(context), hub_root, allowed_tools).await
 }
-#[async_trait::async_trait]
-impl WorkflowToolProvider for ShijuCloudVideoToolProvider {
-    async fn call(&self, request: WorkflowToolRequest) -> Result<WorkflowToolResult, String> {
-        let result = self.call_read(&request.provider, request.action.as_deref(), request.credential_id.as_deref(), &request.tool_name, &request.inputs).await?;
-        Ok(WorkflowToolResult { result: result.clone(), json: Some(result), text: None, files: vec![] })
-    }
-}
+// WorkflowToolProvider 的实现由 workflow-engine 的 trait 所有者提供。

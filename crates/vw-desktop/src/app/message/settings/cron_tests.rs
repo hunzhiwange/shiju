@@ -624,7 +624,8 @@ fn mutation_actions_clear_errors_when_they_can_start() {
 #[test]
 fn common_frequency_selection_updates_both_drafts_and_advanced_preserves_expression() {
     let mut app = app();
-    for frequency in CronFrequency::ALL {
+    for frequency in [CronFrequency::Minutes, CronFrequency::Hourly, CronFrequency::Daily,
+        CronFrequency::Weekly, CronFrequency::Monthly, CronFrequency::Advanced] {
         let _ = update(&mut app, SettingsMessage::CronAddFrequencyChanged(frequency));
         let _ = update(&mut app, SettingsMessage::CronJobEditFrequencyChanged(frequency));
         assert_eq!(app.cron_settings.add_draft.frequency, frequency);

@@ -1,22 +1,22 @@
 //! 新增与编辑共用的固定标题、滚动正文和保存页脚。
 use super::*;
-use crate::app::components::system_settings_common::settings_modal_overlay_with_escape;
+use desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape;
 use iced::widget::{column, row};
 
-pub(super) fn with_edit_modal<'a>(
-    app: &'a App,
-    dialog: Element<'a, Message>,
-) -> Element<'a, Message> {
-    let s = &app.cron_settings;
+pub fn with_edit_modal<'a, M: Clone + 'static>(
+    app: &ViewData<'a>,
+    dialog: Element<'a, M>, map: fn(Message) -> M,
+) -> Element<'a, M> {
+    let s = app.cron_settings;
     if s.show_cron_templates {
-        return templates::overlay(app, dialog);
+        return templates::overlay(dialog, map);
     }
     let editing = s.editing_job_id.is_some();
     if !editing && !s.show_add_modal {
         return dialog;
     }
     let draft = if editing { &s.edit_draft } else { &s.add_draft };
-    let tr = crate::app::i18n::I18n::new(app.desktop_locale);
+    let tr = desktop_i18n::I18n::new(app.desktop_locale);
     let close = if draft.submitting {
         Message::None
     } else {
@@ -48,5 +48,5 @@ pub(super) fn with_edit_modal<'a>(
     .style(cron_modal_style)
     .width(740)
     .height(620);
-    settings_modal_overlay_with_escape(dialog, close, container(card).padding([10, 12]))
+    settings_modal_overlay_with_escape(dialog, map(close), Element::<Message>::from(container(card).padding([10, 12])).map(map))
 }

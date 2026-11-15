@@ -204,13 +204,11 @@ fn schedule_kind_from_api(
 }
 
 fn job_type_from_api(job: &gateway_cron::CronJobDto) -> CronAddJobType {
-    if job.job_type.trim().eq_ignore_ascii_case("agent") {
-        return CronAddJobType::Agent;
+    if desktop_settings_cron::system_settings_cron::job_is_agent(job) {
+        CronAddJobType::Agent
+    } else {
+        CronAddJobType::Shell
     }
-
-    let has_prompt = job.prompt.as_deref().is_some_and(|value| !value.trim().is_empty());
-    let has_command = !job.command.trim().is_empty();
-    if has_prompt && !has_command { CronAddJobType::Agent } else { CronAddJobType::Shell }
 }
 
 fn model_provider_from_model(model: &str) -> String {
@@ -1281,39 +1279,8 @@ pub(crate) fn validate_delivery(
     app: &App,
     draft: &crate::app::state::CronJobDraft,
 ) -> Result<(), String> {
-    if !draft.delivery_enabled {
-        return Ok(());
-    }
-    if draft.delivery_to.trim().is_empty() {
-        return Err("请输入投递目标".into());
-    }
-    let channel = draft.delivery_channel.trim().to_ascii_lowercase();
-    let configured = match channel.as_str() {
-        "wecom" => {
-            app.channels_settings.wecom.as_ref().is_some_and(|c| c.has_required_credentials())
-        }
-        "wecom_webhook" => {
-            if draft.delivery_to.trim() != "default" {
-                return Err("群机器人只支持默认群引用".into());
-            }
-            app.channels_settings.wecom_webhook.is_some()
-        }
-        "telegram" => app.channels_settings.telegram.is_some(),
-        "discord" => app.channels_settings.discord.is_some(),
-        "slack" => app.channels_settings.slack.is_some(),
-        "mattermost" => app.channels_settings.mattermost.is_some(),
-        "qq" => app.channels_settings.qq.is_some(),
-        #[cfg(not(target_arch = "wasm32"))]
-        "email" => app.channels_settings.email.is_some(),
-        _ => {
-            return Err("不支持的定时任务投递通道；请选择受支持通道或关闭结果投递".into());
-        }
-    };
-    if !configured {
-        if channel == "wecom_webhook" {
-            return Err("群通知未配置；请在定时任务通知配置中保存 Webhook".into());
-        }
-        return Err(format!("投递通道 {channel} 未配置；请先在通道设置中配置凭证"));
-    }
-    Ok(())
+    desktop_settings_cron::delivery::validate(
+        draft,
+        crate::app::components::system_settings_cron::availability(app),
+    )
 }

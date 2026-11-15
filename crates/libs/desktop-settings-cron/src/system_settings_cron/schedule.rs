@@ -1,11 +1,12 @@
 //! 新建与编辑共用的七类时间规则、有效期和预览。
 use super::{at_field, cron_segment_style, primary_button, secondary_button};
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, settings_muted_text_style, settings_select, settings_text_input,
 };
-use crate::app::message::SettingsMessage as S;
-use crate::app::state::{CronJobDraft, CronScheduleDraft, CronScheduleRule as R, IntervalUnit};
-use crate::app::{App, Message};
+use crate::message::SettingsMessage as S;
+use crate::state::{CronJobDraft, CronScheduleDraft, CronScheduleRule as R, IntervalUnit};
+use crate::message::Message;
+use super::ViewData;
 use chrono::{Datelike, NaiveDate, NaiveTime};
 use iced::widget::{button, column, row, text};
 use iced::{Element, Length};
@@ -122,7 +123,7 @@ fn toggle(values: &mut Vec<u32>, value: u32) {
 }
 
 pub(super) fn frequency_form<'a>(
-    _app: &App,
+    _app: &ViewData<'_>,
     draft: &'a CronJobDraft,
     editing: bool,
 ) -> Element<'a, Message> {
@@ -363,7 +364,7 @@ pub(super) fn frequency_form<'a>(
 }
 
 pub(super) fn save_button<'a>(
-    locale: crate::app::i18n::I18n,
+    locale: desktop_i18n::I18n,
     draft: &CronJobDraft,
     editing: bool,
 ) -> Element<'a, Message> {

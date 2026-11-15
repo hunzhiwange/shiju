@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::state::CronAddJobType;
+use crate::state::CronAddJobType;
 use chrono::{FixedOffset, TimeZone};
 fn now() -> DateTime<FixedOffset> {
     FixedOffset::east_opt(28800).unwrap().with_ymd_and_hms(2026, 12, 31, 23, 59, 0).unwrap()

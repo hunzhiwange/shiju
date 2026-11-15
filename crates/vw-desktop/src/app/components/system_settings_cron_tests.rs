@@ -70,145 +70,29 @@ pub(super) fn run(status: &str) -> CronRunDto {
     }
 }
 
-#[test]
-fn small_building_blocks_return_elements() {
-    keep_element(field_row("标签", "说明", text("control")));
-    keep_element(tab_button(CronSettingsTab::Jobs, CronSettingsTab::Jobs, "任务"));
-    keep_element(tab_button(CronSettingsTab::Scheduler, CronSettingsTab::Jobs, "调度器"));
-    keep_element(tab_button(CronSettingsTab::Add, CronSettingsTab::Jobs, "添加"));
-    keep_element(segment_button("Shell", true, Message::None));
-    keep_element(segment_button("Agent", false, Message::None));
-    keep_element(small_button("删除", Message::None, true));
-    keep_element(small_button("刷新", Message::None, false));
-    keep_element(primary_button("保存", Message::None));
-    keep_element(secondary_button("取消", Message::None));
-    keep_element(text_field("placeholder", "value", |_| Message::None));
-    keep_element(pick_field(vec!["a".to_string()], Some("a".to_string()), |_| Message::None));
-}
 
-#[test]
-fn option_helpers_preserve_selected_values() {
-    assert_eq!(
-        with_selected_option(vec!["b".to_string(), "a".to_string()], "c"),
-        vec!["a".to_string(), "b".to_string(), "c".to_string()]
-    );
-    assert_eq!(
-        with_selected_option(vec!["b".to_string(), "b".to_string()], " "),
-        vec!["b".to_string()]
-    );
-}
 
-#[test]
-fn app_backed_option_helpers_include_current_selection() {
-    let mut app = test_app();
-    app.recent_projects = vec!["/tmp/a".to_string()];
-    app.project_path = Some("/tmp/current".into());
-    app.acp_agents = vec!["acp-a".to_string()];
 
-    assert!(project_options(&app, "/tmp/selected").contains(&"/tmp/selected".to_string()));
-    assert!(project_options(&app, "").contains(&"/tmp/current".to_string()));
-    assert!(models_for_provider(&app, "missing").is_empty());
-}
 
-#[test]
-fn job_helpers_handle_fallback_labels_and_types() {
-    let mut shell = job("shell");
-    assert_eq!(job_title(&shell), "shell");
-    assert!(!job_is_agent(&shell));
 
-    shell.name = Some("  ".to_string());
-    assert_eq!(job_title(&shell), "shell");
 
-    let mut agent = job("agent");
-    agent.job_type = "agent".to_string();
-    agent.prompt = Some("Summarize".to_string());
-    agent.command.clear();
-    assert!(job_is_agent(&agent));
 
-    let mut inferred_agent = job("inferred");
-    inferred_agent.prompt = Some("Do work".to_string());
-    inferred_agent.command.clear();
-    assert!(job_is_agent(&inferred_agent));
-}
 
-#[test]
-fn date_and_preview_helpers_cover_valid_invalid_and_empty_values() {
-    assert_ne!(format_cron_datetime("2026-06-12T01:02:03Z"), "2026-06-12T01:02:03Z");
-    assert_eq!(format_cron_datetime("not-a-date"), "not-a-date");
-    assert_eq!(format_optional_cron_datetime(None), "无");
-    assert_eq!(format_optional_cron_datetime(Some("not-a-date")), "not-a-date");
-    assert_eq!(preview_lines("", 3), "");
-    assert_eq!(preview_lines("a\nb\nc", 3), "a\nb\nc");
-    assert_eq!(preview_lines("a\nb\nc\nd", 3), "a\nb\nc\n...");
-}
 
-#[test]
-fn job_project_label_prefers_job_project_then_current_project_then_default() {
-    let mut app = test_app();
-    let mut item = job("job-1");
-    assert_eq!(job_project_label(&app, &item), "默认工作区");
 
-    app.project_path = Some("/workspace/current".into());
-    assert_eq!(job_project_label(&app, &item), "当前项目: /workspace/current");
 
-    item.project_path = Some("/workspace/job".into());
-    assert_eq!(job_project_label(&app, &item), "/workspace/job");
-}
 
-#[test]
-fn with_selected_option_skips_already_present_selection() {
-    let result = with_selected_option(vec!["a".to_string(), "b".to_string()], "a");
-    assert_eq!(result, vec!["a", "b"]);
-}
 
-#[test]
-fn models_for_provider_returns_models_when_provider_found() {
-    let mut app = test_app();
-    app.agents_settings.provider_models = vec![crate::app::state::ProviderModelsSummary {
-        id: "openai".to_string(),
-        name: "OpenAI".to_string(),
-        models: vec![crate::app::state::ModelSummary {
-            id: "gpt-5".to_string(),
-            name: "GPT-5".to_string(),
-            enabled: true,
-            toolcall: true,
-            attachment: false,
-            context_limit: 100000,
-            detail: serde_json::Value::Null,
-        }],
-    }];
-    assert_eq!(models_for_provider(&app, "openai"), vec!["gpt-5".to_string()]);
-    assert!(models_for_provider(&app, "missing").is_empty());
-}
 
-#[test]
-fn job_title_returns_name_when_valid_or_id_as_fallback() {
-    let mut job = job("id-fallback");
-    job.name = Some("My Cron Job".to_string());
-    assert_eq!(job_title(&job), "My Cron Job");
-}
 
-#[test]
-fn job_is_agent_with_both_prompt_and_command_not_agent() {
-    let mut job = job("both");
-    job.prompt = Some("Do the thing".to_string());
-    job.command = "npm run build".to_string();
-    assert!(!job_is_agent(&job));
-}
 
-#[test]
-fn preview_lines_with_zero_max_returns_ellipsis() {
-    assert_eq!(preview_lines("a\nb", 0), "...");
-}
 
-#[test]
-fn job_project_label_falls_through_empty_job_project() {
-    let mut app = test_app();
-    app.project_path = Some("/workspace/current".into());
-    let mut item = job("job-1");
-    item.project_path = Some("  ".to_string());
-    assert_eq!(job_project_label(&app, &item), "当前项目: /workspace/current");
-}
+
+
+
+
+
+
 
 #[test]
 fn rows_and_forms_build_shell_agent_and_editing_states() {
@@ -296,22 +180,7 @@ fn tabs_and_view_cover_loading_empty_jobs_config_and_add_forms() {
     keep_element(view(&app));
 }
 
-#[test]
-fn cron_save_error_banner_follows_tabs() {
-    let mut app = test_app();
 
-    assert_eq!(active_save_error(&app), None);
-    assert_eq!(view(&app).as_widget().children().len(), 3);
-
-    app.cron_settings.save_error = Some("cron save failed".to_string());
-    app.scheduler_settings.save_error = Some("scheduler save failed".to_string());
-    assert_eq!(active_save_error(&app), Some("cron save failed"));
-    assert_eq!(view(&app).as_widget().children().len(), 4);
-
-    app.cron_settings.save_error = None;
-    assert_eq!(active_save_error(&app), Some("scheduler save failed"));
-    assert_eq!(view(&app).as_widget().children().len(), 4);
-}
 
 #[test]
 fn add_tab_covers_agent_schedule_and_delivery_variants() {
@@ -861,33 +730,9 @@ mod modal_render {
     }
 }
 
-#[test]
-fn wb_schedule_modal_expired_card_ignores_retained_next_run() {
-    let mut job = job("ended");
-    job.ends_at = Some("2026-01-02T00:00:00Z".into());
-    job.next_run = "2099-01-01T00:00:00Z".into();
-    let now = "2026-01-02T00:00:00Z".parse().unwrap();
-    assert!(list::job_has_ended(&job, now));
-    job.ends_at = Some("2026-01-03T00:00:00Z".into());
-    assert!(!list::job_has_ended(&job, now));
-}
 
-#[test]
-fn cron_history_view_covers_loading_error_and_empty() {
-    let mut app = test_app();
-    assert_eq!(history::empty_label(&app.cron_settings.history), Some("此范围内暂无运行记录"));
-    app.cron_settings.history.loading = true;
-    assert_eq!(history::empty_label(&app.cron_settings.history), Some("正在加载运行记录…"));
-    let _ = history::view(&app);
-    app.cron_settings.history.loading = false;
-    app.cron_settings.history.error = Some("连接失败".into());
-    assert_eq!(history::empty_label(&app.cron_settings.history), None);
-    let _ = history::view(&app);
-    app.cron_settings.history.error = None;
-    app.cron_settings.history.search = "不存在".into();
-    assert_eq!(history::empty_label(&app.cron_settings.history), Some("此范围内无匹配记录"));
-    let _ = history::view(&app);
-}
+
+
 
 #[test]
 fn cron_modal_add_and_edit_wrap_base() {

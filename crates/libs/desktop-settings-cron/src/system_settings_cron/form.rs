@@ -2,20 +2,16 @@
 use super::*;
 use iced::widget::column;
 
-pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
+pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let draft = if editing { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
     let agent_options = with_selected_option(
-        app.agents_settings
-            .entries
-            .iter()
-            .filter(|entry| entry.enabled)
-            .map(|entry| entry.key.clone())
+        app.agents.iter().map(|entry| (*entry).to_string())
             .collect(),
         &draft.agent,
     );
     let provider_options = with_selected_option(
-        app.agents_settings.provider_models.iter().map(|provider| provider.id.clone()).collect(),
+        app.providers.iter().map(|provider| provider.id.to_string()).collect(),
         &draft.model_provider,
     );
     let selected_provider =
@@ -240,7 +236,7 @@ pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
 
     form = form.push(super::delivery::view(app, draft));
 
-    if let Err(error) = crate::app::message::settings::validate_cron_delivery(app, draft) {
+    if let Err(error) = crate::delivery::validate(draft, app.delivery) {
         form = form.push(settings_error_banner(error));
     }
     let element: Element<'_, Message> = settings_group_card(form).into();

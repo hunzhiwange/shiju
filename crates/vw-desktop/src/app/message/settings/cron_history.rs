@@ -1,26 +1,10 @@
 //! 运行记录页的有界刷新与响应校验。
 use super::SettingsMessage;
-use crate::app::state::{CronHistoryLocation, CronHistoryStatus, CronSettingsTab};
+use crate::app::state::CronSettingsTab;
 use crate::app::{App, Message};
 use iced::Task;
-use gateway_cron::{CronHistoryResponse, CronJobDto};
 
-#[derive(Debug, Clone)]
-pub enum CronHistoryMessage {
-    Refresh,
-    SearchToggled,
-    DetailsOpened(String),
-    DetailsClosed,
-    CopyOutput(String),
-    Tick(u64),
-    Loaded { generation: u64, result: Result<(CronHistoryResponse, Vec<CronJobDto>), String> },
-    SearchChanged(String),
-    StatusChanged(CronHistoryStatus),
-    LocationChanged(CronHistoryLocation),
-    TaskSelected(Option<String>),
-    TaskSearchChanged(String),
-    TaskPickerToggled(bool),
-}
+pub use desktop_settings_cron::message::HistoryMessage as CronHistoryMessage;
 
 pub(crate) fn visible(app: &App) -> bool {
     app.show_system_settings

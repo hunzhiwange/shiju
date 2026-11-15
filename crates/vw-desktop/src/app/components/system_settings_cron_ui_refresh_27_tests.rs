@@ -719,7 +719,8 @@ async fn help_rollout_15_renders_contextual_help() {
     let expression = "fixture invalid schedule";
     let mut job = super::system_settings_cron_tests::job(JOB_ID);
     job.enabled = false;
-    let next_run = format_cron_datetime(&job.next_run);
+    let next_run = chrono::DateTime::parse_from_rfc3339(&job.next_run).unwrap()
+        .with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M:%S").to_string();
     let current_expression = job.expression.clone();
     app.cron_settings.active_tab = CronSettingsTab::Jobs;
     app.cron_settings.jobs_loading = false;

@@ -21,4 +21,4 @@ pub mod components {
 pub mod message { pub mod notification; }
 
 pub mod presentation;
-pub mod views { pub mod home { pub mod common; pub mod header; } }
+pub mod views { pub mod home; }

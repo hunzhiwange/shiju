@@ -1,10 +1,9 @@
 //! 首页组合视图测试，验证空项目与最近项目状态均可构建，并覆盖明暗背景。
 //! 容器背景来自当前主题调色板，避免暗色模式出现低对比度面板。
 
-use crate::app::App;
 use iced::{Background, Color, Element, Theme};
 
-fn keep_element(element: Element<'_, crate::app::Message>) {
+fn keep_element(element: Element<'_, super::Message>) {
     std::hint::black_box(element);
 }
 
@@ -17,22 +16,22 @@ fn test_module_is_wired() {
 
 #[test]
 fn view_builds_empty_recent_projects_home() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.recent_projects.clear();
     app.recent_projects_edits.clear();
     app.recent_projects_meta.clear();
 
-    keep_element(super::view(&app));
+    keep_element(super::view(&app.state(), iced::widget::Id::unique()));
 }
 
 #[test]
 fn view_builds_recent_projects_home() {
-    let mut app = App::new().0;
+    let mut app = Fixture::default();
     app.recent_projects = vec!["/tmp/vibe-window".to_string()];
     app.recent_projects_edits = vec!["Vibe Window".to_string()];
     app.project_path = Some("/tmp/vibe-window".to_string());
 
-    keep_element(super::view(&app));
+    keep_element(super::view(&app.state(), iced::widget::Id::unique()));
 }
 
 #[test]
@@ -51,4 +50,23 @@ fn home_container_style_uses_dark_theme_background() {
         style.background,
         Some(Background::Color(theme.extended_palette().background.base.color.scale_alpha(0.96)))
     );
+}
+
+#[derive(Default)]
+pub(super) struct Fixture {
+    pub recent_projects: Vec<String>,
+    pub recent_projects_edits: Vec<String>,
+    pub recent_projects_meta: Vec<desktop_workspace::project_message::edit_meta::RecentProjectMeta>,
+    pub project_path: Option<String>,
+}
+impl Fixture {
+    pub fn state(&self) -> super::recent::State<'_> {
+        super::recent::State {
+            desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+            recent_projects: &self.recent_projects,
+            recent_projects_edits: &self.recent_projects_edits,
+            recent_projects_meta: &self.recent_projects_meta,
+            project_path: self.project_path.as_deref(),
+        }
+    }
 }

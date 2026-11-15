@@ -5,9 +5,25 @@
 use iced::widget::{Image, Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
 
-use crate::app::assets::{self, Icon};
-use crate::app::components::system_settings_common::settings_panel_style;
-use crate::app::{App, Message, message};
+use desktop_assets::{self as assets, Icon};
+use desktop_ui_controls::system_settings_common::settings_panel_style;
+use desktop_workspace::project_message::edit_meta::RecentProjectMeta;
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    OpenFolderPressed,
+    OpenRecentPressed(String),
+}
+
+/// 首页实际使用的只读工作区字段，不持有或复制宿主状态。
+pub struct State<'a> {
+    pub desktop_locale: config_ui::DesktopLocale,
+    pub recent_projects: &'a [String],
+    pub recent_projects_edits: &'a [String],
+    pub recent_projects_meta: &'a [RecentProjectMeta],
+    pub project_path: Option<&'a str>,
+}
+
 
 use super::common::{
     home_cjk_emphasis_font, home_emphasis_font, is_dark_theme, parse_hex_color, primary_button,
@@ -24,8 +40,8 @@ use super::common::{
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub(super) fn render_body(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+pub fn render_body<'a>(app: &State<'_>) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     if app.recent_projects.is_empty() {
         render_empty_state(i18n).into()
     } else {
@@ -33,7 +49,7 @@ pub(super) fn render_body(app: &App) -> Element<'_, Message> {
     }
 }
 
-fn render_empty_state<'a>(i18n: crate::app::i18n::I18n) -> iced::widget::Container<'a, Message> {
+fn render_empty_state<'a>(i18n: desktop_i18n::I18n) -> iced::widget::Container<'a, Message> {
     let logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(180.0))
@@ -80,8 +96,8 @@ fn render_empty_state<'a>(i18n: crate::app::i18n::I18n) -> iced::widget::Contain
     .padding(40)
 }
 
-fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+fn render_recent_projects_body<'a>(app: &State<'_>) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let hero_logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(140.0))
@@ -103,7 +119,7 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
         row![
             hero_logo,
             column![
-                text(crate::app::i18n::I18n::new(app.desktop_locale).__("识矩"))
+                text(desktop_i18n::I18n::new(app.desktop_locale).__("识矩"))
                     .size(22)
                     .font(home_cjk_emphasis_font())
                     .style(|theme: &Theme| {
@@ -129,7 +145,7 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
             container(Space::new()).width(Length::Fill),
             primary_button(
                 i18n.__("选择文件夹"),
-                Message::Project(message::ProjectMessage::OpenFolderPressed),
+                Message::OpenFolderPressed,
             ),
         ]
         .spacing(12)
@@ -150,7 +166,7 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
 
     let recent_count = container(
         text(
-            crate::app::i18n::I18n::new(app.desktop_locale)
+            desktop_i18n::I18n::new(app.desktop_locale)
                 .format("%u 个项目", &[app.recent_projects.len().into()])
                 .expect("valid project count"),
         )
@@ -205,15 +221,15 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
     scrollable(container(section).padding([18, 16]).width(Length::Fill)).height(Length::Fill).into()
 }
 
-fn recent_project_row<'a>(app: &App, index: usize, path: &str) -> Element<'a, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let name = recent_project_name(app, index, path);
     let project_meta = app.recent_projects_meta.iter().find(|meta| meta.path == path);
     let custom_icon = project_meta.and_then(|meta| meta.icon.as_deref());
     let custom_color =
         project_meta.and_then(|meta| meta.icon_color.as_deref()).and_then(parse_hex_color);
     let accent = custom_color.unwrap_or_else(|| project_accent_color(path));
-    let selected = app.project_path.as_ref().is_some_and(|current| current == path);
+    let selected = app.project_path.is_some_and(|current| current == path);
 
     let status_badge = container(
         text(if selected { i18n.__("当前工作区") } else { i18n.__("最近项目") }).size(11),
@@ -290,7 +306,7 @@ fn recent_project_row<'a>(app: &App, index: usize, path: &str) -> Element<'a, Me
         )
         .padding([14, 14]),
     )
-    .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path.to_string())))
+    .on_press(Message::OpenRecentPressed(path.to_string()))
     .width(Length::Fill)
     .style(move |theme: &Theme, status| {
         let palette = theme.extended_palette();
@@ -343,7 +359,7 @@ fn recent_project_row<'a>(app: &App, index: usize, path: &str) -> Element<'a, Me
     .into()
 }
 
-fn recent_project_name(app: &App, index: usize, path: &str) -> String {
+fn recent_project_name(app: &State<'_>, index: usize, path: &str) -> String {
     if let Some(name) = app.recent_projects_edits.get(index).map(|name| name.trim()) {
         if !name.is_empty() {
             return name.to_owned();
@@ -357,10 +373,10 @@ fn recent_project_name(app: &App, index: usize, path: &str) -> String {
         }
     }
 
-    project_name_from_path(crate::app::i18n::I18n::new(app.desktop_locale), path)
+    project_name_from_path(desktop_i18n::I18n::new(app.desktop_locale), path)
 }
 
-fn project_name_from_path(i18n: crate::app::i18n::I18n, path: &str) -> String {
+fn project_name_from_path(i18n: desktop_i18n::I18n, path: &str) -> String {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return i18n.__("未命名项目").to_string();

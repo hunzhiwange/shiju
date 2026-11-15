@@ -1,38 +1,32 @@
-//! 主页视图模块。
-//!
-//! 保留 `view()` 作为对外入口，并将内部职责拆分为独立子模块。
-
+//! 首页宿主字段及跨域导航消息适配。
 mod common;
-mod header;
-mod recent;
 
 pub(in crate::app) use common::{parse_hex_color, project_avatar};
+use crate::app::{App, Message, message};
 
-use iced::widget::{column, container};
-use iced::{Background, Color, Element, Length, Theme};
-
-use crate::app::{App, Message};
-
-/// 渲染主页视图。
-pub fn view(app: &App) -> Element<'_, Message> {
-    let header = header::render(app);
-    let body_content = recent::render_body(app);
-
-    container(column![header, body_content].width(Length::Fill).height(Length::Fill))
-        .style(home_container_style)
-        .into()
+pub fn view(app: &App) -> iced::Element<'_, Message> {
+    let state = desktop_navigation::views::home::recent::State {
+        desktop_locale: app.desktop_locale,
+        recent_projects: &app.recent_projects,
+        recent_projects_edits: &app.recent_projects_edits,
+        recent_projects_meta: &app.recent_projects_meta,
+        project_path: app.project_path.as_deref(),
+    };
+    desktop_navigation::views::home::view(&state, app.home_apps_bar_scroll_id.clone())
+        .map(|event| {
+            use desktop_navigation::views::home::{Message as Home, header, recent};
+            match event {
+                Home::Header(header::Message::OpenFolderPressed)
+                | Home::Recent(recent::Message::OpenFolderPressed) =>
+                    Message::Project(message::ProjectMessage::OpenFolderPressed),
+                Home::Header(header::Message::OpenProjectPressed) =>
+                    Message::Project(message::ProjectMessage::OpenProjectPressed),
+                Home::Header(header::Message::OpenApps) =>
+                    Message::View(message::ViewMessage::OpenApps),
+                Home::Header(header::Message::HomeAppsBarScrollChanged(x)) =>
+                    Message::View(message::ViewMessage::HomeAppsBarScrollChanged(x)),
+                Home::Recent(recent::Message::OpenRecentPressed(path)) =>
+                    Message::Project(message::ProjectMessage::OpenRecentPressed(path)),
+            }
+        })
 }
-
-fn home_container_style(theme: &Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        background: Some(Background::Color(if common::is_dark_theme(theme) {
-            theme.extended_palette().background.base.color.scale_alpha(0.96)
-        } else {
-            Color::from_rgba8(246, 248, 252, 0.98)
-        })),
-        ..Default::default()
-    }
-}
-
-#[cfg(test)]
-mod tests;

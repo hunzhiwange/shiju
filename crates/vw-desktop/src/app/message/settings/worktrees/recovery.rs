@@ -11,34 +11,8 @@ use {
     vw_api_worktree::*,
 };
 
-#[derive(Debug, Clone)]
-pub enum RecoveryMessage {
-    Refresh,
-    Loaded {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        result: Result<Vec<WorktreeRecoveryProject>, String>,
-    },
-    Cancel,
-    Ignored(bool),
-    Confirm,
-    Deleted {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        target: (String, String),
-        result: Result<DeleteManagedWorktreeResponse, String>,
-    },
-    Restore {
-        project: String,
-        snapshot: String,
-    },
-    Restored {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        target: (String, String),
-        result: Result<RestoreWorktreeResponse, String>,
-    },
-}
+pub use desktop_settings_workspace::messages::RecoveryMessage;
+
 fn message(event: RecoveryMessage) -> Message {
     Message::Settings(SettingsMessage::Worktrees(WorktreeSettingsMessage::Recovery(event)))
 }
@@ -69,12 +43,12 @@ fn toast(app: &mut App, success: bool) -> Task<Message> {
     )
 }
 fn accepts(app: &App, identity: &WorktreeSettingsIdentity, generation: u64) -> bool {
-    identity == &WorktreeSettingsIdentity::current(app)
+    identity == &crate::app::state::worktree_identity(app)
         && app.worktree_settings.recovery.identity.as_ref() == Some(identity)
         && app.worktree_settings.recovery.generation == generation
 }
 pub(crate) fn update(app: &mut App, event: RecoveryMessage) -> Task<Message> {
-    let current = WorktreeSettingsIdentity::current(app);
+    let current = crate::app::state::worktree_identity(app);
     match event {
         RecoveryMessage::Cancel => {
             if app.worktree_settings.recovery.pending.is_none() {

@@ -16,32 +16,30 @@ use super::messages::SettingsMessage;
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
-        SettingsMessage::RecentProjectQueryChanged(query) => {
-            app.recent_project_query = query;
-            app.project_tools_menu_path = None;
-            app.recent_project_delete_confirm_idx = None;
-            Task::none()
-        }
-        SettingsMessage::RecentProjectDeleteRequested(idx) => {
-            app.project_tools_menu_path = None;
-            app.recent_project_delete_confirm_idx = Some(idx);
-            Task::none()
-        }
-        SettingsMessage::RecentProjectDeleteCanceled => {
-            app.recent_project_delete_confirm_idx = None;
-            Task::none()
-        }
-        SettingsMessage::RecentProjectDeleteConfirmed(idx) => {
-            let deleting_current = app
-                .recent_projects
-                .get(idx)
-                .is_some_and(|path| app.project_path.as_ref() == Some(path));
+        event @ (SettingsMessage::RecentProjectQueryChanged(_)
+            | SettingsMessage::RecentProjectDeleteRequested(_)
+            | SettingsMessage::RecentProjectDeleteCanceled
+            | SettingsMessage::RecentProjectDeleteConfirmed(_)) => {
+            use desktop_settings_workspace::projects::{self, Event, State};
+            let event = match event {
+                SettingsMessage::RecentProjectQueryChanged(query) => Event::QueryChanged(query),
+                SettingsMessage::RecentProjectDeleteRequested(index) => Event::DeleteRequested(index),
+                SettingsMessage::RecentProjectDeleteCanceled => Event::DeleteCanceled,
+                SettingsMessage::RecentProjectDeleteConfirmed(index) => Event::DeleteConfirmed(index),
+                _ => unreachable!(),
+            };
+            let deleted = projects::apply(State {
+                query: &mut app.recent_project_query,
+                tools_menu_path: &mut app.project_tools_menu_path,
+                delete_confirm_idx: &mut app.recent_project_delete_confirm_idx,
+                paths: &mut app.recent_projects,
+                edits: &mut app.recent_projects_edits,
+            }, event, app.project_path.as_deref());
+            let mut deleting_current = false;
             let mut save_worktree = Task::none();
-            if idx < app.recent_projects.len() {
-                let path = app.recent_projects.remove(idx);
-                if idx < app.recent_projects_edits.len() {
-                    app.recent_projects_edits.remove(idx);
-                }
+            if let Some(deleted) = deleted {
+                let path = deleted.path;
+                deleting_current = deleted.was_current;
                 app.recent_projects_meta.retain(|m| m.path != path);
                 save_recent_projects_background(app.recent_projects.clone());
                 save_recent_projects_meta_background(app.recent_projects_meta.clone());
@@ -62,7 +60,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     })
                     .collect();
             }
-            app.recent_project_delete_confirm_idx = None;
             if deleting_current {
                 Task::batch([save_worktree, app.open_first_recent_project_or_home()])
             } else {

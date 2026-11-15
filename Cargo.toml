@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/desktop-settings-workspace",
   "crates/libs/desktop-settings-mcp",
   "crates/libs/desktop-chat-view",
   "crates/libs/agent-observability",

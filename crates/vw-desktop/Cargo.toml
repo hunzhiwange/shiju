@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-settings-workspace = { path = "../libs/desktop-settings-workspace", version = "0.6.0" }
 desktop-settings-runtime = { path = "../libs/desktop-settings-runtime", version = "0.6.0" }
 desktop-settings-skills = { path = "../libs/desktop-settings-skills", version = "0.6.0" }
 desktop-settings-agents = { path = "../libs/desktop-settings-agents", version = "0.6.0" }

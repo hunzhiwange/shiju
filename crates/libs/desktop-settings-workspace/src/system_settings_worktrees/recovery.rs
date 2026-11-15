@@ -1,15 +1,16 @@
 //! Shared confirmation dialog and persistent recovery catalogue.
+use super::Message;
 use super::{Event, message};
-use crate::app::components::system_settings_common::*;
-use crate::app::message::settings::worktrees::{ManagedMessage, recovery::RecoveryMessage};
-use crate::app::{Message, state::WorktreeSettingsState};
+use desktop_ui_controls::system_settings_common::*;
+use crate::messages::{ManagedMessage, RecoveryMessage};
+use crate::state::WorktreeSettingsState;
 use iced::widget::{Space, button, checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
 fn event(value: RecoveryMessage) -> Message {
     message(Event::Recovery(value))
 }
 
-pub(crate) fn view(state: &WorktreeSettingsState) -> Element<'_, Message> {
+pub fn view(state: &WorktreeSettingsState) -> Element<'_, Message> {
     let recovery = &state.recovery;
     let busy = recovery.pending.is_some();
     let mut body = column![
@@ -151,10 +152,11 @@ pub(crate) fn view(state: &WorktreeSettingsState) -> Element<'_, Message> {
     }
     body.into()
 }
-pub(crate) fn overlay<'a>(
+pub fn overlay_with<'a, Host: Clone + 'a>(
     state: &'a WorktreeSettingsState,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, Host>,
+    map: fn(Message) -> Host,
+) -> Element<'a, Host> {
     let Some((project, worktree)) = &state.managed.preflight_target else {
         return base;
     };
@@ -232,7 +234,7 @@ pub(crate) fn overlay<'a>(
     .align_y(Alignment::Center);
     settings_modal_overlay(
         Some(base),
-        close,
-        settings_modal_layout(header, body, Some(footer.into())).width(720).height(580),
+        map(close),
+        Element::from(settings_modal_layout(header, body, Some(footer.into())).width(720).height(580)).map(map),
     )
 }

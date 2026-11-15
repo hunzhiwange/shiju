@@ -11,53 +11,11 @@ use {
     vw_api_project::ListProjectsRequest,
     vw_api_project::ProjectDto,
     vw_api_worktree::ManagedWorktreeDto,
-    vw_api_worktree::WorktreeDeletionPreflight,
     vw_api_worktree::WorktreeStatus,
 };
 
-#[derive(Debug, Clone)]
-pub enum ManagedMessage {
-    Refresh,
-    Retry {
-        project: String,
-        worktree: String,
-    },
-    Retried {
-        identity: WorktreeSettingsIdentity,
-        target: (String, String),
-        result: Result<(), String>,
-    },
-    Toggle(String),
-    Loaded {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        result: Result<Vec<ManagedWorktreeGroup>, String>,
-    },
-    Open {
-        project: String,
-        worktree: String,
-    },
-    Prepared {
-        identity: WorktreeSettingsIdentity,
-        navigation: u64,
-        target: (String, String),
-        result: Result<(ProjectDto, String), String>,
-    },
-    Preflight {
-        project: String,
-        worktree: String,
-    },
-    PreflightLoaded {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        target: (String, String),
-        result: Result<WorktreeDeletionPreflight, String>,
-    },
-    Used {
-        identity: WorktreeSettingsIdentity,
-        result: Result<(), String>,
-    },
-}
+pub use desktop_settings_workspace::messages::ManagedMessage;
+
 fn message(event: ManagedMessage) -> Message {
     Message::Settings(SettingsMessage::Worktrees(WorktreeSettingsMessage::Managed(event)))
 }
@@ -132,7 +90,7 @@ fn fail(app: &mut App, error: String) -> Task<Message> {
     )
 }
 pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
-    let current = WorktreeSettingsIdentity::current(app);
+    let current = crate::app::state::worktree_identity(app);
     let state = &mut app.worktree_settings.managed;
     if state.identity.as_ref().is_some_and(|old| !same_host(old, &current)) {
         let generation = state.generation + 1;

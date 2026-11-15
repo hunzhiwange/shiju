@@ -1,18 +1,19 @@
 //! Project selection and the shared environment settings modal.
+use super::Message;
+use desktop_i18n::I18n;
 use super::message;
-use crate::app::components::system_settings_common::*;
-use crate::app::message::settings::worktrees::{
+use desktop_ui_controls::system_settings_common::*;
+use crate::messages::{
     WorktreeSettingsMessage,
-    environment::{EnvironmentMessage as Event, can_add},
+    EnvironmentMessage as Event,
 };
-use crate::app::{Message, i18n::I18n, state::WorktreeEnvironmentState};
+use crate::state::WorktreeEnvironmentState;
 use iced::widget::{Space, button, column, row, text};
 use iced::{Alignment, Element, Length};
 fn event(value: Event) -> Message {
     message(WorktreeSettingsMessage::Environment(value))
 }
-pub(crate) fn view<'a>(state: &'a WorktreeEnvironmentState, i18n: I18n) -> Element<'a, Message> {
-    let local = can_add(&crate::app::gateway_client_endpoint());
+pub fn view<'a>(state: &'a WorktreeEnvironmentState, i18n: I18n, local: bool) -> Element<'a, Message> {
     let mut body = column![
         row![
             text(i18n.__("选择项目")).size(18).width(Length::Fill),
@@ -69,11 +70,12 @@ pub(crate) fn view<'a>(state: &'a WorktreeEnvironmentState, i18n: I18n) -> Eleme
     }
     body.into()
 }
-pub(crate) fn editor<'a>(
+pub fn editor_with<'a, Host: Clone + 'a>(
     state: &'a WorktreeEnvironmentState,
     i18n: I18n,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, Host>,
+    map: fn(Message) -> Host,
+) -> Element<'a, Host> {
     let Some(project) = &state.selected else {
         return base;
     };
@@ -127,7 +129,7 @@ pub(crate) fn editor<'a>(
     .align_y(Alignment::Center);
     settings_modal_overlay(
         Some(base),
-        close,
-        settings_modal_layout(header, body, Some(footer.into())).width(680).height(560),
+        map(close),
+        Element::from(settings_modal_layout(header, body, Some(footer.into())).width(680).height(560)).map(map),
     )
 }

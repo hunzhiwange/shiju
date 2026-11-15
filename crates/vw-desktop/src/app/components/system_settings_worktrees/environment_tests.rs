@@ -46,7 +46,7 @@ fn worktree_environment_ui_save_does_not_execute() {
 }
 
 fn loaded(app: &mut crate::app::App, command: Option<&str>) {
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(app);
+    let identity = crate::app::state::worktree_identity(app);
     let generation = app.worktree_settings.environment.generation;
     apply(app, Event::Loaded { identity, generation, result: Ok(command.map(str::to_owned)) });
 }
@@ -57,7 +57,7 @@ fn worktree_environment_ui_clear_failure_retry_and_stale_response() {
     let old = app.worktree_settings.environment.generation;
     loaded(&mut app, Some("old"));
     apply(&mut app, Event::Edit(project("b")));
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     apply(
         &mut app,
         Event::Loaded {
@@ -94,7 +94,7 @@ fn worktree_environment_ui_rejects_remote_picker_and_deduplicates_additions() {
     use crate::app::message::settings::worktrees::environment::{can_add, update};
     assert!(!can_add(&gateway_endpoint::GatewayEndpoint::new("192.0.2.1", 8080)));
     let mut app = crate::app::App::new().0;
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     for _ in 0..2 {
         let _ = update(
             &mut app,
@@ -115,7 +115,7 @@ fn worktree_environment_ui_project_switch_discards_pending_save() {
     let mut app = crate::app::App::new().0;
     let _ = update(&mut app, Event::Edit(project("a")));
     loaded(&mut app, Some("saved"));
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     apply(&mut app, Event::Save);
     let generation = app.worktree_settings.environment.generation;
     app.project_path = Some("/project/new-context".into());
@@ -294,7 +294,7 @@ fn worktree_environment_ui_retry_blocks_chat_until_refreshed_ready() {
         event(ManagedMessage::Retry { project: "a".into(), worktree: "failed".into() }),
     );
     assert_eq!(app.worktree_settings.managed.retrying, Some(("a".into(), "failed".into())));
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     let _ = update(
         &mut app,
         event(ManagedMessage::Retried {

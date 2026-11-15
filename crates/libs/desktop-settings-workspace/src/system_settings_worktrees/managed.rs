@@ -1,8 +1,10 @@
 //! Project groups for gateway-registered checkouts only.
+use super::Message;
+use desktop_i18n::I18n;
 use super::{Event, message};
-use crate::app::components::system_settings_common::*;
-use crate::app::message::settings::worktrees::ManagedMessage;
-use crate::app::{Message, i18n::I18n, state::ManagedWorktreesState};
+use desktop_ui_controls::system_settings_common::*;
+use crate::messages::ManagedMessage;
+use crate::state::ManagedWorktreesState;
 use iced::widget::{button, column, row, text, tooltip};
 use iced::{Alignment, Element, Length};
 use vw_api_worktree::{
@@ -21,7 +23,7 @@ fn protection(reason: &Reason) -> &'static str {
         Reason::SharedRepository => "共享仓库保护",
     }
 }
-pub(crate) fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Message> {
+pub fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Message> {
     let mut content = column![
         row![
             text(i18n.__("托管的工作树")).size(18).width(Length::Fill),

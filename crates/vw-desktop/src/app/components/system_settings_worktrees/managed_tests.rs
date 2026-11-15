@@ -106,7 +106,7 @@ fn worktree_managed_ui_deduplicates_and_preserves_session_on_failure() {
     use crate::app::message::settings::worktrees::ManagedMessage as Event;
     let mut app = managed_app();
     app.active_session_id = Some("keep".into());
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     let navigation = app.session_view_cache.navigation_generation;
     update(&mut app, Event::Open { project: "same".into(), worktree: "checkout".into() });
     let pending = app.worktree_settings.managed.opening.clone();
@@ -131,7 +131,7 @@ fn worktree_managed_ui_deduplicates_and_preserves_session_on_failure() {
 fn worktree_managed_ui_rejects_stale_refresh_and_navigation() {
     use crate::app::message::settings::worktrees::ManagedMessage as Event;
     let mut app = managed_app();
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     update(&mut app, Event::Refresh);
     let old = app.worktree_settings.managed.generation;
     update(&mut app, Event::Refresh);
@@ -172,7 +172,7 @@ fn worktree_managed_ui_preflight_is_scoped_and_never_deletes() {
         WorktreeDeletionPreflight, WorktreeProtectionReason,
     };
     let mut app = managed_app();
-    let identity = crate::app::state::WorktreeSettingsIdentity::current(&app);
+    let identity = crate::app::state::worktree_identity(&app);
     app.worktree_settings.managed.groups[0].items[0].protection_reasons =
         vec![WorktreeProtectionReason::Pinned];
     update(&mut app, Event::Preflight { project: "same".into(), worktree: "checkout".into() });

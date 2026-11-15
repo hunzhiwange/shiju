@@ -1,191 +1,26 @@
 //! Project environment commands use the existing project API and never execute on save.
 use super::{SettingsMessage, WorktreeSettingsMessage};
-use crate::app::{App, Message, state::WorktreeSettingsIdentity};
-use iced::{Task, widget::text_editor};
+use crate::app::{App, Message};
+use iced::Task;
 use {
-    vw_gateway_client::GatewayClient,
-    vw_api_transport::id::ProjectScope,
-    vw_api_project::CommandsUpdateDto,
-    vw_api_project::ListProjectsRequest,
     vw_api_project::ProjectDto,
     vw_api_project::ResolveProjectRequest,
     vw_api_project::UpdateProjectRequest,
 };
 
-#[derive(Debug, Clone)]
-pub enum EnvironmentMessage {
-    Refresh,
-    ProjectsLoaded {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        result: Result<Vec<ProjectDto>, String>,
-    },
-    Add,
-    Picked {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        path: Option<String>,
-    },
-    Added {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        result: Result<ProjectDto, String>,
-    },
-    Edit(ProjectDto),
-    Loaded {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        result: Result<Option<String>, String>,
-    },
-    Action(text_editor::Action),
-    Cancel,
-    Save,
-    Saved {
-        identity: WorktreeSettingsIdentity,
-        generation: u64,
-        result: Result<(), String>,
-    },
-}
+pub use desktop_settings_workspace::messages::EnvironmentMessage;
+
 fn message(event: EnvironmentMessage) -> Message {
     Message::Settings(SettingsMessage::Worktrees(WorktreeSettingsMessage::Environment(event)))
 }
-pub(crate) fn can_add(endpoint: &gateway_endpoint::GatewayEndpoint) -> bool {
-    cfg!(not(target_arch = "wasm32")) && endpoint.is_loopback()
-}
-fn scope(client: &GatewayClient, project: &ProjectDto) -> Result<ProjectScope, String> {
-    ProjectScope::new(client.endpoint().tenant_scope().clone(), project.id.clone())
-        .map_err(|e| e.to_string())
-}
-pub(crate) async fn save_command(
-    client: &GatewayClient,
-    project: &ProjectDto,
-    patch: &UpdateProjectRequest,
-) -> Result<(), String> {
-    gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(&scope(client, project)?, patch).await.map(|_| ())
-}
-pub(crate) async fn load_projects(
-    client: &GatewayClient,
-    recent: Vec<String>,
-) -> Result<Vec<ProjectDto>, String> {
-    let mut cursor = None;
-    let mut cursors = std::collections::HashSet::new();
-    let mut seen = std::collections::HashSet::new();
-    let mut projects = Vec::new();
-    loop {
-        let page = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_list(
-                client.endpoint().tenant_scope(),
-                &ListProjectsRequest { cursor, limit: Some(100), ..Default::default() },
-            )
-            .await?;
-        for project in page.items {
-            if seen.insert(project.id.clone()) {
-                projects.push(project);
-            }
-        }
-        cursor = page.next_cursor.filter(|v| !v.is_empty());
-        match &cursor {
-            None => break,
-            Some(value) if !cursors.insert(value.clone()) => {
-                return Err("项目分页游标重复，请刷新。".into());
-            }
-            _ => {}
-        }
-    }
-    if can_add(client.endpoint()) {
-        for directory in recent {
-            // Resolve canonical gateway identity; never send local recent paths to a remote host.
-            if let Ok(result) = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
-                    client.endpoint().tenant_scope(),
-                    &ResolveProjectRequest { directory, create_if_missing: false },
-                )
-                .await
-                && seen.insert(result.project.id.clone())
-            {
-                projects.push(result.project);
-            }
-        }
-    }
-    Ok(projects)
-}
-/// Produces only a project patch. All asynchronous effects remain in update.
-pub(crate) fn apply(
-    app: &mut App,
-    event: EnvironmentMessage,
-) -> Option<(ProjectDto, UpdateProjectRequest)> {
-    use EnvironmentMessage::*;
-    let current = WorktreeSettingsIdentity::current(app);
-    let state = &mut app.worktree_settings.environment;
-    match event {
-        Edit(project) if !state.saving => {
-            state.generation += 1;
-            state.selected = Some(project);
-            state.editor = text_editor::Content::new();
-            state.loading = true;
-            state.loaded = false;
-            state.error = None;
-        }
-        Loaded { identity, generation, result }
-            if identity == current && generation == state.generation && state.loading =>
-        {
-            state.loading = false;
-            match result {
-                Ok(command) => {
-                    state.editor =
-                        text_editor::Content::with_text(command.as_deref().unwrap_or(""));
-                    state.error = None;
-                    state.loaded = true;
-                }
-                Err(error) => {
-                    state.error = Some(error);
-                    state.loaded = false;
-                }
-            }
-        }
-        Action(action) if !state.saving && !state.loading && state.loaded => {
-            state.editor.perform(action)
-        }
-        Cancel if !state.saving => {
-            state.generation += 1;
-            state.selected = None;
-            state.loaded = false;
-            state.loading = false;
-            state.error = None;
-        }
-        Save if !state.saving && !state.loading && state.loaded => {
-            let project = state.selected.clone()?;
-            state.saving = true;
-            state.error = None;
-            state.generation += 1;
-            let command = state.editor.text();
-            let command = if command.trim().is_empty() { None } else { Some(command) };
-            return Some((
-                project,
-                UpdateProjectRequest {
-                    commands: Some(CommandsUpdateDto { start: command }),
-                    ..Default::default()
-                },
-            ));
-        }
-        Saved { identity, generation, result }
-            if identity == current && generation == state.generation && state.saving =>
-        {
-            state.saving = false;
-            match result {
-                Ok(()) => {
-                    state.selected = None;
-                    state.loaded = false;
-                    state.error = None;
-                }
-                Err(error) => state.error = Some(error),
-            }
-        }
-        _ => {}
-    }
-    None
+pub(crate) use desktop_settings_workspace::environment::{can_add, save_command, load_projects, scope};
+pub(crate) fn apply(app: &mut App, event: EnvironmentMessage) -> Option<(ProjectDto, UpdateProjectRequest)> {
+    let current = crate::app::state::worktree_identity(app);
+    desktop_settings_workspace::environment::apply(&mut app.worktree_settings.environment, &current, event)
 }
 pub(crate) fn update(app: &mut App, event: EnvironmentMessage) -> Task<Message> {
     use EnvironmentMessage::*;
-    let current = WorktreeSettingsIdentity::current(app);
+    let current = crate::app::state::worktree_identity(app);
     // A project/gateway/tenant switch invalidates every pending editor response.
     if app.worktree_settings.environment.identity.as_ref().is_some_and(|old| old != &current) {
         let generation = app.worktree_settings.environment.generation + 1;

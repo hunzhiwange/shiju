@@ -2,15 +2,15 @@
 //! 未知后端走稳定回退，原生专属设置不得出现在其他后端页面。
 
 use super::*;
-use crate::app::message::settings::{BrowserMessage, SettingsMessage};
-use crate::app::{App, Message};
+
+
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 // 浏览器后端由用例逐项选择，默认应用仅提供完整视图上下文。
 fn test_app() -> App {
-    App::new().0
+    App::default()
 }
 
 fn keep_element(element: Element<'_, Message>) {
@@ -51,19 +51,19 @@ fn backend_options_keep_stable_config_values_and_labels() {
 #[test]
 fn row_helpers_build_text_and_boolean_controls() {
     let app = test_app();
-    keep_element(field_row(&app, "标签", "说明", text("control")));
-    keep_element(text_row(&app, "会话", "说明", "placeholder", "session", |value| {
-        Message::Settings(SettingsMessage::Browser(BrowserMessage::SessionNameChanged(value)))
+    keep_element(field_row(app.inputs(), "标签", "说明", text("control")));
+    keep_element(text_row(app.inputs(), "会话", "说明", "placeholder", "session", |value| {
+        Message::Browser(BrowserMessage::SessionNameChanged(value))
     }));
-    keep_element(bool_row(&app, "启用", "说明", true, "启用浏览器", |value| {
-        Message::Settings(SettingsMessage::Browser(BrowserMessage::EnabledToggled(value)))
+    keep_element(bool_row(app.inputs(), "启用", "说明", true, "启用浏览器", |value| {
+        Message::Browser(BrowserMessage::EnabledToggled(value))
     }));
 }
 
 #[test]
 fn view_builds_empty_and_populated_browser_settings() {
     let mut app = test_app();
-    keep_element(view(&app));
+    keep_element(view(app.inputs()));
 
     app.browser_settings.enabled = true;
     app.browser_settings.allowed_domains_editor =
@@ -81,7 +81,7 @@ fn view_builds_empty_and_populated_browser_settings() {
     app.browser_settings.computer_use_window_allowlist_input = "Chrome\nVibeWindow".to_string();
     app.browser_settings.computer_use_max_coordinate_x_input = "1920".to_string();
     app.browser_settings.computer_use_max_coordinate_y_input = "1080".to_string();
-    keep_element(view(&app));
+    keep_element(view(app.inputs()));
 }
 
 #[test]
@@ -90,12 +90,12 @@ fn view_builds_every_supported_selection_and_unknown_fallback() {
 
     for browser_open in ["default", "new_window", "new_tab", "unknown"] {
         app.browser_settings.browser_open = browser_open.to_string();
-        keep_element(view(&app));
+        keep_element(view(app.inputs()));
     }
 
     for backend in ["agent_browser", "native", "computer_use", "auto", "unknown"] {
         app.browser_settings.backend = backend.to_string();
-        keep_element(view(&app));
+        keep_element(view(app.inputs()));
     }
 }
 
@@ -104,13 +104,13 @@ fn view_only_adds_native_section_for_native_backend() {
     let mut app = test_app();
     app.browser_settings.backend = "agent_browser".to_string();
     let default_tree = {
-        let default = content(&app);
+        let default = content(app.inputs());
         Tree::new(default.as_widget())
     };
     assert_eq!(default_tree.children.len(), 3);
 
     app.browser_settings.backend = "native".to_string();
-    let native = content(&app);
+    let native = content(app.inputs());
     let native_tree = Tree::new(native.as_widget());
     assert_eq!(native_tree.children.len(), 4);
     assert_eq!(native_tree.children[2].children.len(), 2);
@@ -123,9 +123,26 @@ fn view_keeps_computer_use_section_without_native_section_for_computer_use_backe
     app.browser_settings.backend = "computer_use".to_string();
     app.browser_settings.computer_use_endpoint = "http://127.0.0.1:8787/v1/actions".to_string();
 
-    let element = content(&app);
+    let element = content(app.inputs());
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 3);
     assert_eq!(tree.children[2].children.len(), 2);
+}
+
+struct App {
+    browser_settings: BrowserSettingsState,
+    desktop_locale: config_ui::DesktopLocale,
+    app_theme: iced::Theme,
+}
+impl App {
+    fn inputs(&self) -> View<'_> { View {
+        browser_settings: &self.browser_settings, desktop_locale: self.desktop_locale,
+        app_theme: &self.app_theme,
+        render_help: |title, body, _, _| iced::widget::column![iced::widget::text(title), iced::widget::text(body)].into(),
+    } }
+}
+
+impl Default for App {
+    fn default() -> Self { Self { browser_settings: Default::default(), desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: iced::Theme::Light } }
 }

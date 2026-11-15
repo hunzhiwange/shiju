@@ -2,14 +2,14 @@
 //! 健康状态按服务器键隔离，删除目标缺失时覆盖层需安全退回基础视图。
 
 use super::*;
-use crate::app::App;
-use crate::app::message::gateway_health::server_health_key;
-use crate::app::state::GatewayClientServerDraft;
+
+use crate::server_health_key;
+use crate::state::GatewayClientServerDraft;
 use iced::{Element, Length};
 
 // 客户端页面 fixture 保持服务端列表为空，各测试再按目标场景添加草稿。
 fn test_app() -> App {
-    App::new().0
+    App::default()
 }
 
 fn server(id: &str, host: &str, port: u16) -> GatewayClientServerDraft {
@@ -39,14 +39,14 @@ fn system_settings_gateway_client_tests_are_wired() {
 #[test]
 fn field_helpers_fill_width_for_text_secure_and_number_controls() {
     let app = test_app();
-    let field = field_row(&app, "Label", "Description", iced::widget::text("control"));
-    let text = text_row(&app, "Text", "Description", "placeholder", "value", |_| {
+    let field = field_row(app.inputs(), "Label", "Description", iced::widget::text("control"));
+    let text = text_row(app.inputs(), "Text", "Description", "placeholder", "value", |_| {
         Message::GatewayHealthTick
     });
-    let secure = secure_text_row(&app, "Secret", "Description", "placeholder", "value", |_| {
+    let secure = secure_text_row(app.inputs(), "Secret", "Description", "placeholder", "value", |_| {
         Message::GatewayHealthTick
     });
-    let number = number_row(&app, "Port", "Description", 42617, 1, u16::MAX as u32, |_| {
+    let number = number_row(app.inputs(), "Port", "Description", 42617, 1, u16::MAX as u32, |_| {
         Message::GatewayHealthTick
     });
 
@@ -61,18 +61,18 @@ fn server_health_defaults_false_and_uses_only_the_matching_key() {
     let local = server("local", "127.0.0.1", 42617);
     let remote = server("remote", "gateway.example.test", 8080);
 
-    assert!(!server_healthy(&app, &local));
+    assert!(!server_healthy(app.inputs(), &local));
 
     let local_key = server_health_key(&local).expect("local server should produce a health key");
     let remote_key = server_health_key(&remote).expect("remote server should produce a health key");
     app.gateway_client_settings.health.insert(local_key, false);
     app.gateway_client_settings.health.insert(remote_key, true);
 
-    assert!(!server_healthy(&app, &local));
-    assert!(server_healthy(&app, &remote));
+    assert!(!server_healthy(app.inputs(), &local));
+    assert!(server_healthy(app.inputs(), &remote));
 
     let malformed = server("malformed", "http://[", 8080);
-    assert!(!server_healthy(&app, &malformed));
+    assert!(!server_healthy(app.inputs(), &malformed));
 }
 
 #[test]
@@ -100,11 +100,11 @@ fn view_builds_empty_single_and_multi_server_states() {
     let mut empty = test_app();
     empty.gateway_client_settings.servers.clear();
     empty.gateway_client_settings.save_error = Some(("client save failed".to_string()).into());
-    let empty_view = view(&empty);
+    let empty_view = view(empty.inputs());
     assert_size(&empty_view, Length::Fill, Length::Shrink);
 
     let app = test_app();
-    let single_view = view(&app);
+    let single_view = view(app.inputs());
     assert_size(&single_view, Length::Fill, Length::Shrink);
 
     let mut multi = test_app();
@@ -128,13 +128,13 @@ fn view_builds_empty_single_and_multi_server_states() {
     multi.gateway_client_settings.company_id_input = extra.company_id.clone();
     multi.gateway_client_settings.skey_input = extra.skey.clone();
     multi.gateway_client_settings.servers.push(extra);
-    let multi_view = view(&multi);
+    let multi_view = view(multi.inputs());
     assert_size(&multi_view, Length::Fill, Length::Shrink);
 }
 
 #[test]
 fn tenant_controls_and_help_example_are_declared() {
-    use crate::app::i18n::settings_models::{connection_text::text, help};
+    use desktop_i18n::settings_models::{connection_text::text, help};
     use config_ui::DesktopLocale;
     for locale in [
         DesktopLocale::SimplifiedChinese,
@@ -155,20 +155,20 @@ fn overlays_cover_remove_confirmation_missing_server_and_help_modal() {
     app.gateway_client_settings.pending_remove_server_id =
         Some(app.gateway_client_settings.selected_server_id.clone());
     let base = iced::widget::container(iced::widget::text("base")).into();
-    let confirmation = view_overlays(&app, base);
+    let confirmation = view_overlays(app.inputs(), base);
     assert_eq!(confirmation.as_widget().children().len(), 2);
     drop(confirmation);
 
     app.gateway_client_settings.pending_remove_server_id = Some("missing".to_string());
     let base = iced::widget::container(iced::widget::text("base")).into();
-    let missing = view_overlays(&app, base);
+    let missing = view_overlays(app.inputs(), base);
     assert!(missing.as_widget().children().is_empty());
     drop(missing);
 
     app.gateway_client_settings.pending_remove_server_id = None;
     app.gateway_client_settings.show_help_modal = true;
     let base = iced::widget::container(iced::widget::text("base")).into();
-    let help = view_overlays(&app, base);
+    let help = view_overlays(app.inputs(), base);
     assert_eq!(help.as_widget().children().len(), 2);
 }
 
@@ -177,7 +177,7 @@ fn overlays_return_base_without_pending_remove_or_help() {
     let app = test_app();
     let base = iced::widget::container(iced::widget::text("base")).into();
 
-    let unchanged = view_overlays(&app, base);
+    let unchanged = view_overlays(app.inputs(), base);
 
     assert!(unchanged.as_widget().children().is_empty());
 }
@@ -190,7 +190,7 @@ fn overlays_stack_help_over_remove_confirmation() {
     app.gateway_client_settings.show_help_modal = true;
     let base = iced::widget::container(iced::widget::text("base")).into();
 
-    let combined = view_overlays(&app, base);
+    let combined = view_overlays(app.inputs(), base);
     let layers = combined.as_widget().children();
 
     assert_eq!(layers.len(), 2);
@@ -204,9 +204,26 @@ fn overlays_show_help_when_pending_remove_server_is_missing() {
     app.gateway_client_settings.show_help_modal = true;
     let base = iced::widget::container(iced::widget::text("base")).into();
 
-    let combined = view_overlays(&app, base);
+    let combined = view_overlays(app.inputs(), base);
     let layers = combined.as_widget().children();
 
     assert_eq!(layers.len(), 2);
     assert!(layers[0].children.is_empty());
+}
+
+struct App {
+    gateway_client_settings: GatewayClientSettingsState,
+    desktop_locale: config_ui::DesktopLocale,
+    app_theme: iced::Theme,
+}
+impl App {
+    fn inputs(&self) -> View<'_> { View {
+        gateway_client_settings: &self.gateway_client_settings, desktop_locale: self.desktop_locale,
+        app_theme: &self.app_theme, last_copied_code_hash: None,
+        render_help: |title, body, _, _| iced::widget::column![iced::widget::text(title), iced::widget::text(body)].into(),
+    } }
+}
+
+impl Default for App {
+    fn default() -> Self { Self { gateway_client_settings: Default::default(), desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: iced::Theme::Light } }
 }

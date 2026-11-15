@@ -4,7 +4,7 @@ use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, ChannelsSettingsTab, CronAddJobType,
     CronAddScheduleKind, CronFrequency, CronListFilter, CronSettingsTab, CustomProviderModelFilter,
-    CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab, McpNewServerTransport,
+    CustomProviderModelTab, CustomProviderTab, McpNewServerTransport,
     McpSettingsTab, MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
     ThemeEditorTab,
 };
@@ -133,28 +133,7 @@ pub enum RuntimeMessage {
 }
 
 /// 浏览器工具设置页消息。
-#[derive(Debug, Clone)]
-pub enum BrowserMessage {
-    Refresh,
-    Install,
-    InstallCompleted(Result<String, String>),
-    EnabledToggled(bool),
-    AllowedDomainsChanged(String),
-    AllowedDomainsEditorAction(text_editor::Action),
-    BrowserOpenChanged(String),
-    SessionNameChanged(String),
-    BackendChanged(String),
-    NativeHeadlessToggled(bool),
-    NativeWebdriverUrlChanged(String),
-    NativeChromePathChanged(String),
-    ComputerUseEndpointChanged(String),
-    ComputerUseApiKeyChanged(String),
-    ComputerUseTimeoutMsChanged(String),
-    ComputerUseAllowRemoteEndpointToggled(bool),
-    ComputerUseWindowAllowlistChanged(String),
-    ComputerUseMaxCoordinateXChanged(String),
-    ComputerUseMaxCoordinateYChanged(String),
-}
+pub use desktop_settings_network::messages::BrowserMessage;
 
 /// 网页搜索工具设置页消息。
 #[derive(Debug, Clone)]
@@ -299,68 +278,10 @@ pub enum ChannelsMessage {
 }
 
 /// 本地网关设置页消息。
-#[derive(Debug, Clone)]
-pub enum GatewayMessage {
-    Refresh,
-    TabSelected(GatewaySettingsTab),
-    PortChanged(u16),
-    HostChanged(String),
-    AuthEnabledToggled(bool),
-    NewSkeyNameChanged(String),
-    NewSkeyChanged(String),
-    NewSkeyExpiresAtChanged(String),
-    NewSkeyCalendarToggled,
-    NewSkeyCalendarClosed,
-    NewSkeyExpiresDateSelected(String),
-    NewSkeyExpiresMonthChanged(i32),
-    NewSkeyExpiresAtCleared,
-    AddSkey,
-    CopyLastCreatedSkey,
-    ClearLastCreatedSkeyCopied,
-    SkeyEnabledToggled(usize, bool),
-    RemoveSkey(usize),
-    RequirePairingToggled(bool),
-    AllowPublicBindToggled(bool),
-    TrustForwardedHeadersToggled(bool),
-    NewPairedTokenChanged(String),
-    AddPairedToken,
-    RemovePairedToken(usize),
-    PairRateLimitPerMinuteChanged(u32),
-    WebhookRateLimitPerMinuteChanged(u32),
-    RateLimitMaxKeysChanged(u32),
-    IdempotencyTtlSecsChanged(u32),
-    IdempotencyMaxKeysChanged(u32),
-    NodeControlEnabledToggled(bool),
-    NodeControlAuthTokenChanged(String),
-    NodeControlAllowedNodeIdsChanged(String),
-    ServiceCommandRequested(String),
-    ServiceCommandCompleted(String, Result<String, String>),
-    ServiceRecoveryCompleted(String, Result<(), String>),
-    CopyServiceCommand(String),
-    ClearCopiedServiceCommand(String),
-    ConfirmDangerServiceCommand(String),
-    CancelDangerServiceCommand,
-    HelpOpen,
-    HelpClose,
-}
+pub use desktop_settings_network::messages::GatewayMessage;
 
 /// 网关客户端设置页消息。
-#[derive(Debug, Clone)]
-pub enum GatewayClientMessage {
-    SelectServer(String),
-    AddServer,
-    RemoveServerRequested(String),
-    RemoveServerConfirmed(String),
-    RemoveServerCanceled,
-    NameChanged(String),
-    HostChanged(String),
-    PortChanged(u16),
-    PlatformIdChanged(String),
-    CompanyIdChanged(String),
-    SkeyChanged(String),
-    HelpOpen,
-    HelpClose,
-}
+pub use desktop_settings_network::messages::GatewayClientMessage;
 
 /// ACP 设置页消息。
 #[derive(Debug, Clone)]

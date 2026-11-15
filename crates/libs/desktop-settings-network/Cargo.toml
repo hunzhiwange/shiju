@@ -1,0 +1,19 @@
+[package]
+name = "desktop-settings-network"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = { version = "0.14", features = ["advanced"] }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+config-ui = { path = "../config-ui", version = "0.6.0" }
+config-tools = { path = "../config-tools", version = "0.6.0" }
+config-gateway = { path = "../config-gateway", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+chrono = "0.4"
+url = "2"

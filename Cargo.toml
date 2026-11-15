@@ -43,6 +43,7 @@ members = [
   "crates/libs/desktop-settings-providers",
   "crates/libs/desktop-editor",
   "crates/libs/desktop-settings-shell",
+  "crates/libs/desktop-settings-network",
   "crates/libs/desktop-file-tree",
   "crates/libs/app-mcp-catalog",
   "crates/libs/app-mcp",

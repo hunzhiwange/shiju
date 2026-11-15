@@ -4,6 +4,27 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 5：配置补丁迁移结果
+
+所有权表任务 5 的十个 `providers/live/patch_*.rs` 文件（dotenv、JSON、JSON5、
+TOML、YAML 实现与各自独立测试）现归 `crates/libs/app-config-patch/src/`。
+新 lib.rs 显式注册模块和测试；原 providers/live 以 re-export 保留路径，
+原 lib.rs 继续通过 providers 提供接口，无需顶层别名。无留存实现或后继接收项。
+
+JSON/JSON5 的 object_value、replace_member_preserving_trivia、
+replace_object_preserving_trivia，以及 YAML 的 patch_mcp_server、
+patch_hermes_memory_enabled、has_yaml_reference_tokens 因真实跨包调用最小提升为 pub。
+调用者包括 providers、aggregation、mcp/adapters、models 和 OpenClaw/Hermes 配置模块；
+其余实现及独立测试原样搬迁，无 include 资源路径。JSON5 模块、测试及依赖保持 macOS
+条件，JSON 的 trivia 替换和 YAML MCP 入口保留原 cfg。未知字段、注释与错误语义未改。
+
+workspace 和原包直接路径依赖已接线。新包依赖 serde_json（arbitrary_precision）、
+serde_yaml、toml_edit、vw-api-types、macOS json-five，测试依赖 tempfile。
+原包 json-five 已无其他调用，移除；其他格式依赖仍有调用，保留。无反向依赖。
+静态审阅包含迁移内容对照、导出/调用者检索、清单人工审阅、Python 标准库路径检查和
+差异空白检查（系统 Python 缺少 tomllib，未执行 TOML 解析）。未运行 Cargo、单元及实机测试，统一验收待授权：新库与调用者编译、
+迁移单测、锁文件一致性及三平台条件和原配置行为。
+
 ## 任务 2：图标规则迁移结果
 
 `icons/{library,name,validation}.rs` 及三个对应独立测试原样迁入

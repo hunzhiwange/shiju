@@ -45,7 +45,7 @@ pub fn patch_provider(
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn patch_mcp_server(
+pub fn patch_mcp_server(
     pre: Option<&[u8]>,
     id: &str,
     replacement: Option<Mapping>,
@@ -54,7 +54,7 @@ pub(crate) fn patch_mcp_server(
 }
 
 /// Hermes owns the two supported memory switches; no arbitrary section path.
-pub(crate) fn patch_hermes_memory_enabled(
+pub fn patch_hermes_memory_enabled(
     pre: Option<&[u8]>,
     kind: vw_api_types::hermes_memory::HermesMemoryKind,
     enabled: bool,
@@ -326,7 +326,7 @@ fn reject_yaml_tokens(line: &str) -> Result<(), PatchError> {
 /// `&`, `*` and `!` are only YAML indicators where a node starts: inside a plain scalar
 /// (`name: Search & Fetch`, which serde_yaml and Bun both write unquoted) they are
 /// ordinary text.
-pub(crate) fn has_yaml_reference_tokens(line: &str) -> bool {
+pub fn has_yaml_reference_tokens(line: &str) -> bool {
     let mut quote = None;
     let mut escaped = false;
     // A node may start here: line start, after `:`, a flow opener or `,`, and after a

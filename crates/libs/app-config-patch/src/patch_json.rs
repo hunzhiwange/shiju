@@ -53,7 +53,7 @@ impl JsonPatch {
 }
 
 /// Read the same validated JSON/JSONC object used by byte-preserving edits.
-pub(crate) fn object_value(source: &[u8]) -> Result<Value, PatchError> {
+pub fn object_value(source: &[u8]) -> Result<Value, PatchError> {
     parse(source)?;
     serde_json::from_slice(&without_trailing_commas(&masked(source)?))
         .map_err(|_| PatchError::Parse)
@@ -61,7 +61,7 @@ pub(crate) fn object_value(source: &[u8]) -> Result<Value, PatchError> {
 
 /// Replace one root member, retaining trivia inside compatible objects and arrays.
 #[cfg(target_os = "macos")]
-pub(crate) fn replace_member_preserving_trivia(
+pub fn replace_member_preserving_trivia(
     source: &[u8],
     key: &str,
     desired: Value,
@@ -86,7 +86,7 @@ pub(crate) fn replace_member_preserving_trivia(
 
 /// Reconcile an entire root object while retaining file and value trivia.
 #[cfg(target_os = "macos")]
-pub(crate) fn replace_object_preserving_trivia(
+pub fn replace_object_preserving_trivia(
     source: &[u8],
     desired: Value,
 ) -> Result<Vec<u8>, PatchError> {

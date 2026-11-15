@@ -2,8 +2,9 @@
 //!
 //! 目录条目与提供商夹具刻意包含重复标识和不同连接状态，以锁定筛选分组规则。
 
-use crate::app::state::{ModelCatalogEntry, ProviderSummary};
-use crate::app::{App, Message};
+use crate::provider_state::{ModelCatalogEntry, ProviderSummary};
+use crate::provider_view_test_support::Fixture as App;
+use crate::view_message::Message;
 use iced::widget::text;
 
 fn test_app() -> App {
@@ -161,21 +162,21 @@ fn catalog_treats_shiju_as_pinned_popular_provider() {
 #[test]
 fn model_count_label_formats_singular_and_plural_counts() {
     assert_eq!(
-        crate::app::i18n::settings_models::model_count(
+        desktop_i18n::settings_models::model_count(
             config_ui::DesktopLocale::SimplifiedChinese,
             1
         ),
         "1 个模型"
     );
     assert_eq!(
-        crate::app::i18n::settings_models::model_count(
+        desktop_i18n::settings_models::model_count(
             config_ui::DesktopLocale::SimplifiedChinese,
             0
         ),
         "0 个模型"
     );
     assert_eq!(
-        crate::app::i18n::settings_models::model_count(
+        desktop_i18n::settings_models::model_count(
             config_ui::DesktopLocale::SimplifiedChinese,
             12
         ),

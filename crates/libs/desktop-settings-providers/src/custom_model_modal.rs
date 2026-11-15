@@ -55,7 +55,7 @@ fn text_row_with_help<'a>(
     })
 }
 
-fn responsive_field_with_help<'a, Control>(style: ViewStyle<'a>, label: &'a str, description: impl Into<Cow<'a,str>>, control: impl Fn() -> Control + 'a) -> Element<'a,Message>
+pub(crate) fn responsive_field_with_help<'a, Control>(style: ViewStyle<'a>, label: &'a str, description: impl Into<Cow<'a,str>>, control: impl Fn() -> Control + 'a) -> Element<'a,Message>
 where Control: Into<Element<'a,Message>> {
     responsive_field(description, control, move |description, wide| {
         let label = style.help_label(label, settings_field_label(label), description);

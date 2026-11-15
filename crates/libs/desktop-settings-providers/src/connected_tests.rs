@@ -5,8 +5,9 @@
 // 保留计划任务 808 与 632 的既定覆盖面。
 const SOURCE: &str = include_str!("connected.rs");
 
-use crate::app::state::{ModelCatalogEntry, ProviderSummary};
-use crate::app::{App, Message};
+use crate::provider_state::{ModelCatalogEntry, ProviderSummary};
+use crate::provider_view_test_support::Fixture as App;
+use crate::view_message::Message;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
 use iced::{Color, Font, Pixels, Theme};
@@ -95,17 +96,17 @@ fn source_declares_symbol(name: &str) -> bool {
 #[test]
 fn view_builds_loading_sync_empty_connected_popular_and_error_states() {
     let mut app = test_app();
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     app.provider_settings.loading = true;
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     app.provider_settings.loading = false;
     app.provider_settings.models_syncing = true;
     app.provider_settings.models_sync_progress = 0.42;
     app.provider_settings.models_sync_label = "同步中".to_string().into();
     app.provider_settings.save_error = Some(("保存失败".to_string()).into());
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     app.provider_settings.models_syncing = false;
     app.provider_settings.providers =
@@ -114,13 +115,13 @@ fn view_builds_loading_sync_empty_connected_popular_and_error_states() {
         vec![catalog_entry("openai", "OpenAI"), catalog_entry("anthropic", "Anthropic")];
     app.provider_settings.popular_patterns =
         vec!["OpenAI".to_string(), "anth".to_string(), "missing".to_string()];
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     app.provider_settings.disconnect_confirm_provider_id = Some("openai".to_string());
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     app.provider_settings.popular_patterns.clear();
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 }
 
 #[test]
@@ -185,18 +186,18 @@ fn shiju_official_provider_is_always_first_and_not_removable() {
         super::connected::popular_provider_match("shiju", &[], &app.provider_settings.providers);
     assert!(connected.is_connected);
 
-    let tree = element_tree(super::connected::view(&app));
+    let tree = element_tree(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
     assert_eq!(tree.children[4].children.len(), 1);
 }
 
 #[test]
 fn connected_shiju_appears_in_connected_provider_section() {
     let app = test_app();
-    let disconnected_tree = element_tree(super::connected::view(&app));
+    let disconnected_tree = element_tree(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     let mut connected_app = test_app();
     connected_app.provider_settings.providers = vec![provider("shiju", "识矩", true)];
-    let connected_tree = element_tree(super::connected::view(&connected_app));
+    let connected_tree = element_tree(super::connected::view(&connected_app.provider_settings, crate::provider_view_test_support::style(&connected_app)));
 
     assert!(
         tree_node_count(&connected_tree.children[2])
@@ -209,10 +210,10 @@ async fn shiju_official_card_draws_in_dark_theme_with_non_ascii_text() {
     let mut app = test_app();
     app.provider_settings.popular_patterns = vec!["shiju".to_string()];
 
-    assert_element_draws_in_dark_theme(super::connected::view(&app)).await;
+    assert_element_draws_in_dark_theme(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app))).await;
 
     app.provider_settings.providers = vec![provider("shiju", "识矩", true)];
-    assert_element_draws_in_dark_theme(super::connected::view(&app)).await;
+    assert_element_draws_in_dark_theme(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app))).await;
 }
 
 #[test]
@@ -226,7 +227,7 @@ fn view_builds_popular_pattern_matching_existing_provider_not_catalog() {
     app.provider_settings.catalog_items = vec![];
     // 查询还会按提供商标识做包含匹配，且不依赖目录中存在对应条目。
     app.provider_settings.popular_patterns = vec!["custom".to_string(), "another".to_string()];
-    keep_element(super::connected::view(&app));
+    keep_element(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 }
 
 #[test]
@@ -238,7 +239,7 @@ fn view_inserts_dividers_between_multiple_connected_and_popular_rows() {
         vec![catalog_entry("openai", "OpenAI"), catalog_entry("anthropic", "Anthropic")];
     app.provider_settings.popular_patterns = vec!["openai".to_string(), "anthropic".to_string()];
 
-    let tree = element_tree(super::connected::view(&app));
+    let tree = element_tree(super::connected::view(&app.provider_settings, crate::provider_view_test_support::style(&app)));
 
     assert_eq!(tree.children.len(), 8);
     assert_eq!(tree.children[2].children.len(), 3);

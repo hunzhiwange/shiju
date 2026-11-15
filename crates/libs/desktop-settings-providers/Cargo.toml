@@ -31,5 +31,11 @@ provider-model-discovery = { path = "../provider-model-discovery", version = "0.
 model-catalog-types = { path = "../model-catalog-types", version = "0.6.0" }
 directories = "5"
 
+desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+
 [dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 model-state = { path = "../model-state", version = "0.6.0" }

@@ -132,9 +132,42 @@ use desktop_settings_providers::view_message as domain;
 pub(crate) fn map_view_message(message: domain::Message) -> crate::app::Message {
  use crate::app::{Message, message::settings::{SettingsMessage, ModelRoutesMessage}};
  match message {
+ domain::Message::Catalog(event) => map_catalog_event(event),
  domain::Message::CopyCode(text) => Message::CopyCode(text),
  domain::Message::None => Message::None,
  domain::Message::Settings(message) => Message::Settings(match message {
+        domain::SettingsMessage::CustomProviderApiKeyChanged(v0) => SettingsMessage::CustomProviderApiKeyChanged(v0),
+        domain::SettingsMessage::CustomProviderBaseUrlChanged(v0) => SettingsMessage::CustomProviderBaseUrlChanged(v0),
+        domain::SettingsMessage::CustomProviderClose => SettingsMessage::CustomProviderClose,
+        domain::SettingsMessage::CustomProviderEditOpen(v0) => SettingsMessage::CustomProviderEditOpen(v0),
+        domain::SettingsMessage::CustomProviderHeaderAdd => SettingsMessage::CustomProviderHeaderAdd,
+        domain::SettingsMessage::CustomProviderHeaderKeyChanged(v0,v1) => SettingsMessage::CustomProviderHeaderKeyChanged(v0,v1),
+        domain::SettingsMessage::CustomProviderHeaderRemove(v0) => SettingsMessage::CustomProviderHeaderRemove(v0),
+        domain::SettingsMessage::CustomProviderHeaderValueChanged(v0,v1) => SettingsMessage::CustomProviderHeaderValueChanged(v0,v1),
+        domain::SettingsMessage::CustomProviderIdChanged(v0) => SettingsMessage::CustomProviderIdChanged(v0),
+        domain::SettingsMessage::CustomProviderModelEnabledToggled(v0,v1) => SettingsMessage::CustomProviderModelEnabledToggled(v0,v1),
+        domain::SettingsMessage::CustomProviderModelFilterSelected(v0) => SettingsMessage::CustomProviderModelFilterSelected(v0),
+        domain::SettingsMessage::CustomProviderModelOpen(v0) => SettingsMessage::CustomProviderModelOpen(v0),
+        domain::SettingsMessage::CustomProviderModelRemove(v0) => SettingsMessage::CustomProviderModelRemove(v0),
+        domain::SettingsMessage::CustomProviderModelsDiscover => SettingsMessage::CustomProviderModelsDiscover,
+        domain::SettingsMessage::CustomProviderNameChanged(v0) => SettingsMessage::CustomProviderNameChanged(v0),
+        domain::SettingsMessage::CustomProviderOpen => SettingsMessage::CustomProviderOpen,
+        domain::SettingsMessage::CustomProviderSave => SettingsMessage::CustomProviderSave,
+        domain::SettingsMessage::CustomProviderTabSelected(v0) => SettingsMessage::CustomProviderTabSelected(v0),
+        domain::SettingsMessage::PopularProviderRemove(v0) => SettingsMessage::PopularProviderRemove(v0),
+        domain::SettingsMessage::ProviderCatalogAddToPopular(v0) => SettingsMessage::ProviderCatalogAddToPopular(v0),
+        domain::SettingsMessage::ProviderCatalogClose => SettingsMessage::ProviderCatalogClose,
+        domain::SettingsMessage::ProviderCatalogOpen => SettingsMessage::ProviderCatalogOpen,
+        domain::SettingsMessage::ProviderCatalogQueryChanged(v0) => SettingsMessage::ProviderCatalogQueryChanged(v0),
+        domain::SettingsMessage::ProviderConnectApiKeyChanged(v0) => SettingsMessage::ProviderConnectApiKeyChanged(v0),
+        domain::SettingsMessage::ProviderConnectClose => SettingsMessage::ProviderConnectClose,
+        domain::SettingsMessage::ProviderConnectOpen(v0) => SettingsMessage::ProviderConnectOpen(v0),
+        domain::SettingsMessage::ProviderConnectSubmit => SettingsMessage::ProviderConnectSubmit,
+        domain::SettingsMessage::ProviderDisconnectCanceled => SettingsMessage::ProviderDisconnectCanceled,
+        domain::SettingsMessage::ProviderDisconnectConfirmed(v0) => SettingsMessage::ProviderDisconnectConfirmed(v0),
+        domain::SettingsMessage::ProviderDisconnectRequested(v0) => SettingsMessage::ProviderDisconnectRequested(v0),
+        domain::SettingsMessage::ProviderModelsSyncRemote => SettingsMessage::ProviderModelsSyncRemote,
+        domain::SettingsMessage::ProvidersRefresh => SettingsMessage::ProvidersRefresh,
         domain::SettingsMessage::EmbeddingRoutes(message) => SettingsMessage::EmbeddingRoutes(message),
         domain::SettingsMessage::CustomProviderModelClose => SettingsMessage::CustomProviderModelClose,
         domain::SettingsMessage::CustomProviderModelModalAttachmentChanged(v0) => SettingsMessage::CustomProviderModelModalAttachmentChanged(v0),
@@ -179,7 +212,7 @@ pub(crate) fn view_style(app: &App) -> desktop_settings_providers::view_style::V
         locale: app.desktop_locale, theme: &app.app_theme, help_text: help_text,
     }
 }
-fn help_text<'a>(title: &'a str, body: std::borrow::Cow<'a, str>, color: Option<iced::Color>, i18n: crate::app::i18n::I18n) -> iced::Element<'a, desktop_settings_providers::view_message::Message> {
+pub(crate) fn help_text<'a>(title: &'a str, body: std::borrow::Cow<'a, str>, color: Option<iced::Color>, i18n: crate::app::i18n::I18n) -> iced::Element<'a, desktop_settings_providers::view_message::Message> {
     crate::app::components::chat_panel::message_view::selectable_titled_text(title, body, color, i18n)
         .map(|message| match message {
             Message::CopyCode(text) => desktop_settings_providers::view_message::Message::CopyCode(text),
@@ -194,3 +227,26 @@ mod system_settings_models_tests;
 #[cfg(test)]
 #[path = "system_settings_models_ui_refresh_10_tests.rs"]
 mod ui_refresh_10_tests;
+
+fn map_catalog_event(event: desktop_settings_providers::catalog_message::Event) -> Message {
+ use desktop_settings_providers::catalog_message::{Event as D, FillEvent as F, DiscoveryEvent as V};
+ use crate::app::message::settings::providers::{catalog_api::{self, Event as H}, metadata_fill, discovery};
+ catalog_api::message(match event {
+ D::Open(value) => H::Open(value),
+ D::Close => H::Close,
+ D::Query(value) => H::Query(value),
+ D::Search => H::Search,
+ D::ChooseEndpoint { generation, preset } => H::ChooseEndpoint { generation, preset },
+ D::Toggle { generation, preset, model, checked } => H::Toggle { generation, preset, model, checked },
+ D::Endpoint(value) => H::Endpoint(value),
+ D::ManualId(value) => H::ManualId(value),
+ D::Alias(value) => H::Alias(value),
+ D::MakeDefault(value) => H::MakeDefault(value),
+ D::EditModel { generation, model_id } => H::EditModel { generation, model_id },
+ D::CancelEdit => H::CancelEdit,
+ D::LoadCatalog => H::LoadCatalog,
+ D::Save => H::Save,
+ D::Fill(event) => H::Fill(match event { F::Preview => metadata_fill::Event::Preview, F::Commit => metadata_fill::Event::Commit, F::Silent(value) => metadata_fill::Event::Silent(value) }),
+ D::Discovery(event) => H::Discovery(match event { V::Start(method) => discovery::Event::Start(method), V::Cancel => discovery::Event::Cancel, V::Toggle { run, index, checked } => discovery::Event::Toggle { run, index, checked } }),
+ })
+}

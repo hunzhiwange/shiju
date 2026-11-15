@@ -1,21 +1,13 @@
 //! Discovery controls and results inside the saved deployment dialog.
 
-use crate::app::{
-    Message,
-    components::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-        settings_error_banner, settings_field_label, settings_group_card,
-        settings_hover_help_label, settings_muted_text_style,
-    },
-    i18n::I18n,
-    message::settings::providers::{
-        catalog_api::{self, Event as CatalogEvent},
-        discovery::{self, Event},
-    },
-    state::app_providers::model_catalog::{CatalogForm, DiscoveryPhase},
-};
+use crate::view_message::Message;
+use desktop_ui_controls::system_settings_common::*;
+use desktop_i18n::I18n;
+use desktop_provider_apps::state::model_catalog::{CatalogForm, DiscoveryPhase};
+use crate::catalog_message::{self as catalog_api, Event as CatalogEvent, DiscoveryEvent as Event};
+use crate::catalog::CatalogStyle;
 use iced::{
-    Element, Theme,
+    Element,
     widget::{button, checkbox, column, container, row, text, text::Wrapping},
 };
 use vw_api_model_catalog::{ModelDiscoveryFailure, ModelDiscoveryMethod};
@@ -24,7 +16,7 @@ fn message(event: Event) -> Message {
     catalog_api::message(CatalogEvent::Discovery(event))
 }
 
-pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, theme: &Theme) -> Element<'a, Message> {
+pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, style: CatalogStyle<'a>) -> Element<'a, Message> {
     use DiscoveryPhase::*;
 
     let phase = &form.discovery.phase;
@@ -38,7 +30,7 @@ pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, theme: &Theme) -> Elem
                 .style(rounded_action_btn_style),
         );
     } else {
-        for &method in discovery::methods(form) {
+        for &method in methods(form) {
             let retry = form.discovery.method == Some(method);
             let label = match (method, retry) {
                 (ModelDiscoveryMethod::Http, false) => "通过 HTTP 发现",
@@ -58,13 +50,7 @@ pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, theme: &Theme) -> Elem
     }
     let label = i18n.__("发现模型");
     let mut content = column![
-        settings_hover_help_label(
-            i18n,
-            theme,
-            label,
-            settings_field_label(label),
-            i18n.__("使用执行主机上已保存的供应商配置或 CLI。"),
-        )
+        style.help_label(label, settings_field_label(label), i18n.__("使用执行主机上已保存的供应商配置或 CLI。"))
         .wrap(),
         text(i18n.__("勾选结果后可保存到此部署。"))
             .size(13)
@@ -121,4 +107,14 @@ pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, theme: &Theme) -> Elem
         }
     }
     settings_group_card(container(content).padding([12, 0])).into()
+}
+
+pub fn methods(form: &CatalogForm) -> &'static [ModelDiscoveryMethod] {
+    use ModelDiscoveryMethod::{Agy, Http, OpenCode};
+    use vw_api_app_identity::AppId;
+    match form.context.scope.app {
+        AppId::OpenCode => &[OpenCode, Http],
+        AppId::Agy => &[Agy, Http],
+        _ => &[Http],
+    }
 }

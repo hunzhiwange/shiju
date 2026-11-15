@@ -2,8 +2,9 @@
 //!
 //! 连接夹具覆盖空值、Unicode 与错误文本，树节点数量用于确认浮层层级不漂移。
 
-use crate::app::state::ProviderConnectState;
-use crate::app::{App, Message};
+use crate::provider_state::ProviderConnectState;
+use crate::provider_view_test_support::Fixture as App;
+use crate::view_message::Message;
 use iced::advanced::widget::Tree;
 use iced::widget::{container, text};
 use iced::{Element, Length};

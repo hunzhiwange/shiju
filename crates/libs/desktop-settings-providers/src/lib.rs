@@ -18,3 +18,20 @@ pub mod provider_tasks;
 pub mod provider_catalog;
 pub mod embedding_view_message;
 pub mod embedding_routes_view;
+
+pub mod catalog;
+pub mod catalog_message;
+pub mod connect;
+pub mod connected;
+pub mod custom_provider;
+pub mod embedding_routes_update;
+#[cfg(test)]
+mod catalog_tests;
+#[cfg(test)]
+mod connect_tests;
+#[cfg(test)]
+mod connected_tests;
+#[cfg(test)]
+mod custom_provider_tests;
+#[cfg(test)]
+mod provider_view_test_support;

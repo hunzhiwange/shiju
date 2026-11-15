@@ -115,15 +115,7 @@ pub(super) fn update(app: &mut App, client: GatewayModelCatalogClient, event: Ev
     Task::none()
 }
 
-pub(crate) fn methods(form: &CatalogForm) -> &'static [ModelDiscoveryMethod] {
-    use ModelDiscoveryMethod::{Agy, Http, OpenCode};
-    use vw_api_app_identity::AppId;
-    match form.context.scope.app {
-        AppId::OpenCode => &[OpenCode, Http],
-        AppId::Agy => &[Agy, Http],
-        _ => &[Http],
-    }
-}
+pub(crate) use desktop_settings_providers::catalog::discovery_methods as methods;
 
 struct Worker {
     client: GatewayModelCatalogClient,

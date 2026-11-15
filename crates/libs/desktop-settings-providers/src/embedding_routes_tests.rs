@@ -2,11 +2,14 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
-use crate::app::state::EmbeddingRouteDraft;
 
-fn app() -> App {
-    App::new().0
+use crate::app_init::state::EmbeddingRouteDraft;
+
+struct App { embedding_routes_settings: EmbeddingRoutesSettingsState }
+fn app() -> App { App { embedding_routes_settings: EmbeddingRoutesSettingsState::default() } }
+enum SettingsMessage { EmbeddingRoutes(EmbeddingRoutesMessage), ToggleSettingsSidebar }
+fn update(app: &mut App, message: SettingsMessage) -> Option<Vec<EmbeddingRouteConfig>> {
+ match message { SettingsMessage::EmbeddingRoutes(message) => super::update(&mut app.embedding_routes_settings, message), _ => None }
 }
 
 fn route(pattern: &str, provider: &str, model: &str, dimensions: &str) -> EmbeddingRouteDraft {
@@ -184,7 +187,7 @@ fn persist_reports_each_required_field_with_its_one_based_row_number() {
     app.embedding_routes_settings.routes =
         vec![route("valid", "provider-a", "model-a", ""), route(" ", "provider-b", "model-b", "")];
 
-    assert!(persist_embedding_routes_settings(&mut app).is_none());
+    assert!(persist_embedding_routes_settings(&mut app.embedding_routes_settings).is_none());
     assert_eq!(
         app.embedding_routes_settings.save_error.as_deref(),
         Some("第 2 条路由的 pattern 不能为空")
@@ -193,7 +196,7 @@ fn persist_reports_each_required_field_with_its_one_based_row_number() {
 
     app.embedding_routes_settings.routes[1].pattern = "second".to_string();
     app.embedding_routes_settings.routes[1].provider = "\t".to_string();
-    assert!(persist_embedding_routes_settings(&mut app).is_none());
+    assert!(persist_embedding_routes_settings(&mut app.embedding_routes_settings).is_none());
     assert_eq!(
         app.embedding_routes_settings.save_error.as_deref(),
         Some("第 2 条路由的 provider 不能为空")
@@ -201,7 +204,7 @@ fn persist_reports_each_required_field_with_its_one_based_row_number() {
 
     app.embedding_routes_settings.routes[1].provider = "provider-b".to_string();
     app.embedding_routes_settings.routes[1].model = "\n".to_string();
-    assert!(persist_embedding_routes_settings(&mut app).is_none());
+    assert!(persist_embedding_routes_settings(&mut app.embedding_routes_settings).is_none());
     assert_eq!(
         app.embedding_routes_settings.save_error.as_deref(),
         Some("第 2 条路由的 model 不能为空")
@@ -220,7 +223,7 @@ fn persist_rejects_zero_nonnumeric_and_overflowing_dimensions() {
         app.embedding_routes_settings.save_error = None;
         app.embedding_routes_settings.save_success = true;
 
-        assert!(persist_embedding_routes_settings(&mut app).is_none());
+        assert!(persist_embedding_routes_settings(&mut app.embedding_routes_settings).is_none());
         assert_eq!(
             app.embedding_routes_settings.save_error.as_deref(),
             Some("第 1 条路由的 dimensions 必须是大于 0 的整数")
@@ -234,7 +237,7 @@ fn persist_accepts_empty_routes_blank_dimensions_and_u32_maximum() {
     let mut app = app();
     app.embedding_routes_settings.save_error = Some(("old error".to_string()).into());
 
-    assert!(persist_embedding_routes_settings(&mut app).is_some());
+    assert!(persist_embedding_routes_settings(&mut app.embedding_routes_settings).is_some());
     assert!(app.embedding_routes_settings.save_error.is_none());
     assert!(!app.embedding_routes_settings.save_success);
 
@@ -245,7 +248,7 @@ fn persist_accepts_empty_routes_blank_dimensions_and_u32_maximum() {
     app.embedding_routes_settings.routes[0].api_key_input = " \t".to_string();
     app.embedding_routes_settings.routes[1].api_key_input = " test-api-key ".to_string();
 
-    assert!(persist_embedding_routes_settings(&mut app).is_some());
+    assert!(persist_embedding_routes_settings(&mut app.embedding_routes_settings).is_some());
     assert!(app.embedding_routes_settings.save_error.is_none());
     assert!(!app.embedding_routes_settings.save_success);
 }

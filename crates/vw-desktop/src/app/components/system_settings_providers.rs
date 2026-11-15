@@ -22,12 +22,6 @@ pub mod custom_model_modal;
 pub mod custom_provider;
 
 #[cfg(test)]
-mod catalog_tests;
-#[cfg(test)]
-mod connect_tests;
-#[cfg(test)]
-mod connected_tests;
-#[cfg(test)]
 mod custom_model_modal_tests;
 #[cfg(test)]
 mod custom_provider_tests;

@@ -1,14 +1,9 @@
 //! Model metadata already saved and fields proposed by the service.
 
-use crate::app::{
-    Message,
-    components::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-        settings_field_label, settings_muted_text_style,
-    },
-    message::settings::providers::metadata_fill::{Event, message},
-    state::app_providers::model_catalog::{CatalogForm, FillState},
-};
+use crate::view_message::Message;
+use desktop_ui_controls::system_settings_common::*;
+use desktop_provider_apps::state::model_catalog::{CatalogForm, FillState};
+use crate::catalog_message::{self as catalog_api, Event as CatalogEvent, FillEvent as Event};
 use iced::{
     Element, Length,
     widget::{Column, button, checkbox, column, row, text, text::Wrapping},
@@ -153,3 +148,5 @@ pub(super) fn view(form: &CatalogForm, editable: bool) -> Element<'_, Message> {
     }
     body.into()
 }
+
+fn message(event: Event) -> Message { catalog_api::message(CatalogEvent::Fill(event)) }

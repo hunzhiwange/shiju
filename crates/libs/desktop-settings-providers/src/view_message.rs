@@ -1,8 +1,41 @@
-use crate::state::{CustomProviderModelTab};
+use crate::state::CustomProviderModelTab;
+use crate::provider_state::{CustomProviderTab, CustomProviderModelFilter};
 #[derive(Debug, Clone)]
 pub enum ModelRoutesMessage { AddRoute, RemoveRoute(usize), PatternChanged(usize,String), ProviderChanged(usize,String), ModelChanged(usize,String), PriorityChanged(usize,String) }
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    CustomProviderApiKeyChanged(String),
+    CustomProviderBaseUrlChanged(String),
+    CustomProviderClose,
+    CustomProviderEditOpen(String),
+    CustomProviderHeaderAdd,
+    CustomProviderHeaderKeyChanged(usize, String),
+    CustomProviderHeaderRemove(usize),
+    CustomProviderHeaderValueChanged(usize, String),
+    CustomProviderIdChanged(String),
+    CustomProviderModelEnabledToggled(usize, bool),
+    CustomProviderModelFilterSelected(CustomProviderModelFilter),
+    CustomProviderModelOpen(Option<usize>),
+    CustomProviderModelRemove(usize),
+    CustomProviderModelsDiscover,
+    CustomProviderNameChanged(String),
+    CustomProviderOpen,
+    CustomProviderSave,
+    CustomProviderTabSelected(CustomProviderTab),
+    PopularProviderRemove(usize),
+    ProviderCatalogAddToPopular(String),
+    ProviderCatalogClose,
+    ProviderCatalogOpen,
+    ProviderCatalogQueryChanged(String),
+    ProviderConnectApiKeyChanged(String),
+    ProviderConnectClose,
+    ProviderConnectOpen(String),
+    ProviderConnectSubmit,
+    ProviderDisconnectCanceled,
+    ProviderDisconnectConfirmed(String),
+    ProviderDisconnectRequested(String),
+    ProviderModelsSyncRemote,
+    ProvidersRefresh,
     EmbeddingRoutes(crate::embedding_view_message::EmbeddingRoutesMessage),
     CustomProviderModelClose,
     CustomProviderModelModalAttachmentChanged(bool),
@@ -33,4 +66,4 @@ pub enum SettingsMessage {
     ProviderModelsSetAll(String, bool),
 }
 #[derive(Debug, Clone)]
-pub enum Message { Settings(SettingsMessage), CopyCode(String), None }
+pub enum Message { Catalog(crate::catalog_message::Event), Settings(SettingsMessage), CopyCode(String), None }

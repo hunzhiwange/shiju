@@ -8,18 +8,6 @@ fn tests_module_is_wired() {
 }
 
 #[test]
-fn think_block_key_packs_message_and_think_indexes() {
-    assert_eq!(super::think_block_key(0, 7), 7);
-    assert_eq!(super::think_block_key(2, 3), (2_u64 << 32) | 3);
-}
-
-#[test]
-fn fork_session_targets_distinguish_destinations() {
-    assert_eq!(super::ForkSessionTarget::Local, super::ForkSessionTarget::Local);
-    assert_ne!(super::ForkSessionTarget::Local, super::ForkSessionTarget::NewWorktree);
-}
-
-#[test]
 fn clipboard_payload_variants_are_constructible() {
     let payloads = [
         super::ClipboardPastePayload::Text("text".to_string()),

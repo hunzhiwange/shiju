@@ -1,6 +1,10 @@
 //! 会话交互的局部操作，不依赖桌面应用壳。
 pub mod message {
     pub mod chat {
+        pub mod events;
+        pub mod orchestration;
+        #[cfg(test)]
+        mod orchestration_tests;
         pub mod acp_options;
         pub mod context;
         pub mod fork;

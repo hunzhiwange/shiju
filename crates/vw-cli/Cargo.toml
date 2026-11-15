@@ -18,6 +18,7 @@ name = "vibe-agent"
 path = "src/bin/vibe-agent.rs"
 
 [dependencies]
+cli-bootstrap = { path = "../libs/cli-bootstrap", version = "0.6.0", default-features = false }
 cli-runtime-status = { path = "../libs/cli-runtime-status", version = "0.6.0" }
 cli-runtime-status = { path = "../libs/cli-runtime-status", version = "0.6.0" }
 cli-security-commands = { path = "../libs/cli-security-commands", version = "0.6.0" }
@@ -63,13 +64,7 @@ tokio-tungstenite = "0.29"
 
 [features]
 default = ["agent-defaults", "memory-postgres", "memory-mariadb", "channel-lark"]
-agent-defaults = [
-  "vw-agent/rag-pdf",
-  "vw-agent/firecrawl",
-  "vw-agent/web-fetch-html2md",
-  "vw-agent/web-fetch-plaintext",
-  "vw-agent/shell-ast",
-]
-memory-postgres = ["vw-agent/memory-postgres"]
-memory-mariadb = ["vw-agent/memory-mariadb"]
-channel-lark = ["vw-agent/channel-lark"]
+agent-defaults = ["cli-bootstrap/agent-defaults"]
+memory-postgres = ["cli-bootstrap/memory-postgres"]
+memory-mariadb = ["cli-bootstrap/memory-mariadb"]
+channel-lark = ["cli-bootstrap/channel-lark"]

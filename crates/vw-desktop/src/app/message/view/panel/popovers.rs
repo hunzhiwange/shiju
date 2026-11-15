@@ -25,17 +25,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.save_desktop_preference("input_model_collapsed_provider_ids", value)
         }
         ViewMessage::ToggleModelPopover => {
-            let new = !app.show_model_popover;
-            app.show_model_popover = new;
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::Model,
+            );
+            apply_visibility(app, visibility);
+            let new = app.show_model_popover;
             if new {
-                app.show_mode_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_file_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_executor_popover = false;
                 let source =
                     Task::done(Message::Chat(crate::app::message::ChatMessage::AcpSourceRefresh));
                 if !app.model_settings.loading && app.model_settings.providers.is_empty() {
@@ -51,18 +46,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleModePopover => {
-            let new = !app.show_mode_popover;
-            app.show_mode_popover = new;
-            if new {
-                app.show_model_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_file_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::Mode,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ToggleSendModePopover => {
@@ -70,48 +57,26 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_send_mode_popover = false;
                 return Task::none();
             }
-            let new = !app.show_send_mode_popover;
-            app.show_send_mode_popover = new;
-            if new {
-                app.show_model_popover = false;
-                app.show_mode_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_file_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::SendMode,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ToggleFilePopover => {
-            let new = !app.show_file_popover;
-            app.show_file_popover = new;
-            if new {
-                app.show_model_popover = false;
-                app.show_mode_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::File,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ToggleAcpPopover => {
-            let new = !app.show_acp_popover;
-            app.show_acp_popover = new;
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::Acp,
+            );
+            apply_visibility(app, visibility);
+            let new = app.show_acp_popover;
             if new {
-                app.show_model_popover = false;
-                app.show_mode_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_file_popover = false;
-                app.show_usage_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_session_actions_popover = false;
-                app.show_executor_popover = false;
                 if app.acp_agents.is_empty() {
                     return Task::perform(
                         async {
@@ -132,130 +97,84 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleReasoningEffortPopover => {
-            let new = !app.show_reasoning_effort_popover;
-            app.show_reasoning_effort_popover = new;
-            if new {
-                app.show_model_popover = false;
-                app.show_mode_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_file_popover = false;
-                app.show_acp_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_session_actions_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::ReasoningEffort,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ToggleUsagePopover => {
-            let new = !app.show_usage_popover;
-            app.show_usage_popover = new;
-            if new {
-                app.show_model_popover = false;
-                app.show_mode_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_file_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_session_actions_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::Usage,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ToggleSessionToolSelectorPopover => {
-            let new = !app.show_session_tool_selector_popover;
-            app.show_session_tool_selector_popover = new;
-            if new {
-                app.show_model_popover = false;
-                app.show_mode_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_file_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_actions_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::SessionToolSelector,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ToggleSessionActionsPopover => {
-            let new = !app.show_session_actions_popover;
-            app.show_session_actions_popover = new;
-            if new {
-                app.show_mode_popover = false;
-                app.show_model_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_file_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_executor_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::SessionActions,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::ClosePopovers => {
-            app.show_mode_popover = false;
-            app.show_model_popover = false;
-            app.show_send_mode_popover = false;
-            app.show_file_popover = false;
-            app.show_acp_popover = false;
-            app.show_reasoning_effort_popover = false;
-            app.show_usage_popover = false;
-            app.show_session_tool_selector_popover = false;
-            app.show_session_actions_popover = false;
-            app.show_executor_popover = false;
+            apply_visibility(app, desktop_chat_input::popovers::Visibility::default());
             app.model_popover_hover = None;
             Task::none()
         }
         ViewMessage::CloseModelPopover => {
-            app.show_model_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::Model);
+            apply_visibility(app, next);
             app.model_popover_hover = None;
             Task::none()
         }
         ViewMessage::CloseModePopover => {
-            app.show_mode_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::Mode);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::CloseSendModePopover => {
-            app.show_send_mode_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::SendMode);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::CloseFilePopover => {
-            app.show_file_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::File);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::CloseAcpPopover => {
-            app.show_acp_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::Acp);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::CloseReasoningEffortPopover => {
-            app.show_reasoning_effort_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::ReasoningEffort);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::CloseUsagePopover => {
-            app.show_usage_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::Usage);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::CloseExecutorPopover => {
-            app.show_executor_popover = false;
+            let next = desktop_chat_input::popovers::close(visibility(app), desktop_chat_input::popovers::Popover::Executor);
+            apply_visibility(app, next);
             Task::none()
         }
         ViewMessage::ToggleExecutorPopover => {
-            let new = !app.show_executor_popover;
-            app.show_executor_popover = new;
-            if new {
-                app.show_mode_popover = false;
-                app.show_model_popover = false;
-                app.show_send_mode_popover = false;
-                app.show_file_popover = false;
-                app.show_acp_popover = false;
-                app.show_reasoning_effort_popover = false;
-                app.show_usage_popover = false;
-                app.show_session_tool_selector_popover = false;
-                app.show_session_actions_popover = false;
-            }
+            let visibility = desktop_chat_input::popovers::toggle(
+                visibility(app), desktop_chat_input::popovers::Popover::Executor,
+            );
+            apply_visibility(app, visibility);
             Task::none()
         }
         ViewMessage::SelectChatSendBehavior(behavior) => {
@@ -285,3 +204,31 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "popovers_tests.rs"]
 mod popovers_tests;
+
+fn visibility(app: &App) -> desktop_chat_input::popovers::Visibility {
+    desktop_chat_input::popovers::Visibility {
+        model: app.show_model_popover,
+        mode: app.show_mode_popover,
+        send_mode: app.show_send_mode_popover,
+        file: app.show_file_popover,
+        acp: app.show_acp_popover,
+        reasoning_effort: app.show_reasoning_effort_popover,
+        usage: app.show_usage_popover,
+        session_tool_selector: app.show_session_tool_selector_popover,
+        session_actions: app.show_session_actions_popover,
+        executor: app.show_executor_popover,
+    }
+}
+
+fn apply_visibility(app: &mut App, visibility: desktop_chat_input::popovers::Visibility) {
+    app.show_model_popover = visibility.model;
+    app.show_mode_popover = visibility.mode;
+    app.show_send_mode_popover = visibility.send_mode;
+    app.show_file_popover = visibility.file;
+    app.show_acp_popover = visibility.acp;
+    app.show_reasoning_effort_popover = visibility.reasoning_effort;
+    app.show_usage_popover = visibility.usage;
+    app.show_session_tool_selector_popover = visibility.session_tool_selector;
+    app.show_session_actions_popover = visibility.session_actions;
+    app.show_executor_popover = visibility.executor;
+}

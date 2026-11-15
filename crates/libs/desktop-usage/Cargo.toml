@@ -6,6 +6,10 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+provider-resolution = { path = "../provider-resolution", version = "0.6.0" }
+model-types = { path = "../model-types", version = "0.6.0" }
+model-state = { path = "../model-state", version = "0.6.0" }
+
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }

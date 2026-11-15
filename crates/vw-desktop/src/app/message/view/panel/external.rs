@@ -125,12 +125,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 }
 
 async fn open_project_external(path: &str, target: ExternalOpenApp) -> Result<(), String> {
-    if target == ExternalOpenApp::Finder {
-        let client = crate::app::gateway_client()?;
-        crate::app::config::reveal_gateway_path_locally(client.endpoint(), path).await
-    } else {
-        crate::app::session_gateway::gateway_external_open_async(path, target.as_str()).await
-    }
+    desktop_session::external_open::open_project(
+        crate::app::config::gateway_client_endpoint(), path, target.as_str(),
+    ).await
 }
 
 fn can_open_external(app: &App, target: ExternalOpenApp) -> bool {

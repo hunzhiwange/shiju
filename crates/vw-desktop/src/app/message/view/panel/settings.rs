@@ -6,18 +6,10 @@ use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, SettingsTab};
 use iced::Task;
+use desktop_update::panel::{PanelMessage, PanelState, Effect};
+pub(super) use desktop_update::panel::fetch_latest_app_release;
 #[cfg(not(target_arch = "wasm32"))]
 use std::ffi::OsString;
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs;
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::Write;
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::{Path, PathBuf};
-#[cfg(not(target_arch = "wasm32"))]
-use std::process::Command;
-#[cfg(not(target_arch = "wasm32"))]
-use desktop_release as update;
 
 #[cfg(not(target_arch = "wasm32"))]
 const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
@@ -270,409 +262,32 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 Task::none()
             }
         },
-        ViewMessage::InstallCliTool => {
-            if app.desktop_update.busy {
-                return Task::none();
-            }
-            app.desktop_update.request += 1;
-            app.desktop_update.checking = false;
-            app.active_menu = None;
-            app.show_cli_install_modal = true;
-            app.cli_install_modal_title = "CLI 更新检测".to_string();
-            app.cli_install_modal_message =
-                "打开终端，通过 shiju 调用各项功能：shiju agent 启动 TUI，shiju service 管理服务。下方命令可直接复制。"
-                    .to_string();
-            app.cli_install_modal_current_version = current_cli_tool_version_label();
-            app.cli_install_modal_server_version = "未检测".to_string();
-            app.cli_install_modal_show_update_action = true;
-            app.cli_install_modal_show_install_action = true;
-            app.cli_install_modal_use_app_update_action = false;
-            app.cli_install_modal_is_checking_update = false;
-            update(app, ViewMessage::CheckCliToolUpdate)
-        }
-        ViewMessage::RunInstallCliTool => {
-            app.cli_install_modal_is_checking_update = false;
-            Task::perform(async { install_cli_tool() }, |res| {
-                Message::View(ViewMessage::InstallCliToolFinished(res))
-            })
-        }
         ViewMessage::CliCommandsTabSelected(tab) => {
             app.cli_commands_tab = tab;
             Task::none()
         }
-        ViewMessage::CheckCliToolUpdate => {
-            if app.desktop_update.busy || app.desktop_update.checking {
-                return Task::none();
-            }
-            let Some(source) = app.desktop_update.source else {
-                return app.show_error_toast("请先选择有效的升级来源");
-            };
-            app.desktop_update.request += 1;
-            let request = app.desktop_update.request;
-            app.desktop_update.checking = true;
-            app.cli_install_modal_is_checking_update = true;
-            app.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
-            Task::perform(fetch_latest_release_version(source), move |res| {
-                Message::View(ViewMessage::CheckCliToolUpdateFinished(request, source, res))
-            })
-        }
-        ViewMessage::CheckCliToolUpdateFinished(request, source, res) => {
-            if request != app.desktop_update.request
-                || Some(source) != app.desktop_update.source
-                || !app.desktop_update.checking
-            {
-                return Task::none();
-            }
-            app.desktop_update.checking = false;
-            app.cli_install_modal_is_checking_update = false;
-            match res {
-                Ok(version) => {
-                    app.cli_install_modal_server_version = version.clone();
-                    if versions_match(&app.cli_install_modal_current_version, &version) {
-                        app.cli_install_modal_message =
-                            "检测完成，本地 CLI 已是最新版本。".to_string();
-                    } else {
-                        app.cli_install_modal_message =
-                            "检测完成，发现新的 CLI 版本，可直接安装更新。".to_string();
-                    }
-                }
-                Err(error) => {
-                    app.cli_install_modal_server_version = "检测失败".to_string();
-                    app.cli_install_modal_message = error;
-                }
-            }
-            Task::none()
-        }
-        ViewMessage::OpenAppUpdateModal => {
-            app.active_menu = None;
-            app.show_cli_install_modal = true;
-            if app.cli_install_modal_use_app_update_action {
-                #[cfg(not(target_arch = "wasm32"))]
-                if app.desktop_update.ready.is_some() {
-                    return Task::none();
-                }
-                return update(app, ViewMessage::CheckAppUpdate);
-            }
-            app.desktop_update.request += 1;
-            app.desktop_update.checking = false;
-            app.cli_install_modal_title = "检测更新".into();
-            app.cli_install_modal_message = app
-                .desktop_update
-                .error
-                .clone()
-                .unwrap_or_else(|| "请选择来源并检测最新发布版本。".into());
-            app.cli_install_modal_current_version = current_app_version_label();
-            app.cli_install_modal_server_version = "未检测".into();
-            app.cli_install_modal_show_update_action = true;
-            app.cli_install_modal_show_install_action = false;
-            app.cli_install_modal_use_app_update_action = true;
-            app.cli_install_modal_is_checking_update =
-                app.desktop_update.checking || app.desktop_update.busy;
-            if let Some(release) = &app.desktop_update.release {
-                app.cli_install_modal_server_version = release.version.clone();
-                app.cli_install_modal_show_install_action = app.desktop_update.installable();
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if let Some(ready) = &app.desktop_update.ready {
-                app.cli_install_modal_title = "安装包已就绪".into();
-                app.cli_install_modal_message = ready.instructions();
-                app.cli_install_modal_show_install_action = false;
-                return Task::none();
-            }
-            update(app, ViewMessage::CheckAppUpdate)
-        }
-        ViewMessage::AppUpdateSourceSelected(source) => {
-            if app.desktop_update.busy || app.desktop_update.saving {
-                return Task::none();
-            }
-            app.desktop_update.source = Some(source);
-            app.desktop_update.error = None;
-            app.desktop_update.selected_by_user = true;
-            app.desktop_update.saving = true;
-            app.desktop_update.request += 1;
-            app.desktop_update.checking = false;
-            app.desktop_update.release = None;
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app.desktop_update.ready = None;
-            }
-            app.app_update_progress = None;
-            app.app_update_progress_rx = None;
-            app.cli_install_modal_server_version = "未检测".into();
-            app.cli_install_modal_show_install_action =
-                !app.cli_install_modal_use_app_update_action;
-            app.cli_install_modal_is_checking_update = false;
-            app.cli_install_modal_message = "来源已切换，请重新检测更新。".into();
-            Task::perform(
-                crate::app::config::save_app_config_async(
-                    crate::app::desktop_update::source_patch(source),
-                ),
-                |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
-            )
-        }
-        ViewMessage::AppUpdateSourceSaved(result) => {
-            app.desktop_update.saving = false;
-            match result {
-                Ok(()) => Task::none(),
-                Err(error) => {
-                    app.show_error_toast(format!("升级来源未保存，本轮选择仍有效：{error}"))
-                }
-            }
-        }
-        ViewMessage::CheckAppUpdate => {
-            if app.desktop_update.busy || app.desktop_update.checking {
-                return Task::none();
-            }
-            let Some(source) = app.desktop_update.source else {
-                return app.show_error_toast("请先选择有效的升级来源");
-            };
-            app.desktop_update.request += 1;
-            let request = app.desktop_update.request;
-            app.desktop_update.checking = true;
-            app.desktop_update.release = None;
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app.desktop_update.ready = None;
-            }
-            app.cli_install_modal_is_checking_update = true;
-            app.cli_install_modal_show_install_action = false;
-            app.cli_install_modal_message = "正在请求所选来源的最新应用版本...".into();
-            app.app_update_progress = None;
-            app.app_update_progress_rx = None;
-            Task::perform(fetch_latest_app_release(source), move |res| {
-                Message::View(ViewMessage::CheckAppUpdateFinished(request, source, res))
-            })
-        }
-        ViewMessage::CheckAppUpdateFinished(request, source, res) => {
-            if request != app.desktop_update.request
-                || Some(source) != app.desktop_update.source
-                || !app.desktop_update.checking
-            {
-                return Task::none();
-            }
-            app.desktop_update.checking = false;
-            app.cli_install_modal_is_checking_update = false;
-            match res {
-                Ok(release) if release.source == source => {
-                    app.cli_install_modal_server_version = release.version.clone();
-                    let newer = release.is_newer_than(env!("CARGO_PKG_VERSION"));
-                    match newer {
-                        Ok(newer) => {
-                            app.cli_install_modal_show_install_action = newer;
-                            app.cli_install_modal_message = if newer {
-                                "检测完成，发现新版本，可下载安装包后通过系统安装器安装。"
-                            } else {
-                                "检测完成，当前应用已是最新版本或高于所选来源版本。"
-                            }
-                            .into();
-                            app.desktop_update.release = Some(release);
-                        }
-                        Err(error) => return app_update_error(app, error.to_string()),
-                    }
-                }
-                Ok(_) => return app_update_error(app, "发布结果与所选来源不一致".into()),
-                Err(error) => return app_update_error(app, error),
-            }
-            Task::none()
-        }
-        ViewMessage::RunAppUpdate => {
-            if app.desktop_update.busy
-                || app.desktop_update.checking
-                || !app.desktop_update.installable()
-            {
-                return Task::none();
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let release = app.desktop_update.release.clone().expect("checked snapshot");
-                let (progress_tx, progress_rx) = std::sync::mpsc::channel();
-                app.desktop_update.busy = true;
-                app.cli_install_modal_is_checking_update = true;
-                app.cli_install_modal_show_install_action = false;
-                app.cli_install_modal_message = "正在下载并校验安装包...".into();
-                app.app_update_progress = None;
-                app.app_update_progress_rx = Some(progress_rx);
-                app.desktop_update.request += 1;
-                let request = app.desktop_update.request;
-                let (task, handle) = Task::perform(
-                    async move {
-                        crate::app::installer_update::prepare_desktop_update(&release, progress_tx)
-                            .await
-                            .map_err(|error| error.to_string())
-                    },
-                    move |result| Message::View(ViewMessage::AppUpdateDownloadPrepared(request, result)),
-                ).abortable();
-                app.desktop_update.download_abort = Some(handle);
-                task
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                app_update_error(app, "当前平台不支持应用更新".into())
-            }
-        }
-        ViewMessage::CancelAppUpdate => {
-            // Installation is irreversible here; only an active download is cancellable.
-            let Some(handle) = app.desktop_update.download_abort.take() else {
-                return Task::none();
-            };
-            handle.abort();
-            app.desktop_update.request += 1;
-            app.desktop_update.busy = false;
-            app.cli_install_modal_is_checking_update = false;
-            app.cli_install_modal_show_install_action = app.desktop_update.installable();
-            app.cli_install_modal_message = "下载已取消，可重新下载安装包。".into();
-            app.app_update_progress_rx = None;
-            app.app_update_progress = None;
-            Task::none()
-        }
+        ViewMessage::InstallCliTool => update_panel(app, PanelMessage::InstallCliTool),
+        ViewMessage::RunInstallCliTool => update_panel(app, PanelMessage::RunInstallCliTool),
+        ViewMessage::CheckCliToolUpdate => update_panel(app, PanelMessage::CheckCliToolUpdate),
+        ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2) => update_panel(app, PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2)),
+        ViewMessage::OpenAppUpdateModal => update_panel(app, PanelMessage::OpenAppUpdateModal),
+        ViewMessage::AppUpdateSourceSelected(v0) => update_panel(app, PanelMessage::AppUpdateSourceSelected(v0)),
+        ViewMessage::AppUpdateSourceSaved(v0) => update_panel(app, PanelMessage::AppUpdateSourceSaved(v0)),
+        ViewMessage::CheckAppUpdate => update_panel(app, PanelMessage::CheckAppUpdate),
+        ViewMessage::CheckAppUpdateFinished(v0, v1, v2) => update_panel(app, PanelMessage::CheckAppUpdateFinished(v0, v1, v2)),
+        ViewMessage::RunAppUpdate => update_panel(app, PanelMessage::RunAppUpdate),
+        ViewMessage::CancelAppUpdate => update_panel(app, PanelMessage::CancelAppUpdate),
         #[cfg(not(target_arch = "wasm32"))]
-        ViewMessage::AppUpdateDownloadPrepared(request, result) => {
-            if request != app.desktop_update.request || app.desktop_update.download_abort.is_none() {
-                return Task::none();
-            }
-            update(app, ViewMessage::AppUpdatePrepared(result))
-        }
+        ViewMessage::AppUpdateDownloadPrepared(v0, v1) => update_panel(app, PanelMessage::AppUpdateDownloadPrepared(v0, v1)),
         #[cfg(not(target_arch = "wasm32"))]
-        ViewMessage::AppUpdatePrepared(result) => {
-            if !app.desktop_update.busy {
-                return Task::none();
-            }
-            app.desktop_update.download_abort = None;
-            app.desktop_update.busy = false;
-            app.cli_install_modal_is_checking_update = false;
-            // The completion message may arrive before the next progress subscription tick.
-            // The producer has finished, so retain its final measured byte count before closing.
-            if let Some(receiver) = app.app_update_progress_rx.take() {
-                if let Some(progress) = receiver.try_iter().last() {
-                    app.app_update_progress = Some(progress);
-                }
-            }
-            match result {
-                Ok(ready) => {
-                    app.cli_install_modal_title = "安装包已就绪".into();
-                    app.cli_install_modal_message = ready.instructions();
-                    app.desktop_update.ready = Some(ready);
-                    Task::none()
-                }
-                Err(error) => app_update_error(app, error),
-            }
-        }
-        ViewMessage::OpenAppInstaller => {
-            if app.desktop_update.busy {
-                return Task::none();
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if let Some(ready) = app.desktop_update.ready.clone() {
-                let locale = app.desktop_locale;
-                app.cli_install_modal_title = "更新中…".into();
-                app.cli_install_modal_message =
-                    "正在校验安装包并启动自动更新，请稍候；准备就绪后应用将自动退出。".into();
-                app.desktop_update.busy = true;
-                app.cli_install_modal_is_checking_update = true;
-                return Task::perform(
-                    async move {
-                        tokio::task::spawn_blocking(move || {
-                            crate::app::installer_update::open_desktop_installer(&ready, locale)
-                        })
-                        .await
-                        .map_err(|error| error.to_string())?
-                        .map_err(|error| format!("{error:#}"))
-                    },
-                    |result| Message::View(ViewMessage::AppUpdateFinished(result)),
-                );
-            }
-            Task::none()
-        }
-        ViewMessage::OpenAppInstallerDirectory => {
-            if app.desktop_update.busy {
-                return Task::none();
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if let Some(ready) = app.desktop_update.ready.clone() {
-                return Task::perform(
-                    async move {
-                        tokio::task::spawn_blocking(move || {
-                            crate::app::installer_update::reveal_desktop_installer(&ready)
-                        })
-                        .await
-                        .map_err(|error| error.to_string())?
-                        .map_err(|error| format!("{error:#}"))
-                    },
-                    |result| Message::View(ViewMessage::AppInstallerDirectoryOpened(result)),
-                );
-            }
-            Task::none()
-        }
-        ViewMessage::AppInstallerDirectoryOpened(result) => match result {
-            Ok(()) => Task::none(),
-            Err(error) => app.show_error_toast(error),
-        },
-        ViewMessage::AppUpdateProgressTick => {
-            if let Some(receiver) = app.app_update_progress_rx.take() {
-                let mut active_receiver = Some(receiver);
-                for _ in 0..48 {
-                    let Some(current_receiver) = active_receiver.as_ref() else {
-                        break;
-                    };
-                    match current_receiver.try_recv() {
-                        Ok(progress) => app.app_update_progress = Some(progress),
-                        Err(std::sync::mpsc::TryRecvError::Empty) => break,
-                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                            active_receiver = None;
-                            break;
-                        }
-                    }
-                }
-                app.app_update_progress_rx = active_receiver;
-            }
-            Task::none()
-        }
-        ViewMessage::AppUpdateFinished(res) => {
-            if !app.desktop_update.busy {
-                return Task::none();
-            }
-            app.desktop_update.busy = false;
-            app.cli_install_modal_is_checking_update = false;
-            app.app_update_progress_rx = None;
-            match res {
-                Ok(message) => {
-                    app.cli_install_modal_title = "安装包已就绪".into();
-                    app.cli_install_modal_message = message;
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        let window_id = app.main_window_id;
-                        shutdown(app, window_id)
-                    }
-                    #[cfg(target_arch = "wasm32")]
-                    Task::none()
-                }
-                Err(error) => app_update_error(app, error),
-            }
-        }
-        ViewMessage::InstallCliToolFinished(res) => {
-            app.show_cli_install_modal = true;
-            reset_cli_update_modal_state(app);
-            match res {
-                Ok(message) => {
-                    app.cli_install_modal_title = "CLI 安装完成".to_string();
-                    app.cli_install_modal_message = message;
-                }
-                Err(error) => {
-                    app.cli_install_modal_title = "CLI 安装失败".to_string();
-                    app.cli_install_modal_message = error;
-                }
-            }
-            Task::none()
-        }
-        ViewMessage::CloseInstallCliModal => {
-            app.show_cli_install_modal = false;
-            if !app.cli_install_modal_use_app_update_action {
-                app.desktop_update.request += 1;
-                app.desktop_update.checking = false;
-                reset_cli_update_modal_state(app);
-            }
-            Task::none()
-        }
+        ViewMessage::AppUpdatePrepared(v0) => update_panel(app, PanelMessage::AppUpdatePrepared(v0)),
+        ViewMessage::OpenAppInstaller => update_panel(app, PanelMessage::OpenAppInstaller),
+        ViewMessage::OpenAppInstallerDirectory => update_panel(app, PanelMessage::OpenAppInstallerDirectory),
+        ViewMessage::AppInstallerDirectoryOpened(v0) => update_panel(app, PanelMessage::AppInstallerDirectoryOpened(v0)),
+        ViewMessage::AppUpdateProgressTick => update_panel(app, PanelMessage::AppUpdateProgressTick),
+        ViewMessage::AppUpdateFinished(v0) => update_panel(app, PanelMessage::AppUpdateFinished(v0)),
+        ViewMessage::InstallCliToolFinished(v0) => update_panel(app, PanelMessage::InstallCliToolFinished(v0)),
+        ViewMessage::CloseInstallCliModal => update_panel(app, PanelMessage::CloseInstallCliModal),
         ViewMessage::ToggleDiffPanel => {
             if app.workspace_mode == WorkspaceMode::Work {
                 return Task::none();
@@ -960,405 +575,76 @@ fn restart_application() -> Result<(), String> {
     Err("当前平台不支持重启应用".to_string())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn install_cli_tool() -> Result<String, String> {
-    let home = resolve_home_dir()?;
-    let install_dir = config_runtime_paths::home_config_dir(&home).join("bin");
-    fs::create_dir_all(&install_dir).map_err(|e| format!("创建安装目录失败: {e}"))?;
-
-    let target_name = if cfg!(windows) { "shiju.exe" } else { "shiju" };
-    let target_bin = install_dir.join(target_name);
-    let replacing_existing = target_bin.exists();
-
-    let source_bin_res = resolve_agent_binary_path();
-    if let Ok(source_bin) = source_bin_res {
-        install_cli_binary_from_path(&source_bin, &target_bin)?;
-    } else if let Ok(url) = std::env::var("VIBEWINDOW_CLI_URL") {
-        install_cli_binary_from_url(&url, &target_bin)?;
-    } else {
-        return Err(format!(
-            "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 {}\n2) 重命名为 shiju 或 shiju.exe\n3) 确保 PATH 包含 {} 后重启终端",
-            config_runtime_paths::tilde_config_path("bin"),
-            config_runtime_paths::tilde_config_path("bin")
-        ));
-    }
-
-    let updated_profiles = ensure_path_profiles(&home, &install_dir)?;
-    let mut message =
-        format!("已安装到 {}\n可执行文件: {}", install_dir.display(), target_bin.display());
-    if replacing_existing {
-        message.push_str(
-            "\n已安全替换旧 CLI；如果后台 service 正在运行，请重启 service 以加载新版本。",
-        );
-    }
-    if updated_profiles.is_empty() {
-        message.push_str("\nPATH 配置已存在，无需重复写入。");
-    } else {
-        message.push_str("\n已更新 PATH 配置文件：");
-        for profile in updated_profiles {
-            message.push_str(&format!("\n- {profile}"));
-        }
-    }
-    Ok(message)
-}
-
-#[cfg(target_arch = "wasm32")]
-fn install_cli_tool() -> Result<String, String> {
-    Err("当前平台不支持安装 CLI 工具".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn install_cli_binary_from_path(source_bin: &Path, target_bin: &Path) -> Result<(), String> {
-    let staged_bin = staged_cli_binary_path(target_bin);
-    remove_stale_staged_cli_binary(&staged_bin)?;
-    fs::copy(source_bin, &staged_bin).map_err(|e| {
-        let _ = fs::remove_file(&staged_bin);
-        format!(
-            "复制 CLI 可执行文件失败: {} -> {}: {e}",
-            source_bin.display(),
-            staged_bin.display()
-        )
-    })?;
-    install_staged_cli_binary(&staged_bin, target_bin)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn install_cli_binary_from_url(url: &str, target_bin: &Path) -> Result<(), String> {
-    let staged_bin = staged_cli_binary_path(target_bin);
-    remove_stale_staged_cli_binary(&staged_bin)?;
-    if let Err(error) = download_file(url, &staged_bin) {
-        let _ = fs::remove_file(&staged_bin);
-        return Err(error);
-    }
-    install_staged_cli_binary(&staged_bin, target_bin)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn install_staged_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
-    ensure_cli_binary_executable(staged_bin)?;
-    replace_cli_binary(staged_bin, target_bin).map_err(|error| {
-        let _ = fs::remove_file(staged_bin);
-        error
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn staged_cli_binary_path(target_bin: &Path) -> PathBuf {
-    let file_name = target_bin.file_name().and_then(|value| value.to_str()).unwrap_or("shiju");
-    target_bin.with_file_name(format!(".{file_name}.installing"))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn remove_stale_staged_cli_binary(staged_bin: &Path) -> Result<(), String> {
-    if staged_bin.exists() {
-        fs::remove_file(staged_bin)
-            .map_err(|e| format!("清理旧临时 CLI 文件失败 {}: {e}", staged_bin.display()))?;
-    }
-    Ok(())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn ensure_cli_binary_executable(_path: &Path) -> Result<(), String> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(_path, fs::Permissions::from_mode(0o755))
-            .map_err(|e| format!("设置执行权限失败: {e}"))?;
-    }
-    Ok(())
-}
-
-#[cfg(all(unix, not(target_arch = "wasm32")))]
-fn replace_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
-    fs::rename(staged_bin, target_bin).map_err(|e| {
-        format!(
-            "替换 CLI 可执行文件失败: {} -> {}: {e}",
-            staged_bin.display(),
-            target_bin.display()
-        )
-    })
-}
-
-#[cfg(all(not(unix), not(target_arch = "wasm32")))]
-fn replace_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
-    let backup_bin = target_bin.with_extension("backup");
-    if backup_bin.exists() {
-        let _ = fs::remove_file(&backup_bin);
-    }
-    if target_bin.exists() {
-        fs::rename(target_bin, &backup_bin).map_err(|e| {
-            format!(
-                "备份旧 CLI 可执行文件失败: {} -> {}: {e}",
-                target_bin.display(),
-                backup_bin.display()
-            )
-        })?;
-    }
-    if let Err(error) = fs::rename(staged_bin, target_bin) {
-        let _ = fs::rename(&backup_bin, target_bin);
-        return Err(format!(
-            "替换 CLI 可执行文件失败: {} -> {}: {error}",
-            staged_bin.display(),
-            target_bin.display()
-        ));
-    }
-    let _ = fs::remove_file(&backup_bin);
-    Ok(())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn fetch_latest_release_version(source: update::UpdateSource) -> Result<String, String> {
-    fetch_latest_app_release(source).await.map(|release| release.version)
-}
-
-#[cfg(target_arch = "wasm32")]
-async fn fetch_latest_release_version(
-    _source: desktop_release::UpdateSource,
-) -> Result<String, String> {
-    Err("当前平台不支持检测更新".to_string())
-}
-
-fn app_update_error(app: &mut App, error: String) -> Task<Message> {
-    app.cli_install_modal_show_install_action = app.desktop_update.installable();
-    app.cli_install_modal_message = error.clone();
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(ready) = &app.desktop_update.ready {
-        app.cli_install_modal_title = "自动更新启动失败".into();
-        app.cli_install_modal_show_install_action = false;
-        app.cli_install_modal_message = format!("{error}\n{}", ready.instructions());
-    }
-    app.show_error_toast(error)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn fetch_latest_app_release(
-    source: update::UpdateSource,
-) -> Result<update::DesktopRelease, String> {
-    update::fetch_desktop_release(source).await.map_err(|e| format!("请求应用版本失败: {e}"))
-}
-
-#[cfg(target_arch = "wasm32")]
-pub(super) async fn fetch_latest_app_release(
-    _source: desktop_release::UpdateSource,
-) -> Result<desktop_release::DesktopRelease, String> {
-    Err("当前平台不支持检测应用更新".into())
-}
-
-fn reset_cli_update_modal_state(app: &mut App) {
-    app.cli_install_modal_current_version.clear();
-    app.cli_install_modal_server_version.clear();
-    app.cli_install_modal_show_update_action = false;
-    app.cli_install_modal_show_install_action = false;
-    app.cli_install_modal_use_app_update_action = false;
-    app.cli_install_modal_is_checking_update = false;
-    app.app_update_progress = None;
-    app.app_update_progress_rx = None;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn current_app_version_label() -> String {
-    format!("v{}", env!("CARGO_PKG_VERSION"))
-}
-
-#[cfg(target_arch = "wasm32")]
-fn current_app_version_label() -> String {
-    "当前平台不支持".to_string()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn current_cli_tool_version_label() -> String {
-    match read_installed_cli_version() {
-        Ok(version) => version,
-        Err(error) => error,
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn current_cli_tool_version_label() -> String {
-    "当前平台不支持".to_string()
-}
-
-fn versions_match(current: &str, latest: &str) -> bool {
-    normalize_version(current) == normalize_version(latest)
-}
-
-fn normalize_version(value: &str) -> String {
-    let line = value
-        .lines()
-        .find(|line| !line.trim().is_empty())
-        .map(|line| line.trim())
-        .unwrap_or_else(|| value.trim());
-    line.split_whitespace().last().unwrap_or(line).trim().trim_start_matches('v').to_string()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn read_installed_cli_version() -> Result<String, String> {
-    let output = match Command::new("shiju").arg("--version").output() {
-        Ok(output) => output,
-        Err(_) => {
-            let cli_path = resolve_cli_binary_path()?;
-            Command::new(cli_path)
-                .arg("--version")
-                .output()
-                .map_err(|e| format!("执行 shiju --version 失败: {e}"))?
-        }
-    };
-    extract_version_output(output.stdout, output.stderr)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn extract_version_output(stdout: Vec<u8>, stderr: Vec<u8>) -> Result<String, String> {
-    let combined = if !stdout.is_empty() {
-        String::from_utf8_lossy(&stdout).into_owned()
-    } else {
-        String::from_utf8_lossy(&stderr).into_owned()
-    };
-    combined
-        .lines()
-        .find(|line| !line.trim().is_empty())
-        .map(|line| line.trim().to_string())
-        .ok_or_else(|| "CLI 未安装或未返回版本信息".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn resolve_cli_binary_path() -> Result<PathBuf, String> {
-    let home = resolve_home_dir()?;
-    let cli_path = config_runtime_paths::home_config_dir(home)
-        .join("bin")
-        .join(if cfg!(windows) { "shiju.exe" } else { "shiju" });
-    if cli_path.exists() {
-        Ok(cli_path)
-    } else {
-        Err("CLI 未安装，无法执行 shiju --version".to_string())
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn resolve_home_dir() -> Result<PathBuf, String> {
-    if let Some(user_dirs) = directories::UserDirs::new() {
-        return Ok(user_dirs.home_dir().to_path_buf());
-    }
-    if let Ok(home) = std::env::var("HOME")
-        && !home.trim().is_empty()
-    {
-        return Ok(PathBuf::from(home));
-    }
-    if let Ok(home) = std::env::var("USERPROFILE")
-        && !home.trim().is_empty()
-    {
-        return Ok(PathBuf::from(home));
-    }
-    Err("无法定位用户主目录".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn resolve_agent_binary_path() -> Result<PathBuf, String> {
-    let current_exe =
-        std::env::current_exe().map_err(|e| format!("获取当前可执行文件失败: {e}"))?;
-    let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
-    let agent_names =
-        if cfg!(windows) { ["shiju.exe", "vibe-agent.exe"] } else { ["shiju", "vibe-agent"] };
-    let mut candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
-
-    if let Ok(cwd) = std::env::current_dir() {
-        for agent_name in agent_names {
-            candidates.push(cwd.join("target").join("release").join(agent_name));
-            candidates.push(cwd.join("target").join("debug").join(agent_name));
-        }
-    }
-
-    for candidate in candidates {
-        if candidate.exists() && candidate.is_file() {
-            return Ok(candidate);
-        }
-    }
-    Err("未找到内置 CLI 可执行文件 shiju（兼容名 vibe-agent）".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn download_file(url: &str, dest: &Path) -> Result<(), String> {
-    if cfg!(windows) {
-        let status = Command::new("powershell")
-            .arg("-NoProfile")
-            .arg("-Command")
-            .arg(format!("Invoke-WebRequest -Uri '{}' -OutFile '{}'", url, dest.display()))
-            .status()
-            .map_err(|e| format!("启动下载命令失败: {e}"))?;
-        if status.success() {
-            return Ok(());
-        }
-        Err("下载失败，请手动下载并安装，或确保 PowerShell 可用".to_string())
-    } else {
-        let curl =
-            Command::new("curl").arg("-fsSL").arg(url).arg("-o").arg(dest.as_os_str()).status();
-        if let Ok(status) = curl
-            && status.success()
-        {
-            return Ok(());
-        }
-        let wget = Command::new("wget").arg("-qO").arg(dest.as_os_str()).arg(url).status();
-        if let Ok(status) = wget
-            && status.success()
-        {
-            return Ok(());
-        }
-        Err("下载失败，请手动下载并安装，或确保已安装 curl/wget".to_string())
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn ensure_path_profiles(home: &Path, install_dir: &Path) -> Result<Vec<String>, String> {
-    #[cfg(windows)]
-    let profiles = vec![
-        home.join("Documents").join("WindowsPowerShell").join("Microsoft.PowerShell_profile.ps1"),
-        home.join("Documents").join("PowerShell").join("Microsoft.PowerShell_profile.ps1"),
-    ];
-    #[cfg(not(windows))]
-    let profiles = vec![home.join(".zshrc"), home.join(".bashrc"), home.join(".profile")];
-
-    let mut updated = Vec::new();
-    for profile in profiles {
-        if ensure_profile_contains_path(&profile, install_dir)? {
-            updated.push(profile.display().to_string());
-        }
-    }
-    Ok(updated)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn ensure_profile_contains_path(profile: &Path, install_dir: &Path) -> Result<bool, String> {
-    #[cfg(windows)]
-    let export_line = format!(r#"$env:Path = "{};$env:Path""#, install_dir.display());
-    #[cfg(not(windows))]
-    let export_line = format!("export PATH={}:$PATH", install_dir.display());
-
-    if let Some(parent) = profile.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("创建配置文件目录失败 {}: {e}", parent.display()))?;
-    }
-
-    let install_path_text = install_dir.to_string_lossy();
-    let existing = fs::read_to_string(profile).unwrap_or_default();
-    if existing.contains(export_line.as_str()) || existing.contains(install_path_text.as_ref()) {
-        return Ok(false);
-    }
-
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(profile)
-        .map_err(|e| format!("打开配置文件失败 {}: {e}", profile.display()))?;
-
-    if !existing.ends_with('\n') && !existing.is_empty() {
-        file.write_all(b"\n")
-            .map_err(|e| format!("写入配置文件失败 {}: {e}", profile.display()))?;
-    }
-    file.write_all(export_line.as_bytes())
-        .map_err(|e| format!("写入配置文件失败 {}: {e}", profile.display()))?;
-    file.write_all(b"\n").map_err(|e| format!("写入配置文件失败 {}: {e}", profile.display()))?;
-    Ok(true)
-}
 
 #[cfg(test)]
 #[path = "settings_tests.rs"]
 mod settings_tests;
+
+fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
+    // Move the projection through the domain update without cloning strings or receivers.
+    let mut panel = PanelState {
+        show_cli_install_modal: std::mem::take(&mut app.show_cli_install_modal),
+        cli_install_modal_title: std::mem::take(&mut app.cli_install_modal_title),
+        cli_install_modal_message: std::mem::take(&mut app.cli_install_modal_message),
+        cli_install_modal_current_version: std::mem::take(&mut app.cli_install_modal_current_version),
+        cli_install_modal_server_version: std::mem::take(&mut app.cli_install_modal_server_version),
+        cli_install_modal_show_update_action: std::mem::take(&mut app.cli_install_modal_show_update_action),
+        cli_install_modal_show_install_action: std::mem::take(&mut app.cli_install_modal_show_install_action),
+        cli_install_modal_use_app_update_action: std::mem::take(&mut app.cli_install_modal_use_app_update_action),
+        cli_install_modal_is_checking_update: std::mem::take(&mut app.cli_install_modal_is_checking_update),
+        app_update_progress: std::mem::take(&mut app.app_update_progress),
+        app_update_progress_rx: std::mem::take(&mut app.app_update_progress_rx),
+    };
+    let mut effects = Vec::new();
+    let task = desktop_update::panel::update(&mut panel, &mut app.desktop_update, &mut effects, env!("CARGO_PKG_VERSION"), #[cfg(not(target_arch = "wasm32"))] app.desktop_locale, message);
+    app.show_cli_install_modal = panel.show_cli_install_modal;
+    app.cli_install_modal_title = panel.cli_install_modal_title;
+    app.cli_install_modal_message = panel.cli_install_modal_message;
+    app.cli_install_modal_current_version = panel.cli_install_modal_current_version;
+    app.cli_install_modal_server_version = panel.cli_install_modal_server_version;
+    app.cli_install_modal_show_update_action = panel.cli_install_modal_show_update_action;
+    app.cli_install_modal_show_install_action = panel.cli_install_modal_show_install_action;
+    app.cli_install_modal_use_app_update_action = panel.cli_install_modal_use_app_update_action;
+    app.cli_install_modal_is_checking_update = panel.cli_install_modal_is_checking_update;
+    app.app_update_progress = panel.app_update_progress;
+    app.app_update_progress_rx = panel.app_update_progress_rx;
+    let mut tasks = vec![task.map(|message| Message::View(panel_message(message)))];
+    for effect in effects {
+        tasks.push(match effect {
+            Effect::CloseMenu => { app.active_menu = None; Task::none() }
+            Effect::SaveSource(source) => Task::perform(
+                crate::app::config::save_app_config_async(crate::app::desktop_update::source_patch(source)),
+                |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
+            ),
+            Effect::Error(error) => app.show_error_toast(error),
+            Effect::Shutdown => { let window_id = app.main_window_id; shutdown(app, window_id) },
+        });
+    }
+    Task::batch(tasks)
+}
+fn panel_message(message: PanelMessage) -> ViewMessage {
+    match message {
+        PanelMessage::InstallCliTool => ViewMessage::InstallCliTool,
+        PanelMessage::RunInstallCliTool => ViewMessage::RunInstallCliTool,
+        PanelMessage::CheckCliToolUpdate => ViewMessage::CheckCliToolUpdate,
+        PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2) => ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2),
+        PanelMessage::OpenAppUpdateModal => ViewMessage::OpenAppUpdateModal,
+        PanelMessage::AppUpdateSourceSelected(v0) => ViewMessage::AppUpdateSourceSelected(v0),
+        PanelMessage::AppUpdateSourceSaved(v0) => ViewMessage::AppUpdateSourceSaved(v0),
+        PanelMessage::CheckAppUpdate => ViewMessage::CheckAppUpdate,
+        PanelMessage::CheckAppUpdateFinished(v0, v1, v2) => ViewMessage::CheckAppUpdateFinished(v0, v1, v2),
+        PanelMessage::RunAppUpdate => ViewMessage::RunAppUpdate,
+        PanelMessage::CancelAppUpdate => ViewMessage::CancelAppUpdate,
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::AppUpdateDownloadPrepared(v0, v1) => ViewMessage::AppUpdateDownloadPrepared(v0, v1),
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::AppUpdatePrepared(v0) => ViewMessage::AppUpdatePrepared(v0),
+        PanelMessage::OpenAppInstaller => ViewMessage::OpenAppInstaller,
+        PanelMessage::OpenAppInstallerDirectory => ViewMessage::OpenAppInstallerDirectory,
+        PanelMessage::AppInstallerDirectoryOpened(v0) => ViewMessage::AppInstallerDirectoryOpened(v0),
+        PanelMessage::AppUpdateProgressTick => ViewMessage::AppUpdateProgressTick,
+        PanelMessage::AppUpdateFinished(v0) => ViewMessage::AppUpdateFinished(v0),
+        PanelMessage::InstallCliToolFinished(v0) => ViewMessage::InstallCliToolFinished(v0),
+        PanelMessage::CloseInstallCliModal => ViewMessage::CloseInstallCliModal,
+    }
+}

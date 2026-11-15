@@ -28,3 +28,5 @@ pub mod styles;
 pub mod entry;
 #[cfg(test)]
 mod view_test_fixture;
+
+pub mod model_info;

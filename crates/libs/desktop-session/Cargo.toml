@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
 desktop-settings-apps = { path = "../desktop-settings-apps", version = "0.6.0" }
 desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
 gateway-app-skills = { path = "../gateway-app-skills", version = "0.6.0" }

@@ -7,3 +7,7 @@ pub mod app {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod desktop_update_helper;
+
+pub mod cli_install;
+
+pub mod panel;

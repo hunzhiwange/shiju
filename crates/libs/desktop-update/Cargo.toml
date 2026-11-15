@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+
 desktop-release = { path = "../desktop-release", version = "0.6.0" }
 update-types = { path = "../update-types", version = "0.6.0" }
 iced = { version = "0.14", features = ["tokio"] }

@@ -7,7 +7,7 @@ use axum::Json;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::http::HeaderMap;
-use vw_api_types::session::GatewaySessionMessageListQuery;
+use vw_api_session::session::GatewaySessionMessageListQuery;
 
 use super::shared::with_tenant_instance;
 

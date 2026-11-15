@@ -14,7 +14,7 @@ use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_shared::session::ui_types::{SessionMessageDelta, SessionMessageRecord};
 
 use super::{session_diff_query, session_message_list_query, session_message_page_query};
-use crate::test_support;
+use crate::client::test_support;
 
 #[tokio::test]
 async fn archived_chat_delete_encodes_id_directory_and_reads_deleted_ids() {

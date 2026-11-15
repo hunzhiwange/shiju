@@ -1,9 +1,19 @@
-//! 会话 API 兼容转发。
+//! 会话相关 API。
+//!
+//! 本模块封装聊天会话生命周期管理与 UI 持久化相关接口，覆盖：
+//! - 会话增删改查
+//! - 消息列表与 diff 查询
+//! - 会话 fork、reset、summarize
+//! - todo、scope、archived 状态维护
+//! - UI 会话快照与预览元数据读写
 
-use serde::de::DeserializeOwned;
+use std::collections::HashMap;
 
+use serde::{Deserialize, de::DeserializeOwned};
+use serde_json::Value;
 
 use super::GatewayClient;
+use crate::http::directory_query;
 use crate::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
     GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery, GatewaySessionMessagePage,
@@ -12,19 +22,108 @@ use crate::session::{
     GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody, GatewaySessionUiSummary,
 };
 use vw_shared::session::ui_types::{
-    ChatSession, ChatSessionMeta, SessionMessageDelta, SessionMessageRecord,
+    ChatSession, ChatSessionMeta, ChatSessionStep, SessionMessageDelta, SessionMessageRecord,
 };
 use vw_shared::todo::Todo;
 
-pub use gateway_session::SessionUiLoadResult;
+#[derive(Debug, Clone, Deserialize)]
+struct SessionStepWithRaw {
+    #[serde(flatten)]
+    step: ChatSessionStep,
+    #[serde(default)]
+    llm_raw: Option<Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ChatSessionWithRaw {
+    pub id: String,
+    #[serde(default)]
+    pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
+    pub title: String,
+    #[serde(default)]
+    pub messages: Vec<vw_shared::session::ui_types::ChatMessage>,
+    #[serde(default)]
+    pub message_ids: Vec<Option<String>>,
+    #[serde(default)]
+    pub calls: Vec<Value>,
+    #[serde(default)]
+    pub steps: Vec<SessionStepWithRaw>,
+    #[serde(default)]
+    pub llm_raw_step_indices: Vec<u32>,
+    #[serde(default)]
+    pub created_ms: u64,
+    #[serde(default)]
+    pub updated_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamStopResponse {
+    cancelled: bool,
+}
+
+/// 会话 UI 批量加载结果。
+///
+/// 普通会话数据保持可直接保存的 `ChatSession` 形状；每步原始 LLM 载荷单独按稳定的
+/// `(session_id, turn_id, step_index)` 保存，避免把只读加载数据混入持久化模型。
+#[derive(Debug, Clone)]
+pub struct SessionUiLoadResult {
+    pub session: ChatSession,
+    pub agent_binding: Option<vw_api_chat_identity::SessionAgentIdentity>,
+    pub step_llm_raw: HashMap<(String, String, u32), Value>,
+    pub llm_raw_step_indices: Vec<(String, String, u32)>,
+}
+
+impl From<ChatSessionWithRaw> for SessionUiLoadResult {
+    fn from(value: ChatSessionWithRaw) -> Self {
+        let mut step_llm_raw = HashMap::new();
+        let session_id = value.id.clone();
+        let steps = value
+            .steps
+            .into_iter()
+            .map(|mut step| {
+                step.step.turn_id =
+                    step.step.turn_id.take().filter(|turn_id| !turn_id.trim().is_empty());
+                if let Some(raw) = step.llm_raw {
+                    let turn_id = step
+                        .step
+                        .turn_id
+                        .clone()
+                        .unwrap_or_else(|| format!("legacy-step-{}", step.step.index));
+                    step_llm_raw.insert((session_id.clone(), turn_id, step.step.index), raw);
+                }
+                step.step
+            })
+            .collect::<Vec<_>>();
+        let llm_raw_step_indices = steps
+            .iter()
+            .filter(|step| value.llm_raw_step_indices.contains(&step.index))
+            .map(|step| {
+                let turn_id =
+                    step.turn_id.clone().unwrap_or_else(|| format!("legacy-step-{}", step.index));
+                (session_id.clone(), turn_id, step.index)
+            })
+            .collect();
+        let session = ChatSession {
+            id: value.id,
+            title: value.title,
+            messages: value.messages,
+            message_ids: value.message_ids,
+            calls: value.calls,
+            steps,
+            created_ms: value.created_ms,
+            updated_ms: value.updated_ms,
+        };
+        Self { session, agent_binding: value.agent_binding, step_llm_raw, llm_raw_step_indices }
+    }
+}
 
 impl GatewayClient {
     pub async fn acp_model_source_capabilities(
         &self,
         agent: &str,
     ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .acp_model_source_capabilities(agent).await
+        let path = format!("/v1/acp-model-source/{}", encode_session_path_segment(agent));
+        self.get_json(&path, &[]).await
     }
 
     pub async fn acp_session_model_source(
@@ -33,8 +132,12 @@ impl GatewayClient {
         directory: Option<&str>,
         update: &vw_api_acp_model::acp_model_source::AcpModelSourceUpdate,
     ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .acp_session_model_source(session_id, directory, update).await
+        self.put_json(
+            &format!("{}/acp-model-source", session_path(session_id)?),
+            &directory_query(directory),
+            update,
+        )
+        .await
     }
 
     pub async fn acp_session_options(
@@ -42,8 +145,11 @@ impl GatewayClient {
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .acp_session_options(session_id, directory).await
+        self.get_json(
+            &format!("{}/acp-options", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
     pub async fn session_set_full_access(
@@ -52,149 +158,244 @@ impl GatewayClient {
         directory: Option<&str>,
         full_access: bool,
     ) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_set_full_access(session_id, directory, full_access).await
+        self.put_json(
+            &format!("{}/full-access", session_path(session_id)?),
+            &directory_query(directory),
+            &full_access,
+        )
+        .await
     }
-
     pub async fn acp_session_select(
         &self,
         session_id: &str,
         directory: Option<&str>,
         selection: &vw_api_acp_model::acp_session::AcpSessionSelection,
     ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .acp_session_select(session_id, directory, selection).await
+        self.put_json(
+            &format!("{}/acp-options", session_path(session_id)?),
+            &directory_query(directory),
+            selection,
+        )
+        .await
     }
 
+    /// 按可恢复流请求标识幂等停止聊天运行。
     pub async fn chat_stream_stop(&self, request_id: &str) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .chat_stream_stop(request_id).await
+        let path = format!(
+            "/v1/chat/stream/{}/stop",
+            encode_session_path_segment(required_stream_request_id(request_id)?)
+        );
+        let response: StreamStopResponse =
+            self.post_json(&path, &[], &serde_json::json!({})).await?;
+        Ok(response.cancelled)
     }
 
+    /// 读取会话 UI 数据，并保留响应中每步的原始 LLM 载荷。
     pub async fn session_ui_get_with_raw(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Option<SessionUiLoadResult>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_get_with_raw(session_id, directory).await
+        let loaded = self
+            .get_json_with_404::<ChatSessionWithRaw>(
+                &format!("{}/ui", session_path(session_id)?),
+                &directory_query(directory),
+            )
+            .await?;
+        Ok(loaded.map(SessionUiLoadResult::from))
     }
 
+    /// 读取会话 UI 数据和 Raw 索引，但不加载每步原始 LLM 载荷。
     pub async fn session_ui_get_without_raw(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Option<SessionUiLoadResult>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_get_without_raw(session_id, directory).await
+        let loaded = self
+            .get_json_with_404::<ChatSessionWithRaw>(
+                &format!("{}/ui/without-raw", session_path(session_id)?),
+                &directory_query(directory),
+            )
+            .await?;
+        Ok(loaded.map(SessionUiLoadResult::from))
     }
 
+    /// 无目录限制地读取会话 UI 数据及每步原始 LLM 载荷。
     pub async fn session_ui_get_any_with_raw(
         &self,
         session_id: &str,
     ) -> Result<Option<SessionUiLoadResult>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_get_any_with_raw(session_id).await
+        let loaded = self
+            .get_json_with_404::<ChatSessionWithRaw>(
+                &format!("{}/any", session_path(session_id)?),
+                &[],
+            )
+            .await?;
+        Ok(loaded.map(SessionUiLoadResult::from))
     }
+}
 
+fn required_stream_request_id(request_id: &str) -> Result<&str, String> {
+    if request_id.trim().is_empty() {
+        return Err("stream request id must not be empty".to_string());
+    }
+    Ok(request_id)
+}
+
+fn encode_session_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
+impl GatewayClient {
+    /// 列出目录上下文下的会话集合。
+    ///
+    /// 该方法保持返回值泛型化，以兼容不同调用方对列表结构的反序列化需求。
     pub async fn session_list<T: DeserializeOwned>(
         &self,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_list(directory).await
+        self.get_json("/v1/session", &directory_query(directory)).await
     }
 
+    /// 列出同一项目下各工作树中的会话。
     pub async fn session_list_for_project<T: DeserializeOwned>(
         &self,
         project_id: &vw_api_transport::ProjectId,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_list_for_project(project_id).await
+        self.get_json("/v1/session", &[("projectID".into(), project_id.0.clone())]).await
     }
 
+    /// 读取目录上下文下的会话运行状态表。
     pub async fn session_status<T: DeserializeOwned>(
         &self,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_status(directory).await
+        self.get_json("/v1/session/status", &directory_query(directory)).await
     }
 
+    /// 读取单个会话详情。
     pub async fn session_get<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_get(session_id, directory).await
+        self.get_json(&session_path(session_id)?, &directory_query(directory)).await
     }
 
+    /// 读取指定会话的直接子会话。
     pub async fn session_children<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_children(session_id, directory).await
+        self.get_json(
+            &format!("{}/children", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
+    /// 读取指定会话的消息列表，使用默认分页参数。
+    ///
+    /// 当前默认只透传目录，不显式设置 `limit`，由后端决定默认页大小。
     pub async fn session_messages<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_messages(session_id, directory).await
+        self.session_messages_query(
+            session_id,
+            &GatewaySessionMessageListQuery {
+                directory: directory.map(ToOwned::to_owned),
+                limit: None,
+                cursor: None,
+            },
+        )
+        .await
     }
 
+    /// 读取不包含历史正文的会话摘要。
     pub async fn session_ui_summary(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<GatewaySessionUiSummary, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_summary(session_id, directory).await
+        self.get_json(
+            &format!("{}/ui/summary", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
+    /// 读取固定大小的会话消息页。
     pub async fn session_message_page(
         &self,
         session_id: &str,
         query: &GatewaySessionMessagePageQuery,
     ) -> Result<GatewaySessionMessagePage<SessionMessageRecord>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_message_page(session_id, query).await
+        self.get_json(
+            &format!("{}/ui/messages", session_path(session_id)?),
+            &session_message_page_query(query),
+        )
+        .await
     }
 
+    /// 原子提交会话消息增量。
     pub async fn session_message_delta(
         &self,
         session_id: &str,
         directory: Option<&str>,
         delta: &SessionMessageDelta,
     ) -> Result<GatewaySessionMessageDeltaResponse, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_message_delta(session_id, directory, delta).await
+        self.patch_json(
+            &format!("{}/ui/messages", session_path(session_id)?),
+            &directory_query(directory),
+            delta,
+        )
+        .await
     }
 
+    /// 按查询条件读取指定会话的消息列表。
     pub async fn session_messages_query<T: DeserializeOwned>(
         &self,
         session_id: &str,
         query: &GatewaySessionMessageListQuery,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_messages_query(session_id, query).await
+        self.get_json(
+            &format!("{}/message", session_path(session_id)?),
+            &session_message_list_query(query),
+        )
+        .await
     }
 
+    /// 读取单条会话消息及其片段。
     pub async fn session_message_get<T: DeserializeOwned>(
         &self,
         session_id: &str,
         message_id: &str,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_message_get(session_id, message_id, directory).await
+        self.get_json(
+            &format!(
+                "{}/message/{}",
+                session_path(session_id)?,
+                required_encoded_id(message_id, "message")?
+            ),
+            &directory_query(directory),
+        )
+        .await
     }
 
+    /// 更新单个消息片段。
     pub async fn session_message_part_update<B: serde::Serialize, T: DeserializeOwned>(
         &self,
         session_id: &str,
@@ -203,10 +404,15 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &B,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_message_part_update(session_id, message_id, part_id, directory, body).await
+        self.patch_json(
+            &session_part_path(session_id, message_id, part_id)?,
+            &directory_query(directory),
+            body,
+        )
+        .await
     }
 
+    /// 删除单个消息片段。
     pub async fn session_message_part_delete(
         &self,
         session_id: &str,
@@ -214,168 +420,247 @@ impl GatewayClient {
         part_id: &str,
         directory: Option<&str>,
     ) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_message_part_delete(session_id, message_id, part_id, directory).await
+        self.delete_json(
+            &session_part_path(session_id, message_id, part_id)?,
+            &directory_query(directory),
+            &serde_json::json!({}),
+        )
+        .await
     }
 
+    /// 创建新会话。
+    ///
+    /// `directory` 会作为查询参数传入，用于确定会话所属工作区上下文。
     pub async fn session_create<T: DeserializeOwned>(
         &self,
         directory: &str,
         body: &Option<GatewaySessionCreateBody>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_create(directory, body).await
+        self.post_json("/v1/session", &directory_query(Some(directory)), body).await
     }
 
+    /// 更新会话元数据或状态。
     pub async fn session_update<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
         body: &GatewaySessionPatchBody,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_update(session_id, directory, body).await
+        self.patch_json(&session_path(session_id)?, &directory_query(directory), body).await
     }
 
+    /// 删除会话。
     pub async fn session_delete(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<(), String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_delete(session_id, directory).await
+        self.delete_empty(&session_path(session_id)?, &directory_query(directory)).await
     }
 
+    /// Delete an archived root and its descendants, with server-side scope validation.
     pub async fn session_delete_archived(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<vw_api_session::session::ArchivedChatDeleteResponse, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_delete_archived(session_id, directory).await
+        self.delete_json(
+            &format!("{}/archived", session_path(session_id)?),
+            &directory_query(directory),
+            &serde_json::json!({}),
+        )
+        .await
     }
 
+    /// 从现有会话派生一个新会话。
     pub async fn session_fork<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
         body: &Option<GatewaySessionForkBody>,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_fork(session_id, directory, body).await
+        let path = format!("{}/fork", session_path(session_id)?);
+        let builder = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
+            .query(&directory_query(directory))
+            .json(body);
+        // A worktree fork must complete initialization before publishing the session.
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = builder.timeout(std::time::Duration::from_secs(270));
+        let response = crate::http::apply_request_context(builder, self.transport.endpoint())
+            .send()
+            .await
+            .map_err(|error| crate::http::transport_error("POST", self.transport.endpoint(), &path, error))?;
+        crate::http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
+    /// 截断指定消息之后的会话历史。
     pub async fn session_reset<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
         body: &GatewaySessionResetBody,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_reset(session_id, directory, body).await
+        self.post_json(
+            &format!("{}/reset", session_path(session_id)?),
+            &directory_query(directory),
+            body,
+        )
+        .await
     }
 
+    /// 为会话触发摘要生成。
     pub async fn session_summarize(
         &self,
         session_id: &str,
         directory: Option<&str>,
         body: &GatewaySessionSummarizeBody,
     ) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_summarize(session_id, directory, body).await
+        use crate::http::{
+            apply_request_context, log_request, parse_json_response, transport_error,
+        };
+
+        let path = format!("{}/summarize", session_path(session_id)?);
+        let query = directory_query(directory);
+        log_request("POST", self.transport.endpoint(), &path, &query, Some(body));
+        let request = self.transport.client()
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
+            .query(&query)
+            .json(body);
+        // Use the existing long-running model request transport budget. The server
+        // enforces the shared model idle timeout, cancellation and retry policy.
+        #[cfg(not(target_arch = "wasm32"))]
+        let request = request
+            .timeout(std::time::Duration::from_secs(crate::stream::STREAM_REQUEST_TIMEOUT_SECS));
+        let response = apply_request_context(request, self.transport.endpoint())
+            .send()
+            .await
+            .map_err(|err| transport_error("POST", self.transport.endpoint(), &path, err))?;
+        parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }
 
+    /// 覆盖写入会话待办列表。
     pub async fn session_todo_update(
         &self,
         session_id: &str,
         directory: Option<&str>,
         body: &GatewaySessionTodoPutBody,
     ) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_todo_update(session_id, directory, body).await
+        self.put_json(
+            &format!("{}/todo", session_path(session_id)?),
+            &directory_query(directory),
+            body,
+        )
+        .await
     }
 
+    /// 获取会话待办列表。
     pub async fn session_todo_get(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Vec<Todo>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_todo_get(session_id, directory).await
+        self.get_json(&format!("{}/todo", session_path(session_id)?), &directory_query(directory))
+            .await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    /// 以阻塞方式获取会话待办列表。
     pub fn session_todo_get_blocking(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Vec<Todo>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_todo_get_blocking(session_id, directory)
+        use crate::client::request_helpers::get_json_blocking;
+
+        get_json_blocking(
+            self.transport.endpoint(),
+            &format!("/v1/session/{session_id}/todo"),
+            &directory_query(directory),
+        )
     }
 
+    /// 获取会话在指定消息节点上的差异数据。
     pub async fn session_diff<T: DeserializeOwned>(
         &self,
         session_id: &str,
         query: &GatewaySessionDiffQuery,
     ) -> Result<T, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_diff(session_id, query).await
+        self.get_json(&format!("{}/diff", session_path(session_id)?), &session_diff_query(query))
+            .await
     }
 
+    /// 读取会话 UI 持久化数据，不存在时返回 None。
+    ///
+    /// 对 404 响应做了特殊处理，因此调用方无需把“未保存过 UI”视为错误。
     pub async fn session_ui_get(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Option<ChatSession>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_get(session_id, directory).await
+        let with_raw = self.session_ui_get_with_raw(session_id, directory).await?;
+        Ok(with_raw.map(|loaded| loaded.session))
     }
 
+    /// 无目录限制地读取会话 UI 持久化数据。
     pub async fn session_ui_get_any(
         &self,
         session_id: &str,
     ) -> Result<Option<ChatSession>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_get_any(session_id).await
+        let with_raw = self.session_ui_get_any_with_raw(session_id).await?;
+        Ok(with_raw.map(|loaded| loaded.session))
     }
 
+    /// 保存会话 UI 持久化数据。
     pub async fn session_ui_save(
         &self,
         session_id: &str,
         directory: Option<&str>,
         session: &ChatSession,
     ) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_save(session_id, directory, session).await
+        self.put_json(
+            &format!("{}/ui", session_path(session_id)?),
+            &directory_query(directory),
+            session,
+        )
+        .await
     }
 
+    /// 列出目录下会话 UI 预览元数据。
     pub async fn session_ui_previews(
         &self,
         directory: Option<&str>,
     ) -> Result<Vec<ChatSessionMeta>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_ui_previews(directory).await
+        self.get_json("/v1/session/ui-previews", &directory_query(directory)).await
     }
 
+    /// 获取单个会话的预览元数据。
     pub async fn session_preview_meta_get(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Option<ChatSessionMeta>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_preview_meta_get(session_id, directory).await
+        self.get_json_with_404(
+            &format!("{}/preview", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
+    /// 获取会话对应的持久化路径。
     pub async fn session_path_get(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Option<String>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_path_get(session_id, directory).await
+        self.get_json_with_404(
+            &format!("{}/path", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
+    /// 读取指定会话步骤的原始 LLM 请求/响应载荷。
     pub async fn session_step_llm_raw_get(
         &self,
         session_id: &str,
@@ -383,57 +668,144 @@ impl GatewayClient {
         step_index: u32,
         directory: Option<&str>,
     ) -> Result<Option<serde_json::Value>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_step_llm_raw_get(session_id, turn_id, step_index, directory).await
+        let legacy_step_turn_id = format!("legacy-step-{step_index}");
+        let request_turn_id = if turn_id.trim().is_empty() || turn_id == legacy_step_turn_id {
+            "legacy"
+        } else {
+            turn_id
+        };
+        self.get_json_with_404(
+            &format!(
+                "{}/turn/{}/step/{step_index}/llm-raw",
+                session_path(session_id)?,
+                required_encoded_id(request_turn_id, "turn")?
+            ),
+            &directory_query(directory),
+        )
+        .await
     }
 
+    /// 获取当前目录下被归档的会话 ID 列表。
     pub async fn session_archived_get(
         &self,
         directory: Option<&str>,
     ) -> Result<Vec<String>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_archived_get(directory).await
+        self.get_json("/v1/session/archived", &directory_query(directory)).await
     }
 
+    /// 覆盖写入归档会话 ID 列表。
     pub async fn session_archived_put(
         &self,
         directory: Option<&str>,
         ids: &[String],
     ) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_archived_put(directory, ids).await
+        let body: Vec<String> = ids.to_vec();
+        self.put_json("/v1/session/archived", &directory_query(directory), &body).await
     }
 
+    /// 读取当前全局会话作用域。
+    ///
+    /// 当前实现忽略目录与项目参数，始终读取网关维护的全局 scope 状态。
     pub async fn session_scope_get(
         &self,
         _directory: Option<&str>,
         _project_id: Option<&str>,
     ) -> Result<Option<String>, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_scope_get(_directory, _project_id).await
+        self.get_json_with_404("/v1/session/scope", &[]).await
     }
 
+    /// 更新当前全局会话作用域。
     pub async fn session_scope_put(&self, scope: Option<&str>) -> Result<bool, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_scope_put(scope).await
+        let body = GatewaySessionScopeBody { scope: scope.map(|s| s.to_string()) };
+        self.put_json("/v1/session/scope", &[], &body).await
     }
 
+    /// 基于会话内容生成候选标题。
     pub async fn session_title_generate(
         &self,
         session_id: &str,
         body: &GatewaySessionTitleGenerateBody,
     ) -> Result<GatewaySessionTitleGenerateResponse, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_title_generate(session_id, body).await
+        self.session_title_generate_in_directory(session_id, None, body).await
     }
 
+    /// Generate a title using the session's project directory.
     pub async fn session_title_generate_in_directory(
         &self,
         session_id: &str,
         directory: Option<&str>,
         body: &GatewaySessionTitleGenerateBody,
     ) -> Result<GatewaySessionTitleGenerateResponse, String> {
-        gateway_session::GatewaySessionClient::new(self.transport.clone())
-            .session_title_generate_in_directory(session_id, directory, body).await
+        self.post_json(
+            &format!("{}/title", session_path(session_id)?),
+            &directory_query(directory),
+            body,
+        )
+        .await
     }
 }
+
+fn session_path(session_id: &str) -> Result<String, String> {
+    if session_id.trim().is_empty() {
+        return Err("session id must not be empty".to_string());
+    }
+    Ok(format!("/v1/session/{}", encode_session_path_segment(session_id)))
+}
+
+fn required_encoded_id(value: &str, kind: &str) -> Result<String, String> {
+    if value.trim().is_empty() {
+        return Err(format!("{kind} id must not be empty"));
+    }
+    Ok(encode_session_path_segment(value))
+}
+
+fn session_part_path(session_id: &str, message_id: &str, part_id: &str) -> Result<String, String> {
+    Ok(format!(
+        "{}/message/{}/part/{}",
+        session_path(session_id)?,
+        required_encoded_id(message_id, "message")?,
+        required_encoded_id(part_id, "part")?
+    ))
+}
+
+/// 将消息列表查询结构转换为网关接口使用的查询参数。
+fn session_message_list_query(query: &GatewaySessionMessageListQuery) -> Vec<(String, String)> {
+    let mut pairs = directory_query(query.directory.as_deref());
+    if let Some(limit) = query.limit {
+        pairs.push(("limit".to_string(), limit.to_string()));
+    }
+    if let Some(cursor) = query.cursor.as_deref().filter(|value| !value.is_empty()) {
+        pairs.push(("cursor".to_string(), cursor.to_string()));
+    }
+    pairs
+}
+
+fn session_message_page_query(query: &GatewaySessionMessagePageQuery) -> Vec<(String, String)> {
+    let mut pairs = directory_query(query.directory.as_deref());
+    if let Some(cursor) = query.cursor.as_deref().filter(|value| !value.is_empty()) {
+        pairs.push(("cursor".to_string(), cursor.to_string()));
+    }
+    if let Some(limit) = query.limit {
+        pairs.push(("limit".to_string(), limit.to_string()));
+    }
+    pairs.push((
+        "direction".to_string(),
+        match query.direction {
+            vw_api_session::session::SessionMessagePageDirection::Older => "older".to_string(),
+        },
+    ));
+    pairs
+}
+
+/// 将 diff 查询结构转换为网关接口使用的查询参数。
+fn session_diff_query(query: &GatewaySessionDiffQuery) -> Vec<(String, String)> {
+    let mut pairs = directory_query(query.directory.as_deref());
+    if let Some(message_id) = query.message_id.as_deref().filter(|value| !value.trim().is_empty()) {
+        pairs.push(("messageID".to_string(), message_id.to_string()));
+    }
+    pairs
+}
+
+#[cfg(test)]
+#[path = "session_api_tests.rs"]
+mod session_api_tests;

@@ -15,7 +15,7 @@
 //!
 //! ```ignore
 //! use crossterm::event::KeyCode;
-//! use cli_interaction_model::input_edit::*;
+//! use crate::interactive_input::*;
 //!
 //! let mut input = String::from("hello");
 //! let mut cursor = 5;
@@ -33,7 +33,7 @@ use crossterm::event::KeyCode;
 /// 该枚举用于指示键盘事件处理后输入缓冲区的变化情况，
 /// 便于调用方决定是否需要重绘界面或执行其他后续操作。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputEditResult {
+pub(crate) enum InputEditResult {
     /// 输入未发生变化
     ///
     /// 当键盘事件未被识别或不影响输入内容时返回此变体，
@@ -107,7 +107,7 @@ pub enum InputEditResult {
 /// - 光标位置以 Unicode 字符为单位计算，而非字节偏移
 /// - 对于无效按键（如功能键、Alt 组合键等），返回 `NoChange`
 /// - 所有编辑操作都会重建字符串，在极端高频输入下可能有性能影响
-pub fn apply_key_to_input(
+pub(crate) fn apply_key_to_input(
     input: &mut String,
     cursor_idx: &mut usize,
     key: KeyCode,
@@ -217,7 +217,7 @@ pub fn apply_key_to_input(
 /// 该函数通过将字符串转换为字符向量来实现插入操作，
 /// 确保正确处理 UTF-8 多字节字符的边界情况。
 /// 插入后光标位置会自动加一，指向新插入的换行符之后。
-pub fn insert_newline(input: &mut String, cursor_idx: &mut usize) {
+pub(crate) fn insert_newline(input: &mut String, cursor_idx: &mut usize) {
     // 将字符串转换为字符向量以支持按索引插入
     let mut chars: Vec<char> = input.chars().collect();
     // 在光标位置插入换行符

@@ -1605,13 +1605,13 @@ pub(super) fn complete_agent_stream(
                                 Ok(client) => client,
                                 Err(err) => return Err(err),
                             };
-                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                            let msgs = client
                                 .session_messages::<Vec<message::WithParts>>(
                                     &session_id,
                                     Some(&project_path),
                                 )
                                 .await;
-                            let info = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                            let info = client
                                 .session_get::<session_info::Info>(&session_id, Some(&project_path))
                                 .await;
                             match (msgs, info) {
@@ -1660,7 +1660,7 @@ pub(super) fn complete_agent_stream(
     let summary_directory = app.known_session_directory(&session_id);
     let refresh_summary = Task::perform(
         async move {
-            gateway_session::GatewaySessionClient::new(crate::app::gateway_client()?.transport().clone())
+            crate::app::gateway_client()?
                 .session_get::<session_info::Info>(&summary_session, summary_directory.as_deref())
                 .await
         },

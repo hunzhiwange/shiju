@@ -11,7 +11,7 @@ use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::HeaderMap;
-use vw_api_types::session::{
+use vw_api_session::session::{
     GatewaySessionDiffQuery, GatewaySessionForkBody, GatewaySessionForkTarget,
     GatewaySessionPatchBody, GatewaySessionResetBody, GatewaySessionSummarizeBody,
     GatewaySessionTitleGenerateBody, GatewaySessionTitleGenerateResponse,
@@ -213,7 +213,7 @@ pub(super) async fn ui_session_create(
     let body =
         body.unwrap_or(UiSessionCreateBody { session: Default::default(), permission: None });
     let UiSessionCreateBody { session, permission } = body;
-    let vw_api_types::session::GatewaySessionCreateBody { parent_id, title } = session;
+    let vw_api_session::session::GatewaySessionCreateBody { parent_id, title } = session;
 
     let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
     let title = title.filter(|title| !title.trim().is_empty());
@@ -364,7 +364,7 @@ pub(super) async fn session_todo_get(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
-) -> Result<Json<Vec<vw_api_types::session::GatewaySessionTodoItem>>, ApiError> {
+) -> Result<Json<Vec<vw_api_session::session::GatewaySessionTodoItem>>, ApiError> {
     let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     let todos = with_tenant_instance(tenant, dir, move || {

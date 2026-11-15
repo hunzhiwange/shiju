@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-session",
   "crates/libs/project-types",
   "crates/libs/gateway-session",
   "crates/libs/desktop-account",

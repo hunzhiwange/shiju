@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use axum::http::{HeaderMap, HeaderValue};
 use std::sync::Once;
 use tempfile::TempDir;
-use vw_api_types::session::GatewaySessionCreateBody;
+use vw_api_session::session::GatewaySessionCreateBody;
 
 static TEST_HOME: Once = Once::new();
 static SHARED_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

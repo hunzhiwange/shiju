@@ -103,9 +103,6 @@ mod provider_tests;
 #[path = "question_tests.rs"]
 mod question_tests;
 #[cfg(test)]
-#[path = "session_tests.rs"]
-mod session_tests;
-#[cfg(test)]
 #[path = "settings_tests.rs"]
 mod settings_tests;
 #[cfg(test)]

@@ -17,7 +17,7 @@
 use crate::common::{JsonMap, TimestampMs};
 use crate::id::{MessageId, ProjectId, RequestId, SessionId, WorktreeId};
 use crate::question::QuestionDto;
-use crate::session::{SessionDto, SessionUsageDto};
+use vw_api_session::session::{SessionDto, SessionUsageDto};
 use vw_api_todo::todo::TodoDto;
 use serde::{Deserialize, Serialize};
 

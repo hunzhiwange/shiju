@@ -10,7 +10,7 @@ use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
 use uuid::Uuid;
-use vw_api_types::session::GatewaySessionMessageListQuery;
+use vw_api_session::session::GatewaySessionMessageListQuery;
 
 static TEST_HOME: Once = Once::new();
 static MESSAGE_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

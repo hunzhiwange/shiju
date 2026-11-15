@@ -41,7 +41,7 @@ pub(super) fn delete_task(
     let id = row.id.clone();
     Task::perform(
         async move {
-            gateway_session::GatewaySessionClient::new(client?.transport().clone())
+            client?
                 .session_delete_archived(&row.id, Some(&row.directory))
                 .await
                 .map(|response| response.deleted_ids)

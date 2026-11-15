@@ -11,7 +11,7 @@ use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeSet;
-use vw_api_types::session::{
+use vw_api_session::session::{
     GatewaySessionMessageDeltaResponse, GatewaySessionMessagePage, GatewaySessionMessagePageQuery,
     GatewaySessionScopeBody, GatewaySessionUiSummary,
 };

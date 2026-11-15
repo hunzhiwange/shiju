@@ -353,7 +353,7 @@ async fn dynamic_tools_acceptance_fork_requires_new_host_and_matching_specs() {
     let binding = f.register().await;
     f.replace(&binding, "release", true).await.unwrap();
     let fork: serde_json::Value =
-        gateway_session::GatewaySessionClient::new(f.client.transport().clone()).session_fork(&f.session, Some(f.directory()), &None).await.unwrap();
+        f.client.session_fork(&f.session, Some(f.directory()), &None).await.unwrap();
     let fork = fork["id"].as_str().unwrap();
     assert!(
         f.client

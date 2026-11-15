@@ -250,8 +250,8 @@ fn reload_sessions_for_project_with_path_returns_runnable_task() {
 }
 use vw_shared::session::ui_types::SessionMessageRecord;
 
-fn bounded_summary(message_count: usize) -> vw_gateway_client::GatewaySessionUiSummary {
-    vw_gateway_client::GatewaySessionUiSummary {
+fn bounded_summary(message_count: usize) -> vw_api_session::GatewaySessionUiSummary {
+    vw_api_session::GatewaySessionUiSummary {
         agent_binding: None,
         full_access: None,
         id: "session-page".to_string(),
@@ -279,7 +279,7 @@ fn page_record(seq_no: u64) -> SessionMessageRecord {
 
 #[test]
 fn session_open_page_keeps_initial_history_bounded() {
-    let page = vw_gateway_client::GatewaySessionMessagePage {
+    let page = vw_api_session::GatewaySessionMessagePage {
         items: (9_937..=10_000).map(page_record).collect(),
         next_cursor: Some("older-page".to_string()),
         previous_cursor: None,
@@ -297,7 +297,7 @@ fn session_open_page_keeps_initial_history_bounded() {
 
 #[test]
 fn session_open_page_becomes_ready_from_latest_page_without_heavy_state() {
-    let page = vw_gateway_client::GatewaySessionMessagePage {
+    let page = vw_api_session::GatewaySessionMessagePage {
         items: vec![page_record(10_000)],
         next_cursor: None,
         previous_cursor: None,
@@ -322,7 +322,7 @@ fn agent_unified_selection_bounded_load_preserves_trusted_identity() {
     });
     let prepared = super::prepare_bounded_session_open(
         summary,
-        vw_gateway_client::GatewaySessionMessagePage {
+        vw_api_session::GatewaySessionMessagePage {
             items: vec![],
             next_cursor: None,
             previous_cursor: None,

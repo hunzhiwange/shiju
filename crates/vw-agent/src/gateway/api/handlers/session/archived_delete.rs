@@ -6,7 +6,7 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::session::ArchivedChatDeleteResponse;
+use vw_api_session::session::ArchivedChatDeleteResponse;
 
 use super::shared::{has_explicit_directory, lifecycle_api_error, with_tenant_instance};
 use crate::gateway::chat::invalidate_session_query_engine;

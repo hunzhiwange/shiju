@@ -1457,7 +1457,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
         message: chat_message("loaded history"),
     };
     let prepared = crate::app::session::prepare_bounded_session_open(
-        vw_gateway_client::GatewaySessionUiSummary {
+        vw_api_session::GatewaySessionUiSummary {
             agent_binding: None,
             full_access: None,
             id: "paged".into(),
@@ -1467,7 +1467,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
             call_count: 0,
             last_content: None,
         },
-        vw_gateway_client::GatewaySessionMessagePage {
+        vw_api_session::GatewaySessionMessagePage {
             items: vec![record(100), record(101)],
             next_cursor: Some("older".into()),
             previous_cursor: None,
@@ -1489,7 +1489,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
     assert!(app.paged_chat_timeline.as_mut().unwrap().begin_prepend("older"));
     let page = crate::app::session::prepare_timeline_page(
         "paged",
-        vw_gateway_client::GatewaySessionMessagePage {
+        vw_api_session::GatewaySessionMessagePage {
             items: vec![record(98), record(99)],
             next_cursor: Some("older-again".into()),
             previous_cursor: None,

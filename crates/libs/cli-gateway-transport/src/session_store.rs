@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 
 use serde::Deserialize;
-use vw_gateway_client::{
+use vw_api_session::{
     GatewaySessionForkBody, GatewaySessionPatchBody, GatewaySessionResetBody,
     GatewaySessionSummarizeBody,
 };
@@ -25,8 +25,8 @@ impl GatewayUiRuntime {
         let session_id = normalize_optional_str_ref(Some(session_id))
             .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
         let directory = self.directory_value();
-        let snapshot = gateway_session::GatewaySessionClient::new(self
-            .client().transport().clone())
+        let snapshot = self
+            .client()
             .session_ui_get_without_raw(session_id, directory.as_deref())
             .await?
             .map(|loaded| loaded.session)
@@ -44,7 +44,7 @@ impl GatewayUiRuntime {
         let session_id = normalize_optional_str_ref(Some(session_id))
             .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
         let directory = self.directory_value();
-        let info: Info = gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_get(session_id, directory.as_deref()).await?;
+        let info: Info = self.client().session_get(session_id, directory.as_deref()).await?;
         ensure_mutation_session_id("resume", session_id, &info.id)?;
         if !info.is_user_navigable() {
             return Err(format!("session {session_id} cannot be opened in the TUI"));
@@ -56,22 +56,22 @@ impl GatewayUiRuntime {
         let session_id = normalize_optional_str_ref(Some(session.id.as_str()))
             .ok_or_else(|| "session_ui save requires a non-empty session id".to_string())?;
         let directory = self.directory_value();
-        gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_ui_save(session_id, directory.as_deref(), session).await.map(|_| ())
+        self.client().session_ui_save(session_id, directory.as_deref(), session).await.map(|_| ())
     }
 
     async fn session_ui_previews(&self) -> Result<Vec<ChatSessionMeta>, String> {
         let directory = self.directory_value();
-        gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_ui_previews(directory.as_deref()).await
+        self.client().session_ui_previews(directory.as_deref()).await
     }
 
     async fn session_resume_candidates(&self) -> Result<Vec<ChatSessionMeta>, String> {
         let directory = self.directory_value();
-        let mut previews = gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_ui_previews(directory.as_deref()).await?;
-        let archived = gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_archived_get(directory.as_deref()).await?;
+        let mut previews = self.client().session_ui_previews(directory.as_deref()).await?;
+        let archived = self.client().session_archived_get(directory.as_deref()).await?;
         let archived = archived.into_iter().collect::<HashSet<_>>();
         previews.retain(|preview| !archived.contains(preview.id.as_str()));
         if !previews.is_empty() {
-            let sessions: Vec<Info> = gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_list(directory.as_deref()).await?;
+            let sessions: Vec<Info> = self.client().session_list(directory.as_deref()).await?;
             let navigable: HashSet<_> = sessions
                 .iter()
                 .filter(|session| session.is_user_navigable())
@@ -97,7 +97,7 @@ impl GatewayUiRuntime {
         let body = GatewaySessionPatchBody { title: Some(title.to_string()), time: None };
         let directory = self.directory_value();
         let info: UiSessionMutationInfo =
-            gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_update(session_id, directory.as_deref(), &body).await?;
+            self.client().session_update(session_id, directory.as_deref(), &body).await?;
         ensure_mutation_session_id("rename", session_id, info.id.as_str())
     }
 
@@ -109,7 +109,7 @@ impl GatewayUiRuntime {
         });
         let directory = self.directory_value();
         let info: UiSessionMutationInfo =
-            gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_fork(session_id, directory.as_deref(), &body).await?;
+            self.client().session_fork(session_id, directory.as_deref(), &body).await?;
         let forked_id = normalize_optional_str_ref(Some(info.id.as_str()))
             .ok_or_else(|| "session fork returned an empty session id".to_string())?;
         if forked_id == session_id {
@@ -124,7 +124,7 @@ impl GatewayUiRuntime {
         let body = GatewaySessionResetBody { message_id: message_id.to_string() };
         let directory = self.directory_value();
         let info: UiSessionMutationInfo =
-            gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_reset(session_id, directory.as_deref(), &body).await?;
+            self.client().session_reset(session_id, directory.as_deref(), &body).await?;
         ensure_mutation_session_id("reset", session_id, info.id.as_str())
     }
 
@@ -133,17 +133,17 @@ impl GatewayUiRuntime {
         let message_id = required_message_id("compact", message_id)?;
         let body = GatewaySessionSummarizeBody { message_id: message_id.to_string() };
         let directory = self.directory_value();
-        gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_summarize(session_id, directory.as_deref(), &body).await
+        self.client().session_summarize(session_id, directory.as_deref(), &body).await
     }
 
     async fn session_archive_current(&self) -> Result<(), String> {
         let session_id = self.resolve_session_id(None)?;
         let directory = self.directory_value();
-        let mut archived = gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_archived_get(directory.as_deref()).await?;
+        let mut archived = self.client().session_archived_get(directory.as_deref()).await?;
         if !archived.iter().any(|candidate| candidate == session_id) {
             archived.push(session_id.to_string());
         }
-        if !gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_archived_put(directory.as_deref(), &archived).await? {
+        if !self.client().session_archived_put(directory.as_deref(), &archived).await? {
             return Err(format!("gateway did not archive session {session_id}"));
         }
         Ok(())
@@ -154,7 +154,7 @@ impl GatewayUiRuntime {
         let session_id = self.resolve_session_id(None)?;
         let directory = self.directory_value();
         let preview = block_on_gateway(
-            gateway_session::GatewaySessionClient::new(self.client().transport().clone()).session_preview_meta_get(session_id, directory.as_deref()),
+            self.client().session_preview_meta_get(session_id, directory.as_deref()),
         )?;
         if let Some(preview) = preview.as_ref() {
             ensure_mutation_session_id("preview", session_id, &preview.id)?;

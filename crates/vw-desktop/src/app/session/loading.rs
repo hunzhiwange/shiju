@@ -106,8 +106,8 @@ pub fn prepare_session_open(
 
 /// 把 Gateway 的最近消息页转换为首屏提交，不读取步骤、调用或完整历史。
 pub fn prepare_bounded_session_open(
-    summary: vw_gateway_client::GatewaySessionUiSummary,
-    page: vw_gateway_client::GatewaySessionMessagePage<
+    summary: vw_api_session::GatewaySessionUiSummary,
+    page: vw_api_session::GatewaySessionMessagePage<
         vw_shared::session::ui_types::SessionMessageRecord,
     >,
     show_reasoning_summary: bool,
@@ -157,7 +157,7 @@ pub fn prepare_bounded_session_open(
 
 pub fn prepare_timeline_page(
     session_id: &str,
-    page: vw_gateway_client::GatewaySessionMessagePage<
+    page: vw_api_session::GatewaySessionMessagePage<
         vw_shared::session::ui_types::SessionMessageRecord,
     >,
 ) -> TimelinePage {
@@ -281,17 +281,17 @@ impl App {
                 // Scope reads and writes belong to the endpoint selected when this load began.
                 let client =
                     vw_gateway_client::GatewayClient::new(endpoint).map_err(anyhow::Error::msg)?;
-                let scope_id = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let scope_id = client
                     .session_scope_get(path_clone.as_deref(), project_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?;
-                gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_put(scope_id.as_deref()).await.map_err(anyhow::Error::msg)?;
+                client.session_scope_put(scope_id.as_deref()).await.map_err(anyhow::Error::msg)?;
 
-                let previews = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let previews = client
                     .session_ui_previews(scope_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?;
-                let archived_session_ids = gateway_session::GatewaySessionClient::new(client.transport().clone())
+                let archived_session_ids = client
                     .session_archived_get(scope_id.as_deref())
                     .await
                     .map_err(anyhow::Error::msg)?
@@ -321,7 +321,7 @@ impl App {
                     .await
                     .map_err(anyhow::Error::msg)?
                 } else {
-                    gateway_session::GatewaySessionClient::new(client.transport().clone())
+                    client
                         .session_list::<Vec<vw_shared::session::info::Info>>(None)
                         .await
                         .map_err(anyhow::Error::msg)?

@@ -236,7 +236,7 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
         let directory = directory.clone();
         Task::perform(
             async move {
-                gateway_session::GatewaySessionClient::new(client?.transport().clone())
+                client?
                     .session_set_full_access(&target, directory.as_deref(), full_access_enabled)
                     .await
             },

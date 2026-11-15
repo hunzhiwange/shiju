@@ -7,7 +7,7 @@
 use axum::http::HeaderMap;
 use serde::Deserialize;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::session::GatewaySessionCreateBody;
+use vw_api_session::session::GatewaySessionCreateBody;
 
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::InstanceQuery;

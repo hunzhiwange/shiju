@@ -6,7 +6,7 @@ use crate::app::agent::storage;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt;
-use vw_api_types::session::GatewaySessionTodoItem as Info;
+use vw_api_session::session::GatewaySessionTodoItem as Info;
 use vw_api_todo::todo::{TodoPriority, TodoStatus};
 
 /// 声明 event 子模块，保持当前领域的职责拆分清晰。

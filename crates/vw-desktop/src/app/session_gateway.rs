@@ -309,7 +309,7 @@ pub(crate) fn active_agent_scheduler_scope(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_load_session_async(id: &str) -> Result<Option<ChatSession>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_get(id, None).await
+    client.session_ui_get(id, None).await
 }
 
 pub(crate) async fn gateway_bounded_session_open_with_client(
@@ -318,23 +318,22 @@ pub(crate) async fn gateway_bounded_session_open_with_client(
     directory: &str,
 ) -> Result<
     (
-        vw_gateway_client::GatewaySessionUiSummary,
-        vw_gateway_client::GatewaySessionMessagePage<
+        vw_api_session::GatewaySessionUiSummary,
+        vw_api_session::GatewaySessionMessagePage<
             vw_shared::session::ui_types::SessionMessageRecord,
         >,
     ),
     String,
 > {
-    let page_query = vw_gateway_client::GatewaySessionMessagePageQuery {
+    let page_query = vw_api_session::GatewaySessionMessagePageQuery {
         directory: Some(directory.to_owned()),
         cursor: None,
         limit: Some(64),
-        direction: vw_gateway_client::SessionMessagePageDirection::Older,
+        direction: vw_api_session::SessionMessagePageDirection::Older,
     };
-    let session_client = gateway_session::GatewaySessionClient::new(client.transport().clone());
     let (summary, page) = tokio::join!(
-        session_client.session_ui_summary(session_id, Some(directory)),
-        session_client.session_message_page(session_id, &page_query),
+        client.session_ui_summary(session_id, Some(directory)),
+        client.session_message_page(session_id, &page_query),
     );
     Ok((summary?, page?))
 }
@@ -345,19 +344,19 @@ pub(crate) async fn gateway_session_message_page_before_with_client(
     directory: &str,
     cursor: String,
 ) -> Result<
-    vw_gateway_client::GatewaySessionMessagePage<
+    vw_api_session::GatewaySessionMessagePage<
         vw_shared::session::ui_types::SessionMessageRecord,
     >,
     String,
 > {
-    gateway_session::GatewaySessionClient::new(client.transport().clone())
+    client
         .session_message_page(
             session_id,
-            &vw_gateway_client::GatewaySessionMessagePageQuery {
+            &vw_api_session::GatewaySessionMessagePageQuery {
                 directory: Some(directory.to_owned()),
                 cursor: Some(cursor),
                 limit: Some(64),
-                direction: vw_gateway_client::SessionMessagePageDirection::Older,
+                direction: vw_api_session::SessionMessagePageDirection::Older,
             },
         )
         .await
@@ -369,15 +368,15 @@ pub(crate) async fn gateway_session_message_page_before_with_client(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_load_session_any_async(id: &str) -> Result<Option<ChatSession>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_get_any(id).await
+    client.session_ui_get_any(id).await
 }
 
 /// 无目录限制地读取会话 UI 数据，并保留每步原始 LLM 载荷。
 pub async fn gateway_load_session_any_with_raw_async(
     id: &str,
-) -> Result<Option<gateway_session::SessionUiLoadResult>, String> {
+) -> Result<Option<vw_gateway_client::SessionUiLoadResult>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_get_any_with_raw(id).await
+    client.session_ui_get_any_with_raw(id).await
 }
 
 /// 执行 gateway_load_sessions_scoped_async 对应的领域操作。
@@ -388,7 +387,7 @@ pub async fn gateway_load_sessions_scoped_async(
     scope: Option<&str>,
 ) -> Result<Vec<ChatSessionMeta>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_previews(scope).await
+    client.session_ui_previews(scope).await
 }
 
 /// 执行 gateway_load_archived_session_ids_async 对应的领域操作。
@@ -399,7 +398,7 @@ pub async fn gateway_load_archived_session_ids_async(
     scope: Option<&str>,
 ) -> Result<HashSet<String>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_archived_get(scope).await.map(|ids| ids.into_iter().collect())
+    client.session_archived_get(scope).await.map(|ids| ids.into_iter().collect())
 }
 
 /// 执行 gateway_session_preview_meta_async 对应的领域操作。
@@ -410,7 +409,7 @@ pub async fn gateway_session_preview_meta_async(
     id: &str,
 ) -> Result<Option<ChatSessionMeta>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_preview_meta_get(id, None).await
+    client.session_preview_meta_get(id, None).await
 }
 
 /// 执行 gateway_session_file_path_async 对应的领域操作。
@@ -421,7 +420,7 @@ pub async fn gateway_session_file_path_async(
     id: &str,
 ) -> Result<Option<std::path::PathBuf>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_path_get(id, None).await.map(|path| path.map(std::path::PathBuf::from))
+    client.session_path_get(id, None).await.map(|path| path.map(std::path::PathBuf::from))
 }
 
 /// 执行 gateway_session_step_llm_raw_async 对应的领域操作。
@@ -435,7 +434,7 @@ pub async fn gateway_session_step_llm_raw_async(
     directory: Option<&str>,
 ) -> Result<Option<serde_json::Value>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_step_llm_raw_get(id, turn_id, step_index, directory).await
+    client.session_step_llm_raw_get(id, turn_id, step_index, directory).await
 }
 
 /// 执行 gateway_resolve_session_scope_id_async 对应的领域操作。
@@ -447,7 +446,7 @@ pub async fn gateway_resolve_session_scope_id_async(
     project_id: Option<&str>,
 ) -> Result<Option<String>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_get(path, project_id).await
+    client.session_scope_get(path, project_id).await
 }
 
 /// 执行 gateway_permission_list_owned_async 对应的领域操作。
@@ -489,7 +488,7 @@ pub async fn gateway_save_session_async(
         message_count = session_to_save.messages.len(),
         "desktop saving session ui content"
     );
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_save(&session_to_save.id, directory, &session_to_save).await?;
+    client.session_ui_save(&session_to_save.id, directory, &session_to_save).await?;
     Ok(Some(std::path::PathBuf::from(&session_to_save.id)))
 }
 
@@ -509,7 +508,7 @@ async fn gateway_session_message_delta_with_client(
     directory: Option<&str>,
     delta: &SessionMessageDelta,
 ) -> Result<(), SessionMessageDeltaSaveError> {
-    match gateway_session::GatewaySessionClient::new(client.transport().clone()).session_message_delta(session_id, directory, delta).await {
+    match client.session_message_delta(session_id, directory, delta).await {
         Ok(_) => Ok(()),
         Err(error) if error.contains("session history conflict") => {
             Err(SessionMessageDeltaSaveError::Rejected(error))
@@ -518,7 +517,7 @@ async fn gateway_session_message_delta_with_client(
             if error.contains("409 Conflict")
                 || error.contains("session message delta would create a seq_no gap") =>
         {
-            let summary = gateway_session::GatewaySessionClient::new(client.transport().clone()).session_ui_summary(session_id, directory).await.map_err(
+            let summary = client.session_ui_summary(session_id, directory).await.map_err(
                 |refresh_error| {
                     SessionMessageDeltaSaveError::Other(format!(
                         "{error}; failed to refresh stale session version: {refresh_error}"
@@ -562,7 +561,7 @@ fn session_ui_content_snapshot(session: &ChatSession) -> ChatSession {
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_set_session_scope_async(scope: Option<&str>) -> Result<(), String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_put(scope).await.map(|_| ())
+    client.session_scope_put(scope).await.map(|_| ())
 }
 
 /// 执行 gateway_current_session_scope_async 对应的领域操作。
@@ -571,7 +570,7 @@ pub async fn gateway_set_session_scope_async(scope: Option<&str>) -> Result<(), 
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_current_session_scope_async() -> Result<Option<String>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_scope_get(None, None).await
+    client.session_scope_get(None, None).await
 }
 
 /// 执行 gateway_question_list_async 对应的领域操作。
@@ -592,7 +591,7 @@ pub async fn gateway_session_todo_list_async(
     directory: Option<&str>,
 ) -> Result<Vec<vw_shared::todo::Todo>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone()).session_todo_get(id, directory).await
+    client.session_todo_get(id, directory).await
 }
 
 /// 执行 gateway_question_reply_async 对应的领域操作。
@@ -649,11 +648,11 @@ pub async fn gateway_save_agent_session_scoped_async(
     scope: Option<&str>,
 ) -> Result<Option<std::path::PathBuf>, String> {
     let client = gateway_client()?;
-    gateway_session::GatewaySessionClient::new(client.transport().clone())
+    client
         .session_update::<()>(
             &info.id,
             scope,
-            &vw_gateway_client::GatewaySessionPatchBody {
+            &vw_api_session::GatewaySessionPatchBody {
                 title: Some(info.title.clone()),
                 time: None,
             },

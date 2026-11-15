@@ -39,13 +39,13 @@ async fn roundtrip(app: &mut App) -> (ArchivedChatsState, ArchivedChatsState) {
     let row = app.archived_chats.sessions[0].clone();
     // Persist archive through the real HTTP client before listing and restoring.
     let client = crate::app::config::gateway_client().unwrap();
-    let _: vw_shared::session::info::Info = gateway_session::GatewaySessionClient::new(client.transport().clone())
+    let _: vw_shared::session::info::Info = client
         .session_update(
             &row.id,
             Some(&row.directory),
-            &vw_gateway_client::GatewaySessionPatchBody {
+            &vw_api_session::GatewaySessionPatchBody {
                 title: None,
-                time: Some(vw_gateway_client::GatewaySessionPatchTime { archived: Some(10) }),
+                time: Some(vw_api_session::GatewaySessionPatchTime { archived: Some(10) }),
             },
         )
         .await

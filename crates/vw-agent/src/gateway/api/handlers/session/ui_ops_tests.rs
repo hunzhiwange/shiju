@@ -9,7 +9,7 @@ use rusqlite::{Connection, params};
 use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
-use vw_api_types::session::{
+use vw_api_session::session::{
     GatewaySessionMessagePageQuery, GatewaySessionScopeBody, GatewaySessionTodoItem,
     GatewaySessionTodoPutBody,
 };

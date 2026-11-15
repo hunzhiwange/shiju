@@ -15,7 +15,7 @@ use std::sync::Once;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::broadcast;
-use vw_api_types::session::{
+use vw_api_session::session::{
     GatewaySessionCreateBody, GatewaySessionPatchBody, GatewaySessionPatchTime,
     GatewaySessionTodoItem, GatewaySessionTodoPutBody,
 };

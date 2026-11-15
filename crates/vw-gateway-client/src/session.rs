@@ -1,5 +1,5 @@
 /// 直接透出网关会话相关类型，避免调用方重复依赖 vw-api-types。
-pub use vw_api_types::session::{
+pub use vw_api_session::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
     GatewaySessionForkTarget, GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery,
     GatewaySessionMessagePage, GatewaySessionMessagePageQuery, GatewaySessionPatchBody,

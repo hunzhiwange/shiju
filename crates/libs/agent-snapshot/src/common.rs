@@ -3,7 +3,8 @@
 //! 该文件只放置跨平台共享的数据结构、错误类型以及日志字段构造逻辑，
 //! 避免将平台相关实现细节和公共接口耦合在同一个文件中。
 
-use crate::app::agent::util::log;
+#[cfg(not(target_arch = "wasm32"))]
+use agent_log as log;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt;

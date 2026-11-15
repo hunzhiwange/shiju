@@ -7,6 +7,11 @@ use std::fs;
 use std::path::Path;
 use std::sync::MutexGuard;
 
+fn global_env_lock() -> &'static std::sync::Mutex<()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    &LOCK
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 struct EnvGuard {
     key: &'static str,
@@ -42,7 +47,7 @@ struct GitTestGuard {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn git_test_guard() -> GitTestGuard {
-    let env_lock = crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let env_lock = global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let git_guard = EnvGuard::set("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT", "1");
     GitTestGuard { _git_guard: git_guard, _env_lock: env_lock }
 }
@@ -60,7 +65,7 @@ fn ensure_gitdir_reports_whether_directory_was_created() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn git(repo: &Path, args: &[&str]) -> String {
-    let output = crate::app::agent::shell::git_std_command()
+    let output = shell_command::git_std_command()
         .current_dir(repo)
         .env("GIT_AUTHOR_NAME", "Snapshot Test")
         .env("GIT_AUTHOR_EMAIL", "snapshot@example.com")

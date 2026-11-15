@@ -139,7 +139,7 @@ fn sanitized_api_errors_redact_multiple_secret_shapes_and_truncate_utf8_safely()
 
 #[test]
 fn url_and_routed_factories_delegate_to_provider_creation() {
-    let reliability = crate::app::agent::config::ReliabilityConfig::default();
+    let reliability = config_reliability::ReliabilityConfig::default();
     let options = ProviderRuntimeOptions { secrets_encrypt: false, ..Default::default() };
 
     assert!(create_provider_with_url("openai", Some("key"), Some("https://example.test")).is_ok());

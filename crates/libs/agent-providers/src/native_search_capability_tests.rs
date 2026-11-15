@@ -1,4 +1,4 @@
-use crate::provider::provider::resolve_native_search_capabilities;
+use agent_provider::provider::resolve_native_search_capabilities;
 use serde_json::json;
 use model_state::resolve_model_capabilities;
 

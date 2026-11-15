@@ -169,6 +169,7 @@ agent-question = { path = "../libs/agent-question", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
 agent-provider = { path = "../libs/agent-provider", version = "0.6.0" }
+agent-providers = { path = "../libs/agent-providers", version = "0.6.0" }
 plugin-hooks = { path = "../libs/plugin-hooks", version = "0.6.0" }
 tool-web = { path = "../libs/tool-web", version = "0.6.0", default-features = false }
 network-policy = { path = "../libs/network-policy", version = "0.6.0" }

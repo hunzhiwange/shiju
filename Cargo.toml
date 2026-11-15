@@ -300,6 +300,7 @@ members = [
   "crates/libs/agent-log",
   "crates/libs/agent-paths",
   "crates/libs/agent-provider",
+  "crates/libs/agent-providers",
   "crates/libs/plugin-hooks",
   "crates/libs/plugin-install",
   "crates/libs/tool-web",

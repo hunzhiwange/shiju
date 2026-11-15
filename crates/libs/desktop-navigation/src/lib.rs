@@ -15,3 +15,5 @@ pub mod components {
  #[cfg(test)] mod notification_tests;
  #[cfg(test)] mod startup_transition_tests;
 }
+
+pub mod message { pub mod notification; }

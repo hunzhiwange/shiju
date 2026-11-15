@@ -1,11 +1,30 @@
 //! 覆盖通知消息处理的本地列表、编辑器和反馈状态。
 
-use super::{NotificationMessage, update};
-use crate::app::App;
+use super::NotificationMessage;
+use super::Notification;
+use desktop_ui_controls::toast::{Toast, ToastKind};
 use iced::widget::text_editor;
 
-fn test_app() -> App {
-    App::new().0
+#[derive(Default)]
+struct App {
+    notifications: Vec<Notification>,
+    notification_editors: std::collections::HashMap<usize, text_editor::Content>,
+    next_notification_id: usize,
+    copied_notification_id: Option<usize>,
+    notifications_expanded: bool,
+    active_toast: Option<Toast>,
+}
+fn test_app() -> App { App::default() }
+fn update(app: &mut App, message: NotificationMessage) -> Option<(usize, String)> {
+    super::update(super::State {
+        notifications: &mut app.notifications,
+        notification_editors: &mut app.notification_editors,
+        next_notification_id: &mut app.next_notification_id,
+        copied_notification_id: &mut app.copied_notification_id,
+        notifications_expanded: &mut app.notifications_expanded,
+        active_toast: &mut app.active_toast,
+        desktop_locale: config_ui::DesktopLocale::default(),
+    }, message)
 }
 
 #[test]
@@ -125,11 +144,11 @@ fn editor_action_allows_selection_but_ignores_text_edits() {
 #[test]
 fn hide_toast_only_clears_matching_toast() {
     let mut app = test_app();
-    app.active_toast = Some(crate::app::state::Toast {
+    app.active_toast = Some(Toast {
         localized_message: None,
         id: 7,
         message: "toast".to_string(),
-        kind: crate::app::state::ToastKind::Info,
+        kind: ToastKind::Info,
     });
 
     let _ = update(&mut app, NotificationMessage::HideToast(8));

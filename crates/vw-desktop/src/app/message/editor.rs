@@ -9,9 +9,7 @@
 //! 已提交的编辑器设置会异步保存到网关。
 
 use crate::app::{App, Message};
-use iced::{Task, Theme};
-use iced_code_editor::i18n::Language;
-use iced_code_editor::theme;
+use iced::Task;
 
 pub(crate) mod metrics;
 pub(crate) mod persistence;
@@ -20,77 +18,7 @@ use persistence::EditorSettingsPatch;
 
 pub use desktop_editor::components::preview_panel::view::options::{EditorOption, EditorPopover};
 
-#[derive(Debug, Clone)]
-pub enum EditorMessage {
-    #[cfg(not(target_arch = "wasm32"))]
-    InstallLsp(crate::app::lsp::install::Server),
-    #[cfg(not(target_arch = "wasm32"))]
-    CopyLspCommand(crate::app::lsp::install::Server),
-    #[cfg(not(target_arch = "wasm32"))]
-    LspInstalled(Result<(), String>),
-    TogglePopover(EditorPopover),
-    ClosePopover,
-    SetOption(EditorOption, bool),
-    SetIndentStyle(iced_code_editor::IndentStyle),
-    /// 留空随视口，否则仅接受正整数列宽。
-    SetWrapColumn(String),
-    /// 切换设置面板显示状态
-    ToggleSettings,
-
-    /// 打开搜索对话框
-    OpenSearch,
-
-    /// 打开搜索替换对话框
-    OpenReplace,
-
-    /// 关闭搜索对话框
-    CloseSearch,
-
-    /// 字体变更消息（参数：字体名称）
-    FontChanged(String),
-
-    /// 预览滑块值，等释放或停顿后再更新编辑器度量。
-    FontSizePreview(f32),
-    LineHeightPreview(f32),
-    CommitMetrics,
-    CommitMetricsDue(u64),
-
-    /// 编辑器界面语言变更（参数：语言类型）
-    LanguageChanged(Language),
-
-    /// 编辑器主题变更（参数：Iced 主题）
-    ThemeChanged(Theme),
-
-    /// 切换是否跟随系统主题（参数：是否跟随）
-    ToggleFollowSystemTheme(bool),
-
-    /// 切换自动行高调整（参数：是否自动调整）
-    ToggleAutoLineHeight(bool),
-
-    /// 网关保存结果
-    ConfigSaved(Result<(), String>),
-
-    /// 撤销操作
-    Undo,
-
-    /// 重做操作
-    Redo,
-
-    /// 复制选中内容到剪贴板
-    Copy,
-
-    /// 剪切选中内容到剪贴板
-    Cut,
-
-    /// 从剪贴板粘贴内容
-    Paste,
-
-    /// 剪贴板内容接收回调（参数：剪贴板文本内容，None 表示无内容）
-    ClipboardContentReceived(Option<String>),
-
-    /// 删除选中内容
-    Delete,
-}
+pub use desktop_editor::message::editor::EditorMessage;
 
 /// 处理编辑器消息并更新应用状态
 ///
@@ -111,37 +39,13 @@ pub enum EditorMessage {
 /// - 粘贴操作返回剪贴板读取任务
 /// - 其他操作通常返回 `Task::none()`
 pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
-    if app.shutdown_requested && !matches!(message, EditorMessage::ConfigSaved(_)) {
-        return Task::none();
-    }
-    if app
-        .active_preview_path
-        .as_ref()
-        .is_some_and(|path| app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only))
-        && matches!(
-            message,
-            EditorMessage::OpenReplace
-                | EditorMessage::Undo
-                | EditorMessage::Redo
-                | EditorMessage::Cut
-                | EditorMessage::Paste
-                | EditorMessage::ClipboardContentReceived(_)
-                | EditorMessage::Delete
-        )
-    {
-        return Task::none();
-    }
-    if !matches!(
-        message,
-        EditorMessage::TogglePopover(_)
-            | EditorMessage::ClosePopover
-            | EditorMessage::SetOption(_, _)
-            | EditorMessage::SetIndentStyle(_)
-            | EditorMessage::SetWrapColumn(_)
-    ) {
-        app.editor_popover = None;
-    }
+    let read_only = app.active_preview_path.as_ref().is_some_and(|path|
+        app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only));
+    if !desktop_editor::message::editor::prepare_message(
+        app.shutdown_requested, read_only, &mut app.editor_popover, &message,
+    ) { return Task::none(); }
     match message {
+
         #[cfg(not(target_arch = "wasm32"))]
         EditorMessage::CopyLspCommand(server) => iced::clipboard::write(server.manual_command()),
         #[cfg(not(target_arch = "wasm32"))]
@@ -158,53 +62,12 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             ),
             Err(error) => app.show_error_toast(error),
         },
-        EditorMessage::SetOption(option, enabled) => {
-            if let Some(tab) = app
-                .preview_tabs
-                .iter_mut()
-                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
-            {
-                option.set(&mut tab.editor.inner, enabled);
-            }
-            Task::none()
-        }
-        EditorMessage::SetWrapColumn(value) => {
-            let column = if value.is_empty() {
-                None
-            } else {
-                match value.parse::<usize>() {
-                    Ok(column) if column > 0 => Some(column),
-                    _ => return Task::none(),
-                }
-            };
-            if let Some(tab) = app
-                .preview_tabs
-                .iter_mut()
-                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
-                && tab.editor.inner.wrap_enabled()
-            {
-                tab.editor.inner.set_wrap_column(column);
-            }
-            Task::none()
-        }
-        EditorMessage::SetIndentStyle(style) => {
-            if let Some(tab) = app
-                .preview_tabs
-                .iter_mut()
-                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
-            {
-                tab.editor.inner.set_indent_style(style);
-            }
-            Task::none()
-        }
-
         EditorMessage::TogglePopover(kind) => {
             let has_file = app
                 .active_preview_path
                 .as_ref()
                 .is_some_and(|path| app.preview_tabs.iter().any(|tab| tab.path == *path));
-            app.editor_popover =
-                if has_file && app.editor_popover != Some(kind) { Some(kind) } else { None };
+            desktop_editor::message::editor::toggle_popover(&mut app.editor_popover, has_file, kind);
             app.show_preview_context_menu = false;
             app.preview_nav_popup = None;
             app.show_preview_settings = false;
@@ -227,56 +90,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             }
             Task::none()
         }
-        EditorMessage::ClosePopover => {
-            app.editor_popover = None;
-            Task::none()
-        }
-        // 切换预览设置面板的显示/隐藏状态
         EditorMessage::ToggleSettings => {
             app.show_preview_settings = !app.show_preview_settings;
             if app.show_preview_settings { Task::none() } else { metrics::commit(app, None) }
         }
-
-        // 打开搜索对话框（仅限当前激活的预览标签页）
-        EditorMessage::OpenSearch => {
-            app.show_preview_settings = false;
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.open_search_dialog().map(|e| {
-                    Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(e))
-                });
-            }
-            Task::none()
-        }
-
-        // 打开搜索替换对话框（仅限当前激活的预览标签页）
-        EditorMessage::OpenReplace => {
-            app.show_preview_settings = false;
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.open_search_replace_dialog().map(|e| {
-                    Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(e))
-                });
-            }
-            Task::none()
-        }
-
-        // 关闭搜索对话框（仅限当前激活的预览标签页）
-        EditorMessage::CloseSearch => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.close_search_dialog().map(|e| {
-                    Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(e))
-                });
-            }
-            Task::none()
-        }
-
-        // 字体变更（当前未实现具体逻辑）
-        EditorMessage::FontChanged(_) => Task::none(),
 
         EditorMessage::FontSizePreview(size) => {
             app.editor_metrics_preview.font_size = Some(size);
@@ -300,13 +117,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         EditorMessage::LanguageChanged(lang) => {
             app.current_language = lang;
 
-            // 更新所有预览标签页的编辑器语言
-            for tab in app.preview_tabs.iter_mut() {
-                tab.editor.set_ui_language(lang);
-            }
-
-            // 更新 Git 复制模态框中的代码编辑器语言
-            app.git_copy_modal_code_editor.set_language(lang);
+            desktop_editor::message::editor::apply_language(
+                app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                &mut app.git_copy_modal_code_editor, lang,
+            );
             Task::none()
         }
 
@@ -316,13 +130,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             app.editor_theme = theme.clone();
             app.editor_follow_system_theme = false;
 
-            // 更新所有预览标签页的编辑器主题
-            for tab in app.preview_tabs.iter_mut() {
-                tab.editor.set_theme(theme.clone());
-            }
-
-            // 更新 Git 复制模态框主题
-            app.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&theme));
+            desktop_editor::message::editor::apply_theme(
+                app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                &mut app.git_copy_modal_code_editor, theme.clone(),
+            );
 
             persistence::enqueue(app, EditorSettingsPatch::theme(theme.to_string()))
         }
@@ -334,13 +145,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             // 获取有效主题（考虑系统主题设置）
             let editor_theme = app.effective_editor_theme();
 
-            // 更新所有预览标签页的编辑器主题
-            for tab in app.preview_tabs.iter_mut() {
-                tab.editor.set_theme(editor_theme.clone());
-            }
-
-            // 更新 Git 复制模态框主题
-            app.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
+            desktop_editor::message::editor::apply_theme(
+                app.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                &mut app.git_copy_modal_code_editor, editor_theme.clone(),
+            );
 
             persistence::enqueue(app, EditorSettingsPatch::follow_system_theme(follow))
         }
@@ -348,96 +156,17 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         EditorMessage::ConfigSaved(result) => persistence::save_complete(app, result),
 
         // 撤销操作（仅限当前激活的预览标签页）
-        EditorMessage::Undo => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.inner.update(&iced_code_editor::Message::Undo).map(|e| {
-                    Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(e))
-                });
-            }
-            Task::none()
-        }
-
-        // 重做操作（仅限当前激活的预览标签页）
-        EditorMessage::Redo => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.inner.update(&iced_code_editor::Message::Redo).map(|e| {
-                    Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(e))
-                });
-            }
-            Task::none()
-        }
-
-        // 复制选中内容到剪贴板（仅限当前激活的预览标签页）
-        EditorMessage::Copy => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.inner.update(&iced_code_editor::Message::Copy).map(|e| {
-                    Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(e))
-                });
-            }
-            Task::none()
-        }
-
-        // 剪切选中内容到剪贴板（仅限当前激活的预览标签页）
-        // 剪切 = 复制 + 删除选中内容
-        EditorMessage::Cut => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                let _ = tab.editor.inner.update(&iced_code_editor::Message::Copy);
-                return tab.editor.inner.update(&iced_code_editor::Message::DeleteSelection).map(
-                    |e| {
-                        Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(
-                            e,
-                        ))
-                    },
-                );
-            }
-            Task::none()
-        }
-
-        // 粘贴操作：异步读取剪贴板内容
-        EditorMessage::Paste => iced::clipboard::read()
-            .map(|content| Message::Editor(EditorMessage::ClipboardContentReceived(content))),
-
-        // 处理剪贴板内容接收回调（有内容时粘贴）
-        EditorMessage::ClipboardContentReceived(Some(content)) => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.inner.update(&iced_code_editor::Message::Paste(content)).map(
-                    |e| {
-                        Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(
-                            e,
-                        ))
-                    },
-                );
-            }
-            Task::none()
-        }
-
-        // 剪贴板内容为空，不执行任何操作
-        EditorMessage::ClipboardContentReceived(None) => Task::none(),
-
-        // 删除选中内容（仅限当前激活的预览标签页）
-        EditorMessage::Delete => {
-            if let Some(path) = app.active_preview_path.clone()
-                && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
-            {
-                return tab.editor.inner.update(&iced_code_editor::Message::DeleteSelection).map(
-                    |e| {
-                        Message::Preview(crate::app::message::preview::PreviewMessage::EditorEvent(
-                            e,
-                        ))
-                    },
-                );
-            }
-            Task::none()
+        message => {
+            let editor = app.preview_tabs.iter_mut()
+                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
+                .map(|tab| &mut tab.editor);
+            desktop_editor::message::editor::update(
+                editor, &mut app.editor_popover, &mut app.show_preview_settings, message,
+            ).map(|event| match event {
+                desktop_editor::message::editor::Event::Preview(event) =>
+                    Message::Preview(crate::app::message::PreviewMessage::EditorEvent(event)),
+                desktop_editor::message::editor::Event::Message(message) => Message::Editor(message),
+            })
         }
     }
 }

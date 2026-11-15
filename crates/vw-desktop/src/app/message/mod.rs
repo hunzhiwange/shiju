@@ -245,9 +245,6 @@ mod tests;
 #[path = "editor_tests.rs"]
 mod editor_tests;
 
-#[cfg(test)]
-#[path = "gateway_health_tests.rs"]
-mod gateway_health_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "skill_hub_tests.rs"]

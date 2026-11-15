@@ -17,3 +17,22 @@ desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 chrono = "0.4"
 url = "2"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
+version = "0.13"
+default-features = false
+features = ["json", "rustls"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
+version = "0.13"
+features = ["json"]
+
+[dependencies.tracing]
+version = "0.1"
+
+[dependencies.gateway-endpoint]
+path = "../gateway-endpoint"
+version = "0.6.0"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

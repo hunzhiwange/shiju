@@ -19,3 +19,10 @@ pub enum Message {
 
 mod health;
 pub use health::server_health_key;
+
+pub mod message {
+    pub mod gateway_health;
+    #[cfg(test)]
+    mod gateway_health_tests;
+}
+pub use message::gateway_health::check_servers;

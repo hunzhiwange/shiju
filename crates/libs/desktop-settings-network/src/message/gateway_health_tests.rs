@@ -1,8 +1,9 @@
 // 验证网关健康检查地址规范化及不可达服务的状态更新。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
-use super::gateway_health::{check_servers, server_health_key};
-use crate::app::state::GatewayClientServerDraft;
+use super::gateway_health::check_servers;
+use crate::server_health_key;
+use crate::state::GatewayClientServerDraft;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 

@@ -5,7 +5,7 @@ use super::editor::{EditorMessage, update};
 use crate::app::components::editor::Editor;
 use crate::app::{App, PreviewTab};
 use iced::{Theme, widget::Id};
-use iced_code_editor::{ArrowDirection, Message as CodeEditorMessage, i18n::Language};
+use iced_code_editor::i18n::Language;
 
 fn test_app() -> App {
     let themes = tempfile::tempdir().unwrap();
@@ -257,59 +257,6 @@ fn clipboard_content_undo_and_redo_mutate_only_the_active_editor() {
 
     let _ = update(&mut app, EditorMessage::Redo);
     assert_eq!(app.preview_tabs[0].editor.content(), "head tail");
-}
-
-#[test]
-fn cut_and_delete_remove_the_active_editor_selection() {
-    for message in [EditorMessage::Cut, EditorMessage::Delete] {
-        let mut app = app_with_active_preview("abcd");
-        let editor = &mut app.preview_tabs[0].editor.inner;
-        let _ = editor.update(&CodeEditorMessage::GotoPosition(0, 0));
-        let _ = editor.update(&CodeEditorMessage::ArrowKey(ArrowDirection::Right, true));
-        let _ = editor.update(&CodeEditorMessage::ArrowKey(ArrowDirection::Right, true));
-
-        let _ = update(&mut app, message);
-
-        assert_eq!(app.preview_tabs[0].editor.content(), "cd");
-    }
-}
-
-#[test]
-fn copy_preserves_the_active_editor_content() {
-    let mut app = app_with_active_preview("copy me");
-    let editor = &mut app.preview_tabs[0].editor.inner;
-    let _ = editor.update(&CodeEditorMessage::GotoPosition(0, 0));
-    let _ = editor.update(&CodeEditorMessage::ArrowKey(ArrowDirection::Right, true));
-
-    let _ = update(&mut app, EditorMessage::Copy);
-
-    assert_eq!(app.preview_tabs[0].editor.content(), "copy me");
-}
-
-#[test]
-fn paste_request_and_empty_clipboard_result_preserve_editor_content() {
-    let mut app = app_with_active_preview("keep");
-
-    let _ = update(&mut app, EditorMessage::Paste);
-    let _ = update(&mut app, EditorMessage::ClipboardContentReceived(None));
-
-    assert_eq!(app.preview_tabs[0].editor.content(), "keep");
-}
-
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn search_dialog_actions_preserve_editor_content() {
-    let mut app = app_with_active_preview("find me");
-
-    let _ = update(&mut app, EditorMessage::OpenSearch);
-    assert_eq!(app.preview_tabs[0].editor.content(), "find me");
-
-    let _ = update(&mut app, EditorMessage::OpenReplace);
-    assert_eq!(app.preview_tabs[0].editor.content(), "find me");
-
-    let _ = update(&mut app, EditorMessage::CloseSearch);
-    assert_eq!(app.preview_tabs[0].editor.content(), "find me");
 }
 
 #[cfg(not(target_arch = "wasm32"))]

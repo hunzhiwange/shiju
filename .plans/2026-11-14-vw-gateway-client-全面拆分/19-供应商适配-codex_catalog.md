@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：19，线性顺序 19；依赖：前一批次 18。符号依赖卡：无额外前置。不并行。
 
@@ -32,3 +32,10 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-app-provider crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## 静态交接
+
+- codex_catalog.rs 的六个公开方法及私有 codex_request → gateway-app-provider/src/app_providers/codex_catalog.rs；原包保留显式转发。
+- codex_catalog_tests.rs 两项行为测试 → 领域库同名独立文件；原包保留路径拒绝门面兼容测试。
+- 桌面表单、托盘及 agent 测试直达领域库；已有 workspace 成员与清单依赖满足需要，无新增依赖。
+- 按用户覆盖要求，未运行 Cargo、测试及实机验证；仅静态审查，动态验收以后统一授权执行。

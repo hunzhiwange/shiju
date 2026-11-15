@@ -240,20 +240,20 @@ async fn cc04_accept_transactions_switch_and_restart_recovery() {
     let pending = "private/provider-live/aG9zdA/codex.pending.json";
 
     let first = codex_profile("one", true, ClaudeActivation::First);
-    let result = client.codex_provider_save("one", &first, TOKEN).await.unwrap();
+    let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_save("one", &first, TOKEN).await.unwrap();
     assert!(result.catalog_saved);
     assert_eq!(result.live, CodexLiveResult::Applied);
     assert_eq!(direct_provider(&client, AppId::Codex).await, "one");
     for (id, preserve_login) in [("two", true), ("three", false)] {
         let profile = codex_profile(id, preserve_login, ClaudeActivation::CatalogOnly);
-        let result = client.codex_provider_save(id, &profile, TOKEN).await.unwrap();
+        let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_save(id, &profile, TOKEN).await.unwrap();
         assert!(result.catalog_saved);
         assert_eq!(result.live, CodexLiveResult::NotAttempted);
     }
 
     for id in ["two", "one", "two", "one"] {
         assert_eq!(
-            client.codex_provider_switch(id, &target, TOKEN).await.unwrap().live,
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_switch(id, &target, TOKEN).await.unwrap().live,
             CodexLiveResult::Applied,
         );
         assert_eq!(direct_provider(&client, AppId::Codex).await, id);
@@ -265,7 +265,7 @@ async fn cc04_accept_transactions_switch_and_restart_recovery() {
 
     // Force a real post-publication rename failure, leaving the previous state readable.
     let immutable = ImmutableFile::new(fixture.path(state));
-    let result = client.codex_provider_switch("three", &target, TOKEN).await.unwrap();
+    let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_switch("three", &target, TOKEN).await.unwrap();
     assert_eq!(result.live, CodexLiveResult::RecoveryRequired);
     assert_eq!(fixture.read_json(pending)["published"], true);
     assert_eq!(fixture.read_json(state)["pointer"]["id"], "one");

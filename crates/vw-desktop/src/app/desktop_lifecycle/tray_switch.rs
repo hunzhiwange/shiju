@@ -72,8 +72,7 @@ pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
                         .await
                 }
                 AppId::Codex => {
-                    client
-                        .codex_provider_switch(
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_switch(
                             &worker_id,
                             &CodexTarget { target_host_id: host },
                             &token,

@@ -55,8 +55,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<CodexFormView, String> {
-    client
-        .codex_form_read(id, &CodexTarget { target_host_id: scope.host }, token)
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_form_read(id, &CodexTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
 }
@@ -77,9 +76,9 @@ pub(crate) async fn save(
     };
     let request = draft.request(scope.host, form.fields, key);
     let result = if matches!(form.mode, Mode::Create) {
-        client.codex_form_create(&form.id, &request, &token).await
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_form_create(&form.id, &request, &token).await
     } else {
-        client.codex_form_update(&form.id, &request, &token).await
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_form_update(&form.id, &request, &token).await
     }
     .map_err(error)?;
     if !result.catalog_saved {

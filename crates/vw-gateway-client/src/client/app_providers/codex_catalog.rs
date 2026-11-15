@@ -9,7 +9,8 @@ impl GatewayClient {
         body: &CodexWrite,
         token: &str,
     ) -> Result<CodexResult, Error> {
-        self.codex_request(id, "PUT", "/config", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .codex_provider_save(id, body, token).await
     }
     pub async fn codex_provider_switch(
         &self,
@@ -17,7 +18,8 @@ impl GatewayClient {
         body: &CodexTarget,
         token: &str,
     ) -> Result<CodexResult, Error> {
-        self.codex_request(id, "POST", "/switch", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .codex_provider_switch(id, body, token).await
     }
     pub async fn codex_provider_reapply(
         &self,
@@ -25,7 +27,8 @@ impl GatewayClient {
         body: &CodexTarget,
         token: &str,
     ) -> Result<CodexResult, Error> {
-        self.codex_request(id, "POST", "/reapply", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .codex_provider_reapply(id, body, token).await
     }
     pub async fn codex_form_read(
         &self,
@@ -33,7 +36,8 @@ impl GatewayClient {
         body: &CodexTarget,
         token: &str,
     ) -> Result<CodexFormView, Error> {
-        self.codex_request(id, "POST", "/form/read", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .codex_form_read(id, body, token).await
     }
     pub async fn codex_form_create(
         &self,
@@ -41,7 +45,8 @@ impl GatewayClient {
         body: &CodexFormWrite,
         token: &str,
     ) -> Result<CodexResult, Error> {
-        self.codex_request(id, "POST", "/form", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .codex_form_create(id, body, token).await
     }
     pub async fn codex_form_update(
         &self,
@@ -49,48 +54,7 @@ impl GatewayClient {
         body: &CodexFormWrite,
         token: &str,
     ) -> Result<CodexResult, Error> {
-        self.codex_request(id, "PATCH", "/form", body, token).await
-    }
-    async fn codex_request<B: serde::Serialize, R: serde::de::DeserializeOwned>(
-        &self,
-        id: &str,
-        method: &str,
-        action: &str,
-        body: &B,
-        token: &str,
-    ) -> Result<R, Error> {
-        if id.is_empty()
-            || id.len() > 128
-            || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))
-        {
-            return Err(Error::Transport("invalid provider identity".into()));
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = (method, action, body, token);
-            Err(Error::Transport("Codex requires native transport".into()))
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
-            let prefix = "/v1/app-providers/codex";
-            let method = reqwest::Method::from_bytes(method.as_bytes())
-                .map_err(|_| Error::Transport("invalid method".into()))?;
-            let request = self.transport.dynamic_host_client()
-                .request(method, format!("{}{prefix}/{id}{action}", self.transport.endpoint().base_url()))
-                .header("x-agent-apps-token", credential)
-                .json(body);
-            let response = crate::http::apply_request_context(request, self.transport.endpoint())
-                .send()
-                .await
-                .map_err(|_| Error::Transport("Codex request failed".into()))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(Error::Http { status: status.as_u16(), body: serde_json::Value::Null });
-            }
-            response.json().await.map_err(|_| Error::Decode("invalid Codex response".into()))
-        }
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .codex_form_update(id, body, token).await
     }
 }

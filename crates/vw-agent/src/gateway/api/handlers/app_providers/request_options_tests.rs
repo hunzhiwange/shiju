@@ -114,9 +114,7 @@ async fn cc04_ui_endpoints_options_survive_native_save_and_never_return_secrets(
             let mut profile: CodexProfile =
                 serde_json::from_value(before["codex"].clone()).unwrap();
             profile.name = "再次原生保存".into();
-            let result = f
-                .client
-                .codex_provider_save(
+            let result = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).codex_provider_save(
                     "fixture",
                     &CodexWrite {
                         target_host_id: "host".into(),

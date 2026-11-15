@@ -211,3 +211,9 @@ mod claude;
 #[cfg(test)]
 #[path = "app_providers/claude_tests.rs"]
 mod claude_tests;
+
+#[path = "app_providers/codex_catalog.rs"]
+mod codex_catalog;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app_providers/codex_catalog_tests.rs"]
+mod codex_catalog_tests;

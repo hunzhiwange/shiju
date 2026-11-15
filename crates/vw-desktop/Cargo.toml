@@ -33,6 +33,7 @@ config-agent = { path = "../libs/config-agent", version = "0.6.0" }
 model-reasoning = { path = "../libs/model-reasoning", version = "0.6.0" }
 gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.6.0" }
 gateway-app-failover = { path = "../libs/gateway-app-failover", version = "0.6.0" }
+gateway-app-diagnostics = { path = "../libs/gateway-app-diagnostics", version = "0.6.0" }
 config-agent-profile = { path = "../libs/config-agent-profile", version = "0.6.0" }
 vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 config-tools = { path = "../libs/config-tools", version = "0.6.0" }

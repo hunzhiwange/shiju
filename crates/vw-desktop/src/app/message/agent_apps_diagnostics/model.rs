@@ -1,4 +1,5 @@
 //! Model probes only submit IDs to the authorized execution host.
+use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
 use super::model_state::*;
 use crate::app::{
     App, Message,
@@ -63,7 +64,7 @@ pub(crate) async fn submit(
         }
         _ => return Err(error(())),
     };
-    client.diagnostic_start(&run.context.query(), &request, token).await.map_err(error)
+    GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&run.context.query(), &request, token).await.map_err(error)
 }
 fn poll(app: &mut App, index: usize, cancel: bool) -> Task<Message> {
     let Some(run) = app.apps_catalog.model_diagnostics.runs.get(index) else {
@@ -90,10 +91,10 @@ fn poll(app: &mut App, index: usize, cancel: bool) -> Task<Message> {
     let task = Task::perform(
         async move {
             let result = if cancel {
-                client.diagnostic_cancel(&query, &job.task_id, &token).await
+                GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&query, &job.task_id, &token).await
             } else {
                 crate::app::message::sleep(std::time::Duration::from_millis(350)).await;
-                client.diagnostic_status(&query, &job.task_id, &token).await
+                GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&query, &job.task_id, &token).await
             };
             Event::Snapshot(index, serial, result.map_err(error))
         },

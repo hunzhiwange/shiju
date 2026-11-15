@@ -1,4 +1,5 @@
 //! Endpoint probes share the authorized job SDK. Selecting never writes provider configuration.
+use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
 use super::{endpoint_state::*, model_state::ModelContext};
 use crate::app::{
     App, Message,
@@ -58,9 +59,7 @@ fn cleanup(
     }
     Task::perform(
         async move {
-            transport
-                .client
-                .diagnostic_cancel(&context.query(), &job.task_id, &transport.token)
+            GatewayAppDiagnosticsClient::new(transport.client.transport().clone()).diagnostic_cancel(&context.query(), &job.task_id, &transport.token)
                 .await
                 .map_err(error)
         },
@@ -78,15 +77,11 @@ fn poll(app: &mut App, cancel: bool) -> Task<Message> {
     Task::perform(
         async move {
             let result = if cancel {
-                transport
-                    .client
-                    .diagnostic_cancel(&context.query(), &job.task_id, &transport.token)
+                GatewayAppDiagnosticsClient::new(transport.client.transport().clone()).diagnostic_cancel(&context.query(), &job.task_id, &transport.token)
                     .await
             } else {
                 crate::app::message::sleep(std::time::Duration::from_millis(350)).await;
-                transport
-                    .client
-                    .diagnostic_status(&context.query(), &job.task_id, &transport.token)
+                GatewayAppDiagnosticsClient::new(transport.client.transport().clone()).diagnostic_status(&context.query(), &job.task_id, &transport.token)
                     .await
             }
             .map_err(error);
@@ -200,9 +195,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                             generation,
                             transport: transport.clone(),
                         },
-                        transport
-                            .client
-                            .diagnostic_endpoint_candidates(
+                        GatewayAppDiagnosticsClient::new(transport.client.transport().clone()).diagnostic_endpoint_candidates(
                                 &context.query(),
                                 &query,
                                 &transport.token,
@@ -275,9 +268,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             };
             return Task::perform(
                 async move {
-                    let result = transport
-                        .client
-                        .diagnostic_start(&context.query(), &request, &transport.token)
+                    let result = GatewayAppDiagnosticsClient::new(transport.client.transport().clone()).diagnostic_start(&context.query(), &request, &transport.token)
                         .await
                         .map_err(error);
                     Event::Started(Reply { context, generation, transport }, result)

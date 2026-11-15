@@ -1,3 +1,4 @@
+use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
 use crate::app::{
     message::agent_apps_diagnostics::model_state::*,
     state::{AgentAppsContext, app_providers::list::Scope},
@@ -206,13 +207,11 @@ async fn protocol_roundtrip(kind: DiagnosticProbeKind) -> ModelRun {
     });
     // This is the production submit helper, through the real SDK and isolated HTTP transport.
     assert_eq!(model::submit(&client, &run, "fixture-token").await.unwrap(), identity);
-    let status = client
-        .diagnostic_status(&run.context.query(), &identity.task_id, "fixture-token")
+    let status = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&run.context.query(), &identity.task_id, "fixture-token")
         .await
         .unwrap();
     assert!(run.accept(1, status));
-    let status = client
-        .diagnostic_cancel(&run.context.query(), &identity.task_id, "fixture-token")
+    let status = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&run.context.query(), &identity.task_id, "fixture-token")
         .await
         .unwrap();
     assert!(run.accept(1, status));
@@ -235,8 +234,7 @@ async fn protocol_roundtrip(kind: DiagnosticProbeKind) -> ModelRun {
     assert!(!state.runs[0].accept(1, late));
     state.open = Some(state.runs[0].context.clone());
     let run = &mut state.runs[0];
-    let final_state = client
-        .diagnostic_status(&run.context.query(), &identity.task_id, "fixture-token")
+    let final_state = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&run.context.query(), &identity.task_id, "fixture-token")
         .await
         .unwrap();
     assert!(run.accept(run.serial, final_state));

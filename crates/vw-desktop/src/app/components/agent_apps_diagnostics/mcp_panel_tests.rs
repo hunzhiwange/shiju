@@ -1,3 +1,4 @@
+use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
 use crate::app::message::agent_apps_diagnostics::{mcp_results, *};
 use serde_json::json;
 use vw_gateway_client::vw_api_types::{
@@ -292,15 +293,15 @@ async fn protocol_roundtrip(context: &Context) {
         identity
     );
     assert_eq!(
-        client.diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
         running
     );
     assert_eq!(
-        client.diagnostic_cancel(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
         cancelling
     );
     assert_eq!(
-        client.diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
         cancelled
     );
     submit(client, context, vec![ids[0].clone()], "fixture-token", 1).await.unwrap();

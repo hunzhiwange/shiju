@@ -1,4 +1,5 @@
 //! macOS acceptance through the production HTTP router and SDK, without a desktop.
+use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
 use crate::{
     agent_apps::mcp::McpCatalogStore,
     app_providers::AppProviderStore,
@@ -61,7 +62,7 @@ async fn terminal(
 ) -> DiagnosticJobSnapshot {
     tokio::time::timeout(Duration::from_secs(10), async {
         loop {
-            let snapshot = client.diagnostic_status(scope, &job.task_id, TOKEN).await.unwrap();
+            let snapshot = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(scope, &job.task_id, TOKEN).await.unwrap();
             if !matches!(
                 snapshot.state,
                 DiagnosticJobState::Queued {}
@@ -258,8 +259,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
     servers.0.push(tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     }));
-    let candidates = client
-        .diagnostic_endpoint_candidates(
+    let candidates = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_endpoint_candidates(
             &scope,
             &DiagnosticEndpointCandidatesQuery {
                 provider_id: "provider".into(),
@@ -301,22 +301,22 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
             DiagnosticScopeQuery { target_host_id: "foreign".into(), ..scope.clone() },
             DiagnosticScopeQuery { app_id: AppId::Codex, ..scope.clone() },
         ] {
-            rejected(client.diagnostic_start(&denied, probe, TOKEN).await.unwrap_err(), 403);
+            rejected(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&denied, probe, TOKEN).await.unwrap_err(), 403);
         }
-        rejected(client.diagnostic_start(&scope, probe, "invalid-token").await.unwrap_err(), 401);
+        rejected(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, probe, "invalid-token").await.unwrap_err(), 401);
     }
     assert_eq!(requests.load(Ordering::SeqCst), 0);
     assert!(!root.path().join("normal.pid").exists());
     let mut completed = Vec::new();
     for probe in &probes {
         let start_count = requests.load(Ordering::SeqCst);
-        let job = client.diagnostic_start(&scope, probe, TOKEN).await?;
+        let job = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, probe, TOKEN).await?;
         let done = terminal(&client, &scope, &job).await;
         assert_eq!(done.state, DiagnosticJobState::Succeeded {}, "{probe:?}: {done:?}");
         assert_eq!(done.progress, DiagnosticProgress { completed: 1, total: Some(1) });
         let result = serde_json::to_value(done.results.as_ref().unwrap())?;
         assert_eq!(result[0]["report"]["outcome"]["status"], "succeeded", "{result}");
-        assert_eq!(client.diagnostic_cancel(&scope, &job.task_id, TOKEN).await?, done);
+        assert_eq!(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?, done);
         if !matches!(probe, DiagnosticStartRequest::Mcp { .. }) {
             assert_eq!(
                 requests.load(Ordering::SeqCst) - start_count,
@@ -329,7 +329,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
     probes[5] = DiagnosticStartRequest::Mcp { server_ids: vec![McpRecordId("cancel".into())] };
     hang.store(true, Ordering::SeqCst);
     for (index, probe) in probes.iter().enumerate() {
-        let job = client.diagnostic_start(&scope, probe, TOKEN).await?;
+        let job = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, probe, TOKEN).await?;
         let pids = if index == 5 {
             Some(
                 tokio::time::timeout(Duration::from_secs(5), async {
@@ -357,16 +357,16 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
             tokio::time::timeout(Duration::from_secs(5), arrivals.recv()).await?.unwrap();
             None
         };
-        let running = client.diagnostic_status(&scope, &job.task_id, TOKEN).await?;
+        let running = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&scope, &job.task_id, TOKEN).await?;
         assert_eq!(running.state, DiagnosticJobState::Running {});
         assert_eq!(running.progress.completed, 0);
-        rejected(client.diagnostic_cancel(&foreign, &job.task_id, TOKEN).await.unwrap_err(), 403);
+        rejected(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&foreign, &job.task_id, TOKEN).await.unwrap_err(), 403);
         if let Some((pid, child)) = pids {
             // SAFETY: signal zero observes only the fixture's recorded process IDs.
             assert!(unsafe { libc::kill(pid, 0) == 0 && libc::kill(child, 0) == 0 });
             eprintln!("controlled stdio before cancel: leader={pid}, child={child}, alive");
         }
-        let cancelling = client.diagnostic_cancel(&scope, &job.task_id, TOKEN).await?;
+        let cancelling = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?;
         assert!(matches!(
             cancelling.state,
             DiagnosticJobState::Cancelling {} | DiagnosticJobState::Cancelled {}
@@ -375,7 +375,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         assert_eq!(done.state, DiagnosticJobState::Cancelled {});
         assert_eq!(done.progress.completed, 0);
         assert_eq!(done.results, Some(vec![]));
-        assert_eq!(client.diagnostic_cancel(&scope, &job.task_id, TOKEN).await?, done);
+        assert_eq!(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?, done);
         if let Some((pid, child)) = pids {
             tokio::time::timeout(Duration::from_secs(5), async {
                 // SAFETY: signal zero observes only the fixture's recorded process IDs.
@@ -406,20 +406,20 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
     // All three production host permits must be reusable after actual cleanup.
     let mut active = Vec::new();
     for _ in 0..3 {
-        active.push(client.diagnostic_start(&scope, &probes[0], TOKEN).await?);
+        active.push(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, &probes[0], TOKEN).await?);
     }
     for _ in 0..3 {
         tokio::time::timeout(Duration::from_secs(5), arrivals.recv()).await?.unwrap();
     }
-    let queued = client.diagnostic_start(&scope, &probes[0], TOKEN).await?;
+    let queued = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, &probes[0], TOKEN).await?;
     assert_eq!(
-        client.diagnostic_status(&scope, &queued.task_id, TOKEN).await?.state,
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&scope, &queued.task_id, TOKEN).await?.state,
         DiagnosticJobState::Queued {}
     );
-    client.diagnostic_cancel(&scope, &queued.task_id, TOKEN).await?;
+    GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &queued.task_id, TOKEN).await?;
     assert_eq!(terminal(&client, &scope, &queued).await.state, DiagnosticJobState::Cancelled {});
     for job in active {
-        client.diagnostic_cancel(&scope, &job.task_id, TOKEN).await?;
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?;
         assert_eq!(terminal(&client, &scope, &job).await.state, DiagnosticJobState::Cancelled {});
         tokio::time::timeout(Duration::from_secs(5), disconnects.recv()).await?.unwrap();
     }
@@ -441,11 +441,11 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
     tokio::time::advance(Duration::from_secs(601)).await;
     tokio::time::resume();
     rejected(
-        client.diagnostic_status(&scope, &completed[0].task_id, TOKEN).await.unwrap_err(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&scope, &completed[0].task_id, TOKEN).await.unwrap_err(),
         404,
     );
     rejected(
-        client.diagnostic_cancel(&scope, &completed[0].task_id, TOKEN).await.unwrap_err(),
+        GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &completed[0].task_id, TOKEN).await.unwrap_err(),
         404,
     );
     eprintln!(
@@ -518,8 +518,7 @@ async fn diagnostic_macos_jobs_acceptance_gateway() -> anyhow::Result<()> {
         target_host_id: HOST.into(),
         app_id: AppId::Claude,
     };
-    let job = sdk
-        .diagnostic_start(
+    let job = GatewayAppDiagnosticsClient::new(sdk.transport().clone()).diagnostic_start(
             &scope,
             &DiagnosticStartRequest::Reachability { provider_id: "provider".into() },
             MANAGER,
@@ -535,13 +534,13 @@ async fn diagnostic_macos_jobs_acceptance_gateway() -> anyhow::Result<()> {
     .await?;
     assert!(headers.starts_with(b"GET /v1 HTTP/1.1"));
     assert_eq!(
-        sdk.diagnostic_status(&scope, &job.task_id, MANAGER).await?.state,
+        GatewayAppDiagnosticsClient::new(sdk.transport().clone()).diagnostic_status(&scope, &job.task_id, MANAGER).await?.state,
         DiagnosticJobState::Running {}
     );
-    sdk.diagnostic_cancel(&scope, &job.task_id, MANAGER).await?;
+    GatewayAppDiagnosticsClient::new(sdk.transport().clone()).diagnostic_cancel(&scope, &job.task_id, MANAGER).await?;
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            let done = sdk.diagnostic_status(&scope, &job.task_id, MANAGER).await.unwrap();
+            let done = GatewayAppDiagnosticsClient::new(sdk.transport().clone()).diagnostic_status(&scope, &job.task_id, MANAGER).await.unwrap();
             if done.state == (DiagnosticJobState::Cancelled {}) {
                 break;
             }

@@ -24,6 +24,7 @@ members = [
   "crates/libs/gateway-app-auth",
   "crates/libs/gateway-app-settings",
   "crates/libs/gateway-app-failover",
+  "crates/libs/gateway-app-diagnostics",
   "crates/libs/config-voice",
   "crates/libs/runtime-time",
   "crates/libs/api-file",

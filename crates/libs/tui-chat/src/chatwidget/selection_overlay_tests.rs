@@ -3,7 +3,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use super::*;
-use crate::{V3Action, V3SelectionItem};
+use tui_contracts::action::{V3Action, V3SelectionItem};
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)

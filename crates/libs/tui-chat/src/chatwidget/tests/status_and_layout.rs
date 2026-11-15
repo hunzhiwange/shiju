@@ -4,7 +4,7 @@
 //! 固定终端渲染用于检查诊断文本与终止标记的相对布局。
 
 use super::*;
-use crate::vibe::event::V3Event;
+use tui_contracts::event::V3Event;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 

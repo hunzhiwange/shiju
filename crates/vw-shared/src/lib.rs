@@ -24,7 +24,7 @@ pub use ordered_id as id;
 pub mod json;
 pub mod local_apps;
 pub mod message;
-pub mod pasted_text;
+pub use pasted_text_cache as pasted_text;
 pub mod patch;
 pub mod permission;
 pub mod project;

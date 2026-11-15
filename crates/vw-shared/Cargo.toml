@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+pasted-text-cache = { path = "../libs/pasted-text-cache", version = "0.6.0" }
 task-file-store = { path = "../libs/task-file-store", version = "0.6.0" }
 session-artifact-store = { path = "../libs/session-artifact-store", version = "0.6.0" }
 task-types = { path = "../libs/task-types", version = "0.6.0" }

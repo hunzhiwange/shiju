@@ -68,6 +68,7 @@ fn view_with_max_boundary_values() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn metrics_slider_previews_touch_and_wheel_and_commits_on_touch_release() {
+    use desktop_editor::components::editor_settings_fields::{metrics_slider, Message as Action};
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, Shell, Widget, layout, widget::Tree};
     use iced::{Event, Font, Pixels, Point, Size, keyboard, mouse, touch};
@@ -76,10 +77,8 @@ async fn metrics_slider_previews_touch_and_wheel_and_commits_on_touch_release() 
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("headless renderer");
-    let mut slider = metrics_slider(10.0..=30.0, 14.0, |size| {
-        Message::Editor(EditorMessage::FontSizePreview(size))
-    });
-    let mut tree = Tree::new(&slider as &dyn Widget<Message, iced::Theme, iced::Renderer>);
+    let mut slider = metrics_slider::<()>(10.0..=30.0, 14.0, Action::FontSizePreview);
+    let mut tree = Tree::new(&slider as &dyn Widget<Action, iced::Theme, iced::Renderer>);
     let node = slider.layout(
         &mut tree,
         &renderer,
@@ -102,6 +101,15 @@ async fn metrics_slider_previews_touch_and_wheel_and_commits_on_touch_release() 
             &bounds,
         );
         messages
+            .into_iter()
+            .map(|message| match message {
+                Action::FontSizePreview(size) => {
+                    Message::Editor(EditorMessage::FontSizePreview(size))
+                }
+                Action::CommitMetrics => Message::Editor(EditorMessage::CommitMetrics),
+                other => panic!("unexpected slider message: {other:?}"),
+            })
+            .collect::<Vec<_>>()
     };
 
     let pressed =

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-editor = { path = "../libs/desktop-editor", version = "0.6.0" }
 desktop-ui-controls = { path = "../libs/desktop-ui-controls", version = "0.6.0" }
 vw-api-types = { path = "../vw-api-types", version = "0.6.0" }
 gateway-desktop-settings = { path = "../libs/gateway-desktop-settings", version = "0.6.0" }

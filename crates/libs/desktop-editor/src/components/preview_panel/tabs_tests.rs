@@ -6,7 +6,7 @@ use super::tabs::{
     preview_tab_menu_container_style, preview_tab_menu_is_dark, preview_tab_menu_messages,
     preview_tab_menu_separator_style,
 };
-use crate::app::{Message, message::PreviewMessage};
+use super::tabs::Message;
 use iced::widget::button;
 use iced::{Background, Color, Theme, Vector};
 use iced_code_editor::i18n::Language;
@@ -75,7 +75,7 @@ fn display_language_is_copyable_and_comparable() {
 #[test]
 fn preview_tab_menu_builds_for_owned_path_messages() {
     let menu = build_preview_tab_menu(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "/tmp/src/main.rs",
     );
     let element: iced::Element<'_, Message> = menu;
@@ -86,7 +86,7 @@ fn preview_tab_menu_builds_for_owned_path_messages() {
 #[test]
 fn preview_tab_menu_keeps_four_actions_and_two_separators() {
     let menu = build_preview_tab_menu(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "项目/含 空格.rs",
     );
     let children = menu.as_widget().children();
@@ -100,17 +100,17 @@ fn preview_tab_menu_messages_preserve_path_and_action_order() {
 
     assert!(matches!(
         close,
-        Message::Preview(PreviewMessage::Close(path)) if path == "项目/含 空格.rs"
+        Message::Close(path) if path == "项目/含 空格.rs"
     ));
     assert!(matches!(
         close_left,
-        Message::Preview(PreviewMessage::TabMenuCloseLeft(path)) if path == "项目/含 空格.rs"
+        Message::TabMenuCloseLeft(path) if path == "项目/含 空格.rs"
     ));
     assert!(matches!(
         close_right,
-        Message::Preview(PreviewMessage::TabMenuCloseRight(path)) if path == "项目/含 空格.rs"
+        Message::TabMenuCloseRight(path) if path == "项目/含 空格.rs"
     ));
-    assert!(matches!(close_all, Message::Preview(PreviewMessage::TabMenuCloseAll)));
+    assert!(matches!(close_all, Message::TabMenuCloseAll));
 }
 
 #[test]

@@ -3,19 +3,11 @@ use crate::app::components::system_settings_common::{
     settings_group_heading_with_help, settings_page_heading_with_help,
 };
 use crate::app::i18n::I18n;
-use crate::app::message::editor::EditorMessage;
 use crate::app::{App, Message};
-use iced::widget::{Slider, column, responsive, slider};
+use iced::widget::{column, responsive};
+#[cfg(test)]
+use crate::app::message::editor::EditorMessage;
 use iced::{Element, Length};
-use std::ops::RangeInclusive;
-
-pub(crate) fn metrics_slider(
-    range: RangeInclusive<f32>,
-    value: f32,
-    on_preview: impl Fn(f32) -> Message + 'static,
-) -> Slider<'static, f32, Message> {
-    slider(range, value, on_preview).on_release(Message::Editor(EditorMessage::CommitMetrics))
-}
 
 /// 渲染系统设置编辑器视图
 ///

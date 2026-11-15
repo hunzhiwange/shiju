@@ -1,6 +1,7 @@
 //! 常规设置的行标签和定位标识，由表单与搜索目录共用。
 
 use crate::app::state::GeneralSettingsTab;
+use desktop_editor::components::editor_settings_fields::fields as editor_fields;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GeneralSettingField {
@@ -79,42 +80,42 @@ pub(in crate::app::components) const TERMINAL_FONT_SIZE: GeneralSettingField =
     };
 pub(in crate::app::components) const EDITOR_FOLLOW_THEME: GeneralSettingField =
     GeneralSettingField {
-        label: "跟随系统主题",
+        label: editor_fields::EDITOR_FOLLOW_THEME.label,
         tab: GeneralSettingsTab::Editor,
-        id: "general-settings-editor-follow-theme",
+        id: editor_fields::EDITOR_FOLLOW_THEME.id,
         keywords: &[],
     };
 pub(in crate::app::components) const EDITOR_THEME: GeneralSettingField = GeneralSettingField {
-    label: "编辑器主题",
+    label: editor_fields::EDITOR_THEME.label,
     tab: GeneralSettingsTab::Editor,
-    id: "general-settings-editor-theme",
+    id: editor_fields::EDITOR_THEME.id,
     keywords: &[],
 };
 pub(in crate::app::components) const EDITOR_FONT_SIZE: GeneralSettingField = GeneralSettingField {
-    label: "字体大小",
+    label: editor_fields::EDITOR_FONT_SIZE.label,
     tab: GeneralSettingsTab::Editor,
-    id: "general-settings-editor-font-size",
+    id: editor_fields::EDITOR_FONT_SIZE.id,
     keywords: &[],
 };
 pub(in crate::app::components) const EDITOR_LINE_HEIGHT: GeneralSettingField =
     GeneralSettingField {
-        label: "行高",
+        label: editor_fields::EDITOR_LINE_HEIGHT.label,
         tab: GeneralSettingsTab::Editor,
-        id: "general-settings-editor-line-height",
+        id: editor_fields::EDITOR_LINE_HEIGHT.id,
         keywords: &[],
     };
 pub(in crate::app::components) const EDITOR_AUTO_LINE_HEIGHT: GeneralSettingField =
     GeneralSettingField {
-        label: "自动行高",
+        label: editor_fields::EDITOR_AUTO_LINE_HEIGHT.label,
         tab: GeneralSettingsTab::Editor,
-        id: "general-settings-editor-auto-line-height",
+        id: editor_fields::EDITOR_AUTO_LINE_HEIGHT.id,
         keywords: &[],
     };
 #[cfg(not(target_arch = "wasm32"))]
 pub(in crate::app::components) const EDITOR_LSP: GeneralSettingField = GeneralSettingField {
-    label: "LSP 语言服务",
+    label: editor_fields::EDITOR_LSP.label,
     tab: GeneralSettingsTab::Editor,
-    id: "general-settings-editor-lsp",
+    id: editor_fields::EDITOR_LSP.id,
     keywords: &["language server"],
 };
 

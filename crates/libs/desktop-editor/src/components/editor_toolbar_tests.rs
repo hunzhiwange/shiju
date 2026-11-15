@@ -2,15 +2,20 @@
 //! 禁用按钮沿用空闲色，防止仅改变可点击性时引入低对比度或误导性高亮。
 
 use super::editor_toolbar::{icon_button, icon_button_style, icon_svg, tooltip_content_style};
-use crate::app::{App, Message, Screen, assets::Icon};
+use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
+use config_ui::DesktopLocale;
+fn toolbar(project: bool, save: Option<()>, dirty: bool) -> iced::Element<'static, ()> {
+    super::editor_toolbar::view(project, I18n::new(DesktopLocale::SimplifiedChinese), save, dirty, (), ())
+}
 use iced::widget::tooltip::Position;
 use iced::{Background, Color};
 
 #[test]
 fn toolbar_icon_svg_and_button_build() {
     let _ = icon_svg(Icon::Save);
-    let _ = icon_button(Icon::Save, "保存", Position::Top, Message::PreviewLspTick, false);
-    let _ = icon_button(Icon::Save, "保存", Position::Bottom, Message::PreviewLspTick, true);
+    let _ = icon_button(Icon::Save, "保存", Position::Top, (), false);
+    let _ = icon_button(Icon::Save, "保存", Position::Bottom, (), true);
 }
 
 #[test]
@@ -23,24 +28,24 @@ fn toolbar_icon_svg_with_various_icons() {
 
 #[test]
 fn toolbar_view_handles_project_and_non_project_screens() {
-    let mut app = App::new().0;
-    let _ = super::editor_toolbar::view(&app, Some(Message::PreviewLspTick), true);
 
-    app.screen = Screen::Project;
-    let _ = super::editor_toolbar::view(&app, None, false);
+    let _ = toolbar(false, Some(()), true);
+
+
+    let _ = toolbar(true, None, false);
 }
 
 #[test]
 fn toolbar_view_without_save_on_normal_screen() {
-    let app = App::new().0;
-    let _ = super::editor_toolbar::view(&app, None, true);
-    let _ = super::editor_toolbar::view(&app, None, false);
+
+    let _ = toolbar(false, None, true);
+    let _ = toolbar(false, None, false);
 }
 
 #[test]
 fn toolbar_view_with_save_and_not_dirty() {
-    let app = App::new().0;
-    let _ = super::editor_toolbar::view(&app, Some(Message::PreviewLspTick), false);
+
+    let _ = toolbar(false, Some(()), false);
 }
 
 #[test]

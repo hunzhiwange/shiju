@@ -83,17 +83,11 @@ pub mod svg_path;
 /// 应用程序的核心编辑器，支持代码编辑、语法高亮、
 /// 自动补全等基础编辑功能。
 pub mod editor;
-#[cfg(test)]
-#[path = "editor_tests.rs"]
-mod editor_tests;
 
 /// 编辑器工具栏组件
 ///
 /// 提供编辑器的工具按钮栏，包括格式化、保存、撤销等常用操作。
 pub mod editor_toolbar;
-#[cfg(test)]
-#[path = "editor_toolbar_tests.rs"]
-mod editor_toolbar_tests;
 
 /// 文件树组件
 ///
@@ -110,9 +104,6 @@ pub mod git_panel;
 ///
 /// 为输入框中的 @提及、#标签等特殊语法提供高亮显示。
 pub mod input_mention_highlighter;
-#[cfg(test)]
-#[path = "input_mention_highlighter_tests.rs"]
-mod input_mention_highlighter_tests;
 
 /// 输入面板组件
 ///

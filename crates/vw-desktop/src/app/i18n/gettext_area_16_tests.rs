@@ -53,11 +53,11 @@ async fn desktop_gettext_area_16_locale_event_updates_existing_and_new_editors()
         let expected = super::editor::language(locale);
         assert_eq!(app.current_language, editor_setting);
         assert_eq!(app.git_copy_modal_code_editor.language(), expected);
-        assert!(app.preview_tabs.iter().all(|tab| tab.editor.ui_language() == expected));
+        assert!(app.preview_tabs.iter().all(|tab| tab.editor.inner.language() == expected));
         let path = format!("/tmp/{locale:?}.zip");
         let _ = preview::update(&mut app, PreviewMessage::Open(path.clone()));
         let tab = app.preview_tabs.iter().find(|tab| tab.path == path).unwrap();
-        assert_eq!(tab.editor.ui_language(), expected);
+        assert_eq!(tab.editor.inner.language(), expected);
     }
 }
 

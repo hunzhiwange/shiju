@@ -33,9 +33,6 @@ mod lsp_overlay_tests;
 #[path = "styles_tests.rs"]
 mod styles_tests;
 #[cfg(test)]
-#[path = "tabs_tests.rs"]
-mod tabs_tests;
-#[cfg(test)]
 #[path = "view_tests.rs"]
 mod view_tests;
 #[cfg(test)]

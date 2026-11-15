@@ -14,6 +14,7 @@ members = [
   "crates/libs/app-skills",
   "crates/libs/app-prompts",
   "crates/libs/desktop-ui-controls",
+  "crates/libs/desktop-editor",
   "crates/libs/app-mcp-catalog",
   "crates/libs/app-mcp",
   "crates/libs/storage-types",

@@ -420,7 +420,7 @@ fn active_dashboard_provider_id(config: &Config) -> Option<String> {
 /// ```
 pub fn build_integration_settings_payload(config: &Config) -> IntegrationSettingsPayload {
     // 获取所有集成注册信息
-    let all_integrations = crate::app::agent::integrations::registry::all_integrations();
+    let all_integrations = agent_integrations::registry::all_integrations();
     let mut entries = Vec::new();
 
     // 遍历每个仪表盘集成规范

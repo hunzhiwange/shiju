@@ -21,9 +21,9 @@
 //! - **平台支持 (Platform)**: macOS、Linux、Windows 等操作系统支持
 
 use super::{IntegrationCategory, IntegrationEntry, IntegrationStatus};
-use crate::app::agent::providers::is_moonshot_alias;
+use config_provider::is_moonshot_alias;
 
-fn default_provider_matches(c: &crate::app::agent::config::Config, aliases: &[&str]) -> bool {
+fn default_provider_matches(c: &agent_config::runtime::Config, aliases: &[&str]) -> bool {
     let Some(provider) = c.default_provider.as_deref() else {
         return false;
     };
@@ -49,7 +49,7 @@ fn default_provider_matches(c: &crate::app::agent::config::Config, aliases: &[&s
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::integrations::registry::all_integrations;
+/// use agent_integrations::registry::all_integrations;
 ///
 /// let integrations = all_integrations();
 /// for entry in integrations {

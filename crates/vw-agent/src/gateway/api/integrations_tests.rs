@@ -2,7 +2,7 @@
 
 // 凭据只用于判断配置状态，生成面板载荷时不得回传原始密钥。
 use super::*;
-use crate::app::agent::integrations::IntegrationStatus;
+use agent_integrations::IntegrationStatus;
 use std::collections::BTreeMap;
 
 // 查找 helper 让载荷断言聚焦字段契约，缺项会立即使测试失败。

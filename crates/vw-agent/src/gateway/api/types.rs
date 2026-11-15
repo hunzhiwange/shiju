@@ -445,13 +445,13 @@ pub struct IntegrationSettingsEntry {
     ///
     /// 从 `integrations` 模块导入的枚举类型，用于将集成分组显示。
     /// 常见类别包括：消息通道、AI 提供者、存储后端等。
-    pub category: crate::app::agent::integrations::IntegrationCategory,
+    pub category: agent_integrations::IntegrationCategory,
 
     /// 集成的当前运行状态
     ///
     /// 从 `integrations` 模块导入的枚举类型，表示集成的运行状况。
     /// 可能的状态包括：活跃、停用、错误、初始化中等。
-    pub status: crate::app::agent::integrations::IntegrationStatus,
+    pub status: agent_integrations::IntegrationStatus,
 
     /// 集成是否已完成基本配置
     ///

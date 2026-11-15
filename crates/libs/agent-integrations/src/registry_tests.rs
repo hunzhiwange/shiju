@@ -19,10 +19,10 @@
 //! - 别名解析测试：验证 Provider 别名正确激活对应集成
 
 use super::*;
-use crate::app::agent::config::Config;
+use agent_config::runtime::Config;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::EmailConfig;
-use crate::app::agent::config::schema::{
+use agent_config::runtime_schema::EmailConfig;
+use agent_config::runtime_schema::{
     DingTalkConfig, DiscordConfig, IMessageConfig, QQConfig, QQReceiveMode, SignalConfig,
     SlackConfig, StreamMode, TelegramConfig, WebhookConfig, WhatsAppConfig,
 };

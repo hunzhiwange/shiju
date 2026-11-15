@@ -20,7 +20,7 @@ use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use crate::parse_temperature;
 use vw_agent::channels::ChannelCommands;
 use vw_agent::cron::CronCommands;
-use vw_agent::integrations::IntegrationCommands;
+use agent_integrations::IntegrationCommands;
 use vw_agent::memory::cli::MemoryCommands;
 use vw_agent::plugins::PluginCommands;
 use vw_agent::security;

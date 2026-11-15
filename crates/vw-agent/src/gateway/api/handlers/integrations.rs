@@ -58,7 +58,7 @@ pub async fn handle_api_integrations(
     // 获取当前配置的克隆，避免长时间持有锁
     let config = state.config.lock().clone();
     // 从集成注册表中获取所有可用的集成条目
-    let entries = crate::app::agent::integrations::registry::all_integrations();
+    let entries = agent_integrations::registry::all_integrations();
 
     // 遍历每个集成条目，调用其状态函数获取当前状态，并构建 JSON 对象
     let integrations: Vec<serde_json::Value> = entries

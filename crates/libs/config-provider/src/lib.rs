@@ -70,3 +70,28 @@ pub struct ProviderConfig {
 #[cfg(test)]
 #[path = "provider_tests.rs"]
 mod provider_tests;
+
+/// 判断给定的名称是否为 Moonshot 模型的别名
+///
+/// Moonshot AI 的模型有多个常用别名（如 Kimi），此函数用于统一识别。
+///
+/// # 参数
+///
+/// - `name`: Provider 或模型名称字符串
+///
+/// # 返回值
+///
+/// 如果名称是 Moonshot 的已知别名，返回 `true`；否则返回 `false`。
+///
+/// # 支持的别名
+///
+/// - `moonshot`
+/// - `kimi`
+/// - `kimi-k2`
+/// - `kimi-k2-5`
+pub fn is_moonshot_alias(name: &str) -> bool {
+    matches!(
+        name.trim().to_ascii_lowercase().as_str(),
+        "moonshot" | "moonshot-intl" | "kimi" | "kimi-k2" | "kimi-k2-5"
+    )
+}

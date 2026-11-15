@@ -3,7 +3,7 @@ use super::*;
 use vw_api_app_aggregation::*;
 use vw_api_transport::id::ProjectScope;
 #[derive(Clone, PartialEq, Eq)]
-pub(in crate::gateway::api::handlers) struct Owner {
+pub struct Owner {
     pub project: ProjectScope,
     pub host: String,
     pub app: AppId,
@@ -35,10 +35,10 @@ impl Running {
     }
 }
 impl State {
-    pub(in crate::gateway::api::handlers) fn aggregation_policy(&self) -> Option<&std::path::Path> {
+    pub fn aggregation_policy(&self) -> Option<&std::path::Path> {
         self.policy.as_deref()
     }
-    pub(in crate::gateway::api::handlers) fn aggregation_replay(
+    pub fn aggregation_replay(
         &self,
         owner: &Owner,
         request: &str,
@@ -47,7 +47,7 @@ impl State {
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         replay(&registry, owner, request, fingerprint, false, false)
     }
-    pub(in crate::gateway::api::handlers) fn aggregation_start(
+    pub fn aggregation_start(
         &self,
         owner: Owner,
         request: String,
@@ -56,7 +56,7 @@ impl State {
     ) -> Result<serde_json::Value, StatusCode> {
         self.aggregation_start_action(owner, request, fingerprint, false, false, work)
     }
-    pub(in crate::gateway::api::handlers) fn aggregation_restart_replay(
+    pub fn aggregation_restart_replay(
         &self,
         owner: &Owner,
         request: &str,
@@ -65,7 +65,7 @@ impl State {
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         replay(&registry, owner, request, fingerprint, true, false)
     }
-    pub(in crate::gateway::api::handlers) fn aggregation_restart_start(
+    pub fn aggregation_restart_start(
         &self,
         owner: Owner,
         request: String,
@@ -74,7 +74,7 @@ impl State {
     ) -> Result<serde_json::Value, StatusCode> {
         self.aggregation_start_action(owner, request, fingerprint, true, false, work)
     }
-    pub(in crate::gateway::api::handlers) fn aggregation_exit_replay(
+    pub fn aggregation_exit_replay(
         &self,
         owner: &Owner,
         request: &str,
@@ -83,7 +83,7 @@ impl State {
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         replay(&registry, owner, request, fingerprint, false, true)
     }
-    pub(in crate::gateway::api::handlers) fn aggregation_exit_start(
+    pub fn aggregation_exit_start(
         &self,
         owner: Owner,
         request: String,
@@ -160,37 +160,42 @@ impl State {
         // Authenticate against the recorded action before rejecting selectors.
         // Missing or foreign selectors must not reveal an operation to an
         // unauthenticated caller. Restart retains its independent permission.
-        let principal = if restart {
-            super::super::super::agent_apps::authorize_codex_restart(
-                self.policy.as_deref(),
-                headers,
-                &owner.project,
-                &owner.host,
-            )?
-            .2
-        } else {
-            super::super::super::agent_apps::authorize_aggregation_write(
-                self.policy.as_deref(),
-                headers,
-                &owner.project,
-                &owner.host,
-                owner.app,
-                true,
-            )?
-            .2
-        };
-        if project.as_ref() != Some(&owner.project)
-            || owner.host != host
-            || owner.principal != principal
+        #[cfg(not(target_os = "macos"))]
+        { let _ = (owner, restart, headers, host, id, cancel, project); Err(StatusCode::NOT_IMPLEMENTED) }
+        #[cfg(target_os = "macos")]
         {
-            return Err(StatusCode::NOT_FOUND);
+            let principal = if restart {
+                app_access_service::access::authorize_codex_restart(
+                    self.policy.as_deref(),
+                    headers,
+                    &owner.project,
+                    &owner.host,
+                )?
+                .2
+            } else {
+                app_access_service::access::authorize_aggregation_write(
+                    self.policy.as_deref(),
+                    headers,
+                    &owner.project,
+                    &owner.host,
+                    owner.app,
+                    true,
+                )?
+                .2
+            };
+            if project.as_ref() != Some(&owner.project)
+                || owner.host != host
+                || owner.principal != principal
+            {
+                return Err(StatusCode::NOT_FOUND);
+            }
+            let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let running = registry.get(id).ok_or(StatusCode::NOT_FOUND)?;
+            if cancel {
+                running.operation.cancel();
+            }
+            Ok(Some(running.aggregation_progress()))
         }
-        let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let running = registry.get(id).ok_or(StatusCode::NOT_FOUND)?;
-        if cancel {
-            running.operation.cancel();
-        }
-        Ok(Some(running.aggregation_progress()))
     }
 }
 fn replay(
@@ -216,9 +221,9 @@ fn replay(
 }
 
 #[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../../../libs/gateway-aggregation/tests/host/aggregation_restart_operation_tests.rs"]
+#[path = "../../../gateway-aggregation/tests/host/aggregation_restart_operation_tests.rs"]
 mod restart_tests;
 
 #[cfg(all(test, target_os = "macos"))]
-#[path = "../../aggregation_exit_operation_tests.rs"]
+#[path = "exit_tests.rs"]
 mod exit_tests;

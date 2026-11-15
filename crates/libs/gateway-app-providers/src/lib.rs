@@ -34,6 +34,11 @@ pub mod kimi;
 pub mod mcode;
 pub mod mode_state;
 pub mod mode_apply;
+pub mod omp;
+pub mod openclaw;
+pub mod opencode;
+pub mod operations;
+pub mod path_routes;
 pub fn error(message: &str) -> Response {
     let (status, safe) = match message {
         "application provider is referenced" => {

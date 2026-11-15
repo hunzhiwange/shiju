@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-app-provider-extended = { path = "../api-app-provider-extended", version = "0.6.0" }
 axum = { version = "0.8.8", features = ["json"] }
 tokio = { version = "1", features = ["rt"] }
@@ -32,3 +33,11 @@ vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
 vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 vw-agent-apps = { path = "../../vw-agent-apps", version = "0.6.0" }
+
+[dev-dependencies]
+gateway-aggregation = { path = "../gateway-aggregation", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+hex = "0.4"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+tokio = { version = "1", features = ["rt", "macros", "sync"] }

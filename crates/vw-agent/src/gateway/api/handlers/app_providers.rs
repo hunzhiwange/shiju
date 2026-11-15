@@ -144,7 +144,7 @@ mod universal_sync_tests;
 #[path = "app_providers/paths.rs"]
 mod paths;
 #[cfg(test)]
-#[path = "app_providers/paths_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/paths_tests.rs"]
 mod paths_tests;
 
 mod preview;
@@ -203,9 +203,11 @@ mod hermes;
 mod hermes_tests;
 mod openclaw;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/openclaw_tests.rs"]
 mod openclaw_tests;
 mod opencode;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/opencode_tests.rs"]
 mod opencode_tests;
 
 #[cfg(all(test, target_os = "macos"))]
@@ -217,6 +219,7 @@ mod pi_tests;
 
 pub(super) mod omp;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/omp_tests.rs"]
 mod omp_tests;
 
 mod mcode;
@@ -268,6 +271,7 @@ mod env_restore_tests;
 
 pub(super) mod operations;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/operations_tests.rs"]
 mod operations_tests;
 
 #[cfg(all(test, target_os = "macos"))]

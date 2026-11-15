@@ -1,4 +1,19 @@
 use super::*;
+use tool_computer::chrome::authorize_site;
+use computer_control::chrome::origin_policy::canonical_origin;
+fn local_user() -> String { format!("uid:{}", unsafe { libc::geteuid() }) }
+fn control_error(code: ControlErrorCode) -> anyhow::Error { anyhow::anyhow!("computer control denied: {code:?}") }
+use tool_computer::chrome::approve_transfer as generic_approve_transfer;
+use tool_types::Tool;
+use computer_control::{host::ControlHost, policy::{ComputerControlPolicy, GrantScope}};
+use config_computer_control::GrantDecision;
+use vw_api_computer_control::*;
+use std::{sync::{Arc, atomic::AtomicBool}, time::Duration};
+use parking_lot::RwLock;
+use serde_json::Value;
+async fn approve_transfer(host: &ControlHost, request: &ComputerControlRequest) -> anyhow::Result<()> {
+    generic_approve_transfer::<crate::tools::context::AgentContextHost>(host, request).await
+}
 use crate::computer_control::policy::ControlFeature;
 use crate::tools::{ToolUseContext, execute_tool_from_registry, scope_tool_use_context};
 use serde_json::json;

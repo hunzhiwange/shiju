@@ -1,7 +1,7 @@
 //! Chrome connects through a private one-controller socket. File transfers use
 //! bounded inline bytes, never paths; approval arguments contain metadata/digests.
 use super::*;
-use crate::computer_control::{
+use computer_control::{
     chrome::{bridge::ChromeBridge, origin_policy::canonical_origin},
     policy::GrantScope,
 };
@@ -76,7 +76,7 @@ pub(super) fn validate_command(command: &ChromeCommand) -> anyhow::Result<()> {
             canonical_origin(url).map_err(control_error)?;
         }
         ChromeCommand::Upload { selector, file_name, content_base64 } => {
-            crate::computer_control::chrome::bridge::validate_upload(
+            computer_control::chrome::bridge::validate_upload(
                 selector,
                 file_name,
                 content_base64,
@@ -91,9 +91,9 @@ pub(super) fn validate_command(command: &ChromeCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(super) async fn authorize_site(
+pub async fn authorize_site<H: ContextHost>(
     policy: &Arc<RwLock<ComputerControlPolicy>>,
-    context: &super::super::ToolUseContext,
+    context: &ToolUseContext<H>,
     origin: &str,
 ) -> anyhow::Result<()> {
     let user = local_user();
@@ -110,12 +110,12 @@ pub(super) async fn authorize_site(
         }
         p.version()
     };
-    if crate::computer_control::native::locked_session::lock_state()
-        != crate::computer_control::native::locked_session::LockState::Unlocked
+    if computer_control::native::locked_session::lock_state()
+        != computer_control::native::locked_session::LockState::Unlocked
     {
         bail!("Unlock manually before approving a new Chrome site");
     }
-    if !super::super::decision::request_control_scope_approval(
+    if !tool_context::decision::request_control_scope_approval(
         "computer_control.chrome_site",
         json!({"origin":origin,"scope":"website access until revoked or gateway restart"}),
         context,
@@ -124,8 +124,8 @@ pub(super) async fn authorize_site(
     {
         bail!("Chrome site approval required");
     }
-    if crate::computer_control::native::locked_session::lock_state()
-        != crate::computer_control::native::locked_session::LockState::Unlocked
+    if computer_control::native::locked_session::lock_state()
+        != computer_control::native::locked_session::LockState::Unlocked
     {
         bail!("Session locked during Chrome site approval");
     }
@@ -138,7 +138,7 @@ pub(super) async fn authorize_site(
     Ok(())
 }
 
-pub(super) async fn approve_transfer(
+pub async fn approve_transfer<H: ContextHost>(
     host: &ControlHost,
     request: &ComputerControlRequest,
 ) -> anyhow::Result<()> {
@@ -161,9 +161,9 @@ pub(super) async fn approve_transfer(
         _ => return Ok(()),
     };
     host.recheck(request).map_err(control_error)?;
-    let context = current_tool_use_context().context("file transfer requires executor context")?;
+    let context = current_tool_use_context::<H>().context("file transfer requires executor context")?;
     let input = json!({"target":request.target,"request_id":request.request_id,"permission_version":request.permission_version,"transfer":metadata});
-    if !super::super::decision::request_control_scope_approval(scope, input, &context).await {
+    if !tool_context::decision::request_control_scope_approval(scope, input, &context).await {
         bail!("Chrome file transfer approval required");
     }
     host.approve_transfer(request).map_err(control_error)
@@ -186,7 +186,3 @@ pub(super) fn schema() -> Value {
         ]}
     }})
 }
-
-#[cfg(test)]
-#[path = "chrome_tests.rs"]
-mod tests;

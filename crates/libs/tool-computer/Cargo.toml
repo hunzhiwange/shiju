@@ -1,0 +1,30 @@
+[package]
+name = "tool-computer"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(unix)'.dependencies]
+computer-control = { path = "../computer-control", version = "0.6.0" }
+config-computer-control = { path = "../config-computer-control", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+vw-api-computer-control = { path = "../api-computer-control", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+base64 = "0.23"
+hex = "0.4"
+libc = "0.2"
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+tokio = { version = "1", features = ["rt", "macros", "net", "sync", "time", "io-util"] }
+tokio-util = "0.7"
+url = "2"
+uuid = { version = "1.11", features = ["v4", "js"] }

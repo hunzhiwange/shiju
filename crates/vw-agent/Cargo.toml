@@ -471,6 +471,7 @@ name = "gateway_legacy_handlers"
 path = "tests/gateway_legacy_handlers.rs"
 
 [target.'cfg(unix)'.dependencies]
+tool-computer = { path = "../libs/tool-computer", version = "0.6.0" }
 tool-office = { path = "../libs/tool-office", version = "0.6.0" }
 
 [dev-dependencies]

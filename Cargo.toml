@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/tool-computer",
   "crates/libs/channel-discord",
   "crates/libs/tool-office",
   "crates/libs/tool-browser",

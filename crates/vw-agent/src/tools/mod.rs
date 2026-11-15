@@ -40,6 +40,7 @@ pub mod codesearch;
 #[cfg(unix)]
 pub mod computer_control;
 #[cfg(all(test, unix))]
+#[path = "../../../libs/tool-computer/src/computer_control_tests.rs"]
 mod computer_control_tests;
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]

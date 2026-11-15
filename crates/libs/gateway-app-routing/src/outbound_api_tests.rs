@@ -1,7 +1,7 @@
 use super::AppRoutingError;
 use crate::test_support;
 use serde_json::{Value, json};
-use vw_api_types::app_routing::{RoutingEgressMode, RoutingEgressUpdate};
+use vw_api_app_routing::{RoutingEgressMode, RoutingEgressUpdate};
 
 #[tokio::test]
 async fn cc_route_028_sdk_preserves_egress_status_and_errors() {

@@ -1,7 +1,7 @@
 use super::AppRoutingError;
 use crate::{GatewayAppRoutingClient, test_support};
 use serde_json::{Value, json};
-use vw_api_types::app_routing::RoutingState;
+use vw_api_app_routing::RoutingState;
 
 #[tokio::test]
 async fn cc_route_010_sdk_round_trip_preserves_status_and_business_errors() {

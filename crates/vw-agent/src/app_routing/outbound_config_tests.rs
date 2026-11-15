@@ -9,7 +9,7 @@ use super::{
 use crate::{global_database::GlobalDatabase, security::SecretStore};
 use std::time::Duration;
 use tokio::{io::AsyncWriteExt, time::timeout};
-use vw_api_types::app_routing::{RoutingEgressMode, RoutingEgressUpdate};
+use vw_api_app_routing::{RoutingEgressMode, RoutingEgressUpdate};
 
 #[tokio::test]
 async fn cc_route_028_new_requests_use_the_committed_scoped_transport() {

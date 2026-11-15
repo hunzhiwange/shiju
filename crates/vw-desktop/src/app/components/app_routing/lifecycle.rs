@@ -10,7 +10,7 @@ use iced::{
     Element, Task,
     widget::{button, column, row, text},
 };
-use vw_gateway_client::vw_api_types::app_routing::{RoutingHealth, RoutingState, RoutingStatus};
+use vw_api_app_routing::{RoutingHealth, RoutingState, RoutingStatus};
 use vw_gateway_client::{GatewayClient};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

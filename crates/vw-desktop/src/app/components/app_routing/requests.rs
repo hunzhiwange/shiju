@@ -4,8 +4,8 @@ use crate::app::{App, Message, components::system_settings_common::*, state::App
 use iced::{Element, Task, widget::{button, column, container, text}};
 use {
     vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::app_routing::RoutingRequestState,
-    vw_gateway_client::vw_api_types::app_routing::RoutingRequestsStatus,
+    vw_api_app_routing::RoutingRequestState,
+    vw_api_app_routing::RoutingRequestsStatus,
     vw_api_transport::id::ProjectId,
 };
 

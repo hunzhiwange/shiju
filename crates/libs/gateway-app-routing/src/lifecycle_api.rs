@@ -1,8 +1,8 @@
 //! Typed application routing requests over the existing authenticated gateway transport.
 use crate::GatewayAppRoutingClient;
 use {
-    vw_api_types::app_routing::RoutingHealth,
-    vw_api_types::app_routing::RoutingStatus,
+    vw_api_app_routing::RoutingHealth,
+    vw_api_app_routing::RoutingStatus,
     vw_api_transport::error::ApiErrorBody,
 };
 
@@ -53,7 +53,7 @@ impl GatewayAppRoutingClient {
             reqwest::Method::POST,
             &[host, "start"],
             token,
-            Some(&vw_api_types::app_routing::RoutingLifecycleRequest {}),
+            Some(&vw_api_app_routing::RoutingLifecycleRequest {}),
         )
         .await
     }
@@ -67,7 +67,7 @@ impl GatewayAppRoutingClient {
             reqwest::Method::POST,
             &[host, "stop"],
             token,
-            Some(&vw_api_types::app_routing::RoutingLifecycleRequest {}),
+            Some(&vw_api_app_routing::RoutingLifecycleRequest {}),
         )
         .await
     }

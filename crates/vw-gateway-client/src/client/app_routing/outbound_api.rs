@@ -1,7 +1,7 @@
 //! Typed management requests for execution-host egress.
 use super::AppRoutingError;
 use crate::GatewayClient;
-use vw_api_types::app_routing::{RoutingEgressStatus, RoutingEgressUpdate};
+use vw_api_app_routing::{RoutingEgressStatus, RoutingEgressUpdate};
 
 impl GatewayClient {
     pub async fn app_routing_egress(

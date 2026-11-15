@@ -7,8 +7,8 @@ use iced::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_gateway_client::vw_api_types::app_routing::AppRoutingConfig,
-    vw_gateway_client::vw_api_types::app_routing::RoutingConfig,
+    vw_api_app_routing::AppRoutingConfig,
+    vw_api_app_routing::RoutingConfig,
     vw_api_transport::id::ProjectId,
 };
 

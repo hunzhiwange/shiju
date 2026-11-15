@@ -8,7 +8,7 @@ use axum::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_routing::RoutingModeRequest,
+    vw_api_app_routing::RoutingModeRequest,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TenantScope,
 };

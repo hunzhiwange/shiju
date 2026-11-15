@@ -1,6 +1,6 @@
 use super::AppRoutingError;
 use crate::GatewayAppRoutingClient;
-use vw_api_types::app_routing::{RoutingClientHost, RoutingClientHostUpdate};
+use vw_api_app_routing::{RoutingClientHost, RoutingClientHostUpdate};
 
 impl GatewayAppRoutingClient {
     pub async fn app_routing_client_host(&self, host: &str, token: &str) -> Result<RoutingClientHost, AppRoutingError> {

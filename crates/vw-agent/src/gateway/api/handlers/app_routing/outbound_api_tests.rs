@@ -4,7 +4,7 @@ use super::lifecycle_api_tests::{
 use crate::global_database::GlobalDatabase;
 use reqwest::Method;
 use serde_json::{Value, json};
-use vw_api_types::app_routing::{RoutingEgressMode, RoutingEgressUpdate};
+use vw_api_app_routing::{RoutingEgressMode, RoutingEgressUpdate};
 
 async fn request(
     port: u16,

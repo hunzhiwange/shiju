@@ -2,8 +2,8 @@
 use crate::GatewayClient;
 use super::AppRoutingError;
 use {
-    vw_api_types::app_routing::RoutingHealth,
-    vw_api_types::app_routing::RoutingStatus,
+    vw_api_app_routing::RoutingHealth,
+    vw_api_app_routing::RoutingStatus,
 };
 
 impl GatewayClient {

@@ -21,8 +21,8 @@ use {
     vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,
     vw_api_types::agent_apps_diagnostics::DiagnosticProbeKind,
     vw_api_types::agent_apps_diagnostics::DiagnosticResult,
-    vw_api_types::app_routing::RoutingEgressMode,
-    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_app_routing::RoutingEgressMode,
+    vw_api_app_routing::RoutingEgressUpdate,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };

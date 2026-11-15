@@ -2,7 +2,7 @@ use super::AppRoutingError;
 use crate::GatewayAppRoutingClient;
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_routing::RoutingRequestsStatus,
+    vw_api_app_routing::RoutingRequestsStatus,
     vw_api_transport::id::ProjectId,
 };
 impl GatewayAppRoutingClient {

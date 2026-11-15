@@ -7,7 +7,7 @@ use {
     vw_api_app_identity::AppId,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
-    vw_api_types::app_routing::RoutingOutboundProbeRequest,
+    vw_api_app_routing::RoutingOutboundProbeRequest,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };

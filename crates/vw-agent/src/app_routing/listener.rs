@@ -28,7 +28,7 @@ use tokio::{
 use vw_agent_apps::routing::lifecycle_state::{Lifecycle, LifecycleState};
 #[cfg(target_os = "macos")]
 use {
-    vw_api_types::app_routing::RoutingEgressStatus,
+    vw_api_app_routing::RoutingEgressStatus,
     vw_api_transport::id::TenantScope,
 };
 
@@ -93,7 +93,7 @@ pub struct RoutingListener {
 
 impl RoutingListener {
     #[cfg(target_os = "macos")]
-    pub(crate) fn request_status(&self, project: &vw_api_transport::ProjectScope, host: &str, app: vw_api_app_identity::AppId) -> vw_api_types::app_routing::RoutingRequestsStatus {
+    pub(crate) fn request_status(&self, project: &vw_api_transport::ProjectScope, host: &str, app: vw_api_app_identity::AppId) -> vw_api_app_routing::RoutingRequestsStatus {
         self.auth.requests.snapshot(project, host, app)
     }
 

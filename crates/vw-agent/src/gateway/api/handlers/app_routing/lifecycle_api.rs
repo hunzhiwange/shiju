@@ -24,10 +24,10 @@ use vw_agent_apps::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_routing::RoutingHealth,
-    vw_api_types::app_routing::RoutingLifecycleRequest,
-    vw_api_types::app_routing::RoutingState,
-    vw_api_types::app_routing::RoutingStatus,
+    vw_api_app_routing::RoutingHealth,
+    vw_api_app_routing::RoutingLifecycleRequest,
+    vw_api_app_routing::RoutingState,
+    vw_api_app_routing::RoutingStatus,
     vw_api_transport::error::ApiErrorBody,
     vw_api_transport::error::ApiErrorDetail,
     vw_api_transport::id::ProjectId,

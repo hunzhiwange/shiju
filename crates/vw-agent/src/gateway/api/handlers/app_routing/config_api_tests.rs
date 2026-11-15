@@ -9,7 +9,7 @@ use std::{
     net::{Ipv4Addr, TcpListener},
     time::Duration,
 };
-use vw_api_types::{app_routing::AppRoutingConfig, app_routing::RoutingState};
+use vw_api_app_routing::{AppRoutingConfig, RoutingState};
 use vw_api_app_identity::{AppId};
 
 async fn request(
@@ -103,7 +103,7 @@ async fn cc_route_012_config_api_expected_behavior() {
     assert_eq!(gateway_app_routing::GatewayAppRoutingClient::new(owner.transport().clone()).app_routing_status(HOST, READER).await.unwrap(), running);
     let occupied = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let next_port = occupied.local_addr().unwrap().port();
-    let changed = vw_api_types::app_routing::RoutingConfig {
+    let changed = vw_api_app_routing::RoutingConfig {
         listen_port: next_port,
         logging_enabled: true,
         ..initial

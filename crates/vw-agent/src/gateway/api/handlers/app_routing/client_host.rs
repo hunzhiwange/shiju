@@ -2,10 +2,10 @@
 use super::lifecycle_api::{ControlError, RoutingControl};
 use axum::{Extension, Json, extract::{Path, rejection::JsonRejection}, http::HeaderMap};
 use {
-    vw_api_types::app_routing::RoutingClientHost,
-    vw_api_types::app_routing::RoutingClientHostUpdate,
-    vw_api_types::app_routing::normalize_routing_client_host,
-    vw_api_types::app_routing::routing_client_host_from_bind,
+    vw_api_app_routing::RoutingClientHost,
+    vw_api_app_routing::RoutingClientHostUpdate,
+    vw_api_app_routing::normalize_routing_client_host,
+    vw_api_app_routing::routing_client_host_from_bind,
     vw_api_transport::id::TenantScope,
 };
 

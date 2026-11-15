@@ -9,8 +9,8 @@ use crate::{
 };
 use axum::{Extension, Json, extract::Path, http::HeaderMap};
 use {
-    vw_api_types::app_routing::RoutingEgressStatus,
-    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_app_routing::RoutingEgressStatus,
+    vw_api_app_routing::RoutingEgressUpdate,
     vw_api_transport::id::TenantScope,
 };
 

@@ -5,9 +5,9 @@ use parking_lot::Mutex;
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::app_routing::RoutingRequestState as State,
-    vw_api_types::app_routing::RoutingRequestStatus,
-    vw_api_types::app_routing::RoutingRequestsStatus,
+    vw_api_app_routing::RoutingRequestState as State,
+    vw_api_app_routing::RoutingRequestStatus,
+    vw_api_app_routing::RoutingRequestsStatus,
     vw_api_transport::id::ProjectScope,
 };
 

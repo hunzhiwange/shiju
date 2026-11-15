@@ -7,9 +7,9 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use {
-    vw_api_types::app_routing::RoutingEgressMode,
-    vw_api_types::app_routing::RoutingEgressStatus,
-    vw_api_types::app_routing::RoutingEgressUpdate,
+    vw_api_app_routing::RoutingEgressMode,
+    vw_api_app_routing::RoutingEgressStatus,
+    vw_api_app_routing::RoutingEgressUpdate,
     vw_api_transport::id::TenantScope,
 };
 

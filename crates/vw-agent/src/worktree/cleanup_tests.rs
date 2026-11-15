@@ -320,14 +320,14 @@ async fn worktree_cleanup_session_store_preserves_pending_duplicates_and_errors(
         projects
             .create(
                 scope.tenant_scope(),
-                &vw_shared::project::Info {
+                &project_types::Info {
                     id: scope.project_id().as_ref().to_owned(),
                     worktree: f.primary.to_string_lossy().into_owned(),
                     vcs: None,
                     name: None,
                     icon: None,
                     commands: None,
-                    time: vw_shared::project::TimeInfo {
+                    time: project_types::TimeInfo {
                         created: 1,
                         updated: 1,
                         initialized: None,

@@ -14,7 +14,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
+use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::AgentSchedulerContext;
 use super::store::outbox::{EnqueueOutboxMessageRequest, OutboxMessageStatus, StoredOutboxMessage};

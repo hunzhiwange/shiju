@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::project::store::ProjectStore;
-use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
+use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 fn sqlite_database() -> (tempfile::TempDir, GlobalDatabase) {
     let home = tempfile::tempdir().expect("temporary database home");

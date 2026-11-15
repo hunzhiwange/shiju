@@ -206,14 +206,14 @@ impl AgentSchedulerStore {
         debug_assert!(self.test_home.is_some());
         let project_scope = scope.project_scope();
         let store = crate::project::store::ProjectStore::new(database.clone())?;
-        let info = vw_shared::project::Info {
+        let info = project_types::Info {
             id: project_scope.project_id().as_ref().to_owned(),
             worktree: context.storage_project_path().to_string_lossy().into_owned(),
             vcs: None,
             name: Some("Agent Scheduler test project".to_owned()),
             icon: None,
             commands: None,
-            time: vw_shared::project::TimeInfo { created: 0, updated: 0, initialized: None },
+            time: project_types::TimeInfo { created: 0, updated: 0, initialized: None },
             sandboxes: Vec::new(),
         };
         if store.get(project_scope)?.is_none() {

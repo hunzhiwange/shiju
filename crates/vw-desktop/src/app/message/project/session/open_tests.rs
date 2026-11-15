@@ -82,14 +82,14 @@ fn loaded_project_info(
 ) -> crate::app::message::project::LoadedProjectInfo {
     crate::app::message::project::LoadedProjectInfo {
         project_path: project_path.to_string(),
-        info: vw_shared::project::Info {
+        info: project_types::Info {
             id: "project-id".to_string(),
             worktree: project_path.to_string(),
-            vcs: Some(vw_shared::project::Vcs::Git),
+            vcs: Some(project_types::Vcs::Git),
             name: Some("Project".to_string()),
             icon: None,
             commands: None,
-            time: vw_shared::project::TimeInfo { created: 1, updated, initialized: None },
+            time: project_types::TimeInfo { created: 1, updated, initialized: None },
             sandboxes: Vec::new(),
         },
         current_branch: current_branch.map(str::to_string),
@@ -1359,13 +1359,13 @@ fn project_info_loaded_updates_recent_project_icon_color_and_start_command() {
     app.project_path = Some("/tmp/current".to_string());
     app.recent_projects_meta = vec![recent_project_meta("/tmp/current", true, 60)];
     let mut loaded = loaded_project_info("/tmp/current", 11, Some("main"));
-    loaded.info.icon = Some(vw_shared::project::Icon {
+    loaded.info.icon = Some(project_types::Icon {
         url: None,
         override_icon: Some("rocket".to_string()),
         color: Some("#112233".to_string()),
     });
     loaded.info.commands =
-        Some(vw_shared::project::Commands { start: Some("cargo run".to_string()) });
+        Some(project_types::Commands { start: Some("cargo run".to_string()) });
 
     let _ = super::handle(
         &mut app,

@@ -574,15 +574,15 @@ fn map_timestamp(value: i64) -> u64 {
     value.max(0) as u64
 }
 
-fn map_gateway_project(project: ProjectDto) -> vw_shared::project::Info {
-    vw_shared::project::Info {
+fn map_gateway_project(project: ProjectDto) -> project_types::Info {
+    project_types::Info {
         id: project.id.0,
         worktree: project.directory.clone(),
-        vcs: project.git.is_repo.then_some(vw_shared::project::Vcs::Git),
+        vcs: project.git.is_repo.then_some(project_types::Vcs::Git),
         name: Some(project.name),
         icon: None,
         commands: None,
-        time: vw_shared::project::TimeInfo {
+        time: project_types::TimeInfo {
             created: map_timestamp(project.created_at_ms.0),
             updated: map_timestamp(project.updated_at_ms.0),
             initialized: None,

@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+project-types = { path = "../libs/project-types", version = "0.6.0" }
 question-types = { path = "../libs/question-types", version = "0.6.0" }
 permission-types = { path = "../libs/permission-types", version = "0.6.0" }
 snapshot-types = { path = "../libs/snapshot-types", version = "0.6.0" }

@@ -9,7 +9,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::project::{Info, TimeInfo};
+use project_types::{Info, TimeInfo};
 
 use super::{
     from_sql_timestamp, parse_vcs, serialize_optional_json, serialize_vcs, to_sql_timestamp,

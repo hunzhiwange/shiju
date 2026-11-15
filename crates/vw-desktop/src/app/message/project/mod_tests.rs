@@ -30,14 +30,14 @@ fn update_returns_no_task_for_unhandled_start_deferred_tasks_message() {
 
 #[test]
 fn loaded_project_info_keeps_project_path_info_and_branch() {
-    let info = vw_shared::project::Info {
+    let info = project_types::Info {
         id: "project-id".to_string(),
         worktree: "/tmp/project".to_string(),
-        vcs: Some(vw_shared::project::Vcs::Git),
+        vcs: Some(project_types::Vcs::Git),
         name: Some("Project".to_string()),
         icon: None,
         commands: None,
-        time: vw_shared::project::TimeInfo { created: 1, updated: 2, initialized: None },
+        time: project_types::TimeInfo { created: 1, updated: 2, initialized: None },
         sandboxes: vec!["/tmp/project".to_string()],
     };
 

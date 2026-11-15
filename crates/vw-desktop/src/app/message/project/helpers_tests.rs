@@ -668,7 +668,7 @@ fn map_gateway_project_converts_git_and_time_fields() {
     assert_eq!(info.id, "project-id");
     assert_eq!(info.worktree, "/project");
     assert_eq!(info.name.as_deref(), Some("Gateway Project"));
-    assert!(matches!(info.vcs, Some(vw_shared::project::Vcs::Git)));
+    assert!(matches!(info.vcs, Some(project_types::Vcs::Git)));
     assert_eq!(info.time.created, 0);
     assert_eq!(info.time.updated, 5000);
     assert_eq!(info.sandboxes, vec!["/project".to_string()]);

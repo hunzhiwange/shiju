@@ -23,7 +23,7 @@ use super::store::tasks::{AgentTaskBoardUpdate, AgentTaskDagNode, AgentTaskFilte
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
-use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
+use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 #[test]
 fn agent_scheduler_task_graph_isolated_by_full_scope() -> Result<()> {

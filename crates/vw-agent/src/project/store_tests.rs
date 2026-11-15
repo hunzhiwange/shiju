@@ -10,7 +10,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::project::{Commands, Icon, Info, TimeInfo, Vcs};
+use project_types::{Commands, Icon, Info, TimeInfo, Vcs};
 
 use super::ProjectStore;
 use crate::agent_scheduler::domain::AgentSchedulerContext;

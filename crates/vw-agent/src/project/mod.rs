@@ -67,7 +67,7 @@ pub use core::{
 pub use icon_discovery::discover;
 #[cfg(not(target_arch = "wasm32"))]
 pub use migration::{MigrationOutcome, migrate_project_registry};
-pub use vw_shared::project::{
+pub use project_types::{
     Commands, CommandsUpdate, Icon, IconUpdate, Info, TimeInfo, UpdateInput, Vcs,
 };
 

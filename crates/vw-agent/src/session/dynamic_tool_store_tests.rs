@@ -12,7 +12,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::project::{Info, TimeInfo};
+use project_types::{Info, TimeInfo};
 use vw_shared::session::ui_types::ChatSession;
 
 struct VersionTool(&'static str);

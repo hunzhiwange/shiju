@@ -12,7 +12,7 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
+use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::{AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};

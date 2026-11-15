@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use vw_api_transport::id::TenantScope;
 use config_runtime_paths::{global_database_path, home_config_dir};
-use vw_shared::project::{Info, TimeInfo};
+use project_types::{Info, TimeInfo};
 
 use super::{ensure_unique_project_id, migrate_project_registry};
 use crate::global_database::GlobalDatabase;

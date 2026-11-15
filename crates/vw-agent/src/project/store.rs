@@ -13,7 +13,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::project::{Info, TimeInfo, Vcs};
+use project_types::{Info, TimeInfo, Vcs};
 
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;

@@ -32,7 +32,7 @@ pub(crate) use session::{
 /// 使用具名字段保留领域含义，避免在消息链路中传递松散的动态数据。
 pub struct LoadedProjectInfo {
     pub project_path: String,
-    pub info: vw_shared::project::Info,
+    pub info: project_types::Info,
     pub current_branch: Option<String>,
 }
 

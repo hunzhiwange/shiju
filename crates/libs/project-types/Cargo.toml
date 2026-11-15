@@ -1,0 +1,11 @@
+[package]
+name = "project-types"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+project-types = { path = "../libs/project-types", version = "0.6.0" }
 config-skills = { path = "../libs/config-skills", version = "0.6.0" }
 desktop-account = { path = "../libs/desktop-account", version = "0.6.0" }
 question-types = { path = "../libs/question-types", version = "0.6.0" }

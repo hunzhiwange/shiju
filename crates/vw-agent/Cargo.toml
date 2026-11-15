@@ -208,6 +208,7 @@ agent-commands = { path = "../libs/agent-commands", version = "0.6.0" }
 agent-project = { path = "../libs/agent-project", version = "0.6.0" }
 worktree-core = { path = "../libs/worktree-core", version = "0.6.0" }
 agent-skills = { path = "../libs/agent-skills", version = "0.6.0" }
+plugin-install = { path = "../libs/plugin-install", version = "0.6.0" }
 agent-security = { path = "../libs/agent-security", version = "0.6.0" }
 agent-util = { path = "../libs/agent-util", version = "0.6.0" }
 agent-runtime = { path = "../libs/agent-runtime", version = "0.6.0" }

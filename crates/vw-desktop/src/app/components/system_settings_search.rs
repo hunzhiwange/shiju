@@ -55,21 +55,7 @@ impl SystemSettingsSearchTarget {
 }
 
 /// 单个设置页签共享的界面标签与搜索关键词。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SettingsTabDescriptor<T> {
-    /// 跳转时选中的强类型页签。
-    pub tab: T,
-    /// 在搜索结果中展示的页签名称。
-    pub label: &'static str,
-    /// 不直接展示、仅用于召回的同义关键词。
-    pub keywords: &'static [&'static str],
-}
-
-impl<T> SettingsTabDescriptor<T> {
-    pub const fn new(tab: T, label: &'static str, keywords: &'static [&'static str]) -> Self {
-        Self { tab, label, keywords }
-    }
-}
+pub use desktop_settings_security::SettingsTabDescriptor;
 
 /// 一个可导航系统设置目标的搜索元数据。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

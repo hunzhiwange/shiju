@@ -754,7 +754,7 @@ pub(super) fn apply_bootstrap_agent_config(
     // Control state is read through its authenticated API, never inferred from config.
     #[cfg(not(target_arch = "wasm32"))]
     if app.computer_control_settings.identity.as_ref()
-        != Some(&crate::app::state::ControlIdentity::current())
+        != Some(&crate::app::state::ControlIdentity::from_endpoint(&crate::app::gateway_client_endpoint()))
     {
         let generation = app.computer_control_settings.generation + 1;
         let pairing_generation = app.computer_control_settings.pairing_generation + 1;

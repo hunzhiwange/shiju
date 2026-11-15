@@ -35,43 +35,7 @@ pub enum EmbeddingRoutesMessage {
     Save,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum BashPolicyCheck {
-    Enabled,
-    ReadOnly,
-    UnsafeShellPatterns,
-    CommandRules,
-    WorkspacePaths,
-    ForbiddenPaths,
-    Risk,
-    Redirects,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum BashValidatorCheck {
-    Enabled,
-    EmptyCommand,
-    Heredoc,
-    GitCommit,
-    Jq,
-    Metacharacters,
-    DangerousVars,
-    Substitution,
-    Redirection,
-    NewlineInjection,
-    IfsInjection,
-    ProcEnviron,
-    Malformed,
-    ObfuscatedFlags,
-    Backslash,
-    BraceExpansion,
-    UnicodeWhitespace,
-    HashComment,
-    CommentQuoteDesync,
-    QuotedNewline,
-    ZshDangerous,
-    ControlChars,
-}
+pub use desktop_settings_security::security_message::{BashPolicyCheck, BashValidatorCheck};
 
 #[cfg(test)]
 #[path = "messages_tests.rs"]

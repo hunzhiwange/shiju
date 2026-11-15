@@ -1,4 +1,4 @@
-//! OpenClaw 设置的授权网关客户端。
+//! OpenClaw 设置网关客户端，以及 macOS 服务端路由。
 #[derive(Debug, Clone)]
 pub struct GatewayOpenClawSettingsClient {
     transport: gateway_http::GatewayTransport,
@@ -16,3 +16,8 @@ pub use openclaw_settings_api::{OpenClawSettingsError, OpenClawSettingsScope};
 mod openclaw_settings_api_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod test_support;
+
+#[cfg(target_os = "macos")]
+mod handlers;
+#[cfg(target_os = "macos")]
+pub use handlers::{Authorization, Host, router, router_with_policy};

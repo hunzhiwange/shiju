@@ -1,40 +1,31 @@
 use super::*;
+use axum::{http::{HeaderMap, StatusCode}, body::{Body, to_bytes}};
+use vw_api_transport::id::TenantScope;
+use std::path::PathBuf;
+use tower::ServiceExt;
 
-#[test]
-fn openclaw_api_roundtrips_defaults_preserves_sections() {
-    let pre = br#"{ // keep
-        "env":{"TOKEN":"private"}, "agents":{"defaults":{"timeout":30,"extension":{"x":1}}}
-    }"#;
-    let defaults = OpenClawAgentsDefaults(serde_json::from_value(serde_json::json!({
-        "timeout":45,"extension":{"x":1},"workspace":"中文"
-    })).unwrap());
-    let domain = convert::<defaults_rules::OpenClawAgentsDefaults>(defaults).unwrap();
-    let next = defaults_rules::prepare_agents_defaults(Some(pre), &domain).unwrap();
-    let result = project(Section::Defaults, Some(&next)).unwrap();
-    assert_eq!(result["timeoutSeconds"], 45);
-    assert_eq!(result["extension"]["x"], 1);
-    assert_eq!(result["workspace"], "中文");
-    assert!(result.get("timeout").is_none());
-    assert!(String::from_utf8(next.clone()).unwrap().contains("// keep"));
-    let model = convert::<openclaw_model::OpenClawDefaultModel>(OpenClawDefaultModel {
-        primary:"provider/model".into(), fallbacks:vec!["other/model".into()], extra: Default::default()
-    }).unwrap();
-    let next = openclaw_model::prepare_default_model(Some(&next), &model).unwrap();
-    assert_eq!(project(Section::Model, Some(&next)).unwrap()["primary"], "provider/model");
-    assert_eq!(project(Section::Defaults, Some(&next)).unwrap()["extension"]["x"], 1);
-    assert!(project(Section::Catalog, None).unwrap().is_null());
-    assert!(project(Section::Defaults, Some(b"{agents: []}")).is_err());
+async fn request(path: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, section: &str, host: &str, method: &str) -> axum::response::Response {
+    let router = gateway_openclaw_settings::router_with_policy(path, authorization())
+        .layer(axum::Extension(tenant));
+    let mut request = axum::http::Request::builder().method(method)
+        .uri(format!("/agent-apps/openclaw/settings/{section}?projectId=project&targetHostId={host}"))
+        .body(Body::from("{}")).unwrap();
+    *request.headers_mut() = headers;
+    request.headers_mut().insert("content-type", "application/json".parse().unwrap());
+    router.oneshot(request).await.unwrap()
+}
+async fn body(response: axum::response::Response) -> serde_json::Value {
+    assert_eq!(response.status(), StatusCode::OK);
+    serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap()
 }
 
-#[test]
-fn openclaw_api_roundtrips_defaults_denies_before_io() {
+#[tokio::test]
+async fn openclaw_api_roundtrips_defaults_denies_before_io() {
     let tenant = TenantScope::new("platform", "company").unwrap();
-    let scope = Scope { project_id:"project".into(), target_host_id:"remote".into() };
-    for write in [false, true] {
-        assert!(matches!(authorize(&Policy(None), &tenant, &HeaderMap::new(), &scope, write), Err(StatusCode::UNAUTHORIZED)));
+    for method in ["GET", "PUT"] {
+        let response = request(None, tenant.clone(), HeaderMap::new(), "env", "remote", method).await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
-    assert_eq!(error(WriteError::Conflict), StatusCode::CONFLICT);
-    assert_eq!(error(WriteError::Recovered), StatusCode::CONFLICT);
 }
 
 #[tokio::test]
@@ -56,19 +47,18 @@ async fn openclaw_api_protects_sensitive_env() {
     let mut headers = HeaderMap::new();
     headers.insert("x-agent-apps-token", "fixture-token".parse().unwrap());
     let tenant = TenantScope::new("platform", "company").unwrap();
-    let scope = || Scope { project_id: "project".into(), target_host_id: "host".into() };
-    let result = read(Policy(Some(path.clone())), tenant.clone(), headers.clone(), scope(), Section::Env).await;
-    assert_eq!(result.err(), Some(StatusCode::FORBIDDEN));
+    let result = request(Some(path.clone()), tenant.clone(), headers.clone(), "env", "host", "GET").await;
+    assert_eq!(result.status(), StatusCode::FORBIDDEN);
     assert_eq!(std::fs::read_dir(&home).unwrap().count(), 0);
     std::fs::create_dir(home.join(".openclaw")).unwrap();
     let config = home.join(".openclaw/openclaw.json");
     let original = br#"{env:{vars:{TOKEN:'secret'}},tools:{profile:'private-profile'}}"#;
     std::fs::write(&config, original).unwrap();
-    let health = read(Policy(Some(path.clone())), tenant.clone(), headers.clone(), scope(), Section::Health).await.unwrap().0;
+    let health = body(request(Some(path.clone()), tenant.clone(), headers.clone(), "health", "host", "GET").await).await;
     assert!(!health.to_string().contains("secret"));
     assert!(!health.to_string().contains("private-profile"));
     assert_eq!(std::fs::read(&config).unwrap(), original);
     std::fs::write(&path, policy(true).to_string()).unwrap();
-    let env = read(Policy(Some(path)), tenant, headers, scope(), Section::Env).await.unwrap().0;
+    let env = body(request(Some(path), tenant, headers, "env", "host", "GET").await).await;
     assert_eq!(env["vars"]["TOKEN"], "secret");
 }

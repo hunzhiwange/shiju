@@ -465,3 +465,5 @@ fn transparent_pet_window_style(_theme: &Theme) -> container::Style {
 #[cfg(test)]
 #[path = "task_pet_tests.rs"]
 mod task_pet_tests;
+
+pub mod window;

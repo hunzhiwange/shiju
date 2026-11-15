@@ -7,10 +7,9 @@ use super::ViewMessage;
 use crate::app::{App, FocusArea, Message};
 use iced::Task;
 
-const MIN_WORK_SIDEBAR_WIDTH: f32 = 220.0;
-const MAX_WORK_SIDEBAR_WIDTH: f32 = 520.0;
-const MIN_WORK_SPLIT_RATIO: f32 = 0.25;
-const MAX_WORK_SPLIT_RATIO: f32 = 0.75;
+use desktop_navigation::view_layout::{
+    MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH, MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WindowClosedOutcome {
@@ -130,90 +129,46 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::PointerMoved(x, y) => {
             app.cursor_position = iced::Point::new(x, y);
             if app.dragging_settings {
-                if app.settings_drag_anchor_x.is_none() {
-                    app.settings_drag_anchor_x = Some(x);
-                    return Task::none();
-                }
-                let anchor = app.settings_drag_anchor_x.unwrap_or(x);
-                let delta = x - anchor;
-                let new_width = (app.settings_drag_start_width + delta).clamp(150.0, 800.0);
-                app.settings_panel_width = new_width;
+                let Some(value) = desktop_navigation::view_layout::drag_value(
+                    &mut app.settings_drag_anchor_x, x, app.settings_drag_start_width, 1.0, 150.0, 800.0,
+                ) else { return Task::none(); };
+                app.settings_panel_width = value;
             }
             if app.dragging_file_manager {
-                if app.file_manager_drag_anchor_x.is_none() {
-                    app.file_manager_drag_anchor_x = Some(x);
-                    return Task::none();
-                }
-                let anchor = app.file_manager_drag_anchor_x.unwrap_or(x);
-                let delta = anchor - x;
-                let new_width = (app.file_manager_start_width + delta).clamp(180.0, 600.0);
-                app.file_manager_width = new_width;
+                let Some(value) = desktop_navigation::view_layout::drag_value(
+                    &mut app.file_manager_drag_anchor_x, x, app.file_manager_start_width, -1.0, 180.0, 600.0,
+                ) else { return Task::none(); };
+                app.file_manager_width = value;
             }
             if app.dragging_split {
-                if app.split_drag_anchor_x.is_none() {
-                    app.split_drag_anchor_x = Some(x);
-                    return Task::none();
-                }
-                let anchor = app.split_drag_anchor_x.unwrap_or(x);
-                let w = app.window_size.0.max(1.0);
-                let delta = x - anchor;
-                let ratio = (app.split_drag_start_ratio + delta / w).clamp(0.2, 0.8);
-                app.split_ratio = ratio;
+                let Some(value) = desktop_navigation::view_layout::drag_value(
+                    &mut app.split_drag_anchor_x, x, app.split_drag_start_ratio, app.window_size.0.max(1.0), 0.2, 0.8,
+                ) else { return Task::none(); };
+                app.split_ratio = value;
             }
             if app.dragging_work_sidebar {
-                if app.work_sidebar_drag_anchor_x.is_none() {
-                    app.work_sidebar_drag_anchor_x = Some(x);
-                    return Task::none();
-                }
-                let anchor = app.work_sidebar_drag_anchor_x.unwrap_or(x);
-                let delta = x - anchor;
-                app.work_sidebar_width = (app.work_sidebar_drag_start_width + delta)
-                    .clamp(MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH);
+                let Some(value) = desktop_navigation::view_layout::drag_value(
+                    &mut app.work_sidebar_drag_anchor_x, x, app.work_sidebar_drag_start_width, 1.0, MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH,
+                ) else { return Task::none(); };
+                app.work_sidebar_width = value;
             }
             if app.dragging_work_split {
-                if app.work_split_drag_anchor_x.is_none() {
-                    app.work_split_drag_anchor_x = Some(x);
-                    return Task::none();
-                }
-                let anchor = app.work_split_drag_anchor_x.unwrap_or(x);
-                let rail_width = if app.work_sidebar_collapsed {
-                    crate::app::state::WORK_SIDEBAR_RAIL_WIDTH
-                } else {
-                    0.0
-                };
-                let available_width =
-                    (app.window_size.0 - app.work_sidebar_width - rail_width).max(1.0);
-                let delta = x - anchor;
-                app.work_split_ratio = (app.work_split_drag_start_ratio + delta / available_width)
-                    .clamp(MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO);
+                let rail_width = if app.work_sidebar_collapsed { crate::app::state::WORK_SIDEBAR_RAIL_WIDTH } else { 0.0 };
+                let available_width = (app.window_size.0 - app.work_sidebar_width - rail_width).max(1.0);
+                let Some(value) = desktop_navigation::view_layout::drag_value(
+                    &mut app.work_split_drag_anchor_x, x, app.work_split_drag_start_ratio, available_width, MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO,
+                ) else { return Task::none(); };
+                app.work_split_ratio = value;
             }
             if app.task_pet_dragging {
                 app.drag_task_pet_to(x, y);
             }
-            if app.terminal.is_dragging {
-                if app.terminal.drag_anchor_y.is_none() {
-                    app.terminal.drag_anchor_y = Some(y);
-                    return Task::none();
-                }
-                let anchor = app.terminal.drag_anchor_y.unwrap_or(y);
-                let delta = anchor - y;
-                let mut th = (app.terminal.drag_start_height + delta).max(0.0);
-                let h = app.window_size.1.max(1.0);
-                let max_height = h * 0.8;
-                th = th.clamp(120.0_f32.min(max_height), max_height);
-                app.terminal.height = th;
+            if app.terminal.is_dragging && !app.terminal.pointer_resize(y, app.window_size.1) {
+                return Task::none();
             }
-            if let Some((task_id, from_status, press_pos)) = &app.task_board_drag_pending {
-                let dx = app.cursor_position.x - press_pos.x;
-                let dy = app.cursor_position.y - press_pos.y;
-                let distance = (dx * dx + dy * dy).sqrt();
-                if distance > 5.0 {
-                    let task_id = task_id.as_str().to_owned();
-                    let from_status = *from_status;
-                    app.task_board_drag_pending = None;
-                    app.task_board_dragging = Some((task_id, from_status));
-                }
-            }
+            desktop_task_board::drag::promote_pending_drag(
+                &mut app.task_board_drag_pending, &mut app.task_board_dragging, app.cursor_position,
+            );
             Task::none()
         }
         ViewMessage::WindowResized(window_id, w, h) => {
@@ -245,21 +200,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::HoveredFilePath(path) => {
-            if app.file_tree_interaction.dragging_file_paths.is_empty()
-                && !app.file_tree_interaction.pending_drop_file_paths.iter().any(|existing| existing == &path)
-            {
-                app.file_tree_interaction.pending_drop_file_paths.push(path);
-                app.file_tree_interaction.pending_drop_file_position = None;
-            }
+            app.file_tree_interaction.hover_external_file(path);
             Task::none()
         }
         ViewMessage::DroppedFilePath(path) => {
-            app.file_tree_interaction.file_tree_drag_source = None;
-            app.file_tree_interaction.file_tree_drop_target = None;
-            app.file_tree_interaction.dragging_file_paths.clear();
-            app.file_tree_interaction.dragging_file_position = None;
-            app.file_tree_interaction.pending_drop_file_paths = vec![path];
-            app.file_tree_interaction.pending_drop_file_position = None;
+            app.file_tree_interaction.drop_external_file(path);
             if app.file_tree_interaction.input_drop_hovered {
                 return crate::app::message::chat::update(
                     app,
@@ -276,11 +221,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::HoveredFilesLeft => {
-            if app.file_tree_interaction.dragging_file_paths.is_empty() {
-                app.file_tree_interaction.pending_drop_file_paths.clear();
-                app.file_tree_interaction.pending_drop_file_position = None;
-                app.file_tree_interaction.input_drop_hovered = false;
-            }
+            app.file_tree_interaction.leave_external_files();
             Task::none()
         }
         ViewMessage::FullscreenLayoutSettled => {
@@ -343,18 +284,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     crate::app::message::project::file_tree::release_tree_drop(app),
                 ]);
             }
-            app.file_tree_interaction.file_tree_drag_source = None;
-            app.file_tree_interaction.file_tree_drop_target = None;
-            if !app.file_tree_interaction.dragging_file_paths.is_empty() {
-                app.file_tree_interaction.pending_drop_file_paths = app.file_tree_interaction.dragging_file_paths.clone();
-                app.file_tree_interaction.pending_drop_file_position = app.file_tree_interaction.dragging_file_position;
-                app.file_tree_interaction.dragging_file_paths.clear();
-                app.file_tree_interaction.dragging_file_position = None;
-            }
-            let input_drop_hovered = app.file_tree_interaction.input_drop_hovered;
-            app.file_tree_interaction.input_drop_hovered = false;
-
-            if input_drop_hovered && !app.file_tree_interaction.pending_drop_file_paths.is_empty() {
+            if app.file_tree_interaction.release_chat_drop() {
                 app.focus_area = FocusArea::None;
                 return Task::batch([
                     save,
@@ -363,9 +293,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     )),
                 ]);
             }
-
-            app.file_tree_interaction.pending_drop_file_paths.clear();
-            app.file_tree_interaction.pending_drop_file_position = None;
 
             save
         }

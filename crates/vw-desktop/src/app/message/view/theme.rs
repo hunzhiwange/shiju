@@ -5,27 +5,10 @@
 
 use super::ViewMessage;
 use crate::app::config::SystemSettingsSection;
-use crate::app::theme_catalog::{
-    config_value_for_theme, find_custom_theme_id, theme_store_from_home,
-};
+use crate::app::theme_catalog::config_value_for_theme;
 use crate::app::{App, Message, TerminalTheme};
 use iced::Task;
-use iced::Theme;
 use iced_code_editor::theme;
-
-fn sync_active_custom_theme_id(app: &mut App) {
-    if !matches!(app.app_theme, Theme::Custom(_)) {
-        app.active_custom_theme_id = None;
-        crate::app::theme_catalog::clear_active_theme_skin(app);
-        return;
-    }
-    if app.active_custom_theme_id.is_none() {
-        if let Some(store) = theme_store_from_home() {
-            app.active_custom_theme_id = find_custom_theme_id(&app.app_theme, &store);
-        }
-    }
-    crate::app::theme_catalog::sync_active_theme_skin(app);
-}
 
 /// 执行 update 对应的领域操作。
 ///
@@ -35,7 +18,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::AppThemeSelected(theme) => {
             app.app_theme = theme.clone();
-            sync_active_custom_theme_id(app);
+            desktop_theme::selection::sync_active_custom_theme_id(
+                &app.app_theme, &mut app.active_custom_theme_id, &mut app.active_theme_skin,
+            );
             if app.editor_follow_system_theme {
                 let editor_theme = app.effective_editor_theme();
                 for tab in app.preview_tabs.iter_mut() {

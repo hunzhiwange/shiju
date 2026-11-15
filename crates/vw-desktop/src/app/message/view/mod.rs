@@ -24,28 +24,14 @@ use crate::app::{
         WorkSidebarTab, WorkspaceMode,
     },
 };
-use iced::{Task, Theme, Vector};
+use iced::{Task, Theme};
 
 pub mod layout;
 pub mod panel;
 pub mod theme;
 
 #[cfg(not(target_arch = "wasm32"))]
-fn task_pet_window_settings(size: iced::Size, position: iced::Point) -> iced::window::Settings {
-    iced::window::Settings {
-        size,
-        // 禁止用户缩放，但允许展开动画和伙伴大小设置调整原生窗口。
-        min_size: None,
-        max_size: None,
-        position: iced::window::Position::Specific(position),
-        resizable: false,
-        decorations: false,
-        transparent: true,
-        level: iced::window::Level::AlwaysOnTop,
-        exit_on_close_request: false,
-        ..Default::default()
-    }
-}
+use desktop_task_board::task_pet::window::task_pet_window_settings;
 
 /// 仅由加载和显式显示操作同步窗口；保存响应不改变窗口生命周期。
 pub(crate) fn sync_task_pet_window(app: &mut App) -> Task<Message> {
@@ -80,25 +66,7 @@ fn open_task_pet_session(app: &mut App, session_id: String) -> Task<Message> {
     ))
 }
 
-/// 菜单类型枚举
-///
-/// 定义应用程序顶部菜单栏中的各个菜单分类。用于在菜单操作和悬停事件中
-/// 标识具体的菜单项，以便进行相应的状态管理和界面响应。
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum MenuType {
-    /// 文件菜单 - 包含项目、会话的新建、打开、保存等操作
-    File,
-    /// 编辑菜单 - 包含撤销、重做、剪切、复制、粘贴等编辑操作
-    Edit,
-    /// 视图菜单 - 包含面板显示/隐藏、主题切换等视图相关操作
-    View,
-    /// 帮助菜单 - 包含关于、文档、反馈等帮助相关操作
-    Help,
-    /// 外部链接菜单 - 用于在外部浏览器或其他应用中打开链接
-    OpenExternal,
-    /// 网关服务菜单 - 显示服务端与客户端网关入口
-    GatewayServices,
-}
+pub use desktop_navigation::components::top_bar::menus::MenuType;
 
 /// 视图层消息枚举
 ///
@@ -883,47 +851,37 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::batch([open, focus])
         }
         ViewMessage::TaskPetSizeOpen => {
-            if app.task_pet_size_draft.is_some() {
-                return Task::none();
-            }
-            app.task_pet_size_draft = Some(app.task_pet_scale);
-            app.task_pet_dragging = false;
+            if !desktop_task_board::task_pet::window::open_size(
+                &mut app.task_pet_size_draft, &mut app.task_pet_dragging, app.task_pet_scale,
+            ) { return Task::none(); }
             update(app, ViewMessage::TaskPetOpenSettings)
         }
         ViewMessage::TaskPetSizePreview(scale) => {
-            if app.task_pet_size_draft.is_none()
-                || app.task_pet_size_pending.is_some()
-                || app.task_pet_avatar_kind == crate::app::state::TaskPetAvatarKind::None
-            {
-                return Task::none();
-            }
-            if !scale.is_finite() {
-                return app.show_error_toast("伙伴大小必须是有限数值");
-            }
             let previous_size = app.task_pet_window_size();
-            app.task_pet_size_draft = Some(scale.clamp(0.5, 2.0));
-            app.resize_task_pet_preview(previous_size)
+            match desktop_task_board::task_pet::window::preview_size(
+                &mut app.task_pet_size_draft, app.task_pet_size_pending.is_some(),
+                app.task_pet_avatar_kind, scale,
+            ) {
+                Ok(true) => app.resize_task_pet_preview(previous_size),
+                Ok(false) => Task::none(),
+                Err(error) => app.show_error_toast(error),
+            }
         }
         ViewMessage::TaskPetSizeReset => update(app, ViewMessage::TaskPetSizePreview(1.0)),
         ViewMessage::TaskPetSizeCancel => {
-            if app.task_pet_size_pending.is_some() {
-                return Task::none();
-            }
             let previous_size = app.task_pet_window_size();
-            app.task_pet_size_draft = None;
+            if !desktop_task_board::task_pet::window::cancel_size(
+                &mut app.task_pet_size_draft, app.task_pet_size_pending.is_some(),
+            ) { return Task::none(); }
             app.resize_task_pet_preview(previous_size)
         }
         ViewMessage::TaskPetSizeSave => {
-            if app.task_pet_size_pending.is_some() {
-                return Task::none();
+            use desktop_task_board::task_pet::window::{size_save, SizeSave};
+            match size_save(app.task_pet_size_draft, app.task_pet_size_pending.is_some(), app.task_pet_scale) {
+                SizeSave::Idle => Task::none(),
+                SizeSave::Cancel => update(app, ViewMessage::TaskPetSizeCancel),
+                SizeSave::Save(scale) => app.save_task_pet_size(scale),
             }
-            let Some(scale) = app.task_pet_size_draft else {
-                return Task::none();
-            };
-            if scale == app.task_pet_scale {
-                return update(app, ViewMessage::TaskPetSizeCancel);
-            }
-            app.save_task_pet_size(scale)
         }
         ViewMessage::TaskPetSizeSaved(scope, result) => {
             if app.task_pet_size_pending.as_ref() == Some(&scope) {
@@ -1193,77 +1151,18 @@ fn handle_global_key(
     Task::none()
 }
 
-fn workflow_key_message(
-    key: &iced::keyboard::Key,
-    modifiers: iced::keyboard::Modifiers,
-    has_selected_node: bool,
-) -> Option<crate::apps::workflow::WorkflowMessage> {
-    if modifiers.command() {
-        return match key {
-            iced::keyboard::Key::Character(c) if c == "+" || c == "=" => {
-                Some(crate::apps::workflow::WorkflowMessage::Zoom(1.1, None))
-            }
-            iced::keyboard::Key::Character(c) if c == "-" => {
-                Some(crate::apps::workflow::WorkflowMessage::Zoom(1.0 / 1.1, None))
-            }
-            iced::keyboard::Key::Character(c) if c == "0" => {
-                Some(crate::apps::workflow::WorkflowMessage::ZoomFit)
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("o") => {
-                Some(crate::apps::workflow::WorkflowMessage::OpenFile)
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("r") => {
-                Some(crate::apps::workflow::WorkflowMessage::Reload)
-            }
-            _ => None,
-        };
-    }
-
-    match key {
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowLeft) => {
-            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(-48.0, 0.0)))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowRight) => {
-            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(48.0, 0.0)))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
-            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(0.0, -48.0)))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowDown) => {
-            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(0.0, 48.0)))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace)
-        | iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete) => {
-            if has_selected_node {
-                Some(crate::apps::workflow::WorkflowMessage::DeleteSelectedNode)
-            } else {
-                Some(crate::apps::workflow::WorkflowMessage::DeleteSelectedEdge)
-            }
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) => {
-            Some(crate::apps::workflow::WorkflowMessage::CancelInteraction)
-        }
-        _ => None,
-    }
-}
+use desktop_workflow_ui::shortcuts::workflow_key_message;
 
 fn global_command_message(
     key: &iced::keyboard::Key,
     modifiers: iced::keyboard::Modifiers,
 ) -> Option<Message> {
-    if !modifiers.command() {
-        return None;
-    }
-
-    match key {
-        iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("p") => {
-            Some(Message::Search(crate::app::message::SearchMessage::Open))
-        }
-        iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("c") => {
-            Some(Message::CopyShortcut)
-        }
-        _ => None,
-    }
+    use desktop_navigation::view_layout::{GlobalCommand, global_command};
+    global_command(key, modifiers).map(|command| match command {
+        GlobalCommand::Search => Message::Search(crate::app::message::SearchMessage::Open),
+        GlobalCommand::Copy => Message::CopyShortcut,
+    })
 }
+
 #[cfg(test)]
 mod tests;

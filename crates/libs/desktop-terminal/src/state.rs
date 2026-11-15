@@ -220,6 +220,18 @@ pub struct TerminalState<S> {
 }
 
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
+    /// Continue resizing outside the handle. False means this event only set the anchor.
+    pub fn pointer_resize(&mut self, y: f32, window_height: f32) -> bool {
+        let Some(anchor) = self.drag_anchor_y else {
+            self.drag_anchor_y = Some(y);
+            return false;
+        };
+        let height = (self.drag_start_height + (anchor - y)).max(0.0);
+        let max_height = window_height.max(1.0) * 0.8;
+        self.height = height.clamp(120.0_f32.min(max_height), max_height);
+        true
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub fn apply_app_theme(&mut self, theme: &iced::Theme) {
         self.apply_theme_palette(theme);

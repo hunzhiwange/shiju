@@ -30,6 +30,43 @@ pub struct InteractionState {
     pub file_tree_pending_delete: Option<(String, Vec<String>)>,
 }
 impl InteractionState {
+    pub fn hover_external_file(&mut self, path: String) {
+        if self.dragging_file_paths.is_empty()
+            && !self.pending_drop_file_paths.iter().any(|existing| existing == &path)
+        {
+            self.pending_drop_file_paths.push(path);
+            self.pending_drop_file_position = None;
+        }
+    }
+    pub fn drop_external_file(&mut self, path: String) {
+        self.file_tree_drag_source = None;
+        self.file_tree_drop_target = None;
+        self.dragging_file_paths.clear();
+        self.dragging_file_position = None;
+        self.pending_drop_file_paths = vec![path];
+        self.pending_drop_file_position = None;
+    }
+    pub fn leave_external_files(&mut self) {
+        if self.dragging_file_paths.is_empty() {
+            self.pending_drop_file_paths.clear();
+            self.pending_drop_file_position = None;
+            self.input_drop_hovered = false;
+        }
+    }
+    /// Finalize a chat drop after the host has given internal tree moves priority.
+    pub fn release_chat_drop(&mut self) -> bool {
+        self.file_tree_drag_source = None;
+        self.file_tree_drop_target = None;
+        self.end_chat_drag();
+        let hovered = self.input_drop_hovered;
+        self.input_drop_hovered = false;
+        if hovered && !self.pending_drop_file_paths.is_empty() {
+            return true;
+        }
+        self.pending_drop_file_paths.clear();
+        self.pending_drop_file_position = None;
+        false
+    }
     pub fn clear_drag(&mut self) {
         self.file_tree_drag_source = None;
         self.file_tree_drop_target = None;

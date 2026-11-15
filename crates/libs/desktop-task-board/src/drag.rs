@@ -188,3 +188,19 @@ fn build_drag_preview_card<'a>(
 #[cfg(test)]
 #[path = "drag_tests.rs"]
 mod drag_tests;
+
+/// Promote the pending press only after it crosses the existing drag threshold.
+pub fn promote_pending_drag(
+    pending: &mut Option<(String, desktop_task_model::TaskStatus, iced::Point)>,
+    dragging: &mut Option<(String, desktop_task_model::TaskStatus)>,
+    position: iced::Point,
+) {
+    if let Some((task_id, from_status, press_pos)) = pending.as_ref() {
+        let dx = position.x - press_pos.x;
+        let dy = position.y - press_pos.y;
+        if (dx * dx + dy * dy).sqrt() > 5.0 {
+            *dragging = Some((task_id.clone(), *from_status));
+            *pending = None;
+        }
+    }
+}

@@ -5,13 +5,13 @@ use anyhow::{Result, bail};
 use tokio::sync::mpsc;
 
 impl ChildAgentCoordinator {
-    pub(crate) fn attach_continuation(&self, child: &str) -> mpsc::Receiver<String> {
+    pub fn attach_continuation(&self, child: &str) -> mpsc::Receiver<String> {
         let (sender, receiver) = mpsc::channel(128);
         self.lock_state().continuations.insert(child.into(), sender);
         receiver
     }
 
-    pub(crate) fn followup_task(&self, parent: &str, child: &str, prompt: String) -> Result<()> {
+    pub fn followup_task(&self, parent: &str, child: &str, prompt: String) -> Result<()> {
         if prompt.trim().is_empty() || prompt.len() > 64 * 1024 {
             bail!("followup task must contain 1..65536 bytes");
         }
@@ -35,7 +35,7 @@ impl ChildAgentCoordinator {
             .map_err(|_| anyhow::anyhow!("target runtime is closed"))
     }
 
-    pub(crate) fn turn_cancellation(
+    pub fn turn_cancellation(
         &self,
         child: &str,
     ) -> Result<tokio_util::sync::CancellationToken> {
@@ -46,7 +46,7 @@ impl ChildAgentCoordinator {
             .ok_or_else(|| anyhow::anyhow!("unknown child agent"))
     }
 
-    pub(crate) fn begin_followup(&self, parent: &str, child: &str, prompt: &str) -> Result<()> {
+    pub fn begin_followup(&self, parent: &str, child: &str, prompt: &str) -> Result<()> {
         let version = {
             let mut state = self.lock_state();
             let entry = super::task_for_parent_mut(&mut state, parent, child)?;

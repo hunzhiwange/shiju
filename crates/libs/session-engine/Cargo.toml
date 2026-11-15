@@ -8,14 +8,26 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+anyhow = "1"
+config-agent = { path = "../config-agent", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+vw-api-chat-identity = { path = "../api-chat-identity", version = "0.6.0" }
 serde_json = "1"
-tokio = { version = "1", features = ["sync", "macros", "rt-multi-thread"] }
+session-port = { path = "../session-port", version = "0.6.0" }
+tokio = { version = "1", features = ["sync", "time", "macros", "rt-multi-thread"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+agent-defaults = { path = "../agent-defaults", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
 agent-bus = { path = "../agent-bus", version = "0.6.0" }
 agent-storage = { path = "../agent-storage", version = "0.6.0" }
 agent-project = { path = "../agent-project", version = "0.6.0" }
 message-types = { path = "../message-types", version = "0.6.0" }
 session-info = { path = "../session-info", version = "0.6.0" }
-vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 
 [dev-dependencies]
 uuid = { version = "1.11", features = ["v4", "js"] }

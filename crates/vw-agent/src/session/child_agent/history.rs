@@ -3,24 +3,7 @@ use serde_json::{Value, json};
 
 pub use session_port::child_agent::ForkTurns;
 
-pub(super) fn snapshot(messages: &[Value]) -> Vec<Value> {
-    messages
-        .iter()
-        .filter_map(|message| {
-            let role = message.get("role")?.as_str()?;
-            let text = message.get("content")?.as_str()?;
-            let content = match role {
-                "user" => text.to_string(),
-                "assistant" => super::visible_answer_from_execution_output(text),
-                _ => return None,
-            };
-            if content.trim().is_empty() {
-                return None;
-            }
-            Some(json!({"role":role,"content":content}))
-        })
-        .collect()
-}
+pub(super) use session_engine::child_agent::history::snapshot;
 
 pub(super) async fn stored_snapshot(parent: &str) -> anyhow::Result<Vec<Value>> {
     let mut messages = super::message::messages(parent, None).await?;
@@ -48,7 +31,3 @@ pub(super) async fn stored_snapshot(parent: &str) -> anyhow::Result<Vec<Value>> 
         .collect::<Vec<_>>();
     Ok(snapshot(&values))
 }
-
-#[cfg(test)]
-#[path = "history_tests.rs"]
-mod tests;

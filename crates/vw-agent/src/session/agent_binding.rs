@@ -1,253 +1,54 @@
-//! Server-owned session identity. UI snapshots never supply this record.
-use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
-use config_agent_profile::{AgentDefaults, AgentRuntime};
-use config_agent::{AgentDefinitionConfig, DelegateCapabilityPolicy};
+//! Server-owned session binding persistence and admission.
+use anyhow::Result;
+use config_agent_profile::AgentRuntime;
+#[cfg(test)]
+use config_agent::AgentDefinitionConfig;
+#[cfg(test)]
+use config_agent_profile::AgentDefaults;
+pub(crate) use session_engine::agent_binding::AgentBinding;
 
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct AgentBinding {
-    pub(crate) agent: String,
-    pub(crate) runtime: AgentRuntime,
-    pub(crate) label: Option<String>,
-    pub(crate) defaults: AgentDefaults,
-    pub(crate) system_prompt: Option<String>,
-    pub(crate) temperature: Option<f64>,
-    pub(crate) top_p: Option<f64>,
-    pub(crate) allowed_tools: Vec<String>,
-    pub(crate) allowed_skills: Vec<String>,
-    pub(crate) skill_policy: DelegateCapabilityPolicy,
-    pub(crate) provider: String,
-    pub(crate) model: String,
-    pub(crate) force_model_selection: bool,
+pub(super) use session_engine::binding_store::storage_key;
+pub(super) fn store() -> Result<app_settings_store::settings_store::GatewaySettingsStore> {
+    let database = agent_database::GlobalDatabase::for_home(&crate::global::paths().home)?;
+    app_settings_store::settings_store::GatewaySettingsStore::new(database)
 }
-
-impl AgentBinding {
-    pub(crate) fn from_definition(agent: String, definition: &AgentDefinitionConfig) -> Self {
-        Self {
-            agent,
-            runtime: definition.runtime.clone(),
-            label: definition.label.clone(),
-            defaults: definition.defaults.clone(),
-            system_prompt: definition.system_prompt.clone(),
-            temperature: definition.temperature,
-            top_p: definition.top_p,
-            allowed_tools: definition.allowed_tools.clone(),
-            allowed_skills: definition.allowed_skills.clone(),
-            skill_policy: definition.skill_policy,
-            provider: definition.provider.clone(),
-            model: definition.model.clone(),
-            force_model_selection: definition.force_model_selection,
-        }
-    }
-
-    /// Keep credentials and live security rules in current configuration only.
-    pub(crate) fn apply(&self, definition: &mut AgentDefinitionConfig) {
-        definition.runtime = self.runtime.clone();
-        definition.defaults = self.defaults.clone();
-        definition.system_prompt = self.system_prompt.clone();
-        definition.temperature = self.temperature;
-        definition.top_p = self.top_p;
-        definition.allowed_tools = self.allowed_tools.clone();
-        definition.allowed_skills = self.allowed_skills.clone();
-        definition.skill_policy = self.skill_policy;
-        definition.provider = self.provider.clone();
-        definition.model = self.model.clone();
-        definition.force_model_selection = self.force_model_selection;
-        // Disabling a profile prevents new bindings, not continuation of an existing one.
-        definition.enabled = true;
-    }
-
-    pub(crate) fn identity(&self) -> vw_api_chat_identity::SessionAgentIdentity {
-        vw_api_chat_identity::SessionAgentIdentity {
-            agent: self.agent.clone(),
-            label: self.label.clone(),
-            acp_agent: match &self.runtime {
-                AgentRuntime::Native => None,
-                AgentRuntime::Acp { backend } => Some(backend.clone()),
-            },
-        }
-    }
-
-    pub(crate) fn validate_selection(
-        &self,
-        agent: Option<&str>,
-        backend: Option<&str>,
-    ) -> Result<()> {
-        if agent.is_some_and(|agent| !agent.trim().is_empty() && agent.trim() != self.agent) {
-            bail!("changing a session agent requires a new session");
-        }
-        if let Some(backend) = backend {
-            match &self.runtime {
-                AgentRuntime::Acp { backend: selected } if selected == backend => {}
-                _ => {
-                    bail!("agent and ACP backend conflict; changing engines requires a new session")
-                }
-            }
-        }
-        Ok(())
-    }
+fn scope() -> (std::path::PathBuf, vw_api_transport::TenantScope) {
+    (crate::global::paths().home.clone(), crate::session::ui_store::current_tenant_scope())
 }
-
-fn component(value: &str) -> Result<String> {
-    if value.trim().is_empty() {
-        bail!("session binding scope must be non-empty");
-    }
-    Ok(value.as_bytes().iter().map(|byte| format!("{byte:02x}")).collect())
-}
-
-pub(super) fn storage_key(project: &str, session: &str) -> Result<String> {
-    Ok(format!("{}:{}", component(project)?, component(session)?))
-}
-
-pub(super) fn store() -> Result<crate::gateway::settings_store::GatewaySettingsStore> {
-    let database = crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home)?;
-    crate::gateway::settings_store::GatewaySettingsStore::new(database)
-}
-
 pub(crate) async fn load_scoped(project: &str, session: &str) -> Result<Option<AgentBinding>> {
-    let key = storage_key(project, session)?;
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    crate::global_database::run_isolated(move || {
-        store()?
-            .get(&tenant, "session.agent-binding", &key)?
-            .map(|payload| serde_json::from_str(&payload).map_err(Into::into))
-            .transpose()
-    })
-    .await?
+    let (home, tenant) = scope();
+    session_engine::binding_store::load_scoped(home, tenant, project, session).await
 }
-
-pub(crate) async fn save_scoped(
-    project: &str,
-    session: &str,
-    binding: &AgentBinding,
-) -> Result<()> {
-    let key = storage_key(project, session)?;
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    let payload = serde_json::to_string(binding)?;
-    crate::global_database::run_isolated(move || {
-        store()?.upsert(&tenant, "session.agent-binding", &key, &payload)
-    })
-    .await?
+pub(crate) async fn save_scoped(project: &str, session: &str, binding: &AgentBinding) -> Result<()> {
+    let (home, tenant) = scope();
+    session_engine::binding_store::save_scoped(home, tenant, project, session, binding).await
 }
-
-/// Immutable agent binding and the persisted session permission choice.
-pub(crate) struct SessionSettings {
-    pub(crate) binding: Option<AgentBinding>,
-    pub(crate) full_access: Option<bool>,
+pub(crate) struct SessionSettings(session_engine::binding_store::SessionSettings);
+impl std::ops::Deref for SessionSettings {
+    type Target = session_engine::binding_store::SessionSettings;
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
-
 impl SessionSettings {
     pub(crate) async fn load(project: &str, session: &str) -> Result<Self> {
-        let key = storage_key(project, session)?;
-        let tenant = crate::session::ui_store::current_tenant_scope();
-        crate::global_database::run_isolated(move || {
-            let store = store()?;
-            Ok(Self {
-                binding: store
-                    .get(&tenant, "session.agent-binding", &key)?
-                    .as_deref()
-                    .map(serde_json::from_str)
-                    .transpose()?,
-                full_access: store
-                    .get(&tenant, "session.full-access", &key)?
-                    .as_deref()
-                    .map(serde_json::from_str)
-                    .transpose()?,
-            })
-        })
-        .await?
+        let (home, tenant) = scope();
+        session_engine::binding_store::SessionSettings::load(home, tenant, project, session).await.map(Self)
     }
-
     pub(super) async fn save(&self, project: &str, session: &str) -> Result<()> {
-        let key = storage_key(project, session)?;
-        let tenant = crate::session::ui_store::current_tenant_scope();
-        let binding = self.binding.clone();
-        let full_access = self.full_access;
-        crate::global_database::run_isolated(move || {
-            let store = store()?;
-            if let Some(binding) = binding {
-                store.upsert(
-                    &tenant,
-                    "session.agent-binding",
-                    &key,
-                    &serde_json::to_string(&binding)?,
-                )?;
-            }
-            if let Some(full_access) = full_access {
-                store.upsert(
-                    &tenant,
-                    "session.full-access",
-                    &key,
-                    &serde_json::to_string(&full_access)?,
-                )?;
-            }
-            Ok(())
-        })
-        .await?
+        let (home, tenant) = scope();
+        self.0.save(home, tenant, project, session).await
     }
-
     pub(super) async fn remove(&self, project: &str, session: &str) -> Result<()> {
-        let key = storage_key(project, session)?;
-        let tenant = crate::session::ui_store::current_tenant_scope();
-        let has_binding = self.binding.is_some();
-        let has_full_access = self.full_access.is_some();
-        crate::global_database::run_isolated(move || {
-            let store = store()?;
-            if has_binding {
-                store.delete(&tenant, "session.agent-binding", &key)?;
-            }
-            if has_full_access {
-                store.delete(&tenant, "session.full-access", &key)?;
-            }
-            Ok(())
-        })
-        .await?
+        let (home, tenant) = scope();
+        self.0.remove(home, tenant, project, session).await
     }
 }
-
-/// Read a persisted permission choice for automation without granting or storing a default.
 pub(crate) async fn confirmed_full_access(project: &str, session: &str) -> Result<bool> {
-    let key = storage_key(project, session)?;
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    crate::global_database::run_isolated(move || {
-        Ok(store()?
-            .get(&tenant, "session.full-access", &key)?
-            .as_deref()
-            .map(serde_json::from_str::<bool>)
-            .transpose()?
-            .unwrap_or(false))
-    })
-    .await?
+    let (home, tenant) = scope();
+    session_engine::binding_store::confirmed_full_access(home, tenant, project, session).await
 }
-
-// Persist the session choice separately from the immutable agent defaults snapshot.
-static FULL_ACCESS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
-pub(crate) async fn resolve_full_access_scoped(
-    project: &str,
-    session: &str,
-    explicit: Option<bool>,
-    initial: bool,
-) -> Result<bool> {
-    let _guard = FULL_ACCESS.lock().await;
-    let key = storage_key(project, session)?;
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    crate::global_database::run_isolated(move || {
-        let store = store()?;
-        let previous = store.get(&tenant, "session.full-access", &key)?;
-        let enabled = match explicit {
-            Some(enabled) => enabled,
-            None => previous
-                .as_deref()
-                .map(serde_json::from_str::<bool>)
-                .transpose()?
-                .unwrap_or(initial),
-        };
-        store.upsert(&tenant, "session.full-access", &key, &serde_json::to_string(&enabled)?)?;
-        Ok(enabled)
-    })
-    .await?
+pub(crate) async fn resolve_full_access_scoped(project: &str, session: &str, explicit: Option<bool>, initial: bool) -> Result<bool> {
+    let (home, tenant) = scope();
+    session_engine::binding_store::resolve_full_access_scoped(home, tenant, project, session, explicit, initial).await
 }
 
 pub(crate) async fn resolve_full_access(
@@ -276,183 +77,44 @@ pub(crate) async fn apply_to_config(
     session: &str,
     config: &mut crate::config::Config,
 ) -> Result<()> {
-    if session.is_empty() || crate::project::instance::project().is_none() {
-        return Ok(());
-    }
-    if let Some(binding) = load(session).await? {
-        let mut definition = crate::agent::catalog::merged_agent_catalog(&config.agents)
-            .remove(&binding.agent)
-            .unwrap_or_default();
-        binding.apply(&mut definition);
-        config.agents.insert(binding.agent, definition);
-    }
-    Ok(())
+    session_engine::admission::apply_to_config::<AdmissionHost>(session, config).await
 }
 
 #[cfg(test)]
 #[path = "agent_binding_tests.rs"]
 mod tests;
 
-static INITIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+pub(crate) async fn prepare(session: &str, selected_agent: Option<&str>, backend: Option<&str>, explicit_model: Option<&str>, workspace: &std::path::Path) -> Result<(AgentBinding, crate::config::Config)> {
+    session_engine::admission::prepare::<AdmissionHost>(session, selected_agent, backend, explicit_model, workspace).await
+}
 
-/// Freeze defaults before the first model/ACP request, while retaining live safety checks.
-pub(crate) async fn prepare(
-    session: &str,
-    selected_agent: Option<&str>,
-    backend: Option<&str>,
-    explicit_model: Option<&str>,
-    workspace: &std::path::Path,
-) -> Result<(AgentBinding, crate::config::Config)> {
-    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use config_agent_profile::{AgentDefault, AgentModelReference};
-    let _guard = INITIALIZE.lock().await;
-    let mut config = crate::config::get_current().await?;
-    let fork_selectable = if !session.is_empty() {
-        let project = crate::project::instance::project()
-            .ok_or_else(|| anyhow::anyhow!("session binding requires a project"))?;
-        super::fork_execution::is_selectable(&project.id, session).await?
-    } else {
-        false
-    };
-    let previous = if session.is_empty() { None } else { load(session).await? };
-    if !fork_selectable && let Some(binding) = previous.as_ref() {
-        binding.validate_selection(selected_agent, backend)?;
-        let mut definition = crate::agent::catalog::merged_agent_catalog(&config.agents)
-            .remove(&binding.agent)
-            .unwrap_or_default();
-        binding.apply(&mut definition);
-        config.agents.insert(binding.agent.clone(), definition);
-        return Ok((binding.clone(), config));
+pub(crate) struct AdmissionHost;
+impl session_engine::admission_host::AdmissionHost for AdmissionHost {
+    async fn config() -> Result<crate::config::Config> { Ok(crate::config::get_current().await?) }
+    fn project() -> Option<String> { crate::project::instance::project().map(|p| p.id) }
+    async fn fork_selectable(project: &str, session: &str) -> Result<bool> { super::fork_execution::is_selectable(project, session).await }
+    async fn load_binding(session: &str) -> Result<Option<AgentBinding>> { load(session).await }
+    async fn save_binding(project: &str, session: &str, binding: &AgentBinding) -> Result<()> { save_scoped(project, session, binding).await }
+    async fn history_agents(session: &str) -> Result<Vec<String>> {
+        Ok(super::message::messages(session, Some(1)).await?.into_iter().map(|entry| match entry.info {
+            super::message::Info::Assistant(a) => a.agent,
+            super::message::Info::User(u) => u.agent,
+        }).collect())
     }
-    let history = if session.is_empty() {
-        Vec::new()
-    } else {
-        super::message::messages(session, Some(1)).await?
-    };
-    let recorded_agent = history.first().filter(|_| !fork_selectable).and_then(|entry| {
-        let agent = match &entry.info {
-            super::message::Info::Assistant(assistant) => &assistant.agent,
-            super::message::Info::User(user) => &user.agent,
+    async fn agent(key: &str) -> Option<config_agent::AgentDefinitionConfig> { crate::agent::get(key).await }
+    fn skills(workspace: &std::path::Path, config: &crate::config::Config) -> std::collections::HashMap<String, bool> {
+        crate::skills::load_skills_with_config(workspace, config).iter().map(|s| (s.invocation_name().to_string(), true)).collect()
+    }
+    async fn mcp(workspace: &std::path::Path, runtime: &AgentRuntime) -> Result<std::collections::HashMap<String, bool>> {
+        let mcp = match runtime {
+            AgentRuntime::Native => crate::tools::mcp_common::load_resolved_runtime_mcp_config_from(workspace).await?,
+            AgentRuntime::Acp { .. } => crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?,
         };
-        (!agent.is_empty() && agent != "gateway").then_some(agent.as_str())
-    });
-    let fork_preference = if fork_selectable {
-        selected_agent
-            .map(str::trim)
-            .filter(|key| !key.is_empty())
-            .map(ToOwned::to_owned)
-            .or_else(|| backend.map(|backend| format!("acp-{backend}")))
-            .or_else(|| previous.as_ref().map(|binding| binding.agent.clone()))
-    } else {
-        None
-    };
-    let agent = recorded_agent
-        .or(fork_preference.as_deref())
-        .or_else(|| selected_agent.map(str::trim).filter(|key| !key.is_empty()))
-        .map(ToOwned::to_owned)
-        .unwrap_or_else(|| {
-            backend.map(|backend| format!("acp-{backend}")).unwrap_or_else(|| "main".into())
-        });
-    let mut definition = crate::agent::get(&agent)
-        .await
-        .ok_or_else(|| anyhow::anyhow!("unknown or disabled agent: {agent}"))?;
-    if fork_selectable
-        && let Some(binding) = previous.as_ref().filter(|binding| binding.agent == agent)
-    {
-        binding.apply(&mut definition);
+        Ok(mcp.mcp_servers.iter().map(|s| (crate::tools::mcp_common::server_name(s).to_string(), crate::tools::mcp_common::management_for_server(&mcp, s).enabled)).collect())
     }
-    let provisional = AgentBinding::from_definition(agent.clone(), &definition);
-    provisional.validate_selection(selected_agent, backend)?;
-    let mcp = match provisional.runtime {
-        AgentRuntime::Native => {
-            crate::tools::mcp_common::load_resolved_runtime_mcp_config_from(workspace).await?
-        }
-        AgentRuntime::Acp { .. } => {
-            crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?
-        }
-    };
-    let context = DefaultsContext {
-        skills: crate::skills::load_skills_with_config(workspace, &config)
-            .iter()
-            .map(|skill| (skill.invocation_name().to_string(), true))
-            .collect(),
-        mcp: mcp
-            .mcp_servers
-            .iter()
-            .map(|server| {
-                (
-                    crate::tools::mcp_common::server_name(server).to_string(),
-                    crate::tools::mcp_common::management_for_server(&mcp, server).enabled,
-                )
-            })
-            .collect(),
-        permission_ceiling: crate::agent::native_permission_ceiling(&agent)
-            .await
-            .map_err(anyhow::Error::msg)?,
-    };
-    let model = explicit_model
-        .filter(|model| !model.trim().is_empty() && !model.trim().eq_ignore_ascii_case("auto"))
-        .map(|model| {
-            let (provider, model) =
-                model.split_once('/').ok_or_else(|| anyhow::anyhow!("invalid model reference"))?;
-            Ok::<_, anyhow::Error>(AgentModelReference {
-                provider: provider.into(),
-                model: model.into(),
-            })
-        })
-        .transpose()?;
-    let inherited_model = if definition.has_complete_model_binding() {
-        Some(AgentModelReference {
-            provider: definition.provider.clone(),
-            model: definition.model.clone(),
-        })
-    } else if matches!(definition.runtime, AgentRuntime::Native) {
+    async fn permission_ceiling(key: &str) -> Result<permission_runtime::next::Ruleset> { crate::agent::native_permission_ceiling(key).await.map_err(anyhow::Error::msg) }
+    async fn default_model() -> Result<config_agent_profile::AgentModelReference> {
         let model = crate::provider::provider::default_model().await.map_err(anyhow::Error::msg)?;
-        Some(AgentModelReference { provider: model.provider_id, model: model.model_id })
-    } else {
-        None
-    };
-    let effective = resolve(
-        &definition,
-        &DefaultSelection { model, ..Default::default() },
-        &DefaultSelection {
-            model: inherited_model,
-            skills: Some(definition.allowed_skills.clone()),
-            mcp: Some(
-                context
-                    .mcp
-                    .iter()
-                    .filter(|(_, enabled)| **enabled)
-                    .map(|(id, _)| id.clone())
-                    .collect(),
-            ),
-            ..Default::default()
-        },
-        &context,
-    )?;
-    if let Some(model) = effective.model {
-        definition.defaults.model = AgentDefault::Fixed(model);
+        Ok(config_agent_profile::AgentModelReference { provider: model.provider_id, model: model.model_id })
     }
-    definition.defaults.skills = AgentDefault::Fixed(effective.skills);
-    definition.defaults.mcp = AgentDefault::Fixed(effective.mcp);
-    if matches!(definition.runtime, AgentRuntime::Native)
-        && matches!(definition.defaults.permission, AgentDefault::Inherit)
-    {
-        // An inherited default adds no grant of its own; the live ceiling remains
-        // authoritative at every tool invocation, including disabled profiles.
-        definition.defaults.permission = AgentDefault::Fixed(serde_json::json!({"*":"allow"}));
-    }
-    if agent == "main" && !history.is_empty() {
-        // Legacy sessions without a binding did not opt in to the new default.
-        definition.defaults.full_access = false;
-    }
-    let binding = AgentBinding::from_definition(agent.clone(), &definition);
-    let project = crate::project::instance::project()
-        .ok_or_else(|| anyhow::anyhow!("session binding requires a project"))?
-        .id;
-    if !session.is_empty() {
-        save_scoped(&project, session, &binding).await?;
-    }
-    config.agents.insert(agent, definition);
-    Ok((binding, config))
 }

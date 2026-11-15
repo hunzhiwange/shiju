@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/app-auth-core",
+  "crates/libs/gateway-voice",
   "crates/libs/gateway-pty",
   "crates/libs/gateway-inference",
   "crates/libs/gateway-mcp-distribution",

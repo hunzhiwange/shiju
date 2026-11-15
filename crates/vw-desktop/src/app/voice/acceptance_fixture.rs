@@ -3,7 +3,7 @@ use iced::futures::{SinkExt, StreamExt};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use gateway_endpoint::GatewayEndpoint;
-use vw_gateway_client::VoiceStream;
+use gateway_voice::VoiceStream;
 use vw_api_voice::*;
 
 pub(crate) async fn roundtrip() -> Result<Vec<(TranscriptRole, String)>, Box<dyn std::error::Error>>

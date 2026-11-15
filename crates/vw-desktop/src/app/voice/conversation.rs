@@ -9,7 +9,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use tokio::sync::watch;
 use vw_api_voice::*;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, VoiceStream}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_voice::{GatewayVoiceClient, VoiceStream}};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Phase {
@@ -223,7 +223,7 @@ async fn connected(
     if !endpoint.is_loopback() {
         return Err("当前语音传输仅支持本机网关。");
     }
-    let client = GatewayClient::new(endpoint.clone()).map_err(|_| "无法连接语音网关。")?;
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint.clone()).map_err(|_| "无法连接语音网关。")?);
     let config: config_voice::VoiceConfig =
         client.voice_config().await.map_err(|_| "无法读取语音设置。")?;
     if !config.realtime_enabled {

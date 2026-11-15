@@ -8,7 +8,7 @@ use std::{
 };
 use tokio::sync::watch;
 use config_voice::VoiceName;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_voice::{GatewayVoiceClient}};
 
 pub(crate) struct Preview {
     stop: watch::Sender<bool>,
@@ -100,7 +100,7 @@ async fn play<S>(
     voice: VoiceName,
     open: impl FnOnce() -> Result<Playback<S>, PlaybackError>,
 ) -> Result<(), String> {
-    let client = GatewayClient::new(endpoint).map_err(|_| "无法连接语音网关。")?;
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint).map_err(|_| "无法连接语音网关。")?);
     let mut stream = client.voice_preview(&voice).await.map_err(|_| "无法生成音色试听。")?;
     let mut playback = open().map_err(|_| "扬声器不可用。")?;
     let mut submitted = 0u64;

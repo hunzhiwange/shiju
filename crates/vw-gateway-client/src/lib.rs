@@ -211,9 +211,7 @@ pub use client::{
 pub use client::VoiceApiError;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod voice_stream;
-#[cfg(not(target_arch = "wasm32"))]
-pub use voice_stream::VoiceStream;
+pub use gateway_voice::VoiceStream;
 
 pub use client::AggregationOmoError;
 

@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 use vw_api_voice::{TranscriptionRequest, VoiceCounter, VoiceId};
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_voice::{GatewayVoiceClient}};
 
 #[derive(Clone)]
 pub(super) enum Route {
@@ -45,7 +45,7 @@ pub(super) async fn select_route(
     if !endpoint.is_loopback() {
         return Err("当前云端语音传输仅支持本机网关。".into());
     }
-    let client = GatewayClient::new(endpoint.clone()).map_err(|_| "无法连接语音网关。")?;
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint.clone()).map_err(|_| "无法连接语音网关。")?);
     let config: config_voice::VoiceConfig =
         client.voice_config().await.map_err(|_| "无法读取云端语音设置。")?;
     if !config.dictation_enabled {
@@ -294,7 +294,7 @@ async fn cloud_transcribe(
     metadata: TranscriptionRequest,
     wav: Vec<u8>,
 ) -> Result<String, String> {
-    let client = GatewayClient::new(endpoint).map_err(|_| "无法连接语音网关。")?;
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint).map_err(|_| "无法连接语音网关。")?);
     tokio::time::timeout(Duration::from_secs(90), client.voice_transcribe(&metadata, wav))
         .await
         .map_err(|_| "云端听写超时。")?

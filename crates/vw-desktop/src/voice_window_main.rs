@@ -320,7 +320,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let config: VoiceConfig = runtime.block_on(async {
             tokio::time::timeout(
                 Duration::from_secs(10),
-                vw_gateway_client::GatewayClient::new(endpoint)?.voice_config(),
+                gateway_voice::GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint)?).voice_config(),
             )
             .await
             .map_err(|_| "gateway preflight timed out".to_owned())?

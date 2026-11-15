@@ -2,7 +2,7 @@
 
 先阅读 [公共规则](plan.md)、[全文件审计](source-map.md) 和 [依赖审计](audit.md)。
 
-状态：未开始
+状态：已完成
 
 批次：59，线性顺序 59；依赖：前一批次 58。符号依赖卡：无额外前置。不并行。
 
@@ -34,3 +34,13 @@
 允许命令（仓库根）：`git diff --check`、`git diff --stat`、`rg -n 'vw_gateway_client|pub use|mod |path =' crates/libs/gateway-voice crates/vw-gateway-client`（门面任务改查原包）；阅读实际调用者并核对清单路径。rg 无匹配按搜索目的判断。
 
 后续另行授权统一验收：本卡来源中既有测试的全部行为、线协议方法/路径/查询/正文、错误类型与文案、空值/404、认证与租户隔离、原生/wasm cfg 及门面兼容。涉及流式接口另验 SSE 帧边界、断流/取消/恢复与 WebSocket 关闭；涉及宿主请求另验禁重定向/重试及授权拒绝。当前编译、测试、性能与实机均未验证，不宣称通过。
+
+## Implementation ownership and static evidence
+
+- Prerequisite 58: commit 2f269dc4f and GatewayPtyClient/GatewayTransport inspected.
+- voice_api.rs: VoiceApiError/Display, CancelOnDrop/Drop, all five HTTP methods and encode_id moved to gateway-voice/src/voice_api.rs; original module forwards explicitly.
+- voice_stream.rs: VoiceStream and connect/session/generation/send/next/close moved to gateway-voice/src/voice_stream.rs; facade re-exports the original type.
+- Both independent test files migrated; HTTP fixture constructs GatewayVoiceClient with GatewayTransport. Authentication, cancellation, generation and foreign URL/frame assertions retained.
+- Four consumers searched: desktop calls now use gateway-voice; provider-resolver, agent and CLI have no client calls for this task.
+- Native cfg, error messages, HTTP body/limits, loopback refusal and dedicated HTTP/1 WebSocket handshake client preserved. No reverse dependency on vw_gateway_client.
+- Static diff/path review only. Cargo, tests, hardware and final regression intentionally not run under user override; deferred to separately authorized verification.

@@ -1,0 +1,22 @@
+[package]
+name = "gateway-voice"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+gateway-http = { path = "../gateway-http", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+vw-api-voice = { path = "../api-voice", version = "0.6.0" }
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["multipart", "json", "stream", "rustls"] }
+tokio = { version = "1", default-features = false, features = ["rt", "time"] }
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+
+[dev-dependencies]
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }

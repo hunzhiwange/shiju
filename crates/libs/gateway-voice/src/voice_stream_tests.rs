@@ -35,7 +35,7 @@ async fn loopback(
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
-        .with_auth(crate::GatewayAuth { skey: Some("synthetic-gateway-key".into()) });
+        .with_auth(gateway_endpoint::GatewayAuth { skey: Some("synthetic-gateway-key".into()) });
     let task = tokio::spawn(async move {
         let (mut http, _) = listener.accept().await.unwrap();
         let mut bytes = vec![];

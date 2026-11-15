@@ -1,6 +1,7 @@
 //! Native, single-connection voice transport. Dropping the socket ends the gateway lease.
-use crate::http::apply_request_context;
-use crate::{GatewayEndpoint, VoiceApiError};
+use gateway_http::apply_request_context;
+use gateway_endpoint::GatewayEndpoint;
+use crate::VoiceApiError;
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
 use tokio_tungstenite::{

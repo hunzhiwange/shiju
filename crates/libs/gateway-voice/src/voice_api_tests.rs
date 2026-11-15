@@ -1,5 +1,5 @@
 use super::*;
-use crate::{GatewayAuth, GatewayEndpoint};
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
 use serde_json::json;
 use std::{
     io::{Read, Write},
@@ -9,7 +9,7 @@ use vw_api_transport::id::TenantScope;
 fn metadata() -> TranscriptionRequest {
     serde_json::from_value(json!({"request_id":"req/06?","chat_session_id":"chat06","generation":1,"provider_id":"openai"})).unwrap()
 }
-fn fixture(status: u16, body: String) -> (GatewayClient, std::thread::JoinHandle<String>) {
+fn fixture(status: u16, body: String) -> (GatewayVoiceClient, std::thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
         .with_auth(GatewayAuth { skey: Some("fixture-skey".into()) })
@@ -43,7 +43,7 @@ fn fixture(status: u16, body: String) -> (GatewayClient, std::thread::JoinHandle
         write!(stream,"HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
         String::from_utf8(bytes).unwrap()
     });
-    (GatewayClient::new(endpoint).unwrap(), task)
+    (GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint).unwrap()), task)
 }
 #[tokio::test]
 async fn voice_task_06_client_sends_authenticated_multipart_and_correlates_result() {
@@ -97,7 +97,7 @@ async fn voice_task_06_client_redacts_gateway_error_and_encodes_cancel_id() {
 }
 #[tokio::test]
 async fn voice_task_06_client_rejects_oversized_audio_before_network() {
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 1)).unwrap();
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("127.0.0.1", 1)).unwrap());
     assert_eq!(
         client.voice_transcribe(&metadata(), vec![0; MAX_WAV_BYTES + 1]).await,
         Err(VoiceApiError::Service(VoiceErrorCode::PayloadTooLarge))
@@ -145,7 +145,7 @@ async fn voice_task_06_client_drop_notifies_gateway_cancellation() {
         write!(cancel, "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").unwrap();
         cancel_tx.send(request).unwrap();
     });
-    let client = GatewayClient::new(endpoint).unwrap();
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint).unwrap());
     let pending =
         tokio::spawn(async move { client.voice_transcribe(&metadata(), vec![1; 64]).await });
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -173,7 +173,7 @@ async fn voice_task_06_client_drop_notifies_gateway_cancellation() {
 
 #[tokio::test]
 async fn voice_task_06_client_refuses_remote_plaintext_recordings() {
-    let client = GatewayClient::new(GatewayEndpoint::new("example.invalid", 80)).unwrap();
+    let client = GatewayVoiceClient::new(gateway_http::GatewayTransport::new(GatewayEndpoint::new("example.invalid", 80)).unwrap());
     let expected = VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability);
     assert_eq!(client.voice_transcribe(&metadata(), vec![1]).await, Err(expected.clone()));
     assert_eq!(client.voice_cancel_transcription(&metadata().request_id).await, Err(expected));

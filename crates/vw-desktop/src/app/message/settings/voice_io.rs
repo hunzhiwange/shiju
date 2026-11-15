@@ -48,7 +48,7 @@ pub(crate) fn resources(language: Option<&str>) -> LocalResources {
 }
 pub(super) async fn cloud(endpoint: GatewayEndpoint) -> Result<VoiceConfig, String> {
     tokio::time::timeout(Duration::from_secs(10), async {
-        GatewayClient::new(endpoint)?.voice_config::<VoiceConfig>().await.map_err(|e| e.to_string())
+        GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint)?).voice_config::<VoiceConfig>().await.map_err(|e| e.to_string())
     })
     .await
     .map_err(|_| "读取云端语音设置超时，请检查网关连接。".to_owned())?
@@ -101,7 +101,7 @@ pub(super) async fn save(
         }
         let patch = edit.patch()?;
         tokio::time::timeout(Duration::from_secs(10), async {
-            GatewayClient::new(endpoint)?.voice_settings_patch(&patch).await
+            GatewayVoiceClient::new(gateway_http::GatewayTransport::new(endpoint)?).voice_settings_patch(&patch).await
         })
         .await
         .map_err(|_| "保存云端语音设置超时，请检查网关。".to_owned())??;

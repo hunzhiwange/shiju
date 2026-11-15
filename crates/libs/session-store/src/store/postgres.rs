@@ -26,7 +26,7 @@ use super::{
     role_from_db, role_to_db, session_last_content, to_i64, update_existing_info, usize_to_i64,
     validate_session_message_delta,
 };
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 macro_rules! scope_params {
     ($scope:expr) => {
@@ -359,7 +359,7 @@ impl PostgresSessionStore {
             transaction
                 .batch_execute(SESSION_SCHEMA)
                 .context("initialize PostgreSQL session schema")?;
-            transaction.batch_execute(crate::session::dynamic_tool_store::SCHEMA)?;
+            transaction.batch_execute(crate::dynamic_tool_store::SCHEMA)?;
             transaction.batch_execute(FIRST_RESPONSE_SCHEMA)?;
             Ok(())
         })?;

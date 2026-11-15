@@ -20,11 +20,11 @@ use session_ui_types::{
 };
 
 use super::store::{FirstResponseCommit, LlmRawStepKey, SessionStore};
-use crate::global_database::GlobalDatabase;
-use crate::global_database::config::DatabaseProvider;
-use crate::global_database::test_support::PostgresTestDatabase;
-use crate::project::store::ProjectStore;
-use crate::session::llm_raw::LlmRawArtifact;
+use agent_database::GlobalDatabase;
+use agent_database::config::DatabaseProvider;
+use agent_database::test_support::PostgresTestDatabase;
+use agent_project::store::ProjectStore;
+use session_port::llm_raw::LlmRawArtifact;
 
 macro_rules! assert_json_eq {
     ($left:expr, $right:expr) => {
@@ -599,7 +599,7 @@ fn stale_ui_content_save_preserves_newer_messages() -> Result<()> {
 
 #[test]
 fn postgres_session_store_runs_from_tokio_worker_without_nested_runtime() -> Result<()> {
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database!();
     let fixture = StoreFixture::new(postgres_fixture.database().clone())?;
     let scope = fixture.create_project(&fixture.tenant_a, "tokio-runtime-project")?;
     let store = fixture.store.clone();
@@ -928,7 +928,7 @@ fn for_each_session_store_provider(
     let sqlite_database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
     check(&StoreFixture::new(sqlite_database)?)?;
 
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database!();
     check(&StoreFixture::new(postgres_fixture.database().clone())?)?;
     postgres_fixture.cleanup()?;
     Ok(())

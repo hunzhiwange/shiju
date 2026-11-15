@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "crates/libs/session-store",
+  "crates/libs/session-engine",
   "crates/libs/tool-assembly",
   "crates/libs/tool-mcp",
   "crates/libs/skill-forge",

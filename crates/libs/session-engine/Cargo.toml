@@ -1,0 +1,21 @@
+[package]
+name = "session-engine"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "macros", "rt-multi-thread"] }
+agent-bus = { path = "../agent-bus", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+message-types = { path = "../message-types", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+[dev-dependencies]
+uuid = { version = "1.11", features = ["v4", "js"] }

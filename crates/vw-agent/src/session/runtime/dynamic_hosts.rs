@@ -68,7 +68,7 @@ impl SessionHost {
         })?;
         // A saved catalog supplies a version, never executors or authorization.
         let catalog = match &restored {
-            Some(record) => record.rebind(Vec::new(), Vec::<String>::new())?,
+            Some(record) => session_store::dynamic_tool_store::rebind(&record, Vec::new(), Vec::<String>::new())?,
             None => ToolCatalog::default(),
         };
         let host_id = uuid::Uuid::new_v4().to_string();
@@ -153,7 +153,7 @@ impl SessionHost {
             if let Some(record) = state.restored.as_ref() {
                 // Fresh host registration may rebind saved specifications, but cannot
                 // silently change them. A durable change needs the trusted policy.
-                record.rebind(tools.clone(), ids.clone())?;
+                session_store::dynamic_tool_store::rebind(&record, tools.clone(), ids.clone())?;
             }
             self.catalog.replace(tools, ids)?
         };

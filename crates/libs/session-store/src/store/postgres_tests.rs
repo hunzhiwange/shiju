@@ -2,7 +2,7 @@
 //! 这些用例故意传入 SQLite，证明后端检查发生在建表和数据访问之前。
 
 use super::*;
-use crate::project::store::ProjectStore;
+use agent_project::store::ProjectStore;
 use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 fn sqlite_database() -> (tempfile::TempDir, GlobalDatabase) {
@@ -101,7 +101,7 @@ fn agent_session_operations_reject_sqlite_backend_before_querying_rows() {
 
 #[test]
 fn stale_ui_content_save_preserves_newer_messages() -> Result<()> {
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database!();
     let database = postgres_fixture.database().clone();
     let tenant = TenantScope::new("postgres-platform", "postgres-company")?;
     let scope = ProjectScope::new(tenant.clone(), ProjectId::from("stale-ui-content"))?;
@@ -148,22 +148,22 @@ fn stale_ui_content_save_preserves_newer_messages() -> Result<()> {
 
 #[test]
 fn dynamic_tools_persistence_failed_write_keeps_running_catalog() -> Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    crate::session::dynamic_tool_store_tests::failed_write(fixture.database().clone())?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::dynamic_tool_store_tests::failed_write(fixture.database().clone())?;
     fixture.cleanup()
 }
 
 #[test]
 fn dynamic_tools_persistence_success_and_explicit_empty() -> Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    crate::session::dynamic_tool_store_tests::success_and_empty(fixture.database().clone())?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::dynamic_tool_store_tests::success_and_empty(fixture.database().clone())?;
     fixture.cleanup()
 }
 
 #[test]
 fn dynamic_tools_persistence_rejects_untrusted_and_invalid() -> Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    crate::session::dynamic_tool_store_tests::rejects_untrusted_and_invalid(
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::dynamic_tool_store_tests::rejects_untrusted_and_invalid(
         fixture.database().clone(),
     )?;
     fixture.cleanup()
@@ -171,22 +171,22 @@ fn dynamic_tools_persistence_rejects_untrusted_and_invalid() -> Result<()> {
 
 #[test]
 fn dynamic_tools_persistence_scopes_and_stale_versions_are_isolated() -> Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    crate::session::dynamic_tool_store_tests::isolation_and_stale(fixture.database().clone())?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::dynamic_tool_store_tests::isolation_and_stale(fixture.database().clone())?;
     fixture.cleanup()
 }
 
 #[test]
 fn dynamic_tools_persistence_concurrent_replacements_follow_commit_order() -> Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    crate::session::dynamic_tool_store_tests::concurrent(fixture.database().clone())?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
+    crate::dynamic_tool_store_tests::concurrent(fixture.database().clone())?;
     fixture.cleanup()
 }
 
 #[test]
 fn dynamic_tools_persistence_native_index_preserves_existing_ui() -> Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
-    let (store, scope) = crate::session::dynamic_tool_store_tests::fixture(
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
+    let (store, scope) = crate::dynamic_tool_store_tests::fixture(
         fixture.database().clone(),
         "native-index",
     )?;

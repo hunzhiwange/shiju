@@ -1,7 +1,7 @@
 //! 验证会话消息与部件的存取、排序及旧存储布局兼容。
 
 use super::*;
-use crate::app::agent::storage;
+use agent_storage as storage;
 use serde_json::json;
 use uuid::Uuid;
 

@@ -184,7 +184,7 @@ async fn dynamic_tools_restore_fork_copies_specs_without_capabilities() {
     let saved = loaded.dynamic_tools.unwrap();
     assert_eq!(saved.specs.len(), 1);
     assert_eq!(saved.specs[0].description, "fork-spec");
-    let rebound = saved.rebind(vec![], Vec::<String>::new()).unwrap();
+    let rebound = session_store::dynamic_tool_store::rebind(&saved, vec![], Vec::<String>::new()).unwrap();
     assert!(rebound.snapshot().specs().is_empty());
     let fresh = create_session(CreateSessionInput {
         scope,

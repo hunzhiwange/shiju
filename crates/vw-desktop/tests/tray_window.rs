@@ -1,12 +1,17 @@
-//! 显式 macOS 原生窗口验收：真实隐藏、Dock 重开、托盘菜单动作和窗口可见性。
+//! 显式 macOS 原生窗口验收：真实释放、重新创建、托盘菜单动作和窗口可见性。
 //! cargo test -p vw-desktop --test tray-window --no-run，随后将可执行文件放入 .app 启动。
-#[cfg(target_os = "macos")]
-#[path = "../src/app/desktop_lifecycle/window.rs"]
-mod lifecycle_window;
+#[path = "../src/app/mod.rs"]
+mod app;
+#[path = "../src/apps/mod.rs"]
+mod apps;
+#[path = "../src/desktop_update_helper.rs"]
+mod desktop_update_helper;
+#[path = "../src/fonts.rs"]
+mod fonts;
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use super::lifecycle_window;
+    use super::app::App;
     use iced::{Element, Task, window};
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSApplication, NSMenu};
@@ -20,10 +25,12 @@ mod macos {
     enum Message {
         Opened(window::Id),
         Tick,
+        Ui(super::app::Message),
     }
 
     struct Harness {
         window: window::Id,
+        app: App,
         step: u8,
         started: Instant,
         menu: Option<Menu>,
@@ -32,6 +39,7 @@ mod macos {
 
     impl Harness {
         fn update(&mut self, message: Message) -> Task<Message> {
+            if matches!(message, Message::Ui(_)) { return Task::none(); }
             if let Message::Opened(id) = message {
                 self.window = id;
                 return Task::none();
@@ -66,37 +74,28 @@ mod macos {
                     self.menu = Some(menu);
                     assert!(app.windows().iter().any(|window| window.isVisible()));
                     self.step = 1;
-                    lifecycle_window::hide_main_window(self.window)
+                    self.app.release_main_window().map(Message::Ui)
                 }
                 1 => {
-                    assert!(
-                        app.isHidden(),
-                        "close must hide the app without discarding Dock restoration"
-                    );
-                    let executable = std::env::current_exe().unwrap();
-                    let bundle = executable.parent().unwrap().parent().unwrap().parent().unwrap();
-                    assert_eq!(bundle.extension().unwrap(), "app");
-                    // 向真实应用发送 reopen Apple Event，等价于从 Dock 打开。
-                    let status = std::process::Command::new("/usr/bin/open")
-                        .arg("-a")
-                        .arg(bundle)
-                        .status()
-                        .unwrap();
-                    assert!(status.success());
+                    assert!(self.app.main_window_id.is_none());
+                    assert!(!app.windows().iter().any(|window| window.isVisible()));
+                    // 当前轻量后台会释放窗口；验收真实 App 重建入口。
+                    // 此处不声称覆盖 Dock Apple Event 的投递。
                     self.step = 2;
-                    Task::none()
+                    self.reopen()
                 }
                 2 => {
-                    if app.isHidden() {
+                    if !app.windows().iter().any(|window| window.isVisible()) {
                         return Task::none();
                     }
                     assert!(app.windows().iter().any(|window| window.isVisible()));
-                    eprintln!("PASS: Dock reopened the hidden window");
+                    eprintln!("PASS: released window recreated");
                     self.step = 3;
-                    lifecycle_window::hide_main_window(self.window)
+                    self.app.release_main_window().map(Message::Ui)
                 }
                 3 => {
-                    assert!(app.isHidden());
+                    assert!(self.app.main_window_id.is_none());
+                    assert!(!app.windows().iter().any(|window| window.isVisible()));
                     // 真正执行 NSMenuItem 的 action，经过 muda 事件队列，不直接伪造恢复消息。
                     let raw = self.menu.as_ref().unwrap().ns_menu().cast::<NSMenu>();
                     // SAFETY: Menu 持有 NSMenu，且本回调运行在 UI 主线程。
@@ -109,7 +108,7 @@ mod macos {
                 4 => {
                     if MenuEvent::receiver().try_iter().any(|event| event.id.as_ref() == "show") {
                         self.step = 5;
-                        lifecycle_window::show_main_window(self.window)
+                        self.reopen()
                     } else {
                         Task::none()
                     }
@@ -124,11 +123,10 @@ mod macos {
                     eprintln!("PASS: tray menu restored a visible window");
                     self.step = 6;
                     window::minimize(self.window, true)
-                        .chain(lifecycle_window::hide_main_window(self.window))
                 }
                 6 => {
                     self.step = 7;
-                    lifecycle_window::show_main_window(self.window)
+                    self.reopen()
                 }
                 _ => {
                     assert!(!app.isHidden());
@@ -143,9 +141,15 @@ mod macos {
                 }
             }
         }
+        fn reopen(&mut self) -> Task<Message> {
+            let task = self.app.reopen_main_window();
+            self.window = self.app.main_window_id.expect("reopen assigns a window");
+            task.map(Message::Ui)
+        }
+
         fn view(&self, _: window::Id) -> Element<'_, Message> {
             iced::widget::container(
-                iced::widget::text("关闭后恢复窗口验收：Dock / 菜单栏 / 最小化").size(20),
+                iced::widget::text("关闭后恢复窗口验收：重建 / 菜单栏 / 最小化").size(20),
             )
             .center(iced::Length::Fill)
             .into()
@@ -160,8 +164,11 @@ mod macos {
                     size: iced::Size::new(640.0, 300.0),
                     ..Default::default()
                 });
+                let (mut app, _) = App::new();
+                app.main_window_id = Some(id);
                 (
                     Harness {
+                        app,
                         window: id,
                         step: 0,
                         started: Instant::now(),

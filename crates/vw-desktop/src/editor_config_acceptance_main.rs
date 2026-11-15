@@ -4,9 +4,12 @@ mod app;
 mod apps;
 mod desktop_update_helper;
 mod fonts;
-use crate::app::components::{editor::Editor, preview_panel};
-use crate::app::message::editor::{self, EditorPopover};
-use crate::app::{App, Message, PreviewTab};
+use crate::app::components::preview_panel;
+use crate::app::message::editor;
+use crate::app::{App, Message};
+use desktop_editor::components::editor::Editor;
+use desktop_editor::message::editor::EditorPopover;
+use desktop_editor::preview::PreviewTab;
 use iced::widget::{button, column};
 use iced::{Element, Task, Theme};
 

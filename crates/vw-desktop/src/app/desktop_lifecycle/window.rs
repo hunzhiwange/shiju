@@ -150,16 +150,12 @@ pub(crate) fn hide_main_window<T: MaybeSend + 'static>(id: window::Id) -> Task<T
 
 pub(crate) fn show_main_window<T: MaybeSend + 'static>(id: window::Id) -> Task<T> {
     #[cfg(target_os = "macos")]
-    let unhide = window::run(id, |_| {
-        let mtm = objc2::MainThreadMarker::new().expect("window callback runs on UI thread");
-        objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None);
-    })
-    .discard();
+    return desktop_platform::window::show_main_window(id);
     #[cfg(not(target_os = "macos"))]
-    let unhide = Task::none();
-
-    unhide
-        .chain(window::minimize(id, false))
-        .chain(window::set_mode(id, window::Mode::Windowed))
-        .chain(window::gain_focus(id))
+    {
+        Task::none()
+            .chain(window::minimize(id, false))
+            .chain(window::set_mode(id, window::Mode::Windowed))
+            .chain(window::gain_focus(id))
+    }
 }

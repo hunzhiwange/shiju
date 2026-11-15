@@ -2,7 +2,7 @@
 // 本文件由 crate 根通过 include! 拼接，因此使用普通注释而非内部文档注释。
 #[test]
 fn legacy_task_board_switches_are_ignored_after_capability_cutover() {
-    let legacy: crate::app::task::TaskBoardSettings = serde_json::from_value(serde_json::json!({
+    let legacy: desktop_task_model::models::TaskBoardSettings = serde_json::from_value(serde_json::json!({
         "task_board_auto_promote_pool_tasks": true,
         "task_board_code_review_enabled": true,
         "task_board_task_split_enabled": true,

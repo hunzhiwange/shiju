@@ -17,3 +17,6 @@ pub mod provider_link_preview;
 pub mod skill_link_preview;
 #[cfg(target_os = "windows")]
 pub mod native_crash;
+
+#[cfg(target_os = "macos")]
+pub mod window;

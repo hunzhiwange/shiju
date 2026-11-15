@@ -1,5 +1,13 @@
 use super::packages::*;
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+};
 
 fn installation(path: &str, real: &str) -> AppInstallation {
     AppInstallation {

@@ -4,7 +4,7 @@ use crate::app::{
 };
 use {
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps_diagnostics::*,
 };
 fn context() -> ModelContext {

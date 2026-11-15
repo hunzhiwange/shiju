@@ -7,6 +7,7 @@ use vw_api_types::{
     app_providers::{
         desktop_mapping::{DesktopMappingMode, DesktopModelRoute},
         universal::ClaudeModels,
+use vw_api_app_identity::{AppId};
     },
 };
 

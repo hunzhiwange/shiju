@@ -6,6 +6,7 @@ use vw_api_types::{
     agent_apps::AppId,
     app_providers::{request_options::*, validation::ProviderRequestOptions},
 };
+use vw_api_app_identity::{AppId};
 pub fn read(app: AppId, row: &Value) -> Result<ProviderRequestOptions, String> {
     let native = match app {
         AppId::Claude => "claude",

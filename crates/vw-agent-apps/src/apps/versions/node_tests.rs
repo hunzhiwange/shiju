@@ -1,3 +1,11 @@
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+};
 use super::*;
 #[test]
 fn cc_apps_node_requirement_gap_ranges() {
@@ -16,7 +24,7 @@ fn cc_apps_node_requirement_gap_ranges() {
     }
 }
 
-fn installation() -> vw_api_types::agent_apps::AppInstallation {
+fn installation() -> vw_api_app_identity::AppInstallation {
     use vw_api_types::agent_apps::*;
     AppInstallation {
         id: AppInstallationId("selected".into()),

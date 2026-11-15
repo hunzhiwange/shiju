@@ -1,6 +1,6 @@
 use serde_json::json;
 use {
-    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_app_identity::CustomIconEntry,
     vw_api_transport::id::TenantScope,
 };
 
@@ -65,7 +65,7 @@ async fn cc_base_icon_sdk_read_rejects_invalid_success_payload() {
 
 #[tokio::test]
 async fn cc_base_icon_sdk_write_add_preserves_body_and_existed() {
-    use vw_api_types::agent_apps::{AddCustomIconRequest, AddCustomIconResult};
+    use vw_api_app_identity::{AddCustomIconRequest, AddCustomIconResult};
     let icon = json!({"id":"icon-1","name":"工作","data":"data:image/png;base64,aGVsbG8=","createdAt":123});
     let server = test_support::server(vec![
         (201, json!({"icon":icon,"existed":false})),
@@ -89,7 +89,7 @@ async fn cc_base_icon_sdk_write_add_preserves_body_and_existed() {
 
 #[tokio::test]
 async fn cc_base_icon_sdk_write_rename_encodes_id_and_body() {
-    use vw_api_types::agent_apps::RenameCustomIconRequest;
+    use vw_api_app_identity::RenameCustomIconRequest;
     let icon = json!({"id":"图 /?#%","name":"新名称","data":"data:image/png;base64,aGVsbG8=","createdAt":123});
     let server = test_support::server(vec![(200, icon.clone())]);
     let input = RenameCustomIconRequest { name: "新名称".into() };
@@ -115,7 +115,7 @@ async fn cc_base_icon_sdk_write_delete_accepts_empty_204_and_encodes_id() {
 
 #[tokio::test]
 async fn cc_base_icon_sdk_write_preserves_errors_without_retry() {
-    use vw_api_types::agent_apps::{AddCustomIconRequest, RenameCustomIconRequest};
+    use vw_api_app_identity::{AddCustomIconRequest, RenameCustomIconRequest};
     for (status, code) in [(400, "invalid_input"), (404, "not_found"), (503, "storage_unavailable")]
     {
         for method in ["POST", "PATCH", "DELETE"] {

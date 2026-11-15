@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthRegion,
     vw_api_types::agent_apps_auth::AuthService,
     vw_api_transport::id::TenantScope,

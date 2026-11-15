@@ -1,8 +1,6 @@
 use super::{GatewayClient, provider_path};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::basic::{ProviderBasic, ProviderBasicWrite},
-};
+use vw_api_types::{app_providers::basic::ProviderBasic, app_providers::basic::ProviderBasicWrite};
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     pub async fn app_provider_basic(&self, app: AppId, id: &str) -> Result<ProviderBasic, String> {
         self.get_json(&format!("{}/basic", provider_path(app, id)?), &[]).await

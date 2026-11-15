@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 reqwest = { version = "0.13", default-features = false }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 toml_edit = "0.22"

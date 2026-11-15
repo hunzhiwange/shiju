@@ -1,7 +1,7 @@
 use super::coordinator::ToolLifecycleCoordinator;
 use std::sync::{Arc, mpsc};
 use std::time::Duration;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 // A real child holds the write interval until the fixture explicitly releases it.
 #[cfg(unix)]

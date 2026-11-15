@@ -6,7 +6,7 @@ use reqwest::{Client, Method, StatusCode};
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::PermissionsExt, sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}}, time::Duration};
 use {
-    vw_api_types::agent_apps::AppId::Claude,
+    vw_api_app_identity::AppId::Claude,
     vw_api_types::agent_apps_high_availability::FailoverPolicy,
     vw_api_types::agent_apps_high_availability::FailoverQueueQuery,
     vw_api_types::app_providers::claude::ClaudeConfig,

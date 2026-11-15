@@ -1,6 +1,9 @@
 //! Package previews from authorized host discoveries, never client commands.
-use vw_api_types::agent_apps::{
-    AppId, AppInstallation, AppInstallationEnvironment, AppInstallationSource,
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationSource,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

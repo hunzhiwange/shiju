@@ -108,7 +108,7 @@ fn catalog_prepare(
     let profile = DshProfile { name: body.fields.name.clone(), declaration };
     validate(id, &profile)?;
     let metadata = basic::apply(
-        vw_api_types::agent_apps::AppId::Dsh,
+        vw_api_app_identity::AppId::Dsh,
         before.unwrap_or(&serde_json::json!({})),
         &body.fields,
         &ProviderSecretWrite::Keep,

@@ -1,8 +1,8 @@
 use super::*;
 use {
     vw_api_transport::TenantScope,
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::AppInstallationId,
+    vw_api_app_identity::AppId,
+    vw_api_app_identity::AppInstallationId,
 };
 fn fixture() -> McpCatalogResponse {
     McpCatalogResponse {
@@ -211,7 +211,7 @@ fn cc_mcp_t44_native_statuses_and_transport_capabilities_remain_explicit() {
         catalog.bindings[0].native_status = status;
         catalog.bindings[0].enabled = false;
         catalog.capabilities.push(McpAppCapability {
-            app_id: vw_gateway_client::vw_api_types::agent_apps::AppId::Agy,
+            app_id: vw_api_app_identity::AppId::Agy,
             stdio: McpSupport::Supported,
             streamable_http: McpSupport::NotVerified,
             sse: McpSupport::Unsupported,

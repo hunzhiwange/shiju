@@ -3,7 +3,8 @@ use super::{preview::PreviewError, source::{SourceCategory, SourceRecord}};
 use crate::prompts::listing::PromptEntry;
 use serde_json::Value;
 use std::collections::BTreeSet;
-use vw_api_types::agent_apps::{AppId, PromptResource};
+use vw_api_types::{agent_apps::PromptResource};
+use vw_api_app_identity::{AppId};
 
 pub struct MigrationPrompt {
     pub app: AppId,

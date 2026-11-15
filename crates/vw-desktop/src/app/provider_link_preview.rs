@@ -33,7 +33,7 @@ pub(crate) fn parse(raw: &str) -> Result<Preview, &'static str> {
     }
     let app = fields.get("app").ok_or("供应商链接缺少应用")?;
     // AppId is the production catalog identity; preview does not imply import support.
-    let _: vw_gateway_client::vw_api_types::agent_apps::AppId =
+    let _: vw_api_app_identity::AppId =
         serde_json::from_value(serde_json::Value::String(app.clone()))
             .map_err(|_| "供应商链接应用无效")?;
     if fields.get("name").is_none_or(|name| name.trim().is_empty()) {

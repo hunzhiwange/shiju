@@ -42,7 +42,7 @@ async fn run(
     #[cfg(target_os = "macos")]
     {
         use vw_agent_apps::apps::lifecycle::coordinator::ToolLifecycleCoordinator;
-        use vw_api_types::agent_apps::AppId;
+        use vw_api_app_identity::AppId;
         // Reject unauthorized requests before attempting to reserve the host.
         super::maintenance::host::authorize(&policy, &headers, &target)?;
         ToolLifecycleCoordinator.run(vec![AppId::Codex], move || {

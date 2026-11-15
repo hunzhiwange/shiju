@@ -1,7 +1,7 @@
 use super::store::IconLibraryStore;
 use std::sync::{Arc, Barrier};
 use {
-    vw_api_types::agent_apps::AgentAppsErrorCode,
+    vw_api_app_identity::AgentAppsErrorCode,
     vw_api_transport::id::TenantScope,
 };
 const IMAGES: [&str; 2] = [

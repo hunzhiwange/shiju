@@ -12,6 +12,7 @@ use vw_api_types::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct EndpointCandidate {
+use vw_api_app_identity::{AppId};
     pub url: String,
     pub sources: Vec<DiagnosticEndpointSource>,
 }

@@ -1,7 +1,10 @@
 //! Read-only aggregation of observations collected by the authorized execution host.
-use vw_api_types::agent_apps::{
-    AppInstallation, AppInstallationEnvironment, AppInstallationReport,
-    AppInstallationRuntimeStatus, AppInstallationSource,
+use vw_api_app_identity::{
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationReport,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
 };
 
 /// Build a single application's report in one host/environment scope.

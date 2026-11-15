@@ -15,6 +15,7 @@ use vw_api_types::{
     mcp_management::{McpConfigValue, McpConnectionDefinition},
 };
 
+use vw_api_app_identity::{AppId};
 #[test]
 fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::Result<()> {
     with_database(|db| {

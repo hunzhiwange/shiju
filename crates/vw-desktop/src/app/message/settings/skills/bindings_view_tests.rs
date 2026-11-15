@@ -1,5 +1,5 @@
 use super::*;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 fn target(id: &str) -> SkillBindingTarget { SkillBindingTarget { installation_id: id.into(), app_id: AppId::Codex } }
 fn item(id: &str, status: SkillBindingStatus) -> SkillBindingItem {
     SkillBindingItem { target: target(id), directory: "skill".into(), status }

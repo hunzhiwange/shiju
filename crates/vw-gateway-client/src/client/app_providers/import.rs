@@ -5,7 +5,7 @@ use vw_api_types::app_providers::import::*;
 impl GatewayClient {
     pub async fn provider_import(
         &self,
-        app: vw_api_types::agent_apps::AppId,
+        app: vw_api_app_identity::AppId,
         body: &ProviderImport,
         token: &str,
     ) -> Result<ProviderImportResult, Error> {

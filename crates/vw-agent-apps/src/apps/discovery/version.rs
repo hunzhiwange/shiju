@@ -6,8 +6,9 @@ use std::{
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
-use vw_api_types::agent_apps::{
-    AppInstallationProbeFailure as Failure, AppInstallationRuntimeStatus as Status,
+use vw_api_app_identity::{
+    AppInstallationProbeFailure as Failure,
+    AppInstallationRuntimeStatus as Status,
 };
 
 const OUTPUT_LIMIT: usize = 16 * 1024;

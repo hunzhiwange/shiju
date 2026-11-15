@@ -1,4 +1,5 @@
-use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*};
+use vw_api_types::{app_providers::mode_apply::*};
+use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_mode_apply_sdk_sends_typed_operation_and_discards_error_payload() {
     let server = super::super::test_support::server_with_tenant_scope(

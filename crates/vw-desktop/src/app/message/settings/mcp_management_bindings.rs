@@ -7,7 +7,7 @@ use {
     vw_gateway_client::mcp_management_distribution::McpBindingRequest,
     vw_gateway_client::mcp_management_distribution::McpBulkRequest,
     vw_api_transport::ProjectId,
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::mcp_management::*,
 };
 
@@ -270,7 +270,7 @@ pub(crate) fn update(app: &mut App, value: BindingsMessage) -> Task<Message> {
             }
             let records = app.mcp_settings.bindings.selected.clone();
             let valid_catalog = matches!(catalog::visible(app), Some(Ok(c)) if records.iter().all(|r| c.records.contains(r)) && supported(c, &records, target.app_id));
-            let valid_installation = app.apps_catalog.context.as_ref() == Some(&context.endpoint) && !app.apps_catalog.loading && !app.apps_catalog.token.is_empty() && target.target_host_id == context.host && app.apps_catalog.rows.iter().any(|row| row.entry.id == target.app_id && row.observation.as_ref().is_ok_and(|observation| observation.installations.iter().any(|i| i.app_id == target.app_id && i.id == target.installation_id && i.target_host_id == context.host && matches!(i.environment, vw_gateway_client::vw_api_types::agent_apps::AppInstallationEnvironment::Macos))));
+            let valid_installation = app.apps_catalog.context.as_ref() == Some(&context.endpoint) && !app.apps_catalog.loading && !app.apps_catalog.token.is_empty() && target.target_host_id == context.host && app.apps_catalog.rows.iter().any(|row| row.entry.id == target.app_id && row.observation.as_ref().is_ok_and(|observation| observation.installations.iter().any(|i| i.app_id == target.app_id && i.id == target.installation_id && i.target_host_id == context.host && matches!(i.environment, vw_api_app_identity::AppInstallationEnvironment::Macos))));
             if !valid_catalog || !valid_installation || project(&records).is_err() {
                 return app.show_error_toast(
                     "选择无效、修订已变更或目标不支持；请刷新并选择同一作用域目录项",

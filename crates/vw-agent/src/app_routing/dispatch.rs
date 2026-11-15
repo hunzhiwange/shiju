@@ -24,7 +24,8 @@ use serde_json::Value;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
-use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
+use vw_api_types::{app_providers::validation::ProviderRequestOptions};
+use vw_api_app_identity::{AppId};
 
 const JSON: &str = "application/json";
 const SSE: &str = "text/event-stream";

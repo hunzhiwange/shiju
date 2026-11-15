@@ -130,7 +130,7 @@ fn cleanup(
         mcp::import::NativeMcpSource,
         providers::live::commit::{ExecutionHostId, ProviderTransactions},
     };
-    use vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
 
     agent_apps::authorize_mcp_catalog_write(
         policy.0.as_deref(),

@@ -1,6 +1,15 @@
 use super::request::*;
 use std::fs;
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    LaunchRequest,
+};
 
 fn fixture(root: &std::path::Path) -> (LaunchRequest, AppInstallation) {
     let program = root.join("codex");

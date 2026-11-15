@@ -12,9 +12,9 @@ use vw_agent_apps::apps::preferences::{
     HostPlatform, default_user_preferences, normalize_preferences,
 };
 use {
-    vw_api_types::agent_apps::AppHostPreferences,
-    vw_api_types::agent_apps::AppPreferencesPatch as Patch,
-    vw_api_types::agent_apps::AppPreferencesResult,
+    vw_api_app_identity::AppHostPreferences,
+    vw_api_app_identity::AppPreferencesPatch as Patch,
+    vw_api_app_identity::AppPreferencesResult,
     vw_api_transport::id::TenantScope,
 };
 

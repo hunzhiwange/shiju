@@ -111,7 +111,7 @@ pub fn prepare(
         OpenCodeProfile { name: body.fields.name.clone(), format: body.format, declaration };
     validate(&profile)?;
     let metadata = basic::apply(
-        vw_api_types::agent_apps::AppId::OpenCode,
+        vw_api_app_identity::AppId::OpenCode,
         before.unwrap_or(&serde_json::json!({})),
         &body.fields,
         &ProviderSecretWrite::Keep,

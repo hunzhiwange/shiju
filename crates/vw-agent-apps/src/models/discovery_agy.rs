@@ -2,10 +2,8 @@
 
 use std::{collections::BTreeSet, fs, future::Future, io::Read, path::Path};
 
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{agy::AgyProfile, paths::ConfigPathState},
-};
+use vw_api_types::{app_providers::agy::AgyProfile, app_providers::paths::ConfigPathState};
+use vw_api_app_identity::{AppId};
 
 use super::discovery_process;
 use crate::{

@@ -8,7 +8,7 @@ use axum::{
 };
 use std::path::PathBuf;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::env_restore::EnvRestoreRequest,
     vw_api_transport::id::TenantScope,
 };

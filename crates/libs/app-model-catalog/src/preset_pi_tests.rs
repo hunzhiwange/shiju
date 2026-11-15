@@ -5,7 +5,7 @@ use super::{
 };
 use serde_json::json;
 use std::collections::{BTreeMap, HashSet};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 fn pi(key: &str) -> &'static PiPreset {
     pi_preset(AppId::Pi, key).unwrap_or_else(|| panic!("missing Pi preset {key}"))

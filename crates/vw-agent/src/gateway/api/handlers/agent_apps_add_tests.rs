@@ -7,8 +7,8 @@ use axum::{
 use base64::Engine;
 use tower::ServiceExt;
 use {
-    vw_api_types::agent_apps::AddCustomIconResult,
-    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_app_identity::AddCustomIconResult,
+    vw_api_app_identity::CustomIconEntry,
     vw_api_transport::id::TenantScope,
 };
 const PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";

@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
     vw_api_types::agent_apps_high_availability::FailoverHealthState::Closed,
     vw_api_types::agent_apps_high_availability::FailoverHealthState::HalfOpen,

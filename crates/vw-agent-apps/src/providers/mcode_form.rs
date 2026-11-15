@@ -100,7 +100,7 @@ fn catalog_prepare(
     let profile = McodeProfile { name: body.fields.name.clone(), declaration };
     validate(&profile)?;
     let metadata = basic::apply(
-        vw_api_types::agent_apps::AppId::Mcode,
+        vw_api_app_identity::AppId::Mcode,
         before.unwrap_or(&serde_json::json!({})),
         &body.fields,
         &ProviderSecretWrite::Keep,

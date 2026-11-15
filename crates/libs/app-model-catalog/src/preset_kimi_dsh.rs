@@ -3,7 +3,7 @@
 use super::preset_search::{PresetPlan, PresetRegion};
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

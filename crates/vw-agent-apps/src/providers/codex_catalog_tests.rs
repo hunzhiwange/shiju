@@ -4,7 +4,7 @@ use super::{
 };
 use std::{fs, os::unix::fs::PermissionsExt};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::codex_catalog::*,
     vw_api_transport::id::TenantScope,
     vw_api_types::model_catalog::*,

@@ -1,6 +1,6 @@
 use super::write_guard::{FilePrivacy, lock_app};
 use std::{ffi::OsStr, fs, os::unix::fs::PermissionsExt, sync::mpsc, time::Duration};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cc04_write_guard_serializes_same_app() {

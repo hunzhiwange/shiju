@@ -1,3 +1,17 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppHostPreferences,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppPreferencesResult,
+    AppReadResponse,
+    AppRuntimeKind,
+    AppUserPreferences,
+};
 use super::super::{drag, launch, view as localized_view, view_overlays};
 use super::CatalogRow;
 use crate::app::i18n::I18n;

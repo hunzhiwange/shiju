@@ -1,7 +1,10 @@
 //! 原生图标库 SDK，复用网关认证、租户上下文与错误映射。
 
-use vw_api_types::agent_apps::{
-    AddCustomIconRequest, AddCustomIconResult, CustomIconEntry, RenameCustomIconRequest,
+use vw_api_app_identity::{
+    AddCustomIconRequest,
+    AddCustomIconResult,
+    CustomIconEntry,
+    RenameCustomIconRequest,
 };
 
 use super::GatewayClient;

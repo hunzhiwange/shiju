@@ -4,7 +4,7 @@ use crate::model_relay::generation::GenerationProtocol;
 use serde_json::Value;
 use vw_agent_apps::providers;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::ProviderProtocol,
     vw_api_types::app_providers::claude::ClaudeConfig,
     vw_api_types::app_providers::claude::ClaudeProfile,

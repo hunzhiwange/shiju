@@ -1,3 +1,4 @@
+use vw_api_app_identity::{AppId, AppInstallationEnvironment};
 use super::{PreferencesMessage, event};
 use crate::app::components::system_settings_common::*;
 use crate::app::{Message, i18n::I18n, state::AppsCatalogState};

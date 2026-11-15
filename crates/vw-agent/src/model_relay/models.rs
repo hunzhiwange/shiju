@@ -1,6 +1,7 @@
 //! Local discovery projection. Callers supply only the authorized saved catalog.
 use serde_json::{Value, json};
-use vw_api_types::{agent_apps::AppId, model_catalog::ModelCatalogEntry};
+use vw_api_types::{model_catalog::ModelCatalogEntry};
+use vw_api_app_identity::{AppId};
 
 pub(crate) fn is_path(app: AppId, path: &str) -> bool {
     matches!(app, AppId::Claude | AppId::Codex | AppId::ClaudeDesktop)

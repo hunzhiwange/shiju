@@ -8,7 +8,7 @@ use crate::app::{
 pub(crate) use core::*;
 use iced::{Task, widget::text_editor};
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationQuery,
     vw_api_transport::id::ProjectId,
 };

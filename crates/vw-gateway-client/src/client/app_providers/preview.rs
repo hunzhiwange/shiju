@@ -1,6 +1,7 @@
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::{GatewayClient, provider_collection_path};
-use vw_api_types::{agent_apps::AppId, app_providers::preview::*};
+use vw_api_types::{app_providers::preview::*};
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Native transport only; token authorizes the selected execution host independently.
     pub async fn app_provider_preview(

@@ -119,7 +119,7 @@ async fn cc_mcp_t35_delete_revokes_each_target_and_retries_only_failures() {
         fs::create_dir_all(root.join(directory)).unwrap();
         fs::write(root.join(directory).join(file), bytes).unwrap();
     }
-    for app_id in [vw_api_types::agent_apps::AppId::Codex, vw_api_types::agent_apps::AppId::Gemini]
+    for app_id in [vw_api_app_identity::AppId::Codex, vw_api_app_identity::AppId::Gemini]
     {
         let installation = vw_agent_apps::apps::discovery::read::read(app_id, &env)
             .unwrap()

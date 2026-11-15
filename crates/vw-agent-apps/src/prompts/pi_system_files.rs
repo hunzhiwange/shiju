@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
 };
 
 use crate::providers::live::{
@@ -134,7 +134,7 @@ fn publish(
     preflight: impl Fn() -> Result<(), WriteError>,
 ) -> Result<(), PiPromptFileError> {
     let patch = WholeFile::new(before.exists.then_some(before.content.as_bytes()), after);
-    let state = transactions.state(vw_api_types::agent_apps::AppId::Pi)?;
+    let state = transactions.state(vw_api_app_identity::AppId::Pi)?;
     transactions.commit_checked(
         tenant, guard,
         &[FileChange { name: kind.filename(), privacy: FilePrivacy::Private, patch: &patch }],

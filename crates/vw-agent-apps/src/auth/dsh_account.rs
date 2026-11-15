@@ -29,6 +29,7 @@ use vw_api_types::{
 };
 
 const DEVICE_RECORD: &str = "deepseek-account-platform/device";
+use vw_api_app_identity::{AppId};
 const STATUS_PATH: &str = "/auth-api/v0/users/current";
 const MAX_STATUS_BYTES: usize = 64 * 1024;
 

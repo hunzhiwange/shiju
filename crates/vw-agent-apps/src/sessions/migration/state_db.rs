@@ -12,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 const ID_CHUNK: usize = 500;
 const MAX_BACKUP_BYTES: u64 = 512 * 1024 * 1024;

@@ -51,7 +51,7 @@ fn cc04_operations_real_transaction_settles_files_and_pointer_after_cancel() {
         write_guard::{FilePrivacy, lock_app},
     };
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let root = tempfile::tempdir().unwrap();
@@ -104,7 +104,7 @@ fn cc04_operations_failed_publication_retains_pending_and_recovers() {
         write_guard::{FilePrivacy, WriteError, lock_app},
     };
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let root = tempfile::tempdir().unwrap();
@@ -185,7 +185,7 @@ fn cc04_operations_cancel_during_staging_preserves_native_and_state() {
         write_guard::{FilePrivacy, lock_app},
     };
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let root = tempfile::tempdir().unwrap();

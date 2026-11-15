@@ -1,6 +1,6 @@
 use {
-    vw_api_types::agent_apps::AppId,
-    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_app_identity::AppId,
+    vw_api_app_identity::AppInstallationId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
     vw_api_types::mcp_management::McpAppTarget,

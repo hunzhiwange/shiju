@@ -1,3 +1,13 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppHostPreferences,
+    AppId,
+    AppPreferencesCapabilities,
+    AppPreferencesResult,
+    AppReadResponse,
+    AppUserPreferences,
+    AppWslPreference,
+};
 use super::preferences::*;
 use vw_gateway_client::vw_api_types::agent_apps::*;
 fn value() -> AppPreferencesResult {

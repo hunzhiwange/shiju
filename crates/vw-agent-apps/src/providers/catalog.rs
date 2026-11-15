@@ -1,9 +1,7 @@
 //! Read-only observations of tenant records and explicitly authorized host configuration.
 use std::{collections::BTreeMap, path::Path};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderSummary, catalog::*},
-};
+use vw_api_types::{app_providers::AppProviderSummary, app_providers::catalog::*};
+use vw_api_app_identity::{AppId};
 
 /// `home` is the administrator-authorized execution home, never a client path.
 /// Native reads cover Kimi TOML, OpenCode/OpenClaw JSON/JSONC, Hermes YAML, Pi models JSONC, OMP models YAML and Mcode custom-provider YAML.

@@ -1,5 +1,5 @@
 use super::{GatewayClient, provider_collection_path};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Native transport only; token authorizes the selected execution host independently.
     pub async fn provider_env_clean(

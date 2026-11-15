@@ -3,7 +3,7 @@ use anyhow::{Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use vw_agent_apps::providers::validate_identity;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::ProjectScope,
 };
 

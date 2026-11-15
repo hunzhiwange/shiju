@@ -57,7 +57,7 @@ use std::os::unix::fs::PermissionsExt;
 fn cc04_omp_transaction_failure_recovers_without_unique_pointer() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     for phase in
@@ -113,7 +113,7 @@ fn cc04_omp_transaction_failure_recovers_without_unique_pointer() {
 fn cc04_omp_input_and_external_file_conflicts_do_not_publish() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();
@@ -145,7 +145,7 @@ fn cc04_omp_input_and_external_file_conflicts_do_not_publish() {
 fn cc04_omp_membership_never_changes_default_or_login() {
     use super::live::commit::*;
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();
@@ -289,7 +289,7 @@ fn cc04_omp_native_paths_precedence_legacy_and_symlinks_fail_closed() {
 fn cc04_omp_precedence_change_after_intent_preserves_native_files() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();

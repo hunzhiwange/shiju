@@ -6,7 +6,7 @@ use super::{
 use serde_json::{Value, json};
 use std::time::{Duration, UNIX_EPOCH};
 use {
-    vw_api_types::agent_apps::AppId::*,
+    vw_api_app_identity::AppId::*,
     vw_api_transport::common::TimestampMs,
     vw_api_types::model_catalog::ModelCapabilityState::Supported,
     vw_api_types::model_catalog::ModelCapabilityState::Unknown,

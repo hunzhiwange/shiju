@@ -25,7 +25,7 @@ use std::os::unix::fs::PermissionsExt;
 fn cc04_openclaw_transaction_failure_recovers_without_unique_pointer() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     for phase in
@@ -80,7 +80,7 @@ fn cc04_openclaw_transaction_failure_recovers_without_unique_pointer() {
 fn cc04_openclaw_input_and_external_file_conflicts_do_not_publish() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();
@@ -142,7 +142,7 @@ fn cc04_openclaw_read_symlink_and_missing_removal_are_safe() {
     std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     use super::live::commit::*;
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let tx = ProviderTransactions::new(root.path(), ExecutionHostId::new("host").unwrap()).unwrap();
@@ -183,7 +183,8 @@ fn cc04_openclaw_new_model_seed_and_nested_comments_survive() {
 
 #[test]
 fn cc04_openclaw_catalog_reads_members_without_unique_current_or_secrets() {
-    use vw_api_types::{agent_apps::AppId, app_providers::catalog::*};
+    use vw_api_types::{app_providers::catalog::*};
+    use vw_api_app_identity::{AppId};
     let home = tempfile::tempdir().unwrap();
     let missing = super::catalog::read(home.path(), AppId::OpenClaw, vec![]);
     assert_eq!(missing.native_read, None);

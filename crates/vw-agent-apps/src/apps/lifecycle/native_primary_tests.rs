@@ -1,5 +1,5 @@
 use super::native_primary::{InstallEnvironment, install_command};
-use vw_api_types::agent_apps::AppId::*;
+use vw_api_app_identity::{AppId::*};
 
 #[test]
 fn cc_apps_primary_native_install_windows_and_rejections() {

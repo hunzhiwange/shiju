@@ -4,7 +4,8 @@ use super::preset_search::{PresetPlan, PresetRegion};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_api_types::{agent_apps::AppId, model_catalog::ModelTokenCost};
+use vw_api_types::{model_catalog::ModelTokenCost};
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

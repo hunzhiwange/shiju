@@ -1,5 +1,5 @@
 use serde_json::json;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cc04_validation_distinguishes_ordinary_and_proxy_headers_and_explicit_clear() {

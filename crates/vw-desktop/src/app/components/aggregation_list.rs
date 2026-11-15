@@ -19,7 +19,7 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
     let header =
         settings_modal_header(text("聚合目录").size(20), settings_close_button(close.clone()));
     let mut body = column![].spacing(12);
-    if form.selection.scope.app == vw_gateway_client::vw_api_types::agent_apps::AppId::Codex {
+    if form.selection.scope.app == vw_api_app_identity::AppId::Codex {
         body = body.push(
             button(text("Codex 客户端状态"))
                 .padding([8, 14])

@@ -245,7 +245,7 @@ impl ClaudeFile {
 
     fn from_directory(directory: std::fs::File) -> Result<Self, WriteError> {
         let guard = super::live::write_guard::lock_directory(
-            vw_api_types::agent_apps::AppId::Claude,
+            vw_api_app_identity::AppId::Claude,
             directory,
         )?;
         let settings = guard.read(std::ffi::OsStr::new("settings.json"))?;
@@ -351,7 +351,7 @@ impl ClaudeFile {
             }),
         };
         let change = |pre: Option<&[u8]>| {
-            if !unchanged() || tx.state(vw_api_types::agent_apps::AppId::Claude)? != *state {
+            if !unchanged() || tx.state(vw_api_app_identity::AppId::Claude)? != *state {
                 return Err(WriteError::Conflict);
             }
             patch(pre, previous, target)
@@ -366,7 +366,7 @@ impl ClaudeFile {
             }],
             PendingTarget { pointer, mode: Some(mode), claude_managed_login, ..Default::default() },
             || {
-                if unchanged() && tx.state(vw_api_types::agent_apps::AppId::Claude)? == *state {
+                if unchanged() && tx.state(vw_api_app_identity::AppId::Claude)? == *state {
                     Ok(())
                 } else {
                     Err(WriteError::Conflict)

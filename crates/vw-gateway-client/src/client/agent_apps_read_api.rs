@@ -1,7 +1,7 @@
 //! 所选网关的应用读取；客户端不探测执行主机的文件系统。
 use super::GatewayClient;
 use serde::de::DeserializeOwned;
-use vw_api_types::agent_apps::{AppCatalogResponse, AppId, AppReadResponse};
+use vw_api_app_identity::{AppCatalogResponse, AppId, AppReadResponse};
 
 /// 应用读取失败，保留网关状态及结构化业务错误。
 #[derive(Debug, Clone, PartialEq)]

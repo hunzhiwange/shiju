@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use vw_api_types::agent_apps::{AgentAppsErrorCode, AgentAppsErrorResponse};
+use vw_api_app_identity::{AgentAppsErrorCode, AgentAppsErrorResponse};
 
 /// Icon-domain HTTP boundary, accepting only stable business codes.
 #[derive(Debug)]

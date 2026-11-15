@@ -23,10 +23,8 @@ pub mod import;
 #[cfg(target_os = "macos")]
 pub mod distribution;
 
-use vw_api_types::{
-    agent_apps::AppId,
-    mcp_management::{McpAppCapability, McpSupport},
-};
+use vw_api_types::{mcp_management::McpAppCapability, mcp_management::McpSupport};
+use vw_api_app_identity::{AppId};
 
 /// Native adapter transport support for the gateway's execution platform.
 pub fn native_capability(app_id: AppId) -> McpAppCapability {

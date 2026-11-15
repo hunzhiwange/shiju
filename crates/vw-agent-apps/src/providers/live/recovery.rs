@@ -16,7 +16,7 @@ use std::{
     },
     path::{Component, Path},
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RecoveryOutcome {

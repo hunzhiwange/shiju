@@ -15,7 +15,7 @@ use {
 use {
     crate::agent_apps::usage_settings::UsageCredentialId,
     crate::agent_apps::usage_settings::UsageSigningCredentialRefs,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_diagnostics::DiagnosticScope,
     vw_api_types::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::ProjectId,
@@ -357,7 +357,7 @@ impl McpProbeAccess {
 #[serde(deny_unknown_fields)]
 struct UsageReadPermit {
     project_id: vw_api_transport::ProjectId,
-    app_id: vw_api_types::agent_apps::AppId,
+    app_id: vw_api_app_identity::AppId,
     provider_id: String,
     account_id: Option<String>,
 }
@@ -417,7 +417,7 @@ impl UsageScriptTestPermit {
 #[serde(deny_unknown_fields)]
 struct UsageRefreshPermit {
     project_id: String,
-    app_id: vw_api_types::agent_apps::AppId,
+    app_id: vw_api_app_identity::AppId,
     provider_id: String,
     origin: String,
     account_id: Option<String>,
@@ -431,7 +431,7 @@ pub(super) struct UsageRefreshTarget {
     pub project: vw_api_transport::ProjectScope,
     pub principal: String,
     pub host: String,
-    pub app: vw_api_types::agent_apps::AppId,
+    pub app: vw_api_app_identity::AppId,
     pub provider: String,
     pub origin: reqwest::Url,
     pub batch: bool,
@@ -511,7 +511,7 @@ pub(super) fn usage_targets(
                 }
                 let (codex, kind) = if let Some(account) = permit.account_id {
                     use vw_agent_apps::usage::subscriptions::codex::CODEX_USAGE_ORIGIN;
-                    use vw_api_types::agent_apps::AppId;
+                    use vw_api_app_identity::AppId;
                     let Some(credential_root) = &host.credential_root else { continue };
                     if permit.kind.is_some_and(|kind| kind != OfficialSubscription)
                         || permit.app_id != AppId::Codex
@@ -557,8 +557,8 @@ pub(super) fn usage_targets(
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct IdentityPermit {
-    pub app_id: vw_api_types::agent_apps::AppId,
-    pub kind: vw_api_types::agent_apps::LaunchIdentityKind,
+    pub app_id: vw_api_app_identity::AppId,
+    pub kind: vw_api_app_identity::LaunchIdentityKind,
     pub id: String,
 }
 pub(super) struct Authorization {
@@ -582,8 +582,8 @@ impl Authorization {
 
     pub fn permits(
         &self,
-        app: vw_api_types::agent_apps::AppId,
-        kind: vw_api_types::agent_apps::LaunchIdentityKind,
+        app: vw_api_app_identity::AppId,
+        kind: vw_api_app_identity::LaunchIdentityKind,
         id: &str,
     ) -> bool {
         self.identities.iter().any(|p| p.app_id == app && p.kind == kind && p.id == id)
@@ -1662,8 +1662,8 @@ pub(super) fn authorize_provider_login(
     let authorization =
         authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)?;
     if !authorization.permits(
-        vw_api_types::agent_apps::AppId::Claude,
-        vw_api_types::agent_apps::LaunchIdentityKind::OfficialAccount,
+        vw_api_app_identity::AppId::Claude,
+        vw_api_app_identity::LaunchIdentityKind::OfficialAccount,
         account,
     ) {
         return Err(StatusCode::FORBIDDEN);
@@ -1677,7 +1677,8 @@ pub(super) fn import_provider_policy(
     path: &Path,
     database: &crate::global_database::GlobalDatabase,
 ) -> Result<(), ()> {
-    use vw_api_types::{agent_apps::AppId, app_providers::import::ImportTrigger};
+    use vw_api_types::{app_providers::import::ImportTrigger};
+    use vw_api_app_identity::{AppId};
     let policy = load(path)?;
     for principal in &policy.principals {
         for grant in &principal.grants {
@@ -2170,7 +2171,7 @@ pub(in super::super) struct ExternalHistoryInstance {
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(in super::super) struct ExternalResumeSettings {
-    pub installation_id: vw_api_types::agent_apps::AppInstallationId,
+    pub installation_id: vw_api_app_identity::AppInstallationId,
     pub project_roots: Vec<PathBuf>,
     pub native_agent_dir: Option<PathBuf>,
     pub profile: Option<String>,

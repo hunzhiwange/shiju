@@ -3,7 +3,7 @@ use super::{
     unmanaged_import::{prepare_import, PreparedImport, UnmanagedSelection},
 };
 use std::{collections::BTreeMap, fs};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cp12_unmanaged_import_success() {

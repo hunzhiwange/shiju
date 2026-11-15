@@ -1,7 +1,8 @@
 //! Host-owned operation progress. Callers retain handles in their authorized task
 //! store; neither this module nor an operation ID grants execution permission.
 use tokio::sync::watch;
-use vw_api_types::{agent_apps::AppId, task::TaskStatus};
+use vw_api_types::{task::TaskStatus};
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {

@@ -5,7 +5,8 @@ use crate::{
     providers::failover::{ProviderAuth, ProviderSnapshot},
     routing::supports_app,
 };
-use vw_api_types::{agent_apps::AppId, app_providers::AppProviderSummary};
+use vw_api_types::{app_providers::AppProviderSummary};
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QueueError {

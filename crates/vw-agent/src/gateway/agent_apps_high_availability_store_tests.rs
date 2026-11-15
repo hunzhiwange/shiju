@@ -3,8 +3,8 @@ use std::{sync::Barrier, thread};
 use anyhow::Result;
 use vw_agent_apps::providers::failover::{ProviderAuth, ProviderSnapshot};
 use {
-    vw_api_types::agent_apps::AppId::Claude,
-    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_app_identity::AppId::Claude,
+    vw_api_app_identity::AppId::Codex,
     vw_api_types::agent_apps_high_availability::FailoverQueueScope,
     vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
     vw_api_types::app_providers::AppProviderSummary,

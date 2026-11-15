@@ -1,5 +1,14 @@
 use super::update;
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationReport,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+};
 
 fn installation(
     id: &str,

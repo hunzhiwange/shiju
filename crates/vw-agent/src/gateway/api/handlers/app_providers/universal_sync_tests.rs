@@ -9,7 +9,7 @@ use axum::{
 };
 use tower::ServiceExt;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::universal_sync::*,
     vw_api_transport::id::TenantScope,
 };

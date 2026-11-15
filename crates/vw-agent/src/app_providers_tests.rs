@@ -1,5 +1,14 @@
 use super::*;
 use vw_api_types::{agent_apps::*, app_providers::ProviderProtocol};
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    LaunchRequest,
+};
 fn profile(key: &str) -> AppProviderWrite {
     AppProviderWrite {
         request_options: None,

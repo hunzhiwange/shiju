@@ -1,6 +1,6 @@
 use super::{app_paths, local_install::LocalSkill, unmanaged_scan::scan_unmanaged};
 use std::{collections::BTreeMap, fs};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cp12_unmanaged_scan_success() {

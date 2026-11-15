@@ -1,8 +1,8 @@
 //! macOS loopback acceptance: production router, SDK and real isolated databases.
 use crate::global_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 use {
-    vw_api_types::agent_apps::AddCustomIconRequest,
-    vw_api_types::agent_apps::RenameCustomIconRequest,
+    vw_api_app_identity::AddCustomIconRequest,
+    vw_api_app_identity::RenameCustomIconRequest,
     vw_api_transport::id::TenantScope,
 };
 
@@ -28,7 +28,7 @@ async fn roundtrip(db: GlobalDatabase) -> anyhow::Result<()> {
         .map_err(anyhow::Error::msg)?;
     assert_eq!(
         renamed,
-        vw_api_types::agent_apps::CustomIconEntry { name: "新名称".into(), ..added.icon }
+        vw_api_app_identity::CustomIconEntry { name: "新名称".into(), ..added.icon }
     );
     assert_eq!(
         client.custom_icons_list().await.map_err(anyhow::Error::msg)?,
@@ -168,7 +168,7 @@ async fn disconnect(db: GlobalDatabase) -> anyhow::Result<()> {
         .map_err(anyhow::Error::msg)?;
     let actual =
         server.client("p", "a", true)?.custom_icons_list().await.map_err(anyhow::Error::msg)?;
-    let after = vw_api_types::agent_apps::CustomIconEntry {
+    let after = vw_api_app_identity::CustomIconEntry {
         name: "断开后完整名称".into(),
         ..before.clone()
     };

@@ -1,5 +1,6 @@
 use super::env_diagnose::diagnose_at;
-use vw_api_types::{agent_apps::AppId, app_providers::env_diagnose::*};
+use vw_api_types::{app_providers::env_diagnose::*};
+use vw_api_app_identity::{AppId};
 #[test]
 fn cc04_env_diagnose_reports_shell_origin() {
     let home = tempfile::tempdir().unwrap();

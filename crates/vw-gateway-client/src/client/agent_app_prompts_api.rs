@@ -3,7 +3,7 @@ use super::GatewayClient;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use {
     vw_api_transport::ProjectId,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::PromptResource,
     vw_api_types::agent_apps::PromptTargetPreview,
 };

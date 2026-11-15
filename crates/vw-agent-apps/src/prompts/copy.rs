@@ -1,5 +1,6 @@
 //! Create-only inputs for copying application prompts. No activation or file I/O.
-use vw_api_types::agent_apps::{AppId, PromptResource};
+use vw_api_types::{agent_apps::PromptResource};
+use vw_api_app_identity::{AppId};
 
 /// A new identity is issued on the server for every requested target.
 /// Name collisions are allowed: callers must insert, never upsert by name.

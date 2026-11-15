@@ -142,10 +142,10 @@ async fn fetch(
 /// The caller supplies the already-authorized host's local version; failure never erases it.
 pub async fn query_latest(
     client: &reqwest::Client,
-    app: vw_api_types::agent_apps::AppId,
+    app: vw_api_app_identity::AppId,
     local: Option<&str>,
 ) -> LatestVersion {
-    use vw_api_types::agent_apps::AppId::*;
+    use vw_api_app_identity::AppId::*;
     let package = match app {
         Claude => Some("@anthropic-ai/claude-code"),
         Codex => Some("@openai/codex"),

@@ -17,8 +17,8 @@ use vw_agent_apps::{
 };
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
-    vw_api_types::agent_apps::AppInstallationId,
+    vw_api_app_identity::AppId,
+    vw_api_app_identity::AppInstallationId,
     vw_api_types::mcp_management::McpCatalogResponse,
     vw_api_types::mcp_management::McpCatalogScope,
     vw_api_types::mcp_management::McpFailureCode,

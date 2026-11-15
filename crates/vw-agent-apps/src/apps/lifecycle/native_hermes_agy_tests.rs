@@ -1,6 +1,6 @@
 use super::native_hermes_agy::{install_command, update_command};
 use super::native_primary::InstallEnvironment::{Posix, Windows, Wsl};
-use vw_api_types::agent_apps::AppId::{Agy, Codex, Hermes};
+use vw_api_app_identity::{AppId::Agy, AppId::Codex, AppId::Hermes};
 
 #[test]
 fn cc_apps_hermes_agy_install_platform_rules() {

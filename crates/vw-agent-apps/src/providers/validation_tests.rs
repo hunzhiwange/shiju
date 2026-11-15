@@ -4,6 +4,7 @@ use vw_api_types::{
     agent_apps::AppId,
     app_providers::{create::AppProviderCreate, update::AppProviderUpdate},
 };
+use vw_api_app_identity::{AppId};
 fn input(options: serde_json::Value) -> AppProviderCreate {
     serde_json::from_value(json!({"name":"fixture","protocol":"anthropic","apiKey":{"action":"replace","value":"fixture-secret"},"baseUrl":"https://fixture.test","model":"fixture","addToLive":false,"requestOptions":options})).unwrap()
 }

@@ -3,6 +3,7 @@ use vw_api_types::{
     agent_apps::AppId,
     app_providers::{
         ProviderProtocol,
+use vw_api_app_identity::{AppId};
         universal_sync::UniversalSyncError,
     },
 };

@@ -2,7 +2,7 @@ use super::{
     preset_catalog::{codex_preset, codex_presets},
     preset_codex::{CodexPreset, CodexPresetApiFormat, CodexPresetAuthProvider},
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 fn preset(name: &str) -> &'static CodexPreset {
     codex_preset(AppId::Codex, name).unwrap_or_else(|| panic!("missing Codex preset {name}"))

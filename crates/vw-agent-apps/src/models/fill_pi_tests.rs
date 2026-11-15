@@ -5,7 +5,7 @@ use super::{
 use crate::providers::pi::{declarations, patch};
 use serde_json::{Value, json};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::pi::PiActivation,
     vw_api_types::app_providers::pi::PiProfile,
     vw_api_transport::common::TimestampMs,

@@ -9,7 +9,7 @@ use std::{
 use axum::{Json, Router, extract::State, routing::post};
 use serde_json::{Value, json};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
     vw_api_types::model_catalog::ModelCapabilityState::Supported,
     vw_api_types::model_catalog::ModelCapabilityState::Unsupported,

@@ -1,5 +1,5 @@
 use super::catalog::*;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cc_apps_catalog_capabilities_exact_identities_and_cli_boundary() {

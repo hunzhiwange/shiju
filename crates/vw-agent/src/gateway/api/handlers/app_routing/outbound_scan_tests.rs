@@ -19,6 +19,7 @@ use vw_api_types::{
         DiagnosticFailureCode, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
     },
 };
+use vw_api_app_identity::{AppId};
 
 #[tokio::test]
 async fn cc_route_030_outbound_scan_expected_behavior() {

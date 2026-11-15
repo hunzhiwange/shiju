@@ -9,6 +9,7 @@ use vw_api_types::{
 };
 
 pub struct MigrationMcpRecord {
+use vw_api_app_identity::{AppId};
     pub record: McpCatalogRecord,
     pub connection: McpConnectionDefinition,
     pub applications: Vec<(AppId, bool)>,

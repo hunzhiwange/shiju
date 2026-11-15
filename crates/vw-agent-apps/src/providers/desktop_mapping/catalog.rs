@@ -1,7 +1,7 @@
 //! Claude Desktop discovery and request mapping from authorized, configured providers.
 use std::collections::{HashMap, HashSet};
 
-use vw_api_types::agent_apps::AppId::ClaudeDesktop;
+use vw_api_app_identity::{AppId::ClaudeDesktop};
 
 use crate::aggregation::model_ids::{Decoded, decode, encode};
 

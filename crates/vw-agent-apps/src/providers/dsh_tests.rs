@@ -86,7 +86,7 @@ fn cc04_dsh_all_profiles_recover_one_intent_and_use_private_files() {
     use super::live::{commit::*, write_guard::WriteError};
     use std::os::unix::fs::PermissionsExt;
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     for phase in
@@ -153,7 +153,7 @@ fn cc04_dsh_symlinks_native_locks_and_external_edits_are_rejected() {
     use super::live::commit::*;
     use std::os::unix::fs::PermissionsExt;
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();

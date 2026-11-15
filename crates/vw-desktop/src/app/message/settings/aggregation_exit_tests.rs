@@ -16,7 +16,7 @@ fn aggregation_t59_aggregation_exit_preserves_contract() {
 }
 
 use super::tests::{progress, selection, server};
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 fn state() -> AggregationState {
     serde_json::from_value(serde_json::json!({
         "revision":"saved-r1","mode":"aggregation","attached":true,"defaultProviderId":"one",

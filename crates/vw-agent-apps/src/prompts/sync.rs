@@ -1,7 +1,7 @@
 //! Saved-state projection, independent of activation and live-file backfill.
 use crate::apps::lifecycle::operations::Operation;
 use super::listing::{PromptEntry, list_entries};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkipReason {

@@ -14,10 +14,8 @@ use crate::{
 use serde_json::{Map, Value};
 use serde_yaml::{Mapping, Value as Yaml};
 use std::{collections::BTreeMap, ffi::OsStr};
-use vw_api_types::{
-    agent_apps::AppId,
-    mcp_management::{McpConfigValue, McpConnectionDefinition},
-};
+use vw_api_types::{mcp_management::McpConfigValue, mcp_management::McpConnectionDefinition};
+use vw_api_app_identity::{AppId};
 
 const SERVER_SECTION: &str = "mcp_servers";
 const CONNECTION_FIELDS: [&str; 6] = ["command", "args", "env", "url", "headers", "transport"];

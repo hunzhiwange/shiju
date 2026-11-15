@@ -1,5 +1,5 @@
 //! Host-side upgrade planning. Plans are never deserialized from client input.
-use vw_api_types::agent_apps::{AppInstallation, AppInstallationId, AppInstallationReport};
+use vw_api_app_identity::{AppInstallation, AppInstallationId, AppInstallationReport};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateCommand {
@@ -45,7 +45,7 @@ pub fn plan(
 }
 
 impl UpdatePlan {
-    pub fn app_id(&self) -> vw_api_types::agent_apps::AppId {
+    pub fn app_id(&self) -> vw_api_app_identity::AppId {
         self.installation.app_id
     }
 
@@ -56,7 +56,7 @@ impl UpdatePlan {
                 && i.target_host_id == self.installation.target_host_id
                 && i.environment == self.installation.environment
                 && i.runtime_status
-                    == vw_api_types::agent_apps::AppInstallationRuntimeStatus::Runnable
+                    == vw_api_app_identity::AppInstallationRuntimeStatus::Runnable
         })
     }
 
@@ -113,9 +113,7 @@ fn command(program: String, args: Vec<String>) -> Result<UpdateCommand, &'static
 }
 
 fn recipe(inst: &AppInstallation, companions: &[String]) -> Result<UpdateCommand, &'static str> {
-    use vw_api_types::agent_apps::{
-        AppId::*, AppInstallationEnvironment, AppInstallationSource::*,
-    };
+    use vw_api_app_identity::{AppId::*, AppInstallationEnvironment, AppInstallationSource::*};
     let windows = matches!(inst.environment, AppInstallationEnvironment::Windows);
     let path = checked_path(&inst.path, windows)?;
     let real = checked_path(
@@ -282,8 +280,8 @@ fn recipe(inst: &AppInstallation, companions: &[String]) -> Result<UpdateCommand
     }
 }
 
-fn package(app: vw_api_types::agent_apps::AppId) -> Result<String, &'static str> {
-    if app == vw_api_types::agent_apps::AppId::Omp {
+fn package(app: vw_api_app_identity::AppId) -> Result<String, &'static str> {
+    if app == vw_api_app_identity::AppId::Omp {
         return Ok("@oh-my-pi/pi-coding-agent@latest".into());
     }
     Ok(super::npm::install_args(app)?[2].into())
@@ -292,10 +290,10 @@ fn package(app: vw_api_types::agent_apps::AppId) -> Result<String, &'static str>
 fn environment(inst: &AppInstallation) -> super::native_primary::InstallEnvironment {
     use super::native_primary::InstallEnvironment;
     match inst.environment {
-        vw_api_types::agent_apps::AppInstallationEnvironment::Windows => {
+        vw_api_app_identity::AppInstallationEnvironment::Windows => {
             InstallEnvironment::Windows
         }
-        vw_api_types::agent_apps::AppInstallationEnvironment::Wsl { .. } => InstallEnvironment::Wsl,
+        vw_api_app_identity::AppInstallationEnvironment::Wsl { .. } => InstallEnvironment::Wsl,
         _ => InstallEnvironment::Posix,
     }
 }

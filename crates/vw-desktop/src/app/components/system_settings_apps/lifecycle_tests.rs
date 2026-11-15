@@ -1,3 +1,9 @@
+use vw_api_app_identity::{
+    AppId,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationSource,
+};
 use super::lifecycle::LifecycleState;
 use {
     vw_gateway_client::vw_api_types::agent_apps::*,

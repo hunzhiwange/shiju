@@ -1,6 +1,7 @@
 use super::super::agent_apps_read_api::AgentAppsReadError as Error;
 use super::GatewayClient;
-use vw_api_types::{agent_apps::AppId, app_providers::request_options::*};
+use vw_api_types::{app_providers::request_options::*};
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     pub async fn app_provider_request_options_read(
         &self,
@@ -25,7 +26,7 @@ impl GatewayClient {
         R: serde::de::DeserializeOwned,
     >(
         &self,
-        app: vw_api_types::agent_apps::AppId,
+        app: vw_api_app_identity::AppId,
         id: &str,
         method: &str,
         action: &str,

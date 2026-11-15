@@ -1,5 +1,5 @@
 use super::npm::install_args;
-use vw_api_types::agent_apps::AppId::*;
+use vw_api_app_identity::{AppId::*};
 
 #[test]
 fn cc_apps_npm_install_allowlist_fixed_packages() {
@@ -46,7 +46,7 @@ fn cc_apps_npm_install_allowlist_rejects_unsupported_apps_and_raw_input() {
     }
     for raw in ["@evil/package", "codex;touch /tmp/pwned", "--allow-scripts=*", "grok"] {
         assert!(
-            serde_json::from_value::<vw_api_types::agent_apps::AppId>(serde_json::Value::String(
+            serde_json::from_value::<vw_api_app_identity::AppId>(serde_json::Value::String(
                 raw.into()
             ))
             .is_err()

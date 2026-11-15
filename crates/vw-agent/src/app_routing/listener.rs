@@ -93,7 +93,7 @@ pub struct RoutingListener {
 
 impl RoutingListener {
     #[cfg(target_os = "macos")]
-    pub(crate) fn request_status(&self, project: &vw_api_transport::ProjectScope, host: &str, app: vw_api_types::agent_apps::AppId) -> vw_api_types::app_routing::RoutingRequestsStatus {
+    pub(crate) fn request_status(&self, project: &vw_api_transport::ProjectScope, host: &str, app: vw_api_app_identity::AppId) -> vw_api_types::app_routing::RoutingRequestsStatus {
         self.auth.requests.snapshot(project, host, app)
     }
 
@@ -243,7 +243,7 @@ impl RoutingListener {
         &self,
         project: &vw_api_transport::ProjectScope,
         host: &str,
-        app: vw_api_types::agent_apps::AppId,
+        app: vw_api_app_identity::AppId,
     ) -> Option<String> {
         self.auth.aggregation_revision(project, host, app)
     }

@@ -4,7 +4,8 @@ use super::{
     preset_search::PresetPlan,
 };
 use std::collections::HashSet;
-use vw_api_types::{agent_apps::AppId, app_providers::ProviderProtocol};
+use vw_api_types::{app_providers::ProviderProtocol};
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn catalog_presets_gemini_grok_preserves_native_ids() {

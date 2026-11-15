@@ -1,10 +1,8 @@
 use super::env_clean::{clean, macos::issue};
 use super::env_diagnose::diagnose_at;
 use std::{fs, os::unix::fs::PermissionsExt};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{env_clean::*, env_diagnose::*},
-};
+use vw_api_types::{app_providers::env_clean::*, app_providers::env_diagnose::*};
+use vw_api_app_identity::{AppId};
 fn diagnosis(home: &std::path::Path) -> EnvDiagnosis {
     let system = tempfile::tempdir().unwrap();
     issue(

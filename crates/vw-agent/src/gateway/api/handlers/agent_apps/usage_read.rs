@@ -116,7 +116,8 @@ fn account_snapshot(
     authorization: super::access::Authorization,
     explicit_policy: bool,
 ) -> Result<UsageSnapshotResponse, AuthErrorCode> {
-    use vw_api_types::{agent_apps::AppId, apps_usage::UsageQueryKind};
+    use vw_api_types::{apps_usage::UsageQueryKind};
+    use vw_api_app_identity::{AppId};
 
     let (host, auth_service) = usage_account_host(query.app_id, &authorization, explicit_policy)?;
     if query.app_id == AppId::Codex {
@@ -161,11 +162,12 @@ fn account_snapshot(
 
 #[cfg(target_os = "macos")]
 pub(super) fn usage_account_host(
-    app: vw_api_types::agent_apps::AppId,
+    app: vw_api_app_identity::AppId,
     authorization: &super::access::Authorization,
     explicit_policy: bool,
 ) -> Result<(super::AuthAccountHost, vw_api_types::agent_apps_auth::AuthService), AuthErrorCode> {
-    use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService};
+    use vw_api_types::{agent_apps_auth::AuthService};
+    use vw_api_app_identity::{AppId};
 
     let service = match app {
         AppId::Claude => AuthService::ClaudeOfficial,

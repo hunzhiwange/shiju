@@ -1,7 +1,7 @@
 use crate::app::message::agent_apps_health::{Context, State};
 use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps_high_availability::*,
     vw_api_transport::id::ProjectScope,
 };

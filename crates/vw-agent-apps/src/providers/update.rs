@@ -5,6 +5,7 @@ use vw_api_types::{
     app_providers::{AppProviderWrite, create::ProviderSecretWrite, update::AppProviderUpdate},
 };
 
+use vw_api_app_identity::{AppId};
 /// Read only the established profile fields; retain opaque stored metadata on update.
 pub fn profile(stored: &serde_json::Value) -> Result<AppProviderWrite, String> {
     let mut fields = serde_json::Map::new();

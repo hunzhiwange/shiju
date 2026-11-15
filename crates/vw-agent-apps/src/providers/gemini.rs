@@ -131,7 +131,7 @@ impl GeminiFiles {
         let dir = unsafe { std::fs::File::from_raw_fd(fd) };
         Ok(Self {
             guard: super::live::write_guard::lock_directory(
-                vw_api_types::agent_apps::AppId::Gemini,
+                vw_api_app_identity::AppId::Gemini,
                 dir,
             )?,
         })
@@ -159,7 +159,7 @@ impl GeminiFiles {
             write_guard::*,
         };
         use std::ffi::OsStr;
-        use vw_api_types::agent_apps::AppId;
+        use vw_api_app_identity::AppId;
         if tx.recover(&mut self.guard)?.is_some() {
             return Err(WriteError::Recovered);
         }

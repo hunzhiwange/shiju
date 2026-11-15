@@ -119,7 +119,7 @@ async fn cc04_kimi_sdk_api_member_edit_remove_and_catalog_delete() {
     let store = crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();
     assert!(
-        store.delete(&tenant, vw_api_types::agent_apps::AppId::Kimi, "one", f.root.path()).is_err()
+        store.delete(&tenant, vw_api_app_identity::AppId::Kimi, "one", f.root.path()).is_err()
     );
     assert_eq!(
         f.client.kimi_provider_remove_live("one", &f.target(), TOKEN).await.unwrap().live,
@@ -127,7 +127,7 @@ async fn cc04_kimi_sdk_api_member_edit_remove_and_catalog_delete() {
     );
     assert!(f.record("one").is_some());
     assert_eq!(f.client.kimi_state(&f.target(), TOKEN).await.unwrap().members, vec!["other"]);
-    store.delete(&tenant, vw_api_types::agent_apps::AppId::Kimi, "one", f.root.path()).unwrap();
+    store.delete(&tenant, vw_api_app_identity::AppId::Kimi, "one", f.root.path()).unwrap();
     assert!(f.record("one").is_none());
     let state: Value = serde_json::from_slice(
         &std::fs::read(f.root.path().join("private/provider-live/aG9zdA/kimi.state.json")).unwrap(),

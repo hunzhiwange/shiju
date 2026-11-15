@@ -1,7 +1,7 @@
 //! Pure icon-library mutations; callers own persistence, IDs and timestamps.
 
 use super::{name::normalize_icon_name, validation::is_valid_custom_icon};
-use vw_api_types::agent_apps::{AddCustomIconResult, AgentAppsErrorCode, CustomIconEntry};
+use vw_api_app_identity::{AddCustomIconResult, AgentAppsErrorCode, CustomIconEntry};
 
 /// Validate and add an icon, returning a replacement collection only for new images.
 /// Duplicate data preserves the original entry, including its name, ID and timestamp.

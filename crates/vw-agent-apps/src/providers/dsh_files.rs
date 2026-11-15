@@ -15,7 +15,7 @@ use std::{
     },
     path::Path,
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 /// All target directories are retained and locked before any bytes are prepared.
 pub struct DshFiles {
     pub guard: AppWriteGuard,

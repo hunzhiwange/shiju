@@ -1,7 +1,7 @@
 use super::identity::{MetadataEndpointKey, find_metadata_model};
 use std::collections::HashMap;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
     vw_api_types::model_catalog::ModelCatalogIdentity,
     vw_api_types::model_catalog::ScopedModelCatalogIdentity,

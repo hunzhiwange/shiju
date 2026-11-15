@@ -5,7 +5,7 @@ use rusqlite::{OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use vw_agent_apps::data_management::shared_snapshot::*;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::ProjectScope,
 };
 use crate::global_database::{GlobalDatabase, config::DatabaseProvider};

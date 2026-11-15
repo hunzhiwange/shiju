@@ -2,7 +2,7 @@ use super::{GatewayClient, test_support};
 use crate::{AppsUsageDisplay, AppsUsageReadError, GatewayAuth};
 use serde_json::{Value, json};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthErrorCode,
     vw_api_types::apps_usage::UsageQueryData,
     vw_api_types::apps_usage::UsageQueryKind,

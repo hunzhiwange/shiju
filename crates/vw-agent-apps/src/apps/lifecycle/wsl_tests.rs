@@ -3,7 +3,15 @@ use super::wsl;
 #[cfg(unix)]
 static EXECUTION: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 use crate::apps::discovery::wsl::parse_target;
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+};
 
 fn installation() -> AppInstallation {
     AppInstallation {

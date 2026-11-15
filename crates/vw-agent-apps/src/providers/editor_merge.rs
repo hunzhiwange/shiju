@@ -125,7 +125,7 @@ impl ClaudeFile {
         };
         let meta = directory.metadata().map_err(|_| WriteError::Io)?;
         let guard = super::live::write_guard::lock_directory(
-            vw_api_types::agent_apps::AppId::Claude,
+            vw_api_app_identity::AppId::Claude,
             directory,
         )?;
         let (name, bytes) = match guard.read(std::ffi::OsStr::new("settings.json"))? {
@@ -155,7 +155,7 @@ impl ClaudeFile {
         };
         let expected = &self.bytes;
         let patch = |pre: Option<&[u8]>| {
-            if transactions.state(vw_api_types::agent_apps::AppId::Claude)? != *state
+            if transactions.state(vw_api_app_identity::AppId::Claude)? != *state
                 || pre != Some(expected.as_slice())
             {
                 return Err(WriteError::Conflict);

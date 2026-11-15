@@ -347,16 +347,16 @@ async fn cc_apps_read_api_authorization_managed_package_source_matches_lifecycle
             let response =
                 app.clone().oneshot(request(endpoint, TOKEN, "a", "host")).await.unwrap();
             assert_eq!(response.status(), StatusCode::OK);
-            let response: vw_api_types::agent_apps::AppReadResponse =
+            let response: vw_api_app_identity::AppReadResponse =
                 serde_json::from_slice(&to_bytes(response.into_body(), 65536).await.unwrap())
                     .unwrap();
             assert_eq!(response.installations.len(), 1);
             assert_eq!(
                 response.installations[0].source,
                 if valid_manifest {
-                    vw_api_types::agent_apps::AppInstallationSource::System
+                    vw_api_app_identity::AppInstallationSource::System
                 } else {
-                    vw_api_types::agent_apps::AppInstallationSource::Unknown
+                    vw_api_app_identity::AppInstallationSource::Unknown
                 }
             );
         }

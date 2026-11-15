@@ -1,6 +1,15 @@
 use super::*;
 use crate::global_database::test_support::PostgresTestDatabase;
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    LaunchRequest,
+};
 use vw_api_types::agent_apps_auth::AuthService;
 
 const ACCOUNT_ID: &str = "managed-account";

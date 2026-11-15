@@ -3,7 +3,7 @@
 use super::{AgentAppsReadError as Error, GatewayClient};
 use serde::Serialize;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::common::PaginatedResponse,
     vw_api_transport::common::PaginationRequest,
     vw_api_transport::id::ModelId,

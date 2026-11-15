@@ -5,7 +5,7 @@ use crate::{
 };
 use serde_json::json;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::AppProviderWrite,
     vw_api_types::app_providers::ProviderProtocol,
     vw_api_transport::id::TenantScope,

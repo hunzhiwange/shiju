@@ -1,7 +1,8 @@
 //! Eligibility rules for aggregation members and default providers.
 
 use crate::providers::live::commit::{AppState, Mode};
-use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService};
+use vw_api_types::{agent_apps_auth::AuthService};
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderRole {

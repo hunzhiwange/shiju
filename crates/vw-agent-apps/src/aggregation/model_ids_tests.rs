@@ -1,5 +1,5 @@
 use super::model_ids::{Decoded, ModelIdError, decode, encode};
-use vw_api_types::agent_apps::AppId::{Claude, ClaudeDesktop, Codex, Pi};
+use vw_api_app_identity::{AppId::Claude, AppId::ClaudeDesktop, AppId::Codex, AppId::Pi};
 
 #[test]
 fn aggregation_t04_model_ids_preserves_contract() {

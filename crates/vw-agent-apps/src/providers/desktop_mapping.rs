@@ -90,7 +90,7 @@ fn compatible_source(
         let Ok(profile) = serde_json::from_value::<AppProviderWrite>(fields) else {
             return Ok(None);
         };
-        if super::validate_profile(vw_api_types::agent_apps::AppId::Claude, &profile).is_err() {
+        if super::validate_profile(vw_api_app_identity::AppId::Claude, &profile).is_err() {
             return Ok(None);
         }
         source["settingsConfig"] = json!({"env":{"ANTHROPIC_BASE_URL":profile.base_url,"ANTHROPIC_AUTH_TOKEN":profile.api_key,"ANTHROPIC_MODEL":profile.model}});

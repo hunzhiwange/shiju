@@ -2,7 +2,7 @@
 //! SQLite settings/common snippets are not device preferences and are not accepted.
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use vw_api_types::agent_apps::{AppHostPreferences, AppId, AppUserPreferences};
+use vw_api_app_identity::{AppHostPreferences, AppId, AppUserPreferences};
 
 use crate::apps::preferences::{HostPlatform, default_user_preferences, normalize_preferences};
 use super::{preview::{Decision, Difference, PreviewError}, source::SourceScope};

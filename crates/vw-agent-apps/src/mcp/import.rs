@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, path::Path};
 
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::paths::ConfigPathState,
     vw_api_types::mcp_management::McpAppTarget,
     vw_api_types::mcp_management::McpConnectionDefinition,

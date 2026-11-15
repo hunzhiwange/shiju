@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 struct HostWrites {
     tools: HashMap<AppId, Arc<Mutex<()>>>,

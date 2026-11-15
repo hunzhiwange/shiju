@@ -6,7 +6,7 @@ use super::{
     },
 };
 use std::collections::HashSet;
-use vw_api_types::agent_apps::AppId::{self, Dsh, Kimi};
+use vw_api_app_identity::{AppId::self, AppId::Dsh, AppId::Kimi};
 
 fn kimi(key: &str) -> &'static KimiPresetCatalog {
     let KimiDshCatalog::Kimi(catalog) = &kimi_dsh_preset(Kimi, key).expect(key).catalog else {

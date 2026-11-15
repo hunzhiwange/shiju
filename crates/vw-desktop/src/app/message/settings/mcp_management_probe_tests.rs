@@ -1,3 +1,4 @@
+use vw_api_app_identity::{AppCatalogEntry, AppId, AppReadResponse, AppRuntimeKind};
 use crate::app::message::{
     agent_apps_diagnostics as probe,
     settings::{McpMessage, SettingsMessage, mcp_management_list as catalog},

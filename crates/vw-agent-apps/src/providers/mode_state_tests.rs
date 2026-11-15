@@ -8,7 +8,7 @@ use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::mode_state::*,
     vw_api_transport::id::TenantScope,
 };

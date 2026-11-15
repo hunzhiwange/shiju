@@ -1,6 +1,6 @@
 //! Official Kimi and bun-based Oh My Pi installer recipes for the authorized host.
 use super::native_primary::{InstallCommand, InstallEnvironment};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Oh My Pi's official installer provisions bun and its own package, never Pi's
 /// npm package. Runtime provisioning stays with the official installer.

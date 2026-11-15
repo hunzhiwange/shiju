@@ -1,3 +1,14 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppReadResponse,
+    AppRuntimeKind,
+};
 //! Real native windows shape Chinese dynamic text in both themes and a narrow viewport.
 use crate::app::components::system_settings_apps::{self, catalog::CatalogRow};
 use crate::app::{Message as AppMessage, i18n::I18n, state::AppsCatalogState};

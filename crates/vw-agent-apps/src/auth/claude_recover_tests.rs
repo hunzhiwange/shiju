@@ -12,7 +12,7 @@ use crate::providers::{
 use serde_json::{Value, json};
 use std::{fs, os::unix::fs::DirBuilderExt, path::Path, process::Command};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
 

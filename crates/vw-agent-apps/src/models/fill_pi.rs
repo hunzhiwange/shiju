@@ -17,6 +17,7 @@ use vw_api_types::{
         ModelCapabilityState, ModelMetadataField, ModelMetadataProvenance, ModelMetadataSource,
     },
 };
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct PiModelFill {

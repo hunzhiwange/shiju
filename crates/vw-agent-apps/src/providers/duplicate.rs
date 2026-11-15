@@ -4,6 +4,7 @@ use vw_api_types::{
     agent_apps::AppId,
     app_providers::{AppProviderSummary, duplicate::AppProviderDuplicate},
 };
+use vw_api_app_identity::{AppId};
 /// Copy established API configuration and descriptive metadata only. Unknown fields,
 /// account bindings, live membership, ordering and timestamps never inherit authority.
 /// The callback must atomically insert if absent; false denotes a collision.

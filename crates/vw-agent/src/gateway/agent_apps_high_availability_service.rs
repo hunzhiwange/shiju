@@ -33,7 +33,7 @@ pub fn set_enabled(
         });
     }
     ensure!(
-        scope.app_id == vw_api_types::agent_apps::AppId::Claude,
+        scope.app_id == vw_api_app_identity::AppId::Claude,
         "application has no published provider mode"
     );
     let tx = transactions(root, scope)
@@ -157,7 +157,7 @@ pub fn select_candidates(
         health::{HealthAccount, HealthKey},
         selection::{SelectionSnapshot, select},
     };
-    ensure!(scope.app_id == vw_api_types::agent_apps::AppId::Claude, "unsupported published mode");
+    ensure!(scope.app_id == vw_api_app_identity::AppId::Claude, "unsupported published mode");
     let tx = transactions(root, scope).map_err(mode_unavailable)?;
     let _directory = tx.lock_claude_directory().map_err(mode_unavailable)?;
     let state = tx.state(scope.app_id).map_err(mode_unavailable)?;

@@ -1,6 +1,14 @@
 use super::{AgentAppsSettingsError, test_support};
 use serde_json::json;
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppPreferencesPatch,
+    LaunchIdentity,
+    LaunchIdentityKind,
+    LaunchRequest,
+    LaunchSessionPhase,
+};
 
 fn launch_request() -> LaunchRequest {
     serde_json::from_value(json!({"appId":"codex","installationId":"remote-instance","cwd":"Z:\\remote\\不存在","args":["literal;$(touch marker)","https://example.invalid"],"skipPermissions":false})).unwrap()

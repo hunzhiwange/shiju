@@ -10,7 +10,7 @@ use iced::{
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::*,
     vw_api_transport::id::TenantScope,
 };

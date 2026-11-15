@@ -1,6 +1,6 @@
 use super::native_kimi_omp::{install_command, kimi_installer_update_command, update_command};
 use super::native_primary::InstallEnvironment::{Posix, Windows, Wsl};
-use vw_api_types::agent_apps::AppId::{Kimi, Omp, Pi};
+use vw_api_app_identity::{AppId::Kimi, AppId::Omp, AppId::Pi};
 #[test]
 fn cc_apps_kimi_omp_install_rules() {
     for env in [Posix, Windows, Wsl] {

@@ -23,6 +23,7 @@ use vw_api_types::{
     external_session::{ExternalSessionIdentity, SessionProvider, SessionSource},
 };
 
+use vw_api_app_identity::{AppId};
 // Fail explicitly rather than allocate unbounded decoded history on a worker.
 const MAX_BYTES: u64 = 256 * 1024 * 1024;
 

@@ -116,9 +116,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             };
             if !matches!(
                 scope.app,
-                vw_gateway_client::vw_api_types::agent_apps::AppId::Claude
-                    | vw_gateway_client::vw_api_types::agent_apps::AppId::Codex
-                    | vw_gateway_client::vw_api_types::agent_apps::AppId::Gemini
+                vw_api_app_identity::AppId::Claude
+                    | vw_api_app_identity::AppId::Codex
+                    | vw_api_app_identity::AppId::Gemini
             ) || !app
                 .app_providers
                 .snapshot

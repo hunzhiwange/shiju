@@ -19,7 +19,7 @@ use vw_agent_apps::data_management::{
     source::{SourceFormat, SourceScope, SourceSnapshot},
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::data_management::*,
     vw_api_transport::id::TenantScope,
 };

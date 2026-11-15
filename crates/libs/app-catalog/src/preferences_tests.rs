@@ -1,5 +1,5 @@
 use super::preferences::{HostPlatform, default_user_preferences, normalize_preferences};
-use vw_api_types::agent_apps::{AppHostPreferences, AppId, AppUserPreferences, AppWslPreference};
+use vw_api_app_identity::{AppHostPreferences, AppId, AppUserPreferences, AppWslPreference};
 
 #[test]
 fn cc_apps_preferences_normalization_defaults_and_order() {

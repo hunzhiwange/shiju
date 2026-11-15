@@ -107,7 +107,7 @@ fn execute(p: Option<PathBuf>, t: TenantScope, h: HeaderMap, q: ReadRequest, op:
     };
     use {
     vw_api_transport::ProjectScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
 };
     let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, "target_unavailable");
     let conflict = || (StatusCode::CONFLICT, "revision_conflict");

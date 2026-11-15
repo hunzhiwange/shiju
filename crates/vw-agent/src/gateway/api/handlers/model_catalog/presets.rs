@@ -7,9 +7,8 @@ use vw_agent_apps::models::{
     preset_kimi_dsh::KimiDshCatalog,
     preset_search::{PresetMatch, PresetSearchEntry, search_presets},
 };
-use vw_api_types::{
-    agent_apps::AppId, app_providers::universal::ClaudeModels, model_catalog::ModelCatalogPreset,
-};
+use vw_api_types::{app_providers::universal::ClaudeModels, model_catalog::ModelCatalogPreset};
+use vw_api_app_identity::{AppId};
 
 struct PresetFields<'a> {
     key: &'a str,

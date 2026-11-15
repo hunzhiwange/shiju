@@ -16,7 +16,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use vw_agent_apps::auth::copilot::CopilotAuth;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_diagnostics::DiagnosticEvidenceSource,
     vw_api_types::agent_apps_diagnostics::DiagnosticFailureCode,
     vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,

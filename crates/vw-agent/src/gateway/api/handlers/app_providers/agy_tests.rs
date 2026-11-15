@@ -16,7 +16,7 @@ fn cc04_agy_native_card_is_saved_without_live_activation() {
     };
     store.agy_save(&t, "one", &p).unwrap();
     assert_eq!(
-        store.get_summary(&t, vw_api_types::agent_apps::AppId::Agy, "one").unwrap().name,
+        store.get_summary(&t, vw_api_app_identity::AppId::Agy, "one").unwrap().name,
         "Native login"
     );
     assert!(!root.path().join(".gemini").exists());
@@ -27,7 +27,14 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    LaunchIdentity,
+    LaunchIdentityKind,
+    LaunchRequest,
+    LaunchSessionPhase,
+};
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 const TOKEN: &str = "fixture-agy-authorized-token-32-characters";
 fn terminal(

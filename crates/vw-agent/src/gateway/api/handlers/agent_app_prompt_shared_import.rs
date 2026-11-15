@@ -1,3 +1,4 @@
+use vw_api_app_identity::{AppId};
 //! Confirmed shares use scoped create-only storage, then guarded native activation.
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, rejection::JsonRejection}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::post};
 use std::path::PathBuf;

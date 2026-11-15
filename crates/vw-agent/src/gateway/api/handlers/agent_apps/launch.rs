@@ -13,8 +13,8 @@ use vw_agent_apps::apps::launch::{
     request::{LaunchMaterial, validate_launch_request},
 };
 use {
-    vw_api_types::agent_apps::LaunchRequest,
-    vw_api_types::agent_apps::LaunchResult,
+    vw_api_app_identity::LaunchRequest,
+    vw_api_app_identity::LaunchResult,
     vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]
@@ -64,12 +64,12 @@ async fn launch(
     tokio::task::spawn_blocking(move || {
         let authorization = super::access::authorize_identity_launch(context.policy.as_deref(), &headers, &tenant, &target.target_host_id)?;
         if (request.provider_id.is_some() && request.account_id.is_some()) || request.launch.skip_permissions { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
-        if let Some(id) = &request.provider_id && !authorization.permits(request.launch.app_id, vw_api_types::agent_apps::LaunchIdentityKind::Provider, id) { return Err(StatusCode::FORBIDDEN); }
-        if let Some(id) = &request.account_id && !authorization.permits(request.launch.app_id, vw_api_types::agent_apps::LaunchIdentityKind::OfficialAccount, id) { return Err(StatusCode::FORBIDDEN); }
+        if let Some(id) = &request.provider_id && !authorization.permits(request.launch.app_id, vw_api_app_identity::LaunchIdentityKind::Provider, id) { return Err(StatusCode::FORBIDDEN); }
+        if let Some(id) = &request.account_id && !authorization.permits(request.launch.app_id, vw_api_app_identity::LaunchIdentityKind::OfficialAccount, id) { return Err(StatusCode::FORBIDDEN); }
         // An explicitly scoped native slot must not be reachable through ordinary launch.
         let native_service = match request.launch.app_id {
-            vw_api_types::agent_apps::AppId::Claude => Some(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial),
-            vw_api_types::agent_apps::AppId::Agy => Some(vw_api_types::agent_apps_auth::AuthService::AgyOauth),
+            vw_api_app_identity::AppId::Claude => Some(vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial),
+            vw_api_app_identity::AppId::Agy => Some(vw_api_types::agent_apps_auth::AuthService::AgyOauth),
             _ => None,
         };
         if native_service.is_some_and(|service| authorization.native_login_owner(service) == Some(false)) {
@@ -110,7 +110,7 @@ async fn launch(
             };
             let store =
                 GatewaySettingsStore::new(db.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-            let preferences: vw_api_types::agent_apps::AppHostPreferences = store
+            let preferences: vw_api_app_identity::AppHostPreferences = store
                 .get(&tenant, "agent_apps_host", &host.id)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
                 .map(|s| serde_json::from_str(&s))
@@ -125,9 +125,9 @@ async fn launch(
                     let store=crate::app_providers::AppProviderStore::new(db).map_err(|_|StatusCode::SERVICE_UNAVAILABLE)?;
                     #[cfg(target_os="macos")]
                     let bound = match request.launch.app_id {
-                        vw_api_types::agent_apps::AppId::Claude | vw_api_types::agent_apps::AppId::Codex => {
+                        vw_api_app_identity::AppId::Claude | vw_api_app_identity::AppId::Codex => {
                             let service = match request.launch.app_id {
-                                vw_api_types::agent_apps::AppId::Claude => vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial,
+                                vw_api_app_identity::AppId::Claude => vw_api_types::agent_apps_auth::AuthService::ClaudeOfficial,
                                 _ => vw_api_types::agent_apps_auth::AuthService::CodexOauth,
                             };
                             let binding_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service };
@@ -147,7 +147,7 @@ async fn launch(
                         })?)
                     } else {
                     #[cfg(target_os="macos")]
-                    let agy=if request.launch.app_id==vw_api_types::agent_apps::AppId::Agy {
+                    let agy=if request.launch.app_id==vw_api_app_identity::AppId::Agy {
                         let material=validate_launch_request(&request.launch,&host.id,&observed.installations,std::slice::from_ref(&root),false).map_err(|_|StatusCode::UNPROCESSABLE_ENTITY)?;
                         let account_scope = crate::agent_apps::auth_accounts::AuthAccountScope { tenant: &tenant, principal: &scope.principal, host: &host.id, service: vw_api_types::agent_apps_auth::AuthService::AgyOauth };
                         let native = vw_agent_apps::auth::agy_account::AgyNativeTarget { home: &host.home, exclusive_owner: agy_owner.then_some(account_scope) };
@@ -197,7 +197,7 @@ async fn session_status(
     headers: HeaderMap,
     Query(target): Query<Target>,
     RoutePath(id): RoutePath<String>,
-) -> Result<Json<vw_api_types::agent_apps::LaunchSessionStatus>, StatusCode> {
+) -> Result<Json<vw_api_app_identity::LaunchSessionStatus>, StatusCode> {
     tokio::task::spawn_blocking(move || {
         let (host, principal) = super::access::authorize_launch_session(
             context.policy.as_deref(),

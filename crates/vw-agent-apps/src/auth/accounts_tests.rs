@@ -204,7 +204,7 @@ fn auth6_remove_claude_erases_only_verified_scoped_material() {
     let tenant = TenantScope::new("platform", "company").unwrap();
     credentials.register_claude_directory(&tenant, "host", "selected").unwrap();
     let lease = credentials
-        .lease(&tenant, "host", vw_api_types::agent_apps::AppId::Claude, "selected", false)
+        .lease(&tenant, "host", vw_api_app_identity::AppId::Claude, "selected", false)
         .unwrap();
     let AccountCredential::ClaudeDirectory(directory) = lease.read().unwrap() else {
         panic!("expected scoped Claude directory");

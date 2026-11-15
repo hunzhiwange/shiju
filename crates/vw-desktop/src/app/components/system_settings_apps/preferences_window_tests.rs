@@ -1,3 +1,19 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppHostPreferences,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppPreferencesCapabilities,
+    AppPreferencesResult,
+    AppReadResponse,
+    AppRuntimeKind,
+    AppUserPreferences,
+    AppWslPreference,
+};
 //! Explicit native shaping and screenshot evidence for production preferences.
 use crate::app::components::system_settings_apps::{self, catalog::CatalogRow};
 use crate::app::{Message as AppMessage, i18n::I18n, state::AppsCatalogState};

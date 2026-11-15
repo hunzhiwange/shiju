@@ -12,7 +12,7 @@ use iced::{
     Element, Length,
     widget::{button, column, row, text, text_editor},
 };
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 
 #[derive(Clone, PartialEq, Eq)]
 struct ProviderOption {

@@ -9,9 +9,9 @@ use axum::{
 };
 use tower::ServiceExt;
 use {
-    vw_api_types::agent_apps::AddCustomIconRequest,
-    vw_api_types::agent_apps::AppId,
-    vw_api_types::agent_apps::RenameCustomIconRequest,
+    vw_api_app_identity::AddCustomIconRequest,
+    vw_api_app_identity::AppId,
+    vw_api_app_identity::RenameCustomIconRequest,
     vw_api_types::app_providers::icons::AppProviderIconChange as Change,
     vw_api_transport::id::TenantScope,
 };

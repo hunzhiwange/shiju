@@ -51,7 +51,7 @@ impl PreparedLogin {
 /// outstanding intent BEFORE preparing. Only file credential storage is supported.
 /// Any recovery/conflict requires fresh preparation. Does not publish anything.
 pub fn prepare(guard: &AppWriteGuard, input: LoginInput<'_>) -> Result<PreparedLogin, WriteError> {
-    if guard.app() != vw_api_types::agent_apps::AppId::Codex {
+    if guard.app() != vw_api_app_identity::AppId::Codex {
         return Err(WriteError::InvalidResource);
     }
     let config = guard.read(OsStr::new("config.toml"))?;

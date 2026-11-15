@@ -74,7 +74,7 @@ async fn write(p: Policy, t: TenantScope, h: HeaderMap, s: Scope, edit: Edit) ->
         let mut files = OpenClawFiles::open(&host.home).map_err(error)?;
         let tx = ProviderTransactions::new(&root, ExecutionHostId::new(&host.id).map_err(error)?).map_err(error)?;
         if tx.recover(&mut files.guard).map_err(error)?.is_some() { return Err(StatusCode::CONFLICT); }
-        let expected = tx.state(vw_api_types::agent_apps::AppId::OpenClaw).map_err(error)?;
+        let expected = tx.state(vw_api_app_identity::AppId::OpenClaw).map_err(error)?;
         let unchanged = || authorize(&p, &t, &h, &s, true).is_ok();
         let warnings = match edit {
             Edit::Env(env) => {

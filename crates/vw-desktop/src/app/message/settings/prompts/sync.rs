@@ -2,7 +2,7 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use vw_gateway_client::{AgentAppPromptSync, PiPromptResourcesScope};
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
     Open, Close, Start, Refresh, Cancel, Retry,

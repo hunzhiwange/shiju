@@ -1,6 +1,6 @@
 //! Storage-independent icon name normalization.
 
-use vw_api_types::agent_apps::AgentAppsErrorCode;
+use vw_api_app_identity::{AgentAppsErrorCode};
 
 /// Trim surrounding whitespace and accept one through 64 Unicode characters.
 /// Invalid names return a fixed business code without retaining the input.

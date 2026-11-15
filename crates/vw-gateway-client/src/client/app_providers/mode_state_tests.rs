@@ -1,4 +1,5 @@
-use vw_api_types::{agent_apps::AppId, app_providers::mode_state::*};
+use vw_api_types::{app_providers::mode_state::*};
+use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_mode_state_sdk_scopes_query_and_discards_sensitive_error() {
     let status = serde_json::json!({"mode":"direct","directProvider":"saved","inUseProvider":"saved","proxyRoute":null,"attached":false,"hasContract":true,"stack":{"enabled":false,"active":false,"members":[]},"decision":"skipRewrite","routeRuntime":"unavailable"});

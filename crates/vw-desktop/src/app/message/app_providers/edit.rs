@@ -7,7 +7,7 @@ pub(crate) async fn save(
     token: String,
 ) -> Result<(), String> {
     if matches!(form.mode, crate::app::state::app_providers::edit::Mode::Delete) {
-        let deleted = if scope.app == vw_gateway_client::vw_api_types::agent_apps::AppId::Agy {
+        let deleted = if scope.app == vw_api_app_identity::AppId::Agy {
             client
                 .agy_form_delete(
                     &form.id,

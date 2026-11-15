@@ -1,6 +1,6 @@
 //! Validate on the execution host, using freshly discovered, host-scoped observations.
 use std::path::PathBuf;
-use vw_api_types::agent_apps::{AppInstallation, AppInstallationRuntimeStatus, LaunchRequest};
+use vw_api_app_identity::{AppInstallation, AppInstallationRuntimeStatus, LaunchRequest};
 
 /// Internal material only; never deserialize this from a client or execute it as a shell string.
 #[derive(Debug, PartialEq, Eq)]
@@ -30,16 +30,16 @@ pub fn validate_launch_request(
     if matches.next().is_some() {
         return Err("ambiguous launch instance".into());
     }
-    if request.app_id == vw_api_types::agent_apps::AppId::ClaudeDesktop {
+    if request.app_id == vw_api_app_identity::AppId::ClaudeDesktop {
         return Err("desktop application is not a terminal launch target".into());
     }
     // Filesystem checks must execute in the installation's own environment.
     // WSL materialization belongs to its host adapter, never the Windows filesystem.
     let local_environment = match installation.environment {
-        vw_api_types::agent_apps::AppInstallationEnvironment::Macos => cfg!(target_os = "macos"),
-        vw_api_types::agent_apps::AppInstallationEnvironment::Windows => cfg!(windows),
-        vw_api_types::agent_apps::AppInstallationEnvironment::Linux => cfg!(target_os = "linux"),
-        vw_api_types::agent_apps::AppInstallationEnvironment::Wsl { .. } => false,
+        vw_api_app_identity::AppInstallationEnvironment::Macos => cfg!(target_os = "macos"),
+        vw_api_app_identity::AppInstallationEnvironment::Windows => cfg!(windows),
+        vw_api_app_identity::AppInstallationEnvironment::Linux => cfg!(target_os = "linux"),
+        vw_api_app_identity::AppInstallationEnvironment::Wsl { .. } => false,
     };
     if !local_environment {
         return Err("launch validation requires the installation execution environment".into());

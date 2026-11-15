@@ -19,10 +19,8 @@ pub fn remove_managed_claude(
 ) -> Result<(), AuthErrorCode> {
     lease.remove_claude(&super::claude_keychain::MacOsKeychain, identity_sha256)
 }
-use vw_api_types::{
-    agent_apps::AppId,
-    agent_apps_auth::{AuthErrorCode, AuthService},
-};
+use vw_api_types::{agent_apps_auth::AuthErrorCode, agent_apps_auth::AuthService};
+use vw_api_app_identity::{AppId};
 
 /// Tenant platform and company are supplied separately to the settings store.
 pub fn managed_default_key(scope: AuthAccountScope<'_>) -> Result<String, AuthErrorCode> {

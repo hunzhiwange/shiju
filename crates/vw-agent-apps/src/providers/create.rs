@@ -5,6 +5,7 @@ use vw_api_types::{
     app_providers::{AppProviderSummary, AppProviderWrite, create::*},
 };
 
+use vw_api_app_identity::{AppId};
 /// The callback must atomically insert if absent, returning false on a duplicate.
 /// No native path, activation or host access is part of this operation.
 pub fn create(

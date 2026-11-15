@@ -113,7 +113,7 @@ async fn cc_mcp_t37_import_preserves_partial_results_and_authorization() {
     fs::write(&binary, "#!/bin/sh\nprintf '1.2.3\\n'\n").unwrap();
     fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).unwrap();
     let installation =
-        vw_agent_apps::apps::discovery::read::read(vw_api_types::agent_apps::AppId::Codex, &env)
+        vw_agent_apps::apps::discovery::read::read(vw_api_app_identity::AppId::Codex, &env)
             .unwrap()
             .installations
             .remove(0);
@@ -121,8 +121,8 @@ async fn cc_mcp_t37_import_preserves_partial_results_and_authorization() {
     let native = root.join(".codex/config.toml");
     fs::write(&native, "[mcp_servers.shared]\ncommand = 'fixture'\n").unwrap();
     let target = vw_api_types::mcp_management::McpAppTarget {
-        app_id: vw_api_types::agent_apps::AppId::Codex,
-        installation_id: vw_api_types::agent_apps::AppInstallationId(
+        app_id: vw_api_app_identity::AppId::Codex,
+        installation_id: vw_api_app_identity::AppInstallationId(
             "previous-installation".into(),
         ),
         target_host_id: "host".into(),

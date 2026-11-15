@@ -4,7 +4,7 @@ use super::{
     wsl::{WslShell, parse_target},
 };
 use std::io;
-use vw_api_types::agent_apps::{AppHostPreferences, AppPreferencesResult, AppUserPreferences};
+use vw_api_app_identity::{AppHostPreferences, AppPreferencesResult, AppUserPreferences};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostPlatform {
@@ -74,7 +74,7 @@ pub fn normalize_preferences(
         user,
         host,
         restart_required,
-        capabilities: Some(vw_api_types::agent_apps::AppPreferencesCapabilities {
+        capabilities: Some(vw_api_app_identity::AppPreferencesCapabilities {
             terminals: terminals(platform).iter().map(|s| (*s).into()).collect(),
             wsl_preferences: platform == HostPlatform::Windows,
         }),
@@ -98,7 +98,7 @@ fn normalize_host(
     }
     let mut seen = Vec::new();
     for preference in &mut host.wsl_shells {
-        if preference.app_id == vw_api_types::agent_apps::AppId::ClaudeDesktop
+        if preference.app_id == vw_api_app_identity::AppId::ClaudeDesktop
             || seen.contains(&preference.app_id)
         {
             return Err(invalid("WSL preferences require unique CLI application IDs"));

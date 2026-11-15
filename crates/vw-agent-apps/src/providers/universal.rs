@@ -8,6 +8,7 @@ use vw_api_types::{
         universal::{UniversalConfig, UniversalProviderSummary, UniversalProviderWrite},
     },
 };
+use vw_api_app_identity::{AppId};
 const CORRUPT: &str = "invalid stored universal provider";
 fn validate(config: &UniversalConfig, secret: &str) -> Result<(), String> {
     validate_identity(&config.provider_type)?;

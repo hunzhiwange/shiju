@@ -1,6 +1,6 @@
 use super::target_model::resolve;
 use serde_json::json;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cc_route_032_target_model_expected_behavior() {

@@ -147,8 +147,6 @@ mod agent_apps_auth_tests;
 mod agent_apps_diagnostics_tests;
 #[cfg(test)]
 mod agent_apps_high_availability_tests;
-#[cfg(test)]
-mod agent_apps_tests;
 
 pub mod app_providers;
 #[cfg(test)]

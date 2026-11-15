@@ -111,7 +111,7 @@ async fn cc_mcp_t36_bind_and_bulk_apply_real_native_results() {
     fs::write(&binary, "#!/bin/sh\nprintf '1.2.3\\n'\n").unwrap();
     fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).unwrap();
     let installation =
-        vw_agent_apps::apps::discovery::read::read(vw_api_types::agent_apps::AppId::Codex, &env)
+        vw_agent_apps::apps::discovery::read::read(vw_api_app_identity::AppId::Codex, &env)
             .unwrap()
             .installations
             .remove(0);

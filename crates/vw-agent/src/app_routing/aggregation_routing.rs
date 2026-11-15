@@ -8,7 +8,7 @@ use vw_agent_apps::{
     aggregation::resolve::{PublishedModel, ResolveError, Resolved, resolve},
     providers::{live::commit::AppState, mode_state::observe, validation},
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 pub(crate) struct AggregationModel {
     pub(crate) id: String,

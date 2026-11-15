@@ -194,7 +194,7 @@ async fn cc04_grok_activation_scope_and_invalid_live_are_checked_before_save() {
     let store = crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap();
     assert_eq!(
         store
-            .list(&TenantScope::new("p", "a").unwrap(), vw_api_types::agent_apps::AppId::GrokBuild)
+            .list(&TenantScope::new("p", "a").unwrap(), vw_api_app_identity::AppId::GrokBuild)
             .unwrap()
             .len(),
         2
@@ -203,7 +203,7 @@ async fn cc04_grok_activation_scope_and_invalid_live_are_checked_before_save() {
         store
             .list(
                 &TenantScope::new("p", "other").unwrap(),
-                vw_api_types::agent_apps::AppId::GrokBuild
+                vw_api_app_identity::AppId::GrokBuild
             )
             .unwrap()
             .is_empty()

@@ -7,7 +7,7 @@ use super::{
     },
 };
 use serde_json::{Value, json};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 fn model(provider: &str, endpoint: &str, protocol: PiPresetProtocol, id: &str) -> Value {
     let preset = pi_preset(AppId::Pi, provider).unwrap();

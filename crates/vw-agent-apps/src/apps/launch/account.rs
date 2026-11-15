@@ -8,7 +8,7 @@ use std::{
     path::Path,
     process::{Command, Stdio},
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Not Debug/serializable. Private material lives until the child has been reaped.
 pub struct AccountLaunch {

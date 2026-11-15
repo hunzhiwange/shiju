@@ -7,11 +7,11 @@ use axum::{
     routing::{get, patch},
 };
 use {
-    vw_api_types::agent_apps::AddCustomIconRequest,
-    vw_api_types::agent_apps::AddCustomIconResult,
-    vw_api_types::agent_apps::AgentAppsErrorCode,
-    vw_api_types::agent_apps::CustomIconEntry,
-    vw_api_types::agent_apps::RenameCustomIconRequest,
+    vw_api_app_identity::AddCustomIconRequest,
+    vw_api_app_identity::AddCustomIconResult,
+    vw_api_app_identity::AgentAppsErrorCode,
+    vw_api_app_identity::CustomIconEntry,
+    vw_api_app_identity::RenameCustomIconRequest,
     vw_api_transport::id::TenantScope,
 };
 

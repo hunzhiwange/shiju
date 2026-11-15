@@ -9,7 +9,7 @@ use crate::providers::live::commit::{ExecutionHostId, HOOK, Phase, ProviderTrans
 use serde_json::json;
 use std::{cell::Cell, fs, os::unix::fs::PermissionsExt, path::PathBuf};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::pi::PiProfile,
     vw_api_transport::id::TenantScope,
 };

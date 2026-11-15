@@ -11,7 +11,7 @@ use {
     vw_gateway_client::mcp_management_distribution::*,
     vw_api_transport::TaskId,
     vw_gateway_client::vw_api_types::agent_apps::AppActionExecutionResult,
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps::AppOperationPhase,
     vw_gateway_client::vw_api_types::mcp_management::*,
     vw_gateway_client::vw_api_types::task::TaskStatus,

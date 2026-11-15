@@ -21,8 +21,8 @@ mod private_params_tests;
 mod user_agent_tests;
 
 /// Applications that can use the gateway's application routing data plane.
-pub fn supports_app(app: vw_api_types::agent_apps::AppId) -> bool {
-    use vw_api_types::agent_apps::AppId::{Claude, Codex, Gemini, GrokBuild};
+pub fn supports_app(app: vw_api_app_identity::AppId) -> bool {
+    use vw_api_app_identity::AppId::{Claude, Codex, Gemini, GrokBuild};
     matches!(app, Claude | Codex | Gemini | GrokBuild)
 }
 

@@ -51,6 +51,7 @@ mod host_reads {
         app_providers::{AppProviderWrite, ProviderProtocol, catalog::*},
     };
     const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
+    use vw_api_app_identity::{AppId};
     fn policy(root: &Path) -> std::path::PathBuf {
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700)).unwrap();
         let path = root.join("access.json");

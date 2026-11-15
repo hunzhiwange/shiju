@@ -1,3 +1,9 @@
+use vw_api_app_identity::{
+    AppId,
+    AppInstallationEnvironment,
+    AppInstallationRuntimeStatus,
+    AppRuntimeKind,
+};
 //! Compact application overview. Installation paths and diagnostics live in expanded details.
 #[path = "domains.rs"]
 mod domains;

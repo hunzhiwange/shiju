@@ -1,6 +1,7 @@
 use super::preset_catalog::omp_presets;
 use serde_json::{Value, json, to_value};
-use vw_api_types::{agent_apps::AppId, app_providers::omp::OmpProfile};
+use vw_api_types::{app_providers::omp::OmpProfile};
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn catalog_presets_omp_lists_complete_native_catalog() {

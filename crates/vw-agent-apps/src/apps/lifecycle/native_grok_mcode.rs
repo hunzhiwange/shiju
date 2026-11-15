@@ -1,6 +1,6 @@
 //! Fixed native recipes consumed by the authorized host executor.
 use super::native_primary::{InstallCommand, InstallEnvironment};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Official installers carry their own runtime where needed (MiniMax bundles
 /// Node). Do not gate the native attempt on the system Node version. Only a

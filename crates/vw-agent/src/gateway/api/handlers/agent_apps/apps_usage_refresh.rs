@@ -25,7 +25,7 @@ use vw_agent_apps::{
 };
 use {
     vw_api_types::agent_apps::AppActionExecutionResult,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::AppOperationStatus,
     vw_api_types::agent_apps_auth::AuthErrorCode,
     vw_api_types::apps_usage::UsageQueryKind,
@@ -266,7 +266,7 @@ struct Progress {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Item {
-    app_id: vw_api_types::agent_apps::AppId,
+    app_id: vw_api_app_identity::AppId,
     provider_id: String,
     account_id: Option<String>,
     kind: UsageQueryKind,

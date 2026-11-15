@@ -23,7 +23,7 @@ use vw_agent_apps::{
     routing::supports_app,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_high_availability::FailoverHealthResponse,
     vw_api_types::agent_apps_high_availability::FailoverHealthState,
     vw_api_types::agent_apps_high_availability::FailoverPolicy,

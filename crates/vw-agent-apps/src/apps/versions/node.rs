@@ -1,7 +1,9 @@
 //! Node upgrade checks for an installation resolved by the authorized execution host.
 use std::time::Duration;
-use vw_api_types::agent_apps::{
-    AppId, AppInstallation, AppInstallationEnvironment as Environment,
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment as Environment,
     AppInstallationSource as Source,
 };
 

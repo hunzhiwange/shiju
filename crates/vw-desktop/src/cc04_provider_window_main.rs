@@ -16,7 +16,7 @@ mod fonts;
 use app::message::app_providers::list::{ListMessage, message};
 use app::{App, Message};
 use iced::{Element, Task, Theme};
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {

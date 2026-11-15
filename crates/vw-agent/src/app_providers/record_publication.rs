@@ -34,7 +34,7 @@ struct RecordReservation {
     operation_id: String,
     host: vw_agent_apps::providers::live::commit::ExecutionHostId,
     project: vw_api_transport::ProjectScope,
-    app: vw_api_types::agent_apps::AppId,
+    app: vw_api_app_identity::AppId,
     record: ProviderRecordDelta,
 }
 impl ProviderRecordStore {
@@ -198,7 +198,7 @@ impl super::AppProviderStore {
     pub(crate) fn publication_record(
         &self,
         tenant: &TenantScope,
-        app: vw_api_types::agent_apps::AppId,
+        app: vw_api_app_identity::AppId,
         id: &str,
     ) -> Result<String, String> {
         self.settings

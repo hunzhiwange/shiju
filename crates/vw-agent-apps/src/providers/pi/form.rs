@@ -5,10 +5,8 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{create::ProviderSecretWrite, pi::*},
-};
+use vw_api_types::{app_providers::create::ProviderSecretWrite, app_providers::pi::*};
+use vw_api_app_identity::{AppId};
 
 const ROOT: &[&str] = &["name", "baseUrl", "api", "models"];
 const MODEL: &[&str] =

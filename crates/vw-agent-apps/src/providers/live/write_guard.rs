@@ -21,7 +21,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[derive(Clone, Copy, Debug)]
 pub enum FilePrivacy {

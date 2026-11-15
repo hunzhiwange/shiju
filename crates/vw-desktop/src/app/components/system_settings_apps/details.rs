@@ -1,3 +1,4 @@
+use vw_api_app_identity::{AppId, AppInstallationEnvironment, AppInstallationSource, AppRuntimeKind};
 //! Expanded installation details keep diagnostics and destructive actions out of the overview.
 use super::{catalog, launch, lifecycle, message, uninstall};
 use crate::app::components::system_settings_common::*;
@@ -29,7 +30,7 @@ pub(super) fn view<'a>(
     details = details.push(crate::app::components::app_routing::config::timeout_button(app.entry.id));
     details = details.push(crate::app::components::app_routing::outbound::entry(app.entry.id));
     details = details.push(crate::app::components::app_routing::requests::entry(app.entry.id));
-    if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw {
+    if app.entry.id == vw_api_app_identity::AppId::OpenClaw {
         details = details.push(crate::app::components::openclaw_model::entry());
         details = details.push(crate::app::components::workspace_files::entry());
         details = details.push(crate::app::components::daily_memory::entry());
@@ -39,7 +40,7 @@ pub(super) fn view<'a>(
         details = details.push(crate::app::components::openclaw_catalog::entry());
     }
     details = details.push(crate::app::components::system_settings_prompts::list::view(&state.prompts, app.entry.id));
-    if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::Hermes {
+    if app.entry.id == vw_api_app_identity::AppId::Hermes {
         details = details.push(crate::app::components::hermes_memory::view(&state.hermes_memory));
         details = details.push(crate::app::components::hermes_dashboard::view(&state.hermes_dashboard));
     }
@@ -174,7 +175,7 @@ pub(super) fn view<'a>(
             }
         }
     }
-    if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::ClaudeDesktop {
+    if app.entry.id == vw_api_app_identity::AppId::ClaudeDesktop {
         details = details
             .push(text("请从 Claude 官网手动下载安装到目标主机的 Applications 文件夹，然后刷新应用列表。下载页将在当前客户端浏览器打开；远程主机需在该主机上安装。")
                 .size(12).style(settings_muted_text_style))

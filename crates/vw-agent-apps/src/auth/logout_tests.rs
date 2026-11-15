@@ -321,7 +321,7 @@ async fn auth6_logout_kimi_only_clears_the_matching_native_grant() {
 #[tokio::test]
 async fn auth6_revoke_race_commits_expected_scoped_result() {
     use super::codex_refresh_tests as codex;
-    use vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
 
     let tenant = vw_api_transport::TenantScope::new("platform", "company").unwrap();
     let scope = codex::scope(&tenant);

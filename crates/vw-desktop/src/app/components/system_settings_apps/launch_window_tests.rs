@@ -1,3 +1,11 @@
+use vw_api_app_identity::{
+    AppId,
+    AppInstallationId,
+    LaunchIdentity,
+    LaunchIdentityKind,
+    LaunchRequest,
+    LaunchSessionPhase,
+};
 //! Explicit native shaping and screenshot evidence for production launch form.
 use crate::app::components::system_settings_apps;
 use crate::app::{Message as AppMessage, i18n::I18n, state::AppsCatalogState};

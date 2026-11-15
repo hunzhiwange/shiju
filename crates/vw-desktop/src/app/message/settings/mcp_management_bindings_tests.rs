@@ -1,3 +1,14 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppReadResponse,
+    AppRuntimeKind,
+};
 use super::catalog::rows;
 use super::*;
 
@@ -40,7 +51,7 @@ fn record(id: &str) -> McpCatalogRecord {
 fn target() -> McpAppTarget {
     McpAppTarget {
         app_id: AppId::Codex,
-        installation_id: vw_gateway_client::vw_api_types::agent_apps::AppInstallationId(
+        installation_id: vw_api_app_identity::AppInstallationId(
             "trusted-instance".into(),
         ),
         target_host_id: "host".into(),

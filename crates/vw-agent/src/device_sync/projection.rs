@@ -109,7 +109,7 @@ pub fn prompt_job<'a>(
     scopes: Vec<crate::agent_apps::prompts_store::PromptScope<'a>>,
     executor_host: &'a str,
     home: &'a std::path::Path,
-    overrides: &'a std::collections::HashMap<vw_api_types::agent_apps::AppId, String>,
+    overrides: &'a std::collections::HashMap<vw_api_app_identity::AppId, String>,
     environment: &'a std::collections::BTreeMap<String, String>,
     transactions: &'a vw_agent_apps::providers::live::commit::ProviderTransactions,
     authorize: impl Fn(crate::agent_apps::prompts_store::PromptScope<'_>)

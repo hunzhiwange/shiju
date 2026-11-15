@@ -8,7 +8,7 @@ use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, Submenu};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 
 const APP_PAGES: &[(AppId, &str, &str)] = &[
     (AppId::Claude, "shiju.tray.app.claude", "Claude"),

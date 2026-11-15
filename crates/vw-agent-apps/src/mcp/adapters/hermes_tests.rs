@@ -9,7 +9,7 @@ use crate::providers::{
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs, net::TcpListener, path::Path};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
     vw_api_types::mcp_management::McpConnectionDefinition,
 };

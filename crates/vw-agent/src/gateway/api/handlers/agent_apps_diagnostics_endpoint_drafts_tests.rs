@@ -10,7 +10,7 @@ use std::{
     },
 };
 use tower::ServiceExt;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 async fn body(response: Response) -> Value {
     serde_json::from_slice(&axum::body::to_bytes(response.into_body(), 32768).await.unwrap())
         .unwrap()

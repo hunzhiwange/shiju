@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use tokio::{io::AsyncReadExt, sync::Notify, time::timeout};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobState,

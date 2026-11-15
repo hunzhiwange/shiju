@@ -109,7 +109,7 @@ fn catalog_prepare(
         return Err(invalid);
     }
     let metadata = basic::apply(
-        vw_api_types::agent_apps::AppId::Kimi,
+        vw_api_app_identity::AppId::Kimi,
         before.unwrap_or(&serde_json::json!({})),
         &body.fields,
         &ProviderSecretWrite::Keep,

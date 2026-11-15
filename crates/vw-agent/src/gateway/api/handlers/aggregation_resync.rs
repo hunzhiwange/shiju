@@ -7,7 +7,7 @@ use axum::http::{HeaderMap, StatusCode};
 use std::path::Path;
 use vw_agent_apps::providers::live::commit::{ExecutionHostId, ProviderTransactions};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

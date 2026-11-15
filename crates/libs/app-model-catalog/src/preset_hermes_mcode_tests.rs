@@ -3,7 +3,7 @@ use super::{
     preset_hermes_mcode::{HermesMcodePreset, McodeCompatValue},
 };
 use std::collections::HashSet;
-use vw_api_types::agent_apps::AppId::{self, Hermes, Mcode};
+use vw_api_app_identity::{AppId::self, AppId::Hermes, AppId::Mcode};
 
 fn preset(app: AppId, name: &str) -> &'static HermesMcodePreset {
     hermes_mcode_preset(app, name).unwrap_or_else(|| panic!("missing {app:?} preset {name}"))

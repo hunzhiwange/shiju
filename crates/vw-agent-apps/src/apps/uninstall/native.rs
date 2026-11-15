@@ -1,6 +1,6 @@
 //! Host-only native removal. Plans cannot be supplied by clients.
 use std::path::{Path, PathBuf};
-use vw_api_types::agent_apps::{AppId, AppInstallation, AppInstallationSource};
+use vw_api_app_identity::{AppId, AppInstallation, AppInstallationSource};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct NativeRemoval {

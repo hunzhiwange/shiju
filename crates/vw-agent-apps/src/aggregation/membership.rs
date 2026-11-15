@@ -154,7 +154,7 @@ fn set_member_inner(
 /// Pure intent planning. Publication owners can include this target and native
 /// files in one scoped transaction without saving an intermediate member list.
 pub fn plan_member(
-    app: vw_api_types::agent_apps::AppId,
+    app: vw_api_app_identity::AppId,
     current: &AppState,
     change: MembershipChange<'_>,
 ) -> Result<PendingTarget, MembershipError> {

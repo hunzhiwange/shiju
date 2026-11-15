@@ -6,8 +6,8 @@ use std::{
     time::Duration,
 };
 use {
-    vw_api_types::agent_apps::LaunchSessionPhase,
-    vw_api_types::agent_apps::LaunchSessionStatus,
+    vw_api_app_identity::LaunchSessionPhase,
+    vw_api_app_identity::LaunchSessionStatus,
     vw_api_transport::id::TenantScope,
 };
 #[derive(Clone, PartialEq, Eq)]

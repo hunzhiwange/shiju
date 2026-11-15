@@ -1,4 +1,4 @@
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy)]
 /// Target execution environment; WSL recipes run inside the authorized distro.

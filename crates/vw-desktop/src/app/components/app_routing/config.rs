@@ -6,7 +6,7 @@ use iced::{
     widget::{button, column, container, row, text},
 };
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::app_routing::AppRoutingConfig,
     vw_gateway_client::vw_api_types::app_routing::RoutingConfig,
     vw_api_transport::id::ProjectId,

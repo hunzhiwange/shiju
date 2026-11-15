@@ -1,8 +1,6 @@
 use super::{GatewayClient, provider_path};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderSummary, create::AppProviderCreate},
-};
+use vw_api_types::{app_providers::AppProviderSummary, app_providers::create::AppProviderCreate};
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Explicit create-only operation. Never defaults to live activation or upsert.
     pub async fn app_provider_create(

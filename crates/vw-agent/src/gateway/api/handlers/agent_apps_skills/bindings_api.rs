@@ -58,7 +58,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
                 SkillInstallTarget { installation_id: target.installation_id.clone(), app_id: target.app_id }
                     .validate().map_err(|_| StatusCode::BAD_REQUEST)?;
                 if !resolve_cli_installation(target.app_id, &env,
-                    &vw_api_types::agent_apps::AppInstallationId(target.installation_id.clone()))
+                    &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
                     .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
                 let path = app_paths::resolve(&env.home, target.app_id, None,
                     &std::collections::BTreeMap::new(), &[&root])
@@ -125,13 +125,13 @@ async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDataba
             let state = if let Some((version, targets)) = change {
                 for target in &targets {
                     if !vw_agent_apps::apps::discovery::read::resolve_cli_installation(target.app_id, &_env,
-                        &vw_api_types::agent_apps::AppInstallationId(target.installation_id.clone()))
+                        &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
                         .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
                 }
                 store.save_install_targets(&project, &scope.target_host_id, version, &root,
                     targets.into_iter().map(|t| SkillInstallTarget { installation_id: t.installation_id, app_id: t.app_id }).collect())
             } else { store.get(&project, &scope.target_host_id, &root) }.map_err(|_| StatusCode::CONFLICT)?;
-            use vw_api_types::agent_apps::AppId::*;
+            use vw_api_app_identity::AppId::*;
             let capabilities = [Claude, ClaudeDesktop, Codex, Gemini, GrokBuild, OpenCode, OpenClaw, Hermes, Pi, Mcode, Kimi, Dsh, Agy, Omp]
                 .into_iter().map(|app_id| {
                     let (supported, reason) = match distribution(app_id) {

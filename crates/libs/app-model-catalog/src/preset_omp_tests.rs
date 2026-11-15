@@ -3,7 +3,7 @@ use super::{
     preset_pi::PiPresetProtocol::{OpenaiCompletions, OpenaiResponses},
 };
 use serde_json::{json, to_value};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn catalog_presets_omp_derives_omp_without_pi_mutation() {

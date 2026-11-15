@@ -8,7 +8,8 @@ use super::live::{
 };
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::opencode::*};
+use vw_api_types::{app_providers::opencode::*};
+use vw_api_app_identity::{AppId};
 
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)

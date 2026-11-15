@@ -1,3 +1,10 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppDesktopObservation,
+    AppId,
+    AppReadResponse,
+    AppRuntimeKind,
+};
 use super::{catalog::CatalogRow, presentation::*};
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
 fn app() -> CatalogRow {

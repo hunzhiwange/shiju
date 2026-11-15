@@ -1,6 +1,6 @@
 //! Ordered, non-atomic skill distribution on an authorized execution host.
 use serde::{Deserialize, Serialize};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 use super::{app_paths::AppSkillsPath, local_install::LocalSkill};
 

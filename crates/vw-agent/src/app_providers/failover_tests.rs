@@ -4,9 +4,9 @@ use vw_agent_apps::{
     providers::failover::ProviderAuth,
 };
 use {
-    vw_api_types::agent_apps::AppId::Claude,
-    vw_api_types::agent_apps::AppId::Codex,
-    vw_api_types::agent_apps::AppId::Pi,
+    vw_api_app_identity::AppId::Claude,
+    vw_api_app_identity::AppId::Codex,
+    vw_api_app_identity::AppId::Pi,
     vw_api_types::app_providers::AppProviderWrite,
     vw_api_types::app_providers::ProviderProtocol,
     vw_api_types::app_providers::codex_catalog::CodexProfile,

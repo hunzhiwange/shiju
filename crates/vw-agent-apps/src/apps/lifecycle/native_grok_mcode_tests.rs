@@ -1,6 +1,6 @@
 use super::native_grok_mcode::install_command;
 use super::native_primary::InstallEnvironment;
-use vw_api_types::agent_apps::AppId::*;
+use vw_api_app_identity::{AppId::*};
 
 #[test]
 fn cc_apps_grok_mcode_install_windows_and_rejections() {

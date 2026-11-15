@@ -1,7 +1,7 @@
 //! Transfer selection contains no implicit destinations, including same-name and Hermes entries.
 use crate::app::{Message, components::system_settings_common::*, message::settings::prompts::{message, Event}};
 use iced::{Element, widget::{button, checkbox, column, row, text}};
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 use crate::app::message::settings::prompts::transfer::Event as TransferEvent;
 
 pub(crate) const TARGETS: &[AppId] = &[AppId::Claude, AppId::Codex, AppId::Gemini, AppId::OpenCode, AppId::Hermes, AppId::Pi, AppId::Mcode, AppId::Omp, AppId::GrokBuild, AppId::Kimi, AppId::Dsh, AppId::Agy];

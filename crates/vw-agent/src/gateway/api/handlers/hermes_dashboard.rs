@@ -41,7 +41,7 @@ async fn start(Extension(state): Extension<State>, Extension(tenant): Extension<
     #[cfg(target_os = "macos")]
     {
         use vw_agent_apps::apps::{discovery::read::{read, LocalReadEnvironment}, launch::{request::validate_launch_request, host::command}};
-        use vw_api_types::agent_apps::{AppId, LaunchRequest};
+        use vw_api_app_identity::{AppId, LaunchRequest};
         let material = tokio::task::spawn_blocking(move || {
             let observed = read(AppId::Hermes, &LocalReadEnvironment { host_id: host.id.clone(), home: host.home.clone(), search_paths: host.search_paths.clone(), applications: host.applications }).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             // Never choose arbitrarily between multiple installations.

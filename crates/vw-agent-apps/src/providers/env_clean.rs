@@ -1,9 +1,7 @@
 //! Selective shell cleanup owns receipts and private backups on the execution host.
 use std::path::Path;
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{env_clean::*, env_diagnose::EnvDiagnosis},
-};
+use vw_api_types::{app_providers::env_clean::*, app_providers::env_diagnose::EnvDiagnosis};
+use vw_api_app_identity::{AppId};
 
 /// Bind receipts to the authorized tenant/host identity, independently of file coordinates.
 pub fn diagnose(home: &Path, app: AppId, scope: &str) -> Result<EnvDiagnosis, &'static str> {

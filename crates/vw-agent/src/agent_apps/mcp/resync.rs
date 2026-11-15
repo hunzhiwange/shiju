@@ -14,6 +14,7 @@ use super::{
     McpBindingTarget, McpCatalogStore, StoredCatalogEntry, binding::native_definition,
     catalog_create::catalog_location,
 };
+use vw_api_app_identity::{AppId};
 use crate::{
     agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
     global_database::run_sync_database,

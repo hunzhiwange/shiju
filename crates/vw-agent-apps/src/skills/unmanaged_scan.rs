@@ -1,6 +1,7 @@
 //! Read-only discovery on the authorized execution host; never imports or enables skills.
 use std::{collections::BTreeMap, fs, io, path::{Path, PathBuf}};
-use vw_api_types::{agent_apps::AppId, app_providers::paths::ConfigPathState};
+use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_identity::{AppId};
 use super::{
     app_paths::{AppSkillsPath, SkillDistribution, distribution},
     archive::MAX_ARCHIVE_ENTRIES,

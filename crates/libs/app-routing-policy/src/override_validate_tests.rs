@@ -1,6 +1,7 @@
 use app_provider_validation::request_options::{update, view};
 use serde_json::{Value, json};
-use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
+use vw_api_types::{app_providers::validation::ProviderRequestOptions};
+use vw_api_app_identity::{AppId};
 
 fn options(overrides: Value) -> ProviderRequestOptions {
     serde_json::from_value(json!({"localProxyRequestOverrides": overrides})).unwrap()

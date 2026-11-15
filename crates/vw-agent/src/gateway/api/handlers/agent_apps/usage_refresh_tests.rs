@@ -19,7 +19,7 @@ use tokio::sync::{Notify, Semaphore};
 use tower::ServiceExt;
 use vw_agent_apps::usage::cache::UsageCacheResult;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::AppProviderWrite,
     vw_api_types::app_providers::ProviderProtocol,
     vw_api_types::apps_usage::UsageQueryData,

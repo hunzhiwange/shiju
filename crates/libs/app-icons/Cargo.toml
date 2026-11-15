@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 base64 = "0.23"
 png = "0.18"
 vw-api-types = { path = "../../vw-api-types" }

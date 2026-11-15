@@ -6,7 +6,7 @@ use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Instan
 use crate::{global_database::GlobalDatabase, gateway::settings_store::GatewaySettingsStore};
 use {
     vw_api_types::agent_apps::data_management::*,
-    vw_api_types::agent_apps::AppUserPreferences,
+    vw_api_app_identity::AppUserPreferences,
     vw_api_transport::id::TenantScope,
 };
 use vw_agent_apps::data_management::{export, safety_snapshot::SafetySnapshotScope};

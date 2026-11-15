@@ -2,7 +2,7 @@ use super::metadata::resolve_model_metadata;
 use serde_json::{Value, json};
 use std::time::{Duration, UNIX_EPOCH};
 use {
-    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_app_identity::AppId::Codex,
     vw_api_transport::common::TimestampMs,
     vw_api_types::model_catalog::ModelCapabilityState::Supported,
     vw_api_types::model_catalog::ModelCapabilityState::Unsupported,

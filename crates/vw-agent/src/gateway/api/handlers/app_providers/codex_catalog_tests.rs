@@ -178,7 +178,7 @@ fn cc04_codex_catalog_saved_revisions_are_deployment_and_tenant_scoped() {
     let tenant = TenantScope::new("p", "a").unwrap();
     let identity = ModelCatalogIdentity {
         target_host_id: "host".into(),
-        app_id: vw_api_types::agent_apps::AppId::Codex,
+        app_id: vw_api_app_identity::AppId::Codex,
         provider_id: "one".into(),
         endpoint: "https://fixture.test/v1".into(),
     };
@@ -289,7 +289,7 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
         project_preimage: None,
         version: 1,
         host: ExecutionHostId::new("host").unwrap(),
-        app: vw_api_types::agent_apps::AppId::Codex,
+        app: vw_api_app_identity::AppId::Codex,
         tenant: TenantScope::new("p", "a").unwrap(),
         directory_device: meta.dev(),
         directory_inode: meta.ino(),
@@ -455,7 +455,7 @@ async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected()
     use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
     use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthErrorCode,
     vw_api_types::agent_apps_auth::AuthService,
 };

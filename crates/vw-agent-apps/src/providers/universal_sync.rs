@@ -6,6 +6,7 @@ use vw_api_types::{
     app_providers::{
         AppProviderWrite,
         universal_sync::{UniversalSyncError, UniversalSyncRequest},
+use vw_api_app_identity::{AppId};
     },
 };
 pub fn validate_request(request: &UniversalSyncRequest) -> Result<(), String> {

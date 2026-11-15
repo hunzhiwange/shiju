@@ -1,6 +1,6 @@
 use super::snippets::{extract, normalize};
 use serde_json::{Value, json};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 fn parsed(snippet: vw_api_types::app_providers::snippets::ConfigSnippet) -> Value {
     serde_json::from_str(&snippet.content.unwrap()).unwrap()
 }

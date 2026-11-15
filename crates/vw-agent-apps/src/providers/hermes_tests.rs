@@ -29,7 +29,7 @@ use std::os::unix::fs::PermissionsExt;
 fn cc04_hermes_transaction_failure_recovers_without_unique_pointer() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     for phase in
@@ -83,7 +83,7 @@ fn cc04_hermes_transaction_failure_recovers_without_unique_pointer() {
 fn cc04_hermes_input_and_external_file_conflicts_do_not_publish() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();
@@ -168,7 +168,8 @@ fn cc04_hermes_missing_removal_and_invalid_layouts_are_safe() {
 }
 #[test]
 fn cc04_hermes_catalog_and_symlink_reads_do_not_expose_credentials() {
-    use vw_api_types::{agent_apps::AppId, app_providers::catalog::*};
+    use vw_api_types::{app_providers::catalog::*};
+    use vw_api_app_identity::{AppId};
     let home = tempfile::tempdir().unwrap();
     assert!(read(home.path()).unwrap().is_none());
     assert!(!home.path().join(".hermes").exists());

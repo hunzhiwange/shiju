@@ -185,7 +185,7 @@ impl ClaudeDesktopFiles {
         .collect();
         Ok(Self {
             guard: lock_directories(
-                vw_api_types::agent_apps::AppId::ClaudeDesktop,
+                vw_api_app_identity::AppId::ClaudeDesktop,
                 normal,
                 vec![third, profiles],
                 targets,
@@ -278,7 +278,7 @@ impl ClaudeDesktopFiles {
             stage::{FileChange, WholeFile},
             write_guard::FilePrivacy,
         };
-        use vw_api_types::agent_apps::AppId;
+        use vw_api_app_identity::AppId;
         let mut plans = Vec::new();
         for key in KEYS {
             let before = self.guard.read(std::ffi::OsStr::new(key))?;
@@ -407,7 +407,7 @@ fn lock_profiles(
         .into_iter()
         .map(|(key, name)| DirectoryTarget { key: key.into(), directory: 0, name: name.into() })
         .collect();
-    lock_directories(vw_api_types::agent_apps::AppId::ClaudeDesktop, directory, vec![], targets)
+    lock_directories(vw_api_app_identity::AppId::ClaudeDesktop, directory, vec![], targets)
         .map(Some)
 }
 

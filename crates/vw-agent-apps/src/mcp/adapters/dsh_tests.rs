@@ -14,7 +14,7 @@ use serde_yaml::Value as Yaml;
 use std::{fs, net::TcpListener, os::unix::fs::PermissionsExt};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
 };
 
 const BEFORE: &str = "# fixture\n- id: custom\n  config: {dynamic: !!js process.env.VALUE}\n";

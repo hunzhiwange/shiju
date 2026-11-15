@@ -13,7 +13,7 @@ use super::{
 };
 use std::{collections::BTreeMap, time::UNIX_EPOCH};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::common::TimestampMs,
     vw_api_types::model_catalog::ModelCapabilityState,
     vw_api_types::model_catalog::ModelMetadataDto,

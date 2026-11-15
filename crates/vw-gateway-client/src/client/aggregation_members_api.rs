@@ -1,7 +1,8 @@
 //! Scoped aggregation requests. Membership rules remain gateway-owned.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::agent_apps::{AppId, aggregation::*};
+use vw_api_types::{agent_apps::aggregation::*};
+use vw_api_app_identity::{AppId};
 
 /// Preserve gateway status and structured errors without replaying writes.
 #[derive(Debug, Clone, PartialEq)]

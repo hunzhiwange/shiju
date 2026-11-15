@@ -1,4 +1,4 @@
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Fixed npm argv for the authorized executor, never a shell command.
 /// No caller-supplied package, version, script or extra argument is accepted.

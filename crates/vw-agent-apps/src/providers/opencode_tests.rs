@@ -102,7 +102,7 @@ fn cc04_opencode_jsonc_priority_and_symlinks_are_guarded() {
 fn cc04_opencode_transaction_failure_recovers_without_unique_pointer() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     for phase in
@@ -163,7 +163,7 @@ fn cc04_opencode_transaction_failure_recovers_without_unique_pointer() {
 fn cc04_opencode_input_and_external_file_conflicts_do_not_publish() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();
@@ -195,7 +195,7 @@ fn cc04_opencode_input_and_external_file_conflicts_do_not_publish() {
 fn cc04_opencode_new_jsonc_precedence_conflicts_and_missing_removal_stays_missing() {
     use super::live::{commit::*, write_guard::WriteError};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
     let home = tempfile::tempdir().unwrap();

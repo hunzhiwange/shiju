@@ -1,7 +1,7 @@
 use super::AppRoutingError;
 use crate::GatewayClient;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_routing::RoutingModeRequest,
     vw_api_types::app_routing::RoutingModeResult,
     vw_api_transport::id::ProjectId,

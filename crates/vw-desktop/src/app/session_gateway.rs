@@ -1261,7 +1261,7 @@ pub(crate) async fn gateway_skills_install_view(
 /// Re-scan between writes: each selection is bound to one server revision.
 pub(crate) async fn gateway_skills_import_request(
     project: String, host: String,
-    apps: Vec<vw_gateway_client::vw_api_types::agent_apps::AppId>,
+    apps: Vec<vw_api_app_identity::AppId>,
     selected: Vec<vw_gateway_client::vw_api_types::agent_apps_skills::import_api::UnmanagedSkillItem>,
     token: String,
 ) -> (Vec<(String, Result<(), String>)>, Result<vw_gateway_client::vw_api_types::agent_apps_skills::import_api::UnmanagedSkillsResponse, String>) {

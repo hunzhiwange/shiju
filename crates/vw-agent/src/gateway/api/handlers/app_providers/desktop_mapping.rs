@@ -249,7 +249,7 @@ fn legacy_unbound(
         )
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
         {
-            let app = vw_api_types::agent_apps::AppId::ClaudeDesktop;
+            let app = vw_api_app_identity::AppId::ClaudeDesktop;
             if tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.project_scope.is_some()
                 || tx
                     .pending(app)

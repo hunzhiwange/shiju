@@ -6,7 +6,7 @@ use super::{
 use serde_json::{Value, json};
 use std::{ffi::OsStr, fs, os::unix::fs::PermissionsExt};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::mode_apply::ModeApplyAction,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

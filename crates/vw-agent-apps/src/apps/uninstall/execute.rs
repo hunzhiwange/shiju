@@ -1,7 +1,7 @@
 //! Confirmed uninstall plans belong to the authorized execution host.
 use super::{native, packages};
 use crate::apps::lifecycle::coordinator::ToolLifecycleCoordinator;
-use vw_api_types::agent_apps::{AppInstallation, AppInstallationEnvironment};
+use vw_api_app_identity::{AppInstallation, AppInstallationEnvironment};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Action {

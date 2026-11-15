@@ -1,3 +1,11 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppHostPreferences,
+    AppId,
+    AppPreferencesResult,
+    AppReadResponse,
+    AppUserPreferences,
+};
 //! Navigation visibility is a projection of confirmed user preferences.
 //! Database reopening is covered by the gateway preferences API tests.
 

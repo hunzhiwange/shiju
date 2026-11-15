@@ -1,3 +1,13 @@
+use vw_api_app_identity::{
+    AppId,
+    AppInstallationId,
+    LaunchIdentity,
+    LaunchIdentityKind,
+    LaunchRequest,
+    LaunchResult,
+    LaunchSessionPhase,
+    LaunchSessionStatus,
+};
 //! Draft identities are projections only; all execution and credential lifetime stay on the host.
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;

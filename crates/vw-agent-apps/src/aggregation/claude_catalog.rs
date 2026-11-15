@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 use serde_json::Value;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 use super::model_ids::{ONE_M_MARKER, encode, strip_one_m};
 

@@ -2,10 +2,8 @@
 use crate::providers::{basic, projection, validation};
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item, Table, TableLike, value};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{create::ProviderSecretWrite, grok::*},
-};
+use vw_api_types::{app_providers::create::ProviderSecretWrite, app_providers::grok::*};
+use vw_api_app_identity::{AppId};
 
 type Result<T> = std::result::Result<T, &'static str>;
 const INVALID: &str = "invalid or unsupported Grok model table";

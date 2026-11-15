@@ -1,4 +1,4 @@
-use crate::agent_apps::{
+use crate::{
     AddCustomIconRequest, AddCustomIconResult, AgentAppsErrorCode, AgentAppsErrorResponse,
     CustomIconEntry, RenameCustomIconRequest,
 };

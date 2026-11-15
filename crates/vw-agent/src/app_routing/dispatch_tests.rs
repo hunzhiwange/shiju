@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use tokio::{net::TcpListener, sync::mpsc, time::timeout};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

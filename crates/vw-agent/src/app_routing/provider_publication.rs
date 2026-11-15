@@ -26,6 +26,7 @@ use vw_api_types::{
     app_providers::mode_apply::{ModeApplyAction, ModeApplyResult, TargetPublication},
 };
 
+use vw_api_app_identity::{AppId};
 /// Executor-only proof. Saved credentials are never projected in observations.
 pub(crate) struct PublishedProvider {
     pub(super) database: GlobalDatabase,

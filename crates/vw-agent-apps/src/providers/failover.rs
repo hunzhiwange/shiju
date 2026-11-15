@@ -10,6 +10,7 @@ use vw_api_types::{
         grok::{GrokConfig, GrokProfile},
     },
 };
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderAuth {

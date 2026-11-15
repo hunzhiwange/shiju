@@ -120,7 +120,7 @@ impl GrokFiles {
         let dir = unsafe { std::fs::File::from_raw_fd(fd) };
         Ok(Self {
             guard: super::live::write_guard::lock_directory(
-                vw_api_types::agent_apps::AppId::GrokBuild,
+                vw_api_app_identity::AppId::GrokBuild,
                 dir,
             )?,
         })
@@ -151,7 +151,7 @@ impl GrokFiles {
             write_guard::*,
         };
         use std::ffi::OsStr;
-        use vw_api_types::agent_apps::AppId;
+        use vw_api_app_identity::AppId;
         if tx.recover(&mut self.guard)?.is_some() {
             return Err(WriteError::Recovered);
         }

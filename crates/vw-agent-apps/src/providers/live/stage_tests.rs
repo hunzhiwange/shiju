@@ -7,7 +7,7 @@ use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cc04_stage_failure_changes_no_files() {

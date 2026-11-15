@@ -8,7 +8,7 @@ use axum::{
     routing::get,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::AppProviderWrite,
     vw_api_transport::id::TenantScope,
 };
@@ -388,11 +388,11 @@ fn publication_store(
 #[cfg(target_os = "macos")]
 pub(super) async fn sync_saved_provider(database: GlobalDatabase, policy: Option<std::path::PathBuf>,
     headers: axum::http::HeaderMap, target: &vw_api_types::agent_apps::DataManagementTarget,
-    app: vw_api_types::agent_apps::AppId, id: &str,
+    app: vw_api_app_identity::AppId, id: &str,
 ) -> Result<(), ()> {
     match app {
-        vw_api_types::agent_apps::AppId::Claude => claude::sync_saved(database, policy, headers, target, id).await,
-        vw_api_types::agent_apps::AppId::Codex => codex_catalog::sync_saved(database, policy, headers, target, id).await,
+        vw_api_app_identity::AppId::Claude => claude::sync_saved(database, policy, headers, target, id).await,
+        vw_api_app_identity::AppId::Codex => codex_catalog::sync_saved(database, policy, headers, target, id).await,
         _ => Err(()),
     }
 }

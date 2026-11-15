@@ -1,7 +1,5 @@
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{ProviderProtocol, create::*},
-};
+use vw_api_types::{app_providers::ProviderProtocol, app_providers::create::*};
+use vw_api_app_identity::{AppId};
 fn request() -> AppProviderCreate {
     AppProviderCreate {
         request_options: None,

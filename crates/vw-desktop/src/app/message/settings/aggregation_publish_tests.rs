@@ -67,7 +67,7 @@ pub(super) fn server(
     (GatewayClient::new(endpoint).unwrap(), handle)
 }
 
-pub(super) fn selection(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> Selection {
+pub(super) fn selection(app: vw_api_app_identity::AppId) -> Selection {
     use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
     Selection {
         scope: Scope {
@@ -135,7 +135,7 @@ fn aggregation_t58_confirmation_rejects_missing_blocked_and_duplicate_intents() 
 }
 #[tokio::test]
 async fn aggregation_t58_sdk_preview_confirm_poll_cancel_preserve_scope() {
-    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
     for app in [AppId::Claude, AppId::Codex, AppId::ClaudeDesktop] {
         let mut published = progress(TaskStatus::Completed, false);
         let state: AggregationState = serde_json::from_value(serde_json::json!({"revision":"r2","mode":"aggregation","attached":true,"defaultProviderId":"one","directProviderId":null,"members":[],"notices":[],"recovery":"none"})).unwrap();
@@ -194,7 +194,7 @@ async fn aggregation_t58_sdk_preview_confirm_poll_cancel_preserve_scope() {
 }
 #[tokio::test]
 async fn aggregation_t58_failed_submission_invalidates_preview_without_replay() {
-    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
     for status in [403, 409, 422, 502, 503, 504] {
         let (client, handle) = server(vec![(
             status,
@@ -222,7 +222,7 @@ async fn aggregation_t58_failed_submission_invalidates_preview_without_replay() 
 }
 #[tokio::test]
 async fn aggregation_t58_unconfirmed_execute_sends_no_publication() {
-    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let client = GatewayClient::new(gateway_endpoint::GatewayEndpoint::new(
@@ -245,7 +245,7 @@ async fn aggregation_t58_unconfirmed_execute_sends_no_publication() {
 
 #[test]
 fn aggregation_t58_stale_or_dismissed_results_do_not_restore_confirmation() {
-    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
     let selected = selection(AppId::ClaudeDesktop);
     let mut form = super::super::Form::new(selected.clone(), 10);
     form.publish = Some(Session { busy: true, ..Session::default() });
@@ -264,13 +264,13 @@ fn aggregation_t58_debug_redacts_preview_tokens_and_error_payloads() {
     let s = Session { preview: Some(preview()), ..Session::default() };
     assert!(!format!("{s:?}").contains("opaque-preview"));
     let event = Event::Finished {
-        selection: selection(vw_gateway_client::vw_api_types::agent_apps::AppId::Claude),
+        selection: selection(vw_api_app_identity::AppId::Claude),
         generation: 1,
         result: Ok(Reply::Preview(preview())),
     };
     assert!(!format!("{event:?}").contains("opaque-preview"));
     let event = Event::Finished {
-        selection: selection(vw_gateway_client::vw_api_types::agent_apps::AppId::Claude),
+        selection: selection(vw_api_app_identity::AppId::Claude),
         generation: 1,
         result: Err(AggregationApiError::Decode("sensitive".into())),
     };

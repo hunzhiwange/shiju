@@ -3,7 +3,7 @@ use std::{ffi::{CStr, OsStr}, os::fd::{AsRawFd, FromRawFd}, fs::File};
 use sha2::{Digest, Sha256};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
 };
 use crate::providers::live::{
     commit::{PendingTarget, ProviderTransactions},

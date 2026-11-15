@@ -180,7 +180,7 @@ async fn cc04_desktop_mapping_imported_native_profile_reaches_transactional_file
     assert_eq!(value["inferenceGatewayBaseUrl"], "https://fixture.test");
     assert_eq!(f.state()["pointer"]["id"], "native");
     assert_eq!(
-        store.list(&tenant, vw_api_types::agent_apps::AppId::ClaudeDesktop).unwrap().len(),
+        store.list(&tenant, vw_api_app_identity::AppId::ClaudeDesktop).unwrap().len(),
         1
     );
 }

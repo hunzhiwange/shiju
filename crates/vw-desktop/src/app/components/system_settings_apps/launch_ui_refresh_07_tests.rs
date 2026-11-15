@@ -1,3 +1,20 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppHostPreferences,
+    AppId,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationSource,
+    AppPreferencesCapabilities,
+    AppPreferencesResult,
+    AppReadResponse,
+    AppRuntimeKind,
+    AppUserPreferences,
+    AppWslPreference,
+    LaunchIdentity,
+    LaunchIdentityKind,
+    LaunchRequest,
+};
 use super::super::{catalog::CatalogRow, preferences};
 use crate::app::i18n::I18n;
 use crate::app::{

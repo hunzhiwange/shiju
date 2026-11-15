@@ -58,7 +58,7 @@ mod native {
     use std::{collections::BTreeMap, path::PathBuf, sync::{LazyLock, Mutex}, time::{Duration, Instant}};
     use vw_agent_apps::skills::{app_paths::{self, AppSkillsPath}, unmanaged_import::UnmanagedSelection,
         unmanaged_scan::scan_unmanaged};
-    use vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
     use crate::gateway::agent_apps_skills_store::SkillInstallsStore;
 
     #[derive(Clone)]

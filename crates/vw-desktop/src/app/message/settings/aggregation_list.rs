@@ -8,7 +8,7 @@ use iced::Task;
 use {
     vw_gateway_client::AggregationApiError,
     vw_gateway_client::GatewayClient,
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::*,
     vw_gateway_client::vw_api_types::app_providers::AppProviderSummary,
     vw_api_transport::id::ProjectId,

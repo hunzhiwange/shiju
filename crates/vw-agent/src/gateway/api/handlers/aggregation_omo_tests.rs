@@ -16,7 +16,7 @@ use vw_agent_apps::providers::live::{
     write_guard::lock_app,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

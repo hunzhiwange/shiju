@@ -8,6 +8,7 @@ use vw_api_types::{
     app_providers::paths::{ConfigPathState, ConfigPathStatus, ProviderPaths},
 };
 
+use vw_api_app_identity::{AppId};
 /// Capture only the execution process's relevant environment, never request-supplied values.
 pub fn execution_environment() -> BTreeMap<String, String> {
     [

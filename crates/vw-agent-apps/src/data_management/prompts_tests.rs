@@ -1,6 +1,6 @@
 use super::{prompts::normalize, source::{SourceCategory, SourceRecord}};
 use serde_json::json;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cc_data_12_prompts_preserve_app_and_active_state() {

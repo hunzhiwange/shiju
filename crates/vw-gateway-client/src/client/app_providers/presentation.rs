@@ -3,6 +3,7 @@ use vw_api_types::{
     agent_apps::AppId,
     app_providers::presentation::{AppProviderPresentation, AppProviderPresentationEntry},
 };
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Read persisted presentation and apply its category/index/identity ordering.
     /// Callers render these rows directly, including after a refresh or save.

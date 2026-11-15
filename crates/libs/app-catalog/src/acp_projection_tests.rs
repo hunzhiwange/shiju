@@ -1,5 +1,5 @@
 use super::acp_projection::*;
-use vw_api_types::agent_apps::{AppId, AppRuntimeKind};
+use vw_api_app_identity::{AppId, AppRuntimeKind};
 
 #[test]
 fn cc_apps_acp_projection_preserves_registry_entries_and_legacy_view() {

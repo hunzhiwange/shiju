@@ -7,7 +7,8 @@ use crate::providers::{
     live::commit::{AppState, Mode, ModeState},
     mode_state::StackState,
 };
-use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService};
+use vw_api_types::{agent_apps_auth::AuthService};
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn aggregation_t05_member_validation_preserves_contract() {

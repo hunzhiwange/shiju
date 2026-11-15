@@ -65,7 +65,7 @@ fn cc04_claude_login_failure_leaves_pointer_and_settings() {
     let host = LoginHost::open(root.path()).unwrap();
     assert!(host.begin(&tx, &tenant, &root.path().join("target"), &k, |_| Ok(())).is_err());
     assert_eq!(std::fs::read(root.path().join(".claude/settings.json")).unwrap(), before);
-    assert!(tx.state(vw_api_types::agent_apps::AppId::Claude).unwrap().pointer.is_none());
+    assert!(tx.state(vw_api_app_identity::AppId::Claude).unwrap().pointer.is_none());
     assert_eq!(k.read(None).unwrap().unwrap()["claudeAiOauth"]["refreshToken"], "fake-original");
 }
 #[test]
@@ -95,7 +95,7 @@ fn cc04_claude_login_write_failure_restores_original() {
     assert_eq!(k.read(None).unwrap().unwrap()["claudeAiOauth"]["refreshToken"], "fake-original");
     assert_eq!(std::fs::read(root.path().join(".claude.json")).unwrap(), before);
     assert!(!host.has_journal().unwrap());
-    assert!(tx.state(vw_api_types::agent_apps::AppId::Claude).unwrap().pointer.is_none());
+    assert!(tx.state(vw_api_app_identity::AppId::Claude).unwrap().pointer.is_none());
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn cc04_claude_login_published_failure_keeps_target_and_recovers_with_pending() 
     assert!(result.is_err());
     assert!(host.settle(&tx, &k).is_err());
     assert_eq!(k.read(None).unwrap().unwrap()["claudeAiOauth"]["refreshToken"], "fake-target");
-    assert!(tx.pending(vw_api_types::agent_apps::AppId::Claude).unwrap().unwrap().published);
+    assert!(tx.pending(vw_api_app_identity::AppId::Claude).unwrap().unwrap().published);
     drop(file);
     let outcomes = tx.recover_on_startup();
     assert_eq!(outcomes.len(), 1);
@@ -146,7 +146,7 @@ fn cc04_claude_login_published_failure_keeps_target_and_recovers_with_pending() 
     host.recover(&tx, &k).unwrap();
     assert!(!host.has_journal().unwrap());
     assert_eq!(
-        tx.state(vw_api_types::agent_apps::AppId::Claude).unwrap().pointer.unwrap().id,
+        tx.state(vw_api_app_identity::AppId::Claude).unwrap().pointer.unwrap().id,
         "bound"
     );
 }
@@ -233,7 +233,7 @@ fn cc04_claude_login_partial_keychain_failure_restores_before_file_commit() {
     assert_eq!(keychain.read(None).unwrap(), before);
     assert!(!host.has_journal().unwrap());
     assert_eq!(std::fs::read(root.path().join(".claude.json")).unwrap(), profile);
-    assert!(tx.state(vw_api_types::agent_apps::AppId::Claude).unwrap().pointer.is_none());
+    assert!(tx.state(vw_api_app_identity::AppId::Claude).unwrap().pointer.is_none());
 }
 
 #[test]

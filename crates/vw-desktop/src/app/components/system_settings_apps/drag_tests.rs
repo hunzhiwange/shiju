@@ -1,3 +1,17 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppHostPreferences,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppPreferencesResult,
+    AppReadResponse,
+    AppRuntimeKind,
+    AppUserPreferences,
+};
 use super::drag::*;
 fn ids(values: &[&str]) -> Vec<String> {
     values.iter().map(|v| v.to_string()).collect()

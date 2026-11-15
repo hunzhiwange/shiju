@@ -28,8 +28,8 @@ pub(crate) fn error_text(error: AgentAppPromptsError) -> String {
     }
 }
 
-pub(crate) fn effect(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> &'static str {
-    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+pub(crate) fn effect(app: vw_api_app_identity::AppId) -> &'static str {
+    use vw_api_app_identity::AppId;
     match app {
         AppId::Pi => "操作已保存，请在 Pi 执行 /reload。",
         AppId::Hermes => "操作已保存，Hermes 提示词将在新会话中生效。",

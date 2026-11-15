@@ -1,3 +1,10 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppDesktopObservation,
+    AppId,
+    AppReadResponse,
+    AppRuntimeKind,
+};
 use super::{catalog::CatalogRow, details};
 use crate::app::{Message, message::ViewMessage, state::AppsCatalogState};
 use iced::advanced::renderer::Headless;

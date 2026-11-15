@@ -116,10 +116,10 @@ fn validate(images: &[OwnerPreimage], t: &DataManagementTarget) -> Result<(), Sa
                 return Err(SafetySnapshotError::Corrupt);
             }
             if namespace == "agent_apps_user" {
-                serde_json::from_slice::<vw_api_types::agent_apps::AppUserPreferences>(&p.bytes)
+                serde_json::from_slice::<vw_api_app_identity::AppUserPreferences>(&p.bytes)
                     .map_err(|_| SafetySnapshotError::Corrupt)?;
             } else {
-                serde_json::from_slice::<vw_api_types::agent_apps::AppHostPreferences>(&p.bytes)
+                serde_json::from_slice::<vw_api_app_identity::AppHostPreferences>(&p.bytes)
                     .map_err(|_| SafetySnapshotError::Corrupt)?;
             }
         }

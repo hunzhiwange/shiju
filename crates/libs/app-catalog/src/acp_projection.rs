@@ -2,7 +2,7 @@
 use super::catalog::{CatalogApp, catalog};
 use std::collections::BTreeMap;
 use vw_acp::AgentCommandSpec;
-use vw_api_types::agent_apps::{AppId, AppRuntimeKind};
+use vw_api_app_identity::{AppId, AppRuntimeKind};
 
 /// Preserve all structured ACP registrations, including agents outside the native catalog.
 /// Commands may be local fallbacks; use the review APIs before claiming reviewed support.

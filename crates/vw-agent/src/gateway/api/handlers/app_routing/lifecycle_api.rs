@@ -23,7 +23,7 @@ use vw_agent_apps::{
     routing::lifecycle_state::LifecycleState,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_routing::RoutingHealth,
     vw_api_types::app_routing::RoutingLifecycleRequest,
     vw_api_types::app_routing::RoutingState,

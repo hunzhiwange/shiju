@@ -31,9 +31,9 @@ use vw_agent_apps::{
 use vw_api_types::agent_apps_auth::{AuthAccount, AuthFlow, AuthService, AuthStartRequest};
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps::AppId,
-    vw_api_types::agent_apps::AppInstallation,
-    vw_api_types::agent_apps::LaunchRequest,
+    vw_api_app_identity::AppId,
+    vw_api_app_identity::AppInstallation,
+    vw_api_app_identity::LaunchRequest,
     vw_api_types::agent_apps_auth::AuthErrorCode,
     vw_api_types::agent_apps_auth::AuthRegion,
     vw_api_transport::id::TenantScope,

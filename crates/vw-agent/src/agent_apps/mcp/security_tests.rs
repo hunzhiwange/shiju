@@ -149,7 +149,7 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
             search_paths: vec![home.join("bin")],
         };
         let id = vw_agent_apps::apps::discovery::read::read(
-            vw_api_types::agent_apps::AppId::Codex,
+            vw_api_app_identity::AppId::Codex,
             &env,
         )
         .unwrap()
@@ -157,7 +157,7 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
         .remove(0)
         .id;
         let claude = vw_agent_apps::apps::discovery::read::read(
-            vw_api_types::agent_apps::AppId::Claude,
+            vw_api_app_identity::AppId::Claude,
             &env,
         )
         .unwrap()
@@ -188,7 +188,7 @@ async fn cc_mcp_t51_foreign_tenants_accounts_and_job_owners_cannot_cross_boundar
         use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
         use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthService,
 };
         let tenant = TenantScope::new("p", company).unwrap();

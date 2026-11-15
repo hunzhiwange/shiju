@@ -1,7 +1,8 @@
 use super::AppRoutingError;
 use crate::client::test_support;
 use serde_json::{Value, json};
-use vw_api_types::{agent_apps::AppId, app_routing::AppRoutingConfig};
+use vw_api_types::{app_routing::AppRoutingConfig};
+use vw_api_app_identity::{AppId};
 
 #[tokio::test]
 async fn cc_route_012_sdk_preserves_config_and_errors() {

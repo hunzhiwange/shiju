@@ -1,4 +1,5 @@
-use vw_api_types::{agent_apps::AppId, app_providers::import::*};
+use vw_api_types::{app_providers::import::*};
+use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_import_sdk_scopes_trigger_and_discards_sensitive_error() {
     let server = super::super::test_support::server_with_tenant_scope(

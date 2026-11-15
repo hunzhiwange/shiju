@@ -30,7 +30,8 @@ use vw_agent_apps::high_availability::{
     retry::{FailureCode, FailurePhase, ReplayEvidence, RetryBudget, RetryFailure, RetryStop},
     selection::{SelectionSnapshot, select},
 };
-use vw_api_types::{agent_apps::AppId, agent_apps_high_availability::CircuitBreakerPolicy};
+use vw_api_types::{agent_apps_high_availability::CircuitBreakerPolicy};
+use vw_api_app_identity::{AppId};
 
 struct Candidate {
     key: HealthKey,

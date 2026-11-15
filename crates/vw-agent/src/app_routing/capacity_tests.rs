@@ -9,7 +9,7 @@ use tokio::{
 };
 use vw_agent_apps::routing::lifecycle_state::LifecycleState;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

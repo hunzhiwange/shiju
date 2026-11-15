@@ -1,6 +1,6 @@
 //! Wire identifiers published by the three aggregation clients.
 
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 const CLAUDE_PREFIX: &str = "ccs-claude-";
 const CODEX_PREFIX: &str = "ccs-";

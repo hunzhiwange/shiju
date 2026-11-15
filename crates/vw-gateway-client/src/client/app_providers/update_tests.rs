@@ -1,6 +1,7 @@
 use super::super::test_support;
 use vw_api_transport::id::TenantScope;
-use vw_api_types::{agent_apps::AppId, app_providers::update::AppProviderUpdate};
+use vw_api_types::{app_providers::update::AppProviderUpdate};
+use vw_api_app_identity::{AppId};
 #[tokio::test]
 async fn cc04_update_sdk_sends_explicit_intent_and_tenant_to_update_route() {
     let server = test_support::server_with_tenant_scope(

@@ -277,8 +277,8 @@ fn cc04_agy_pending_recovers_settings_without_global_pointer_or_native_writes() 
         );
         drop(prepare(&scope, &p, material(t.path())).unwrap());
         let tx = ProviderTransactions::new(&path, ExecutionHostId::new("host").unwrap()).unwrap();
-        assert!(tx.pending(vw_api_types::agent_apps::AppId::Agy).unwrap().is_none());
-        let state = tx.state(vw_api_types::agent_apps::AppId::Agy).unwrap();
+        assert!(tx.pending(vw_api_app_identity::AppId::Agy).unwrap().is_none());
+        let state = tx.state(vw_api_app_identity::AppId::Agy).unwrap();
         assert!(state.pointer.is_none());
         assert!(state.mode.is_none());
         assert_eq!(fs::read(path.join("session.json")).unwrap(), b"keep");

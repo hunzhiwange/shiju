@@ -52,7 +52,7 @@ fn context() -> Context {
                 project: Some("/fixture".into()),
             },
             host: "host-t60".into(),
-            app: vw_gateway_client::vw_api_types::agent_apps::AppId::Codex,
+            app: vw_api_app_identity::AppId::Codex,
         },
         project: "project-t60".into(),
         access: 4,

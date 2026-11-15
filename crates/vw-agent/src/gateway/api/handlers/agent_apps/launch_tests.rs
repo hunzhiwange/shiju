@@ -61,7 +61,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
         .layer(Extension(db.clone()))
         .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
     let observed = vw_agent_apps::apps::discovery::read::read(
-        vw_api_types::agent_apps::AppId::Codex,
+        vw_api_app_identity::AppId::Codex,
         &vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
             host_id: "h".into(),
             home: root.path().into(),

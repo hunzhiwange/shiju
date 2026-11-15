@@ -7,7 +7,7 @@ use axum::{
 };
 use tower::ServiceExt;
 use {
-    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_app_identity::CustomIconEntry,
     vw_api_transport::id::TenantScope,
 };
 

@@ -629,7 +629,7 @@ impl SkillInstallsStore {
             ensure!(!state.copy_bindings.values().any(|binding| binding.directory == operation.skill().directory),
                 "skill still has saved bindings");
             for (key, target) in targets {
-                let (installation, app, directory): (String, vw_api_types::agent_apps::AppId, String) =
+                let (installation, app, directory): (String, vw_api_app_identity::AppId, String) =
                     serde_json::from_str(key).context("invalid skill restore binding identity")?;
                 vw_agent_apps::skills::bulk_sync::SkillInstallTarget {
                     installation_id: installation, app_id: app,
@@ -1098,7 +1098,7 @@ impl SkillInstallsStore {
         for target in targets {
             if target.path.distribution != SkillDistribution::ManagedBinding { continue; }
             for (key, binding) in &snapshot.copy_bindings {
-                let (installation, app, directory): (String, vw_api_types::agent_apps::AppId, String) =
+                let (installation, app, directory): (String, vw_api_app_identity::AppId, String) =
                     match serde_json::from_str(key) {
                         Ok(identity) => identity,
                         Err(_) => continue, // Invalid identities grant no cleanup authority.
@@ -1248,7 +1248,7 @@ impl SkillInstallsStore {
         // Every recorded binding needs a resolved host-authorized target. Do not
         // turn a saved filesystem path into new write authority.
         for (key, binding) in &snapshot.copy_bindings {
-            let (installation, app, directory): (String, vw_api_types::agent_apps::AppId, String) =
+            let (installation, app, directory): (String, vw_api_app_identity::AppId, String) =
                 serde_json::from_str(key)?;
             ensure!(directory == binding.directory && targets.iter().any(|target|
                 target.installation_id == installation && target.path.app_id == app

@@ -207,7 +207,7 @@ async fn cc04_gemini_sdk_api_recovers_both_files_before_replanning() {
         project_preimage: None,
         version: 1,
         host: ExecutionHostId::new("host").unwrap(),
-        app: vw_api_types::agent_apps::AppId::Gemini,
+        app: vw_api_app_identity::AppId::Gemini,
         tenant: TenantScope::new("p", "a").unwrap(),
         directory_device: meta.dev(),
         directory_inode: meta.ino(),
@@ -257,12 +257,12 @@ async fn cc04_gemini_activation_and_tenant_host_scope_are_enforced() {
     assert!(f.record("foreign").is_none());
     let store = crate::app_providers::AppProviderStore::new(f.db.clone()).unwrap();
     let summaries = store
-        .list(&TenantScope::new("p", "a").unwrap(), vw_api_types::agent_apps::AppId::Gemini)
+        .list(&TenantScope::new("p", "a").unwrap(), vw_api_app_identity::AppId::Gemini)
         .unwrap();
     assert_eq!(summaries.len(), 2);
     assert!(
         store
-            .list(&TenantScope::new("p", "other").unwrap(), vw_api_types::agent_apps::AppId::Gemini)
+            .list(&TenantScope::new("p", "other").unwrap(), vw_api_app_identity::AppId::Gemini)
             .unwrap()
             .is_empty()
     );

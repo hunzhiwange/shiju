@@ -2,10 +2,10 @@ use super::fill_opencode::{OpenCodeModelFill, fill_opencode_model};
 use crate::providers::{dsh, mcode, opencode};
 use serde_json::{Value, json};
 use {
-    vw_api_types::agent_apps::AppId::self,
-    vw_api_types::agent_apps::AppId::Dsh,
-    vw_api_types::agent_apps::AppId::Mcode,
-    vw_api_types::agent_apps::AppId::OpenCode,
+    vw_api_app_identity::AppId::self,
+    vw_api_app_identity::AppId::Dsh,
+    vw_api_app_identity::AppId::Mcode,
+    vw_api_app_identity::AppId::OpenCode,
     vw_api_types::app_providers::dsh::DshActivation,
     vw_api_types::app_providers::dsh::DshProfile,
     vw_api_types::app_providers::mcode::McodeProfile,

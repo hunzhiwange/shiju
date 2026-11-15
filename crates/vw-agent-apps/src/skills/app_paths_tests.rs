@@ -1,7 +1,8 @@
 #![cfg(target_os = "macos")]
 use super::app_paths::*;
 use std::{collections::BTreeMap, fs};
-use vw_api_types::{agent_apps::AppId, app_providers::paths::ConfigPathState};
+use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn cp12_app_paths_success() {

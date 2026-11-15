@@ -6,6 +6,7 @@ use vw_api_types::{
         basic::ProviderBasic, create::ProviderSecretWrite, presentation::AppProviderPresentation,
         update::AppProviderUpdate,
     },
+use vw_api_app_identity::{AppId};
 };
 pub fn read(stored: &Value) -> Result<ProviderBasic, String> {
     let p = super::presentation::read(stored)?;

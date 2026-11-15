@@ -108,7 +108,7 @@ async fn cc04_ui_edit_save_dispatches_keep_and_delete_errors_through_sdk() {
             project: None,
         },
         host: "fixture-host".into(),
-        app: vw_gateway_client::vw_api_types::agent_apps::AppId::Claude,
+        app: vw_api_app_identity::AppId::Claude,
     };
     super::save(client.clone(), scope.clone(), form(Mode::Update), "fake-token".into())
         .await

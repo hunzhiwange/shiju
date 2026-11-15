@@ -1,5 +1,5 @@
 use super::delete::ensure_unreferenced;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 fn fixture(app: AppId) -> (tempfile::TempDir, std::path::PathBuf, &'static str) {
     let root = tempfile::tempdir().unwrap();
     let (relative, content) = match app {

@@ -58,7 +58,7 @@ pub fn disable_absent(
         return Err(WriteError::Conflict);
     }
     let mut guard = crate::providers::live::write_guard::lock_app(
-        vw_api_types::agent_apps::AppId::OpenCode,
+        vw_api_app_identity::AppId::OpenCode,
         home,
     )?;
     commit(Some(project), transactions, project.scope.tenant_scope(), &mut guard, &[], || {

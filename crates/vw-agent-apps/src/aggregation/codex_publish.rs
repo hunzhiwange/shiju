@@ -14,7 +14,7 @@ use crate::providers::{
 use std::{ffi::OsStr, path::Path};
 use toml_edit::DocumentMut;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::ProjectScope,
 };
 

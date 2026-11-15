@@ -8,7 +8,7 @@ use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use std::{fs, time::Duration};
 use {
-    vw_api_types::agent_apps::AppId::Codex,
+    vw_api_app_identity::AppId::Codex,
     vw_api_types::agent_apps_high_availability::FailoverQueueScope,
     vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
     vw_api_types::app_providers::AppProviderWrite,
@@ -359,10 +359,8 @@ async fn ha_api_queue_write_rejects_conflicts_enabled() -> anyhow::Result<()> {
         settings_store::GatewaySettingsStore,
     };
     use std::os::unix::fs::PermissionsExt;
-    use vw_api_types::{
-        agent_apps::AppId::Claude,
-        app_providers::claude::{ClaudeConfig, ClaudeProfile},
-    };
+    use vw_api_types::{app_providers::claude::ClaudeConfig, app_providers::claude::ClaudeProfile};
+    use vw_api_app_identity::{AppId::Claude};
     let home = tempfile::tempdir()?;
     let root = home.path().join("credentials");
     fs::create_dir(&root)?;

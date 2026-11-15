@@ -5,9 +5,14 @@ use super::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use std::{io, path::PathBuf, time::Duration};
-use vw_api_types::agent_apps::{
-    AppDesktopObservation, AppId, AppInstallation, AppInstallationEnvironment, AppInstallationId,
-    AppInstallationSource, AppReadResponse,
+use vw_api_app_identity::{
+    AppDesktopObservation,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationSource,
+    AppReadResponse,
 };
 
 pub struct LocalReadEnvironment {

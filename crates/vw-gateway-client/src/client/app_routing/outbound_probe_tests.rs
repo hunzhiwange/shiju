@@ -2,7 +2,7 @@ use super::AppRoutingError;
 use crate::client::test_support;
 use serde_json::{Value, json};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobState,
     vw_api_types::agent_apps_diagnostics::DiagnosticOutcome,

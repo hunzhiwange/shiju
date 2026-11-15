@@ -9,10 +9,8 @@ use std::{
     net::{Ipv4Addr, TcpListener},
     time::Duration,
 };
-use vw_api_types::{
-    agent_apps::AppId,
-    app_routing::{AppRoutingConfig, RoutingState},
-};
+use vw_api_types::{app_routing::AppRoutingConfig, app_routing::RoutingState};
+use vw_api_app_identity::{AppId};
 
 async fn request(
     port: u16,

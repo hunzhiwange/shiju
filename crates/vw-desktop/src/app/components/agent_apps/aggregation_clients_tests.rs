@@ -29,7 +29,7 @@ async fn aggregation_t62_aggregation_clients_preserves_contract() {
                 project: None,
             },
             host: "host".into(),
-            app: vw_gateway_client::vw_api_types::agent_apps::AppId::Codex,
+            app: vw_api_app_identity::AppId::Codex,
         },
         project: "project".into(),
         catalog_generation: 1,

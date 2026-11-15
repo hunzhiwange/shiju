@@ -74,7 +74,7 @@ fn cp12_claude_toggle_success() {
     assert!(fs::read_to_string(f.path()).unwrap().contains(user_fields));
     assert_eq!(f.toggle(false), Ok(true));
     assert!(fs::read_to_string(f.path()).unwrap().contains(user_fields));
-    assert!(f.tx.pending(vw_api_types::agent_apps::AppId::Claude).unwrap().is_none());
+    assert!(f.tx.pending(vw_api_app_identity::AppId::Claude).unwrap().is_none());
 }
 
 #[test]

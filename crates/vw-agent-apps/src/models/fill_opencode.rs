@@ -7,6 +7,7 @@ use vw_api_types::{
     model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance},
 };
 
+use vw_api_app_identity::{AppId};
 // OpenCode's native integer schema requires exact JavaScript integers.
 const MAX_NATIVE_LIMIT: u64 = 9_007_199_254_740_991;
 

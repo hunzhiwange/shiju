@@ -15,6 +15,7 @@ use vw_api_types::{
         ProviderProtocol,
         universal::{UniversalApps, UniversalModels},
         universal_sync::UniversalSyncError,
+use vw_api_app_identity::{AppId};
     },
 };
 

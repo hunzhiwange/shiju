@@ -2,7 +2,7 @@
 use crate::app::{App, Message, state::AgentAppsContext};
 use super::{message, Event as PromptEvent};
 use iced::Task;
-use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptCopies, AgentAppPromptCopyOutcome, AgentAppPromptImportSource, AgentAppPromptsScope, vw_api_types::agent_apps::AppId};
+use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptCopies, AgentAppPromptCopyOutcome, AgentAppPromptImportSource, AgentAppPromptsScope, vw_api_app_identity::AppId};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(String), Close, Select(AppId, bool), Copy, Body(String), Path, Reveal,

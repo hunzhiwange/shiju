@@ -3,7 +3,7 @@ use super::{
     preset_opencode_openclaw::OpenCodeOpenClawPreset,
 };
 use std::collections::HashSet;
-use vw_api_types::agent_apps::AppId::{self, OpenClaw, OpenCode};
+use vw_api_app_identity::{AppId::self, AppId::OpenClaw, AppId::OpenCode};
 
 fn preset(app: AppId, name: &str) -> &'static OpenCodeOpenClawPreset {
     opencode_openclaw_preset(app, name).unwrap_or_else(|| panic!("missing preset {app:?}/{name}"))

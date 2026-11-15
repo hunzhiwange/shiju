@@ -33,7 +33,7 @@ use vw_agent_apps::{
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthAccount,
     vw_api_types::agent_apps_auth::AuthCapabilities,
     vw_api_types::agent_apps_auth::AuthError,

@@ -1,6 +1,6 @@
 //! Hermes and Antigravity native lifecycle recipes for the authorized host.
 use super::native_primary::{InstallCommand, InstallEnvironment};
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Native installers provide their own runtime setup; never substitute npm or pip.
 pub fn install_command(

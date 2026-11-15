@@ -1,8 +1,6 @@
 use super::{provider::prepare_provider_launch, request::LaunchMaterial};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderWrite, ProviderProtocol},
-};
+use vw_api_types::{app_providers::AppProviderWrite, app_providers::ProviderProtocol};
+use vw_api_app_identity::{AppId};
 
 pub(super) fn profile(protocol: ProviderProtocol) -> AppProviderWrite {
     AppProviderWrite {

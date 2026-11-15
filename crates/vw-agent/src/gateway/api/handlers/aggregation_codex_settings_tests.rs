@@ -16,7 +16,7 @@ use vw_agent_apps::providers::{
     mode_state::StackState,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::aggregation::*,
     vw_api_transport::id::COMPANY_ID_HEADER,
     vw_api_transport::id::PLATFORM_ID_HEADER,

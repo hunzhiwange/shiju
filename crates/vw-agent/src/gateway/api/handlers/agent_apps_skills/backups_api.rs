@@ -88,7 +88,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
                         SkillInstallTarget { installation_id: target.installation_id.clone(), app_id: target.app_id }
                             .validate().map_err(|_| StatusCode::BAD_REQUEST)?;
                         if !resolve_cli_installation(target.app_id, &env,
-                            &vw_api_types::agent_apps::AppInstallationId(target.installation_id.clone()))
+                            &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
                             .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
                         let path = app_paths::resolve(&env.home, target.app_id, None,
                             &std::collections::BTreeMap::new(), &[&root]).map_err(|_| StatusCode::BAD_REQUEST)?;

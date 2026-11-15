@@ -20,7 +20,7 @@ use vw_agent_apps::models::{
     user_agent_presets::USER_AGENT_PRESETS,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::common::PaginatedResponse,
     vw_api_transport::id::ModelId,
     vw_api_transport::id::ProjectId,

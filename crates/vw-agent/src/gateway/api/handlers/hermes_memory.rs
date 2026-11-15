@@ -84,7 +84,7 @@ async fn enabled(Extension(p): Extension<Policy>, Extension(t): Extension<Tenant
         let mut files = hermes::HermesFiles::open(&host.home).map_err(write_error)?;
         let tx = ProviderTransactions::new(&root, ExecutionHostId::new(&host.id).map_err(write_error)?).map_err(write_error)?;
         if tx.recover(&mut files.guard).map_err(write_error)?.is_some() { return Err(StatusCode::CONFLICT); }
-        let expected = tx.state(vw_api_types::agent_apps::AppId::Hermes).map_err(write_error)?;
+        let expected = tx.state(vw_api_app_identity::AppId::Hermes).map_err(write_error)?;
         vw_agent_apps::hermes_memory_limits::set_memory_enabled(&mut files, &tx, &t, &expected, k, b.enabled,
             || authorize(&p, t.clone(), &h, &s, true).is_ok()).map_err(write_error)?;
         Ok(Json(HermesWriteOutcome { backup_path: None }))

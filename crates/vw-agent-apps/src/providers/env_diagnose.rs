@@ -1,6 +1,7 @@
 //! macOS environment diagnostics. No shell execution, ambient HOME or value disclosure.
 use std::path::Path;
-use vw_api_types::{agent_apps::AppId, app_providers::env_diagnose::EnvDiagnosis};
+use vw_api_types::{app_providers::env_diagnose::EnvDiagnosis};
+use vw_api_app_identity::{AppId};
 
 pub fn diagnose(home: &Path, app: AppId) -> Result<EnvDiagnosis, &'static str> {
     #[cfg(target_os = "macos")]

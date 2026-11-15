@@ -1,8 +1,8 @@
 use {
-    vw_api_types::agent_apps::AppId::Claude,
-    vw_api_types::agent_apps::AppId::ClaudeDesktop,
-    vw_api_types::agent_apps::AppId::Codex,
-    vw_api_types::agent_apps::AppId::Gemini,
+    vw_api_app_identity::AppId::Claude,
+    vw_api_app_identity::AppId::ClaudeDesktop,
+    vw_api_app_identity::AppId::Codex,
+    vw_api_app_identity::AppId::Gemini,
     vw_api_types::app_providers::desktop_mapping::DesktopMapping,
     vw_api_types::app_providers::desktop_mapping::DesktopMappingMode,
     vw_api_types::app_providers::desktop_mapping::DesktopModelRoute,

@@ -1,6 +1,6 @@
 use super::library::{add_icon, delete_icon, rename_icon};
 use base64::Engine;
-use vw_api_types::agent_apps::{AgentAppsErrorCode, CustomIconEntry};
+use vw_api_app_identity::{AgentAppsErrorCode, CustomIconEntry};
 
 fn image(pixel: u8) -> String {
     let mut bytes = Vec::new();

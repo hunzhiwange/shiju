@@ -5,7 +5,7 @@ use super::{
 };
 use crate::app::{App, Message, state::AppsCatalogState};
 use iced::{Subscription, Task};
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::AppId;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DragState {

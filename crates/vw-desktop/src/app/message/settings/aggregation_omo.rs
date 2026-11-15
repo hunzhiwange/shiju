@@ -11,7 +11,7 @@ use {
     gateway_endpoint::GatewayAuth,
     vw_gateway_client::AggregationOmoError,
     vw_gateway_client::GatewayClient,
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::OmoApplyRequest,
     vw_gateway_client::vw_api_types::agent_apps::aggregation::OmoDisableRequest,
     vw_api_transport::id::ProjectId,

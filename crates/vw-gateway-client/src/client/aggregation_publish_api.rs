@@ -5,6 +5,7 @@ use vw_api_types::{
         AppId,
         aggregation::{AggregationExitRequest, AggregationPublishRequest},
     },
+use vw_api_app_identity::{AppId};
     app_providers::operations::ProviderOperationProgress,
 };
 impl GatewayClient {

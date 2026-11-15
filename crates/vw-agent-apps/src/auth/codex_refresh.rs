@@ -16,7 +16,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthErrorCode,
     vw_api_types::agent_apps_auth::AuthService,
     vw_api_transport::id::TenantScope,

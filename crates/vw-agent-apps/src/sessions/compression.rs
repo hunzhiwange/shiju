@@ -17,7 +17,7 @@ use std::{
 };
 use {
     vw_api_transport::ProjectScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
 };
 
 const FEATURE: &str = "local_thread_store_compression";

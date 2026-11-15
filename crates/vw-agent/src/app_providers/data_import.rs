@@ -12,7 +12,7 @@ use vw_agent_apps::data_management::{
     },
     source::{SourceScope, SourceSnapshot},
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 impl AppProviderStore {
     /// Caller must authorize migration for this exact project/principal/host.

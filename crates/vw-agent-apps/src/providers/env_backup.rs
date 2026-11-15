@@ -12,7 +12,8 @@ use std::{
     },
     path::Path,
 };
-use vw_api_types::{agent_apps::AppId, app_providers::env_diagnose::UserShellFile};
+use vw_api_types::{app_providers::env_diagnose::UserShellFile};
+use vw_api_app_identity::{AppId};
 pub(super) fn random_id() -> Result<String, &'static str> {
     let mut bytes = [0u8; 32];
     File::open("/dev/urandom")

@@ -16,7 +16,7 @@ use tokio::{net::TcpListener, sync::mpsc};
 use tower::ServiceExt;
 use vw_agent_apps::providers::{claude::ClaudeFile, live::commit::*, mode_state::StackState};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
     vw_api_types::app_providers::claude::ClaudeConfig,
     vw_api_types::app_providers::claude::ClaudeProfile,

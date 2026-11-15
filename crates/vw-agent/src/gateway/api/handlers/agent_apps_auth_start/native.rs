@@ -28,7 +28,7 @@ use vw_agent_apps::{
 };
 use {
     vw_api_transport::TimestampMs,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthAccount,
     vw_api_types::agent_apps_auth::AuthCredentialState,
     vw_api_types::agent_apps_auth::AuthErrorCode,

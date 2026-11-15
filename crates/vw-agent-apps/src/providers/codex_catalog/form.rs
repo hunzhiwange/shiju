@@ -10,6 +10,7 @@ use vw_api_types::{
     model_catalog::{CodexNativeModel, SavedCodexCatalog},
 };
 
+use vw_api_app_identity::{AppId};
 type Result<T> = std::result::Result<T, &'static str>;
 const INVALID: &str = "invalid or unsupported Codex editor configuration";
 const ROUTE_FIELDS: &[&str] = &["base_url", "name", "wire_api", "requires_openai_auth"];

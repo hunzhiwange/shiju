@@ -1,5 +1,6 @@
 use super::import::*;
-use vw_api_types::{agent_apps::AppId, app_providers::import::ImportTrigger::*};
+use vw_api_types::{app_providers::import::ImportTrigger::*};
+use vw_api_app_identity::{AppId};
 #[test]
 fn cc04_import_existing_catalog_is_unchanged() {
     assert_eq!(strategy(AppId::Claude, Startup, true), Ok(ImportStrategy::Skip));

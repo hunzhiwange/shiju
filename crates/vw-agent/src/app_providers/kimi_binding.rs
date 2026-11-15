@@ -103,7 +103,7 @@ impl AppProviderStore {
             auth::credential_file::CredentialFileStore,
             providers::live::commit::{ExecutionHostId, ProviderTransactions},
         };
-        use vw_api_types::agent_apps::AppId;
+        use vw_api_app_identity::AppId;
         scope.validate()?;
         if scope.service != AuthService::KimiOauth {
             return Err(AuthErrorCode::Unsupported);

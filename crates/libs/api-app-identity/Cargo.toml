@@ -1,0 +1,11 @@
+[package]
+name = "vw-api-app-identity"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }

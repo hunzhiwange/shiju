@@ -5,7 +5,7 @@ use super::{
 };
 use serde_json::Value;
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::mode_apply::*,
     vw_api_transport::id::TenantScope,
 };

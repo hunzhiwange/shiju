@@ -57,7 +57,7 @@ pub fn validate(
     use app_provider_validation::{validate_identity, validation::endpoint};
     validate_identity(&identity.target_host_id).map_err(|_| "invalid catalog host")?;
     validate_identity(&identity.provider_id).map_err(|_| "invalid catalog provider")?;
-    if identity.app_id != vw_api_types::agent_apps::AppId::Codex {
+    if identity.app_id != vw_api_app_identity::AppId::Codex {
         return Err("unsupported model catalog");
     }
     endpoint(&identity.endpoint).map_err(|_| "invalid catalog endpoint")?;

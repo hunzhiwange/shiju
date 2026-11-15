@@ -1,6 +1,7 @@
 use super::{operations::*, process};
 use std::{process::Command, time::Duration};
-use vw_api_types::{agent_apps::AppId, task::TaskStatus};
+use vw_api_types::{task::TaskStatus};
+use vw_api_app_identity::{AppId};
 
 #[cfg(unix)]
 #[tokio::test]

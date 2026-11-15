@@ -6,9 +6,9 @@ use axum::{
 };
 use tower::ServiceExt;
 use {
-    vw_api_types::agent_apps::AgentAppsErrorCode,
-    vw_api_types::agent_apps::AgentAppsErrorResponse,
-    vw_api_types::agent_apps::CustomIconEntry,
+    vw_api_app_identity::AgentAppsErrorCode,
+    vw_api_app_identity::AgentAppsErrorResponse,
+    vw_api_app_identity::CustomIconEntry,
     vw_api_transport::id::TenantScope,
 };
 

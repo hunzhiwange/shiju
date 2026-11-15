@@ -58,11 +58,11 @@ async fn uninstall(Extension(tenant): Extension<TenantScope>, db: Option<Extensi
             for (key, binding) in &state.copy_bindings {
                 if binding.directory != id { continue; }
                 let Ok((installation, app, directory)) = serde_json::from_str::<(
-                    String, vw_api_types::agent_apps::AppId, String)>(key) else { continue; };
+                    String, vw_api_app_identity::AppId, String)>(key) else { continue; };
                 if directory != id { continue; }
                 // Unresolvable installations remain preserved by the native owner.
                 if !resolve_cli_installation(app, &env,
-                    &vw_api_types::agent_apps::AppInstallationId(installation)).unwrap_or(false) {
+                    &vw_api_app_identity::AppInstallationId(installation)).unwrap_or(false) {
                     continue;
                 }
                 if let Ok(path) = app_paths::resolve(&env.home, app, None,

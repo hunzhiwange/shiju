@@ -5,7 +5,7 @@ use crate::apps::{
     versions::node::{self, NodeRequirement},
 };
 use std::{path::Path, time::Duration};
-use vw_api_types::agent_apps::AppInstallation;
+use vw_api_app_identity::{AppInstallation};
 
 pub(super) fn check(
     installation: &AppInstallation,

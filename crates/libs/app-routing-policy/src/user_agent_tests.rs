@@ -1,6 +1,7 @@
 use app_provider_validation::request_options;
 use serde_json::json;
-use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
+use vw_api_types::{app_providers::validation::ProviderRequestOptions};
+use vw_api_app_identity::{AppId};
 
 fn options(value: &str) -> ProviderRequestOptions {
     serde_json::from_value(json!({

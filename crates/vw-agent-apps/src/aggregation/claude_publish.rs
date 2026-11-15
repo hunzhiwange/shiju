@@ -16,7 +16,7 @@ use crate::providers::{
 use serde_json::{Map, Value, json};
 use std::{cell::Cell, ffi::OsStr};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::mode_apply::ModeApplyResult,
     vw_api_types::app_providers::mode_apply::TargetPublication,
     vw_api_transport::id::ProjectScope,

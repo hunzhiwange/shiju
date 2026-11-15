@@ -3,7 +3,7 @@ use super::{coordinator::ToolLifecycleCoordinator, native_primary::InstallEnviro
 use crate::apps::versions::node::NodeRequirement;
 use std::io::Read;
 use std::process::{Command, Stdio};
-use vw_api_types::agent_apps::{AppId, AppInstallationReport};
+use vw_api_app_identity::{AppId, AppInstallationReport};
 
 #[derive(Debug)]
 pub struct ProcessResult {
@@ -156,7 +156,7 @@ pub(super) fn execute(
     let (exit_code, output) = run_command(command)?;
     let installations = probe()?;
     if !installations.installations.iter().any(|i| {
-        i.runtime_status == vw_api_types::agent_apps::AppInstallationRuntimeStatus::Runnable
+        i.runtime_status == vw_api_app_identity::AppInstallationRuntimeStatus::Runnable
     }) || installations.installations.iter().any(|i| i.app_id != app)
     {
         return Err("installation postcondition failed".into());

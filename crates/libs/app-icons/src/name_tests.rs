@@ -1,5 +1,5 @@
 use super::name::normalize_icon_name;
-use vw_api_types::agent_apps::AgentAppsErrorCode;
+use vw_api_app_identity::{AgentAppsErrorCode};
 
 #[test]
 fn cc_base_icon_name_trims_surrounding_whitespace() {

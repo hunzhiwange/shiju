@@ -2,7 +2,7 @@
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps::DataManagementTarget,
     vw_api_types::device_sync_config::DeviceSyncTransport,
     vw_api_types::device_sync_config::DeviceSyncRemoteResponse,

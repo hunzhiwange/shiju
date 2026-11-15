@@ -1,6 +1,7 @@
 use super::{app_paths::{AppSkillsPath, distribution}, link_deploy::{SyncMethod, prepare_deploy}};
 use std::fs;
-use vw_api_types::{agent_apps::AppId, app_providers::paths::ConfigPathState};
+use vw_api_types::{app_providers::paths::ConfigPathState};
+use vw_api_app_identity::{AppId};
 
 fn fixture() -> (tempfile::TempDir, std::path::PathBuf, AppSkillsPath) {
     let temp = tempfile::tempdir().unwrap();

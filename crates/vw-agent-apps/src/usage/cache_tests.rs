@@ -4,7 +4,7 @@ use std::{
 };
 
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_auth::AuthService,
     vw_api_types::apps_usage::UsageQueryErrorCode,
     vw_api_types::apps_usage::UsageQueryKind,

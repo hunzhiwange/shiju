@@ -10,6 +10,7 @@ use vw_api_types::{
 fn candidate(url: &str, sources: &[DiagnosticEndpointSource]) -> EndpointCandidate {
     EndpointCandidate { url: url.into(), sources: sources.to_vec() }
 }
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn diagnostic_endpoints_merge_without_duplicates() {

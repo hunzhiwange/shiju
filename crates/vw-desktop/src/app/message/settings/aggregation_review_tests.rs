@@ -303,7 +303,7 @@ fn context() -> Context {
                 project: Some("/fixture".into()),
             },
             host: "host-t61".into(),
-            app: vw_gateway_client::vw_api_types::agent_apps::AppId::Codex,
+            app: vw_api_app_identity::AppId::Codex,
         },
         project: "project-t61".into(),
         access: 4,

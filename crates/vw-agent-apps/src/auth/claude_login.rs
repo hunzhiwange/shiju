@@ -24,7 +24,8 @@ use tokio::{
     time::{self, Instant},
 };
 
-use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService};
+use vw_api_types::{agent_apps_auth::AuthService};
+use vw_api_app_identity::{AppId};
 
 const LINK_WAIT: Duration = Duration::from_secs(30);
 const BROWSER_GRACE: Duration = Duration::from_secs(3);

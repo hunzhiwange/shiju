@@ -1,7 +1,10 @@
 //! WSL lifecycle plans are derived on the authorized Windows host.
 use crate::apps::discovery::wsl::{WslShell, WslTarget};
-use vw_api_types::agent_apps::{
-    AppId, AppInstallation, AppInstallationEnvironment, AppInstallationReport,
+use vw_api_app_identity::{
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationReport,
 };
 
 #[derive(Debug, PartialEq, Eq)]

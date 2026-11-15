@@ -1,3 +1,16 @@
+use vw_api_app_identity::{
+    AppCatalogEntry,
+    AppDesktopObservation,
+    AppId,
+    AppInstallation,
+    AppInstallationEnvironment,
+    AppInstallationId,
+    AppInstallationProbeFailure,
+    AppInstallationRuntimeStatus,
+    AppInstallationSource,
+    AppReadResponse,
+    AppRuntimeKind,
+};
 use super::catalog::*;
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
 

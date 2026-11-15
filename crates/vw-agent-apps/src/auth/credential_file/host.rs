@@ -22,7 +22,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 const UNAVAILABLE: &str = "official credential storage unavailable";
 const UNSAFE_PATH: &str = "unsafe official credential path";

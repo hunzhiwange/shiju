@@ -2,7 +2,7 @@ use super::preset_search::{
     PresetMatch, PresetPlan, PresetRegion, PresetSearchEntry, group_presets, search_presets,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
     vw_api_types::model_catalog::ModelCatalogIdentity,
     vw_api_types::model_catalog::ScopedModelCatalogIdentity,

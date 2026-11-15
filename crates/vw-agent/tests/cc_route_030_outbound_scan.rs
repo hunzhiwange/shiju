@@ -10,7 +10,7 @@ use std::{
 };
 use tokio::time::{sleep, timeout};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobIdentity,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobSnapshot,
     vw_api_types::agent_apps_diagnostics::DiagnosticJobState,

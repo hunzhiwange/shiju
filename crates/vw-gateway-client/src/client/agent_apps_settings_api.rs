@@ -1,7 +1,17 @@
 //! Settings and launch requests never perform local filesystem or OS actions.
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
-use vw_api_types::agent_apps::*;
+use vw_api_types::{agent_apps::*};
+use vw_api_app_identity::{
+    AppId,
+    AppPreferencesPatch,
+    AppPreferencesResult,
+    LaunchIdentity,
+    LaunchIdentityKind,
+    LaunchRequest,
+    LaunchResult,
+    LaunchSessionStatus,
+};
 
 /// Transport, malformed responses and original gateway business errors stay distinct.
 #[derive(Debug, Clone, PartialEq)]

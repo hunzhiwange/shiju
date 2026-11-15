@@ -14,7 +14,7 @@ use vw_agent_apps::providers::{
     desktop_mapping::catalog::{DesktopMappingError, DesktopModel, DesktopModelCatalog},
     live::commit::AppState,
 };
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Protocol identity comes from the authorized saved profile, not a URL heuristic.
 pub(crate) struct DesktopRouteTarget {

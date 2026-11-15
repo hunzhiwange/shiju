@@ -22,7 +22,7 @@ use vw_agent_apps::providers::{
     mode_state::StackState,
 };
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::agent_apps_high_availability::FailoverQueueScope,
     vw_api_types::agent_apps_high_availability::FailoverQueueVersion,
     vw_api_types::app_providers::AppProviderSummary,

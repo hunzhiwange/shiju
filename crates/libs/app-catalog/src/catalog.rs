@@ -1,5 +1,5 @@
 //! Fixed source catalog. Support describes this native domain, not upstream promises.
-use vw_api_types::agent_apps::{AppCatalogEntry, AppId, AppRuntimeKind};
+use vw_api_app_identity::{AppCatalogEntry, AppId, AppRuntimeKind};
 
 pub struct CatalogApp {
     pub metadata: AppCatalogEntry,

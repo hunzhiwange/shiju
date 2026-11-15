@@ -1,6 +1,6 @@
 //! Model policy for an already authorized application/provider snapshot.
 use serde_json::Value;
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 /// Resolve only within the supplied provider. Authorization and target selection
 /// remain with the executor; this policy never searches providers or tenants.

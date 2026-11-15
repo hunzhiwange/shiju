@@ -1,7 +1,7 @@
 //! OMP instructions use the active profile's configuration directory.
 use std::{collections::BTreeMap, path::Path};
 
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 
 use super::targets::{PromptOwnership, PromptTarget};
 use crate::providers::paths;

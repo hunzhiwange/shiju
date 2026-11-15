@@ -6,6 +6,7 @@ use vw_api_types::{
         ProviderProtocol,
         create::ProviderSecretWrite,
         universal::{UniversalConfig, UniversalProviderWrite},
+use vw_api_app_identity::{AppId};
     },
 };
 

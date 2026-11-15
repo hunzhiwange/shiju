@@ -74,7 +74,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
                     let mut targets = Vec::new();
                     for (index, target) in request.targets.iter().enumerate() {
                         if request.targets[..index].contains(target) { return Err(StatusCode::BAD_REQUEST); }
-                        if !resolve_cli_installation(target.app_id, &env, &vw_api_types::agent_apps::AppInstallationId(target.installation_id.clone()))
+                        if !resolve_cli_installation(target.app_id, &env, &vw_api_app_identity::AppInstallationId(target.installation_id.clone()))
                             .map_err(|_| StatusCode::CONFLICT)? { return Err(StatusCode::NOT_FOUND); }
                         let path = app_paths::resolve(&env.home, target.app_id, None, &std::collections::BTreeMap::new(), &[&state.ssot_root, &destination])
                             .map_err(|_| StatusCode::BAD_REQUEST)?;

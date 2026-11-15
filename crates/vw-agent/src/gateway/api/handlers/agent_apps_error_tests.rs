@@ -1,6 +1,6 @@
 use super::agent_apps_error::AgentAppsApiError;
 use axum::{body::to_bytes, response::IntoResponse};
-use vw_api_types::agent_apps::AgentAppsErrorCode;
+use vw_api_app_identity::{AgentAppsErrorCode};
 
 #[tokio::test]
 async fn cc_base_icon_error_maps_all_codes() {
@@ -13,7 +13,7 @@ async fn cc_base_icon_error_maps_all_codes() {
         let response = AgentAppsApiError::from(code).into_response();
         assert_eq!(response.status().as_u16(), status);
         let body = to_bytes(response.into_body(), 4096).await.unwrap();
-        let public: vw_api_types::agent_apps::AgentAppsErrorResponse =
+        let public: vw_api_app_identity::AgentAppsErrorResponse =
             serde_json::from_slice(&body).unwrap();
         assert_eq!(public.code, code);
         assert!(!public.message.is_empty());
@@ -104,7 +104,7 @@ async fn cc_base_icon_error_redacts_real_constraint_and_request() -> anyhow::Res
 #[tokio::test]
 async fn cc_base_icon_error_business_boundaries() {
     use vw_agent_apps::icons::library::{add_icon, rename_icon};
-    use vw_api_types::agent_apps::CustomIconEntry;
+    use vw_api_app_identity::CustomIconEntry;
     let image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";
     let entries = vec![
         CustomIconEntry {

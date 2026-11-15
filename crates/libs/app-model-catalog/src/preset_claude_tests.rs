@@ -3,7 +3,8 @@ use super::{
     preset_claude::{ClaudePreset, ClaudePresetApiFormat, ClaudePresetCategory},
 };
 use std::collections::HashSet;
-use vw_api_types::{agent_apps::AppId, app_providers::desktop_mapping::DesktopMappingMode};
+use vw_api_types::{app_providers::desktop_mapping::DesktopMappingMode};
+use vw_api_app_identity::{AppId};
 
 #[test]
 fn catalog_presets_claude_separates_claude_apps() {

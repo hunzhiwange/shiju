@@ -24,7 +24,7 @@ pub enum AppsCatalogMessage {
     HighAvailability(crate::app::message::agent_apps_high_availability_policy::Event),
     Lifecycle(super::apps_lifecycle::LifecycleMessage),
     QueryInput(String),
-    ToggleDetails(vw_gateway_client::vw_api_types::agent_apps::AppId),
+    ToggleDetails(vw_api_app_identity::AppId),
     Drag(crate::app::components::system_settings_apps::drag::DragMessage),
     LocalConnect,
     LocalReady {
@@ -36,13 +36,13 @@ pub enum AppsCatalogMessage {
     ConnectionClose,
     HostInput(String),
     TokenInput(String),
-    RefreshObservation(vw_gateway_client::vw_api_types::agent_apps::AppId),
+    RefreshObservation(vw_api_app_identity::AppId),
     ObservationLoaded {
         context: AgentAppsContext,
         host: String,
         generation: u64,
-        id: vw_gateway_client::vw_api_types::agent_apps::AppId,
-        result: Result<vw_gateway_client::vw_api_types::agent_apps::AppReadResponse, vw_gateway_client::AgentAppsReadError>,
+        id: vw_api_app_identity::AppId,
+        result: Result<vw_api_app_identity::AppReadResponse, vw_gateway_client::AgentAppsReadError>,
     },
     Refresh,
     EnsureLoaded,
@@ -139,7 +139,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.project_profiles.application = application;
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
             app.apps_catalog.prompts.invalidate();
-            if app.apps_catalog.expanded.is_some() && !matches!(id, vw_gateway_client::vw_api_types::agent_apps::AppId::ClaudeDesktop | vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw) {
+            if app.apps_catalog.expanded.is_some() && !matches!(id, vw_api_app_identity::AppId::ClaudeDesktop | vw_api_app_identity::AppId::OpenClaw) {
                 let prompts = super::prompts::update(app, super::prompts::Event::Open(id));
                 let profiles = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id)
                     .map(|scope| crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope)))

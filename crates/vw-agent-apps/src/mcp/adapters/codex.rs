@@ -17,7 +17,7 @@ use std::{collections::BTreeMap, ffi::OsStr};
 use toml_edit::{Array, Item, Table, value};
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::mcp_management::McpConfigValue,
     vw_api_types::mcp_management::McpConnectionDefinition,
 };

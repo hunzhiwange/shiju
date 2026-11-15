@@ -1,8 +1,6 @@
 use super::{GatewayClient, provider_path};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{AppProviderSummary, update::AppProviderUpdate},
-};
+use vw_api_types::{app_providers::AppProviderSummary, app_providers::update::AppProviderUpdate};
+use vw_api_app_identity::{AppId};
 impl GatewayClient {
     /// Partial catalog update without native activation.
     pub async fn app_provider_update(

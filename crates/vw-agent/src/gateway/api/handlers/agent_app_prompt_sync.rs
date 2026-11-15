@@ -7,7 +7,7 @@ use {
     vw_api_transport::ProjectId,
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
 };
 use crate::{global_database::GlobalDatabase, agent_apps::prompts_store::{PromptScope, PromptsStore}};
 

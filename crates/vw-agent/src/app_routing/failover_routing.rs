@@ -29,7 +29,7 @@ impl FailoverPublication {
         self,
         queue: &FailoverQueueState,
     ) -> Result<(String, JsonTarget), StatusCode> {
-        if self.binding.app() != vw_api_types::agent_apps::AppId::Codex {
+        if self.binding.app() != vw_api_app_identity::AppId::Codex {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         admit(self.binding.app(), self.binding.project().tenant_scope(), &self.state).map_err(

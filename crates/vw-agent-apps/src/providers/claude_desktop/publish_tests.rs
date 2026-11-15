@@ -5,7 +5,7 @@ use crate::providers::{
 };
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_transport::id::TenantScope,
 };
 
@@ -81,9 +81,11 @@ use crate::{
     },
 };
 use vw_api_types::{
-    agent_apps::AppDesktopObservation,
-    app_providers::desktop_mapping::{DesktopMapping, DesktopMappingMode, DesktopModelRoute},
+    app_providers::desktop_mapping::DesktopMapping,
+    app_providers::desktop_mapping::DesktopMappingMode,
+    app_providers::desktop_mapping::DesktopModelRoute,
 };
+use vw_api_app_identity::{AppDesktopObservation};
 
 const APP: AppId = AppId::ClaudeDesktop;
 const NORMAL: &str = "Claude/claude_desktop_config.json";

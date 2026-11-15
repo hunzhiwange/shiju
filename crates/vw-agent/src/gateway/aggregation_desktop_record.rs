@@ -42,7 +42,7 @@ pub(crate) fn replace(
     target: PendingTarget,
     active: bool,
 ) -> Result<bool, StatusCode> {
-    if context.app != vw_api_types::agent_apps::AppId::ClaudeDesktop {
+    if context.app != vw_api_app_identity::AppId::ClaudeDesktop {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
     let live_member = if candidate.stack.enabled {

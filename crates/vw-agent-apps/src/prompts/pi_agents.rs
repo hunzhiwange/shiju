@@ -1,5 +1,6 @@
 //! Pi instruction selection is derived from exact AGENTS.md bytes and catalog order.
-use vw_api_types::agent_apps::{AppId, PromptEntry};
+use vw_api_types::{agent_apps::PromptEntry};
+use vw_api_app_identity::{AppId};
 
 /// The first identical entry in persisted order owns the current file. Missing
 /// and empty files differ; persisted enabled flags never participate.

@@ -37,7 +37,7 @@ mod execution {
     use sha2::{Digest, Sha256};
     use std::{fs, os::unix::fs::PermissionsExt, path::Path};
     use {
-    vw_api_types::agent_apps::AppId,
+    vw_api_app_identity::AppId,
     vw_api_types::app_providers::env_clean::*,
     vw_api_types::app_providers::env_diagnose::*,
     vw_api_transport::id::TenantScope,

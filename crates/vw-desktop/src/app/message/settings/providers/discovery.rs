@@ -117,7 +117,7 @@ pub(super) fn update(app: &mut App, client: GatewayClient, event: Event) -> Task
 
 pub(crate) fn methods(form: &CatalogForm) -> &'static [ModelDiscoveryMethod] {
     use ModelDiscoveryMethod::{Agy, Http, OpenCode};
-    use vw_gateway_client::vw_api_types::agent_apps::AppId;
+    use vw_api_app_identity::AppId;
     match form.context.scope.app {
         AppId::OpenCode => &[OpenCode, Http],
         AppId::Agy => &[Agy, Http],

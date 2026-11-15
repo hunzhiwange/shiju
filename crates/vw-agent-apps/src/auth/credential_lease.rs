@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::{ffi::CStr, fs::File, os::fd::AsRawFd, sync::Mutex};
 #[cfg(unix)]
-use vw_api_types::agent_apps::AppId;
+use vw_api_app_identity::{AppId};
 #[cfg(not(target_arch = "wasm32"))]
 use vw_api_types::agent_apps_auth::AuthErrorCode;
 #[cfg(target_os = "macos")]

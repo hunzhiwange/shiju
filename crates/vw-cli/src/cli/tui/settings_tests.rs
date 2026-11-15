@@ -9,7 +9,8 @@ use std::thread;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_tui::{V3Action, V3ApprovalDecision};
 
-use super::app::{ActiveRunner, RunnerControl, V3GatewayApp, gateway_stream_request_from_state};
+use super::request::gateway_stream_request_from_state;
+use super::app::{ActiveRunner, RunnerControl, V3GatewayApp};
 use super::commands::{
     SETTINGS_ACCESS_SURFACE, SETTINGS_ACP_SURFACE, SETTINGS_EFFORT_SURFACE, SETTINGS_MODEL_SURFACE,
     SETTINGS_PERMISSION_SURFACE, SETTINGS_SUBAGENT_SURFACE,

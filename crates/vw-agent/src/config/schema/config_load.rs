@@ -19,7 +19,7 @@ use crate::app::agent::config::migration::migrate_user_config;
 use crate::app::agent::config::schema::config_env::apply_env_overrides;
 use crate::app::agent::config::schema::config_helpers::config_dir_creation_error;
 use crate::app::agent::config::schema::config_validate::validate_config;
-use crate::app::agent::config::schema::workspace::ConfigResolutionSource;
+use agent_config::schema::workspace::ConfigResolutionSource;
 use crate::app::agent::config::schema::{
     default_config_and_workspace_dirs, resolve_runtime_config_dirs,
 };

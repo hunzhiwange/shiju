@@ -30,3 +30,7 @@ pub use proxy::*;
 pub use security::*;
 pub use skills::*;
 pub mod config_load;
+
+pub mod workspace;
+#[cfg(test)]
+mod workspace_tests;

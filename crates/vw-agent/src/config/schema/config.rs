@@ -5,7 +5,7 @@
 
 use crate::app::agent::config::schema::config_helpers::read_codex_openai_api_key;
 use crate::app::agent::config::schema::config_validate::normalize_wire_api;
-use crate::app::agent::config::schema::workspace::resolve_config_dir_for_workspace;
+use agent_config::schema::workspace::resolve_config_dir_for_workspace;
 
 pub use config_aggregate::*;
 

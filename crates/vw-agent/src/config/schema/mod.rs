@@ -34,9 +34,6 @@ mod config_save_tests;
 #[cfg(test)]
 #[path = "../../../../libs/agent-config/src/schema/config_tests.rs"]
 mod config_tests;
-#[cfg(test)]
-#[path = "workspace_tests.rs"]
-mod workspace_tests;
 
 // Re-export domain-owned configuration types for backward compatibility.
 pub use config_agent as agent;

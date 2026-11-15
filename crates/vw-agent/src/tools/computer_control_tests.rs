@@ -313,7 +313,7 @@ async fn cc_control_07_runtime_factory_registers_shared_authority() {
 #[ignore = "requires SHIJU_CC07_FIXTURE pointing to the disposable com.rsung.shiju.input-fixture Cocoa app executable and host Accessibility/Screen Recording permissions"]
 async fn cc_control_07_live_registry_input_and_image_reach_model() {
     use crate::computer_control::{native::NativeObserver, policy::GrantScope};
-    use config_computer_control::GrantDecision;
+    use vw_config_types::computer_control::GrantDecision;
     struct Fixture(std::process::Child);
     impl Drop for Fixture {
         fn drop(&mut self) {

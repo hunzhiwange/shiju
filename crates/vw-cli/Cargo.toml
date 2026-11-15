@@ -18,6 +18,7 @@ name = "vibe-agent"
 path = "src/bin/vibe-agent.rs"
 
 [dependencies]
+cli-security-commands = { path = "../libs/cli-security-commands", version = "0.6.0" }
 cli-task-commands = { path = "../libs/cli-task-commands", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 cli-command-schema = { path = "../libs/cli-command-schema", version = "0.6.0" }
@@ -35,7 +36,6 @@ base64 = "0.23"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive"] }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
-dialoguer = "0.11"
 pulldown-cmark = "0.13"
 ratatui = "0.30.0"
 schemars = "1.2"

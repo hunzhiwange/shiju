@@ -1,7 +1,7 @@
 use super::macos_input::{InputEvent, InputPlatform};
 use super::*;
 use crate::computer_control::policy::GrantScope;
-use config_computer_control::{ComputerControlConfig, GrantDecision};
+use vw_config_types::computer_control::{ComputerControlConfig, GrantDecision};
 
 #[derive(Default)]
 struct State {

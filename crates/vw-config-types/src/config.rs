@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use crate::agent::{DelegateAgentConfig, WorkspacesConfig};
 use crate::automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use crate::channels::ChannelsConfig;
-use config_computer_control::ComputerControlConfig;
+use crate::computer_control::ComputerControlConfig;
 use config_gateway::GatewayConfig;
 use config_gateway::TunnelConfig;
 use config_hooks::HooksConfig;

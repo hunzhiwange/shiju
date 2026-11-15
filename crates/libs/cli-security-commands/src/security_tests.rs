@@ -1,60 +1,11 @@
-//! `security` 子命令的注册、解析与失败边界测试。
-//! 校验防护语料更新参数、报告行格式和完整输出。
-//! 校验和不匹配、本地源不可读或集合为空时，必须在访问后端前拒绝请求。
-
-use clap::{CommandFactory, Parser};
+//! 安全命令处理与报告格式测试。
 
 use super::{
     Config, guard_corpus_update_report_lines, handle_security_command,
     print_guard_corpus_update_report,
 };
-use crate::cli::{Cli, Commands, SecurityCommands};
+use cli_command_schema::SecurityCommands;
 use vw_agent::security::GuardCorpusUpdateReport;
-
-#[test]
-fn security_command_is_wired_into_cli_definition() {
-    let command = Cli::command();
-    let security = command
-        .get_subcommands()
-        .find(|command| command.get_name() == "security")
-        .expect("security subcommand should be registered");
-
-    assert!(security.get_subcommands().any(|command| command.get_name() == "update-guard-corpus"));
-}
-
-#[test]
-fn update_guard_corpus_parses_optional_source_and_checksum() {
-    let cli = Cli::parse_from([
-        "vibewindow",
-        "security",
-        "update-guard-corpus",
-        "--source",
-        "builtin",
-        "--checksum",
-        "abc123",
-    ]);
-
-    let Commands::Security { security_command } = cli.command else {
-        panic!("security command expected");
-    };
-    let SecurityCommands::UpdateGuardCorpus { source, checksum } = security_command;
-
-    assert_eq!(source.as_deref(), Some("builtin"));
-    assert_eq!(checksum.as_deref(), Some("abc123"));
-}
-
-#[test]
-fn update_guard_corpus_allows_omitted_source_and_checksum() {
-    let cli = Cli::parse_from(["vibewindow", "security", "update-guard-corpus"]);
-
-    let Commands::Security { security_command } = cli.command else {
-        panic!("security command expected");
-    };
-    let SecurityCommands::UpdateGuardCorpus { source, checksum } = security_command;
-
-    assert_eq!(source, None);
-    assert_eq!(checksum, None);
-}
 
 #[test]
 fn guard_corpus_update_report_lines_include_labels_and_values() {

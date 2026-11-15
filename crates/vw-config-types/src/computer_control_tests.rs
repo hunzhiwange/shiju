@@ -1,5 +1,4 @@
-use crate::config::Config;
-use config_computer_control::*;
+use crate::{computer_control::*, config::Config};
 
 #[test]
 fn cc_control_03_config_save_reload_preserves_user_grants_and_version() {
@@ -33,7 +32,14 @@ fn cc_control_03_config_save_reload_preserves_user_grants_and_version() {
 }
 
 #[test]
-fn cc_control_03_legacy_config_denies() {
+fn cc_control_03_legacy_config_denies_and_sensitive_fields_are_rejected() {
     let config: Config = serde_json::from_str("{}").unwrap();
     assert_eq!(config.computer_control, ComputerControlConfig::default());
+    let user = ComputerControlUserConfig::default();
+    assert!(!user.native_apps && !user.chrome && !user.excel && !user.word && !user.locked_use);
+    for key in ["pairing_token", "document_body", "screenshot"] {
+        let value = serde_json::json!({key: "sensitive"});
+        assert!(serde_json::from_value::<ComputerControlConfig>(value.clone()).is_err());
+        assert!(serde_json::from_value::<ComputerControlUserConfig>(value).is_err());
+    }
 }

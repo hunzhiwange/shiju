@@ -3,8 +3,8 @@
 
 use anyhow::Result;
 
-use crate::cli::SecurityCommands;
-use crate::config::Config;
+use cli_command_schema::SecurityCommands;
+use vw_agent::config::Config;
 use vw_agent::security;
 
 fn guard_corpus_update_report_lines(report: &security::GuardCorpusUpdateReport) -> [String; 6] {
@@ -27,7 +27,7 @@ fn print_guard_corpus_update_report(report: &security::GuardCorpusUpdateReport) 
 /// 执行 handle_security_command 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub(crate) async fn handle_security_command(
+pub async fn handle_security_command(
     config: &Config,
     security_command: SecurityCommands,
 ) -> Result<()> {

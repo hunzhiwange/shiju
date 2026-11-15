@@ -10,7 +10,7 @@ use std::{
     path::PathBuf,
 };
 use tokio::net::UnixListener;
-use config_computer_control::GrantDecision;
+use vw_config_types::computer_control::GrantDecision;
 
 pub(super) struct ChromeListener {
     listener: UnixListener,

@@ -91,7 +91,7 @@ async fn cc_control_09_authenticated_host_and_live_revocation() {
     use std::sync::{Arc, atomic::AtomicBool};
     use std::time::Duration;
     use vw_api_types::computer_control::*;
-    use config_computer_control::{ComputerControlConfig, GrantDecision};
+    use vw_config_types::computer_control::{ComputerControlConfig, GrantDecision};
     let user = format!("uid:{}", unsafe { libc::geteuid() });
     let mut policy = ComputerControlPolicy::new(ComputerControlConfig::default());
     policy.set_enabled(&user, ControlFeature::Chrome, true).unwrap();

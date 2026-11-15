@@ -18,7 +18,7 @@ use std::{
 };
 use uuid::Uuid;
 use vw_api_types::computer_control::*;
-use config_computer_control::GrantDecision;
+use vw_config_types::computer_control::GrantDecision;
 
 #[derive(Debug, thiserror::Error)]
 #[error("Word control denied: {0:?}")]

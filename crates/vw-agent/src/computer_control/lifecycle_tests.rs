@@ -1,6 +1,6 @@
 use super::*;
 use super::super::policy::ControlFeature;
-use config_computer_control::ComputerControlConfig;
+use vw_config_types::computer_control::ComputerControlConfig;
 
 fn fixture() -> (ControlHost, SessionTicket, ComputerControlRequest) {
     let user = format!("uid:{}", unsafe { libc::geteuid() });

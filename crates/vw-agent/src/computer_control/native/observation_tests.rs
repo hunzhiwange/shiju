@@ -1,7 +1,7 @@
 use super::*;
 use crate::computer_control::policy::{ControlFeature, GrantScope};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use config_computer_control::{ComputerControlConfig, GrantDecision};
+use vw_config_types::computer_control::{ComputerControlConfig, GrantDecision};
 
 #[derive(Default)]
 struct FakePlatform {

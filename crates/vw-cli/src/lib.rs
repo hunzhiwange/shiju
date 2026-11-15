@@ -407,12 +407,12 @@ pub async fn run() -> Result<()> {
         */
         // 处理 E-stop 命令：紧急停止控制
         Commands::Estop { estop_command, level, domains, tools } => {
-            handlers::estop::handle_estop_command(&config, estop_command, level, domains, tools)
+            cli_security_commands::handle_estop_command(&config, estop_command, level, domains, tools)
         }
 
         // 处理 Security 命令：安全策略管理
         Commands::Security { security_command } => {
-            handlers::security::handle_security_command(&config, security_command).await
+            cli_security_commands::handle_security_command(&config, security_command).await
         }
 
         // 处理 Cron 命令：定时任务管理

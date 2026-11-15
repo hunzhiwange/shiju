@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::{
     Config, build_engage_level, build_resume_selector, handle_estop_command, print_estop_status,
 };
-use crate::cli::{EstopLevelArg, EstopSubcommands};
+use cli_command_schema::{EstopLevelArg, EstopSubcommands};
 use vw_agent::security::{EstopLevel, EstopState, ResumeSelector};
 
 /// 测试临时目录，Drop 时自动清理。

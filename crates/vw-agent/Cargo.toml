@@ -12,7 +12,6 @@ autotests = false
 doctest = false
 
 [dependencies]
-config-computer-control = { path = "../libs/config-computer-control", version = "0.6.0" }
 json-extract = { path = "../libs/json-extract", version = "0.6.0" }
 todo-types = { path = "../libs/todo-types", version = "0.6.0" }
 config-proxy = { path = "../libs/config-proxy", version = "0.6.0" }

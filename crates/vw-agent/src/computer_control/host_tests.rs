@@ -8,7 +8,7 @@ use std::sync::{
 use std::time::Duration;
 use tokio::net::UnixStream;
 use vw_api_types::computer_control::*;
-use config_computer_control::ComputerControlConfig;
+use vw_config_types::computer_control::ComputerControlConfig;
 
 fn target() -> ComputerControlTarget {
     ComputerControlTarget::NativeApp { bundle_id: "com.apple.TextEdit".into(), process_id: 10 }

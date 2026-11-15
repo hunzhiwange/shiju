@@ -37,8 +37,8 @@
 use anyhow::{Context, Result, bail};
 use dialoguer::Password;
 
-use crate::cli::{EstopLevelArg, EstopSubcommands};
-use crate::config::Config;
+use cli_command_schema::{EstopLevelArg, EstopSubcommands};
+use vw_agent::config::Config;
 use vw_agent::security;
 
 /// 处理紧急停止命令的主入口函数
@@ -76,7 +76,7 @@ use vw_agent::security;
 /// // 恢复执行
 /// handle_estop_command(&config, Some(EstopSubcommands::Resume{...}), None, vec![], vec![])?;
 /// ```
-pub(crate) fn handle_estop_command(
+pub fn handle_estop_command(
     config: &Config,
     estop_command: Option<EstopSubcommands>,
     level: Option<EstopLevelArg>,

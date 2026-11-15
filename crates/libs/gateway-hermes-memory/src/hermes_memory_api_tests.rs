@@ -1,7 +1,7 @@
 use super::{GatewayHermesMemoryClient, HermesMemoryError, HermesMemoryScope, test_support};
 use serde_json::json;
 use {
-    vw_api_types::hermes_memory::HermesMemoryKind as Kind,
+    vw_api_hermes_memory::HermesMemoryKind as Kind,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TenantScope,
 };

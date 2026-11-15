@@ -3,7 +3,7 @@ use axum::{Extension, Json, Router, extract::{Path, Query, DefaultBodyLimit}, ht
 use serde::Deserialize;
 use std::path::PathBuf;
 use {
-    vw_api_types::hermes_memory::*,
+    vw_api_hermes_memory::*,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

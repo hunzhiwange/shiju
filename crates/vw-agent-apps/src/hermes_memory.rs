@@ -2,7 +2,7 @@
 //! Authorization and application-root resolution must precede this boundary.
 use crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
 use std::path::Path;
-use vw_api_types::hermes_memory::{HermesMemoryKind, HermesMemoryResponse};
+use vw_api_hermes_memory::{HermesMemoryKind, HermesMemoryResponse};
 
 /// Restricts the shared descriptor-relative IO boundary to Hermes memories.
 #[derive(Debug)]

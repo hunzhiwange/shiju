@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+vw-api-hermes-memory = { path = "../libs/api-hermes-memory", version = "0.6.0" }
 vw-api-workspace-memory = { path = "../libs/api-workspace-memory", version = "0.6.0" }
 vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.6.0" }
 vw-api-voice = { path = "../libs/api-voice", version = "0.6.0" }

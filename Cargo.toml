@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/api-hermes-memory",
   "crates/libs/api-workspace-memory",
   "crates/libs/api-computer-control",
   "crates/libs/api-voice",

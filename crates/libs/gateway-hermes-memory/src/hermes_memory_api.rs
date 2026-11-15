@@ -2,7 +2,7 @@
 use super::GatewayHermesMemoryClient;
 use serde::{Serialize, de::DeserializeOwned};
 use {
-    vw_api_types::hermes_memory::*,
+    vw_api_hermes_memory::*,
     vw_api_transport::id::ProjectId,
 };
 

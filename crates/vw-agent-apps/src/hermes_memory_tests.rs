@@ -1,7 +1,7 @@
 use super::hermes_memory::HermesMemory;
 use crate::workspace_paths::PathError;
 use std::{fs, os::unix::fs::symlink};
-use vw_api_types::hermes_memory::HermesMemoryKind::{Memory, User};
+use vw_api_hermes_memory::HermesMemoryKind::{Memory, User};
 
 #[test]
 fn hermes_memory_roundtrips_kinds() {

@@ -1,5 +1,5 @@
 use super::{GatewayClient, HermesMemoryScope, HermesMemoryError};
-use vw_api_types::hermes_memory::*;
+use vw_api_hermes_memory::*;
 
 impl GatewayClient {
     pub async fn hermes_memory(&self, scope: &HermesMemoryScope, kind: HermesMemoryKind, token: &str) -> Result<HermesMemoryResponse, HermesMemoryError> {

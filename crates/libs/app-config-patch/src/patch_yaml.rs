@@ -56,10 +56,10 @@ pub fn patch_mcp_server(
 /// Hermes owns the two supported memory switches; no arbitrary section path.
 pub fn patch_hermes_memory_enabled(
     pre: Option<&[u8]>,
-    kind: vw_api_types::hermes_memory::HermesMemoryKind,
+    kind: vw_api_hermes_memory::HermesMemoryKind,
     enabled: bool,
 ) -> Result<Vec<u8>, PatchError> {
-    use vw_api_types::hermes_memory::HermesMemoryKind;
+    use vw_api_hermes_memory::HermesMemoryKind;
     let key = match kind {
         HermesMemoryKind::Memory => "memory_enabled",
         HermesMemoryKind::User => "user_profile_enabled",

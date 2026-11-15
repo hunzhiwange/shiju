@@ -1,5 +1,5 @@
 use super::hermes_memory_limits::{prepare_memory_enabled, read_memory_limits};
-use vw_api_types::hermes_memory::HermesMemoryKind;
+use vw_api_hermes_memory::HermesMemoryKind;
 
 #[test]
 fn hermes_toggle_preserves_yaml() {

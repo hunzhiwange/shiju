@@ -3,7 +3,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Task, widget::{button, column, row, text, text_editor}};
 use gateway_hermes_memory::{GatewayHermesMemoryClient, HermesMemoryScope};
-use vw_api_types::hermes_memory::*;
+use vw_api_hermes_memory::*;
 
 #[derive(Clone, Default)]
 pub(crate) struct Draft {

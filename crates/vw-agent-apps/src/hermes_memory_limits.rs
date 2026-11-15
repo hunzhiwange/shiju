@@ -10,8 +10,8 @@ use crate::providers::{
 };
 use serde_yaml::Value;
 use {
-    vw_api_types::hermes_memory::HermesMemoryKind,
-    vw_api_types::hermes_memory::HermesMemoryLimits,
+    vw_api_hermes_memory::HermesMemoryKind,
+    vw_api_hermes_memory::HermesMemoryLimits,
     vw_api_transport::id::TenantScope,
 };
 

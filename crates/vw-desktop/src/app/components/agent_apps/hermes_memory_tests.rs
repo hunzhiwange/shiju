@@ -1,5 +1,5 @@
 use super::hermes_memory::*;
-use vw_gateway_client::vw_api_types::hermes_memory::*;
+use vw_api_hermes_memory::*;
 fn response(content: &str) -> HermesMemoryResponse {
     HermesMemoryResponse { kind: HermesMemoryKind::Memory, content: content.into(), exists: true, path: Some("/executor/hermes/memories/MEMORY.md".into()) }
 }

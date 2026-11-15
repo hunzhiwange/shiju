@@ -1,4 +1,4 @@
-use crate::hermes_memory::*;
+use crate::*;
 use serde_json::json;
 
 #[test]

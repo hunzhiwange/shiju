@@ -12,7 +12,7 @@ use cli_api_core::output;
 
 /// 配置接口命令。
 #[derive(Subcommand, Debug)]
-pub(super) enum ConfigCommands {
+pub enum ConfigCommands {
     /// 读取当前目录作用域的生效配置。
     Get,
     /// 用 JSON 补丁更新当前目录作用域的配置。
@@ -41,7 +41,7 @@ pub(super) enum ConfigCommands {
 
 /// 全局配置操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum GlobalConfigCommands {
+pub enum GlobalConfigCommands {
     /// 读取当前租户的全局配置。
     Get,
     /// 用 JSON 补丁更新当前租户的全局配置。
@@ -54,7 +54,7 @@ pub(super) enum GlobalConfigCommands {
 
 /// Dashboard 配置操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum DashboardConfigCommands {
+pub enum DashboardConfigCommands {
     /// 读取 dashboard 完整配置。
     Get,
     /// 用用户提供的 JSON 替换 dashboard 完整配置。
@@ -66,7 +66,7 @@ pub(super) enum DashboardConfigCommands {
 }
 
 impl ConfigCommands {
-    pub(super) fn dangerous_operation(
+    pub fn dangerous_operation(
         &self,
         directory: Option<&str>,
         platform: &str,
@@ -93,7 +93,7 @@ impl ConfigCommands {
     }
 }
 
-pub(super) async fn run<R: Read, W: Write>(
+pub async fn run<R: Read, W: Write>(
     command: ConfigCommands,
     context: &ApiContext,
     stdin: &mut R,

@@ -13,7 +13,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum ShijuAppsCommands {
+pub enum ShijuAppsCommands {
     Login,
     Poll {
         #[arg(long, value_parser = required)]
@@ -56,7 +56,7 @@ pub(super) enum ShijuAppsCommands {
 }
 
 impl ShijuAppsCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::BindingPut { installation_id, .. } => {
                 Some(format!("update SHIJU app '{installation_id}' API key binding"))
@@ -75,7 +75,7 @@ impl ShijuAppsCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: ShijuAppsCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

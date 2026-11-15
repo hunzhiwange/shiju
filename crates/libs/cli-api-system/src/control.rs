@@ -12,7 +12,7 @@ use cli_api_core::output;
 
 /// Provider 查询与 OAuth 操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum ProviderCommands {
+pub enum ProviderCommands {
     /// 列出 Gateway 可见的 provider。
     List,
     /// 列出 provider 支持的认证方式。
@@ -27,7 +27,7 @@ pub(super) enum ProviderCommands {
 
 /// Provider OAuth 操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum ProviderOauthCommands {
+pub enum ProviderOauthCommands {
     /// 启动 OAuth 授权。
     Authorize {
         /// Provider 稳定标识。
@@ -53,7 +53,7 @@ pub(super) enum ProviderOauthCommands {
 
 /// 认证、hooks 与实例控制操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum ControlCommands {
+pub enum ControlCommands {
     /// 管理 provider 认证材料。
     Auth {
         /// 认证材料操作。
@@ -82,7 +82,7 @@ pub(super) enum ControlCommands {
 
 /// Provider 认证材料操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum AuthCommands {
+pub enum AuthCommands {
     /// 从安全输入来源保存认证材料。
     Set {
         /// Provider 稳定标识。
@@ -102,7 +102,7 @@ pub(super) enum AuthCommands {
 
 /// Plugin hook 操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum HookCommands {
+pub enum HookCommands {
     /// 列出已发现的 hooks。
     List,
     /// 信任当前 hook hash。
@@ -129,20 +129,20 @@ pub(super) enum HookCommands {
 
 /// 全局实例操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum GlobalControlCommands {
+pub enum GlobalControlCommands {
     /// 释放当前租户的全部实例。
     Dispose,
 }
 
 /// 目录实例操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum InstanceControlCommands {
+pub enum InstanceControlCommands {
     /// 释放当前目录对应的实例。
     Dispose,
 }
 
 impl ControlCommands {
-    pub(super) fn dangerous_operation(
+    pub fn dangerous_operation(
         &self,
         directory: Option<&str>,
         platform: &str,
@@ -172,7 +172,7 @@ impl ControlCommands {
     }
 }
 
-pub(super) async fn run_provider<R: Read, W: Write>(
+pub async fn run_provider<R: Read, W: Write>(
     command: ProviderCommands,
     context: &ApiContext,
     stdin: &mut R,
@@ -212,7 +212,7 @@ pub(super) async fn run_provider<R: Read, W: Write>(
     }
 }
 
-pub(super) async fn run<R: Read, W: Write>(
+pub async fn run<R: Read, W: Write>(
     command: ControlCommands,
     context: &ApiContext,
     stdin: &mut R,

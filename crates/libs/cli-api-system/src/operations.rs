@@ -13,7 +13,7 @@ use cli_api_core::output;
 
 /// 远程运维接口族。
 #[derive(Subcommand, Debug)]
-pub(super) enum OperationsCommands {
+pub enum OperationsCommands {
     /// 管理远程 Cron 任务与运行记录。
     Cron {
         /// Cron 操作。
@@ -42,7 +42,7 @@ pub(super) enum OperationsCommands {
 
 /// 远程 Cron 操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum CronOperationsCommands {
+pub enum CronOperationsCommands {
     /// 列出 Cron 任务。
     List,
     /// 列出指定任务的运行记录。
@@ -76,7 +76,7 @@ pub(super) enum CronOperationsCommands {
 
 /// 远程集成操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum IntegrationOperationsCommands {
+pub enum IntegrationOperationsCommands {
     /// 列出集成及其状态。
     List,
     /// 读取集成设置与配置修订版本。
@@ -94,7 +94,7 @@ pub(super) enum IntegrationOperationsCommands {
 
 /// 远程记忆操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum MemoryOperationsCommands {
+pub enum MemoryOperationsCommands {
     /// 语义查询、按类别列出或列出全部记忆。
     Query {
         /// 语义查询文本。
@@ -120,7 +120,7 @@ pub(super) enum MemoryOperationsCommands {
 
 /// Gateway 诊断的两个文档化 HTTP 方法。
 #[derive(Subcommand, Debug)]
-pub(super) enum DoctorOperationsCommands {
+pub enum DoctorOperationsCommands {
     /// 通过 GET 执行诊断。
     Get,
     /// 通过 POST 执行诊断。
@@ -128,7 +128,7 @@ pub(super) enum DoctorOperationsCommands {
 }
 
 impl OperationsCommands {
-    pub(super) fn dangerous_operation(
+    pub fn dangerous_operation(
         &self,
         _directory: Option<&str>,
         platform: &str,
@@ -155,7 +155,7 @@ impl OperationsCommands {
     }
 }
 
-pub(super) async fn run<R: Read, W: Write>(
+pub async fn run<R: Read, W: Write>(
     command: OperationsCommands,
     context: &ApiContext,
     stdin: &mut R,

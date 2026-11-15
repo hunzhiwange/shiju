@@ -10,7 +10,7 @@ use cli_api_core::output;
 
 /// Gateway 系统状态与发现操作。
 #[derive(Subcommand, Debug)]
-pub(super) enum SystemCommands {
+pub enum SystemCommands {
     /// 获取基础健康探针。
     Health,
     /// 获取 Prometheus 文本指标。
@@ -41,7 +41,7 @@ pub(super) enum SystemCommands {
     CliTools,
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: SystemCommands,
     context: &ApiContext,
     writer: &mut impl Write,

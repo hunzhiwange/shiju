@@ -33,14 +33,14 @@ mod cli_core;
 mod cli_public;
 mod client;
 mod config;
-use acp_host_io::filesystem;
+mod filesystem;
 mod managed_runtime;
 mod mcp_servers;
 pub use managed_runtime::{reviewed_agent_command, verify_reviewed_agent_executable};
 use acp_output::{output, output_json_formatter, read_output_suppression};
 use acp_metrics::{perf_metrics, perf_metrics_capture};
-use acp_host_io::permission_prompt;
-use acp_host_io::permissions;
+mod permission_prompt;
+mod permissions;
 use acp_storage::persisted_key_policy;
 mod queue_ipc;
 mod queue_ipc_health;
@@ -63,8 +63,8 @@ pub use session_mounts::*;
 use acp_storage::session_persistence;
 mod session_runtime;
 mod session_runtime_helpers;
-use acp_host_io::spawn_command_options;
-use acp_host_io::terminal;
+mod spawn_command_options;
+mod terminal;
 mod version;
 
 #[cfg(test)]
@@ -73,6 +73,9 @@ mod access_policy_tests;
 #[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
 #[path = "client/claude_fallback_acceptance.rs"]
 mod claude_fallback_acceptance;
+#[cfg(test)]
+#[path = "filesystem_tests.rs"]
+mod filesystem_tests;
 #[cfg(test)]
 #[path = "queue_owner_env_tests.rs"]
 mod queue_owner_env_tests;

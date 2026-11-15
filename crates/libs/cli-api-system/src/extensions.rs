@@ -10,7 +10,7 @@ use cli_api_core::context::ApiContext;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum ExtensionCommands {
+pub enum ExtensionCommands {
     Skills,
     SkillDetail {
         #[arg(value_parser = required)]
@@ -49,7 +49,7 @@ pub(super) enum ExtensionCommands {
 }
 
 impl ExtensionCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::SkillCreate => Some("create local skill scaffold".to_string()),
             Self::SkillInstall { skill_id } => Some(format!("install built-in skill '{skill_id}'")),
@@ -68,7 +68,7 @@ impl ExtensionCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: ExtensionCommands,
     context: &ApiContext,
     writer: &mut impl Write,

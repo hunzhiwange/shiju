@@ -13,7 +13,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum DesktopCommands {
+pub enum DesktopCommands {
     PreferencesGet,
     PreferencesPatch {
         #[arg(long, value_parser = required)]
@@ -72,7 +72,7 @@ pub(super) enum DesktopCommands {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub(super) enum ServiceCommand {
+pub enum ServiceCommand {
     Status,
     Start,
     Stop,
@@ -90,7 +90,7 @@ impl From<ServiceCommand> for DesktopServiceCommand {
 }
 
 impl DesktopCommands {
-    pub(super) fn dangerous_operation(&self, host: &str, port: u16) -> Option<String> {
+    pub fn dangerous_operation(&self, host: &str, port: u16) -> Option<String> {
         let endpoint = format!("http://{host}:{port}");
         let action = match self {
             Self::PreferencesPatch { .. } => "patch desktop preferences".to_string(),
@@ -116,7 +116,7 @@ impl DesktopCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: DesktopCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

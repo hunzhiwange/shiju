@@ -16,7 +16,7 @@ use cli_api_core::input::read_json_input;
 use cli_api_core::output;
 
 #[derive(Subcommand, Debug)]
-pub(super) enum SkillMarketCommands {
+pub enum SkillMarketCommands {
     ShijuSearch {
         #[arg(long, value_parser = required)]
         input: String,
@@ -99,7 +99,7 @@ pub(super) enum SkillMarketCommands {
 }
 
 impl SkillMarketCommands {
-    pub(super) fn dangerous_operation(&self) -> Option<String> {
+    pub fn dangerous_operation(&self) -> Option<String> {
         match self {
             Self::ShijuInstall { skill_id, .. } => {
                 Some(format!("install SHIJU skill '{skill_id}'"))
@@ -112,7 +112,7 @@ impl SkillMarketCommands {
     }
 }
 
-pub(super) async fn run(
+pub async fn run(
     command: SkillMarketCommands,
     context: &ApiContext,
     stdin: &mut impl Read,

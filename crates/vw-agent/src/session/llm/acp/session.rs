@@ -23,6 +23,9 @@ use acp_types::{
     default_session_event_log,
     session_event_log,
 };
+use acp_lifecycle::apply_lifecycle_snapshot_to_record;
+use acp_storage::{create_session_conversation, write_session_record};
+use acp_access_policy::session_mode_preference::set_desired_mode_id;
 
 use crate::app::agent::config;
 

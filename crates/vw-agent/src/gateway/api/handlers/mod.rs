@@ -347,10 +347,11 @@ pub(crate) mod aggregation_read_snapshot;
 
 /// Authenticated recording transcription.
 pub(crate) mod voice;
+#[cfg(test)]
 pub(crate) mod voice_handoff;
 #[cfg(test)]
+#[path = "../../../../../libs/gateway-voice/src/host_tests/voice_handoff_session_tests.rs"]
 mod voice_handoff_session_tests;
-pub(crate) mod voice_realtime;
 
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_codex_settings_tests;
@@ -390,6 +391,7 @@ mod agent_apps_diagnostics_tests;
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs"]
 mod mcp_management_import_tests;
 
+#[cfg(test)]
 mod voice_settings;
 
 #[cfg(all(test, target_os = "macos"))]

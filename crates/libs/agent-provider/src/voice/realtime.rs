@@ -52,7 +52,7 @@ enum Setup {
     Preview,
 }
 impl RealtimeSession {
-    pub(crate) async fn connect(
+    pub async fn connect(
         base: &str,
         key: &str,
         builder: reqwest::ClientBuilder,

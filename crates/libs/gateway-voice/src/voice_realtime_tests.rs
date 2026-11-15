@@ -72,7 +72,7 @@ async fn fixture() -> Fixture {
             let upstream = upstream.clone();
             async move {
                 ws.on_upgrade(move |socket| async move {
-                    bridge(
+                    bridge::<NoHost>(
                         socket,
                         upstream.lock().await.take().unwrap(),
                         id("local"),
@@ -409,4 +409,14 @@ async fn voice_task_17_gateway_cross_session_screen_is_not_forwarded() {
     let commands =
         tokio::time::timeout(Duration::from_secs(3), &mut fixture.commands).await.unwrap().unwrap();
     assert!(commands.is_empty());
+}
+
+// Bridge fixtures have no chat binding; any attempt to enter host IO is a failure.
+struct NoHost;
+impl crate::host::VoiceHost for NoHost {
+    async fn with_tenant_scope<T: Send>(_: TenantScope, _: impl std::future::Future<Output = T> + Send) -> T { panic!("unbound bridge entered tenant scope") }
+    async fn load_session(_: TenantScope, _: String) -> anyhow::Result<Option<session_info::Info>> { panic!("unbound bridge read a session") }
+    async fn load_snapshot(_: TenantScope, _: String) -> anyhow::Result<Option<(session_info::Info, Option<session_port::ui_types::ChatSession>)>> { panic!("unbound bridge read a snapshot") }
+    async fn approval_manager(_: TenantScope, _: String) -> Result<Arc<agent_approval::ApprovalManager>, gateway_types::ApiError> { panic!("unbound bridge requested approval") }
+    async fn collect_chat(_: TenantScope, _: String, _: vw_api_chat::chat::GatewayChatStreamRequest, _: impl FnMut(&serde_json::Value) + Send) -> Result<session_port::chat_stream::GatewayChatStreamCollected, gateway_types::ApiError> { panic!("unbound bridge started chat") }
 }

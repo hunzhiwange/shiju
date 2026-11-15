@@ -24,3 +24,18 @@ pub use voice_stream::VoiceStream;
 pub mod voice_requests;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod voice_upload;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod host;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice_realtime;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice_settings;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice_handoff;

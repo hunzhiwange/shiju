@@ -1,5 +1,7 @@
 //! Full router/authentication tests; the bridge-only harness intentionally excludes these.
-use super::*;
+use super::router;
+use axum::http::StatusCode;
+use vw_api_transport::TenantScope;
 use serde_json::json;
 use tokio_tungstenite::tungstenite::{Error, client::IntoClientRequest};
 const TOKEN: &str = "voice10-synthetic-gateway-key";

@@ -1,7 +1,8 @@
 //! One-use, authenticated desktop voice channels. No credentials in URLs or media logs.
+use crate::host::VoiceHost;
 use super::voice::{failure, fallback_id, realtime_identity};
 use super::voice_handoff::{Binding, Handoffs, Update};
-use crate::provider::voice::realtime::RealtimeSession;
+use agent_provider::voice::realtime::RealtimeSession;
 use axum::{
     Extension, Json, Router,
     extract::{
@@ -86,10 +87,10 @@ impl Channels {
         pending.remove(id.as_ref()).ok_or(VoiceErrorCode::Forbidden)
     }
 }
-pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
+pub fn router<S: Clone + Send + Sync + 'static, H: VoiceHost>() -> Router<S> {
     Router::new()
-        .route("/voice/sessions", post(start))
-        .route("/voice/sessions/{id}/stream", get(upgrade))
+        .route("/voice/sessions", post(start::<H>))
+        .route("/voice/sessions/{id}/stream", get(upgrade::<H>))
         .layer(axum::extract::DefaultBodyLimit::max(MAX_METADATA_BYTES))
         .layer(Extension(Arc::new(Channels::default())))
 }
@@ -120,7 +121,7 @@ fn configured_voice(config: &VoiceConfig) -> VoiceName {
         Config::Cedar => VoiceName::Cedar,
     }
 }
-async fn start(
+async fn start<H: VoiceHost>(
     Extension(tenant): Extension<TenantScope>,
     Extension(channels): Extension<Arc<Channels>>,
     headers: HeaderMap,
@@ -141,12 +142,8 @@ async fn start(
         }
         let scope = tenant.clone();
         let chat = start.chat_session_id.as_ref().to_owned();
-        let session = crate::global_database::run_isolated(move || {
-            crate::session::ui_store::load_agent_session_any_for_tenant_fallible(&scope, &chat)
-        })
-        .await
-        .map_err(|_| VoiceErrorCode::ProviderUnavailable)?
-        .map_err(|_| VoiceErrorCode::ProviderUnavailable)?;
+        let session = H::load_session(scope, chat).await
+            .map_err(|_| VoiceErrorCode::ProviderUnavailable)?;
         session.ok_or(VoiceErrorCode::Forbidden)?;
         let mut pending = channels.pending.lock().unwrap_or_else(|e| e.into_inner());
         pending.retain(|_, r| r.created.elapsed() < Duration::from_secs(30));
@@ -188,7 +185,7 @@ async fn start(
         Err(code) => failure(code, id),
     }
 }
-async fn upgrade(
+async fn upgrade<H: VoiceHost>(
     Extension(tenant): Extension<TenantScope>,
     Extension(channels): Extension<Arc<Channels>>,
     Path(id): Path<String>,
@@ -210,12 +207,8 @@ async fn upgrade(
         }
         let scope = tenant.clone();
         let chat = reservation.start.chat_session_id.as_ref().to_owned();
-        let session = crate::global_database::run_isolated(move || {
-            crate::session::ui_store::load_agent_session_any_for_tenant_fallible(&scope, &chat)
-        })
-        .await
-        .map_err(|_| VoiceErrorCode::ProviderUnavailable)?
-        .map_err(|_| VoiceErrorCode::ProviderUnavailable)?;
+        let session = H::load_session(scope, chat).await
+            .map_err(|_| VoiceErrorCode::ProviderUnavailable)?;
         let session = session.ok_or(VoiceErrorCode::Forbidden)?;
         Ok::<_, VoiceErrorCode>((id, reservation, session.directory))
     }
@@ -228,7 +221,7 @@ async fn upgrade(
             .max_message_size(MAX_FRAME_BYTES)
             .max_frame_size(MAX_FRAME_BYTES)
             .on_upgrade(move |socket| {
-                crate::session::ui_store::with_tenant_scope(tenant, async move {
+                H::with_tenant_scope(tenant, async move {
                     let _permit = reservation._permit;
                     // Establish upstream concurrently with reading peer closure; an abandoned
                     // upgrade must not leave a credential resolution/connect future running.
@@ -254,7 +247,7 @@ async fn upgrade(
                                 chat_session: reservation.start.chat_session_id,
                                 directory,
                             };
-                            bridge(socket, upstream, id, voice, Some(binding)).await;
+                            bridge::<H>(socket, upstream, id, voice, Some(binding)).await;
                         }
                         Err(code) => {
                             let mut error = VoiceError::new(code, reservation.start.request_id);
@@ -349,14 +342,14 @@ async fn read_peer(
     }
     closed.cancel();
 }
-async fn bridge(
+pub(crate) async fn bridge<H: VoiceHost>(
     socket: WebSocket,
     mut upstream: RealtimeSession,
     id: VoiceId,
     voice: VoiceName,
     binding: Option<Binding>,
 ) {
-    let mut handoffs = binding.map(Handoffs::new);
+    let mut handoffs = binding.map(Handoffs::<H>::new);
     let mut generation = upstream.generation();
     let mut result_to_service: Option<Update> = None;
     let (mut writer, reader) = socket.split();
@@ -468,7 +461,7 @@ async fn bridge(
         if generation != upstream.generation() {
             generation = upstream.generation();
             result_to_service = None;
-            if let Some(cancelled) = handoffs.as_mut().and_then(Handoffs::generation_changed) {
+            if let Some(cancelled) = handoffs.as_mut().and_then(Handoffs::<H>::generation_changed) {
                 frames.push(VoiceFrame {
                     voice_session_id: upstream.voice_session_id().clone(),
                     generation,
@@ -526,6 +519,7 @@ async fn bridge(
     read.abort();
     while tasks.join_next().await.is_some() {}
 }
+
 #[cfg(test)]
 #[path = "voice_realtime_tests.rs"]
 mod tests;

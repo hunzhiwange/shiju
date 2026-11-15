@@ -17,12 +17,26 @@ futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.13", default-features = false, features = ["multipart", "json", "stream", "rustls"] }
-tokio = { version = "1", default-features = false, features = ["rt", "time", "sync"] }
+tokio = { version = "1", default-features = false, features = ["rt", "time", "sync", "macros"] }
 tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
 
-axum = { version = "0.8.8", features = ["multipart"] }
+axum = { version = "0.8.8", features = ["multipart", "ws"] }
 tokio-util = "0.7.18"
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+config-voice = { path = "../config-voice", version = "0.6.0" }
+gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+session-info = { path = "../session-info", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+vw-api-chat = { path = "../api-chat", version = "0.6.0" }
+anyhow = "1"
+base64 = "0.22"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }

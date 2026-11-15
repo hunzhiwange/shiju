@@ -129,9 +129,9 @@ async fn drag_is_continuous_commits_once_and_survives_view_rebuild() {
     assert_eq!(messages.len(), 1);
     assert!(matches!(
         messages[0],
-        Message::Chat(crate::app::message::ChatMessage::ReasoningEffortSelected(Some(
+        Message::Selected(Some(
             ReasoningEffortDto::High
-        )))
+        ))
     ));
     slider.selected = 2;
     slider.diff(&mut tree);

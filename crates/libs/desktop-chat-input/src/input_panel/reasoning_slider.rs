@@ -9,7 +9,7 @@ use iced::{
 use vw_api_chat_identity::ReasoningEffortDto;
 
 use super::{HANDLE_RADIUS, SLIDER_HEIGHT, SLIDER_WIDTH, reasoning_effort_message};
-use crate::app::Message;
+use super::super::reasoning_message::Message;
 
 const SNAP_DURATION: Duration = Duration::from_millis(180);
 

@@ -33,3 +33,12 @@ pub mod input_editor;
 mod input_editor_tests;
 #[cfg(test)]
 mod icons_tests;
+
+pub mod quick_messages;
+pub mod quick_message;
+pub mod quick_styles;
+pub mod reasoning_selector;
+pub mod reasoning_message;
+
+#[cfg(test)]
+mod reasoning_selector_tests;

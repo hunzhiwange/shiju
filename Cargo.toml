@@ -1,9 +1,8 @@
 [workspace]
 members = [
+  "crates/libs/api-transport",
   "crates/libs/acp-metrics",
   "crates/libs/provider-protocol-routes",
-  "crates/libs/api-transport",
-  "crates/libs/api-transport",
   "crates/libs/config-runtime-paths",
   "crates/libs/agent-async",
   "crates/libs/agent-bus",

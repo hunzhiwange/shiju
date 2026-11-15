@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-provider-environment = { path = "../libs/app-provider-environment" }
 app-provider-native = { path = "../libs/app-provider-native" }
 app-provider-login = { path = "../libs/app-provider-login" }
 app-auth = { path = "../libs/app-auth" }

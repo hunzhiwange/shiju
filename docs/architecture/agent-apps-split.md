@@ -838,13 +838,13 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `providers/editor_merge_tests.rs` | 97 | 11 |
 | `providers/endpoints.rs` | 85 | 4 |
 | `providers/endpoints_tests.rs` | 114 | 4 |
-| `providers/env_backup.rs` | 195 | 25 |
-| `providers/env_clean.rs` | 285 | 25 |
-| `providers/env_clean_tests.rs` | 283 | 25 |
-| `providers/env_diagnose.rs` | 238 | 25 |
-| `providers/env_diagnose_tests.rs` | 145 | 25 |
-| `providers/env_restore.rs` | 135 | 25 |
-| `providers/env_restore_tests.rs` | 271 | 25 |
+| `crates/libs/app-provider-environment/src/env_backup.rs` | 195 | 25 |
+| `crates/libs/app-provider-environment/src/env_clean.rs` | 285 | 25 |
+| `crates/libs/app-provider-environment/src/env_clean_tests.rs` | 283 | 25 |
+| `crates/libs/app-provider-environment/src/env_diagnose.rs` | 238 | 25 |
+| `crates/libs/app-provider-environment/src/env_diagnose_tests.rs` | 145 | 25 |
+| `crates/libs/app-provider-environment/src/env_restore.rs` | 135 | 25 |
+| `crates/libs/app-provider-environment/src/env_restore_tests.rs` | 271 | 25 |
 | `providers/failover.rs` | 168 | 11 |
 | `providers/gemini.rs` | 264 | 10 |
 | `providers/gemini_form.rs` | 51 | 10 |
@@ -2424,3 +2424,22 @@ profile_fields，并依赖 desktop_mapping 和 mode_apply::ClientEndpoint；整�
 新包不回依赖 vw-agent-apps；原直接依赖仍有其它调用者，保留。git diff --check
 通过。未运行 Cargo、rustc、单元及实机测试，统一验收待授权：新库与门面编译、
 迁移测试及门面集成测试、macOS 原生恢复与拒绝行为、其它平台 cfg 和锁文件一致性。
+
+
+## 任务 25：供应商环境治理迁移结果
+
+七个 env_backup、env_clean、env_diagnose、env_restore 实现及三个独立测试文件
+已迁入 app-provider-environment/src，原 providers 仅重导出三个公开模块。
+公开签名 diagnose、clean、restore 不变；网关 app_providers/env_* 调用继续沿用门面。
+无根编排待移交，无资源或 include 路径。lib.rs 的 providers 声明保持原样。
+新包依赖身份和环境 DTO；macOS 专用依赖 app-config-write、libc、serde、
+serde_json（arbitrary_precision）、sha2；tempfile 仅测试依赖。
+写入守卫直接指向 app-config-write，与原 live 重导出的实现相同；未扩大可见性。
+原包上述依赖仍有其他调用者，继续保留。macOS cfg、非 macOS 明确错误、
+scope/receipt 校验、HOME 锁、原始备份与恢复摘要证据均未变。
+
+静态证据：迁移差异仅内部 use 路径；测试逐字搬迁、注册保持 macOS 条件；
+新包无门面回依赖，路径依赖均存在。Python 3.9 无 tomllib，采用标准库
+源码/清单路径审阅并人工核对 TOML 区段，不安装工具。
+未运行 Cargo、单元及实机测试，统一验收待授权：新库与网关调用者编译、
+三个迁移测试族、macOS 清理恢复授权及 Windows/Linux 不支持分支。

@@ -38,8 +38,8 @@ pub fn clean(
 #[cfg(target_os = "macos")]
 pub(super) mod macos {
     use super::*;
-    use crate::providers::env_backup::{self, Backup, BackupFile, base, identity, random_id, safe};
-    use crate::providers::env_diagnose::macos::{open_root, read_source, scan};
+    use crate::env_backup::{self, Backup, BackupFile, base, identity, random_id, safe};
+    use crate::env_diagnose::macos::{open_root, read_source, scan};
     use std::{
         collections::BTreeMap,
         os::unix::fs::MetadataExt,
@@ -143,7 +143,7 @@ use vw_api_app_provider_environment::env_diagnose::*;
         selections: &[EnvCleanSelection],
         after_backup: impl FnOnce(&str) -> Result<(), &'static str>,
     ) -> Result<EnvCleanResult, &'static str> {
-        use crate::providers::live::write_guard::{FilePrivacy, lock_directory};
+        use app_config_write::write_guard::{FilePrivacy, lock_directory};
         use std::{collections::BTreeSet, ffi::OsStr, os::fd::AsRawFd};
         if !matches!(app, AppId::Claude | AppId::Codex | AppId::Gemini | AppId::GrokBuild) {
             return Err("unsupported environment application");

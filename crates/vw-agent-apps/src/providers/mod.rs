@@ -127,20 +127,7 @@ pub mod mode_apply;
 #[cfg(all(test, target_os = "macos"))]
 mod mode_apply_tests;
 
-pub mod env_diagnose;
-#[cfg(all(test, target_os = "macos"))]
-mod env_diagnose_tests;
-
-pub mod env_clean;
-#[cfg(all(test, target_os = "macos"))]
-mod env_clean_tests;
-
-pub mod env_restore;
-#[cfg(all(test, target_os = "macos"))]
-mod env_restore_tests;
-
-#[cfg(target_os = "macos")]
-mod env_backup;
+pub use app_provider_environment::{env_clean, env_diagnose, env_restore};
 
 pub use app_auth::providers::operations;
 

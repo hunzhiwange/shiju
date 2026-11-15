@@ -22,10 +22,10 @@ pub fn restore(
 #[cfg(target_os = "macos")]
 pub(super) mod macos {
     use super::*;
-    use crate::providers::{
+    use app_config_write::write_guard::{FilePrivacy, lock_directory};
+    use crate::{
         env_backup::{self, base, fingerprint, identity, safe},
         env_diagnose::macos::{open_root, read_source},
-        live::write_guard::{FilePrivacy, lock_directory},
     };
     use std::{
         collections::BTreeSet,

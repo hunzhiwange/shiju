@@ -8,13 +8,8 @@ use vw_api_app_provider_profiles::gemini::GeminiFormView;
 use vw_api_app_provider_profiles::gemini::GeminiLiveResult;
 use vw_api_app_provider_profiles::gemini::GeminiTarget;
 
-#[derive(Clone)]
-pub enum Field {
-    ThirdParty(bool),
-    BaseUrl(String),
-    Model(String),
-    Apply(bool),
-}
+pub use desktop_provider_apps::message::gemini::Field;
+
 
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     use crate::app::state::app_providers::gemini::Kind;

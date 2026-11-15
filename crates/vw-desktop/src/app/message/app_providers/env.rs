@@ -9,38 +9,12 @@ use crate::app::{
 use iced::Task;
 use {gateway_http::AgentAppsReadError, vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}};
 use vw_api_app_provider_environment::env_clean::EnvCleanRequest;
-use vw_api_app_provider_environment::env_clean::EnvCleanResult;
 use vw_api_app_provider_environment::env_diagnose::EnvDiagnoseRequest;
-use vw_api_app_provider_environment::env_diagnose::EnvDiagnosis;
 use vw_api_app_provider_environment::env_restore::EnvRestoreRequest;
 use vw_api_app_provider_environment::env_restore::EnvRestoreResult;
 use vw_api_app_provider_environment::env_restore::EnvRestoreStatus;
 
-#[derive(Clone)]
-pub enum Event {
-    Open,
-    Close,
-    Refresh,
-    Toggle(usize, bool),
-    BackupId(String),
-    Review(Action),
-    Cancel,
-    Confirm,
-    Completed { scope: Scope, generation: u64, result: Result<Outcome, AgentAppsReadError> },
-}
-
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("ProviderEnvironmentEvent([redacted])")
-    }
-}
-
-#[derive(Clone)]
-pub enum Outcome {
-    Diagnosis(EnvDiagnosis),
-    Cleaned(EnvCleanResult),
-    Restored(EnvRestoreResult),
-}
+pub use desktop_provider_apps::message::env::{Event,Outcome};
 
 enum Work {
     Diagnose,

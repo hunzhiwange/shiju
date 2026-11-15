@@ -1,14 +1,8 @@
-use crate::app::state::AgentAppsContext;
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::catalog::ProviderCatalog;
 use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 use vw_api_app_provider_edit::presentation::AppProviderPresentationEntry;
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Scope {
-    pub context: AgentAppsContext,
-    pub host: String,
-    pub app: AppId,
-}
+pub use desktop_provider_apps::Scope;
 #[derive(Clone, Debug)]
 pub struct Snapshot {
     pub catalog: ProviderCatalog,

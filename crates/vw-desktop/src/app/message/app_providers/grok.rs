@@ -2,7 +2,6 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use iced::widget::text_editor;
 use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
@@ -11,11 +10,8 @@ use vw_api_app_provider_extended::grok::GrokFormWrite;
 use vw_api_app_provider_extended::grok::GrokLiveResult;
 use vw_api_app_provider_extended::grok::GrokTarget;
 
-#[derive(Clone)]
-pub enum Field {
-    Toml(text_editor::Action),
-    Apply(bool),
-}
+pub use desktop_provider_apps::message::grok::Field;
+
 
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     let Some(draft) = form.grok.as_mut() else { return };

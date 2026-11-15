@@ -2,7 +2,6 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use iced::widget::text_editor;
 use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_profiles::codex_catalog::CodexFormView;
@@ -11,15 +10,8 @@ use vw_api_app_provider_profiles::codex_catalog::CodexModelMapping;
 use vw_api_app_provider_profiles::codex_catalog::CodexTarget;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 
-#[derive(Clone)]
-pub enum Field {
-    Toml(text_editor::Action),
-    AddModel,
-    RemoveModel(usize),
-    ModelId(usize, String),
-    ModelName(usize, String),
-    Apply(bool),
-}
+pub use desktop_provider_apps::message::codex::Field;
+
 
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     let Some(draft) = form.codex.as_mut() else { return };

@@ -14,12 +14,8 @@ use vw_api_app_provider_edit::catalog::ProviderMembership;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_extended::opencode::*;
 
-#[derive(Clone)]
-pub enum Field {
-    Declaration(text_editor::Action),
-    V2(bool),
-    Apply(bool),
-}
+pub use desktop_provider_apps::message::opencode::Field;
+
 
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     let Some(draft) = form.opencode.as_mut() else { return };

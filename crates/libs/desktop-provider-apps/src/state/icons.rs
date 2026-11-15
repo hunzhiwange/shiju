@@ -1,0 +1,28 @@
+use vw_api_types::agent_apps::CustomIconEntry;
+use vw_api_app_provider_edit::icons::AppProviderIcon;
+use vw_api_app_provider_edit::icons::AppProviderIconChange;
+
+#[derive(Clone)]
+pub enum Draft {
+    Upload { name: String, data: String },
+    Rename { id: String, name: String },
+    Delete { id: String, name: String },
+}
+
+#[derive(Clone, Default)]
+pub struct Form {
+    pub id: String,
+    pub name: String,
+    pub rows: Option<Vec<CustomIconEntry>>,
+    pub current: Option<AppProviderIcon>,
+    pub selection: Option<AppProviderIconChange>,
+    pub draft: Option<Draft>,
+    pub busy: bool,
+    pub notice: Option<String>,
+}
+
+impl std::fmt::Debug for Form {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("IconForm([redacted])")
+    }
+}

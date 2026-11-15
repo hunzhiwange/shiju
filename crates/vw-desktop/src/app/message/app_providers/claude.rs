@@ -8,14 +8,8 @@ use vw_api_app_provider_base::claude::ClaudeFormView;
 use vw_api_app_provider_base::claude::ClaudeLiveResult;
 use vw_api_app_provider_base::claude::ClaudeTarget;
 
-#[derive(Clone)]
-pub enum Field {
-    ThirdParty(bool),
-    BaseUrl(String),
-    ApiKeyHeader(bool),
-    Model(String),
-    Apply(bool),
-}
+pub use desktop_provider_apps::message::claude::Field;
+
 
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     use crate::app::state::app_providers::claude::Kind;

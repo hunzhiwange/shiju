@@ -6,11 +6,9 @@ use gateway_app_provider::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_profiles::agy::*;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-#[derive(Clone)]
-pub enum Field {
-    Model(String),
-    BaseUrl(String),
-}
+pub use desktop_provider_apps::message::agy::Field;
+
+
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     let Some(draft) = form.agy.as_mut() else { return };
     match field {

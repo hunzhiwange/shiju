@@ -10,18 +10,13 @@ use crate::app::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
-use std::io::Read;
 use vw_gateway_client::GatewayClient;
 use vw_api_types::agent_apps::AddCustomIconRequest;
 use vw_api_types::agent_apps::AppId;
-use vw_api_types::agent_apps::CustomIconEntry;
 use vw_api_types::agent_apps::RenameCustomIconRequest;
-use vw_api_app_provider_edit::icons::AppProviderIcon;
 use vw_api_app_provider_edit::icons::AppProviderIconChange as Change;
 
-pub(crate) const PNG_PREFIX: &str = "data:image/png;base64,";
-pub(crate) const MAX_ICON_BYTES: usize = 64 * 1024;
-pub(crate) const SCROLL_ID: &str = "cc04-provider-icons-scroll";
+pub(crate) use desktop_provider_apps::message::icons::{PNG_PREFIX,MAX_ICON_BYTES,SCROLL_ID};
 
 pub(crate) enum Operation {
     Refresh,
@@ -31,18 +26,7 @@ pub(crate) enum Operation {
     Save(Change),
 }
 
-#[derive(Clone)]
-pub enum Outcome {
-    Refreshed {
-        rows: Result<Vec<CustomIconEntry>, String>,
-        current: Result<AppProviderIcon, String>,
-        deleted: Option<String>,
-    },
-    Uploaded(CustomIconEntry),
-    Renamed(CustomIconEntry),
-    Saved(AppProviderIcon),
-    FilePicked(Option<(String, String)>),
-}
+pub use desktop_provider_apps::message::icons::Outcome;
 
 pub(crate) async fn execute(
     client: GatewayClient,
@@ -150,27 +134,7 @@ pub(crate) fn finish(form: &mut Form, result: Result<Outcome, String>) {
     }
 }
 
-#[derive(Clone)]
-pub enum Event {
-    Open(String),
-    Close,
-    Refresh,
-    Pick,
-    Rename(String),
-    Delete(String),
-    DraftName(String),
-    CancelDraft,
-    CommitDraft,
-    Select(String),
-    Clear,
-    Save,
-    Completed { scope: Scope, generation: u64, result: Result<Outcome, String> },
-}
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("ProviderIconEvent([redacted])")
-    }
-}
+pub use desktop_provider_apps::message::icons::Event;
 
 pub(crate) fn message(event: Event) -> Message {
     list::message(ListMessage::Icons(event))

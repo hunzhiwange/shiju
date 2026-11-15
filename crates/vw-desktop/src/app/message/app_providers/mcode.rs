@@ -14,11 +14,8 @@ use vw_api_app_provider_edit::catalog::ProviderMembership;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_terminal::mcode::*;
 
-#[derive(Clone)]
-pub enum Field {
-    Declaration(text_editor::Action),
-    Apply(bool),
-}
+pub use desktop_provider_apps::message::mcode::Field;
+
 
 pub(crate) fn change(form: &mut EditForm, field: Field) {
     let Some(draft) = form.mcode.as_mut() else { return };

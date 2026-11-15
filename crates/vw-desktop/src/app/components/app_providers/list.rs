@@ -25,6 +25,10 @@ pub(crate) struct Help<'a> {
 }
 
 impl<'a> Help<'a> {
+    pub(super) fn provider_help(self) -> desktop_provider_apps::components::help::Help<'a> {
+        desktop_provider_apps::components::help::Help { i18n: self.i18n, theme: self.theme, render: super::edit::render_help }
+    }
+
     pub(crate) fn new(i18n: I18n, theme: &'a Theme) -> Self {
         Self {
             i18n,

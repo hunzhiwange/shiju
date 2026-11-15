@@ -81,13 +81,7 @@ pub(crate) use workspace::*;
 mod plugin_install;
 pub use plugin_install::{PluginInstallForm, PluginInstallPhase};
 
-/// 应用管理请求所属的网关、租户与项目。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AgentAppsContext {
-    pub(crate) gateway: String,
-    pub(crate) tenant: vw_api_transport::TenantScope,
-    pub(crate) project: Option<String>,
-}
+pub use desktop_provider_apps::AgentAppsContext;
 
 mod agent_apps;
 #[cfg(not(target_arch = "wasm32"))]

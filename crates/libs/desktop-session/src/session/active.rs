@@ -1,6 +1,7 @@
 //! 活动会话的步骤与消息派生数据。
 use session_ui_types::{ChatMessage, ChatRole, ChatSessionStep};
 use std::collections::HashMap;
+use serde_json::Value;
 
 #[derive(Debug, Clone, Default)]
 #[allow(dead_code)]
@@ -263,4 +264,50 @@ pub fn insert_missing_raw(
         }
     }
     changed
+}
+
+/// 估算会话投影中持有的文本与 JSON 数据容量。
+pub fn estimated_bytes(
+    steps: &[ChatSessionStep],
+    calls: &[Value],
+    step_llm_raw: &HashMap<crate::message::chat::trajectory::SessionStepRawKey, Value>,
+    step_index_map: &HashMap<u32, StepUiMeta>,
+    message_meta_texts: &[Option<desktop_i18n::chat::MessageMeta>],
+    user_question_markers: &[UserQuestionMarker],
+) -> usize {
+    let step_bytes = steps.iter().map(|step| {
+        step.model.as_deref().map_or(0, str::len)
+            + step.start_snapshot_path.as_deref().map_or(0, str::len)
+            + step.finish_snapshot_path.as_deref().map_or(0, str::len)
+            + step.finish_reason.as_deref().map_or(0, str::len)
+    });
+    let call_bytes = calls.iter().map(json_value_bytes);
+    let step_llm_raw_bytes = step_llm_raw.values().map(json_value_bytes);
+    let step_meta_bytes =
+        step_index_map.values().map(|meta| meta.model.as_deref().map_or(0, str::len));
+    let message_meta_bytes = message_meta_texts
+        .iter()
+        .filter_map(Option::as_ref)
+        .map(desktop_i18n::chat::MessageMeta::cached_bytes);
+    let user_question_preview_bytes =
+        user_question_markers.iter().map(|marker| marker.preview.len());
+
+    step_bytes
+        .chain(call_bytes)
+        .chain(step_llm_raw_bytes)
+        .chain(step_meta_bytes)
+        .chain(message_meta_bytes)
+        .chain(user_question_preview_bytes)
+        .sum()
+}
+
+fn json_value_bytes(value: &Value) -> usize {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) => 0,
+        Value::String(text) => text.len(),
+        Value::Array(values) => values.iter().map(json_value_bytes).sum(),
+        Value::Object(entries) => {
+            entries.iter().map(|(key, value)| key.len() + json_value_bytes(value)).sum()
+        }
+    }
 }

@@ -1,11 +1,13 @@
 //! 代理会话组合状态测试，覆盖默认值、交接消费及步骤时间元数据。
 //! 回放模式与发送策略解析断言归会话库 request_tests。
 
+type SessionRuntimeState = super::SessionRuntimeState<()>;
+use crate::session::active::StepUiMeta;
 use super::{
-    SessionRuntimeState, StepUiMeta,
     clear_pending_guide_handoff, mark_pending_guide_handoff, take_pending_guide_handoff,
 };
-use crate::app::models::ChatSessionStep;
+use session_ui_types::ChatSessionStep;
+use crate::message::chat::request::AcpHistoryReplayMode;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_REQUEST_ID: AtomicU64 = AtomicU64::new(u64::MAX / 2);
@@ -121,7 +123,7 @@ fn session_runtime_with_defaults_preserves_model_and_initializes_idle_state() {
     assert_eq!(runtime.task_mode_subtasks, ["", "", ""]);
     assert_eq!(runtime.task_mode_subtask_editors.len(), 3);
     assert!(runtime.task_mode_subtask_editors.iter().all(|editor| editor.text().is_empty()));
-    assert_eq!(runtime.task_mode_task_split_mode, crate::app::task::TaskSplitMode::FollowSystem);
+    assert_eq!(runtime.task_mode_task_split_mode, desktop_task_model::TaskSplitMode::FollowSystem);
     assert_eq!(runtime.acp_history_mode, AcpHistoryReplayMode::Discard);
     assert_eq!(runtime.acp_recent_count, 3);
     assert!(!runtime.full_access_enabled);

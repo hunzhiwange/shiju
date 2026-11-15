@@ -67,5 +67,6 @@ config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 session-artifact-store = { path = "../session-artifact-store", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+desktop-web-runtime = { path = "../desktop-web-runtime", version = "0.6.0" }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util"] }
 arboard = "3.4"

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-session = { path = "../libs/gateway-session", version = "0.6.0" }
 desktop-account = { path = "../libs/desktop-account", version = "0.6.0" }
 question-types = { path = "../libs/question-types", version = "0.6.0" }
 provider-resolution = { path = "../libs/provider-resolution", version = "0.6.0" }

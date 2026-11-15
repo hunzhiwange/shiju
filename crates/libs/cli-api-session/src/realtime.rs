@@ -156,7 +156,7 @@ pub async fn run(
         }
         RealtimeCommands::ChatStop { request_id } => {
             let cancelled =
-                context.client().chat_stream_stop(&request_id).await.map_err(anyhow::Error::msg)?;
+                gateway_session::GatewaySessionClient::new(context.client().transport().clone()).chat_stream_stop(&request_id).await.map_err(anyhow::Error::msg)?;
             output::write_json(writer, &json!({"cancelled":cancelled}), context.output_format())
         }
         RealtimeCommands::PlanStream { request_id, last_event_id, input } => {

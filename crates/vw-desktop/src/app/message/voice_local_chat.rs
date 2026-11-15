@@ -182,7 +182,7 @@ pub(super) fn tick(app: &mut App) -> Task<Message> {
         return Task::perform(
             async move {
                 tokio::time::timeout(Duration::from_secs(5), async {
-                    GatewayClient::new(endpoint)?.chat_stream_stop(&request).await
+                    gateway_session::GatewaySessionClient::new(GatewayClient::new(endpoint)?.transport().clone()).chat_stream_stop(&request).await
                 })
                 .await
                 .map_err(|_| "停止聊天请求超时，请查看原会话确认。".to_owned())?

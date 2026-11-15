@@ -38,7 +38,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     let load_messages = Task::perform(
                         async move {
                             let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
-                            let msgs = client
+                            let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
                                 .session_messages::<Vec<message::WithParts>>(&next_id, None)
                                 .await
                                 .map_err(|e| e.to_string())?;
@@ -73,7 +73,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::perform(
                     async move {
                         let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
-                        client.session_delete(&id, None).await
+                        gateway_session::GatewaySessionClient::new(client.transport().clone()).session_delete(&id, None).await
                     },
                     |_| Message::None,
                 ),
@@ -83,7 +83,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SessionCopy(id) => Task::perform(
             async move {
                 let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
-                client.session_fork::<info::Info>(&id, None, &None).await.map_err(|e| e.to_string())
+                gateway_session::GatewaySessionClient::new(client.transport().clone()).session_fork::<info::Info>(&id, None, &None).await.map_err(|e| e.to_string())
             },
             |res| match res {
                 Ok(info) => {

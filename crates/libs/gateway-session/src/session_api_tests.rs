@@ -3,7 +3,7 @@
 //! 用例特别区分缺失资源与服务端错误，并锁定旧版轮次标识的兼容规整行为。
 
 use serde_json::json;
-use vw_api_types::session::{
+use vw_api_session::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
     GatewaySessionMessageListQuery, GatewaySessionMessagePageQuery, GatewaySessionPatchBody,
     GatewaySessionPatchTime, GatewaySessionResetBody, GatewaySessionSummarizeBody,
@@ -14,7 +14,7 @@ use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_shared::session::ui_types::{SessionMessageDelta, SessionMessageRecord};
 
 use super::{session_diff_query, session_message_list_query, session_message_page_query};
-use crate::client::test_support;
+use crate::test_support;
 
 #[tokio::test]
 async fn archived_chat_delete_encodes_id_directory_and_reads_deleted_ids() {
@@ -197,7 +197,7 @@ async fn session_create_and_fork_send_null_for_absent_optional_bodies() {
 
 #[tokio::test]
 async fn session_fork_before_turn_serializes_boundary_and_target() {
-    use vw_api_types::session::GatewaySessionForkTarget;
+    use vw_api_session::session::GatewaySessionForkTarget;
 
     let server = test_support::server(vec![(200, json!({"id": "forked"}))]);
     let body = GatewaySessionForkBody {

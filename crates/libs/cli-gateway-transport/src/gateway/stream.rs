@@ -132,7 +132,7 @@ impl GatewayUiRuntime {
     /// Stops exactly one resumable chat stream by its stable request ID.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn chat_stream_stop_blocking(&self, request_id: &str) -> Result<bool, String> {
-        block_on_gateway(self.client.chat_stream_stop(request_id))
+        block_on_gateway(gateway_session::GatewaySessionClient::new(self.client.transport().clone()).chat_stream_stop(request_id))
     }
 
 }

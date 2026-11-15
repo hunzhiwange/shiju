@@ -574,15 +574,15 @@ fn map_timestamp(value: i64) -> u64 {
     value.max(0) as u64
 }
 
-fn map_gateway_project(project: ProjectDto) -> vw_shared::project::Info {
-    vw_shared::project::Info {
+fn map_gateway_project(project: ProjectDto) -> project_types::Info {
+    project_types::Info {
         id: project.id.0,
         worktree: project.directory.clone(),
-        vcs: project.git.is_repo.then_some(vw_shared::project::Vcs::Git),
+        vcs: project.git.is_repo.then_some(project_types::Vcs::Git),
         name: Some(project.name),
         icon: None,
         commands: None,
-        time: vw_shared::project::TimeInfo {
+        time: project_types::TimeInfo {
             created: map_timestamp(project.created_at_ms.0),
             updated: map_timestamp(project.updated_at_ms.0),
             initialized: None,
@@ -665,10 +665,10 @@ pub(crate) async fn list_gateway_project_sessions(
     project_path: &str,
 ) -> Result<Vec<vw_shared::session::info::Info>, String> {
     let Ok(project) = resolve_gateway_project_with_client(client, project_path, false).await else {
-        return client.session_list(Some(project_path)).await;
+        return gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list(Some(project_path)).await;
     };
     let mut sessions: Vec<vw_shared::session::info::Info> =
-        client.session_list_for_project(&project.id).await?;
+        gateway_session::GatewaySessionClient::new(client.transport().clone()).session_list_for_project(&project.id).await?;
     // Older gateways may ignore the project query parameter.
     sessions.retain(|info| info.project_id == project.id.0);
     Ok(sessions)
@@ -1171,7 +1171,7 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
     Task::perform(
         async move {
             let client = crate::app::gateway_client()?;
-            let mut loaded = client
+            let mut loaded = gateway_session::GatewaySessionClient::new(client.transport().clone())
                 .session_ui_get_without_raw(&session_id, Some(&project_path))
                 .await?
                 .filter(|loaded| !loaded.session.messages.is_empty())

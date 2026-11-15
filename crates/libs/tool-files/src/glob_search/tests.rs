@@ -1,7 +1,8 @@
-//! 验证文件通配搜索的匹配结果、排序、路径边界与调用频率限制。
-//! 临时目录场景同时覆盖符号链接逃逸和非法搜索根目录等安全失败分支。
+// 验证文件通配搜索的匹配结果、排序、路径边界与调用频率限制。
+// 临时目录场景同时覆盖符号链接逃逸和非法搜索根目录等安全失败分支。
 
-use super::super::*;
+use super::*;
+type GlobSearchTool = super::GlobSearchTool<crate::tools::context::AgentContextHost>;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use std::path::PathBuf;

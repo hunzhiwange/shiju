@@ -1,4 +1,5 @@
 use super::*;
+type ImageAssetReadTool = super::ImageAssetReadTool<crate::tools::context::AgentContextHost>;
 use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
 use crate::app::agent::tools::context::{
     MAX_PENDING_IMAGE_RELOADS, PendingImageReloadQueue, ToolUseContext, scope_tool_use_context,

@@ -1,17 +1,18 @@
-//! LsTool 单元测试模块
-//!
-//! 本模块包含 LsTool 的各种单元测试，用于验证文件列表功能：
-//! - 工具名称和参数 schema 的正确性
-//! - 基本文件列表功能
-//! - 忽略模式（ignore patterns）的过滤功能
-//!
-//! # 测试依赖
-//!
-//! - `tempfile`: 用于创建临时测试目录
-//! - `SecurityPolicy`: 安全策略配置，控制工作空间访问权限
-//! - `LsTool`: 被测试的文件列表工具
+// LsTool 单元测试模块
+//
+// 本模块包含 LsTool 的各种单元测试，用于验证文件列表功能：
+// - 工具名称和参数 schema 的正确性
+// - 基本文件列表功能
+// - 忽略模式（ignore patterns）的过滤功能
+//
+// # 测试依赖
+//
+// - `tempfile`: 用于创建临时测试目录
+// - `SecurityPolicy`: 安全策略配置，控制工作空间访问权限
+// - `LsTool`: 被测试的文件列表工具
 
 use super::*;
+type LsTool = super::LsTool<crate::tools::context::AgentContextHost>;
 
 /// 测试模块
 ///

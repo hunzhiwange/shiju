@@ -1,15 +1,16 @@
-//! GrepTool 单元测试模块
-//!
-//! 本模块提供了对 `GrepTool` 工具的全面测试覆盖，包括：
-//! - 工具名称和参数 schema 验证
-//! - 基本搜索功能测试
-//! - 文件过滤器测试（include 模式）
-//! - 错误处理测试（无效正则表达式）
-//! - 速率限制测试
-//!
-//! 所有测试均在临时目录中运行，确保测试隔离性和可重复性。
+// GrepTool 单元测试模块
+//
+// 本模块提供了对 `GrepTool` 工具的全面测试覆盖，包括：
+// - 工具名称和参数 schema 验证
+// - 基本搜索功能测试
+// - 文件过滤器测试（include 模式）
+// - 错误处理测试（无效正则表达式）
+// - 速率限制测试
+//
+// 所有测试均在临时目录中运行，确保测试隔离性和可重复性。
 
 use super::*;
+type GrepTool = super::GrepTool<crate::tools::context::AgentContextHost>;
 
 #[allow(dead_code)]
 mod tests {

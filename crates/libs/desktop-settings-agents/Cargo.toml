@@ -23,3 +23,12 @@ vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.6.0" }
 vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
 config-tools = { path = "../config-tools", version = "0.6.0" }
 desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
+desktop-settings-security = { path = "../desktop-settings-security", version = "0.6.0" }
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
+gateway-desktop-settings = { path = "../gateway-desktop-settings", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+config-security = { path = "../config-security", version = "0.6.0" }
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

@@ -19,3 +19,14 @@ pub mod profile_modal;
 #[cfg(test)] mod tools_tests;
 #[cfg(test)] mod shared_tests;
 #[cfg(test)] mod skills_tests;
+
+pub mod autonomy_inputs;
+pub mod autonomy_message;
+pub mod autonomy_help;
+pub mod system_settings_autonomy;
+pub mod dialogue_flow_inputs;
+pub mod dialogue_flow_message;
+pub mod dialogue_flow_help;
+pub mod system_settings_dialogue_flow;
+pub mod acp_update;
+pub mod acp_update_message;

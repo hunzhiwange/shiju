@@ -2,18 +2,18 @@
 //! 保存成功只接受约定前缀，避免普通提示被误判为成功状态。
 
 use super::*;
-use crate::app::{App, Message, message::SettingsMessage};
+
 use iced::Length;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 // 每个开关组合都基于同一默认应用，避免其他设置影响字段树数量。
-fn test_app() -> App {
-    App::new().0
+fn test_app() -> Fixture {
+    Fixture::default()
 }
 
-fn view_tree(app: &App) -> Tree {
-    let element = view(app);
+fn view_tree(app: &Fixture) -> Tree {
+    let element = view(&inputs(app));
     Tree::new(element.as_widget())
 }
 
@@ -25,7 +25,8 @@ fn assert_field_tree(tree: &Tree) {
 
 #[test]
 fn field_row_keeps_label_help_and_control_in_separate_columns() {
-    let element = field_row(&test_app(), "显示推理摘要", "说明", text("control"));
+    let app = test_app();
+    let element = field_row(&inputs(&app), "显示推理摘要", "说明", text("control"));
     assert_eq!(element.as_widget().size().width, Length::Fill);
 
     let tree = Tree::new(element.as_widget());
@@ -35,7 +36,7 @@ fn field_row_keeps_label_help_and_control_in_separate_columns() {
 #[test]
 fn reasoning_summary_toggle_message_preserves_both_boolean_values() {
     for expected in [false, true] {
-        let Message::Settings(SettingsMessage::DialogueFlowShowReasoningSummaryToggled(actual)) =
+        let Message::DialogueFlowShowReasoningSummaryToggled(actual) =
             show_reasoning_summary_toggled(expected)
         else {
             panic!("unexpected settings message variant");
@@ -47,7 +48,7 @@ fn reasoning_summary_toggle_message_preserves_both_boolean_values() {
 #[test]
 fn shell_section_toggle_message_preserves_both_boolean_values() {
     for expected in [false, true] {
-        let Message::Settings(SettingsMessage::DialogueFlowExpandShellToolSectionToggled(actual)) =
+        let Message::DialogueFlowExpandShellToolSectionToggled(actual) =
             expand_shell_tool_section_toggled(expected)
         else {
             panic!("unexpected settings message variant");
@@ -59,7 +60,7 @@ fn shell_section_toggle_message_preserves_both_boolean_values() {
 #[test]
 fn edit_section_toggle_message_preserves_both_boolean_values() {
     for expected in [false, true] {
-        let Message::Settings(SettingsMessage::DialogueFlowExpandEditToolSectionToggled(actual)) =
+        let Message::DialogueFlowExpandEditToolSectionToggled(actual) =
             expand_edit_tool_section_toggled(expected)
         else {
             panic!("unexpected settings message variant");
@@ -115,3 +116,7 @@ fn view_appends_exactly_one_banner_for_success_error_and_empty_messages() {
         assert!(tree.children[2].children.is_empty());
     }
 }
+
+#[derive(Default)] struct Fixture { dialogue_flow_show_reasoning_summary: bool, dialogue_flow_expand_shell_tool_section: bool, dialogue_flow_expand_edit_tool_section: bool, dialogue_flow_settings_save_message: Option<String>, dialogue_flow_settings_translation: Option<desktop_i18n::format::Message> }
+fn inputs(app: &Fixture) -> super::super::dialogue_flow_inputs::View<'_> { super::super::dialogue_flow_inputs::View { dialogue_flow_show_reasoning_summary: app.dialogue_flow_show_reasoning_summary, dialogue_flow_expand_shell_tool_section: app.dialogue_flow_expand_shell_tool_section, dialogue_flow_expand_edit_tool_section: app.dialogue_flow_expand_edit_tool_section, dialogue_flow_settings_save_message: &app.dialogue_flow_settings_save_message, dialogue_flow_settings_translation: &app.dialogue_flow_settings_translation, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &iced::Theme::Light,  help_text: help } }
+fn help<'a>(_: desktop_i18n::I18n, _: Option<&iced::Theme>, _: &'a str, label: iced::widget::Text<'a>, body: std::borrow::Cow<'a, str>) -> iced::widget::Row<'a, Message> { desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, iced::widget::text(body).into()) }

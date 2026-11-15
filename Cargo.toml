@@ -25,6 +25,7 @@ members = [
   "crates/libs/observer-types",
   "crates/libs/observer-backends",
   "crates/libs/observer-prometheus",
+  "crates/libs/observer-otel",
   "crates/libs/diff-text",
   "crates/libs/desktop-git",
   "crates/libs/desktop-lsp",

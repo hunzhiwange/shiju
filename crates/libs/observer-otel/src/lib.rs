@@ -12,7 +12,8 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::observability::otel::OtelObserver;
+//! use observer_otel::OtelObserver;
+//! use observer_types::{Observer, ObserverEvent};
 //!
 //! // 创建 OTLP 观测者实例，连接到本地 Collector
 //! let observer = OtelObserver::new(
@@ -35,7 +36,9 @@
 //! 本模块实现了 [`Observer`] trait，作为观测子系统的具体实现之一。
 //! 它可以与其他观测者实现（如日志观测者）并存，通过工厂模式注册和选择。
 
-use super::traits::{Observer, ObserverEvent, ObserverMetric};
+#![cfg(feature = "observability-otel")]
+
+use observer_types::{Observer, ObserverEvent, ObserverMetric};
 use opentelemetry::metrics::{Counter, Gauge, Histogram};
 use opentelemetry::trace::{Span, SpanKind, Status, Tracer};
 use opentelemetry::{KeyValue, global};

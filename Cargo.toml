@@ -13,6 +13,7 @@ members = [
   "crates/libs/app-config-paths",
   "crates/libs/app-icons",
   "crates/libs/app-model-catalog",
+  "crates/libs/command-arity",
   "crates/libs/content-guard",
   "crates/libs/goal-engine",
   "crates/libs/runtime-flags",

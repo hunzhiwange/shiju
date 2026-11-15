@@ -12,7 +12,7 @@
 //! # 示例
 //!
 //! ```ignore
-//! use crate::app::agent::permission::arity::prefix;
+//! use command_arity::prefix;
 //!
 //! // 对于 "npm run build -- --prod"，返回 ["npm", "run"]
 //! let tokens = vec!["npm", "run", "build", "--", "--prod"];

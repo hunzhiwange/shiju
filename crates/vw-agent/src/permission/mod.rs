@@ -15,5 +15,5 @@
 //! - 请求队列管理：管理待处理的权限请求
 //! - 用户交互支持：提供权限请求的批准、拒绝、永久允许等响应机制
 
-pub mod arity;
+pub use command_arity as arity;
 pub mod next;

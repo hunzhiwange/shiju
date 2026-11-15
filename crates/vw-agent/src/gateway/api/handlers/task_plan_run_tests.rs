@@ -1,6 +1,9 @@
 //! `task_plan_run` 网关 handler 校验与路由接线测试。
 
-use super::*;
+use super::{Host, global_plan_run_control_registry, router};
+use axum::{Extension, extract::Path, http::HeaderMap};
+use gateway_task::task_plan_run::*;
+use gateway_resumable_stream::{global_stream_store, request_signature, StreamKind};
 use axum::Json;
 use axum::http::StatusCode;
 use vw_api_transport::id::TenantScope;
@@ -23,7 +26,7 @@ fn default_tenant() -> Extension<TenantScope> {
 
 #[tokio::test]
 async fn task_plan_run_rejects_empty_root() {
-    let err = task_plan_run_stream(
+    let err = task_plan_run_stream::<Host>(
         default_tenant(),
         HeaderMap::new(),
         Json(TaskPlanRunRequest { root: "   ".to_string(), ..sample_request() }),
@@ -36,7 +39,7 @@ async fn task_plan_run_rejects_empty_root() {
 
 #[tokio::test]
 async fn task_plan_run_rejects_empty_query() {
-    let err = task_plan_run_stream(
+    let err = task_plan_run_stream::<Host>(
         default_tenant(),
         HeaderMap::new(),
         Json(TaskPlanRunRequest { query: " ".to_string(), ..sample_request() }),
@@ -82,31 +85,31 @@ async fn task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent()
         )
         .expect("observe planning");
 
-    let Json(status) = task_plan_run_status(Extension(owner.clone()), Path(task_id.clone()))
+    let Json(status) = task_plan_run_status::<Host>(Extension(owner.clone()), Path(task_id.clone()))
         .await
         .expect("owner status");
     assert_eq!(status.status, TaskPlanRunStatus::Running);
     assert_eq!(status.current_session_id.as_deref(), Some(session_id.as_str()));
 
     let cross_tenant_status =
-        task_plan_run_status(Extension(outsider.clone()), Path(task_id.clone()))
+        task_plan_run_status::<Host>(Extension(outsider.clone()), Path(task_id.clone()))
             .await
             .expect_err("cross-tenant status must be hidden");
     assert_eq!(cross_tenant_status.status, StatusCode::NOT_FOUND);
-    let cross_tenant_stop = task_plan_run_stop(Extension(outsider), Path(task_id.clone()))
+    let cross_tenant_stop = task_plan_run_stop::<Host>(Extension(outsider), Path(task_id.clone()))
         .await
         .expect_err("cross-tenant stop must be hidden");
     assert_eq!(cross_tenant_stop.status, StatusCode::NOT_FOUND);
     assert!(!cancellation.is_cancelled());
 
-    let Json(stopped) = task_plan_run_stop(Extension(owner.clone()), Path(task_id.clone()))
+    let Json(stopped) = task_plan_run_stop::<Host>(Extension(owner.clone()), Path(task_id.clone()))
         .await
         .expect("owner stop");
     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);
     assert!(cancellation.is_cancelled());
 
     let Json(stopped_again) =
-        task_plan_run_stop(Extension(owner), Path(task_id)).await.expect("idempotent stop");
+        task_plan_run_stop::<Host>(Extension(owner), Path(task_id)).await.expect("idempotent stop");
     assert_eq!(stopped_again.status, TaskPlanRunStatus::Cancelled);
 }
 
@@ -130,11 +133,11 @@ async fn task_plan_run_rejects_reused_request_id_with_different_body() {
         .expect("register first request");
     let mut headers = HeaderMap::new();
     headers.insert(
-        crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER,
+        gateway_resumable_stream::STREAM_REQUEST_ID_HEADER,
         request_id.parse().expect("valid request id header"),
     );
 
-    let error = task_plan_run_stream(default_tenant(), headers, Json(sample_request()))
+    let error = task_plan_run_stream::<Host>(default_tenant(), headers, Json(sample_request()))
         .await
         .expect_err("different request body must conflict");
 

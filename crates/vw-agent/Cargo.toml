@@ -360,6 +360,7 @@ gateway-types = { path = "../libs/gateway-types", version = "0.6.0" }
 gateway-status = { path = "../libs/gateway-status", version = "0.6.0" }
 gateway-project = { path = "../libs/gateway-project", version = "0.6.0" }
 gateway-resumable-stream = { path = "../libs/gateway-resumable-stream", version = "0.6.0" }
+gateway-task = { path = "../libs/gateway-task", version = "0.6.0" }
 gateway-provider = { path = "../libs/gateway-provider", version = "0.6.0" }
 gateway-pty = { path = "../libs/gateway-pty", version = "0.6.0" }
 gateway-permission = { path = "../libs/gateway-permission", version = "0.6.0" }

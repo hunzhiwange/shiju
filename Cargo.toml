@@ -537,6 +537,7 @@ members = [
   "crates/libs/gateway-types",
   "crates/libs/gateway-status",
   "crates/libs/gateway-resumable-stream",
+  "crates/libs/gateway-task",
   "crates/libs/gateway-provider",
   "crates/libs/gateway-permission",
   "crates/libs/gateway-question",

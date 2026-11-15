@@ -1,0 +1,36 @@
+[package]
+name = "gateway-task"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+gateway-resumable-stream = { path = "../gateway-resumable-stream", version = "0.6.0" }
+agent-database = { path = "../agent-database", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+task-lifecycle = { path = "../task-lifecycle", version = "0.6.0" }
+task-worktree-pool = { path = "../task-worktree-pool", version = "0.6.0" }
+vw-api-task = { path = "../api-task", version = "0.6.0" }
+vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+anyhow = "1"
+axum = { version = "0.8.8", features = ["json"] }
+futures-util = "0.3"
+serde_json = "1"
+tokio = { version = "1", features = ["rt"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+uuid = { version = "1.11", features = ["v4"] }
+
+[dev-dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }

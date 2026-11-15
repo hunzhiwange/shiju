@@ -101,12 +101,7 @@ pub(crate) async fn with_instance<T>(
 }
 
 pub(crate) async fn load_local_project(project_id: &str) -> Result<project::Info, ApiError> {
-    let scope = project::project_scope_for_default_tenant(project_id)
-        .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    project::get(&scope)
-        .await
-        .map_err(|error| ApiError::internal(error.to_string()))?
-        .ok_or_else(|| ApiError::not_found("project not found"))
+    gateway_task::task_pool::load_project(project_id).await
 }
 
 /// 将用户输入路径规范化为相对 `root` 的路径。

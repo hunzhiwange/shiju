@@ -21,3 +21,9 @@ serde_json = "1"
 agent-project = { path = "../agent-project", version = "0.6.0" }
 gateway-types = { path = "../gateway-types", version = "0.6.0" }
 task-scheduler-core = { path = "../task-scheduler-core", version = "0.6.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-project = { path = "../agent-project", version = "0.6.0", features = ["test-support"] }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }

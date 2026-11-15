@@ -1,4 +1,6 @@
-// 覆盖代理调度 API 的租户隔离、任务分派及生命周期推进。
+// 覆盖宿主适配器的租户隔离、任务分派及生命周期推进。
+// 独立路由契约测试位于 gateway-agent-scheduler/src/routes_tests.rs；
+// 本文件依赖 StoreBackedAgentSchedulerGateway、宿主中间件和本地执行器，随实际所有者保留。
 
 use super::*;
 use axum::body::{Body, to_bytes};
@@ -58,23 +60,6 @@ async fn agent_scheduler_routes_require_header_tenant_scope() {
         .await
         .expect("response");
     assert_eq!(missing_tenant.status(), StatusCode::BAD_REQUEST);
-}
-
-#[tokio::test]
-async fn agent_scheduler_routes_exclude_removed_remote_resources() {
-    let app = router::<()>().with_state(());
-    for path in [
-        "/agent-scheduler/projects/project-a/workers",
-        "/agent-scheduler/projects/project-a/teams",
-        "/agent-scheduler/projects/project-a/tasks/task-a/runs/run-a/worker-events",
-    ] {
-        let response = app
-            .clone()
-            .oneshot(Request::builder().uri(path).body(Body::empty()).expect("request"))
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::NOT_FOUND, "unexpected route: {path}");
-    }
 }
 
 // 失败转换同时检查任务、运行和事件投影，避免只更新其中一个状态视图。
@@ -2235,59 +2220,6 @@ async fn scheduler_task_board_command_payload_errors_are_reported_before_store_m
     }
 }
 
-#[derive(Default)]
-struct MinimalGateway;
-
-#[async_trait::async_trait]
-impl AgentSchedulerGateway for MinimalGateway {
-    async fn create_task(
-        &self,
-        request: AgentSchedulerCreateTaskRequest,
-    ) -> Result<AgentSchedulerCreateTaskResponse, ApiError> {
-        let task = AgentTaskDto {
-            id: request.task_id,
-            title: request.title,
-            kind: request.kind,
-            status: request.status.unwrap_or(AgentTaskStatusDto::Queued),
-            assigned_to: request.assigned_to,
-            team_id: request.team_id,
-            room_id: request.room_id,
-            project_room_id: request.project_room_id,
-            delegated_to_team: request.delegated_to_team,
-            schedule: request.schedule,
-            timezone: request.timezone,
-            next_scheduled_at: request.next_scheduled_at,
-            last_executed_at: request.last_executed_at,
-            dag: Vec::new(),
-            created_at_ms: request.created_at_ms,
-            updated_at_ms: request.created_at_ms,
-            metadata: request.metadata,
-        };
-        Ok(AgentSchedulerCreateTaskResponse { task_id: task.id.clone(), task })
-    }
-
-    async fn list_tasks(
-        &self,
-        _query: AgentSchedulerTasksQuery,
-    ) -> Result<AgentSchedulerTasksResponse, ApiError> {
-        Ok(AgentSchedulerTasksResponse { tasks: Vec::new() })
-    }
-
-    async fn list_events(
-        &self,
-        _query: AgentSchedulerEventsQuery,
-    ) -> Result<AgentSchedulerEventsResponse, ApiError> {
-        Ok(AgentSchedulerEventsResponse { cursor: 0, events: Vec::new() })
-    }
-
-    async fn drain_outbox(
-        &self,
-        _request: AgentSchedulerOutboxDrainRequest,
-    ) -> Result<AgentSchedulerOutboxDrainResponse, ApiError> {
-        Ok(AgentSchedulerOutboxDrainResponse { claimed: 0, messages: Vec::new() })
-    }
-}
-
 fn default_context() -> AgentSchedulerContext {
     let tenant = TenantScope::new("default-platform", "default-company").expect("tenant");
     let scope = ProjectScope::new(tenant, ProjectId::from("default-project")).expect("scope");
@@ -2380,43 +2312,6 @@ async fn scheduler_unscoped_handlers_reject_invalid_or_missing_context() {
         .expect_err("empty outbox path")
         .to_string(),
         "project_path must not be empty"
-    );
-}
-
-#[tokio::test]
-async fn scheduler_project_route_wrappers_resolve_context_before_gateway_calls() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-route-wrappers");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let project_id = scheduler_project_id(&project_path);
-    let tenant = project::default_tenant_scope();
-    let gateway: SharedAgentSchedulerGateway = Arc::new(MinimalGateway);
-
-    let created = agent_scheduler_project_create_task(
-        AxumPath(project_id.clone()),
-        Extension(tenant.clone()),
-        Extension(Arc::clone(&gateway)),
-        Json(create_task_request("task-project-wrapper")),
-    )
-    .await
-    .expect("project scoped create")
-    .0;
-    assert_eq!(created.task_id, "task-project-wrapper");
-
-    assert_eq!(
-        agent_scheduler_project_drain_outbox(
-            AxumPath(project_id),
-            Extension(tenant),
-            Extension(gateway),
-            Json(AgentSchedulerProjectOutboxDrainRequest {
-                now_ms: TimestampMs(70),
-                limit: Some(1),
-            }),
-        )
-        .await
-        .expect_err("default drain should fail")
-        .to_string(),
-        "agent scheduler project outbox gateway is not configured"
     );
 }
 

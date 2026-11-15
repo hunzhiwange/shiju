@@ -13,3 +13,7 @@ mod routes;
 pub use routes::{router_with_gateway, agent_scheduler_project_task_graph,
     agent_scheduler_project_replace_task_graph, agent_scheduler_project_create_task,
     agent_scheduler_project_drain_outbox};
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "routes_tests.rs"]
+mod routes_tests;

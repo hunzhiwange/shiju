@@ -4,6 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护配置持久化流程。
 
 use crate::app::Message;
+use config_reliability::ReliabilityConfig;
 use iced::Task;
 use std::collections::{BTreeMap, HashMap};
 use vw_config_types::{
@@ -16,7 +17,6 @@ use vw_config_types::{
     memory::{MemoryConfig, StorageConfig},
     observability::ObservabilityConfig,
     proxy::ProxyConfig,
-    reliability::ReliabilityConfig,
     routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig},
     runtime::RuntimeConfig,
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},

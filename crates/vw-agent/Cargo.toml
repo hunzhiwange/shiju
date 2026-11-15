@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+config-reliability = { path = "../libs/config-reliability", version = "0.6.0" }
 vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
 gateway-chat-stream = { path = "../libs/gateway-chat-stream", version = "0.6.0" }
 config-routing = { path = "../libs/config-routing", version = "0.6.0" }

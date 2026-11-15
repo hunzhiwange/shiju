@@ -29,7 +29,7 @@ use crate::memory::{MemoryConfig, StorageConfig};
 use crate::observability::ObservabilityConfig;
 use crate::plugins::PluginsConfig;
 use crate::proxy::ProxyConfig;
-use crate::reliability::ReliabilityConfig;
+use config_reliability::ReliabilityConfig;
 use config_routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig};
 use crate::runtime::RuntimeConfig;
 use crate::security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityConfig};

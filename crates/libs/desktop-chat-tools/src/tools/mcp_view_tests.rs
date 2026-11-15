@@ -5,8 +5,8 @@ use super::mcp_view::{
     tool_mcp_view,
 };
 use super::tool_meta::{tool_header_label, tool_icon};
-use crate::app::App;
-use crate::app::assets::Icon;
+use super::result_fixture::TestApp as App;
+use desktop_assets::assets::Icon;
 use serde_json::json;
 
 #[test]
@@ -45,7 +45,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     let output = r#"[{"server":{"name":"rustcodegraph","transport":"stdio"},"prompts":[]}]"#;
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "MCP",
             &json!({"output": output})
         ),
@@ -53,7 +53,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     );
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "mcp_linear",
             &json!({"input":"{}"})
         ),
@@ -61,7 +61,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     );
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "list_mcp_resources",
             &json!({"input":"{}"})
         ),
@@ -69,7 +69,7 @@ fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     );
     assert_eq!(
         mcp_display_name(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "MCP",
             &json!({"summary":" connected "})
         ),
@@ -93,11 +93,11 @@ fn mcp_view_is_single_row_for_valid_mcp_tools() {
     let visible = r#"tool MCP
 {"status":"completed","output":"[{\"server\":{\"name\":\"rustcodegraph\"},\"prompts\":[]}]"}"#;
 
-    assert!(tool_mcp_view(&app, 0, 0, visible).is_some());
-    assert!(tool_mcp_view(&app, 0, 1, "tool mcp_linear\n{}").is_some());
+    assert!(tool_mcp_view(&app.input(), 0, 0, visible).is_some());
+    assert!(tool_mcp_view(&app.input(), 0, 1, "tool mcp_linear\n{}").is_some());
     assert!(
         tool_mcp_view(
-            &app,
+            &app.input(),
             0,
             2,
             r#"tool tools
@@ -105,18 +105,18 @@ fn mcp_view_is_single_row_for_valid_mcp_tools() {
         )
         .is_some()
     );
-    assert!(tool_mcp_view(&app, 0, 3, "tool bash\n{}").is_none());
-    assert!(tool_mcp_view(&app, 0, 4, "tool MCP\nnot-json").is_none());
+    assert!(tool_mcp_view(&app.input(), 0, 3, "tool bash\n{}").is_none());
+    assert!(tool_mcp_view(&app.input(), 0, 4, "tool MCP\nnot-json").is_none());
 }
 
 #[test]
 fn mcp_view_builds_running_error_and_denied_rows() {
     let app = App::new().0;
 
-    assert!(tool_mcp_view(&app, 1, 1, "tool mcp_linear\n{\"status\":\"running\"}").is_some());
+    assert!(tool_mcp_view(&app.input(), 1, 1, "tool mcp_linear\n{\"status\":\"running\"}").is_some());
     assert!(
         tool_mcp_view(
-            &app,
+            &app.input(),
             1,
             2,
             "tool mcp_linear\n{\"status\":\"error\",\"error\":\"server failed\"}"
@@ -125,7 +125,7 @@ fn mcp_view_builds_running_error_and_denied_rows() {
     );
     assert!(
         tool_mcp_view(
-            &app,
+            &app.input(),
             1,
             3,
             "tool mcp_linear\n{\"status\":\"denied\",\"error\":\"permission denied\"}"

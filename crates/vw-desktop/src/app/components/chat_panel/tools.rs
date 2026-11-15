@@ -83,12 +83,6 @@ mod bash_view_tests;
 #[cfg(test)]
 mod command_summary_view_tests;
 #[cfg(test)]
-mod git_diff_view_tests;
-#[cfg(test)]
-mod lsp_view_tests;
-#[cfg(test)]
-mod mcp_view_tests;
-#[cfg(test)]
 mod read_view_tests;
 #[cfg(test)]
 mod skill_view_tests;

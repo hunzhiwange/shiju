@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+question-types = { path = "../question-types", version = "0.6.0" }
 diff-text = { path = "../diff-text", version = "0.6.0" }
 serde_json = "1"
 

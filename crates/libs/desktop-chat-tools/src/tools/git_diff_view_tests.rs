@@ -2,11 +2,12 @@
 //! 直接数据优先于内容块，元数据行和畸形分块不得被误计为文件变更。
 
 use super::git_diff_view::{
-    GitDiffPreview, append_preview_gap, append_preview_line, git_diff_body, git_diff_title,
+    GitDiffPreview, append_preview_gap, append_preview_line, git_diff_body as domain_git_diff_body, git_diff_title,
     is_git_diff_tool, parse_git_diff_previews, secondary_text, structured_git_diff_output,
-    tool_card_style, tool_content_style, tool_git_diff_view, tool_item_button_style,
+    tool_card_style, tool_content_style, tool_git_diff_view as domain_tool_git_diff_view, tool_item_button_style,
 };
-use crate::app::{App, Message};
+use super::result_fixture::TestApp as App;
+use crate::card_input::Message;
 use iced::Theme;
 use serde_json::json;
 
@@ -384,7 +385,7 @@ fn secondary_text_uses_theme_specific_palette_and_alpha() {
 #[test]
 fn git_diff_body_rejects_empty_and_builds_collapsed_and_expanded_lists() {
     let app = test_app();
-    assert!(git_diff_body(&app, &[], false).is_none());
+    assert!(git_diff_body(&app.input(), &[], false).is_none());
 
     let previews = vec![
         preview("one.rs", 1, 0, false),
@@ -392,21 +393,21 @@ fn git_diff_body_rejects_empty_and_builds_collapsed_and_expanded_lists() {
         preview("three.rs", 1, 1, false),
         preview("four.rs", 2, 2, false),
     ];
-    keep_element(git_diff_body(&app, &previews, false).expect("collapsed diff body"));
-    keep_element(git_diff_body(&app, &previews, true).expect("expanded diff body"));
+    keep_element(git_diff_body(&app.input(), &previews, false).expect("collapsed diff body"));
+    keep_element(git_diff_body(&app.input(), &previews, true).expect("expanded diff body"));
 }
 
 #[test]
 fn tool_git_diff_view_rejects_non_diff_or_empty_completed_output() {
     let app = test_app();
 
-    assert!(tool_git_diff_view(&app, 0, 0, "tool git_diff").is_none());
-    assert!(tool_git_diff_view(&app, 0, 0, "git_diff\n{}").is_none());
-    assert!(tool_git_diff_view(&app, 0, 0, "tool git_diff\nnot json").is_none());
-    assert!(tool_git_diff_view(&app, 0, 0, "tool read\n{}").is_none());
+    assert!(tool_git_diff_view(&app.input(), 0, 0, "tool git_diff").is_none());
+    assert!(tool_git_diff_view(&app.input(), 0, 0, "git_diff\n{}").is_none());
+    assert!(tool_git_diff_view(&app.input(), 0, 0, "tool git_diff\nnot json").is_none());
+    assert!(tool_git_diff_view(&app.input(), 0, 0, "tool read\n{}").is_none());
     assert!(
         tool_git_diff_view(
-            &app,
+            &app.input(),
             0,
             0,
             r#"tool git_diff
@@ -426,7 +427,7 @@ fn tool_git_diff_view_accepts_git_operations_diff_output() {
     });
     let visible = format!("tool git_operations\n{payload}");
 
-    keep_element(tool_git_diff_view(&app, 2, 3, &visible).expect("git operations diff view"));
+    keep_element(tool_git_diff_view(&app.input(), 2, 3, &visible).expect("git operations diff view"));
 }
 
 #[test]
@@ -447,20 +448,20 @@ fn tool_git_diff_view_builds_hovered_multi_file_card() {
     });
     let visible = format!("tool git_diff\n{payload}");
 
-    keep_element(tool_git_diff_view(&app, 5, 6, &visible).expect("hovered multi-file diff"));
+    keep_element(tool_git_diff_view(&app.input(), 5, 6, &visible).expect("hovered multi-file diff"));
 }
 
 #[test]
 fn tool_git_diff_view_builds_success_running_error_and_denied_cards() {
     let app = test_app();
 
-    let success = tool_git_diff_view(&app, 1, 1, r#"tool git_diff
+    let success = tool_git_diff_view(&app.input(), 1, 1, r#"tool git_diff
 {"input":"{}","status":"completed","result":{"data":{"hunks":[{"file":"src/main.rs","lines":[{"text":"+new"}]}]}}}"#)
     .expect("success git diff view");
     keep_element(success);
 
     let running = tool_git_diff_view(
-        &app,
+        &app.input(),
         1,
         2,
         r#"tool git_diff
@@ -470,7 +471,7 @@ fn tool_git_diff_view_builds_success_running_error_and_denied_cards() {
     keep_element(running);
 
     let error = tool_git_diff_view(
-        &app,
+        &app.input(),
         1,
         3,
         r#"tool git_diff
@@ -480,7 +481,7 @@ fn tool_git_diff_view_builds_success_running_error_and_denied_cards() {
     keep_element(error);
 
     let denied = tool_git_diff_view(
-        &app,
+        &app.input(),
         1,
         4,
         r#"tool git_diff
@@ -488,4 +489,11 @@ fn tool_git_diff_view_builds_success_running_error_and_denied_cards() {
     )
     .expect("denied git diff view");
     keep_element(denied);
+}
+
+fn git_diff_body<'a>(app: &super::result_input::ResultInput<'_>, previews: &[GitDiffPreview], expanded: bool) -> Option<iced::Element<'a, Message>> {
+ domain_git_diff_body(app, previews, expanded, &|_,_,_,_| iced::widget::Space::new().into())
+}
+fn tool_git_diff_view<'a>(app: &super::result_input::ResultInput<'_>, m: usize, t: usize, visible: &str) -> Option<iced::Element<'a, Message>> {
+ domain_tool_git_diff_view(app,m,t,visible,&|_,_,_,_| iced::widget::Space::new().into())
 }

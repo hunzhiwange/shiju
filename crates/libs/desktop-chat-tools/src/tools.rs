@@ -43,3 +43,19 @@ mod view_fixture;
 mod file_link_tests;
 
 mod summary_animation;
+
+pub mod result_input;
+pub mod git_diff_view;
+#[cfg(test)]
+mod git_diff_view_tests;
+pub mod lsp_view;
+#[cfg(test)]
+mod lsp_view_tests;
+pub mod mcp_view;
+#[cfg(test)]
+mod mcp_view_tests;
+pub mod question_view;
+#[cfg(test)]
+mod question_view_tests;
+#[cfg(test)]
+mod result_fixture;

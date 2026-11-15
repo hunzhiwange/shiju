@@ -2,7 +2,8 @@
 //! 结构化计数优先，缺失时依次回退查询和路径；完全无信息则保持空摘要。
 
 use super::lsp_view::{LspToolData, action_title, meta_text, summary_from_data, tool_lsp_view};
-use crate::app::{App, Message};
+use super::result_fixture::TestApp as App;
+use crate::card_input::Message;
 use serde_json::{Value, json};
 
 fn test_app() -> App {
@@ -19,7 +20,7 @@ fn lsp_visible(value: Value) -> String {
 
 fn keep_lsp_view(app: &App, value: Value) {
     let visible = lsp_visible(value);
-    keep_element(tool_lsp_view(app, 1, 1, &visible).expect("lsp view"));
+    keep_element(tool_lsp_view(&app.input(), 1, 1, &visible).expect("lsp view"));
 }
 
 #[test]
@@ -36,14 +37,14 @@ fn lsp_summary_and_meta_use_structured_counts() {
 
     assert!(
         summary_from_data(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &data
         )
         .contains("2")
     );
     assert!(
         meta_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &data
         )
         .contains("2")
@@ -59,14 +60,14 @@ fn lsp_summary_and_meta_use_structured_counts() {
     .expect("valid lsp payload");
     assert_eq!(
         meta_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &hover_data
         ),
         "悬停信息可用"
     );
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &hover_data
         ),
         "悬停信息可用"
@@ -95,7 +96,7 @@ fn lsp_meta_text_covers_operation_specific_labels() {
 
         assert_eq!(
             meta_text(
-                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &data
             ),
             expected
@@ -114,7 +115,7 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
     .expect("valid lsp payload");
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &with_query
         ),
         "Widget"
@@ -130,7 +131,7 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
     .expect("valid lsp payload");
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &whitespace_query
         ),
         "src/lib.rs"
@@ -145,7 +146,7 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
     .expect("valid lsp payload");
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &with_file
         ),
         "src/main.rs"
@@ -163,7 +164,7 @@ fn lsp_summary_is_empty_without_counts_query_or_file_path() {
 
     assert_eq!(
         summary_from_data(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &data
         ),
         ""
@@ -187,11 +188,11 @@ fn lsp_action_title_covers_known_operations_and_default() {
 fn tool_lsp_view_rejects_non_lsp_or_invalid_json() {
     let app = test_app();
 
-    assert!(tool_lsp_view(&app, 0, 0, "tool lsp").is_none());
-    assert!(tool_lsp_view(&app, 0, 0, "lsp\n{}").is_none());
-    assert!(tool_lsp_view(&app, 0, 0, "tool \n{}").is_none());
-    assert!(tool_lsp_view(&app, 0, 0, "tool read\n{}").is_none());
-    assert!(tool_lsp_view(&app, 0, 0, "tool lsp\nnot json").is_none());
+    assert!(tool_lsp_view(&app.input(), 0, 0, "tool lsp").is_none());
+    assert!(tool_lsp_view(&app.input(), 0, 0, "lsp\n{}").is_none());
+    assert!(tool_lsp_view(&app.input(), 0, 0, "tool \n{}").is_none());
+    assert!(tool_lsp_view(&app.input(), 0, 0, "tool read\n{}").is_none());
+    assert!(tool_lsp_view(&app.input(), 0, 0, "tool lsp\nnot json").is_none());
 }
 
 #[test]
@@ -199,7 +200,7 @@ fn tool_lsp_view_builds_running_error_text_and_structured_bodies() {
     let app = test_app();
 
     let running = tool_lsp_view(
-        &app,
+        &app.input(),
         1,
         1,
         r#"tool lsp
@@ -209,7 +210,7 @@ fn tool_lsp_view_builds_running_error_text_and_structured_bodies() {
     keep_element(running);
 
     let error = tool_lsp_view(
-        &app,
+        &app.input(),
         1,
         2,
         r#"tool lsp
@@ -219,7 +220,7 @@ fn tool_lsp_view_builds_running_error_text_and_structured_bodies() {
     keep_element(error);
 
     let text = tool_lsp_view(
-        &app,
+        &app.input(),
         1,
         3,
         r#"tool lsp
@@ -228,7 +229,7 @@ fn tool_lsp_view_builds_running_error_text_and_structured_bodies() {
     .expect("text lsp view");
     keep_element(text);
 
-    let structured = tool_lsp_view(&app, 1, 4, r#"tool lsp
+    let structured = tool_lsp_view(&app.input(), 1, 4, r#"tool lsp
 {"status":"completed","result":{"data":{"success":true,"operation":"goToDefinition","result_count":1,"file_count":1,"payload":{"kind":"locations","items":[{"path":"src/main.rs","absolute_path":"/tmp/src/main.rs","line":3,"character":4,"name":"main","kind":"fn","detail":"detail","container_name":"crate"}]}}}}"#)
     .expect("structured lsp view");
     keep_element(structured);

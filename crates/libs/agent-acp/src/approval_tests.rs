@@ -8,9 +8,9 @@ use serde_json::json;
 use tokio_util::sync::CancellationToken;
 
 use super::approval::ApprovalBridge;
-use crate::agent::loop_::approval::NonCliApprovalPrompt;
-use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
-use crate::app::agent::config::AutonomyConfig;
+use tool_context::approval::NonCliApprovalPrompt;
+use agent_approval::{ApprovalManager, ApprovalResponse};
+use config_security::AutonomyConfig;
 
 // 构造仍处于等待态的原生请求，使各测试只改变外部决议或终止条件。
 fn pending_prompt(manager: &ApprovalManager, arguments: serde_json::Value) -> NonCliApprovalPrompt {

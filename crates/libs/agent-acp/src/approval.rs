@@ -8,13 +8,13 @@ use acp_server::server::{
     BackendPermissionOption, BackendPermissionOptionKind, BackendPermissionRequest,
 };
 
-use crate::agent::loop_::approval::NonCliApprovalPrompt;
-use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
+use tool_context::approval::NonCliApprovalPrompt;
+use agent_approval::{ApprovalManager, ApprovalResponse};
 
 const ALLOW_ONCE: &str = "allow_once";
 const REJECT_ONCE: &str = "reject_once";
 
-pub(crate) struct ApprovalBridge {
+pub struct ApprovalBridge {
     manager: Arc<ApprovalManager>,
     prompts: mpsc::UnboundedReceiver<NonCliApprovalPrompt>,
     permissions: mpsc::UnboundedSender<BackendPermissionRequest>,
@@ -22,7 +22,7 @@ pub(crate) struct ApprovalBridge {
 }
 
 impl ApprovalBridge {
-    pub(crate) fn new(
+    pub fn new(
         manager: Arc<ApprovalManager>,
         prompts: mpsc::UnboundedReceiver<NonCliApprovalPrompt>,
         permissions: mpsc::UnboundedSender<BackendPermissionRequest>,
@@ -31,7 +31,7 @@ impl ApprovalBridge {
         Self { manager, prompts, permissions, cancellation }
     }
 
-    pub(crate) async fn run(mut self) {
+    pub async fn run(mut self) {
         loop {
             let prompt = tokio::select! {
                 prompt = self.prompts.recv() => {

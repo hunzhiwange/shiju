@@ -452,6 +452,7 @@ members = [
   "crates/libs/plugin-mcp",
   "crates/libs/acp-queue",
   "crates/libs/acp-server",
+  "crates/libs/agent-acp",
   "crates/libs/acp-output",
   "crates/libs/acp-host-io",
   "crates/libs/acp-access-policy",

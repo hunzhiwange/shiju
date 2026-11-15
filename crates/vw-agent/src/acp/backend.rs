@@ -1,222 +1,37 @@
 //! `vw-acp` 后端 trait 到 VibeWindow 原生会话运行时的直接适配。
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 
-use agent_client_protocol::McpServer;
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::json;
 use acp_server::server::{
-    BackendCancelHandle, BackendError, BackendEvent, BackendHistoryEntry, BackendPrompt,
-    BackendRole, BackendSession, BackendTermination, BackendToolStatus, PromptContent,
-    SessionBackend,
+    BackendError, BackendPrompt, PromptContent,
 };
 use vw_api_transport::id::TenantScope;
 
 use crate::agent::loop_::approval::NonCliApprovalContext;
 use crate::app::agent::approval::ApprovalManager;
 use crate::session::message;
-use crate::session::processor::{Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
+use crate::session::processor::{Request, StreamEvent};
 use crate::session::runtime::{
-    CreateSessionInput, PromptCancelHandle, PromptEvent, PromptTermination, PromptTurn,
+    CreateSessionInput, PromptTurn,
     SessionScope, SessionToolset, create_session, load_session, start_prompt,
     start_prompt_with_runner,
 };
-use crate::session::ui_types::{ChatMessage, ChatRole, TokenUsage};
+use crate::session::ui_types::{ChatMessage, TokenUsage};
 
-use super::approval::ApprovalBridge;
 
 #[path = "models.rs"]
 mod models;
 
-#[derive(Clone)]
-struct BoundSession {
-    scope: SessionScope,
-    tools: SessionToolset,
-    skills: super::mounts::SessionSkillSources,
-    revision: acp_types::SessionMountRevision,
-    operation: Arc<tokio::sync::Mutex<()>>,
-    model: Arc<tokio::sync::Mutex<String>>,
-}
-
-/// VibeWindow 原生会话和提示运行时的 ACP 后端。
-pub struct VibeWindowBackend {
-    tenant: TenantScope,
-    sessions: Mutex<HashMap<String, BoundSession>>,
-}
-
-impl VibeWindowBackend {
-    /// 创建绑定固定租户作用域的 ACP 后端。
-    pub fn new(tenant: TenantScope) -> Self {
-        Self { tenant, sessions: Mutex::new(HashMap::new()) }
-    }
-
-    fn scope(&self, cwd: PathBuf) -> Result<SessionScope, BackendError> {
-        SessionScope::new(self.tenant.clone(), cwd).map_err(lifecycle_error)
-    }
-
-    fn remember_scope(
-        &self,
-        session_id: &str,
-        scope: SessionScope,
-        tools: SessionToolset,
-        skills: super::mounts::SessionSkillSources,
-        revision: acp_types::SessionMountRevision,
-        stored_model: String,
-    ) -> Result<(), BackendError> {
-        let mut sessions = self.sessions.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let model = sessions
-            .get(session_id)
-            .map(|bound| bound.model.clone())
-            .unwrap_or_else(|| Arc::new(tokio::sync::Mutex::new(stored_model)));
-        let operation = sessions.get(session_id).map(|b| b.operation.clone()).unwrap_or_default();
-        if let Some(old) = sessions.insert(
-            session_id.to_string(),
-            BoundSession { scope, tools, skills, model, revision, operation },
-        ) {
-            old.skills.revoke();
-            if let Some(connections) = old.tools.mcp_connections() {
-                connections.shutdown();
-            }
-        }
-        Ok(())
-    }
-
-    fn bound_session(&self, session_id: &str) -> Result<BoundSession, BackendError> {
-        self.sessions
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(session_id)
-            .cloned()
-            .ok_or_else(|| BackendError::NotFound(session_id.to_string()))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn mounted_runtime(
-        &self,
-        session_id: &str,
-    ) -> (super::mounts::SessionSkillSources, SessionToolset) {
-        let bound = self.bound_session(session_id).expect("bound session");
-        (bound.skills, bound.tools)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn session_tool_count(&self, session_id: &str) -> Option<usize> {
-        self.sessions
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(session_id)
-            .map(|bound| bound.tools.len())
-    }
-}
-
-impl Default for VibeWindowBackend {
-    fn default() -> Self {
-        Self::new(TenantScope::default())
-    }
-}
-
-fn lifecycle_error(error: crate::session::runtime::LifecycleError) -> BackendError {
-    use crate::session::runtime::LifecycleError;
-    let message = error.to_string();
-    match error {
-        LifecycleError::SessionNotFound { session_id } => BackendError::NotFound(session_id),
-        LifecycleError::SessionOwnershipMismatch { session_id, .. } => {
-            BackendError::OwnershipMismatch(session_id)
-        }
-        LifecycleError::DirectoryMustBeAbsolute { .. }
-        | LifecycleError::DirectoryUnavailable { .. }
-        | LifecycleError::DirectoryNotDirectory { .. } => BackendError::InvalidRequest(message),
-        LifecycleError::Project(_) | LifecycleError::Session(_) => BackendError::Internal(message),
-    }
-}
-
-fn message_time(info: &message::Info) -> u64 {
-    match info {
-        message::Info::User(info) => info.time.created,
-        message::Info::Assistant(info) => info.time.created,
-    }
-}
-
-fn message_text(parts: &[message::Part]) -> String {
-    parts
-        .iter()
-        .filter_map(|part| match part {
-            message::Part::Text(text) if text.synthetic != Some(true) => Some(text.text.as_str()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn backend_history(mut history: Vec<message::WithParts>) -> Vec<BackendHistoryEntry> {
-    // 原生存储按新到旧返回；同毫秒内依靠单调递增消息 ID 恢复因果顺序。
-    history.sort_by(|left, right| {
-        message_time(&left.info)
-            .cmp(&message_time(&right.info))
-            .then_with(|| left.info.id().cmp(right.info.id()))
-    });
-    history
-        .into_iter()
-        .filter_map(|item| {
-            let text = message_text(&item.parts);
-            if text.trim().is_empty() {
-                return None;
-            }
-            let role = match item.info {
-                message::Info::User(_) => BackendRole::User,
-                message::Info::Assistant(_) => BackendRole::Assistant,
-            };
-            Some(BackendHistoryEntry { role, text })
-        })
-        .collect()
-}
-
-fn processor_history(history: &[BackendHistoryEntry]) -> Vec<ChatMessage> {
-    history
-        .iter()
-        .map(|entry| ChatMessage {
-            role: match entry.role {
-                BackendRole::User => ChatRole::User,
-                BackendRole::Assistant => ChatRole::Assistant,
-            },
-            content: entry.text.clone(),
-            model: None,
-            think_timing: Vec::new(),
-            processing_timing: None,
-        })
-        .collect()
-}
-
-fn backend_session(
-    snapshot: crate::session::runtime::SessionSnapshot,
-    scope: &SessionScope,
-) -> BackendSession {
-    BackendSession {
-        id: snapshot.info.id,
-        cwd: scope.directory().to_path_buf(),
-        history: backend_history(snapshot.history),
-    }
-}
-
-fn prompt_query(prompt: Vec<PromptContent>) -> String {
-    prompt
-        .into_iter()
-        .map(|content| match content {
-            PromptContent::Text(text) => text,
-            PromptContent::ResourceLink { name, uri, mime_type } => json!({
-                "type": "resource_link",
-                "name": name,
-                "uri": uri,
-                "mime_type": mime_type,
-            })
-            .to_string(),
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
+#[derive(Default)]
+pub struct NativeAcpHost;
+pub struct NativeManagedMounts(crate::agent_apps::mcp::acp_mount::ResolvedCatalogMounts);
+pub type VibeWindowBackend = agent_acp::protocol::VibeWindowBackend<NativeAcpHost>;
+type BoundSession = agent_acp::protocol::BoundSession<NativeAcpHost>;
+use agent_acp::backend::{prompt_query, processor_history};
+use agent_acp::protocol::{backend_history, lifecycle_error};
 
 fn runtime_request(
     session_id: &str,
@@ -251,92 +66,8 @@ fn runtime_request(
     }
 }
 
-fn backend_tool_status(status: &ToolCallStatus) -> BackendToolStatus {
-    match status {
-        ToolCallStatus::Running | ToolCallStatus::Waiting => BackendToolStatus::Running,
-        ToolCallStatus::Completed => BackendToolStatus::Completed,
-        ToolCallStatus::Failed | ToolCallStatus::Denied => BackendToolStatus::Failed,
-        ToolCallStatus::Cancelled => BackendToolStatus::Cancelled,
-        ToolCallStatus::Other(_) => BackendToolStatus::Failed,
-    }
-}
-
-fn payload_text(payload: &Value) -> Option<String> {
-    payload
-        .get("output")
-        .or_else(|| payload.get("error"))
-        .and_then(Value::as_str)
-        .map(ToOwned::to_owned)
-}
-
-fn map_tool_event(event: ToolEvent) -> BackendEvent {
-    let status = backend_tool_status(&event.status);
-    match event.kind {
-        ToolEventKind::Start => BackendEvent::ToolStart {
-            call_id: event.call_id,
-            title: event
-                .payload
-                .get("title")
-                .and_then(Value::as_str)
-                .unwrap_or(&event.name)
-                .to_string(),
-            raw_input: event.payload.get("input").cloned().unwrap_or(Value::Null),
-        },
-        ToolEventKind::Update => BackendEvent::ToolUpdate {
-            call_id: event.call_id,
-            status,
-            content: payload_text(&event.payload),
-            raw_output: event.payload.get("output").cloned(),
-        },
-        ToolEventKind::Complete => BackendEvent::ToolComplete {
-            call_id: event.call_id,
-            status,
-            content: payload_text(&event.payload),
-            raw_output: event.payload.get("output").cloned(),
-        },
-    }
-}
-
-pub(crate) fn map_runtime_event(event: PromptEvent) -> Option<BackendEvent> {
-    match event {
-        PromptEvent::LlmRawArtifact(_) | PromptEvent::ModelRecovery(_) => None,
-        PromptEvent::ContextLoaded { paths } => {
-            Some(BackendEvent::Status(format!("loaded context: {}", paths.join(", "))))
-        }
-        PromptEvent::Text(text) => Some(BackendEvent::Text(text)),
-        PromptEvent::Tool(event) => Some(map_tool_event(event)),
-        PromptEvent::TodoContinuation => {
-            Some(BackendEvent::Status("TODO items remain; continuing work".into()))
-        }
-        PromptEvent::Compaction { .. } => None,
-        PromptEvent::StepStart { step_index, .. } => {
-            Some(BackendEvent::Status(format!("model step {step_index} started")))
-        }
-        PromptEvent::StepFinish { step_index, .. } => {
-            Some(BackendEvent::Status(format!("model step {step_index} finished")))
-        }
-        PromptEvent::PostToolRound { step_index } => {
-            Some(BackendEvent::Status(format!("tool round {step_index} finished")))
-        }
-        PromptEvent::Terminated(PromptTermination::Completed(_)) => {
-            Some(BackendEvent::Terminal(BackendTermination::EndTurn))
-        }
-        PromptEvent::Terminated(PromptTermination::Cancelled) => {
-            Some(BackendEvent::Terminal(BackendTermination::Cancelled))
-        }
-        PromptEvent::Terminated(PromptTermination::Failed(error)) => {
-            Some(BackendEvent::Error(error))
-        }
-    }
-}
-
-struct RuntimeCancel(PromptCancelHandle);
-
-impl BackendCancelHandle for RuntimeCancel {
-    fn cancel(&self) -> bool {
-        self.0.cancel()
-    }
-}
+#[cfg(test)]
+pub(crate) use agent_acp::backend::map_runtime_event;
 
 async fn persist_turn(
     scope: SessionScope,
@@ -466,117 +197,19 @@ async fn persist_turn(
     .map_err(|error| BackendError::Internal(error.to_string()))?
 }
 
-fn bridge_prompt(
-    runtime: PromptTurn,
-    operation: tokio::sync::OwnedMutexGuard<()>,
-    runtime_handle: tokio::runtime::Handle,
-    scope: SessionScope,
-    session_id: String,
-    query: String,
-    approval: Arc<ApprovalManager>,
-    approval_prompts: tokio::sync::mpsc::UnboundedReceiver<
-        crate::agent::loop_::approval::NonCliApprovalPrompt,
-    >,
-) -> BackendPrompt {
-    let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (permissions_tx, permissions_rx) = tokio::sync::mpsc::unbounded_channel();
-    let cancel = runtime.cancel.clone();
-    runtime_handle.spawn(
-        ApprovalBridge::new(
-            approval,
-            approval_prompts,
-            permissions_tx,
-            runtime.cancel.token.clone(),
-        )
-        .run(),
-    );
-    std::thread::spawn(move || {
-        let _operation = operation;
-        let mut assistant_text = String::new();
-        while let Ok(event) = runtime.events.recv() {
-            if let PromptEvent::Text(text) = &event {
-                assistant_text.push_str(text);
-            }
-            match &event {
-                PromptEvent::Terminated(PromptTermination::Completed(usage)) => {
-                    if let Err(error) = runtime_handle.block_on(persist_turn(
-                        scope.clone(),
-                        session_id.clone(),
-                        query.clone(),
-                        assistant_text.clone(),
-                        usage.clone(),
-                        None,
-                        false,
-                    )) {
-                        let _ = events_tx.send(BackendEvent::Error(error.to_string()));
-                        break;
-                    }
-                }
-                PromptEvent::Terminated(PromptTermination::Failed(error)) => {
-                    let stored_text = if assistant_text.trim().is_empty() {
-                        error.clone()
-                    } else {
-                        assistant_text.clone()
-                    };
-                    if let Err(persist_error) = runtime_handle.block_on(persist_turn(
-                        scope.clone(),
-                        session_id.clone(),
-                        query.clone(),
-                        stored_text,
-                        TokenUsage::default(),
-                        Some(error.clone()),
-                        false,
-                    )) {
-                        let _ = events_tx.send(BackendEvent::Error(persist_error.to_string()));
-                        break;
-                    }
-                }
-                PromptEvent::Terminated(PromptTermination::Cancelled) => {
-                    if let Err(error) = runtime_handle.block_on(persist_turn(
-                        scope.clone(),
-                        session_id.clone(),
-                        query.clone(),
-                        assistant_text.clone(),
-                        TokenUsage::default(),
-                        None,
-                        true,
-                    )) {
-                        let _ = events_tx.send(BackendEvent::Error(error.to_string()));
-                        break;
-                    }
-                }
-                _ => {}
-            }
-            if let Some(event) = map_runtime_event(event) {
-                let terminal = matches!(event, BackendEvent::Terminal(_) | BackendEvent::Error(_));
-                if events_tx.send(event).is_err() || terminal {
-                    break;
-                }
-            }
-        }
-    });
-    BackendPrompt::new(events_rx, std::sync::Arc::new(RuntimeCancel(cancel)))
-        .with_permissions(permissions_rx)
-}
-
 async fn start_prompt_core(
-    backend: &VibeWindowBackend,
+    bound: BoundSession,
+    operation: tokio::sync::OwnedMutexGuard<()>,
     session_id: &str,
-    prompt: Vec<PromptContent>,
+    query: String,
     starter: impl FnOnce(Request) -> PromptTurn,
 ) -> Result<BackendPrompt, BackendError> {
-    let operation = backend
-        .bound_session(session_id)?
-        .operation
-        .try_lock_owned()
-        .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
-    let BoundSession { scope, tools, skills, model, .. } = backend.bound_session(session_id)?;
+    let BoundSession { scope, tools, skills, model, .. } = bound;
     let model = model.lock().await.clone();
     let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
     let tools = super::mcp::prune_revoked_mounts(tools)?;
     let history = backend_history(snapshot.history);
-    let query = prompt_query(prompt);
-    let config = crate::config::get_project_for_tenant(&backend.tenant, scope.directory())
+    let config = crate::config::get_project_for_tenant(scope.tenant(), scope.directory())
         .await
         .map_err(|error| BackendError::Internal(error.to_string()))?;
     let approval = Arc::new(ApprovalManager::from_config(&config.autonomy));
@@ -601,7 +234,9 @@ async fn start_prompt_core(
         starter(request)
     })
     .await;
-    Ok(bridge_prompt(
+    Ok(agent_acp::prompt::bridge_prompt(
+        NativeTurnPersistence,
+        runtime.cancel.cancellation_token(),
         runtime,
         operation,
         tokio::runtime::Handle::current(),
@@ -622,237 +257,44 @@ pub(crate) async fn start_prompt_with_runtime_runner<R>(
 where
     R: FnOnce(Request, Box<dyn FnMut(StreamEvent) -> bool + Send>) + Send + 'static,
 {
-    start_prompt_core(backend, session_id, prompt, |request| {
+    let (bound, operation) = backend.lock_prompt(session_id)?;
+    start_prompt_core(bound, operation, session_id, prompt_query(prompt), |request| {
         start_prompt_with_runner(request, runner)
     })
     .await
 }
 
+
 #[async_trait]
-impl SessionBackend for VibeWindowBackend {
-    fn supports_mount_updates(&self) -> bool {
-        true
+impl agent_acp::protocol::Host for NativeAcpHost {
+    type Tools = SessionToolset;
+    type Skills = super::mounts::SessionSkillSources;
+    type Managed = NativeManagedMounts;
+    async fn create_session(&self, input: CreateSessionInput) -> Result<crate::session::runtime::SessionSnapshot, crate::session::runtime::LifecycleError> { create_session(input).await }
+    async fn load_session(&self, scope: SessionScope, id: &str) -> Result<crate::session::runtime::SessionSnapshot, crate::session::runtime::LifecycleError> { load_session(scope, id).await }
+    fn empty_mounts(&self) -> Self::Managed { NativeManagedMounts(Default::default()) }
+    fn resolve_mounts(&self, scope: &SessionScope, id: &str, project: &str, catalog: &[acp_types::McpCatalogMount], restore: bool) -> Result<Self::Managed, BackendError> {
+        crate::agent_apps::mcp::acp_mount::resolve_mounts(scope, id, project, catalog, restore).map(NativeManagedMounts)
     }
+    async fn prepare_revision(&self, scope: &SessionScope, id: &str, request: acp_server::server::BackendMountRequest, saved: &[acp_types::SessionSkillMount], revision: acp_types::SessionMountRevision, managed: Self::Managed) -> Result<agent_acp::protocol::PreparedMounts<Self>, BackendError> {
+        let prepared = super::mounts::prepare_revision(scope, id, request, saved, revision, managed.0).await?;
+        Ok(agent_acp::protocol::PreparedMounts { skills: prepared.skills, tools: prepared.tools, response: prepared.response, mcp_catalog: prepared.mcp_catalog })
+    }
+    async fn save_mounts(&self, scope: &SessionScope, id: &str, prepared: &agent_acp::protocol::PreparedMounts<Self>) -> Result<(), BackendError> {
+        super::mount_store::save(scope, id, &super::mounts::PreparedMounts { skills: prepared.skills.clone(), tools: prepared.tools.clone(), response: prepared.response.clone(), mcp_catalog: prepared.mcp_catalog.clone() }).await
+    }
+    fn revoke(&self, skills: &Self::Skills) { skills.revoke(); }
+    fn fingerprint<'a>(&self, skills: &'a Self::Skills) -> Option<&'a str> { skills.fingerprint() }
+    fn shutdown(&self, tools: &Self::Tools) { if let Some(connections) = tools.mcp_connections() { connections.shutdown(); } }
+    fn tool_count(&self, tools: &Self::Tools) -> usize { tools.len() }
+    async fn session_models(&self, scope: SessionScope, selected: String) -> Result<agent_client_protocol::SessionModelState, BackendError> { models::session_models(scope, selected).await }
+    async fn start_bound_prompt(&self, bound: BoundSession, operation: tokio::sync::OwnedMutexGuard<()>, id: &str, query: String) -> Result<BackendPrompt, BackendError> { start_prompt_core(bound, operation, id, query, start_prompt).await }
+}
 
-    async fn set_session_mounts(
-        &self,
-        request: acp_types::SetSessionMountsRequest,
-    ) -> Result<acp_types::SetSessionMountsResponse, BackendError> {
-        let id = request.session_id.to_string();
-        let bound = self.bound_session(&id)?;
-        let operation = bound.operation.clone();
-        let _operation = operation
-            .try_lock()
-            .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
-        let bound = self.bound_session(&id)?;
-        let revision = bound
-            .revision
-            .next(request.expected_revision)
-            .map_err(|e| BackendError::InvalidRequest(e.to_string()))?;
-        let snapshot = load_session(bound.scope.clone(), &id).await.map_err(lifecycle_error)?;
-        let managed = crate::agent_apps::mcp::acp_mount::resolve_mounts(
-            &bound.scope,
-            &id,
-            &snapshot.info.project_id,
-            &request.mcp_catalog,
-            false,
-        )?;
-        let mut prepared = super::mounts::prepare_revision(
-            &bound.scope,
-            &id,
-            acp_server::server::BackendMountRequest {
-                skills: Some(acp_types::SessionMountSelection { version: 1, skills: request.skills }),
-                mcp_servers: request.mcp_servers,
-            },
-            &[],
-            revision,
-            managed,
-        )
-        .await?;
-        // Invocation checkpoints are bound to the committed revision. Failed writes
-        // retain both the previous mounts and their replayable checkpoint generation.
-        super::mount_store::save(&bound.scope, &id, &prepared).await?;
-        prepared.response.revision = revision;
-        let mut sessions = self.sessions.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let current = sessions.get_mut(&id).ok_or_else(|| BackendError::NotFound(id.clone()))?;
-        if current.revision != bound.revision {
-            return Err(BackendError::InvalidRequest("session mounts revision conflict".into()));
-        }
-        let old_tools = std::mem::replace(&mut current.tools, prepared.tools);
-        current.skills.revoke();
-        current.skills = prepared.skills;
-        current.revision = revision;
-        if let Some(connections) = old_tools.mcp_connections() {
-            connections.shutdown();
-        }
-        Ok(prepared.response)
-    }
-
-    fn supports_skill_mounts(&self) -> bool {
-        cfg!(unix)
-    }
-    async fn create_session_with_mounts(
-        &self,
-        cwd: PathBuf,
-        request: acp_server::server::BackendMountRequest,
-    ) -> Result<acp_server::server::BackendMountedSession, BackendError> {
-        let scope = self.scope(cwd)?;
-        let snapshot = create_session(CreateSessionInput {
-            scope: scope.clone(),
-            parent_id: None,
-            title: None,
-            permission: None,
-        })
-        .await
-        .map_err(lifecycle_error)?;
-        let session = backend_session(snapshot, &scope);
-        let prepared = super::mounts::prepare(&scope, &session.id, request, &[]).await?;
-        let stored_model = models::load_selection(&scope, &session.id).await?;
-        super::mount_store::save(&scope, &session.id, &prepared).await?;
-        self.remember_scope(
-            &session.id,
-            scope,
-            prepared.tools,
-            prepared.skills,
-            prepared.response.revision,
-            stored_model,
-        )?;
-        Ok(acp_server::server::BackendMountedSession { session, mounts: prepared.response })
-    }
-
-    async fn load_session_with_mounts(
-        &self,
-        session_id: &str,
-        cwd: PathBuf,
-        request: acp_server::server::BackendMountRequest,
-    ) -> Result<acp_server::server::BackendMountedSession, BackendError> {
-        let scope = self.scope(cwd)?;
-        let existing = self.bound_session(session_id).ok();
-        let _operation = existing
-            .as_ref()
-            .map(|bound| bound.operation.try_lock())
-            .transpose()
-            .map_err(|_| BackendError::InvalidRequest("session is busy".into()))?;
-        let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
-        let record = super::mount_store::load(&scope, session_id).await?;
-        let restoring = request.skills.is_none();
-        let previous_revision =
-            record.as_ref().map(|r| r.revision).unwrap_or(acp_types::SessionMountRevision(0));
-        let revision = if !restoring && record.is_some() {
-            previous_revision
-                .next(previous_revision)
-                .map_err(|e| BackendError::InvalidRequest(e.to_string()))?
-        } else {
-            previous_revision
-        };
-        let managed = crate::agent_apps::mcp::acp_mount::resolve_mounts(
-            &scope,
-            session_id,
-            &snapshot.info.project_id,
-            record.as_ref().map(|record| record.mcp_catalog.as_slice()).unwrap_or_default(),
-            true,
-        )?;
-        let prepared = super::mounts::prepare_revision(
-            &scope,
-            session_id,
-            request,
-            record.as_ref().map(|r| r.skills.as_slice()).unwrap_or_default(),
-            revision,
-            managed,
-        )
-        .await?;
-        if restoring
-            && record.as_ref().is_some_and(|record| {
-                record.fingerprint.as_deref() != prepared.skills.fingerprint()
-            })
-        {
-            return Err(BackendError::InvalidRequest(
-                "persisted session skill source identity or content changed".into(),
-            ));
-        }
-        let stored_model = models::load_selection(&scope, session_id).await?;
-        super::mount_store::save(&scope, session_id, &prepared).await?;
-        let session = backend_session(snapshot, &scope);
-        self.remember_scope(
-            session_id,
-            scope,
-            prepared.tools,
-            prepared.skills,
-            revision,
-            stored_model,
-        )?;
-        Ok(acp_server::server::BackendMountedSession { session, mounts: prepared.response })
-    }
-
-    async fn session_models(
-        &self,
-        session_id: &str,
-    ) -> Result<Option<agent_client_protocol::SessionModelState>, BackendError> {
-        let bound = self.bound_session(session_id)?;
-        let selected = bound.model.lock().await.clone();
-        models::session_models(bound.scope, selected).await.map(Some)
-    }
-
-    async fn set_session_model(
-        &self,
-        session_id: &str,
-        model_id: &str,
-    ) -> Result<agent_client_protocol::SessionModelState, BackendError> {
-        let bound = self.bound_session(session_id)?;
-        let mut selected = bound.model.lock().await;
-        let models = models::session_models(bound.scope.clone(), model_id.to_string()).await?;
-        models::save_selection(&bound.scope, session_id, model_id).await?;
-        *selected = model_id.to_string();
-        Ok(models)
-    }
-
-    async fn create_session(&self, cwd: PathBuf) -> Result<BackendSession, BackendError> {
-        self.create_session_with_mcp(cwd, Vec::new()).await
-    }
-
-    async fn create_session_with_mcp(
-        &self,
-        cwd: PathBuf,
-        mcp_servers: Vec<McpServer>,
-    ) -> Result<BackendSession, BackendError> {
-        Ok(self
-            .create_session_with_mounts(
-                cwd,
-                acp_server::server::BackendMountRequest { skills: None, mcp_servers },
-            )
-            .await?
-            .session)
-    }
-
-    async fn load_session(
-        &self,
-        session_id: &str,
-        cwd: PathBuf,
-    ) -> Result<BackendSession, BackendError> {
-        self.load_session_with_mcp(session_id, cwd, Vec::new()).await
-    }
-
-    async fn load_session_with_mcp(
-        &self,
-        session_id: &str,
-        cwd: PathBuf,
-        mcp_servers: Vec<McpServer>,
-    ) -> Result<BackendSession, BackendError> {
-        Ok(self
-            .load_session_with_mounts(
-                session_id,
-                cwd,
-                acp_server::server::BackendMountRequest { skills: None, mcp_servers },
-            )
-            .await?
-            .session)
-    }
-
-    async fn start_prompt(
-        &self,
-        session_id: &str,
-        prompt: Vec<PromptContent>,
-    ) -> Result<BackendPrompt, BackendError> {
-        start_prompt_core(self, session_id, prompt, start_prompt).await
+struct NativeTurnPersistence;
+#[async_trait]
+impl agent_acp::prompt::TurnPersistence for NativeTurnPersistence {
+    async fn persist_turn(&self, scope: SessionScope, session_id: String, query: String, assistant_text: String, usage: TokenUsage, error: Option<String>, cancelled: bool) -> Result<(), BackendError> {
+        persist_turn(scope, session_id, query, assistant_text, usage, error, cancelled).await
     }
 }

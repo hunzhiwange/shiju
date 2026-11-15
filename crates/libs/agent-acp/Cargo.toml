@@ -1,0 +1,37 @@
+[package]
+name = "agent-acp"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[features]
+test-support = []
+
+[dependencies]
+async-trait = "0.1.89"
+message-types = { path = "../message-types", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+acp-server = { path = "../acp-server", version = "0.6.0" }
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+tokio = { version = "1", features = ["sync", "macros", "rt"] }
+tokio-util = "0.7.18"
+
+serde = { version = "1", features = ["derive"] }
+acp-types = { path = "../acp-types", version = "0.6.0" }
+session-port = { path = "../session-port", version = "0.6.0" }
+agent-provider = { path = "../agent-provider", version = "0.6.0" }
+agent-storage = { path = "../agent-storage", version = "0.6.0" }
+agent-client-protocol = { version = "0.10.4", features = ["unstable_session_model", "unstable_boolean_config"] }
+sha2 = "0.10"
+hex = "0.4"
+serde_json = "1"
+
+[dev-dependencies]
+agent-approval = { path = "../agent-approval", version = "0.6.0", features = ["test-support"] }
+config-security = { path = "../config-security", version = "0.6.0" }
+serde_json = "1"
+tokio = { version = "1", features = ["time", "test-util"] }

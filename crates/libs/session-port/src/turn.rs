@@ -39,6 +39,11 @@ impl PromptCancelHandle {
         }
     }
 
+    /// Share this prompt's existing cancellation signal with protocol bridges.
+    pub fn cancellation_token(&self) -> CancellationToken {
+        self.token.clone()
+    }
+
     pub fn is_explicit(&self) -> bool {
         self.explicit.load(Ordering::Acquire)
     }

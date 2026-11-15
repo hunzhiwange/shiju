@@ -3,7 +3,7 @@ use crate::app::message::app_providers::list::{self, ListMessage};
 use crate::app::state::app_providers::list::Scope;
 use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
-use vw_gateway_client::AggregationApiError;
+use gateway_aggregation_native::AggregationApiError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::AggregationQuery;
@@ -161,8 +161,8 @@ pub(crate) async fn execute(
     write: Option<(String, PiDirectoryWrite)>,
 ) -> Result<PiDirectoryState, AggregationApiError> {
     match write {
-        Some((id, body)) => client.pi_directory_entry(&id, &body).await,
-        None => client.pi_directory_state(&query).await,
+        Some((id, body)) => gateway_aggregation_native::GatewayAggregationNativeClient::new(client.transport().clone()).pi_directory_entry(&id, &body).await,
+        None => gateway_aggregation_native::GatewayAggregationNativeClient::new(client.transport().clone()).pi_directory_state(&query).await,
     }
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

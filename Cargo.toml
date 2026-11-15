@@ -2,6 +2,7 @@
 members = [
   "crates/libs/gateway-aggregation",
   "crates/libs/gateway-aggregation-omo",
+  "crates/libs/gateway-aggregation-native",
   "crates/libs/gateway-device-sync",
   "crates/libs/gateway-usage-read",
   "crates/libs/gateway-usage-scan",

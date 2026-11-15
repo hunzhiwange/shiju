@@ -1,7 +1,7 @@
 //! OMP directory editor; native configuration remains owned by the gateway.
 use iced::widget::text_editor;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_gateway_client::AggregationApiError;
+use gateway_aggregation_native::AggregationApiError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_aggregation::*;
 
@@ -11,7 +11,7 @@ pub(crate) async fn read(
 ) -> Result<OmpDirectoryState, String> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        client.omp_directory_state(query).await.map_err(error)
+        gateway_aggregation_native::GatewayAggregationNativeClient::new(client.transport().clone()).omp_directory_state(query).await.map_err(error)
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -139,7 +139,7 @@ pub(crate) async fn execute(
         Some((id, body)) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                client.omp_directory_entry(&id, &body).await.map_err(error)
+                gateway_aggregation_native::GatewayAggregationNativeClient::new(client.transport().clone()).omp_directory_entry(&id, &body).await.map_err(error)
             }
             #[cfg(target_arch = "wasm32")]
             {

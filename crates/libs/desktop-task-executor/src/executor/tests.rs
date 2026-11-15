@@ -13,7 +13,7 @@ use super::{
     block_on_gateway, build_task_commit_message, normalize_commit_title,
     normalize_non_default_commit_title, task_session_id,
 };
-use crate::app::task::Task;
+use desktop_task_model::models::Task;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
 static TASK_EXECUTOR_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -228,13 +228,13 @@ fn build_task_commit_message_uses_fallback_when_title_unavailable() {
     task.id = "T1".to_string();
     task.prompt = String::new();
 
-    assert_eq!(build_task_commit_message(&task, "fallback message"), "fallback message");
+    assert_eq!(build_task_commit_message(gateway_client, &task, "fallback message"), "fallback message");
 }
 
 #[test]
 fn start_execution_preserves_target_branch_and_worktree_path() {
     let mut task = Task::default();
-    task.set_status(crate::app::task::TaskStatus::Pending);
+    task.set_status(desktop_task_model::models::TaskStatus::Pending);
     task.merge_source_branch = Some("feature/old".to_string());
     task.merge_target_branch = Some("main".to_string());
     task.selected_worktree_path = Some("/tmp/worktree-path".to_string());
@@ -272,7 +272,7 @@ fn resolve_task_execution_workspace_reads_branch_from_selected_worktree() {
     task.merge_target_branch = Some("main".to_string());
 
     let (workspace, _guard) =
-        resolve_task_execution_workspace(&task, repo_dir.to_string_lossy().as_ref(), None)
+        resolve_task_execution_workspace(gateway_client, &task, repo_dir.to_string_lossy().as_ref(), None)
             .expect("workspace should resolve");
 
     assert_eq!(
@@ -303,7 +303,7 @@ fn assign_task_execution_worktree_does_not_create_local_pool_slot() {
     let _home_guard = EnvGuard::set_os("HOME", home.path().as_os_str());
 
     let task = Task::default();
-    let assigned = assign_task_execution_worktree(repo_dir.to_string_lossy().as_ref(), &task, None)
+    let assigned = assign_task_execution_worktree(gateway_client, repo_dir.to_string_lossy().as_ref(), &task, None)
         .expect("assignment should not fail");
 
     assert_eq!(assigned, None);
@@ -330,7 +330,7 @@ fn resolve_task_execution_workspace_uses_project_path_without_gateway_lease() {
 
     let task = Task::default();
     let (workspace, _guard) =
-        resolve_task_execution_workspace(&task, repo_dir.to_string_lossy().as_ref(), None)
+        resolve_task_execution_workspace(gateway_client, &task, repo_dir.to_string_lossy().as_ref(), None)
             .expect("workspace should resolve");
 
     assert_eq!(workspace.slot_id, None);
@@ -339,4 +339,8 @@ fn resolve_task_execution_workspace_uses_project_path_without_gateway_lease() {
     assert_eq!(workspace.merge_target_branch.as_deref(), Some("main"));
     assert_eq!(workspace.selected_worktree_path, None);
     assert!(!config_runtime_paths::task_worktrees_dir(home.path()).exists());
+}
+
+fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
+    Err("test gateway unavailable".to_string())
 }

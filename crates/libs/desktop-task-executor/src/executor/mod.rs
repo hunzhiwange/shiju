@@ -54,3 +54,93 @@ where
 
 pub mod runner;
 pub mod scheduling;
+
+use desktop_task_model::models::Task;
+#[cfg(not(target_arch = "wasm32"))]
+use session_text::is_default_title;
+pub mod state;
+pub mod worktree_admin;
+mod worktree_pool;
+#[cfg(test)]
+mod tests;
+#[cfg(not(target_arch = "wasm32"))]
+fn normalize_commit_title(raw: &str) -> Option<String> {
+    let mut normalized = String::new();
+    let mut last_was_space = false;
+
+    for ch in raw.chars() {
+        if ch.is_control() {
+            if matches!(ch, '\n' | '\r' | '\t') && !last_was_space {
+                normalized.push(' ');
+                last_was_space = true;
+            }
+            continue;
+        }
+
+        if ch.is_whitespace() {
+            if !last_was_space {
+                normalized.push(' ');
+                last_was_space = true;
+            }
+            continue;
+        }
+
+        normalized.push(ch);
+        last_was_space = false;
+    }
+
+    let normalized = normalized.trim();
+    if normalized.is_empty() {
+        return None;
+    }
+
+    let limited = normalized.chars().take(72).collect::<String>();
+    Some(limited)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn normalize_non_default_commit_title(raw: &str) -> Option<String> {
+    let normalized = normalize_commit_title(raw)?;
+    if normalized == "新会话" || is_default_title(&normalized) {
+        return None;
+    }
+    Some(normalized)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 执行 task_session_id 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub(super) fn task_session_id(task_id: &str) -> String {
+    format!("task-board-{}", task_id)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn load_task_session_title(gateway_client: fn() -> Result<vw_gateway_client::GatewayClient, String>, task: &Task) -> Option<String> {
+    let session_id = task_session_id(&task.id);
+    let client = gateway_client().ok()?;
+    let preview = block_on_gateway(gateway_session::GatewaySessionClient::new(client.transport().clone()).session_preview_meta_get(&session_id, None)).ok().flatten()?;
+    normalize_non_default_commit_title(&preview.title)
+        .or_else(|| preview.last_content.as_deref().and_then(normalize_commit_title))
+}
+
+#[cfg(target_arch = "wasm32")]
+/// 执行 load_task_session_title 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub(super) fn load_task_session_title(_gateway_client: fn() -> Result<vw_gateway_client::GatewayClient, String>, _task: &Task) -> Option<String> {
+    None
+}
+
+/// 执行 build_task_commit_message 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub(super) fn build_task_commit_message(gateway_client: fn() -> Result<vw_gateway_client::GatewayClient, String>, task: &Task, fallback: &str) -> String {
+    match load_task_session_title(gateway_client, task) {
+        Some(title) => format!("task({}): {}", task.id, title),
+        None => fallback.to_string(),
+    }
+}

@@ -357,5 +357,5 @@ fn claim_guard_with_path_releases_matching_claim_on_drop() {
 
 #[test]
 fn git_state_constants_are_stable() {
-    assert_eq!(super::GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS, 30);
+    assert_eq!(super::super::git::GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS, 30);
 }

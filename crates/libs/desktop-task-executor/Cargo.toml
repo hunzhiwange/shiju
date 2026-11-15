@@ -11,6 +11,8 @@ doctest = false
 test-support = []
 
 [dependencies]
+session-text = { path = "../session-text", version = "0.6.0" }
+gateway-session = { path = "../gateway-session", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 once_cell = "1"
 time = { version = "0.3", features = ["formatting"] }

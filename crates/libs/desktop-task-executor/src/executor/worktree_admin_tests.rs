@@ -102,16 +102,16 @@ fn valid_branch_name_rejects_empty_and_head() {
 
 #[test]
 fn resolve_merge_target_prefers_task_branch_when_valid() {
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.merge_target_branch = Some(" release ".into());
 
     assert_eq!(
-        super::resolve_merge_target_branch(&task, "/tmp/not-a-repo").as_deref(),
+        super::resolve_merge_target_branch(gateway_client, &task, "/tmp/not-a-repo").as_deref(),
         Some("release")
     );
 
     task.merge_target_branch = Some("HEAD".into());
-    assert_eq!(super::resolve_merge_target_branch(&task, "/tmp/not-a-repo"), None);
+    assert_eq!(super::resolve_merge_target_branch(gateway_client, &task, "/tmp/not-a-repo"), None);
 }
 
 #[test]
@@ -260,13 +260,13 @@ fn assign_task_execution_worktree_uses_existing_selected_path_without_git_pool()
     let selected = temp.path().join("selected");
     std::fs::create_dir_all(&selected).expect("selected dir");
 
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.id = "T20260612.0001".into();
     task.selected_worktree_path = Some(selected.to_string_lossy().to_string());
     task.merge_target_branch = Some("main".into());
 
     let (sender, receiver) = std::sync::mpsc::channel();
-    let assigned = super::assign_task_execution_worktree("/tmp/not-a-repo", &task, Some(&sender))
+    let assigned = super::assign_task_execution_worktree(gateway_client, "/tmp/not-a-repo", &task, Some(&sender))
         .expect("assigned selected path");
 
     let normalized = super::normalize_path(&selected.to_string_lossy());
@@ -281,12 +281,12 @@ fn assign_task_execution_worktree_uses_existing_selected_path_without_git_pool()
 
 #[test]
 fn assign_task_execution_worktree_defers_valid_target_branch_to_gateway() {
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.id = "T20260612.0003".into();
     task.merge_target_branch = Some(" release ".into());
     let (sender, receiver) = std::sync::mpsc::channel();
 
-    let assigned = super::assign_task_execution_worktree("/tmp/not-a-repo", &task, Some(&sender))
+    let assigned = super::assign_task_execution_worktree(gateway_client, "/tmp/not-a-repo", &task, Some(&sender))
         .expect("gateway allocation should not fail");
 
     assert_eq!(assigned, None);
@@ -300,11 +300,11 @@ fn assign_task_execution_worktree_defers_valid_target_branch_to_gateway() {
 
 #[test]
 fn assign_task_execution_worktree_ignores_missing_selected_path() {
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.selected_worktree_path = Some(unique_claim_path("missing-selected"));
     task.merge_target_branch = Some("main".into());
 
-    let assigned = super::assign_task_execution_worktree("/tmp/not-a-repo", &task, None)
+    let assigned = super::assign_task_execution_worktree(gateway_client, "/tmp/not-a-repo", &task, None)
         .expect("missing selected path should fall back to gateway allocation");
 
     assert_eq!(assigned, None);
@@ -318,13 +318,13 @@ fn resolve_task_execution_workspace_uses_selected_path_and_claims_it() {
     let selected_string = selected.to_string_lossy().to_string();
     let normalized = super::normalize_path(&selected_string);
 
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.id = "T20260612.0002".into();
     task.selected_worktree_path = Some(selected_string);
     task.merge_source_branch = Some("feature".into());
 
     let (workspace, guard) =
-        super::resolve_task_execution_workspace(&task, "/tmp/not-a-repo", None).expect("workspace");
+        super::resolve_task_execution_workspace(gateway_client, &task, "/tmp/not-a-repo", None).expect("workspace");
 
     assert_eq!(workspace.slot_id, None);
     assert_eq!(workspace.execution_path, normalized);
@@ -340,14 +340,14 @@ fn resolve_task_execution_workspace_uses_selected_path_and_claims_it() {
 #[test]
 fn resolve_task_execution_workspace_without_selected_path_keeps_task_metadata() {
     let project_path = unique_claim_path("project");
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.selected_worktree_slot_id = Some("slot-7".into());
     task.selected_worktree_path = Some(unique_claim_path("missing-worktree"));
     task.merge_source_branch = Some(" feature/source ".into());
     task.merge_target_branch = Some(" release ".into());
 
     let (workspace, _guard) =
-        super::resolve_task_execution_workspace(&task, &project_path, None).expect("workspace");
+        super::resolve_task_execution_workspace(gateway_client, &task, &project_path, None).expect("workspace");
 
     assert_eq!(workspace.slot_id.as_deref(), Some("slot-7"));
     assert_eq!(workspace.execution_path, project_path);
@@ -366,13 +366,13 @@ fn resolve_workspace_does_not_release_a_path_claimed_by_another_execution() {
 
     assert!(super::claim_worktree_path(&selected));
 
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.selected_worktree_path = Some(selected.clone());
     task.merge_source_branch = Some("feature/claimed".into());
     task.merge_target_branch = Some("main".into());
 
     let (workspace, guard) =
-        super::resolve_task_execution_workspace(&task, "/tmp/not-a-repo", None).expect("workspace");
+        super::resolve_task_execution_workspace(gateway_client, &task, "/tmp/not-a-repo", None).expect("workspace");
     assert_eq!(workspace.selected_worktree_path.as_deref(), Some(selected.as_str()));
 
     drop(guard);
@@ -383,12 +383,12 @@ fn resolve_workspace_does_not_release_a_path_claimed_by_another_execution() {
 #[test]
 fn resolve_workspace_rejects_invalid_source_branch_metadata() {
     let project_path = unique_claim_path("invalid-source");
-    let mut task = crate::app::task::models::Task::new(1);
+    let mut task = desktop_task_model::models::Task::new(1);
     task.merge_source_branch = Some(" HEAD ".into());
     task.merge_target_branch = Some("release".into());
 
     let (workspace, _guard) =
-        super::resolve_task_execution_workspace(&task, &project_path, None).expect("workspace");
+        super::resolve_task_execution_workspace(gateway_client, &task, &project_path, None).expect("workspace");
 
     assert_eq!(workspace.selected_worktree_branch, None);
     assert_eq!(workspace.merge_target_branch.as_deref(), Some("release"));
@@ -400,17 +400,17 @@ fn repo_admin_entrypoints_reject_non_git_directories_with_clear_errors() {
     let path = temp.path().to_string_lossy();
 
     assert!(
-        super::reset_all_managed_worktrees(&path, false)
+        super::reset_all_managed_worktrees(gateway_client, &path, false)
             .expect_err("reset outside git should fail")
             .contains("当前目录不在 git 仓库中")
     );
     assert!(
-        super::delete_all_managed_worktrees(&path)
+        super::delete_all_managed_worktrees(gateway_client, &path)
             .expect_err("delete outside git should fail")
             .contains("当前目录不在 git 仓库中")
     );
     assert!(
-        super::commit_merge_all_worktrees(&path, &[])
+        super::commit_merge_all_worktrees(gateway_client, &path, &[])
             .expect_err("merge outside git should fail")
             .contains("无法批量合并")
     );
@@ -430,7 +430,7 @@ fn reset_all_managed_worktrees_resets_slots_and_cleans_untracked_files() {
     std::fs::write(slot.join("scratch.txt"), "temporary\n").expect("untracked file");
     let (sender, receiver) = std::sync::mpsc::channel();
 
-    let count = super::reset_all_managed_worktrees_with_logs(
+    let count = super::reset_all_managed_worktrees_with_logs(gateway_client,
         repo.to_string_lossy().as_ref(),
         true,
         Some(&sender),
@@ -462,7 +462,7 @@ fn delete_all_managed_worktrees_removes_slots_branches_and_claims() {
 
     assert!(super::claim_worktree_path(&normalized_slot));
     let (sender, receiver) = std::sync::mpsc::channel();
-    let count = super::delete_all_managed_worktrees_with_logs(
+    let count = super::delete_all_managed_worktrees_with_logs(gateway_client,
         repo.to_string_lossy().as_ref(),
         Some(&sender),
     )
@@ -494,12 +494,12 @@ fn commit_merge_all_worktrees_commits_dirty_worktree_and_merges_branch() {
     add_worktree(&repo, &slot, "vw/merge");
     std::fs::write(slot.join("feature.txt"), "merged\n").expect("write feature file");
 
-    let mut task = crate::app::task::models::Task::new(7);
+    let mut task = desktop_task_model::models::Task::new(7);
     task.id = "T20260718.0007".to_string();
     task.merge_source_branch = Some("vw/merge".to_string());
     let (sender, receiver) = std::sync::mpsc::channel();
 
-    let count = super::commit_merge_all_worktrees_with_logs(
+    let count = super::commit_merge_all_worktrees_with_logs(gateway_client,
         repo.to_string_lossy().as_ref(),
         &[task],
         Some(&sender),
@@ -514,4 +514,8 @@ fn commit_merge_all_worktrees_commits_dirty_worktree_and_merges_branch() {
         }
         _ => false,
     }));
+}
+
+fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
+    Err("test gateway unavailable".to_string())
 }

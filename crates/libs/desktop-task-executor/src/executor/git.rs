@@ -7,7 +7,7 @@ use super::process_utils::{
     build_command_failure_detail, emit_stderr_log, emit_stdout_log, tail_chars, to_shell_command,
 };
 use super::TaskLogStream;
-const GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS: u64 = 30;
+pub(super) const GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS: u64 = 30;
 use super::*;
 use vw_api_git::{GitCommandRequest, GitCommandResponse};
 

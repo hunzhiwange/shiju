@@ -7,7 +7,9 @@
 
 use super::process_utils::normalize_path;
 use super::state::WorktreeEntry;
-use super::*;
+use std::path::{Path, PathBuf};
+#[cfg(test)]
+use super::state::{WorktreePoolSnapshot, WorktreeState};
 
 pub(super) fn parse_worktree_list(output: &str) -> Vec<WorktreeEntry> {
     let mut entries = Vec::new();

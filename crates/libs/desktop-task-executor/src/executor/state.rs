@@ -4,9 +4,11 @@
 //!
 //! 该模块聚焦任务运行过程中的一个局部职责，供执行器入口组合调用。注释说明边界、错误传播和平台差异，避免调用方需要阅读完整执行链才能理解行为。
 
-use super::*;
+use std::collections::{HashMap, HashSet};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Mutex, OnceLock};
 
-pub use desktop_task_executor::TaskLogStream;
+pub use super::TaskLogStream;
 
 /// 公开的 TaskExecutorState 结构体，承载该模块边界内传递的结构化状态。
 pub struct TaskExecutorState {
@@ -117,17 +119,17 @@ pub(super) struct WorktreeEntry {
 /// 模块内部可见的 SelectedExecutionWorkspace 结构体，承载该模块边界内传递的结构化状态。
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub(super) struct SelectedExecutionWorkspace {
-    pub(super) slot_id: Option<String>,
-    pub(super) execution_path: String,
-    pub(super) selected_worktree_path: Option<String>,
-    pub(super) selected_worktree_branch: Option<String>,
-    pub(super) merge_target_branch: Option<String>,
-    pub(super) project_path: String,
+pub struct SelectedExecutionWorkspace {
+    pub slot_id: Option<String>,
+    pub execution_path: String,
+    pub selected_worktree_path: Option<String>,
+    pub selected_worktree_branch: Option<String>,
+    pub merge_target_branch: Option<String>,
+    pub project_path: String,
 }
 
 /// 模块内部可见的 WorktreeClaimGuard 结构体，承载该模块边界内传递的结构化状态。
-pub(super) struct WorktreeClaimGuard {
+pub struct WorktreeClaimGuard {
     claimed_path: Option<String>,
 }
 
@@ -150,8 +152,6 @@ impl Drop for WorktreeClaimGuard {
 
 static CLAIMED_WORKTREES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
-/// 模块内部可见的 GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS 常量，集中保存该模块复用的稳定取值。
-pub(super) const GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS: u64 = 30;
 /// 模块内部可见的 claimed_worktrees 函数。
 ///
 /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。

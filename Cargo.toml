@@ -11,6 +11,7 @@ members = [
   "crates/libs/config-tools",
   "crates/libs/gateway-app-read",
   "crates/libs/gateway-app-lifecycle",
+  "crates/libs/gateway-app-auth",
   "crates/libs/config-voice",
   "crates/libs/runtime-time",
   "crates/libs/api-file",

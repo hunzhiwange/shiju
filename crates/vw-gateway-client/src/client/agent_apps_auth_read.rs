@@ -1,104 +1,29 @@
-//! Managed account queries on the Gateway management routes.
-
+//! 应用授权兼容门面，行为由 gateway-app-auth 拥有。
 use super::GatewayClient;
-use crate::http::apply_request_context;
-use reqwest::header::{CACHE_CONTROL, HeaderValue};
-use serde::Deserialize;
-use serde::de::DeserializeOwned;
-use vw_api_types::agent_apps_auth::{AuthAccount, AuthError, AuthService, AuthStatus};
-
-/// A trusted principal token and optional Basic credentials for managed gateways.
-pub struct AgentAppsAuthCredentials<'a> {
-    pub username: &'a str,
-    pub password: &'a str,
-    pub principal_token: &'a str,
-}
-
-impl AgentAppsAuthCredentials<'_> {
-    pub(super) fn apply_basic_auth(
-        &self,
-        request: reqwest::RequestBuilder,
-    ) -> reqwest::RequestBuilder {
-        if self.username.is_empty() && self.password.is_empty() {
-            request
-        } else {
-            request.basic_auth(self.username, Some(self.password))
-        }
-    }
-}
-
-/// A supplier's account reference in the selected authorization scope.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AgentAppsAuthBinding {
-    pub provider_id: String,
-    pub service: AuthService,
-    pub account_id: String,
-}
-
-/// Query failure with the structured authorization error when the gateway supplies one.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AgentAppsAuthReadError {
-    InvalidPrincipalToken,
-    Transport,
-    Http { status: u16, error: Option<AuthError> },
-    Decode,
-}
-
-impl std::fmt::Display for AgentAppsAuthReadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidPrincipalToken => f.write_str("invalid authorization principal token"),
-            Self::Transport => f.write_str("authorization request could not be completed"),
-            Self::Http { status, error: Some(error) } => {
-                write!(f, "authorization request failed with HTTP {status} ({:?})", error.code)
-            }
-            Self::Http { status, error: None } => {
-                write!(f, "authorization request failed with HTTP {status}")
-            }
-            Self::Decode => f.write_str("invalid authorization response"),
-        }
-    }
-}
-
-impl std::error::Error for AgentAppsAuthReadError {}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct AccountsResponse {
-    accounts: Vec<AuthAccount>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct BindingsResponse {
-    bindings: Vec<AgentAppsAuthBinding>,
-}
+use vw_api_types::agent_apps_auth::*;
+pub use gateway_app_auth::{AgentAppsAuthBinding, AgentAppsAuthCredentials, AgentAppsAuthReadError};
 
 impl GatewayClient {
-    /// List redacted accounts for the given host and service in the endpoint's tenant scope.
     pub async fn agent_apps_auth_accounts(
         &self,
         host_id: &str,
         service: AuthService,
         credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<Vec<AuthAccount>, AgentAppsAuthReadError> {
-        let response: AccountsResponse =
-            self.agent_apps_auth_read("accounts", host_id, service, None, credentials).await?;
-        Ok(response.accounts)
+        gateway_app_auth::GatewayAppAuthClient::new(self.transport.clone())
+            .agent_apps_auth_accounts(host_id, service, credentials).await
     }
 
-    /// Read the service's default account and capabilities in the current scope.
     pub async fn agent_apps_auth_status(
         &self,
         host_id: &str,
         service: AuthService,
         credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<AuthStatus, AgentAppsAuthReadError> {
-        self.agent_apps_auth_read("status", host_id, service, None, credentials).await
+        gateway_app_auth::GatewayAppAuthClient::new(self.transport.clone())
+            .agent_apps_auth_status(host_id, service, credentials).await
     }
 
-    /// List visible supplier bindings, optionally filtering by a scoped account ID.
     pub async fn agent_apps_auth_bindings(
         &self,
         host_id: &str,
@@ -106,58 +31,7 @@ impl GatewayClient {
         account_id: Option<&str>,
         credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<Vec<AgentAppsAuthBinding>, AgentAppsAuthReadError> {
-        let response: BindingsResponse = self
-            .agent_apps_auth_read("bindings", host_id, service, account_id, credentials)
-            .await?;
-        Ok(response.bindings)
+        gateway_app_auth::GatewayAppAuthClient::new(self.transport.clone())
+            .agent_apps_auth_bindings(host_id, service, account_id, credentials).await
     }
-
-    async fn agent_apps_auth_read<T: DeserializeOwned>(
-        &self,
-        resource: &str,
-        host_id: &str,
-        service: AuthService,
-        account_id: Option<&str>,
-        credentials: &AgentAppsAuthCredentials<'_>,
-    ) -> Result<T, AgentAppsAuthReadError> {
-        let mut principal = HeaderValue::from_str(credentials.principal_token)
-            .map_err(|_| AgentAppsAuthReadError::InvalidPrincipalToken)?;
-        principal.set_sensitive(true);
-
-        // Use the endpoint's tenant scope without its regular gateway credential.
-        let mut context = self.transport.endpoint().clone();
-        context.auth = None;
-        let request = self.transport.dynamic_host_client()
-            .get(format!("{}/v1/agent-apps/auth/{resource}", context.base_url()))
-            .query(&ScopeQuery { host_id, service, account_id })
-            .header(CACHE_CONTROL, "no-cache, no-store")
-            .header("x-agent-apps-token", principal);
-        let request = credentials.apply_basic_auth(request);
-        let response = apply_request_context(request, &context)
-            .send()
-            .await
-            .map_err(|_| AgentAppsAuthReadError::Transport)?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(AgentAppsAuthReadError::Http {
-                status: status.as_u16(),
-                error: response.json().await.ok(),
-            });
-        }
-        response.json().await.map_err(|error| {
-            if error.is_decode() {
-                AgentAppsAuthReadError::Decode
-            } else {
-                AgentAppsAuthReadError::Transport
-            }
-        })
-    }
-}
-
-#[derive(serde::Serialize)]
-struct ScopeQuery<'a> {
-    host_id: &'a str,
-    service: AuthService,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    account_id: Option<&'a str>,
 }

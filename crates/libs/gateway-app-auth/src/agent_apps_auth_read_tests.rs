@@ -1,11 +1,11 @@
-use super::{GatewayClient, test_support};
-use crate::{AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayAuth};
+use gateway_endpoint::GatewayAuth;
+use vw_api_types::agent_apps_auth::*;
+use super::test_support;
+use crate::{AgentAppsAuthCredentials, AgentAppsAuthReadError};
 use serde_json::json;
 use {
     vw_api_types::agent_apps_auth::AuthCredentialState,
-    vw_api_types::agent_apps_auth::AuthErrorCode,
-    vw_api_types::agent_apps_auth::AuthService,
-    vw_api_transport::id::TenantScope,
+    vw_api_types::agent_apps_auth::vw_api_types::agent_apps_auth::vw_api_transport::id::TenantScope,
 };
 
 const HOST: &str = "mac-local";
@@ -58,10 +58,10 @@ async fn auth6_sdk_read_commits_expected_scoped_result() {
         (200, account("account-a", "signed_out")),
     ]);
     let client_for_company = |company, skey: &str| {
-        GatewayClient::new(
+        test_support::client(
             server
                 .client()
-                .endpoint()
+                .transport.endpoint()
                 .clone()
                 .with_tenant_scope(TenantScope::new("platform", company).unwrap())
                 .with_auth(GatewayAuth { skey: Some(skey.into()) }),

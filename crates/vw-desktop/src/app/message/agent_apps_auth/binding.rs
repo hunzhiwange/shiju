@@ -1,4 +1,6 @@
 //! Supplier-to-account selection. The execution host owns the binding transaction.
+use gateway_app_auth::AgentAppsAuthError;
+use gateway_app_auth::AgentAppsAuthCredentials;
 
 use super::{Event, message, read_error_label};
 use crate::app::{
@@ -14,7 +16,7 @@ use crate::app::{
 };
 use iced::Task;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient, vw_api_types::{
+      GatewayClient, vw_api_types::{
         agent_apps::AppId,
         agent_apps_auth::{
             AuthAccount, AuthCredentialState, AuthErrorCode, AuthRegion, AuthService,
@@ -193,7 +195,7 @@ pub(super) fn update(app: &mut App, event: Event, endpoint: GatewayEndpoint) -> 
             let service = binding.service;
             return Task::perform(
                 async move {
-                    client
+                    gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone())
                         .agent_apps_auth_accounts(
                             connection.host.trim(),
                             service,
@@ -242,7 +244,7 @@ pub(super) fn update(app: &mut App, event: Event, endpoint: GatewayEndpoint) -> 
                 (binding.provider_id.clone(), binding.service, id.clone());
             return Task::perform(
                 async move {
-                    client
+                    gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone())
                         .agent_apps_auth_bind(
                             connection.host.trim(),
                             service,

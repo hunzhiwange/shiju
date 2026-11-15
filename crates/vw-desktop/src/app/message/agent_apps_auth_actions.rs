@@ -1,4 +1,8 @@
 //! Review and execute account operations through the scoped Gateway SDK.
+use gateway_app_auth::AgentAppsAuthError;
+use gateway_app_auth::AgentAppsAuthLogout;
+use gateway_app_auth::AgentAppsAuthCredentials;
+use gateway_app_auth::AgentAppsAuthReadError;
 
 use super::{Event, load_service, message, read_error_label};
 use crate::app::{
@@ -7,7 +11,7 @@ use crate::app::{
 };
 use iced::Task;
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, AgentAppsAuthLogout, GatewayClient,
+       GatewayClient,
     vw_api_types::agent_apps_auth::{AuthAccount, AuthCredentialState, AuthErrorCode, AuthService}}};
 
 #[derive(Clone)]
@@ -227,7 +231,7 @@ async fn review(
     let credentials = credentials(connection);
     let host = connection.host.trim();
     if operation == AccountOperation::Delete {
-        let bindings = client
+        let bindings = gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone())
             .agent_apps_auth_bindings(host, service, Some(account_id), &credentials)
             .await
             .map_err(|error| match error {
@@ -249,7 +253,7 @@ async fn review(
         return Ok(ActionPhase::Ready(users));
     }
 
-    let status = client
+    let status = gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone())
         .agent_apps_auth_status(host, service, &credentials)
         .await
         .map_err(read_error_label)?;
@@ -278,13 +282,13 @@ async fn mutate(
     let credentials = credentials(&connection);
     let result = match operation {
         AccountOperation::SetDefault => {
-            client.agent_apps_auth_set_default(host, service, &credentials, account_id).await
+            gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone()).agent_apps_auth_set_default(host, service, &credentials, account_id).await
         }
         AccountOperation::Delete => {
-            client.agent_apps_auth_delete(host, service, &credentials, account_id).await
+            gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone()).agent_apps_auth_delete(host, service, &credentials, account_id).await
         }
         AccountOperation::Logout => {
-            client
+            gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone())
                 .agent_apps_auth_logout(
                     host,
                     service,
@@ -294,7 +298,7 @@ async fn mutate(
                 .await
         }
         AccountOperation::Revoke => {
-            client.agent_apps_auth_revoke(host, service, &credentials, account_id).await
+            gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone()).agent_apps_auth_revoke(host, service, &credentials, account_id).await
         }
     };
     match result {

@@ -10,6 +10,7 @@ license = "MIT"
 [dependencies]
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }
+gateway-app-auth = { path = "../libs/gateway-app-auth", version = "0.6.0" }
 vw-api-git = { path = "../libs/api-git", version = "0.6.0" }
 gateway-app-read = { path = "../libs/gateway-app-read", version = "0.6.0" }
 vw-api-file = { path = "../libs/api-file", version = "0.6.0" }

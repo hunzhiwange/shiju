@@ -1,4 +1,6 @@
 //! Authorization center requests through the scoped management SDK.
+use gateway_app_auth::AgentAppsAuthCredentials;
+use gateway_app_auth::AgentAppsAuthReadError;
 
 #[path = "agent_apps_auth_actions.rs"]
 pub(in crate::app) mod actions;
@@ -22,7 +24,7 @@ use crate::app::{
 use browser::LinkAction;
 use iced::Task;
 use vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayClient,
+      GatewayClient,
     vw_api_types::agent_apps_auth::{AuthAccount, AuthErrorCode, AuthService},
 };
 
@@ -437,7 +439,7 @@ async fn load_service(
     service: AuthService,
 ) -> ServiceAccounts {
     let accounts = if client.endpoint().is_loopback() {
-        client
+        gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone())
             .agent_apps_auth_accounts(host, service, credentials)
             .await
             .map_err(read_error_label)

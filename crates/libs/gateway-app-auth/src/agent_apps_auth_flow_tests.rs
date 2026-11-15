@@ -1,9 +1,8 @@
-use super::{GatewayClient, test_support};
+use gateway_endpoint::GatewayAuth;
+use vw_api_types::agent_apps_auth::*;
+use super::test_support;
 use crate::{
-    AgentAppsAuthCredentials, AgentAppsAuthFlowError, AuthErrorCode, AuthFlow, AuthFlowId,
-    AuthLoginMethod, AuthPasteRequest, AuthService, AuthStartRequest, AuthStartResponse,
-    GatewayAuth,
-};
+    AgentAppsAuthCredentials, AgentAppsAuthFlowError, };
 use serde_json::{Value, json};
 use tracing::field::Field;
 use tracing::span::{Attributes, Id, Record};
@@ -72,10 +71,10 @@ async fn auth6_sdk_flow_commits_expected_scoped_result() {
         ],
         scope,
     );
-    let client = GatewayClient::new(
+    let client = test_support::client(
         server
             .client()
-            .endpoint()
+            .transport.endpoint()
             .clone()
             .with_auth(GatewayAuth { skey: Some("unrelated\nbearer".into()) }),
     )

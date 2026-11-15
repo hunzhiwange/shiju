@@ -12,8 +12,8 @@ use iced::{
 use std::time::Duration;
 use tokio::sync::oneshot;
 use {
-    vw_gateway_client::AgentAppsAuthCredentials,
-    vw_gateway_client::AgentAppsAuthError,
+    gateway_app_auth::AgentAppsAuthCredentials,
+    gateway_app_auth::AgentAppsAuthError,
     vw_gateway_client::GatewayClient,
     vw_api_transport::TimestampMs,
     vw_gateway_client::vw_api_types::agent_apps_auth::AuthErrorCode,
@@ -67,6 +67,7 @@ pub(in crate::app) async fn run(
     if cancelled.try_recv() != Err(oneshot::error::TryRecvError::Empty) {
         return;
     }
+    let auth_client = gateway_app_auth::GatewayAppAuthClient::new(client.transport().clone());
     let service = target.service();
     let request = target.request(copy_link);
     let host = connection.host.trim();
@@ -83,7 +84,7 @@ pub(in crate::app) async fn run(
         user_code,
         verification_url,
         can_paste,
-    } = match client.agent_apps_auth_start(host, service, &credentials, &request).await {
+    } = match auth_client.agent_apps_auth_start(host, service, &credentials, &request).await {
         Ok(response) => response,
         Err(error) => {
             let _ = updates.send(Update::Failed(error_label(error))).await;
@@ -107,7 +108,7 @@ pub(in crate::app) async fn run(
                     let result = tokio::select! {
                         biased;
                         _ = &mut cancelled => break,
-                        result = client.agent_apps_auth_paste(host, &credentials, &flow_id, &input) => result,
+                        result = auth_client.agent_apps_auth_paste(host, &credentials, &flow_id, &input) => result,
                     };
                     let _ = updates.send(Update::PasteFinished(result.map_err(paste_error_label))).await;
                     continue;
@@ -116,7 +117,7 @@ pub(in crate::app) async fn run(
             let result = tokio::select! {
                 biased;
                 _ = &mut cancelled => break,
-                result = client.agent_apps_auth_poll(host, service, &credentials, &flow_id) => result,
+                result = auth_client.agent_apps_auth_poll(host, service, &credentials, &flow_id) => result,
             };
             match result {
                 Ok(AuthFlow::Pending { flow_id: id, expires_at, retry_after_seconds: after })
@@ -157,7 +158,7 @@ pub(in crate::app) async fn run(
         let _ = updates.send(Update::Failed(reason)).await;
     }
 
-    if client.agent_apps_auth_cancel(host, service, &credentials, &flow_id).await.is_err() {
+    if auth_client.agent_apps_auth_cancel(host, service, &credentials, &flow_id).await.is_err() {
         let _ = updates.send(Update::CancelFailed).await;
     }
 }

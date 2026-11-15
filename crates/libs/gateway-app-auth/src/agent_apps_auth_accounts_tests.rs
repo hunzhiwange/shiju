@@ -1,8 +1,8 @@
+use gateway_endpoint::GatewayAuth;
+use vw_api_types::agent_apps_auth::*;
 use super::test_support;
 use crate::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, AgentAppsAuthLogout, AuthErrorCode, AuthService,
-    GatewayAuth, GatewayClient,
-};
+    AgentAppsAuthCredentials, AgentAppsAuthError, AgentAppsAuthLogout, };
 use serde_json::{Value, json};
 use vw_api_transport::id::TenantScope;
 
@@ -23,10 +23,10 @@ const PRIVATE_ERROR: &str = "fixture-private-upstream-error";
 async fn auth6_sdk_accounts_commits_expected_scoped_result() {
     let scope = TenantScope::new("platform-a", "company-a").unwrap();
     let server = test_support::server_with_tenant_scope(vec![(204, Value::Null); 9], scope);
-    let client = GatewayClient::new(
+    let client = test_support::client(
         server
             .client()
-            .endpoint()
+            .transport.endpoint()
             .clone()
             .with_auth(GatewayAuth { skey: Some("unrelated\nbearer".into()) }),
     )

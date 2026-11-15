@@ -182,7 +182,7 @@ pub fn message_view<'a>(
     _enable_heavy_tool_content: bool,
 ) -> Element<'a, Message> {
     let is_requesting =
-        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting);
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.request_lifecycle.is_requesting);
     message_view_with_runtime(
         app,
         idx,
@@ -260,7 +260,7 @@ pub(crate) fn message_view_with_runtime<'a>(
     let live_processing_elapsed_ms = is_streaming_assistant
         .then(|| app.current_session_runtime_ref())
         .flatten()
-        .map(|runtime| runtime.processing_timer.elapsed_ms_at(web_time::Instant::now()));
+        .map(|runtime| runtime.request_lifecycle.processing_timer.elapsed_ms_at(web_time::Instant::now()));
     let cache_matches_revision = expected_revision_key.is_none_or(|expected| {
         render_cache.revision_key.as_ref().is_some_and(|actual| actual.matches_key(expected))
     });
@@ -621,7 +621,7 @@ pub(crate) fn localized_model_recovery_text(
 pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
     let runtime = app.current_session_runtime_ref()?;
     let (id, event) = runtime.model_recovery.as_ref()?;
-    if runtime.active_agent_request.as_ref()?.id != *id
+    if runtime.request_lifecycle.active_agent_request.as_ref()?.id != *id
         || event.phase != gateway_chat_stream::GatewayModelRecoveryPhase::Waiting
     {
         return None;

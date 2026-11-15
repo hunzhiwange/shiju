@@ -99,8 +99,8 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     assert!(work_sidebar::model(&app).tasks.is_empty());
 
     let runtime = app.get_session_runtime_mut(id);
-    runtime.is_requesting = true;
-    runtime.request_started_ms = 10;
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.request_started_ms = 10;
     let running = work_sidebar::model(&app);
     assert_eq!(running.task_total, 1);
     assert_eq!(running.tasks[0].id, id);
@@ -113,10 +113,10 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     ));
     assert!(app.project_sessions.is_empty());
 
-    app.get_session_runtime_mut(id).is_requesting = false;
+    app.get_session_runtime_mut(id).request_lifecycle.is_requesting = false;
     assert!(work_sidebar::model(&app).tasks.is_empty());
 
-    app.get_session_runtime_mut(id).is_requesting = true;
+    app.get_session_runtime_mut(id).request_lifecycle.is_requesting = true;
     app.project_sessions.insert(path.into(), vec![session(id, "Generated title", directory, 20)]);
     let published = work_sidebar::model(&app);
     assert_eq!(published.task_total, 1);
@@ -300,8 +300,8 @@ fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
         ],
     );
     app.work_expanded_spaces.insert("/workspace/alpha".into());
-    app.get_session_runtime_mut("running").is_requesting = true;
-    app.get_session_runtime_mut("running-child").is_requesting = true;
+    app.get_session_runtime_mut("running").request_lifecycle.is_requesting = true;
+    app.get_session_runtime_mut("running-child").request_lifecycle.is_requesting = true;
 
     let model = work_sidebar::model(&app);
 
@@ -662,7 +662,7 @@ fn work_sidebar_filters_sessions_by_runtime_status() {
             session("completed", "已完成的任务", "/workspace/alpha", now),
         ],
     );
-    app.get_session_runtime_mut("running").is_requesting = true;
+    app.get_session_runtime_mut("running").request_lifecycle.is_requesting = true;
 
     app.work_sidebar_filter_status = WorkSidebarFilterStatus::InProgress;
     let running = work_sidebar::model(&app);
@@ -1097,7 +1097,7 @@ async fn work_sidebar_draws_dark_chinese_without_monospace_panic() {
         "/workspace/chinese".into(),
         vec![session("cn", "中文任务标题\r\n下一步", "/workspace/chinese", 30)],
     );
-    app.get_session_runtime_mut("cn").is_requesting = true;
+    app.get_session_runtime_mut("cn").request_lifecycle.is_requesting = true;
     app.work_sidebar_more_open = true;
     app.session_menu_id = Some("cn".into());
     app.session_menu_anchor = Some(Point::new(120.0, 180.0));
@@ -1343,13 +1343,13 @@ fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
     app.project_sessions
         .insert("/workspace".into(), vec![session("task", "Task", "/workspace", 1)]);
     app.active_session_id = Some("task".into());
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     let snapshot = work_sidebar::cached_model(&app);
     for _ in 0..30 {
         let tick = ViewMessage::WorkBrowserRuntimeTick;
         app.prepare_session_ui_projection(&Message::View(tick.clone()));
         let _ = crate::app::message::view::update(&mut app, tick);
-        let frame = app.current_session_runtime_ref().unwrap().submit_anim;
+        let frame = app.current_session_runtime_ref().unwrap().request_lifecycle.submit_anim;
         for event in [
             ChatMessage::SubmitTick,
             ChatMessage::SessionSaveAck,
@@ -1362,7 +1362,7 @@ fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
             app.prepare_session_ui_projection(&Message::Chat(event.clone()));
             let _ = crate::app::message::chat::update(&mut app, event);
         }
-        assert_eq!(app.current_session_runtime_ref().unwrap().submit_anim, (frame + 1) % 3);
+        assert_eq!(app.current_session_runtime_ref().unwrap().request_lifecycle.submit_anim, (frame + 1) % 3);
         assert!(std::sync::Arc::ptr_eq(&snapshot, &work_sidebar::cached_model(&app)));
     }
     let event = ProjectMessage::ProjectSessionsLoaded(

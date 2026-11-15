@@ -97,7 +97,7 @@ fn compute_todo_data_uses_default_text_without_running_work() {
 fn compute_todo_data_uses_trimmed_first_line_of_active_request() {
     let mut app = test_app();
     app.active_session_id = Some("session".to_string());
-    app.get_session_runtime_mut("session").active_agent_request =
+    app.get_session_runtime_mut("session").request_lifecycle.active_agent_request =
         Some(agent_request("  active request  \nignored second line"));
 
     let data = compute_todo_data(&app, &[]);
@@ -109,7 +109,7 @@ fn compute_todo_data_uses_trimmed_first_line_of_active_request() {
 fn compute_todo_data_rejects_blank_active_request_first_line() {
     let mut app = test_app();
     app.active_session_id = Some("session".to_string());
-    app.get_session_runtime_mut("session").active_agent_request =
+    app.get_session_runtime_mut("session").request_lifecycle.active_agent_request =
         Some(agent_request("   \nnonempty second line"));
 
     let data = compute_todo_data(&app, &[]);
@@ -121,7 +121,7 @@ fn compute_todo_data_rejects_blank_active_request_first_line() {
 fn compute_todo_data_does_not_replace_blank_running_todo_with_active_request() {
     let mut app = test_app();
     app.active_session_id = Some("session".to_string());
-    app.get_session_runtime_mut("session").active_agent_request =
+    app.get_session_runtime_mut("session").request_lifecycle.active_agent_request =
         Some(agent_request("active request"));
     let items = vec![todo("1", "in_progress", "")];
 
@@ -150,7 +150,7 @@ fn compute_todo_data_uses_first_running_todo_and_counts_only_exact_completed_sta
 #[test]
 fn compute_todo_data_ignores_runtime_when_there_is_no_active_session() {
     let mut app = test_app();
-    app.get_session_runtime_mut("inactive").active_agent_request = Some(agent_request("hidden"));
+    app.get_session_runtime_mut("inactive").request_lifecycle.active_agent_request = Some(agent_request("hidden"));
 
     let data = compute_todo_data(&app, &[]);
 

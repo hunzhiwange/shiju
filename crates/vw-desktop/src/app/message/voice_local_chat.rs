@@ -18,7 +18,7 @@ fn ready_to_send(app: &App) -> Result<(), &'static str> {
     let runtime = app.current_session_runtime_ref();
     ready(Readiness {
         has_runtime: runtime.is_some(),
-        requesting: runtime.is_some_and(|r| r.is_requesting || r.active_agent_request.is_some() || !r.queue.is_empty()),
+        requesting: runtime.is_some_and(|r| r.request_lifecycle.is_requesting || r.request_lifecycle.active_agent_request.is_some() || !r.request_lifecycle.queue.is_empty()),
         has_draft: runtime.is_some_and(|r| !r.input_editor.text().trim().is_empty()),
         special_mode: runtime.is_some_and(|r| r.task_mode_enabled || r.workflow_mode_enabled || r.acp_agent.is_some()),
         permissions_loading: runtime.is_some_and(|r| r.full_access_saving || r.full_access_save_failed || r.acp_options_state.source_pending.is_some() || r.acp_options_state.pending || (app.active_session_view_state.ui_preparing && !app.active_session_view_state.base_ready)),
@@ -59,7 +59,7 @@ pub(super) fn end(app: &mut App) {
 fn stop_owned(app: &mut App, chat: &mut State) {
     chat.cancel_media();
     if let Some(id) = chat.request.take()
-        && let Some(request) = app.get_session_runtime(&chat.session).active_agent_request.as_ref()
+        && let Some(request) = app.get_session_runtime(&chat.session).request_lifecycle.active_agent_request.as_ref()
         && request.id == id
         && let Some(endpoint) = app.voice.conversation_endpoint.clone()
     {
@@ -165,7 +165,7 @@ fn send_request(app: &mut App, input: String, caption: String) -> Task<Message> 
     );
     let request = app
         .current_session_runtime_ref()
-        .and_then(|r| r.active_agent_request.as_ref())
+        .and_then(|r| r.request_lifecycle.active_agent_request.as_ref())
         .map(|r| (r.id, r.session.clone()));
     if let Some((id, session)) = request
         && session == session_id

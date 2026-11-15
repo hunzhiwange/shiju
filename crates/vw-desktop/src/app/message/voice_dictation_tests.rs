@@ -20,5 +20,5 @@ fn voice_task_07_local_context_change_cancels_native_and_rejects_completion() {
     assert!(token.is_cancelled());
     let _task = voice::update(&mut app, Event::Completed(generation, Ok("迟到识别".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "其它草稿");
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
 }

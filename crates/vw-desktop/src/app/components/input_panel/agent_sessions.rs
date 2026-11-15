@@ -27,7 +27,7 @@ pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
     shared::running_agent_sessions(app.active_session_id.as_deref(), &app.chat,
         app.sessions.iter().chain(app.project_sessions.values().flatten()),
         &|id| app.cached_chat_messages(id),
-        &|id| app.session_runtime_states.get(id).is_some_and(|r| r.is_requesting),
+        &|id| app.session_runtime_states.get(id).is_some_and(|r| r.request_lifecycle.is_requesting),
         &|id, raw| crate::app::i18n::other::session_title(app, id, raw))
 }
 #[cfg(test)]

@@ -896,7 +896,7 @@ fn reasoning_and_send_preferences_preserve_unrelated_sessions_and_remove_legacy_
     });
     set_gateway_port(server.port);
     app.active_session_id = Some("active".into());
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     let behavior =
         app.update(Message::View(ViewMessage::SelectChatSendBehavior(ChatSendBehavior::Queue)));
     app.active_session_id = Some("one".into());

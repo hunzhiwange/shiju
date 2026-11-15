@@ -267,7 +267,7 @@ fn protected_chat_ui_chunk_starts_keeps_requesting_tail_assistant_chunk() {
             )
         })
         .collect();
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
 
     let protected = app.protected_chat_ui_chunk_starts();
 
@@ -599,7 +599,7 @@ fn chat_cache_retention_pins_active_entry() {
     app.sync_chat_message_estimated_heights_len();
     app.chat_virtualizer.set_viewport_height(2_000.0);
     app.chat_virtualizer.scroll_to_item_anchor(0, 0.0, 0.0);
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     seed_markdown_cache(&mut app);
 
     app.prune_chat_heavy_editor_caches(0, 32);

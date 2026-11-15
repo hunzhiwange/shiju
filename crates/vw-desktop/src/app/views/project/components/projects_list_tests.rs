@@ -193,7 +193,7 @@ fn projects_list_builds_with_hover_meta_and_project_attention() {
     app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
 
     let mut runtime = SessionRuntimeState::new();
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert(session_id, runtime);
 
     let element: Element<'_, Message> = projects_list(&app, true);
@@ -253,7 +253,7 @@ fn projects_list_builds_with_queue_attention() {
     app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
 
     let mut runtime = SessionRuntimeState::new();
-    runtime.queue = vec![crate::app::state::QueueItem {
+    runtime.request_lifecycle.queue = vec![crate::app::state::QueueItem {
         created_ms: 1000,
         query: "test query".to_string(),
         attachments: vec![],
@@ -346,7 +346,7 @@ fn projects_list_does_not_use_current_sessions_for_unselected_project() {
     app.sessions = vec![session_info("current-session", "/tmp/current")];
 
     let mut runtime = SessionRuntimeState::new();
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert("current-session".to_string(), runtime);
 
     let element: Element<'_, Message> = projects_list(&app, true);

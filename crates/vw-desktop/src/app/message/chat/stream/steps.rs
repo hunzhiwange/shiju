@@ -242,14 +242,14 @@ pub(super) fn start_llm_timer_at(
     runtime: &mut crate::app::state::SessionRuntimeState,
     now: web_time::Instant,
 ) {
-    runtime.llm_timer.start_at(now);
+    runtime.request_lifecycle.llm_timer.start_at(now);
 }
 
 pub(super) fn pause_llm_timer_at(
     runtime: &mut crate::app::state::SessionRuntimeState,
     now: web_time::Instant,
 ) {
-    runtime.llm_timer.pause_at(now);
+    runtime.request_lifecycle.llm_timer.pause_at(now);
 }
 
 pub(super) fn handle_agent_step_start(

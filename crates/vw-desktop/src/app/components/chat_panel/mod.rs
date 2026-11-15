@@ -466,7 +466,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let runtime = app.current_session_runtime_ref();
     #[cfg(test)]
     performance::record_runtime_borrow();
-    let runtime_is_requesting = runtime.is_some_and(|runtime| runtime.is_requesting);
+    let runtime_is_requesting = runtime.is_some_and(|runtime| runtime.request_lifecycle.is_requesting);
     let runtime_model = runtime.map_or(app.model.as_str(), |runtime| runtime.model.as_str());
 
     // 遍历聊天消息并添加到列中
@@ -605,7 +605,7 @@ fn chat_todo_overlay<'a>(app: &'a App) -> Element<'a, Message> {
     }
 
     let submit_anim =
-        app.current_session_runtime_ref().map(|runtime| runtime.submit_anim).unwrap_or(0);
+        app.current_session_runtime_ref().map(|runtime| runtime.request_lifecycle.submit_anim).unwrap_or(0);
     let panel = todo_panel::todo_panel(
         app,
         app.chat_todo_items.as_slice(),

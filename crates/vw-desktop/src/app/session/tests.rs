@@ -49,7 +49,7 @@ fn chunk_scheduler_retains_anchor_and_expanded_text() {
     app.chat_virtualizer.sync_len(app.chat.len(), 100.0);
     app.chat_virtualizer.set_viewport_height(300.0);
     app.chat_virtualizer.scroll_to_item_anchor(170, 0.0, 0.0);
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
 
     let anchor_key = (170_u64) << 32;
     let expanded_key = (210_u64) << 32;

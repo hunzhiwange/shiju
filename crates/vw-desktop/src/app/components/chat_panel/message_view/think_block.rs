@@ -55,7 +55,7 @@ pub(super) fn think_block_view<'a>(
     timing: Option<&'a models::ThinkTiming>,
 ) -> Element<'a, Message> {
     let is_streaming_msg =
-        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting)
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.request_lifecycle.is_requesting)
             && msg_idx + 1 == app.chat.len();
     think_block_view_with_streaming(
         app,

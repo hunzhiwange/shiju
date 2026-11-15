@@ -944,7 +944,7 @@ fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
         (0..80).map(|_| chat_entry(ChatRole::Assistant, &"长回复内容".repeat(500))).collect();
     app.rebuild_chat_message_estimated_heights();
     let runtime = app.current_session_runtime_mut();
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     runtime.pending_stream_delta = "生成中的长缓冲".repeat(10_000);
     performance::reset();
     let input = "生成过程中连续输入中文，保持动画和滚动";

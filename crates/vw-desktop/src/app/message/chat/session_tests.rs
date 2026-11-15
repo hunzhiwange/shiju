@@ -181,7 +181,7 @@ fn compact_action_requests_confirmation_without_sending_chat_or_creating_session
     );
 
     let runtime = app.get_session_runtime(&session_id);
-    assert!(runtime.active_agent_request.is_none());
+    assert!(runtime.request_lifecycle.active_agent_request.is_none());
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.sessions.len(), 1);
     assert_eq!(app.active_session_id.as_deref(), Some(session_id.as_str()));
@@ -195,8 +195,8 @@ fn compact_action_rejects_a_busy_session() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![chat_message(crate::app::models::ChatRole::User, "work")];
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(7, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(7, &session_id));
 
     let _task = super::update(
         &mut app,
@@ -209,14 +209,6 @@ fn compact_action_rejects_a_busy_session() {
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("等待当前回复")));
 }
 
-#[test]
-fn compaction_uses_latest_user_boundary_independent_of_gateway_order() {
-    let newest_first = vec![persisted_user_message("user-3"), persisted_user_message("user-1")];
-    let oldest_first = vec![persisted_user_message("user-1"), persisted_user_message("user-3")];
-
-    assert_eq!(super::latest_persisted_user_message_id(&newest_first).as_deref(), Some("user-3"));
-    assert_eq!(super::latest_persisted_user_message_id(&oldest_first).as_deref(), Some("user-3"));
-}
 
 #[test]
 fn confirmed_compaction_marks_only_the_target_session_in_progress() {
@@ -322,7 +314,7 @@ fn git_commit_quick_action_asks_ai_for_title_and_summary_before_commit() {
     );
 
     let runtime = app.get_session_runtime(&session_id);
-    let request = runtime.active_agent_request.as_ref().expect("AI request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("AI request should start");
     assert!(request.query.contains("\"title\""));
     assert!(request.query.contains("\"summary\""));
     assert!(request.query.contains("src/lib.rs"));
@@ -359,57 +351,6 @@ fn selected_git_commit_quick_action_requires_a_selection_before_ai_request() {
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("先选择")));
 }
 
-#[test]
-fn message_id_for_index_uses_previous_known_id_when_current_is_missing() {
-    let ids = vec![Some("msg-1".to_string()), None];
-
-    assert_eq!(super::message_id_for_index_in_ids(&ids, 1), Some("msg-1".to_string()));
-}
-
-#[test]
-fn message_id_for_index_handles_gateway_rows_shorter_than_local_chat() {
-    let ids = vec![Some("msg-1".to_string())];
-
-    assert_eq!(super::message_id_for_index_in_ids(&ids, 3), Some("msg-1".to_string()));
-}
-
-#[test]
-fn message_id_for_index_returns_current_id_before_previous_fallback() {
-    let ids = vec![Some("msg-1".to_string()), Some("msg-2".to_string())];
-
-    assert_eq!(super::message_id_for_index_in_ids(&ids, 1), Some("msg-2".to_string()));
-    assert_eq!(super::message_id_for_index_in_ids(&ids, 0), Some("msg-1".to_string()));
-    assert_eq!(super::message_id_for_index_in_ids(&[], 0), None);
-}
-
-#[test]
-fn message_id_for_index_returns_none_when_current_and_previous_ids_are_missing() {
-    let ids = vec![None, None, Some("future".to_string())];
-
-    assert_eq!(super::message_id_for_index_in_ids(&ids, 1), None);
-}
-
-#[test]
-fn parse_inline_mode_command_accepts_known_commands_case_insensitively() {
-    assert_eq!(
-        super::parse_inline_mode_command("/task build"),
-        Some(super::InlineModeCommand::TaskMode)
-    );
-    assert_eq!(
-        super::parse_inline_mode_command(" /NEW topic"),
-        Some(super::InlineModeCommand::ChatMode)
-    );
-    assert_eq!(
-        super::parse_inline_mode_command("/clear"),
-        Some(super::InlineModeCommand::ChatMode)
-    );
-    assert_eq!(
-        super::parse_inline_mode_command("/session x"),
-        Some(super::InlineModeCommand::ChatMode)
-    );
-    assert_eq!(super::parse_inline_mode_command("/unknown"), None);
-    assert_eq!(super::parse_inline_mode_command(""), None);
-}
 
 #[test]
 fn apply_inline_mode_command_toggles_task_mode_and_clears_runtime_editor() {
@@ -427,35 +368,6 @@ fn apply_inline_mode_command_toggles_task_mode_and_clears_runtime_editor() {
     assert!(!app.current_session_runtime().task_mode_enabled);
 }
 
-#[test]
-fn normalize_delegate_agent_trims_and_drops_main_agent() {
-    assert_eq!(
-        super::normalize_delegate_agent(Some(" worker ".to_string())),
-        Some("worker".to_string())
-    );
-    assert_eq!(
-        super::normalize_delegate_agent(Some(crate::app::state::MAIN_AGENT_KEY.to_string())),
-        None
-    );
-    assert_eq!(super::normalize_delegate_agent(Some("   ".to_string())), None);
-    assert_eq!(super::normalize_delegate_agent(None), None);
-    assert_eq!(
-        super::normalize_delegate_agent(Some(format!("  {}  ", crate::app::state::MAIN_AGENT_KEY))),
-        None
-    );
-}
-
-#[test]
-fn request_delegate_agent_defaults_to_main_agent() {
-    assert_eq!(
-        super::request_delegate_agent(Some("worker".to_string())),
-        Some("worker".to_string())
-    );
-    assert_eq!(
-        super::request_delegate_agent(None),
-        Some(crate::app::state::MAIN_AGENT_KEY.to_string())
-    );
-}
 
 #[test]
 fn session_agent_selection_normalizes_value_and_resets_tool_context() {
@@ -624,124 +536,6 @@ fn tool_selector_messages_update_query_scope_group_and_manual_context() {
     assert_eq!(selector.selected_manual_skills(), vec!["review".to_string()]);
 }
 
-#[test]
-fn compose_query_with_session_context_appends_selected_tools_and_skills() {
-    assert_eq!(super::compose_query_with_session_context("  hi  ", &[], &[], &[]), "hi");
-
-    let composed = super::compose_query_with_session_context(
-        "run this",
-        &["shell".to_string(), "git".to_string()],
-        &["rust".to_string()],
-        &[],
-    );
-
-    assert!(composed.starts_with("run this\n\n<session_control_selection>"));
-    assert!(composed.contains("工具：shell, git"));
-    assert!(composed.contains("技能：rust"));
-    assert!(composed.ends_with("</session_control_selection>"));
-}
-
-#[test]
-fn compose_query_with_session_context_can_stand_alone_without_query() {
-    let composed =
-        super::compose_query_with_session_context("   ", &["shell".to_string()], &[], &[]);
-
-    assert!(composed.starts_with("<session_control_selection>"));
-    assert!(composed.contains("工具：shell"));
-}
-
-#[test]
-fn compose_query_with_session_context_supports_skills_without_tools() {
-    let composed =
-        super::compose_query_with_session_context(" inspect ", &[], &["rust".to_string()], &[]);
-
-    assert!(composed.starts_with("inspect\n\n<session_control_selection>"));
-    assert!(!composed.contains("工具："));
-    assert!(composed.contains("技能：rust"));
-}
-
-#[test]
-fn compose_query_maps_multiple_shiju_functions_to_skill_context() {
-    let selections = [
-        crate::app::state::ShijuSkillSelection::new(
-            42,
-            "document-review".to_string(),
-            "文档审查".to_string(),
-        ),
-        crate::app::state::ShijuSkillSelection::new(
-            43,
-            "meeting-notes".to_string(),
-            "会议纪要".to_string(),
-        ),
-    ];
-    let composed = super::compose_query_with_session_context(
-        "   ",
-        &[],
-        &["shiju".to_string(), "rust".to_string()],
-        &selections,
-    );
-
-    assert!(composed.starts_with("<session_control_selection>"));
-    assert_eq!(composed.matches("技能：shiju, rust").count(), 1);
-    assert!(composed.contains("识矩功能：document-review, meeting-notes"));
-    assert!(composed.contains(
-        "默认将用户的问题理解为针对上述已选识矩功能；不要回答成对识矩本身的介绍或使用说明"
-    ));
-    assert!(composed.ends_with("</session_control_selection>"));
-}
-
-#[test]
-fn compose_query_omits_shiju_default_subject_hint_without_shiju_functions() {
-    let composed =
-        super::compose_query_with_session_context("inspect", &[], &["rust".to_string()], &[]);
-
-    assert!(!composed.contains("默认将用户的问题理解为针对上述已选识矩功能"));
-}
-
-#[test]
-fn is_supported_image_attachment_matches_known_extensions_case_insensitively() {
-    assert!(super::is_supported_image_attachment("/tmp/a.PNG"));
-    assert!(super::is_supported_image_attachment("/tmp/a.jpeg"));
-    assert!(super::is_supported_image_attachment("/tmp/a.webp"));
-    assert!(!super::is_supported_image_attachment("/tmp/a.pdf"));
-    assert!(!super::is_supported_image_attachment("/tmp/no-extension"));
-}
-
-#[test]
-fn compose_query_with_attachments_adds_document_and_image_markers() {
-    assert_eq!(super::compose_query_with_attachments("  hello  ", &[]), "hello");
-    assert_eq!(
-        super::compose_query_with_attachments(
-            "",
-            &["/tmp/a.png".to_string(), "/tmp/b.pdf".to_string()]
-        ),
-        "[IMAGE:/tmp/a.png]\n[DOCUMENT:/tmp/b.pdf]"
-    );
-    assert_eq!(
-        super::compose_query_with_attachments("look", &["/tmp/a.gif".to_string()]),
-        "look\n\n[IMAGE:/tmp/a.gif]"
-    );
-}
-
-#[test]
-fn compose_query_with_attachments_returns_empty_for_blank_query_without_attachments() {
-    assert_eq!(super::compose_query_with_attachments("   ", &[]), "");
-}
-
-#[test]
-fn push_recovered_message_id_only_emits_pending_content() {
-    let mut ids = Vec::new();
-    let message_id = Some("msg-1".to_string());
-    let mut has_content = false;
-
-    super::push_recovered_message_id(&mut ids, &mut has_content, &message_id);
-    assert!(ids.is_empty());
-
-    has_content = true;
-    super::push_recovered_message_id(&mut ids, &mut has_content, &message_id);
-    assert_eq!(ids, vec![message_id]);
-    assert!(!has_content);
-}
 
 #[test]
 fn gateway_endpoint_defaults_empty_host_to_loopback() {
@@ -813,7 +607,7 @@ fn restore_cached_chat_for_session_resets_ids_when_cached_ids_have_wrong_len() {
 #[test]
 fn queue_messages_reorder_remove_and_ignore_out_of_bounds_indices() {
     let (mut app, _task) = crate::app::App::new();
-    app.current_session_runtime_mut().queue = vec![
+    app.current_session_runtime_mut().request_lifecycle.queue = vec![
         queue_item("first", crate::app::state::ChatSendBehavior::Queue),
         queue_item("second", crate::app::state::ChatSendBehavior::Queue),
         queue_item("third", crate::app::state::ChatSendBehavior::Queue),
@@ -827,14 +621,14 @@ fn queue_messages_reorder_remove_and_ignore_out_of_bounds_indices() {
     super::update(&mut app, super::ChatMessage::QueueRemove(9));
 
     let runtime = app.current_session_runtime();
-    let queries = runtime.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
+    let queries = runtime.request_lifecycle.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
     assert_eq!(queries, vec!["third", "second"]);
 }
 
 #[test]
 fn queue_copy_keeps_items_and_ignores_out_of_bounds_or_empty_queries() {
     let (mut app, _task) = crate::app::App::new();
-    app.current_session_runtime_mut().queue = vec![
+    app.current_session_runtime_mut().request_lifecycle.queue = vec![
         queue_item("copy me", crate::app::state::ChatSendBehavior::Queue),
         queue_item("", crate::app::state::ChatSendBehavior::Queue),
     ];
@@ -844,7 +638,7 @@ fn queue_copy_keeps_items_and_ignores_out_of_bounds_or_empty_queries() {
     let _ = super::update(&mut app, super::ChatMessage::QueueCopy(9));
 
     let runtime = app.current_session_runtime();
-    let queries = runtime.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
+    let queries = runtime.request_lifecycle.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
     assert_eq!(queries, vec!["copy me", ""]);
 }
 
@@ -857,7 +651,7 @@ fn queue_edit_restores_only_text_and_removes_the_selected_item() {
     {
         let runtime = app.current_session_runtime_mut();
         runtime.input_editor = iced::widget::text_editor::Content::with_text("replace this draft");
-        runtime.queue =
+        runtime.request_lifecycle.queue =
             vec![queue_item("keep", crate::app::state::ChatSendBehavior::Queue), editable];
     }
 
@@ -865,8 +659,8 @@ fn queue_edit_restores_only_text_and_removes_the_selected_item() {
 
     let runtime = app.current_session_runtime();
     assert_eq!(runtime.input_editor.text(), "edit this text");
-    assert_eq!(runtime.queue.len(), 1);
-    assert_eq!(runtime.queue[0].query, "keep");
+    assert_eq!(runtime.request_lifecycle.queue.len(), 1);
+    assert_eq!(runtime.request_lifecycle.queue[0].query, "keep");
     assert!(app.files.is_empty(), "queued attachments must not be restored for text editing");
 
     super::update(&mut app, super::ChatMessage::QueueEdit(9));
@@ -880,9 +674,9 @@ fn queue_guide_removes_item_and_dispatches_with_stop_and_send() {
     crate::app::state::clear_pending_guide_handoff(42);
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.is_requesting = true;
-        runtime.active_agent_request = Some(agent_request(42, "s1"));
-        runtime.queue = vec![
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request = Some(agent_request(42, "s1"));
+        runtime.request_lifecycle.queue = vec![
             queue_item("waiting", crate::app::state::ChatSendBehavior::Queue),
             queue_item("guide now", crate::app::state::ChatSendBehavior::Queue),
         ];
@@ -891,12 +685,12 @@ fn queue_guide_removes_item_and_dispatches_with_stop_and_send() {
     super::update(&mut app, super::ChatMessage::QueueGuide(1));
 
     let runtime = app.current_session_runtime();
-    assert_eq!(runtime.queue.len(), 1);
-    assert_eq!(runtime.queue[0].query, "waiting");
+    assert_eq!(runtime.request_lifecycle.queue.len(), 1);
+    assert_eq!(runtime.request_lifecycle.queue[0].query, "waiting");
     assert!(!crate::app::state::take_pending_guide_handoff(42));
 
     super::update(&mut app, super::ChatMessage::QueueGuide(9));
-    assert_eq!(app.current_session_runtime().queue.len(), 1);
+    assert_eq!(app.current_session_runtime().request_lifecycle.queue.len(), 1);
     assert!(!crate::app::state::take_pending_guide_handoff(42));
 }
 
@@ -906,9 +700,9 @@ fn dispatch_queue_item_appends_queue_requests_and_prepends_guidance() {
     app.active_session_id = Some("s1".to_string());
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.is_requesting = true;
+        runtime.request_lifecycle.is_requesting = true;
         runtime.input_editor = iced::widget::text_editor::Content::with_text("draft");
-        runtime.queue.push(queue_item("existing", crate::app::state::ChatSendBehavior::Queue));
+        runtime.request_lifecycle.queue.push(queue_item("existing", crate::app::state::ChatSendBehavior::Queue));
     }
 
     super::dispatch_queue_item(
@@ -921,7 +715,7 @@ fn dispatch_queue_item_appends_queue_requests_and_prepends_guidance() {
     );
 
     let runtime = app.current_session_runtime();
-    let queries = runtime.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
+    let queries = runtime.request_lifecycle.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
     assert_eq!(queries, vec!["guided", "existing", "queued"]);
     assert_eq!(runtime.input_editor.text(), "");
 }
@@ -929,15 +723,15 @@ fn dispatch_queue_item_appends_queue_requests_and_prepends_guidance() {
 #[test]
 fn submit_tick_resets_when_idle_and_cycles_when_requesting() {
     let (mut app, _task) = crate::app::App::new();
-    app.current_session_runtime_mut().submit_anim = 2;
+    app.current_session_runtime_mut().request_lifecycle.submit_anim = 2;
 
     super::update(&mut app, super::ChatMessage::SubmitTick);
-    assert_eq!(app.current_session_runtime().submit_anim, 0);
+    assert_eq!(app.current_session_runtime().request_lifecycle.submit_anim, 0);
 
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     for expected in [1, 2, 0] {
         super::update(&mut app, super::ChatMessage::SubmitTick);
-        assert_eq!(app.current_session_runtime().submit_anim, expected);
+        assert_eq!(app.current_session_runtime().request_lifecycle.submit_anim, expected);
     }
 }
 
@@ -1086,7 +880,7 @@ fn reset_session_locally_marks_boundary_and_next_send_uses_trimmed_history() {
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("s1");
-    let request = runtime.active_agent_request.as_ref().unwrap();
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().unwrap();
     assert_eq!(request.history.len(), 1);
     assert_eq!(request.history[0].content, "keep");
 }
@@ -1167,12 +961,12 @@ fn agent_unified_selection_locks_chat_queue_and_active_request() {
             "persisted" => {}
             "chat" => app.chat.push(chat_message(crate::app::models::ChatRole::User, "started")),
             "active_request" => {
-                app.current_session_runtime_mut().active_agent_request =
+                app.current_session_runtime_mut().request_lifecycle.active_agent_request =
                     Some(agent_request(7, "session-1"));
             }
             "queue" => app
                 .current_session_runtime_mut()
-                .queue
+                .request_lifecycle.queue
                 .push(queue_item("queued", crate::app::state::ChatSendBehavior::Queue)),
             _ => unreachable!(),
         }
@@ -1260,28 +1054,28 @@ fn cancel_pressed_ignores_idle_sessions_and_dispatches_next_queued_item_when_bus
     let (mut app, _task) = crate::app::App::new();
 
     super::update(&mut app, super::ChatMessage::CancelPressed);
-    assert!(app.current_session_runtime().active_agent_request.is_none());
+    assert!(app.current_session_runtime().request_lifecycle.active_agent_request.is_none());
 
     app.active_session_id = Some("s1".to_string());
     app.sessions = vec![session_info("s1", "Session", "/repo")];
     super::update(&mut app, super::ChatMessage::CancelPressed);
-    assert!(app.get_session_runtime("s1").active_agent_request.is_none());
+    assert!(app.get_session_runtime("s1").request_lifecycle.active_agent_request.is_none());
 
     {
         let runtime = app.get_session_runtime_mut("s1");
-        runtime.is_requesting = true;
-        runtime.submit_anim = 2;
-        runtime.active_agent_request = Some(agent_request(41, "s1"));
-        runtime.queue.push(queue_item("next request", crate::app::state::ChatSendBehavior::Queue));
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.submit_anim = 2;
+        runtime.request_lifecycle.active_agent_request = Some(agent_request(41, "s1"));
+        runtime.request_lifecycle.queue.push(queue_item("next request", crate::app::state::ChatSendBehavior::Queue));
     }
 
     super::update(&mut app, super::ChatMessage::CancelPressed);
 
     let runtime = app.get_session_runtime("s1");
-    assert!(runtime.is_requesting);
-    assert_eq!(runtime.submit_anim, 0);
-    assert!(runtime.queue.is_empty());
-    let active = runtime.active_agent_request.as_ref().expect("queued item should start");
+    assert!(runtime.request_lifecycle.is_requesting);
+    assert_eq!(runtime.request_lifecycle.submit_anim, 0);
+    assert!(runtime.request_lifecycle.queue.is_empty());
+    let active = runtime.request_lifecycle.active_agent_request.as_ref().expect("queued item should start");
     assert_eq!(active.query, "next request");
     assert_ne!(active.id, 41);
     assert_eq!(
@@ -1298,14 +1092,14 @@ fn cancel_pressed_schedules_save_and_gateway_stop_without_blocking_update() {
     app.sessions = vec![session_info("s1", "Session", "/repo")];
     {
         let runtime = app.get_session_runtime_mut("s1");
-        runtime.is_requesting = true;
-        runtime.active_agent_request = Some(agent_request(41, "s1"));
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request = Some(agent_request(41, "s1"));
     }
 
     let task = super::update(&mut app, super::ChatMessage::CancelPressed);
 
     assert_eq!(task.units(), 2);
-    assert!(!app.get_session_runtime("s1").is_requesting);
+    assert!(!app.get_session_runtime("s1").request_lifecycle.is_requesting);
 }
 
 #[test]
@@ -1325,10 +1119,10 @@ fn processing_timing_start_uses_runtime_request_start_and_cancel_creates_indepen
         .and_then(|message| message.processing_timing.as_ref())
         .map(|timing| timing.started_ms)
         .expect("first assistant cycle should start");
-    assert_eq!(app.get_session_runtime("s1").request_started_ms, first_started);
+    assert_eq!(app.get_session_runtime("s1").request_lifecycle.request_started_ms, first_started);
 
     app.get_session_runtime_mut("s1")
-        .queue
+        .request_lifecycle.queue
         .push(queue_item("next request", crate::app::state::ChatSendBehavior::Queue));
     let _ = super::update(&mut app, super::ChatMessage::CancelPressed);
 
@@ -1340,7 +1134,7 @@ fn processing_timing_start_uses_runtime_request_start_and_cancel_creates_indepen
     assert_eq!(assistant_timings.len(), 2);
     assert!(assistant_timings[0].completed_ms.is_some());
     assert!(assistant_timings[1].completed_ms.is_none());
-    assert_eq!(app.get_session_runtime("s1").request_started_ms, assistant_timings[1].started_ms);
+    assert_eq!(app.get_session_runtime("s1").request_lifecycle.request_started_ms, assistant_timings[1].started_ms);
 }
 
 #[test]
@@ -1503,7 +1297,7 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
     assert_eq!(app.chat[1].role, crate::app::models::ChatRole::Assistant);
 
     let runtime = app.get_session_runtime("s1");
-    let request = runtime.active_agent_request.as_ref().expect("request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
     assert_eq!(request.model.as_deref(), Some("gpt-test"));
     assert_eq!(
         request.reasoning_effort,
@@ -1577,7 +1371,7 @@ fn send_current_session_input_disables_workflow_mode_for_plan_run_child_session(
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("child");
-    let request = runtime.active_agent_request.as_ref().expect("request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
     assert!(
         !request.workflow_mode_enabled,
         "child session send must not carry workflow_mode into plan-run"
@@ -1606,7 +1400,7 @@ fn send_current_session_input_keeps_workflow_mode_for_root_session() {
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("root");
-    let request = runtime.active_agent_request.as_ref().expect("request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
     assert!(request.workflow_mode_enabled);
 }
 
@@ -1637,7 +1431,7 @@ fn send_current_session_input_keeps_workflow_mode_for_any_query_when_toggle_on()
         let _ = super::send_current_session_input(&mut app);
 
         let runtime = app.get_session_runtime(&session_id);
-        let request = runtime.active_agent_request.as_ref().expect("request should start");
+        let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
         assert!(
             request.workflow_mode_enabled,
             "workflow toggle must enter plan-run for any query: {query}"
@@ -1675,7 +1469,7 @@ fn send_current_session_input_keeps_explicit_actions_in_workflow_mode() {
         let _ = super::send_current_session_input(&mut app);
 
         let runtime = app.get_session_runtime(&session_id);
-        let request = runtime.active_agent_request.as_ref().expect("request should start");
+        let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
         assert!(request.workflow_mode_enabled, "explicit action must use plan-run: {query}");
     }
 }
@@ -1695,7 +1489,7 @@ fn send_current_session_input_keeps_goal_mode_for_root_session() {
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("root-goal");
-    let request = runtime.active_agent_request.as_ref().expect("request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
     assert!(request.goal_mode_enabled);
     assert!(!request.workflow_mode_enabled);
 }
@@ -1722,7 +1516,7 @@ fn request_preserves_registered_agent_tool_without_desktop_prompt() {
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("root-subagent");
-    let request = runtime.active_agent_request.as_ref().expect("request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
     assert!(!request.require_agent_tool);
     assert!(
         request.history.iter().all(|message| !message.content.contains("AgentTool-First Mode"))
@@ -1755,7 +1549,7 @@ fn request_does_not_add_unregistered_agent_tool() {
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("root-standard");
-    let request = runtime.active_agent_request.as_ref().expect("request should start");
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().expect("request should start");
     assert!(!request.require_agent_tool);
     assert_eq!(request.allowed_tools.as_ref().expect("restricted tools"), &["shell".to_string()]);
     assert!(
@@ -2050,13 +1844,13 @@ fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity(
     assert!(app.current_session_runtime().acp_rebuild_required);
     super::send_current_session_input_checked(&mut app);
     let runtime = app.current_session_runtime();
-    let request = runtime.active_agent_request.as_ref().unwrap();
+    let request = runtime.request_lifecycle.active_agent_request.as_ref().unwrap();
     assert_eq!(request.acp_model_source, AcpModelSource::CliLocal);
     assert_eq!(request.acp_agent.as_deref(), Some("claude"));
     assert!(request.model.is_none());
     assert!(request.acp_force_new_session);
 
-    app.current_session_runtime_mut().is_requesting = false;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = false;
     super::update(
         &mut app,
         super::ChatMessage::AcpModelSourceSelected(AcpModelSource::SessionModel),
@@ -2074,7 +1868,7 @@ fn acp_model_source_ui_cannot_change_during_an_active_request() {
     let (mut app, _) = crate::app::App::new();
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     super::update(&mut app, super::ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
 }
@@ -2163,7 +1957,7 @@ fn session_entry_recommendations_select_original_index() {
     super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(1));
     assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
     assert!(!app.input_popovers.recommended_prompt);
-    assert!(!app.current_session_runtime().is_requesting);
+    assert!(!app.current_session_runtime().request_lifecycle.is_requesting);
     app.input_popovers.recommended_prompt = true;
     super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(0));
     assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
@@ -2217,7 +2011,7 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
     let second_request = app.agent_stream_id;
     assert_ne!(first_request, second_request);
     assert_eq!(app.active_session_id.as_deref(), Some(session_id.as_str()));
-    assert!(!app.current_session_runtime().active_agent_request.unwrap().history.is_empty());
+    assert!(!app.current_session_runtime().request_lifecycle.active_agent_request.unwrap().history.is_empty());
     assert_eq!(app.chat[0].content, "first attempt");
     assert!(app.chat.iter().any(|m| m.content == "second attempt"));
 
@@ -2229,7 +2023,7 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
     assert!(!app.current_session_runtime().stream_save_dirty_records.is_empty());
 
     super::start(&mut app, queue_item("third attempt", Queue), false);
-    let request = app.current_session_runtime().active_agent_request.unwrap();
+    let request = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap();
     assert_eq!(request.session, session_id);
     assert!(!request.history.is_empty());
     assert_eq!(app.chat[0].content, "first attempt");
@@ -2277,7 +2071,7 @@ fn session_history_survives_failed_publication_lookup_and_multiple_followups() {
     app.project_path = Some("/repo".into());
     for turn in 0..3 {
         super::start(&mut app, queue_item(&format!("question {turn}"), Queue), false);
-        let request = app.current_session_runtime().active_agent_request.unwrap();
+        let request = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap();
         assert_eq!(request.history.len(), turn * 2);
         super::stream::update(
             &mut app,
@@ -2307,7 +2101,7 @@ fn session_history_missing_background_cache_does_not_start_an_empty_continuation
     app.active_session_id = Some("active".into());
     app.chat = vec![chat_message(crate::app::models::ChatRole::User, "keep active")];
     super::send_to_existing_session(&mut app, "existing".into(), "next question".into());
-    assert!(app.get_session_runtime("existing").active_agent_request.is_none());
+    assert!(app.get_session_runtime("existing").request_lifecycle.active_agent_request.is_none());
     assert!(app.cached_chat_messages("existing").is_none());
     assert_eq!(app.active_session_id.as_deref(), Some("active"));
     assert_eq!(app.chat[0].content, "keep active");
@@ -2342,7 +2136,7 @@ fn session_history_loaded_before_background_send_preserves_prior_turns() {
             result: Ok(Box::new(loaded)),
         },
     );
-    let request = app.get_session_runtime("existing").active_agent_request.unwrap();
+    let request = app.get_session_runtime("existing").request_lifecycle.active_agent_request.unwrap();
     assert_eq!(request.history, history);
     assert_eq!(request.query, "next question");
     assert_eq!(app.cached_chat_messages("existing").unwrap().len(), 4);
@@ -2363,7 +2157,7 @@ fn session_history_load_failure_does_not_send_or_replace_active_history() {
             result: Err("offline".into()),
         },
     );
-    assert!(app.get_session_runtime("existing").active_agent_request.is_none());
+    assert!(app.get_session_runtime("existing").request_lifecycle.active_agent_request.is_none());
     assert!(app.cached_chat_messages("existing").is_none());
     assert_eq!(app.chat[0].content, "keep active");
 }
@@ -2377,7 +2171,7 @@ fn session_history_pending_foreground_load_blocks_send_without_clearing_input() 
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("next question");
     super::update(&mut app, super::ChatMessage::SendPressed);
-    assert!(app.current_session_runtime().active_agent_request.is_none());
+    assert!(app.current_session_runtime().request_lifecycle.active_agent_request.is_none());
     assert!(app.chat.is_empty());
     assert_eq!(app.current_session_runtime().input_editor.text(), "next question");
 }
@@ -2394,7 +2188,7 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
     for (query, delta) in
         [("first guidance", "first partial"), ("second guidance", "second partial")]
     {
-        let request_id = app.current_session_runtime().active_agent_request.unwrap().id;
+        let request_id = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap().id;
         super::stream::update(
             &mut app,
             super::ChatMessage::AgentStreamDelta(request_id, delta.into()),
@@ -2405,7 +2199,7 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
         assert_eq!(app.active_session_id.as_ref(), Some(&session_id));
         assert_eq!(app.chat[0].content, "original question");
         assert!(app.chat.iter().any(|message| message.content.contains(delta)));
-        let request = app.current_session_runtime().active_agent_request.unwrap();
+        let request = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap();
         assert_eq!(request.history[0].content, "original question");
         assert!(request.history.iter().any(|message| message.content.contains(delta)));
         assert_eq!(request.query, query);
@@ -2501,7 +2295,7 @@ fn fork_selection_ui_first_send_uses_latest_agent_source_and_history() {
             result: Ok(std::collections::BTreeMap::from([("codex".into(), true)])),
         },
     );
-    let request = app.current_session_runtime().active_agent_request.unwrap();
+    let request = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap();
     assert_eq!(request.agent.as_deref(), Some("acp-codex"));
     assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.acp_model_source, AcpModelSource::CliLocal);
@@ -2530,7 +2324,7 @@ fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
     );
     assert!(app.current_session_runtime().acp_options_state.source_pending.is_some());
     let _ = super::update(&mut app, super::ChatMessage::SendPressed);
-    assert!(app.current_session_runtime().active_agent_request.is_none());
+    assert!(app.current_session_runtime().request_lifecycle.active_agent_request.is_none());
     let _ = super::update(
         &mut app,
         super::ChatMessage::AgentInstallationChecked {
@@ -2541,7 +2335,7 @@ fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
             result: Ok(std::collections::BTreeMap::from([("claude".into(), true)])),
         },
     );
-    assert!(app.current_session_runtime().active_agent_request.is_none());
+    assert!(app.current_session_runtime().request_lifecycle.active_agent_request.is_none());
     assert_eq!(app.current_session_runtime().input_editor.text(), "保留输入");
     app.current_session_runtime_mut().acp_options_state.source_pending = None;
     app.current_session_runtime_mut().fork_execution_started = Some(true);

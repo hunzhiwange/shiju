@@ -407,12 +407,12 @@ fn current_session_started_covers_chat_active_request_and_queue() {
     assert!(app.current_session_has_started());
 
     app.chat.clear();
-    app.current_session_runtime_mut().active_agent_request = Some(agent_request(41, "active"));
+    app.current_session_runtime_mut().request_lifecycle.active_agent_request = Some(agent_request(41, "active"));
     assert!(app.current_session_has_started());
 
     let runtime = app.current_session_runtime_mut();
-    runtime.active_agent_request = None;
-    runtime.queue.push(crate::app::QueueItem {
+    runtime.request_lifecycle.active_agent_request = None;
+    runtime.request_lifecycle.queue.push(crate::app::QueueItem {
         created_ms: 10,
         query: "queued".to_string(),
         attachments: Vec::new(),
@@ -446,7 +446,7 @@ fn viewed_and_requesting_helpers_update_and_query_per_session_state() {
     app.active_session_id = Some("active".to_string());
     let mut active = SessionRuntimeState::default();
     active.has_unseen_success = true;
-    active.is_requesting = true;
+    active.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert("active".to_string(), active);
 
     assert!(app.current_session_is_requesting());
@@ -456,7 +456,7 @@ fn viewed_and_requesting_helpers_update_and_query_per_session_state() {
 
     app.mark_active_session_viewed();
     assert!(!app.get_session_runtime("active").has_unseen_success);
-    app.session_runtime_states.get_mut("active").expect("active state").is_requesting = false;
+    app.session_runtime_states.get_mut("active").expect("active state").request_lifecycle.is_requesting = false;
     assert!(!app.current_session_is_requesting());
     assert!(!app.any_session_requesting());
 
@@ -469,9 +469,9 @@ fn find_session_by_request_id_returns_matching_session_only() {
     let mut app = test_app();
     app.session_runtime_states.clear();
     let mut first = SessionRuntimeState::default();
-    first.active_agent_request = Some(agent_request(41, "first"));
+    first.request_lifecycle.active_agent_request = Some(agent_request(41, "first"));
     let mut second = SessionRuntimeState::default();
-    second.active_agent_request = Some(agent_request(42, "second"));
+    second.request_lifecycle.active_agent_request = Some(agent_request(42, "second"));
     app.session_runtime_states.insert("first".to_string(), first);
     app.session_runtime_states.insert("second".to_string(), second);
 
@@ -896,7 +896,7 @@ fn acp_model_source_ui_busy_session_rejects_model_and_source_changes() {
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
     runtime.model = "provider/original".into();
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     let _ = chat::update(&mut app, ChatMessage::ModelSelected("provider/other".into()));
     let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
     assert_eq!(app.current_session_runtime().model, "provider/original");
@@ -967,9 +967,9 @@ fn fork_selection_runtime_inherited_history_does_not_start_fork() {
         .collect();
     app.current_session_runtime_mut().fork_execution_started = Some(false);
     assert!(!app.current_session_has_started());
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     assert!(app.current_session_has_started());
-    app.current_session_runtime_mut().is_requesting = false;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = false;
     app.current_session_runtime_mut().fork_execution_started = Some(true);
     assert!(app.current_session_has_started());
     app.current_session_runtime_mut().fork_execution_started = None;

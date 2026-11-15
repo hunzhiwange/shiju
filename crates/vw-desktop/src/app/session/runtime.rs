@@ -229,9 +229,9 @@ impl App {
         // Capability refreshes carry IDs and can be discarded on agent changes.
         // Other option reads retain the lock even after their modal closes.
         let busy = runtime.is_some_and(|runtime| {
-            runtime.is_requesting
-                || runtime.active_agent_request.is_some()
-                || !runtime.queue.is_empty()
+            runtime.request_lifecycle.is_requesting
+                || runtime.request_lifecycle.active_agent_request.is_some()
+                || !runtime.request_lifecycle.queue.is_empty()
                 || (runtime.acp_options_state.pending && runtime.acp_options_state.source_request_id.is_none())
                 || runtime.acp_options_state.source_pending.is_some()
                 || runtime.fork_request_submitted
@@ -328,7 +328,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn current_session_is_requesting(&self) -> bool {
-        self.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting)
+        self.current_session_runtime_ref().is_some_and(|runtime| runtime.request_lifecycle.is_requesting)
     }
 
     /// 执行 session_is_requesting 对应的领域操作。
@@ -336,7 +336,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn session_is_requesting(&self, session_id: &str) -> bool {
-        self.session_runtime_states.get(session_id).map(|s| s.is_requesting).unwrap_or(false)
+        self.session_runtime_states.get(session_id).map(|s| s.request_lifecycle.is_requesting).unwrap_or(false)
     }
 
     /// 执行 any_session_requesting 对应的领域操作。
@@ -344,7 +344,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn any_session_requesting(&self) -> bool {
-        self.session_runtime_states.values().any(|s| s.is_requesting)
+        self.session_runtime_states.values().any(|s| s.request_lifecycle.is_requesting)
     }
 
     /// 执行 has_active_explore_summary_animation 对应的领域操作。
@@ -386,7 +386,7 @@ impl App {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn find_session_by_request_id(&self, request_id: u64) -> Option<String> {
         for (session_id, runtime) in &self.session_runtime_states {
-            if runtime.active_agent_request.as_ref().map(|r| r.id) == Some(request_id) {
+            if runtime.request_lifecycle.active_agent_request.as_ref().map(|r| r.id) == Some(request_id) {
                 return Some(session_id.clone());
             }
         }

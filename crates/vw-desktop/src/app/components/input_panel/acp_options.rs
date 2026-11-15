@@ -15,7 +15,7 @@ fn state<'a>(app: &App, runtime: &'a crate::app::state::SessionRuntimeState) -> 
     shared::OptionsState {
         i18n: I18n::new(app.desktop_locale), acp_agent: runtime.acp_agent.as_deref(),
         acp_options: &runtime.acp_options_state.options, acp_model_source: runtime.acp_model_source,
-        is_requesting: runtime.is_requesting, acp_options_pending: runtime.acp_options_state.pending,
+        is_requesting: runtime.request_lifecycle.is_requesting, acp_options_pending: runtime.acp_options_state.pending,
         source_pending: runtime.acp_options_state.source_pending.is_some(), auto_model: runtime.auto_model,
         model: &runtime.model, full_access_enabled: runtime.full_access_enabled,
         acp_rebuild_required: runtime.acp_rebuild_required,
@@ -24,7 +24,7 @@ fn state<'a>(app: &App, runtime: &'a crate::app::state::SessionRuntimeState) -> 
 pub(super) fn entry<'a>(app: &'a App, runtime: Option<&crate::app::state::SessionRuntimeState>) -> Option<Element<'a, Message>> {
     let runtime = runtime.filter(|runtime| runtime.acp_agent.is_some() && runtime.draft.is_none())?;
     shared::entry(I18n::new(app.desktop_locale), true,
-        !runtime.is_requesting && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none(), emit)
+        !runtime.request_lifecycle.is_requesting && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none(), emit)
 }
 pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
     let runtime = app.current_session_runtime();
@@ -42,7 +42,7 @@ fn source_controls_for<'a>(app: &'a App, runtime: &crate::app::state::SessionRun
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(runtime) = app.current_session_runtime_ref().filter(|r| r.acp_options_state.open && r.acp_agent.is_some()) else { return base; };
     let input = state(app, runtime);
-    let can_change = super::send_controls::has_permission_context(app) && !runtime.is_requesting
+    let can_change = super::send_controls::has_permission_context(app) && !runtime.request_lifecycle.is_requesting
         && !runtime.full_access_saving && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none();
     let permission = super::send_controls::acp_permission_modes(runtime.full_access_enabled, can_change);
     let access = shared::access_status(&input, permission);

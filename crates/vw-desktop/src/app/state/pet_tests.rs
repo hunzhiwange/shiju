@@ -236,8 +236,8 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     app.chat = vec![chat_message(ChatRole::Assistant, "<think>正在检查文件\ntool read\nresult")];
 
     let mut runtime = SessionRuntimeState::default();
-    runtime.is_requesting = true;
-    runtime.active_agent_request =
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request =
         Some(agent_request(7, "s1", "fallback title", Some("/tmp/project-one")));
     app.session_runtime_states.insert("s1".to_string(), runtime);
 
@@ -251,7 +251,7 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     assert_eq!(app.task_pet_items[0].project.as_deref(), Some("project-one"));
 
     let runtime = app.session_runtime_states.get_mut("s1").expect("runtime should exist");
-    runtime.active_agent_request =
+    runtime.request_lifecycle.active_agent_request =
         Some(agent_request(8, "s1", "replacement query", Some("/tmp/project-two")));
     app.chat.clear();
 
@@ -262,15 +262,15 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     assert_eq!(app.task_pet_items[0].detail, "正在检查文件");
     assert_eq!(app.task_pet_items[0].project.as_deref(), Some("project-two"));
 
-    app.session_runtime_states.get_mut("s1").expect("runtime should exist").is_requesting = false;
+    app.session_runtime_states.get_mut("s1").expect("runtime should exist").request_lifecycle.is_requesting = false;
     app.sync_task_pet_from_runtime();
 
     assert_eq!(app.task_pet_active_count(), 0);
     assert_eq!(app.task_pet_items[0].status, TaskPetStatus::Completed);
 
     let mut other = SessionRuntimeState::default();
-    other.is_requesting = true;
-    other.active_agent_request = Some(agent_request(10, "s2", "newer task", None));
+    other.request_lifecycle.is_requesting = true;
+    other.request_lifecycle.active_agent_request = Some(agent_request(10, "s2", "newer task", None));
     app.session_runtime_states.insert("s2".to_string(), other);
     app.sync_task_pet_from_runtime();
 
@@ -433,14 +433,14 @@ fn mini_companion_stack_prioritizes_running_tasks() {
     app.task_pet_items = vec![mini_task(99, TaskPetStatus::Completed)];
     for id in [1, 3, 2] {
         let mut runtime = SessionRuntimeState::default();
-        runtime.is_requesting = true;
-        runtime.active_agent_request =
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request =
             Some(agent_request(id, &format!("session-{id}"), "任务", None));
         app.session_runtime_states.insert(format!("session-{id}"), runtime);
     }
     app.sync_task_pet_from_runtime();
     assert_eq!(app.task_pet_items.iter().map(|i| i.request_id).collect::<Vec<_>>(), [3, 2, 1, 99]);
-    app.session_runtime_states.get_mut("session-3").unwrap().is_requesting = false;
+    app.session_runtime_states.get_mut("session-3").unwrap().request_lifecycle.is_requesting = false;
     app.sync_task_pet_from_runtime();
     assert_eq!(app.task_pet_items[0].request_id, 2);
     assert_eq!(app.task_pet_items[2].status, TaskPetStatus::Completed);

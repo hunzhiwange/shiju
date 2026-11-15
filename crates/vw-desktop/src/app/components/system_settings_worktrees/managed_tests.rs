@@ -41,7 +41,7 @@ fn worktree_managed_ui_opens_chat_in_selected_existing_checkout() {
     assert_eq!(repo.worktrees().unwrap().len(), before);
     assert_eq!(draft.project_path, primary.to_string_lossy());
     assert!(!app.new_session_creating);
-    assert!(!app.current_session_runtime().is_requesting);
+    assert!(!app.current_session_runtime().request_lifecycle.is_requesting);
     assert!(app.chat.is_empty());
 }
 #[test]
@@ -60,7 +60,7 @@ fn worktree_managed_ui_switches_project_before_draft() {
     assert_eq!(draft.project_path, "/项目/other");
     assert_eq!(draft.directory, "/工作树/跨项目");
     assert!(!app.new_session_creating);
-    assert!(!app.current_session_runtime().is_requesting);
+    assert!(!app.current_session_runtime().request_lifecycle.is_requesting);
 }
 #[test]
 fn worktree_managed_ui_refresh_keeps_groups_stable() {

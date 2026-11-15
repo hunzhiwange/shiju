@@ -25,7 +25,7 @@ pub fn model_toggle_button(app: &App, auto_model: bool, model: &str, expanded: b
 pub fn model_popover_content<'a>(app: &'a App, auto_model: bool, model: &str) -> Element<'a, Message> {
     let runtime = app.current_session_runtime();
     let started = app.current_session_has_started();
-    let can_select = !started && !runtime.is_requesting && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none()
+    let can_select = !started && !runtime.request_lifecycle.is_requesting && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none()
         && (runtime.acp_agent.is_none() || runtime.acp_options_state.options.model_source_capabilities.iter().any(|c| matches!(c, AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })));
     let input = shared::ModelPopoverInput {
         settings: &app.model_settings, i18n: crate::app::i18n::I18n::new(app.desktop_locale),

@@ -483,9 +483,9 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 提取运行时状态，如果没有运行时则使用默认值
     // 这些状态控制UI的显示和交互行为
-    let is_requesting = runtime.map(|r| r.is_requesting).unwrap_or(false);
-    let submit_anim = runtime.map(|r| r.submit_anim).unwrap_or(0);
-    let queue = runtime.map(|r| r.queue.clone()).unwrap_or_default();
+    let is_requesting = runtime.map(|r| r.request_lifecycle.is_requesting).unwrap_or(false);
+    let submit_anim = runtime.map(|r| r.request_lifecycle.submit_anim).unwrap_or(0);
+    let queue = runtime.map(|r| r.request_lifecycle.queue.clone()).unwrap_or_default();
     let auto_model = runtime.map(|r| r.auto_model).unwrap_or(app.auto_model);
     let model = runtime.map(|r| r.model.clone()).unwrap_or_else(|| app.model.clone());
     let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.input_editor);
@@ -555,7 +555,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale),
         has_permission_context
             && runtime.is_none_or(|runtime| {
-                !runtime.full_access_saving && (runtime.draft.is_none() || !runtime.is_requesting)
+                !runtime.full_access_saving && (runtime.draft.is_none() || !runtime.request_lifecycle.is_requesting)
             }),
         full_access_enabled,
     ));

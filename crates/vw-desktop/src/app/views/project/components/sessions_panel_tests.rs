@@ -457,8 +457,8 @@ fn plan_run_live_children_integrate_with_session_visibility() {
     }];
     app.chat_message_ids = vec![None];
     let parent_runtime = app.get_session_runtime_mut(MAIN_ID);
-    parent_runtime.is_requesting = true;
-    parent_runtime.active_agent_request = Some(agent_request(REQUEST_ID, MAIN_ID));
+    parent_runtime.request_lifecycle.is_requesting = true;
+    parent_runtime.request_lifecycle.active_agent_request = Some(agent_request(REQUEST_ID, MAIN_ID));
 
     for message in [
         message::ChatMessage::PlanRunSessionStarted {
@@ -510,7 +510,7 @@ fn plan_run_live_children_integrate_with_session_visibility() {
     for session_id in [PLANNING_ID, BATCH_ONE_ID, BATCH_TWO_ID] {
         assert!(!app.sessions.iter().any(|session| session.id == session_id));
         assert!(app.get_session_runtime(session_id).is_plan_run_session);
-        assert!(app.get_session_runtime(session_id).is_requesting);
+        assert!(app.get_session_runtime(session_id).request_lifecycle.is_requesting);
         let _ = crate::app::message::chat::update(
             &mut app,
             message::ChatMessage::AgentStreamDeltaFlush(session_id.to_string()),
@@ -570,9 +570,9 @@ fn plan_run_live_children_integrate_with_session_visibility() {
             &mut app,
             message::ChatMessage::PlanRunSessionFinished(session_id.to_string()),
         );
-        assert!(!app.get_session_runtime(session_id).is_requesting);
+        assert!(!app.get_session_runtime(session_id).request_lifecycle.is_requesting);
     }
-    assert!(app.get_session_runtime(MAIN_ID).active_agent_request.is_some());
+    assert!(app.get_session_runtime(MAIN_ID).request_lifecycle.active_agent_request.is_some());
 }
 
 #[test]
@@ -607,11 +607,11 @@ fn session_items_builds_runtime_status_variants() {
     app.session_menu_anchor = Some(Point::new(4.0, 6.0));
 
     let mut running = SessionRuntimeState::default();
-    running.is_requesting = true;
+    running.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert("running".to_string(), running);
 
     let mut queued = SessionRuntimeState::default();
-    queued.queue.push(queue_item("继续"));
+    queued.request_lifecycle.queue.push(queue_item("继续"));
     app.session_runtime_states.insert("queued".to_string(), queued);
 
     let mut unseen = SessionRuntimeState::default();

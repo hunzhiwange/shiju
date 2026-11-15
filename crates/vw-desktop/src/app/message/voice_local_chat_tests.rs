@@ -32,7 +32,7 @@ fn voice_task_11_local_uses_ordinary_request_and_final_completion_once() {
     let mut app = app();
     recognized(&mut app, "请回答一个普通问题");
     app.current_session_runtime_mut().draft = None;
-    let request = app.current_session_runtime_ref().unwrap().active_agent_request.clone().unwrap();
+    let request = app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.clone().unwrap();
     assert_eq!(request.query, "请回答一个普通问题");
     assert_eq!(app.voice.local_conversation.as_ref().unwrap().stage, Stage::WaitingModel);
     assert!(app.voice.conversation.is_none());
@@ -61,12 +61,12 @@ fn voice_task_11_local_uses_ordinary_request_and_final_completion_once() {
 fn voice_task_11_local_rejects_commands_and_preserves_draft() {
     let mut app = app();
     recognized(&mut app, "/task 不执行");
-    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+    assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("保留草稿");
     recognized(&mut app, "不要覆盖");
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "保留草稿");
-    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+    assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
 }
 #[test]
 fn voice_task_11_local_mute_end_and_switch_discard_late_results() {
@@ -77,12 +77,12 @@ fn voice_task_11_local_mute_end_and_switch_discard_late_results() {
     let _ = mute(&mut app);
     assert!(native.is_cancelled());
     let _ = update(&mut app, Event::Recognized(call, round, Ok("迟到的文字".into())));
-    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+    assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
     app.active_session_id = Some("different".into());
     super::super::invalidate(&mut app);
     assert!(app.voice.local_conversation.is_none());
     let _ = update(&mut app, Event::Recognized(call, round, Ok("更迟的文字".into())));
-    assert!(app.current_session_runtime_ref().is_none_or(|r| r.active_agent_request.is_none()));
+    assert!(app.current_session_runtime_ref().is_none_or(|r| r.request_lifecycle.active_agent_request.is_none()));
 }
 #[test]
 fn voice_task_11_local_interrupt_stops_only_owned_model_request() {
@@ -135,9 +135,9 @@ fn voice_task_11_local_preserves_model_history_and_permission_policy() {
         },
     );
     let ordinary =
-        ordinary_app.current_session_runtime_ref().unwrap().active_agent_request.as_ref().unwrap();
+        ordinary_app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.as_ref().unwrap();
     recognized(&mut app, "  保持原会话  ");
-    let request = app.current_session_runtime_ref().unwrap().active_agent_request.as_ref().unwrap();
+    let request = app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.as_ref().unwrap();
     assert_eq!(request.query, "保持原会话");
     assert_eq!(request.history, history);
     assert_eq!(request.model.as_deref(), Some("voice-test-selected-model"));
@@ -175,7 +175,7 @@ fn voice_task_19_full_app_routes_local_turn_and_discards_completion_after_end() 
         round,
         Ok("使用当前普通聊天模型".into()),
     ))));
-    let request = app.current_session_runtime_ref().unwrap().active_agent_request.clone().unwrap();
+    let request = app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.clone().unwrap();
     assert_eq!(request.query, "使用当前普通聊天模型");
     assert!(app.voice.conversation.is_none());
     app.current_session_runtime_mut().draft = None;
@@ -211,5 +211,5 @@ fn voice_moon_ui_end_cancels_media_and_rejects_late_recognition() {
     assert!(native.is_cancelled());
     assert!(app.voice.local_conversation.is_none());
     let _ = update(&mut app, Event::Recognized(call, round, Ok("迟到的文字".into())));
-    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+    assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
 }

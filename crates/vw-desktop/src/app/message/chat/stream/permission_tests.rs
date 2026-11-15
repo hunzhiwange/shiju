@@ -199,5 +199,5 @@ fn start_next_noops_for_empty_queue() {
 
     super::start_next(&mut app, "s1");
 
-    assert!(app.get_session_runtime("s1").queue.is_empty());
+    assert!(app.get_session_runtime("s1").request_lifecycle.queue.is_empty());
 }

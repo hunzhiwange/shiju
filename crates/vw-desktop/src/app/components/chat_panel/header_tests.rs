@@ -162,10 +162,10 @@ fn session_status_reads_runtime_flags_queue_and_animation_color() {
     app.active_session_id = Some("active".to_string());
 
     let mut runtime = SessionRuntimeState::default();
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     runtime.has_unseen_success = true;
-    runtime.queue.push(queue_item("first"));
-    runtime.queue.push(queue_item("second"));
+    runtime.request_lifecycle.queue.push(queue_item("first"));
+    runtime.request_lifecycle.queue.push(queue_item("second"));
     app.session_runtime_states.insert("active".to_string(), runtime);
 
     let (is_running, queued, has_unseen_success, breathe, color) = get_session_status(&app);
@@ -214,14 +214,14 @@ fn chat_header_view_builds_default_session_variants() {
 
     let mut running = active_header_app();
     let mut running_runtime = SessionRuntimeState::default();
-    running_runtime.is_requesting = true;
-    running_runtime.queue.push(queue_item("queued"));
+    running_runtime.request_lifecycle.is_requesting = true;
+    running_runtime.request_lifecycle.queue.push(queue_item("queued"));
     running.session_runtime_states.insert("active".to_string(), running_runtime);
     keep_element(chat_header_view(&running));
 
     let mut queued = active_header_app();
     let mut queued_runtime = SessionRuntimeState::default();
-    queued_runtime.queue.push(queue_item("queued"));
+    queued_runtime.request_lifecycle.queue.push(queue_item("queued"));
     queued.session_runtime_states.insert("active".to_string(), queued_runtime);
     keep_element(chat_header_view(&queued));
 

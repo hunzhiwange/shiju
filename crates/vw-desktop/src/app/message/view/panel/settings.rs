@@ -899,7 +899,7 @@ fn take_shutdown_stream_requests(app: &mut App) -> Vec<ShutdownStreamRequest> {
     let requests = app
         .session_runtime_states
         .values_mut()
-        .filter_map(|runtime| runtime.active_agent_request.take())
+        .filter_map(|runtime| runtime.request_lifecycle.active_agent_request.take())
         .map(|request| ShutdownStreamRequest {
             request_id: crate::app::impls::desktop_stream_request_id(&request),
             kind: if crate::app::impls::task_plan_run_active(

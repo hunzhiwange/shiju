@@ -207,7 +207,7 @@ pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Messag
     let directory = permission_directory(app);
     let (full_access_enabled, should_rebuild, saved_session) = {
         let runtime = app.current_session_runtime_mut();
-        if runtime.full_access_saving || (runtime.draft.is_some() && runtime.is_requesting) {
+        if runtime.full_access_saving || (runtime.draft.is_some() && runtime.request_lifecycle.is_requesting) {
             return Task::none();
         }
         let saved_session = session_id.clone().filter(|_| runtime.draft.is_none());

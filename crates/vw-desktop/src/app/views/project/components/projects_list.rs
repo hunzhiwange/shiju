@@ -527,7 +527,7 @@ pub(crate) fn project_list_action_order() -> [&'static str; 4] {
 fn has_attention_badge(app: &App, sessions: &[session::Info]) -> bool {
     sessions.iter().any(|session| {
         app.session_runtime_states.get(&session.id).is_some_and(|runtime| {
-            runtime.is_requesting || !runtime.queue.is_empty() || runtime.has_unseen_success
+            runtime.request_lifecycle.is_requesting || !runtime.request_lifecycle.queue.is_empty() || runtime.has_unseen_success
         })
     })
 }

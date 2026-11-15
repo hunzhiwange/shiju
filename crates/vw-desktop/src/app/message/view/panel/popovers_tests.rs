@@ -109,7 +109,7 @@ fn opening_each_popover_applies_its_existing_exclusivity_rules() {
         let mut app = test_app();
         set_all_popovers(&mut app, true);
         set_target_visibility(&mut app, &message, false);
-        app.current_session_runtime_mut().is_requesting = true;
+        app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
         app.model_settings.loading = true;
         app.acp_agents.push("codex".to_string());
 
@@ -137,7 +137,7 @@ fn toggling_an_open_popover_closes_only_that_popover() {
     for (message, closed_index) in cases {
         let mut app = test_app();
         set_all_popovers(&mut app, true);
-        app.current_session_runtime_mut().is_requesting = true;
+        app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
 
         let _ = update(&mut app, message);
 

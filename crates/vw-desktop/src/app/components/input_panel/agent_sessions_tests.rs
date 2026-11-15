@@ -257,8 +257,8 @@ fn workflow_plan_run_children_reuse_input_session_list() {
         finished_child,
         session("ordinary-child", Some(PARENT_ID), "普通子会话", DIRECTORY),
     ];
-    app.get_session_runtime_mut(RUNNING_CHILD_ID).is_requesting = true;
-    app.get_session_runtime_mut("ordinary-child").is_requesting = true;
+    app.get_session_runtime_mut(RUNNING_CHILD_ID).request_lifecycle.is_requesting = true;
+    app.get_session_runtime_mut("ordinary-child").request_lifecycle.is_requesting = true;
 
     let children = running_agent_sessions(&app);
     assert_eq!(children.len(), 1);
@@ -270,7 +270,7 @@ fn workflow_plan_run_children_reuse_input_session_list() {
     assert_eq!(children[0].directory, DIRECTORY);
     assert!(agent_sessions_entry(&app, &children).is_some());
 
-    app.get_session_runtime_mut(RUNNING_CHILD_ID).is_requesting = false;
+    app.get_session_runtime_mut(RUNNING_CHILD_ID).request_lifecycle.is_requesting = false;
     assert!(running_agent_sessions(&app).is_empty());
 }
 
@@ -318,7 +318,7 @@ fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
         )),
     ];
     app.chat_message_ids = vec![None, None];
-    app.get_session_runtime_mut(SESSION_ID).is_requesting = true;
+    app.get_session_runtime_mut(SESSION_ID).request_lifecycle.is_requesting = true;
 
     let children = running_agent_sessions(&app);
     assert_eq!(children.len(), 1);
@@ -397,7 +397,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
         ))]),
         vec![None],
     );
-    app.get_session_runtime_mut(WORKFLOW_SESSION_ID).is_requesting = true;
+    app.get_session_runtime_mut(WORKFLOW_SESSION_ID).request_lifecycle.is_requesting = true;
 
     let children = running_agent_sessions(&app);
 
@@ -435,7 +435,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
         },
     );
     assert!(
-        app.get_session_runtime(WORKFLOW_SESSION_ID).is_requesting,
+        app.get_session_runtime(WORKFLOW_SESSION_ID).request_lifecycle.is_requesting,
         "successful stop waits for SSE cancelled before hiding the row"
     );
     assert!(
@@ -471,7 +471,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
     ];
     app.chat = vec![assistant("AgentTool integration")];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(PARENT_ID).active_agent_request =
+    app.get_session_runtime_mut(PARENT_ID).request_lifecycle.active_agent_request =
         Some(agent_request(REQUEST_ID, PARENT_ID));
 
     let (delta_tx, mut delta_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -606,7 +606,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
     app.sessions = vec![session(PARENT_ID, None, "父会话", "/workspace/project")];
     app.chat = vec![assistant("")];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(PARENT_ID).active_agent_request =
+    app.get_session_runtime_mut(PARENT_ID).request_lifecycle.active_agent_request =
         Some(agent_request(REQUEST_ID, PARENT_ID));
 
     let running = format!(
@@ -718,7 +718,7 @@ fn cached_agent_badge_tracks_lifecycle_and_active_session_switch() {
     use super::agent_sessions::cached_running_agent_sessions;
     let mut app = crate::app::App::new().0;
     app.active_session_id = Some("parent".into());
-    app.get_session_runtime_mut("parent").active_agent_request = Some(agent_request(42, "parent"));
+    app.get_session_runtime_mut("parent").request_lifecycle.active_agent_request = Some(agent_request(42, "parent"));
     for (status, expected_count) in [("running", 1), ("completed", 0)] {
         for event in [
             message::ChatMessage::AgentStreamDelta(
@@ -749,7 +749,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
     use message::ChatMessage;
     let mut app = crate::app::App::new().0;
     app.active_session_id = Some("parent".into());
-    app.get_session_runtime_mut("parent").active_agent_request = Some(agent_request(42, "parent"));
+    app.get_session_runtime_mut("parent").request_lifecycle.active_agent_request = Some(agent_request(42, "parent"));
     let apply = |app: &mut crate::app::App, event: ChatMessage| {
         app.prepare_session_ui_projection(&Message::Chat(event.clone()));
         let _ = message::chat::update(app, event);

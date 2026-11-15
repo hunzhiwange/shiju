@@ -123,7 +123,7 @@ pub fn compute_todo_data(app: &App, todo_items: &[Todo]) -> TodoPanelData {
         // 如果待办列表中没有执行中的任务，则从当前会话中获取活跃请求
         .or_else(|| {
             app.current_session_runtime_ref().and_then(|r| {
-                r.active_agent_request
+                r.request_lifecycle.active_agent_request
                     .as_ref()
                     .map(|request| request.query.lines().next().unwrap_or("").trim().to_string())
             })

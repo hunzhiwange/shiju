@@ -491,7 +491,7 @@ fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, messag
     let generation = app
         .session_runtime_states
         .get(session_id)
-        .and_then(|runtime| runtime.active_agent_request.as_ref())
+        .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
         .map_or(0, |request| request.id);
     let mut render =
         std::mem::take(&mut app.get_session_runtime_mut(session_id).stream_render_state);
@@ -599,7 +599,7 @@ pub(super) fn mark_agent_stream_session_dirty(
     let request_generation = app
         .session_runtime_states
         .get(session_id)
-        .and_then(|runtime| runtime.active_agent_request.as_ref())
+        .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
         .map(|request| request.id);
     let runtime = app.get_session_runtime_mut(session_id);
     if runtime.stream_save_expected_updated_ms == 0 {
@@ -1145,7 +1145,7 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         let generation = app
             .session_runtime_states
             .get(&session_id)
-            .and_then(|runtime| runtime.active_agent_request.as_ref())
+            .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
             .map_or(0, |request| request.id);
         {
             let render = &mut app.get_session_runtime_mut(&session_id).stream_render_state;
@@ -1239,7 +1239,7 @@ pub(super) fn handle_plan_run_session_started(
     }
     let runtime = app.get_session_runtime_mut(session_id);
     runtime.is_plan_run_session = true;
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.is_requesting = true;
     app.sync_task_pet_from_runtime();
     Task::none()
 }
@@ -1250,7 +1250,7 @@ pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String
     }
     let _ = flush_agent_stream_delta(app, session_id.clone());
     let save_task = force_save_agent_stream_session(app, &session_id);
-    app.get_session_runtime_mut(&session_id).is_requesting = false;
+    app.get_session_runtime_mut(&session_id).request_lifecycle.is_requesting = false;
     app.sync_task_pet_from_runtime();
     if app.active_session_id.as_ref() == Some(&session_id) {
         app.sync_active_session_from_chat();
@@ -1388,7 +1388,7 @@ pub(super) fn handle_agent_stream_done(
     if let Some(session_id) = app.find_session_by_request_id(id)
         && let Some(draft) = app.get_session_runtime(&session_id).draft
     {
-        if app.get_session_runtime(&session_id).active_agent_request.as_ref().is_some_and(
+        if app.get_session_runtime(&session_id).request_lifecycle.active_agent_request.as_ref().is_some_and(
             |request| {
                 crate::app::impls::task_plan_run_active(
                     request.workflow_mode_enabled,
@@ -1434,11 +1434,11 @@ pub(super) fn complete_agent_stream(
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
-    let has_pending_queue = !app.get_session_runtime(&session_id).queue.is_empty();
-    let request_started_ms = app.get_session_runtime(&session_id).request_started_ms;
+    let has_pending_queue = !app.get_session_runtime(&session_id).request_lifecycle.queue.is_empty();
+    let request_started_ms = app.get_session_runtime(&session_id).request_lifecycle.request_started_ms;
     let resume_history_only = app
         .get_session_runtime(&session_id)
-        .active_agent_request
+        .request_lifecycle.active_agent_request
         .as_ref()
         .map(|request| request.resume_history_only)
         .unwrap_or(false);
@@ -1465,7 +1465,7 @@ pub(super) fn complete_agent_stream(
         calibrate_stream_tail_at_terminal(app, &session_id, &mut persisted_chat, completed_ms);
     let generation = app
         .get_session_runtime(&session_id)
-        .active_agent_request
+        .request_lifecycle.active_agent_request
         .as_ref()
         .map_or(0, |request| request.id);
     if let Some(content) = persisted_chat
@@ -1568,9 +1568,9 @@ pub(super) fn complete_agent_stream(
 
     {
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.is_requesting = false;
+        runtime.request_lifecycle.is_requesting = false;
         runtime.has_unseen_success = !is_active_session;
-        runtime.active_agent_request = None;
+        runtime.request_lifecycle.active_agent_request = None;
     }
     app.sync_task_pet_from_runtime();
 
@@ -1709,10 +1709,10 @@ pub(super) fn handle_agent_post_tool_round(
     if runtime.draft.is_some() {
         return Task::none();
     }
-    let Some(active_request) = runtime.active_agent_request.as_ref().map(Arc::clone) else {
+    let Some(active_request) = runtime.request_lifecycle.active_agent_request.as_ref().map(Arc::clone) else {
         return Task::none();
     };
-    let insert_idx = leading_guide_count(&runtime.queue);
+    let insert_idx = leading_guide_count(&runtime.request_lifecycle.queue);
     let completed_ms = now_ms();
     let elapsed = {
         let runtime = app.get_session_runtime_mut(&session_id);
@@ -1762,12 +1762,12 @@ pub(super) fn handle_agent_post_tool_round(
     };
     let next_item = {
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.is_requesting = false;
-        runtime.submit_anim = 0;
+        runtime.request_lifecycle.is_requesting = false;
+        runtime.request_lifecycle.submit_anim = 0;
         runtime.has_unseen_success = false;
-        runtime.active_agent_request = None;
-        runtime.queue.insert(insert_idx, continuation);
-        runtime.queue.remove(0)
+        runtime.request_lifecycle.active_agent_request = None;
+        runtime.request_lifecycle.queue.insert(insert_idx, continuation);
+        runtime.request_lifecycle.queue.remove(0)
     };
 
     app.sync_task_pet_from_runtime();
@@ -1778,7 +1778,7 @@ pub(super) fn handle_agent_post_tool_round(
         request_id = id,
         session_id = %session_id,
         step_index,
-        queued_after_handoff = app.get_session_runtime(&session_id).queue.len(),
+        queued_after_handoff = app.get_session_runtime(&session_id).request_lifecycle.queue.len(),
         "desktop yielded active request after tool round to prioritize guided queue item"
     );
 
@@ -1823,11 +1823,11 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         if let Some(active_id) = app.active_session_id.clone() {
             let runtime = app.get_session_runtime_mut(&active_id);
             // 迟到的旧请求错误不得结束正在运行的新请求。
-            if runtime.active_agent_request.is_some() {
+            if runtime.request_lifecycle.active_agent_request.is_some() {
                 return Task::none();
             }
-            if runtime.is_requesting {
-                runtime.is_requesting = false;
+            if runtime.request_lifecycle.is_requesting {
+                runtime.request_lifecycle.is_requesting = false;
                 runtime.has_unseen_success = false;
                 app.sync_task_pet_from_runtime();
             }
@@ -1858,9 +1858,9 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         let runtime = app.get_session_runtime_mut(&session_id);
         let elapsed =
             crate::app::message::chat::processing_timing::pause_runtime_processing_timers(runtime);
-        runtime.is_requesting = false;
+        runtime.request_lifecycle.is_requesting = false;
         runtime.has_unseen_success = false;
-        runtime.active_agent_request = None;
+        runtime.request_lifecycle.active_agent_request = None;
         elapsed
     };
     app.sync_task_pet_from_runtime();

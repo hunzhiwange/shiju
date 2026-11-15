@@ -4,6 +4,8 @@ pub mod message {
         pub mod acp_options;
         pub mod context;
         pub mod fork;
+        pub mod session;
+        pub mod request;
         pub mod processing_timing;
         #[cfg(test)]
         mod processing_timing_tests;

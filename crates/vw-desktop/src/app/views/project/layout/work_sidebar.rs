@@ -219,8 +219,8 @@ fn session_matches_time_filter(app: &App, updated: u64) -> bool {
 
 fn session_matches_status_filter(app: &App, session_id: &str) -> bool {
     let runtime = app.session_runtime_states.get(session_id);
-    let is_requesting = runtime.is_some_and(|runtime| runtime.is_requesting);
-    let has_pending = runtime.is_some_and(|runtime| !runtime.queue.is_empty());
+    let is_requesting = runtime.is_some_and(|runtime| runtime.request_lifecycle.is_requesting);
+    let has_pending = runtime.is_some_and(|runtime| !runtime.request_lifecycle.queue.is_empty());
     match app.work_sidebar_filter_status {
         WorkSidebarFilterStatus::All => true,
         WorkSidebarFilterStatus::InProgress => is_requesting,

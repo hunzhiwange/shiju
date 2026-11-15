@@ -91,7 +91,7 @@ async fn session_entry_recommendations_click_select_and_close() {
     let _ = message::chat::update(&mut app, message);
     assert_eq!(app.current_session_runtime().input_editor.text(), "点击后只填入草稿");
     assert!(!app.input_popovers.recommended_prompt);
-    assert!(!app.current_session_runtime().is_requesting);
+    assert!(!app.current_session_runtime().request_lifecycle.is_requesting);
 
     app.input_popovers.recommended_prompt = true;
     let mut element = domain::recommendations_menu(input(&app), &domain::recommended_indices(input(&app))).map(map_message);

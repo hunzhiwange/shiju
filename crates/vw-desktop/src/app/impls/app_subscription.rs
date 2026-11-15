@@ -434,7 +434,7 @@ fn collect_agent_subscription_requests(app: &App) -> Vec<Arc<crate::app::AgentRe
         && let Some(request) = app
             .session_runtime_states
             .get(active_id)
-            .and_then(|runtime| runtime.active_agent_request.as_ref().map(Arc::clone))
+            .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref().map(Arc::clone))
     {
         requests.push(request);
     }
@@ -442,7 +442,7 @@ fn collect_agent_subscription_requests(app: &App) -> Vec<Arc<crate::app::AgentRe
         if app.active_session_id.as_ref() == Some(session_id) {
             continue;
         }
-        if let Some(request) = runtime.active_agent_request.as_ref().map(Arc::clone) {
+        if let Some(request) = runtime.request_lifecycle.active_agent_request.as_ref().map(Arc::clone) {
             requests.push(request);
         }
     }

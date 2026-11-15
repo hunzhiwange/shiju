@@ -22,7 +22,7 @@ fn input(app: &App) -> HeaderInput<'_> {
         usage_details: crate::app::components::input_panel::usage::get_usage_details(app),
         input_limit: app.usage_model_info.as_ref().map(|info| info.input_limit).unwrap_or(0),
         limit_is_default: app.usage_model_info.as_ref().is_some_and(|info| info.limit_is_default),
-        runtime: (runtime.is_some_and(|r| r.is_requesting), runtime.map(|r| r.queue.len()).unwrap_or(0), runtime.is_some_and(|r| r.has_unseen_success)),
+        runtime: (runtime.is_some_and(|r| r.request_lifecycle.is_requesting), runtime.map(|r| r.request_lifecycle.queue.len()).unwrap_or(0), runtime.is_some_and(|r| r.has_unseen_success)),
         now_ms: crate::app::time::now_ms(), header_background: chrome.chat_header_bg,
     }
 }

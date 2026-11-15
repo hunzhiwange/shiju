@@ -87,18 +87,18 @@ pub(in crate::app::views::project) fn running_draft_sessions(
 ) -> impl Iterator<Item = (&str, Info)> {
     app.session_runtime_states.iter().filter_map(move |(id, runtime)| {
         let draft = runtime.draft.as_ref()?;
-        if !runtime.is_requesting {
+        if !runtime.request_lifecycle.is_requesting {
             return None;
         }
         let title = runtime
-            .active_agent_request
+            .request_lifecycle.active_agent_request
             .as_ref()
             .and_then(|request| {
                 session_text::initial_title_from_content(&request.query)
             })
             .map(|line| crate::app::views::project::utils::truncate_display_width(line, 120))
             .unwrap_or_else(|| I18n::new(app.desktop_locale).__("新会话").to_owned());
-        let started = runtime.request_started_ms;
+        let started = runtime.request_lifecycle.request_started_ms;
         let mut info = Info {
             id: id.clone(),
             slug: String::new(),
@@ -130,8 +130,8 @@ pub(in crate::app::views::project) enum SessionRowStatus {
 impl SessionRowStatus {
     pub(in crate::app::views::project) fn for_session(app: &App, id: &str) -> Self {
         match app.session_runtime_states.get(id) {
-            Some(runtime) if runtime.is_requesting => Self::Running,
-            Some(runtime) if !runtime.queue.is_empty() => Self::Queued(runtime.queue.len()),
+            Some(runtime) if runtime.request_lifecycle.is_requesting => Self::Running,
+            Some(runtime) if !runtime.request_lifecycle.queue.is_empty() => Self::Queued(runtime.request_lifecycle.queue.len()),
             Some(runtime) if runtime.has_unseen_success => Self::Updated,
             _ => Self::Idle,
         }
@@ -416,8 +416,8 @@ pub(in crate::app::views::project) fn session_row(
     let request = app
         .session_runtime_states
         .get(id)
-        .filter(|runtime| runtime.is_requesting)
-        .and_then(|runtime| runtime.active_agent_request.as_deref());
+        .filter(|runtime| runtime.request_lifecycle.is_requesting)
+        .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_deref());
     let agent = if let Some(request) = request {
         agent_description(
             i18n,

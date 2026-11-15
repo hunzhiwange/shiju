@@ -18,7 +18,7 @@ fn voice_task_07_composer_inserts_at_original_cursor_without_sending() {
     let generation = app.voice.draft.generation;
     let _ = update(&mut app, Event::Completed(generation, Ok("听写".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前听写后");
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
     let _ = update(&mut app, Event::Completed(generation, Ok("重复".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前听写后");
 }
@@ -87,7 +87,7 @@ fn voice_task_16_external_failure_preserves_result_without_touching_chat_or_send
     app.voice.insertion.target = Some(Err("焦点已变化".into()));
     let _ = update(&mut app, Event::Completed(generation, Ok("你好，\n外部目标！".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
     assert_eq!(app.voice.insertion.pending.as_deref(), Some("你好，\n外部目标！"));
     assert_eq!(app.voice.draft.phase, Phase::Idle);
     let _ = update(&mut app, Event::Completed(generation, Ok("重复结果".into())));

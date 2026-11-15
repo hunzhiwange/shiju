@@ -13,7 +13,7 @@ fn voice_task_17_local_sharing_is_explicit_and_disabled_by_default() {
     assert!(app.voice.screen.selecting);
     let _ = screen::update(&mut app, ScreenEvent::Cancel);
     assert!(!app.voice.screen.selecting);
-    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+    assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
 }
 
 fn image_app() -> App {
@@ -71,7 +71,7 @@ fn voice_task_17_local_frame_uses_current_model_history_and_permissions_once() {
     let history = app.chat.clone();
     let (ticket, owner, png) = frame(&mut app);
     let _ = screen::receive(&mut app, ticket.clone(), owner, Ok(png.clone()), true);
-    let request = app.current_session_runtime_ref().unwrap().active_agent_request.clone().unwrap();
+    let request = app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.clone().unwrap();
     assert_eq!(request.session, "local-turn");
     assert_eq!(request.model.as_deref(), Some("fixture/vision"));
     assert_eq!(request.history, history);
@@ -89,7 +89,7 @@ fn voice_task_17_local_frame_uses_current_model_history_and_permissions_once() {
     assert!(!app.voice.local_conversation.as_ref().unwrap().captions[0].1.contains("base64"));
     let _ = screen::receive(&mut app, ticket, owner, Ok(png), true);
     assert_eq!(
-        app.current_session_runtime_ref().unwrap().active_agent_request.as_ref().unwrap().id,
+        app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.as_ref().unwrap().id,
         request.id
     );
     assert_eq!(app.voice.local_conversation.as_ref().unwrap().captions.len(), 1);
@@ -141,7 +141,7 @@ fn voice_task_17_local_cancel_disable_revoke_end_and_switch_discard_frames() {
         }
         let _ = screen::receive(&mut app, ticket.clone(), owner, Ok(png), action != 2);
         assert!(!ticket.is_live(), "capture must retire for action {action}");
-        assert!(app.current_session_runtime_ref().is_none_or(|r| r.active_agent_request.is_none()));
+        assert!(app.current_session_runtime_ref().is_none_or(|r| r.request_lifecycle.active_agent_request.is_none()));
         assert!(app.voice.local_conversation.as_ref().is_none_or(|c| c.captions.is_empty()));
         assert!(app.files.is_empty());
     }
@@ -167,7 +167,7 @@ fn voice_task_17_local_changed_model_busy_draft_invalid_png_and_old_call_send_no
         }
         let _ = screen::receive(&mut app, ticket, owner, Ok(png), true);
         assert!(
-            app.current_session_runtime_ref().unwrap().active_agent_request.is_none(),
+            app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none(),
             "action {action}"
         );
         if action == 3 {

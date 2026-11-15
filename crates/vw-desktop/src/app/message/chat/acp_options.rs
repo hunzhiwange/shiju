@@ -14,7 +14,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             let runtime = app.current_session_runtime_mut();
-            if runtime.acp_options_state.set_model_input_draft(value, runtime.is_requesting) {
+            if runtime.acp_options_state.set_model_input_draft(value, runtime.request_lifecycle.is_requesting) {
                 app.invalidate_project_chat_preferences_read();
             }
             Task::none()
@@ -28,7 +28,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             if runtime.acp_options_state.pending
                 || runtime.acp_options_state.source_pending.is_some()
-                || runtime.is_requesting
+                || runtime.request_lifecycle.is_requesting
             {
                 return Task::none();
             }
@@ -63,7 +63,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             };
             match runtime.acp_options_state.apply_source_loaded(
-                request_id, runtime.acp_agent.as_deref() == Some(&agent), runtime.is_requesting, result,
+                request_id, runtime.acp_agent.as_deref() == Some(&agent), runtime.request_lifecycle.is_requesting, result,
             ) {
                 Ok(Some(confirmed)) => {
                     runtime.acp_model_source = confirmed.source;
@@ -152,7 +152,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let directory = super::stream::session_directory_for_save(app, &session_id);
             let runtime = app.get_session_runtime_mut(&session_id);
             if runtime.acp_agent.is_none()
-                || runtime.is_requesting
+                || runtime.request_lifecycle.is_requesting
                 || runtime.acp_options_state.pending
                 || runtime.acp_options_state.source_pending.is_some()
             {
@@ -201,7 +201,7 @@ pub(super) fn select_source(
         return Task::none();
     };
     let model = model.unwrap_or_else(|| if runtime.auto_model { "auto".into() } else { runtime.model.clone() });
-    let update = match runtime.acp_options_state.begin_source(request_id, agent, source, model, runtime.is_requesting) {
+    let update = match runtime.acp_options_state.begin_source(request_id, agent, source, model, runtime.request_lifecycle.is_requesting) {
         Ok(update) => update,
         Err(error) => return app.show_error_toast(error),
     };

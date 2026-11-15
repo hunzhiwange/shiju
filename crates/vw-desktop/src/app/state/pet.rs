@@ -237,10 +237,10 @@ impl App {
             .session_runtime_states
             .values()
             .filter_map(|runtime| {
-                if !runtime.is_requesting {
+                if !runtime.request_lifecycle.is_requesting {
                     return None;
                 }
-                let request = runtime.active_agent_request.as_ref()?;
+                let request = runtime.request_lifecycle.active_agent_request.as_ref()?;
                 if self.task_pet_dismissed_request_ids.contains(&request.id) {
                     return None;
                 }

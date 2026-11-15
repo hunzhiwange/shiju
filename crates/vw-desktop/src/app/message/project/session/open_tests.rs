@@ -348,7 +348,7 @@ async fn open_requesting_session_prepares_restored_cached_state() {
     app.usage.input_tokens = 99;
     app.active_session_view_state.updated_ms = 42;
     app.active_session_view_state.base_ready = true;
-    app.get_session_runtime_mut("target").is_requesting = true;
+    app.get_session_runtime_mut("target").request_lifecycle.is_requesting = true;
     app.store_session_chat_snapshot(
         "target".to_string(),
         crate::app::session::shared_chat_messages(vec![chat_message("cached target chat")]),

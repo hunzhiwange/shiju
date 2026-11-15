@@ -50,7 +50,7 @@ fn session_delete_active_only_session_clears_conversation_and_usage() {
     let mut app = app();
     app.active_session_id = Some("only".to_string());
     app.sessions.push(session("only"));
-    app.get_session_runtime_mut("only").is_requesting = true;
+    app.get_session_runtime_mut("only").request_lifecycle.is_requesting = true;
     app.chat.push(chat_message("hello"));
     app.usage =
         TokenUsage { input_tokens: 12, output_tokens: 7, cached_tokens: 3, reasoning_tokens: 2 };
@@ -69,7 +69,7 @@ fn session_delete_active_session_switches_to_first_remaining_and_syncs_preferenc
     let mut app = app();
     app.active_session_id = Some("deleted".to_string());
     app.sessions = vec![session("deleted"), session("next"), session("later")];
-    app.get_session_runtime_mut("deleted").is_requesting = true;
+    app.get_session_runtime_mut("deleted").request_lifecycle.is_requesting = true;
     let next_runtime = app.get_session_runtime_mut("next");
     next_runtime.model = "next-model".to_string();
     next_runtime.auto_model = false;
@@ -101,8 +101,8 @@ fn session_delete_inactive_session_preserves_active_context() {
     let mut app = app();
     app.active_session_id = Some("active".to_string());
     app.sessions = vec![session("active"), session("inactive")];
-    app.get_session_runtime_mut("active").is_requesting = true;
-    app.get_session_runtime_mut("inactive").is_requesting = true;
+    app.get_session_runtime_mut("active").request_lifecycle.is_requesting = true;
+    app.get_session_runtime_mut("inactive").request_lifecycle.is_requesting = true;
     app.chat.push(chat_message("keep me"));
     app.usage.output_tokens = 5;
 
@@ -124,7 +124,7 @@ fn session_delete_missing_session_removes_orphan_runtime_without_changing_contex
     let mut app = app();
     app.active_session_id = Some("active".to_string());
     app.sessions.push(session("active"));
-    app.get_session_runtime_mut("orphan").is_requesting = true;
+    app.get_session_runtime_mut("orphan").request_lifecycle.is_requesting = true;
     app.chat.push(chat_message("keep me"));
 
     let _task = update(&mut app, SettingsMessage::SessionDelete("orphan".to_string()));
@@ -167,7 +167,7 @@ fn session_copy_leaves_local_session_state_unchanged_until_task_completes() {
     let mut app = app();
     app.active_session_id = Some("active".to_string());
     app.sessions.push(session("active"));
-    app.get_session_runtime_mut("active").is_requesting = true;
+    app.get_session_runtime_mut("active").request_lifecycle.is_requesting = true;
     app.chat.push(chat_message("unchanged"));
 
     let _task = update(&mut app, SettingsMessage::SessionCopy("active".to_string()));
@@ -175,7 +175,7 @@ fn session_copy_leaves_local_session_state_unchanged_until_task_completes() {
     assert_eq!(app.active_session_id.as_deref(), Some("active"));
     assert_eq!(app.sessions.len(), 1);
     assert_eq!(app.sessions[0].id, "active");
-    assert!(app.get_session_runtime("active").is_requesting);
+    assert!(app.get_session_runtime("active").request_lifecycle.is_requesting);
     assert_eq!(app.chat[0].content, "unchanged");
 }
 

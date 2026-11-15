@@ -38,7 +38,7 @@ fn voice_task_19_voice_acceptance_cancel_has_no_external_write() {
     );
     let _ = voice::update(&mut app, voice::Event::Completed(generation, Ok("late result".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "原始草稿");
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
     assert!(app.voice.insertion.target.is_none());
     assert!(app.voice.insertion.pending.is_none());
     assert_eq!(app.voice.draft.phase, Phase::Idle);
@@ -115,5 +115,5 @@ fn voice_task_19_full_app_cancel_releases_local_preview_and_preserves_draft() {
     done.recv_timeout(Duration::from_secs(2)).unwrap();
     assert!(app.voice.settings.preview.is_none());
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "保留本机草稿");
-    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+    assert!(app.current_session_runtime_ref().unwrap().request_lifecycle.active_agent_request.is_none());
 }

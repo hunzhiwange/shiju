@@ -154,7 +154,7 @@ impl App {
 
         self.close_session_transient_ui();
         let has_cold_chat_fallback = self.session_chat_cache.contains_key(&session_id);
-        if self.get_session_runtime(&session_id).is_requesting && !has_cold_chat_fallback {
+        if self.get_session_runtime(&session_id).request_lifecycle.is_requesting && !has_cold_chat_fallback {
             self.store_session_chat_snapshot(
                 session_id.clone(),
                 shared_chat_messages(self.chat.clone()),
@@ -414,7 +414,7 @@ impl App {
         let active_session_ids: std::collections::HashSet<_> = self
             .session_runtime_states
             .iter()
-            .filter(|(_, s)| s.is_requesting)
+            .filter(|(_, s)| s.request_lifecycle.is_requesting)
             .map(|(id, _)| id.clone())
             .collect();
         self.session_chat_cache.retain(|session_id, _| active_session_ids.contains(session_id));

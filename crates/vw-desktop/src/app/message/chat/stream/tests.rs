@@ -90,7 +90,7 @@ fn stream_diff_summary_updates_the_request_session_in_both_lists() {
     app.sessions = vec![info.clone(), session_info("other", "Other", "/project")];
     app.project_sessions.insert("/project".into(), app.sessions.clone());
     app.active_session_id = Some("other".into());
-    app.get_session_runtime_mut("edited").active_agent_request = Some(agent_request(42, "edited"));
+    app.get_session_runtime_mut("edited").request_lifecycle.active_agent_request = Some(agent_request(42, "edited"));
     let summary =
         session_info::Summary { additions: 2, deletions: 1, files: 1, diffs: None };
 
@@ -99,7 +99,7 @@ fn stream_diff_summary_updates_the_request_session_in_both_lists() {
         super::ChatMessage::AgentSessionDiffSummary(41, "edited".into(), summary.clone()),
     );
     assert!(app.sessions[0].summary.is_none());
-    app.get_session_runtime_mut("edited").active_agent_request = None;
+    app.get_session_runtime_mut("edited").request_lifecycle.active_agent_request = None;
     let _ = super::update(
         &mut app,
         super::ChatMessage::AgentSessionDiffSummary(42, "edited".into(), summary),
@@ -124,32 +124,32 @@ fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consiste
     app.chat = vec![chat_message(ChatRole::User, "run workflow")];
     {
         let parent = app.get_session_runtime_mut("main-session");
-        parent.is_requesting = true;
-        parent.active_agent_request = Some(agent_request(42, "main-session"));
+        parent.request_lifecycle.is_requesting = true;
+        parent.request_lifecycle.active_agent_request = Some(agent_request(42, "main-session"));
     }
-    app.get_session_runtime_mut("task-2-sub-9").is_requesting = true;
+    app.get_session_runtime_mut("task-2-sub-9").request_lifecycle.is_requesting = true;
 
     let _waiting = super::update(
         &mut app,
         super::ChatMessage::PlanRunSessionWaiting("task-2-sub-9".to_string()),
     );
 
-    assert!(app.get_session_runtime("task-2-sub-9").is_requesting);
-    assert!(app.get_session_runtime("main-session").is_requesting);
+    assert!(app.get_session_runtime("task-2-sub-9").request_lifecycle.is_requesting);
+    assert!(app.get_session_runtime("main-session").request_lifecycle.is_requesting);
 
     let _child_cancelled = super::update(
         &mut app,
         super::ChatMessage::PlanRunSessionCancelled("task-2-sub-9".to_string()),
     );
 
-    assert!(!app.get_session_runtime("task-2-sub-9").is_requesting);
-    assert!(app.get_session_runtime("main-session").is_requesting);
+    assert!(!app.get_session_runtime("task-2-sub-9").request_lifecycle.is_requesting);
+    assert!(app.get_session_runtime("main-session").request_lifecycle.is_requesting);
 
     let _parent_cancelled = super::update(&mut app, super::ChatMessage::AgentStreamCancelled(42));
 
     let parent = app.get_session_runtime("main-session");
-    assert!(!parent.is_requesting);
-    assert!(parent.active_agent_request.is_none());
+    assert!(!parent.request_lifecycle.is_requesting);
+    assert!(parent.request_lifecycle.active_agent_request.is_none());
     assert!(!parent.has_unseen_success);
     assert!(app.chat.iter().all(|message| message.role != ChatRole::System));
 }
@@ -165,8 +165,8 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
             vec![chat_message(ChatRole::User, "question"), chat_message(ChatRole::Assistant, "")];
         app.chat_message_ids = vec![None, None];
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.is_requesting = true;
-        runtime.active_agent_request = Some(agent_request(request_id, &session_id));
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request = Some(agent_request(request_id, &session_id));
         app
     }
 
@@ -395,7 +395,7 @@ fn externally_created_session_does_not_replace_active_session() {
     app.sessions = vec![session_info("main-session", "Main", "/project")];
     app.chat = vec![chat_message(ChatRole::User, "keep this chat")];
     app.chat_message_ids = vec![Some("main-message".to_string())];
-    app.get_session_runtime_mut("main-session").is_requesting = true;
+    app.get_session_runtime_mut("main-session").request_lifecycle.is_requesting = true;
 
     let _ =
         super::update(&mut app, super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible.clone())));
@@ -404,7 +404,7 @@ fn externally_created_session_does_not_replace_active_session() {
     assert_eq!(app.active_session_id.as_deref(), Some("main-session"));
     assert_eq!(app.chat[0].content, "keep this chat");
     assert_eq!(app.chat_message_ids, vec![Some("main-message".to_string())]);
-    assert!(app.get_session_runtime("main-session").is_requesting);
+    assert!(app.get_session_runtime("main-session").request_lifecycle.is_requesting);
     assert_eq!(app.sessions.iter().filter(|info| info.id == "visible-task").count(), 1);
     assert_eq!(
         app.project_sessions["/project"].iter().filter(|info| info.id == "visible-task").count(),
@@ -644,8 +644,8 @@ fn desktop_first_response_late_success_publishes_to_the_original_project_once() 
         project_path: "/project".into(),
         history_len: 0,
     });
-    runtime.active_agent_request = Some(agent_request(7, "draft"));
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(7, "draft"));
+    runtime.request_lifecycle.is_requesting = true;
     app.store_session_chat_snapshot(
         "draft".into(),
         crate::app::session::shared_chat_messages(vec![
@@ -695,7 +695,7 @@ fn plan_run_first_response_start_updates_only_the_runtime_projection() {
     let parent = session_info("parent", "Main", "/project");
     app.sessions = vec![parent.clone()];
     app.project_sessions.insert("/project".into(), vec![parent]);
-    app.get_session_runtime_mut("parent").active_agent_request = Some(agent_request(42, "parent"));
+    app.get_session_runtime_mut("parent").request_lifecycle.active_agent_request = Some(agent_request(42, "parent"));
 
     let _ = super::update(
         &mut app,
@@ -712,7 +712,7 @@ fn plan_run_first_response_start_updates_only_the_runtime_projection() {
 
     assert_eq!(app.sessions.len(), 1);
     assert_eq!(app.project_sessions["/project"].len(), 1);
-    assert!(app.get_session_runtime("plan-child").is_requesting);
+    assert!(app.get_session_runtime("plan-child").request_lifecycle.is_requesting);
     let chat = app.cached_chat_messages("plan-child").unwrap();
     assert_eq!(chat[0].content, "plan this");
 
@@ -726,7 +726,7 @@ fn plan_run_first_response_start_updates_only_the_runtime_projection() {
     let _ =
         super::update(&mut app, super::ChatMessage::PlanRunSessionCancelled("plan-child".into()));
     let runtime = app.get_session_runtime("plan-child");
-    assert!(!runtime.is_requesting);
+    assert!(!runtime.request_lifecycle.is_requesting);
     assert!(!runtime.stream_save_flush_scheduled);
     assert!(runtime.stream_save_in_flight.is_none());
     assert!(runtime.stream_save_dirty_records.is_empty());

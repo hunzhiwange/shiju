@@ -20,7 +20,7 @@ fn voice_task_14_recordings_retry_requires_explicit_apply_and_rejects_late_reply
     assert_eq!(app.voice.recordings.result.as_deref(), Some("识别结果"));
     let _ = update(&mut app, Event::Apply);
     assert!(app.current_session_runtime_ref().unwrap().input_editor.text().contains("识别结果"));
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
     let _ = update(&mut app, Event::Retried(7, Ok("迟到".into())));
     assert!(app.voice.recordings.result.is_none());
 }

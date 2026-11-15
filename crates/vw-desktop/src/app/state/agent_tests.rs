@@ -1,8 +1,8 @@
-//! 代理会话状态测试，覆盖运行权限默认值、交接消费和聊天发送策略解析。
-//! 同时验证步骤时间元数据及历史回放模式具有稳定键值和兼容别名。
+//! 代理会话组合状态测试，覆盖默认值、交接消费及步骤时间元数据。
+//! 回放模式与发送策略解析断言归会话库 request_tests。
 
 use super::{
-    AcpHistoryReplayMode, ChatSendBehavior, SessionRuntimeState, StepUiMeta,
+    SessionRuntimeState, StepUiMeta,
     clear_pending_guide_handoff, mark_pending_guide_handoff, take_pending_guide_handoff,
 };
 use crate::app::models::ChatSessionStep;
@@ -67,61 +67,6 @@ fn clearing_pending_guide_handoff_prevents_consumption() {
 }
 
 #[test]
-fn acp_history_replay_modes_expose_stable_keys() {
-    let cases = [
-        (AcpHistoryReplayMode::Discard, "discard"),
-        (AcpHistoryReplayMode::Full, "full"),
-        (AcpHistoryReplayMode::Summary, "summary"),
-        (AcpHistoryReplayMode::Recent, "recent"),
-    ];
-
-    for (mode, key) in cases {
-        assert_eq!(mode.as_str(), key);
-    }
-}
-
-#[test]
-fn acp_history_replay_mode_parsing_normalizes_input_and_rejects_unknown_values() {
-    assert_eq!(AcpHistoryReplayMode::from_str(" DISCARD "), AcpHistoryReplayMode::Discard);
-    assert_eq!(AcpHistoryReplayMode::from_str("Full"), AcpHistoryReplayMode::Full);
-    assert_eq!(AcpHistoryReplayMode::from_str("summary"), AcpHistoryReplayMode::Summary);
-    assert_eq!(AcpHistoryReplayMode::from_str("RECENT"), AcpHistoryReplayMode::Recent);
-    assert_eq!(AcpHistoryReplayMode::from_str("unsupported"), AcpHistoryReplayMode::Discard);
-    assert_eq!(AcpHistoryReplayMode::from_str("   "), AcpHistoryReplayMode::Discard);
-}
-
-#[test]
-fn chat_send_behaviors_expose_stable_metadata() {
-    let cases = [
-        (ChatSendBehavior::Queue, "queue", "添加到队列", "发送到队列，保持当前排队逻辑。"),
-        (
-            ChatSendBehavior::StopAndSend,
-            "stop_send",
-            "停止并发送",
-            "立刻停止当前请求，并开始发送。",
-        ),
-        (ChatSendBehavior::Guide, "guide", "通过消息引导", "等待当前一轮工具完成，下一轮请求前。"),
-    ];
-
-    for (behavior, key, label, description) in cases {
-        assert_eq!(behavior.as_str(), key);
-        assert_eq!(behavior.label(), label);
-        assert_eq!(behavior.description(), description);
-    }
-}
-
-#[test]
-fn chat_send_behavior_parsing_accepts_stop_aliases_and_defaults_to_queue() {
-    for value in ["stop_send", "stop-and-send", "stop_and_send", "stop", " STOP "] {
-        assert_eq!(ChatSendBehavior::from_str(value), ChatSendBehavior::StopAndSend);
-    }
-    assert_eq!(ChatSendBehavior::from_str(" GUIDE "), ChatSendBehavior::Guide);
-    assert_eq!(ChatSendBehavior::from_str("queue"), ChatSendBehavior::Queue);
-    assert_eq!(ChatSendBehavior::from_str("unsupported"), ChatSendBehavior::Queue);
-    assert_eq!(ChatSendBehavior::from_str(""), ChatSendBehavior::Queue);
-}
-
-#[test]
 fn step_ui_meta_uses_finished_time_for_completed_step() {
     let step = session_step(Some(1_250));
 
@@ -162,12 +107,12 @@ fn session_runtime_with_defaults_preserves_model_and_initializes_idle_state() {
     assert_eq!(runtime.model, "model-b");
     assert!(!runtime.auto_model);
     assert_eq!(runtime.task_mode_model, "model-b");
-    assert!(!runtime.is_requesting);
-    assert_eq!(runtime.request_started_ms, 0);
-    assert_eq!(runtime.submit_anim, 0);
+    assert!(!runtime.request_lifecycle.is_requesting);
+    assert_eq!(runtime.request_lifecycle.request_started_ms, 0);
+    assert_eq!(runtime.request_lifecycle.submit_anim, 0);
     assert!(!runtime.has_unseen_success);
-    assert!(runtime.active_agent_request.is_none());
-    assert!(runtime.queue.is_empty());
+    assert!(runtime.request_lifecycle.active_agent_request.is_none());
+    assert!(runtime.request_lifecycle.queue.is_empty());
     assert_eq!(runtime.input_editor.text(), "");
     assert!(!runtime.task_mode_enabled);
     assert!(!runtime.workflow_mode_enabled);

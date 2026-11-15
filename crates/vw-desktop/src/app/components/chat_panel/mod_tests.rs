@@ -54,7 +54,7 @@ fn chat_message_column_fills_available_width() {
 fn conversation_shell_borrows_runtime_once() {
     let mut app = App::new().0;
     app.active_session_id = Some("session".to_string());
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     app.chat = vec![message(ChatRole::User, "one"), message(ChatRole::Assistant, "two")];
     super::performance::reset();
 
@@ -217,7 +217,7 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
         };
 
         if matches!(scenario, Scenario::Running) {
-            app.current_session_runtime_mut().is_requesting = true;
+            app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
         }
         if matches!(scenario, Scenario::WaitingPermission) {
             app.chat_message_ids = vec![None, Some("msg-permission".to_string())];

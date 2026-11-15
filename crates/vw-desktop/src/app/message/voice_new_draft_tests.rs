@@ -36,7 +36,7 @@ fn voice_task_07_new_draft_start_preserves_keyboard_editor_without_creating_sess
     assert!(app.chat.is_empty());
     assert!(app.sessions.is_empty());
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
 }
 
 fn recognize(app: &mut App) -> u64 {
@@ -68,7 +68,7 @@ fn voice_task_07_new_draft_fills_original_cursor_once_without_sending() {
     assert_eq!(app.input_editor.text(), "前识别后");
     assert!(app.active_session_id.is_none());
     assert!(app.chat.is_empty());
-    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert!(!app.current_session_runtime_ref().unwrap().request_lifecycle.is_requesting);
 }
 #[test]
 fn voice_task_07_new_draft_first_send_uses_original_session_creation_chain() {
@@ -83,7 +83,7 @@ fn voice_task_07_new_draft_first_send_uses_original_session_creation_chain() {
     assert_eq!(app.chat[0].content, "首条听写");
     let runtime = app.current_session_runtime_ref().unwrap();
     assert!(runtime.input_editor.text().is_empty());
-    assert_eq!(runtime.active_agent_request.as_ref().unwrap().query, "首条听写");
+    assert_eq!(runtime.request_lifecycle.active_agent_request.as_ref().unwrap().query, "首条听写");
 }
 #[test]
 fn voice_task_07_new_draft_first_send_invalidates_inflight_dictation() {
@@ -97,8 +97,8 @@ fn voice_task_07_new_draft_first_send_invalidates_inflight_dictation() {
     complete(&mut app, generation, "迟到识别");
     let runtime = app.current_session_runtime_ref().unwrap();
     assert!(runtime.input_editor.text().is_empty());
-    assert_eq!(runtime.active_agent_request.as_ref().unwrap().query, "键盘首条");
-    assert!(runtime.is_requesting, "dictation cancellation stopped the normal first send");
+    assert_eq!(runtime.request_lifecycle.active_agent_request.as_ref().unwrap().query, "键盘首条");
+    assert!(runtime.request_lifecycle.is_requesting, "dictation cancellation stopped the normal first send");
 }
 #[test]
 fn voice_task_07_new_draft_cancel_rejects_late_recognition() {

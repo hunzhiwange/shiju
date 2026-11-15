@@ -300,7 +300,7 @@ fn cache_pruning_retains_requesting_sessions_and_removes_inactive_sessions() {
     app.active_session_id = Some("requesting".to_string());
     app.chat = vec![message(ChatRole::User, "kept")];
     app.chat_message_ids = vec![Some("message-1".to_string())];
-    app.get_session_runtime_mut("requesting").is_requesting = true;
+    app.get_session_runtime_mut("requesting").request_lifecycle.is_requesting = true;
     app.store_session_chat_snapshot(
         "inactive".to_string(),
         shared_chat_messages(vec![message(ChatRole::User, "removed")]),
@@ -317,7 +317,7 @@ fn cache_pruning_retains_requesting_sessions_and_removes_inactive_sessions() {
     assert!(app.cached_chat_messages("inactive").is_none());
     assert!(app.cached_chat_message_ids("inactive").is_none());
 
-    app.get_session_runtime_mut("requesting").is_requesting = false;
+    app.get_session_runtime_mut("requesting").request_lifecycle.is_requesting = false;
     app.prune_inactive_session_chat_cache();
     assert!(app.cached_chat_messages("requesting").is_none());
     assert!(app.cached_chat_message_ids("requesting").is_none());
@@ -431,7 +431,7 @@ fn repeated_stash_and_project_reload_preserve_running_session_history() {
     app.active_session_id = Some("running".to_string());
     app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "partial")];
     app.chat_message_ids = vec![Some("user-id".to_string()), None];
-    app.get_session_runtime_mut("running").is_requesting = true;
+    app.get_session_runtime_mut("running").request_lifecycle.is_requesting = true;
 
     app.stash_active_session_view();
     assert!(app.active_session_id.is_none());

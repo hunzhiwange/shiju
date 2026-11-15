@@ -350,7 +350,7 @@ fn subscription_builds_default_and_polling_states() {
 
     app.active_session_id = Some("active".to_string());
     app.session_runtime_states.insert("active".to_string(), SessionRuntimeState::new());
-    app.session_runtime_states.get_mut("active").unwrap().is_requesting = true;
+    app.session_runtime_states.get_mut("active").unwrap().request_lifecycle.is_requesting = true;
     subscription_builds(&app);
 }
 
@@ -362,14 +362,14 @@ fn requesting_sessions_animate_on_conversation_screen_and_stop_when_idle() {
     assert!(!needs_activity_animation_tick(&app, false));
 
     let mut active = SessionRuntimeState::new();
-    active.is_requesting = true;
+    active.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert("active".to_string(), active);
     assert!(needs_activity_animation_tick(&app, false));
-    app.session_runtime_states.get_mut("active").unwrap().is_requesting = false;
+    app.session_runtime_states.get_mut("active").unwrap().request_lifecycle.is_requesting = false;
     assert!(!needs_activity_animation_tick(&app, false));
 
     let mut background = SessionRuntimeState::new();
-    background.is_requesting = true;
+    background.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert("background".to_string(), background);
     // The session list still displays the background request's running indicator.
     assert!(needs_activity_animation_tick(&app, false));
@@ -384,11 +384,11 @@ fn subscription_builds_agent_runtime_states() {
     app.active_session_id = Some("active".to_string());
 
     let mut active_runtime = SessionRuntimeState::new();
-    active_runtime.active_agent_request = Some(agent_request(1, "active"));
+    active_runtime.request_lifecycle.active_agent_request = Some(agent_request(1, "active"));
     app.session_runtime_states.insert("active".to_string(), active_runtime);
 
     let mut inactive_runtime = SessionRuntimeState::new();
-    inactive_runtime.active_agent_request = Some(agent_request(2, "inactive"));
+    inactive_runtime.request_lifecycle.active_agent_request = Some(agent_request(2, "inactive"));
     app.session_runtime_states.insert("inactive".to_string(), inactive_runtime);
 
     subscription_builds(&app);
@@ -410,11 +410,11 @@ fn subscription_request_collection_reuses_shared_request_allocation() {
         })
         .collect();
     let mut active_runtime = SessionRuntimeState::new();
-    active_runtime.active_agent_request = Some(active_request);
+    active_runtime.request_lifecycle.active_agent_request = Some(active_request);
     app.session_runtime_states.insert("active".to_string(), active_runtime);
 
     let mut background_runtime = SessionRuntimeState::new();
-    background_runtime.active_agent_request = Some(agent_request(2, "background"));
+    background_runtime.request_lifecycle.active_agent_request = Some(agent_request(2, "background"));
     app.session_runtime_states.insert("background".to_string(), background_runtime);
 
     let first = collect_agent_subscription_requests(&app);

@@ -367,14 +367,14 @@ pub(crate) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
         return Task::none();
     }
     let runtime = app.get_session_runtime(session_id);
-    if runtime.is_requesting || runtime.full_access_saving || runtime.full_access_save_failed {
+    if runtime.request_lifecycle.is_requesting || runtime.full_access_saving || runtime.full_access_save_failed {
         return Task::none();
     }
-    let Some(item) = runtime.queue.first().cloned() else {
+    let Some(item) = runtime.request_lifecycle.queue.first().cloned() else {
         return Task::none();
     };
     let runtime = app.get_session_runtime_mut(session_id);
-    runtime.queue.remove(0);
+    runtime.request_lifecycle.queue.remove(0);
     super::session::start(app, item, true)
 }
 
@@ -619,7 +619,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let active_request = app
                 .session_runtime_states
                 .get(&session_id)
-                .and_then(|runtime| runtime.active_agent_request.as_ref());
+                .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref());
             if active_request.is_none_or(|request| request.id == id) {
                 for session in
                     app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten())
@@ -672,7 +672,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 && let Some(session_id) = app.find_session_by_request_id(id)
                 && let Some(runtime) = app.session_runtime_states.get(&session_id)
                 && let (Some(draft), Some(request)) =
-                    (&runtime.draft, &runtime.active_agent_request)
+                    (&runtime.draft, &runtime.request_lifecycle.active_agent_request)
             {
                 return draft::recover_expired_replay(
                     id,
@@ -773,7 +773,7 @@ fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Me
     }
 
     let flush_task = stream_events::flush_agent_stream_delta(app, session_id.to_string());
-    app.get_session_runtime_mut(session_id).is_requesting = true;
+    app.get_session_runtime_mut(session_id).request_lifecycle.is_requesting = true;
     app.sync_task_pet_from_runtime();
     flush_task
 }
@@ -794,10 +794,10 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     {
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.is_requesting = false;
-        runtime.submit_anim = 0;
+        runtime.request_lifecycle.is_requesting = false;
+        runtime.request_lifecycle.submit_anim = 0;
         runtime.has_unseen_success = false;
-        runtime.active_agent_request = None;
+        runtime.request_lifecycle.active_agent_request = None;
     }
     app.sync_task_pet_from_runtime();
     if is_active_session {
@@ -810,7 +810,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
 /// 清除重试提示并显式停止对应的可恢复流，不能仅取消本地订阅。
 pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message> {
     stream_events::clear_model_recovery(app, session_id);
-    let Some(request) = app.get_session_runtime(session_id).active_agent_request.clone() else {
+    let Some(request) = app.get_session_runtime(session_id).request_lifecycle.active_agent_request.clone() else {
         return Task::none();
     };
     let request_id = crate::app::impls::desktop_stream_request_id(&request);

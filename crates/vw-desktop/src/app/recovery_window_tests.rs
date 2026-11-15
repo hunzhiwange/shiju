@@ -86,8 +86,8 @@ impl Harness {
             history: vec![],
         });
         let runtime = self.app.get_session_runtime_mut(&session);
-        runtime.active_agent_request = Some(request);
-        runtime.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request = Some(request);
+        runtime.request_lifecycle.is_requesting = true;
         self.app.sync_active_session_from_chat();
         eprintln!("WINDOW CASE {case}-{theme}");
         Task::none()

@@ -107,7 +107,7 @@ pub(crate) fn open_project_session(
         if started != Some(false) {
             runtime.fork_agent_selected = false;
         }
-        if !runtime.is_requesting && runtime.active_agent_request.is_none() {
+        if !runtime.request_lifecycle.is_requesting && runtime.request_lifecycle.active_agent_request.is_none() {
             runtime.fork_request_submitted = false;
         }
     }
@@ -244,7 +244,7 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
     }
 
     if let Some(runtime) = app.session_runtime_states.get(&id)
-        && runtime.is_requesting
+        && runtime.request_lifecycle.is_requesting
         && let Some(draft) = &runtime.draft
         && draft.directory == path
     {

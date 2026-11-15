@@ -1,6 +1,6 @@
 use super::*;
 use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 pub(crate) use desktop_settings_agents::state::{
     MAIN_AGENT_KEY, AGENT_PROMPT_SYSTEM_TAB, WORKSPACE_IDENTITY_FILES,
@@ -35,164 +35,9 @@ pub(crate) fn clear_pending_guide_handoff(request_id: u64) {
     pending.remove(&request_id);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum AcpHistoryReplayMode {
-    Discard,
-    Full,
-    Summary,
-    Recent,
-}
-
-impl AcpHistoryReplayMode {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Discard => "discard",
-            Self::Full => "full",
-            Self::Summary => "summary",
-            Self::Recent => "recent",
-        }
-    }
-
-    pub(crate) fn from_str(value: &str) -> Self {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "discard" => Self::Discard,
-            "full" => Self::Full,
-            "recent" => Self::Recent,
-            "summary" => Self::Summary,
-            _ => Self::Discard,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ChatSendBehavior {
-    Queue,
-    StopAndSend,
-    Guide,
-}
-
-impl ChatSendBehavior {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Queue => "queue",
-            Self::StopAndSend => "stop_send",
-            Self::Guide => "guide",
-        }
-    }
-
-    pub(crate) fn from_str(value: &str) -> Self {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "stop_send" | "stop-and-send" | "stop_and_send" | "stop" => Self::StopAndSend,
-            "guide" => Self::Guide,
-            _ => Self::Queue,
-        }
-    }
-
-    pub(crate) const fn label(self) -> &'static str {
-        match self {
-            Self::Queue => "添加到队列",
-            Self::StopAndSend => "停止并发送",
-            Self::Guide => "通过消息引导",
-        }
-    }
-
-    pub(crate) const fn description(self) -> &'static str {
-        match self {
-            Self::Queue => "发送到队列，保持当前排队逻辑。",
-            Self::StopAndSend => "立刻停止当前请求，并开始发送。",
-            Self::Guide => "等待当前一轮工具完成，下一轮请求前。",
-        }
-    }
-}
-
-/// Agent 请求信息
-///
-/// 表示一个正在处理或待处理的 Agent 请求，
-/// 包含请求的唯一标识、会话信息、查询内容和历史消息。
-///
-/// `Hash` 只使用 `id`：iced `Subscription::run_with` 靠哈希保活流；
-/// 若把 `history` 等字段纳入哈希，状态抖动会取消 SSE，表现为刚显示
-/// 「正在规划」就报「未收到网关完成信号」。
-#[derive(Debug, Clone)]
-pub(crate) struct AgentRequest {
-    /// 请求的唯一标识符
-    pub(crate) id: u64,
-    /// 所属会话的标识符
-    pub(crate) session: String,
-    /// 用户的查询文本
-    pub(crate) query: String,
-    /// 工作区的根目录路径（可选）
-    pub(crate) root: Option<String>,
-    /// 要使用的模型标识符（可选，使用默认模型）
-    pub(crate) model: Option<String>,
-    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub(crate) acp_test: bool,
-    pub(crate) acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource,
-    pub(crate) acp_agent: Option<String>,
-    pub(crate) acp_allowed_tools: Option<Vec<String>>,
-    pub(crate) agent: Option<String>,
-    pub(crate) allowed_tools: Option<Vec<String>>,
-    pub(crate) require_agent_tool: bool,
-    pub(crate) acp_force_new_session: bool,
-    pub(crate) acp_history_mode: AcpHistoryReplayMode,
-    pub(crate) acp_recent_count: usize,
-    /// None lets the gateway use the established session's stored permission.
-    pub(crate) full_access_enabled: Option<bool>,
-    pub(crate) resume_history_only: bool,
-    pub(crate) workflow_mode_enabled: bool,
-    pub(crate) goal_mode_enabled: bool,
-    /// 对话历史消息列表
-    pub(crate) history: Vec<ChatMessage>,
-}
-
-impl std::hash::Hash for AgentRequest {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-    }
-}
-
-impl PartialEq for AgentRequest {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for AgentRequest {}
-
-/// 请求队列项
-///
-/// 表示队列中等待处理的请求项，
-/// 记录了请求的创建时间、查询内容和配置信息。
-#[derive(Debug, Clone)]
-pub(crate) struct QueueItem {
-    /// 请求创建的时间戳（毫秒）
-    pub(crate) created_ms: u64,
-    /// 用户的查询文本
-    pub(crate) query: String,
-    /// 当前请求附带的本地附件路径列表
-    pub(crate) attachments: Vec<String>,
-    /// 工作区的根目录路径（可选）
-    pub(crate) root: Option<String>,
-    /// 要使用的模型标识符（可选）
-    pub(crate) model: Option<String>,
-    pub(crate) reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub(crate) acp_test: bool,
-    pub(crate) acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource,
-    pub(crate) acp_agent: Option<String>,
-    pub(crate) acp_allowed_tools: Option<Vec<String>>,
-    pub(crate) agent: Option<String>,
-    pub(crate) allowed_tools: Option<Vec<String>>,
-    pub(crate) require_agent_tool: bool,
-    pub(crate) acp_force_new_session: bool,
-    pub(crate) acp_history_mode: AcpHistoryReplayMode,
-    pub(crate) acp_recent_count: usize,
-    pub(crate) full_access_enabled: bool,
-    pub(crate) send_behavior: ChatSendBehavior,
-    pub(crate) request_history_override: Option<Vec<ChatMessage>>,
-    pub(crate) resume_history_only: bool,
-    pub(crate) workflow_mode_enabled: bool,
-    pub(crate) goal_mode_enabled: bool,
-}
+pub use desktop_session::message::chat::request::{
+    AcpHistoryReplayMode, ChatSendBehavior, AgentRequest, QueueItem,
+};
 
 const STREAM_TAIL_BASE_HEIGHT: f32 = 78.0;
 
@@ -419,6 +264,7 @@ pub(crate) struct SessionDraft {
 /// 模型配置、任务模式等会话特定的信息。
 #[derive(Debug, Clone)]
 pub(crate) struct SessionRuntimeState {
+    pub(crate) request_lifecycle: desktop_session::message::chat::request::RequestLifecycle,
     pub(crate) draft: Option<SessionDraft>,
     /// Gateway authority: None is a regular session; false is an unstarted fork.
     pub(crate) fork_execution_started: Option<bool>,
@@ -430,20 +276,8 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) is_plan_run_session: bool,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) mcp_app_panels: Vec<crate::app::components::mcp_app_panel::McpAppPanel>,
-    /// 是否正在处理请求
-    pub(crate) is_requesting: bool,
-    /// 本轮请求开始的毫秒时间戳，用于状态栏展示运行时长；0 表示未在请求中
-    pub(crate) request_started_ms: u64,
-    /// 请求开始到结束的单调时钟耗时；持续计入步骤间停顿。
-    pub(crate) processing_timer: runtime_time::ActiveTimer,
-    /// 仅累计 LLM StepStart 到 StepFinish 的单调时钟耗时
-    pub(crate) llm_timer: runtime_time::ActiveTimer,
-    /// 提交动画计数器
-    pub(crate) submit_anim: u8,
     /// 是否有未查看的成功响应
     pub(crate) has_unseen_success: bool,
-    /// 当前活跃的 Agent 请求
-    pub(crate) active_agent_request: Option<Arc<AgentRequest>>,
     /// 当前请求的恢复事件；不进入模型上下文。
     pub(crate) model_recovery: Option<(u64, gateway_chat_stream::GatewayModelRecoveryEvent)>,
     /// 尚未提交到聊天 UI 的流式文本增量。
@@ -468,8 +302,6 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) stream_tail_state: StreamTailState,
     /// 活动 assistant 正文的 stable-prefix/mutable-tail 增量投影。
     pub(crate) stream_render_state: crate::app::session::stream_render::StreamRenderState,
-    /// 请求队列
-    pub(crate) queue: Vec<QueueItem>,
     /// 输入编辑器内容
     pub(crate) input_editor: text_editor::Content,
     /// 当前选择的模型标识符
@@ -653,6 +485,7 @@ impl SessionRuntimeState {
             task_mode_subtasks.iter().map(|value| text_editor::Content::with_text(value)).collect();
         let task_mode_model = model.clone();
         Self {
+            request_lifecycle: Default::default(),
             draft: None,
             fork_execution_started: None,
             fork_request_submitted: false,
@@ -660,13 +493,7 @@ impl SessionRuntimeState {
             is_plan_run_session: false,
             #[cfg(not(target_arch = "wasm32"))]
             mcp_app_panels: Vec::new(),
-            is_requesting: false,
-            request_started_ms: 0,
-            processing_timer: runtime_time::ActiveTimer::default(),
-            llm_timer: runtime_time::ActiveTimer::default(),
-            submit_anim: 0,
             has_unseen_success: false,
-            active_agent_request: None,
             model_recovery: None,
             pending_stream_delta: String::new(),
             stream_delta_flush_scheduled: false,
@@ -682,7 +509,6 @@ impl SessionRuntimeState {
             stream_save_in_flight: None,
             stream_tail_state: StreamTailState::default(),
             stream_render_state: crate::app::session::stream_render::StreamRenderState::default(),
-            queue: Vec::new(),
             input_editor: text_editor::Content::new(),
             model,
             auto_model,

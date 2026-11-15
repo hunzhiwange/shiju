@@ -535,12 +535,12 @@ impl App {
         carried_runtime.fork_execution_started = None;
         carried_runtime.fork_request_submitted = false;
         carried_runtime.fork_agent_selected = false;
-        carried_runtime.is_requesting = false;
-        carried_runtime.request_started_ms = 0;
-        carried_runtime.submit_anim = 0;
+        carried_runtime.request_lifecycle.is_requesting = false;
+        carried_runtime.request_lifecycle.request_started_ms = 0;
+        carried_runtime.request_lifecycle.submit_anim = 0;
         carried_runtime.has_unseen_success = false;
-        carried_runtime.active_agent_request = None;
-        carried_runtime.queue.clear();
+        carried_runtime.request_lifecycle.active_agent_request = None;
+        carried_runtime.request_lifecycle.queue.clear();
         carried_runtime.restore_model_from_history = false;
         self.active_session_id = None;
         *self.current_session_runtime_mut() = carried_runtime;

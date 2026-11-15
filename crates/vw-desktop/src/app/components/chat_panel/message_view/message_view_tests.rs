@@ -195,7 +195,7 @@ fn message_view_builds_tool_role_as_assistant_like_body() {
 #[test]
 fn message_view_builds_streaming_assistant_from_last_chat_message() {
     let mut app = crate::app::App::new().0;
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     app.chat.push(ChatMessage {
         role: ChatRole::Assistant,
         content: "<think>working".to_string(),

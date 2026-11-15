@@ -1,6 +1,12 @@
 //! 处理聊天会话相关应用消息。
 //! 本模块协调用户输入、会话缓存和网关持久化。
 
+use desktop_session::message::chat::session::{
+    InlineModeCommand, compose_query_with_attachments, compose_query_with_session_context,
+    message_id_for_index_in_ids, normalize_delegate_agent, parse_inline_mode_command,
+    request_delegate_agent,
+};
+
 use super::ChatMessage;
 use super::ForkSessionLoaded;
 use super::ForkSessionTarget;
@@ -11,29 +17,16 @@ use crate::app::state::{
     ChatSendBehavior, MAIN_AGENT_KEY, QuickMessageGitCommitAction, QuickMessageHandoffState,
     SessionDraft, SessionToolSelectorTab,
 };
-use crate::app::{AgentRequest, App, Message, QueueItem, message, models};
+use crate::app::{App, Message, QueueItem, message, models};
 use iced::Task;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 use vw_api_acp_model::acp_model_source::AcpModelSource;
 use ordered_id as id;
-use message_types as agent_message;
 use session_info as session;
 
-/// 项目身份解析期间保留的首次发送内容。
-#[derive(Debug, Clone)]
-pub struct PendingSessionSend {
-    pub(crate) item: QueueItem,
-    pub(crate) keep: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum InlineModeCommand {
-    TaskMode,
-    ChatMode,
-}
+pub use desktop_session::message::chat::session::PendingSessionSend;
 
 fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     let generating_git_commit = matches!(
@@ -57,15 +50,6 @@ fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     }
 }
 
-fn parse_inline_mode_command(query: &str) -> Option<InlineModeCommand> {
-    let command = query.split_whitespace().next()?.to_ascii_lowercase();
-    match command.as_str() {
-        "/task" => Some(InlineModeCommand::TaskMode),
-        "/new" | "/clear" | "/session" => Some(InlineModeCommand::ChatMode),
-        _ => None,
-    }
-}
-
 fn apply_inline_mode_command(app: &mut App, command: InlineModeCommand) -> Task<Message> {
     let runtime_editor = {
         let runtime = app.current_session_runtime_mut();
@@ -80,24 +64,13 @@ fn apply_inline_mode_command(app: &mut App, command: InlineModeCommand) -> Task<
 }
 
 fn gateway_endpoint(app: &App) -> (String, u16) {
-    let host = app.gateway_settings.host_input.trim();
-    let host = if host.is_empty() { "127.0.0.1" } else { host };
-    (host.to_string(), app.gateway_settings.port)
+    desktop_session::message::chat::session::gateway_endpoint(
+        &app.gateway_settings.host_input, app.gateway_settings.port,
+    )
 }
 
 fn current_session_directory(app: &App) -> Option<String> {
     app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id))
-}
-
-fn normalize_delegate_agent(selected: Option<String>) -> Option<String> {
-    selected.and_then(|value| {
-        let trimmed = value.trim();
-        (!trimmed.is_empty() && trimmed != MAIN_AGENT_KEY).then(|| trimmed.to_string())
-    })
-}
-
-fn request_delegate_agent(selected: Option<String>) -> Option<String> {
-    normalize_delegate_agent(selected).or_else(|| Some(MAIN_AGENT_KEY.to_string()))
 }
 
 fn base_tools_for_selection(app: &mut App) -> Vec<String> {
@@ -109,67 +82,29 @@ fn base_tools_for_selection(app: &mut App) -> Vec<String> {
     app.session_tool_inventory(&app.current_session_runtime()).base_tools
 }
 
-fn compose_query_with_session_context(
-    query: &str,
-    selected_tools: &[String],
-    selected_skills: &[String],
-    selected_shiju_skills: &[crate::app::state::ShijuSkillSelection],
-) -> String {
-    let trimmed = query.trim();
-    if selected_tools.is_empty() && selected_skills.is_empty() && selected_shiju_skills.is_empty() {
-        return trimmed.to_string();
-    }
-    let mut effective_skills = selected_skills.to_vec();
-    if !selected_shiju_skills.is_empty()
-        && !effective_skills.iter().any(|skill| skill.eq_ignore_ascii_case("shiju"))
-    {
-        effective_skills.push("shiju".to_string());
-    }
-
-    let mut lines = vec![
-        "<session_control_selection>".to_string(),
-        "用户在会话控制中选中了以下上下文。选中不代表已经执行；请在本轮需要时再主动使用。"
-            .to_string(),
-    ];
-
-    if !selected_tools.is_empty() {
-        lines.push(format!("工具：{}", selected_tools.join(", ")));
-    }
-    if !effective_skills.is_empty() {
-        lines.push(format!("技能：{}", effective_skills.join(", ")));
-    }
-    if !selected_shiju_skills.is_empty() {
-        let slugs =
-            selected_shiju_skills.iter().map(|selection| selection.slug()).collect::<Vec<_>>();
-        lines.push(format!("识矩功能：{}", slugs.join(", ")));
-        lines.push(
-            "除非用户明确询问识矩平台或识矩技能本身，否则默认将用户的问题理解为针对上述已选识矩功能；不要回答成对识矩本身的介绍或使用说明。"
-                .to_string(),
-        );
-    }
-    lines.push("</session_control_selection>".to_string());
-
-    let context = lines.join("\n");
-    if trimmed.is_empty() { context } else { format!("{trimmed}\n\n{context}") }
-}
-
 fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
-    let is_requesting = app.current_session_is_requesting();
-    match item.send_behavior {
-        ChatSendBehavior::StopAndSend => {
-            if is_requesting
-                && let Some(session_id) = app.active_session_id.clone()
-                && app.current_session_runtime().draft.is_some()
-            {
-                let runtime = app.get_session_runtime_mut(&session_id);
-                runtime.queue.insert(0, item);
-                runtime.input_editor = iced::widget::text_editor::Content::new();
-                return stream::stop_agent_stream(app, &session_id);
-            }
+    use desktop_session::message::chat::request::{DispatchKind, RequestLifecycle};
+    let kind = app.current_session_runtime_ref().map_or_else(
+        || RequestLifecycle::default().dispatch_kind(item.send_behavior, false),
+        |runtime| runtime.request_lifecycle.dispatch_kind(
+            item.send_behavior, app.active_session_id.is_some() && runtime.draft.is_some(),
+        ),
+    );
+    match kind {
+        DispatchKind::StopDraft => {
+            let Some(session_id) = app.active_session_id.clone() else {
+                return Task::none();
+            };
+            let runtime = app.get_session_runtime_mut(&session_id);
+            runtime.request_lifecycle.queue.insert(0, item);
+            runtime.input_editor = iced::widget::text_editor::Content::new();
+            stream::stop_agent_stream(app, &session_id)
+        }
+        DispatchKind::Replace => {
             if let Some(session_id) = app.active_session_id.clone() {
                 let request_id = app
                     .get_session_runtime(&session_id)
-                    .active_agent_request
+                    .request_lifecycle.active_agent_request
                     .as_ref()
                     .map(|request| request.id);
                 if let Some(request_id) = request_id {
@@ -177,24 +112,22 @@ fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
                     clear_quick_message_handoff_for_request(app, request_id);
                 }
                 let runtime = app.get_session_runtime_mut(&session_id);
-                runtime.is_requesting = false;
-                runtime.submit_anim = 0;
-                runtime.active_agent_request = None;
+                runtime.request_lifecycle.clear_request();
             }
             app.sync_task_pet_from_runtime();
             app.show_send_mode_popover = false;
             start(app, item, false)
         }
-        ChatSendBehavior::Guide if is_requesting => {
+        DispatchKind::Guide => {
             debug!(
                 target: "vw_desktop",
                 active_session_id = ?app.active_session_id,
-                queue_len = app.current_session_runtime().queue.len() + 1,
+                queue_len = app.current_session_runtime().request_lifecycle.queue.len() + 1,
                 "desktop chat request guided ahead of queued requests"
             );
             if let Some(request_id) = app
                 .current_session_runtime()
-                .active_agent_request
+                .request_lifecycle.active_agent_request
                 .as_ref()
                 .map(|request| request.id)
                 && app.current_session_runtime_ref().is_none_or(|runtime| runtime.draft.is_none())
@@ -202,58 +135,23 @@ fn dispatch_queue_item(app: &mut App, item: QueueItem) -> Task<Message> {
                 crate::app::state::mark_pending_guide_handoff(request_id);
             }
             let runtime = app.current_session_runtime_mut();
-            runtime.queue.insert(0, item);
+            runtime.request_lifecycle.queue.insert(0, item);
             runtime.input_editor = iced::widget::text_editor::Content::new();
             Task::none()
         }
-        ChatSendBehavior::Queue if is_requesting => {
+        DispatchKind::Queue => {
             debug!(
                 target: "vw_desktop",
                 active_session_id = ?app.active_session_id,
-                queue_len = app.current_session_runtime().queue.len() + 1,
+                queue_len = app.current_session_runtime().request_lifecycle.queue.len() + 1,
                 "desktop chat request queued while another request is active"
             );
             let runtime = app.current_session_runtime_mut();
-            runtime.queue.push(item);
+            runtime.request_lifecycle.queue.push(item);
             runtime.input_editor = iced::widget::text_editor::Content::new();
             Task::none()
         }
-        ChatSendBehavior::Guide | ChatSendBehavior::Queue => start(app, item, false),
-    }
-}
-
-fn is_supported_image_attachment(path: &str) -> bool {
-    Path::new(path)
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| {
-            matches!(
-                ext.to_ascii_lowercase().as_str(),
-                "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp"
-            )
-        })
-        .unwrap_or(false)
-}
-
-fn compose_query_with_attachments(query: &str, attachments: &[String]) -> String {
-    let trimmed = query.trim();
-    let markers = attachments
-        .iter()
-        .map(|path| {
-            if is_supported_image_attachment(path) {
-                format!("[IMAGE:{path}]")
-            } else {
-                format!("[DOCUMENT:{path}]")
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    match (trimmed.is_empty(), markers.is_empty()) {
-        (true, true) => String::new(),
-        (false, true) => trimmed.to_string(),
-        (true, false) => markers,
-        (false, false) => format!("{trimmed}\n\n{markers}"),
+        DispatchKind::Start => start(app, item, false),
     }
 }
 
@@ -287,59 +185,6 @@ fn message_id_for_index(app: &App, msg_idx: usize) -> Option<String> {
     message_id_for_index_in_ids(&app.chat_message_ids, msg_idx)
 }
 
-fn message_id_for_index_in_ids(message_ids: &[Option<String>], msg_idx: usize) -> Option<String> {
-    let previous_end = msg_idx.min(message_ids.len());
-    message_ids
-        .get(msg_idx)
-        .and_then(Clone::clone)
-        .or_else(|| message_ids.get(..previous_end)?.iter().rev().find_map(Clone::clone))
-}
-
-fn push_recovered_message_id(
-    ids: &mut Vec<Option<String>>,
-    has_content: &mut bool,
-    message_id: &Option<String>,
-) {
-    if *has_content {
-        ids.push(message_id.clone());
-        *has_content = false;
-    }
-}
-
-fn recovered_message_ids_from_gateway_messages(
-    msgs: Vec<agent_message::WithParts>,
-) -> Vec<Option<String>> {
-    let mut ids = Vec::new();
-
-    for message in msgs {
-        let message_id = Some(message.info.id().to_string());
-        let mut has_content = false;
-
-        for part in message.parts {
-            match part {
-                agent_message::Part::Text(part) => {
-                    has_content = has_content || !part.text.trim().is_empty();
-                }
-                agent_message::Part::Reasoning(part) => {
-                    has_content = has_content || !part.text.trim().is_empty();
-                }
-                agent_message::Part::Tool(_) => {
-                    push_recovered_message_id(&mut ids, &mut has_content, &message_id);
-                    ids.push(message_id.clone());
-                }
-                agent_message::Part::File(_) => {
-                    has_content = true;
-                }
-                _ => {}
-            }
-        }
-
-        push_recovered_message_id(&mut ids, &mut has_content, &message_id);
-    }
-
-    ids
-}
-
 fn recover_reset_message_ids_task(
     endpoint: (String, u16),
     session_id: String,
@@ -348,19 +193,9 @@ fn recover_reset_message_ids_task(
 ) -> Task<Message> {
     Task::perform(
         async move {
-            let result = async {
-                let client = vw_gateway_client::GatewayClient::new(
-                    gateway_endpoint::GatewayEndpoint::new(endpoint.0, endpoint.1),
-                )?;
-                let msgs = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                    .session_messages::<Vec<agent_message::WithParts>>(
-                        &session_id,
-                        directory.as_deref(),
-                    )
-                    .await?;
-                Ok(recovered_message_ids_from_gateway_messages(msgs))
-            }
-            .await;
+            let result = desktop_session::message::chat::session::recover_reset_message_ids(
+                endpoint, &session_id, directory.as_deref(),
+            ).await;
             ChatMessage::ResetMessageIdsRecovered { session_id, msg_idx, result }
         },
         Message::Chat,
@@ -373,14 +208,9 @@ fn reset_runtime_history_snapshots(
     retained_chat: &[models::ChatMessage],
 ) {
     let runtime = app.get_session_runtime_mut(session_id);
-    if let Some(request) = runtime.active_agent_request.as_mut() {
-        Arc::make_mut(request).history = retained_chat.to_vec();
-    }
-    for item in &mut runtime.queue {
-        if item.resume_history_only || item.request_history_override.is_some() {
-            item.request_history_override = Some(retained_chat.to_vec());
-        }
-    }
+    desktop_session::message::chat::request::reset_history_snapshots(
+        &mut runtime.request_lifecycle.active_agent_request, &mut runtime.request_lifecycle.queue, retained_chat,
+    );
 }
 
 fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> Task<Message> {
@@ -422,31 +252,11 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     let boundary_id = app.chat_message_ids.last().cloned().flatten();
     Task::perform(
         async move {
-            let boundary = boundary.ok_or_else(|| "无法重置到不存在的消息".to_string())?;
-            let seq_no = seq_base + history_len.saturating_sub(1) as u64;
+            let reset = desktop_session::message::chat::session::HistoryReset::new(
+                boundary, boundary_id, seq_base, history_len, now,
+            )?;
             let client = crate::app::gateway_client()?;
-            let stored = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                .session_ui_get_without_raw(&session_id, root.as_deref())
-                .await?
-                .ok_or_else(|| "会话历史不存在".to_string())?
-                .session;
-            let index = usize::try_from(seq_no).map_err(|error| error.to_string())?;
-            let matches = stored.messages.get(index).is_some_and(|message| {
-                message.role == boundary.role && message.content == boundary.content
-            }) && boundary_id.as_ref().is_none_or(|id| {
-                stored.message_ids.get(index).and_then(Option::as_ref) == Some(id)
-            });
-            if !matches {
-                return Err("会话历史已变化，请重新加载后重置".to_string());
-            }
-            let delta = session_ui_types::SessionMessageDelta {
-                session_id: session_id.clone(),
-                expected_updated_ms: stored.updated_ms,
-                updated_ms: now.max(stored.updated_ms.saturating_add(1)),
-                upserts: Vec::new(),
-                truncate_after: Some(seq_no),
-            };
-            gateway_session::GatewaySessionClient::new(client.transport().clone()).session_message_delta(&session_id, root.as_deref(), &delta).await.map(|_| ())
+            reset.persist(client, &session_id, root.as_deref()).await
         },
         |result| {
             Message::Chat(match result {
@@ -562,22 +372,16 @@ fn send_current_session_text_only(app: &mut App) -> Task<Message> {
 }
 
 fn session_info_is_compacting(app: &App, session_id: &str) -> bool {
-    app.sessions
-        .iter()
-        .chain(app.project_sessions.values().flatten())
-        .find(|info| info.id == session_id)
-        .is_some_and(|info| info.time.compacting.is_some())
+    desktop_session::message::chat::session::session_info_is_compacting(
+        app.sessions.iter().chain(app.project_sessions.values().flatten()), session_id,
+    )
 }
 
 fn set_session_compacting(app: &mut App, session_id: &str, compacting: Option<u64>) {
-    for info in app
-        .sessions
-        .iter_mut()
-        .chain(app.project_sessions.values_mut().flatten())
-        .filter(|info| info.id == session_id)
-    {
-        info.time.compacting = compacting;
-    }
+    desktop_session::message::chat::session::set_session_compacting(
+        app.sessions.iter_mut().chain(app.project_sessions.values_mut().flatten()),
+        session_id, compacting,
+    );
 }
 
 fn request_session_compaction_confirmation(
@@ -662,40 +466,18 @@ fn compact_session(
     set_session_compacting(app, &session_id, Some(crate::app::time::now_ms()));
     Task::perform(
         async move {
-            let result = async {
-                let client = crate::app::gateway_client()?;
-                let messages = gateway_session::GatewaySessionClient::new(client.transport().clone())
-                    .session_messages::<Vec<agent_message::WithParts>>(
-                        &session_id,
-                        Some(&project_path),
-                    )
-                    .await?;
-                let message_id = latest_persisted_user_message_id(&messages)
-                    .ok_or_else(|| "当前会话没有可用于压缩的用户消息".to_string())?;
-                gateway_session::GatewaySessionClient::new(client.transport().clone())
-                    .session_summarize(
-                        &session_id,
-                        Some(&project_path),
-                        &vw_api_session::GatewaySessionSummarizeBody { message_id },
-                    )
-                    .await
-            }
-            .await;
+            let result = match crate::app::gateway_client() {
+                Ok(client) => desktop_session::message::chat::session::summarize_session(
+                    client, &session_id, &project_path,
+                ).await,
+                Err(error) => Err(error),
+            };
             (session_id, project_path, result)
         },
         |(session_id, project_path, result)| {
             Message::Chat(ChatMessage::CompactSessionFinished { session_id, project_path, result })
         },
     )
-}
-
-fn latest_persisted_user_message_id(messages: &[agent_message::WithParts]) -> Option<String> {
-    messages
-        .iter()
-        .filter(|message| matches!(message.info, agent_message::Info::User(_)))
-        .map(|message| message.info.id())
-        .max()
-        .map(str::to_string)
 }
 
 fn finish_session_compaction(
@@ -723,34 +505,9 @@ fn finish_session_compaction(
 }
 
 fn git_commit_selection_context(app: &App) -> String {
-    let files = if app.staged_files_selected.is_empty() {
-        "无".to_string()
-    } else {
-        app.staged_files_selected.join(", ")
-    };
-    let hunks = app
-        .staged_hunks_selected
-        .iter()
-        .map(|(path, index)| format!("{path}#{index}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    let new_lines = app
-        .staged_lines_selected
-        .iter()
-        .map(|(path, line)| format!("{path}:{line}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    let old_lines = app
-        .staged_old_lines_selected
-        .iter()
-        .map(|(path, line)| format!("{path}:{line}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!(
-        "整文件：{files}\nHunk：{}\n新版本行：{}\n旧版本行：{}",
-        if hunks.is_empty() { "无" } else { &hunks },
-        if new_lines.is_empty() { "无" } else { &new_lines },
-        if old_lines.is_empty() { "无" } else { &old_lines },
+    desktop_session::message::chat::session::git_commit_selection_context(
+        &app.staged_files_selected, &app.staged_hunks_selected,
+        &app.staged_lines_selected, &app.staged_old_lines_selected,
     )
 }
 
@@ -769,12 +526,7 @@ fn git_commit_generation_prompt(
             git_commit_selection_context(app)
         ),
     };
-    format!(
-        "请为以下 Git 变更生成提交信息。\n仓库路径：{project_path}\n目标：{target}\n\n\
-         返回严格 JSON，禁止 Markdown 代码块或额外说明：\
-         {{\"title\":\"简洁的提交标题\",\"summary\":\"说明主要改动与目的的摘要\"}}。\
-         title 和 summary 都不能为空；title 可使用合适的 Conventional Commit 前缀。"
-    )
+    desktop_session::message::chat::session::git_commit_generation_prompt(project_path, &target)
 }
 
 fn generate_git_commit_message(
@@ -832,7 +584,7 @@ fn generate_git_commit_message(
     };
     let request_id = app
         .get_session_runtime(&source_session_id)
-        .active_agent_request
+        .request_lifecycle.active_agent_request
         .as_ref()
         .map(|request| request.id);
     let Some(request_id) = request_id else {
@@ -1119,7 +871,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
             let request_id = app
                 .get_session_runtime(&session_id)
-                .active_agent_request
+                .request_lifecycle.active_agent_request
                 .as_ref()
                 .map(|request| request.id);
             if let Some(request_id) = request_id {
@@ -1156,9 +908,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             ]);
             {
                 let runtime = app.get_session_runtime_mut(&session_id);
-                runtime.is_requesting = false;
-                runtime.submit_anim = 0;
-                runtime.active_agent_request = None;
+                runtime.request_lifecycle.clear_request();
             }
             app.sync_task_pet_from_runtime();
             app.show_send_mode_popover = false;
@@ -1166,11 +916,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.sync_active_session_from_chat();
 
             let runtime = app.get_session_runtime(&session_id);
-            if runtime.queue.is_empty() {
+            if runtime.request_lifecycle.queue.is_empty() {
                 save_task
             } else {
                 let runtime = app.get_session_runtime_mut(&session_id);
-                let item = runtime.queue.remove(0);
+                let item = runtime.request_lifecycle.queue.remove(0);
                 save_task.chain(start(app, item, true))
             }
         }
@@ -1360,7 +1110,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             persist_acp_history_preferences(app, mode, recent_count)
         }
         ChatMessage::AcpHistoryRecentCountChanged(raw) => {
-            let parsed = raw.trim().parse::<usize>().ok().unwrap_or(3).clamp(1, 20);
+            let parsed = desktop_session::message::chat::session::history_recent_count(&raw);
             {
                 let runtime = app.current_session_runtime_mut();
                 runtime.acp_recent_count = parsed;
@@ -1381,25 +1131,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let (model, auto_model): (String, bool) = {
                 let runtime = app.current_session_runtime_mut();
-                let trimmed = m.trim();
-                runtime.model =
-                    if trimmed.is_empty() { "auto".to_string() } else { trimmed.to_string() };
+                runtime.model = desktop_session::message::chat::session::normalize_model(&m);
                 runtime.auto_model = false;
                 runtime.task_mode_model = runtime.model.clone();
                 (runtime.model.clone(), runtime.auto_model)
             };
             let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
             let runtime = app.current_session_runtime_mut();
-            let reset_effort =
-                runtime.reasoning_effort.is_some() && !options.contains(&runtime.reasoning_effort);
-            if reset_effort {
-                runtime.reasoning_effort = None;
-            }
-            if runtime.task_mode_executor.is_none()
-                && !options.contains(&runtime.task_mode_reasoning_effort)
-            {
-                runtime.task_mode_reasoning_effort = None;
-            }
+            let reset_effort = desktop_session::message::chat::session::reconcile_reasoning_effort(
+                &mut runtime.reasoning_effort, &mut runtime.task_mode_reasoning_effort,
+                runtime.task_mode_executor.is_some(), &options,
+            );
             app.model = model.clone();
             app.auto_model = auto_model;
             app.show_model_popover = false;
@@ -1422,25 +1164,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let (model, auto_model): (String, bool) = {
                 let runtime = app.current_session_runtime_mut();
-                let trimmed = m.trim();
-                runtime.model =
-                    if trimmed.is_empty() { "auto".to_string() } else { trimmed.to_string() };
+                runtime.model = desktop_session::message::chat::session::normalize_model(&m);
                 runtime.auto_model = runtime.model == "auto";
                 runtime.task_mode_model = runtime.model.clone();
                 (runtime.model.clone(), runtime.auto_model)
             };
             let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
             let runtime = app.current_session_runtime_mut();
-            let reset_effort =
-                runtime.reasoning_effort.is_some() && !options.contains(&runtime.reasoning_effort);
-            if reset_effort {
-                runtime.reasoning_effort = None;
-            }
-            if runtime.task_mode_executor.is_none()
-                && !options.contains(&runtime.task_mode_reasoning_effort)
-            {
-                runtime.task_mode_reasoning_effort = None;
-            }
+            let reset_effort = desktop_session::message::chat::session::reconcile_reasoning_effort(
+                &mut runtime.reasoning_effort, &mut runtime.task_mode_reasoning_effort,
+                runtime.task_mode_executor.is_some(), &options,
+            );
             app.model = model.clone();
             app.auto_model = auto_model;
             app.reasoning_effort = app.current_session_runtime().reasoning_effort;
@@ -1606,76 +1340,42 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             runtime.tool_selector.reconcile_tools(&base_tools);
             Task::none()
         }
-        ChatMessage::QueueRemove(i) => {
-            let runtime = app.current_session_runtime_mut();
-            if i < runtime.queue.len() {
-                runtime.queue.remove(i);
-            }
-            Task::none()
-        }
-        ChatMessage::QueueEdit(i) => {
-            let query = {
-                let runtime = app.current_session_runtime_mut();
-                if i >= runtime.queue.len() {
-                    return Task::none();
-                }
-                runtime.queue.remove(i).query
+        message @ (ChatMessage::QueueRemove(_)
+            | ChatMessage::QueueEdit(_)
+            | ChatMessage::QueueGuide(_)
+            | ChatMessage::QueueUp(_)
+            | ChatMessage::QueueDown(_)
+            | ChatMessage::QueueCopy(_)) => {
+            use desktop_session::message::chat::request::{QueueAction, QueueEffect, update_queue};
+            let action = match message {
+                ChatMessage::QueueRemove(i) => QueueAction::Remove(i),
+                ChatMessage::QueueEdit(i) => QueueAction::Edit(i),
+                ChatMessage::QueueGuide(i) => QueueAction::Guide(i),
+                ChatMessage::QueueUp(i) => QueueAction::Up(i),
+                ChatMessage::QueueDown(i) => QueueAction::Down(i),
+                ChatMessage::QueueCopy(i) => QueueAction::Copy(i),
+                _ => unreachable!(),
             };
-            app.current_session_runtime_mut().input_editor =
-                iced::widget::text_editor::Content::with_text(&query);
-            if app.active_session_id.is_none() {
-                app.input_editor = app.current_session_runtime().input_editor;
-            }
-            iced::widget::operation::focus(app.input_editor_id.clone())
-        }
-        ChatMessage::QueueGuide(i) => {
-            let item = {
-                let runtime = app.current_session_runtime_mut();
-                if i >= runtime.queue.len() {
-                    return Task::none();
+            let effect = update_queue(&mut app.current_session_runtime_mut().request_lifecycle.queue, action);
+            match effect {
+                QueueEffect::None => Task::none(),
+                QueueEffect::Send(item) => dispatch_queue_item(app, item),
+                QueueEffect::Copy(query) => Task::done(Message::CopyCode(query)),
+                QueueEffect::Edit(query) => {
+                    app.current_session_runtime_mut().input_editor =
+                        iced::widget::text_editor::Content::with_text(&query);
+                    if app.active_session_id.is_none() {
+                        app.input_editor = app.current_session_runtime().input_editor;
+                    }
+                    iced::widget::operation::focus(app.input_editor_id.clone())
                 }
-                runtime.queue.remove(i)
-            };
-            let mut new_item = item;
-            new_item.send_behavior = ChatSendBehavior::StopAndSend;
-            dispatch_queue_item(app, new_item)
-        }
-        ChatMessage::QueueUp(i) => {
-            let runtime = app.current_session_runtime_mut();
-            if i > 0 && i < runtime.queue.len() {
-                runtime.queue.swap(i, i - 1);
             }
-            Task::none()
-        }
-        ChatMessage::QueueDown(i) => {
-            let runtime = app.current_session_runtime_mut();
-            if i + 1 < runtime.queue.len() {
-                runtime.queue.swap(i, i + 1);
-            }
-            Task::none()
-        }
-        ChatMessage::QueueCopy(i) => {
-            let query = {
-                let runtime = app.current_session_runtime();
-                match runtime.queue.get(i) {
-                    Some(item) => item.query.clone(),
-                    None => return Task::none(),
-                }
-            };
-            if query.is_empty() {
-                return Task::none();
-            }
-            Task::done(Message::CopyCode(query))
         }
         ChatMessage::SubmitTick => {
             let is_requesting = app.current_session_is_requesting();
-            if !is_requesting {
-                let runtime = app.current_session_runtime_mut();
-                runtime.submit_anim = 0;
+            if !app.current_session_runtime_mut().request_lifecycle.submit_tick(is_requesting) {
                 return Task::none();
             }
-            let runtime = app.current_session_runtime_mut();
-            runtime.submit_anim = (runtime.submit_anim + 1) % 3;
             message::after(Duration::from_millis(200), Message::Chat(ChatMessage::SubmitTick))
         }
         ChatMessage::ForkSessionAt { anchor, target } => {
@@ -1811,7 +1511,7 @@ use vw_api_session::{
             };
             let runtime = app.current_session_runtime();
             if runtime.draft.is_some() {
-                return if runtime.is_requesting {
+                return if runtime.request_lifecycle.is_requesting {
                     Task::none()
                 } else {
                     reset_session_locally(app, session_id, msg_idx)
@@ -1934,7 +1634,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         .is_some_and(|runtime| runtime.full_access_saving || runtime.full_access_save_failed)
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.queue.push(item);
+        runtime.request_lifecycle.queue.push(item);
         if !keep {
             runtime.input_editor = iced::widget::text_editor::Content::new();
         }
@@ -1945,7 +1645,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         && app.active_session_view_state.ui_preparing
         && !app.active_session_view_state.base_ready
     {
-        app.current_session_runtime_mut().queue.insert(0, item);
+        app.current_session_runtime_mut().request_lifecycle.queue.insert(0, item);
         return app.show_error_toast("会话历史正在加载，消息已保留在队列中");
     }
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
@@ -2042,34 +1742,15 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
     } else {
         compose_query_with_attachments(&item.query, &item.attachments)
     };
-    let message_model = item.model.clone().and_then(|model| {
-        let model = model.trim();
-        (!model.is_empty()).then(|| model.to_string())
-    });
+    let message_model = desktop_session::message::chat::session::normalize_message_model(
+        item.model.as_deref(),
+    );
     let request_started_ms = crate::app::time::now_ms();
-    let appended_start_idx = app.chat.len();
-    let appended_user_idx = if request_query.trim().is_empty() {
-        None
-    } else {
-        app.chat.push(models::ChatMessage {
-            role: models::ChatRole::User,
-            content: request_query.clone(),
-            model: message_model.clone(),
-            think_timing: Vec::new(),
-            processing_timing: None,
-        });
-        app.chat_message_ids.push(None);
-        Some(appended_start_idx)
-    };
-    app.chat.push(models::ChatMessage {
-        role: models::ChatRole::Assistant,
-        content: String::new(),
-        model: message_model,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-    super::processing_timing::start_tail_assistant_processing(&mut app.chat, request_started_ms);
-    app.chat_message_ids.push(None);
+    let (appended_start_idx, appended_user_idx) =
+        desktop_session::message::chat::session::append_request_messages(
+            &mut app.chat, &mut app.chat_message_ids,
+            &request_query, message_model, request_started_ms,
+        );
     app.invalidate_chat_ui_for_message_idx(
         appended_start_idx.min(app.chat.len().saturating_sub(1)),
     );
@@ -2098,13 +1779,8 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
 
     if let Some(session_id) = app.active_session_id.clone() {
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.is_requesting = true;
+        runtime.request_lifecycle.begin_timing(request_started_ms, web_time::Instant::now());
         runtime.fork_request_submitted = runtime.fork_execution_started.is_some();
-        runtime.request_started_ms = request_started_ms;
-        runtime.processing_timer.reset();
-        runtime.processing_timer.start_at(web_time::Instant::now());
-        runtime.llm_timer.reset();
-        runtime.submit_anim = 0;
         runtime.has_unseen_success = false;
         info!(
             target: "vw_desktop",
@@ -2130,33 +1806,14 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             keep_input = keep,
             "desktop agent request started"
         );
-        runtime.active_agent_request = Some(Arc::new(AgentRequest {
-            id: stream_id,
-            session: session_id.clone(),
-            query: request_query,
-            root: item.root,
-            model: item.model,
-            reasoning_effort: item.reasoning_effort,
-            acp_test: item.acp_test,
-            acp_model_source: item.acp_model_source,
-            acp_agent: item.acp_agent,
-            acp_allowed_tools: item.acp_allowed_tools,
-            agent: item.agent,
-            allowed_tools: item.allowed_tools,
-            require_agent_tool: item.require_agent_tool,
-            acp_force_new_session: item.acp_force_new_session,
-            acp_history_mode: item.acp_history_mode,
-            acp_recent_count: item.acp_recent_count,
-            full_access_enabled: (is_draft && (runtime.full_access_initialized || item.acp_test))
-                .then_some(item.full_access_enabled),
-            resume_history_only: item.resume_history_only,
-            workflow_mode_enabled: item.workflow_mode_enabled,
-            goal_mode_enabled: item.goal_mode_enabled,
-            history: request_history,
-        }));
+        let full_access_enabled = (is_draft && (runtime.full_access_initialized || item.acp_test))
+            .then_some(item.full_access_enabled);
+        runtime.request_lifecycle.active_agent_request = Some(Arc::new(item.into_request(
+            stream_id, session_id.clone(), request_query, request_history, full_access_enabled,
+        )));
         if !is_draft
             && runtime
-                .queue
+                .request_lifecycle.queue
                 .first()
                 .is_some_and(|queued| queued.send_behavior == ChatSendBehavior::Guide)
         {
@@ -2164,11 +1821,11 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         } else {
             crate::app::state::clear_pending_guide_handoff(stream_id);
         }
-        if runtime.active_agent_request.as_ref().is_some_and(|request| request.acp_test) {
+        if runtime.request_lifecycle.active_agent_request.as_ref().is_some_and(|request| request.acp_test) {
             runtime.acp_rebuild_required = false;
         }
         runtime.last_effective_acp_agent =
-            runtime.active_agent_request.as_ref().and_then(|request| request.acp_agent.clone());
+            runtime.request_lifecycle.active_agent_request.as_ref().and_then(|request| request.acp_agent.clone());
         app.sync_task_pet_from_runtime();
 
         {

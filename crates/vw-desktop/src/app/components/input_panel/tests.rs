@@ -150,7 +150,7 @@ fn input_panel_layouts_do_not_render_acp_history_interactions() {
 
         match layout {
             "standard" => {}
-            "queue" => app.current_session_runtime_mut().queue = vec![queue_item("queued")],
+            "queue" => app.current_session_runtime_mut().request_lifecycle.queue = vec![queue_item("queued")],
             "todo" => {
                 app.active_session_id = Some("session".to_string());
                 app.chat_todo_session_id = Some("session".to_string());
@@ -404,9 +404,9 @@ fn input_panel_view_renders_nonempty_queue_while_requesting() {
     let mut app = crate::app::App::new().0;
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.queue = vec![queue_item("queued request")];
-        runtime.is_requesting = true;
-        runtime.submit_anim = 2;
+        runtime.request_lifecycle.queue = vec![queue_item("queued request")];
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.submit_anim = 2;
         runtime.input_editor = iced::widget::text_editor::Content::with_text("next request");
         runtime.acp_agent = Some("codex".to_string());
     }
@@ -430,7 +430,7 @@ fn input_panel_quick_message_strip_renders_in_standard_queue_and_todo_layouts() 
     drop(without_quick_messages);
     app.quick_messages = config_ui::AppSystemSettingsConfig::default().quick_messages;
 
-    app.current_session_runtime_mut().queue = vec![queue_item("queued request")];
+    app.current_session_runtime_mut().request_lifecycle.queue = vec![queue_item("queued request")];
     assert_eq!(view(&app).as_widget().size().width, Length::Fill);
 
     app.active_session_id = Some("session".to_string());
@@ -445,7 +445,7 @@ fn input_panel_view_renders_task_mode_instead_of_nonempty_queue() {
     let mut app = crate::app::App::new().0;
     {
         let runtime = app.current_session_runtime_mut();
-        runtime.queue = vec![queue_item("queued request")];
+        runtime.request_lifecycle.queue = vec![queue_item("queued request")];
         runtime.task_mode_enabled = true;
         runtime.input_editor = iced::widget::text_editor::Content::with_text("planned task");
     }

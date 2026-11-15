@@ -100,7 +100,7 @@ fn compaction_status_started_then_completed_updates_one_message() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "compaction-session".to_string();
     app.active_session_id = Some(session_id.clone());
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _ = super::handle_agent_compaction_status(&mut app, 42, false);
@@ -150,8 +150,8 @@ fn running_session_switch_preserves_history_after_background_delta() {
         None,
     ];
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
 
     let _ = super::handle_agent_session_delta(&mut app, session_id.clone(), " partial".to_string());
     assert!(app.cached_chat_messages(&session_id).is_none());
@@ -199,8 +199,8 @@ fn running_session_cross_project_switch_preserves_history_after_background_delta
         None,
     ];
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
 
     let _ = super::handle_agent_session_delta(&mut app, session_id.clone(), " partial".to_string());
     assert!(app.cached_chat_messages(&session_id).is_none());
@@ -245,8 +245,8 @@ fn running_session_switch_preserves_history_on_terminal_without_delta() {
     app.chat_message_ids =
         vec![Some("old-user-id".to_string()), Some("old-assistant-id".to_string()), None, None];
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
 
     let _ = super::handle_agent_session_delta(&mut app, session_id.clone(), " partial".to_string());
     assert!(app.cached_chat_messages(&session_id).is_none());
@@ -412,8 +412,8 @@ fn plan_run_session_started_registers_without_leaving_parent() {
     app.chat = vec![message(ChatRole::User, "主会话任务")];
     app.chat_message_ids = vec![None];
     let parent_runtime = app.get_session_runtime_mut("main-session");
-    parent_runtime.is_requesting = true;
-    parent_runtime.active_agent_request = Some(agent_request(42, "main-session"));
+    parent_runtime.request_lifecycle.is_requesting = true;
+    parent_runtime.request_lifecycle.active_agent_request = Some(agent_request(42, "main-session"));
 
     let _register_task = super::handle_plan_run_session_started(
         &mut app,
@@ -434,7 +434,7 @@ fn plan_run_session_started_registers_without_leaving_parent() {
     assert_eq!(child.parent_id.as_deref(), Some("main-session"));
     assert_eq!(child.title, "规划 · task-1");
     assert!(child.is_plan_run());
-    assert!(app.get_session_runtime("task-1-plan").is_requesting);
+    assert!(app.get_session_runtime("task-1-plan").request_lifecycle.is_requesting);
     assert_eq!(app.get_session_runtime("task-1-plan").stream_save_dirty_records[0].seq_no, 0);
     assert_eq!(
         app.get_session_runtime("task-1-plan").stream_save_dirty_records[0].message.content,
@@ -465,9 +465,9 @@ fn plan_run_session_started_registers_without_leaving_parent() {
     assert!(planning_chat[1].content.contains("开始拆分"));
 
     let _finish_task = super::handle_plan_run_session_finished(&mut app, "task-1-plan".to_string());
-    assert!(!app.get_session_runtime("task-1-plan").is_requesting);
+    assert!(!app.get_session_runtime("task-1-plan").request_lifecycle.is_requesting);
     assert!(
-        app.get_session_runtime("main-session").active_agent_request.is_some(),
+        app.get_session_runtime("main-session").request_lifecycle.active_agent_request.is_some(),
         "registering the child must not detach the main plan-run request"
     );
 }
@@ -482,8 +482,8 @@ fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
     app.chat = vec![message(ChatRole::User, "主会话任务")];
     app.chat_message_ids = vec![None];
     let parent_runtime = app.get_session_runtime_mut("main-session");
-    parent_runtime.is_requesting = true;
-    parent_runtime.active_agent_request = Some(agent_request(42, "main-session"));
+    parent_runtime.request_lifecycle.is_requesting = true;
+    parent_runtime.request_lifecycle.active_agent_request = Some(agent_request(42, "main-session"));
 
     let _register_task = super::handle_plan_run_session_started(
         &mut app,
@@ -509,7 +509,7 @@ fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
         .expect("execution child should be registered");
     assert_eq!(child.title, "实现入口");
     assert_eq!(child.parent_id.as_deref(), Some("main-session"));
-    assert!(app.get_session_runtime("task-1-sub-1").is_requesting);
+    assert!(app.get_session_runtime("task-1-sub-1").request_lifecycle.is_requesting);
     let child_chat =
         app.cached_chat_messages("task-1-sub-1").expect("execution child chat should be cached");
     assert_eq!(child_chat.len(), 2);
@@ -518,8 +518,8 @@ fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
     let _finish_task =
         super::handle_plan_run_session_finished(&mut app, "task-1-sub-1".to_string());
 
-    assert!(!app.get_session_runtime("task-1-sub-1").is_requesting);
-    assert!(app.get_session_runtime("main-session").active_agent_request.is_some());
+    assert!(!app.get_session_runtime("task-1-sub-1").request_lifecycle.is_requesting);
+    assert!(app.get_session_runtime("main-session").request_lifecycle.active_agent_request.is_some());
 }
 
 #[test]
@@ -598,7 +598,7 @@ fn chat_scroll_semantics_stream_growth_keeps_manual_scroll_top() {
     app.chat_virtualizer.set_viewport_height(220.0);
     app.chat_virtualizer.set_scroll_top_px(140.0);
     app.sync_chat_virtualizer_compat_fields();
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
     let before_scroll_top = app.chat_virtualizer.scroll_top_px();
 
@@ -618,7 +618,7 @@ fn stream_delta_defers_session_save_off_update_path() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question")];
     app.chat_message_ids = vec![None; app.chat.len()];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
     let save_calls = Arc::new(AtomicUsize::new(0));
     let observed_save_calls = Arc::clone(&save_calls);
@@ -642,7 +642,7 @@ fn active_stream_followup_deltas_are_coalesced_until_flush() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question")];
     app.chat_message_ids = vec![None; app.chat.len()];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let first_task = super::queue_agent_stream_delta(&mut app, 42, "hello".to_string());
@@ -670,7 +670,7 @@ fn active_stream_applies_first_delta_without_flush_timer() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question")];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let first_task = super::queue_agent_stream_delta(&mut app, 42, "hello".to_string());
@@ -694,7 +694,7 @@ fn buffered_tool_event_starts_on_its_own_line() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question")];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _ = super::queue_agent_stream_delta(&mut app, 42, "Checking".to_string());
@@ -716,8 +716,8 @@ fn active_stream_terminal_flushes_pending_delta() {
         app.chat = vec![message(ChatRole::User, "question")];
         app.chat_message_ids = vec![None];
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.is_requesting = true;
-        runtime.active_agent_request = Some(agent_request(request_id, &session_id));
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request = Some(agent_request(request_id, &session_id));
         app
     }
 
@@ -774,7 +774,7 @@ async fn stream_session_delta_save_sends_dirty_entry_only() {
         crate::app::session::shared_chat_messages(vec![message(ChatRole::User, "question")]),
         vec![None],
     );
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let first_save =
@@ -811,8 +811,8 @@ fn stream_session_delta_save_forces_terminal_flush() {
         vec![None],
     );
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(43, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(43, &session_id));
 
     let _ = super::handle_agent_session_delta(&mut app, session_id.clone(), "latest".into());
     let duplicate_save =
@@ -841,7 +841,7 @@ fn stream_session_delta_save_preserves_newer_revision() {
     app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
     app.chat = vec![message(ChatRole::Assistant, "first")];
     app.chat_message_ids = vec![Some("assistant-1".into())];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(77, &session_id));
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
@@ -890,7 +890,7 @@ fn stream_session_delta_save_retries_after_failure() {
     app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
     app.chat = vec![message(ChatRole::Assistant, "retry me")];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(88, &session_id));
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
@@ -922,7 +922,7 @@ fn stale_stream_session_delta_rebases_before_retry() {
     app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
     app.chat = vec![message(ChatRole::Assistant, "retry me")];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(89, &session_id));
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
@@ -997,7 +997,7 @@ fn active_stream_delta_updates_tail_without_replacing_chat_vector() {
     app.chat_virtualizer.set_viewport_height(220.0);
     app.chat_virtualizer.set_scroll_top_px(0.0);
     app.sync_chat_virtualizer_compat_fields();
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let chat_ptr = app.chat.as_ptr();
@@ -1047,8 +1047,8 @@ fn active_stream_following_tail_preserves_height_storage_and_borrows_runtime() {
     app.chat_virtualizer.set_viewport_height(220.0);
     app.sync_chat_virtualizer_compat_fields();
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
     runtime.input_editor = iced::widget::text_editor::Content::with_text(&"中文草稿".repeat(1000));
 
     let _ = super::handle_agent_stream_delta(&mut app, 42, "开始".to_string());
@@ -1075,7 +1075,7 @@ fn active_stream_save_snapshot_preserves_replacements_and_restarts_after_ack() {
     let session_id = "stream-save-prefix".to_string();
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question")];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _ = super::handle_agent_stream_delta(&mut app, 42, "中文".into());
@@ -1119,7 +1119,7 @@ fn tail_message_prewarm_does_not_mark_chunk_state() {
     app.chat_virtualizer.set_viewport_height(400.0);
     app.chat_virtualizer.set_scroll_top_px(0.0);
     app.sync_chat_virtualizer_compat_fields();
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let first_task = super::handle_agent_stream_delta(&mut app, 42, "hello".to_string());
@@ -1148,7 +1148,7 @@ fn active_stream_growth_preserves_turn_top_focus() {
     app.chat_virtualizer.set_viewport_height(300.0);
     app.chat_virtualizer.focus_turn_on_user(2);
     app.sync_chat_virtualizer_compat_fields();
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
     let anchored_top = app.chat_virtualizer.scroll_top_px();
 
@@ -1489,7 +1489,7 @@ fn inactive_stream_updates_cached_snapshot_without_touching_active_chat() {
         crate::app::session::shared_chat_messages(vec![message(ChatRole::User, "background")]),
         vec![Some("background-id".to_string())],
     );
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _delta = super::handle_agent_stream_delta(&mut app, 42, "answer".to_string());
@@ -1520,7 +1520,7 @@ fn active_workflow_update_appends_tool_block_and_preserves_message_id() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::Assistant, "answer")];
     app.chat_message_ids = vec![Some("assistant-id".to_string())];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _task = super::handle_agent_workflow_node_update(
@@ -1543,8 +1543,8 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     app.chat_message_ids = vec![None, None];
     app.show_send_mode_popover = true;
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
     app.active_session_view_state.steps = vec![crate::app::models::ChatSessionStep {
         index: 1,
         turn_id: None,
@@ -1579,9 +1579,9 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     assert_eq!(app.active_session_view_state.steps[0].turn_id.as_deref(), Some("assistant-id"));
     assert!(!app.show_send_mode_popover);
     let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.is_requesting);
+    assert!(!runtime.request_lifecycle.is_requesting);
     assert!(!runtime.has_unseen_success);
-    assert!(runtime.active_agent_request.is_none());
+    assert!(runtime.request_lifecycle.active_agent_request.is_none());
 }
 
 #[test]
@@ -1598,7 +1598,7 @@ fn processing_timing_stream_done_closes_active_and_background_cycles() {
     });
     app.chat = vec![active_assistant];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(&active_id).active_agent_request =
+    app.get_session_runtime_mut(&active_id).request_lifecycle.active_agent_request =
         Some(agent_request(41, &active_id));
 
     let _ = super::handle_agent_stream_done(
@@ -1623,7 +1623,7 @@ fn processing_timing_stream_done_closes_active_and_background_cycles() {
         crate::app::session::shared_chat_messages(vec![background_assistant]),
         vec![None],
     );
-    app.get_session_runtime_mut(&background_id).active_agent_request =
+    app.get_session_runtime_mut(&background_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &background_id));
 
     let _ = super::handle_agent_stream_done(
@@ -1659,8 +1659,8 @@ fn inactive_stream_done_updates_cached_ids_and_marks_unseen_success() {
         vec![None, None],
     );
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
 
     let _task = super::handle_agent_stream_done(
         &mut app,
@@ -1677,9 +1677,9 @@ fn inactive_stream_done_updates_cached_ids_and_marks_unseen_success() {
         vec![Some("parent-id".to_string()), Some("assistant-id".to_string())]
     );
     let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.is_requesting);
+    assert!(!runtime.request_lifecycle.is_requesting);
     assert!(runtime.has_unseen_success);
-    assert!(runtime.active_agent_request.is_none());
+    assert!(runtime.request_lifecycle.active_agent_request.is_none());
 }
 
 #[test]
@@ -1692,8 +1692,8 @@ fn active_stream_error_appends_system_message_and_clears_request_state() {
     app.chat_message_ids = vec![Some("user-id".to_string())];
     app.show_send_mode_popover = true;
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
 
     let _task = super::handle_agent_stream_error(&mut app, 42, "gateway failed".to_string());
 
@@ -1703,8 +1703,8 @@ fn active_stream_error_appends_system_message_and_clears_request_state() {
     assert!(!app.show_send_mode_popover);
     assert!(app.active_toast.is_some());
     let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.is_requesting);
-    assert!(runtime.active_agent_request.is_none());
+    assert!(!runtime.request_lifecycle.is_requesting);
+    assert!(runtime.request_lifecycle.active_agent_request.is_none());
 }
 
 #[test]
@@ -1721,7 +1721,7 @@ fn processing_timing_stream_error_closes_and_saves_background_cycle() {
     });
     app.chat = vec![active_assistant];
     app.chat_message_ids = vec![None];
-    app.get_session_runtime_mut(&active_id).active_agent_request =
+    app.get_session_runtime_mut(&active_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &active_id));
 
     let _ = super::handle_agent_stream_error(&mut app, 42, "active failed".to_string());
@@ -1742,7 +1742,7 @@ fn processing_timing_stream_error_closes_and_saves_background_cycle() {
         crate::app::session::shared_chat_messages(vec![assistant]),
         vec![None],
     );
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(43, &session_id));
 
     let _ = super::handle_agent_stream_error(&mut app, 43, "failed".to_string());
@@ -1770,8 +1770,8 @@ fn processing_timing_post_tool_round_closes_old_cycle_and_starts_new_cycle() {
     app.chat = vec![message(ChatRole::User, "question"), assistant];
     app.chat_message_ids = vec![None, None];
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(44, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(44, &session_id));
 
     let _ = super::handle_agent_post_tool_round(&mut app, 44, session_id.clone(), 1);
 
@@ -1784,7 +1784,7 @@ fn processing_timing_post_tool_round_closes_old_cycle_and_starts_new_cycle() {
     assert_eq!(timings[0].started_ms, 400);
     assert!(timings[0].completed_ms.is_some());
     assert!(timings[1].completed_ms.is_none());
-    assert_eq!(app.get_session_runtime(&session_id).request_started_ms, timings[1].started_ms);
+    assert_eq!(app.get_session_runtime(&session_id).request_lifecycle.request_started_ms, timings[1].started_ms);
 }
 
 #[test]
@@ -1795,8 +1795,8 @@ fn active_stream_error_humanizes_payload_too_large_and_shows_toast() {
     app.chat = vec![message(ChatRole::User, "question")];
     app.chat_message_ids = vec![Some("user-id".to_string())];
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
 
     let _task = super::handle_agent_stream_error(
         &mut app,
@@ -1812,8 +1812,8 @@ fn active_stream_error_humanizes_payload_too_large_and_shows_toast() {
     assert_eq!(toast.message, expected);
     assert_eq!(toast.kind, crate::app::state::ToastKind::Error);
     let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.is_requesting);
-    assert!(runtime.active_agent_request.is_none());
+    assert!(!runtime.request_lifecycle.is_requesting);
+    assert!(runtime.request_lifecycle.active_agent_request.is_none());
 }
 
 #[test]
@@ -1822,8 +1822,8 @@ fn missing_request_stream_error_clears_active_requesting_and_shows_toast() {
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = None;
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = None;
 
     let _task = super::handle_agent_stream_error(
         &mut app,
@@ -1836,7 +1836,7 @@ fn missing_request_stream_error_clears_active_requesting_and_shows_toast() {
     let toast = app.active_toast.as_ref().expect("toast should show");
     assert_eq!(toast.message, expected);
     let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.is_requesting);
+    assert!(!runtime.request_lifecycle.is_requesting);
     assert!(app.chat.is_empty());
 }
 
@@ -1844,7 +1844,7 @@ fn missing_request_stream_error_clears_active_requesting_and_shows_toast() {
 fn post_tool_round_rejects_mismatched_or_inactive_session() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("active-session".to_string());
-    app.get_session_runtime_mut("request-session").active_agent_request =
+    app.get_session_runtime_mut("request-session").request_lifecycle.active_agent_request =
         Some(agent_request(42, "request-session"));
 
     let _mismatched =
@@ -1852,8 +1852,8 @@ fn post_tool_round_rejects_mismatched_or_inactive_session() {
     let _inactive =
         super::handle_agent_post_tool_round(&mut app, 42, "request-session".to_string(), 1);
 
-    assert!(app.get_session_runtime("request-session").active_agent_request.is_some());
-    assert!(app.get_session_runtime("request-session").queue.is_empty());
+    assert!(app.get_session_runtime("request-session").request_lifecycle.active_agent_request.is_some());
+    assert!(app.get_session_runtime("request-session").request_lifecycle.queue.is_empty());
 }
 
 #[test]
@@ -1863,7 +1863,7 @@ fn context_loaded_adds_visible_agents_read_card() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "")];
     app.chat_message_ids = vec![Some("user-id".to_string()), None];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _task = super::handle_agent_context_loaded(
@@ -1895,9 +1895,9 @@ fn streamed_tail_invalidates_stale_display_and_copy_caches_before_done() {
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "old")];
     app.chat_message_ids = vec![None, None];
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
-    app.get_session_runtime_mut(&session_id).is_requesting = true;
+    app.get_session_runtime_mut(&session_id).request_lifecycle.is_requesting = true;
     app.chat_render_cache.insert(
         0,
         build_render_cache_entry("question", "question", hash_chat_content("question"), false),
@@ -1918,7 +1918,7 @@ fn streamed_tail_invalidates_stale_display_and_copy_caches_before_done() {
         assert!(app.chat_copy_hash_cache[1].is_none());
         assert!(app.chat_render_cache.contains_key(&0));
         assert_eq!(app.chat_visible_text_cache[0].as_deref(), Some("question"));
-        assert!(app.get_session_runtime(&session_id).is_requesting);
+        assert!(app.get_session_runtime(&session_id).request_lifecycle.is_requesting);
     }
 }
 
@@ -1931,8 +1931,8 @@ fn compaction_error_and_cancel_settle_active_and_background_status() {
             app.active_session_id =
                 Some(if active { session_id.clone() } else { "other".to_string() });
             let runtime = app.get_session_runtime_mut(&session_id);
-            runtime.is_requesting = true;
-            runtime.active_agent_request = Some(agent_request(42, &session_id));
+            runtime.request_lifecycle.is_requesting = true;
+            runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
             let _ = super::handle_agent_compaction_status(&mut app, 42, false);
             if cancelled {
                 let _ = super::super::handle_agent_stream_cancelled(&mut app, 42);
@@ -1951,8 +1951,8 @@ fn compaction_error_and_cancel_settle_active_and_background_status() {
             assert!(chat.iter().all(|message| message.content != "正在压缩会话"));
             let expected = if cancelled { "会话压缩已取消" } else { "会话压缩失败" };
             assert!(chat.iter().any(|message| message.content == expected));
-            assert!(!app.get_session_runtime(&session_id).is_requesting);
-            assert!(app.get_session_runtime(&session_id).active_agent_request.is_none());
+            assert!(!app.get_session_runtime(&session_id).request_lifecycle.is_requesting);
+            assert!(app.get_session_runtime(&session_id).request_lifecycle.active_agent_request.is_none());
             if !active {
                 assert!(app.chat.is_empty());
             }
@@ -1981,15 +1981,15 @@ fn recovery_notice_waiting_deduplicates_and_keeps_request_busy() {
     use gateway_chat_stream::GatewayModelRecoveryPhase::Waiting;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("notice".into());
-    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
-    app.get_session_runtime_mut("notice").is_requesting = true;
+    app.get_session_runtime_mut("notice").request_lifecycle.active_agent_request = Some(agent_request(42, "notice"));
+    app.get_session_runtime_mut("notice").request_lifecycle.is_requesting = true;
     let event = recovery_notice_event("notice", Waiting, 1);
     let _ = super::handle_agent_model_recovery(&mut app, 42, event.clone());
     let toast = app.active_toast.as_ref().unwrap().clone();
     assert!(toast.message.contains("正在重试 1/3，等待 500ms，原因：配置暂时不可读"));
     let _ = super::handle_agent_model_recovery(&mut app, 42, event);
     assert_eq!(app.active_toast.as_ref().unwrap().id, toast.id);
-    assert!(app.get_session_runtime("notice").is_requesting);
+    assert!(app.get_session_runtime("notice").request_lifecycle.is_requesting);
     assert!(app.chat.is_empty());
 }
 
@@ -1999,7 +1999,7 @@ fn recovery_notice_recovered_cancelled_and_done_clear_waiting() {
     for phase in [Recovered, Cancelled] {
         let (mut app, _) = crate::app::App::new();
         app.active_session_id = Some("notice".into());
-        app.get_session_runtime_mut("notice").active_agent_request =
+        app.get_session_runtime_mut("notice").request_lifecycle.active_agent_request =
             Some(agent_request(42, "notice"));
         let _ = super::handle_agent_model_recovery(
             &mut app,
@@ -2025,7 +2025,7 @@ fn recovery_notice_stopped_preserves_actual_attempts_and_action() {
     for attempt in [0, 1, 3] {
         let (mut app, _) = crate::app::App::new();
         app.active_session_id = Some("notice".into());
-        app.get_session_runtime_mut("notice").active_agent_request =
+        app.get_session_runtime_mut("notice").request_lifecycle.active_agent_request =
             Some(agent_request(42, "notice"));
         let _ = super::handle_agent_model_recovery(
             &mut app,
@@ -2049,8 +2049,8 @@ fn recovery_notice_background_and_old_request_do_not_pollute_active_request() {
     use gateway_chat_stream::GatewayModelRecoveryPhase::Waiting;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("active".into());
-    app.get_session_runtime_mut("active").active_agent_request = Some(agent_request(43, "active"));
-    app.get_session_runtime_mut("background").active_agent_request =
+    app.get_session_runtime_mut("active").request_lifecycle.active_agent_request = Some(agent_request(43, "active"));
+    app.get_session_runtime_mut("background").request_lifecycle.active_agent_request =
         Some(agent_request(42, "background"));
     let _ = super::handle_agent_model_recovery(
         &mut app,
@@ -2078,7 +2078,7 @@ fn recovery_notice_cancel_terminal_and_old_error_keep_new_request() {
     use gateway_chat_stream::GatewayModelRecoveryPhase::Waiting;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("notice".into());
-    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
+    app.get_session_runtime_mut("notice").request_lifecycle.active_agent_request = Some(agent_request(42, "notice"));
     let _ = super::handle_agent_model_recovery(
         &mut app,
         42,
@@ -2086,11 +2086,11 @@ fn recovery_notice_cancel_terminal_and_old_error_keep_new_request() {
     );
     let _ = super::super::handle_agent_stream_cancelled(&mut app, 42);
     assert!(app.get_session_runtime("notice").model_recovery.is_none());
-    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(43, "notice"));
-    app.get_session_runtime_mut("notice").is_requesting = true;
+    app.get_session_runtime_mut("notice").request_lifecycle.active_agent_request = Some(agent_request(43, "notice"));
+    app.get_session_runtime_mut("notice").request_lifecycle.is_requesting = true;
     let _ = super::handle_agent_stream_error(&mut app, 42, "旧请求错误".into());
-    assert!(app.get_session_runtime("notice").is_requesting);
-    assert_eq!(app.get_session_runtime("notice").active_agent_request.as_ref().unwrap().id, 43);
+    assert!(app.get_session_runtime("notice").request_lifecycle.is_requesting);
+    assert_eq!(app.get_session_runtime("notice").request_lifecycle.active_agent_request.as_ref().unwrap().id, 43);
     assert!(app.chat.is_empty());
 }
 
@@ -2100,7 +2100,7 @@ async fn recovery_notice_chinese_text_draws_in_light_and_dark_themes() {
     use iced::{Color, Font, Pixels, Size, Theme, mouse};
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("notice".into());
-    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
+    app.get_session_runtime_mut("notice").request_lifecycle.active_agent_request = Some(agent_request(42, "notice"));
     let _ = super::handle_agent_model_recovery(
         &mut app,
         42,
@@ -2399,8 +2399,8 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
     let session_id = "selectable-stream".to_string();
     app.active_session_id = Some(session_id.clone());
     let runtime = app.get_session_runtime_mut(&session_id);
-    runtime.is_requesting = true;
-    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
     let _ = super::handle_agent_stream_delta(&mut app, 42, "<think>已完成的思考</thi".into());
     let _ = super::handle_agent_stream_delta(&mut app, 42, "nk>阶段 **说明**".into());
     assert_eq!(app.chat_think_editors.get(&0).unwrap().text(), "已完成的思考");
@@ -2409,7 +2409,7 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
         42,
         "tool bash\n{\"id\":\"cmd-1\",\"name\":\"bash\",\"status\":\"running\"}".into(),
     );
-    assert!(app.get_session_runtime(&session_id).is_requesting);
+    assert!(app.get_session_runtime(&session_id).request_lifecycle.is_requesting);
     let _ = app.update(crate::app::Message::ChatMarkdownSelectionChanged {
         session_id: session_id.clone(),
         message_idx: 0,
@@ -2431,7 +2431,7 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
     assert!(app.chat_markdown_block_editors.contains_key(&markdown_block_key(0, 1, 0)));
     let _ = super::handle_agent_stream_delta(&mut app, 42, "\n\n最终 **结论**".into());
     let _ = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
-    assert!(!app.get_session_runtime(&session_id).is_requesting);
+    assert!(!app.get_session_runtime(&session_id).request_lifecycle.is_requesting);
     assert_eq!(app.chat_markdown_blocks[&2][0].text, "最终 结论");
 }
 
@@ -2452,7 +2452,7 @@ fn compaction_failure_preserves_prior_statuses_and_persists_completion() {
                 vec![None],
             );
         }
-        app.get_session_runtime_mut(&session_id).active_agent_request =
+        app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
             Some(agent_request(42, &session_id));
         let _ = super::handle_agent_compaction_status(&mut app, 42, false);
         let _ = super::handle_agent_compaction_status(&mut app, 42, true);
@@ -2495,8 +2495,8 @@ fn completion_notification_is_opt_in_skips_history_and_ignores_replayed_done() {
         let mut request = agent_request(42, session_id);
         std::sync::Arc::get_mut(&mut request).unwrap().resume_history_only = history_only;
         let runtime = app.get_session_runtime_mut(session_id);
-        runtime.is_requesting = true;
-        runtime.active_agent_request = Some(request);
+        runtime.request_lifecycle.is_requesting = true;
+        runtime.request_lifecycle.active_agent_request = Some(request);
         let task = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
         let units = task.units();
         let replay = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
@@ -2514,7 +2514,7 @@ fn todo_continuation_preserves_stream_order_for_active_and_background_sessions()
         let session_id = "todo-continuation-session".to_string();
         app.active_session_id = Some(if active { session_id.clone() } else { "other".into() });
         let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.active_agent_request = Some(agent_request(42, &session_id));
+        runtime.request_lifecycle.active_agent_request = Some(agent_request(42, &session_id));
         runtime.pending_stream_delta = "before status".into();
         let _ = super::handle_agent_todo_continuation(&mut app, 42);
         let _ =
@@ -2548,8 +2548,8 @@ fn background_stream_error_without_cache_does_not_create_error_only_history() {
     app.active_session_id = Some("visible".into());
     app.chat = vec![message(ChatRole::User, "visible history")];
     let runtime = app.get_session_runtime_mut("background");
-    runtime.active_agent_request = Some(agent_request(42, "background"));
-    runtime.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(42, "background"));
+    runtime.request_lifecycle.is_requesting = true;
     let _ = super::handle_agent_stream_error(
         &mut app,
         42,
@@ -2558,5 +2558,5 @@ fn background_stream_error_without_cache_does_not_create_error_only_history() {
     assert!(!app.session_chat_cache.contains_key("background"));
     assert!(app.get_session_runtime("background").stream_save_dirty_records.is_empty());
     assert_eq!(app.chat[0].content, "visible history");
-    assert!(!app.get_session_runtime("background").is_requesting);
+    assert!(!app.get_session_runtime("background").request_lifecycle.is_requesting);
 }

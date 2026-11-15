@@ -86,7 +86,7 @@ fn tool_timing_lifecycle_handler_updates_active_step() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
     let _task = super::handle_agent_step_start(
         &mut app,
@@ -335,25 +335,25 @@ fn processing_timer_includes_gap_while_llm_timer_pauses_between_steps() {
         crate::app::state::SessionRuntimeState::with_defaults("model".to_string(), false);
     let start = web_time::Instant::now();
 
-    runtime.processing_timer.start_at(start);
+    runtime.request_lifecycle.processing_timer.start_at(start);
     super::start_llm_timer_at(&mut runtime, start);
     super::pause_llm_timer_at(
         &mut runtime,
         start.checked_add(std::time::Duration::from_millis(1_250)).unwrap(),
     );
     let during_tools = start.checked_add(std::time::Duration::from_millis(9_000)).unwrap();
-    assert_eq!(runtime.processing_timer.elapsed_ms_at(during_tools), 9_000);
-    assert_eq!(runtime.llm_timer.elapsed_ms_at(during_tools), 1_250);
+    assert_eq!(runtime.request_lifecycle.processing_timer.elapsed_ms_at(during_tools), 9_000);
+    assert_eq!(runtime.request_lifecycle.llm_timer.elapsed_ms_at(during_tools), 1_250);
 
     super::start_llm_timer_at(&mut runtime, during_tools);
     assert_eq!(
-        runtime.llm_timer.elapsed_ms_at(
+        runtime.request_lifecycle.llm_timer.elapsed_ms_at(
             during_tools.checked_add(std::time::Duration::from_millis(750)).unwrap()
         ),
         2_000
     );
     assert_eq!(
-        runtime.processing_timer.elapsed_ms_at(
+        runtime.request_lifecycle.processing_timer.elapsed_ms_at(
             during_tools.checked_add(std::time::Duration::from_millis(750)).unwrap()
         ),
         9_750
@@ -371,7 +371,7 @@ fn handle_agent_step_start_returns_none_for_unknown_request_id() {
 #[test]
 fn handle_agent_step_start_returns_none_for_empty_session_id() {
     let (mut app, _) = crate::app::App::new();
-    app.get_session_runtime_mut("s1").active_agent_request = Some(agent_request(42, "s1"));
+    app.get_session_runtime_mut("s1").request_lifecycle.active_agent_request = Some(agent_request(42, "s1"));
     let _task = super::handle_agent_step_start(&mut app, 42, "".to_string(), 1, 100, None);
     // 即使找到请求，空会话标识仍必须在写入任何状态前被拒绝。
     assert!(app.active_session_view_state.steps.is_empty());
@@ -382,7 +382,7 @@ fn handle_agent_step_start_creates_step_in_active_session_view() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let task = super::handle_agent_step_start(
@@ -405,7 +405,7 @@ fn handle_agent_step_start_creates_step_in_active_session_view() {
 fn handle_agent_step_start_keeps_inactive_session_out_of_active_view() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("active-session".to_string());
-    app.get_session_runtime_mut("background-session").active_agent_request =
+    app.get_session_runtime_mut("background-session").request_lifecycle.active_agent_request =
         Some(agent_request(42, "background-session"));
 
     let _task = super::handle_agent_step_start(
@@ -441,7 +441,7 @@ fn handle_agent_step_finish_returns_none_for_unknown_request_id() {
 #[test]
 fn handle_agent_step_finish_returns_none_for_empty_session_id() {
     let (mut app, _) = crate::app::App::new();
-    app.get_session_runtime_mut("s1").active_agent_request = Some(agent_request(42, "s1"));
+    app.get_session_runtime_mut("s1").request_lifecycle.active_agent_request = Some(agent_request(42, "s1"));
     let _task = super::handle_agent_step_finish(
         &mut app,
         42,
@@ -460,7 +460,7 @@ fn handle_agent_step_finish_updates_token_usage_for_active_session() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
-    app.get_session_runtime_mut(&session_id).active_agent_request =
+    app.get_session_runtime_mut(&session_id).request_lifecycle.active_agent_request =
         Some(agent_request(42, &session_id));
 
     let _task = super::handle_agent_step_finish(
@@ -489,7 +489,7 @@ fn handle_agent_step_finish_updates_token_usage_for_active_session() {
 fn handle_agent_step_finish_does_not_charge_active_usage_for_inactive_session() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("active-session".to_string());
-    app.get_session_runtime_mut("background-session").active_agent_request =
+    app.get_session_runtime_mut("background-session").request_lifecycle.active_agent_request =
         Some(agent_request(42, "background-session"));
 
     let _task = super::handle_agent_step_finish(

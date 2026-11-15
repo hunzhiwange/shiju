@@ -570,7 +570,7 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
     {
         let runtime = app.current_session_runtime_mut();
         runtime.acp_options_state.open = true;
-        runtime.is_requesting = requesting;
+        runtime.request_lifecycle.is_requesting = requesting;
         runtime.acp_options_state.pending = pending;
         runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
             requested: false,
@@ -657,7 +657,7 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
     ] {
         let runtime = app.current_session_runtime_mut();
         runtime.acp_options_state.open = true;
-        runtime.is_requesting = busy;
+        runtime.request_lifecycle.is_requesting = busy;
         runtime.full_access_enabled = full;
         runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
             requested: full,
@@ -873,10 +873,10 @@ pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &
     );
     let _ = chat::update(&mut app, selection("not-advertised"));
     assert!(!app.current_session_runtime().acp_options_state.pending);
-    app.current_session_runtime_mut().is_requesting = true;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = true;
     let _ = chat::update(&mut app, selection(NEXT_VALUE));
     assert!(!app.current_session_runtime().acp_options_state.pending);
-    app.current_session_runtime_mut().is_requesting = false;
+    app.current_session_runtime_mut().request_lifecycle.is_requesting = false;
     {
         let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
         let body = bounds(&mut ui, &renderer).scrolls[0].1;

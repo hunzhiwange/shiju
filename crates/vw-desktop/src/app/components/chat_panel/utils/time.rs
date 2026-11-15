@@ -2,12 +2,9 @@
 //!
 //! 本模块提供状态、路径、文本、主题、时间或菜单相关的小型工具，供聊天面板视图复用。
 
-use once_cell::sync::Lazy;
 /// 重新导出 use std::time::UNIX_EPOCH，让上层模块通过稳定路径访问。
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::UNIX_EPOCH;
-/// 重新导出 use time::format_description::FormatItem，让上层模块通过稳定路径访问。
-use time::format_description::FormatItem;
 
 /// 重新导出 use crate::app::App，让上层模块通过稳定路径访问。
 use crate::app::App;
@@ -172,20 +169,4 @@ pub fn relative_time_label(ts_ms: u64) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn format_chat_time_label(ts_ms: u64) -> String {
-    static FMT: Lazy<Vec<FormatItem<'static>>> = Lazy::new(|| {
-        // time 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        time::format_description::parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]")
-            .unwrap_or_default()
-    });
-
-    if ts_ms == 0 {
-        return "刚刚".to_string();
-    }
-
-    let nanos = (ts_ms as i128).saturating_mul(1_000_000);
-    time::OffsetDateTime::from_unix_timestamp_nanos(nanos)
-        .ok()
-        .and_then(|dt| dt.format(&FMT).ok())
-        .unwrap_or_else(|| "刚刚".to_string())
-}
+pub use desktop_i18n::chat_time::format_chat_time_label;

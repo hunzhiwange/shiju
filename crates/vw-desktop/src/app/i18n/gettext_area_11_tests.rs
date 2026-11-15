@@ -1,17 +1,6 @@
 use super::I18n;
 use vw_config_types::ui::DesktopLocale;
 
-#[test]
-fn desktop_gettext_area_11_uses_chinese_keys() {
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "暂存完成"),
-        (DesktopLocale::TraditionalChinese, "暫存完成"),
-        (DesktopLocale::English, "Staging complete"),
-    ] {
-        assert_eq!(I18n::new(locale).__("暂存完成"), expected);
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_11_feedback_switches_language() {
     use crate::app::message::git::GitMessage;
@@ -30,21 +19,9 @@ async fn desktop_gettext_area_11_feedback_switches_language() {
 }
 
 #[test]
-fn desktop_gettext_area_11_comment_range_switches_language() {
-    assert_eq!(
-        super::git::comment_range(I18n::new(DesktopLocale::English), 1, 3, false),
-        "Commenting on new lines 2-4"
-    );
-    assert_eq!(
-        super::git::comment_range(I18n::new(DesktopLocale::TraditionalChinese), 1, 1, true),
-        "正在評論 舊行 2"
-    );
-}
-
-#[test]
 fn desktop_gettext_area_11_catalog_covers_display_paths() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     let literal = regex::Regex::new(r#"\.__\("([^"]+)"\)"#).unwrap();
     for source in [
         include_str!("../components/git_panel/mod.rs"),

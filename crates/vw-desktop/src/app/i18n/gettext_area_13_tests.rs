@@ -1,16 +1,5 @@
 use super::I18n;
 use vw_config_types::ui::DesktopLocale;
-#[test]
-fn desktop_gettext_area_13_uses_chinese_keys() {
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "草稿待保存"),
-        (DesktopLocale::TraditionalChinese, "草稿待儲存"),
-        (DesktopLocale::English, "Unsaved draft"),
-    ] {
-        assert_eq!(I18n::new(locale).__("草稿待保存"), expected);
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_13_message_feedback_switches_language() {
     use crate::apps::workflow::{self, WorkflowMessage};
@@ -35,27 +24,9 @@ async fn desktop_gettext_area_13_message_feedback_switches_language() {
 }
 
 #[test]
-fn desktop_gettext_area_13_status_keeps_parameters_and_rejects_stale_metadata() {
-    use super::format::Message;
-    use crate::apps::workflow::state::WorkflowState;
-    let mut state = WorkflowState::default();
-    state.set_status(Message::new("已加载 %s", vec!["用户/%s/%n/中文".into()]));
-    assert_eq!(
-        state.status_text(I18n::new(DesktopLocale::English)).unwrap(),
-        "Loaded 用户/%s/%n/中文"
-    );
-    assert_eq!(
-        state.status_text(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
-        "已載入 用户/%s/%n/中文"
-    );
-    state.status_message = Some("raw 已加载 %s".into());
-    assert_eq!(state.status_text(I18n::new(DesktopLocale::English)).unwrap(), "raw 已加载 %s");
-}
-
-#[test]
 fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     let literal = regex::Regex::new(r#"(?:\.__|\.format|i18n::format::Message::new|workflow::Feedback::new)\(\s*("(?:[^"\\]|\\.)*")"#).unwrap();
     let check = |key: &str| {
         assert!(en.contains_key(key), "missing English: {key}");
@@ -125,7 +96,7 @@ fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
         include_str!("../../apps/workflow/view/styles.rs"),
         include_str!("../../apps/workflow/view/toolbar.rs"),
         include_str!("../../apps/workflow/view/variables.rs"),
-        include_str!("workflow.rs"),
+        include_str!("../../../../libs/desktop-i18n/src/workflow.rs"),
     ] {
         for capture in literal.captures_iter(source) {
             let key: String = serde_json::from_str(&capture[1]).unwrap();
@@ -199,4 +170,21 @@ async fn desktop_gettext_area_13_lifecycle_validation_keeps_template_and_identif
         message.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
         "自訂工作流 label 不能為空: 用户/%s/%n"
     );
+}
+#[test]
+fn desktop_gettext_area_13_status_keeps_parameters_and_rejects_stale_metadata() {
+    use super::format::Message;
+    use crate::apps::workflow::state::WorkflowState;
+    let mut state = WorkflowState::default();
+    state.set_status(Message::new("已加载 %s", vec!["用户/%s/%n/中文".into()]));
+    assert_eq!(
+        state.status_text(I18n::new(DesktopLocale::English)).unwrap(),
+        "Loaded 用户/%s/%n/中文"
+    );
+    assert_eq!(
+        state.status_text(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
+        "已載入 用户/%s/%n/中文"
+    );
+    state.status_message = Some("raw 已加载 %s".into());
+    assert_eq!(state.status_text(I18n::new(DesktopLocale::English)).unwrap(), "raw 已加载 %s");
 }

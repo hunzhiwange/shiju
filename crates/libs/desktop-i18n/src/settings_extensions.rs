@@ -13,11 +13,11 @@ pub fn domain_label(locale: DesktopLocale, index: usize) -> String {
     crate::__!(super::I18n::new(locale), "域名 %u", index).expect("valid domain label template")
 }
 
-pub(crate) fn archived_chat_count(locale: DesktopLocale, count: usize) -> String {
+pub fn archived_chat_count(locale: DesktopLocale, count: usize) -> String {
     crate::__!(super::I18n::new(locale), "%u 个聊天", count).expect("valid archive count template")
 }
 
-pub(crate) fn archived_chat_updated(locale: DesktopLocale, updated: u64) -> String {
+pub fn archived_chat_updated(locale: DesktopLocale, updated: u64) -> String {
     let formatted = i64::try_from(updated)
         .ok()
         .and_then(chrono::DateTime::from_timestamp_millis)

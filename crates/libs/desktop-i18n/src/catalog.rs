@@ -7,7 +7,7 @@ use serde::{
 };
 use vw_config_types::ui::DesktopLocale;
 
-pub(super) fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, serde_json::Error> {
+pub fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, serde_json::Error> {
     struct FlatCatalog;
     impl<'de> Visitor<'de> for FlatCatalog {
         type Value = BTreeMap<String, String>;

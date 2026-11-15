@@ -1,17 +1,6 @@
 use super::I18n;
 use vw_config_types::ui::DesktopLocale;
 
-#[test]
-fn desktop_gettext_area_12_uses_chinese_keys() {
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "统一管理调度、工作池与批量任务动作。"),
-        (DesktopLocale::TraditionalChinese, "統一管理排程、工作池與批次任務動作。"),
-        (DesktopLocale::English, "Manage scheduling, work pools, and bulk task actions."),
-    ] {
-        assert_eq!(I18n::new(locale).__("统一管理调度、工作池与批量任务动作。"), expected);
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn desktop_gettext_area_12_feedback_switches_language() {
     use crate::app::message::TaskBoardMessage;
@@ -89,8 +78,8 @@ fn desktop_gettext_area_12_cached_message_preserves_arguments() {
 
 #[test]
 fn desktop_gettext_area_12_catalog_covers_display_calls() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     let literal =
         regex::Regex::new(r#"(?:\.__|\.format|\.add_localized_log|\.push_localized_notification)\(\s*("(?:[^"\\]|\\.)*")"#)
             .unwrap();

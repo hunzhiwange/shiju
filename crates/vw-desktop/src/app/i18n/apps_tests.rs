@@ -2,8 +2,8 @@ use vw_config_types::ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_14_all_registered_templates_have_translations() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     let calls = regex::Regex::new(r#"(?:\.__|\.format|SkillHubError::localized|SkillCacheSyncError::(?:new|labeled)|Message::(?:new|nested))\(\s*("(?:[^"\\]|\\.)*")"#).unwrap();
     let mut count = 0;
     for source in [

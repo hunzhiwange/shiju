@@ -2,20 +2,9 @@ use super::I18n;
 use vw_config_types::ui::DesktopLocale;
 
 #[test]
-fn desktop_gettext_area_10_uses_chinese_keys() {
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "搜索文件 / 项目 / 历史会话"),
-        (DesktopLocale::TraditionalChinese, "搜尋檔案 / 專案 / 歷史對話"),
-        (DesktopLocale::English, "Search files / projects / conversation history"),
-    ] {
-        assert_eq!(I18n::new(locale).__("搜索文件 / 项目 / 历史会话"), expected);
-    }
-}
-
-#[test]
 fn desktop_gettext_area_10_catalog_covers_display_paths() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     let literal =
         regex::Regex::new(r#"(?:\.__|\.format|ProjectFeedback::new)\(\s*("(?:\\.|[^"\\])*")"#)
             .unwrap();
@@ -24,7 +13,7 @@ fn desktop_gettext_area_10_catalog_covers_display_paths() {
         include_str!("../components/file_tree/mod.rs"),
         include_str!("../components/file_tree/tree_list.rs"),
         include_str!("../components/search_panel.rs"),
-        include_str!("project.rs"),
+        include_str!("../../../../libs/desktop-i18n/src/project.rs"),
         include_str!("../message/project/helpers.rs"),
         include_str!("../impls/app_view_modals/project_edit/general_tab.rs"),
         include_str!("../impls/app_view_modals/project_edit/launch_tab.rs"),

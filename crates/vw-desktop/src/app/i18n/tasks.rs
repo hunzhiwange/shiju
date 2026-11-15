@@ -1,25 +1,16 @@
-//! Task presentation reads semantic status changes without interpreting raw logs.
 use super::I18n;
 use crate::app::task::{TaskLogEntry, TaskStatus};
 
 pub(crate) fn status_label(i18n: I18n, status: TaskStatus) -> String {
-    let source = status.label_for_workflow_id("");
-    if matches!(status, TaskStatus::Custom(_)) { source } else { i18n.__(&source).to_owned() }
+    desktop_i18n::tasks::status_label(i18n, &status.label_for_workflow_id(""), matches!(status, TaskStatus::Custom(_)))
 }
 
 pub(crate) fn log_message(i18n: I18n, entry: &TaskLogEntry) -> String {
-    if let Some(message) = &entry.localized_message {
-        return message.render(i18n).expect("valid task log template");
-    }
-    match (entry.status_from, entry.status_to) {
-        (Some(from), Some(to)) => i18n
-            .format(
-                "状态变更: %s → %s",
-                &[status_label(i18n, from).into(), status_label(i18n, to).into()],
-            )
-            .expect("valid task status template"),
-        _ => entry.message.clone(),
-    }
+    let transition = match (entry.status_from, entry.status_to) {
+        (Some(from), Some(to)) => Some((status_label(i18n, from), status_label(i18n, to))),
+        _ => None,
+    };
+    desktop_i18n::tasks::log_message(i18n, entry.localized_message.as_ref(), transition, &entry.message)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

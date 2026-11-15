@@ -111,12 +111,12 @@ impl ExploreCounts {
 
 /// Message metadata retains its model and timestamp instead of a rendered fallback.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum MessageMeta {
+pub enum MessageMeta {
     Model { model: String, time_ms: Option<u64> },
     TaskSource,
 }
 impl MessageMeta {
-    pub(crate) fn render(&self, i18n: I18n) -> String {
+    pub fn render(&self, i18n: I18n) -> String {
         match self {
             Self::TaskSource => i18n
                 .__(vw_shared::session::session_utils::TASK_SESSION_SOURCE_DISPLAY_LABEL)
@@ -124,13 +124,13 @@ impl MessageMeta {
             Self::Model { model, time_ms: None } => model.clone(),
             Self::Model { model, time_ms: Some(timestamp) } => {
                 let time =
-                    crate::app::components::chat_panel::utils::format_chat_time_label(*timestamp);
+                    crate::chat_time::format_chat_time_label(*timestamp);
                 let time = if time == "刚刚" { i18n.__("刚刚") } else { &time };
                 format!("{model} · {time}")
             }
         }
     }
-    pub(crate) fn cached_bytes(&self) -> usize {
+    pub fn cached_bytes(&self) -> usize {
         match self {
             Self::Model { model, .. } => model.len(),
             Self::TaskSource => 0,

@@ -1,14 +1,5 @@
-//! Editor UI language follows the explicit desktop locale.
 use vw_config_types::ui::DesktopLocale;
-
-pub fn language(locale: DesktopLocale) -> iced_code_editor::Language {
-    match locale {
-        DesktopLocale::SimplifiedChinese => iced_code_editor::Language::ChineseSimplified,
-        // Upstream v0.4.4 has no Traditional Chinese translations.
-        DesktopLocale::TraditionalChinese => iced_code_editor::Language::ChineseSimplified,
-        DesktopLocale::English => iced_code_editor::Language::English,
-    }
-}
+pub use desktop_i18n::editor::*;
 
 pub fn refresh(app: &mut crate::app::App) {
     let language = language(app.desktop_locale);

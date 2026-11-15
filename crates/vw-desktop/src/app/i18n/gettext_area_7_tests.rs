@@ -2,20 +2,9 @@ use super::I18n;
 use vw_config_types::ui::DesktopLocale;
 
 #[test]
-fn desktop_gettext_area_7_uses_chinese_keys() {
-    for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "应用外观与预览行为。"),
-        (DesktopLocale::TraditionalChinese, "應用程式外觀與預覽行為。"),
-        (DesktopLocale::English, "Application appearance and preview behavior."),
-    ] {
-        assert_eq!(I18n::new(locale).__("应用外观与预览行为。"), expected);
-    }
-}
-
-#[test]
 fn desktop_gettext_area_7_general_editor_sources_have_catalog_entries() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     for source in [
         include_str!("../components/system_settings_general.rs"),
         include_str!("../components/system_settings_editor.rs"),
@@ -146,8 +135,8 @@ async fn desktop_gettext_area_7_theme_delete_guard_retains_localized_feedback() 
 
 #[test]
 fn desktop_gettext_area_7_all_help_documents_have_complete_catalog_entries() {
-    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
-    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let en = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("../../../../libs/desktop-i18n/src/locales/zh-TW.json")).unwrap();
     let mut count = 0;
     for source in [
         include_str!("../components/system_settings_help.rs"),

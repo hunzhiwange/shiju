@@ -2,6 +2,19 @@ use crate::app::{App, Message};
 use crate::app::message::ProjectMessage;
 pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
     desktop_file_tree::FileTreeView {
+        file_tree_drop_target: &app.file_tree_drop_target,
+        file_tree_operation_in_progress: app.file_tree_operation_in_progress,
+        file_tree_selection: &app.file_tree_selection,
+        file_tree_expanded_set: &app.file_tree_expanded_set,
+        git_changed_files: &app.git_changed_files,
+        git_changed_files_loading: app.git_changed_files_loading,
+        git_focused_file: &app.git_focused_file,
+        file_manager_refresh_frame: app.file_manager_refresh_frame,
+        file_manager_changes_refreshing: app.file_manager_changes_refreshing,
+        file_manager_file_tree_refreshing: app.file_manager_file_tree_refreshing,
+        file_manager_show_changes: app.file_manager_show_changes,
+        file_index: app.current_file_index(),
+        file_tree_model: app.current_file_tree_model(),
         desktop_locale: app.desktop_locale,
         project_path: &app.project_path,
         find_results_tabs: &app.find_results_tabs,
@@ -21,6 +34,17 @@ pub(super) fn map(message: desktop_file_tree::Message) -> Message {
     match message {
         desktop_file_tree::Message::None => Message::None,
         desktop_file_tree::Message::Project(message) => Message::Project(match message {
+        Local::FileTreeDragCancel => ProjectMessage::FileTreeDragCancel,
+        Local::FileTreeDropTargetChanged(value) => ProjectMessage::FileTreeDropTargetChanged(value),
+        Local::FileTreeDropTargetReleased { project_path, target_directory } => ProjectMessage::FileTreeDropTargetReleased { project_path, target_directory },
+        Local::FileTreeExternalDropRequested { project_path, target_directory, source_path } => ProjectMessage::FileTreeExternalDropRequested { project_path, target_directory, source_path },
+        Local::FileTreeInternalDragStart { project_path, source_path } => ProjectMessage::FileTreeInternalDragStart { project_path, source_path },
+        Local::FileTreeSelected { project_path, path, directory, modifiers } => ProjectMessage::FileTreeSelected { project_path, path, directory, modifiers },
+        Local::OpenChangedFile(value) => ProjectMessage::OpenChangedFile(value),
+        Local::ToggleTreeDir(value) => ProjectMessage::ToggleTreeDir(value),
+        Local::FileManagerShowChanges(value) => ProjectMessage::FileManagerShowChanges(value),
+        Local::FileManagerRefreshChanges => ProjectMessage::FileManagerRefreshChanges,
+        Local::FileManagerRefreshFileTree => ProjectMessage::FileManagerRefreshFileTree,
         Local::FileTreeRightClicked(v0, v1, v2, v3) => ProjectMessage::FileTreeRightClicked(v0, v1, v2, v3),
         Local::FileTreeMenuClose => ProjectMessage::FileTreeMenuClose,
         Local::FileTreeAction(v0) => ProjectMessage::FileTreeAction(v0),

@@ -14,6 +14,19 @@ mod message;
 pub use message::{FileTreeAction, Message, ProjectMessage};
 #[derive(Clone, Copy)]
 pub struct FileTreeView<'a> {
+    pub file_tree_drop_target: &'a Option<String>,
+    pub file_tree_operation_in_progress: bool,
+    pub file_tree_selection: &'a selection::FileTreeSelection,
+    pub file_tree_expanded_set: &'a std::collections::HashSet<String>,
+    pub git_changed_files: &'a [String],
+    pub git_changed_files_loading: bool,
+    pub git_focused_file: &'a Option<String>,
+    pub file_manager_refresh_frame: usize,
+    pub file_manager_changes_refreshing: bool,
+    pub file_manager_file_tree_refreshing: bool,
+    pub file_manager_show_changes: bool,
+    pub file_index: &'a [String],
+    pub file_tree_model: Option<&'a model::FileTreeNode>,
     pub desktop_locale: config_ui::DesktopLocale,
     pub project_path: &'a Option<String>,
     pub find_results_tabs: &'a [state::FindInFolderTab],
@@ -28,25 +41,6 @@ pub struct FileTreeView<'a> {
     pub can_paste: bool,
 }
 
-use iced::widget::{Scrollable, scrollable};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::{Element, Length};
-use widgets::RightClickArea;
-fn scroll_tree(content: Element<'_, Message>, file_tree: bool) -> Element<'_, Message> {
-    scroll_surface(
-        scrollable(content)
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill),
-        file_tree,
-    )
-}
-
-fn scroll_surface(scroll: Scrollable<'_, Message>, _drag_targets: bool) -> Element<'_, Message> {
-    let surface = RightClickArea::new(scroll.into(), Box::new(|_| Message::None), None, None)
-        .track_window_cursor();
-    Element::new(surface)
-}
-
 #[cfg(test)]
 mod model_tests;
 
@@ -58,3 +52,12 @@ mod find_results_tests;
 
 #[cfg(test)]
 mod widgets_tests;
+
+pub mod tree_list;
+mod view;
+pub use view::{view, view_file_manager};
+
+use view::{scroll_tree, scroll_surface};
+
+#[cfg(test)]
+mod tree_list_tests;

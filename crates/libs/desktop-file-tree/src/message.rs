@@ -21,6 +21,18 @@ pub enum FileTreeAction {
 
 #[derive(Debug, Clone)]
 pub enum ProjectMessage {
+FileTreeDragCancel,
+FileTreeDropTargetChanged(Option<String>),
+FileTreeDropTargetReleased { project_path: String, target_directory: String },
+FileTreeExternalDropRequested { project_path: String, target_directory: String, source_path: String },
+FileTreeInternalDragStart { project_path: String, source_path: String },
+FileTreeSelected { project_path: String, path: String, directory: bool, modifiers: iced::keyboard::Modifiers },
+OpenChangedFile(String),
+ToggleTreeDir(String),
+FileManagerShowChanges(bool),
+FileManagerRefreshChanges,
+FileManagerRefreshFileTree,
+
 FileTreeRightClicked(String, String, f32, f32),
 FileTreeMenuClose,
 FileTreeAction(FileTreeAction),

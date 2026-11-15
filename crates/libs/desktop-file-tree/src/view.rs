@@ -1,0 +1,311 @@
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{Scrollable, Space, button, column, container, row, scrollable, text};
+use iced::{Background, Color, Element, Length, Theme};
+
+use desktop_ui_controls::status_animation::spinner_frame;
+use crate::{FileTreeView, Message, message};
+use desktop_assets::Icon;
+use crate::{icons, tree_list, find_results};
+use crate::widgets::RightClickArea;
+
+pub(crate) const FILE_MANAGER_SEARCH_ICON_SIZE: f32 = 14.0;
+const FILE_MANAGER_SEARCH_BUTTON_SIZE: f32 = 28.0;
+pub(crate) const FILE_MANAGER_SEARCH_TAB_WIDTH: f32 = 36.0;
+pub(crate) const FILE_MANAGER_MODE_BAR_HEIGHT: f32 = 30.0;
+
+/// 渲染文件树视图
+///
+/// 创建一个简单的文件树视图，用于在侧边栏显示项目的目录结构。
+/// 如果没有打开项目，则显示提示信息。
+///
+/// # 参数
+///
+/// - `app`：文件树只读投影，包含项目路径等信息
+///
+/// # 返回值
+///
+/// 返回一个 Iced UI 元素，包含：
+/// - 未打开项目时：显示"未打开项目"的提示文本
+/// - 已打开项目时：显示可滚动的文件树列表
+///
+/// # 示例
+///
+/// ```ignore
+/// let sidebar_content = file_tree::view(inputs);
+/// // 将 sidebar_content 添加到侧边栏容器中
+/// ```
+pub fn view(app: FileTreeView<'_>) -> Element<'_, Message> {
+    if app.project_path.is_none() {
+        column![text(desktop_i18n::I18n::new(app.desktop_locale).__("未打开项目"))].into()
+    } else {
+        let list_content = tree_list::build_file_tree_list(app);
+        let list = column![list_content].spacing(2).width(Length::Fill);
+        scroll_tree(container(list).padding([0, 7]).width(Length::Fill).into(), true)
+    }
+}
+
+pub(crate) fn scroll_tree(content: Element<'_, Message>, file_tree: bool) -> Element<'_, Message> {
+    scroll_surface(
+        scrollable(content)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill),
+        file_tree,
+    )
+}
+
+pub(crate) fn scroll_surface(scroll: Scrollable<'_, Message>, drag_targets: bool) -> Element<'_, Message> {
+    let mut surface = RightClickArea::new(scroll.into(), Box::new(|_| Message::None), None, None)
+        .track_window_cursor();
+    if drag_targets {
+        surface = surface.file_tree_surface(
+            Message::Project(message::ProjectMessage::FileTreeDropTargetChanged(None)),
+            Message::Project(message::ProjectMessage::FileTreeDragCancel),
+        );
+    }
+    Element::new(surface)
+}
+
+/// 渲染文件管理器视图
+///
+/// 创建一个功能更丰富的文件管理器视图，提供文件树展示和 Git 更改追踪功能。
+/// 该视图包含一个模式栏，允许用户在"更改"、"全部文件"和搜索之间切换。
+///
+/// # 参数
+///
+/// - `app`：文件树只读投影，包含以下相关信息：
+///   - `project_path`：项目路径（如果已打开）
+///   - `git_changed_files`：Git 已更改的文件列表
+///   - `git_changed_files_loading`：Git 更改是否正在加载中
+///   - `file_manager_show_changes`：是否显示 Git 更改视图
+///   - `find_results_tabs`：查找结果标签页列表
+///   - `active_find_results_tab_id`：当前激活的查找结果标签页 ID
+///
+/// # 返回值
+///
+/// 返回一个 Iced UI 元素，包含以下组件（从上到下）：
+/// 1. **模式栏**：在"更改"、"全部文件"和搜索之间切换
+/// 2. **内容区域**：
+///    - 如果有活动的查找结果标签页：显示查找结果列表
+///    - 如果启用了"显示更改"：显示 Git 更改的文件列表
+///    - 否则：显示完整的文件树
+///
+/// # 视觉样式
+///
+/// - 切换按钮采用主题色高亮显示活动状态
+/// - 悬停和按下状态使用半透明的主题色背景
+/// - 所有元素使用统一的间距和圆角边框
+///
+/// # 示例
+///
+/// ```ignore
+/// // 在主界面中渲染文件管理器
+/// let file_manager = file_tree::view_file_manager(inputs);
+/// sidebar.push(file_manager);
+/// ```
+pub fn view_file_manager(app: FileTreeView<'_>) -> Element<'_, Message> {
+    // 工作模式直接复用本函数；构建视图只读取文件管理器状态，不改写代码模式面板开关。
+    if app.project_path.is_none() {
+        return column![text(desktop_i18n::I18n::new(app.desktop_locale).__("未打开项目"))]
+            .into();
+    }
+
+    let refresh_content = |refreshing: bool| {
+        if refreshing {
+            container(text(spinner_frame(app.file_manager_refresh_frame)).size(13))
+                .width(Length::Fixed(16.0))
+                .align_x(iced::alignment::Horizontal::Center)
+        } else {
+            container(icons::themed_icon_svg(Icon::ArrowRepeat))
+                .width(Length::Fixed(16.0))
+                .align_x(iced::alignment::Horizontal::Center)
+        }
+    };
+
+    let segment_style = |active: bool| {
+        move |theme: &Theme| {
+            let p = theme.palette().primary;
+            let background = if active {
+                Some(Background::Color(Color::from_rgba(p.r, p.g, p.b, 0.10)))
+            } else {
+                None
+            };
+
+            iced::widget::container::Style {
+                background,
+                text_color: Some(theme.palette().text),
+                border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 6.0.into() },
+                ..Default::default()
+            }
+        }
+    };
+
+    let refresh_button = |message: Message, refreshing: bool| {
+        button(
+            container(refresh_content(refreshing))
+                .width(Length::Fixed(24.0))
+                .height(Length::Fixed(24.0))
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
+        )
+        .on_press_maybe((!refreshing).then_some(message))
+        .padding(0)
+        .style(button::text)
+    };
+
+    // 构建更改按钮的标签文本
+    // 根据更改文件数量和加载状态显示不同的文本
+    let changes_count = app.git_changed_files.len();
+    let changes_label = if changes_count > 0 {
+        desktop_i18n::I18n::new(app.desktop_locale)
+            .format("%u 更改", &[changes_count.into()])
+            .expect("valid changes template")
+    } else {
+        desktop_i18n::I18n::new(app.desktop_locale).__("更改").to_string()
+    };
+
+    // 创建"更改"切换按钮
+    // 点击后切换到显示 Git 更改的文件列表
+    let changes_btn = button(
+        container(text(changes_label).size(13))
+            .width(Length::Shrink)
+            .align_x(iced::alignment::Horizontal::Center),
+    )
+    .on_press(Message::Project(message::ProjectMessage::FileManagerShowChanges(true)))
+    .style(button::text)
+    .padding([6, 2])
+    .width(Length::Shrink);
+
+    let changes_refresh_btn = refresh_button(
+        Message::Project(message::ProjectMessage::FileManagerRefreshChanges),
+        app.file_manager_changes_refreshing,
+    );
+
+    // 创建"全部文件"切换按钮
+    // 点击后切换到显示完整的文件树
+    let files_btn = button(
+        container(text(desktop_i18n::I18n::new(app.desktop_locale).__("全部文件")).size(13))
+            .width(Length::Shrink)
+            .align_x(iced::alignment::Horizontal::Center),
+    )
+    .on_press(Message::Project(message::ProjectMessage::FileManagerShowChanges(false)))
+    .style(button::text)
+    .padding([6, 2])
+    .width(Length::Shrink);
+
+    let files_refresh_btn = refresh_button(
+        Message::Project(message::ProjectMessage::FileManagerRefreshFileTree),
+        app.file_manager_file_tree_refreshing,
+    );
+
+    let searching = app.active_find_results_tab_id.is_some();
+    let search_btn = button(
+        container(
+            icons::themed_icon_svg(Icon::Search)
+                .width(Length::Fixed(FILE_MANAGER_SEARCH_ICON_SIZE))
+                .height(Length::Fixed(FILE_MANAGER_SEARCH_ICON_SIZE)),
+        )
+        .width(Length::Fixed(FILE_MANAGER_SEARCH_BUTTON_SIZE))
+        .height(Length::Fixed(FILE_MANAGER_SEARCH_BUTTON_SIZE))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center),
+    )
+    .on_press(Message::Project(file_manager_search_message(app)))
+    .padding(0)
+    .style(button::text);
+    let search_btn = Tooltip::new(
+        search_btn,
+        container(text(desktop_i18n::I18n::new(app.desktop_locale).__("搜索")).size(12))
+            .padding([5, 8]),
+        TooltipPosition::Bottom,
+    )
+    .gap(6);
+
+    // 组装单层模式栏，避免文件和搜索再形成第二层标签页。
+    let header = row![
+        container(
+            row![changes_btn, changes_refresh_btn]
+                .spacing(0)
+                .width(Length::Shrink)
+                .align_y(iced::Alignment::Center)
+        )
+        .width(Length::FillPortion(1))
+        .center_x(Length::Fill)
+        .padding([0, 8])
+        .style(segment_style(app.file_manager_show_changes && !searching)),
+        container(
+            row![files_btn, files_refresh_btn]
+                .spacing(0)
+                .width(Length::Shrink)
+                .align_y(iced::Alignment::Center)
+        )
+        .width(Length::FillPortion(1))
+        .center_x(Length::Fill)
+        .padding([0, 8])
+        .style(segment_style(!app.file_manager_show_changes && !searching)),
+        container(search_btn)
+            .width(Length::Fixed(FILE_MANAGER_SEARCH_TAB_WIDTH))
+            .height(Length::Fixed(FILE_MANAGER_MODE_BAR_HEIGHT))
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center)
+            .style(segment_style(searching))
+    ]
+    .spacing(4)
+    .width(Length::Fill)
+    .height(Length::Fixed(FILE_MANAGER_MODE_BAR_HEIGHT))
+    .align_y(iced::Alignment::Center)
+    .padding([0, 5]);
+
+    // 根据当前状态选择要显示的内容
+    // 优先级：查找结果 > Git 更改 > 完整文件树
+    let list_content = if app.active_find_results_tab_id.is_some() {
+        // 如果有活动的查找结果标签页，显示查找结果列表
+        find_results::build_find_results_list(app)
+    } else if app.file_manager_show_changes {
+        // 如果启用了"显示更改"，显示 Git 更改的文件列表
+        scroll_tree(container(tree_list::build_changes_list(app)).width(Length::Fill).into(), false)
+    } else {
+        // 否则显示完整的文件树
+        scroll_tree(
+            container(tree_list::build_file_tree_list(app))
+                .padding([0, 7])
+                .width(Length::Fill)
+                .into(),
+            true,
+        )
+    };
+
+    let content = container(list_content).width(Length::Fill).height(Length::Fill);
+
+    let results_tabs: Element<'_, Message> = if app.find_results_tabs.is_empty() {
+        Space::new().height(Length::Fixed(0.0)).into()
+    } else {
+        find_results::build_find_results_tabs(app)
+    };
+
+    // 组装完整的文件管理器界面
+    // 布局顺序：模式栏 -> 搜索结果标签页 -> 内容区域
+    let base: Element<'_, Message> = column![header, results_tabs, content]
+        .spacing(2)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
+
+    base
+}
+
+fn file_manager_search_message(app: FileTreeView<'_>) -> message::ProjectMessage {
+    app.active_find_results_tab_id
+        .as_ref()
+        .filter(|active_id| {
+            app.find_results_tabs.iter().any(|tab| tab.id.as_str() == active_id.as_str())
+        })
+        .cloned()
+        .or_else(|| app.find_results_tabs.last().map(|tab| tab.id.clone()))
+        .map(message::ProjectMessage::FileTreeFindTabSelected)
+        .unwrap_or(message::ProjectMessage::FileTreeFindInProject)
+}
+
+#[cfg(test)]
+#[path = "view_tests.rs"]
+mod tests;

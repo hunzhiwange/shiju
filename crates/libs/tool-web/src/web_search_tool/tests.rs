@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 
-use super::super::traits::Tool;
+use tool_types::Tool;
 use super::super::web_search_tool::{WebSearchTool, decode_ddg_redirect_url, strip_tags};
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::{WEB_SEARCH_TOOL_ALIAS, WEB_SEARCH_TOOL_ID};
+use agent_security::{AutonomyLevel, SecurityPolicy};
+use crate::{WEB_SEARCH_TOOL_ALIAS, WEB_SEARCH_TOOL_ID};
 use serde_json::json;
 
 fn new_tool(provider: &str, api_key: Option<&str>) -> WebSearchTool {

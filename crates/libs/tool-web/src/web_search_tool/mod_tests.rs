@@ -2,8 +2,8 @@
 //! Serper、Claude 兼容字段和用户代理错误均在网络分派之前完成断言。
 
 use super::*;
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::traits::Tool;
+use agent_security::{AutonomyLevel, SecurityPolicy};
+use tool_types::Tool;
 use serde_json::json;
 use std::sync::Arc;
 

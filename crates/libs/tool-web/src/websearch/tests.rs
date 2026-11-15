@@ -11,8 +11,8 @@
 
 use super::*;
 
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::traits::Tool;
+use agent_security::{AutonomyLevel, SecurityPolicy};
+use tool_types::Tool;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -79,12 +79,12 @@ fn tool_metadata_marks_websearch_as_strict_read_only_and_concurrency_safe() {
     assert_eq!(tool.name(), "web_search_tool");
     assert!(!tool.description().trim().is_empty());
     assert_eq!(tool.parameters_schema(), WebSearchTool::schema());
-    assert_eq!(spec.id, crate::app::agent::tools::WEB_SEARCH_TOOL_ID);
-    assert_eq!(spec.display_name, crate::app::agent::tools::WEB_SEARCH_TOOL_ID);
+    assert_eq!(spec.id, crate::WEB_SEARCH_TOOL_ID);
+    assert_eq!(spec.display_name, crate::WEB_SEARCH_TOOL_ID);
     assert_eq!(
         spec.aliases,
         vec![
-            crate::app::agent::tools::WEB_SEARCH_TOOL_ALIAS.to_string(),
+            crate::WEB_SEARCH_TOOL_ALIAS.to_string(),
             "websearch".to_string(),
             "web_search".to_string(),
         ]
@@ -280,7 +280,7 @@ async fn call_enriches_failed_search_with_query_language_and_render_hint() {
     assert_eq!(result.data["success"], false);
     assert_eq!(result.data["error"], "type must be 'auto', 'fast', or 'deep'");
     assert_eq!(result.model_result, "type must be 'auto', 'fast', or 'deep'");
-    assert_eq!(render_hint.title.as_deref(), Some(crate::app::agent::tools::WEB_SEARCH_TOOL_ID));
+    assert_eq!(render_hint.title.as_deref(), Some(crate::WEB_SEARCH_TOOL_ID));
     assert_eq!(render_hint.kind.as_deref(), Some("web_search"));
     assert_eq!(render_hint.summary.as_deref(), Some("Web search failed for rust"));
     assert_eq!(render_hint.metadata["provider"], "Exa");

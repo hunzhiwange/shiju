@@ -20,6 +20,8 @@ config-tools = { path = "../config-tools", version = "0.6.0" }
 network-policy = { path = "../network-policy", version = "0.6.0" }
 tool-types = { path = "../tool-types", version = "0.6.0" }
 vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+regex = "1"
+urlencoding = "2.1"
 anyhow = "1"
 async-trait = "0.1.89"
 serde = { version = "1", features = ["derive"] }

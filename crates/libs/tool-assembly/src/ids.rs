@@ -2,14 +2,14 @@ pub const ASK_USER_QUESTION_TOOL_ID: &str = "AskUserQuestion";
 pub const TODO_READ_TOOL_ID: &str = "TodoRead";
 pub const TODO_WRITE_TOOL_ID: &str = "TodoWrite";
 pub use tool_web::{WEB_FETCH_TOOL_ID, WEB_FETCH_TOOL_ALIAS};
-pub const WEB_SEARCH_TOOL_ID: &str = "WebSearch";
+pub use tool_web::WEB_SEARCH_TOOL_ID;
 pub const BROWSER_TOOL_ID: &str = "Browser";
 pub const BROWSER_OPEN_TOOL_ID: &str = "BrowserOpen";
 
 pub const QUESTION_TOOL_ALIAS: &str = "question";
 pub const TODO_READ_TOOL_ALIAS: &str = "todoread";
 pub const TODO_WRITE_TOOL_ALIAS: &str = "todowrite";
-pub const WEB_SEARCH_TOOL_ALIAS: &str = "web_search_tool";
+pub use tool_web::WEB_SEARCH_TOOL_ALIAS;
 pub const BROWSER_TOOL_ALIAS: &str = "browser";
 pub const BROWSER_OPEN_TOOL_ALIAS: &str = "browser_open";
 pub const ENTER_WORKTREE_TOOL_ID: &str = "enter_worktree";

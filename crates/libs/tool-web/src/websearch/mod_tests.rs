@@ -2,8 +2,8 @@
 //! 最大结果数与超时配置经过边界化，非法调用不得到达提供方客户端。
 
 use super::*;
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::traits::Tool;
+use agent_security::{AutonomyLevel, SecurityPolicy};
+use tool_types::Tool;
 use serde_json::json;
 use std::sync::Arc;
 

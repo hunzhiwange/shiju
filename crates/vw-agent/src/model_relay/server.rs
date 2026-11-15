@@ -83,3 +83,7 @@ impl agent_usage::relay::UsageStreamObserver for RelayUsageObserver {
         self.0.finish().map(|_| ()).map_err(|_| anyhow::anyhow!("incomplete usage stream"))
     }
 }
+
+impl From<RelayServer> for model_relay_http::RelayServer {
+    fn from(server: RelayServer) -> Self { server.0 }
+}

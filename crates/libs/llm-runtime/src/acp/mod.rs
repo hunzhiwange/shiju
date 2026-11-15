@@ -9,3 +9,5 @@ pub mod controls;
 fn acp_option_error(message: impl Into<String>) -> crate::Error {
     crate::Error::Api(message_types::AssistantError::Unknown { message: format!("acp option error: {}", message.into()) })
 }
+
+pub mod model_source;

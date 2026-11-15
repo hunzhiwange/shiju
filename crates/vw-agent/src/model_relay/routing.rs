@@ -11,50 +11,7 @@ pub(crate) fn configured_protocol(model: &Model) -> Result<ModelProtocol, Status
     configured_api_protocol(&model.api)
 }
 
-/// Select a client's wire format from an explicit HTTP contract when its original
-/// SDK identity is otherwise unknown. This never relabels that SDK or authorizes
-/// a request: launch_route rechecks the real owner and complete capabilities.
-pub(crate) fn client_protocol(
-    api: &crate::provider::provider::ApiInfo,
-) -> Result<ModelProtocol, StatusCode> {
-    if let Ok(protocol) = configured_api_protocol(api) {
-        return Ok(protocol);
-    }
-    let endpoints = api.protocols.as_ref().ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
-    let mut preferred = Vec::new();
-    for endpoint in endpoints.iter().filter(|endpoint| endpoint.url == api.url) {
-        if !preferred.contains(&endpoint.protocol) {
-            preferred.push(endpoint.protocol);
-        }
-    }
-    for protocol in [
-        ModelProtocol::Chat,
-        ModelProtocol::Messages,
-        ModelProtocol::Responses,
-        ModelProtocol::Gemini,
-    ] {
-        if !preferred.contains(&protocol) {
-            preferred.push(protocol);
-        }
-    }
-    let capabilities = [RouteCapability::Text];
-    for protocol in preferred {
-        if select_api(
-            api,
-            "client-wire-contract",
-            protocol,
-            &capabilities,
-            &capabilities,
-            &[],
-            Execution::Relay,
-        )
-        .is_ok()
-        {
-            return Ok(protocol);
-        }
-    }
-    Err(StatusCode::UNPROCESSABLE_ENTITY)
-}
+pub(crate) use model_transport::routing_selection::client_protocol;
 
 pub(crate) use model_transport::routing_selection::select;
 

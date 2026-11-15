@@ -1,0 +1,169 @@
+use super::profile::AcpLaunchProfile;
+pub mod amp_acp;
+pub mod auggie;
+pub mod claude;
+pub mod codebuddy;
+pub mod codex;
+pub mod copilot;
+pub mod cursor;
+pub mod dirac;
+pub mod droid;
+pub mod gemini;
+pub mod glm_acp_agent;
+pub mod goose;
+pub mod grok;
+pub mod hermes;
+pub mod iflow;
+pub mod kilocode;
+pub mod kimi;
+pub mod kiro;
+
+/// This advertises reviewed CLI binding support, not availability for every model.
+/// Each selected model must pass launch_route before private configuration is written.
+/// Only routes with actual Darwin arm64 model-request evidence are published.
+/// Patched adapters stay unavailable until their reviewed artifact is installed.
+pub fn capabilities(
+    agent: &str,
+) -> Vec<vw_api_acp_model::acp_model_source::AcpModelSourceCapability> {
+    use vw_api_acp_model::acp_model_source::{
+        AcpModelSource as Source, AcpModelSourceCapability as Capability,
+        AcpModelSourceRejectionReason as Reason,
+    };
+    let patched = matches!(
+        agent,
+        "amp-acp"
+            | "sigit"
+            | "auggie"
+            | "trae"
+            | "qoder"
+            | "droid"
+            | "cursor"
+            | "codex"
+            | "gemini"
+            | "iflow"
+            | "qwen"
+            | "pi"
+            | "goose"
+            | "vibe"
+            | "hermes"
+    );
+    let verified = cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && verified_release(agent).is_some()
+        && (!patched
+            || acp_agent_registry::reviewed_agent_command(agent).is_ok_and(|command| command.is_some()));
+    vec![
+        if verified {
+            Capability::Supported { source: Source::SessionModel }
+        } else {
+            Capability::Unsupported { source: Source::SessionModel, reason: Reason::UnsupportedCli }
+        },
+        if agent == "amp-acp" {
+            Capability::Unsupported { source: Source::CliLocal, reason: Reason::UnsupportedCli }
+        } else {
+            Capability::Supported { source: Source::CliLocal }
+        },
+    ]
+}
+
+/// These are evidence bounds, never a compatibility claim for a newer release.
+pub fn verified_release(agent: &str) -> Option<&'static str> {
+    Some(match agent {
+        "claude" => {
+            "0.26.0 (SDK 0.2.96 / Claude Code 2.1.96); 0.31.0 (SDK 0.2.119 / Claude Code 2.1.119)"
+        }
+        "auggie" => "0.37.1",
+        "qoder" => "1.1.88",
+        "trae" => "0.121.3",
+        "cursor" => "2026.11.11-b912975",
+        "droid" => "1.9.0",
+        "codex" => "2.5.0 (Codex 0.165.0)",
+        "gemini" => "0.66.0",
+        "iflow" => "0.5.19",
+        "qwen" => "0.26.7",
+        "pi" => "0.0.22 (Pi 0.73.1)",
+        "goose" => "1.57.0",
+        "vibe" => "3.0.4",
+        "hermes" => "0.19.0",
+        "codebuddy" => "2.179.3",
+        "glm-acp-agent" => "1.17.1",
+        "grok" => "1.0.24; 1.0.77",
+        "amp-acp" => "0.12.0 (Amp 0.0.1778732631-gc5875c; reviewed local ThreadWorker)",
+        "sigit" => "1.7.10 (reviewed host boundary)",
+        "dirac" => "0.5.24",
+        "snow" => "0.9.14",
+        "copilot" => "1.0.105",
+        "kilocode" => "7.8.18",
+        "kimi" => "2.5.0",
+        "kiro" => "3.0.0",
+        "opencode" => "1.19.5",
+        "openclaw" => "2026.10.10",
+        _ => return None,
+    })
+}
+
+/// The source is the reviewed CLI's actual wire format, never the upstream target.
+pub fn source_protocol(
+    agent: &str,
+    api: &model_types::ApiInfo,
+) -> anyhow::Result<model_protocols::ModelProtocol> {
+    use model_protocols::ModelProtocol as P;
+    Ok(match agent {
+        "amp-acp" | "claude" => P::Messages,
+        "codex" | "kiro" | "grok" => P::Responses,
+        "gemini" => P::Gemini,
+        "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid" | "codebuddy"
+        | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder" | "qwen"
+        | "trae" => P::Chat,
+        "opencode" => model_transport::routing_selection::client_protocol(api)
+            .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,
+        "snow" | "kimi" => model_transport::routing_selection::configured_api_protocol(api)
+            .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?,
+        "copilot" => match api.adapter.as_str() {
+            "anthropic" => P::Messages,
+            "openai" | "openai-compatible" => {
+                let protocol = model_transport::routing_selection::configured_api_protocol(api)
+                    .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?;
+                anyhow::ensure!(
+                    protocol == P::Chat,
+                    "Copilot Responses conversion is not verified"
+                );
+                P::Chat
+            }
+            _ => anyhow::bail!("Copilot selected model protocol is unsupported"),
+        },
+        "vibe" => match model_transport::routing_selection::configured_api_protocol(api)
+            .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?
+        {
+            P::Gemini => P::Chat,
+            protocol => protocol,
+        },
+        _ => anyhow::bail!("ACP session_model driver is not verified"),
+    })
+}
+
+/// Startup uses the same deployment/authentication selector as the relay. Dynamic
+/// payload capabilities are checked again when each actual request is dispatched.
+pub fn launch_route(
+    agent: &str,
+    profile: &AcpLaunchProfile,
+) -> anyhow::Result<provider_protocol_routes::ProtocolRoute> {
+    use provider_protocol_routes::RouteCapability as C;
+    let api = profile
+        .model_api
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("ACP requires selected model transport metadata"))?;
+    let source = source_protocol(agent, api)?;
+    let required = [C::Text, C::Streaming, C::Tools];
+    let available = if profile.model_supports_tool_call { &required[..] } else { &required[..2] };
+    let conversions = model_transport::routing_selection::relay_conversions(agent == "codex");
+    model_transport::routing_selection::select_api(
+        api,
+        &profile.binding.identity().provider,
+        source,
+        &required,
+        available,
+        &conversions,
+        model_transport::routing_selection::Execution::Relay,
+    )
+    .map_err(anyhow::Error::from)
+}

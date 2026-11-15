@@ -226,9 +226,9 @@ fn stream_flush_updates_tail_and_schedules_save_without_chunk_preparation() {
     assert_eq!(app.chat.last().unwrap().content, "one-second tail");
     assert_eq!(task.units(), 1, "stream projection is synchronous; only save is scheduled");
     let runtime = app.get_session_runtime_mut("active");
-    assert!(runtime.stream_save_flush_scheduled);
-    assert_eq!(runtime.stream_save_dirty_records.len(), 1);
-    assert_eq!(runtime.stream_save_dirty_records[0].message.content, "one-second tail");
+    assert!(runtime.stream_save.flush_scheduled);
+    assert_eq!(runtime.stream_save.dirty_records.len(), 1);
+    assert_eq!(runtime.stream_save.dirty_records[0].message.content, "one-second tail");
     assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
 }
 

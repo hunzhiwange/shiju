@@ -1485,7 +1485,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
             result: Ok(prepared),
         },
     );
-    assert_eq!(app.session_runtime_states["paged"].stream_save_seq_base, 100);
+    assert_eq!(app.session_runtime_states["paged"].stream_save.seq_base, 100);
     assert!(app.paged_chat_timeline.as_mut().unwrap().begin_prepend("older"));
     let page = crate::app::session::prepare_timeline_page(
         "paged",
@@ -1506,7 +1506,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
         },
     );
     assert_eq!(app.chat.len(), 4);
-    assert_eq!(app.session_runtime_states["paged"].stream_save_seq_base, 98);
+    assert_eq!(app.session_runtime_states["paged"].stream_save.seq_base, 98);
 }
 
 #[test]

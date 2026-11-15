@@ -247,7 +247,7 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     let now =
         crate::app::time::now_ms().max(app.active_session_view_state.updated_ms.saturating_add(1));
     app.active_session_view_state.updated_ms = now;
-    let seq_base = app.get_session_runtime(&session_id).stream_save_seq_base;
+    let seq_base = app.get_session_runtime(&session_id).stream_save.seq_base;
     let boundary = app.chat.last().cloned();
     let boundary_id = app.chat_message_ids.last().cloned().flatten();
     Task::perform(
@@ -831,8 +831,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     return app.show_error_toast("会话正在回复且历史尚未就绪，请稍后发送");
                 }
                 let runtime = app.get_session_runtime_mut(&session_id);
-                runtime.stream_save_seq_base = 0;
-                runtime.stream_save_expected_updated_ms = loaded.updated_ms;
+                runtime.stream_save.seq_base = 0;
+                runtime.stream_save.expected_updated_ms = loaded.updated_ms;
                 if app.active_session_id.as_deref() == Some(session_id.as_str()) {
                     app.chat = loaded.messages.clone();
                     app.chat_message_ids = loaded.message_ids.clone();
@@ -1856,14 +1856,14 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             if app
                 .session_runtime_states
                 .get(&session_id)
-                .is_none_or(|runtime| runtime.stream_save_seq_base == 0)
+                .is_none_or(|runtime| runtime.stream_save.seq_base == 0)
             {
                 // Persist the initial rows of a registered session before starting deltas.
                 initial_save = save_session_task(local, session_directory);
             }
             // The snapshot writer can fail or be coalesced independently. Include the
             // user row and assistant placeholder in the acknowledged delta queue too.
-            app.get_session_runtime_mut(&session_id).stream_save_failures = 0;
+            app.get_session_runtime_mut(&session_id).stream_save.failures = 0;
             save_tasks.push(stream::register_stream_session_messages(
                 app,
                 &session_id,

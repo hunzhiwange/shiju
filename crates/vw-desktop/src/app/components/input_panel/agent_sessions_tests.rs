@@ -796,7 +796,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
     assert_eq!(performance::snapshot().runtime_clones, 0);
     apply(&mut app, ChatMessage::AgentStreamSessionSaveFlush("parent".into()));
     let (generation, revision, updated_ms) =
-        app.session_runtime_states["parent"].stream_save_in_flight.unwrap();
+        app.session_runtime_states["parent"].stream_save.in_flight.unwrap();
     apply(
         &mut app,
         ChatMessage::AgentStreamSessionDeltaSaved {
@@ -807,7 +807,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
             result: Ok(()),
         },
     );
-    assert!(app.session_runtime_states["parent"].stream_save_in_flight.is_none());
+    assert!(app.session_runtime_states["parent"].stream_save.in_flight.is_none());
     assert!(std::sync::Arc::ptr_eq(&flushed, &cached_running_agent_sessions(&app)));
     assert!(std::sync::Arc::ptr_eq(
         &sidebar,

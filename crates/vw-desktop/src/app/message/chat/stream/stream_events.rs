@@ -1,17 +1,19 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
+use desktop_session::message::chat::stream::stream_events::TerminalTailCalibration;
+use desktop_session::message::chat::stream::stream_events::{apply_stream_done_message_ids, message_ids_tail, parse_generated_git_commit_message, leading_guide_count, append_stream_delta_to_tail, upsert_workflow_tool_to_tail, is_payload_too_large_stream_error};
+
 
 use super::{now_ms, session_directory_for_save, start_next};
 use crate::app::message::ProjectMessage;
 use crate::app::message::chat::scroll_chat_to_bottom_task;
 use crate::app::message::chat::session as chat_session;
 use crate::app::state::{
-    ChatSendBehavior, QuickMessageGitCommitAction, QuickMessageHandoffState, StreamTailState,
+    QuickMessageGitCommitAction, QuickMessageHandoffState, StreamTailState,
 };
 use crate::app::ui::chat;
-use crate::app::{App, Message, QueueItem, models};
+use crate::app::{App, Message, models};
 use iced::Task;
-use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
@@ -19,68 +21,12 @@ use message_types as message;
 use session_info as session_info;
 
 /// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。
-pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(16);
-pub(super) const BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
-pub(super) const STREAM_SESSION_SAVE_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
-const STREAM_SESSION_SAVE_MAX_FAILURES: u8 = 3;
+
+
+
 
 pub(super) fn stream_delta_flush_interval(app: &App, session_id: &str) -> Duration {
-    if app.active_session_id.as_deref() == Some(session_id) {
-        ACTIVE_STREAM_DELTA_FLUSH_INTERVAL
-    } else {
-        BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL
-    }
-}
-
-fn update_think_timing_from_delta(
-    message: &mut models::ChatMessage,
-    tail_state: &StreamTailState,
-    now: u64,
-) {
-    let think_count = tail_state.think_count();
-
-    if message.think_timing.len() < think_count {
-        for _ in message.think_timing.len()..think_count {
-            message.think_timing.push(models::ThinkTiming {
-                start_ms: now,
-                end_ms: None,
-                last_update_ms: now,
-            });
-        }
-    }
-
-    if think_count == 0 {
-        return;
-    }
-
-    if tail_state.thinking_open() {
-        let last_index = message.think_timing.len().saturating_sub(1);
-        for (idx, entry) in message.think_timing.iter_mut().enumerate() {
-            if idx == last_index {
-                if entry.end_ms.is_none() {
-                    entry.last_update_ms = now;
-                }
-            } else if entry.end_ms.is_none() {
-                entry.end_ms = Some(now);
-                entry.last_update_ms = now;
-            }
-        }
-    } else {
-        for entry in message.think_timing.iter_mut() {
-            if entry.end_ms.is_none() {
-                entry.end_ms = Some(now);
-                entry.last_update_ms = now;
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct TerminalTailCalibration {
-    message_idx: usize,
-    think_count: usize,
-    thinking_open: bool,
-    estimated_height: f32,
+    desktop_session::message::chat::stream::stream_events::stream_delta_flush_interval(app.active_session_id.as_deref(), session_id)
 }
 
 fn calibrate_stream_tail_at_terminal(
@@ -103,27 +49,10 @@ fn calibrate_stream_tail_at_terminal(
         crate::app::components::chat_panel::message_view::estimate_message_height_rough(
             &message.content,
         );
-    message.think_timing.truncate(thinks.len());
-    let calibrated_state = {
-        let state = &mut app.get_session_runtime_mut(session_id).stream_tail_state;
-        state.calibrate(
-            message_idx,
-            message.content.len(),
-            thinks.len(),
-            thinking_open,
-            estimated_height,
-        );
-        state.advance_ui_generation();
-        state.clone()
-    };
-    update_think_timing_from_delta(message, &calibrated_state, now);
-    app.get_session_runtime_mut(session_id).stream_tail_state.clear_tail();
-    Some(TerminalTailCalibration {
-        message_idx,
-        think_count: thinks.len(),
-        thinking_open,
-        estimated_height,
-    })
+    desktop_session::message::chat::stream::stream_events::calibrate_terminal_tail(
+        &mut app.get_session_runtime_mut(session_id).stream_tail_state,
+        message, message_idx, thinks.len(), thinking_open, estimated_height, now,
+    )
 }
 
 fn apply_active_terminal_tail_calibration(app: &mut App, calibration: TerminalTailCalibration) {
@@ -136,40 +65,6 @@ fn apply_active_terminal_tail_calibration(app: &mut App, calibration: TerminalTa
     app.apply_stream_tail_estimated_height(calibration.message_idx, calibration.estimated_height);
 }
 
-fn apply_stream_done_message_ids(
-    chat: &[models::ChatMessage],
-    message_ids: &mut Vec<Option<String>>,
-    assistant_message_id: Option<String>,
-    parent_message_id: Option<String>,
-) {
-    if message_ids.len() < chat.len() {
-        message_ids.resize(chat.len(), None);
-    }
-
-    let assistant_idx =
-        chat.iter().rposition(|message| matches!(message.role, models::ChatRole::Assistant));
-    if let Some(idx) = assistant_idx
-        && let Some(message_id) = assistant_message_id
-    {
-        message_ids[idx] = Some(message_id);
-    }
-
-    let user_search_end = assistant_idx.unwrap_or(chat.len());
-    let user_idx = chat[..user_search_end]
-        .iter()
-        .rposition(|message| matches!(message.role, models::ChatRole::User));
-    if let Some(idx) = user_idx
-        && let Some(message_id) = parent_message_id
-    {
-        message_ids[idx] = Some(message_id);
-    }
-}
-
-fn message_ids_tail(message_ids: &[Option<String>]) -> Vec<Option<String>> {
-    let tail_len = message_ids.len().min(4);
-    message_ids[message_ids.len().saturating_sub(tail_len)..].to_vec()
-}
-
 fn completed_handoff_prompt(chat: &[models::ChatMessage]) -> Option<String> {
     chat.iter()
         .rev()
@@ -177,27 +72,6 @@ fn completed_handoff_prompt(chat: &[models::ChatMessage]) -> Option<String> {
         .map(|message| chat::split_think(&message.content).1)
         .map(|content| content.trim().to_string())
         .filter(|content| !content.is_empty())
-}
-
-#[derive(Deserialize)]
-struct GeneratedGitCommitMessage {
-    #[serde(alias = "subject")]
-    title: String,
-    #[serde(alias = "description", alias = "body")]
-    summary: String,
-}
-
-fn parse_generated_git_commit_message(content: &str) -> Option<GeneratedGitCommitMessage> {
-    let start = content.find('{')?;
-    let end = content.rfind('}')?;
-    if end < start {
-        return None;
-    }
-    let generated: GeneratedGitCommitMessage = serde_json::from_str(&content[start..=end]).ok()?;
-    if generated.title.trim().is_empty() || generated.summary.trim().is_empty() {
-        return None;
-    }
-    Some(generated)
 }
 
 fn complete_quick_message_handoff(
@@ -262,98 +136,6 @@ fn complete_quick_message_handoff(
     }
 }
 
-fn parse_tool_block_len(s: &str) -> Option<usize> {
-    if !s.starts_with("tool ") {
-        return None;
-    }
-
-    let line_end = s.find('\n')?;
-    let mut idx = line_end + 1;
-    let mut buf = String::new();
-    for _ in 0..64 {
-        if idx >= s.len() {
-            break;
-        }
-        let next_end = s[idx..].find('\n').map(|offset| idx + offset).unwrap_or(s.len());
-        let line = &s[idx..next_end];
-        if !buf.is_empty() {
-            buf.push('\n');
-        }
-        buf.push_str(line);
-        if serde_json::from_str::<serde_json::Value>(buf.trim()).is_ok() {
-            return Some(if next_end < s.len() { next_end + 1 } else { next_end });
-        }
-        if next_end >= s.len() {
-            break;
-        }
-        idx = next_end + 1;
-    }
-    None
-}
-
-fn tool_call_id_from_raw_block(raw: &str) -> Option<String> {
-    let (_, rest) = raw.split_once('\n')?;
-    let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
-    value.get("tool_call_id").and_then(serde_json::Value::as_str).map(ToOwned::to_owned)
-}
-
-fn tool_block_start_allowed(content: &str, start: usize) -> bool {
-    if start == 0 || content[..start].ends_with('\n') {
-        return true;
-    }
-    let prefix = content[..start].trim_end_matches([' ', '\t']);
-    prefix.ends_with(':') || prefix.ends_with('：')
-}
-
-fn upsert_tool_block_by_call_id(content: &mut String, raw_tool_block: &str) {
-    let Some(call_id) = tool_call_id_from_raw_block(raw_tool_block) else {
-        append_tool_block(content, raw_tool_block);
-        return;
-    };
-
-    let mut search_from = 0usize;
-    while let Some(offset) = content[search_from..].find("tool ") {
-        let start = search_from + offset;
-        if !tool_block_start_allowed(content, start) {
-            search_from = start + "tool ".len();
-            continue;
-        }
-        let Some(block_len) = parse_tool_block_len(&content[start..]) else {
-            search_from = start + "tool ".len();
-            continue;
-        };
-        let end = start + block_len;
-        if tool_call_id_from_raw_block(&content[start..end]).as_deref() == Some(call_id.as_str()) {
-            content.replace_range(start..end, raw_tool_block);
-            return;
-        }
-        search_from = end;
-    }
-
-    append_tool_block(content, raw_tool_block);
-}
-
-fn append_tool_block(content: &mut String, raw_tool_block: &str) {
-    if !content.is_empty() && !content.ends_with('\n') {
-        content.push('\n');
-    }
-    content.push_str(raw_tool_block.trim_end());
-    content.push('\n');
-}
-
-fn leading_guide_count(queue: &[QueueItem]) -> usize {
-    queue.iter().take_while(|item| item.send_behavior == ChatSendBehavior::Guide).count()
-}
-
-fn continuation_label_from_history(history: &[models::ChatMessage]) -> String {
-    history
-        .iter()
-        .rev()
-        .find(|message| matches!(message.role, models::ChatRole::User))
-        .map(|message| message.content.clone())
-        .unwrap_or_default()
-}
-
 fn prepare_scroll_for_active_stream_growth(app: &mut App) {
     if app.chat_auto_scroll {
         app.chat_virtualizer.snap_to_tail();
@@ -361,45 +143,6 @@ fn prepare_scroll_for_active_stream_growth(app: &mut App) {
         app.chat_virtualizer.preserve_current_anchor_around();
     }
     app.sync_chat_scroll_compat_fields();
-}
-
-fn append_stream_delta_to_tail(
-    chat: &mut Vec<models::ChatMessage>,
-    message_ids: &mut Vec<Option<String>>,
-    delta: String,
-    now: u64,
-    tail_state: &mut StreamTailState,
-) -> usize {
-    if let Some(last_idx) = chat.len().checked_sub(1)
-        && chat[last_idx].role == models::ChatRole::Assistant
-    {
-        let last = &mut chat[last_idx];
-        tail_state.begin_message(last_idx);
-        tail_state.apply_delta(&delta);
-        update_think_timing_from_delta(last, tail_state, now);
-        if !last.content.is_empty() && !last.content.ends_with('\n') && delta.starts_with("tool ") {
-            last.content.push('\n');
-        }
-        last.content.push_str(&delta);
-        return last_idx;
-    }
-
-    if message_ids.len() < chat.len() {
-        message_ids.resize(chat.len(), None);
-    }
-    tail_state.begin_message(chat.len());
-    tail_state.apply_delta(&delta);
-    chat.push(models::ChatMessage {
-        role: models::ChatRole::Assistant,
-        content: delta,
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-    message_ids.push(None);
-    let last_idx = chat.len() - 1;
-    update_think_timing_from_delta(&mut chat[last_idx], tail_state, now);
-    last_idx
 }
 
 #[cfg(test)]
@@ -410,34 +153,6 @@ pub(crate) fn append_stream_delta_for_performance_probe(
     let mut message_ids = vec![None; chat.len()];
     let mut tail_state = StreamTailState::default();
     append_stream_delta_to_tail(chat, &mut message_ids, delta, now_ms(), &mut tail_state)
-}
-
-fn upsert_workflow_tool_to_tail(
-    chat: &mut Vec<models::ChatMessage>,
-    message_ids: &mut Vec<Option<String>>,
-    raw_tool_block: String,
-) -> usize {
-    if let Some(last_idx) = chat.len().checked_sub(1)
-        && chat[last_idx].role == models::ChatRole::Assistant
-    {
-        upsert_tool_block_by_call_id(&mut chat[last_idx].content, &raw_tool_block);
-        return last_idx;
-    }
-
-    if message_ids.len() < chat.len() {
-        message_ids.resize(chat.len(), None);
-    }
-    let mut content = String::new();
-    append_tool_block(&mut content, &raw_tool_block);
-    chat.push(models::ChatMessage {
-        role: models::ChatRole::Assistant,
-        content,
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-    message_ids.push(None);
-    chat.len() - 1
 }
 
 fn finish_active_stream_tail_update(
@@ -503,31 +218,11 @@ fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, messag
 }
 
 pub(super) fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<Message> {
-    let schedule_flush = {
-        let runtime = app.get_session_runtime_mut(session_id);
-        if runtime.is_plan_run_session
-            || runtime.stream_save_flush_scheduled
-            || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES
-        {
-            false
-        } else {
-            runtime.stream_save_flush_scheduled = true;
-            true
-        }
-    };
-
-    if schedule_flush {
-        crate::app::message::after(
-            STREAM_SESSION_SAVE_FLUSH_INTERVAL
-                * (1 << app
-                    .session_runtime_states
-                    .get(session_id)
-                    .map_or(0, |runtime| runtime.stream_save_failures)),
-            Message::Chat(super::ChatMessage::AgentStreamSessionSaveFlush(session_id.to_string())),
-        )
-    } else {
-        Task::none()
-    }
+    let runtime = app.get_session_runtime_mut(session_id);
+    let delay = runtime.stream_save.schedule(runtime.is_plan_run_session);
+    if let Some(delay) = delay {
+        crate::app::message::after(delay, Message::Chat(super::ChatMessage::AgentStreamSessionSaveFlush(session_id.into())))
+    } else { Task::none() }
 }
 
 pub(super) fn mark_agent_stream_session_dirty(
@@ -545,40 +240,16 @@ pub(super) fn mark_agent_stream_session_dirty(
     let seq_no = app
         .session_runtime_states
         .get(session_id)
-        .map_or(0, |runtime| runtime.stream_save_seq_base)
+        .map_or(0, |runtime| runtime.stream_save.seq_base)
         + index as u64;
     let message = if is_active {
         app.chat.get(index).map(|source| {
-            // Only text append events can reuse the pending snapshot's prefix. Tool
-            // replacements and terminal metadata updates still take a fresh snapshot.
-            let previous = previous_content_len
-                .filter(|len| source.content.is_char_boundary(*len))
-                .and_then(|len| {
-                    app.session_runtime_states
-                        .get_mut(session_id)?
-                        .stream_save_dirty_records
-                        .iter_mut()
-                        .find(|record| {
-                            record.seq_no == seq_no && record.message.content.len() == len
-                        })
-                        .map(|record| std::mem::take(&mut record.message.content))
-                });
-            if let Some(mut content) = previous {
-                content.push_str(&source.content[content.len()..]);
-                models::ChatMessage {
-                    content,
-                    role: source.role,
-                    model: source.model.clone(),
-                    think_timing: source.think_timing.clone(),
-                    processing_timing: source.processing_timing.clone(),
-                }
-            } else {
-                #[cfg(test)]
-                crate::app::components::chat_panel::performance::record_chat_message_clone(
-                    source.content.len(),
-                );
-                source.clone()
-            }
+            let (message, _cloned) = app.session_runtime_states.get_mut(session_id)
+                .map(|runtime| runtime.stream_save.snapshot(source, seq_no, previous_content_len))
+                .unwrap_or_else(|| (source.clone(), true));
+            #[cfg(test)]
+            if _cloned { crate::app::components::chat_panel::performance::record_chat_message_clone(source.content.len()); }
+            message
         })
     } else {
         app.cached_chat_messages(session_id).and_then(|messages| messages.get(index).cloned())
@@ -602,21 +273,7 @@ pub(super) fn mark_agent_stream_session_dirty(
         .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_ref())
         .map(|request| request.id);
     let runtime = app.get_session_runtime_mut(session_id);
-    if runtime.stream_save_expected_updated_ms == 0 {
-        runtime.stream_save_expected_updated_ms = base_updated_ms;
-    }
-    if let Some(generation) = request_generation {
-        runtime.stream_save_generation = generation;
-    }
-    runtime.stream_save_revision = runtime.stream_save_revision.saturating_add(1);
-    let record = session_ui_types::SessionMessageRecord { seq_no, message_id, message };
-    if let Some(existing) =
-        runtime.stream_save_dirty_records.iter_mut().find(|dirty| dirty.seq_no == record.seq_no)
-    {
-        *existing = record;
-    } else {
-        runtime.stream_save_dirty_records.push(record);
-    }
+    runtime.stream_save.mark(session_ui_types::SessionMessageRecord { seq_no, message_id, message }, base_updated_ms, request_generation);
     // Keep the newest local timestamp in the delta snapshot; the stored base changes only on ack.
     app.active_session_view_state.updated_ms = updated_ms;
 }
@@ -624,7 +281,7 @@ pub(super) fn mark_agent_stream_session_dirty(
 pub(super) fn flush_agent_stream_session_save(app: &mut App, session_id: String) -> Task<Message> {
     let should_save = {
         let runtime = app.get_session_runtime_mut(&session_id);
-        std::mem::take(&mut runtime.stream_save_flush_scheduled)
+        std::mem::take(&mut runtime.stream_save.flush_scheduled)
     };
     if !should_save {
         return Task::none();
@@ -634,32 +291,14 @@ pub(super) fn flush_agent_stream_session_save(app: &mut App, session_id: String)
 }
 
 fn clear_agent_stream_session_save_flush(app: &mut App, session_id: &str) {
-    app.get_session_runtime_mut(session_id).stream_save_flush_scheduled = false;
+    app.get_session_runtime_mut(session_id).stream_save.flush_scheduled = false;
 }
 
 fn save_latest_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
     let directory = session_directory_for_save(app, session_id);
     let runtime = app.get_session_runtime_mut(session_id);
-    if runtime.is_plan_run_session
-        || runtime.stream_save_in_flight.is_some()
-        || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES
-    {
-        return Task::none();
-    }
-    if runtime.stream_save_dirty_records.is_empty() {
-        return Task::none();
-    }
-    let generation = runtime.stream_save_generation;
-    let revision = runtime.stream_save_revision;
-    let updated_ms = now_ms().max(runtime.stream_save_expected_updated_ms.saturating_add(1));
-    let delta = session_ui_types::SessionMessageDelta {
-        session_id: session_id.to_string(),
-        expected_updated_ms: runtime.stream_save_expected_updated_ms,
-        updated_ms,
-        upserts: runtime.stream_save_dirty_records.clone(),
-        truncate_after: None,
-    };
-    runtime.stream_save_in_flight = Some((generation, revision, updated_ms));
+    let Some((generation, revision, delta)) = runtime.stream_save.prepare(session_id, runtime.is_plan_run_session, now_ms()) else { return Task::none(); };
+    let updated_ms = delta.updated_ms;
     let saved_session_id = session_id.to_string();
     let result_session_id = session_id.to_string();
     Task::perform(
@@ -692,104 +331,40 @@ pub(super) fn handle_agent_stream_session_delta_saved(
     updated_ms: u64,
     result: Result<(), crate::app::session_gateway::SessionMessageDeltaSaveError>,
 ) -> Task<Message> {
+    use desktop_session::message::chat::stream::save::SaveOutcome;
     let runtime = app.get_session_runtime_mut(&session_id);
-    if runtime.stream_save_in_flight != Some((generation, revision, updated_ms)) {
-        return Task::none();
-    }
-    runtime.stream_save_in_flight = None;
-    match result {
-        Ok(()) => {
-            runtime.stream_save_failures = 0;
-            runtime.stream_save_expected_updated_ms = updated_ms;
-            runtime.stream_save_acked_revision = runtime.stream_save_acked_revision.max(revision);
-            if runtime.stream_save_revision == revision
-                && runtime.stream_save_generation == generation
-            {
-                runtime.stream_save_dirty_records.clear();
-                return Task::none();
-            }
-            save_latest_agent_stream_session(app, &session_id)
-        }
-        Err(error) => {
-            runtime.stream_save_failures = runtime.stream_save_failures.saturating_add(1);
-            let mut recoverable = true;
-            let mut recovery_progress = false;
-            match &error {
-                crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
-                    stored_updated_ms,
-                    stored_message_count,
-                } => {
-                    recovery_progress =
-                        runtime.stream_save_expected_updated_ms != *stored_updated_ms;
-                    runtime.stream_save_expected_updated_ms = *stored_updated_ms;
-                    // A snapshot save can fail independently of this queue. Rebuild the
-                    // missing append range from local messages, never invent empty rows.
-                    let seq_base = runtime.stream_save_seq_base;
-                    let end =
-                        runtime.stream_save_dirty_records.iter().map(|record| record.seq_no).max();
-                    if let Some(end) = end {
-                        for seq_no in *stored_message_count as u64..=end {
-                            if app.session_runtime_states.get(&session_id).is_some_and(|runtime| {
-                                runtime
-                                    .stream_save_dirty_records
-                                    .iter()
-                                    .any(|record| record.seq_no == seq_no)
-                            }) {
-                                continue;
-                            }
-                            let Some(index) = seq_no
-                                .checked_sub(seq_base)
-                                .and_then(|index| usize::try_from(index).ok())
-                            else {
-                                recoverable = false;
-                                break;
-                            };
-                            mark_agent_stream_session_dirty(
-                                app,
-                                &session_id,
-                                index,
-                                updated_ms,
-                                None,
-                            );
-                            if !app.session_runtime_states.get(&session_id).is_some_and(|runtime| {
-                                runtime
-                                    .stream_save_dirty_records
-                                    .iter()
-                                    .any(|record| record.seq_no == seq_no)
-                            }) {
-                                recoverable = false;
-                                break;
-                            }
-                            recovery_progress = true;
-                        }
-                    }
-                }
-                crate::app::session_gateway::SessionMessageDeltaSaveError::Rejected(_) => {
-                    recoverable = false;
-                }
-                crate::app::session_gateway::SessionMessageDeltaSaveError::Other(_) => {}
-            }
-            let runtime = app.get_session_runtime_mut(&session_id);
-            // Concurrent snapshot/trajectory writes legitimately advance the version.
-            // Rebasing or repairing a missing row makes progress, so it must not
-            // exhaust the outage budget or increase the next retry delay.
-            if recoverable && recovery_progress {
-                runtime.stream_save_failures = 0;
-            }
-            if !recoverable || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES {
-                runtime.stream_save_failures = STREAM_SESSION_SAVE_MAX_FAILURES;
-                runtime.stream_save_flush_scheduled = false;
-                tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error,
-                    "stream message save stopped; keeping unsaved records");
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Error,
-                    "会话消息保存失败，已停止自动重试，待存消息仍保留在内存中：%s",
-                    vec![format!("{}", error).into()],
-                );
-            }
-            tracing::debug!(target: "vw_desktop", session_id = %session_id, error = %error,
-                "retrying stream message save");
+    let is_plan_run = runtime.is_plan_run_session;
+    let request_generation = runtime.request_lifecycle.active_agent_request.as_ref().map(|request| request.id);
+    let mut save = std::mem::take(&mut runtime.stream_save);
+    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    let base_updated_ms = app.sessions.iter().find(|session| session.id == session_id).map_or(0, |session| session.time.updated);
+    let (outcome, repaired) = save.acknowledge(generation, revision, updated_ms, &result, base_updated_ms, request_generation, |index| {
+        if is_plan_run { return None; }
+        let message = if is_active {
+            app.chat.get(index).map(|source| {
+                #[cfg(test)]
+                crate::app::components::chat_panel::performance::record_chat_message_clone(source.content.len());
+                source.clone()
+            })
+        } else { app.cached_chat_messages(&session_id).and_then(|messages| messages.get(index).cloned()) }?;
+        let message_id = if is_active { app.chat_message_ids.get(index).cloned().flatten() }
+            else { app.cached_chat_message_ids(&session_id).and_then(|ids| ids.get(index).cloned()).flatten() };
+        Some((message, message_id))
+    });
+    app.get_session_runtime_mut(&session_id).stream_save = save;
+    if repaired { app.active_session_view_state.updated_ms = updated_ms; }
+    match outcome {
+        SaveOutcome::Ignored | SaveOutcome::Settled => Task::none(),
+        SaveOutcome::Save => save_latest_agent_stream_session(app, &session_id),
+        SaveOutcome::Retry => {
+            if let Err(error) = &result { tracing::debug!(target: "vw_desktop", session_id = %session_id, error = %error, "retrying stream message save"); }
             schedule_agent_stream_session_save(app, &session_id)
+        }
+        SaveOutcome::Stopped => {
+            let Err(error) = &result else { return Task::none(); };
+            tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error, "stream message save stopped; keeping unsaved records");
+            app.show_localized_toast(crate::app::state::ToastKind::Error,
+                "会话消息保存失败，已停止自动重试，待存消息仍保留在内存中：%s", vec![format!("{}", error).into()])
         }
     }
 }
@@ -843,40 +418,10 @@ pub(super) fn queue_agent_tool_delta(app: &mut App, id: u64, delta: String) -> T
     queue_agent_session_delta(app, session_id, delta)
 }
 
-fn upsert_compaction_status(
-    chat: &mut Vec<models::ChatMessage>,
-    message_ids: &mut Vec<Option<String>>,
-    completed: bool,
-    pending_index: Option<usize>,
-) -> usize {
-    let content = if completed {
-        crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT
-    } else {
-        crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
-    };
-    if completed
-        && let Some(idx) = pending_index
-        && let Some(message) = chat.get_mut(idx)
-        && message.role == models::ChatRole::System
-        && message.content
-            == crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
-    {
-        message.content = content.to_string();
-        return idx;
-    }
-
-    if message_ids.len() < chat.len() {
-        message_ids.resize(chat.len(), None);
-    }
-    chat.push(models::ChatMessage {
-        role: models::ChatRole::System,
-        content: content.to_string(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-    message_ids.push(None);
-    chat.len() - 1
+fn upsert_compaction_status(chat: &mut Vec<models::ChatMessage>, message_ids: &mut Vec<Option<String>>, completed: bool, pending_index: Option<usize>) -> usize {
+    desktop_session::message::chat::stream::stream_events::upsert_compaction_status(chat, message_ids, completed, pending_index,
+        crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT,
+        crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT)
 }
 
 pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, content: &str) {
@@ -889,21 +434,10 @@ pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, con
             .map(|chat| chat.iter().cloned().collect::<Vec<_>>())
             .unwrap_or_default()
     };
-    let Some(index) =
-        app.get_session_runtime_mut(session_id).pending_compaction_status_index.take()
-    else {
-        return;
-    };
-    let Some(message) = chat.get_mut(index) else {
-        return;
-    };
-    if message.role != models::ChatRole::System
-        || message.content
-            != crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
-    {
-        return;
-    }
-    message.content = content.to_string();
+    let Some(index) = desktop_session::message::chat::stream::stream_events::settle_compaction(
+        &mut chat, &mut app.get_session_runtime_mut(session_id).pending_compaction_status_index,
+        crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT, content,
+    ) else { return; };
     let changed = [index];
     let ids = if is_active {
         app.chat_message_ids.clone()
@@ -950,16 +484,8 @@ pub(super) fn handle_agent_todo_continuation(app: &mut App, id: u64) -> Task<Mes
     } else {
         app.session_chat_message_id_cache.get(&session_id).cloned().unwrap_or_default()
     };
-    message_ids.resize(chat.len(), None);
-    let changed_idx = chat.len();
-    chat.push(models::ChatMessage {
-        role: models::ChatRole::System,
-        content: crate::app::components::chat_panel::message_view::TODO_CONTINUATION_TEXT.into(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-    message_ids.push(None);
+    let changed_idx = desktop_session::message::chat::stream::stream_events::append_system_notice(&mut chat, &mut message_ids,
+        crate::app::components::chat_panel::message_view::TODO_CONTINUATION_TEXT.into());
     app.get_session_runtime_mut(&session_id).stream_tail_state.clear_tail();
     app.store_session_chat_snapshot(
         session_id.clone(),
@@ -1044,43 +570,14 @@ pub(super) fn queue_agent_session_delta(
         return Task::none();
     }
 
+    use desktop_session::message::chat::stream::stream_events::{queue_delta, DeltaEffect};
     let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
-    let immediate_delta = if is_active {
-        let runtime = app.get_session_runtime_mut(&session_id);
-        if runtime.stream_tail_state.message_idx().is_none() {
-            runtime.stream_delta_flush_scheduled = false;
-            let mut immediate_delta = std::mem::take(&mut runtime.pending_stream_delta);
-            immediate_delta.push_str(&delta);
-            Some(immediate_delta)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-    if let Some(immediate_delta) = immediate_delta {
-        return apply_agent_session_delta(app, session_id, immediate_delta);
-    }
-
-    let flush_interval = stream_delta_flush_interval(app, &session_id);
-    let schedule_flush = {
-        let runtime = app.get_session_runtime_mut(&session_id);
-        runtime.pending_stream_delta.push_str(&delta);
-        if runtime.stream_delta_flush_scheduled {
-            false
-        } else {
-            runtime.stream_delta_flush_scheduled = true;
-            true
-        }
-    };
-
-    if schedule_flush {
-        crate::app::message::after(
-            flush_interval,
-            Message::Chat(super::ChatMessage::AgentStreamDeltaFlush(session_id)),
-        )
-    } else {
-        Task::none()
+    let interval = stream_delta_flush_interval(app, &session_id);
+    let runtime = app.get_session_runtime_mut(&session_id);
+    match queue_delta(&runtime.stream_tail_state, &mut runtime.pending_stream_delta, &mut runtime.stream_delta_flush_scheduled, is_active, delta) {
+        DeltaEffect::Immediate(delta) => apply_agent_session_delta(app, session_id, delta),
+        DeltaEffect::Schedule => crate::app::message::after(interval, Message::Chat(super::ChatMessage::AgentStreamDeltaFlush(session_id))),
+        DeltaEffect::Buffered => Task::none(),
     }
 }
 
@@ -1347,32 +844,13 @@ fn handle_agent_tool_blocks_update(
     Task::batch([delta_task, schedule_agent_stream_session_save(app, &session_id)])
 }
 
-fn instruction_read_tool_block(path: &str) -> String {
-    let input = serde_json::json!({ "filePath": path }).to_string();
-    let payload = serde_json::json!({
-        "status": "completed",
-        "input": input,
-        "tool_call_id": format!("system-instruction:{path}"),
-        "metadata": {
-            "system_instruction": true
-        }
-    });
-    format!("tool read\n{payload}")
-}
-
 /// 将系统提示词实际读取的协议文件显示为持久工具卡。
 pub(super) fn handle_agent_context_loaded(
     app: &mut App,
     id: u64,
     paths: Vec<String>,
 ) -> Task<Message> {
-    let mut seen = std::collections::HashSet::new();
-    let raw_tool_blocks = paths
-        .into_iter()
-        .filter(|path| !path.trim().is_empty())
-        .filter(|path| seen.insert(path.clone()))
-        .map(|path| instruction_read_tool_block(&path))
-        .collect::<Vec<_>>();
+    let raw_tool_blocks = desktop_session::message::chat::stream::stream_events::instruction_read_tool_blocks(paths);
     handle_agent_tool_blocks_update(app, id, raw_tool_blocks)
 }
 
@@ -1616,16 +1094,7 @@ pub(super) fn complete_agent_stream(
                                 .await;
                             match (msgs, info) {
                                 (Ok(msgs), Ok(_)) => {
-                                    let mut usage = crate::app::models::TokenUsage::default();
-                                    for message in &msgs {
-                                        if let message::Info::Assistant(assistant) = &message.info {
-                                            usage.input_tokens += assistant.tokens.input;
-                                            usage.output_tokens += assistant.tokens.output;
-                                            usage.cached_tokens += assistant.tokens.cache.read
-                                                + assistant.tokens.cache.write;
-                                            usage.reasoning_tokens += assistant.tokens.reasoning;
-                                        }
-                                    }
+                                    let usage = desktop_session::message::chat::stream::stream_events::refreshed_usage(&msgs);
                                     Ok((session_id, msgs, usage))
                                 }
                                 (Err(err), _) => Err(err),
@@ -1736,30 +1205,7 @@ pub(super) fn handle_agent_post_tool_round(
     let save_task = force_save_agent_stream_session(app, &session_id);
 
     let resume_history = app.chat.clone();
-    let continuation = QueueItem {
-        created_ms: now_ms(),
-        query: continuation_label_from_history(&resume_history),
-        attachments: Vec::new(),
-        root: active_request.root.clone(),
-        model: active_request.model.clone(),
-        reasoning_effort: active_request.reasoning_effort,
-        acp_test: active_request.acp_test,
-        acp_model_source: active_request.acp_model_source,
-        acp_agent: active_request.acp_agent.clone(),
-        acp_allowed_tools: active_request.acp_allowed_tools.clone(),
-        agent: active_request.agent.clone(),
-        allowed_tools: active_request.allowed_tools.clone(),
-        require_agent_tool: active_request.require_agent_tool,
-        acp_force_new_session: false,
-        acp_history_mode: active_request.acp_history_mode,
-        acp_recent_count: active_request.acp_recent_count,
-        full_access_enabled: active_request.full_access_enabled.unwrap_or(false),
-        send_behavior: ChatSendBehavior::Queue,
-        request_history_override: Some(resume_history),
-        resume_history_only: true,
-        workflow_mode_enabled: active_request.workflow_mode_enabled,
-        goal_mode_enabled: active_request.goal_mode_enabled,
-    };
+    let continuation = desktop_session::message::chat::stream::stream_events::continuation_item(&active_request, resume_history, now_ms());
     let next_item = {
         let runtime = app.get_session_runtime_mut(&session_id);
         runtime.request_lifecycle.is_requesting = false;
@@ -1783,14 +1229,6 @@ pub(super) fn handle_agent_post_tool_round(
     );
 
     save_task.chain(chat_session::start(app, next_item, true))
-}
-
-fn is_payload_too_large_stream_error(err: &str) -> bool {
-    let lower = err.to_ascii_lowercase();
-    err.contains("413")
-        || lower.contains("payload too large")
-        || lower.contains("length limit exceeded")
-        || err.contains("请求内容过大")
 }
 
 /// 模块内可见函数，执行 handle_agent_stream_error 对应的应用流程。

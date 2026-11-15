@@ -1208,7 +1208,7 @@ fn start_new_session_appends_user_message_without_a_gateway_snapshot() {
     assert_eq!(app.chat[0].content, "first question");
     assert_eq!(app.chat[1].role, crate::app::models::ChatRole::Assistant);
     assert!(app.current_session_is_requesting());
-    assert!(app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(app.current_session_runtime().stream_save.dirty_records.is_empty());
     assert!(task.units() >= 2);
 }
 
@@ -1643,10 +1643,10 @@ fn start_registers_user_and_assistant_for_delta_save() {
         queue_item("new question", crate::app::state::ChatSendBehavior::Queue),
         true,
     );
-    let records = &app.get_session_runtime("s1").stream_save_dirty_records;
+    let records = &app.get_session_runtime("s1").stream_save.dirty_records;
     assert_eq!(records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![2, 3]);
     assert_eq!(records[0].message.content, "new question");
-    assert!(app.get_session_runtime("s1").stream_save_flush_scheduled);
+    assert!(app.get_session_runtime("s1").stream_save.flush_scheduled);
 }
 
 #[test]
@@ -1658,13 +1658,13 @@ fn start_preserves_absolute_sequences_for_paged_history() {
         chat_message(crate::app::models::ChatRole::User, "old question"),
         chat_message(crate::app::models::ChatRole::Assistant, "old answer"),
     ];
-    app.get_session_runtime_mut("paged").stream_save_seq_base = 100;
+    app.get_session_runtime_mut("paged").stream_save.seq_base = 100;
     let _task = super::start(
         &mut app,
         queue_item("new question", crate::app::state::ChatSendBehavior::Queue),
         true,
     );
-    let records = &app.get_session_runtime("paged").stream_save_dirty_records;
+    let records = &app.get_session_runtime("paged").stream_save.dirty_records;
     assert_eq!(records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![102, 103]);
 }
 
@@ -2004,7 +2004,7 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
     assert!(
         app.chat.iter().any(|message| message.content == "未找到模型：deepseek/deepseek-flash")
     );
-    assert!(!app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(!app.current_session_runtime().stream_save.dirty_records.is_empty());
     assert!(app.sessions.is_empty());
 
     super::start(&mut app, queue_item("second attempt", Queue), false);
@@ -2020,7 +2020,7 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
     super::stream::update(&mut app, super::ChatMessage::AgentStreamCancelled(second_request));
     assert!(!app.current_session_is_requesting());
     assert!(app.sessions.is_empty());
-    assert!(!app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(!app.current_session_runtime().stream_save.dirty_records.is_empty());
 
     super::start(&mut app, queue_item("third attempt", Queue), false);
     let request = app.current_session_runtime().request_lifecycle.active_agent_request.unwrap();

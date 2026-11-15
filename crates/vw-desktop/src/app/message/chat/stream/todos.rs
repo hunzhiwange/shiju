@@ -8,69 +8,21 @@ use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
 
-fn maybe_auto_collapse_todo_panel(app: &mut App) -> Task<Message> {
-    if !app.chat_todo_expanded && app.chat_todo_anim <= 0.001 {
-        return Task::none();
-    }
-
-    let Some(ref session) = app.active_session_id else {
-        app.chat_todo_session_id = None;
-        app.chat_todo_items.clear();
-        return Task::none();
-    };
-
-    if app.chat_todo_session_id.as_deref() != Some(session.as_str()) {
-        return Task::none();
-    }
-
-    let todos = &app.chat_todo_items;
-    if todos.is_empty() {
-        return Task::none();
-    }
-    if todos.iter().any(|t| t.status != "completed") {
-        return Task::none();
-    }
-
-    app.chat_todo_expanded = false;
-    if app.chat_todo_anim.abs() < 0.001 {
-        app.chat_todo_anim = 0.0;
-        Task::none()
-    } else {
-        after(Duration::from_millis(16), Message::Chat(ChatMessage::TodoAnimTick))
+fn panel(app: &mut App) -> desktop_session::message::chat::stream::todos::TodoPanel<'_> {
+    desktop_session::message::chat::stream::todos::TodoPanel {
+        active_session_id: app.active_session_id.as_deref(),
+        chat_todo_session_id: &mut app.chat_todo_session_id,
+        chat_todo_items: &mut app.chat_todo_items,
+        chat_todo_expanded: &mut app.chat_todo_expanded,
+        chat_todo_anim: &mut app.chat_todo_anim,
     }
 }
-
-fn apply_loaded_session_todos(
-    app: &mut App,
-    session_id: String,
-    res: Result<Vec<todo_types::Todo>, String>,
-) -> Task<Message> {
-    if app.active_session_id.as_deref() != Some(session_id.as_str()) {
-        return Task::none();
-    }
-
-    let session_changed = app.chat_todo_session_id.as_deref() != Some(session_id.as_str());
-
-    match res {
-        Ok(todos) => {
-            app.chat_todo_session_id = Some(session_id);
-            app.chat_todo_items = todos;
-            if session_changed
-                && !app.chat_todo_items.is_empty()
-                && app.chat_todo_items.iter().any(|todo| todo.status != "completed")
-            {
-                app.chat_todo_expanded = true;
-                app.chat_todo_anim = 1.0;
-            }
-        }
-        Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, session_id = %session_id, "failed to load todo list via gateway");
-            app.chat_todo_session_id = Some(session_id);
-            app.chat_todo_items.clear();
-        }
-    }
-
-    maybe_auto_collapse_todo_panel(app)
+fn animation_task(tick: bool) -> Task<Message> {
+    if tick { after(Duration::from_millis(16), Message::Chat(ChatMessage::TodoAnimTick)) }
+    else { Task::none() }
+}
+fn apply_loaded_session_todos(app: &mut App, session_id: String, res: Result<Vec<todo_types::Todo>, String>) -> Task<Message> {
+    animation_task(desktop_session::message::chat::stream::todos::apply_loaded_session_todos(&mut panel(app), session_id, res))
 }
 
 fn todo_list_directory(app: &App) -> Option<String> {

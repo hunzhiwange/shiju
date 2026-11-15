@@ -186,7 +186,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert_eq!(done_app.chat[1].content, "done tail");
     assert!(done_app.get_session_runtime(&done_session).pending_stream_delta.is_empty());
     assert!(!done_app.get_session_runtime(&done_session).stream_delta_flush_scheduled);
-    assert!(!done_app.get_session_runtime(&done_session).stream_save_flush_scheduled);
+    assert!(!done_app.get_session_runtime(&done_session).stream_save.flush_scheduled);
     assert_eq!(
         super::stream_events::flush_agent_stream_delta(&mut done_app, done_session).units(),
         0
@@ -203,7 +203,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert_eq!(cancelled_app.chat[1].content, "cancelled tail");
     assert!(cancelled_app.get_session_runtime(&cancelled_session).pending_stream_delta.is_empty());
     assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_delta_flush_scheduled);
-    assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_save_flush_scheduled);
+    assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_save.flush_scheduled);
 
     let mut error_app = active_app(53);
     let error_session = error_app.active_session_id.clone().unwrap();
@@ -219,7 +219,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert_eq!(error_app.chat[1].content, "error tail");
     assert!(error_app.get_session_runtime(&error_session).pending_stream_delta.is_empty());
     assert!(!error_app.get_session_runtime(&error_session).stream_delta_flush_scheduled);
-    assert!(!error_app.get_session_runtime(&error_session).stream_save_flush_scheduled);
+    assert!(!error_app.get_session_runtime(&error_session).stream_save.flush_scheduled);
 }
 
 #[test]
@@ -727,9 +727,9 @@ fn plan_run_first_response_start_updates_only_the_runtime_projection() {
         super::update(&mut app, super::ChatMessage::PlanRunSessionCancelled("plan-child".into()));
     let runtime = app.get_session_runtime("plan-child");
     assert!(!runtime.request_lifecycle.is_requesting);
-    assert!(!runtime.stream_save_flush_scheduled);
-    assert!(runtime.stream_save_in_flight.is_none());
-    assert!(runtime.stream_save_dirty_records.is_empty());
+    assert!(!runtime.stream_save.flush_scheduled);
+    assert!(runtime.stream_save.in_flight.is_none());
+    assert!(runtime.stream_save.dirty_records.is_empty());
     let chat = app.cached_chat_messages("plan-child").unwrap();
     assert_eq!(chat[1].content, "partial output");
 }

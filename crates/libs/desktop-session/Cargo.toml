@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+todo-types = { path = "../todo-types", version = "0.6.0" }
+tracing = "0.1"
 session-info = { path = "../session-info", version = "0.6.0" }
 vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

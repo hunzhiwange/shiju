@@ -8,7 +8,7 @@ fn stream_events_tests_module_is_wired() {
 }
 
 use crate::app::components::chat_panel::virtualizer::{ChatScrollMode, ChatVirtualizer};
-use crate::app::models::{ChatMessage, ChatRole, ThinkTiming};
+use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::state::{
     AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState, StreamTailState,
 };
@@ -435,9 +435,9 @@ fn plan_run_session_started_registers_without_leaving_parent() {
     assert_eq!(child.title, "规划 · task-1");
     assert!(child.is_plan_run());
     assert!(app.get_session_runtime("task-1-plan").request_lifecycle.is_requesting);
-    assert_eq!(app.get_session_runtime("task-1-plan").stream_save_dirty_records[0].seq_no, 0);
+    assert_eq!(app.get_session_runtime("task-1-plan").stream_save.dirty_records[0].seq_no, 0);
     assert_eq!(
-        app.get_session_runtime("task-1-plan").stream_save_dirty_records[0].message.content,
+        app.get_session_runtime("task-1-plan").stream_save.dirty_records[0].message.content,
         "实现需求"
     );
     assert_eq!(app.chat, vec![message(ChatRole::User, "主会话任务")]);
@@ -523,29 +523,6 @@ fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
 }
 
 #[test]
-fn update_think_timing_ignores_empty_delta() {
-    let mut message = message(ChatRole::Assistant, "<think>open");
-    let state = StreamTailState::default();
-    message.think_timing.push(ThinkTiming { start_ms: 1, end_ms: None, last_update_ms: 1 });
-
-    super::update_think_timing_from_delta(&mut message, &state, 99);
-
-    assert_eq!(message.think_timing[0].last_update_ms, 1);
-    assert_eq!(message.think_timing[0].end_ms, None);
-}
-
-#[test]
-fn update_think_timing_ignores_plain_delta_without_think_blocks() {
-    let mut message = message(ChatRole::Assistant, "plain");
-    let mut state = StreamTailState::default();
-    state.apply_delta(" text");
-
-    super::update_think_timing_from_delta(&mut message, &state, 42);
-
-    assert!(message.think_timing.is_empty());
-}
-
-#[test]
 // 思考标签可能跨多个增量拆分，尾部状态机需要在不重扫完整消息的情况下拼接。
 fn stream_tail_state_handles_split_think_tags_from_deltas() {
     let cases = [
@@ -567,18 +544,6 @@ fn stream_tail_state_handles_split_think_tags_from_deltas() {
         assert_eq!(state.think_count(), thinks.len(), "message: {full_message:?}");
         assert_eq!(state.thinking_open(), thinking_open, "message: {full_message:?}");
     }
-}
-
-#[test]
-fn stream_tail_height_uses_delta_without_full_message_scan() {
-    let mut state = StreamTailState::default();
-
-    state.apply_delta("short");
-    let initial_height = state.estimated_height();
-    state.apply_delta("\nsecond line\nthird line");
-
-    assert_eq!(state.processed_bytes(), "short\nsecond line\nthird line".len());
-    assert!(state.estimated_height() > initial_height);
 }
 
 #[test]
@@ -793,10 +758,10 @@ async fn stream_session_delta_save_sends_dirty_entry_only() {
         "hello world"
     );
     let runtime = app.get_session_runtime(&session_id);
-    let dirty = runtime.stream_save_dirty_records.first().expect("dirty record");
+    let dirty = runtime.stream_save.dirty_records.first().expect("dirty record");
     assert_eq!(dirty.seq_no, 1);
     assert_eq!(dirty.message.content, "hello world");
-    assert_eq!(runtime.stream_save_revision, 2);
+    assert_eq!(runtime.stream_save.revision, 2);
 }
 
 #[test]
@@ -830,7 +795,7 @@ fn stream_session_delta_save_forces_terminal_flush() {
         app.cached_chat_messages(&session_id).unwrap().last().unwrap().content,
         "latest delta"
     );
-    assert!(app.get_session_runtime(&session_id).stream_save_in_flight.is_some());
+    assert!(app.get_session_runtime(&session_id).stream_save.in_flight.is_some());
 }
 
 #[test]
@@ -848,7 +813,7 @@ fn stream_session_delta_save_preserves_newer_revision() {
     app.chat[0].content.push_str(" newer");
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 11, None);
     let (_, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
     let _ = super::handle_agent_stream_session_delta_saved(
         &mut app,
         session_id.clone(),
@@ -859,7 +824,7 @@ fn stream_session_delta_save_preserves_newer_revision() {
     );
     assert_eq!(
         app.get_session_runtime(&session_id)
-            .stream_save_dirty_records
+            .stream_save.dirty_records
             .first()
             .unwrap()
             .message
@@ -895,7 +860,7 @@ fn stream_session_delta_save_retries_after_failure() {
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (_, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
 
     let retry = super::handle_agent_stream_session_delta_saved(
         &mut app,
@@ -909,8 +874,8 @@ fn stream_session_delta_save_retries_after_failure() {
     );
 
     let runtime = app.get_session_runtime(&session_id);
-    assert!(!runtime.stream_save_dirty_records.is_empty());
-    assert!(runtime.stream_save_flush_scheduled);
+    assert!(!runtime.stream_save.dirty_records.is_empty());
+    assert!(runtime.stream_save.flush_scheduled);
     assert!(retry.units() > 0);
 }
 
@@ -927,7 +892,7 @@ fn stale_stream_session_delta_rebases_before_retry() {
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (_, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
 
     let retry = super::handle_agent_stream_session_delta_saved(
         &mut app,
@@ -942,13 +907,13 @@ fn stale_stream_session_delta_rebases_before_retry() {
     );
 
     let runtime = app.get_session_runtime(&session_id);
-    assert_eq!(runtime.stream_save_expected_updated_ms, 4_200_000_000_042);
-    assert!(runtime.stream_save_flush_scheduled);
+    assert_eq!(runtime.stream_save.expected_updated_ms, 4_200_000_000_042);
+    assert!(runtime.stream_save.flush_scheduled);
     assert!(retry.units() > 0);
-    assert_eq!(runtime.stream_save_dirty_records[0].message.content, "retry me");
+    assert_eq!(runtime.stream_save.dirty_records[0].message.content, "retry me");
     let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
     let (generation, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
     assert!(updated_ms > 4_200_000_000_042);
     let _ = super::handle_agent_stream_session_delta_saved(
         &mut app,
@@ -958,7 +923,7 @@ fn stale_stream_session_delta_rebases_before_retry() {
         updated_ms,
         Ok(()),
     );
-    assert!(app.get_session_runtime(&session_id).stream_save_dirty_records.is_empty());
+    assert!(app.get_session_runtime(&session_id).stream_save.dirty_records.is_empty());
 }
 
 #[test]
@@ -1062,7 +1027,7 @@ fn active_stream_following_tail_preserves_height_storage_and_borrows_runtime() {
     assert_eq!(performance::snapshot().chat_message_clone_bytes, 0);
     assert_eq!(app.chat[1].content, format!("开始{}", "继续\n".repeat(32)));
     assert_eq!(
-        app.session_runtime_states[&session_id].stream_save_dirty_records[0].message.content,
+        app.session_runtime_states[&session_id].stream_save.dirty_records[0].message.content,
         app.chat[1].content
     );
     assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::TailSticky);
@@ -1086,7 +1051,7 @@ fn active_stream_save_snapshot_preserves_replacements_and_restarts_after_ack() {
         "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"a\"}\n".into(),
     );
     assert_eq!(
-        app.session_runtime_states[&session_id].stream_save_dirty_records[0].message.content,
+        app.session_runtime_states[&session_id].stream_save.dirty_records[0].message.content,
         app.chat[1].content
     );
     let _ = super::handle_agent_workflow_node_update(
@@ -1095,14 +1060,14 @@ fn active_stream_save_snapshot_preserves_replacements_and_restarts_after_ack() {
         "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"b\"}\n".into(),
     );
     let _ = super::handle_agent_stream_delta(&mut app, 42, "<think>思考".into());
-    let dirty = &app.session_runtime_states[&session_id].stream_save_dirty_records[0].message;
+    let dirty = &app.session_runtime_states[&session_id].stream_save.dirty_records[0].message;
     assert_eq!(dirty.content, app.chat[1].content);
     assert!(dirty.content.contains("\"status\":\"b\""));
     assert_eq!(dirty.think_timing.len(), app.chat[1].think_timing.len());
 
-    app.get_session_runtime_mut(&session_id).stream_save_dirty_records.clear();
+    app.get_session_runtime_mut(&session_id).stream_save.dirty_records.clear();
     let _ = super::handle_agent_stream_delta(&mut app, 42, "</think>完成".into());
-    let dirty = &app.session_runtime_states[&session_id].stream_save_dirty_records[0].message;
+    let dirty = &app.session_runtime_states[&session_id].stream_save.dirty_records[0].message;
     assert_eq!(dirty.content, app.chat[1].content);
     assert!(dirty.content.starts_with("中文\ntool shell"));
 }
@@ -1159,267 +1124,6 @@ fn active_stream_growth_preserves_turn_top_focus() {
 }
 
 #[test]
-fn update_think_timing_opens_and_closes_think_block() {
-    let mut message = message(ChatRole::Assistant, "");
-    let mut state = StreamTailState::default();
-
-    state.apply_delta("<think>working");
-    super::update_think_timing_from_delta(&mut message, &state, 10);
-    message.content.push_str("<think>working");
-    state.apply_delta("</think>done");
-    super::update_think_timing_from_delta(&mut message, &state, 25);
-
-    assert_eq!(message.think_timing.len(), 1);
-    assert_eq!(message.think_timing[0].start_ms, 10);
-    assert_eq!(message.think_timing[0].end_ms, Some(25));
-    assert_eq!(message.think_timing[0].last_update_ms, 25);
-}
-
-#[test]
-fn update_think_timing_closes_previous_block_and_keeps_latest_open() {
-    let mut message = message(ChatRole::Assistant, "");
-    let mut state = StreamTailState::default();
-
-    state.apply_delta("<think>first</think><think>second");
-    super::update_think_timing_from_delta(&mut message, &state, 40);
-
-    assert_eq!(message.think_timing.len(), 2);
-    assert_eq!(message.think_timing[0].end_ms, Some(40));
-    assert_eq!(message.think_timing[0].last_update_ms, 40);
-    assert_eq!(message.think_timing[1].end_ms, None);
-    assert_eq!(message.think_timing[1].last_update_ms, 40);
-}
-
-#[test]
-fn stream_done_message_ids_resize_and_assign_last_assistant_and_parent_user() {
-    let chat = vec![
-        message(ChatRole::User, "first"),
-        message(ChatRole::Assistant, "old"),
-        message(ChatRole::User, "latest"),
-        message(ChatRole::Assistant, "answer"),
-    ];
-    let mut ids = vec![Some("first-id".to_string())];
-
-    super::apply_stream_done_message_ids(
-        &chat,
-        &mut ids,
-        Some("assistant-id".to_string()),
-        Some("parent-id".to_string()),
-    );
-
-    assert_eq!(ids.len(), 4);
-    assert_eq!(ids[0].as_deref(), Some("first-id"));
-    assert_eq!(ids[2].as_deref(), Some("parent-id"));
-    assert_eq!(ids[3].as_deref(), Some("assistant-id"));
-}
-
-#[test]
-fn stream_done_message_ids_ignore_assistant_id_without_assistant_message() {
-    let chat = vec![
-        message(ChatRole::System, "context"),
-        message(ChatRole::User, "question"),
-        message(ChatRole::Tool, "result"),
-    ];
-    let mut ids = Vec::new();
-
-    super::apply_stream_done_message_ids(
-        &chat,
-        &mut ids,
-        Some("unused-assistant-id".to_string()),
-        Some("parent-id".to_string()),
-    );
-
-    assert_eq!(ids, vec![None, Some("parent-id".to_string()), None]);
-}
-
-#[test]
-fn message_ids_tail_returns_at_most_four_entries() {
-    let ids = vec![Some("1".to_string()), None, Some("3".to_string()), None, Some("5".to_string())];
-
-    assert_eq!(
-        super::message_ids_tail(&ids),
-        vec![None, Some("3".to_string()), None, Some("5".to_string())]
-    );
-}
-
-#[test]
-fn message_ids_tail_preserves_short_and_empty_inputs() {
-    let ids = vec![Some("1".to_string()), None];
-
-    assert_eq!(super::message_ids_tail(&ids), ids);
-    assert!(super::message_ids_tail(&[]).is_empty());
-}
-
-#[test]
-// 工具块解析要求行边界和完整 JSON，避免普通聊天文本被误识别为工具调用。
-fn parse_tool_block_len_requires_tool_prefix_and_complete_json() {
-    let block = "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"ok\"}\ntrailing";
-
-    assert_eq!(super::parse_tool_block_len(block), Some(block.find("trailing").unwrap()));
-    assert_eq!(super::parse_tool_block_len("prefix tool shell\n{}"), None);
-    assert_eq!(super::parse_tool_block_len("tool shell\n{"), None);
-}
-
-#[test]
-fn parse_tool_block_len_accepts_multiline_json_without_trailing_newline() {
-    let block = "tool shell\n{\n  \"tool_call_id\": \"call-1\",\n  \"status\": \"ok\"\n}";
-
-    assert_eq!(super::parse_tool_block_len(block), Some(block.len()));
-}
-
-#[test]
-fn tool_call_id_from_raw_block_rejects_missing_or_non_string_ids() {
-    assert_eq!(
-        super::tool_call_id_from_raw_block("tool shell\n{\"tool_call_id\":\"call-1\"}"),
-        Some("call-1".to_string())
-    );
-    assert_eq!(super::tool_call_id_from_raw_block("tool shell"), None);
-    assert_eq!(super::tool_call_id_from_raw_block("tool shell\nnot-json"), None);
-    assert_eq!(super::tool_call_id_from_raw_block("tool shell\n{\"tool_call_id\":7}"), None);
-}
-
-#[test]
-fn tool_block_start_allowed_accepts_line_start_and_colon_prefix_only() {
-    assert!(super::tool_block_start_allowed("tool shell\n{}", 0));
-    let ascii_colon = "工具:\ntool shell\n{}";
-    let full_width_colon = "工具：\ntool shell\n{}";
-    assert!(super::tool_block_start_allowed(ascii_colon, ascii_colon.find("tool").unwrap()));
-    assert!(super::tool_block_start_allowed(
-        full_width_colon,
-        full_width_colon.find("tool").unwrap()
-    ));
-    assert!(!super::tool_block_start_allowed("inline tool shell\n{}", 7));
-}
-
-#[test]
-fn tool_block_start_allowed_accepts_same_line_colon_after_whitespace() {
-    let content = "工具： \ttool shell\n{}";
-    let start = content.find("tool").unwrap();
-
-    assert!(super::tool_block_start_allowed(content, start));
-    assert!(!super::tool_block_start_allowed("label  tool shell\n{}", 7));
-}
-
-#[test]
-fn workflow_tool_block_upsert_replaces_matching_call_id() {
-    let running = r#"tool workflow_node
-{"tool_call_id":"workflow-node-2-llm","status":"running","summary":"Run Task · llm"}
-"#;
-    let finished = r#"tool workflow_node
-{"tool_call_id":"workflow-node-2-llm","status":"completed","summary":"Run Task · llm","output":"ok"}
-"#;
-    let mut content = String::new();
-
-    super::upsert_tool_block_by_call_id(&mut content, running);
-    super::upsert_tool_block_by_call_id(&mut content, finished);
-
-    assert_eq!(content.matches("tool workflow_node").count(), 1);
-    assert!(content.contains("\"status\":\"completed\""));
-    assert!(!content.contains("\"status\":\"running\""));
-}
-
-#[test]
-fn workflow_tool_block_upsert_appends_when_call_id_is_missing_or_different() {
-    let mut content = "prefix".to_string();
-
-    super::upsert_tool_block_by_call_id(&mut content, "tool shell\n{\"status\":\"ok\"}\n");
-    super::upsert_tool_block_by_call_id(
-        &mut content,
-        "tool shell\n{\"tool_call_id\":\"call-2\",\"status\":\"ok\"}\n",
-    );
-
-    assert_eq!(content.matches("tool shell").count(), 2);
-    assert!(content.ends_with('\n'));
-}
-
-#[test]
-fn workflow_tool_block_upsert_ignores_inline_text_that_looks_like_a_tool_block() {
-    let mut content =
-        "documentation tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"old\"}\n".to_string();
-
-    super::upsert_tool_block_by_call_id(
-        &mut content,
-        "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"new\"}\n",
-    );
-
-    assert_eq!(content.matches("tool shell").count(), 2);
-    assert!(content.contains("\"status\":\"old\""));
-    assert!(content.contains("\"status\":\"new\""));
-}
-
-#[test]
-fn append_tool_block_normalizes_separators_and_trailing_newlines() {
-    let mut content = "prefix".to_string();
-
-    super::append_tool_block(&mut content, "tool shell\n{}\n\n");
-
-    assert_eq!(content, "prefix\ntool shell\n{}\n");
-}
-
-#[test]
-fn append_stream_delta_to_tail_appends_or_creates_assistant_message() {
-    let mut assistant_chat = vec![message(ChatRole::Assistant, "hello")];
-    let mut assistant_ids = vec![Some("assistant-id".to_string())];
-
-    let changed_idx = super::append_stream_delta_to_tail(
-        &mut assistant_chat,
-        &mut assistant_ids,
-        " world".to_string(),
-        10,
-        &mut StreamTailState::default(),
-    );
-
-    assert_eq!(changed_idx, 0);
-    assert_eq!(assistant_chat[0].content, "hello world");
-    assert_eq!(assistant_ids, vec![Some("assistant-id".to_string())]);
-
-    let mut user_chat = vec![message(ChatRole::User, "question")];
-    let mut user_ids = Vec::new();
-    let changed_idx = super::append_stream_delta_to_tail(
-        &mut user_chat,
-        &mut user_ids,
-        "answer".to_string(),
-        20,
-        &mut StreamTailState::default(),
-    );
-
-    assert_eq!(changed_idx, 1);
-    assert_eq!(user_chat[1].role, ChatRole::Assistant);
-    assert_eq!(user_chat[1].content, "answer");
-    assert!(user_chat[1].think_timing.is_empty());
-    assert_eq!(user_ids, vec![None, None]);
-}
-
-#[test]
-fn upsert_workflow_tool_to_tail_reuses_assistant_or_creates_one() {
-    let running = "tool workflow_node\n{\"tool_call_id\":\"node-1\",\"status\":\"running\"}\n";
-    let finished = "tool workflow_node\n{\"tool_call_id\":\"node-1\",\"status\":\"completed\"}\n";
-    let mut assistant_chat = vec![message(ChatRole::Assistant, running)];
-    let mut assistant_ids = vec![Some("assistant-id".to_string())];
-
-    let changed_idx = super::upsert_workflow_tool_to_tail(
-        &mut assistant_chat,
-        &mut assistant_ids,
-        finished.to_string(),
-    );
-
-    assert_eq!(changed_idx, 0);
-    assert!(assistant_chat[0].content.contains("\"status\":\"completed\""));
-    assert!(!assistant_chat[0].content.contains("\"status\":\"running\""));
-    assert_eq!(assistant_ids, vec![Some("assistant-id".to_string())]);
-
-    let mut user_chat = vec![message(ChatRole::User, "question")];
-    let mut user_ids = Vec::new();
-    let changed_idx =
-        super::upsert_workflow_tool_to_tail(&mut user_chat, &mut user_ids, running.to_string());
-
-    assert_eq!(changed_idx, 1);
-    assert_eq!(user_chat[1].role, ChatRole::Assistant);
-    assert!(user_chat[1].content.contains("\"status\":\"running\""));
-    assert_eq!(user_ids, vec![None, None]);
-}
-
-#[test]
 fn leading_guide_count_only_counts_initial_guide_items() {
     let guide = queue_item(ChatSendBehavior::Guide);
     let normal = queue_item(ChatSendBehavior::Queue);
@@ -1438,18 +1142,6 @@ fn leading_guide_count_handles_empty_and_all_guide_queues() {
         ]),
         2
     );
-}
-
-#[test]
-fn continuation_label_from_history_uses_last_user_message() {
-    let history = vec![
-        message(ChatRole::User, "first"),
-        message(ChatRole::Assistant, "answer"),
-        message(ChatRole::User, "second"),
-    ];
-
-    assert_eq!(super::continuation_label_from_history(&history), "second");
-    assert_eq!(super::continuation_label_from_history(&[]), "");
 }
 
 #[test]
@@ -2153,7 +1845,7 @@ fn stream_session_delta_save_keeps_retrying_when_conflict_recovery_advances() {
 
     for stored_updated_ms in 42..48 {
         let (generation, revision, updated_ms) =
-            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+            app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
         let _ = super::handle_agent_stream_session_delta_saved(
             &mut app,
             session_id.clone(),
@@ -2166,15 +1858,15 @@ fn stream_session_delta_save_keeps_retrying_when_conflict_recovery_advances() {
             }),
         );
         let runtime = app.get_session_runtime(&session_id);
-        assert_eq!(runtime.stream_save_expected_updated_ms, stored_updated_ms);
-        assert_eq!(runtime.stream_save_failures, 0);
-        assert!(runtime.stream_save_flush_scheduled);
+        assert_eq!(runtime.stream_save.expected_updated_ms, stored_updated_ms);
+        assert_eq!(runtime.stream_save.failures, 0);
+        assert!(runtime.stream_save.flush_scheduled);
         assert!(app.active_toast.is_none());
         let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
     }
 
     let (generation, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
     let _ = super::handle_agent_stream_session_delta_saved(
         &mut app,
         session_id.clone(),
@@ -2183,7 +1875,7 @@ fn stream_session_delta_save_keeps_retrying_when_conflict_recovery_advances() {
         updated_ms,
         Ok(()),
     );
-    assert!(app.get_session_runtime(&session_id).stream_save_dirty_records.is_empty());
+    assert!(app.get_session_runtime(&session_id).stream_save.dirty_records.is_empty());
 }
 
 #[test]
@@ -2192,12 +1884,12 @@ fn stream_session_delta_save_stops_when_conflict_recovery_makes_no_progress() {
     let session_id = "stationary-conflict".to_string();
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::Assistant, "unsaved")];
-    app.get_session_runtime_mut(&session_id).stream_save_expected_updated_ms = 42;
+    app.get_session_runtime_mut(&session_id).stream_save.expected_updated_ms = 42;
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     for attempt in 1..=3 {
         let (generation, revision, updated_ms) =
-            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+            app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
         let _ = super::handle_agent_stream_session_delta_saved(
             &mut app,
             session_id.clone(),
@@ -2209,13 +1901,13 @@ fn stream_session_delta_save_stops_when_conflict_recovery_makes_no_progress() {
                 stored_message_count: 1,
             }),
         );
-        assert_eq!(app.get_session_runtime(&session_id).stream_save_failures, attempt);
+        assert_eq!(app.get_session_runtime(&session_id).stream_save.failures, attempt);
         if attempt < 3 {
             let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
         }
     }
-    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+    assert!(!app.get_session_runtime(&session_id).stream_save.flush_scheduled);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save.dirty_records.len(), 1);
     assert_eq!(super::force_save_agent_stream_session(&mut app, &session_id).units(), 0);
     assert!(app.active_toast.is_some());
 }
@@ -2230,7 +1922,7 @@ fn stream_session_delta_save_stops_after_three_failures() {
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     for attempt in 0..3 {
         let (generation, revision, updated_ms) =
-            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+            app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
         let _ = super::handle_agent_stream_session_delta_saved(
             &mut app,
             session_id.clone(),
@@ -2240,12 +1932,12 @@ fn stream_session_delta_save_stops_after_three_failures() {
             Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other("offline".into())),
         );
         if attempt < 2 {
-            assert!(app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+            assert!(app.get_session_runtime(&session_id).stream_save.flush_scheduled);
             let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
         }
     }
-    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+    assert!(!app.get_session_runtime(&session_id).stream_save.flush_scheduled);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save.dirty_records.len(), 1);
     assert_eq!(super::force_save_agent_stream_session(&mut app, &session_id).units(), 0);
     assert!(app.active_toast.is_some());
 }
@@ -2274,7 +1966,7 @@ fn stream_session_delta_save_repairs_missing_user_prefix_for_active_and_backgrou
         super::mark_agent_stream_session_dirty(&mut app, &session_id, 3, 10, None);
         let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
         let (generation, revision, updated_ms) =
-            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+            app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
         let _ = super::handle_agent_stream_session_delta_saved(
             &mut app,
             session_id.clone(),
@@ -2288,12 +1980,12 @@ fn stream_session_delta_save_repairs_missing_user_prefix_for_active_and_backgrou
         );
         let runtime = app.get_session_runtime(&session_id);
         let user =
-            runtime.stream_save_dirty_records.iter().find(|record| record.seq_no == 2).unwrap();
+            runtime.stream_save.dirty_records.iter().find(|record| record.seq_no == 2).unwrap();
         assert_eq!(user.message.content, "new question");
-        assert!(runtime.stream_save_flush_scheduled);
+        assert!(runtime.stream_save.flush_scheduled);
         let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
         let (generation, revision, updated_ms) =
-            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+            app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
         let _ = super::handle_agent_stream_session_delta_saved(
             &mut app,
             session_id.clone(),
@@ -2302,8 +1994,8 @@ fn stream_session_delta_save_repairs_missing_user_prefix_for_active_and_backgrou
             updated_ms,
             Ok(()),
         );
-        assert!(app.get_session_runtime(&session_id).stream_save_dirty_records.is_empty());
-        assert_eq!(app.get_session_runtime(&session_id).stream_save_failures, 0);
+        assert!(app.get_session_runtime(&session_id).stream_save.dirty_records.is_empty());
+        assert_eq!(app.get_session_runtime(&session_id).stream_save.failures, 0);
     }
 }
 
@@ -2314,12 +2006,12 @@ fn stream_session_delta_save_uses_absolute_page_sequences() {
     app.active_session_id = Some(session_id.clone());
     app.chat =
         vec![message(ChatRole::User, "new question"), message(ChatRole::Assistant, "answer")];
-    app.get_session_runtime_mut(&session_id).stream_save_seq_base = 100;
+    app.get_session_runtime_mut(&session_id).stream_save.seq_base = 100;
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 1, 10, None);
-    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records[0].seq_no, 101);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save.dirty_records[0].seq_no, 101);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (generation, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
     let _ = super::handle_agent_stream_session_delta_saved(
         &mut app,
         session_id.clone(),
@@ -2333,7 +2025,7 @@ fn stream_session_delta_save_uses_absolute_page_sequences() {
     );
     let runtime = app.get_session_runtime(&session_id);
     let user =
-        runtime.stream_save_dirty_records.iter().find(|record| record.seq_no == 100).unwrap();
+        runtime.stream_save.dirty_records.iter().find(|record| record.seq_no == 100).unwrap();
     assert_eq!(user.message.content, "new question");
 }
 
@@ -2346,7 +2038,7 @@ fn stream_session_delta_save_rejects_permanent_errors_without_retry() {
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (generation, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
     let _ = super::handle_agent_stream_session_delta_saved(
         &mut app,
         session_id.clone(),
@@ -2357,9 +2049,9 @@ fn stream_session_delta_save_rejects_permanent_errors_without_retry() {
             "invalid delta".into(),
         )),
     );
-    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+    assert!(!app.get_session_runtime(&session_id).stream_save.flush_scheduled);
     assert_eq!(super::save_latest_agent_stream_session(&mut app, &session_id).units(), 0);
-    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save.dirty_records.len(), 1);
 }
 
 #[test]
@@ -2368,11 +2060,11 @@ fn stream_session_delta_save_stops_when_missing_prefix_is_unavailable() {
     let session_id = "unavailable-prefix".to_string();
     app.active_session_id = Some(session_id.clone());
     app.chat = vec![message(ChatRole::Assistant, "unsaved")];
-    app.get_session_runtime_mut(&session_id).stream_save_seq_base = 3;
+    app.get_session_runtime_mut(&session_id).stream_save.seq_base = 3;
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (generation, revision, updated_ms) =
-        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        app.get_session_runtime(&session_id).stream_save.in_flight.unwrap();
     let _ = super::handle_agent_stream_session_delta_saved(
         &mut app,
         session_id.clone(),
@@ -2384,8 +2076,8 @@ fn stream_session_delta_save_stops_when_missing_prefix_is_unavailable() {
             stored_message_count: 2,
         }),
     );
-    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+    assert!(!app.get_session_runtime(&session_id).stream_save.flush_scheduled);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save.dirty_records.len(), 1);
     super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 11, None);
     assert_eq!(super::schedule_agent_stream_session_save(&mut app, &session_id).units(), 0);
 }
@@ -2458,7 +2150,7 @@ fn compaction_failure_preserves_prior_statuses_and_persists_completion() {
         let _ = super::handle_agent_compaction_status(&mut app, 42, true);
         assert!(
             app.get_session_runtime(&session_id)
-                .stream_save_dirty_records
+                .stream_save.dirty_records
                 .iter()
                 .any(|record| record.seq_no == 1 && record.message.content == "压缩完成")
         );
@@ -2477,7 +2169,7 @@ fn compaction_failure_preserves_prior_statuses_and_persists_completion() {
         assert!(runtime.pending_compaction_status_index.is_none());
         assert!(
             runtime
-                .stream_save_dirty_records
+                .stream_save.dirty_records
                 .iter()
                 .any(|record| record.seq_no == 2 && record.message.content == "会话压缩失败")
         );
@@ -2556,7 +2248,7 @@ fn background_stream_error_without_cache_does_not_create_error_only_history() {
         "未找到模型：deepseek/deepseek-flash".into(),
     );
     assert!(!app.session_chat_cache.contains_key("background"));
-    assert!(app.get_session_runtime("background").stream_save_dirty_records.is_empty());
+    assert!(app.get_session_runtime("background").stream_save.dirty_records.is_empty());
     assert_eq!(app.chat[0].content, "visible history");
     assert!(!app.get_session_runtime("background").request_lifecycle.is_requesting);
 }

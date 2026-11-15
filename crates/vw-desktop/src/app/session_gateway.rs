@@ -36,23 +36,7 @@ use gateway_shiju_skill::{ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, Shi
 use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto};
 use session_ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SessionMessageDeltaSaveError {
-    Stale { stored_updated_ms: u64, stored_message_count: usize },
-    Rejected(String),
-    Other(String),
-}
-
-impl std::fmt::Display for SessionMessageDeltaSaveError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Stale { stored_updated_ms, .. } => {
-                write!(formatter, "stale session message delta at {stored_updated_ms}")
-            }
-            Self::Rejected(error) | Self::Other(error) => formatter.write_str(error),
-        }
-    }
-}
+pub use desktop_session::message::chat::stream::save::SessionMessageDeltaSaveError;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn block_on_gateway<F, T>(fut: F) -> Result<T, String>

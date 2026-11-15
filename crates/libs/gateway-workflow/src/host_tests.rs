@@ -1,22 +1,8 @@
 // 覆盖工作流 API 的路由、请求转换、运行时调用与流式响应边界。
 
 // 测试同时覆盖阻塞与 SSE 两种响应模式，以及缺失输入时的短路失败。
-use super::{
-    GatewayWorkflowToolProvider, VibeWindowChatRequest, VibeWindowResponseMode, VibeWindowSseEvent,
-    WORKFLOW_INPUT_FULL_ACCESS, WORKFLOW_INPUT_ROOT, WorkflowSseContext,
-    apply_path_chat_workflow_uuid, chat_messages_inner, chat_request_to_workflow_request,
-    compact_sse_node_outputs, hydrate_workflow_yaml_from_uuid, node_finished_data,
-    node_started_data, node_started_data_from_event, node_status, normalized_optional_string,
-    router, strip_workflow_runtime_inputs, text_chunk_data, truncate_sse_node_output,
-    validate_path_workflow_uuid, workflow_answer, workflow_application_chat_messages,
-    workflow_application_create, workflow_application_delete, workflow_application_get,
-    workflow_application_update, workflow_applications_chat_messages, workflow_applications_list,
-    workflow_delta_should_stream_text, workflow_finished_data, workflow_request_root,
-    workflow_response_to_chat_response, workflow_response_to_sse_events,
-    workflow_response_to_sse_response, workflow_runtime, workflow_sse_output_preview,
-    workflow_started_data, workflow_status, workflow_tool_call_error_text,
-    workflow_tool_runtime_context,
-};
+use super::server_test_source::*;
+use super::{GatewayWorkflowToolProvider, workflow_runtime, workflow_tool_call_error_text, workflow_tool_runtime_context, workflow_request_root};
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::state::AppState;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
@@ -70,7 +56,7 @@ impl Provider for StaticProvider {
 
 #[test]
 fn workflow_router_is_wired() {
-    let _router = router();
+    let _router = router::<AppState>(RuntimeFactory(workflow_runtime));
 }
 
 #[tokio::test]
@@ -85,6 +71,7 @@ async fn workflow_chat_handlers_reject_missing_user_or_query_before_runtime() {
 
     let empty_user = workflow_applications_chat_messages(
         State(test_state()),
+        Extension(RuntimeFactory(workflow_runtime)),
         Extension(tenant.clone()),
         Json(VibeWindowChatRequest { user: "  ".to_string(), ..valid.clone() }),
     )
@@ -95,6 +82,7 @@ async fn workflow_chat_handlers_reject_missing_user_or_query_before_runtime() {
 
     let empty_query = chat_messages_inner(
         test_state(),
+        RuntimeFactory(workflow_runtime),
         tenant.clone(),
         VibeWindowChatRequest { query: " ".to_string(), ..valid.clone() },
     )
@@ -105,6 +93,7 @@ async fn workflow_chat_handlers_reject_missing_user_or_query_before_runtime() {
 
     let path_error = workflow_application_chat_messages(
         State(test_state()),
+        Extension(RuntimeFactory(workflow_runtime)),
         Extension(tenant.clone()),
         Path(" ".to_string()),
         Json(valid.clone()),
@@ -115,6 +104,7 @@ async fn workflow_chat_handlers_reject_missing_user_or_query_before_runtime() {
 
     let body_override = workflow_application_chat_messages(
         State(test_state()),
+        Extension(RuntimeFactory(workflow_runtime)),
         Extension(tenant),
         Path("app-1".to_string()),
         Json(VibeWindowChatRequest { application_uuid: Some("body-app".to_string()), ..valid }),
@@ -172,6 +162,7 @@ async fn workflow_handlers_cover_list_and_uuid_hydration_short_circuits() {
 async fn workflow_streaming_mode_returns_sse_response_without_blocking_on_run() {
     let response = chat_messages_inner(
         test_state(),
+        RuntimeFactory(workflow_runtime),
         test_tenant("streaming"),
         VibeWindowChatRequest {
             query: "hello".to_string(),
@@ -192,6 +183,7 @@ async fn workflow_streaming_mode_returns_sse_response_without_blocking_on_run() 
 async fn workflow_blocking_mode_reports_missing_uuid_from_store() {
     let error = chat_messages_inner(
         test_state(),
+        RuntimeFactory(workflow_runtime),
         test_tenant("blocking-missing"),
         VibeWindowChatRequest {
             query: "hello".to_string(),
@@ -752,7 +744,7 @@ fn output_preview_uses_known_text_keys_before_json_fallback() {
 
 #[test]
 fn compact_outputs_preserve_usage_and_mark_truncation() {
-    let long_answer = "a".repeat(super::WORKFLOW_SSE_NODE_OUTPUT_MAX_CHARS + 1);
+    let long_answer = "a".repeat(WORKFLOW_SSE_NODE_OUTPUT_MAX_CHARS + 1);
     let outputs = BTreeMap::from([
         ("answer".to_string(), json!(long_answer)),
         ("usage".to_string(), json!({"total_tokens": 9})),
@@ -770,7 +762,7 @@ fn compact_outputs_preserve_usage_and_mark_truncation() {
 fn truncation_keeps_short_text_and_splits_long_text() {
     let (short, short_truncated) = truncate_sse_node_output("短文本");
     let long =
-        format!("{}{}", "头".repeat(super::WORKFLOW_SSE_NODE_OUTPUT_MAX_CHARS), "尾".repeat(10));
+        format!("{}{}", "头".repeat(WORKFLOW_SSE_NODE_OUTPUT_MAX_CHARS), "尾".repeat(10));
 
     let (truncated, long_truncated) = truncate_sse_node_output(&long);
 

@@ -429,24 +429,7 @@ fn knowledge_store_from_config(
     config: agent_config::runtime::Config,
     tenant: TenantScope,
 ) -> Result<SqliteKnowledgeStore, ApiError> {
-    let (embedder, resolved_embedding) = agent_memory::create_embedding_provider_with_routes(
-        &config.memory,
-        &config.embedding_routes,
-        config.api_key.as_deref(),
-    );
-    let embedding_model = (embedder.dimensions() > 0).then_some(resolved_embedding.model);
-    let database = GlobalDatabase::for_home(&agent_paths::paths().home).map_err(|error| {
-        ApiError::internal(format!("initialize global knowledge database failed: {error}"))
-    })?;
-    SqliteKnowledgeStore::with_embedder(
-        database,
-        tenant,
-        embedder,
-        embedding_model,
-        config.memory.vector_weight as f32,
-        config.memory.keyword_weight as f32,
-        config.memory.embedding_cache_size,
-    )
+    agent_knowledge::runtime_store::knowledge_store_from_config(config, &agent_paths::paths().home, tenant)
 }
 
 struct EmbeddingTestResponseTemplate {

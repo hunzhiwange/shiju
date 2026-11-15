@@ -17,3 +17,6 @@ pub use types::{GatewayWorkflowDefaultStreamRequest, GatewayWorkflowResponseMode
 
 #[cfg(test)]
 mod test_support;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod server;

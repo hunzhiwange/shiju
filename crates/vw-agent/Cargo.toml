@@ -377,6 +377,7 @@ gateway-global = { path = "../libs/gateway-global", version = "0.6.0" }
 gateway-git = { path = "../libs/gateway-git", version = "0.6.0" }
 gateway-hooks = { path = "../libs/gateway-hooks", version = "0.6.0" }
 gateway-knowledge = { path = "../libs/gateway-knowledge", version = "0.6.0" }
+gateway-workflow = { path = "../libs/gateway-workflow", version = "0.6.0" }
 gateway-plugins = { path = "../libs/gateway-plugins", version = "0.6.0" }
 gateway-instance = { path = "../libs/gateway-instance", version = "0.6.0" }
 gateway-desktop = { path = "../libs/gateway-desktop", version = "0.6.0" }

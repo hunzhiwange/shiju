@@ -7,6 +7,8 @@ pub mod import;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod store;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod runtime_store;
+#[cfg(not(target_arch = "wasm32"))]
 mod import_error;
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
-use super::openclaw_catalog::*;
-use crate::providers::live::patch_json::object_value;
+use super::catalog::*;
+use app_config_patch::patch_json::object_value;
 use serde_json::json;
 
 #[test]

@@ -8,8 +8,8 @@ fn openclaw_api_roundtrips_defaults_preserves_sections() {
     let defaults = OpenClawAgentsDefaults(serde_json::from_value(serde_json::json!({
         "timeout":45,"extension":{"x":1},"workspace":"中文"
     })).unwrap());
-    let domain = convert::<openclaw_defaults::OpenClawAgentsDefaults>(defaults).unwrap();
-    let next = openclaw_defaults::prepare_agents_defaults(Some(pre), &domain).unwrap();
+    let domain = convert::<defaults_rules::OpenClawAgentsDefaults>(defaults).unwrap();
+    let next = defaults_rules::prepare_agents_defaults(Some(pre), &domain).unwrap();
     let result = project(Section::Defaults, Some(&next)).unwrap();
     assert_eq!(result["timeoutSeconds"], 45);
     assert_eq!(result["extension"]["x"], 1);

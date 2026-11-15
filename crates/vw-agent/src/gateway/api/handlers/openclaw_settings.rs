@@ -9,7 +9,8 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_openclaw_settings::*,
 };
-use vw_agent_apps::{openclaw_catalog, openclaw_defaults, openclaw_model, openclaw_env, openclaw_tools, openclaw_health, providers::{openclaw::{self, OpenClawFiles}, live::{commit::{ExecutionHostId, ProviderTransactions}, write_guard::WriteError}}};
+use app_openclaw_config_rules::{catalog as openclaw_catalog, defaults as defaults_rules};
+use vw_agent_apps::{openclaw_defaults, openclaw_model, openclaw_env, openclaw_tools, openclaw_health, providers::{openclaw::{self, OpenClawFiles}, live::{commit::{ExecutionHostId, ProviderTransactions}, write_guard::WriteError}}};
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -52,7 +53,7 @@ fn project(section: Section, bytes: Option<&[u8]>) -> Result<Value, StatusCode> 
         Section::Health => convert(openclaw_health::scan_openclaw_health_from_bytes(bytes)),
         Section::Model => convert(openclaw_model::get_default_model(bytes).map_err(error)?),
         Section::Catalog => convert(openclaw_catalog::get_model_catalog(bytes).map_err(error)?),
-        Section::Defaults => convert(openclaw_defaults::get_agents_defaults(bytes).map_err(error)?),
+        Section::Defaults => convert(defaults_rules::get_agents_defaults(bytes).map_err(error)?),
     }
 }
 async fn read(p: Policy, t: TenantScope, h: HeaderMap, s: Scope, section: Section) -> Result<Json<Value>, StatusCode> {

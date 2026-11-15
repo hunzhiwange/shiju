@@ -196,6 +196,7 @@ members = [
   "crates/libs/app-catalog",
   "crates/libs/app-config-patch",
   "crates/libs/app-config-write",
+  "crates/libs/app-openclaw-config-rules",
   "crates/libs/app-workspace-paths",
   "crates/libs/app-provider-validation",
   "crates/libs/app-provider-projection",

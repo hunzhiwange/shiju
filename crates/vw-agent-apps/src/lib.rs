@@ -58,14 +58,10 @@ pub mod openclaw_model;
 mod openclaw_model_tests;
 
 #[cfg(target_os = "macos")]
-pub mod openclaw_catalog;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_catalog_tests;
+pub use app_openclaw_config_rules::catalog as openclaw_catalog;
 
 #[cfg(target_os = "macos")]
 pub mod openclaw_defaults;
-#[cfg(all(test, target_os = "macos"))]
-mod openclaw_defaults_tests;
 
 #[cfg(target_os = "macos")]
 pub mod openclaw_env;

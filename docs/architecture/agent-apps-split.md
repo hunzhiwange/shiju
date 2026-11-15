@@ -2131,3 +2131,9 @@ workspace_paths → providers
 直接消费者：原包 daily_memory_files/list/search、hermes_memory、workspace_files，以及 vw-agent 的 workspace_directory、workspace_memory、hermes_memory handler；均接入所属库。仅为现有列表/搜索调用公开 `filenames`、`regular_file`。任务 37 接收记忆、查询与 dashboard，不再接收安全路径实现。
 
 静态核对：清单路径、macOS 条件、独立测试注册、单一实现与无门面回依赖；无静态资源路径。未运行 Cargo、单元及实机测试，统一验收待授权；主机授权、穿越/链接替换、并发写入、原子写与 Finder 描述符行为仍待统一验收。
+
+### 任务 74 静态迁移结果
+
+`app-openclaw-config-rules` 唯一拥有 catalog 全部实现与 defaults 纯规则（类型、form/with_form、get/prepare、私有 document），六个既有测试迁至两个独立文件。macOS cfg 保持；直接依赖 app-config-patch::patch_json5、app-config-write::write_guard::WriteError、serde 与 serde_json arbitrary_precision，无门面回依赖或资源引用。原 catalog 路径重导出同一模块，defaults 组合纯库重导出与 set_agents_defaults 发布函数，后者由任务 38 接收。
+
+vw-agent OpenClaw handler 的 catalog 与 defaults 读取直接使用规则库，集成测试的纯准备路径同步；发布仍走原事务锁。API 传输类型仍由 api-openclaw-settings 独立拥有，保持既有 convert 边界。workspace/路径及测试注册已静态核对，未修改 Cargo.lock。差异检查不能代替行为验收：扩展字段、注释保留、旧 timeout 优先级、非有限值拒绝、缺失与空目录区分及授权锁一致性，均待后续授权统一验证；未运行 Cargo、单元及实机测试。

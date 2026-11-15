@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+app-openclaw-config-rules = { path = "../libs/app-openclaw-config-rules" }
 local-app-auth = { path = "../libs/local-app-auth", version = "0.6.0" }
 vw-api-hermes-dashboard = { path = "../libs/api-hermes-dashboard", version = "0.6.0" }
 vw-api-project-profiles = { path = "../libs/api-project-profiles", version = "0.6.0" }

@@ -1,4 +1,4 @@
-use super::openclaw_defaults::*;
+use super::defaults::*;
 use serde_json::json;
 
 #[test]
@@ -20,7 +20,7 @@ fn openclaw_defaults_projects_fields_preserves_extensions_and_timeout_priority()
     assert!(!actual.0.contains_key("contextTokens"));
     assert_eq!(actual.0["future"], json!({"x":true}));
     assert_eq!(actual.0["model"], json!({"primary":"a"}));
-    let root: serde_json::Value = crate::providers::live::patch_json::object_value(&next).unwrap();
+    let root: serde_json::Value = app_config_patch::patch_json::object_value(&next).unwrap();
     assert_eq!(root["env"], json!({"KEEP":"yes"}));
     assert_eq!(root["agents"]["other"], true);
 }

@@ -1,10 +1,8 @@
 //! OpenClaw model allowlist projection and byte-preserving candidate edits.
 //! Callers authorize the executor and publish candidates through OpenClawFiles
 //! and the existing provider transaction, retaining the shared physical lock.
-use crate::providers::live::{
-    patch_json5::{object_value, replace_member_preserving_trivia},
-    write_guard::WriteError,
-};
+use app_config_patch::patch_json5::{object_value, replace_member_preserving_trivia};
+use app_config_write::write_guard::WriteError;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;

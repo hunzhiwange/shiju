@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-openclaw-config-rules = { path = "../libs/app-openclaw-config-rules" }
 app-config-write = { path = "../libs/app-config-write" }
 app-provider-core = { path = "../libs/app-provider-core" }
 vw-api-project-profiles = { path = "../libs/api-project-profiles", version = "0.6.0" }

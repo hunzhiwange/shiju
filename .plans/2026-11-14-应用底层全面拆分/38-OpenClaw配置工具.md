@@ -53,3 +53,5 @@
 ## 任务 28 补充审计的边界覆盖
 
 openclaw_catalog.rs 及测试、openclaw_defaults.rs 纯函数及测试改归任务 74；本卡仅迁移 defaults 的 set_agents_defaults 发布函数并重导出纯规则。依赖 app-openclaw-config-rules，不重复新建规则。上列迁移基线以本节符号归属覆盖；未列职责继续按原任务实施。
+
+任务 74 已静态迁移：catalog 与 defaults 纯规则及六个既有测试唯一位于 app-openclaw-config-rules；document 保持模块私有。原 defaults 仅组合重导出与 set_agents_defaults，任务 38 接收该发布函数。真实读取/目录编辑消费者已直接接入规则库；未运行 Cargo、测试及实机。

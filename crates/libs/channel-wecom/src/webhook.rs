@@ -1,8 +1,8 @@
 //! Restricted, outbound-only group robot Markdown sender.
 
-use super::super::markdown_chunk::split_markdown;
-use super::super::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
-use super::super::outbound_format::format_wecom_markdown_tables;
+use channel_support::markdown_chunk::split_markdown;
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_format::format_wecom_markdown_tables;
 use serde_json::{Value, json};
 use std::time::Duration;
 
@@ -55,18 +55,18 @@ impl WeComWebhook {
     }
 
     fn build(endpoint: reqwest::Url, timeout: Duration) -> anyhow::Result<Self> {
-        let builder = super::super::http::client_builder()
+        let builder = channel_support::http::client_builder()
             .retry(reqwest::retry::never())
             .redirect(reqwest::redirect::Policy::none());
         let client =
-            crate::config::apply_runtime_proxy_to_builder(builder, "channel.wecom_webhook")
+            agent_config::schema::apply_runtime_proxy_to_builder(builder, "channel.wecom_webhook")
                 .build()
                 .map_err(|_| failure(0, 1, DeliveryFailureKind::NotSent, "客户端初始化失败"))?;
         Ok(Self { endpoint, client, timeout })
     }
 
-    #[cfg(test)]
-    pub(crate) fn new_for_test(endpoint: reqwest::Url, timeout: Duration) -> Self {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn new_for_test(endpoint: reqwest::Url, timeout: Duration) -> Self {
         assert_eq!(endpoint.scheme(), "http");
         assert_eq!(endpoint.host_str(), Some("127.0.0.1"));
         let client = reqwest::Client::builder()

@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::agent::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
@@ -472,7 +472,7 @@ async fn markdown_delivery_wecom_long_table_and_code_preserve_final_content() {
     let code = "~~~rust\nlet value = \"| code | pipes |\";\n~~~";
     let content = format!("| 名称 | 状态 |\n| --- | --- |\n{}\n{code}", rows.concat());
     let normalized =
-        crate::app::agent::channels::outbound_format::format_wecom_markdown_tables(&content);
+        channel_support::outbound_format::format_wecom_markdown_tables(&content);
     let task = chunked_send(&channel, content);
     let mut parts = Vec::new();
     loop {

@@ -1,9 +1,9 @@
 //! Connection-local outbound acknowledgements. No queued frame survives a reconnect.
 
 use super::*;
-use crate::app::agent::channels::markdown_chunk::split_markdown;
-use crate::app::agent::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
-use crate::app::agent::channels::outbound_format::format_wecom_markdown_tables;
+use channel_support::markdown_chunk::split_markdown;
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_format::format_wecom_markdown_tables;
 use std::collections::{HashSet, VecDeque};
 use tokio::sync::oneshot;
 

@@ -333,6 +333,7 @@ vw-api-types = { path = "../vw-api-types", version = "0.6.0" }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0" }
 channel-dingtalk = { path = "../libs/channel-dingtalk", version = "0.6.0" }
 gateway-model = { path = "../libs/gateway-model", version = "0.6.0" }
 gateway-mcp = { path = "../libs/gateway-mcp", version = "0.6.0" }
@@ -490,6 +491,7 @@ tool-computer = { path = "../libs/tool-computer", version = "0.6.0" }
 tool-office = { path = "../libs/tool-office", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = ["test-support"] }
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]

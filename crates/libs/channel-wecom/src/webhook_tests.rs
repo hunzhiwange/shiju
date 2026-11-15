@@ -53,7 +53,7 @@ fn wecom_webhook_rejects_unsafe_urls() {
     );
 }
 
-use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 use axum::{
     body::Body,
     http::{Response, StatusCode, header},
@@ -128,7 +128,7 @@ async fn wecom_webhook_normalizes_tables_before_send() {
     assert_eq!(
         tokio::time::timeout(Duration::from_secs(3), f.requests.recv()).await.unwrap().unwrap()["markdown"]
             ["content"],
-        crate::channels::outbound_format::format_wecom_markdown_tables(content)
+        channel_support::outbound_format::format_wecom_markdown_tables(content)
     );
 }
 

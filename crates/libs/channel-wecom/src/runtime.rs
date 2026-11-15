@@ -1,6 +1,6 @@
 //! Process-local authenticated WeCom connections. Never opens a second socket for delivery.
 use super::{OutboundItem, outbound};
-use crate::config::Config;
+use agent_config::schema::Config;
 use anyhow::{Context, bail};
 use std::{
     collections::HashMap,
@@ -23,7 +23,7 @@ pub struct WeComRuntimeScope {
 impl WeComRuntimeScope {
     /// Capture the trusted tenant and runtime-resolved storage source before spawning listeners.
     pub fn from_config(config: &Config, tenant: TenantScope) -> anyhow::Result<Self> {
-        let home = crate::global::paths().home.clone();
+        let home = agent_paths::paths().home.clone();
         anyhow::ensure!(home.is_absolute(), "Could not resolve an absolute runtime home directory");
         Ok(Self {
             tenant,
@@ -83,7 +83,7 @@ fn credential_digest(bot_id: &str, secret: &str) -> [u8; 32] {
 }
 
 /// 配置保存与监听器重连之间也不能借旧连接发送。
-pub(crate) fn connected_with_credentials(
+pub fn connected_with_credentials(
     scope: &WeComRuntimeScope,
     bot_id: &str,
     secret: &str,

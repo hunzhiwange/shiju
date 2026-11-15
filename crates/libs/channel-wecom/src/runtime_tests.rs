@@ -11,7 +11,7 @@ use vw_api_transport::id::TenantScope;
 type Socket = WebSocketStream<TcpStream>;
 
 fn scope() -> WeComRuntimeScope {
-    let mut config = crate::config::Config::default();
+    let mut config = agent_config::schema::Config::default();
     config.config_path = std::env::temp_dir().join(Uuid::new_v4().to_string()).join("config.json");
     WeComRuntimeScope::from_config(&config, TenantScope::default()).unwrap()
 }
@@ -85,7 +85,7 @@ async fn wecom_runtime_isolates_tenant_store_workspace_and_instance_owner() {
     let (_channel, _socket, task) = start(scope.clone(), "secret-a").await;
     assert!(connected(&scope).is_ok());
     for other in [
-        WeComRuntimeScope::from_config(&crate::config::Config::default(), TenantScope::default())
+        WeComRuntimeScope::from_config(&agent_config::schema::Config::default(), TenantScope::default())
             .unwrap(),
         {
             let mut other = scope.clone();

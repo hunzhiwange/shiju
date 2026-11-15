@@ -2,7 +2,7 @@
 
 use std::io;
 
-use crate::app::task::models::{Task, TaskIndex};
+use desktop_task_model::models::{Task, TaskIndex};
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::paths::native_cutover_error;

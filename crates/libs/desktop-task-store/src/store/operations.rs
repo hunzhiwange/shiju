@@ -7,8 +7,8 @@ use std::io;
 use time::OffsetDateTime;
 
 #[cfg(target_arch = "wasm32")]
-use crate::app::task::models::{SubTask, SubTaskStatus};
-use crate::app::task::models::{Task, TaskStatus};
+use desktop_task_model::models::{SubTask, SubTaskStatus};
+use desktop_task_model::models::{Task, TaskStatus};
 
 #[cfg(target_arch = "wasm32")]
 use super::paths::get_task_log_dir;
@@ -51,7 +51,7 @@ pub fn create_task(project_path: &str, task: Task) -> io::Result<Task> {
     {
         let mut task = task;
         let mut index = load_index_unlocked(project_path);
-        let now_ms = crate::app::time::now_ms();
+        let now_ms = runtime_time::now_ms();
         let seconds = i64::try_from(now_ms / 1_000).unwrap_or_default();
         let date_time =
             OffsetDateTime::from_unix_timestamp(seconds).unwrap_or(OffsetDateTime::UNIX_EPOCH);

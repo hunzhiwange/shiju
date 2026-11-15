@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::app::task::models::Task;
+use desktop_task_model::models::Task;
 
 #[cfg(target_arch = "wasm32")]
 use super::paths::get_task_log_dir;

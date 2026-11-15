@@ -1,0 +1,18 @@
+[package]
+name = "desktop-task-store"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+desktop-task-model = { path = "../desktop-task-model", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+runtime-time = { path = "../runtime-time", version = "0.6.0" }
+serde_json = "1"
+time = { version = "0.3", features = ["formatting"] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,5 +1,5 @@
 //! Saved-state projection, independent of activation and live-file backfill.
-use crate::apps::lifecycle::operations::Operation;
+use app_lifecycle::operations::Operation;
 use super::listing::{PromptEntry, list_entries};
 use vw_api_app_identity::{AppId};
 

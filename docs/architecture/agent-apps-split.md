@@ -2604,3 +2604,13 @@ native_capability、adapters、native_file、import 与 distribution 的公开�
 静态证据：30 个 Rust 文件与 HEAD 原文件逐字一致；macOS cfg、独立测试注册、dsh/opencode 的包内 path、支持矩阵和 native_file 写入边界原样保留。Python 标准库路径检查通过，include_str fixture 有效；新包无旧门面回依赖；workspace 与旧包直接依赖已注册。当前 Python 无 tomllib，改为人工审阅 TOML 的依赖、平台和特性，并以标准库核实路径。旧包依赖仍有其它领域调用者，保留。
 
 未运行 Cargo、单元及实机测试，统一验收待授权；需覆盖 app-mcp 与直接调用者编译、迁移单测及三平台原生行为。Cargo.lock 未触碰。
+
+## 任务 41：提示词管理迁移结果
+
+`crates/libs/app-prompts/src/prompts` 唯一拥有原 prompts 全部 18 个 Rust 文件（模块根及 17 个实现）。此节覆盖历史所有权表任务 41 的原路径。原包 prompts/mod.rs 仅重导出 app_prompts::prompts；lib.rs 的 pub mod prompts 保持接线。原目录无独立测试、include 路径或静态资源，不新增测试。
+
+路径解析直接依赖 app-config-paths，原生事务直接依赖 app-auth::providers::live，sync 使用 app-lifecycle::operations::Operation；均已是下层所有者，无遗留编排符号或后继移交项。未扩大可见性；平台 cfg、函数签名、原子发布、回滚及路径边界保持原样。prompts_store、prompts_bootstrap 和网关提示词处理器继续沿用原门面路径。原包其余模块仍使用现有直接依赖，本次不删除。
+
+静态审阅：18 文件仅替换所有者导入路径；工作区已有 live_file.rs、shared_import.rs 修改随迁移保留且不纳入本任务提交。基线仍引用 vw-api-types，故清单暂保留该真实依赖；已有修复完成后可独立清理。TOML 标准库解析及路径审阅、模块注册/调用者与无反向依赖检索、差异空白检查完成。Cargo.lock 未触碰。
+
+未运行 Cargo、单元及实机测试，统一验收待授权；需覆盖 app-prompts 与直接调用者编译、提示词测试及 macOS/Windows/Linux 条件行为。静态审阅不代表编译或行为验证通过。

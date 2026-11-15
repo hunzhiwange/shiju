@@ -6,7 +6,7 @@ use {
     vw_api_app_operations::PromptResource,
     vw_api_transport::id::ProjectScope,
 };
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{PendingTarget, ProviderTransactions},
     stage::{FileChange, WholeFile},
     write_guard::{AppWriteGuard, FilePrivacy, WriteError},

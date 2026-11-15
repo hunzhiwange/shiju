@@ -1,0 +1,26 @@
+[package]
+name = "app-prompts"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-config-paths = { path = "../app-config-paths" }
+app-lifecycle = { path = "../app-lifecycle" }
+vw-api-app-identity = { path = "../api-app-identity" }
+vw-api-app-operations = { path = "../api-app-operations" }
+vw-api-types = { path = "../../vw-api-types" }
+base64 = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-auth = { path = "../app-auth" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
+sha2 = "0.11"
+libc = "0.2"

@@ -6,7 +6,7 @@ use std::{
 
 use vw_api_app_identity::{AppId};
 
-use crate::providers::paths;
+use app_config_paths as paths;
 
 /// OpenClaw's permanent editor belongs to the workspace domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

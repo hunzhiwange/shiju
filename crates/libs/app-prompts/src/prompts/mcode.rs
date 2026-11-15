@@ -3,7 +3,7 @@
 use std::ffi::OsStr;
 
 #[cfg(target_os = "macos")]
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{PendingTarget, ProviderTransactions},
     stage::{FileChange, WholeFile},
     write_guard::{AppWriteGuard, FilePrivacy, WriteError},

@@ -10,7 +10,7 @@ use {
     vw_api_app_identity::AppId,
 };
 
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{PendingTarget, ProviderTransactions},
     stage::{FileChange, WholeFile},
     write_guard::{AppWriteGuard, FilePrivacy, WriteError},

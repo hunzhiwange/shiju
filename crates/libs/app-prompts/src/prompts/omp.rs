@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, path::Path};
 use vw_api_app_identity::{AppId};
 
 use super::targets::{PromptOwnership, PromptTarget};
-use crate::providers::paths;
+use app_config_paths as paths;
 
 /// Resolve the sole source-proven OMP prompt resource, AGENTS.md.
 ///

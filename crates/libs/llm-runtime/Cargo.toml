@@ -15,6 +15,7 @@ parking_lot = "0.12"
 tokio = { version = "1", features = ["sync", "net", "time"] }
 sha2 = "0.11"
 hex = "0.4"
+ring = "0.17.14"
 app-settings-store = { path = "../app-settings-store", version = "0.6.0" }
 acp-types = { path = "../acp-types", version = "0.6.0" }
 vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
@@ -55,5 +56,6 @@ shell-command = { path = "../shell-command", version = "0.6.0" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
 tempfile = "3"

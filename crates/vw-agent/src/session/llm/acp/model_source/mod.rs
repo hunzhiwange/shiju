@@ -10,15 +10,7 @@ use crate::{
 };
 use profile::AcpLaunchProfile;
 
-/// Process-keyed one-way digest: cache diagnostics cannot disclose or guess credentials.
-pub(super) fn fingerprint(bytes: &[u8]) -> String {
-    static KEY: std::sync::LazyLock<ring::hmac::Key> = std::sync::LazyLock::new(|| {
-        let mut key = [0; 32];
-        getrandom::fill(&mut key).expect("ACP cache fingerprint entropy unavailable");
-        ring::hmac::Key::new(ring::hmac::HMAC_SHA256, &key)
-    });
-    hex::encode(ring::hmac::sign(&KEY, bytes).as_ref())
-}
+pub(super) use llm_runtime::acp::model_source::fingerprint;
 
 pub(super) async fn prepare(
     agent: &str,
@@ -53,13 +45,7 @@ pub(super) async fn prepare(
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|| crate::global::paths().state.clone()),
     );
-    profile.model_output_limit = resolved.limit.output;
-    profile.model_context_limit = resolved.limit.context;
-    profile.model_supports_temperature = resolved.capabilities.temperature;
-    profile.model_supports_reasoning = resolved.capabilities.reasoning;
-    profile.model_reasoning_options = resolved.capabilities.reasoning_options.clone();
-    profile.model_supports_tool_call = resolved.capabilities.toolcall;
-    profile.model_api = Some(resolved.api.clone());
+    profile.apply_model(&resolved);
     let server = RelayServer::start(
         profile.binding.clone(),
         std::sync::Arc::new(ProviderRelayBackend::new()?),
@@ -81,14 +67,9 @@ pub(super) fn launch_identity(
     model: &provider::Model,
     session: &str,
 ) -> RelayIdentity {
-    RelayIdentity {
-        tenant: crate::session::ui_store::current_tenant_scope(),
-        project,
-        session: format!("{session}:{agent}"),
-        provider: model.provider_id.clone(),
-        model: model.id.clone(),
-        generation: 0,
-    }
+    llm_runtime::acp::model_source::launch_identity(
+        crate::session::ui_store::current_tenant_scope(), project, agent, model, session,
+    )
 }
 
 #[cfg(all(test, unix))]

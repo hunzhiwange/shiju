@@ -92,6 +92,17 @@ impl AcpLaunchProfile {
             })
         }
     }
+    /// Apply the model snapshot freshly resolved by the host for this launch.
+    pub fn apply_model(&mut self, resolved: &model_types::Model) {
+        self.model_output_limit = resolved.limit.output;
+        self.model_context_limit = resolved.limit.context;
+        self.model_supports_temperature = resolved.capabilities.temperature;
+        self.model_supports_reasoning = resolved.capabilities.reasoning;
+        self.model_reasoning_options = resolved.capabilities.reasoning_options.clone();
+        self.model_supports_tool_call = resolved.capabilities.toolcall;
+        self.model_api = Some(resolved.api.clone());
+    }
+
     pub fn config(&self) -> &AcpAgentConfig {
         &self.config
     }
@@ -207,3 +218,7 @@ impl Drop for AcpLaunchProfile {
         drop(self.gateway.take());
     }
 }
+
+#[cfg(all(test, unix))]
+#[path = "profile_tests.rs"]
+mod tests;

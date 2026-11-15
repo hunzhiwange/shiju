@@ -9,6 +9,12 @@
 //! 具体的参数解析、配置合并和会话执行逻辑下沉到库模块中实现。
 
 #[cfg(not(test))]
+use acp_cli_commands::cli::{
+    config_command::{ConfigCommand, handle_config_command},
+    session_target::resolve_session_target,
+    status_command::{handle_sessions_history, handle_sessions_show, handle_status},
+};
+#[cfg(not(test))]
 use acp_cli_render::cli::output_render::{
     print_cancel_result_by_format, print_closed_session_by_format,
     print_created_session_banner, print_ensured_session_by_format,
@@ -31,13 +37,10 @@ use vw_acp::{
     ConfigurePublicCliOptions, FindSessionOptions, OutputFormatterOptions, SessionSendOptions,
     build_cli_bootstrap_plan, build_cli_runtime_plan,
     cli::{
-        config_command::{ConfigCommand, handle_config_command},
         flags::{
             PermissionFlags, StatusFlags, resolve_agent_invocation, resolve_global_flags,
             resolve_permission_mode,
         },
-        session_target::resolve_session_target,
-        status_command::{handle_sessions_history, handle_sessions_show, handle_status},
     },
     close_session, configure_public_cli, create_output_formatter, default_global_config_path,
     find_session, load_resolved_config_from_paths, project_config_path, read_prompt,

@@ -11,11 +11,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
-use crate::cli::flags::GlobalFlags;
-use crate::{
-    AuthPolicy, ConfigError, InitGlobalConfigFileResult, NonInteractivePermissionPolicy,
-    OutputFormat, PermissionMode, ResolvedAcpxConfig, default_global_config_path,
-};
+use acp_cli_model::cli::flags::GlobalFlags;
+use acp_types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
+use acp_config::{ConfigError, InitGlobalConfigFileResult, ResolvedAcpxConfig, default_global_config_path};
 
 use super::*;
 
@@ -53,7 +51,7 @@ struct EnvVarGuard {
 
 impl EnvVarGuard {
     fn new(keys: &[&'static str]) -> Self {
-        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.blocking_lock();
+        let lock = crate::TEST_HOME_ENV_LOCK.blocking_lock();
         let saved = keys.iter().map(|key| (*key, std::env::var(key).ok())).collect();
         Self { _lock: lock, saved }
     }

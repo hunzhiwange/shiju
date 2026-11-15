@@ -4,9 +4,9 @@ use std::io::{self, Write};
 
 use serde::Serialize;
 
-use crate::cli::flags::GlobalFlags;
+use acp_cli_model::cli::flags::GlobalFlags;
 use acp_cli_render::cli::json_output::emit_json_result;
-use crate::{
+use acp_config::{
     ConfigDisplay, ConfigError, InitGlobalConfigFileResult, ResolvedAcpxConfig,
     init_global_config_file, to_config_display,
 };
@@ -102,7 +102,7 @@ fn write_config_init_result<W: Write>(
         return Ok(());
     }
 
-    if global_flags.format == crate::OutputFormat::Quiet {
+    if global_flags.format == acp_types::OutputFormat::Quiet {
         writeln!(stdout, "{}", result.path)?;
         return Ok(());
     }

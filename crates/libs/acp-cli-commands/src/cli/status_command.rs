@@ -6,16 +6,16 @@ use serde::Serialize;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-use crate::cli::flags::{
+use acp_cli_model::cli::flags::{
     FlagsError, GlobalFlags, StatusFlags, resolve_agent_invocation, resolve_session_name_from_flags,
 };
 use acp_cli_render::cli::json_output::emit_json_result;
 use acp_cli_render::cli::output_render::AgentSessionIdPayload;
 use acp_cli_render::cli::output_render::agent_session_id_payload;
-use crate::{
-    FindSessionOptions, ResolvedAcpxConfig, SessionRecord, SessionRepositoryError, find_session,
-    probe_queue_owner_health,
-};
+use acp_config::ResolvedAcpxConfig;
+use acp_types::SessionRecord;
+use acp_storage::{FindSessionOptions, SessionRepositoryError, find_session};
+use acp_queue::probe_queue_owner_health;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StatusCommandError {
@@ -159,7 +159,7 @@ fn write_no_session_status<W: Write>(
         return Ok(());
     }
 
-    if global_flags.format == crate::OutputFormat::Quiet {
+    if global_flags.format == acp_types::OutputFormat::Quiet {
         writeln!(stdout, "no-session")?;
         return Ok(());
     }
@@ -191,7 +191,7 @@ fn write_status_payload<W: Write>(
         return Ok(());
     }
 
-    if global_flags.format == crate::OutputFormat::Quiet {
+    if global_flags.format == acp_types::OutputFormat::Quiet {
         writeln!(stdout, "{}", payload.status)?;
         return Ok(());
     }

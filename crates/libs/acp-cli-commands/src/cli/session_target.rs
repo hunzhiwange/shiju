@@ -1,7 +1,8 @@
 //! CLI 控制命令先按目录与 Agent 定位名称，再保留显式 ID 的原有解析语义。
 
-use crate::{
-    FindSessionByDirectoryWalkOptions, SessionRecord, SessionRepositoryError,
+use acp_types::SessionRecord;
+use acp_storage::{
+    FindSessionByDirectoryWalkOptions, SessionRepositoryError,
     find_git_repository_root, find_session_by_directory_walk, resolve_session_record,
 };
 

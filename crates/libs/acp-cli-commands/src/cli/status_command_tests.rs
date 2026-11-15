@@ -10,13 +10,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
-use crate::cli::flags::GlobalFlags;
-use crate::{
-    AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode, ResolvedAcpxConfig,
+use acp_cli_model::cli::flags::GlobalFlags;
+use acp_types::{
+    AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode,
     SESSION_RECORD_SCHEMA, SessionAcpxState, SessionAgentContent, SessionAgentMessage,
     SessionEventLog, SessionMessage, SessionRecord, SessionTokenUsage, SessionUserContent,
-    SessionUserMessage, write_session_record,
+    SessionUserMessage,
 };
+
+use acp_config::ResolvedAcpxConfig;
+use acp_storage::write_session_record;
 
 use super::*;
 
@@ -101,7 +104,7 @@ struct HomeEnvGuard {
 
 impl HomeEnvGuard {
     async fn set(path: &Path) -> Self {
-        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
+        let lock = crate::TEST_HOME_ENV_LOCK.lock().await;
         let previous = std::env::var_os("HOME");
         unsafe { std::env::set_var("HOME", path) };
         Self { _lock: lock, previous }
@@ -121,7 +124,7 @@ async fn missing_session_fixture(format: OutputFormat) -> (HomeEnvGuard, TempDir
     let home = TempDir::new("missing-home");
     let home_env = HomeEnvGuard::set(home.path()).await;
     let cwd = home.join("missing-cwd");
-    tokio::fs::create_dir_all(crate::session_event_log::session_base_dir(home.path()))
+    tokio::fs::create_dir_all(acp_paths::session_event_log::session_base_dir(home.path()))
         .await
         .expect("create empty session dir");
     tokio::fs::create_dir_all(&cwd).await.expect("create missing session cwd");

@@ -66,7 +66,7 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
         }
     };
     Task::perform(
-        async move { config::gateway_client()?.shiju_model_token(&credential).await },
+        async move { gateway_shiju_account::GatewayShijuAccountClient::new(config::gateway_client()?.transport().clone()).shiju_model_token(&credential).await },
         move |result| {
             Message::Account(AccountMessage::ModelTokenLoaded {
                 generation,

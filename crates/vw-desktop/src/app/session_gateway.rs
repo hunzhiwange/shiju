@@ -105,34 +105,34 @@ pub(crate) async fn gateway_task_plan_run_stop_async(
 
 pub(crate) async fn gateway_shiju_account_login_async() -> Result<ShijuLoginChallengeDto, String> {
     let client = gateway_client()?;
-    client.shiju_account_login().await
+    gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone()).shiju_account_login().await
 }
 
 pub(crate) async fn gateway_shiju_account_login_poll_async(
     state: &str,
 ) -> Result<ShijuLoginPollDto, String> {
     let client = gateway_client()?;
-    client.shiju_account_login_poll(state).await
+    gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone()).shiju_account_login_poll(state).await
 }
 
 pub(crate) async fn gateway_shiju_account_profile_async(
     credential: &ShijuCredential,
 ) -> Result<ShijuAccountProfileDto, String> {
     let client = gateway_client()?;
-    client.shiju_account_profile(credential).await
+    gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone()).shiju_account_profile(credential).await
 }
 
 pub(crate) async fn gateway_shiju_account_monthly_quota_async(
     credential: &ShijuCredential,
 ) -> Result<vw_gateway_client::ShijuMonthlyQuotaDto, String> {
-    gateway_client()?.shiju_account_monthly_quota(credential).await
+    gateway_shiju_account::GatewayShijuAccountClient::new(gateway_client()?.transport().clone()).shiju_account_monthly_quota(credential).await
 }
 
 pub(crate) async fn gateway_shiju_account_me_async(
     credential: &ShijuCredential,
 ) -> Result<ShijuAccountMeDto, String> {
     let client = gateway_client()?;
-    client.shiju_account_me(credential).await
+    gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone()).shiju_account_me(credential).await
 }
 
 pub(crate) async fn gateway_shiju_account_update_async(
@@ -140,7 +140,7 @@ pub(crate) async fn gateway_shiju_account_update_async(
     request: &ShijuAccountUpdateRequest,
 ) -> Result<ShijuAccountUpdateResponseDto, String> {
     let client = gateway_client()?;
-    client.shiju_account_update(credential, request).await
+    gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone()).shiju_account_update(credential, request).await
 }
 
 pub(crate) async fn gateway_shiju_account_password_update_async(
@@ -148,7 +148,7 @@ pub(crate) async fn gateway_shiju_account_password_update_async(
     request: &ShijuAccountPasswordUpdateRequest,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client.shiju_account_password_update(credential, request).await
+    gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone()).shiju_account_password_update(credential, request).await
 }
 
 pub(crate) async fn gateway_shiju_app_catalog_async(

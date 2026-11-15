@@ -2037,7 +2037,7 @@ fn agent_unified_selection_ignores_install_result_from_another_session() {
 
 #[test]
 fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity() {
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.project_path = Some("/workspace".into());
     app.project_id = Some("workspace".into());
@@ -2072,7 +2072,7 @@ fn acp_model_source_ui_selection_preserves_native_and_provider_request_identity(
 
 #[test]
 fn acp_model_source_ui_cannot_change_during_an_active_request() {
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
@@ -2139,7 +2139,7 @@ fn full_access_toggle_is_remembered_for_new_llm_sessions() {
 fn confirm_pending_model_source(app: &mut crate::app::App) {
     let runtime = app.current_session_runtime();
     let update = runtime.acp_source_pending.unwrap();
-    let options = vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {
+    let options = vw_api_acp_model::acp_session::AcpSessionOptions {
         acp_model_source: update.selection.source,
         selected_model: Some(update.selection.clone()),
         ..Default::default()
@@ -2478,7 +2478,7 @@ fn fork_selection_ui_switches_engines_preserving_history_and_input() {
 
 #[test]
 fn fork_selection_ui_first_send_uses_latest_agent_source_and_history() {
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("fork".into());
     app.project_path = Some("/repo".into());
@@ -2519,7 +2519,7 @@ fn fork_selection_ui_first_send_uses_latest_agent_source_and_history() {
 
 #[test]
 fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("fork".into());
     app.current_session_runtime_mut().fork_execution_started = Some(false);
@@ -2556,7 +2556,7 @@ fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
 
 #[test]
 fn fork_selection_ui_discards_previous_agent_source_result() {
-    use vw_gateway_client::vw_api_types::{
+    use vw_api_acp_model::{
         acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
     };
     let (mut app, _) = crate::app::App::new();
@@ -2584,7 +2584,7 @@ fn fork_selection_ui_discards_previous_agent_source_result() {
 
 #[test]
 fn fork_selection_ui_ignores_stale_source_after_returning_to_same_agent() {
-    use vw_gateway_client::vw_api_types::{
+    use vw_api_acp_model::{
         acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
     };
     let (mut app, _) = crate::app::App::new();

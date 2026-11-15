@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, LazyLock, Weak},
 };
 use {
-    vw_api_types::acp_model_source::AcpSessionModelSelection,
+    vw_api_acp_model::acp_model_source::AcpSessionModelSelection,
     vw_api_transport::id::TenantScope,
 };
 

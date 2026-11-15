@@ -370,7 +370,7 @@ fn gateway_task_stream_request(
     }
     gateway_chat_stream::GatewayChatStreamRequest {
         acp_model_source:
-            vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+            vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
         session_id: Some(session_id.into()),
         messages: vec![json!({ "role": "user", "content": prompt })],
         system: None,

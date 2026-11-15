@@ -18,10 +18,10 @@ use iced_runtime::futures::futures::StreamExt;
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use vw_api_chat_identity::ReasoningEffortDto;
-use vw_gateway_client::vw_api_types::acp_model_source::{
+use vw_api_acp_model::acp_model_source::{
     AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
 };
-use vw_gateway_client::vw_api_types::acp_session::{
+use vw_api_acp_model::acp_session::{
     AcpAccessStatus, AcpAccessSupport, AcpChoice, AcpOptionKind, AcpSessionOption,
     AcpSessionSelection,
 };

@@ -161,21 +161,21 @@ fn is_auto_model_request(model: Option<&str>) -> bool {
 fn request_bypasses_auto_selector(_model: Option<&str>, options: &Value) -> bool {
     request_options_enable_acp(options)
         && acp_model_source(options)
-            .is_ok_and(|source| source == vw_api_types::acp_model_source::AcpModelSource::CliLocal)
+            .is_ok_and(|source| source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal)
 }
 
 pub(crate) fn acp_model_source(
     options: &Value,
-) -> Result<vw_api_types::acp_model_source::AcpModelSource, String> {
+) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String> {
     options.get("acp_model_source").map_or_else(
         || {
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(agent) = options.get("acp_agent").and_then(Value::as_str) {
-                let mut defaults = vw_api_types::acp_session::AcpSessionOptions::default();
+                let mut defaults = vw_api_acp_model::acp_session::AcpSessionOptions::default();
                 super::acp::controls::annotate_model_source(&mut defaults, agent.trim());
                 return Ok(defaults.acp_model_source);
             }
-            Ok(vw_api_types::acp_model_source::AcpModelSource::SessionModel)
+            Ok(vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel)
         },
         |value| {
             serde_json::from_value(value.clone())

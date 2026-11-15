@@ -131,8 +131,8 @@ async fn request_in_session(
                     let busy = super::super::controls::select(
                         session,
                         fixture["root"].as_str().unwrap(),
-                        vw_api_types::acp_session::AcpSessionSelection {
-                            kind: vw_api_types::acp_session::AcpOptionKind::Model,
+                        vw_api_acp_model::acp_session::AcpSessionSelection {
+                            kind: vw_api_acp_model::acp_session::AcpOptionKind::Model,
                             value: "must-not-be-applied-while-busy".into(),
                         },
                     )
@@ -319,7 +319,7 @@ async fn run(mode: &str) {
             &root.to_string_lossy(),
         ).await.unwrap();
         let selected = public.selected_model.expect("production selection must survive process retirement");
-        assert_eq!(selected.source, if mode == "session-model" { vw_api_types::acp_model_source::AcpModelSource::SessionModel } else { vw_api_types::acp_model_source::AcpModelSource::CliLocal });
+        assert_eq!(selected.source, if mode == "session-model" { vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel } else { vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal });
         if mode == "session-model" {
             assert_eq!(selected.provider_id.as_deref(), Some("acp-offline-acceptance"));
             assert_eq!(selected.model.as_deref(), Some("acp-offline-acceptance/acp-fixture-primary"));
@@ -420,7 +420,7 @@ async fn run(mode: &str) {
 
 async fn effort_run(input: &Value, model: &provider::Model, info: &provider::Info) {
     use super::super::{controls, lifecycle};
-    use vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
+    use vw_api_acp_model::acp_session::{AcpOptionKind, AcpSessionSelection};
 
     let agent = input["agent"].as_str().unwrap();
     let claude = agent == "claude";
@@ -443,7 +443,7 @@ async fn effort_run(input: &Value, model: &provider::Model, info: &provider::Inf
         anchor.agent == agent
             && anchor.model.provider_id.as_deref() == Some("acp-offline-acceptance")
             && anchor.model.model.as_deref() == Some(model.id.as_str())
-            && anchor.model.source == vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+            && anchor.model.source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
     );
     let id = if agent == "copilot" { "reasoning_effort" } else { "effort" };
     let kind = AcpOptionKind::Config { id: id.into() };

@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.6.0" }
 provider-config-reader = { path = "../libs/provider-config-reader", version = "0.6.0" }
 gateway-project = { path = "../libs/gateway-project", version = "0.6.0" }
 config-observability = { path = "../libs/config-observability", version = "0.6.0" }

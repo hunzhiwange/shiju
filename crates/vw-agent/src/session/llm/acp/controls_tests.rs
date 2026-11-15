@@ -4,7 +4,7 @@ use serde_json::json;
 
 #[test]
 fn acp_model_source_defaults_follow_verified_cli_capabilities() {
-    use vw_api_types::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
     for agent in ["cursor", "trae", "unknown-custom-driver", "claude", "codex"] {
         let mut options = AcpSessionOptions::default();
         annotate_model_source(&mut options, agent);
@@ -225,7 +225,7 @@ async fn acp_model_source_session_controls_busy_guard_is_session_scoped() {
 
 #[test]
 fn acp_model_source_session_controls_disconnected_keeps_provider_identity() {
-    use vw_api_types::acp_model_source::{AcpModelSource, AcpSessionModelSelection};
+    use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpSessionModelSelection};
     let selection = super::super::lifecycle::Selection {
         agent: "unknown-custom-driver".into(),
         model: AcpSessionModelSelection {
@@ -244,7 +244,7 @@ fn acp_model_source_session_controls_disconnected_keeps_provider_identity() {
     );
     assert!(matches!(
         options.model_source_capabilities[0],
-        vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported { .. }
+        vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Unsupported { .. }
     ));
 }
 

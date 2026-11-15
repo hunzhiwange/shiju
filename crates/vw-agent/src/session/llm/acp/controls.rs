@@ -4,7 +4,7 @@ use agent_client_protocol::{
     SessionConfigKind, SessionConfigOptionCategory, SessionConfigSelectOptions,
 };
 use std::sync::Arc;
-use vw_api_types::acp_session::{
+use vw_api_acp_model::acp_session::{
     AcpChoice, AcpOptionKind, AcpSessionOption, AcpSessionOptions, AcpSessionSelection,
 };
 
@@ -174,7 +174,7 @@ fn project_options(
     info: Option<vw_acp::SessionCapabilities>,
     selection: Option<&super::lifecycle::Selection>,
 ) -> AcpSessionOptions {
-    use vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let source = selection.map_or(
         if info.is_some() { AcpModelSource::CliLocal } else { AcpModelSource::SessionModel },
         |value| value.model.source,
@@ -211,7 +211,7 @@ pub(crate) fn annotate_model_source(options: &mut AcpSessionOptions, agent: &str
         options.verified_cli_release.as_ref().map(|_| "Darwin arm64".into());
     options.model_source_capabilities = super::model_source::drivers::capabilities(agent);
     if options.selected_model.is_none() && !options.connected {
-        use vw_api_types::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+        use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
         options.acp_model_source = if options.model_source_capabilities.iter().any(|capability| {
             matches!(
                 capability,
@@ -231,7 +231,7 @@ fn annotate_access(
     record: &vw_acp::SessionRecord,
 ) {
     use vw_acp::{AccessPolicyReason, FullAccessSupport};
-    use vw_api_types::acp_session::{AcpAccessStatus, AcpAccessSupport};
+    use vw_api_acp_model::acp_session::{AcpAccessStatus, AcpAccessSupport};
     let (requested, support, explanation) =
         match client.session_access_policy(&record.acp_session_id) {
             Err(_) => (
@@ -308,7 +308,7 @@ async fn parked_effort_record(
 ) -> Result<Option<vw_acp::SessionRecord>, String> {
     if !saved.has_started()
         || managed_effort_id(&saved.agent).is_none()
-        || saved.model.source != vw_api_types::acp_model_source::AcpModelSource::SessionModel
+        || saved.model.source != vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
     {
         return Ok(None);
     }

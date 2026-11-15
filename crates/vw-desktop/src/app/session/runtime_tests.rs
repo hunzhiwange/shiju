@@ -707,7 +707,7 @@ fn historical_session_restores_persisted_reasoning_effort_without_affecting_mode
 #[test]
 fn acp_model_source_ui_selection_waits_for_backend_confirmation() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.current_session_runtime_mut().acp_agent = Some("claude".into());
     let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
@@ -718,7 +718,7 @@ fn acp_model_source_ui_selection_waits_for_backend_confirmation() {
 #[test]
 fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::{
+    use vw_api_acp_model::{
         acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
     };
     let (mut app, _) = crate::app::App::new();
@@ -756,7 +756,7 @@ fn acp_model_source_ui_round_trip_preserves_model_and_open_popover() {
 #[test]
 fn acp_model_source_ui_unsupported_cli_uses_native_and_rejects_client_switch() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::{
+    use vw_api_acp_model::{
         acp_model_source::{
             AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
         },
@@ -804,8 +804,8 @@ fn acp_model_source_ui_late_options_do_not_recreate_deleted_session() {
     assert!(!app.session_runtime_states.contains_key("deleted-source-session"));
 }
 
-fn source_ui_update() -> vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate {
-    use vw_gateway_client::vw_api_types::acp_model_source::*;
+fn source_ui_update() -> vw_api_acp_model::acp_model_source::AcpModelSourceUpdate {
+    use vw_api_acp_model::acp_model_source::*;
     AcpModelSourceUpdate {
         agent: "claude".into(),
         selection: AcpSessionModelSelection {
@@ -819,7 +819,7 @@ fn source_ui_update() -> vw_gateway_client::vw_api_types::acp_model_source::AcpM
 #[test]
 fn acp_model_source_ui_failure_preserves_confirmed_model_and_other_session() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("source-a".into());
     let runtime = app.current_session_runtime_mut();
@@ -849,7 +849,7 @@ fn acp_model_source_ui_failure_preserves_confirmed_model_and_other_session() {
 #[test]
 fn acp_model_source_ui_confirmation_updates_only_originating_session() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("source-a".into());
     let runtime = app.current_session_runtime_mut();
@@ -857,7 +857,7 @@ fn acp_model_source_ui_confirmation_updates_only_originating_session() {
     runtime.acp_source_pending = Some(source_ui_update());
     runtime.acp_source_request_id = Some(12);
     app.active_session_id = Some("source-b".into());
-    let options = vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {
+    let options = vw_api_acp_model::acp_session::AcpSessionOptions {
         acp_model_source: AcpModelSource::CliLocal,
         selected_model: Some(source_ui_update().selection),
         ..Default::default()
@@ -891,7 +891,7 @@ fn acp_model_source_ui_confirmation_updates_only_originating_session() {
 #[test]
 fn acp_model_source_ui_busy_session_rejects_model_and_source_changes() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     let (mut app, _) = crate::app::App::new();
     let runtime = app.current_session_runtime_mut();
     runtime.acp_agent = Some("claude".into());
@@ -921,7 +921,7 @@ fn acp_model_source_ui_manual_model_draft_does_not_change_confirmed_model() {
 #[test]
 fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
     use crate::app::message::{ChatMessage, chat};
-    use vw_gateway_client::vw_api_types::{
+    use vw_api_acp_model::{
         acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
     };
     let (mut app, _) = crate::app::App::new();

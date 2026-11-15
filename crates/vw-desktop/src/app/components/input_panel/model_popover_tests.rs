@@ -227,7 +227,7 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
-    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
 
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("source-render".into());
@@ -258,9 +258,9 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
             for modal in [false, true] {
                 app.current_session_runtime_mut().acp_options_open = modal;
                 app.current_session_runtime_mut().acp_options.model_source_capabilities = vec![
-                    vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported {
+                    vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Unsupported {
                         source: AcpModelSource::SessionModel,
-                        reason: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,
+                        reason: vw_api_acp_model::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,
                     },
                 ];
                 let mut element: iced::Element<'_, crate::app::Message> = iced::widget::container(

@@ -1,5 +1,5 @@
 //! Validate and persist a source choice before the desktop displays it as selected.
-use vw_api_types::{
+use vw_api_acp_model::{
     acp_model_source::{AcpModelSource, AcpModelSourceCapability, AcpModelSourceUpdate},
     acp_session::AcpSessionOptions,
 };

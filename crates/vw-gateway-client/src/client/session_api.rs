@@ -121,7 +121,7 @@ impl GatewayClient {
     pub async fn acp_model_source_capabilities(
         &self,
         agent: &str,
-    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+    ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
         let path = format!("/v1/acp-model-source/{}", encode_session_path_segment(agent));
         self.get_json(&path, &[]).await
     }
@@ -130,8 +130,8 @@ impl GatewayClient {
         &self,
         session_id: &str,
         directory: Option<&str>,
-        update: &vw_api_types::acp_model_source::AcpModelSourceUpdate,
-    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+        update: &vw_api_acp_model::acp_model_source::AcpModelSourceUpdate,
+    ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
         self.put_json(
             &format!("{}/acp-model-source", session_path(session_id)?),
             &directory_query(directory),
@@ -144,7 +144,7 @@ impl GatewayClient {
         &self,
         session_id: &str,
         directory: Option<&str>,
-    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+    ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
         self.get_json(
             &format!("{}/acp-options", session_path(session_id)?),
             &directory_query(directory),
@@ -169,8 +169,8 @@ impl GatewayClient {
         &self,
         session_id: &str,
         directory: Option<&str>,
-        selection: &vw_api_types::acp_session::AcpSessionSelection,
-    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+        selection: &vw_api_acp_model::acp_session::AcpSessionSelection,
+    ) -> Result<vw_api_acp_model::acp_session::AcpSessionOptions, String> {
         self.put_json(
             &format!("{}/acp-options", session_path(session_id)?),
             &directory_query(directory),

@@ -33,7 +33,7 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::state::ProviderModelsSummary;
 use crate::app::{App, Message, message};
-use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 pub(super) fn normalize_model_input(model: &str) -> String {
     let trimmed = model.trim();
@@ -257,7 +257,7 @@ pub fn model_popover_content<'a>(
         && !runtime.acp_options_pending
         && runtime.acp_source_pending.is_none()
         && (runtime.acp_agent.is_none() || runtime.acp_options.model_source_capabilities.iter().any(|capability| {
-            matches!(capability, vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })
+            matches!(capability, vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })
         }));
     let is_acp = runtime.acp_agent.is_some();
     let input_model = runtime.acp_model_input_draft.as_deref().unwrap_or(model).to_string();

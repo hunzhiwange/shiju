@@ -145,7 +145,7 @@ fn acp_background_approval_scheduler_keeps_session_isolation() -> Result<()> {
 #[ignore = "requires python3 for the ACP protocol fixture"]
 async fn acp_background_approval_scheduler_writes_only_inside_worktree() -> Result<()> {
     use crate::gateway::api::handlers::session::stream::collect_background_gateway_chat_stream;
-    use vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
 
     let _env = crate::test_support::global_async_env_lock().lock().await;
     let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(

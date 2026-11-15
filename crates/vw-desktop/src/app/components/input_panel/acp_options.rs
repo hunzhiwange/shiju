@@ -9,7 +9,7 @@ use iced::widget::{Space, button as action, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
 
 use super::styles::selectable_list_button_style;
-use vw_gateway_client::vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
+use vw_api_acp_model::acp_session::{AcpOptionKind, AcpSessionSelection};
 
 pub(crate) const OPTIONS_SCROLL: &str = "acp_session_options_scroll";
 
@@ -67,7 +67,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         // Copilot may display the first level before an explicit selection has been saved.
         let can_confirm_current = runtime.acp_agent.as_deref() == Some("copilot")
             && runtime.acp_options.acp_model_source
-                == vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel
+                == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
             && matches!(&option.kind, AcpOptionKind::Config { id } if id == "reasoning_effort");
         let mut choices = column![settings_field_label(&option.name)].spacing(6);
         if can_confirm_current {
@@ -140,7 +140,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
 }
 
 pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
-    use vw_gateway_client::vw_api_types::acp_model_source::{
+    use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
     };
     let runtime = app.current_session_runtime();
@@ -237,7 +237,7 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
 }
 
 fn access_status(app: &App) -> Element<'_, Message> {
-    use vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport;
+    use vw_api_acp_model::acp_session::AcpAccessSupport;
     let runtime = app.current_session_runtime();
     let can_change = super::send_controls::has_permission_context(app)
         && !runtime.is_requesting

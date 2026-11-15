@@ -10,7 +10,7 @@ use iced::{
 use std::fmt;
 use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
 use vw_config_types::ui::DesktopLocale;
-use vw_gateway_client::vw_api_types::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
+use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 
 pub(crate) fn patch(defaults: &AgentDefaults) -> serde_json::Value {
     let mut value = serde_json::to_value(defaults).expect("typed defaults serialize");

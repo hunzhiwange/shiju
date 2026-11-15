@@ -550,7 +550,7 @@ async fn acp_model_source_routing_unsupported_cli_defaults_to_native_without_cli
     assert_eq!(
         acp_model_source(&json!({"acp_agent":"cursor","acp_model_source":"session_model"}))
             .unwrap(),
-        vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+        vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
     );
 }
 

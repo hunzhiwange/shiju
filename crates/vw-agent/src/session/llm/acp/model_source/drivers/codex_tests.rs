@@ -540,7 +540,7 @@ async fn acp_model_source_codex_effort_real_cli() {
 
 async fn codex_effort_run(input: &Value, model: &provider::Model, info: &provider::Info) {
     use crate::session::llm::acp::{controls, lifecycle};
-    use vw_api_types::{
+    use vw_api_acp_model::{
         acp_model_source::AcpModelSource,
         acp_session::{AcpOptionKind, AcpSessionOptions, AcpSessionSelection},
     };

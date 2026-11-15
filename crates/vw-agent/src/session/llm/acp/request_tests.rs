@@ -81,7 +81,7 @@ fn test_provider(key: Option<&str>) -> provider::Info {
 #[cfg(unix)]
 #[tokio::test]
 async fn acp_local_blank_anchor_resumes_existing_session() {
-    use vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
 
     let Some(root) = std::env::var_os("SHIJU_ACP_LOCAL_RECOVERY_FIXTURE") else {
         let root = tempfile::tempdir().unwrap();

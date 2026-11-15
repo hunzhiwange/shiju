@@ -1038,7 +1038,7 @@ async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn settings_help_gap_05_acp_model_capability_controls_choices() {
     use vw_config_types::agent::AgentRuntime;
-    use vw_gateway_client::vw_api_types::acp_model_source::{
+    use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability,
     };
 

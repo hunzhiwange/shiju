@@ -95,7 +95,7 @@ pub struct InputMessageDto {
 pub struct ChatOptionsDto {
     /// ACP model origin; independent of the selected CLI and tool permissions.
     #[serde(default)]
-    pub acp_model_source: crate::acp_model_source::AcpModelSource,
+    pub acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource,
     /// 指定模型。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -150,7 +150,7 @@ pub struct ChatStreamRequest {
 pub struct GatewayChatStreamRequest {
     /// ACP model origin; missing values select the client session model.
     #[serde(default)]
-    pub acp_model_source: crate::acp_model_source::AcpModelSource,
+    pub acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource,
     /// Stable session ID. When omitted, chat streams return the assigned ID in
     /// `x-vw-session-id` and the replay key in `x-vw-stream-request-id`.
     /// Reuse the original request body and key with `Last-Event-ID` (0 before

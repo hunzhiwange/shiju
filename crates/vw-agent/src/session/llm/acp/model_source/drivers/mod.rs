@@ -72,8 +72,8 @@ pub(super) fn configure(
 /// Patched adapters stay unavailable until their reviewed artifact is installed.
 pub(in crate::session::llm::acp) fn capabilities(
     agent: &str,
-) -> Vec<vw_api_types::acp_model_source::AcpModelSourceCapability> {
-    use vw_api_types::acp_model_source::{
+) -> Vec<vw_api_acp_model::acp_model_source::AcpModelSourceCapability> {
+    use vw_api_acp_model::acp_model_source::{
         AcpModelSource as Source, AcpModelSourceCapability as Capability,
         AcpModelSourceRejectionReason as Reason,
     };

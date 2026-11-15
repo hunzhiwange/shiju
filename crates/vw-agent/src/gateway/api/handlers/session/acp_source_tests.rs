@@ -48,10 +48,10 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
         .unwrap()
         .error_for_status()
         .unwrap()
-        .json::<vw_api_types::acp_session::AcpSessionOptions>()
+        .json::<vw_api_acp_model::acp_session::AcpSessionOptions>()
         .await
         .unwrap();
-    assert_eq!(selected.acp_model_source, vw_api_types::acp_model_source::AcpModelSource::CliLocal);
+    assert_eq!(selected.acp_model_source, vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal);
     assert!(!selected.connected, "selection does not start a CLI");
     let rejected = http.put(&url).query(&[("directory", &directory)])
         .json(&json!({"agent":"qoder","selection":{"source":"session_model","model":"model-recovery/original"}}))
@@ -65,7 +65,7 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
         .unwrap()
         .error_for_status()
         .unwrap()
-        .json::<vw_api_types::acp_session::AcpSessionOptions>()
+        .json::<vw_api_acp_model::acp_session::AcpSessionOptions>()
         .await
         .unwrap();
     assert_eq!(saved.selected_model, selected.selected_model);
@@ -82,11 +82,11 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
     let status = managed_response.status();
     let body = managed_response.text().await.unwrap();
     assert!(status.is_success(), "{status}: {body}");
-    let managed: vw_api_types::acp_session::AcpSessionOptions =
+    let managed: vw_api_acp_model::acp_session::AcpSessionOptions =
         serde_json::from_str(&body).unwrap();
     assert_eq!(
         managed.acp_model_source,
-        vw_api_types::acp_model_source::AcpModelSource::SessionModel
+        vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
     );
     assert_eq!(
         managed.selected_model.as_ref().unwrap().model.as_deref(),
@@ -104,7 +104,7 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
         .unwrap()
         .error_for_status()
         .unwrap()
-        .json::<vw_api_types::acp_session::AcpSessionOptions>()
+        .json::<vw_api_acp_model::acp_session::AcpSessionOptions>()
         .await
         .unwrap();
     assert_eq!(recovered.selected_model, managed.selected_model);
@@ -170,10 +170,10 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
         .unwrap()
         .error_for_status()
         .unwrap()
-        .json::<vw_api_types::acp_session::AcpSessionOptions>()
+        .json::<vw_api_acp_model::acp_session::AcpSessionOptions>()
         .await
         .unwrap();
-    assert_eq!(restored.acp_model_source, vw_api_types::acp_model_source::AcpModelSource::CliLocal);
+    assert_eq!(restored.acp_model_source, vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal);
     assert_eq!(
         crate::session::agent_binding::load_scoped(&forked.project_id, &forked.id)
             .await

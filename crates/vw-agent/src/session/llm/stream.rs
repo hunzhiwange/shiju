@@ -258,7 +258,7 @@ async fn stream_inner(
     let cli_local = acp_requested_by_input
         && super::prompt::acp_model_source(&input_options)
             .map_err(|error| Error::Api(message::AssistantError::Unknown { message: error }))?
-            == vw_api_types::acp_model_source::AcpModelSource::CliLocal;
+            == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
     let (cfg, provider_info, auth_info) = tokio::join!(
         async { config::get().await },
         async {

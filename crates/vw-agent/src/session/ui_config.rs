@@ -83,7 +83,7 @@ fn set_config_field_in_store(
 fn validate_acp_session_models(value: &Value) -> Result<()> {
     let selections: std::collections::HashMap<
         vw_api_transport::SessionId,
-        vw_api_types::acp_model_source::AcpSessionModelSelection,
+        vw_api_acp_model::acp_model_source::AcpSessionModelSelection,
     > = serde_json::from_value(value.clone()).context("decode ACP session model selections")?;
     if selections.keys().any(|id| id.as_ref().trim().is_empty()) {
         anyhow::bail!("ACP model selection requires a nonempty session ID");

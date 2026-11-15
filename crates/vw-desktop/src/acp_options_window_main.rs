@@ -9,7 +9,7 @@ use app::components::input_panel::{self, acp_options};
 use app::message::chat::{self, ChatMessage};
 use app::{App, Message as AppMessage};
 use iced::{Element, Task, Theme, window};
-use vw_gateway_client::vw_api_types::acp_session::*;
+use vw_api_acp_model::acp_session::*;
 #[derive(Debug, Clone)]
 enum Message {
     Opened(window::Id),
@@ -152,10 +152,10 @@ fn main() {
             let runtime = app.get_session_runtime_mut("render-session");
             runtime.acp_agent = Some("copilot".into());
             runtime.acp_model_source =
-                vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel;
+                vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel;
             runtime.acp_options = AcpSessionOptions {
                 acp_model_source:
-                    vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+                    vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
                 model_source_capabilities: Vec::new(),
                 selected_model: None,
                 verified_cli_release: None,

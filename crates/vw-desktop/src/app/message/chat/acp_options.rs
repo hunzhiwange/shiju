@@ -196,7 +196,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     // A failed control must not leave an earlier native success on screen.
                     if let Some(status) = runtime.acp_options.access_status.as_mut() {
                         status.support =
-                            vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport::Failed;
+                            vw_api_acp_model::acp_session::AcpAccessSupport::Failed;
                         status.explanation =
                             "会话选项切换或读取失败，请刷新或重试；当前能力尚未确认".into();
                     }
@@ -219,7 +219,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let selection = match message {
                 ChatMessage::AcpOptionSelected(selection) => {
-                    use vw_gateway_client::vw_api_types::acp_session::AcpOptionKind;
+                    use vw_api_acp_model::acp_session::AcpOptionKind;
                     if matches!(&selection.kind, AcpOptionKind::Model)
                         || matches!(&selection.kind, AcpOptionKind::Config { id } if id == "model")
                     {
@@ -277,10 +277,10 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 /// Keep the confirmed choice intact while validation/persistence runs on the gateway.
 pub(super) fn select_source(
     app: &mut App,
-    source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,
+    source: vw_api_acp_model::acp_model_source::AcpModelSource,
     model: Option<String>,
 ) -> Task<Message> {
-    use vw_gateway_client::vw_api_types::acp_model_source::{
+    use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability, AcpModelSourceUpdate, AcpSessionModelSelection,
     };
     let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
@@ -296,7 +296,7 @@ pub(super) fn select_source(
         return app.show_error_toast("请等待当前请求结束后切换模型来源");
     }
     if runtime.acp_options.model_source_capabilities.iter().any(|capability| {
-        matches!(capability, vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported { source: rejected, .. } if *rejected == source)
+        matches!(capability, vw_api_acp_model::acp_model_source::AcpModelSourceCapability::Unsupported { source: rejected, .. } if *rejected == source)
     }) {
         return app.show_error_toast("此智能体不支持所选模型来源");
     }

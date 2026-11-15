@@ -1,5 +1,5 @@
 use super::*;
-use vw_api_types::acp_model_source::AcpModelSource;
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 #[test]
 fn acp_model_source_session_controls_failed_commit_preserves_recovery_anchor() {

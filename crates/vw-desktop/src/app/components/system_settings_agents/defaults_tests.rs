@@ -250,7 +250,7 @@ async fn agent_model_inheritance_renders_chinese_in_both_themes() {
 fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
     use crate::app::state::{ModelSummary, ProviderModelsSummary, ProviderSummary};
     use vw_config_types::agent::AgentModelReference;
-    use vw_gateway_client::vw_api_types::acp_model_source::{
+    use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability,
     };
     let mut app = crate::app::App::new().0;
@@ -283,7 +283,7 @@ fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
             session_id: "verified".into(),
             request_id: 0,
             agent: "codex".into(),
-            result: Ok(vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {
+            result: Ok(vw_api_acp_model::acp_session::AcpSessionOptions {
                 connected: false,
                 model_source_capabilities: vec![AcpModelSourceCapability::Supported {
                     source: AcpModelSource::SessionModel,

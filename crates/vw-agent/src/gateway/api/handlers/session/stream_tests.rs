@@ -2699,7 +2699,7 @@ async fn acp_background_approval_gateway_uses_turn_grant_after_agent_resolution(
 
 #[test]
 fn agent_model_inheritance_preserves_explicit_source_in_processor_options() {
-    use vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     for (source, options, expected) in [
         (AcpModelSource::CliLocal, None, "cli_local"),
         (AcpModelSource::SessionModel, None, "session_model"),
@@ -2722,7 +2722,7 @@ fn agent_model_inheritance_preserves_explicit_source_in_processor_options() {
 
 #[test]
 fn acp_model_source_rejects_invalid_and_conflicting_runtime_options() {
-    use vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
     for options in [
         serde_json::json!({"acp_model_source":"unknown"}),
         serde_json::json!({"acp_model_source":"session_model"}),

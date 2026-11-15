@@ -365,7 +365,7 @@ fn resolve_request_model(
     let acp_requested = is_acp_request(&req.options);
     let cli_local = acp_requested
         && crate::session::llm::acp_model_source(&req.options)?
-            == vw_api_types::acp_model_source::AcpModelSource::CliLocal;
+            == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
     if cli_local {
         let model = req
             .options

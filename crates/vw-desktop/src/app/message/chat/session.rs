@@ -17,7 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
-use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 use vw_shared::id;
 use vw_shared::message::types as agent_message;
 use vw_shared::session::info as session;

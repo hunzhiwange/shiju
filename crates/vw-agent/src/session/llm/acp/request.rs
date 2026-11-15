@@ -92,7 +92,7 @@ pub(crate) async fn do_stream_request_acp(
     let fork_history_needed = fork_replay.as_ref().is_some_and(|state| state.needs_history());
     let source =
         super::super::prompt::acp_model_source(merged_options).map_err(super::acp_option_error)?;
-    if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
+    if source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel {
         validate_session_model(model, provider_info, auth_info)?;
     }
     let cfg = config::get_current().await.map_err(to_api_error)?;
@@ -112,11 +112,11 @@ pub(crate) async fn do_stream_request_acp(
             })
         })?;
     super::skill_mounts::reject_expanded_invocations(&acp_agent_name, chat_messages)?;
-    let selected_model = vw_api_types::acp_model_source::AcpSessionModelSelection {
+    let selected_model = vw_api_acp_model::acp_model_source::AcpSessionModelSelection {
         source,
-        provider_id: (source == vw_api_types::acp_model_source::AcpModelSource::SessionModel)
+        provider_id: (source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel)
             .then(|| model.provider_id.clone()),
-        model: (source == vw_api_types::acp_model_source::AcpModelSource::SessionModel)
+        model: (source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel)
             .then(|| model.id.clone()),
     };
     let locked_selection = previous_selection.as_ref().filter(|selection| selection.has_started());
@@ -138,13 +138,13 @@ pub(crate) async fn do_stream_request_acp(
     // Older model selection writes could clear the anchor of a running session.
     let recovered = if previous_selection.is_some() && locked_selection.is_none() {
         let launch = match source {
-            vw_api_types::acp_model_source::AcpModelSource::CliLocal => {
+            vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => {
                 super::recovery::Launch::Local {
                     agent: &acp_agent_name,
                     config: &normalized_acp_cfg,
                 }
             }
-            vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
+            vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel => {
                 let project = crate::project::instance::project()
                     .ok_or_else(|| to_api_error("ACP launch requires project context"))?;
                 super::recovery::Launch::Managed(super::model_source::launch_identity(
@@ -205,7 +205,7 @@ pub(crate) async fn do_stream_request_acp(
             &mut normalized_acp_cfg,
             parsed_options.skill_view.as_ref(),
         )?;
-        if source == vw_api_types::acp_model_source::AcpModelSource::CliLocal
+        if source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal
             && parsed_options.skill_view.is_some()
         {
             return Err(acp_option_error(
@@ -216,7 +216,7 @@ pub(crate) async fn do_stream_request_acp(
     super::skill_mounts::prepare_supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
     super::skill_mounts::validate(&acp_agent_name, !parsed_options.skill_mounts.is_empty())?;
 
-    let previous_native = if source == vw_api_types::acp_model_source::AcpModelSource::CliLocal
+    let previous_native = if source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal
         && (recovered.is_some() || locked_selection.is_some())
     {
         let state = if let Some(recovered) = &recovered {
@@ -236,7 +236,7 @@ pub(crate) async fn do_stream_request_acp(
     // The profile owns the relay, token and private files for this request only.
     // CLI-local execution preserves the user's original configuration.
     let launch_profile = match source {
-        vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
+        vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel => {
             let cancellation = async {
                 if let Some(mut receiver) = abort.cloned() {
                     loop {
@@ -260,7 +260,7 @@ pub(crate) async fn do_stream_request_acp(
             };
             Some(profile)
         }
-        vw_api_types::acp_model_source::AcpModelSource::CliLocal => None,
+        vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal => None,
     };
     // Managed SessionModel requests are metered by the owned relay. Never bill
     // their ACP session snapshots a second time.
@@ -324,7 +324,7 @@ pub(crate) async fn do_stream_request_acp(
         .unwrap_or_else(|| cwd_text.clone());
     let session_name = acp_session_name(&scoped_session);
     // Managed launches must never replay an advertised native model/config over the Provider.
-    if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
+    if source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel {
         if let Some(options) = parsed_options.session_options.as_mut() {
             options.model = None;
         }

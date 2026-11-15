@@ -118,7 +118,7 @@ pub(super) async fn execution_options(
             crate::session::llm::locked_acp_model(session, &snapshot.directory.to_string_lossy())
                 .map_err(anyhow::Error::msg)?
     {
-        let local = locked.source == vw_api_types::acp_model_source::AcpModelSource::CliLocal;
+        let local = locked.source == vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
         anyhow::ensure!(
             local == (route.provider == "acp"),
             "更换通道模型来源后请使用 /new 新建会话"

@@ -279,12 +279,12 @@ fn acp_session_options_follow_capabilities_before_connection() {
 
 #[test]
 fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
-    use vw_gateway_client::vw_api_types::acp_session::*;
+    use vw_api_acp_model::acp_session::*;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("options-a".into());
     let options = AcpSessionOptions {
         acp_model_source:
-            vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+            vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
         model_source_capabilities: Vec::new(),
         selected_model: None,
         verified_cli_release: None,
@@ -340,7 +340,7 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
 
 #[test]
 fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
-    use vw_gateway_client::vw_api_types::acp_session::*;
+    use vw_api_acp_model::acp_session::*;
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("options-unknown".into());
     app.current_session_runtime_mut().acp_agent = Some("codex".into());

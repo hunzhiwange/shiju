@@ -864,7 +864,7 @@ fn session_todo_get_blocking_uses_same_route_and_directory_query() {
 
 #[tokio::test]
 async fn acp_session_options_follow_capabilities_http_contract() {
-    use vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
+    use vw_api_acp_model::acp_session::{AcpOptionKind, AcpSessionSelection};
     let server = test_support::server(vec![
         (200, json!({"connected":false,"options":[]})),
         (200, json!({"connected":true,"options":[]})),
@@ -903,7 +903,7 @@ async fn agent_session_identity_preserves_read_only_ui_projection() {
 
 #[tokio::test]
 async fn acp_model_source_ui_round_trips_confirmed_selection_over_http() {
-    use vw_api_types::acp_model_source::{
+    use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceUpdate, AcpSessionModelSelection,
     };
     let update = AcpModelSourceUpdate {
@@ -935,7 +935,7 @@ async fn acp_model_source_ui_round_trips_confirmed_selection_over_http() {
 
 #[tokio::test]
 async fn acp_model_source_ui_surfaces_http_rejection_without_fallback() {
-    use vw_api_types::acp_model_source::AcpModelSourceUpdate;
+    use vw_api_acp_model::acp_model_source::AcpModelSourceUpdate;
     let server =
         test_support::server(vec![(400, json!({"message":"unsupported CLI model source"}))]);
     let update = AcpModelSourceUpdate { agent: "qoder".into(), selection: Default::default() };

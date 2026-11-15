@@ -6,7 +6,7 @@ use axum::{
     extract::{Path, Query},
     http::HeaderMap,
 };
-use vw_api_types::acp_session::{AcpSessionOptions, AcpSessionSelection};
+use vw_api_acp_model::acp_session::{AcpSessionOptions, AcpSessionSelection};
 
 pub(super) async fn get(
     path: Path<String>,
@@ -46,7 +46,7 @@ pub(super) async fn set_source(
     path: Path<String>,
     query: Query<InstanceQuery>,
     headers: HeaderMap,
-    Json(update): Json<vw_api_types::acp_model_source::AcpModelSourceUpdate>,
+    Json(update): Json<vw_api_acp_model::acp_model_source::AcpModelSourceUpdate>,
 ) -> Result<Json<AcpSessionOptions>, ApiError> {
     let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
     let _guard = crate::session::message::lock_stream_prompt(

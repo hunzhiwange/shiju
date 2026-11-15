@@ -1097,7 +1097,7 @@ fn validate_public_acp_chat_options(options: Option<&Value>) -> Result<(), ApiEr
 /// Carry the public model source into the processor's ACP runtime options.
 /// Older clients supplied the source only in options; keep that explicit choice.
 fn merge_acp_model_source(body: &mut GatewayChatStreamRequest) -> Result<(), ApiError> {
-    use vw_api_types::acp_model_source::AcpModelSource;
+    use vw_api_acp_model::acp_model_source::AcpModelSource;
 
     let mut options = match body.options.take() {
         None => Map::new(),
@@ -1274,7 +1274,7 @@ async fn session_model(
             Some((provider, _)) if acp && provider == "acp" => {
                 validate_session_model_source(
                     body.acp_model_source,
-                    vw_api_types::acp_model_source::AcpModelSource::CliLocal,
+                    vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal,
                 )?;
                 None
             }
@@ -1282,7 +1282,7 @@ async fn session_model(
                 if acp {
                     validate_session_model_source(
                         body.acp_model_source,
-                        vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+                        vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
                     )?;
                 }
                 Some(format!("{provider}/{model}"))
@@ -1307,8 +1307,8 @@ async fn session_model(
 }
 
 fn validate_session_model_source(
-    requested: vw_api_types::acp_model_source::AcpModelSource,
-    locked: vw_api_types::acp_model_source::AcpModelSource,
+    requested: vw_api_acp_model::acp_model_source::AcpModelSource,
+    locked: vw_api_acp_model::acp_model_source::AcpModelSource,
 ) -> Result<(), ApiError> {
     if requested != locked {
         return Err(ApiError::bad_request(

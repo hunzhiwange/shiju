@@ -358,14 +358,15 @@ pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             return Task::perform(
                 async move {
+                    let write_client = gateway_mcp_write::GatewayMcpWriteClient::new(client.transport().clone());
                     let result = if !link_drafts.is_empty() {
                         let mut labels = Vec::new();
                         for (index, entry) in link_drafts.into_iter().enumerate() {
                             let outcome = match entry {
                                 Err(error) => error,
-                                Ok(draft) => match client.mcp_management_create(&draft, &token).await {
+                                Ok(draft) => match write_client.mcp_management_create(&draft, &token).await {
                                     Ok(_) => "成功：已保存定义，未启用或分发".into(),
-                                    Err(vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. }) => "失败：定义冲突，未覆盖".into(),
+                                    Err(gateway_mcp_write::AgentAppsSettingsError::Http { status: 409, .. }) => "失败：定义冲突，未覆盖".into(),
                                     Err(_) => "失败：未确认保存成功，请刷新目录核实".into(),
                                 },
                             };
@@ -373,14 +374,14 @@ pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
                         }
                         Ok(labels)
                     } else if let Some(draft) = draft {
-                        client
+                        write_client
                             .mcp_management_create(&draft, &token)
                             .await
                             .map(|r| {
                                 vec![format!("{} · 已导入定义，尚未分发或启用", r.record.id.0)]
                             })
                             .map_err(|error| match error {
-                                vw_gateway_client::AgentAppsSettingsError::Http {
+                                gateway_mcp_write::AgentAppsSettingsError::Http {
                                     status: 409,
                                     ..
                                 } => "冲突，未覆盖已有定义".into(),

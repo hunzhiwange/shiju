@@ -244,6 +244,7 @@ pub(crate) async fn save(
     token: &str,
     draft: Draft,
 ) -> Result<McpCatalogRecord, String> {
+    let client = gateway_mcp_write::GatewayMcpWriteClient::new(client.transport().clone());
     let connection = draft.connection()?;
     let project_id = match draft.record.as_ref().map(|r| &r.scope) {
         Some(McpCatalogScope::Project { scope }) => Some(scope.project_id().clone()),
@@ -281,10 +282,10 @@ pub(crate) async fn save(
             .await
     };
     result.map_err(|error| match error {
-        vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. } => {
+        gateway_mcp_write::AgentAppsSettingsError::Http { status: 409, .. } => {
             "目录或修订冲突，请核对刷新后的目录再编辑".into()
         }
-        vw_gateway_client::AgentAppsSettingsError::Http { status: 400 | 422, .. } => {
+        gateway_mcp_write::AgentAppsSettingsError::Http { status: 400 | 422, .. } => {
             "连接定义无效，请检查字段及凭据引用".into()
         }
         _ => "保存失败，请检查网关连接和权限".into(),

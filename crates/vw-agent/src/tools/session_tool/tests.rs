@@ -76,7 +76,7 @@ async fn session_tool_recovers_visible_tasks_after_coordinator_restart() {
     let status: serde_json::Value = serde_json::from_str(&status.output).expect("JSON");
     assert_eq!(status["tasks"][0]["state"], "failed");
     let executor =
-        Arc::new(|_directory: String, _request: vw_api_chat::chat::GatewayChatStreamRequest| {
+        Arc::new(|_directory: String, _request: vw_api_types::chat::GatewayChatStreamRequest| {
             async {
                 Ok(GatewayChatStreamCollected {
                     output: "continued".to_string(),
@@ -106,7 +106,7 @@ async fn session_tool_first_response_keeps_running_task_out_of_history() {
     let started_tx = std::sync::Mutex::new(Some(started_tx));
     let finish_rx = std::sync::Mutex::new(Some(finish_rx));
     let executor = Arc::new(
-        move |_directory: String, request: vw_api_chat::chat::GatewayChatStreamRequest| {
+        move |_directory: String, request: vw_api_types::chat::GatewayChatStreamRequest| {
             let content = request.messages[0]["content"].as_str().expect("user prompt content");
             let source =
                 vw_shared::session::session_utils::parse_task_session_source_marker(content)
@@ -345,7 +345,7 @@ async fn session_tool_send_continues_existing_visible_task() {
     let (request_tx, request_rx) = oneshot::channel();
     let request_tx = std::sync::Mutex::new(Some(request_tx));
     let executor = Arc::new(
-        move |_directory: String, request: vw_api_chat::chat::GatewayChatStreamRequest| {
+        move |_directory: String, request: vw_api_types::chat::GatewayChatStreamRequest| {
             request_tx
                 .lock()
                 .expect("request lock")
@@ -392,7 +392,7 @@ async fn background_turn_reports_startup_failure_instead_of_succeeding_silently(
     let executor_called = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let executor_called_for_call = Arc::clone(&executor_called);
     let executor = Arc::new(
-        move |_directory: String, _request: vw_api_chat::chat::GatewayChatStreamRequest| {
+        move |_directory: String, _request: vw_api_types::chat::GatewayChatStreamRequest| {
             executor_called_for_call.store(true, std::sync::atomic::Ordering::SeqCst);
             async {
                 Ok(GatewayChatStreamCollected {

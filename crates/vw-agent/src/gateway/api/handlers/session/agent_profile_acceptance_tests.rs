@@ -3,7 +3,7 @@ use crate::gateway::instance::InstanceQuery;
 use axum::{Json, body::to_bytes, extract::Query, http::HeaderMap, response::IntoResponse};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
-use vw_api_chat::chat::GatewayChatStreamRequest;
+use vw_api_types::chat::GatewayChatStreamRequest;
 
 async fn send(workspace: &std::path::Path, session: &str, agent: &str) -> String {
     let response = super::stream::chat_stream(

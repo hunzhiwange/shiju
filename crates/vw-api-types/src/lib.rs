@@ -82,6 +82,9 @@ mod agent_scheduler_tests;
 #[cfg(test)]
 mod apps_usage_tests;
 #[cfg(test)]
+#[path = "chat_tests.rs"]
+mod chat_tests;
+#[cfg(test)]
 #[path = "file_tests.rs"]
 mod file_tests;
 #[cfg(test)]

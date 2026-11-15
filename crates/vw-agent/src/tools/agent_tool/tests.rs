@@ -89,7 +89,7 @@ fn build_persistent_tool<F>(
 ) -> AgentTool
 where
     F: Fn(
-            vw_api_chat::chat::GatewayChatStreamRequest,
+            vw_api_types::chat::GatewayChatStreamRequest,
         ) -> futures_util::future::BoxFuture<
             'static,
             Result<

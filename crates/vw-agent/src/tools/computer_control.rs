@@ -28,7 +28,7 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_tools::ToolResultContentDto,
 };
-use vw_config_types::computer_control::ComputerControlConfig;
+use config_computer_control::ComputerControlConfig;
 
 static GATEWAY_RUNTIME: RwLock<Weak<NativeControlRuntime>> = RwLock::new(Weak::new());
 type Owner = (TenantScope, String, Option<std::path::PathBuf>);

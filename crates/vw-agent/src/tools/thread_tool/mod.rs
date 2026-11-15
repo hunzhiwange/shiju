@@ -38,7 +38,7 @@ impl CreateThreadTool {
         executor: std::sync::Arc<
             dyn Fn(
                     String,
-                    vw_api_chat::chat::GatewayChatStreamRequest,
+                    vw_api_types::chat::GatewayChatStreamRequest,
                 ) -> futures_util::future::BoxFuture<
                     'static,
                     Result<
@@ -151,7 +151,7 @@ impl SendMessageToThreadTool {
         executor: std::sync::Arc<
             dyn Fn(
                     String,
-                    vw_api_chat::chat::GatewayChatStreamRequest,
+                    vw_api_types::chat::GatewayChatStreamRequest,
                 ) -> futures_util::future::BoxFuture<
                     'static,
                     Result<

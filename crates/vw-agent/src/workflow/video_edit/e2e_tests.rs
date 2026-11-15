@@ -12,7 +12,7 @@ use std::{
     sync::{Arc, atomic::Ordering},
 };
 use {
-    vw_api_chat::chat::GatewayChatStreamRequest,
+    vw_api_types::chat::GatewayChatStreamRequest,
     vw_api_transport::id::TenantScope,
 };
 

@@ -703,7 +703,7 @@ fn cron_gateway_agent_request(
     job: &CronJob,
     prompt: &str,
     model_override: Option<String>,
-) -> (String, vw_api_chat::chat::GatewayChatStreamRequest) {
+) -> (String, vw_api_types::chat::GatewayChatStreamRequest) {
     let agent = job
         .agent
         .as_deref()
@@ -721,7 +721,7 @@ fn cron_gateway_agent_request(
 
     let options = cron_gateway_options(config, job, acp_agent.as_deref());
 
-    let request = vw_api_chat::chat::GatewayChatStreamRequest {
+    let request = vw_api_types::chat::GatewayChatStreamRequest {
         acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
         session_id: Some(session_id.clone().into()),
         messages: vec![json!({ "role": "user", "content": prompt })],

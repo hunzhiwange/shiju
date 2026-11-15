@@ -478,8 +478,8 @@ fn dynamic_tools_acceptance_search_then_call_uses_gateway_model_boundary() {
         let chat = GatewayClient::stream_chat(f.client.endpoint(), Some(f.directory()), &body, |event| { events.push(event); true });
         let (_, result) = tokio::time::timeout(std::time::Duration::from_secs(30), async { tokio::join!(host, chat) }).await.unwrap();
         result.unwrap();
-        assert!(events.iter().any(|event| matches!(event, vw_api_chat::chat::GatewayChatStreamEvent::Delta(text) if text.contains("finished"))), "chat events: {events:?}");
-        assert!(!events.iter().any(|event| matches!(event, vw_api_chat::chat::GatewayChatStreamEvent::Error(_))), "chat errors: {events:?}");
+        assert!(events.iter().any(|event| matches!(event, vw_api_types::chat::GatewayChatStreamEvent::Delta(text) if text.contains("finished"))), "chat events: {events:?}");
+        assert!(!events.iter().any(|event| matches!(event, vw_api_types::chat::GatewayChatStreamEvent::Error(_))), "chat errors: {events:?}");
         let requests = super::processor::take_test_llm_messages(&f.session);
         assert_eq!(requests.len(), 3);
         assert!(!requests[0].tool_specs.iter().any(|s| s.id == "release"));

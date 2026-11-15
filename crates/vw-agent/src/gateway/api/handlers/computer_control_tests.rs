@@ -1,7 +1,7 @@
 use super::computer_control::{feature, scope, setting};
 use crate::computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
 use vw_api_types::computer_control::*;
-use vw_config_types::computer_control::{ComputerControlConfig, GrantDecision};
+use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 #[test]
 fn cc_control_18_disabled_does_not_claim_ready() {

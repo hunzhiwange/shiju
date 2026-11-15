@@ -1,6 +1,6 @@
 use super::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
 use vw_api_types::computer_control::{ComputerControlTarget, ControlDocumentId, PermissionVersion};
-use vw_config_types::computer_control::{ComputerControlConfig, GrantDecision};
+use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 fn app(id: &str) -> ComputerControlTarget {
     ComputerControlTarget::NativeApp { bundle_id: id.into(), process_id: 10 }

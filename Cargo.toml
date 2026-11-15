@@ -1,12 +1,12 @@
 [workspace]
 members = [
+  "crates/libs/config-computer-control",
   "crates/libs/json-extract",
   "crates/libs/acp-prompt-runner",
   "crates/libs/gateway-model-provider",
   "crates/libs/acp-owner-process",
   "crates/libs/todo-types",
   "crates/libs/api-session",
-  "crates/libs/api-chat",
   "crates/libs/project-types",
   "crates/libs/gateway-session",
   "crates/libs/desktop-account",

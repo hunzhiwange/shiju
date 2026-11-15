@@ -8,7 +8,7 @@ use std::thread;
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde_json::{Map, Value, json};
-use vw_api_chat::chat::GatewayChatStreamRequest;
+use vw_api_types::chat::GatewayChatStreamRequest;
 use vw_api_transport::common::TimestampMs;
 use vw_api_types::task::{TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseResponse};
 

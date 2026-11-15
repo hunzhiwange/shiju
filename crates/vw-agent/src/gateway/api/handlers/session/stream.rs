@@ -2767,7 +2767,7 @@ pub(super) fn reserve_stream_agent_session(
         summary: None,
         share: None,
         title: String::new(),
-        version: crate::app::agent::installation::version(),
+        version: agent_installation::version(),
         time: agent_session::session::TimeInfo {
             created: created_ms,
             updated: created_ms,

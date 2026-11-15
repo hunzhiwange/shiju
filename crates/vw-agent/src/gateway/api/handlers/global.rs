@@ -27,7 +27,7 @@ use crate::app::agent::bus;
 use crate::app::agent::config;
 use crate::app::agent::gateway::{ApiError, AppState};
 use crate::app::agent::health;
-use crate::app::agent::installation;
+use agent_installation as installation;
 use crate::app::agent::project;
 
 async fn merged_global_acp_config() -> HashMap<String, config::schema::AcpAgentConfig> {

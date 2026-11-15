@@ -36,7 +36,7 @@
 
 use crate::app::agent::bus;
 use crate::app::agent::id;
-use crate::app::agent::installation;
+use agent_installation as installation;
 use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::project::instance;
 use crate::app::agent::storage;

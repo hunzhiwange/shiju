@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/agent-installation",
   "crates/libs/app-diagnostics",
   "crates/libs/app-data-management",
   "crates/libs/app-project-profiles",

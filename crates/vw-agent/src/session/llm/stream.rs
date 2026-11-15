@@ -39,7 +39,7 @@
 
 use agent_auth as auth;
 use crate::app::agent::config;
-use crate::app::agent::installation;
+use agent_installation as installation;
 use crate::app::agent::project::instance;
 use crate::app::agent::provider::provider;
 use crate::app::agent::provider::transform as provider_transform;

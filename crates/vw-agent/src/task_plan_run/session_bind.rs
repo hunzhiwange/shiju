@@ -1,6 +1,6 @@
 //! plan-run 确定性会话预留与首次成功回复提交。
 
-use crate::installation;
+use agent_installation as installation;
 use crate::project;
 use crate::session::session::{self, Info, TimeInfo};
 use crate::session::store::FirstResponseCommit;

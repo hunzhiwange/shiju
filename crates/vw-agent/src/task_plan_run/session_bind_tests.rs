@@ -366,7 +366,7 @@ async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {
         summary: None,
         share: None,
         title: "Renamed".into(),
-        version: crate::installation::version(),
+        version: agent_installation::version(),
         time: crate::session::session::TimeInfo {
             created: 1,
             updated: 1,

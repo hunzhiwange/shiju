@@ -22,3 +22,5 @@ pub mod panel;
 mod slice_view_fixture;
 
 pub mod page;
+
+pub mod pet_interaction;

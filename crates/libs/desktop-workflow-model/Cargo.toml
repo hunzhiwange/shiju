@@ -1,0 +1,18 @@
+[package]
+name = "desktop-workflow-model"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+iced = { version = "0.14", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"

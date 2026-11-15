@@ -111,10 +111,10 @@ pub(super) fn patch_root_for_save(
     conversation_variables: &[WorkflowConversationVariable],
     raw_root: &Value,
     viewport: WorkflowViewport,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
+) -> Result<Value, desktop_i18n::workflow::Feedback> {
     let mut root = ensure_root_mapping(raw_root.clone());
     let root_map = root.as_mapping_mut().ok_or_else(|| {
-        crate::app::i18n::workflow::Feedback::new("工作流根节点必须是一个对象", vec![])
+        desktop_i18n::workflow::Feedback::new("工作流根节点必须是一个对象", vec![])
     })?;
 
     let app_value =
@@ -272,9 +272,9 @@ pub(super) fn raw_workflow_value(root: &Value) -> Option<&Mapping> {
 
 pub(super) fn yaml_string_for_editor(
     value: &Value,
-) -> Result<String, crate::app::i18n::workflow::Feedback> {
+) -> Result<String, desktop_i18n::workflow::Feedback> {
     let yaml = serde_yaml::to_string(value).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new("生成 YAML 文本失败: %s", vec![error.to_string()])
+        desktop_i18n::workflow::Feedback::new("生成 YAML 文本失败: %s", vec![error.to_string()])
     })?;
     Ok(yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string())
 }
@@ -319,7 +319,7 @@ pub(super) fn viewport_value(x: f32, y: f32, zoom: f32) -> Value {
     ])
 }
 
-pub(crate) fn yaml_map(entries: Vec<(&str, Value)>) -> Value {
+pub fn yaml_map(entries: Vec<(&str, Value)>) -> Value {
     let mut map = Mapping::new();
     for (key, value) in entries {
         map.insert(Value::String(key.to_string()), value);

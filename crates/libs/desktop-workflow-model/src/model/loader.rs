@@ -7,16 +7,16 @@ use super::*;
 pub fn load_document_from_value(
     source_path: Option<String>,
     raw_root: Value,
-) -> Result<LoadedWorkflow, crate::app::i18n::workflow::Feedback> {
+) -> Result<LoadedWorkflow, desktop_i18n::workflow::Feedback> {
     if let Some(options) = raw_root.get("workflow").and_then(|w| w.get("video_edit")) {
         serde_yaml::from_value::<vw_api_workflow::VideoEditTemplateOptions>(options.clone())
-            .map_err(|error| crate::app::i18n::workflow::Feedback::new("视频剪辑并发必须为 1..5: %s", vec![error.to_string()]))?;
+            .map_err(|error| desktop_i18n::workflow::Feedback::new("视频剪辑并发必须为 1..5: %s", vec![error.to_string()]))?;
     }
     if raw_root.get("workflow").and_then(|w| w.get("video_edit")).is_some() {
         validate_video_iteration_limits(&raw_root)?;
     }
     let parsed: DifyWorkflowFile = serde_yaml::from_value(raw_root.clone()).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new("解析 Dify DSL 失败: %s", vec![error.to_string()])
+        desktop_i18n::workflow::Feedback::new("解析 Dify DSL 失败: %s", vec![error.to_string()])
     })?;
 
     let app_meta = workflow_app_meta_from_dify(parsed.app.as_ref());
@@ -36,7 +36,7 @@ pub fn load_document_from_value(
         .map(|workflow| &workflow.graph)
         .or(parsed.graph.as_ref())
         .ok_or_else(|| {
-            crate::app::i18n::workflow::Feedback::new(
+            desktop_i18n::workflow::Feedback::new(
                 "未找到 workflow.graph 节点，无法构建画布",
                 vec![],
             )
@@ -150,7 +150,7 @@ pub fn serialize_workflow_yaml(
     conversation_variables: &[WorkflowConversationVariable],
     raw_root: &Value,
     viewport: WorkflowViewport,
-) -> Result<String, crate::app::i18n::workflow::Feedback> {
+) -> Result<String, desktop_i18n::workflow::Feedback> {
     let root = patch_root_for_save(
         app_meta,
         document,
@@ -160,7 +160,7 @@ pub fn serialize_workflow_yaml(
         viewport,
     )?;
     serde_yaml::to_string(&root).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new(
+        desktop_i18n::workflow::Feedback::new(
             "序列化工作流 yml 失败: %s",
             vec![error.to_string()],
         )
@@ -477,13 +477,13 @@ pub(super) fn workflow_conversation_variable_from_dify(
 
 fn validate_video_iteration_limits(
     value: &Value,
-) -> Result<(), crate::app::i18n::workflow::Feedback> {
+) -> Result<(), desktop_i18n::workflow::Feedback> {
     match value {
         Value::Mapping(map) => {
             if map.get("type").and_then(Value::as_str) == Some("iteration") {
                 if let Some(limit) = map.get("max_parallel") {
                     if !limit.as_u64().is_some_and(|n| (1..=5).contains(&n)) {
-                        return Err(crate::app::i18n::workflow::Feedback::new(
+                        return Err(desktop_i18n::workflow::Feedback::new(
                             "视频分段并发必须为 1..5",
                             vec![],
                         ));

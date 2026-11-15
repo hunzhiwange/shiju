@@ -33,6 +33,7 @@ patch = { path = "../libs/patch", version = "0.6.0" }
 gateway-interaction = { path = "../libs/gateway-interaction", version = "0.6.0" }
 desktop-task-model = { path = "../libs/desktop-task-model", version = "0.6.0" }
 desktop-task-store = { path = "../libs/desktop-task-store", version = "0.6.0" }
+desktop-workflow-model = { path = "../libs/desktop-workflow-model", version = "0.6.0" }
 desktop-task-executor = { path = "../libs/desktop-task-executor", version = "0.6.0" }
 gateway-cron = { path = "../libs/gateway-cron", version = "0.6.0" }
 desktop-release = { path = "../libs/desktop-release", version = "0.6.0" }

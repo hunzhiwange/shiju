@@ -269,6 +269,7 @@ members = [
   "crates/libs/desktop-lsp",
   "crates/libs/desktop-task-model",
   "crates/libs/desktop-task-store",
+  "crates/libs/desktop-workflow-model",
   "crates/libs/desktop-task-executor",
   "crates/libs/theme-model",
   "crates/libs/theme-store",

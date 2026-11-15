@@ -18,7 +18,7 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::channels::lark::ack::{random_lark_ack_reaction, detect_lark_ack_locale};
+//! use channel_lark::ack::{random_lark_ack_reaction, detect_lark_ack_locale};
 //!
 //! // 从消息载荷中检测语言并获取随机确认表情
 //! let reaction = random_lark_ack_reaction(Some(&payload), "fallback text");

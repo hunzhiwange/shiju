@@ -1,7 +1,7 @@
 // 本文件验证 Lark 渠道构造、旧版飞书配置兼容与基础收发状态。
 
 use super::*;
-use crate::app::agent::config::{
+use agent_config::runtime::{
     GroupReplyConfig, GroupReplyMode, LarkConfig, LarkReceiveMode, ProxyConfig, ProxyScope,
     runtime_proxy_config, set_runtime_proxy_config,
 };

@@ -143,7 +143,7 @@ pub(crate) fn next_token_refresh_deadline(now: Instant, ttl_seconds: u64) -> Ins
 ///
 /// 净化后的字符串，可安全用于日志记录
 pub(crate) fn sanitize_lark_body(body: &serde_json::Value) -> String {
-    crate::app::agent::providers::sanitize_api_error(&body.to_string())
+    agent_providers::sanitize_api_error(&body.to_string())
 }
 
 /// 确保飞书消息发送成功
@@ -290,7 +290,7 @@ impl LarkChannel {
             // 其他错误直接返回
             anyhow::bail!(
                 "Lark image download failed: status={status}, body={}",
-                crate::app::agent::providers::sanitize_api_error(&String::from_utf8_lossy(&body))
+                agent_providers::sanitize_api_error(&String::from_utf8_lossy(&body))
             );
         }
     }
@@ -391,7 +391,7 @@ impl LarkChannel {
             if !response.status().is_success() {
                 let status = response.status();
                 let err_body = response.text().await.unwrap_or_default();
-                let sanitized = crate::app::agent::providers::sanitize_api_error(&err_body);
+                let sanitized = agent_providers::sanitize_api_error(&err_body);
                 tracing::warn!(
                     "Lark: add reaction failed for {message_id}: status={status}, body={sanitized}"
                 );

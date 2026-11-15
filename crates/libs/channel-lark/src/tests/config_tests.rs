@@ -4,7 +4,7 @@
 //! 配置字段与当前区域选择逻辑保持兼容。
 
 use super::*;
-use crate::app::agent::config::schema::{FeishuConfig, LarkConfig, LarkReceiveMode};
+use config_channel_services::{FeishuConfig, LarkConfig, LarkReceiveMode};
 
 #[test]
 fn lark_config_serde() {

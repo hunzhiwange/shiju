@@ -392,14 +392,14 @@ async fn markdown_delivery_lark_unknown_result_does_not_replay() {
     cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
     let error = ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await.unwrap_err();
     let progress = error
-        .downcast_ref::<crate::app::agent::channels::outbound_delivery::ChannelDeliveryError>()
+        .downcast_ref::<channel_support::outbound_delivery::ChannelDeliveryError>()
         .expect("structured progress");
     assert_eq!(progress.confirmed_parts, 1);
     assert_eq!(progress.total_parts, 3);
     assert_eq!(progress.failed_part_index, 1);
     assert_eq!(
         progress.kind,
-        crate::app::agent::channels::outbound_delivery::DeliveryFailureKind::Unknown
+        channel_support::outbound_delivery::DeliveryFailureKind::Unknown
     );
     assert!(delivery_text(&server.next_request().await).starts_with("```rust\nA"));
     assert!(delivery_text(&server.next_request().await).starts_with("```rust\nB"));
@@ -407,7 +407,7 @@ async fn markdown_delivery_lark_unknown_result_does_not_replay() {
 
 #[tokio::test]
 async fn markdown_delivery_lark_second_part_failure_stops_remaining() {
-    use crate::app::agent::channels::outbound_delivery::{
+    use channel_support::outbound_delivery::{
         ChannelDeliveryError, DeliveryFailureKind,
     };
     for (status, body, kind) in [
@@ -442,7 +442,7 @@ async fn markdown_delivery_lark_second_part_failure_stops_remaining() {
 
 #[tokio::test]
 async fn markdown_delivery_lark_preflight_checks_every_final_payload() {
-    use crate::app::agent::channels::outbound_delivery::{
+    use channel_support::outbound_delivery::{
         ChannelDeliveryError, DeliveryFailureKind,
     };
     for message in [
@@ -465,7 +465,7 @@ async fn markdown_delivery_lark_preflight_checks_every_final_payload() {
 
 #[tokio::test]
 async fn markdown_delivery_lark_transport_failure_and_timeout_stop_current_part() {
-    use crate::app::agent::channels::outbound_delivery::{
+    use channel_support::outbound_delivery::{
         ChannelDeliveryError, DeliveryFailureKind,
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -551,7 +551,7 @@ async fn markdown_delivery_lark_transport_failure_and_timeout_stop_current_part(
 
 #[tokio::test]
 async fn markdown_delivery_lark_refresh_failure_preserves_confirmed_prefix() {
-    use crate::app::agent::channels::outbound_delivery::{
+    use channel_support::outbound_delivery::{
         ChannelDeliveryError, DeliveryFailureKind,
     };
     for refresh_fails in [false, true] {

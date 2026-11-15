@@ -13,14 +13,14 @@ fn lark_reaction_url_matches_region() {
         "https://open.larksuite.com/open-apis/im/v1/messages/om_test_message_id/reactions"
     );
 
-    let feishu_cfg = crate::app::agent::config::schema::FeishuConfig {
+    let feishu_cfg = config_channel_services::FeishuConfig {
         app_id: "cli_app123".into(),
         app_secret: "secret456".into(),
         encrypt_key: None,
         verification_token: Some("vtoken789".into()),
         allowed_users: vec!["*".into()],
         group_reply: None,
-        receive_mode: crate::app::agent::config::schema::LarkReceiveMode::Webhook,
+        receive_mode: config_channel_services::LarkReceiveMode::Webhook,
         port: Some(9898),
         draft_update_interval_ms: 3_000,
         max_draft_edits: 20,

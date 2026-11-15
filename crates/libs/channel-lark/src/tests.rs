@@ -53,14 +53,14 @@ fn lark_channel_new_uses_lark_defaults_and_private_url_helpers() {
 
 #[test]
 fn lark_channel_feishu_config_uses_feishu_urls_and_name() {
-    let cfg = crate::app::agent::config::schema::FeishuConfig {
+    let cfg = config_channel_services::FeishuConfig {
         app_id: "cli_feishu".to_string(),
         app_secret: "secret".to_string(),
         encrypt_key: None,
         verification_token: Some("verify".to_string()),
         allowed_users: vec!["ou_allowed".to_string()],
         group_reply: None,
-        receive_mode: crate::app::agent::config::schema::LarkReceiveMode::Webhook,
+        receive_mode: config_channel_services::LarkReceiveMode::Webhook,
         port: Some(8080),
         draft_update_interval_ms: 1_000,
         max_draft_edits: 10,

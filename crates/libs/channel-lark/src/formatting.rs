@@ -1,7 +1,7 @@
 //! Pure outbound Markdown formatting shared by Lark and Feishu.
 
-use super::super::markdown_chunk::split_markdown;
-use super::super::outbound_format::normalize_feishu_markdown;
+use channel_support::markdown_chunk::split_markdown;
+use channel_support::outbound_format::normalize_feishu_markdown;
 use pulldown_cmark::{Event, Options, Parser, Tag};
 use serde_json::json;
 

@@ -14,7 +14,7 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use crate::app::agent::channels::lark::platform::LarkPlatform;
+//! use channel_lark::platform::LarkPlatform;
 //!
 //! let platform = LarkPlatform::Lark;
 //! let api_url = platform.api_base();  // 返回 Lark API 地址

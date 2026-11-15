@@ -7,3 +7,5 @@ pub mod repository;
 mod commit;
 mod gateway;
 mod diff_actions;
+pub mod messages;
+pub mod stage_commit;

@@ -17,12 +17,6 @@ fn test_module_is_wired() {
     assert!(module.ends_with("tests"));
 }
 
-#[test]
-fn expand_direction_variants_are_distinct() {
-    assert_ne!(super::ExpandDirection::Up, super::ExpandDirection::Down);
-    assert_eq!(super::ExpandDirection::All, super::ExpandDirection::All);
-}
-
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]

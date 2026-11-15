@@ -9,11 +9,6 @@ use super::shared::{
     refresh_git_panel_data_after_repo_mutation_task, reset_commit_form_state,
     schedule_commit_button_animation_tick,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use super::shared::{
-    changed_diff_line_sets, invert_stage_selection_for_file_lines, normalize_stage_line_selections,
-    replace_stage_selection_for_file_lines,
-};
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -25,199 +20,138 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
         GitMessage::CommitMessageChanged(message) => {
-            app.git_commit_message = message;
+            desktop_git_ui::message_git::stage_commit::commit_message_changed(&mut app.git_commit_message, message);
             Task::none()
         }
         GitMessage::CommitTypeSelected(commit_type) => {
-            app.git_commit_type = Some(commit_type);
+            desktop_git_ui::message_git::stage_commit::commit_type_selected(&mut app.git_commit_type, commit_type);
             Task::none()
         }
         GitMessage::CommitScopeChanged(scope) => {
-            app.git_commit_scope = scope;
+            desktop_git_ui::message_git::stage_commit::commit_scope_changed(&mut app.git_commit_scope, scope);
             Task::none()
         }
         GitMessage::CommitDescriptionChanged(description) => {
-            app.git_commit_description = description;
+            desktop_git_ui::message_git::stage_commit::commit_description_changed(&mut app.git_commit_description, description);
             Task::none()
         }
         GitMessage::CommitDescriptionEditorAction(action) => {
-            app.git_commit_description_editor.perform(action);
-            app.git_commit_description = app.git_commit_description_editor.text().to_string();
+            desktop_git_ui::message_git::stage_commit::commit_description_editor_action(&mut app.git_commit_description_editor, &mut app.git_commit_description, action);
             Task::none()
         }
         GitMessage::CommitHelpOpen => {
-            app.show_git_commit_help_modal = true;
+            desktop_git_ui::message_git::stage_commit::commit_help_open(&mut app.show_git_commit_help_modal);
             Task::none()
         }
         GitMessage::CommitHelpClose => {
-            app.show_git_commit_help_modal = false;
+            desktop_git_ui::message_git::stage_commit::commit_help_close(&mut app.show_git_commit_help_modal);
             Task::none()
         }
         GitMessage::FilterHelpOpen => {
-            app.show_git_filter_help_modal = true;
+            desktop_git_ui::message_git::stage_commit::filter_help_open(&mut app.show_git_filter_help_modal);
             Task::none()
         }
         GitMessage::FilterHelpClose => {
-            app.show_git_filter_help_modal = false;
+            desktop_git_ui::message_git::stage_commit::filter_help_close(&mut app.show_git_filter_help_modal);
             Task::none()
         }
         GitMessage::ToggleFilterOptions(enabled) => {
-            app.show_git_filter_options = enabled;
+            desktop_git_ui::message_git::stage_commit::toggle_filter_options(&mut app.show_git_filter_options, enabled);
             Task::none()
         }
         GitMessage::FilterQueryChanged(query) => {
-            app.git_filter_query = query;
+            desktop_git_ui::message_git::stage_commit::filter_query_changed(&mut app.git_filter_query, query);
             Task::none()
         }
         GitMessage::FilterToggleIncluded(enabled) => {
-            app.git_filter_included = enabled;
+            desktop_git_ui::message_git::stage_commit::filter_toggle_included(&mut app.git_filter_included, enabled);
             Task::none()
         }
         GitMessage::FilterToggleExcluded(enabled) => {
-            app.git_filter_excluded = enabled;
+            desktop_git_ui::message_git::stage_commit::filter_toggle_excluded(&mut app.git_filter_excluded, enabled);
             Task::none()
         }
         GitMessage::FilterToggleNew(enabled) => {
-            app.git_filter_new = enabled;
+            desktop_git_ui::message_git::stage_commit::filter_toggle_new(&mut app.git_filter_new, enabled);
             Task::none()
         }
         GitMessage::FilterToggleModified(enabled) => {
-            app.git_filter_modified = enabled;
+            desktop_git_ui::message_git::stage_commit::filter_toggle_modified(&mut app.git_filter_modified, enabled);
             Task::none()
         }
         GitMessage::FilterToggleDeleted(enabled) => {
-            app.git_filter_deleted = enabled;
+            desktop_git_ui::message_git::stage_commit::filter_toggle_deleted(&mut app.git_filter_deleted, enabled);
             Task::none()
         }
         GitMessage::ClearFilters => {
-            app.git_filter_query.clear();
-            app.git_filter_included = false;
-            app.git_filter_excluded = false;
-            app.git_filter_new = false;
-            app.git_filter_modified = false;
-            app.git_filter_deleted = false;
+            desktop_git_ui::message_git::stage_commit::clear_filters(&mut app.git_filter_query, &mut app.git_filter_included, &mut app.git_filter_excluded, &mut app.git_filter_new, &mut app.git_filter_modified, &mut app.git_filter_deleted);
             Task::none()
         }
         GitMessage::ToggleStageFile(file, checked) => {
-            if checked {
-                if !app.staged_files_selected.contains(&file) {
-                    app.staged_files_selected.push(file);
-                }
-            } else if let Some(pos) =
-                app.staged_files_selected.iter().position(|selected| selected == &file)
-            {
-                app.staged_files_selected.remove(pos);
-            }
+            desktop_git_ui::message_git::stage_commit::toggle_stage_file(&mut app.staged_files_selected, file, checked);
             Task::none()
         }
         GitMessage::ToggleStageHunk(file, idx, checked) => {
-            if checked {
-                if !app.staged_hunks_selected.iter().any(|(selected_file, selected_idx)| {
-                    selected_file == &file && *selected_idx == idx
-                }) {
-                    app.staged_hunks_selected.push((file, idx));
-                }
-            } else if let Some(pos) =
-                app.staged_hunks_selected.iter().position(|(selected_file, selected_idx)| {
-                    selected_file == &file && *selected_idx == idx
-                })
-            {
-                app.staged_hunks_selected.remove(pos);
-            }
+            desktop_git_ui::message_git::stage_commit::toggle_stage_hunk(&mut app.staged_hunks_selected, file, idx, checked);
             Task::none()
         }
         GitMessage::ToggleStageLine(file, new_idx, checked) => {
-            if checked {
-                if !app.staged_lines_selected.iter().any(|(selected_file, selected_idx)| {
-                    selected_file == &file && *selected_idx == new_idx
-                }) {
-                    app.staged_lines_selected.push((file, new_idx));
-                }
-            } else if let Some(pos) =
-                app.staged_lines_selected.iter().position(|(selected_file, selected_idx)| {
-                    selected_file == &file && *selected_idx == new_idx
-                })
-            {
-                app.staged_lines_selected.remove(pos);
-            }
+            desktop_git_ui::message_git::stage_commit::toggle_stage_line(&mut app.staged_lines_selected, file, new_idx, checked);
             Task::none()
         }
         GitMessage::ToggleStageOldLine(file, old_idx, checked) => {
-            if checked {
-                if !app.staged_old_lines_selected.iter().any(|(selected_file, selected_idx)| {
-                    selected_file == &file && *selected_idx == old_idx
-                }) {
-                    app.staged_old_lines_selected.push((file, old_idx));
-                }
-            } else if let Some(pos) =
-                app.staged_old_lines_selected.iter().position(|(selected_file, selected_idx)| {
-                    selected_file == &file && *selected_idx == old_idx
-                })
-            {
-                app.staged_old_lines_selected.remove(pos);
-            }
+            desktop_git_ui::message_git::stage_commit::toggle_stage_old_line(&mut app.staged_old_lines_selected, file, old_idx, checked);
             Task::none()
         }
         GitMessage::SelectAllFileLines(_file) => {
             #[cfg(not(target_arch = "wasm32"))]
-            {
-                let Some((old_changed, new_changed)) = changed_diff_line_sets(app, &_file) else {
-                    return Task::none();
-                };
-                replace_stage_selection_for_file_lines(app, &_file, &old_changed, &new_changed);
-                normalize_stage_line_selections(app);
+            if let Some(path) = super::shared::git_repo_path_for_app(app) {
+                desktop_git_ui::message_git::stage_commit::select_all_file_lines(
+                    &mut app.staged_lines_selected, &mut app.staged_old_lines_selected, &path, &_file,
+                );
             }
             Task::none()
         }
         GitMessage::SelectAllVisibleFileLines(_files) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                for file in _files {
-                    let Some((old_changed, new_changed)) = changed_diff_line_sets(app, &file)
-                    else {
-                        continue;
-                    };
-                    replace_stage_selection_for_file_lines(app, &file, &old_changed, &new_changed);
-                }
-                normalize_stage_line_selections(app);
+                let path = super::shared::git_repo_path_for_app(app);
+                desktop_git_ui::message_git::stage_commit::select_visible_file_lines(
+                    &mut app.staged_lines_selected, &mut app.staged_old_lines_selected,
+                    path.as_deref(), _files, false,
+                );
             }
             Task::none()
         }
         GitMessage::InvertVisibleFileLines(_files) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                for file in _files {
-                    let Some((old_changed, new_changed)) = changed_diff_line_sets(app, &file)
-                    else {
-                        continue;
-                    };
-                    invert_stage_selection_for_file_lines(app, &file, &old_changed, &new_changed);
-                }
-                normalize_stage_line_selections(app);
+                let path = super::shared::git_repo_path_for_app(app);
+                desktop_git_ui::message_git::stage_commit::select_visible_file_lines(
+                    &mut app.staged_lines_selected, &mut app.staged_old_lines_selected,
+                    path.as_deref(), _files, true,
+                );
             }
             Task::none()
         }
         GitMessage::ClearAllFileLines(file) => {
-            app.staged_lines_selected.retain(|(selected_file, _)| selected_file != &file);
-            app.staged_old_lines_selected.retain(|(selected_file, _)| selected_file != &file);
+            desktop_git_ui::message_git::stage_commit::clear_all_file_lines(&mut app.staged_lines_selected, &mut app.staged_old_lines_selected, file);
             Task::none()
         }
         GitMessage::HoverFileHeaderEnter(file) => {
-            app.git_hovered_file_header = Some(file);
+            desktop_git_ui::message_git::stage_commit::hover_file_header_enter(&mut app.git_hovered_file_header, file);
             Task::none()
         }
         GitMessage::HoverFileHeaderExit(file) => {
-            if app.git_hovered_file_header.as_deref() == Some(file.as_str()) {
-                app.git_hovered_file_header = None;
-            }
+            desktop_git_ui::message_git::stage_commit::hover_file_header_exit(&mut app.git_hovered_file_header, file);
             Task::none()
         }
         GitMessage::HoverGitPanelHeaderEnter => {
-            app.git_panel_header_hovered = true;
+            desktop_git_ui::message_git::stage_commit::hover_git_panel_header_enter(&mut app.git_panel_header_hovered);
             Task::none()
         }
         GitMessage::HoverGitPanelHeaderExit => {
-            app.git_panel_header_hovered = false;
+            desktop_git_ui::message_git::stage_commit::hover_git_panel_header_exit(&mut app.git_panel_header_hovered);
             Task::none()
         }
         GitMessage::StageAll => {

@@ -58,7 +58,7 @@ use cli_gateway_automation::cron::{
     mutate_owned_cron_and_refresh_blocking,
 };
 use cli_gateway_runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
-use cli_gateway_runtime::file_search::search_files_blocking;
+use cli_gateway_workspace::file_search::search_files_blocking;
 use cli_gateway_transport::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
 use cli_gateway_runtime::hooks::{
     HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh, load_hook_audit_blocking,
@@ -83,7 +83,7 @@ use cli_gateway_automation::workflow_run::{
     OwnedWorkflowRunRequest, WorkflowRunOwnership, resume_workflow_run_blocking,
     stream_workflow_run_blocking, workflow_run_request,
 };
-use cli_gateway_runtime::workspace_files::{
+use cli_gateway_workspace::workspace_files::{
     WorkspaceFileListing, WorkspaceFileText, load_workspace_files_blocking,
     read_workspace_file_blocking,
 };

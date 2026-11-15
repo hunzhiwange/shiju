@@ -4,19 +4,13 @@
 
 pub mod capabilities;
 pub mod diagnostics;
-pub mod file_search;
 pub mod hooks;
 pub mod integrations;
-pub mod workspace_files;
 
 #[cfg(test)]
 mod diagnostics_tests;
 #[cfg(test)]
-mod file_search_tests;
-#[cfg(test)]
 mod hooks_tests;
-#[cfg(test)]
-mod workspace_files_tests;
 
 #[cfg(test)]
 mod gateway_composition_tests;

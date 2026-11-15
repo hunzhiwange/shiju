@@ -41,7 +41,7 @@ pub fn revision(rows: &[ProviderRow]) -> Result<String, PreviewError> {
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 pub fn key(app: AppId, id: &str) -> Result<String, PreviewError> {
-    crate::providers::validate_identity(id).map_err(|_| PreviewError::InvalidCandidate)?;
+    app_providers::providers::validate_identity(id).map_err(|_| PreviewError::InvalidCandidate)?;
     Ok(format!("{}:{id}", serde_json::to_string(&app).map_err(|_| PreviewError::InvalidCandidate)?))
 }
 
@@ -91,9 +91,9 @@ pub fn prepare(scope: &SourceScope, source: &SourceSnapshot, existing: &[Provide
         for (from, to) in [("sort_index", "sortIndex"), ("category", "category"), ("notes", "notes"), ("icon", "icon")] {
             if let Some(v) = f.get(from).filter(|v| !v.is_null()) { value[to] = v.clone(); }
         }
-        crate::providers::icons::read(&value).map_err(|_| PreviewError::InvalidCandidate)?;
-        let presentation = crate::providers::presentation::read(&value).map_err(|_| PreviewError::InvalidCandidate)?;
-        value = crate::providers::presentation::update(&value, &presentation).map_err(|_| PreviewError::InvalidCandidate)?;
+        app_providers::providers::icons::read(&value).map_err(|_| PreviewError::InvalidCandidate)?;
+        let presentation = app_providers::providers::presentation::read(&value).map_err(|_| PreviewError::InvalidCandidate)?;
+        value = app_providers::providers::presentation::update(&value, &presentation).map_err(|_| PreviewError::InvalidCandidate)?;
         rows.push(ProviderRow { app, id: id.into(), value });
     }
     // Endpoint references must resolve within this same selected category.
@@ -108,7 +108,7 @@ pub fn prepare(scope: &SourceScope, source: &SourceSnapshot, existing: &[Provide
         use vw_api_app_provider_edit::endpoints::*;
         let url = string(f, "url")?.to_owned();
         let timestamp = f.get("added_at").and_then(Value::as_u64).ok_or(PreviewError::InvalidCandidate)?;
-        row.value = crate::providers::endpoints::update(&row.value,
+        row.value = app_providers::providers::endpoints::update(&row.value,
             &AppProviderEndpointChange::Add { url, kind: AppProviderEndpointKind::BaseUrl }, timestamp)
             .map_err(|_| PreviewError::InvalidCandidate)?;
     }
@@ -150,7 +150,7 @@ fn normalize(app: AppId, name: &str, settings: &Value, before: Option<&Value>) -
                 for key in ["name", "base_url", "wire_api"] {
                     if let Some(v) = value.get(key) {
                         if !v.is_str() { return Err(PreviewError::InvalidCandidate); }
-                        if key == "base_url" { crate::providers::validation::endpoint(v.as_str().unwrap()).map_err(|_| PreviewError::InvalidCandidate)?; }
+                        if key == "base_url" { app_providers::providers::validation::endpoint(v.as_str().unwrap()).map_err(|_| PreviewError::InvalidCandidate)?; }
                         provider.insert(key.into(), v.clone());
                     }
                 }
@@ -159,13 +159,13 @@ fn normalize(app: AppId, name: &str, settings: &Value, before: Option<&Value>) -
             clean.insert("model_providers".into(), toml::Value::Table(result));
         }
         let config = toml::to_string(&toml::Value::Table(clean)).map_err(|_| PreviewError::InvalidCandidate)?;
-        let mut profile = crate::providers::codex_catalog::import(Some(config.as_bytes()), None).map_err(|_| PreviewError::InvalidCandidate)?;
+        let mut profile = app_providers::providers::codex_catalog::import(Some(config.as_bytes()), None).map_err(|_| PreviewError::InvalidCandidate)?;
         profile.name = name.into();
         if let Some(existing) = before.and_then(|v| v.get("codex")) {
             let existing: vw_api_app_provider_profiles::codex_catalog::CodexProfile = serde_json::from_value(existing.clone()).map_err(|_| PreviewError::InvalidCandidate)?;
             profile.api_key = existing.api_key;
         }
-        return Ok(json!({"name":name,"codex":profile,"settingsConfig":crate::providers::codex_catalog::settings(&profile)}));
+        return Ok(json!({"name":name,"codex":profile,"settingsConfig":app_providers::providers::codex_catalog::settings(&profile)}));
     }
     for key in ["ANTHROPIC_BASE_URL", "GEMINI_BASE_URL"] {
         if settings.get("env").and_then(|v| v.get(key)).is_some()
@@ -194,8 +194,8 @@ fn normalize(app: AppId, name: &str, settings: &Value, before: Option<&Value>) -
                 let ClaudeConfig::ThirdParty { api_key, api_key_header, .. } = existing.config else { return Err(PreviewError::InvalidCandidate) };
                 env.insert(if api_key_header { "ANTHROPIC_API_KEY" } else { "ANTHROPIC_AUTH_TOKEN" }.into(), json!(api_key));
             }
-            let profile = crate::providers::claude::import(name, safe.to_string().as_bytes()).map_err(|_| PreviewError::InvalidCandidate)?;
-            Ok(json!({"name":name, "claude":profile, "settingsConfig":crate::providers::claude::settings(&profile).map_err(|_| PreviewError::InvalidCandidate)?}))
+            let profile = app_providers::providers::claude::import(name, safe.to_string().as_bytes()).map_err(|_| PreviewError::InvalidCandidate)?;
+            Ok(json!({"name":name, "claude":profile, "settingsConfig":app_providers::providers::claude::settings(&profile).map_err(|_| PreviewError::InvalidCandidate)?}))
         }
         AppId::Gemini => {
             let config = if let Some(url) = env.get("GEMINI_BASE_URL").and_then(Value::as_str) {
@@ -205,7 +205,7 @@ fn normalize(app: AppId, name: &str, settings: &Value, before: Option<&Value>) -
                 GeminiConfig::ThirdParty { base_url: url.into(), api_key }
             } else { GeminiConfig::Official {} };
             let profile = GeminiProfile { name: name.into(), config, model: settings.get("env").and_then(|v|v.get("GEMINI_MODEL")).and_then(Value::as_str).map(str::to_owned) };
-            Ok(json!({"name":name, "gemini":profile, "settingsConfig":crate::providers::gemini::settings(&profile).map_err(|_| PreviewError::InvalidCandidate)?}))
+            Ok(json!({"name":name, "gemini":profile, "settingsConfig":app_providers::providers::gemini::settings(&profile).map_err(|_| PreviewError::InvalidCandidate)?}))
         }
         // Opaque TOML and application-specific account references must not be
         // treated as a generic JSON provider. Their owners must decode them.

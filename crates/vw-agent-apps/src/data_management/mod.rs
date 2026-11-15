@@ -7,32 +7,20 @@ pub use app_data_backup::{
     locations, retention, safety_snapshot,
 };
 
-pub mod providers;
+pub use app_data_projection::providers;
 
-pub mod mcp;
-#[cfg(test)]
-mod mcp_tests;
-#[cfg(test)]
-mod providers_tests;
+pub use app_data_projection::mcp;
 
 #[cfg(target_os = "macos")]
-pub mod skills;
-#[cfg(all(test, target_os = "macos"))]
-mod skills_tests;
+pub use app_data_projection::skills;
 
-pub mod profiles;
-#[cfg(test)]
-mod profiles_tests;
+pub use app_data_projection::profiles;
 
-pub mod prompts;
-#[cfg(test)]
-mod prompts_tests;
+pub use app_data_projection::prompts;
 
-pub mod preferences;
+pub use app_data_projection::preferences;
 
-pub mod usage;
-#[cfg(test)]
-mod usage_tests;
+pub use app_data_projection::usage;
 
 #[cfg(target_os = "macos")]
 pub mod periodic;

@@ -4,7 +4,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use vw_api_app_identity::{AppHostPreferences, AppId, AppUserPreferences};
 
-use crate::apps::preferences::{HostPlatform, default_user_preferences, normalize_preferences};
+use app_catalog::preferences::{HostPlatform, default_user_preferences, normalize_preferences};
 use super::{preview::{Decision, Difference, PreviewError}, source::SourceScope};
 
 /// Host-private preview; never serialize source values or target preimages.

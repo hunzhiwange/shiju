@@ -1,6 +1,6 @@
 //! CC MCP normalization. Values remain host-private and never execute commands.
 use super::source::{SourceCategory, SourceRecord};
-use crate::mcp::{catalog::McpCatalogDraft, validation::parse_native};
+use app_mcp_catalog::{catalog::McpCatalogDraft, validation::parse_native};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use {

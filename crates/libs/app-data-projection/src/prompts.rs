@@ -1,6 +1,6 @@
 //! Strict CC prompt decoding; importing catalog intent never publishes live files.
 use super::{preview::PreviewError, source::{SourceCategory, SourceRecord}};
-use crate::prompts::listing::PromptEntry;
+use app_prompts::prompts::listing::PromptEntry;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use vw_api_app_operations::{PromptResource};
@@ -42,7 +42,7 @@ pub fn normalize(records: &[&SourceRecord]) -> Result<Vec<MigrationPrompt>, Prev
             .map_err(|_| PreviewError::UnsupportedCategory)?;
         PromptResource::Application { app_id: app }.validate_application_access().map_err(|_| PreviewError::UnsupportedCategory)?;
         let id = text("id")?;
-        crate::providers::validate_identity(id).map_err(|_| PreviewError::InvalidCandidate)?;
+        app_providers::providers::validate_identity(id).map_err(|_| PreviewError::InvalidCandidate)?;
         let app_key = serde_json::to_string(&app).map_err(|_| PreviewError::InvalidCandidate)?;
         if !identities.insert((app_key.clone(), id.to_owned())) { return Err(PreviewError::InvalidCandidate); }
         let enabled = match row.get("enabled") {

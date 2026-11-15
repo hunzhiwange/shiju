@@ -4,7 +4,7 @@ use super::{
     preview::{self, Decision, ImportPreview, PreviewCandidate},
     source::{SourceCategory, SourceScope, SourceSnapshot},
 };
-use crate::skills::{
+use app_skills::{
     bulk_sync::SkillSyncTarget,
     copy_deploy::{CopyBinding, CopyDeploy, binding_fingerprint},
     disable_deploy::DisableDeploy,
@@ -74,7 +74,7 @@ impl SkillsPreview {
         resource_root: &Path,
         existing: &BTreeMap<String, MigratedSkill>,
     ) -> Result<Self> {
-        checked(crate::providers::paths::open_beneath(resource_root, resource_root, true))?;
+        checked(app_providers::providers::paths::open_beneath(resource_root, resource_root, true))?;
         let resources = tempfile::tempdir()?;
         let mut records = Vec::new();
         let mut names = BTreeSet::new();
@@ -126,14 +126,14 @@ impl SkillsPreview {
                     let owner = string("repo_owner")?;
                     let name = string("repo_name")?;
                     let branch = string("repo_branch")?;
-                    checked(crate::skills::repos::validate_repo_ref(&owner, &name, &branch))?;
+                    checked(app_skills::repos::validate_repo_ref(&owner, &name, &branch))?;
                     if branch.eq_ignore_ascii_case("HEAD") {
                         return Err(invalid());
                     }
                     Some(RepoSkillSource { owner, name, branch, directory: directory.clone() })
                 }
             };
-            checked(crate::providers::paths::open_beneath(
+            checked(app_providers::providers::paths::open_beneath(
                 resource_root,
                 &resource_root.join(&directory),
                 true,
@@ -258,7 +258,7 @@ impl SkillMigration {
         let root = std::fs::canonicalize(root)?;
         roots.insert(
             root.clone(),
-            checked(crate::providers::paths::open_beneath(&root, &root, true))?,
+            checked(app_providers::providers::paths::open_beneath(&root, &root, true))?,
         );
         for (app, target) in targets {
             if checked(serde_json::to_value(target.path.app_id))?.as_str() != Some(app.as_str()) {
@@ -272,7 +272,7 @@ impl SkillMigration {
             }
             roots.insert(
                 path,
-                checked(crate::providers::paths::open_beneath(
+                checked(app_providers::providers::paths::open_beneath(
                     &target.path.directory,
                     &target.path.directory,
                     true,
@@ -434,7 +434,7 @@ pub fn capture_skill_resources(
             let metadata = std::fs::symlink_metadata(&path)?;
             if metadata.is_dir() {
                 directories.push(path.clone());
-                checked(crate::providers::paths::open_beneath(&root, &path, true))?;
+                checked(app_providers::providers::paths::open_beneath(&root, &path, true))?;
                 for entry in std::fs::read_dir(&path)? {
                     pending.push(entry?.path());
                 }
@@ -442,7 +442,7 @@ pub fn capture_skill_resources(
                 if !metadata.is_file() {
                     return Err(invalid());
                 }
-                let file = checked(crate::providers::paths::open_beneath(&root, &path, false))?;
+                let file = checked(app_providers::providers::paths::open_beneath(&root, &path, false))?;
                 let mut bytes = Vec::new();
                 file.take(remaining as u64 + 1).read_to_end(&mut bytes)?;
                 remaining = remaining.checked_sub(bytes.len()).ok_or_else(invalid)?;
@@ -469,8 +469,8 @@ fn check_resource_budget(root: &Path) -> Result<()> {
         } else {
             return Err(invalid());
         }
-        if entries > crate::skills::archive::MAX_ARCHIVE_ENTRIES
-            || bytes > crate::skills::archive::MAX_ARCHIVE_TOTAL_BYTES
+        if entries > app_skills::archive::MAX_ARCHIVE_ENTRIES
+            || bytes > app_skills::archive::MAX_ARCHIVE_TOTAL_BYTES
         {
             return Err(invalid());
         }

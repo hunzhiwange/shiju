@@ -20,7 +20,7 @@ fn fixture() -> (SourceScope, SourceSnapshot, Connection) {
             "total_cost_usd":"0.125","cost_multiplier":"1.0","created_at":1,"status_code":200,"latency_ms":20
         }) }]);
     let mut db = Connection::open_in_memory().unwrap();
-    crate::usage::store::initialize_usage_store(&mut db).unwrap();
+    app_usage_store::store::initialize_usage_store(&mut db).unwrap();
     (scope,source,db)
 }
 #[test]

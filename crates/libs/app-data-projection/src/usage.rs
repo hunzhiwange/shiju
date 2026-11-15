@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vw_api_usage::*;
 use vw_api_app_identity::{AppId};
-use crate::usage::store::{self, StoredUsageRecord, UsageSourceIdentity};
+use app_usage_store::store::{self, StoredUsageRecord, UsageSourceIdentity};
 use super::{preview::{self, Decision, ImportPreview, PreviewCandidate, PreviewError}, source::*};
 
 pub struct UsagePreview {
@@ -36,7 +36,7 @@ impl UsagePreview {
                 return Err(PreviewError::InvalidCandidate);
             };
             if !binding(&identity.app, provider_id) { return Err(PreviewError::Forbidden); }
-            crate::usage::import_store::replace_imported_usage_in_transaction(&tx, scope.project(), identity, value)
+            app_usage_store::import_store::replace_imported_usage_in_transaction(&tx, scope.project(), identity, value)
                 .map_err(|_| PreviewError::InvalidCandidate)?;
             written += 1;
         }
@@ -122,7 +122,7 @@ pub fn prepare(connection: &Connection, scope: &SourceScope, source: &SourceSnap
 }
 fn current_values(connection: &Connection, scope: &SourceScope, rows: &[(UsageSourceIdentity,StoredUsageRecord)])
     -> Result<Vec<Option<Value>>, PreviewError> {
-    rows.iter().map(|(identity,_)| crate::usage::import_store::load_imported_usage(connection, scope.project(), identity)
+    rows.iter().map(|(identity,_)| app_usage_store::import_store::load_imported_usage(connection, scope.project(), identity)
         .map_err(|_| PreviewError::InvalidCandidate)?.map(|v| serde_json::to_value(v)
             .map_err(|_| PreviewError::InvalidCandidate)).transpose()).collect()
 }

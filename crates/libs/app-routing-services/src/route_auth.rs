@@ -1,5 +1,6 @@
-use agent_database::GlobalDatabase;
 //! Application capabilities owned by the gateway's routing listener.
+
+use agent_database::GlobalDatabase;
 
 use super::{
     browser_guard,

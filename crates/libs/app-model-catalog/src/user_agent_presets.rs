@@ -1,6 +1,6 @@
 //! Explicit User-Agent overrides for the model catalog.
 
-pub use crate::providers::validation::custom_user_agent;
+pub use app_provider_validation::validation::custom_user_agent;
 
 /// Preset values in display order. The selected string uses the same path as custom input.
 pub const USER_AGENT_PRESETS: &[&str] = &[

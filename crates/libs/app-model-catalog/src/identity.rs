@@ -1,7 +1,7 @@
 //! Exact model identities use the shared DTOs' field-by-field equality. The
 //! normalization here applies only when selecting metadata source candidates.
 
-use crate::providers::validation;
+use app_provider_validation::validation;
 use reqwest::Url;
 
 /// Metadata source endpoint with the origin and deployment path preserved.

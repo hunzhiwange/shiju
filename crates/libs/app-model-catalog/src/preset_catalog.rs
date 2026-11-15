@@ -6,7 +6,7 @@ use super::{
     preset_hermes_mcode::HermesMcodePreset, preset_kimi_dsh::KimiDshPreset, preset_omp::OmpPreset,
     preset_opencode_openclaw::OpenCodeOpenClawPreset,
 };
-use crate::providers::{universal_sync::projected_endpoint, validation::endpoint};
+use app_provider_validation::{projected_endpoint, validation::endpoint};
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::LazyLock};
 use vw_api_types::{

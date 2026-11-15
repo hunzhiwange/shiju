@@ -4,6 +4,33 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 9：模型预设与能力迁移结果
+
+15 个模块（capabilities、codex_template、identity、pi_thinking、preset_catalog、
+八类 preset 实现、preset_search、user_agent_presets）及其独立测试和整个 presets
+资源目录现归 `crates/libs/app-model-catalog/src/`。models 根 validate、
+codex_projection 一并下沉；原 models 模块显式重导出，lib.rs 继续经 models
+提供原路径，不增加顶层别名。配置填充、发现与 metadata 服务仍由任务 26 接收。
+
+任务 8 移交的 media_sanitize::prepare 已下沉本包，原 routing 位置重导出；
+本包依赖 app-routing-policy 执行 replace，能力目录没有反向依赖。纯端点投影、
+身份校验和 User-Agent 校验直接使用 app-provider-validation。其它直接依赖为
+vw-api-types、serde、serde_json（arbitrary_precision）及仅用于 URL 解析的 reqwest
+（关闭默认特性）；toml_edit 仅为模板测试依赖。原包这些依赖仍有真实消费者。
+
+codex_template_tests 的 prepare_provider、preset_catalog_tests 的 native_projection、
+preset_omp_tests 的 complete_native_catalog 涉及上层配置编排，断言原样留在门面，
+分别由任务 24、11、25 接收；同文件其它测试随目录迁移，未新增或丢弃测试。
+私有 Pi thinking 规则仍在同包，未扩大可见性。真实调用者包括 fill_pi、metadata、
+providers/codex_catalog、aggregation/exit_restore 及网关模型发现，经门面共享类型。
+
+静态证据：Python 标准库对照 15 组测试函数名及计数全部保留，所有 include_str
+资源相对路径存在，直接 path 清单引用均存在；系统 Python 无 tomllib，未执行 TOML
+解析。源码检索未发现新包依赖门面，workspace 成员及直接依赖已注册，git diff --check
+无空白错误。原有 cfg 未变，无 HTTP 或进程发现实现迁入。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包与调用者编译、迁移单测、
+媒体策略编排、三平台行为及锁文件一致性。Cargo.lock 未修改。
+
 ## 任务 8：路由载荷规则迁移结果
 
 所有权表任务 8 的 budget_rectify、cache_policy、classifier_guard、compaction_replay、
@@ -15,7 +42,7 @@ thinking_options 实现及对应八个独立测试现归 `crates/libs/app-routin
 
 media_sanitize 的 repair、replace 及私有遍历/拒绝识别规则下沉；replace 因原门面
 prepare 的真实跨包调用最小公开。prepare 仍在原位置解析模型能力再调用 replace，
-由任务 9 接收其能力编排，届时依赖 app-routing-policy，不得反向依赖模型目录。
+已由任务 9 接收其能力编排，依赖 app-routing-policy，无反向依赖模型目录。
 target_model::resolve 及其私有 helper、target_model_tests 暂留原包，由任务 10 接收；
 其 desktop_mapping::defaults 尚未下沉，测试还引用任务 27 的 model_ids，任务 10
 如未闭合须按既有桌面映射交接到任务 28。无复制实现或门面回依赖。
@@ -625,10 +652,10 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `mcp/presets_tests.rs` | 90 | 39 |
 | `mcp/validation.rs` | 177 | 39 |
 | `mcp/validation_tests.rs` | 187 | 39 |
-| `models/capabilities.rs` | 157 | 9 |
-| `models/capabilities_tests.rs` | 162 | 9 |
-| `models/codex_template.rs` | 27 | 9 |
-| `models/codex_template_tests.rs` | 69 | 9 |
+| `models/capabilities.rs` | 157 9 → `crates/libs/app-model-catalog/src/capabilities.rs` |
+| `models/capabilities_tests.rs` | 162 9 → `crates/libs/app-model-catalog/src/capabilities_tests.rs` |
+| `models/codex_template.rs` | 27 9 → `crates/libs/app-model-catalog/src/codex_template.rs` |
+| `models/codex_template_tests.rs` | 69 9 → `crates/libs/app-model-catalog/src/codex_template_tests.rs`（上层编排断言保留原文件，见本任务记录） |
 | `models/defaults_tests.rs` | 204 | 26 |
 | `models/discovery_agy.rs` | 107 | 26 |
 | `models/discovery_agy_tests.rs` | 232 | 26 |
@@ -655,46 +682,46 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `models/fill_pi_tests.rs` | 275 | 26 |
 | `models/fill_service.rs` | 147 | 26 |
 | `models/fill_service_tests.rs` | 347 | 26 |
-| `models/identity.rs` | 111 | 9 |
-| `models/identity_tests.rs` | 160 | 9 |
+| `models/identity.rs` | 111 9 → `crates/libs/app-model-catalog/src/identity.rs` |
+| `models/identity_tests.rs` | 160 9 → `crates/libs/app-model-catalog/src/identity_tests.rs` |
 | `models/metadata.rs` | 340 | 26 |
 | `models/metadata_tests.rs` | 261 | 26 |
 | `models/mod.rs` | 146 | 26 |
-| `models/pi_thinking.rs` | 83 | 9 |
-| `models/pi_thinking_tests.rs` | 163 | 9 |
-| `models/preset_catalog.rs` | 220 | 9 |
-| `models/preset_catalog_tests.rs` | 121 | 9 |
-| `models/preset_claude.rs` | 104 | 9 |
-| `models/preset_claude_tests.rs` | 132 | 9 |
-| `models/preset_codex.rs` | 88 | 9 |
-| `models/preset_codex_tests.rs` | 141 | 9 |
-| `models/preset_gemini_grok.rs` | 41 | 9 |
-| `models/preset_gemini_grok_tests.rs` | 109 | 9 |
-| `models/preset_hermes_mcode.rs` | 77 | 9 |
-| `models/preset_hermes_mcode_tests.rs` | 108 | 9 |
-| `models/preset_kimi_dsh.rs` | 165 | 9 |
-| `models/preset_kimi_dsh_tests.rs` | 148 | 9 |
-| `models/preset_omp.rs` | 120 | 9 |
-| `models/preset_omp_tests.rs` | 141 | 9 |
-| `models/preset_opencode_openclaw.rs` | 97 | 9 |
-| `models/preset_opencode_openclaw_tests.rs` | 117 | 9 |
-| `models/preset_pi.rs` | 157 | 9 |
-| `models/preset_pi_tests.rs` | 131 | 9 |
-| `models/preset_search.rs` | 273 | 9 |
-| `models/preset_search_tests.rs` | 163 | 9 |
-| `models/presets/claude.json` | 6668 | 9 |
-| `models/presets/codex.json` | 4727 | 9 |
-| `models/presets/families.json` | 94 | 9 |
-| `models/presets/gemini_grok.json` | 1443 | 9 |
-| `models/presets/hermes_mcode.json` | 12071 | 9 |
-| `models/presets/kimi_dsh.json` | 19517 | 9 |
-| `models/presets/opencode_openclaw.json` | 12854 | 9 |
-| `models/presets/pi.json` | 8087 | 9 |
-| `models/presets/pi_thinking.json` | 299 | 9 |
-| `models/presets/search_aliases.json` | 64 | 9 |
-| `models/presets/universal.json` | 40 | 9 |
-| `models/user_agent_presets.rs` | 12 | 9 |
-| `models/user_agent_presets_tests.rs` | 35 | 9 |
+| `models/pi_thinking.rs` | 83 9 → `crates/libs/app-model-catalog/src/pi_thinking.rs` |
+| `models/pi_thinking_tests.rs` | 163 9 → `crates/libs/app-model-catalog/src/pi_thinking_tests.rs` |
+| `models/preset_catalog.rs` | 220 9 → `crates/libs/app-model-catalog/src/preset_catalog.rs` |
+| `models/preset_catalog_tests.rs` | 121 9 → `crates/libs/app-model-catalog/src/preset_catalog_tests.rs`（上层编排断言保留原文件，见本任务记录） |
+| `models/preset_claude.rs` | 104 9 → `crates/libs/app-model-catalog/src/preset_claude.rs` |
+| `models/preset_claude_tests.rs` | 132 9 → `crates/libs/app-model-catalog/src/preset_claude_tests.rs` |
+| `models/preset_codex.rs` | 88 9 → `crates/libs/app-model-catalog/src/preset_codex.rs` |
+| `models/preset_codex_tests.rs` | 141 9 → `crates/libs/app-model-catalog/src/preset_codex_tests.rs` |
+| `models/preset_gemini_grok.rs` | 41 9 → `crates/libs/app-model-catalog/src/preset_gemini_grok.rs` |
+| `models/preset_gemini_grok_tests.rs` | 109 9 → `crates/libs/app-model-catalog/src/preset_gemini_grok_tests.rs` |
+| `models/preset_hermes_mcode.rs` | 77 9 → `crates/libs/app-model-catalog/src/preset_hermes_mcode.rs` |
+| `models/preset_hermes_mcode_tests.rs` | 108 9 → `crates/libs/app-model-catalog/src/preset_hermes_mcode_tests.rs` |
+| `models/preset_kimi_dsh.rs` | 165 9 → `crates/libs/app-model-catalog/src/preset_kimi_dsh.rs` |
+| `models/preset_kimi_dsh_tests.rs` | 148 9 → `crates/libs/app-model-catalog/src/preset_kimi_dsh_tests.rs` |
+| `models/preset_omp.rs` | 120 9 → `crates/libs/app-model-catalog/src/preset_omp.rs` |
+| `models/preset_omp_tests.rs` | 141 9 → `crates/libs/app-model-catalog/src/preset_omp_tests.rs`（上层编排断言保留原文件，见本任务记录） |
+| `models/preset_opencode_openclaw.rs` | 97 9 → `crates/libs/app-model-catalog/src/preset_opencode_openclaw.rs` |
+| `models/preset_opencode_openclaw_tests.rs` | 117 9 → `crates/libs/app-model-catalog/src/preset_opencode_openclaw_tests.rs` |
+| `models/preset_pi.rs` | 157 9 → `crates/libs/app-model-catalog/src/preset_pi.rs` |
+| `models/preset_pi_tests.rs` | 131 9 → `crates/libs/app-model-catalog/src/preset_pi_tests.rs` |
+| `models/preset_search.rs` | 273 9 → `crates/libs/app-model-catalog/src/preset_search.rs` |
+| `models/preset_search_tests.rs` | 163 9 → `crates/libs/app-model-catalog/src/preset_search_tests.rs` |
+| `models/presets/claude.json` | 6668 9 → `crates/libs/app-model-catalog/src/presets/claude.json` |
+| `models/presets/codex.json` | 4727 9 → `crates/libs/app-model-catalog/src/presets/codex.json` |
+| `models/presets/families.json` | 94 9 → `crates/libs/app-model-catalog/src/presets/families.json` |
+| `models/presets/gemini_grok.json` | 1443 9 → `crates/libs/app-model-catalog/src/presets/gemini_grok.json` |
+| `models/presets/hermes_mcode.json` | 12071 9 → `crates/libs/app-model-catalog/src/presets/hermes_mcode.json` |
+| `models/presets/kimi_dsh.json` | 19517 9 → `crates/libs/app-model-catalog/src/presets/kimi_dsh.json` |
+| `models/presets/opencode_openclaw.json` | 12854 9 → `crates/libs/app-model-catalog/src/presets/opencode_openclaw.json` |
+| `models/presets/pi.json` | 8087 9 → `crates/libs/app-model-catalog/src/presets/pi.json` |
+| `models/presets/pi_thinking.json` | 299 9 → `crates/libs/app-model-catalog/src/presets/pi_thinking.json` |
+| `models/presets/search_aliases.json` | 64 9 → `crates/libs/app-model-catalog/src/presets/search_aliases.json` |
+| `models/presets/universal.json` | 40 9 → `crates/libs/app-model-catalog/src/presets/universal.json` |
+| `models/user_agent_presets.rs` | 12 9 → `crates/libs/app-model-catalog/src/user_agent_presets.rs` |
+| `models/user_agent_presets_tests.rs` | 35 9 → `crates/libs/app-model-catalog/src/user_agent_presets_tests.rs` |
 | `models/vendor_fallback.rs` | 73 | 26 |
 | `models/vendor_fallback_tests.rs` | 224 | 26 |
 | `openclaw_catalog.rs` | 61 | 38 |

@@ -355,6 +355,7 @@ channel-wati = { path = "../libs/channel-wati", version = "0.6.0" }
 session-store = { path = "../libs/session-store", version = "0.6.0" }
 model-protocol = { path = "../libs/model-protocol", version = "0.6.0" }
 model-transport = { path = "../libs/model-transport", version = "0.6.0" }
+model-relay-http = { path = "../libs/model-relay-http", version = "0.6.0" }
 app-routing-services = { path = "../libs/app-routing-services", version = "0.6.0" }
 gateway-types = { path = "../libs/gateway-types", version = "0.6.0" }
 gateway-voice = { path = "../libs/gateway-voice", version = "0.6.0" }
@@ -528,6 +529,7 @@ channel-wecom = { path = "../libs/channel-wecom", version = "0.6.0", features = 
 task-scheduler = { path = "../libs/task-scheduler", version = "0.6.0", features = ["test-support"] }
 
 [dev-dependencies]
+model-relay-http = { path = "../libs/model-relay-http", version = "0.6.0", features = ["acceptance-diagnostics"] }
 tool-git = { path = "../libs/tool-git", version = "0.6.0", features = ["test-support"] }
 tool-assembly = { path = "../libs/tool-assembly", version = "0.6.0", features = ["test-support"] }
 channel-qq = { path = "../libs/channel-qq", version = "0.6.0", features = ["test-support"] }

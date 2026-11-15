@@ -1,7 +1,7 @@
 //! 验证任务生命周期注册表的注册、查询和重复处理。
 //! 替换自定义工作流必须原子生效，任何无效状态或转移都不能留下部分注册。
 
-use crate::task_lifecycle::TaskLifecycleRegistry;
+use crate::TaskLifecycleRegistry;
 use vw_api_task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto,

@@ -5,7 +5,7 @@ use vw_api_transport::TenantScope;
 use vw_api_task_lifecycle::TaskLifecycleWorkflowDto;
 
 use super::StoredWorkflow;
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const TASK_LIFECYCLE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS workflow_lifecycle_workflows (

@@ -9,9 +9,9 @@ use vw_api_task_lifecycle::{
     TaskLifecycleWorkflowUpsertBody,
 };
 
-use crate::global_database::GlobalDatabase;
-use crate::global_database::config::DatabaseProvider;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::GlobalDatabase;
+use agent_database::config::DatabaseProvider;
+use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn task_lifecycle_postgres_provider_is_wired() {
@@ -75,7 +75,7 @@ async fn workflow_lifecycle_workflows_are_isolated_by_tenant() {
     let database = GlobalDatabase::for_home(home.path()).expect("global database");
     assert_workflow_lifecycle_workflows_are_isolated_by_tenant(database).await;
 
-    let postgres_fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let postgres_fixture = agent_database::test_support::postgres_test_database_unit!();
     assert_workflow_lifecycle_workflows_are_isolated_by_tenant(postgres_fixture.database().clone())
         .await;
     postgres_fixture.cleanup().expect("clean PostgreSQL test database");
@@ -331,9 +331,9 @@ fn sqlite_query_single_workflow_reports_malformed_json_and_error_mappers_are_sta
 
 #[tokio::test(flavor = "multi_thread")]
 async fn task_lifecycle_postgres_store_ignores_legacy_table_without_mutation() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
-    crate::global_database::run_sync_database(|| {
+    agent_database::run_sync_database(|| {
         let mut connection = database.connect_postgres().expect("PostgreSQL connection");
         connection
             .batch_execute(
@@ -358,7 +358,7 @@ async fn task_lifecycle_postgres_store_ignores_legacy_table_without_mutation() {
         .expect("list workflows without legacy import");
     assert!(workflows.iter().all(|workflow| workflow.built_in));
 
-    let legacy_row = crate::global_database::run_sync_database(|| {
+    let legacy_row = agent_database::run_sync_database(|| {
         let mut connection = database
             .connect_postgres()
             .expect("PostgreSQL legacy table connection");
@@ -373,7 +373,7 @@ async fn task_lifecycle_postgres_store_ignores_legacy_table_without_mutation() {
     .expect("read PostgreSQL legacy table");
     assert_eq!(legacy_row.0, "Legacy Table");
     assert_eq!(legacy_row.1, "{}");
-    crate::global_database::run_sync_database(|| fixture.cleanup())
+    agent_database::run_sync_database(|| fixture.cleanup())
         .expect("clean PostgreSQL test database");
 }
 
@@ -419,7 +419,7 @@ async fn task_lifecycle_store_rejects_unscoped_new_table_without_mutation() {
 
 #[test]
 fn task_lifecycle_postgres_store_rejects_unscoped_new_table_without_mutation() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
     let mut connection = database.connect_postgres().expect("PostgreSQL connection");
     connection

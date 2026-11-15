@@ -3,7 +3,7 @@
 //! 内存写入器和协议消息 fixture 用于只观察格式化结果及缓冲状态。
 
 use super::*;
-use crate::types::{
+use acp_types::types::{
     AcpJsonRpcMessage, OutputErrorCode, OutputErrorParams, OutputFormat, OutputFormatter,
 };
 use serde_json::{Value, json};

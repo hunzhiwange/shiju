@@ -37,8 +37,7 @@ mod filesystem;
 mod managed_runtime;
 mod mcp_servers;
 pub use managed_runtime::{reviewed_agent_command, verify_reviewed_agent_executable};
-mod output;
-mod output_json_formatter;
+use acp_output::{output, output_json_formatter, read_output_suppression};
 use acp_metrics::{perf_metrics, perf_metrics_capture};
 mod permission_prompt;
 mod permissions;
@@ -57,7 +56,6 @@ mod queue_paths {
     #[cfg(test)]
     pub(crate) static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 }
-mod read_output_suppression;
 pub mod server;
 use acp_storage::session_conversation_model;
 use acp_storage::session_events;

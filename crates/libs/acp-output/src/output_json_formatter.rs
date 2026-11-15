@@ -5,10 +5,11 @@ use std::io::Write;
 
 use serde_json::{Map, Value, json};
 
-use crate::jsonrpc_error::BuildJsonRpcErrorParams;
+use acp_types::jsonrpc_error::BuildJsonRpcErrorParams;
 use crate::read_output_suppression::{ReadLikeToolDescriptor, SUPPRESSED_READ_OUTPUT};
-use crate::types::{AcpJsonRpcMessage, OutputErrorParams, OutputFormatter, OutputFormatterContext};
-use crate::{build_json_rpc_error_response, is_read_like_tool};
+use acp_types::types::{AcpJsonRpcMessage, OutputErrorParams, OutputFormatter, OutputFormatterContext};
+use acp_types::build_json_rpc_error_response;
+use crate::is_read_like_tool;
 
 const DEFAULT_JSON_SESSION_ID: &str = "unknown";
 

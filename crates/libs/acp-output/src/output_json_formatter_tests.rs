@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::read_output_suppression::SUPPRESSED_READ_OUTPUT;
-use crate::types::{
+use acp_types::types::{
     OutputErrorCode, OutputErrorOrigin, OutputErrorParams, OutputFormatter, OutputFormatterContext,
 };
 use serde_json::{Value, json};

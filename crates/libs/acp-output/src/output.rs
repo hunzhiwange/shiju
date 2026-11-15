@@ -16,13 +16,11 @@ use std::io::Write;
 use serde_json::{Map, Value};
 
 use crate::read_output_suppression::{ReadLikeToolDescriptor, is_read_like_tool};
-use crate::types::{
+use acp_types::types::{
     AcpJsonRpcMessage, OutputErrorParams, OutputFormat, OutputFormatter, OutputFormatterContext,
 };
-use crate::{
-    JsonOutputFormatter, SUPPRESSED_READ_OUTPUT, parse_json_rpc_error_message,
-    parse_prompt_stop_reason,
-};
+use crate::{JsonOutputFormatter, SUPPRESSED_READ_OUTPUT};
+use acp_types::{parse_json_rpc_error_message, parse_prompt_stop_reason};
 
 const MAX_OUTPUT_LENGTH: usize = 2_000;
 const INDENT: &str = "  ";

@@ -1,0 +1,12 @@
+[package]
+name = "acp-output"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+acp-types = { path = "../acp-types", version = "0.6.0" }
+serde_json = "1"

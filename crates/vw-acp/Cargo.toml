@@ -13,6 +13,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+acp-output = { path = "../libs/acp-output", version = "0.6.0" }
 acp-storage = { path = "../libs/acp-storage", version = "0.6.0" }
 acp-lease = { path = "../libs/acp-lease", version = "0.6.0" }
 config-acp-install = { path = "../libs/config-acp-install", version = "0.6.0" }

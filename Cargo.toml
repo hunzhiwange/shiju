@@ -45,6 +45,7 @@ members = [
   "crates/libs/plugin-types",
   "crates/libs/acp-paths",
   "crates/libs/acp-types",
+  "crates/libs/acp-output",
   "crates/libs/acp-access-policy",
   "crates/libs/permission-engine",
   "crates/libs/security-audit",

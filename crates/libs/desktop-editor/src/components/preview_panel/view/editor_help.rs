@@ -1,11 +1,11 @@
 //! Accurate help for the pinned editor; all text uses the normal UI font.
-use super::{App, Message};
-use crate::app::components::system_settings_common::rounded_action_btn_style;
-use crate::app::message::editor::EditorMessage;
+use super::Message;
+use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+
 use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Element, Length};
 
-pub(super) fn entries(mac: bool, vim: bool, folding: bool) -> Vec<(&'static str, String)> {
+pub fn entries(mac: bool, vim: bool, folding: bool) -> Vec<(&'static str, String)> {
     let command = if mac { "Cmd" } else { "Ctrl" };
     let word = if mac { "Option" } else { "Ctrl" };
     let alt = if mac { "Option" } else { "Alt" };
@@ -64,13 +64,7 @@ pub(super) fn entries(mac: bool, vim: bool, folding: bool) -> Vec<(&'static str,
     rows
 }
 
-pub(super) fn view(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let editor = app
-        .preview_tabs
-        .iter()
-        .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
-        .map(|tab| &tab.editor.inner);
+pub fn view(editor: Option<&iced_code_editor::CodeEditor>, i18n: desktop_i18n::I18n) -> Element<'_, Message> {
     let vim = editor.is_some_and(|editor| editor.vim_enabled());
     let folding = editor.is_some_and(|editor| editor.folding_enabled());
     let mut body = iced::widget::Column::<Message>::new().spacing(8);
@@ -88,7 +82,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             button(text(i18n.__("关闭")))
                 .padding([4, 8])
                 .style(rounded_action_btn_style)
-                .on_press(Message::Editor(EditorMessage::ClosePopover))
+                .on_press(Message::ClosePopover)
         ]
         .align_y(iced::Alignment::Center),
         scrollable(container(body).padding([7, 7]).width(Length::Fill)).height(300).direction(

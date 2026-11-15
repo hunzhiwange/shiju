@@ -1,14 +1,10 @@
 //! 预览编辑器的局部设置弹窗，沿用编辑器设置消息与公共表单控件。
 
-use crate::app::components::system_settings_common::{
-    primary_action_btn_style, settings_close_button, settings_hover_help_label,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-};
 use crate::app::i18n::I18n;
 use crate::app::message::editor::EditorMessage;
 use crate::app::{App, Message};
-use iced::widget::{button, container, text};
-use iced::{Element, Length};
+
+use iced::Element;
 
 /// 设置面板控件产生的局部交互。
 #[cfg(test)]
@@ -65,42 +61,17 @@ pub(super) fn line_height_badge_label(line_height: f32) -> String {
     format!("{line_height:.1}px")
 }
 
-pub fn build_settings_overlay<'a>(
-    app: &'a App,
-    content_base: Element<'a, Message>,
-) -> Element<'a, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let close_message = Message::Editor(EditorMessage::ToggleSettings);
-    let title = i18n.__("编辑器设置");
-    let header = settings_modal_header(
-        settings_hover_help_label(
-            i18n,
-            &app.app_theme,
-            title,
-            text(title).size(20),
-            i18n.__("统一调整字号、行高、语言与主题。"),
-        )
-        .wrap(),
-        settings_close_button(close_message.clone()),
-    );
-
-    let body = crate::app::components::editor_settings_fields::view(app, 240.0);
-    let footer = container(
-        button(text(i18n.__("完成")).size(14))
-            .on_press(close_message.clone())
-            .padding([8, 18])
-            .height(38)
-            .style(primary_action_btn_style),
+pub fn build_settings_overlay<'a>(app: &'a App, content_base: Element<'a, Message>) -> Element<'a, Message> {
+    desktop_editor::components::preview_panel::view::settings::build_settings_overlay(
+        I18n::new(app.desktop_locale),
+        crate::app::components::chat_panel::message_view::selectable_titled_text(
+            I18n::new(app.desktop_locale).__("编辑器设置"),
+            I18n::new(app.desktop_locale).__("统一调整字号、行高、语言与主题。"),
+            Some(app.app_theme.palette().text), I18n::new(app.desktop_locale),
+        ),
+        crate::app::components::editor_settings_fields::view(app, 240.0),
+        Message::Editor(EditorMessage::ToggleSettings), content_base,
     )
-    .align_right(Length::Fill);
-
-    let card = settings_modal_layout(header, body, Some(footer.into()))
-        .width(Length::Fill)
-        .max_width(620.0)
-        .max_height(660.0);
-
-    let centered = container(card).center_x(Length::Fill).center_y(Length::Fill).padding(12);
-    settings_modal_overlay(Some(content_base), close_message, centered)
 }
 
 #[cfg(test)]

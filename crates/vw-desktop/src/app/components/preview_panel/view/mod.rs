@@ -3,10 +3,6 @@
 //! 本模块负责预览内容、菜单、面包屑、LSP 标识或浮层宿主的局部构建。
 
 mod content;
-mod editor_help;
-#[cfg(test)]
-#[path = "editor_help_tests.rs"]
-mod editor_help_tests;
 mod editor_popovers;
 #[cfg(test)]
 #[path = "editor_popovers_tests.rs"]
@@ -44,8 +40,6 @@ use crate::app::components::editor_toolbar;
 use crate::app::{App, Message, message};
 /// 重新导出 use iced::widget::svg，让上层模块通过稳定路径访问。
 use iced::widget::svg;
-/// 重新导出 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip}，让上层模块通过稳定路径访问。
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 /// 重新导出 use iced::widget::{Space, button, column, container, row, text}，让上层模块通过稳定路径访问。
 use iced::widget::{Space, button, column, container, row, text};
 /// 重新导出 use iced::{Background, Border, Color, Element, Length, Padding, Theme}，让上层模块通过稳定路径访问。
@@ -495,53 +489,7 @@ pub(super) fn active_preview_lsp_badge_state(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn overlay_icon_button_style(theme: &Theme, status: button::Status) -> button::Style {
-    let palette = theme.extended_palette();
-    let primary = palette.primary.base.color;
-    let bg = match status {
-        // button 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        button::Status::Hovered => {
-            Some(Background::Color(Color::from_rgba(primary.r, primary.g, primary.b, 0.12)))
-        }
-        button::Status::Pressed => {
-            Some(Background::Color(Color::from_rgba(primary.r, primary.g, primary.b, 0.20)))
-        }
-        _ => None,
-    };
-    let border_color = match status {
-        // button 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        button::Status::Hovered => Color::from_rgba(primary.r, primary.g, primary.b, 0.28),
-        // button 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        button::Status::Pressed => Color::from_rgba(primary.r, primary.g, primary.b, 0.36),
-        _ => Color::TRANSPARENT,
-    };
-
-    button::Style {
-        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        background: bg,
-        // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        text_color: theme.palette().text,
-        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border { width: 1.0, color: border_color, radius: 6.0.into() },
-        // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        shadow: iced::Shadow::default(),
-        ..Default::default()
-    }
-}
-
-/// 构建或定位 fullscreen button overlay，用于把浮层稳定附着到目标控件。
-///
-/// # 参数
-///
-/// 参数沿用调用点中的应用状态、工具输入或渲染上下文，不在这里扩大权限或补造状态。
-///
-/// # 返回值
-///
-/// 返回值是 Iced `Element`，调用方继续组合到当前界面树中。
-///
-/// # 错误处理
-///
-/// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
+use desktop_editor::components::preview_panel::view::controls::{overlay_icon_button_style, preview_control_tooltip, fullscreen_icon_style};
 fn fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
     let half_button: Element<'a, Message> = preview_control_tooltip(
         button(
@@ -586,71 +534,13 @@ fn fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
     row![half_button, fullscreen_button].spacing(4).align_y(iced::Alignment::Center).into()
 }
 
-fn preview_control_tooltip<'a>(
-    content: Element<'a, Message>,
-    label: &'a str,
-) -> Element<'a, Message> {
-    let tip_content =
-        container(text(label).size(12)).padding([4, 8]).style(fullscreen_tooltip_style);
-
-    Tooltip::new(content, tip_content, TooltipPosition::Bottom).gap(6.0).into()
-}
-
-fn fullscreen_tooltip_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
-
-    if is_dark {
-        iced::widget::container::Style {
-            text_color: Some(palette.background.strong.text),
-            background: Some(Background::Color(palette.background.base.color)),
-            border: Border {
-                width: 1.0,
-                color: palette.background.strong.color,
-                radius: 4.0.into(),
-            },
-            shadow: iced::Shadow::default(),
-            snap: false,
-        }
-    } else {
-        iced::widget::container::Style {
-            text_color: Some(Color::WHITE),
-            background: Some(Background::Color(Color::from_rgba8(12, 13, 15, 0.97))),
-            border: Border {
-                width: 1.0,
-                color: Color::from_rgba8(255, 255, 255, 0.08),
-                radius: 10.0.into(),
-            },
-            shadow: iced::Shadow {
-                color: Color::BLACK.scale_alpha(0.32),
-                offset: iced::Vector::new(0.0, 6.0),
-                blur_radius: 20.0,
-            },
-            snap: false,
-        }
-    }
-}
-
-fn fullscreen_icon_style(theme: &Theme) -> svg::Style {
-    let bg = theme.palette().background;
-    let is_dark = bg.r + bg.g + bg.b < 1.5;
-    let palette = theme.extended_palette();
-    svg::Style {
-        color: Some(if is_dark {
-            palette.background.strong.text.scale_alpha(0.88)
-        } else {
-            Color::from_rgba8(30, 41, 59, 0.78)
-        }),
-    }
-}
-
+#[cfg(test)]
 mod editor_actions;
 #[cfg(test)]
 #[path = "editor_actions_tests.rs"]
 mod editor_actions_tests;
 
+#[cfg(test)]
 mod editor_options;
 #[cfg(test)]
 #[path = "editor_options_tests.rs"]
@@ -663,3 +553,23 @@ mod editor_search_tests;
 #[cfg(test)]
 #[path = "editor_tools_acceptance_tests.rs"]
 mod editor_tools_acceptance_tests;
+
+fn map_editor_view_message(action: desktop_editor::components::preview_panel::view::Message) -> Message {
+    use desktop_editor::components::preview_panel::view::Message as Action;
+    use crate::app::message::editor::EditorMessage;
+    let message = match action {
+        Action::EditorEvent(event) => return Message::Preview(message::PreviewMessage::EditorEvent(event)),
+        Action::SetOption(option, enabled) => EditorMessage::SetOption(option, enabled),
+        Action::SetWrapColumn(value) => EditorMessage::SetWrapColumn(value),
+        Action::SetIndentStyle(style) => EditorMessage::SetIndentStyle(style),
+        Action::ToggleSettings => EditorMessage::ToggleSettings,
+        Action::ClosePopover => EditorMessage::ClosePopover,
+        Action::OpenSearch => EditorMessage::OpenSearch,
+        Action::OpenReplace => EditorMessage::OpenReplace,
+        Action::TogglePopover(kind) => EditorMessage::TogglePopover(kind),
+    };
+    Message::Editor(message)
+}
+
+#[cfg(test)]
+use desktop_editor::components::preview_panel::view::controls::fullscreen_tooltip_style;

@@ -2,7 +2,8 @@
 //! 组件树差异与鼠标交互测试用于保证包装器不破坏子组件状态。
 
 use super::widgets::{DraggableArea, PreviewOverlayHost};
-use crate::app::Message;
+#[derive(Debug, Clone)]
+enum Message { None }
 use iced::advanced::{
     Clipboard, Layout, Renderer, Shell, Widget, layout, mouse, overlay, renderer, widget,
 };

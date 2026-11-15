@@ -12,7 +12,7 @@ use {
     vw_api_types::model_catalog::ModelCatalogReadResponse,
     vw_api_types::model_catalog::ModelCatalogWriteResponse,
 };
-use vw_provider_resolver::models::ModelsSnapshot;
+use provider_model_cache::ModelsSnapshot;
 
 impl AppProviderStore {
     /// Read an already authorized deployment from its tenant's provider record.

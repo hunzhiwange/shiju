@@ -23,7 +23,7 @@ use {
     vw_api_types::model_catalog::ModelTokenCost,
 };
 use provider_model_catalog::{Model, ReasoningOption};
-use vw_provider_resolver::models::ModelsSnapshot;
+use provider_model_cache::ModelsSnapshot;
 
 #[derive(Debug, PartialEq)]
 pub struct ResolvedModelMetadata {

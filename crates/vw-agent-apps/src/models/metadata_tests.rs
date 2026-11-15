@@ -17,7 +17,7 @@ use {
     vw_api_types::model_catalog::ModelMetadataSource::Preset,
     vw_api_types::model_catalog::ModelTokenCost,
 };
-use vw_provider_resolver::models::ModelsSnapshot;
+use provider_model_cache::ModelsSnapshot;
 
 const FLUXA: &str = "https://api.baiduqianfan.ai/v2/tokenplan/team";
 

@@ -22,7 +22,7 @@ pub mod provider {
 /// provider_models 子模块，拆分当前领域的局部职责。
 pub mod provider_models {
     /// 对外暴露当前模块需要复用的能力。
-    pub use vw_provider_resolver::models::{get, invalidate_cache, refresh};
+    pub use provider_model_cache::{get, invalidate_cache, refresh};
 }
 
 #[cfg(test)]

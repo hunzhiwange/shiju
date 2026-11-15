@@ -1,22 +1,22 @@
-//! 模型元数据加载统一委托给 `vw-provider-resolver`，确保 agent 与桌面端使用同一份模型目录。
+//! 模型元数据加载统一委托给 `provider-model-cache`，确保 agent 与桌面端使用同一份模型目录。
 
 use std::collections::HashMap;
 
-pub use vw_provider_resolver::models::{
+pub use provider_model_cache::{
     Model, ModelCost, ModelCostOver200k, ModelInterleaved, ModelLimit, ModelModalities,
     ModelProviderInfo, Provider,
 };
 
 pub async fn get() -> HashMap<String, Provider> {
-    vw_provider_resolver::models::get().await
+    provider_model_cache::get().await
 }
 
 pub async fn refresh() {
-    vw_provider_resolver::models::refresh().await;
+    provider_model_cache::refresh().await;
 }
 
 pub fn init() {
-    vw_provider_resolver::models::init();
+    provider_model_cache::init();
 }
 
 #[cfg(test)]

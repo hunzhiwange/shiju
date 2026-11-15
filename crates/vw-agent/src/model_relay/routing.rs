@@ -2,7 +2,7 @@
 use super::generation::GenerationTransport;
 use crate::provider::provider::Model;
 use axum::http::StatusCode;
-use vw_provider_resolver::protocol_routes::{
+use provider_protocol_routes::{
     ConversionSupport, EndpointGrant, ProtocolRoute, RouteBinding, RouteCapability, RouteRequest,
     select_route,
 };
@@ -137,8 +137,8 @@ pub(crate) fn select_api(
     available: &[RouteCapability],
     conversions: &[ConversionSupport<'_>],
     execution: Execution,
-) -> Result<ProtocolRoute, vw_provider_resolver::protocol_routes::RouteError> {
-    use vw_provider_resolver::protocol_routes::{RouteError, RouteRejection};
+) -> Result<ProtocolRoute, provider_protocol_routes::RouteError> {
+    use provider_protocol_routes::{RouteError, RouteRejection};
     let invalid = || RouteError { reasons: vec![RouteRejection::InvalidEndpoint] };
     let base = reqwest::Url::parse(api.url.trim()).map_err(|_| invalid())?;
     if !matches!(base.scheme(), "http" | "https")

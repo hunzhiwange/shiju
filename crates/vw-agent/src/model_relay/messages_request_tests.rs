@@ -5,7 +5,7 @@ mod request_core_tests;
 
 #[test]
 fn model_protocol_014_shared_selector_advertises_only_executable_messages_capabilities() {
-    use vw_provider_resolver::protocol_routes::RouteCapability as C;
+    use provider_protocol_routes::RouteCapability as C;
     use vw_shared::provider::protocols::ModelProtocol as P;
     let conversions = routing::relay_conversions(false);
     let conversion =

@@ -2,7 +2,6 @@
 //!
 //! 本模块提供状态、路径、文本、主题、时间或菜单相关的小型工具，供聊天面板视图复用。
 
-use iced::widget::scrollable::{Direction, Scrollbar};
 /// 重新导出 use iced::widget::svg::{self, Svg}，让上层模块通过稳定路径访问。
 use iced::widget::svg;
 /// 重新导出 use iced::widget::{button, text}，让上层模块通过稳定路径访问。
@@ -85,10 +84,7 @@ pub use desktop_chat_view::presentation::icon_svg;
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn chat_scroll_direction() -> Direction {
-    // Direction 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))
-}
+pub use desktop_chat_tools::card_style::chat_scroll_direction;
 
 /// 处理 is dark theme 对应的局部职责。
 ///
@@ -133,13 +129,7 @@ pub use desktop_chat_view::presentation::chat_secondary_text_color;
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn chat_secondary_muted_text_color(theme: &Theme) -> Color {
-    if is_dark_theme(theme) {
-        theme.palette().text.scale_alpha(0.72)
-    } else {
-        theme.extended_palette().secondary.base.text.scale_alpha(0.72)
-    }
-}
+pub use desktop_chat_tools::card_style::chat_secondary_muted_text_color;
 
 /// 根据主题与语义状态计算 chat secondary subtle text color。
 ///
@@ -241,20 +231,7 @@ pub fn icon_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn eye_icon_button_style(
-    theme: &Theme,
-    // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    _status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    iced::widget::button::Style {
-        background: None,
-        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-        // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        text_color: chat_secondary_text_color(theme),
-        ..Default::default()
-    }
-}
+pub use desktop_chat_tools::card_style::eye_icon_button_style;
 
 /// 根据主题与状态计算 eye icon svg style。
 ///
@@ -269,17 +246,7 @@ pub fn eye_icon_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn eye_icon_svg_style(theme: &Theme, _status: svg::Status) -> svg::Style {
-    // svg 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    svg::Style {
-        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        color: Some(if is_dark_theme(theme) {
-            theme.palette().text.scale_alpha(0.92)
-        } else {
-            theme.extended_palette().secondary.base.text.scale_alpha(0.90)
-        }),
-    }
-}
+pub use desktop_chat_tools::card_style::eye_icon_svg_style;
 
 /// 根据主题与状态计算 simplified block style。
 ///
@@ -294,15 +261,7 @@ pub fn eye_icon_svg_style(theme: &Theme, _status: svg::Status) -> svg::Style {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn simplified_block_style(theme: &Theme) -> iced::widget::container::Style {
-    let _ = theme;
-    iced::widget::container::Style {
-        background: None,
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
-        shadow: iced::Shadow::default(),
-        ..Default::default()
-    }
-}
+pub use desktop_chat_tools::card_style::simplified_block_style;
 
 /// 根据主题与状态计算 simplified code block style。
 ///
@@ -317,35 +276,7 @@ pub fn simplified_block_style(theme: &Theme) -> iced::widget::container::Style {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn simplified_code_block_style(theme: &Theme) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
-    iced::widget::container::Style {
-        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        background: Some(Background::Color(if is_dark {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(24, 25, 29, 0.90)
-        } else {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(247, 248, 250, 1.0)
-        })),
-        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border {
-            // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            width: 1.0,
-            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            color: if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(45, 48, 54, 0.90)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(226, 231, 237, 1.0)
-            },
-            // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            radius: 14.0.into(),
-        },
-        ..Default::default()
-    }
-}
+pub use desktop_chat_tools::card_style::simplified_code_block_style;
 
 /// 构建 pill button style 控件，并绑定既有消息或样式。
 ///

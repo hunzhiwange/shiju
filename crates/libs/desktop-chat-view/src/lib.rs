@@ -11,8 +11,6 @@ pub mod tool_presentation;
 pub mod presentation;
 #[cfg(test)]
 mod global_status_tests;
-#[cfg(test)]
-mod tool_presentation_tests;
 pub mod render_cache;
 pub mod height_index;
 pub mod virtualizer;

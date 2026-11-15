@@ -55,7 +55,7 @@ fn request_without_tool(id: &str) -> gateway_interaction::PendingPermissionReque
 fn permission_badge_labels_handle_empty_request_lists() {
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[],
             None
         ),
@@ -63,7 +63,7 @@ fn permission_badge_labels_handle_empty_request_lists() {
     );
     assert_eq!(
         pending_permission_request_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &[],
             "missing"
         ),
@@ -220,7 +220,7 @@ fn pending_permission_badge_label_multiple() {
 
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             Some("req-1")
         ),
@@ -228,7 +228,7 @@ fn pending_permission_badge_label_multiple() {
     );
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             Some("req-2")
         ),
@@ -236,7 +236,7 @@ fn pending_permission_badge_label_multiple() {
     );
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             Some("req-3")
         ),
@@ -244,7 +244,7 @@ fn pending_permission_badge_label_multiple() {
     );
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             None
         ),
@@ -252,7 +252,7 @@ fn pending_permission_badge_label_multiple() {
     );
     assert_eq!(
         pending_permission_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             Some("missing")
         ),
@@ -266,7 +266,7 @@ fn pending_permission_request_badge_label_multiple() {
 
     assert_eq!(
         pending_permission_request_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             "req-1"
         ),
@@ -274,7 +274,7 @@ fn pending_permission_request_badge_label_multiple() {
     );
     assert_eq!(
         pending_permission_request_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             "req-2"
         ),
@@ -282,7 +282,7 @@ fn pending_permission_request_badge_label_multiple() {
     );
     assert_eq!(
         pending_permission_request_badge_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &reqs,
             "missing"
         ),

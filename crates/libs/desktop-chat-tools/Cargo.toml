@@ -10,3 +10,14 @@ doctest = false
 [dependencies]
 diff-text = { path = "../diff-text", version = "0.6.0" }
 serde_json = "1"
+
+iced = { version = "0.14", features = ["image", "svg", "advanced", "highlighter"] }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
+desktop-settings-agents = { path = "../desktop-settings-agents", version = "0.6.0" }
+config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }
+gateway-interaction = { path = "../gateway-interaction", version = "0.6.0" }
+
+config-ui = { path = "../config-ui", version = "0.6.0" }

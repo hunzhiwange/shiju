@@ -1,0 +1,815 @@
+//! 选择聊天工具输出的具体渲染组件。
+//! 模块把工具名称和渲染函数绑定在一处，便于新增视图时保持边界清晰。
+
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::svg;
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+
+use crate::card_style::icon_svg;
+use desktop_assets::assets::Icon;
+use crate::selector_style::{
+    popover_style, selectable_list_button_style, tooltip_dark_style,
+};
+use crate::selector_style::session_lock_tooltip;
+
+use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+use crate::state::{
+ SessionToolGroup, SessionToolSelectorTab,
+    tool_display_name, tool_group,
+};
+use desktop_settings_skills::types::SkillsDirectoryScope;
+use crate::selector_input::{SelectorInput, Message};
+
+pub const SESSION_SELECTOR_SCROLLBAR_WIDTH: f32 = 4.0;
+pub const SESSION_SELECTOR_LIST_MAX_HEIGHT: f32 = 300.0;
+const SESSION_SELECTOR_LIST_RIGHT_PADDING: f32 = 7.0;
+pub const SESSION_SELECTOR_SKILL_DESCRIPTION_CHARS: usize = 28;
+
+pub fn count_badge<'a>(label: String, active: bool) -> Element<'a, Message> {
+    container(text(label).size(10))
+        .padding([3, 8])
+        .style(move |theme: &Theme| {
+            let palette = theme.extended_palette();
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
+            let color =
+                if active { palette.primary.base.color } else { palette.background.strong.color };
+            let text_color = if active && !is_dark {
+                Color::from_rgba8(34, 38, 48, 0.94)
+            } else if active {
+                palette.primary.base.text
+            } else {
+                theme.palette().text.scale_alpha(0.82)
+            };
+            iced::widget::container::Style {
+                background: Some(Background::Color(color.scale_alpha(if active {
+                    if is_dark { 0.18 } else { 0.16 }
+                } else if is_dark {
+                    0.32
+                } else {
+                    0.52
+                }))),
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+                text_color: Some(text_color),
+                ..Default::default()
+            }
+        })
+        .into()
+}
+
+pub fn tab_button(
+    i18n: desktop_i18n::I18n,
+    tab: SessionToolSelectorTab,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(i18n.__(tab.label())).size(12))
+        .padding([6, 10])
+        .style(move |theme: &Theme, status| selectable_list_button_style(theme, status, selected))
+        .on_press(Message::SessionToolSelectorTabSelected(tab))
+        .into()
+}
+
+pub fn is_dark_theme(theme: &Theme) -> bool {
+    theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
+}
+
+pub fn context_row_text_color(theme: &Theme, selected: bool, alpha: f32) -> Color {
+    if selected && !is_dark_theme(theme) {
+        Color::from_rgba8(28, 32, 40, alpha)
+    } else {
+        theme.palette().text.scale_alpha(alpha)
+    }
+}
+
+pub fn context_list_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let mut style = selectable_list_button_style(theme, status, selected);
+    if selected {
+        style.text_color = context_row_text_color(theme, true, 0.96);
+    }
+    style
+}
+
+pub fn search_text_input_style(
+    theme: &Theme,
+    status: iced::widget::text_input::Status,
+) -> iced::widget::text_input::Style {
+    let palette = theme.palette();
+    let disabled = matches!(status, iced::widget::text_input::Status::Disabled);
+
+    iced::widget::text_input::Style {
+        background: Background::Color(Color::TRANSPARENT),
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
+        icon: palette.text.scale_alpha(0.65),
+        placeholder: palette.text.scale_alpha(0.48),
+        value: if disabled { palette.text.scale_alpha(0.50) } else { palette.text },
+        selection: palette.primary.scale_alpha(0.22),
+    }
+}
+
+pub fn selector_search_bar(
+    i18n: desktop_i18n::I18n,
+    query: String,
+) -> Element<'static, Message> {
+    container(
+        row![
+            icon_svg(Icon::Search).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(
+                |theme: &Theme, _status| svg::Style {
+                    color: Some(theme.palette().text.scale_alpha(0.60)),
+                }
+            ),
+            iced::widget::TextInput::new(i18n.__("搜索当前列表"), query.as_str())
+                .on_input(|value| {
+                    Message::SessionToolSelectorSearchChanged(value)
+                })
+                .padding([6, 0])
+                .size(12)
+                .style(search_text_input_style)
+                .width(Length::Fill)
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([0, 8])
+    .width(Length::Fill)
+    .style(|theme: &Theme| {
+        let palette = theme.extended_palette();
+        iced::widget::container::Style {
+            text_color: Some(theme.palette().text),
+            background: Some(Background::Color(palette.background.weak.color.scale_alpha(0.20))),
+            border: Border {
+                width: 1.0,
+                color: palette.background.strong.color.scale_alpha(0.58),
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        }
+    })
+    .into()
+}
+
+pub fn matches_query(query: &str, parts: &[&str]) -> bool {
+    let query = query.trim().to_ascii_lowercase();
+    if query.is_empty() {
+        return true;
+    }
+
+    parts.iter().any(|part| part.to_ascii_lowercase().contains(&query))
+}
+
+pub fn ellipsize_text(value: &str, max_chars: usize) -> String {
+    let compact = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.chars().count() <= max_chars {
+        return compact;
+    }
+
+    let keep = max_chars.saturating_sub(3);
+    let mut clipped = compact.chars().take(keep).collect::<String>();
+    clipped.push_str("...");
+    clipped
+}
+
+pub fn skill_tooltip_content(
+    i18n: desktop_i18n::I18n,
+    title: String,
+    skill_id: String,
+    source: String,
+    description: String,
+) -> Element<'static, Message> {
+    let description = if description.trim().is_empty() {
+        i18n.__("暂无技能介绍").to_string()
+    } else {
+        description
+    };
+
+    container(
+        column![
+            text(title)
+                .size(12)
+                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(format!("{skill_id} · {source}")).size(10).style(|_theme: &Theme| {
+                iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.70)) }
+            }),
+            text(description).size(11).width(Length::Fixed(300.0)).style(|_theme: &Theme| {
+                iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.88)) }
+            }),
+        ]
+        .spacing(4),
+    )
+    .padding([7, 9])
+    .style(tooltip_dark_style)
+    .into()
+}
+
+pub fn skill_scope_source_matches(scope: SkillsDirectoryScope, source: &str) -> bool {
+    match scope {
+        SkillsDirectoryScope::Project => source == "workspace",
+        SkillsDirectoryScope::Ancestor => source == "ancestor",
+        SkillsDirectoryScope::Global => source == "global",
+        SkillsDirectoryScope::Bundled => source == "bundled",
+        SkillsDirectoryScope::All => true,
+    }
+}
+
+pub fn skill_scope_label(scope: SkillsDirectoryScope) -> &'static str {
+    match scope {
+        SkillsDirectoryScope::Project => "项目",
+        SkillsDirectoryScope::Ancestor => "父级",
+        SkillsDirectoryScope::Global => "全局",
+        SkillsDirectoryScope::Bundled => "内置",
+        SkillsDirectoryScope::All => "全部",
+    }
+}
+
+pub fn skill_scope_button(
+    i18n: desktop_i18n::I18n,
+    scope: SkillsDirectoryScope,
+    active_scope: SkillsDirectoryScope,
+) -> Element<'static, Message> {
+    let selected = scope == active_scope;
+    button(text(i18n.__(skill_scope_label(scope))).size(11))
+        .padding([5, 8])
+        .style(move |theme: &Theme, status| selectable_list_button_style(theme, status, selected))
+        .on_press(Message::SessionToolSelectorSkillDirectoryScopeChanged(scope),)
+        .into()
+}
+
+/// 执行 session_tool_selector_popover 对应的模块功能。
+///
+/// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
+pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'static, Message> {
+    let i18n = input.i18n;
+    let runtime = input;
+    let show_tools = runtime.show_tools;
+    let active_tab = runtime.active_tab;
+    let mut manual_tools = if show_tools {
+        runtime.base_tools
+            .into_iter()
+            .filter_map(|tool| {
+                let trimmed = tool.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    manual_tools.sort();
+    manual_tools.dedup();
+    let query = runtime.tool_selector.query().to_string();
+
+    let selected_agent_key = runtime.selected_agent_key;
+    let available_agents = runtime.agents
+        .iter()
+        .filter(|entry| entry.can_start_session())
+        .filter(|entry| {
+            matches_query(&query, &[entry.key.as_str(), entry.label.as_str(), entry.model.as_str()])
+        })
+        .collect::<Vec<_>>();
+    let filtered_manual_tools = manual_tools
+        .iter()
+        .filter(|tool_id| {
+            let display_name = tool_display_name(tool_id);
+            matches_query(
+                &query,
+                &[tool_id.as_str(), display_name.as_str(), i18n.__(&display_name)],
+            )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let usable_skill_count =
+        runtime.skills.iter().filter(|skill| skill.installed && skill.enabled).count();
+    let selected_tool_count = runtime.tool_selector.selected_manual_tools().len();
+    let selected_skill_count = runtime.tool_selector.selected_manual_skills().len();
+    let summary = if !show_tools {
+        i18n.format(
+            "可切换 %u 个智能体；可选 %u 个技能；已选 %u 个技能。",
+            &[
+                available_agents.len().into(),
+                usable_skill_count.into(),
+                selected_skill_count.into(),
+            ],
+        )
+    } else if manual_tools.is_empty() && runtime.inventory_empty {
+        i18n.format(
+            "可切换 %u 个智能体；工具清单等待网关返回；已选 %u 个技能。",
+            &[available_agents.len().into(), selected_skill_count.into()],
+        )
+    } else if manual_tools.is_empty() {
+        i18n.format(
+            "可切换 %u 个智能体；当前智能体未包含已注册工具；可选 %u 个技能。",
+            &[available_agents.len().into(), usable_skill_count.into()],
+        )
+    } else {
+        i18n.format(
+            "可切换 %u 个智能体；可选 %u 个工具 / %u 个技能；已选 %u 个工具 / %u 个技能。",
+            &[
+                available_agents.len().into(),
+                manual_tools.len().into(),
+                usable_skill_count.into(),
+                selected_tool_count.into(),
+                selected_skill_count.into(),
+            ],
+        )
+    }
+    .expect("valid selector summary template");
+    let scope_hint = match active_tab {
+        SessionToolSelectorTab::Agent => i18n
+            .__("智能体决定本会话运行引擎与默认配置，开始后不可切换。"),
+        SessionToolSelectorTab::Tools => i18n
+            .__("只显示当前代理包含且已注册的工具；选择会随下一次发送写入提示词。"),
+        SessionToolSelectorTab::Skills => i18n
+            .__("技能不受代理工具范围限制，可在需要时动态读取。"),
+    };
+
+    let mut tabs = row![tab_button(
+        i18n,
+        SessionToolSelectorTab::Agent,
+        active_tab == SessionToolSelectorTab::Agent,
+    )];
+    if show_tools {
+        tabs = tabs.push(tab_button(
+            i18n,
+            SessionToolSelectorTab::Tools,
+            active_tab == SessionToolSelectorTab::Tools,
+        ));
+    }
+    let tabs = tabs
+        .push(tab_button(
+            i18n,
+            SessionToolSelectorTab::Skills,
+            active_tab == SessionToolSelectorTab::Skills,
+        ))
+        .spacing(6)
+        .align_y(Alignment::Center);
+
+    let body: Element<'_, Message> = match active_tab {
+        SessionToolSelectorTab::Agent => {
+            let mut list = column![].spacing(6);
+            let mut has_agents = false;
+            let started = runtime.started;
+            for entry in available_agents {
+                has_agents = true;
+                let selected = selected_agent_key == entry.key;
+                let engine = match &entry.runtime {
+                    config_agent_profile::AgentRuntime::Native => "识矩原生".to_string(),
+                    config_agent_profile::AgentRuntime::Acp { backend } => format!(
+                        "ACP · {backend} · {}",
+                        match runtime.acp_installed.get(backend) {
+                            Some(true) => "已安装",
+                            Some(false) => "未安装",
+                            None => "安装状态待检测",
+                        }
+                    ),
+                };
+                let subtitle = if entry.model.trim().is_empty() {
+                    engine
+                } else if show_tools {
+                    let allowlist_text = if entry.allowed_tools.is_empty() {
+                        i18n.__("未包含工具").to_string()
+                    } else {
+                        i18n.format("工具范围 %u 项", &[entry.allowed_tools.len().into()])
+                            .expect("valid tool scope template")
+                    };
+                    format!("{} / {} / {}", engine, entry.model, allowlist_text)
+                } else {
+                    format!("{} / {}", engine, entry.model)
+                };
+                let check: Element<'_, Message> = if selected {
+                    icon_svg(Icon::Check)
+                        .width(Length::Fixed(14.0))
+                        .height(Length::Fixed(14.0))
+                        .style(|theme: &Theme, _status| svg::Style {
+                            color: Some(theme.palette().text.scale_alpha(0.92)),
+                        })
+                        .into()
+                } else {
+                    Space::new().width(Length::Fixed(14.0)).into()
+                };
+                let identity_icon: Element<'_, Message> = match &entry.runtime {
+                    config_agent_profile::AgentRuntime::Native => icon_svg(Icon::Hexagon)
+                        .width(Length::Fixed(16.0))
+                        .height(Length::Fixed(16.0))
+                        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
+                        .into(),
+                    config_agent_profile::AgentRuntime::Acp { backend } => {
+                        (runtime.agent_icon)(backend, 16.0)
+                    }
+                };
+                let agent_for_press =
+                    if entry.key == runtime.main_agent_key { None } else { Some(entry.key.clone()) };
+                let control = button(
+                    row![
+                        identity_icon,
+                        column![
+                            text(entry.label.clone()).size(13),
+                            text(subtitle).size(11).style(|theme: &Theme| {
+                                iced::widget::text::Style {
+                                    color: Some(theme.palette().text.scale_alpha(0.62)),
+                                }
+                            })
+                        ]
+                        .spacing(3)
+                        .width(Length::Fill),
+                        check
+                    ]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                )
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(move |theme: &Theme, status| {
+                    selectable_list_button_style(theme, status, selected)
+                })
+                .on_press_maybe((!started).then_some(Message::SessionAgentSelected(agent_for_press),));
+                list = list.push(session_lock_tooltip(control, i18n, started));
+            }
+            if !has_agents {
+                let empty_message = if query.trim().is_empty() {
+                    i18n
+                        .__("当前没有可用于新会话的已启用智能体。")
+                } else {
+                    i18n.__("没有匹配的智能体。")
+                };
+                list = list.push(
+                    container(text(empty_message).size(11).style(|theme: &Theme| {
+                        iced::widget::text::Style {
+                            color: Some(theme.palette().text.scale_alpha(0.62)),
+                        }
+                    }))
+                    .padding([4, 2]),
+                );
+            }
+            scrollable(container(list).padding(iced::Padding {
+                top: 0.0,
+                right: SESSION_SELECTOR_LIST_RIGHT_PADDING,
+                bottom: 0.0,
+                left: 0.0,
+            }))
+            .direction(Direction::Vertical(
+                Scrollbar::new()
+                    .width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
+                    .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
+            ))
+            .height(Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT))
+            .into()
+        }
+        SessionToolSelectorTab::Tools => {
+            if filtered_manual_tools.is_empty() {
+                let empty_message = if manual_tools.is_empty() {
+                    i18n.__("等待网关返回可用工具列表。")
+                } else {
+                    i18n.__("没有匹配的工具。")
+                };
+                container(text(empty_message).size(11).style(|theme: &Theme| {
+                    iced::widget::text::Style {
+                        color: Some(theme.palette().text.scale_alpha(0.62)),
+                    }
+                }))
+                .padding([4, 2])
+                .into()
+            } else {
+                let mut groups = column![].spacing(10);
+                for group in SessionToolGroup::ALL {
+                    let total = filtered_manual_tools
+                        .iter()
+                        .filter(|tool_id| tool_group(tool_id) == group)
+                        .count();
+                    if total == 0 {
+                        continue;
+                    }
+                    let selected = filtered_manual_tools
+                        .iter()
+                        .filter(|tool_id| {
+                            tool_group(tool_id) == group
+                                && runtime.tool_selector.is_manual_tool_selected(tool_id)
+                        })
+                        .count();
+                    let collapsed = runtime.tool_selector.is_group_collapsed(group);
+                    let group_tools = filtered_manual_tools
+                        .iter()
+                        .filter(|tool_id| tool_group(tool_id) == group)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let group_title =
+                        format!("{} {}", i18n.__(group.label()), i18n.__(group.description()));
+                    let header = row![
+                        button(
+                            row![
+                                icon_svg(if collapsed {
+                                    Icon::ChevronRight
+                                } else {
+                                    Icon::ChevronDown
+                                })
+                                .width(Length::Fixed(12.0))
+                                .height(Length::Fixed(12.0))
+                                .style(
+                                    |theme: &Theme, _status| svg::Style {
+                                        color: Some(theme.palette().text.scale_alpha(0.72)),
+                                    }
+                                ),
+                                text(group_title)
+                                    .size(12)
+                                    .width(Length::Fill)
+                                    .wrapping(iced::widget::text::Wrapping::None)
+                                    .style(|theme: &Theme| {
+                                        iced::widget::text::Style {
+                                            color: Some(theme.palette().text.scale_alpha(0.78)),
+                                        }
+                                    })
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center),
+                        )
+                        .width(Length::Fill)
+                        .padding([0, 0])
+                        .style(|_theme: &Theme, _status| iced::widget::button::Style {
+                            background: None,
+                            border: Border::default(),
+                            text_color: Color::TRANSPARENT,
+                            ..Default::default()
+                        })
+                        .on_press(Message::SessionToolGroupCollapsedToggled(group),),
+                        Space::new().width(Length::Fill),
+                        count_badge(format!("{selected} / {total}"), selected > 0)
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center);
+
+                    let mut section = column![header].spacing(6);
+                    if !collapsed {
+                        let mut rows = column![].spacing(4);
+                        for tool_id in group_tools {
+                            let selected = runtime.tool_selector.is_manual_tool_selected(&tool_id);
+                            let tool_label = format!(
+                                "{} · {}",
+                                desktop_i18n::other::tool_name(i18n, &tool_id),
+                                tool_id
+                            );
+                            let check: Element<'_, Message> = if selected {
+                                icon_svg(Icon::Check)
+                                    .width(Length::Fixed(14.0))
+                                    .height(Length::Fixed(14.0))
+                                    .style(|theme: &Theme, _status| svg::Style {
+                                        color: Some(context_row_text_color(theme, true, 0.92)),
+                                    })
+                                    .into()
+                            } else {
+                                Space::new().width(Length::Fixed(14.0)).into()
+                            };
+                            rows = rows.push(
+                                button(
+                                    row![
+                                        icon_svg(Icon::Terminal)
+                                            .width(Length::Fixed(16.0))
+                                            .height(Length::Fixed(16.0))
+                                            .style(|theme: &Theme, _| svg::Style {
+                                                color: Some(theme.palette().text),
+                                            }),
+                                        text(tool_label)
+                                            .size(12)
+                                            .width(Length::Fill)
+                                            .wrapping(iced::widget::text::Wrapping::None)
+                                            .style(move |theme: &Theme| {
+                                                iced::widget::text::Style {
+                                                    color: Some(context_row_text_color(
+                                                        theme, selected, 0.86,
+                                                    )),
+                                                }
+                                            }),
+                                        check
+                                    ]
+                                    .spacing(10)
+                                    .align_y(Alignment::Center),
+                                )
+                                .padding([7, 10])
+                                .width(Length::Fill)
+                                .style(move |theme: &Theme, status| {
+                                    context_list_button_style(theme, status, selected)
+                                })
+                                .on_press(Message::SessionManualToolSelected(tool_id),),
+                            );
+                        }
+                        section = section.push(container(rows).padding(iced::Padding {
+                            top: 0.0,
+                            right: 0.0,
+                            bottom: 0.0,
+                            left: 0.0,
+                        }));
+                    }
+                    groups = groups.push(section);
+                }
+
+                scrollable(container(groups).padding(iced::Padding {
+                    top: 0.0,
+                    right: SESSION_SELECTOR_LIST_RIGHT_PADDING,
+                    bottom: 0.0,
+                    left: 0.0,
+                }))
+                .direction(Direction::Vertical(
+                    Scrollbar::new()
+                        .width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
+                        .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
+                ))
+                .height(Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT))
+                .into()
+            }
+        }
+        SessionToolSelectorTab::Skills => {
+            if runtime.skills_loading && runtime.skills.is_empty() {
+                container(
+                    text(i18n.__("技能目录加载中。"))
+                        .size(11)
+                        .style(|theme: &Theme| iced::widget::text::Style {
+                            color: Some(theme.palette().text.scale_alpha(0.62)),
+                        }),
+                )
+                .padding([4, 2])
+                .into()
+            } else {
+                let skill_scope = runtime.tool_selector.skill_directory_scope();
+                let scope_tabs = row![
+                    skill_scope_button(i18n, SkillsDirectoryScope::Project, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Ancestor, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Global, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Bundled, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::All, skill_scope),
+                ]
+                .spacing(6)
+                .align_y(Alignment::Center);
+                let mut list = column![].spacing(4);
+                let mut has_skills = false;
+                let mut has_scope_skills = false;
+                for skill in runtime.skills
+                    .iter()
+                    .filter(|skill| skill.installed && skill.enabled)
+                    .filter(|skill| skill_scope_source_matches(skill_scope, &skill.source))
+                {
+                    has_scope_skills = true;
+                    if !matches_query(
+                        &query,
+                        &[
+                            skill.id.as_str(),
+                            skill.title.as_str(),
+                            skill.description.as_str(),
+                            skill.source.as_str(),
+                            skill.source_path.as_deref().unwrap_or_default(),
+                        ],
+                    ) {
+                        continue;
+                    }
+                    has_skills = true;
+                    let skill_id = skill.id.clone();
+                    let selected = runtime.tool_selector.is_manual_skill_selected(&skill_id);
+                    let subtitle = if skill.description.trim().is_empty() {
+                        skill.id.clone()
+                    } else {
+                        format!(
+                            "{} · {}",
+                            skill.id,
+                            ellipsize_text(
+                                &skill.description,
+                                SESSION_SELECTOR_SKILL_DESCRIPTION_CHARS,
+                            )
+                        )
+                    };
+                    let tooltip_content = skill_tooltip_content(
+                        i18n,
+                        skill.title.clone(),
+                        skill_id.clone(),
+                        skill.source.clone(),
+                        skill.description.clone(),
+                    );
+                    let check: Element<'_, Message> = if selected {
+                        icon_svg(Icon::Check)
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0))
+                            .style(|theme: &Theme, _status| svg::Style {
+                                color: Some(context_row_text_color(theme, true, 0.92)),
+                            })
+                            .into()
+                    } else {
+                        Space::new().width(Length::Fixed(14.0)).into()
+                    };
+                    let skill_button = button(
+                        row![
+                            icon_svg(Icon::Star)
+                                .width(Length::Fixed(16.0))
+                                .height(Length::Fixed(16.0))
+                                .style(|theme: &Theme, _| svg::Style {
+                                    color: Some(theme.palette().text),
+                                }),
+                            column![
+                                text(ellipsize_text(&skill.title, 34))
+                                    .size(13)
+                                    .width(Length::Fill)
+                                    .wrapping(iced::widget::text::Wrapping::None)
+                                    .style(move |theme: &Theme| {
+                                        iced::widget::text::Style {
+                                            color: Some(context_row_text_color(
+                                                theme, selected, 0.90,
+                                            )),
+                                        }
+                                    }),
+                                text(subtitle)
+                                    .size(11)
+                                    .width(Length::Fill)
+                                    .wrapping(iced::widget::text::Wrapping::None)
+                                    .style(move |theme: &Theme| iced::widget::text::Style {
+                                        color: Some(context_row_text_color(theme, selected, 0.66)),
+                                    })
+                            ]
+                            .spacing(3)
+                            .width(Length::Fill),
+                            check
+                        ]
+                        .spacing(10)
+                        .align_y(Alignment::Center),
+                    )
+                    .padding([8, 10])
+                    .width(Length::Fill)
+                    .style(move |theme: &Theme, status| {
+                        context_list_button_style(theme, status, selected)
+                    })
+                    .on_press(Message::SessionSkillSelected(skill_id));
+                    list = list.push(
+                        Tooltip::new(skill_button, tooltip_content, TooltipPosition::Right)
+                            .gap(8.0),
+                    );
+                }
+
+                if !has_skills {
+                    let empty_message = if runtime.skills.is_empty() {
+                        i18n.__("技能目录尚未加载。")
+                    } else if !has_scope_skills {
+                        i18n
+                            .__("当前目录筛选下没有已安装且启用的技能。")
+                    } else {
+                        i18n.__("没有匹配的技能。")
+                    };
+                    list = list.push(
+                        container(text(empty_message).size(11).style(|theme: &Theme| {
+                            iced::widget::text::Style {
+                                color: Some(theme.palette().text.scale_alpha(0.62)),
+                            }
+                        }))
+                        .padding([4, 2]),
+                    );
+                }
+
+                let content = column![
+                    scope_tabs,
+                    scrollable(container(list).padding(iced::Padding {
+                        top: 0.0,
+                        right: SESSION_SELECTOR_LIST_RIGHT_PADDING,
+                        bottom: 0.0,
+                        left: 0.0,
+                    }))
+                    .direction(Direction::Vertical(
+                        Scrollbar::new()
+                            .width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
+                            .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
+                    ),)
+                    .height(Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT))
+                ]
+                .spacing(8);
+
+                content.into()
+            }
+        }
+    };
+
+    container(
+        column![
+            row![
+                text(i18n.__("会话控制")).size(13),
+                Space::new().width(Length::Fill),
+                button(text(i18n.__("配置智能体")).size(11))
+                    .padding([4, 8])
+                    .style(rounded_action_btn_style)
+                    .on_press(Message::OpenAgentSettings),
+            ]
+            .align_y(Alignment::Center),
+            text(summary).size(11).style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.palette().text.scale_alpha(0.84)),
+            }),
+            text(scope_hint).size(10).style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.palette().text.scale_alpha(0.62)),
+            }),
+            tabs,
+            selector_search_bar(i18n, query),
+            body,
+        ]
+        .spacing(10),
+    )
+    .padding([10, 12])
+    .width(Length::Fixed(360.0))
+    .style(popover_style)
+    .into()
+}

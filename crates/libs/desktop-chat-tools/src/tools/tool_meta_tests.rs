@@ -4,8 +4,8 @@ use super::{
     tool_icon_badge_color, tool_icon_badge_size,
     tool_verb, tool_visual_state,
 };
-/// 重新导出 use crate::app::assets::Icon，让上层模块通过稳定路径访问。
-use crate::app::assets::Icon;
+/// 重新导出 use desktop_assets::assets::Icon，让上层模块通过稳定路径访问。
+use desktop_assets::assets::Icon;
 use iced::Theme;
 
 #[test]
@@ -96,7 +96,7 @@ fn tool_visual_state_maps_all_supported_lifecycles() {
         tool_visual_state("cancelled").color(&Theme::Light)
     );
 
-    let running_badge = tool_icon_badge("bash", tool_visual_state("running"));
+    let running_badge = tool_icon_badge::<()>("bash", tool_visual_state("running"));
     std::hint::black_box(running_badge);
 }
 
@@ -273,7 +273,7 @@ fn badge_colors_distinguish_error_compact_and_regular_tools() {
 fn header_components_construct_for_skill_file_and_error_states() {
     assert_eq!(tool_header_label("skill"), "技能");
 
-    let skill_badge = tool_icon_badge("skill", tool_visual_state(""));
-    let file_error_badge = tool_icon_badge("read", tool_visual_state("failed"));
+    let skill_badge = tool_icon_badge::<()>("skill", tool_visual_state(""));
+    let file_error_badge = tool_icon_badge::<()>("read", tool_visual_state("failed"));
     std::hint::black_box((skill_badge, file_error_badge));
 }

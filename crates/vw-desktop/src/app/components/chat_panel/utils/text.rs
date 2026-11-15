@@ -49,19 +49,7 @@ pub fn single_line_preview(s: &str, max_chars: usize) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn truncate_lines_middle(s: &str, max_lines: usize, per_line_max_chars: usize) -> String {
-    let mut lines: Vec<String> = s.lines().map(|l| truncate_chars(l, per_line_max_chars)).collect();
-    if lines.len() <= max_lines {
-        return lines.join("\n");
-    }
-    let head = max_lines / 2;
-    let tail = max_lines - head;
-    let mut out = Vec::with_capacity(max_lines + 1);
-    out.extend(lines.drain(..head));
-    out.push("…".to_string());
-    out.extend(lines.drain(lines.len().saturating_sub(tail)..));
-    out.join("\n")
-}
+pub use desktop_chat_tools::text_layout::truncate_lines_middle;
 
 /// 拆出 Markdown 围栏及其后缀，供正文清理和代码块解析使用。
 pub(crate) fn markdown_code_fence(line: &str) -> Option<(&str, &str)> {

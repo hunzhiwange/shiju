@@ -242,45 +242,7 @@ pub use desktop_chat_input::input_panel::styles::square_icon_button_style;
 /// 生成无边框圆形图标按钮样式
 ///
 /// 提供与发送按钮一致的圆形轮廓，但保持中性背景，不使用描边。
-pub fn round_icon_button_style(
-    theme: &Theme,
-    status: button::Status,
-    enabled: bool,
-) -> button::Style {
-    let is_dark = is_dark_theme(theme);
-    let idle_bg = if is_dark {
-        Color::from_rgba8(24, 25, 29, 0.92)
-    } else {
-        Color::from_rgba8(247, 248, 250, 1.0)
-    };
-    let hover_bg = if is_dark {
-        Color::from_rgba8(31, 33, 38, 0.96)
-    } else {
-        Color::from_rgba8(241, 243, 246, 1.0)
-    };
-    let pressed_bg = if is_dark {
-        Color::from_rgba8(36, 38, 44, 0.98)
-    } else {
-        Color::from_rgba8(232, 236, 241, 1.0)
-    };
-    let background = match status {
-        button::Status::Pressed => pressed_bg,
-        button::Status::Hovered => hover_bg,
-        _ => idle_bg,
-    };
-
-    button::Style {
-        background: Some(Background::Color(background)),
-        border: Border { radius: 999.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        text_color: if enabled {
-            theme.palette().text.scale_alpha(if is_dark { 0.92 } else { 0.88 })
-        } else {
-            theme.palette().text.scale_alpha(if is_dark { 0.36 } else { 0.42 })
-        },
-        shadow: iced::Shadow::default(),
-        ..Default::default()
-    }
-}
+pub use desktop_chat_view::header_style::round_icon_button_style;
 
 pub use desktop_chat_input::input_panel::styles::selector_label_font;
 

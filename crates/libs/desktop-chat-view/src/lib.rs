@@ -23,3 +23,10 @@ mod virtualizer_tests;
 mod message_measure_tests;
 pub mod scroll_update;
 pub mod chat;
+
+pub mod header;
+pub mod header_style;
+pub mod header_usage;
+#[cfg(test)]
+mod header_tests;
+mod header_session;

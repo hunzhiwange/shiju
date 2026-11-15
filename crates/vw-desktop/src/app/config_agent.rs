@@ -389,3 +389,6 @@ pub async fn update_main_agent_overrides_from_delegate_agents_async() -> Result<
 pub async fn update_gateway_config_result_async(
     update: impl FnOnce(&mut GatewayConfig),
 ) -> Result<(), String> { access().update_gateway_config_result_async(update).await }
+
+/// 为领域更新注入桌面配置来源。
+pub(crate) fn agent_config_access() -> desktop_config::ConfigAccess { access() }

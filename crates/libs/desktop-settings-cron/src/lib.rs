@@ -7,3 +7,5 @@ pub mod app_init;
 
 pub mod system_settings_heartbeat;
 pub mod system_settings_scheduler;
+
+pub mod update;

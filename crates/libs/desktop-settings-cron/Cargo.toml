@@ -17,5 +17,10 @@ desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 iced = { version = "0.14", features = ["advanced"] }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 
+desktop-config = { path = "../desktop-config", version = "0.6.0" }
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+chrono-tz = "0.10"
+
 [dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

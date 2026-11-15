@@ -2,10 +2,11 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
+use super::update as domain_update;
+
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 fn has_scheduled_action(task: Task<Message>) -> bool {
@@ -120,7 +121,7 @@ fn unrelated_settings_message_is_ignored_without_scheduling_work() {
     app.heartbeat_settings.show_help_modal = true;
     app.heartbeat_settings.save_error = Some("unchanged".to_string());
 
-    let task = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
+    let task = update(&mut app, SettingsMessage::Ignore);
 
     assert!(app.heartbeat_settings.enabled);
     assert_eq!(app.heartbeat_settings.interval_minutes, 75);
@@ -145,4 +146,11 @@ fn persistence_updates_leave_existing_save_error_unchanged() {
     assert_eq!(app.heartbeat_settings.message_input, "next heartbeat");
     assert_eq!(app.heartbeat_settings.save_error.as_deref(), Some("existing failure"));
     assert!(has_scheduled_action(task));
+}
+
+#[derive(Default)]
+struct App { heartbeat_settings: crate::app_init::state::HeartbeatSettingsState }
+fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
+ let config = ConfigAccess::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 9), None);
+ domain_update(&mut Inputs { heartbeat_settings: &mut app.heartbeat_settings, config: &config }, event)
 }

@@ -1,109 +1,28 @@
-//! 运行记录页的有界刷新与响应校验。
-use super::SettingsMessage;
-use crate::app::state::CronSettingsTab;
+//! 桌面壳：运行记录可见性与项目上下文协调。
 use crate::app::{App, Message};
+use crate::app::state::CronSettingsTab;
 use iced::Task;
-
 pub use desktop_settings_cron::message::HistoryMessage as CronHistoryMessage;
-
+use super::cron::mapping;
 pub(crate) fn visible(app: &App) -> bool {
-    app.show_system_settings
-        && app.system_settings_tab == crate::app::components::system_settings::SystemTab::Cron
-        && app.cron_settings.active_tab == CronSettingsTab::History
+ app.show_system_settings && app.system_settings_tab == crate::app::components::system_settings::SystemTab::Cron && app.cron_settings.active_tab == CronSettingsTab::History
 }
-
-fn refresh(app: &mut App) -> Task<Message> {
-    let Some(generation) = app.cron_settings.history.begin_request() else {
-        return Task::none();
-    };
-    Task::perform(crate::app::config::load_cron_history_async(), move |result| {
-        Message::Settings(SettingsMessage::CronHistory(CronHistoryMessage::Loaded {
-            generation,
-            result,
-        }))
-    })
+fn task(app: &mut App, event: Option<CronHistoryMessage>) -> Task<Message> {
+ use desktop_settings_cron::update::{cron, history};
+ let delivery = crate::app::components::system_settings_cron::availability(app);
+ let config = crate::app::config::agent_config_access();
+ let mut notices = Vec::new();
+ let mut inputs = cron::Inputs { cron_settings: &mut app.cron_settings, desktop_locale: app.desktop_locale, delivery, client: crate::app::config::gateway_client(), config: &config, notices: &mut notices };
+ let task = match event { Some(event) => history::update(&mut inputs, event), None => history::refresh(&mut inputs) }.map(mapping::message);
+ let mut tasks = vec![task];
+ for notice in notices { tasks.push(match notice { cron::Notice::Error(text) => app.show_error_toast(text), cron::Notice::Success(text) => app.show_success_toast(text) }); }
+ Task::batch(tasks)
 }
-
-/// 在主 reducer 边界同步上下文，使所有关闭/切页/项目切换入口行为一致。
 pub(crate) fn reconcile(app: &mut App) -> Task<Message> {
-    let visible = visible(app);
-    if app.cron_settings.history.sync_context(visible, app.project_path.clone()) {
-        refresh(app)
-    } else {
-        Task::none()
-    }
+ let visible = visible(app);
+ if app.cron_settings.history.sync_context(visible, app.project_path.clone()) { task(app, None) } else { Task::none() }
 }
-
 pub(crate) fn update(app: &mut App, event: CronHistoryMessage) -> Task<Message> {
-    let context_task = reconcile(app);
-    let task = match event {
-        CronHistoryMessage::Refresh => refresh(app),
-        CronHistoryMessage::SearchToggled => {
-            app.cron_settings.history.search_open = !app.cron_settings.history.search_open;
-            Task::none()
-        }
-        CronHistoryMessage::DetailsOpened(key) => {
-            app.cron_settings.history.selected_run = Some(key);
-            Task::none()
-        }
-        CronHistoryMessage::DetailsClosed => {
-            app.cron_settings.history.selected_run = None;
-            Task::none()
-        }
-        CronHistoryMessage::CopyOutput(output) => iced::clipboard::write(output),
-        CronHistoryMessage::Tick(generation) => {
-            if generation == app.cron_settings.history.generation {
-                refresh(app)
-            } else {
-                Task::none()
-            }
-        }
-        CronHistoryMessage::Loaded { generation, result } => {
-            if !app.cron_settings.history.accepts(generation) {
-                return context_task;
-            }
-            match result {
-                Ok((response, jobs)) => {
-                    app.cron_settings.history.apply_response(response, &jobs);
-                    app.cron_settings.jobs = jobs;
-                    app.cron_settings.prune_selected_jobs();
-                    Task::none()
-                }
-                Err(error) => {
-                    let history = &mut app.cron_settings.history;
-                    let notify = history.error.as_ref() != Some(&error);
-                    history.loading = false;
-                    history.error = Some(error.clone());
-                    if notify { app.show_error_toast(error) } else { Task::none() }
-                }
-            }
-        }
-        CronHistoryMessage::SearchChanged(value) => {
-            app.cron_settings.history.search = value;
-            Task::none()
-        }
-        CronHistoryMessage::StatusChanged(value) => {
-            app.cron_settings.history.status_filter = value;
-            Task::none()
-        }
-        CronHistoryMessage::LocationChanged(value) => {
-            app.cron_settings.history.location_filter = value;
-            Task::none()
-        }
-        CronHistoryMessage::TaskSelected(value) => {
-            app.cron_settings.history.selected_job_id =
-                value.filter(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
-            app.cron_settings.history.task_picker_open = false;
-            Task::none()
-        }
-        CronHistoryMessage::TaskSearchChanged(value) => {
-            app.cron_settings.history.task_search = value;
-            Task::none()
-        }
-        CronHistoryMessage::TaskPickerToggled(value) => {
-            app.cron_settings.history.task_picker_open = value;
-            Task::none()
-        }
-    };
-    Task::batch([context_task, task])
+ let context = reconcile(app);
+ Task::batch([context, task(app, Some(event))])
 }

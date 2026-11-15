@@ -2,10 +2,11 @@
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
 use super::*;
-use crate::app::App;
+use super::update as domain_update;
+
 
 fn app() -> App {
-    App::new().0
+    App::default()
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -113,7 +114,7 @@ fn scheduler_update_ignores_unrelated_settings_message() {
     app.scheduler_settings.show_help_modal = true;
     app.scheduler_settings.save_error = Some("unchanged".to_string());
 
-    let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
+    let _ = update(&mut app, SettingsMessage::Ignore);
 
     assert!(!app.scheduler_settings.enabled);
     assert_eq!(app.scheduler_settings.max_tasks, 321);
@@ -137,4 +138,11 @@ fn scheduler_max_tasks_change_leaves_other_scheduler_fields_unchanged() {
     assert!(!app.scheduler_settings.enabled);
     assert_eq!(app.scheduler_settings.max_concurrent, 37);
     assert!(app.scheduler_settings.show_help_modal);
+}
+
+#[derive(Default)]
+struct App { scheduler_settings: crate::app_init::state::SchedulerSettingsState }
+fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
+ let config = ConfigAccess::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 9), None);
+ domain_update(&mut Inputs { scheduler_settings: &mut app.scheduler_settings, config: &config }, event)
 }

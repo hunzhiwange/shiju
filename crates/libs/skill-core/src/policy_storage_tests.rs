@@ -2,7 +2,7 @@
 //! 来源信任先应用阻止列表，再处理可信域和非交互拒绝，避免宽松别名绕过策略。
 
 use super::*;
-use skill_core::constants::SKILL_DOWNLOAD_POLICY_FILE;
+use crate::constants::SKILL_DOWNLOAD_POLICY_FILE;
 use std::path::Path;
 
 #[test]

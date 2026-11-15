@@ -9,8 +9,8 @@
 //! - 解析并验证 skills.sh 源格式
 //! - 规范化域名和目录名称
 
-use skill_core::constants::SKILLS_SH_HOST;
-use crate::app::agent::skill::types::SkillsShSource;
+use crate::constants::SKILLS_SH_HOST;
+use crate::types::SkillsShSource;
 use std::collections::HashSet;
 
 /// 从 URL 中提取并规范化主机名

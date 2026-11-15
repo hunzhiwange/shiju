@@ -2,7 +2,7 @@
 //! XML 夹具覆盖全部转义字符，并分别约束紧凑模式与完整模式暴露的内容。
 
 use super::*;
-use crate::app::agent::skill::types::{Skill, SkillTool, SkillsPromptInjectionMode};
+use crate::types::{Skill, SkillTool, SkillsPromptInjectionMode};
 use std::collections::HashMap;
 
 #[test]

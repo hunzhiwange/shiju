@@ -5,6 +5,9 @@ use super::*;
 use std::ffi::OsString;
 
 #[cfg(not(target_arch = "wasm32"))]
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(not(target_arch = "wasm32"))]
 struct EnvGuard {
     key: &'static str,
     previous: Option<OsString>,
@@ -173,8 +176,8 @@ fn init_skills_dir_writes_readme_policy_and_builtin_skills() {
 
     let skills = skills_dir(dir.path());
     assert!(skills.join("README.md").is_file());
-    assert!(skills.join(skill_core::constants::SKILL_DOWNLOAD_POLICY_FILE).is_file());
-    for builtin in skill_core::constants::BUILTIN_PRELOADED_SKILLS {
+    assert!(skills.join(crate::constants::SKILL_DOWNLOAD_POLICY_FILE).is_file());
+    for builtin in crate::constants::BUILTIN_PRELOADED_SKILLS {
         assert!(skills.join(builtin.dir_name).join("SKILL.md").is_file());
         assert!(skills.join(builtin.dir_name).join("_meta.json").is_file());
     }
@@ -385,7 +388,7 @@ fn secure_copy_rejects_symlinks_inside_skill_source() {
 #[test]
 fn git_install_clones_local_repo_removes_metadata_and_audits() {
     let _env_lock =
-        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let _git_guard = EnvGuard::set("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT", "1");
     let dir = tempfile::tempdir().expect("temp dir");
     let repo = dir.path().join("repo-skill");

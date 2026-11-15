@@ -2,7 +2,7 @@
 //! 元数据模式不得加载完整提示正文；首选清单损坏时也不能悄然退回另一格式。
 
 use super::*;
-use crate::app::agent::skill::types::{
+use crate::types::{
     SkillLoadMode, SkillRuntimeConfig, SkillsConfig, SkillsPromptInjectionMode,
 };
 

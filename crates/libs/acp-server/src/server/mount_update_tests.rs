@@ -1,7 +1,7 @@
 #[test]
 fn acp_mount_update_native_capability_is_enabled() {
     let meta = super::mounts::capabilities_meta(true, true);
-    assert_eq!(meta[crate::session_mounts::SESSION_MOUNTS_META_KEY]["setMounts"], true);
+    assert_eq!(meta[acp_types::session_mounts::SESSION_MOUNTS_META_KEY]["setMounts"], true);
 }
 
 #[test]

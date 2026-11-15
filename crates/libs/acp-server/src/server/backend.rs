@@ -79,7 +79,7 @@ pub struct BackendSession {
 #[derive(Debug, Clone)]
 pub struct BackendMountedSession {
     pub session: BackendSession,
-    pub mounts: crate::session_mounts::SetSessionMountsResponse,
+    pub mounts: acp_types::session_mounts::SetSessionMountsResponse,
 }
 
 /// 会话后端的分类错误。
@@ -136,7 +136,7 @@ impl BackendPrompt {
     }
 }
 
-/// `vw-acp` Agent 侧依赖的最小宿主接口。
+/// ACP Agent 侧依赖的最小宿主接口。
 #[async_trait]
 pub trait SessionBackend: Send + Sync + 'static {
     /// Whether this backend prepares native session skill directories.
@@ -152,8 +152,8 @@ pub trait SessionBackend: Send + Sync + 'static {
     /// Replace only an owned idle session; failures retain the previous revision.
     async fn set_session_mounts(
         &self,
-        _request: crate::SetSessionMountsRequest,
-    ) -> Result<crate::SetSessionMountsResponse, BackendError> {
+        _request: acp_types::SetSessionMountsRequest,
+    ) -> Result<acp_types::SetSessionMountsResponse, BackendError> {
         Err(BackendError::InvalidRequest("mount updates are not supported by this backend".into()))
     }
 

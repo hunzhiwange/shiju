@@ -1,7 +1,7 @@
 //! Mount extension parsing and response metadata; no filesystem or MCP side effects.
 use agent_client_protocol::{Error, McpServer, Meta, Result};
 
-use crate::session_mounts::{
+use acp_types::session_mounts::{
     SESSION_MOUNTS_META_KEY, SessionMountCapabilities, SessionMountRevision, SessionMountSelection,
     SetSessionMountsResponse,
 };

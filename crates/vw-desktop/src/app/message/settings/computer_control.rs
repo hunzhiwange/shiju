@@ -39,7 +39,8 @@ fn refresh(app: &mut App) -> Task<Message> {
     state.error = None;
     let identity = ControlIdentity::current();
     state.identity = Some(identity.clone());
-    let client = crate::app::config::gateway_client();
+    let client = gateway_http::GatewayTransport::new(crate::app::config::gateway_client_endpoint())
+        .map(gateway_computer_control::GatewayComputerControlClient::new);
     Task::perform(async move {
         let client = client?;
         let status = client.computer_control_status().await.map_err(safe_error)?;
@@ -105,7 +106,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::Stop => {
             if app.computer_control_settings.stopping { return Task::none(); }
             app.computer_control_settings.stopping = true;
-            let client = crate::app::config::gateway_client();
+            let client = gateway_http::GatewayTransport::new(crate::app::config::gateway_client_endpoint())
+                .map(gateway_computer_control::GatewayComputerControlClient::new);
             Task::perform(async move { client?.computer_control_stop().await.map_err(safe_error) },
                 move |result| message(Event::Stopped { identity: identity.clone(), result }))
         }
@@ -156,7 +158,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let generation = state.generation;
             state.saving = true;
             state.error = None;
-            let client = crate::app::config::gateway_client();
+            let client = gateway_http::GatewayTransport::new(crate::app::config::gateway_client_endpoint())
+                .map(gateway_computer_control::GatewayComputerControlClient::new);
             Task::perform(async move {
                 let client = client?;
                 match event {

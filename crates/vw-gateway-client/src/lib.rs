@@ -264,3 +264,5 @@ pub use gateway_cron::GatewayCronClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use gateway_host_tools::GatewayHostToolsClient;
+
+pub use gateway_computer_control::GatewayComputerControlClient;

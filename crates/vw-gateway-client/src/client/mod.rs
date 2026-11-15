@@ -390,7 +390,7 @@ mod workspace_memory_api_tests;
 mod workspace_directory_api;
 
 mod computer_control_api;
-pub use computer_control_api::ComputerControlApiError;
+pub use gateway_computer_control::ComputerControlApiError;
 #[cfg(test)]
 mod computer_control_api_tests;
 

@@ -26,6 +26,7 @@ members = [
   "crates/libs/app-auth-copilot",
   "crates/libs/gateway-voice",
   "crates/libs/gateway-host-tools",
+  "crates/libs/gateway-computer-control",
   "crates/libs/gateway-pty",
   "crates/libs/gateway-inference",
   "crates/libs/gateway-mcp-distribution",

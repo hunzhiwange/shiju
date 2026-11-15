@@ -6,12 +6,12 @@ use iced::{Alignment, Element, Font, Length};
 use gateway_shiju_app::{ShijuAppCatalogDto, ShijuCatalogAppDto};
 
 use super::{app_title, card_grid, styles};
-use crate::app::Message;
-use crate::app::message::{AccountMessage, ShijuAppsMessage};
-use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
+use super::Message;
+use desktop_apps_ui::shiju_apps::ShijuAppsMessage;
+use desktop_app_launch::{ShijuAppDetailTarget, ShijuAppsLoadState};
 
 fn catalog_card(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     index: usize,
     app: &ShijuCatalogAppDto,
 ) -> Element<'static, Message> {
@@ -83,7 +83,7 @@ fn catalog_card(
 }
 
 fn feedback(
-    i18n: crate::app::i18n::I18n,
+    i18n: desktop_i18n::I18n,
     message: String,
     action: Option<(&'static str, Message)>,
 ) -> Element<'static, Message> {
@@ -100,8 +100,8 @@ fn feedback(
 }
 
 /// 按登录、加载、错误或成功状态展示应用商店。
-pub(super) fn view(
-    i18n: crate::app::i18n::I18n,
+pub fn view(
+    i18n: desktop_i18n::I18n,
     state: &ShijuAppsLoadState<ShijuAppCatalogDto>,
 ) -> Element<'static, Message> {
     match state {
@@ -109,7 +109,7 @@ pub(super) fn view(
         ShijuAppsLoadState::NeedsLogin => feedback(
             i18n,
             i18n.__("登录识矩账户后可浏览应用商店").to_string(),
-            Some((i18n.__("登录"), Message::Account(AccountMessage::StartBrowserLogin))),
+            Some((i18n.__("登录"), Message::StartBrowserLogin)),
         ),
         ShijuAppsLoadState::Loading { .. } => {
             feedback(i18n, i18n.__("正在加载应用商店…").to_string(), None)

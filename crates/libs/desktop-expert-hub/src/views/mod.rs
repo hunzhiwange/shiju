@@ -31,3 +31,8 @@ pub mod list;
 pub mod public_skill_detail;
 #[cfg(test)] mod list_tests;
 #[cfg(test)] mod public_skill_detail_tests;
+
+pub mod public_skills;
+pub mod upgrade_actions;
+pub mod shiju_apps;
+#[cfg(test)] mod public_skills_tests;

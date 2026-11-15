@@ -7,6 +7,7 @@ fn map(message: views::Message) -> Message {
     match message {
         views::Message::SkillHub(value) => Message::SkillHub(crate::app::message::skill_hub::map_domain(value)),
         views::Message::Connectors(value) => Message::SkillHub(crate::app::message::SkillHubMessage::Connectors(value)),
+        views::Message::StartBrowserLogin => Message::Account(crate::app::message::AccountMessage::StartBrowserLogin),
         views::Message::None => Message::None,
     }
 }

@@ -1,0 +1,701 @@
+//! 展示公共技能或套件详情，并收集安装范围与目标选择。
+
+use gateway_skill_market::{SkillMarketSkillDetailDto, SkillMarketSkillSetDetailDto};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{Space, button, column, container, markdown, row, scrollable, text};
+use iced::{Alignment, Element, Font, Length};
+
+
+use super::install_guide::{
+    InstallTargetPresentation, install_project_options, install_target_presentations,
+    target_root_label,
+};
+const SCROLLBAR_WIDTH: u32 = 4;
+use super::styles;
+use desktop_ui_controls::system_settings_common::{
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_field_label, settings_modal_card, settings_modal_header, settings_modal_overlay,
+    settings_muted_text_style, settings_segment_button_style, settings_select,
+};
+use crate::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
+use desktop_skill_hub::skill_hub::{
+    LoadState, PublicDetailMode, PublicDetailState, PublicDetailTarget, PublicInstallState,
+    PublicSkillMarketState, SkillInstallScope, SkillInstallTarget,
+};
+use super::Message;
+/// 详情使用的领域状态及宿主项目、会话选择结果。
+pub struct DetailInput<'a> {
+    pub expert_hub: &'a desktop_skill_hub::skill_hub::ExpertHubState,
+    pub desktop_locale: config_ui::DesktopLocale,
+    pub app_theme: &'a iced::Theme,
+    pub project_path: &'a Option<String>,
+    pub recent_projects: &'a [String],
+    pub selection: Result<(), &'static str>,
+}
+
+fn public_message(message: PublicSkillMessage) -> Message {
+    Message::SkillHub(SkillHubMessage::Public(message))
+}
+
+fn back_button(i18n: desktop_i18n::I18n, experts: bool) -> Element<'static, Message> {
+    let label = if experts { i18n.__("← 返回专家") } else { i18n.__("← 返回技能") };
+    button(text(i18n.__(label)).size(13))
+        .on_press(public_message(PublicSkillMessage::CloseDetail))
+        .padding([7, 11])
+        .style(styles::quiet_button_style)
+        .into()
+}
+
+fn mode_button(
+    i18n: desktop_i18n::I18n,
+    label: &'static str,
+    mode: PublicDetailMode,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(i18n.__(label)).size(12))
+        .on_press(public_message(PublicSkillMessage::SetDetailMode(mode)))
+        .padding([7, 12])
+        .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
+        .into()
+}
+
+fn installed_id(target: &PublicDetailTarget) -> String {
+    match target {
+        PublicDetailTarget::Skill(locator) => {
+            format!("{}--{}--{}", locator.source, locator.namespace, locator.slug)
+        }
+        PublicDetailTarget::Suite { source, slug } => {
+            format!("{source}--skillset--{slug}")
+        }
+    }
+}
+
+pub fn installed_in_catalog(
+    market: &PublicSkillMarketState,
+    target: &PublicDetailTarget,
+) -> bool {
+    let expected = installed_id(target);
+    matches!(
+        &market.installed,
+        LoadState::Loaded(items)
+            if items.iter().any(|item| match target {
+                PublicDetailTarget::Suite { source, slug } => item.installed
+                    && item.id == expected
+                    && item.source == *source
+                    && item.namespace.as_deref() == Some("skillset")
+                    && item.package_type.as_deref() == Some("meta-skill")
+                    && item.source_pack.as_deref() == Some(slug.as_str()),
+                PublicDetailTarget::Skill(locator) => item.installed
+                    && item.id == expected
+                    && item.source == locator.source
+                    && item.namespace.as_deref() == Some(locator.namespace.as_str())
+                    && item.package_type.as_deref() == Some("skill"),
+            })
+    )
+}
+
+fn selected_catalog_install(detail: &PublicDetailState) -> bool {
+    detail.install_scope == SkillInstallScope::Project
+        && detail.selected_install_targets.as_slice() == [SkillInstallTarget::VibeWindow]
+}
+
+/// 仅在详情允许切换时生成全局或项目安装范围消息。
+pub fn detail_scope_action_message(
+    detail: &PublicDetailState,
+    scope: SkillInstallScope,
+    project_available: bool,
+) -> Option<Message> {
+    (!detail.install_is_busy()
+        && detail.install_scope != scope
+        && (scope == SkillInstallScope::Global || project_available))
+        .then_some(public_message(PublicSkillMessage::SelectDetailInstallScope(scope)))
+}
+
+/// 仅在详情允许切换时生成安装目标选择消息。
+pub fn detail_target_action_message(
+    detail: &PublicDetailState,
+    target: SkillInstallTarget,
+) -> Option<Message> {
+    let removing_last = detail.selected_install_targets.len() == 1
+        && detail.selected_install_targets.first().is_some_and(|selected| *selected == target);
+    (!detail.install_is_busy() && !removing_last)
+        .then_some(public_message(PublicSkillMessage::ToggleDetailInstallTarget(target)))
+}
+
+/// 仅在项目路径确有变化时生成项目选择消息。
+pub fn detail_project_action_message(
+    selected_project_path: Option<&str>,
+    install_busy: bool,
+    project_path: String,
+) -> Option<Message> {
+    (!install_busy && selected_project_path != Some(project_path.as_str()))
+        .then_some(public_message(PublicSkillMessage::SelectDetailInstallProject(project_path)))
+}
+
+fn install_button(app: &DetailInput<'_>, detail: &PublicDetailState) -> Element<'static, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let expert = app.expert_hub.section == desktop_skill_hub::skill_hub::ExpertHubSection::Experts
+        && matches!(detail.target, PublicDetailTarget::Suite { .. });
+    let catalog_installed = selected_catalog_install(detail)
+        && installed_in_catalog(&app.expert_hub.public_market, &detail.target);
+    let project_required = matches!(detail.target, PublicDetailTarget::Suite { .. })
+        || detail.install_scope == SkillInstallScope::Project;
+    let (label, enabled) = match &detail.install {
+        PublicInstallState::Installing { .. } => {
+            (desktop_i18n::I18n::new(app.desktop_locale).__("安装中…"), false)
+        }
+        PublicInstallState::Installed { paths } if paths.len() > 1 => {
+            (desktop_i18n::I18n::new(app.desktop_locale).__("多平台安装完成"), false)
+        }
+        PublicInstallState::Installed { .. } => {
+            (desktop_i18n::I18n::new(app.desktop_locale).__("安装完成"), false)
+        }
+        PublicInstallState::Idle if catalog_installed => {
+            (desktop_i18n::I18n::new(app.desktop_locale).__("已安装"), false)
+        }
+        PublicInstallState::Idle
+            if project_required
+                && !expert
+                && detail
+                    .selected_install_project_path
+                    .as_deref()
+                    .is_none_or(|path| path.trim().is_empty()) =>
+        {
+            (desktop_i18n::I18n::new(app.desktop_locale).__("请先选择项目"), false)
+        }
+        PublicInstallState::Idle => {
+            (desktop_i18n::I18n::new(app.desktop_locale).__("安装"), true)
+        }
+    };
+    let mut action =
+        button(text(i18n.__(label)).size(13)).padding([9, 18]).style(primary_action_btn_style);
+    if enabled {
+        action = action.on_press(public_message(if expert {
+            PublicSkillMessage::OpenExpertInstall
+        } else {
+            PublicSkillMessage::InstallCurrent
+        }));
+    }
+    action.into()
+}
+
+fn with_expert_install_confirmation<'a>(
+    app: &DetailInput<'a>,
+    detail: &'a PublicDetailState,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    if app.expert_hub.section != desktop_skill_hub::skill_hub::ExpertHubSection::Experts
+        || !detail.install_confirmation_open
+    {
+        return base;
+    }
+    let cancel = public_message(PublicSkillMessage::CancelExpertInstall);
+    let selected = detail.selected_install_project_path.as_deref();
+    let projects = install_project_options(app.project_path, app.recent_projects);
+    let has_project = selected.is_some_and(|path| projects.iter().any(|option| option == path));
+    let header = settings_modal_header(
+        column![
+            text(desktop_i18n::I18n::new(app.desktop_locale).__("安装专家包")).size(20),
+            text(
+                desktop_i18n::I18n::new(app.desktop_locale)
+                    .__("选择项目后安装；安装器会校验每个成员和主工作流。")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
+        ]
+        .spacing(5),
+        settings_close_button(cancel.clone()),
+    );
+    let mut install =
+        button(text(desktop_i18n::I18n::new(app.desktop_locale).__("安装到项目")).size(13))
+            .padding([9, 16])
+            .style(primary_action_btn_style);
+    if has_project && !detail.install_is_busy() {
+        install = install.on_press(public_message(PublicSkillMessage::InstallCurrent));
+    }
+    let body = column![
+        project_selector(i18n, detail, projects),
+        text(i18n.__("全局安装和第三方 Agent 目标暂不支持。"))
+            .size(12)
+            .style(settings_muted_text_style),
+    ]
+    .spacing(10);
+    let footer = row![
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("取消")).size(13))
+            .on_press(cancel.clone())
+            .padding([9, 16])
+            .style(rounded_action_btn_style),
+        install,
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card =
+        settings_modal_card(column![header, body, footer].spacing(16)).width(Length::Fixed(540.0));
+    settings_modal_overlay(Some(base), cancel, container(card).padding(12))
+}
+
+fn project_selector(
+    i18n: desktop_i18n::I18n,
+    detail: &PublicDetailState,
+    options: Vec<String>,
+) -> Element<'static, Message> {
+    let install_busy = detail.install_is_busy();
+    let selected_project_path = detail.selected_install_project_path.clone();
+    row![
+        settings_field_label(i18n.__("目标项目")),
+        settings_select(
+            options,
+            detail.selected_install_project_path.clone(),
+            move |project_path| {
+                detail_project_action_message(
+                    selected_project_path.as_deref(),
+                    install_busy,
+                    project_path,
+                )
+                .unwrap_or(Message::None)
+            }
+        )
+        .placeholder(i18n.__("选择项目"))
+        .width(Length::Fill)
+        .disabled(install_busy),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn scope_button(
+    i18n: desktop_i18n::I18n,
+    detail: &PublicDetailState,
+    label: &'static str,
+    scope: SkillInstallScope,
+    project_available: bool,
+) -> Element<'static, Message> {
+    let selected = detail.install_scope == scope;
+    let mut action =
+        button(text(i18n.__(label)).size(12)).padding([7, 13]).style(move |theme, status| {
+            let mut style = settings_segment_button_style(theme, status, selected);
+            if selected {
+                style.text_color = theme.palette().text;
+            }
+            style
+        });
+    if let Some(message) = detail_scope_action_message(detail, scope, project_available) {
+        action = action.on_press(message);
+    }
+    action.into()
+}
+
+fn install_target_card(
+    i18n: desktop_i18n::I18n,
+    detail: &PublicDetailState,
+    presentation: InstallTargetPresentation,
+    directory_name: &str,
+) -> Element<'static, Message> {
+    let selected = detail.selected_install_targets.contains(&presentation.target);
+    let path = format!(
+        "{}/{}",
+        target_root_label(presentation.target, detail.install_scope),
+        directory_name
+    );
+    let mut path_text = text(path.clone()).size(11);
+    if path.is_ascii() {
+        path_text = path_text.font(Font::MONOSPACE);
+    }
+    let content = column![
+        row![
+            text(if selected { "✓" } else { "○" }).size(14),
+            text(i18n.__(presentation.name)).size(13),
+        ]
+        .spacing(7)
+        .align_y(Alignment::Center),
+        text(i18n.__(presentation.compatibility)).size(11).style(styles::muted_text_style),
+        path_text.style(styles::muted_text_style),
+    ]
+    .spacing(6);
+    let mut action = button(content)
+        .width(Length::Fill)
+        .padding(12)
+        .style(move |theme, status| styles::selected_tab_style(theme, status, selected));
+    if let Some(message) = detail_target_action_message(detail, presentation.target) {
+        action = action.on_press(message);
+    }
+    container(action).width(Length::Fixed(340.0)).padding(2).style(styles::inset_panel_style).into()
+}
+
+fn installed_paths(i18n: desktop_i18n::I18n, paths: &[String]) -> Element<'static, Message> {
+    let mut items = column![text(i18n.__("安装位置")).size(12)].spacing(6);
+    for path in paths {
+        let mut value = text(path.clone()).size(11);
+        if path.is_ascii() {
+            value = value.font(Font::MONOSPACE);
+        }
+        items = items.push(value.style(styles::muted_text_style));
+    }
+    container(items).width(Length::Fill).padding(12).style(styles::inset_panel_style).into()
+}
+
+fn skill_install_options(
+    app: &DetailInput<'_>,
+    detail: &PublicDetailState,
+) -> Option<Element<'static, Message>> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let PublicDetailTarget::Skill(locator) = &detail.target else {
+        return None;
+    };
+    let project_options = install_project_options(app.project_path, app.recent_projects);
+    let directory_name = installed_id(&detail.target);
+    let target_cards = install_target_presentations(detail.install_scope)
+        .into_iter()
+        .map(|presentation| install_target_card(i18n, detail, presentation, &directory_name))
+        .collect::<Vec<_>>();
+    let mut content = column![
+        row![
+            column![
+                text(desktop_i18n::I18n::new(app.desktop_locale).__("安装到 Agent"))
+                    .size(18)
+                    .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
+                text(
+                    desktop_i18n::I18n::new(app.desktop_locale)
+                        .format(
+                            "为 %s 选择安装范围和一个或多个 Agent 目标。",
+                            &[(locator.slug).to_string().into()]
+                        )
+                        .expect("valid display template")
+                )
+                .size(12)
+                .style(styles::muted_text_style),
+            ]
+            .spacing(4)
+            .width(Length::Fill),
+            install_button(app, detail),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
+        row![
+            text(desktop_i18n::I18n::new(app.desktop_locale).__("安装范围")).size(12),
+            scope_button(
+                i18n,
+                detail,
+                desktop_i18n::I18n::new(app.desktop_locale).__("全局"),
+                SkillInstallScope::Global,
+                true
+            ),
+            scope_button(
+                i18n,
+                detail,
+                desktop_i18n::I18n::new(app.desktop_locale).__("项目"),
+                SkillInstallScope::Project,
+                !project_options.is_empty(),
+            ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    ]
+    .spacing(14);
+    if detail.install_scope == SkillInstallScope::Project {
+        content = content.push(project_selector(i18n, detail, project_options));
+    }
+    content = content.push(row(target_cards).spacing(10).wrap());
+    if let PublicInstallState::Installed { paths } = &detail.install {
+        content = content.push(installed_paths(i18n, paths));
+    }
+    Some(
+        container(content).padding(20).width(Length::Fill).style(styles::detail_panel_style).into(),
+    )
+}
+
+fn field(
+    i18n: desktop_i18n::I18n,
+    label: &'static str,
+    value: String,
+) -> Element<'static, Message> {
+    column![
+        text(i18n.__(label)).size(11).style(styles::muted_text_style),
+        text(if value.trim().is_empty() { i18n.__("暂无").to_string() } else { value }).size(13),
+    ]
+    .spacing(4)
+    .width(Length::Fixed(190.0))
+    .into()
+}
+
+fn skill_information(
+    i18n: desktop_i18n::I18n,
+    detail: &SkillMarketSkillDetailDto,
+) -> Element<'static, Message> {
+    let skill = &detail.skill;
+    let security = detail
+        .security
+        .as_ref()
+        .map(|security| security.summary.clone().unwrap_or_else(|| security.status.clone()))
+        .unwrap_or_else(|| i18n.__("未提供").to_string());
+    container(
+        column![
+            text(i18n.__("技能信息"))
+                .size(18)
+                .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
+            row![
+                field(i18n, i18n.__("作者"), skill.author.clone()),
+                field(i18n, i18n.__("分类"), skill.category.clone()),
+                field(i18n, i18n.__("版本"), skill.coordinate.version.clone()),
+                field(i18n, i18n.__("来源"), skill.coordinate.locator.source.clone()),
+            ]
+            .spacing(16)
+            .wrap(),
+            row![
+                field(i18n, i18n.__("评分"), format!("{:.1}", skill.rating)),
+                field(i18n, i18n.__("下载"), skill.downloads.to_string()),
+                field(i18n, i18n.__("安装"), skill.installs.to_string()),
+                field(i18n, i18n.__("安全"), security),
+            ]
+            .spacing(16)
+            .wrap(),
+            row![
+                field(i18n, i18n.__("许可证"), detail.license.clone().unwrap_or_default()),
+                field(
+                    i18n,
+                    "API Key",
+                    if detail.requires_api_key {
+                        i18n.__("需要").to_string()
+                    } else {
+                        i18n.__("不需要").to_string()
+                    },
+                ),
+                field(i18n, i18n.__("命名空间"), skill.coordinate.locator.namespace.clone()),
+                field(i18n, i18n.__("标识"), skill.coordinate.locator.slug.clone()),
+            ]
+            .spacing(16)
+            .wrap(),
+        ]
+        .spacing(16),
+    )
+    .padding(20)
+    .width(Length::Fill)
+    .style(styles::detail_panel_style)
+    .into()
+}
+
+fn suite_information(
+    i18n: desktop_i18n::I18n,
+    detail: &SkillMarketSkillSetDetailDto,
+) -> Element<'static, Message> {
+    let mut members = column![].spacing(7);
+    for coordinate in &detail.members {
+        members = members.push(
+            container(
+                row![
+                    text(format!("{} / {}", coordinate.locator.namespace, coordinate.locator.slug))
+                        .size(13)
+                        .width(Length::Fill),
+                    text(if coordinate.version.is_empty() {
+                        i18n.__("最新").to_string()
+                    } else {
+                        coordinate.version.clone()
+                    })
+                    .size(11)
+                    .style(styles::muted_text_style),
+                ]
+                .align_y(Alignment::Center),
+            )
+            .padding([9, 12])
+            .width(Length::Fill)
+            .style(styles::inset_panel_style),
+        );
+    }
+    if detail.members.is_empty() {
+        members =
+            members.push(text(i18n.__("套件未声明成员")).size(13).style(styles::muted_text_style));
+    }
+    container(
+        column![
+            row![
+                text(i18n.__("套件成员"))
+                    .size(18)
+                    .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
+                container(text(detail.members.len().to_string()).size(11))
+                    .padding([4, 8])
+                    .style(styles::meta_badge_style),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+            members,
+        ]
+        .spacing(12),
+    )
+    .padding(20)
+    .width(Length::Fill)
+    .style(styles::detail_panel_style)
+    .into()
+}
+
+fn raw_markdown(content: &str) -> Element<'_, Message> {
+    container(text(content).size(13).font(Font::default()).width(Length::Fill))
+        .padding(18)
+        .width(Length::Fill)
+        .style(styles::inset_panel_style)
+        .into()
+}
+
+fn rendered_markdown<'a>(app: &DetailInput<'_>, detail: &'a PublicDetailState) -> Element<'a, Message> {
+    let mut markdown_style = markdown::Style::from(app.app_theme);
+    markdown_style.inline_code_font = Font::default();
+    markdown_style.code_block_font = Font::default();
+    let settings = markdown::Settings::with_text_size(14, markdown_style);
+    container(markdown::view(detail.markdown_items.iter(), settings).map(|_| Message::None))
+        .padding(18)
+        .width(Length::Fill)
+        .style(styles::inset_panel_style)
+        .into()
+}
+
+fn content_text(detail: &PublicDetailState) -> Option<&str> {
+    match (&detail.target, &detail.skill_file, &detail.suite_detail) {
+        (PublicDetailTarget::Skill(_), LoadState::Loaded(file), _) => Some(file.content.as_str()),
+        (PublicDetailTarget::Suite { .. }, _, LoadState::Loaded(suite)) => {
+            Some(suite.content.as_str())
+        }
+        _ => None,
+    }
+}
+
+fn content_panel<'a>(app: &DetailInput<'a>, detail: &'a PublicDetailState) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let body = match content_text(detail) {
+        Some(content) if detail.mode == PublicDetailMode::Markdown => raw_markdown(content),
+        Some(_) => rendered_markdown(app, detail),
+        None => status_panel(desktop_i18n::I18n::new(app.desktop_locale).__("内容正在加载…")),
+    };
+    column![
+        row![
+            text(desktop_i18n::I18n::new(app.desktop_locale).__("技能内容"))
+                .size(18)
+                .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
+                .width(Length::Fill),
+            mode_button(
+                i18n,
+                desktop_i18n::I18n::new(app.desktop_locale).__("可视化"),
+                PublicDetailMode::Visual,
+                detail.mode == PublicDetailMode::Visual,
+            ),
+            mode_button(
+                i18n,
+                "Markdown",
+                PublicDetailMode::Markdown,
+                detail.mode == PublicDetailMode::Markdown,
+            ),
+        ]
+        .spacing(6)
+        .align_y(Alignment::Center),
+        body,
+    ]
+    .spacing(12)
+    .into()
+}
+
+fn status_panel(message: &str) -> Element<'static, Message> {
+    container(text(message.to_string()).size(13).style(styles::muted_text_style))
+        .padding(20)
+        .width(Length::Fill)
+        .style(styles::detail_panel_style)
+        .into()
+}
+
+fn loaded_header(app: &DetailInput<'_>, detail: &PublicDetailState) -> Option<Element<'static, Message>> {
+    let (name, description, source) = match (&detail.skill_detail, &detail.suite_detail) {
+        (LoadState::Loaded(skill), _) => (
+            skill.skill.name.clone(),
+            skill.skill.description.clone(),
+            skill.skill.coordinate.locator.source.clone(),
+        ),
+        (_, LoadState::Loaded(suite)) => (
+            suite.skill_set.name.clone(),
+            suite.skill_set.description.clone(),
+            suite.skill_set.source.clone(),
+        ),
+        _ => return None,
+    };
+    let mut header = row![
+        column![
+            text(name).size(25).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+            text(description).size(13).style(styles::muted_text_style),
+            text(
+                desktop_i18n::I18n::new(app.desktop_locale)
+                    .format("来源：%s", &[(source).to_string().into()])
+                    .expect("valid display template")
+            )
+            .size(11)
+            .style(styles::muted_text_style),
+        ]
+        .spacing(6)
+        .width(Length::Fill),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center);
+    if matches!(detail.target, PublicDetailTarget::Suite { .. }) {
+        header = header.push(install_button(app, detail));
+        if app.expert_hub.section == desktop_skill_hub::skill_hub::ExpertHubSection::Experts {
+            let availability = app.selection;
+            let mut select = button(
+                text(desktop_i18n::I18n::new(app.desktop_locale).__("本次使用")).size(13),
+            )
+            .padding([9, 16])
+            .style(primary_action_btn_style);
+            if availability.is_ok() {
+                select = select.on_press(public_message(PublicSkillMessage::SelectExpertForChat));
+            }
+            header = header.push(select);
+            if let Err(reason) = availability {
+                header = header.push(text(reason).size(11).style(styles::muted_text_style));
+            }
+        }
+    }
+    Some(header.into())
+}
+
+/// 按目标类型和加载状态展示公共技能或套件详情。
+pub fn view<'a>(app: &DetailInput<'a>) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+    let Some(detail) = &app.expert_hub.public_market.detail else {
+        return status_panel(
+            desktop_i18n::I18n::new(app.desktop_locale).__("请从公开技能列表选择技能或套件"),
+        );
+    };
+    let header = loaded_header(app, detail).unwrap_or_else(|| {
+        status_panel(desktop_i18n::I18n::new(app.desktop_locale).__("详情正在加载…"))
+    });
+    let information = match (&detail.skill_detail, &detail.suite_detail) {
+        (LoadState::Loaded(skill), _) => skill_information(i18n, skill),
+        (_, LoadState::Loaded(suite)) => suite_information(i18n, suite),
+        (LoadState::Error(error), _) | (_, LoadState::Error(error)) => {
+            status_panel(&error.render(i18n))
+        }
+        _ => status_panel(desktop_i18n::I18n::new(app.desktop_locale).__("正在同步详情信息…")),
+    };
+    let mut page = column![
+        back_button(
+            i18n,
+            app.expert_hub.section == desktop_skill_hub::skill_hub::ExpertHubSection::Experts
+        ),
+        header,
+        container(Space::new())
+            .height(Length::Fixed(1.0))
+            .width(Length::Fill)
+            .style(styles::divider_style),
+    ];
+    if let Some(options) = skill_install_options(app, detail) {
+        page = page.push(options);
+    }
+    page = page.push(information).push(content_panel(app, detail)).spacing(18).width(Length::Fill);
+    let base = scrollable(
+        container(page).padding([0, 7]).width(Length::Fill).max_width(1180).center_x(Length::Fill),
+    )
+    .direction(Direction::Vertical(
+        Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+    ))
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into();
+    with_expert_install_confirmation(app, detail, base)
+}

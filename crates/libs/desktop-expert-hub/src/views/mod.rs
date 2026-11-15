@@ -8,6 +8,7 @@ use desktop_skill_hub::skill_hub::ExpertHubState;
 pub enum Message {
     SkillHub(crate::message::skill_hub::SkillHubMessage),
     Connectors(crate::message::connectors::ConnectorMessage),
+    StartBrowserLogin,
     None,
 }
 /// 视图只借用专家中心状态、语言和主题。
@@ -25,3 +26,8 @@ pub mod installed_skills;
 pub mod knowledge;
 #[cfg(test)] mod install_guide_tests;
 #[cfg(test)] mod installed_skills_tests;
+
+pub mod list;
+pub mod public_skill_detail;
+#[cfg(test)] mod list_tests;
+#[cfg(test)] mod public_skill_detail_tests;

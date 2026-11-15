@@ -4,10 +4,10 @@ use super::routing_persistence;
 use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{
     App, Message,
-    state::{ModelRoute, QueryClassificationRuleInput},
+    state::QueryClassificationRuleInput,
 };
 use iced::Task;
-use config_routing::{ClassificationRule, ModelRouteConfig};
+use config_routing::ModelRouteConfig;
 
 #[cfg(test)]
 #[path = "model_routes_tests.rs"]
@@ -22,55 +22,8 @@ fn queue_valid_routes(app: &mut App) -> Task<Message> {
     app.model_routes_settings.persistence.route_invalid = false;
     app.model_routes_settings.persistence.classification_invalid = false;
     app.model_routes_settings.save_error = None;
-    let ui_routes = app
-        .model_routes_settings
-        .routes
-        .iter()
-        .filter(|route| {
-            !route.pattern.trim().is_empty()
-                || !route.provider.trim().is_empty()
-                || !route.model.trim().is_empty()
-                || !route.priority_input.trim().is_empty()
-        })
-        .map(|route| config_ui::ModelRoute {
-            pattern: route.pattern.trim().to_string(),
-            provider: route.provider.trim().to_string(),
-            model: route.model.trim().to_string(),
-            priority: route.priority_input.trim().parse::<u32>().unwrap_or(0),
-        })
-        .collect::<Vec<_>>();
-
-    let model_routes = ui_routes
-        .iter()
-        .map(|route| ModelRouteConfig {
-            hint: route.pattern.clone(),
-            provider: route.provider.clone(),
-            model: route.model.clone(),
-            max_tokens: None,
-            api_key: None,
-        })
-        .collect::<Vec<_>>();
-
-    let rules = app
-        .model_routes_settings
-        .routes
-        .iter()
-        .filter_map(|route| {
-            let hint = route.pattern.trim();
-            if hint.is_empty() {
-                return None;
-            }
-            Some(ClassificationRule {
-                hint: hint.to_string(),
-                keywords: vec![hint.to_string()],
-                patterns: Vec::new(),
-                min_length: None,
-                max_length: None,
-                priority: route.priority_input.trim().parse::<i32>().unwrap_or(0),
-            })
-        })
-        .collect::<Vec<_>>();
-
+    let projection = desktop_settings_providers::model_routes::project_routes(&app.model_routes_settings.routes);
+    let rules = projection.rules;
     app.query_classification_settings.enabled = !rules.is_empty();
     app.query_classification_settings.rules = rules
         .iter()
@@ -88,14 +41,7 @@ fn queue_valid_routes(app: &mut App) -> Task<Message> {
     app.query_classification_settings.save_error = None;
 
     app.query_classification_settings.save_error_translation = None;
-    routing_persistence::enqueue(
-        app,
-        serde_json::json!({
-            "app_ui": {"system_settings": {"model_routes": ui_routes}},
-            "model_routes": model_routes,
-            "query_classification": {"enabled": !rules.is_empty(), "rules": rules}
-        }),
-    )
+    routing_persistence::enqueue(app, projection.patch)
 }
 
 fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
@@ -123,31 +69,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             match result {
                 Ok((routes, classification)) => {
-                    app.model_routes_settings.routes = routes
-                        .into_iter()
-                        .map(|route| ModelRoute {
-                            priority_input: classification
-                                .rules
-                                .iter()
-                                .find(|rule| rule.hint == route.hint)
-                                .map(|rule| rule.priority.to_string())
-                                .unwrap_or_else(|| "0".into()),
-                            pattern: route.hint,
-                            provider: route.provider,
-                            model: route.model,
-                        })
-                        .collect();
-                    app.model_routes_settings.save_error =
-                        if app.model_routes_settings.routes.is_empty()
-                            && !classification.rules.is_empty()
-                        {
-                            Some(Feedback::owned(
-                                "已检测到 query_classification 规则，但桌面模型路由列表为空",
-                                vec![],
-                            ))
-                        } else {
-                            None
-                        };
+                    let (routes, error) = desktop_settings_providers::model_routes::loaded_routes(routes, &classification);
+                    app.model_routes_settings.routes = routes;
+                    app.model_routes_settings.save_error = error;
                     app.query_classification_settings.enabled = classification.enabled;
                     app.query_classification_settings.rules = classification
                         .rules
@@ -166,33 +90,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             return Task::none();
         }
-        ModelRoutesMessage::AddRoute => {
-            app.model_routes_settings.routes.push(ModelRoute::default())
-        }
-        ModelRoutesMessage::RemoveRoute(index) => {
-            if index < app.model_routes_settings.routes.len() {
-                app.model_routes_settings.routes.remove(index);
-            }
-        }
-        ModelRoutesMessage::PatternChanged(index, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
-                route.pattern = value;
-            }
-        }
-        ModelRoutesMessage::ProviderChanged(index, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
-                route.provider = value;
-            }
-        }
-        ModelRoutesMessage::ModelChanged(index, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
-                route.model = value;
-            }
-        }
-        ModelRoutesMessage::PriorityChanged(index, value) => {
-            if let Some(route) = app.model_routes_settings.routes.get_mut(index) {
-                route.priority_input = value;
-            }
+        message => {
+            use desktop_settings_providers::view_message::ModelRoutesMessage as Local;
+            let message = match message {
+                ModelRoutesMessage::AddRoute => Local::AddRoute,
+                ModelRoutesMessage::RemoveRoute(index) => Local::RemoveRoute(index),
+                ModelRoutesMessage::PatternChanged(index, value) => Local::PatternChanged(index, value),
+                ModelRoutesMessage::ProviderChanged(index, value) => Local::ProviderChanged(index, value),
+                ModelRoutesMessage::ModelChanged(index, value) => Local::ModelChanged(index, value),
+                ModelRoutesMessage::PriorityChanged(index, value) => Local::PriorityChanged(index, value),
+                _ => unreachable!("persistence messages handled above"),
+            };
+            desktop_settings_providers::model_routes::edit_routes(&mut app.model_routes_settings.routes, message);
         }
     }
     app.model_routes_settings.persistence.edited();

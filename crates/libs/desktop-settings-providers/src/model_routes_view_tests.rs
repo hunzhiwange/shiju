@@ -2,16 +2,22 @@
 //! 空字段仍需保留全部编辑器，源码连线断言守住每个字段的消息目标。
 
 use super::*;
-use crate::app::App;
-use crate::app::state::ModelRoute;
+use crate::view_style::ViewStyle;
+use config_ui::DesktopLocale;
+use crate::state::ModelRoute;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 // 模型路由从空目录开始构造，使空态和卡片数量断言彼此独立。
-fn test_app() -> App {
-    App::new().0
+#[derive(Default)]
+struct Fixture { routes: Vec<ModelRoute>, theme: iced::Theme }
+fn test_app() -> Fixture { Fixture::default() }
+fn style(app: &Fixture) -> ViewStyle<'_> {
+    ViewStyle { locale: DesktopLocale::SimplifiedChinese, theme: &app.theme, help_text: |title, body, _, _| iced::widget::column![text(title), text(body)].into() }
 }
+fn view(app: &Fixture) -> Element<'_, Message> { super::view(&app.routes, style(app)) }
+
 
 fn element_tree(element: Element<'_, Message>) -> Tree {
     Tree::new(element.as_widget())
@@ -20,7 +26,7 @@ fn element_tree(element: Element<'_, Message>) -> Tree {
 #[test]
 fn field_row_builds_label_description_and_control_structure() {
     let app = test_app();
-    let tree = element_tree(field_row(&app, "模型", "命中后优先使用的模型。", text("gpt-5")));
+    let tree = element_tree(field_row(style(&app), "模型", "命中后优先使用的模型。", text("gpt-5")));
 
     assert_eq!(tree.children.len(), 2);
     assert_eq!(tree.children[0].children.len(), 2);
@@ -30,7 +36,7 @@ fn field_row_builds_label_description_and_control_structure() {
 #[test]
 fn view_empty_routes_adds_empty_panel_after_header_and_section() {
     let mut app = test_app();
-    app.model_routes_settings.routes.clear();
+    app.routes.clear();
 
     let tree = element_tree(view(&app));
 
@@ -42,7 +48,7 @@ fn view_empty_routes_adds_empty_panel_after_header_and_section() {
 #[test]
 fn view_route_cards_replace_empty_panel_and_render_four_fields_per_route() {
     let mut populated = test_app();
-    populated.model_routes_settings.routes = vec![
+    populated.routes = vec![
         ModelRoute {
             pattern: "reasoning".to_string(),
             provider: "openai".to_string(),
@@ -75,7 +81,7 @@ fn view_route_cards_replace_empty_panel_and_render_four_fields_per_route() {
 #[test]
 fn view_route_with_empty_values_keeps_all_editors_available() {
     let mut app = test_app();
-    app.model_routes_settings.routes = vec![ModelRoute {
+    app.routes = vec![ModelRoute {
         pattern: String::new(),
         provider: String::new(),
         model: String::new(),
@@ -91,7 +97,7 @@ fn view_route_with_empty_values_keeps_all_editors_available() {
 
 #[test]
 fn source_wires_each_editor_action_to_model_routes_message() {
-    let source = include_str!("system_settings_model_routes.rs");
+    let source = include_str!("model_routes_view.rs");
 
     assert!(source.contains("ModelRoutesMessage::AddRoute"));
     assert!(source.contains("ModelRoutesMessage::RemoveRoute(idx)"));

@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::App;
-use crate::app::state::{ModelDetailRow, ModelSummary, ProviderModelsSummary};
+use crate::app::state::{ModelSummary, ProviderModelsSummary};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use model_types::{
@@ -118,62 +118,12 @@ fn provider_summary() -> ProviderModelsSummary {
     }))
 }
 
-fn row_value<'a>(rows: &'a [ModelDetailRow], label: &str) -> &'a str {
-    rows.iter()
-        .find(|row| row.label == label)
-        .unwrap_or_else(|| panic!("missing detail row: {label}"))
-        .value
-        .as_str()
-}
-
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 
 
-#[test]
-fn models_refresh_clears_transient_state_and_success_replaces_providers() {
-    let mut app = app();
-    app.model_settings.save_error = Some(("stale".to_string()).into());
-    app.model_settings.providers = vec![provider_summary()];
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
-    );
 
-    let _ = update(&mut app, SettingsMessage::ModelsRefresh);
 
-    assert!(app.model_settings.loading);
-    assert!(app.model_settings.save_error.is_none());
-    assert!(app.model_settings.detail_modal.is_none());
-
-    let _ = update(&mut app, SettingsMessage::ModelsRefreshed(Ok(Vec::new())));
-    assert!(!app.model_settings.loading);
-    assert!(app.model_settings.providers.is_empty());
-    assert!(app.model_settings.detail_modal.is_none());
-}
-
-#[test]
-fn models_refresh_error_stops_loading_and_records_error() {
-    let mut app = app();
-    app.model_settings.loading = true;
-    app.model_settings.providers = vec![provider_summary()];
-
-    let _ = update(&mut app, SettingsMessage::ModelsRefreshed(Err("network".to_string().into())));
-
-    assert!(!app.model_settings.loading);
-    assert_eq!(app.model_settings.save_error.as_deref(), Some("network"));
-    assert_eq!(app.model_settings.providers.len(), 1);
-    assert!(app.model_settings.detail_modal.is_none());
-}
-
-#[test]
-fn model_query_changed_preserves_input_verbatim() {
-    let mut app = app();
-
-    let _ = update(&mut app, SettingsMessage::ModelQueryChanged("  GPT-5 / 图像  ".to_string()));
-
-    assert_eq!(app.model_settings.query, "  GPT-5 / 图像  ");
-}
 
 #[test]
 fn model_toggle_updates_locally_and_starts_save_without_reloading() {
@@ -280,17 +230,6 @@ fn provider_reset_optimistically_disables_only_selected_group() {
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }
 
-#[test]
-fn provider_model_groups_start_collapsed_and_toggle_independently() {
-    let mut app = app();
-    assert!(app.model_settings.expanded_provider_ids.is_empty());
-
-    let _ = update(&mut app, SettingsMessage::ProviderModelsExpansionToggled("openai".to_string()));
-    assert!(app.model_settings.expanded_provider_ids.contains("openai"));
-
-    let _ = update(&mut app, SettingsMessage::ProviderModelsExpansionToggled("openai".to_string()));
-    assert!(!app.model_settings.expanded_provider_ids.contains("openai"));
-}
 
 #[test]
 fn models_set_all_updates_every_connected_model_with_one_save() {
@@ -372,132 +311,10 @@ fn model_status_save_success_keeps_optimistic_state() {
     assert!(app.model_settings.save_error.is_none());
 }
 
-#[test]
-fn model_detail_open_reports_missing_provider_and_missing_model() {
-    let mut app = app();
-    app.model_settings.providers = vec![provider_summary()];
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("missing".to_string(), "gpt-5".to_string()),
-    );
-    assert_eq!(app.model_settings.save_error.as_deref(), Some("未找到提供商"));
-    assert!(app.model_settings.detail_modal.is_none());
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("openai".to_string(), "missing".to_string()),
-    );
-    assert_eq!(app.model_settings.save_error.as_deref(), Some("未找到模型"));
-    assert!(app.model_settings.detail_modal.is_none());
-}
 
-#[test]
-fn model_detail_open_maps_complete_detail_into_human_readable_rows() {
-    let mut app = app();
-    app.model_settings.providers = vec![provider_summary()];
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
-    );
-
-    let modal = app.model_settings.detail_modal.as_ref().expect("detail modal");
-    assert_eq!(modal.provider_id, "openai");
-    assert_eq!(modal.provider_name, "OpenAI");
-    assert_eq!(modal.model_id, "gpt-5");
-    assert_eq!(modal.model_name, "GPT-5");
-    assert_eq!(row_value(&modal.rows, "状态 (status)"), "active");
-    assert_eq!(row_value(&modal.rows, "API Base URL (api.url)"), "https://api.example.com");
-    assert_eq!(row_value(&modal.rows, "输入限制 (limit.input)"), "100000");
-    assert_eq!(row_value(&modal.rows, "支持推理 (capabilities.reasoning)"), "支持");
-    assert_eq!(row_value(&modal.rows, "输入模态 (capabilities.input.*)"), "image, pdf, text");
-    assert_eq!(row_value(&modal.rows, "输出模态 (capabilities.output.*)"), "text");
-    assert_eq!(row_value(&modal.rows, "混合输入 (capabilities.interleaved)"), "field: content");
-    assert_eq!(row_value(&modal.rows, "缓存写 (cost.cache.write)"), "0.75");
-    assert_eq!(row_value(&modal.rows, "请求头数量 (headers)"), "1");
-    assert_eq!(row_value(&modal.rows, "自定义选项数量 (options)"), "1");
-    assert_eq!(row_value(&modal.rows, "变体数量 (variants)"), "1");
-    assert!(modal.raw_json.contains("\"gpt-5\""));
-    assert!(!modal.show_raw);
-}
-
-#[test]
-fn model_detail_open_uses_defaults_for_missing_or_wrong_typed_values() {
-    let mut app = app();
-    app.model_settings.providers = vec![provider_summary_with_detail(json!({
-        "status": 7,
-        "api": "invalid",
-        "limit": { "context": "large", "output": null },
-        "capabilities": {
-            "toolcall": "yes",
-            "input": ["text"],
-            "output": {},
-            "interleaved": { "unexpected": true }
-        },
-        "cost": null,
-        "headers": [],
-        "options": null,
-        "variants": "none"
-    }))];
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
-    );
-
-    let rows = &app.model_settings.detail_modal.as_ref().expect("detail modal").rows;
-    assert_eq!(row_value(rows, "状态 (status)"), "");
-    assert_eq!(row_value(rows, "API Base URL (api.url)"), "");
-    assert_eq!(row_value(rows, "上下文限制 (limit.context)"), "0");
-    assert_eq!(row_value(rows, "输入限制 (limit.input)"), "-");
-    assert_eq!(row_value(rows, "支持工具调用 (capabilities.toolcall)"), "不支持");
-    assert_eq!(row_value(rows, "输入模态 (capabilities.input.*)"), "无");
-    assert_eq!(row_value(rows, "输出模态 (capabilities.output.*)"), "无");
-    assert_eq!(row_value(rows, "输入价格 (cost.input)"), "0");
-    assert_eq!(row_value(rows, "请求头数量 (headers)"), "0");
-    assert!(!rows.iter().any(|row| row.label == "混合输入 (capabilities.interleaved)"));
-}
-
-#[test]
-fn model_detail_open_renders_boolean_interleaved_capability() {
-    let mut app = app();
-    app.model_settings.providers = vec![provider_summary_with_detail(json!({
-        "capabilities": { "interleaved": false }
-    }))];
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
-    );
-
-    let rows = &app.model_settings.detail_modal.as_ref().expect("detail modal").rows;
-    assert_eq!(row_value(rows, "混合输入 (capabilities.interleaved)"), "false");
-}
-
-// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
-// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
-#[test]
-fn model_detail_toggle_is_safe_without_modal_and_reversible_with_modal() {
-    let mut app = app();
-
-    let _ = update(&mut app, SettingsMessage::ModelDetailToggleRaw);
-    assert!(app.model_settings.detail_modal.is_none());
-
-    app.model_settings.providers = vec![provider_summary()];
-    let _ = update(
-        &mut app,
-        SettingsMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
-    );
-    let _ = update(&mut app, SettingsMessage::ModelDetailToggleRaw);
-    assert!(app.model_settings.detail_modal.as_ref().expect("detail modal").show_raw);
-
-    let _ = update(&mut app, SettingsMessage::ModelDetailToggleRaw);
-    assert!(!app.model_settings.detail_modal.as_ref().expect("detail modal").show_raw);
-
-    let _ = update(&mut app, SettingsMessage::ModelDetailClose);
-    assert!(app.model_settings.detail_modal.is_none());
-}
 
 #[test]
 fn provider_changes_update_available_models_without_opening_model_settings() {

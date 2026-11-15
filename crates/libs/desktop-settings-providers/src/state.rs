@@ -120,3 +120,60 @@ pub struct ModelRoute {
     /// 优先级输入。
     pub priority_input: String,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CustomProviderModelTab {
+    #[default]
+    Info,
+    Limits,
+    Capabilities,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ModelCapabilityDefaults {
+    pub reasoning: bool,
+    pub tool_call: bool,
+    pub temperature: bool,
+    pub attachment: bool,
+    pub interleaved: bool,
+    pub input_modalities: Vec<String>,
+    pub output_modalities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CustomProviderModelModalState {
+    /// 当前选中的模型配置 Tab。
+    pub active_tab: CustomProviderModelTab,
+    /// 正在编辑的模型索引（None 表示新增）
+    pub edit_index: Option<usize>,
+    /// 模型标识符输入
+    pub model_id: String,
+    /// 模型显示名称输入
+    pub display_name: String,
+    /// 模型家族输入
+    pub family: String,
+    /// 上下文限制输入文本
+    pub context_limit: String,
+    /// 最大输入限制输入文本
+    pub input_limit: String,
+    /// 最大输出限制输入文本
+    pub output_limit: String,
+    /// 显式推理能力覆盖
+    pub reasoning: Option<bool>,
+    /// 显式工具调用能力覆盖
+    pub tool_call: Option<bool>,
+    /// 显式温度能力覆盖
+    pub temperature: Option<bool>,
+    /// 显式附件能力覆盖
+    pub attachment: Option<bool>,
+    /// 显式交错输入输出能力覆盖
+    pub interleaved: Option<bool>,
+    /// 显式输入模态覆盖
+    pub input_modalities: Option<Vec<String>>,
+    /// 显式输出模态覆盖
+    pub output_modalities: Option<Vec<String>>,
+    /// 模型目录提供的能力默认值，不直接写入用户配置。
+    pub inherited_capabilities: Option<ModelCapabilityDefaults>,
+    /// 编辑时原始模型 ID
+    pub original_model_id: Option<String>,
+}

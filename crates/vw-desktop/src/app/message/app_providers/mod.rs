@@ -32,8 +32,6 @@ pub(crate) mod endpoints;
 pub(crate) mod icons;
 
 pub(crate) mod universal;
-#[cfg(test)]
-mod universal_tests;
 
 pub(crate) mod snippets;
 

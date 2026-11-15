@@ -42,6 +42,7 @@ pub fn membership_changed(app: &mut App, current: Option<(GatewayClient, Scope)>
 }
 pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
     match effect {
+        Effect::Universal(event) => super::universal::update(app, event),
         Effect::List(event) => list(app,event),
         Effect::McodeMemberChanged {scope,generation,add,result} => super::mcode::membership_changed(app,scope,generation,add,result),
         Effect::OmpMemberChanged {scope,generation,add,result} => super::omp::membership_changed(app,scope,generation,add,result),

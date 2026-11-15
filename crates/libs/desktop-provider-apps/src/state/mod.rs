@@ -29,3 +29,6 @@ pub mod snippets;
 pub mod universal;
 
 pub mod list;
+
+#[cfg(test)]
+mod list_tests;

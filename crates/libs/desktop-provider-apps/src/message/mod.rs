@@ -96,3 +96,7 @@ mod paths_tests;
 
 #[cfg(test)]
 mod snippets_tests;
+
+pub mod universal;
+#[cfg(test)]
+mod universal_tests;

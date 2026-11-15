@@ -2,9 +2,6 @@ use crate::app::state::app_providers::list::{Scope, Snapshot};
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 use desktop_provider_apps::message::list::load;
-#[cfg(test)]
-#[path = "list_tests.rs"]
-mod tests;
 
 
 use crate::app::{App, Message, message::SettingsMessage};
@@ -231,6 +228,8 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
             {
                 return Task::none();
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            app.app_providers.usage.clear();
             let generation = app.app_providers.begin(scope.clone());
             let token = app.apps_catalog.token.clone();
             return Task::perform(load(client, scope.clone(), token), move |result| {

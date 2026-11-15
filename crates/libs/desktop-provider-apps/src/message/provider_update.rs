@@ -25,6 +25,7 @@ pub enum Effect {
  OpenFolder {client:GatewayClient,scope:Scope,token:String,path:String},
  Desktop(super::desktop::Event),
  Endpoints(super::endpoints::Event), Env(super::env::Event), Icons(super::icons::Event),
+ Universal(super::universal::Event),
  List(super::list::Event),
  None, OpenList(vw_api_app_identity::AppId),
  HermesMemberChanged {scope:Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_extended::hermes::HermesLiveResult,String>},

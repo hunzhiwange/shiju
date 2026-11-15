@@ -1,8 +1,5 @@
 use super::universal::{Outcome, finish, project};
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{list::Scope, universal::Form},
-};
+use crate::{AgentAppsContext, Scope, state::universal::Form};
 use std::io::{BufRead, BufReader, Read, Write};
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;

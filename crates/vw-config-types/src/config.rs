@@ -11,6 +11,7 @@
 //! - 提供少量配置兼容与归一化辅助函数
 //! - 为 JSON Schema 导出提供统一根结构
 
+use config_provider::{ModelProviderConfig, ProviderApiMode, ProviderConfig};
 use directories::UserDirs;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,7 +28,6 @@ use crate::hooks::HooksConfig;
 use crate::memory::{MemoryConfig, StorageConfig};
 use crate::observability::ObservabilityConfig;
 use crate::plugins::PluginsConfig;
-use crate::provider::{ModelProviderConfig, ProviderApiMode, ProviderConfig};
 use crate::proxy::ProxyConfig;
 use crate::reliability::ReliabilityConfig;
 use crate::routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassificationConfig};

@@ -47,7 +47,7 @@ use std::path::PathBuf;
 /// 超过此长度的错误消息将被截断，以避免日志过大或内存占用过高。
 const MAX_API_ERROR_CHARS: usize = 4096;
 
-pub use vw_config_types::provider::CompatibleApiMode;
+pub use config_provider::CompatibleApiMode;
 
 /// Provider 运行时配置选项
 ///

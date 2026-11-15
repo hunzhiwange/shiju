@@ -96,7 +96,7 @@ fn provider_runtime_options_preserve_config_fields() {
     config.config_path = PathBuf::from("/tmp/vw-start-test/config/vibewindow.json");
     config.secrets.encrypt = false;
     config.runtime.reasoning_enabled = Some(true);
-    config.provider_api = Some(vw_config_types::provider::ProviderApiMode::OpenAiResponses);
+    config.provider_api = Some(config_provider::ProviderApiMode::OpenAiResponses);
     config.model_support_vision = Some(true);
 
     let options = build_provider_runtime_options(&config);
@@ -109,7 +109,7 @@ fn provider_runtime_options_preserve_config_fields() {
     assert_eq!(options.reasoning_enabled, Some(true));
     assert_eq!(
         options.custom_provider_api_mode,
-        Some(vw_config_types::provider::CompatibleApiMode::OpenAiResponses)
+        Some(config_provider::CompatibleApiMode::OpenAiResponses)
     );
     assert_eq!(options.model_support_vision, Some(true));
     assert!(options.auth_profile_override.is_none());

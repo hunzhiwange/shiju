@@ -27,3 +27,15 @@ vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["rt-multi-thread", "io-util"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(windows)))'.dependencies]
+open = "5"
+
+[target.'cfg(windows)'.dependencies]
+open = { version = "5", features = ["shellexecute-on-windows"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+dispatch2 = "0.3"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSWindow", "NSView"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }

@@ -7,3 +7,6 @@ pub mod mcp_app_bridge;
 pub mod mcp_app_download;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod webview_runtime;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mcp_app_panel;

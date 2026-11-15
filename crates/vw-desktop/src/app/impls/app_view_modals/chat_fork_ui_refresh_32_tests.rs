@@ -6,7 +6,7 @@ use crate::app::i18n::I18n;
 use crate::app::impls::app_view_modals::{
     with_chat_reset_dialog, with_file_tree_delete_confirm, with_session_rename,
 };
-use crate::app::message::{ChatMessage, ProjectMessage, chat::ForkSessionAnchor};
+use crate::app::message::{ChatMessage, ProjectMessage};
 use crate::app::models::{ChatMessage as TranscriptMessage, ChatRole};
 use iced::advanced::{
     Layout, clipboard, layout,
@@ -273,7 +273,7 @@ fn prepare_chat(app: &mut App) {
         .collect();
     app.chat_message_ids =
         vec![Some("first-turn".into()), Some("tool-row".into()), Some("second-turn".into())];
-    let anchor = ForkSessionAnchor::from_user_row(app, 2);
+    let anchor = crate::app::message::chat::fork_session_anchor_from_user_row(app, 2);
     let _ = crate::app::message::chat::update(app, ChatMessage::OpenForkSessionDialog(anchor));
     app.chat_reset_menu_idx = Some(1);
 }

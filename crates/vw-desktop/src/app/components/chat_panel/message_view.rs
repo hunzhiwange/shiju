@@ -491,7 +491,7 @@ pub(crate) fn message_view_with_runtime<'a>(
 
     let fork_press = Message::Chat(message::ChatMessage::OpenForkSessionDialog(
         can_branch_or_reset
-            .then(|| message::chat::ForkSessionAnchor::from_user_row(app, idx))
+            .then(|| crate::app::message::chat::fork_session_anchor_from_user_row(app, idx))
             .flatten(),
     ));
     let reset_press = Message::Chat(message::ChatMessage::ToggleResetMenu(idx));

@@ -203,7 +203,7 @@ impl App {
 
     /// 会话切换不保留短暂交互，避免热恢复到已打开的菜单或悬浮状态。
     pub(crate) fn close_session_transient_ui(&mut self) {
-        self.show_recommended_prompt_menu = false;
+        self.input_popovers.recommended_prompt = false;
         self.chat_think_hovered_idx = None;
         self.chat_tool_file_hovered = None;
         self.chat_tool_hovered_idx = None;
@@ -213,7 +213,7 @@ impl App {
         self.chat_context_menu.text.clear();
         self.chat_reset_menu_idx = None;
         self.chat_fork_dialog = None;
-        self.show_agent_sessions_popover = false;
+        self.input_popovers.agent_sessions = false;
         self.show_session_tool_selector_popover = false;
         self.show_session_actions_popover = false;
     }

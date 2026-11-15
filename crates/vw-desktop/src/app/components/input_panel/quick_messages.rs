@@ -212,8 +212,8 @@ fn group_menu<'a>(
     group: QuickMessageGroup,
     indices: &[usize],
 ) -> Element<'a, Message> {
-    let active = app.quick_message_open_group == Some(group);
-    let next_group = toggled_group(app.quick_message_open_group, group);
+    let active = app.input_popovers.quick_message_group == Some(group);
+    let next_group = toggled_group(app.input_popovers.quick_message_group, group);
     let trigger = button(
         row![
             text(group.label()).size(12),
@@ -300,7 +300,7 @@ fn recommendations_menu_view<'a>(app: &'a App, indices: &[usize]) -> Element<'a,
 }
 
 fn recommendations_menu<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
-    let active = app.show_recommended_prompt_menu;
+    let active = app.input_popovers.recommended_prompt;
     let trigger = button(
         row![
             text("推荐会话").size(12),
@@ -648,7 +648,7 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu(app: &App) -> Element<'_, Message> {
-    let active = app.show_shiju_skill_menu;
+    let active = app.input_popovers.shiju_skill;
     let mut trigger_content = row![text(shiju_trigger_label(&app.expert_hub.installed)).size(12)]
         .spacing(5)
         .align_y(iced::Alignment::Center);

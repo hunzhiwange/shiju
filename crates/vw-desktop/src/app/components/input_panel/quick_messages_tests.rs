@@ -233,7 +233,7 @@ fn quick_message_strip_renders_both_groups_with_original_button_indices() {
     assert_eq!(tree.children.len(), 3);
     drop(element);
 
-    app.quick_message_open_group = Some(QuickMessageGroup::Git);
+    app.input_popovers.quick_message_group = Some(QuickMessageGroup::Git);
     assert!(view(&app).is_some());
 }
 
@@ -245,7 +245,7 @@ fn quick_message_strip_hides_git_actions_for_non_git_projects() {
         config("通用", QuickMessageGroup::General, QuickMessageKind::Message),
     ];
     app.project_is_git_repo = false;
-    app.quick_message_open_group = Some(QuickMessageGroup::Git);
+    app.input_popovers.quick_message_group = Some(QuickMessageGroup::Git);
 
     for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
         app.workspace_mode = mode;
@@ -700,7 +700,7 @@ async fn session_entry_recommendations_click_select_and_close() {
             matches!(message, message::ChatMessage::RecommendedPromptMenuChanged(value) if value == open)
         );
         let _ = message::chat::update(&mut app, message);
-        assert_eq!(app.show_recommended_prompt_menu, open);
+        assert_eq!(app.input_popovers.recommended_prompt, open);
     }
     // Place the trigger at the bottom, as in the chat input strip.
     let mut element = recommendations_menu(&app, &recommended_indices(&app));
@@ -744,10 +744,10 @@ async fn session_entry_recommendations_click_select_and_close() {
     let Message::Chat(message) = messages.remove(0) else { panic!("expected selection") };
     let _ = message::chat::update(&mut app, message);
     assert_eq!(app.current_session_runtime().input_editor.text(), "点击后只填入草稿");
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
     assert!(!app.current_session_runtime().is_requesting);
 
-    app.show_recommended_prompt_menu = true;
+    app.input_popovers.recommended_prompt = true;
     let mut element = recommendations_menu(&app, &recommended_indices(&app));
     let mut tree = Tree::new(element.as_widget());
     let node = element

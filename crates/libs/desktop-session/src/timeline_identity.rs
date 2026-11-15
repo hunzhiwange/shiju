@@ -17,3 +17,11 @@ impl ChatEntryRevision {
         Self(self.0.saturating_add(1))
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChatEntryTarget {
+    pub session_id: String,
+    pub generation: u64,
+    pub key: ChatEntryKey,
+    pub revision: ChatEntryRevision,
+}

@@ -17,7 +17,7 @@ pub(crate) fn with_chat_fork_dialog<'a>(
     app: &App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some(dialog) = app.chat_fork_dialog.as_ref().filter(|dialog| dialog.anchor.is_current(app))
+    let Some(dialog) = app.chat_fork_dialog.as_ref().filter(|dialog| crate::app::message::chat::fork_session_anchor_is_current(&dialog.anchor, app))
     else {
         return root_content;
     };

@@ -78,9 +78,6 @@ mod tool_selector_tests;
 #[cfg(test)]
 #[path = "tool_text_support_tests.rs"]
 mod tool_text_support_tests;
-#[cfg(test)]
-#[path = "virtualizer_tests.rs"]
-mod virtualizer_tests;
 
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};

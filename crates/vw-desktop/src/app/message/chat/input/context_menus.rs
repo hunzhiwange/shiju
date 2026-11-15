@@ -172,7 +172,7 @@ pub(super) fn handle_open_fork_session_dialog(
         return Task::none();
     }
     app.chat_reset_menu_idx = None;
-    app.chat_fork_dialog = anchor.filter(|anchor| anchor.is_current(app)).and_then(|anchor| {
+    app.chat_fork_dialog = anchor.filter(|anchor| crate::app::message::chat::fork_session_anchor_is_current(&anchor, app)).and_then(|anchor| {
         let index = app
             .chat_message_ids
             .iter()
@@ -196,21 +196,16 @@ pub(super) fn handle_open_fork_session_dialog(
 /// 模块内可见函数，执行 handle_close_fork_session_dialog 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_close_fork_session_dialog(app: &mut App) -> Task<Message> {
-    if !app.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
-        app.chat_fork_dialog = None;
-    }
+    desktop_session::message::chat::fork::close_fork_dialog(&mut app.chat_fork_dialog);
     Task::none()
 }
 
 /// 模块内可见函数，执行 handle_toggle_reset_menu 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_toggle_reset_menu(app: &mut App, msg_idx: usize) -> Task<Message> {
-    if app.chat_fork_dialog.as_ref().is_some_and(|dialog| dialog.in_progress) {
-        return Task::none();
-    }
-    app.chat_fork_dialog = None;
-    app.chat_reset_menu_idx =
-        if app.chat_reset_menu_idx == Some(msg_idx) { None } else { Some(msg_idx) };
+    desktop_session::message::chat::fork::toggle_reset_menu(
+        &mut app.chat_fork_dialog, &mut app.chat_reset_menu_idx, msg_idx,
+    );
     Task::none()
 }
 

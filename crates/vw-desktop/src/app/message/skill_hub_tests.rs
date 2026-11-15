@@ -135,7 +135,7 @@ fn private_shiju_tabs_dispatch_gateway_requests() {
 fn account_restore_loads_function_updates_before_opening_shiju_menu() {
     let (mut app, _) = App::new();
     app.account.replace_repository(repository_with_account("account-secret", "company-1"));
-    assert!(!app.show_shiju_skill_menu);
+    assert!(!app.input_popovers.shiju_skill);
     let task = super::skill_hub::account_changed(&mut app);
     assert!(task.units() >= 2, "main version and function updates should both load");
     assert!(matches!(app.expert_hub.installed, LoadState::Loading { .. }));

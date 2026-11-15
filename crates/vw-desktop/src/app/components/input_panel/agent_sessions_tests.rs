@@ -135,7 +135,7 @@ fn agent_sessions_popover_hides_without_running_children_and_counts_visible_item
 #[test]
 fn agent_sessions_popover_lists_running_children() {
     let mut app = crate::app::App::new().0;
-    app.show_agent_sessions_popover = true;
+    app.input_popovers.agent_sessions = true;
     let children = vec![
         child("child-writer", "writer", "实现输入面板工作中徽标", "增加入口并连接真实会话"),
         child(
@@ -543,7 +543,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         &mut app,
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
-    assert!(app.show_agent_sessions_popover);
+    assert!(app.input_popovers.agent_sessions);
     assert_eq!(app.active_session_id.as_deref(), Some(PARENT_ID));
 
     release_success_tx.send(()).expect("release successful child executor");
@@ -580,7 +580,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         &mut app,
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
-    assert!(app.show_agent_sessions_popover);
+    assert!(app.input_popovers.agent_sessions);
 
     let failed_delta = delta_rx.recv().await.expect("failed terminal event");
     let _ = crate::app::message::chat::update(
@@ -593,7 +593,7 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert!(running_agent_sessions(&app).is_empty());
-    assert!(!app.show_agent_sessions_popover);
+    assert!(!app.input_popovers.agent_sessions);
     producer.await.expect("AgentTool event producer should finish");
 }
 
@@ -628,7 +628,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
         &mut app,
         message::ChatMessage::ToggleAgentSessionsPopover,
     );
-    assert!(app.show_agent_sessions_popover);
+    assert!(app.input_popovers.agent_sessions);
 
     let mixed_output = serde_json::json!({
         "action": "wait",
@@ -667,7 +667,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
     assert_eq!(children.len(), 1);
     assert_eq!(children[0].session_id, "child-2");
     assert_eq!(children[0].status, AgentChildSessionStatus::Waiting);
-    assert!(app.show_agent_sessions_popover);
+    assert!(app.input_popovers.agent_sessions);
 
     let terminal_output = serde_json::json!({
         "action": "wait",
@@ -694,7 +694,7 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
         message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert!(running_agent_sessions(&app).is_empty());
-    assert!(!app.show_agent_sessions_popover);
+    assert!(!app.input_popovers.agent_sessions);
 }
 
 #[test]
@@ -768,7 +768,7 @@ fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
         .insert("/workspace".into(), vec![session("parent", None, "Parent", "/workspace")]);
     drop(crate::app::views::project::view(&app));
     let sidebar = app.session_ui_projection.sidebar.borrow().as_ref().unwrap().clone();
-    app.show_agent_sessions_popover = true;
+    app.input_popovers.agent_sessions = true;
     let snapshot = cached_running_agent_sessions(&app);
     assert_eq!(snapshot.len(), 1);
     let before = app.chat.last().unwrap().content.clone();

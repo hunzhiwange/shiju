@@ -1255,7 +1255,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::AgentRecommendedPromptSelected(index) => {
-            app.show_recommended_prompt_menu = false;
+            app.input_popovers.recommended_prompt = false;
             let runtime = app.current_session_runtime();
             if !runtime.input_editor.text().is_empty() {
                 return app.show_localized_toast(
@@ -1280,7 +1280,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::SessionAgentSelected(agent) => {
-            app.show_recommended_prompt_menu = false;
+            app.input_popovers.recommended_prompt = false;
             if app.current_session_has_started() {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
@@ -1679,7 +1679,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             message::after(Duration::from_millis(200), Message::Chat(ChatMessage::SubmitTick))
         }
         ChatMessage::ForkSessionAt { anchor, target } => {
-            if !anchor.is_current(app) {
+            if !crate::app::message::chat::fork_session_anchor_is_current(&anchor, app) {
                 return Task::none();
             }
             let Some(dialog) = app
@@ -1747,7 +1747,7 @@ use vw_api_session::{
             else {
                 return Task::none();
             };
-            if !anchor.is_current(app) {
+            if !crate::app::message::chat::fork_session_anchor_is_current(&anchor, app) {
                 return Task::none();
             }
             use crate::app::state::ToastKind;

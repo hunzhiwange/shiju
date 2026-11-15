@@ -5,13 +5,7 @@ use std::collections::HashSet;
 
 pub(crate) use desktop_session::timeline_identity::{ChatEntryKey, ChatEntryRevision};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ChatEntryTarget {
-    pub(crate) session_id: String,
-    pub(crate) generation: u64,
-    pub(crate) key: ChatEntryKey,
-    pub(crate) revision: ChatEntryRevision,
-}
+pub(crate) use desktop_session::timeline_identity::ChatEntryTarget;
 
 /// One loaded timeline row and its absolute persisted sequence, when available.
 #[derive(Debug, Clone, PartialEq, Eq)]

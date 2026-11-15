@@ -872,7 +872,7 @@ fn child_session_navigation_project_route_checks_persisted_source() {
         let mut app = app();
         let path = "/tmp/known-project";
         app.project_path = Some(path.into());
-        app.show_recommended_prompt_menu = true;
+        app.input_popovers.recommended_prompt = true;
         app.active_session_id = Some("parent".into());
         let mut target = session_info("target", 0, 0);
         target.parent_id = Some("nested-parent".into());
@@ -890,7 +890,7 @@ fn child_session_navigation_project_route_checks_persisted_source() {
             Some(if opens { "target" } else { "parent" }),
             "{source}"
         );
-        assert_eq!(app.show_recommended_prompt_menu, !opens);
+        assert_eq!(app.input_popovers.recommended_prompt, !opens);
         assert!(app.get_session_runtime("target").workflow_mode_enabled);
     }
 }

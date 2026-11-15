@@ -124,11 +124,11 @@ fn agent_sessions_popover_toggle_requires_running_children_and_closes_when_list_
     app.active_session_id = Some("parent".to_string());
 
     let _ = super::update(&mut app, ChatMessage::ToggleAgentSessionsPopover);
-    assert!(!app.show_agent_sessions_popover);
+    assert!(!app.input_popovers.agent_sessions);
 
     app.chat.push(running_child("parent", "child"));
     let _ = super::update(&mut app, ChatMessage::ToggleAgentSessionsPopover);
-    assert!(app.show_agent_sessions_popover);
+    assert!(app.input_popovers.agent_sessions);
 
     app.chat.push(chat_entry(
         ChatRole::Assistant,
@@ -136,7 +136,7 @@ fn agent_sessions_popover_toggle_requires_running_children_and_closes_when_list_
 {"status":"completed","output":"{\"session_id\":\"child\",\"agent\":\"writer\",\"task\":\"build badge\"}"}"#,
     ));
     let _ = super::update(&mut app, ChatMessage::InputChanged(String::new()));
-    assert!(!app.show_agent_sessions_popover);
+    assert!(!app.input_popovers.agent_sessions);
 }
 
 #[test]
@@ -146,11 +146,11 @@ fn agent_sessions_popover_closes_when_parent_session_changes() {
     app.chat.push(running_child("parent", "child"));
 
     let _ = super::update(&mut app, ChatMessage::ToggleAgentSessionsPopover);
-    assert!(app.show_agent_sessions_popover);
+    assert!(app.input_popovers.agent_sessions);
 
     app.active_session_id = Some("other-parent".to_string());
     let _ = super::update(&mut app, ChatMessage::InputChanged(String::new()));
-    assert!(!app.show_agent_sessions_popover);
+    assert!(!app.input_popovers.agent_sessions);
 }
 
 #[test]
@@ -236,9 +236,9 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
         fork_execution_started: None,
         revert: None,
     });
-    app.quick_message_open_group = Some(config_ui::QuickMessageGroup::Git);
+    app.input_popovers.quick_message_group = Some(config_ui::QuickMessageGroup::Git);
     let create_task = super::update(&mut app, ChatMessage::QuickMessageSelected(2));
-    assert_eq!(app.quick_message_open_group, None);
+    assert_eq!(app.input_popovers.quick_message_group, None);
     assert!(matches!(
         collect_task_messages(create_task).await.as_slice(),
         [Message::Project(message::ProjectMessage::ProjectCreateSession(path))]
@@ -351,10 +351,10 @@ fn quick_message_group_click_opens_and_closes_dropdown_state() {
         &mut app,
         ChatMessage::QuickMessageGroupChanged(Some(config_ui::QuickMessageGroup::Git)),
     );
-    assert_eq!(app.quick_message_open_group, Some(config_ui::QuickMessageGroup::Git));
+    assert_eq!(app.input_popovers.quick_message_group, Some(config_ui::QuickMessageGroup::Git));
 
     let _ = super::update(&mut app, ChatMessage::QuickMessageGroupChanged(None));
-    assert_eq!(app.quick_message_open_group, None);
+    assert_eq!(app.input_popovers.quick_message_group, None);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -382,11 +382,11 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
             upgrade_available: false,
         },
     ]);
-    app.quick_message_open_group = Some(config_ui::QuickMessageGroup::Git);
+    app.input_popovers.quick_message_group = Some(config_ui::QuickMessageGroup::Git);
 
     let load_task = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
-    assert!(app.show_shiju_skill_menu);
-    assert_eq!(app.quick_message_open_group, None);
+    assert!(app.input_popovers.shiju_skill);
+    assert_eq!(app.input_popovers.quick_message_group, None);
     let messages = collect_task_messages(load_task).await;
     assert_eq!(messages.len(), 2);
     assert!(messages.iter().any(|message| matches!(
@@ -400,7 +400,7 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(999));
     assert!(app.current_session_runtime().tool_selector.selected_shiju_skills().is_empty());
-    assert!(app.show_shiju_skill_menu);
+    assert!(app.input_popovers.shiju_skill);
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(42));
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(43));
@@ -408,13 +408,13 @@ async fn shiju_skill_selection_validates_catalog_and_toggles_multiple_items() {
     assert_eq!(selected.len(), 2);
     assert_eq!(selected[0].slug(), "document-review");
     assert_eq!(selected[1].slug(), "meeting-notes");
-    assert!(app.show_shiju_skill_menu);
+    assert!(app.input_popovers.shiju_skill);
 
     let _ = super::update(&mut app, ChatMessage::SelectShijuSkill(42));
     let selected = app.current_session_runtime().tool_selector.selected_shiju_skills();
     assert_eq!(selected.len(), 1);
     assert_eq!(selected[0].skill_id(), 43);
-    assert!(app.show_shiju_skill_menu);
+    assert!(app.input_popovers.shiju_skill);
 }
 
 #[test]
@@ -1008,23 +1008,23 @@ fn upward_scroll_near_tail_cancels_stream_follow_and_pending_followups() {
 fn session_entry_recommendations_close_for_other_input_menus() {
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
-    assert!(app.show_recommended_prompt_menu);
+    assert!(app.input_popovers.recommended_prompt);
     let _ = super::update(
         &mut app,
         ChatMessage::QuickMessageGroupChanged(Some(config_ui::QuickMessageGroup::Git)),
     );
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
-    assert!(app.quick_message_open_group.is_none());
+    assert!(app.input_popovers.quick_message_group.is_none());
     let _ = super::update(&mut app, ChatMessage::ToggleShijuSkillMenu);
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
-    assert!(!app.show_shiju_skill_menu);
+    assert!(!app.input_popovers.shiju_skill);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(false));
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
     let _ = super::update(&mut app, ChatMessage::RecommendedPromptMenuChanged(true));
     let _ = super::update(&mut app, ChatMessage::SessionAgentSelected(None));
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
 }
 
 #[test]

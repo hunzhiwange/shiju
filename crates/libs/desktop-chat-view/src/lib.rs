@@ -14,3 +14,13 @@ mod global_status_tests;
 #[cfg(test)]
 mod tool_presentation_tests;
 pub mod render_cache;
+pub mod height_index;
+pub mod virtualizer;
+pub mod message_measure;
+#[cfg(test)]
+mod height_index_tests;
+#[cfg(test)]
+mod virtualizer_tests;
+#[cfg(test)]
+mod message_measure_tests;
+pub mod scroll_update;

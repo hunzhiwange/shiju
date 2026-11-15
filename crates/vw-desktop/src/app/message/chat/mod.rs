@@ -161,14 +161,7 @@ fn think_block_key(msg_idx: usize, think_idx: usize) -> u64 {
     ((msg_idx as u64) << 32) | (think_idx as u64)
 }
 
-#[derive(Debug, Clone)]
-pub enum ClipboardPastePayload {
-    Text(String),
-    AttachmentPath(String),
-    Empty,
-    Error(String),
-    LocalizedError { source: &'static str, arguments: Vec<crate::app::i18n::format::Argument> },
-}
+pub use desktop_session::message::chat::input::clipboard::ClipboardPastePayload;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForkSessionTarget {
@@ -176,46 +169,32 @@ pub enum ForkSessionTarget {
     NewWorktree,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ForkSessionAnchor {
-    pub(crate) session_id: String,
-    pub(crate) directory: String,
-    pub(crate) user_message_id: String,
-    pub(crate) open_generation: u64,
+pub use desktop_session::message::chat::fork::{ForkSessionAnchor, ForkSessionDialog};
+
+pub(crate) fn fork_session_anchor_from_user_row(app: &App, index: usize) -> Option<ForkSessionAnchor> {
+    if app.chat.get(index)?.role != models::ChatRole::User
+        || app.chat_message_ids.len() != app.chat.len()
+    {
+        return None;
+    }
+    let session_id = app.active_session_id.as_ref()?;
+    let directory = app.known_session_directory(session_id)?;
+    let user_message_id = app.chat_message_ids.get(index)?.as_ref()?;
+    if directory.trim().is_empty() || user_message_id.trim().is_empty() {
+        return None;
+    }
+    Some(ForkSessionAnchor {
+        session_id: session_id.clone(),
+        directory,
+        user_message_id: user_message_id.clone(),
+        open_generation: app.session_view_cache.open_generation(),
+    })
 }
 
-impl ForkSessionAnchor {
-    pub(crate) fn from_user_row(app: &App, index: usize) -> Option<Self> {
-        if app.chat.get(index)?.role != models::ChatRole::User
-            || app.chat_message_ids.len() != app.chat.len()
-        {
-            return None;
-        }
-        let session_id = app.active_session_id.as_ref()?;
-        let directory = app.known_session_directory(session_id)?;
-        let user_message_id = app.chat_message_ids.get(index)?.as_ref()?;
-        if directory.trim().is_empty() || user_message_id.trim().is_empty() {
-            return None;
-        }
-        Some(Self {
-            session_id: session_id.clone(),
-            directory,
-            user_message_id: user_message_id.clone(),
-            open_generation: app.session_view_cache.open_generation(),
-        })
-    }
-
-    pub(crate) fn is_current(&self, app: &App) -> bool {
-        app.active_session_id.as_ref() == Some(&self.session_id)
-            && app.session_view_cache.open_generation() == self.open_generation
-            && app.known_session_directory(&self.session_id).as_ref() == Some(&self.directory)
-    }
-}
-
-pub(crate) struct ForkSessionDialog {
-    pub(crate) anchor: ForkSessionAnchor,
-    pub(crate) prompt: String,
-    pub(crate) in_progress: bool,
+pub(crate) fn fork_session_anchor_is_current(anchor: &ForkSessionAnchor, app: &App) -> bool {
+    app.active_session_id.as_ref() == Some(&anchor.session_id)
+        && app.session_view_cache.open_generation() == anchor.open_generation
+        && app.known_session_directory(&anchor.session_id).as_ref() == Some(&anchor.directory)
 }
 
 #[derive(Debug, Clone)]
@@ -1464,11 +1443,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ResetSessionFinished { .. } => session::update(app, message),
     };
 
-    if app.show_agent_sessions_popover
+    if app.input_popovers.agent_sessions
         && crate::app::components::input_panel::agent_sessions::cached_running_agent_sessions(app)
             .is_empty()
     {
-        app.show_agent_sessions_popover = false;
+        app.input_popovers.agent_sessions = false;
     }
 
     if local_ui_event {

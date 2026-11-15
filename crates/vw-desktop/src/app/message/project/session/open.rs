@@ -49,8 +49,8 @@ pub(crate) fn open_session_draft(
     app.usage = models::TokenUsage::default();
     app.active_session_view_state = Default::default();
     app.invalidate_chat_ui_state();
-    app.show_recommended_prompt_menu = false;
-    app.show_agent_sessions_popover = false;
+    app.input_popovers.recommended_prompt = false;
+    app.input_popovers.agent_sessions = false;
     app.input_editor = iced::widget::text_editor::Content::new();
     app.reset_draft_full_access();
     let runtime = app.current_session_runtime_mut();
@@ -79,8 +79,8 @@ pub(crate) fn open_project_session(
 ) -> iced::Task<Message> {
     app.session_view_cache.navigation_generation += 1;
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
-    app.show_recommended_prompt_menu = false;
-    app.show_agent_sessions_popover = false;
+    app.input_popovers.recommended_prompt = false;
+    app.input_popovers.agent_sessions = false;
     app.hovered_recent_project = None;
     app.session_menu_id = None;
     app.session_menu_anchor = None;

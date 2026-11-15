@@ -493,7 +493,7 @@ fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
         think_timing: Vec::new(),
         processing_timing: None,
     }];
-    app.show_agent_sessions_popover = true;
+    app.input_popovers.agent_sessions = true;
 
     let with_running_child = view(&app);
     assert_eq!(with_running_child.as_widget().size().width, Length::Fill);

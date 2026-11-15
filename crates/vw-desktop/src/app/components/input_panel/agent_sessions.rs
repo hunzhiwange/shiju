@@ -41,5 +41,5 @@ pub(super) fn agent_sessions_popover<'a>(app: &App, children: &[AgentChildSessio
     shared::agent_sessions_popover(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, children, emit)
 }
 pub(super) fn agent_sessions_entry<'a>(app: &App, children: &[AgentChildSession]) -> Option<Element<'a, Message>> {
-    shared::agent_sessions_entry(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, app.show_agent_sessions_popover, children, emit)
+    shared::agent_sessions_entry(crate::app::i18n::I18n::new(app.desktop_locale), app.status_animation_frame, app.input_popovers.agent_sessions, children, emit)
 }

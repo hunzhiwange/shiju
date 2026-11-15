@@ -417,8 +417,6 @@ pub struct App {
     pub(crate) show_usage_popover: bool,
     /// 是否显示会话工具选择弹出框
     pub(crate) show_session_tool_selector_popover: bool,
-    /// 是否显示当前父会话的 AgentTool 子会话弹层（不持久化）
-    pub(crate) show_agent_sessions_popover: bool,
     /// 是否显示会话操作弹出框
     pub(crate) show_session_actions_popover: bool,
     /// 是否显示执行器选择弹出框
@@ -903,9 +901,7 @@ pub struct App {
     pub(crate) dialogue_flow_expand_shell_tool_section: bool,
     pub(crate) dialogue_flow_expand_edit_tool_section: bool,
     pub(crate) quick_messages: Vec<config_ui::QuickMessageConfig>,
-    pub(crate) quick_message_open_group: Option<config_ui::QuickMessageGroup>,
-    pub(crate) show_shiju_skill_menu: bool,
-    pub(crate) show_recommended_prompt_menu: bool,
+    pub(crate) input_popovers: desktop_session::message::chat::input::popovers::InputPopoverState,
     pub(crate) quick_message_handoff: Option<QuickMessageHandoffState>,
     /// 对话流设置保存消息
     pub(crate) dialogue_flow_settings_save_message: Option<String>,

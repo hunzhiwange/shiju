@@ -995,7 +995,6 @@ fn reset_session_failure_reports_operation_specific_notification() {
 
 #[test]
 fn fork_desktop_missing_second_user_id_cannot_borrow_an_earlier_id() {
-    use crate::app::message::chat::ForkSessionAnchor;
     use crate::app::models::ChatRole::{Tool, User};
 
     let (mut app, _) = crate::app::App::new();
@@ -1005,8 +1004,8 @@ fn fork_desktop_missing_second_user_id_cannot_borrow_an_earlier_id() {
         vec![chat_message(User, "same"), chat_message(Tool, "tool"), chat_message(User, "same")];
     app.chat_message_ids = vec![Some("first-turn".into()), Some("tool-id".into()), None];
 
-    assert!(ForkSessionAnchor::from_user_row(&app, 1).is_none());
-    let anchor = ForkSessionAnchor::from_user_row(&app, 2);
+    assert!(crate::app::message::chat::fork_session_anchor_from_user_row(&app, 1).is_none());
+    let anchor = crate::app::message::chat::fork_session_anchor_from_user_row(&app, 2);
     assert!(anchor.is_none());
     crate::app::message::chat::update(&mut app, super::ChatMessage::OpenForkSessionDialog(anchor));
     assert!(app.chat_fork_dialog.is_none());
@@ -1017,12 +1016,11 @@ fn fork_desktop_missing_second_user_id_cannot_borrow_an_earlier_id() {
 
     app.chat_message_ids[2] = Some("second-turn".into());
     app.sessions.clear();
-    assert!(ForkSessionAnchor::from_user_row(&app, 2).is_none());
+    assert!(crate::app::message::chat::fork_session_anchor_from_user_row(&app, 2).is_none());
 }
 
 #[test]
 fn fork_desktop_ignores_confirmation_after_switching_sessions() {
-    use crate::app::message::chat::ForkSessionAnchor;
     use crate::app::models::ChatRole::User;
 
     let (mut app, _) = crate::app::App::new();
@@ -1030,7 +1028,7 @@ fn fork_desktop_ignores_confirmation_after_switching_sessions() {
     app.sessions = vec![session_info("source", "Source", "/repo")];
     app.chat = vec![chat_message(User, "same")];
     app.chat_message_ids = vec![Some("first-turn".into())];
-    let anchor = ForkSessionAnchor::from_user_row(&app, 0).unwrap();
+    let anchor = crate::app::message::chat::fork_session_anchor_from_user_row(&app, 0).unwrap();
     let _ = crate::app::message::chat::update(
         &mut app,
         super::ChatMessage::OpenForkSessionDialog(Some(anchor.clone())),
@@ -2161,15 +2159,15 @@ fn session_entry_recommendations_select_original_index() {
     let mut app = crate::app::App::new().0;
     app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
         vec![" ".into(), "原始索引对应中文草稿".into()];
-    app.show_recommended_prompt_menu = true;
+    app.input_popovers.recommended_prompt = true;
     super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(1));
     assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
     assert!(!app.current_session_runtime().is_requesting);
-    app.show_recommended_prompt_menu = true;
+    app.input_popovers.recommended_prompt = true;
     super::update(&mut app, super::ChatMessage::AgentRecommendedPromptSelected(0));
     assert_eq!(app.current_session_runtime().input_editor.text(), "原始索引对应中文草稿");
-    assert!(!app.show_recommended_prompt_menu);
+    assert!(!app.input_popovers.recommended_prompt);
 }
 
 #[test]

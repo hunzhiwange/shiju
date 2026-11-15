@@ -507,7 +507,6 @@ impl App {
             show_reasoning_effort_popover: false,
             show_usage_popover: false,
             show_session_tool_selector_popover: false,
-            show_agent_sessions_popover: false,
             show_session_actions_popover: false,
             show_executor_popover: false,
             session_title_last_click: None,
@@ -605,9 +604,7 @@ impl App {
             dialogue_flow_expand_edit_tool_section: system_settings_cfg
                 .dialogue_flow_expand_edit_tool_section,
             quick_messages: system_settings_cfg.quick_messages.clone(),
-            quick_message_open_group: None,
-            show_shiju_skill_menu: false,
-            show_recommended_prompt_menu: false,
+            input_popovers: Default::default(),
             quick_message_handoff: None,
             chat_send_behavior: cfg_chat_send_behavior,
             dialogue_flow_settings_save_message: None,

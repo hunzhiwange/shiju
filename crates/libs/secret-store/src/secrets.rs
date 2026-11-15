@@ -682,3 +682,7 @@ fn hex_decode(hex: &str) -> Result<Vec<u8>> {
 #[cfg(test)]
 #[path = "secrets_tests.rs"]
 mod secrets_tests;
+
+#[cfg(test)]
+#[path = "secrets_legacy_security_tests.rs"]
+mod legacy_security_tests;

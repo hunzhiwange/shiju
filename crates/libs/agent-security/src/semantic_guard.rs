@@ -836,3 +836,7 @@ async fn load_corpus_source(source: &str) -> Result<String> {
 #[cfg(test)]
 #[path = "semantic_guard_tests.rs"]
 mod semantic_guard_tests;
+
+#[cfg(test)]
+#[path = "semantic_guard_legacy_security_tests.rs"]
+mod legacy_security_tests;

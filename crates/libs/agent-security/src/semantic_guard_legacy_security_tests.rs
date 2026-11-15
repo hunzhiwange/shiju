@@ -6,9 +6,9 @@ use axum::extract::Path;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::json;
-use vibe_agent::app::agent::config::MemoryConfig;
-use vibe_agent::app::agent::memory::traits::EmbeddingProvider;
-use vibe_agent::app::agent::security::semantic_guard::{
+use agent_config::runtime::MemoryConfig;
+use agent_memory::embeddings::EmbeddingProvider;
+use super::{
     parse_guard_corpus_jsonl, SemanticGuard,
 };
 

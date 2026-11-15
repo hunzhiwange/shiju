@@ -1,8 +1,8 @@
 use tempfile::TempDir;
-use vibe_agent::app::agent::security::secrets::{
-    hex_decode, hex_encode, xor_cipher, generate_random_key, Nonce,
+use super::{
+    hex_decode, hex_encode, xor_cipher, generate_random_key,
 };
-use vibe_agent::app::agent::security::secrets::{
+use super::{
     SecretStore, KEY_LEN, NONCE_LEN,
 };
 
@@ -456,7 +456,7 @@ fn hex_decode_invalid_chars_fails() {
 // 测试 Windows icacls 参数拒绝空用户名
 #[test]
 fn windows_icacls_grant_arg_rejects_empty_username() {
-    use vibe_agent::app::agent::security::secrets::build_windows_icacls_grant_arg;
+    use super::build_windows_icacls_grant_arg;
     assert_eq!(build_windows_icacls_grant_arg(""), None);
     assert_eq!(build_windows_icacls_grant_arg("   \t\n"), None);
 }
@@ -464,14 +464,14 @@ fn windows_icacls_grant_arg_rejects_empty_username() {
 // 测试 Windows icacls 参数自动修剪用户名空白
 #[test]
 fn windows_icacls_grant_arg_trims_username() {
-    use vibe_agent::app::agent::security::secrets::build_windows_icacls_grant_arg;
+    use super::build_windows_icacls_grant_arg;
     assert_eq!(build_windows_icacls_grant_arg("  alice  "), Some("alice:F".to_string()));
 }
 
 // 测试 Windows icacls 参数保留有效字符
 #[test]
 fn windows_icacls_grant_arg_preserves_valid_characters() {
-    use vibe_agent::app::agent::security::secrets::build_windows_icacls_grant_arg;
+    use super::build_windows_icacls_grant_arg;
     assert_eq!(
         build_windows_icacls_grant_arg("DOMAIN\\svc-user"),
         Some("DOMAIN\\svc-user:F".to_string())

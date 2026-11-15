@@ -1,4 +1,4 @@
-use vibe_agent::app::agent::security::prompt_guard::{GuardAction, GuardResult, PromptGuard};
+use super::{GuardAction, GuardResult, PromptGuard};
 
 // 测试正常的安全消息能够通过防护检查
 #[test]

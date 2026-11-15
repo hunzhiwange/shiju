@@ -5,8 +5,8 @@
 
 use std::path::PathBuf;
 
-use vibe_agent::app::agent::config::AutonomyConfig;
-use vibe_agent::app::agent::security::policy::{
+use config_security::AutonomyConfig;
+use super::{
     ActionTracker, AutonomyLevel, CommandRiskLevel, SecurityPolicy, ShellRedirectPolicy,
     ToolOperation,
 };

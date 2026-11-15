@@ -744,3 +744,7 @@ impl PromptGuard {
 #[cfg(test)]
 #[path = "prompt_guard_tests.rs"]
 mod prompt_guard_tests;
+
+#[cfg(test)]
+#[path = "prompt_guard_legacy_security_tests.rs"]
+mod legacy_security_tests;

@@ -767,3 +767,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "legacy_security_tests/mod.rs"]
+mod legacy_security_tests;

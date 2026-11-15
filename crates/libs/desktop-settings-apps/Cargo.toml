@@ -8,6 +8,18 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+rand = "0.8"
+desktop-apps-ui = { path = "../desktop-apps-ui", version = "0.6.0" }
+desktop-provider-apps = { path = "../desktop-provider-apps", version = "0.6.0" }
+gateway-aggregation = { path = "../gateway-aggregation", version = "0.6.0" }
+gateway-aggregation-desktop = { path = "../gateway-aggregation-desktop", version = "0.6.0" }
+gateway-aggregation-native = { path = "../gateway-aggregation-native", version = "0.6.0" }
+gateway-aggregation-omo = { path = "../gateway-aggregation-omo", version = "0.6.0" }
+gateway-aggregation-codex = { path = "../gateway-aggregation-codex", version = "0.6.0" }
+gateway-app-provider = { path = "../gateway-app-provider", version = "0.6.0" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
+vw-api-app-provider-base = { path = "../api-app-provider-base", version = "0.6.0" }
 vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
 vw-api-app-operations = { path = "../api-app-operations", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
@@ -25,5 +37,5 @@ tokio = { version = "1", default-features = false, features = ["rt", "macros", "
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 
 [dev-dependencies]
+vw-api-app-provider-profiles = { path = "../api-app-provider-profiles", version = "0.6.0" }
 tempfile = "3"
-gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }

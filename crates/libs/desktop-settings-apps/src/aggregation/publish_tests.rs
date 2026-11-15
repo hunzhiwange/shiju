@@ -68,7 +68,7 @@ pub(super) fn server(
 }
 
 pub(super) fn selection(app: vw_api_app_identity::AppId) -> Selection {
-    use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
+    use desktop_apps_ui::{AgentAppsContext, ProviderScope as Scope};
     Selection {
         scope: Scope {
             context: AgentAppsContext {

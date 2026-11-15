@@ -40,3 +40,4 @@ mod lifecycle_tests;
 mod drag_tests;
 #[cfg(test)]
 mod presentation_tests;
+pub mod uninstall;

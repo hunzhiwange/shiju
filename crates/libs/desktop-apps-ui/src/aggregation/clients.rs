@@ -157,3 +157,14 @@ pub fn feedback(e: &AgentAppsSettingsError) -> &'static str {
         _ => "结果未知或超时，请重新探测实际状态，勿重复提交。",
     }
 }
+
+impl std::fmt::Debug for Reply {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CodexClientsReply([redacted])")
+    }
+}
+impl std::fmt::Debug for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CodexClientsEvent([redacted])")
+    }
+}

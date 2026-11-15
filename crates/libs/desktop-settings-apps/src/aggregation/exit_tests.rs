@@ -15,7 +15,7 @@ fn aggregation_t59_aggregation_exit_preserves_contract() {
     assert!(session.error.is_some(), "failed restoration must never be presented as success");
 }
 
-use super::tests::{progress, selection, server};
+use super::publish_tests::{progress, selection, server};
 use vw_api_app_identity::AppId;
 fn state() -> AggregationState {
     serde_json::from_value(serde_json::json!({

@@ -1,4 +1,3 @@
-use super::aggregation_desktop::{Action, Reply, execute, finish};
 use crate::app::state::{
     AgentAppsContext,
     app_providers::{desktop::Form, list::Scope},
@@ -92,31 +91,6 @@ fn fixture_sequence(
     });
     (client, scope, server)
 }
-#[tokio::test]
-async fn aggregation_t63_aggregation_desktop_preserves_contract() {
-    let (client, scope, server) =
-        fixture("PUT /v1/app-providers/claude-desktop/fixture/model-mapping ", 409, "{}");
-    let result = execute(client, scoped_form(scope), Action::Save).await;
-    assert!(matches!(
-        result,
-        Err(gateway_app_settings::AgentAppsSettingsError::Http { status: 409, .. })
-    ));
-    let body = server.join().unwrap().unwrap();
-    assert_eq!(
-        body["projectId"], "fixture-project",
-        "Desktop mapping writes must retain project scope"
-    );
-    assert_eq!(body["expectedRevision"], "r1");
-    assert_eq!(body["mapping"]["mode"], "proxy");
-    assert_eq!(body["mapping"]["routes"]["claude-sonnet-4-6"]["model"], "deepseek-v4-pro");
-    assert_eq!(body["mapping"]["routes"]["claude-sonnet-4-6"]["supports1m"], true);
-    assert!(
-        body["mapping"]["routes"]["claude-sonnet-4-6"]["labelOverride"]
-            .as_str()
-            .unwrap()
-            .contains("中文模型")
-    );
-}
 
 fn scoped_form(scope: Scope) -> Form {
     let mut form = Form::new("fixture".into());
@@ -152,134 +126,7 @@ fn scoped_form(scope: Scope) -> Form {
     );
     form
 }
-fn preview(blocking: bool) -> AggregationPreview {
-    AggregationPreview {
-        revision: "preview-r2".into(),
-        preview_token: Some("opaque-token".into()),
-        default_provider_id: Some("fixture".into()),
-        members: vec![],
-        issues: if blocking {
-            vec![PreviewIssue {
-                code: PreviewIssueCode::FailoverEnabled,
-                blocking: true,
-                provider_id: None,
-                model_id: None,
-            }]
-        } else {
-            vec![]
-        },
-        notices: vec![AggregationNotice::RestartDesktop],
-    }
-}
-#[test]
-fn aggregation_t63_preview_blockers_and_failure_preserve_draft() {
-    let (_, scope, server) = fixture("", 200, "{}");
-    // The no-request fixture expires; this test exercises UI state, not transport.
-    let mut form = scoped_form(scope);
-    finish(&mut form, Ok(Reply::Preview(preview(true))));
-    assert!(!form.aggregation.as_ref().unwrap().can_publish());
-    finish(&mut form, Ok(Reply::Preview(preview(false))));
-    assert!(form.aggregation.as_ref().unwrap().can_publish());
-    form.aggregation.as_mut().unwrap().invalidate();
-    assert!(!form.aggregation.as_ref().unwrap().can_publish());
-    for status in [401, 403, 409, 422, 501, 502, 503, 504] {
-        finish(
-            &mut form,
-            Err(gateway_app_settings::AgentAppsSettingsError::Http {
-                status,
-                body: serde_json::json!({"secret":"never-display"}),
-            }),
-        );
-        assert!(form.aggregation.as_ref().unwrap().revision.is_empty());
-        assert!(form.aggregation.as_ref().unwrap().status.is_none());
-        assert!(form.notice.as_ref().is_some_and(|n| !n.contains("secret")));
-        assert_eq!(form.mapping.routes["claude-sonnet-4-6"].model, "deepseek-v4-pro");
-    }
-    assert!(server.join().unwrap().is_none());
-}
-#[tokio::test]
-async fn aggregation_t63_preview_publish_restore_and_progress_use_scoped_sdk() {
-    for (action, path, reply) in [
-        (
-            Action::Preview,
-            "POST /v1/agent-apps/claude-desktop/aggregation/preview ",
-            serde_json::to_string(&preview(false)).unwrap(),
-        ),
-        (
-            Action::Publish,
-            "POST /v1/agent-apps/claude-desktop/aggregation/publish ",
-            operation_json("running", "settling", serde_json::Value::Null),
-        ),
-        (
-            Action::Restore,
-            "POST /v1/agent-apps/claude-desktop/aggregation/exit ",
-            operation_json(
-                "failed",
-                "terminal",
-                serde_json::json!({"kind":"failed","status":502,"code":"recovery_failed","recovery":"failed"}),
-            ),
-        ),
-        (
-            Action::Poll,
-            "GET /v1/app-providers/operations/op?",
-            operation_json("running", "settling", serde_json::Value::Null),
-        ),
-        (
-            Action::Cancel,
-            "DELETE /v1/app-providers/operations/op?",
-            operation_json("running", "settling", serde_json::Value::Null),
-        ),
-    ] {
-        let (client, scope, server) = fixture(path, 200, Box::leak(reply.into_boxed_str()));
-        let mut form = scoped_form(scope);
-        form.aggregation.as_mut().unwrap().preview = Some(preview(false));
-        form.aggregation.as_mut().unwrap().operation = Some(
-            serde_json::from_str(&operation_json("running", "settling", serde_json::Value::Null))
-                .unwrap(),
-        );
-        let result = execute(client, form.clone(), action.clone()).await;
-        let body = server.join().unwrap().unwrap();
-        if !matches!(action, Action::Poll | Action::Cancel) {
-            assert_eq!(body["projectId"], "fixture-project");
-            assert_eq!(body["targetHostId"], "fixture-host");
-        }
-        if matches!(action, Action::Publish) {
-            assert_eq!(body["expectedRevision"], "preview-r2");
-            assert_eq!(body["previewToken"], "opaque-token");
-            assert_eq!(body["confirmed"], true);
-        }
-        if matches!(action, Action::Restore) {
-            assert_eq!(body["expectedRevision"], "status-r1");
-            assert_eq!(body["confirmed"], true);
-        }
-        assert!(result.is_ok(), "{result:?}");
-        finish(&mut form, result);
-        if matches!(action, Action::Publish | Action::Cancel | Action::Poll) {
-            assert!(form.notice.as_ref().unwrap().contains("进行中"));
-            assert!(!form.notice.as_ref().unwrap().contains("已发布"));
-        }
-        if matches!(action, Action::Restore) {
-            assert!(form.notice.as_ref().unwrap().contains("RecoveryFailed"));
-        }
-    }
-}
-fn operation_json(status: &str, phase: &str, outcome: serde_json::Value) -> String {
-    let mut value = serde_json::json!({"operationId":"op","requestId":"request","status":status,"phase":phase,"completed":0,"total":1,"cancellationRequested":true});
-    if !outcome.is_null() {
-        value["aggregationOutcome"] = outcome;
-    }
-    value.to_string()
-}
-#[tokio::test]
-async fn aggregation_t63_reads_status_and_redacted_mapping_from_sdk() {
-    let (client, scope, server) =
-        fixture("GET /v1/agent-apps/claude-desktop/profile/status?", 403, "{}");
-    let mut form = scoped_form(scope);
-    let result = execute(client, form.clone(), Action::Read).await;
-    assert!(server.join().unwrap().is_some());
-    finish(&mut form, result);
-    assert!(form.notice.unwrap().contains("无权"));
-}
+
 #[tokio::test]
 async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
     use iced::{
@@ -427,53 +274,4 @@ impl iced::advanced::widget::operation::Operation for Geometry {
     ) {
         self.scroll.get_or_insert((bounds, content, translation));
     }
-}
-
-#[tokio::test]
-async fn aggregation_t63_refresh_and_save_accept_only_gateway_revisions() {
-    let (_, scope, server) = fixture_sequence(vec![]);
-    server.join().unwrap();
-    let mut form = scoped_form(scope);
-    let status = form.aggregation.as_ref().unwrap().status.clone().unwrap();
-    let view = DesktopMappingView {
-        revision: "mapping-r2".into(),
-        form: vw_api_app_provider_profiles::desktop_mapping::DesktopFormView {
-            name: "新中文档案".into(),
-            base_url: "https://example.invalid".into(),
-            official: false,
-            direct_editable: true,
-            mapping: form.mapping.clone(),
-            mapping_editable: true,
-        },
-    };
-    let (client, scope, server) = fixture_sequence(vec![
-        (
-            "GET /v1/agent-apps/claude-desktop/profile/status?",
-            200,
-            Box::leak(serde_json::to_string(&status).unwrap().into_boxed_str()),
-        ),
-        (
-            "POST /v1/app-providers/claude-desktop/fixture/form/read ",
-            200,
-            Box::leak(serde_json::to_string(&view).unwrap().into_boxed_str()),
-        ),
-    ]);
-    form = scoped_form(scope);
-    let reply = execute(client, form.clone(), Action::Read).await.unwrap();
-    let body = server.join().unwrap().unwrap();
-    assert_eq!(body["projectId"], "fixture-project");
-    finish(&mut form, Ok(reply));
-    assert_eq!(form.name, "新中文档案");
-    assert_eq!(form.aggregation.as_ref().unwrap().revision, "mapping-r2");
-    assert_eq!(
-        form.aggregation.as_ref().unwrap().status.as_ref().unwrap().mode,
-        DesktopProfileMode::Routing
-    );
-    form.aggregation.as_mut().unwrap().dirty = true;
-    form.aggregation.as_mut().unwrap().preview = Some(preview(false));
-    assert!(!form.aggregation.as_ref().unwrap().can_publish());
-    finish(&mut form, Ok(Reply::Saved(view)));
-    assert!(!form.aggregation.as_ref().unwrap().dirty);
-    assert!(form.aggregation.as_ref().unwrap().preview.is_none());
-    assert!(form.aggregation.as_ref().unwrap().status.is_none());
 }

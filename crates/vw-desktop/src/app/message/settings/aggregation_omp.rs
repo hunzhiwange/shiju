@@ -1,18 +1,10 @@
-//! OMP directory actions use the existing application scope and typed SDK.
-mod core;
-use crate::app::{
-    App, Message,
-    message::app_providers::list::{self, ListMessage},
-};
-pub(crate) use core::*;
+use crate::app::{App, Message};
+use crate::app::message::app_providers::list::{self, ListMessage};
 use iced::Task;
+pub use desktop_settings_apps::aggregation::omp::*;
 use vw_api_app_identity::AppId;
-use vw_api_app_aggregation::AggregationQuery;
 use vw_api_transport::id::ProjectId;
-pub use desktop_apps_ui::aggregation::omp::{Event};
-pub(crate) fn message(event: Event) -> Message {
-    list::message(ListMessage::OmpDirectory(event))
-}
+pub(crate) fn message(event: Event) -> Message { list::message(ListMessage::OmpDirectory(event)) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Some(scope) = app.app_providers.scope.clone().filter(|s| s.app == AppId::Omp) else {
         return Task::none();
@@ -30,104 +22,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return app.show_error_toast("请先打开已注册的项目");
     };
     let access = app.apps_catalog.generation;
-    if matches!(event, Event::Open) {
-        let state = &mut app.app_providers;
-        if state.loading
-            || state.form.is_some()
-            || state.editor.is_some()
-            || state.omp_directory.is_some()
-        {
-            return Task::none();
-        }
-        state.omp_directory = Some(Form { project: Some(project), access, ..Form::default() });
-        return update(app, Event::Refresh);
-    }
-    let state = &mut app.app_providers;
-    let Some(form) = &mut state.omp_directory else { return Task::none() };
-    if form.project.as_ref() != Some(&project) || form.access != access {
-        state.omp_directory = None;
-        return Task::none();
-    }
-    if let Event::Completed {
-        scope: previous,
-        project: previous_project,
-        access: previous_access,
-        generation,
-        writing,
-        result,
-    } = event
-    {
-        if previous != scope || previous_project != project || previous_access != access {
-            return Task::none();
-        }
-        if !form.finish(generation, result) {
-            return Task::none();
-        }
-        if let Some(error) = form.error.clone() {
-            return app.show_error_toast(error);
-        }
-        return if writing {
-            app.show_success_toast("OMP 独立条目已更新")
-        } else {
-            Task::none()
-        };
-    }
-    if form.pending.is_some() {
-        return Task::none();
-    }
-    let query =
-        AggregationQuery { target_host_id: scope.host.clone(), project_id: project.clone() };
-    let write = match event {
-        Event::Close => {
-            state.omp_directory = None;
-            return Task::none();
-        }
-        Event::Id(value) => {
-            form.id = value;
-            return Task::none();
-        }
-        Event::Name(value) => {
-            form.name = value;
-            return Task::none();
-        }
-        Event::Declaration(action) => {
-            form.declaration.perform(action);
-            return Task::none();
-        }
-        Event::ReviewRemove(id) => {
-            form.removing = Some(id);
-            return Task::none();
-        }
-        Event::CancelRemove => {
-            form.removing = None;
-            return Task::none();
-        }
-        Event::Refresh => {
-            form.state = None;
-            form.removing = None;
-            None
-        }
-        Event::Save | Event::ConfirmRemove => {
-            match form.write(&query, matches!(event, Event::ConfirmRemove)) {
-                Ok(body) => Some(body),
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        _ => return Task::none(),
+    let mut notice = None;
+    let task = desktop_settings_apps::aggregation::omp::update(&mut app.app_providers.omp_directory, &mut app.app_providers.generation, app.app_providers.loading, app.app_providers.form.is_some(), app.app_providers.editor.is_some(), client, scope, project, access, &mut notice, event).map(message);
+    let feedback = match notice {
+        Some(desktop_settings_apps::aggregation::Notice::Error(s)) => app.show_error_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Info(s)) => app.show_info_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Success(s)) => app.show_success_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Warning(s)) => app.show_warning_toast(s),
+        None => Task::none(),
     };
-    state.generation = state.generation.wrapping_add(1);
-    let generation = state.generation;
-    form.pending = Some(generation);
-    form.error = None;
-    let writing = write.is_some();
-    Task::perform(execute(client, query, write), move |result| {
-        message(Event::Completed {
-            scope: scope.clone(),
-            project: project.clone(),
-            access,
-            generation,
-            writing,
-            result,
-        })
-    })
+    Task::batch([task, feedback])
 }

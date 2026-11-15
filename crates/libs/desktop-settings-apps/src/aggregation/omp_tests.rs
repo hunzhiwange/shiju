@@ -1,4 +1,4 @@
-use super::aggregation_omp::{self as omp, Form};
+use super::{self as omp, Form};
 use std::{
     io::{Read, Write},
     net::TcpListener,

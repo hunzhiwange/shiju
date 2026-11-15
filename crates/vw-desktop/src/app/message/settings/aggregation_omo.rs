@@ -1,20 +1,7 @@
-use crate::app::{
-    App, Message,
-    message::app_providers::list::{self, ListMessage},
-    state::aggregation_omo::{Form, Snapshot, Variant},
-};
+use crate::app::{App, Message};
+use crate::app::message::app_providers::list::{self, ListMessage};
 use iced::Task;
-use gateway_aggregation_omo::AggregationOmoError;
-use gateway_endpoint::GatewayAuth;
-use gateway_aggregation_omo::GatewayAggregationOmoClient;
-use vw_api_app_identity::AppId;
-use vw_api_app_aggregation::OmoApplyRequest;
-use vw_api_app_aggregation::OmoDisableRequest;
-
-pub use desktop_apps_ui::aggregation::omo::{Context, Event};
-pub(crate) fn message(event: Event) -> Message {
-    list::message(ListMessage::Omo(event))
-}
+pub use desktop_settings_apps::aggregation::omo::*;
 fn current(app: &App) -> Result<(GatewayAggregationOmoClient, Context), String> {
     let (client, scope) = list::current(app, AppId::OpenCode)?;
     let project =
@@ -34,136 +21,23 @@ fn current(app: &App) -> Result<(GatewayAggregationOmoClient, Context), String> 
         Context { scope, project: project.as_str().into(), access: app.apps_catalog.generation },
     ))
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Action {
-    Read,
-    Apply(String),
-    Disable,
-}
-pub(crate) async fn request(
-    client: GatewayAggregationOmoClient,
-    context: Context,
-    variant: Variant,
-    action: Action,
-    revision: String,
-) -> Result<Snapshot, AggregationOmoError> {
-    let host = context.scope.host;
-    let project = context.project;
-    match action {
-        Action::Read => match variant {
-            Variant::Standard => {
-                client.aggregation_omo_state(&host, &project).await.map(Snapshot::Standard)
-            }
-            Variant::Slim => {
-                client.aggregation_omo_slim_state(&host, &project).await.map(Snapshot::Slim)
-            }
-        },
-        Action::Apply(provider_id) => {
-            let request = OmoApplyRequest {
-                target_host_id: host,
-                project_id: project,
-                expected_revision: revision,
-                provider_id,
-            };
-            match variant {
-                Variant::Standard => {
-                    client.aggregation_omo_apply(&request).await.map(Snapshot::Standard)
-                }
-                Variant::Slim => {
-                    client.aggregation_omo_slim_apply(&request).await.map(Snapshot::Slim)
-                }
-            }
-        }
-        Action::Disable => {
-            let request = OmoDisableRequest {
-                target_host_id: host,
-                project_id: project,
-                expected_revision: revision,
-            };
-            match variant {
-                Variant::Standard => {
-                    client.aggregation_omo_disable(&request).await.map(Snapshot::Standard)
-                }
-                Variant::Slim => {
-                    client.aggregation_omo_slim_disable(&request).await.map(Snapshot::Slim)
-                }
-            }
-        }
-    }
-}
+use gateway_aggregation_omo::GatewayAggregationOmoClient;
+use gateway_endpoint::GatewayAuth;
+use vw_api_app_identity::AppId;
+pub(crate) fn message(event: Event) -> Message { list::message(ListMessage::Omo(event)) }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
-    if matches!(event, Event::Close) {
-        // Closing detaches the view; it does not claim to cancel a target transaction.
-        app.app_providers.omo = None;
-        app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
-        return Task::none();
-    }
-    let (client, context) = match current(app) {
-        Ok(v) => v,
-        Err(_) if matches!(event, Event::Finished { .. }) => return Task::none(),
-        Err(e) => return app.show_error_toast(e),
+    let current = current(app);
+    let saved = app.app_providers.omo.as_ref().is_some_and(|form| app.app_providers.snapshot.as_ref().is_some_and(|s| s.catalog.rows.iter().any(|r| r.provider.id == form.provider)));
+    let mut notice = None;
+    let task = desktop_settings_apps::aggregation::omo::update(&mut app.app_providers.omo, &mut app.app_providers.generation, app.app_providers.loading, saved, current, &mut notice, event).map(message);
+    let feedback = match notice {
+        Some(desktop_settings_apps::aggregation::Notice::Error(s)) => app.show_error_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Info(s)) => app.show_info_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Success(s)) => app.show_success_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Warning(s)) => app.show_warning_toast(s),
+        None => Task::none(),
     };
-    if let Event::Finished { context: original, generation, result } = event {
-        if original != context || generation != app.app_providers.generation {
-            return Task::none();
-        }
-        let Some(form) = app.app_providers.omo.as_mut().filter(|f| f.busy) else {
-            return Task::none();
-        };
-        form.finish(result);
-        return match form.error.clone() {
-            Some(e) => app.show_error_toast(e),
-            None => app.show_info_toast("已读取目标实际状态"),
-        };
-    }
-    if let Event::Open(variant) = event {
-        if app.app_providers.omo.is_some() || app.app_providers.loading {
-            return Task::none();
-        }
-        let mut form = Form::new(variant);
-        form.binding = Some((context.project.clone(), context.access));
-        app.app_providers.omo = Some(form);
-    } else if app.app_providers.omo.as_ref().is_none_or(|f| f.busy) {
-        return Task::none();
-    }
-    if app
-        .app_providers
-        .omo
-        .as_ref()
-        .is_some_and(|f| f.binding.as_ref() != Some(&(context.project.clone(), context.access)))
-    {
-        app.app_providers.omo = None;
-        return app.show_error_toast("项目或授权已切换，请重新打开目录");
-    }
-    let Some(form) = app.app_providers.omo.as_mut() else { return Task::none() };
-    if let Event::Provider(v) = event {
-        form.provider = v;
-        return Task::none();
-    }
-    let revision = form.snapshot.as_ref().map(|s| s.revision().to_owned()).unwrap_or_default();
-    let action = match event {
-        Event::Apply => {
-            let saved = app
-                .app_providers
-                .snapshot
-                .as_ref()
-                .is_some_and(|s| s.catalog.rows.iter().any(|r| r.provider.id == form.provider));
-            if revision.is_empty() || !saved {
-                return app.show_error_toast("请选择已保存供应商，并刷新配置状态");
-            }
-            Action::Apply(form.provider.clone())
-        }
-        Event::Disable if !revision.is_empty() => Action::Disable,
-        Event::Open(_) | Event::Refresh => Action::Read,
-        _ => return Task::none(),
-    };
-    form.busy = true;
-    let variant = form.variant;
-    app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
-    let generation = app.app_providers.generation;
-    Task::perform(request(client, context.clone(), variant, action, revision), move |result| {
-        message(Event::Finished { context: context.clone(), generation, result })
-    })
+    Task::batch([task, feedback])
 }
 #[cfg(test)]
 #[path = "aggregation_omo_tests.rs"]

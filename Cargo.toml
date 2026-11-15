@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/shell-command",
+  "crates/libs/gateway-task-lifecycle",
   "crates/libs/gateway-scheduler",
   "crates/libs/gateway-knowledge",
   "crates/libs/app-auth-claude",
@@ -9,6 +10,7 @@ members = [
   "crates/libs/app-auth-codex",
   "crates/libs/app-auth-core",
   "crates/libs/app-auth-xai",
+  "crates/libs/app-auth-kimi",
   "crates/libs/app-auth-copilot",
   "crates/libs/gateway-voice",
   "crates/libs/gateway-pty",

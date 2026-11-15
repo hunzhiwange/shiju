@@ -29,10 +29,7 @@ fn secret(s: &str) -> bool {
         && !matches!(s, "[redacted]" | "<redacted>")
         && !s.chars().all(|c| matches!(c, '*' | '•'))
 }
-pub fn official(node: &Value) -> bool {
-    node.get("type").and_then(Value::as_str) == Some("kimi")
-        && node.pointer("/oauth/key").and_then(Value::as_str).is_some_and(|k| !k.trim().is_empty())
-}
+pub use app_auth_kimi::binding::official;
 pub fn validate(p: &KimiProfile) -> Result<(), WriteError> {
     if !key_valid(&p.name)
         || serde_json::to_vec(&p.declaration).map_err(|_| WriteError::InvalidResource)?.len()

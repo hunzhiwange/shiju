@@ -2,13 +2,16 @@
 
 use super::{
     codex_device::send,
-    copilot::{read_json_limited, utc_now},
     credential_file::KimiCredential,
     flow::{AuthAccountScope, AuthDevicePoll, AuthFlowTiming, AuthFlows},
-    xai::valid_token,
 };
+use app_auth_kimi::protocol::{read_json_limited, utc_now};
+pub(super) use app_auth_kimi::protocol::{
+    CLIENT_ID, MAX_RESPONSE_BYTES, MAX_TOKEN_LIFETIME, endpoints, identify, identity_field, seconds, token,
+};
+use app_auth_kimi::protocol::verification_url;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use reqwest::{Client, Request, RequestBuilder, Url};
+use reqwest::{Client, Request};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
@@ -32,10 +35,7 @@ use {
     vw_api_transport::id::TenantScope,
 };
 
-pub(super) const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
 const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
-pub(super) const MAX_RESPONSE_BYTES: usize = 64 * 1024;
-pub(super) const MAX_TOKEN_LIFETIME: u64 = 31_536_000;
 const MAX_FLOW_LIFETIME: u64 = 86_400;
 const MAX_INTERVAL: u64 = 300;
 
@@ -66,30 +66,6 @@ struct DeviceGrant {
     region: AuthRegion,
     device_id: String,
     code: String,
-}
-
-pub(super) struct Endpoints {
-    pub(super) oauth: &'static str,
-    pub(super) api: &'static str,
-    domain: &'static str,
-    pub(super) identity_prefix: &'static str,
-}
-
-pub(super) fn endpoints(region: AuthRegion) -> Endpoints {
-    match region {
-        AuthRegion::MainlandCn => Endpoints {
-            oauth: "https://auth.kimi.com",
-            api: "https://api.kimi.com/coding/v1",
-            domain: "kimi.com",
-            identity_prefix: "mainland-cn",
-        },
-        AuthRegion::Global => Endpoints {
-            oauth: "https://auth.kimi.ai",
-            api: "https://api.kimi.ai/coding/v1",
-            domain: "kimi.ai",
-            identity_prefix: "global",
-        },
-    }
 }
 
 impl KimiDeviceAuth {
@@ -377,69 +353,5 @@ impl KimiDeviceAuth {
             device_id: grant.device_id,
         };
         Ok(AuthDevicePoll::Complete(Ok((account, (identity, credential)))))
-    }
-}
-
-pub(super) fn identify(request: RequestBuilder, device_id: &str) -> RequestBuilder {
-    request
-        .header("Accept", "application/json")
-        .header("X-Msh-Platform", "kimi_code_cli")
-        .header("X-Msh-Version", env!("CARGO_PKG_VERSION"))
-        .header("X-Msh-Device-Id", device_id)
-        .header("X-Msh-Device-Name", "ShiJu")
-        .header(
-            "X-Msh-Device-Model",
-            format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
-        )
-        .header("X-Msh-Os-Version", std::env::consts::OS)
-}
-
-pub(super) fn token<'a>(payload: &'a Value, field: &str) -> Result<&'a str, AuthErrorCode> {
-    payload[field].as_str().filter(|value| valid_token(value)).ok_or(AuthErrorCode::UpstreamFailure)
-}
-
-pub(super) fn seconds(
-    payload: &Value,
-    field: &str,
-    default: Option<u64>,
-    max: u64,
-) -> Result<u64, AuthErrorCode> {
-    let value = match payload.get(field) {
-        Some(value) => value.as_u64().or_else(|| value.as_str()?.parse().ok()),
-        None => default,
-    };
-    value.filter(|value| (1..=max).contains(value)).ok_or(AuthErrorCode::UpstreamFailure)
-}
-
-fn verification_url(uri: &str, endpoints: &Endpoints, grant: &str) -> Result<Url, AuthErrorCode> {
-    let url = Url::parse(uri).map_err(|_| AuthErrorCode::UpstreamFailure)?;
-    if url.scheme() != "https"
-        || !url.host_str().is_some_and(|host| {
-            host == endpoints.domain
-                || host
-                    .strip_suffix(endpoints.domain)
-                    .is_some_and(|prefix| matches!(prefix, "auth." | "www." | "code."))
-        })
-        || url.port_or_known_default() != Some(443)
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-        || url.as_str().contains(grant)
-        || url.query_pairs().any(|(key, value)| key == "device_code" || value.contains(grant))
-    {
-        return Err(AuthErrorCode::UpstreamFailure);
-    }
-    Ok(url)
-}
-
-pub(super) fn identity_field(value: &Value) -> Option<String> {
-    match value {
-        Value::Number(number) => Some(number.to_string()),
-        Value::String(value) => {
-            let value = value.trim();
-            (!value.is_empty() && value.len() <= 256 && !value.chars().any(char::is_control))
-                .then(|| value.to_owned())
-        }
-        _ => None,
     }
 }

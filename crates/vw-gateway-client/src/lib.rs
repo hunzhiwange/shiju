@@ -255,3 +255,5 @@ pub use client::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploa
 pub use client::{UsageScanScope, UsageSourceSettings, UsageSourceSettingsState, UsageSettingsSaved, UsageJobSnapshot, UsageLastScan, UsageCacheRevision, UsageRevisionEvent, UsageScanError};
 
 pub use client::{UsageReadScope, UsageReadError, UsageSummary};
+
+pub use gateway_task_lifecycle::GatewayTaskLifecycleClient;

@@ -26,3 +26,5 @@ pub mod views { pub mod home; }
 pub mod app_init;
 
 pub mod view_layout;
+
+pub mod panel;

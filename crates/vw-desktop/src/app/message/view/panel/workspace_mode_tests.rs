@@ -35,15 +35,3 @@ fn workspace_mode_message_preserves_code_panel_preferences() {
     assert_eq!(app.terminal.height, terminal_height);
     assert_eq!(app.settings_panel_width, settings_panel_width);
 }
-
-#[test]
-fn workspace_mode_popover_toggle_and_close_are_local() {
-    let mut app = App::new().0;
-    assert!(!app.show_workspace_mode_popover);
-
-    let _ = update(&mut app, ViewMessage::ToggleWorkspaceModePopover);
-    assert!(app.show_workspace_mode_popover);
-
-    let _ = update(&mut app, ViewMessage::CloseWorkspaceModePopover);
-    assert!(!app.show_workspace_mode_popover);
-}

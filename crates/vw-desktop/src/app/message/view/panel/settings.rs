@@ -7,7 +7,6 @@ use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, SettingsTab};
 use iced::Task;
 use desktop_update::panel::{PanelMessage, PanelState, Effect};
-pub(super) use desktop_update::panel::fetch_latest_app_release;
 #[cfg(not(target_arch = "wasm32"))]
 use std::ffi::OsString;
 

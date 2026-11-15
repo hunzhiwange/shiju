@@ -1,54 +1,41 @@
-//! 处理工作模式资源区的独立呈现状态。
-
 use super::ViewMessage;
 use crate::app::{App, Message};
 use iced::Task;
-
-const MIN_WORK_SPLIT_RATIO: f32 = 0.25;
-const MAX_WORK_SPLIT_RATIO: f32 = 0.75;
+use desktop_navigation::panel::work_workspace as domain;
 
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
-    match message {
-        ViewMessage::WorkResourceModeSelected(mode) => {
-            app.work_resource_mode = mode;
-            app.work_resources_visible = true;
-        }
-        ViewMessage::WorkResourcesToggled => {
-            app.work_resources_visible = !app.work_resources_visible;
-            if !app.work_resources_visible {
-                app.dragging_work_split = false;
-                app.work_split_drag_anchor_x = None;
-                app.work_resource_fullscreen = false;
-                app.work_resource_half_fullscreen = false;
-            }
-        }
-        ViewMessage::WorkSplitRatioChanged(ratio) if ratio.is_finite() => {
-            app.work_split_ratio = ratio.clamp(MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO);
-        }
-        ViewMessage::WorkResourceFullscreenToggled => {
-            app.work_resource_fullscreen = !app.work_resource_fullscreen;
-            app.work_resource_half_fullscreen = false;
-            if app.work_resource_fullscreen {
-                app.work_chat_fullscreen = false;
-                app.work_chat_half_fullscreen = false;
-            }
-        }
-        ViewMessage::WorkResourceHalfFullscreenToggled => {
-            app.work_resource_half_fullscreen = !app.work_resource_half_fullscreen;
-            app.work_resource_fullscreen = false;
-            if app.work_resource_half_fullscreen {
-                app.work_chat_fullscreen = false;
-                app.work_chat_half_fullscreen = false;
-            }
-        }
-        ViewMessage::WorkSpaceToggled(project_path) => {
-            if !app.work_expanded_spaces.insert(project_path.clone()) {
-                app.work_expanded_spaces.remove(&project_path);
-            }
-        }
-        _ => {}
-    }
-
+    let message = match message {
+        ViewMessage::WorkResourceModeSelected(mode) => domain::Message::WorkResourceModeSelected(mode),
+        ViewMessage::WorkResourcesToggled => domain::Message::WorkResourcesToggled,
+        ViewMessage::WorkResourceFullscreenToggled => domain::Message::WorkResourceFullscreenToggled,
+        ViewMessage::WorkResourceHalfFullscreenToggled => domain::Message::WorkResourceHalfFullscreenToggled,
+        ViewMessage::WorkSpaceToggled(project_path) => domain::Message::WorkSpaceToggled(project_path),
+        ViewMessage::WorkSplitRatioChanged(ratio) => domain::Message::WorkSplitRatioChanged(ratio),
+        _ => return Task::none(),
+    };
+    let mut state = domain::State {
+        work_resource_mode: std::mem::take(&mut app.work_resource_mode),
+        work_resources_visible: std::mem::take(&mut app.work_resources_visible),
+        dragging_work_split: std::mem::take(&mut app.dragging_work_split),
+        work_split_drag_anchor_x: std::mem::take(&mut app.work_split_drag_anchor_x),
+        work_resource_fullscreen: std::mem::take(&mut app.work_resource_fullscreen),
+        work_resource_half_fullscreen: std::mem::take(&mut app.work_resource_half_fullscreen),
+        work_split_ratio: std::mem::take(&mut app.work_split_ratio),
+        work_chat_fullscreen: std::mem::take(&mut app.work_chat_fullscreen),
+        work_chat_half_fullscreen: std::mem::take(&mut app.work_chat_half_fullscreen),
+        work_expanded_spaces: std::mem::take(&mut app.work_expanded_spaces),
+    };
+    domain::update(&mut state, message);
+    app.work_resource_mode = state.work_resource_mode;
+    app.work_resources_visible = state.work_resources_visible;
+    app.dragging_work_split = state.dragging_work_split;
+    app.work_split_drag_anchor_x = state.work_split_drag_anchor_x;
+    app.work_resource_fullscreen = state.work_resource_fullscreen;
+    app.work_resource_half_fullscreen = state.work_resource_half_fullscreen;
+    app.work_split_ratio = state.work_split_ratio;
+    app.work_chat_fullscreen = state.work_chat_fullscreen;
+    app.work_chat_half_fullscreen = state.work_chat_half_fullscreen;
+    app.work_expanded_spaces = state.work_expanded_spaces;
     Task::none()
 }
 

@@ -41,3 +41,5 @@ pub mod apps_tiles;
 pub mod apps_ui;
 
 pub mod bookmark;
+
+pub mod web;

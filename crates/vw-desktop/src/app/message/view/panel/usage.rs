@@ -1,135 +1,48 @@
-//! 处理视图面板的外部打开、弹出层与使用量展示交互。
-//!
-//! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
-//! 不改变任何运行时行为。
-
 use super::ViewMessage;
-use crate::app::state::UsageStepRawModal;
 use crate::app::{App, Message};
 use iced::Task;
-
-/// 执行 update 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+use desktop_usage::panel as domain;
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     let message = match message {
-        ViewMessage::UsageStepToggled(step_index) => {
-            let turn_id = turn_id_for_step(app, step_index);
-            ViewMessage::UsageTurnStepToggled(turn_id, step_index)
-        }
-        ViewMessage::UsageStepRawLoaded(session_id, step_index, result) => {
-            let turn_id = turn_id_for_step(app, step_index);
-            ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result)
-        }
-        ViewMessage::UsageStepRawOpen(step_index) => {
-            let turn_id = turn_id_for_step(app, step_index);
-            ViewMessage::UsageTurnStepRawOpen(turn_id, step_index)
-        }
-        message => message,
+        ViewMessage::UsageCenter(event) => return crate::app::views::usage::center::update(app, event),
+        ViewMessage::UsageStepToggled(step_index) => domain::Message::UsageStepToggled(step_index),
+        ViewMessage::UsageStepRawLoaded(session_id, step_index, result) => domain::Message::UsageStepRawLoaded(session_id, step_index, result),
+        ViewMessage::UsageStepRawOpen(step_index) => domain::Message::UsageStepRawOpen(step_index),
+        ViewMessage::UsageModelInfoLoaded(info) => domain::Message::UsageModelInfoLoaded(info),
+        ViewMessage::UsageTurnStepToggled(_turn_id, step_index) => domain::Message::UsageTurnStepToggled(_turn_id, step_index),
+        ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result) => domain::Message::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result),
+        ViewMessage::UsageTurnStepRawOpen(turn_id, step_index) => domain::Message::UsageTurnStepRawOpen(turn_id, step_index),
+        ViewMessage::UsageStepRawClose => domain::Message::UsageStepRawClose,
+        _ => return Task::none(),
     };
-    match message {
-        ViewMessage::UsageCenter(event) => crate::app::views::usage::center::update(app, event),
-        ViewMessage::UsageModelInfoLoaded(info) => {
-            app.usage_model_info = info;
-            Task::none()
+    let mut state = domain::State {
+        usage_model_info: std::mem::take(&mut app.usage_model_info),
+        usage_step_expanded: std::mem::take(&mut app.usage_step_expanded),
+        usage_step_raw_payloads: std::mem::take(&mut app.usage_step_raw_payloads),
+        usage_step_raw_loading: std::mem::take(&mut app.usage_step_raw_loading),
+        usage_step_raw_modal: std::mem::take(&mut app.usage_step_raw_modal),
+    };
+    let effect = domain::update(&mut state, app.active_session_id.as_deref(), &app.active_session_view_state.steps, &app.active_session_view_state.step_llm_raw, message);
+    app.usage_model_info = state.usage_model_info;
+    app.usage_step_expanded = state.usage_step_expanded;
+    app.usage_step_raw_payloads = state.usage_step_raw_payloads;
+    app.usage_step_raw_loading = state.usage_step_raw_loading;
+    app.usage_step_raw_modal = state.usage_step_raw_modal;
+    match effect {
+        Some(domain::Effect::InsertRaw(key, raw)) => { app.insert_active_session_step_llm_raw(key, raw); Task::none() }
+        Some(domain::Effect::LoadRaw((session_id, turn_id, step_index))) => {
+            let directory = app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
+            Task::perform(async move {
+                let result = crate::app::session_gateway::gateway_session_step_llm_raw_async(&session_id, &turn_id, step_index, directory.as_deref()).await;
+                (session_id, turn_id, step_index, result)
+            }, |(session_id, turn_id, step_index, result)| Message::View(ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result)))
         }
-        ViewMessage::UsageTurnStepToggled(_turn_id, step_index) => {
-            if app.usage_step_expanded.contains(&step_index) {
-                app.usage_step_expanded.remove(&step_index);
-                if app
-                    .usage_step_raw_modal
-                    .as_ref()
-                    .is_some_and(|modal| modal.step_index == step_index)
-                {
-                    app.usage_step_raw_modal = None;
-                }
-                return Task::none();
-            }
-            app.usage_step_expanded.insert(step_index);
-            Task::none()
-        }
-        ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result) => {
-            let key = (session_id.clone(), turn_id, step_index);
-            app.usage_step_raw_loading.remove(&key);
-            if app.active_session_id.as_deref() == Some(session_id.as_str()) {
-                match result {
-                    Ok(Some(raw)) => {
-                        app.insert_active_session_step_llm_raw(key.clone(), raw);
-                        app.usage_step_raw_payloads.remove(&key);
-                        if app.usage_step_expanded.contains(&step_index) {
-                            open_raw_modal(app, &key);
-                        }
-                    }
-                    result => {
-                        app.usage_step_raw_payloads.insert(key, result);
-                    }
-                }
-            }
-            Task::none()
-        }
-        ViewMessage::UsageTurnStepRawOpen(turn_id, step_index) => {
-            let Some(session_id) = app.active_session_id.clone() else {
-                return Task::none();
-            };
-            let key = (session_id.clone(), turn_id.clone(), step_index);
-            if app.active_session_view_state.step_llm_raw.contains_key(&key) {
-                open_raw_modal(app, &key);
-                return Task::none();
-            }
-            if app.usage_step_raw_loading.contains(&key)
-                || matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(None)))
-            {
-                return Task::none();
-            }
-            app.usage_step_raw_payloads.remove(&key);
-            app.usage_step_raw_loading.insert(key);
-            let directory =
-                app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
-            Task::perform(
-                async move {
-                    let result = crate::app::session_gateway::gateway_session_step_llm_raw_async(
-                        &session_id,
-                        &turn_id,
-                        step_index,
-                        directory.as_deref(),
-                    )
-                    .await;
-                    (session_id, turn_id, step_index, result)
-                },
-                |(session_id, turn_id, step_index, result)| {
-                    Message::View(ViewMessage::UsageTurnStepRawLoaded(
-                        session_id, turn_id, step_index, result,
-                    ))
-                },
-            )
-        }
-        ViewMessage::UsageStepRawClose => {
-            app.usage_step_raw_modal = None;
-            Task::none()
-        }
-        _ => Task::none(),
+        None => Task::none(),
     }
 }
-
-fn open_raw_modal(app: &mut App, key: &(String, String, u32)) {
-    let Some(value) = app.active_session_view_state.step_llm_raw.get(key) else {
-        return;
-    };
-    let content = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
-    app.usage_step_raw_modal = Some(UsageStepRawModal { step_index: key.2, content });
-}
-
-fn turn_id_for_step(app: &App, step_index: u32) -> String {
-    app.active_session_view_state
-        .steps
-        .iter()
-        .find(|step| step.index == step_index)
-        .and_then(|step| step.turn_id.clone())
-        .filter(|turn_id| !turn_id.trim().is_empty())
-        .unwrap_or_else(|| format!("legacy-step-{step_index}"))
-}
-
 #[cfg(test)]
 #[path = "usage_tests.rs"]
 mod usage_tests;
+
+#[cfg(test)]
+fn turn_id_for_step(app: &App, step_index: u32) -> String { domain::turn_id_for_step(&app.active_session_view_state.steps, step_index) }

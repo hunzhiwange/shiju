@@ -30,3 +30,5 @@ pub mod entry;
 mod view_test_fixture;
 
 pub mod model_info;
+
+pub mod panel;

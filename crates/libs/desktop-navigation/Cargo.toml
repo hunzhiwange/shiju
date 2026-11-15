@@ -22,6 +22,7 @@ desktop-settings-providers = { path = "../desktop-settings-providers", version =
 desktop-update = { path = "../desktop-update", version = "0.6.0" }
 desktop-release = { path = "../desktop-release", version = "0.6.0" }
 update-types = { path = "../update-types", version = "0.6.0" }
+desktop-editor = { path = "../desktop-editor", version = "0.6.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 desktop-web-install = { path = "../desktop-web-install", version = "0.6.0" }
 

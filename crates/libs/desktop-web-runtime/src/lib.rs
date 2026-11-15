@@ -21,3 +21,5 @@ mod plugin_compat_t31_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod plugin_compat_t64_tests;
+
+pub mod work_browser;

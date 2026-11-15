@@ -21,8 +21,9 @@ use super::super::content_search::{
     build_grep_command, build_rg_command, format_grep_output, format_line_output,
     parse_content_line, parse_count_line, relativize_path, truncate_utf8,
 };
-use super::super::*;
-use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use super::*;
+use tool_types::Tool;
+use agent_security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use std::path::PathBuf;
 use tempfile::TempDir;

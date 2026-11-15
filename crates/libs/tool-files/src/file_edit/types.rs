@@ -21,7 +21,7 @@ pub(crate) struct Args {
 
 /// 文件描述信息。
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct FileDescriptor {
+pub struct FileDescriptor {
     pub path: String,
     pub absolute_path: String,
     pub open: String,
@@ -30,7 +30,7 @@ pub(crate) struct FileDescriptor {
 
 /// 结构化 patch 载荷。
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct StructuredPatch {
+pub struct StructuredPatch {
     pub hunks: Vec<StructuredPatchHunkDto>,
 }
 

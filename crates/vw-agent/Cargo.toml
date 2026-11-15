@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+tool-files = { path = "../libs/tool-files", version = "0.6.0" }
 channel-runtime = { path = "../libs/channel-runtime", version = "0.6.0" }
 task-plan-runner = { path = "../libs/task-plan-runner", version = "0.6.0" }
 tool-memory = { path = "../libs/tool-memory", version = "0.6.0" }

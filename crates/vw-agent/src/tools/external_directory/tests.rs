@@ -19,7 +19,7 @@
 
 use super::super::*;
 use super::{Kind, Options, assert_external_directory, normalize_path, resolve_full_path};
-use crate::app::agent::security::AutonomyLevel;
+use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use std::path::PathBuf;
 
 /// 创建用于测试的安全策略配置

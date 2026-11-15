@@ -8,6 +8,7 @@
 //! - quote normalization + quote style preserve
 
 use super::*;
+use tool_types::Tool;
 
 #[allow(dead_code)]
 mod tests {

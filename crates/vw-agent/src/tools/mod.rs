@@ -269,3 +269,9 @@ impl tool_services::BatchHost for context::AgentContextHost {
         toolset::boxed_registry_from_arcs(tools)
     }
 }
+
+impl tool_files::FileToolHost for context::AgentContextHost {
+    async fn skill_directories() -> Vec<String> {
+        crate::skill::dirs().await
+    }
+}

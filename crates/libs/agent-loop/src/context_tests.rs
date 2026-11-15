@@ -2,7 +2,7 @@
 //! 可控记忆夹具区分低分、无评分、自动保存和召回失败等边界。
 
 use super::*;
-use crate::app::agent::memory::{MemoryCategory, MemoryEntry};
+use agent_memory::{MemoryCategory, MemoryEntry};
 use std::sync::Mutex;
 
 #[derive(Default)]

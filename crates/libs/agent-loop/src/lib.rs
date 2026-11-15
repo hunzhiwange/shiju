@@ -15,3 +15,6 @@ pub mod memory_loader;
 pub mod prompt;
 
 pub mod agent;
+
+pub mod approval;
+pub mod context;

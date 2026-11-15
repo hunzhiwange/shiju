@@ -39,7 +39,7 @@ tool-assembly = { path = "../tool-assembly", version = "0.6.0" }
 chrono-tz = "0.10"
 
 regex = "1"
-tokio = { version = "1", features = ["sync", "macros"] }
+tokio = { version = "1", features = ["sync", "macros", "time"] }
 anyhow = "1"
 tempfile = { version = "3", optional = true }
 async-trait = "0.1"
@@ -56,3 +56,4 @@ tool-types = { path = "../tool-types", version = "0.6.0" }
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { version = "1", features = ["test-util", "rt"] }

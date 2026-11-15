@@ -2,7 +2,7 @@
 //! 轮询夹具刻意覆盖决议晚到以及请求消失，确认清理动作不会遗留待处理状态。
 
 use super::*;
-use crate::app::agent::config::AutonomyConfig;
+use agent_config::schema::AutonomyConfig;
 use tokio_util::sync::CancellationToken;
 
 #[test]
@@ -158,7 +158,7 @@ async fn codex_plugin_compat_t37_cancelled_request_cannot_consume_prior_allow() 
 #[tokio::test(start_paused = true)]
 async fn acp_approval_waits_beyond_timeout_until_decision_or_cancellation() {
     let manager = ApprovalManager::from_config(&AutonomyConfig::default());
-    for (channel, approved) in [(crate::approval::ACP_APPROVAL_CHANNEL, true), ("acp", false)] {
+    for (channel, approved) in [(agent_approval::ACP_APPROVAL_CHANNEL, true), ("acp", false)] {
         let request = manager.create_non_cli_pending_request(
             "ACP",
             "alice",

@@ -27,6 +27,7 @@ members = [
   "crates/libs/canary-guard",
   "crates/libs/content-guard",
   "crates/libs/permission-engine",
+  "crates/libs/permission-engine",
   "crates/libs/goal-engine",
   "crates/libs/runtime-flags",
   "crates/libs/observer-types",

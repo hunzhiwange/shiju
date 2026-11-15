@@ -11,8 +11,7 @@ pub(crate) mod commands;
 pub(crate) mod controller;
 mod request;
 
-#[cfg(not(test))]
-pub(crate) use app::run_tui;
+pub use app::run_tui;
 
 #[cfg(test)]
 #[path = "bridge_tests.rs"]

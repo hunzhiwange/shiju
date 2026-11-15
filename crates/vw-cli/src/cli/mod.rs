@@ -13,7 +13,6 @@
 //! - `setup` - 初始化设置，配置 CLI 环境
 //! - `single_message` - 单消息模式，处理一次性输入输出
 //! - `stats` - 统计信息收集和展示
-//! - `tui` - 默认交互入口使用的 gateway-first TUI 与 Gateway 适配边界
 //!
 //! # 导出项
 //!
@@ -45,7 +44,6 @@ pub(crate) mod stats;
 #[cfg(test)]
 #[path = "stats_tests.rs"]
 mod stats_tests;
-pub(crate) mod tui;
 
 /// 导出主运行入口函数
 ///

@@ -17,7 +17,7 @@ use super::{
     run_terminal,
 };
 
-pub(crate) fn run_tui(runtime: GatewayUiRuntime, model_name: &str) -> Result<()> {
+pub fn run_tui(runtime: GatewayUiRuntime, model_name: &str) -> Result<()> {
     runtime.ensure_local_gateway_ready_blocking().map_err(|error| anyhow!(error))?;
 
     let mut state = initial_tui_state(&runtime);

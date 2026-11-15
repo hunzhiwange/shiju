@@ -26,7 +26,7 @@ use super::{
     V3UserInputAnswer,
 };
 
-pub(in crate::cli::tui) fn structured_patch_diff(payload: &serde_json::Value) -> Option<V3FileDiff> {
+pub(crate) fn structured_patch_diff(payload: &serde_json::Value) -> Option<V3FileDiff> {
     let result = payload.get("result")?;
     let result: ToolResultDto = serde_json::from_value(result.clone()).ok()?;
     if result.success == Some(false) {

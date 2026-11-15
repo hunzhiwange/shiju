@@ -331,7 +331,7 @@ use view::selectable_item;
 use view::effort_id;
 use view::permission_mode_id;
 use view::display_event_from_message;
-pub(crate) use startup::run_tui;
+pub use startup::run_tui;
 pub(crate) use startup::initial_tui_state;
 pub(crate) use startup::restore_or_create_session_state;
 pub(crate) use startup::bootstrap_directory_switch;

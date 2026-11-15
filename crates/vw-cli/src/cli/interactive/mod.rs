@@ -48,7 +48,7 @@ use super::setup::CliSetup;
 fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
     let runtime = super::setup::setup_gateway_runtime(config)
         .map_err(|error| anyhow::anyhow!(error))?;
-    super::tui::run_tui(runtime, &setup.model_name)
+    cli_interaction::run_tui(runtime, &setup.model_name)
 }
 
 /// 启动交互式命令行会话

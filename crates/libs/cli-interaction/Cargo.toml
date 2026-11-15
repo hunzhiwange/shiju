@@ -1,0 +1,22 @@
+[package]
+name = "cli-interaction"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+cli-gateway-runtime = { path = "../cli-gateway-runtime", version = "0.6.0" }
+cli-interaction-state = { path = "../cli-interaction-state", version = "0.6.0" }
+cli-interaction-model = { path = "../cli-interaction-model", version = "0.6.0" }
+anyhow = "1"
+base64 = "0.23"
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+dialoguer = "0.11"
+ratatui = "0.30.0"
+serde_json = "1"
+vw-gateway-client = { path = "../../vw-gateway-client", version = "0.6.0" }
+vw-shared = { path = "../../vw-shared", version = "0.6.0" }
+vw-tui = { path = "../../vw-tui", version = "0.6.0" }
+
+[dev-dependencies]
+tempfile = "3"

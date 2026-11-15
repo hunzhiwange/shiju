@@ -167,6 +167,7 @@ agent-files = { path = "../libs/agent-files", version = "0.6.0" }
 agent-bus = { path = "../libs/agent-bus", version = "0.6.0" }
 agent-log = { path = "../libs/agent-log", version = "0.6.0" }
 agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
+agent-knowledge = { path = "../libs/agent-knowledge", version = "0.6.0" }
 agent-hooks = { path = "../libs/agent-hooks", version = "0.6.0" }
 agent-commands = { path = "../libs/agent-commands", version = "0.6.0" }
 agent-project = { path = "../libs/agent-project", version = "0.6.0" }
@@ -352,7 +353,7 @@ default = [
   "channel-lark",
 ]
 "browser-native" = ["dep:fantoccini"]
-"rag-pdf" = []
+"rag-pdf" = ["agent-knowledge/rag-pdf"]
 firecrawl = []
 "web-fetch-html2md" = []
 "web-fetch-plaintext" = []

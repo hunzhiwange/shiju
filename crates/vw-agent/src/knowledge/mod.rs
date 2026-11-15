@@ -15,7 +15,3 @@ pub use store::SqliteKnowledgeStore;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "import_tests.rs"]
-mod import_tests;

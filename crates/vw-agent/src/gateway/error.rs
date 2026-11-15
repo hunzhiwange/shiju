@@ -78,6 +78,15 @@ impl ApiError {
     }
 }
 
+impl From<agent_knowledge::import::KnowledgeImportError> for ApiError {
+    fn from(error: agent_knowledge::import::KnowledgeImportError) -> Self {
+        match error {
+            agent_knowledge::import::KnowledgeImportError::BadRequest(message) => Self::bad_request(message),
+            agent_knowledge::import::KnowledgeImportError::NotImplemented(message) => Self::not_implemented(message),
+        }
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         // 统一使用 {"error": "..."}，让桌面端和外部客户端拥有稳定解析路径。

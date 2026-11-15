@@ -2,46 +2,46 @@
 use super::*;
 use vw_api_mcp_management::{McpToolDetails, McpToolDetailsRequest};
 
-pub fn start_details(
-    jobs: &DiagnosticJobs,
+pub fn start_details<H: ProbeHost>(
+    jobs: &H::Jobs,
     database: GlobalDatabase,
     policy: Option<PathBuf>,
     headers: &HeaderMap,
     scope: DiagnosticScope,
     request: McpToolDetailsRequest,
-) -> Result<DiagnosticJobIdentity, McpHandshakeStartError> {
+) -> Result<DiagnosticJobIdentity, McpHandshakeStartError<H::JobError>> {
     use McpHandshakeStartError::{Access, Job, Record};
     if request.record.revision == 0
         || request.connection_revision == 0
         || !validate_new_name(&request.record.id.0, &[]).is_ok_and(|id| id == request.record.id)
     {
-        return Err(Job(DiagnosticJobError::InvalidInput));
+        return Err(Job(H::invalid_input()));
     }
-    let access = McpProbeAccess::new(policy, headers).map_err(Access)?;
+    let access = H::Access::new(policy, headers).map_err(Access)?;
     let grant = access.authorize_details(&scope, &request.record.id).map_err(Access)?;
-    if request.scope != grant.permit.catalog_scope(&scope)
-        || request.connection_revision != grant.permit.connection_revision
+    if request.scope != grant.catalog_scope(&scope)
+        || request.connection_revision != grant.connection_revision()
     {
         return Err(Record(McpFailureCode::PermissionDenied));
     }
-    let principal = grant.principal.clone();
+    let principal = grant.principal().to_owned();
     let catalog = run_sync_database(|| Ok(McpCatalogStore::new(database.clone())))
         .map_err(|_| Record(McpFailureCode::StorageUnavailable))?
         .map_err(Record)?;
-    let context = Arc::new(ProbeContext { access, scope, catalog, database });
+    let context = Arc::new(ProbeContext::<H> { access, scope, catalog, database });
     let probe =
         McpHandshakeProbe { context: context.clone(), id: request.record.id.clone(), grant };
     probe.authorize_details(&request).map_err(Record)?;
-    let owner = DiagnosticJobOwner { scope: context.scope.clone(), principal };
-    jobs.start(
-        owner,
+    let owner_scope = context.scope.clone();
+    H::start(jobs,
+        owner_scope, principal,
         DiagnosticProbeKind::Mcp,
         vec![move |cancel| async move { probe.discover_details(request, cancel).await }],
     )
     .map_err(Job)
 }
 
-impl McpHandshakeProbe {
+impl<H: ProbeHost> McpHandshakeProbe<H> {
     fn authorize_details(&self, request: &McpToolDetailsRequest) -> Result<bool, McpFailureCode> {
         if !self
             .context
@@ -67,7 +67,7 @@ impl McpHandshakeProbe {
         self,
         request: McpToolDetailsRequest,
         cancel: CancellationToken,
-    ) -> Result<DiagnosticResult, DiagnosticProbeError> {
+    ) -> Result<DiagnosticResult, H::ProbeError> {
         let deadline = Instant::now() + CHECK_TIMEOUT;
         let http_io = CancellationToken::new();
         let _close_io = http_io.clone().drop_guard();
@@ -88,7 +88,7 @@ impl McpHandshakeProbe {
             let credentials = self.authorize_details(&request)?;
             let accounts = if credentials {
                 let root =
-                    self.grant.credential_root.as_ref().ok_or(McpFailureCode::PermissionDenied)?;
+                    self.grant.credential_root().ok_or(McpFailureCode::PermissionDenied)?;
                 Some(
                     run_sync_database(|| {
                         Ok(AuthAccountStore::new(self.context.database.clone(), root))
@@ -113,10 +113,10 @@ impl McpHandshakeProbe {
                     host,
                     accounts.as_ref(),
                     |definition, reference| {
-                        self.grant.permit.permits_credential(definition, reference).then_some(
+                        self.grant.permits_credential(definition, reference).then_some(
                             AuthAccountScope {
                                 tenant: self.context.scope.project.tenant_scope(),
-                                principal: &self.grant.principal,
+                                principal: self.grant.principal(),
                                 host,
                                 service: reference.service,
                             },
@@ -128,11 +128,11 @@ impl McpHandshakeProbe {
             if let McpExecutionConnection::Stdio { cwd, .. } = &mut connection {
                 cwd.get_or_insert_with(|| ".".to_owned());
             }
-            let workspace = self.grant.permit.stdio_workspace.as_deref().unwrap_or(Path::new("/"));
+            let workspace = self.grant.stdio_workspace().unwrap_or(Path::new("/"));
             let server = runtime_server(self.id.0.clone(), connection, workspace)
                 .map_err(|_| McpFailureCode::InvalidDefinition)?;
             let client = running.insert(
-                open_connection_check_peer(
+                H::open(
                     server,
                     deadline.saturating_duration_since(Instant::now()),
                     http_io.clone(),
@@ -145,12 +145,9 @@ impl McpHandshakeProbe {
             connected = true;
             self.authorize_details(&request)?;
             if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {
-                let tools = crate::plugins::list_mcp_catalog_tools(client.peer()).await;
-                match tools.and_then(|tools| {
-                    crate::tools::mcp_tool::mcp_tools_to_specs(&self.id.0, None, &tools, &[])
-                }) {
+                match H::tool_specs(client, &self.id.0).await {
                     Ok(specs) => {
-                        details.tools = specs.into_iter().map(|spec| spec.to_dto()).collect()
+                        details.tools = specs
                     }
                     Err(_) => details.tools_error = Some(McpFailureCode::ToolDiscoveryFailed),
                 }
@@ -174,7 +171,7 @@ impl McpHandshakeProbe {
             let _ = timeout_at(deadline, peer.cancel()).await;
         }
         if result.is_none() || cancel.is_cancelled() {
-            return Err(DiagnosticProbeError::Cancelled);
+            return Err(H::cancelled());
         }
         let _ = timeout_at(deadline, cleanup.wait()).await;
         let result = result.unwrap().and_then(|()| self.authorize_details(&request).map(|_| ()));

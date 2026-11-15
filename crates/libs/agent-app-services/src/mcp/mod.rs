@@ -170,3 +170,12 @@ pub mod connectivity;
 pub mod connection_runtime;
 
 pub mod acp_mount;
+
+#[cfg(target_os = "macos")]
+pub mod network_probe;
+#[cfg(target_os = "macos")]
+pub mod probe_host;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod probe_jobs;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod probe_jobs_host;

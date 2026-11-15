@@ -1,45 +1,30 @@
-//! Explicit managed MCP batches on the authorized execution host.
-
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
-
+//! Batch job registration adapter for the single execution-host registry.
+pub use agent_app_services::mcp::probe_jobs::{McpProbeTarget, McpProbeBatch};
+use super::McpCatalogStore;
+use std::{future::Future, path::PathBuf, sync::Arc};
+use crate::agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore};
+use crate::gateway::agent_apps_diagnostic_jobs::{DiagnosticJobs, DiagnosticJobOwner, DiagnosticJobError, DiagnosticProbeError};
+use vw_api_app_diagnostics::{DiagnosticJobIdentity, DiagnosticScope, DiagnosticProbeKind, DiagnosticResult};
+use vw_api_mcp_management::{McpConnectionDefinition, McpCredentialRef};
 use tokio_util::sync::CancellationToken;
-use vw_agent_apps::mcp::validation::validate_new_name;
-use {
-    vw_api_app_diagnostics::DiagnosticJobIdentity,
-    vw_api_app_diagnostics::DiagnosticProbeKind,
-    vw_api_app_diagnostics::DiagnosticResult,
-    vw_api_mcp_management::McpCatalogScope,
-    vw_api_mcp_management::McpConnectionCheckItem,
-    vw_api_mcp_management::McpConnectionDefinition,
-    vw_api_mcp_management::McpCredentialRef,
-    vw_api_mcp_management::McpFailureCode,
-    vw_api_mcp_management::McpRecordId,
-};
-
-use super::{
-    McpCatalogStore,
-    connectivity::{CheckRevision, ConnectionCheckHost},
-};
-use crate::{
-    agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
-    gateway::agent_apps_diagnostic_jobs::{
-        DiagnosticJobError, DiagnosticJobOwner, DiagnosticJobs, DiagnosticProbeError,
-    },
-};
-
-pub struct McpProbeTarget {
-    pub id: McpRecordId,
-    pub connection_revision: u64,
+use agent_app_services::mcp::probe_jobs_host::BatchHost;
+struct NativeBatchHost;
+impl BatchHost for NativeBatchHost {
+ type Jobs = DiagnosticJobs;
+ type Owner = DiagnosticJobOwner;
+ type JobError = DiagnosticJobError;
+ type ProbeError = DiagnosticProbeError;
+ type Runtime = super::connectivity::NativeConnectionCheckRuntime;
+ fn runtime() -> Self::Runtime { super::connectivity::NativeConnectionCheckRuntime }
+ fn scope(owner: &Self::Owner) -> &DiagnosticScope { &owner.scope }
+ fn invalid_input() -> Self::JobError { DiagnosticJobError::InvalidInput }
+ fn cancelled() -> Self::ProbeError { DiagnosticProbeError::Cancelled }
+ fn start<F, Fut>(jobs: &Self::Jobs, owner: Self::Owner, kind: DiagnosticProbeKind, probes: Vec<F>) -> Result<DiagnosticJobIdentity, Self::JobError>
+ where F: FnOnce(CancellationToken) -> Fut + Send + 'static,
+ Fut: Future<Output = Result<DiagnosticResult, Self::ProbeError>> + Send + 'static {
+    jobs.start(owner, kind, probes)
+ }
 }
-
-pub struct McpProbeBatch {
-    pub scope: McpCatalogScope,
-    pub generation: u64,
-    pub targets: Vec<McpProbeTarget>,
-}
-
-/// Submit explicitly authorized records to the host's shared diagnostic scheduler. The
-/// gateway supplies the trusted workspace and decides whether to grant each credential.
 pub fn start_connection_checks(
     jobs: &DiagnosticJobs,
     owner: DiagnosticJobOwner,
@@ -56,65 +41,5 @@ pub fn start_connection_checks(
     + Sync
     + 'static,
 ) -> Result<DiagnosticJobIdentity, DiagnosticJobError> {
-    let scope_matches = match &batch.scope {
-        McpCatalogScope::Tenant { scope } => scope == owner.scope.project.tenant_scope(),
-        McpCatalogScope::Project { scope } => scope == &owner.scope.project,
-    };
-    let mut unique = HashSet::new();
-    if !scope_matches
-        || !workspace.is_absolute()
-        || !batch.targets.iter().all(|target| {
-            validate_new_name(&target.id.0, &[]).is_ok_and(|id| id == target.id)
-                && target.connection_revision > 0
-                && unique.insert(&target.id)
-        })
-    {
-        return Err(DiagnosticJobError::InvalidInput);
-    }
-
-    let owner_context = Arc::new(owner.clone());
-    let workspace = Arc::new(workspace);
-    let authorize = Arc::new(authorize_credential_use);
-    let generation = batch.generation;
-    let probes = batch
-        .targets
-        .into_iter()
-        .map(|target| {
-            let (catalog, accounts) = (catalog.clone(), accounts.clone());
-            let (owner, workspace) = (owner_context.clone(), workspace.clone());
-            let (scope, authorize) = (batch.scope.clone(), authorize.clone());
-            move |cancel: CancellationToken| async move {
-                let host = ConnectionCheckHost {
-                    scope: &scope,
-                    execution_host: &owner.scope.target_host_id,
-                    workspace: &workspace,
-                    accounts: Some(&accounts),
-                    authorize: &|| Ok(()),
-                };
-                let outcome = catalog
-                    .check_connection_inner(
-                        &super::connectivity::NativeConnectionCheckRuntime,
-host,
-                        &target.id,
-                        CheckRevision::Connection(target.connection_revision),
-                        Some(&cancel),
-                        |definition, reference| authorize(&owner, definition, reference),
-                    )
-                    .await;
-                if cancel.is_cancelled() {
-                    return Err(DiagnosticProbeError::Cancelled);
-                }
-                Ok(DiagnosticResult::McpConnectionCheck {
-                    scope,
-                    generation,
-                    item: McpConnectionCheckItem {
-                        id: target.id,
-                        connection_revision: target.connection_revision,
-                        outcome,
-                    },
-                })
-            }
-        })
-        .collect();
-    jobs.start(owner, DiagnosticProbeKind::Mcp, probes)
+ agent_app_services::mcp::probe_jobs::start_connection_checks::<NativeBatchHost>(jobs, owner, catalog, accounts, workspace, batch, authorize_credential_use)
 }

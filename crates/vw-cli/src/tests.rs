@@ -1,5 +1,5 @@
 //! `vw-cli` 根模块对外辅助行为的回归测试。
-//! 覆盖温度解析、首个非空行、项目目录解析在成功与错误边界下的结果。
+//! 覆盖首个非空行、项目目录解析在成功与错误边界下的结果。
 //! 任务 JSON 输出场景则使用典型数据确认单项和列表路径均可安全执行。
 
 use std::fs;
@@ -7,16 +7,8 @@ use std::fs;
 use vw_shared::task::Task;
 
 use super::{
-    first_non_empty_line, parse_temperature, print_task_json, print_tasks_json, resolve_project_dir,
+    first_non_empty_line, print_task_json, print_tasks_json, resolve_project_dir,
 };
-
-#[test]
-fn parse_temperature_accepts_inclusive_bounds_and_rejects_invalid_values() {
-    assert_eq!(parse_temperature("0").unwrap(), 0.0);
-    assert_eq!(parse_temperature("2.0").unwrap(), 2.0);
-    assert_eq!(parse_temperature("2.01").unwrap_err(), "temperature must be between 0.0 and 2.0");
-    assert!(parse_temperature("not-a-number").is_err());
-}
 
 #[test]
 fn first_non_empty_line_trims_and_returns_empty_when_content_is_blank() {
@@ -58,40 +50,6 @@ fn resolve_project_dir_returns_canonical_directory() {
 }
 
 #[test]
-fn parse_temperature_rejects_negative_and_out_of_range_values() {
-    let err_neg = parse_temperature("-1").unwrap_err();
-    assert!(err_neg.contains("between 0.0 and 2.0"), "unexpected error: {err_neg}");
-
-    let err_slightly_above = parse_temperature("2.0001").unwrap_err();
-    assert!(
-        err_slightly_above.contains("between 0.0 and 2.0"),
-        "unexpected error: {err_slightly_above}"
-    );
-
-    let err_slightly_below = parse_temperature("-0.0001").unwrap_err();
-    assert!(
-        err_slightly_below.contains("between 0.0 and 2.0"),
-        "unexpected error: {err_slightly_below}"
-    );
-}
-
-#[test]
-fn parse_temperature_succeeds_within_range() {
-    assert_eq!(parse_temperature("0.5").unwrap(), 0.5);
-    assert_eq!(parse_temperature("1.0").unwrap(), 1.0);
-    assert_eq!(parse_temperature("1.5").unwrap(), 1.5);
-}
-
-#[test]
-fn parse_temperature_propagates_parse_error_formatted() {
-    let err = parse_temperature("").unwrap_err();
-    assert!(err.contains("cannot parse"), "unexpected error: {err}");
-
-    let err = parse_temperature("abc").unwrap_err();
-    assert!(err.contains("invalid float"), "unexpected error: {err}");
-}
-
-#[test]
 fn first_non_empty_line_handles_edge_inputs() {
     assert_eq!(first_non_empty_line(""), "");
     assert_eq!(first_non_empty_line("   "), "");
@@ -126,12 +84,6 @@ fn print_task_json_and_tasks_no_panic_for_typical_inputs() {
     print_task_json(&task).unwrap();
     print_tasks_json(&[] as &[Task]).unwrap();
     print_tasks_json(&[Task::new(1)]).unwrap();
-}
-
-#[test]
-fn parse_temperature_zero_and_two_exact_boundaries() {
-    assert_eq!(parse_temperature("0.0").unwrap(), 0.0);
-    assert_eq!(parse_temperature("2.0").unwrap(), 2.0);
 }
 
 #[test]

@@ -13,8 +13,7 @@
 //! ## 架构说明
 //!
 //! 使用 `clap` 库的派生宏实现命令行参数解析，通过 `#[derive(Parser)]` 和
-//! `#[derive(Subcommand)]` 自动生成解析逻辑。所有命令结构体使用 `pub(crate)`
-//! 可见性，确保仅在当前二进制包内可访问。
+//! `#[derive(Subcommand)]` 自动生成解析逻辑。跨包使用的命令类型公开，解析辅助实现保持私有。
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 
@@ -30,14 +29,12 @@ use vw_agent::skill::SkillCommands;
 
 use cli_gateway_commands::{ApiOptions, RootApiCommands, RootConfigCommands};
 
-pub(crate) use cli_agent_session::run;
-
 /// Shell 补全脚本支持的 shell 类型枚举
 ///
 /// 定义了 `shiju completions` 命令支持的所有目标 shell 类型，
 /// 用于生成对应 shell 的命令行自动补全脚本。
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-pub(crate) enum CompletionShell {
+pub enum CompletionShell {
     /// Bash shell 补全
     #[value(name = "bash")]
     Bash,
@@ -60,7 +57,7 @@ pub(crate) enum CompletionShell {
 /// 定义了不同级别的紧急停止操作，用于在异常情况下快速限制或终止代理行为。
 /// 级别从宽到严依次为：工具冻结 -> 域名阻止 -> 网络终止 -> 全部终止。
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-pub(crate) enum EstopLevelArg {
+pub enum EstopLevelArg {
     /// 终止所有操作 - 最高级别的紧急停止
     #[value(name = "kill-all")]
     KillAll,
@@ -97,17 +94,17 @@ pub(crate) enum EstopLevelArg {
 #[command(author = "theonlyhennygod")]
 #[command(version)]
 #[command(about = "The fastest, smallest AI assistant.", long_about = None)]
-pub(crate) struct Cli {
+pub struct Cli {
     /// 配置文件目录路径（全局参数）
     ///
     /// 指定 VibeWindow 配置文件的存储目录。如未指定，
     /// 将使用系统默认位置（~/.config/vibewindow 或平台等效路径）。
     #[arg(long, global = true)]
-    pub(crate) config_dir: Option<String>,
+    pub config_dir: Option<String>,
 
     /// 要执行的子命令（必需）
     #[command(subcommand)]
-    pub(crate) command: Commands,
+    pub command: Commands,
 }
 
 /// CLI 子命令枚举
@@ -115,7 +112,7 @@ pub(crate) struct Cli {
 /// 定义了 VibeWindow 支持的所有一级子命令。每个变体对应一个独立的功能模块，
 /// 部分命令还包含二级子命令（通过嵌套的 `#[command(subcommand)]` 实现）。
 #[derive(Subcommand, Debug)]
-pub(crate) enum Commands {
+pub enum Commands {
     /// 通过 stdin/stdout 运行本地 ACP Agent。
     Acp,
 
@@ -652,7 +649,7 @@ impl Commands {
 
 /// 配置管理子命令
 #[derive(Subcommand, Debug)]
-pub(crate) enum ConfigCommands {
+pub enum ConfigCommands {
     /// 将完整的配置 JSON Schema 转储到标准输出
     Schema,
 
@@ -663,7 +660,7 @@ pub(crate) enum ConfigCommands {
 
 /// 任务管理子命令
 #[derive(Subcommand, Debug)]
-pub(crate) enum TaskCommands {
+pub enum TaskCommands {
     /// 创建任务
     Create {
         /// 任务优先级（数字越小优先级越高）
@@ -713,7 +710,7 @@ pub(crate) enum TaskCommands {
 
 /// CLI 任务拆分模式。
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-pub(crate) enum TaskSplitCliMode {
+pub enum TaskSplitCliMode {
     FollowSystem,
     On,
     Off,
@@ -721,7 +718,7 @@ pub(crate) enum TaskSplitCliMode {
 
 /// 紧急停止子命令
 #[derive(Subcommand, Debug)]
-pub(crate) enum EstopSubcommands {
+pub enum EstopSubcommands {
     /// 打印当前紧急停止状态
     Status,
     /// 从已触发的紧急停止级别恢复
@@ -743,7 +740,7 @@ pub(crate) enum EstopSubcommands {
 
 /// 安全管理子命令
 #[derive(Subcommand, Debug)]
-pub(crate) enum SecurityCommands {
+pub enum SecurityCommands {
     /// 将语义提示注入语料库记录更新到配置的向量集合中
     UpdateGuardCorpus {
         /// 语料库来源：`builtin`（内置）、文件系统路径或 HTTP(S) URL
@@ -757,7 +754,7 @@ pub(crate) enum SecurityCommands {
 
 /// 诊断子命令
 #[derive(Subcommand, Debug)]
-pub(crate) enum DoctorCommands {
+pub enum DoctorCommands {
     /// 探测各提供商的模型目录并报告可用性
     Models {
         /// 仅探测特定提供商（默认：所有已知提供商）
@@ -807,7 +804,7 @@ pub(crate) enum DoctorCommands {
 /// let mut out = stdout();
 /// write_shell_completion(CompletionShell::Bash, &mut out)?;
 /// ```
-pub(crate) fn write_shell_completion<W: std::io::Write>(
+pub fn write_shell_completion<W: std::io::Write>(
     shell: CompletionShell,
     writer: &mut W,
 ) -> anyhow::Result<()> {

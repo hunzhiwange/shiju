@@ -1,11 +1,11 @@
 //! `vw-cli` 库层输入解析辅助函数的测试。
-//! 覆盖模型温度的有限边界、首个非空行的 Unicode 空白处理，以及项目目录的规范化与类型检查。
+//! 覆盖首个非空行的 Unicode 空白处理，以及项目目录的规范化与类型检查。
 //! 同时确认 ACP 子命令不暴露额外的命令专用参数。
 
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{first_non_empty_line, parse_temperature, resolve_project_dir};
+use super::{first_non_empty_line, resolve_project_dir};
 use clap::Parser;
 
 struct TestDir {
@@ -27,42 +27,6 @@ impl Drop for TestDir {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.path);
     }
-}
-
-#[test]
-fn parse_temperature_accepts_inclusive_model_bounds() {
-    assert_eq!(parse_temperature("0"), Ok(0.0));
-    assert_eq!(parse_temperature("2.0"), Ok(2.0));
-    assert_eq!(parse_temperature("0.75"), Ok(0.75));
-}
-
-#[test]
-fn parse_temperature_rejects_values_outside_supported_range() {
-    assert_eq!(
-        parse_temperature("-0.01"),
-        Err("temperature must be between 0.0 and 2.0".to_string())
-    );
-    assert_eq!(
-        parse_temperature("2.01"),
-        Err("temperature must be between 0.0 and 2.0".to_string())
-    );
-}
-
-#[test]
-fn parse_temperature_rejects_non_finite_float_spellings() {
-    for value in ["NaN", "inf", "-inf"] {
-        assert_eq!(
-            parse_temperature(value),
-            Err("temperature must be between 0.0 and 2.0".to_string()),
-            "{value} must not be accepted as a temperature"
-        );
-    }
-}
-
-#[test]
-fn parse_temperature_keeps_parser_whitespace_rules_explicit() {
-    assert!(parse_temperature(" 1.0 ").is_err());
-    assert_eq!(parse_temperature("1e0"), Ok(1.0));
 }
 
 #[test]

@@ -265,7 +265,7 @@ pub async fn load_global_config_value_async(&self) -> Result<serde_json::Value, 
 pub async fn load_mcp_inspect_async(&self)
 -> Result<vw_api_mcp_inspect::McpInspectResponse, String> {
     let client = self.gateway_client()?;
-    client.mcp_inspect().await
+    gateway_mcp::GatewayMcpClient::new(client.transport().clone()).mcp_inspect().await
 }
 pub async fn load_browser_config_async(&self) -> Result<BrowserConfig, String> {
     Ok(self.load_full_agent_config_async().await?.browser)

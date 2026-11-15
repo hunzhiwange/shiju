@@ -36,10 +36,11 @@ impl MemoryMutation {
 
 pub(crate) async fn load_integrations(runtime: &GatewayUiRuntime) -> LoadedIntegrationCatalog {
     let directory = runtime.directory_value();
+    let mcp_client = gateway_mcp::GatewayMcpClient::new(runtime.client().transport().clone());
     let (skills, plugins, mcp, memory) = tokio::join!(
         runtime.client().skills_get(directory.as_deref()),
         runtime.client().plugins_get(),
-        runtime.client().mcp_inspect(),
+        mcp_client.mcp_inspect(),
         runtime.client().memory_query_get(None, None),
     );
     let mut loaded = LoadedIntegrationCatalog::default();

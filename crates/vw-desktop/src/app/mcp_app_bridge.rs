@@ -408,7 +408,7 @@ impl McpAppProcess {
             );
             let response = match (admitted, call) {
                 (Ok(Admission::Reply(mut response)), Some((name, arguments))) => {
-                    match client
+                    match gateway_mcp::GatewayMcpClient::new(client.transport().clone())
                         .mcp_app_call(&self.session, &self.server, binding, &name, &arguments)
                         .await
                     {

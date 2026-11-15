@@ -15,15 +15,12 @@ impl GatewayClient {
         name: &str,
         arguments: &serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        self.post_json("/v1/mcp/apps/call", &[], &serde_json::json!({"session":session,"server":server,"binding":binding,"name":name,"arguments":arguments})).await
+        gateway_mcp::GatewayMcpClient::new(self.transport.clone())
+            .mcp_app_call(session, server, binding, name, arguments).await
     }
 
     /// Inspect configured MCP servers and their currently exposed tools.
     pub async fn mcp_inspect(&self) -> Result<McpInspectResponse, String> {
-        self.get_json("/v1/mcp/inspect", &[]).await
+        gateway_mcp::GatewayMcpClient::new(self.transport.clone()).mcp_inspect().await
     }
 }
-
-#[cfg(test)]
-#[path = "mcp_api_tests.rs"]
-mod mcp_api_tests;

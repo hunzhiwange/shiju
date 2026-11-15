@@ -4,7 +4,7 @@
 
 use serde_json::json;
 
-use crate::client::test_support;
+use crate::test_support;
 
 #[tokio::test]
 async fn mcp_inspect_gets_gateway_inspection_response() {

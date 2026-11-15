@@ -8,7 +8,7 @@ fn test_module_is_wired() {
 }
 
 use super::*;
-use crate::apps::workflow::model::{WorkflowHandle, WorkflowHandleSide};
+use desktop_workflow_model::{WorkflowHandle, WorkflowHandleSide};
 use iced::Size;
 
 #[test]

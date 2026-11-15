@@ -1,7 +1,7 @@
 //! 数据整形节点的类型、顺序和未知字段无损往返测试。
 
 use super::*;
-use crate::apps::workflow::model::supported_node_types;
+use desktop_workflow_model::supported_node_types;
 
 fn map_value<'a>(map: &'a Mapping, key: &str) -> &'a Value {
     mapping_value(map, key).unwrap_or_else(|| panic!("missing key {key}"))

@@ -12,7 +12,7 @@ impl WorkflowState {
     }
 
     pub fn zoom_by(&mut self, factor: f32, center_opt: Option<Point>, window_size: (f32, f32)) {
-        (self.pan, self.zoom) = desktop_workflow_state::canvas_ops::zoom_by(self.pan, self.zoom, factor, center_opt, window_size);
+        (self.pan, self.zoom) = crate::canvas_ops::zoom_by(self.pan, self.zoom, factor, center_opt, window_size);
         self.context_menu = None;
         self.zoom_menu_open = false;
         self.refresh_dirty_state();
@@ -26,7 +26,7 @@ impl WorkflowState {
     }
 
     pub fn zoom_to_fit(&mut self, window_size: (f32, f32)) {
-        let Some((pan, zoom)) = desktop_workflow_state::canvas_ops::zoom_to_fit(&self.document, window_size) else {
+        let Some((pan, zoom)) = crate::canvas_ops::zoom_to_fit(&self.document, window_size) else {
             self.zoom = 1.0;
             self.pan = Vector::new(120.0, 120.0);
             return;
@@ -86,7 +86,7 @@ impl WorkflowState {
         }
 
         self.context_menu = None;
-        self.set_status(crate::app::i18n::format::Message::new("已更新节点布局", vec![]));
+        self.set_status(desktop_i18n::format::Message::new("已更新节点布局", vec![]));
         self.refresh_dirty_state();
     }
 
@@ -97,7 +97,7 @@ impl WorkflowState {
         self.connection_draft = Some(WorkflowConnectionDraft { from: from.clone(), cursor_world });
         self.selected_node_id = Some(from.node_id);
         self.selected_edge_id = None;
-        self.set_status(crate::app::i18n::format::Message::new("拖到目标句柄以创建连线", vec![]));
+        self.set_status(desktop_i18n::format::Message::new("拖到目标句柄以创建连线", vec![]));
         self.sync_selection_flags();
     }
 
@@ -109,27 +109,27 @@ impl WorkflowState {
 
     pub fn cancel_connection(&mut self) {
         if self.connection_draft.take().is_some() {
-            self.set_status(crate::app::i18n::format::Message::new("已取消连线", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("已取消连线", vec![]));
         }
     }
 
     pub fn cancel_interaction(&mut self) {
         if self.action_menu_open || self.zoom_menu_open || self.quick_insert_panel_open {
             self.close_floating_panels();
-            self.set_status(crate::app::i18n::format::Message::new("已关闭浮层菜单", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("已关闭浮层菜单", vec![]));
         } else if self.context_menu.take().is_some() {
-            self.set_status(crate::app::i18n::format::Message::new("已关闭右键菜单", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("已关闭右键菜单", vec![]));
         } else if self.connection_draft.is_some() {
             self.cancel_connection();
         } else if self.variable_editor.is_some() {
             self.variable_editor = None;
-            self.set_status(crate::app::i18n::format::Message::new("已关闭变量编辑器", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("已关闭变量编辑器", vec![]));
         } else if self.variable_panel.is_some() {
             self.variable_panel = None;
-            self.set_status(crate::app::i18n::format::Message::new("已关闭变量面板", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("已关闭变量面板", vec![]));
         } else if self.selected_edge_id.is_some() || self.selected_node_id.is_some() {
             self.clear_selection();
-            self.set_status(crate::app::i18n::format::Message::new("已清除选择", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("已清除选择", vec![]));
         }
     }
 
@@ -139,7 +139,7 @@ impl WorkflowState {
         };
 
         let Some((source, target)) = normalize_connection_endpoints(&draft.from, &to) else {
-            self.set_status(crate::app::i18n::format::Message::new(
+            self.set_status(desktop_i18n::format::Message::new(
                 "连线需要从输出句柄连接到输入句柄",
                 vec![],
             ));
@@ -147,7 +147,7 @@ impl WorkflowState {
         };
 
         if source.node_id == target.node_id {
-            self.set_status(crate::app::i18n::format::Message::new(
+            self.set_status(desktop_i18n::format::Message::new(
                 "暂不支持节点自身回环连线",
                 vec![],
             ));
@@ -161,12 +161,12 @@ impl WorkflowState {
                 && edge.target_handle.as_deref() == Some(target.handle_id.as_str())
         }) {
             self.select_edge(existing.id.clone());
-            self.set_status(crate::app::i18n::format::Message::new("这条连线已经存在", vec![]));
+            self.set_status(desktop_i18n::format::Message::new("这条连线已经存在", vec![]));
             return;
         }
 
         let Some(source_node) = self.document.node(&source.node_id) else {
-            self.set_status(crate::app::i18n::format::Message::new(
+            self.set_status(desktop_i18n::format::Message::new(
                 "源节点不存在，无法创建连线",
                 vec![],
             ));
@@ -176,7 +176,7 @@ impl WorkflowState {
         let source_title = source_node.title.clone();
 
         let Some(target_node) = self.document.node(&target.node_id) else {
-            self.set_status(crate::app::i18n::format::Message::new(
+            self.set_status(desktop_i18n::format::Message::new(
                 "目标节点不存在，无法创建连线",
                 vec![],
             ));
@@ -206,7 +206,7 @@ impl WorkflowState {
         self.selected_node_id = None;
         self.selected_edge_id = Some(edge_id);
         self.context_menu = None;
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已连接 %s -> %s",
             vec![source_title.to_string().into(), target_title.to_string().into()],
         ));
@@ -228,7 +228,7 @@ impl WorkflowState {
         self.selected_edge_id = None;
         self.clear_context_menu_if_target_edge(&edge_id);
         self.sync_selection_flags();
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已删除连线 %s -> %s",
             vec![removed.source.to_string().into(), removed.target.to_string().into()],
         ));
@@ -311,7 +311,7 @@ impl WorkflowState {
             ),
             (false, false) => ("已删除节点 %s", vec![node.title.into()]),
         };
-        self.set_status(crate::app::i18n::format::Message::new(source, arguments));
+        self.set_status(desktop_i18n::format::Message::new(source, arguments));
         true
     }
 
@@ -329,7 +329,7 @@ impl WorkflowState {
         }
 
         self.restore_history_snapshot(previous);
-        self.set_status(crate::app::i18n::format::Message::new("已撤销上一步", vec![]));
+        self.set_status(desktop_i18n::format::Message::new("已撤销上一步", vec![]));
         true
     }
 
@@ -347,7 +347,7 @@ impl WorkflowState {
         }
 
         self.restore_history_snapshot(next);
-        self.set_status(crate::app::i18n::format::Message::new("已重做上一步", vec![]));
+        self.set_status(desktop_i18n::format::Message::new("已重做上一步", vec![]));
         true
     }
 

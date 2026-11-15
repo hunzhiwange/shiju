@@ -34,11 +34,11 @@ impl WorkflowState {
     pub fn open_edit_environment_variable_editor(
         &mut self,
         id: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         let variable = self
             .environment_variable(id)
             .cloned()
-            .ok_or_else(|| crate::app::i18n::workflow::Feedback::new("环境变量不存在", vec![]))?;
+            .ok_or_else(|| desktop_i18n::workflow::Feedback::new("环境变量不存在", vec![]))?;
 
         self.context_menu = None;
         self.action_menu_open = false;
@@ -73,11 +73,11 @@ impl WorkflowState {
     pub fn open_edit_conversation_variable_editor(
         &mut self,
         id: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         let variable = self
             .conversation_variable(id)
             .cloned()
-            .ok_or_else(|| crate::app::i18n::workflow::Feedback::new("会话变量不存在", vec![]))?;
+            .ok_or_else(|| desktop_i18n::workflow::Feedback::new("会话变量不存在", vec![]))?;
 
         self.context_menu = None;
         self.action_menu_open = false;
@@ -123,7 +123,7 @@ impl WorkflowState {
         }
     }
 
-    pub fn submit_variable_editor(&mut self) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    pub fn submit_variable_editor(&mut self) -> Result<(), desktop_i18n::workflow::Feedback> {
         let Some(editor) = self.variable_editor.as_ref() else {
             return Ok(());
         };
@@ -132,7 +132,7 @@ impl WorkflowState {
         let value_type_input = editor.value_type.clone();
         let name = editor.name.trim().to_string();
         if name.is_empty() {
-            return Err(crate::app::i18n::workflow::Feedback::new("变量名称不能为空", vec![]));
+            return Err(desktop_i18n::workflow::Feedback::new("变量名称不能为空", vec![]));
         }
 
         let description = editor.description.trim().to_string();
@@ -156,7 +156,7 @@ impl WorkflowState {
                 self.variable_panel = Some(WorkflowVariablePanelKind::Environment);
                 self.variable_editor = None;
                 self.refresh_dirty_state();
-                self.set_status(crate::app::i18n::format::Message::new(
+                self.set_status(desktop_i18n::format::Message::new(
                     "已新增环境变量 %s",
                     vec![name.to_string().into()],
                 ));
@@ -176,7 +176,7 @@ impl WorkflowState {
                     .iter()
                     .position(|variable| variable.id == id)
                     .ok_or_else(|| {
-                        crate::app::i18n::workflow::Feedback::new("环境变量不存在", vec![])
+                        desktop_i18n::workflow::Feedback::new("环境变量不存在", vec![])
                     })?;
                 let raw_variable = self.environment_variables[index].raw_variable.clone();
 
@@ -192,7 +192,7 @@ impl WorkflowState {
                 self.variable_panel = Some(WorkflowVariablePanelKind::Environment);
                 self.variable_editor = None;
                 self.refresh_dirty_state();
-                self.set_status(crate::app::i18n::format::Message::new(
+                self.set_status(desktop_i18n::format::Message::new(
                     "已更新环境变量 %s",
                     vec![name.to_string().into()],
                 ));
@@ -213,7 +213,7 @@ impl WorkflowState {
                 self.variable_panel = Some(WorkflowVariablePanelKind::Conversation);
                 self.variable_editor = None;
                 self.refresh_dirty_state();
-                self.set_status(crate::app::i18n::format::Message::new(
+                self.set_status(desktop_i18n::format::Message::new(
                     "已新增会话变量 %s",
                     vec![name.to_string().into()],
                 ));
@@ -232,7 +232,7 @@ impl WorkflowState {
                     .iter()
                     .position(|variable| variable.id == id)
                     .ok_or_else(|| {
-                        crate::app::i18n::workflow::Feedback::new("会话变量不存在", vec![])
+                        desktop_i18n::workflow::Feedback::new("会话变量不存在", vec![])
                     })?;
                 let raw_variable = self.conversation_variables[index].raw_variable.clone();
 
@@ -248,7 +248,7 @@ impl WorkflowState {
                 self.variable_panel = Some(WorkflowVariablePanelKind::Conversation);
                 self.variable_editor = None;
                 self.refresh_dirty_state();
-                self.set_status(crate::app::i18n::format::Message::new(
+                self.set_status(desktop_i18n::format::Message::new(
                     "已更新会话变量 %s",
                     vec![name.to_string().into()],
                 ));
@@ -275,7 +275,7 @@ impl WorkflowState {
 
         self.variable_panel = Some(WorkflowVariablePanelKind::Environment);
         self.refresh_dirty_state();
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已删除环境变量 %s",
             vec![removed.name.to_string().into()],
         ));
@@ -299,7 +299,7 @@ impl WorkflowState {
 
         self.variable_panel = Some(WorkflowVariablePanelKind::Conversation);
         self.refresh_dirty_state();
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已删除会话变量 %s",
             vec![removed.name.to_string().into()],
         ));

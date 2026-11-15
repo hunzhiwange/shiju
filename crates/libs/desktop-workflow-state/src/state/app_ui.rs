@@ -15,7 +15,7 @@ impl WorkflowState {
         self.quick_insert_panel_open = false;
         self.action_menu_open = false;
         self.zoom_menu_open = false;
-        let (menu, node, edge) = desktop_workflow_state::app_ui::open_context_menu(target, anchor, world);
+        let (menu, node, edge) = crate::app_ui::open_context_menu(target, anchor, world);
         self.selected_node_id = node;
         self.selected_edge_id = edge;
         self.context_menu = Some(menu);
@@ -27,11 +27,11 @@ impl WorkflowState {
     }
 
     pub fn context_menu_new_node_position(&self) -> Point {
-        desktop_workflow_state::app_ui::context_menu_new_node_position(self.context_menu.as_ref(), &self.document)
+        crate::app_ui::context_menu_new_node_position(self.context_menu.as_ref(), &self.document)
     }
 
     pub(super) fn context_menu_auto_connect_source_node_id(&self) -> Option<String> {
-        desktop_workflow_state::app_ui::context_menu_auto_connect_source_node_id(self.context_menu.as_ref())
+        crate::app_ui::context_menu_auto_connect_source_node_id(self.context_menu.as_ref())
     }
 
     pub fn set_editor_name(&mut self, value: String) {
@@ -68,14 +68,14 @@ impl WorkflowState {
         &mut self,
         window_size: (f32, f32),
         loaded: LoadedWorkflow,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         let Some(editor) = self.app_editor.clone() else {
             return Ok(());
         };
 
         let max_active_requests =
             editor.max_active_requests_input.trim().parse::<u32>().map_err(|_| {
-                crate::app::i18n::workflow::Feedback::new("最大活跃请求数必须是非负整数", vec![])
+                desktop_i18n::workflow::Feedback::new("最大活跃请求数必须是非负整数", vec![])
             })?;
 
         let meta = WorkflowAppMeta {
@@ -93,7 +93,7 @@ impl WorkflowState {
         };
 
         if meta.name.is_empty() {
-            return Err(crate::app::i18n::workflow::Feedback::new("应用名称不能为空", vec![]));
+            return Err(desktop_i18n::workflow::Feedback::new("应用名称不能为空", vec![]));
         }
 
         match editor.mode {
@@ -124,19 +124,19 @@ impl WorkflowState {
 
         self.app_editor = None;
         self.action_menu_open = false;
-        self.set_status(crate::app::i18n::format::Message::new("已更新应用信息", vec![]));
+        self.set_status(desktop_i18n::format::Message::new("已更新应用信息", vec![]));
         Ok(())
     }
 
     pub fn organize_active_app(
         &mut self,
         window_size: (f32, f32),
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         if self.active_app_id.is_none() {
-            return Err(crate::app::i18n::workflow::Feedback::new("请先打开一个应用", vec![]));
+            return Err(desktop_i18n::workflow::Feedback::new("请先打开一个应用", vec![]));
         }
         if self.document.nodes.is_empty() {
-            return Err(crate::app::i18n::workflow::Feedback::new(
+            return Err(desktop_i18n::workflow::Feedback::new(
                 "当前应用没有可整理的节点",
                 vec![],
             ));
@@ -164,7 +164,7 @@ impl WorkflowState {
         self.dragging_node_id = None;
         self.drag_pending_snapshot = None;
         self.refresh_dirty_state();
-        self.set_status(crate::app::i18n::format::Message::new("已整理应用节点位置", vec![]));
+        self.set_status(desktop_i18n::format::Message::new("已整理应用节点位置", vec![]));
         Ok(())
     }
 

@@ -84,10 +84,10 @@ pub(super) fn build_start_variable_draft(value: &Value) -> WorkflowStartVariable
 
 pub(super) fn merge_start_variable_value(
     variable: &WorkflowStartVariableDraft,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
+) -> Result<Value, desktop_i18n::workflow::Feedback> {
     let mut raw = ensure_root_mapping(variable.raw_variable.clone());
     let variable_map = raw.as_mapping_mut().ok_or_else(|| {
-        crate::app::i18n::workflow::Feedback::new("开始节点变量必须是对象映射（YAML map）", vec![])
+        desktop_i18n::workflow::Feedback::new("开始节点变量必须是对象映射（YAML map）", vec![])
     })?;
 
     set_mapping_string(variable_map, "label", &variable.label);
@@ -184,20 +184,20 @@ pub(super) fn merge_start_variable_value(
             "number" => {
                 if let Ok(number) = default_value.parse::<i64>() {
                     serde_yaml::to_value(number).map_err(|error| {
-                        crate::app::i18n::workflow::Feedback::new(
+                        desktop_i18n::workflow::Feedback::new(
                             "开始节点变量默认数字序列化失败: %s",
                             vec![error.to_string()],
                         )
                     })?
                 } else {
                     let number = default_value.parse::<f64>().map_err(|_| {
-                        crate::app::i18n::workflow::Feedback::new(
+                        desktop_i18n::workflow::Feedback::new(
                             "数字类型默认值必须是数字",
                             vec![],
                         )
                     })?;
                     serde_yaml::to_value(number).map_err(|error| {
-                        crate::app::i18n::workflow::Feedback::new(
+                        desktop_i18n::workflow::Feedback::new(
                             "开始节点变量默认数字序列化失败: %s",
                             vec![error.to_string()],
                         )
@@ -208,7 +208,7 @@ pub(super) fn merge_start_variable_value(
                 "true" => Value::Bool(true),
                 "false" => Value::Bool(false),
                 _ => {
-                    return Err(crate::app::i18n::workflow::Feedback::new(
+                    return Err(desktop_i18n::workflow::Feedback::new(
                         "复选框默认值只能是 true 或 false",
                         vec![],
                     ));
@@ -223,7 +223,7 @@ pub(super) fn merge_start_variable_value(
         variable_map.remove(&yaml_key("max_length"));
     } else {
         let max_length = variable.max_length_input.trim().parse::<u64>().map_err(|_| {
-            crate::app::i18n::workflow::Feedback::new(
+            desktop_i18n::workflow::Feedback::new(
                 "开始节点变量 max_length 必须是非负整数",
                 vec![],
             )
@@ -231,7 +231,7 @@ pub(super) fn merge_start_variable_value(
         variable_map.insert(
             yaml_key("max_length"),
             serde_yaml::to_value(max_length).map_err(|error| {
-                crate::app::i18n::workflow::Feedback::new(
+                desktop_i18n::workflow::Feedback::new(
                     "开始节点变量 max_length 序列化失败: %s",
                     vec![error.to_string()],
                 )
@@ -275,10 +275,10 @@ pub(super) fn build_if_else_case_draft(value: &Value) -> WorkflowIfElseCaseDraft
 
 pub(super) fn merge_if_else_case_value(
     case: &WorkflowIfElseCaseDraft,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
+) -> Result<Value, desktop_i18n::workflow::Feedback> {
     let mut raw_case = ensure_root_mapping(case.raw_case.clone());
     let case_map = raw_case.as_mapping_mut().ok_or_else(|| {
-        crate::app::i18n::workflow::Feedback::new(
+        desktop_i18n::workflow::Feedback::new(
             "条件分支 case 必须是对象映射（YAML map）",
             vec![],
         )
@@ -327,10 +327,10 @@ pub(super) fn build_if_else_condition_draft(value: &Value) -> WorkflowIfElseCond
 
 pub(super) fn merge_if_else_condition_value(
     condition: &WorkflowIfElseConditionDraft,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
+) -> Result<Value, desktop_i18n::workflow::Feedback> {
     let mut raw_condition = ensure_root_mapping(condition.raw_condition.clone());
     let condition_map = raw_condition.as_mapping_mut().ok_or_else(|| {
-        crate::app::i18n::workflow::Feedback::new(
+        desktop_i18n::workflow::Feedback::new(
             "条件分支 condition 必须是对象映射（YAML map）",
             vec![],
         )
@@ -348,9 +348,9 @@ pub(super) fn merge_if_else_condition_value(
     Ok(raw_condition)
 }
 
-pub(super) use desktop_workflow_state::scalar_value_to_string;
+pub(super) use crate::scalar_value_to_string;
 
-pub(super) use desktop_workflow_state::default_start_variable_draft;
+pub(super) use crate::default_start_variable_draft;
 
 #[cfg(test)]
 #[path = "start_variable_drafts_tests.rs"]

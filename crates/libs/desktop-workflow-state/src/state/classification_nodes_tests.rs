@@ -1,7 +1,7 @@
 //! 分类与参数提取节点的导入、编辑、校验及分支一致性回归测试。
 
 use super::*;
-use crate::apps::workflow::model::{WorkflowDocument, WorkflowEdge};
+use desktop_workflow_model::{WorkflowDocument, WorkflowEdge};
 use iced::{Point, widget::text_editor};
 
 fn classifier_node(id: &str, classes: &str) -> WorkflowNode {

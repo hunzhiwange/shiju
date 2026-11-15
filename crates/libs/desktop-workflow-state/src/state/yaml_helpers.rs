@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) use desktop_workflow_state::parse_mapping_yaml;
+pub(super) use crate::parse_mapping_yaml;
 
 pub(super) fn string_list_input_from_value(value: Option<&Value>) -> String {
     value
@@ -118,17 +118,17 @@ pub(super) fn yaml_key(key: &str) -> Value {
     Value::String(key.to_string())
 }
 
-pub(super) use desktop_workflow_state::value_yaml_for_editor;
+pub(super) use crate::value_yaml_for_editor;
 
 pub(super) fn parse_yaml_editor_value(
     text: &str,
-) -> Result<Value, crate::app::i18n::workflow::Feedback> {
+) -> Result<Value, desktop_i18n::workflow::Feedback> {
     if text.trim().is_empty() {
         return Ok(Value::String(String::new()));
     }
 
     serde_yaml::from_str::<Value>(text).map_err(|error| {
-        crate::app::i18n::workflow::Feedback::new(
+        desktop_i18n::workflow::Feedback::new(
             "变量值 YAML 解析失败: %s",
             vec![error.to_string()],
         )
@@ -137,11 +137,11 @@ pub(super) fn parse_yaml_editor_value(
 
 pub(super) fn normalize_environment_value_type(
     value_type: &str,
-) -> Result<String, crate::app::i18n::workflow::Feedback> {
+) -> Result<String, desktop_i18n::workflow::Feedback> {
     let normalized = value_type.trim().to_ascii_lowercase();
     match normalized.as_str() {
         "string" | "number" | "secret" => Ok(normalized),
-        _ => Err(crate::app::i18n::workflow::Feedback::new(
+        _ => Err(desktop_i18n::workflow::Feedback::new(
             "环境变量类型仅支持 string / number / secret",
             vec![],
         )),
@@ -150,10 +150,10 @@ pub(super) fn normalize_environment_value_type(
 
 pub(super) fn normalize_conversation_value_type(
     value_type: &str,
-) -> Result<String, crate::app::i18n::workflow::Feedback> {
+) -> Result<String, desktop_i18n::workflow::Feedback> {
     let normalized = value_type.trim().to_ascii_lowercase();
     if normalized.is_empty() {
-        Err(crate::app::i18n::workflow::Feedback::new("会话变量类型不能为空", vec![]))
+        Err(desktop_i18n::workflow::Feedback::new("会话变量类型不能为空", vec![]))
     } else {
         Ok(normalized)
     }
@@ -162,23 +162,23 @@ pub(super) fn normalize_conversation_value_type(
 pub(super) fn validate_environment_value(
     value_type: &str,
     value: &Value,
-) -> Result<(), crate::app::i18n::workflow::Feedback> {
+) -> Result<(), desktop_i18n::workflow::Feedback> {
     match (value_type, value) {
         ("string" | "secret", Value::String(_)) => Ok(()),
         ("number", Value::Number(_)) => Ok(()),
-        ("string", _) => Err(crate::app::i18n::workflow::Feedback::new(
+        ("string", _) => Err(desktop_i18n::workflow::Feedback::new(
             "string 类型环境变量的值必须是字符串 YAML 标量",
             vec![],
         )),
-        ("secret", _) => Err(crate::app::i18n::workflow::Feedback::new(
+        ("secret", _) => Err(desktop_i18n::workflow::Feedback::new(
             "secret 类型环境变量的值必须是字符串 YAML 标量",
             vec![],
         )),
-        ("number", _) => Err(crate::app::i18n::workflow::Feedback::new(
+        ("number", _) => Err(desktop_i18n::workflow::Feedback::new(
             "number 类型环境变量的值必须是数字 YAML 标量",
             vec![],
         )),
-        _ => Err(crate::app::i18n::workflow::Feedback::new("不支持的环境变量类型", vec![])),
+        _ => Err(desktop_i18n::workflow::Feedback::new("不支持的环境变量类型", vec![])),
     }
 }
 
@@ -187,13 +187,13 @@ pub(super) fn ensure_unique_variable_name<T>(
     name: &str,
     current_id: Option<&str>,
     label: &str,
-) -> Result<(), crate::app::i18n::workflow::Feedback>
+) -> Result<(), desktop_i18n::workflow::Feedback>
 where
     T: WorkflowVariableNameAccess,
 {
     if variables.iter().any(|variable| variable.name() == name && Some(variable.id()) != current_id)
     {
-        Err(crate::app::i18n::workflow::Feedback::new("%s名称不能重复", vec![label.to_string()]))
+        Err(desktop_i18n::workflow::Feedback::new("%s名称不能重复", vec![label.to_string()]))
     } else {
         Ok(())
     }

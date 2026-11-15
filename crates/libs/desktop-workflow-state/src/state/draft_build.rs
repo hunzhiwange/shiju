@@ -7,10 +7,10 @@ use super::*;
 pub(super) fn build_node_visual_draft(
     block_type: &str,
     raw_data_yaml: &str,
-) -> Result<Option<WorkflowNodeVisualDraft>, crate::app::i18n::workflow::Feedback> {
+) -> Result<Option<WorkflowNodeVisualDraft>, desktop_i18n::workflow::Feedback> {
     let data_value = parse_node_data_yaml_value(raw_data_yaml)?;
     let data_map = data_value.as_mapping().ok_or_else(|| {
-        crate::app::i18n::workflow::Feedback::new("节点 data 必须是对象映射（YAML map）", vec![])
+        desktop_i18n::workflow::Feedback::new("节点 data 必须是对象映射（YAML map）", vec![])
     })?;
 
     match block_type {
@@ -715,7 +715,7 @@ fn model_draft(value: Option<&Value>) -> WorkflowModelDraft {
 
 pub(super) fn sync_node_editor_raw_from_visual(
     editor: &mut WorkflowNodeEditorDraft,
-) -> Result<(), crate::app::i18n::workflow::Feedback> {
+) -> Result<(), desktop_i18n::workflow::Feedback> {
     let merged_yaml = apply_visual_draft_to_yaml(
         &editor.block_type,
         &editor.raw_data_editor.text(),
@@ -858,7 +858,7 @@ pub(super) fn default_code_default_value_value(outputs: &[WorkflowCodeOutputDraf
     )
 }
 
-pub(super) use desktop_workflow_state::parse_code_default_value_yaml;
+pub(super) use crate::parse_code_default_value_yaml;
 
 fn default_code_default_value_for_type(value_type: &str) -> Value {
     match value_type {

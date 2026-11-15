@@ -17,10 +17,10 @@ fn title_uses_list_title_without_active_app() {
 }
 
 use super::*;
-use crate::apps::workflow::model::{WorkflowHandle, WorkflowHandleSide, WorkflowViewport};
+use desktop_workflow_model::{WorkflowHandle, WorkflowHandleSide, WorkflowViewport};
 use iced::Size;
 use serde_json::json;
-use vw_gateway_client::{GatewayWorkflowStreamError, GatewayWorkflowStreamEvent};
+use gateway_workflow::{GatewayWorkflowStreamError, GatewayWorkflowStreamEvent};
 
 #[test]
 fn saved_app_loading_open_delete_confirm_actions_and_copy_state_are_tracked() {

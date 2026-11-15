@@ -686,11 +686,11 @@ impl WorkflowState {
         });
     }
 
-    pub fn submit_node_editor(&mut self) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    pub fn submit_node_editor(&mut self) -> Result<(), desktop_i18n::workflow::Feedback> {
         if let Some(editor) = self.node_editor.as_mut() {
             refresh_node_editor_validation(editor);
             if editor.validation.has_errors() {
-                return Err(crate::app::i18n::workflow::Feedback::new(
+                return Err(desktop_i18n::workflow::Feedback::new(
                     "请先修正节点表单中的错误字段，再保存。",
                     vec![],
                 ));
@@ -738,7 +738,7 @@ impl WorkflowState {
                 self.selected_edge_id = None;
                 self.node_editor = None;
                 self.refresh_dirty_state();
-                self.set_status(crate::app::i18n::format::Message::new(
+                self.set_status(desktop_i18n::format::Message::new(
                     "已新增 %s 节点",
                     vec![pretty_block_type(&block_type).to_string().into()],
                 ));
@@ -747,7 +747,7 @@ impl WorkflowState {
             WorkflowNodeEditorMode::Edit(node_id) => {
                 let index =
                     self.document.nodes.iter().position(|node| node.id == node_id).ok_or_else(
-                        || crate::app::i18n::workflow::Feedback::new("目标节点不存在", vec![]),
+                        || desktop_i18n::workflow::Feedback::new("目标节点不存在", vec![]),
                     )?;
                 let existing = self.document.nodes[index].clone();
                 let updated =
@@ -759,7 +759,7 @@ impl WorkflowState {
 
                 self.selected_node_id = Some(node_id.clone());
                 if removed_edges > 0 {
-                    self.set_status(crate::app::i18n::format::Message::new(
+                    self.set_status(desktop_i18n::format::Message::new(
                         "已更新 %s 节点，并移除 %s 条失效连线",
                         vec![
                             pretty_block_type(&block_type).to_string().into(),
@@ -767,7 +767,7 @@ impl WorkflowState {
                         ],
                     ));
                 } else {
-                    self.set_status(crate::app::i18n::format::Message::new(
+                    self.set_status(desktop_i18n::format::Message::new(
                         "已更新 %s 节点",
                         vec![pretty_block_type(&block_type).to_string().into()],
                     ));

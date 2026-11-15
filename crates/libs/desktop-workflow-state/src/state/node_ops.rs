@@ -3,14 +3,14 @@
 //! 该模块处理节点编辑器开关、节点插入复制、下游创建和节点定位等操作逻辑。
 
 use super::*;
-use crate::apps::workflow::model::WorkflowHandle;
+use desktop_workflow_model::WorkflowHandle;
 
 impl WorkflowState {
     pub fn open_create_node_editor(
         &mut self,
         block_type: &str,
         position: Point,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         self.ensure_start_node_available(block_type)?;
         self.context_menu = None;
         self.quick_insert_panel_open = false;
@@ -55,14 +55,14 @@ impl WorkflowState {
     pub fn open_edit_node_editor(
         &mut self,
         id: Option<&str>,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         let target_id = id
             .map(|value| value.to_string())
             .or_else(|| self.selected_node_id.clone())
-            .ok_or_else(|| crate::app::i18n::workflow::Feedback::new("请先选择一个节点", vec![]))?;
+            .ok_or_else(|| desktop_i18n::workflow::Feedback::new("请先选择一个节点", vec![]))?;
         let node =
             self.document.node(&target_id).cloned().ok_or_else(|| {
-                crate::app::i18n::workflow::Feedback::new("目标节点不存在", vec![])
+                desktop_i18n::workflow::Feedback::new("目标节点不存在", vec![])
             })?;
         let yaml = node_data_yaml(&node)?;
         let visual_draft = build_node_visual_draft(&node.block_type, &yaml)?;
@@ -123,14 +123,14 @@ impl WorkflowState {
         &mut self,
         block_type: &str,
         position: Point,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         self.insert_node_immediately_with_id(block_type, position).map(|_| ())
     }
 
     pub fn create_context_node(
         &mut self,
         block_type: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         let position = self.context_menu_new_node_position();
         let upstream_node_id = self.context_menu_auto_connect_source_node_id();
         let node_id = self.insert_node_immediately_with_id(block_type, position)?;
@@ -151,7 +151,7 @@ impl WorkflowState {
                     self.selected_node_id = Some(node_id);
                     self.selected_edge_id = None;
                     self.sync_selection_flags();
-                    self.set_status(crate::app::i18n::format::Message::new(
+                    self.set_status(desktop_i18n::format::Message::new(
                         "已新增下游 %s 节点并自动关联",
                         vec![target_title.to_string().into()],
                     ));
@@ -160,7 +160,7 @@ impl WorkflowState {
                     self.selected_node_id = Some(node_id);
                     self.selected_edge_id = None;
                     self.sync_selection_flags();
-                    self.set_status(crate::app::i18n::format::Message::new(
+                    self.set_status(desktop_i18n::format::Message::new(
                         "已新增 %s 节点，但自动关联失败：%s",
                         vec![target_title.to_string().into(), error.to_string().into()],
                     ));
@@ -171,18 +171,18 @@ impl WorkflowState {
         Ok(())
     }
 
-    pub fn duplicate_selected_node(&mut self) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    pub fn duplicate_selected_node(&mut self) -> Result<(), desktop_i18n::workflow::Feedback> {
         let source_id = self
             .selected_node_id
             .clone()
-            .ok_or_else(|| crate::app::i18n::workflow::Feedback::new("请先选择一个节点", vec![]))?;
+            .ok_or_else(|| desktop_i18n::workflow::Feedback::new("请先选择一个节点", vec![]))?;
         let source_node =
             self.document.node(&source_id).cloned().ok_or_else(|| {
-                crate::app::i18n::workflow::Feedback::new("目标节点不存在", vec![])
+                desktop_i18n::workflow::Feedback::new("目标节点不存在", vec![])
             })?;
 
         if source_node.block_type == "start" {
-            return Err(crate::app::i18n::workflow::Feedback::new(
+            return Err(desktop_i18n::workflow::Feedback::new(
                 "开始节点只能有一个，不能复制开始节点",
                 vec![],
             ));
@@ -208,7 +208,7 @@ impl WorkflowState {
         self.action_menu_open = false;
         self.zoom_menu_open = false;
         self.refresh_dirty_state();
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已复制节点 %s",
             vec![source_node.title.to_string().into()],
         ));
@@ -219,15 +219,15 @@ impl WorkflowState {
     pub fn open_downstream_node_picker(
         &mut self,
         node_id: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         let anchor =
             self.context_menu.as_ref().map(|menu| menu.anchor).ok_or_else(|| {
-                crate::app::i18n::workflow::Feedback::new("右键菜单已关闭", vec![])
+                desktop_i18n::workflow::Feedback::new("右键菜单已关闭", vec![])
             })?;
         let node = self
             .document
             .node(node_id)
-            .ok_or_else(|| crate::app::i18n::workflow::Feedback::new("目标节点不存在", vec![]))?;
+            .ok_or_else(|| desktop_i18n::workflow::Feedback::new("目标节点不存在", vec![]))?;
         let world = Point::new(node.position.x + node.size.width + 120.0, node.position.y + 18.0);
 
         self.selected_node_id = Some(node_id.to_string());
@@ -244,7 +244,7 @@ impl WorkflowState {
         &mut self,
         source_node_id: &str,
         block_type: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         self.insert_downstream_node_with_handle(source_node_id, None, block_type)
     }
 
@@ -253,7 +253,7 @@ impl WorkflowState {
         source_node_id: &str,
         source_handle_id: &str,
         block_type: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         self.insert_downstream_node_with_handle(source_node_id, Some(source_handle_id), block_type)
     }
 
@@ -262,12 +262,12 @@ impl WorkflowState {
         source_node_id: &str,
         source_handle_id: Option<&str>,
         block_type: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         self.ensure_start_node_available(block_type)?;
 
         let source_node =
             self.document.node(source_node_id).cloned().ok_or_else(|| {
-                crate::app::i18n::workflow::Feedback::new("目标节点不存在", vec![])
+                desktop_i18n::workflow::Feedback::new("目标节点不存在", vec![])
             })?;
         let position = Point::new(
             source_node.position.x + source_node.size.width + 120.0,
@@ -288,11 +288,11 @@ impl WorkflowState {
         let status_message =
             match self.connect_nodes_with_source_handle(source_node_id, source_handle_id, &node_id)
             {
-                Ok(()) => crate::app::i18n::format::Message::new(
+                Ok(()) => desktop_i18n::format::Message::new(
                     "已在 %s 后新增 %s 节点",
                     vec![source_node.title.to_string().into(), title.to_string().into()],
                 ),
-                Err(error) => crate::app::i18n::format::Message::new(
+                Err(error) => desktop_i18n::format::Message::new(
                     "已新增 %s 节点，但自动关联失败：%s",
                     vec![title.to_string().into(), error.to_string().into()],
                 ),
@@ -315,7 +315,7 @@ impl WorkflowState {
         &mut self,
         block_type: &str,
         position: Point,
-    ) -> Result<String, crate::app::i18n::workflow::Feedback> {
+    ) -> Result<String, desktop_i18n::workflow::Feedback> {
         self.ensure_start_node_available(block_type)?;
         let node_id = generate_node_id(block_type);
         let next_z =
@@ -335,7 +335,7 @@ impl WorkflowState {
         self.action_menu_open = false;
         self.zoom_menu_open = false;
         self.refresh_dirty_state();
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已插入 %s 节点",
             vec![title.to_string().into()],
         ));
@@ -346,9 +346,9 @@ impl WorkflowState {
     pub(super) fn ensure_start_node_available(
         &self,
         block_type: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         if block_type == "start" && self.has_start_node() {
-            return Err(crate::app::i18n::workflow::Feedback::new("开始节点只能有一个", vec![]));
+            return Err(desktop_i18n::workflow::Feedback::new("开始节点只能有一个", vec![]));
         }
 
         Ok(())
@@ -358,7 +358,7 @@ impl WorkflowState {
         &mut self,
         source_node_id: &str,
         target_node_id: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         self.connect_nodes_with_source_handle(source_node_id, None, target_node_id)
     }
 
@@ -367,19 +367,19 @@ impl WorkflowState {
         source_node_id: &str,
         source_handle_id: Option<&str>,
         target_node_id: &str,
-    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+    ) -> Result<(), desktop_i18n::workflow::Feedback> {
         if source_node_id == target_node_id {
-            return Err(crate::app::i18n::workflow::Feedback::new(
+            return Err(desktop_i18n::workflow::Feedback::new(
                 "暂不支持节点自身回环连线",
                 vec![],
             ));
         }
 
         let source_node = self.document.node(source_node_id).cloned().ok_or_else(|| {
-            crate::app::i18n::workflow::Feedback::new("源节点不存在，无法自动连线", vec![])
+            desktop_i18n::workflow::Feedback::new("源节点不存在，无法自动连线", vec![])
         })?;
         let target_node = self.document.node(target_node_id).cloned().ok_or_else(|| {
-            crate::app::i18n::workflow::Feedback::new("目标节点不存在，无法自动连线", vec![])
+            desktop_i18n::workflow::Feedback::new("目标节点不存在，无法自动连线", vec![])
         })?;
 
         let source_handle = match source_handle_id {
@@ -390,17 +390,17 @@ impl WorkflowState {
                 .cloned()
                 .or_else(|| self.synthetic_source_handle_for_editor(&source_node, handle_id))
                 .ok_or_else(|| {
-                    crate::app::i18n::workflow::Feedback::new(
+                    desktop_i18n::workflow::Feedback::new(
                         "源节点不存在输出句柄 %s",
                         vec![handle_id.to_string()],
                     )
                 })?,
             None => source_node.source_handles.first().cloned().ok_or_else(|| {
-                crate::app::i18n::workflow::Feedback::new("源节点没有可用输出句柄", vec![])
+                desktop_i18n::workflow::Feedback::new("源节点没有可用输出句柄", vec![])
             })?,
         };
         let target_handle = target_node.target_handles.first().ok_or_else(|| {
-            crate::app::i18n::workflow::Feedback::new("目标节点没有可用输入句柄", vec![])
+            desktop_i18n::workflow::Feedback::new("目标节点没有可用输入句柄", vec![])
         })?;
 
         if self.document.edges.iter().any(|edge| {
@@ -409,7 +409,7 @@ impl WorkflowState {
                 && edge.source_handle.as_deref() == Some(source_handle.id.as_str())
                 && edge.target_handle.as_deref() == Some(target_handle.id.as_str())
         }) {
-            return Err(crate::app::i18n::workflow::Feedback::new("这条连线已经存在", vec![]));
+            return Err(desktop_i18n::workflow::Feedback::new("这条连线已经存在", vec![]));
         }
 
         let source = WorkflowConnectionEndpoint {

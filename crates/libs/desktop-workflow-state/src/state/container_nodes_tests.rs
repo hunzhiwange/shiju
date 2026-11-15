@@ -1,7 +1,7 @@
 //! 迭代与循环容器的配置和未知字段无损往返测试。
 
 use super::*;
-use crate::apps::workflow::model::{load_document_from_value, serialize_workflow_yaml};
+use desktop_workflow_model::{load_document_from_value, serialize_workflow_yaml};
 
 fn map_value<'a>(map: &'a Mapping, key: &str) -> &'a Value {
     mapping_value(map, key).unwrap_or_else(|| panic!("missing key {key}"))

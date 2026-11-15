@@ -5,7 +5,7 @@
 use super::*;
 
 impl WorkflowState {
-    pub fn display_title(&self, i18n: crate::app::i18n::I18n) -> String {
+    pub fn display_title(&self, i18n: desktop_i18n::I18n) -> String {
         if self.active_app_id.is_none() || self.source_name.trim().is_empty() {
             i18n.__("工作流").to_string()
         } else {
@@ -244,7 +244,7 @@ impl WorkflowState {
 
     pub fn set_saved_app_run_prompt_error(
         &mut self,
-        error: impl Into<crate::app::i18n::workflow::Feedback>,
+        error: impl Into<desktop_i18n::workflow::Feedback>,
     ) {
         if let Some(prompt) = self.saved_app_run_prompt.as_mut() {
             prompt.error = Some(error.into());
@@ -407,10 +407,10 @@ impl WorkflowState {
 
     pub fn apply_saved_app_run_event(
         &mut self,
-        event: vw_gateway_client::GatewayWorkflowStreamEvent,
+        event: gateway_workflow::GatewayWorkflowStreamEvent,
     ) {
         match event {
-            vw_gateway_client::GatewayWorkflowStreamEvent::WorkflowStarted {
+            gateway_workflow::GatewayWorkflowStreamEvent::WorkflowStarted {
                 workflow_run_id,
                 data,
                 ..
@@ -422,12 +422,12 @@ impl WorkflowState {
                     merge_run_status(preview, &data);
                 }
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::NodeStarted {
+            gateway_workflow::GatewayWorkflowStreamEvent::NodeStarted {
                 workflow_run_id,
                 data,
                 ..
             }
-            | vw_gateway_client::GatewayWorkflowStreamEvent::NodeFinished {
+            | gateway_workflow::GatewayWorkflowStreamEvent::NodeFinished {
                 workflow_run_id,
                 data,
                 ..
@@ -437,7 +437,7 @@ impl WorkflowState {
                     upsert_run_node(preview, data);
                 }
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::TextChunk {
+            gateway_workflow::GatewayWorkflowStreamEvent::TextChunk {
                 workflow_run_id,
                 text,
                 ..
@@ -447,7 +447,7 @@ impl WorkflowState {
                     preview.text_output.push_str(&text);
                 }
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::Message { answer, .. } => {
+            gateway_workflow::GatewayWorkflowStreamEvent::Message { answer, .. } => {
                 if let Some(preview) = self.saved_app_run_preview.as_mut()
                     && preview.text_output.is_empty()
                     && !answer.is_empty()
@@ -455,7 +455,7 @@ impl WorkflowState {
                     preview.text_output = answer;
                 }
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::WorkflowFinished {
+            gateway_workflow::GatewayWorkflowStreamEvent::WorkflowFinished {
                 workflow_run_id,
                 data,
                 ..
@@ -466,17 +466,17 @@ impl WorkflowState {
                 }
                 self.finish_saved_app_run();
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::MessageEnd { .. } => {
+            gateway_workflow::GatewayWorkflowStreamEvent::MessageEnd { .. } => {
                 self.finish_saved_app_run();
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::Error(error) => {
+            gateway_workflow::GatewayWorkflowStreamEvent::Error(error) => {
                 self.fail_saved_app_run(WorkflowRunErrorPreview {
                     status: error.status,
                     code: error.code,
                     message: error.message,
                 });
             }
-            vw_gateway_client::GatewayWorkflowStreamEvent::Unknown { .. } => {}
+            gateway_workflow::GatewayWorkflowStreamEvent::Unknown { .. } => {}
         }
     }
 
@@ -504,7 +504,7 @@ impl WorkflowState {
         self.conversation_variables.iter().find(|variable| variable.id == id)
     }
 
-    pub fn set_error(&mut self, error: impl Into<crate::app::i18n::workflow::Feedback>) {
+    pub fn set_error(&mut self, error: impl Into<desktop_i18n::workflow::Feedback>) {
         let error = error.into();
         self.error_message = Some(error.to_string());
         self.localized_error = Some(error);
@@ -688,9 +688,9 @@ impl WorkflowState {
 
         self.set_status(match self.source_path.as_deref() {
             Some(path) => {
-                crate::app::i18n::format::Message::new("已加载 %s", vec![path.to_string().into()])
+                desktop_i18n::format::Message::new("已加载 %s", vec![path.to_string().into()])
             }
-            None => crate::app::i18n::format::Message::new(
+            None => desktop_i18n::format::Message::new(
                 "已加载 %s",
                 vec![self.title().to_string().into()],
             ),
@@ -774,7 +774,7 @@ impl WorkflowState {
         self.saved_snapshot = Some(saved_snapshot);
         self.dragging_node_id = None;
         self.drag_pending_snapshot = None;
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已重新载入 %s",
             vec![self.title().to_string().into()],
         ));
@@ -793,7 +793,7 @@ impl WorkflowState {
 
         self.active_app_id = Some(app.id.clone());
         self.load_entry_into_current(&app);
-        self.set_status(crate::app::i18n::format::Message::new(
+        self.set_status(desktop_i18n::format::Message::new(
             "已切换到 %s",
             vec![self.title().to_string().into()],
         ));
@@ -1220,19 +1220,19 @@ fn is_sensitive_debug_key(key: &str) -> bool {
 }
 
 impl WorkflowState {
-    pub fn set_status(&mut self, message: crate::app::i18n::format::Message) {
+    pub fn set_status(&mut self, message: desktop_i18n::format::Message) {
         self.status_message = Some(
             message
-                .render(crate::app::i18n::I18n::new(Default::default()))
+                .render(desktop_i18n::I18n::new(Default::default()))
                 .expect("valid workflow status template"),
         );
         self.localized_status = Some(message);
     }
 
-    pub fn status_text(&self, i18n: crate::app::i18n::I18n) -> Option<String> {
+    pub fn status_text(&self, i18n: desktop_i18n::I18n) -> Option<String> {
         let raw = self.status_message.as_ref()?;
         if let Some(message) = &self.localized_status {
-            if message.render(crate::app::i18n::I18n::new(Default::default())).as_ref().ok()
+            if message.render(desktop_i18n::I18n::new(Default::default())).as_ref().ok()
                 == Some(raw)
             {
                 return Some(message.render(i18n).expect("valid workflow status template"));
@@ -1243,7 +1243,7 @@ impl WorkflowState {
 }
 
 impl WorkflowState {
-    pub fn error_text(&self, i18n: crate::app::i18n::I18n) -> Option<String> {
+    pub fn error_text(&self, i18n: desktop_i18n::I18n) -> Option<String> {
         let raw = self.error_message.as_ref()?;
         if let Some(message) = &self.localized_error {
             if message.to_string() == *raw {

@@ -1,7 +1,7 @@
 //! Workflow 节点操作测试，覆盖编辑器、节点插入、自动连线与失效边清理。
 
 use super::*;
-use crate::apps::workflow::model::{
+use desktop_workflow_model::{
     WorkflowDocument, WorkflowEdge, WorkflowHandle, WorkflowHandleKind,
 };
 use iced::{Point, Vector, widget::text_editor};

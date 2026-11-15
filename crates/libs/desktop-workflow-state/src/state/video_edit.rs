@@ -38,7 +38,7 @@ impl VideoEditUiState {
     }
     pub fn validated_yaml(&self) -> Result<String, String> {
         let source = self.editor.as_ref().ok_or("请先读取模板")?.text();
-        super::super::model::load_document_from_text(None, source.clone())
+        desktop_workflow_model::load_document_from_text(None, source.clone())
             .map_err(|e| e.to_string())?;
         Ok(source)
     }

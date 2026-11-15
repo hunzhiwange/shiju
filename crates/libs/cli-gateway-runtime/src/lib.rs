@@ -6,15 +6,11 @@ pub mod capabilities;
 pub mod cron;
 pub mod diagnostics;
 pub mod file_search;
-pub mod gateway;
 pub mod hooks;
 pub mod integrations;
-pub mod interaction;
 pub mod orchestration;
 pub mod plan_run;
 pub mod session_diff;
-mod session_store;
-pub mod stream_adapter;
 pub mod workflow_run;
 pub mod workspace_files;
 
@@ -25,6 +21,7 @@ mod file_search_tests;
 #[cfg(test)]
 mod hooks_tests;
 #[cfg(test)]
-mod stream_adapter_tests;
-#[cfg(test)]
 mod workspace_files_tests;
+
+#[cfg(test)]
+mod gateway_composition_tests;

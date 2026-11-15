@@ -229,7 +229,7 @@ pub fn adapt_task_plan_run_event(event: TaskPlanRunStreamEventDto) -> Vec<UiRunt
 }
 
 /// 将 Workflow typed SSE 事件投影到既有进度、文本和终态管线。
-pub(crate) fn adapt_gateway_workflow_stream_event(
+pub fn adapt_gateway_workflow_stream_event(
     event: GatewayWorkflowStreamEvent,
 ) -> Vec<UiRuntimeEvent> {
     match event {

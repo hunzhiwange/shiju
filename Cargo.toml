@@ -35,6 +35,7 @@ members = [
   "crates/libs/cli-agent-session",
   "crates/libs/cli-command-schema",
   "crates/libs/cli-gateway-runtime",
+  "crates/libs/cli-gateway-transport",
   "crates/libs/cli-stdio",
   "crates/libs/cli-gateway-process",
   "crates/libs/cli-gateway-commands",

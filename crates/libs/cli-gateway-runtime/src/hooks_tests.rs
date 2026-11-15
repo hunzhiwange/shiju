@@ -5,7 +5,7 @@ use std::thread;
 
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
-use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use cli_gateway_transport::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::hooks::{load_hook_audit_blocking, load_hook_catalog_blocking};
 
 #[test]

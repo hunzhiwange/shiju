@@ -16,42 +16,19 @@ use super::stream_adapter::terminal_from_error_message;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::stream_adapter::adapt_gateway_stream_event;
 use std::collections::HashMap;
-use std::fmt::Write as _;
 use std::future::Future;
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::{Read, Write};
-#[cfg(not(target_arch = "wasm32"))]
-use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
-#[cfg(not(target_arch = "wasm32"))]
-use std::process::{Command, Stdio};
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::{Duration, Instant};
 use vw_config_types::config::AcpAgentConfig;
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectScope;
 use {
-    vw_api_transport::id::COMPANY_ID_HEADER,
-    vw_api_transport::id::PLATFORM_ID_HEADER,
     vw_api_transport::id::SessionId,
     vw_api_transport::id::TenantScope,
 };
 use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};
 use vw_gateway_client::{
-    GatewayAuth, GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint,
-    GatewayStreamAttemptResult, GatewayStreamResume,
+    GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint,
 };
-
-#[cfg(not(target_arch = "wasm32"))]
-const GATEWAY_HEALTH_PATH: &str = "/v1/health";
-#[cfg(not(target_arch = "wasm32"))]
-const GATEWAY_HEALTH_CONNECT_TIMEOUT: Duration = Duration::from_millis(250);
-#[cfg(not(target_arch = "wasm32"))]
-const GATEWAY_STARTUP_TIMEOUT: Duration = Duration::from_secs(8);
-#[cfg(not(target_arch = "wasm32"))]
-const GATEWAY_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(150);
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,7 +39,7 @@ pub enum GatewayPreflightOutcome {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl GatewayPreflightOutcome {
-    pub(crate) fn started_gateway(self) -> bool {
+    pub fn started_gateway(self) -> bool {
         matches!(self, Self::Started)
     }
 }
@@ -342,8 +319,7 @@ impl GatewayUiRuntime {
         let directory =
             directory.to_str().ok_or_else(|| "project directory is not valid UTF-8".to_string())?;
         let request = ResolveProjectRequest { directory: directory.to_string(), create_if_missing };
-        self.client
-            .project_resolve(self.endpoint().tenant_scope(), &request)
+        self.gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(self.endpoint().tenant_scope(), &request)
             .await
             .map(|response| response.project)
     }
@@ -358,7 +334,7 @@ impl GatewayUiRuntime {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn agent_scheduler_scope_blocking(&self) -> Result<AgentSchedulerScopeDto, String> {
+    pub fn agent_scheduler_scope_blocking(&self) -> Result<AgentSchedulerScopeDto, String> {
         let project = self.resolve_project_directory_blocking(self.directory(), false)?;
         let project_scope = ProjectScope::new(self.endpoint().tenant_scope().clone(), project.id)
             .map_err(|error| error.to_string())?;
@@ -380,7 +356,7 @@ impl GatewayUiRuntime {
     }
 
     /// 解析调用方传入的会话 ID；若未提供，则回退到 runtime 当前会话。
-    pub(crate) fn resolve_session_id<'a>(
+    pub fn resolve_session_id<'a>(
         &'a self,
         session_id: Option<&'a str>,
     ) -> Result<&'a str, String> {
@@ -390,11 +366,11 @@ impl GatewayUiRuntime {
     }
 
     /// 返回当前 runtime 应透传给 gateway 的目录查询值。
-    pub(crate) fn directory_value(&self) -> Option<String> {
+    pub fn directory_value(&self) -> Option<String> {
         runtime_directory_value(self.directory())
     }
 
-    pub(crate) async fn enabled_acp_backend_keys(&self) -> Result<Vec<String>, String> {
+    pub async fn enabled_acp_backend_keys(&self) -> Result<Vec<String>, String> {
         let catalog =
             gateway_config::GatewayConfigClient::new(self.client.transport().clone()).global_acp_config_get::<HashMap<String, AcpAgentConfig>>().await?;
         let config = gateway_config::GatewayConfigClient::new(self.client.transport().clone()).global_config_get().await?;
@@ -404,164 +380,6 @@ impl GatewayUiRuntime {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn enabled_acp_backend_keys_blocking(&self) -> Result<Vec<String>, String> {
         block_on_gateway(self.enabled_acp_backend_keys())
-    }
-
-    /// 以异步方式发起聊天流，并把 gateway 事件规整为 `UiRuntimeEvent`。
-    ///
-    /// 返回值始终是统一的终态控制事件，用于让上层明确区分
-    /// done、cancel、timeout 与 error。
-    pub async fn stream_chat(
-        &self,
-        body: &GatewayChatStreamRequest,
-        mut on_event: impl FnMut(UiRuntimeEvent) -> bool,
-    ) -> UiRuntimeTerminalEvent {
-        let directory = self.directory_value();
-        let body = self.prepare_stream_request(body);
-        let mut terminal = None;
-
-        let result =
-            GatewayClient::stream_chat(self.endpoint(), directory.as_deref(), &body, |event| {
-                let runtime_event = adapt_gateway_stream_event(event);
-                if let UiRuntimeEvent::Terminal(runtime_terminal) = &runtime_event {
-                    terminal = Some(runtime_terminal.clone());
-                }
-
-                if on_event(runtime_event) {
-                    true
-                } else {
-                    if terminal.is_none() {
-                        terminal = Some(cancelled_by_consumer_terminal());
-                    }
-                    false
-                }
-            })
-            .await
-            .map_err(|err| annotate_gateway_transport_error(err, self.endpoint()));
-
-        finalize_stream_terminal(result, terminal)
-    }
-
-    /// 以阻塞方式发起聊天流，并把 gateway 事件规整为 `UiRuntimeEvent`。
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn stream_chat_blocking(
-        &self,
-        body: &GatewayChatStreamRequest,
-        mut on_event: impl FnMut(UiRuntimeEvent) -> bool,
-    ) -> UiRuntimeTerminalEvent {
-        let directory = self.directory_value();
-        let body = self.prepare_stream_request(body);
-        let mut terminal = None;
-
-        let result = GatewayClient::stream_chat_blocking(
-            self.endpoint(),
-            directory.as_deref(),
-            &body,
-            |event| {
-                let runtime_event = adapt_gateway_stream_event(event);
-                if let UiRuntimeEvent::Terminal(runtime_terminal) = &runtime_event {
-                    terminal = Some(runtime_terminal.clone());
-                }
-
-                if on_event(runtime_event) {
-                    true
-                } else {
-                    if terminal.is_none() {
-                        terminal = Some(cancelled_by_consumer_terminal());
-                    }
-                    false
-                }
-            },
-        )
-        .map_err(|err| annotate_gateway_transport_error(err, self.endpoint()));
-
-        finalize_stream_terminal(result, terminal)
-    }
-
-    /// Reconnect once using the original request and its last delivered SSE sequence.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn stream_chat_resumable_blocking(
-        &self,
-        body: &GatewayChatStreamRequest,
-        request_id: &str,
-        cancel: &AtomicBool,
-        mut on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
-    ) -> Result<GatewayStreamAttemptResult, String> {
-        let directory = self.directory_value();
-        let body = self.prepare_stream_request(body);
-        block_on_gateway(async {
-            let mut last_event_id = None;
-            let mut first_error = None;
-            for attempt in 0..2 {
-                if cancel.load(Ordering::Acquire) {
-                    return Ok(GatewayStreamAttemptResult::CallerStopped);
-                }
-                let resume =
-                    GatewayStreamResume { request_id: request_id.to_string(), last_event_id };
-                let result = GatewayClient::stream_chat_resumable(
-                    self.endpoint(),
-                    directory.as_deref(),
-                    &body,
-                    &resume,
-                    |event| {
-                        if cancel.load(Ordering::Acquire) || !on_event(event.event) {
-                            return false;
-                        }
-                        last_event_id = Some(event.id);
-                        true
-                    },
-                )
-                .await;
-                match result {
-                    Ok(
-                        GatewayStreamAttemptResult::Terminated
-                        | GatewayStreamAttemptResult::CallerStopped,
-                    ) => return result,
-                    Err(error) if attempt == 1 => return Err(first_error.unwrap_or(error)),
-                    Ok(GatewayStreamAttemptResult::Incomplete) if attempt == 1 => {
-                        return first_error.map_or(result, Err);
-                    }
-                    Err(error) => first_error = Some(error),
-                    Ok(GatewayStreamAttemptResult::Incomplete) => {}
-                }
-                // A replay from sequence zero must also require an existing server request.
-                last_event_id = Some(last_event_id.unwrap_or_default());
-            }
-            unreachable!("the final stream attempt always returns");
-        })
-    }
-
-    /// Stops exactly one resumable chat stream by its stable request ID.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn chat_stream_stop_blocking(&self, request_id: &str) -> Result<bool, String> {
-        block_on_gateway(self.client.chat_stream_stop(request_id))
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    /// 在进入 tui 前预检 gateway；若 endpoint 指向本地 loopback，则自动尝试拉起。
-    pub fn ensure_local_gateway_ready_blocking(
-        &self,
-    ) -> Result<GatewayPreflightOutcome, String> {
-        if gateway_health_ready(self.endpoint()) {
-            return Ok(GatewayPreflightOutcome::Ready);
-        }
-
-        if !is_local_loopback_endpoint(self.endpoint()) {
-            return Err(annotate_gateway_transport_error(
-                "gateway preflight failed: connection refused".to_string(),
-                self.endpoint(),
-            ));
-        }
-
-        let startup_error = start_local_gateway_process(self.endpoint()).err();
-        if wait_for_gateway_health(self.endpoint(), GATEWAY_STARTUP_TIMEOUT) {
-            return Ok(GatewayPreflightOutcome::Started);
-        }
-
-        Err(local_gateway_startup_failure_message(
-            self.endpoint(),
-            startup_error,
-            GATEWAY_STARTUP_TIMEOUT,
-        ))
     }
 }
 
@@ -696,121 +514,9 @@ fn finalize_stream_terminal(
     }
 }
 
+mod stream;
 #[cfg(not(target_arch = "wasm32"))]
-fn is_local_loopback_endpoint(endpoint: &GatewayEndpoint) -> bool {
-    matches!(
-        endpoint
-            .normalized_host()
-            .trim()
-            .trim_matches(|ch| ch == '[' || ch == ']')
-            .to_ascii_lowercase()
-            .as_str(),
-        "127.0.0.1" | "localhost" | "::1"
-    )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn local_gateway_startup_failure_message(
-    endpoint: &GatewayEndpoint,
-    startup_error: Option<String>,
-    timeout: Duration,
-) -> String {
-    let mut message =
-        annotate_gateway_transport_error("gateway preflight failed".to_string(), endpoint);
-    if let Some(startup_error) = startup_error {
-        message.push_str(" Auto-start failed: ");
-        message.push_str(startup_error.as_str());
-    } else {
-        let _ = write!(
-            message,
-            " Auto-start did not reach {} with status=ok within {}s.",
-            GATEWAY_HEALTH_PATH,
-            timeout.as_secs()
-        );
-    }
-    message
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn start_local_gateway_process(endpoint: &GatewayEndpoint) -> Result<(), String> {
-    let executable = std::env::current_exe()
-        .map_err(|err| format!("resolve current executable failed: {err}"))?;
-
-    Command::new(executable)
-        .arg("gateway")
-        .arg("--host")
-        .arg(endpoint.normalized_host())
-        .arg("--port")
-        .arg(endpoint.port.to_string())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map(|_| ())
-        .map_err(|err| format!("failed to start local gateway: {err}"))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn wait_for_gateway_health(endpoint: &GatewayEndpoint, timeout: Duration) -> bool {
-    let started = Instant::now();
-    while started.elapsed() < timeout {
-        if gateway_health_ready(endpoint) {
-            return true;
-        }
-        std::thread::sleep(GATEWAY_STARTUP_POLL_INTERVAL);
-    }
-    false
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn gateway_health_ready(endpoint: &GatewayEndpoint) -> bool {
-    let address = match resolve_gateway_socket_address(endpoint) {
-        Some(address) => address,
-        None => return false,
-    };
-
-    let mut stream = match TcpStream::connect_timeout(&address, GATEWAY_HEALTH_CONNECT_TIMEOUT) {
-        Ok(stream) => stream,
-        Err(_) => return false,
-    };
-    let _ = stream.set_read_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
-    let _ = stream.set_write_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
-
-    let request = format!(
-        "GET {} HTTP/1.1\r\nHost: {}\r\n{PLATFORM_ID_HEADER}: {}\r\n{COMPANY_ID_HEADER}: {}\r\nConnection: close\r\n\r\n",
-        GATEWAY_HEALTH_PATH,
-        endpoint.describe(),
-        endpoint.tenant_scope().platform_id().as_ref(),
-        endpoint.tenant_scope().company_id().as_ref(),
-    );
-    if stream.write_all(request.as_bytes()).is_err() {
-        return false;
-    }
-
-    let mut response = String::new();
-    if stream.read_to_string(&mut response).is_err() {
-        return false;
-    }
-
-    let Some(status_line) = response.lines().next() else {
-        return false;
-    };
-
-    status_line.contains(" 200 ")
-        && (response.contains("\"status\":\"ok\"") || response.contains("\"status\": \"ok\""))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn resolve_gateway_socket_address(endpoint: &GatewayEndpoint) -> Option<std::net::SocketAddr> {
-    let host = endpoint.normalized_host();
-    if host.is_empty() || host.chars().any(char::is_whitespace) {
-        return None;
-    }
-    format!("{host}:{}", endpoint.port)
-        .to_socket_addrs()
-        .ok()?
-        .find(|addr| addr.is_ipv4() || addr.is_ipv6())
-}
+mod process;
 
 #[cfg(test)]
 #[path = "gateway_tests.rs"]

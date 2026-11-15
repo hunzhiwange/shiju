@@ -3,36 +3,13 @@ use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
 use crate::app::state::app_providers::list::Scope;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_api_types::agent_apps::AppId;
-use vw_api_app_provider_edit::catalog::ProviderSelection;
-use vw_api_app_provider_base::claude::ClaudeLiveResult;
-use vw_api_app_provider_base::claude::ClaudeTarget;
-use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopTarget;
-use vw_api_app_provider_profiles::codex_catalog::CodexTarget;
-use vw_api_app_provider_profiles::gemini::GeminiTarget;
-use vw_api_app_provider_extended::grok::GrokTarget;
-
-pub(super) fn supports(app: AppId) -> bool {
-    matches!(
-        app,
-        AppId::Claude | AppId::ClaudeDesktop | AppId::Codex | AppId::Gemini | AppId::GrokBuild
-    )
-}
-
 pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
     let state = &app.app_providers;
-    if app.shutdown_requested || state.loading || state.tray_switch.is_some() {
+    if !desktop_provider_apps::tray_switch::can_start(state.scope.as_ref(), state.snapshot.as_ref(), &id,
+        app.shutdown_requested, state.loading, state.tray_switch.is_some()) {
         return Task::none();
     }
-    let Some(scope) = state.scope.clone().filter(|s| supports(s.app)) else {
-        return Task::none();
-    };
-    let Some(snapshot) = state.snapshot.as_ref() else { return Task::none() };
-    if !snapshot.catalog.rows.iter().any(|row| row.provider.id == id)
-        || matches!(&snapshot.catalog.in_use, ProviderSelection::Selected { id: selected } if selected == &id)
-    {
-        return Task::none();
-    }
+    let Some(scope) = state.scope.clone() else { return Task::none() };
     let (client, current) = match crate::app::message::app_providers::list::current(app, scope.app)
     {
         Ok(value) => value,
@@ -48,64 +25,7 @@ pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
     let worker_id = id.clone();
     Task::perform(
         async move {
-            let host = worker_scope.host;
-            let result = match worker_scope.app {
-                AppId::Claude => {
-                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
-                        .claude_provider_switch(
-                            &worker_id,
-                            &ClaudeTarget { target_host_id: host },
-                            &token,
-                        )
-                        .await
-                }
-                AppId::ClaudeDesktop => {
-                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
-                        .claude_desktop_provider_switch(
-                            &worker_id,
-                            &ClaudeDesktopTarget { target_host_id: host },
-                            &token,
-                        )
-                        .await
-                }
-                AppId::Codex => {
-                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_switch(
-                            &worker_id,
-                            &CodexTarget { target_host_id: host },
-                            &token,
-                        )
-                        .await
-                }
-                AppId::Gemini => {
-                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
-                        .gemini_provider_switch(
-                            &worker_id,
-                            &GeminiTarget { target_host_id: host },
-                            &token,
-                        )
-                        .await
-                }
-                AppId::GrokBuild => {
-                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
-                        .grok_provider_switch(
-                            &worker_id,
-                            &GrokTarget { target_host_id: host },
-                            &token,
-                        )
-                        .await
-                }
-                _ => return Err("当前应用没有托盘切换入口".into()),
-            }
-            .map_err(|_| "供应商切换请求失败，请检查授权与连接".to_string())?;
-            match result.live {
-                ClaudeLiveResult::Applied => Ok(()),
-                ClaudeLiveResult::RecoveryRequired => {
-                    Err("配置事务需要恢复，请在供应商页面处理".into())
-                }
-                ClaudeLiveResult::NotAttempted | ClaudeLiveResult::Failed => {
-                    Err("供应商配置未成功应用，请刷新检查".into())
-                }
-            }
+            desktop_provider_apps::tray_switch::switch(client, worker_scope, worker_id, token).await
         },
         move |result| {
             Message::Settings(SettingsMessage::General(
@@ -139,18 +59,10 @@ pub(crate) fn finish(
     {
         return Task::none();
     }
-    match result {
-        Ok(()) => {
-            if let Some(snapshot) = app.app_providers.snapshot.as_mut() {
-                snapshot.catalog.in_use = ProviderSelection::Selected { id: id.clone() };
-                snapshot.catalog.direct = ProviderSelection::Selected { id };
-            }
-            app.show_success_toast(if scope.app == AppId::ClaudeDesktop {
-                "配置已切换，请完全退出并重启 Claude Desktop"
-            } else {
-                "供应商已切换"
-            })
-        }
+    match desktop_provider_apps::tray_switch::apply_result(
+        app.app_providers.snapshot.as_mut(), scope.app, id, result,
+    ) {
+        Ok(message) => app.show_success_toast(message),
         Err(error) => app.show_error_toast(error),
     }
 }

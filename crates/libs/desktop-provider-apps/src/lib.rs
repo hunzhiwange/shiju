@@ -37,3 +37,5 @@ pub enum Message {
     Binding,
     EndpointDiagnostics,
 }
+
+pub mod tray_switch;

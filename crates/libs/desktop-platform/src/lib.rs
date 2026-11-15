@@ -20,3 +20,6 @@ pub mod native_crash;
 
 #[cfg(target_os = "macos")]
 pub mod window;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod native_lifecycle;

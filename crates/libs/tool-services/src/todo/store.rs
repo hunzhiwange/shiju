@@ -1,3 +1,5 @@
+#[cfg(target_arch = "wasm32")]
+use directories::ProjectDirs;
 use anyhow::anyhow;
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -9,7 +11,7 @@ use super::Todo;
 use super::normalize::normalize_todos;
 use super::schema::{TodoInput, TodoPatch, WriteArgs};
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::project::instance;
+use agent_project::instance;
 
 /// 全局待办事项存储
 ///
@@ -48,7 +50,7 @@ fn scoped_project_id() -> Option<String> {
 fn load_todos(session: &str, scope: Option<&str>) -> Vec<Todo> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        return crate::session::ui_store::load_session_todos_scoped(session, scope)
+        return session_artifact_store::load_session_todos_scoped(session, scope)
             .into_iter()
             .map(|todo| Todo {
                 content: todo.content,
@@ -78,14 +80,14 @@ fn save_todos(session: &str, todos: &[Todo], scope: Option<&str>) {
     {
         let mapped = todos
             .iter()
-            .map(|todo| crate::session::ui_types::SessionTodoItem {
+            .map(|todo| session_ui_types::SessionTodoItem {
                 content: todo.content.clone(),
                 status: todo.status.clone(),
                 priority: todo.priority.clone(),
                 id: todo.id.clone(),
             })
             .collect::<Vec<_>>();
-        let _ = crate::session::ui_store::save_session_todos_scoped(session, &mapped, scope);
+        let _ = session_artifact_store::save_session_todos_scoped(session, &mapped, scope);
     }
 
     #[cfg(target_arch = "wasm32")]

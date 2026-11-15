@@ -2,8 +2,8 @@
 //! 旧式 execute 与新版 call 两条入口必须共享相同的数据和错误语义。
 
 use super::*;
-use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::tools::traits::Tool;
+use agent_security::SecurityPolicy;
+use tool_types::Tool;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -23,8 +23,8 @@ fn read_tool_spec_is_read_only_and_strict() {
     let spec = tool.spec();
 
     assert_eq!(tool.name(), "todoread");
-    assert_eq!(spec.id, crate::app::agent::tools::TODO_READ_TOOL_ID);
-    assert_eq!(spec.aliases, vec![crate::app::agent::tools::TODO_READ_TOOL_ALIAS]);
+    assert_eq!(spec.id, "TodoRead");
+    assert_eq!(spec.aliases, vec!["todoread"]);
     assert!(spec.read_only);
     assert!(!spec.destructive);
     assert!(spec.concurrency_safe);
@@ -38,8 +38,8 @@ fn write_tool_spec_is_actionable_and_strict() {
     let spec = tool.spec();
 
     assert_eq!(tool.name(), "todowrite");
-    assert_eq!(spec.id, crate::app::agent::tools::TODO_WRITE_TOOL_ID);
-    assert_eq!(spec.aliases, vec![crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS]);
+    assert_eq!(spec.id, "TodoWrite");
+    assert_eq!(spec.aliases, vec!["todowrite"]);
     assert!(!spec.read_only);
     assert!(!spec.destructive);
     assert!(!spec.concurrency_safe);
@@ -49,37 +49,37 @@ fn write_tool_spec_is_actionable_and_strict() {
 
 #[test]
 fn write_rejects_empty_input() {
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session("empty-input"), None);
+    let ctx = session("empty-input");
 
-    assert!(write("   ", &ctx).is_err());
+    assert!(write_for_session("   ", &ctx).is_err());
 }
 
 #[test]
 fn write_rejects_malformed_json() {
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session("bad-json"), None);
-    let err = write("{", &ctx).expect_err("malformed json should fail");
+    let ctx = session("bad-json");
+    let err = write_for_session("{", &ctx).expect_err("malformed json should fail");
 
     assert!(err.to_string().contains("EOF"));
 }
 
 #[test]
 fn write_rejects_missing_todos() {
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session("missing-todos"), None);
-    let err = write(r#"{"merge":true}"#, &ctx).expect_err("todos is required");
+    let ctx = session("missing-todos");
+    let err = write_for_session(r#"{"merge":true}"#, &ctx).expect_err("todos is required");
 
     assert!(err.to_string().contains("todos"));
 }
 
 #[test]
 fn write_then_read_round_trips_pretty_json() {
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session("round-trip"), None);
+    let ctx = session("round-trip");
 
-    let output = write(
+    let output = write_for_session(
         r#"{"todos":[{"id":1,"content":" ship ","status":"pending","priority":"high"}]}"#,
         &ctx,
     )
     .expect("write succeeds");
-    let read_output = read(&ctx).expect("read succeeds");
+    let read_output = read_for_session(&ctx).expect("read succeeds");
 
     assert!(output.contains("\"content\": \"ship\""));
     assert_eq!(serde_json::from_str::<Value>(&read_output).unwrap()[0]["content"], "ship");
@@ -88,8 +88,8 @@ fn write_then_read_round_trips_pretty_json() {
 #[tokio::test]
 async fn read_tool_call_returns_structured_todos() {
     let session = session("read-call");
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session.clone(), None);
-    write(r#"{"todos":[{"id":"a","content":"plan"}]}"#, &ctx).expect("seed succeeds");
+    let ctx = session.clone();
+    write_for_session(r#"{"todos":[{"id":"a","content":"plan"}]}"#, &ctx).expect("seed succeeds");
 
     let result = TodoReadTool::new(session).call(json!({})).await.expect("call succeeds");
 
@@ -103,8 +103,8 @@ async fn read_tool_call_returns_structured_todos() {
 #[tokio::test]
 async fn read_tool_execute_returns_legacy_result() {
     let session = session("read-execute");
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session.clone(), None);
-    write(r#"{"todos":[{"content":"review"}]}"#, &ctx).expect("seed succeeds");
+    let ctx = session.clone();
+    write_for_session(r#"{"todos":[{"content":"review"}]}"#, &ctx).expect("seed succeeds");
 
     let result = TodoReadTool::new(session).execute(json!({})).await.expect("execute succeeds");
 
@@ -116,8 +116,8 @@ async fn read_tool_execute_returns_legacy_result() {
 #[tokio::test]
 async fn write_tool_call_reports_previous_and_next_todos() {
     let session = session("write-call");
-    let ctx = crate::app::agent::tools::ToolRuntimeContext::new(session.clone(), None);
-    write(r#"{"todos":[{"id":"old","content":"old task"}]}"#, &ctx).expect("seed succeeds");
+    let ctx = session.clone();
+    write_for_session(r#"{"todos":[{"id":"old","content":"old task"}]}"#, &ctx).expect("seed succeeds");
 
     let result = TodoWriteTool::new(session, security(20))
         .call(json!({"todos": [{"id": "new", "content": "new task"}]}))

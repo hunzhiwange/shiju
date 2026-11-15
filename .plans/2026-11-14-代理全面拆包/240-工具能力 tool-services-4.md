@@ -13,7 +13,7 @@
 - 旧路径引用复核线索（不是迁移前置）：任务 1 的 `crate::project::instance::provide_context`；任务 7 的 `crate::permission::next`；任务 63 的 `crate::session::capability_policy::resolve_skill_capabilities`；任务 158 的 `crate::plugins::plugin_skill_reference_text`；任务 267 的 `crate::skills::PluginSkillSource`；任务 269 的 `crate::session::ui_store::load_session_todos_scoped`；任务 290 的 `crate::security::SecurityPolicy::default`；任务 312 的 `crate::session::ui_types::SessionTodoItem`。已有真实实现/窄适配可保持调用；只有必须消费未交付新接口时，记录符号证据后增加局部依赖。
 - 执行时滚动调度，编号仅提供可行线性顺序；只等待本卡明确列出的前置完成并集成。在途旧编号按任务编号对照认领，禁止重复执行。
 
-状态：未开始
+状态：已阻塞
 
 目的：迁移，将本任务职责归入 `tool-services`。
 
@@ -78,3 +78,12 @@
 - 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
 - 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
 - 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。
+
+## 本次静态实施记录
+
+- 已迁移 sleep 全部源码和两个测试文件、todo 全部源码和既有测试/四份文本资源到 tool-services；原入口仅重导出及 ToolRuntimeContext 的字符串参数适配。
+- todo 状态唯一保留在 tool-services::todo::store，直接消费 agent-project::instance、session-artifact-store 和 session-ui-types；未复制持久化状态。非 wasm 持久化映射、scope key、锁恢复、速率限制、merge 算法保持原样。WASM 保留旧目录规则并显式导入 directories::ProjectDirs。
+- 公共清单与 lib.rs 通过授权限定入口精确替换接线；原 tools/mod.rs、toolset/mod.rs 和外部调用者继续经原薄入口调用同一实现，无需改动工厂顺序。
+- 剩余 skill/mod.rs 的实际宿主依赖：skills::load_session_skills / load_skills_with_config 仍由 vw-agent/src/skills/mod.rs 实现；agent::default_agent / permission_rules、plugins::plugin_skill_reference_text、工具上下文具体 Host 类型、block_on 的租户与项目任务局部继承也仍在主包。不得直接导入主包或回调整个业务 JSON。skill/invocation.rs、prompt.rs 及三个既有测试尚未迁移，需要继续设计并落实精确强类型 SkillHost 后才能删旧实现。未将此部分记为完成。
+- tools/tests/mod_tests.rs 是组合工厂测试（memory、完整工具注册），仍归原组合入口，不可整体迁入 tool-services。
+- 本轮仅完成 sleep/todo 静态源审阅、原测试导入调整与资源核对；未运行 Cargo、单元测试及实机测试，待统一验收。本卡保留，不能作为240整体完成证据。

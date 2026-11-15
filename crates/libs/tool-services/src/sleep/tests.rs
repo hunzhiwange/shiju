@@ -3,7 +3,7 @@
 //! 覆盖正常等待和超长等待阻断，确保工具不会无界占用执行资源。
 
 use super::SleepTool;
-use crate::app::agent::tools::Tool;
+use tool_types::Tool;
 use serde_json::json;
 use std::time::Instant;
 

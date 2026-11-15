@@ -20,18 +20,6 @@ fn apply(app: &mut App, message: MemoryMessage) {
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
-fn normalize_backend_accepts_supported_values_and_normalizes_aliases() {
-    for backend in ["sqlite", "postgres", "qdrant", "chroma", "markdown", "none"] {
-        assert_eq!(normalize_backend(backend), backend);
-    }
-
-    assert_eq!(normalize_backend("  QDRANT  "), "qdrant");
-    assert_eq!(normalize_backend(" NULL "), "none");
-    assert_eq!(normalize_backend("unknown"), "sqlite");
-    assert_eq!(normalize_backend("  "), "sqlite");
-}
-
-#[test]
 fn update_ignores_unrelated_messages_and_refresh_clears_only_the_error() {
     let mut app = app();
     app.memory_settings.backend = "postgres".to_string();

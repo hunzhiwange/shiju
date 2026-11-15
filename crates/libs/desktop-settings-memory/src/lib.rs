@@ -20,3 +20,11 @@ mod system_settings_memory_tests;
 mod system_settings_storage_tests;
 
 pub mod app_init;
+
+pub mod data_management;
+pub mod device_sync_s3;
+pub mod device_sync_webdav;
+pub mod memory_update;
+pub mod storage_update;
+#[cfg(test)]
+mod memory_update_tests;

@@ -1,2 +1,2 @@
-//! 显式命令目录：解析参数和聊天帮助共用，未接通能力不注册。
+//! 通道命令目录的兼容导出。
 pub(crate) use channel_runtime::manager::catalog::*;

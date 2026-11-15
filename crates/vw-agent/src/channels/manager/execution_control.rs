@@ -1,4 +1,4 @@
-//! 当前聊天执行的取消与代次；直到处理器和反馈退出才释放忙碌状态。
+//! 通道运行实现与宿主能力注入。
 use super::*;
 pub(crate) use channel_runtime::manager::execution_control::*;
 pub(crate) async fn process_channel_message(

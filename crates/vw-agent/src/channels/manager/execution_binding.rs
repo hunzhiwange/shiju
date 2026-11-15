@@ -1,4 +1,4 @@
-//! 将实例执行配置解析为模型路由与服务端会话绑定。
+//! 通道运行实现与宿主能力注入。
 use super::*;
 pub(crate) use channel_runtime::manager::execution_binding::*;
 pub(crate) async fn resolve_execution_route(

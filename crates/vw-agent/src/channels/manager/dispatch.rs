@@ -1,4 +1,4 @@
-//! 通道消息调度；控制命令不等待模型并发许可。
+//! 通道运行实现与宿主能力注入。
 use super::*;
 pub(crate) use channel_runtime::manager::dispatch::*;
 pub(crate) async fn run_message_dispatch_loop(

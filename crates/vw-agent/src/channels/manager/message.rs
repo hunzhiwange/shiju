@@ -1,9 +1,4 @@
-//! 通道入站消息的主处理流程。
-//!
-//! 本模块负责把一条外部通道消息串联到代理执行：应用入站钩子、处理运行时
-//! 命令、加载会话历史、构造系统提示、启动草稿/输入状态反馈，并最终把 LLM
-//! 结果交给响应层。安全相关的语义防护和 canary token 也在这里按消息轮次接入。
-
+//! 通道运行实现与宿主能力注入。
 use super::*;
 pub(crate) use channel_runtime::manager::message::*;
 pub(crate) async fn process_channel_message_inner(

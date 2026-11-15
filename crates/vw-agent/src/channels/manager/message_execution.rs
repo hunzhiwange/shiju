@@ -1,15 +1,4 @@
-//! 消息执行模块
-//!
-//! 本模块负责在通道管理器中执行消息处理流程，将接收到的用户消息
-//! 通过会话处理器发送给 LLM 进行处理，并返回执行结果。
-//!
-//! # 主要功能
-//!
-//! - 解析或创建发送者会话标识
-//! - 构建会话处理器请求
-//! - 管理执行超时和取消机制
-//! - 返回结构化的 LLM 执行结果
-
+//! 通道运行实现与宿主能力注入。
 use super::*;
 pub(crate) use channel_runtime::manager::message_execution::*;
 pub(crate) async fn run_message_execution(

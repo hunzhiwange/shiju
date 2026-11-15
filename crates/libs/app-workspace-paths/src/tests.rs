@@ -1,4 +1,4 @@
-use super::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
+use super::{PathError, WorkspaceArea, WorkspaceDirectory};
 use std::{fs, os::unix::fs::symlink};
 
 #[test]

@@ -1,6 +1,6 @@
 //! Hermes' two native memory files on the authorized executor.
 //! Authorization and application-root resolution must precede this boundary.
-use crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
+use app_workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
 use std::path::Path;
 use vw_api_hermes_memory::{HermesMemoryKind, HermesMemoryResponse};
 

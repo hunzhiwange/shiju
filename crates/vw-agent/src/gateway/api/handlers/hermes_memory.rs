@@ -36,8 +36,8 @@ fn write_error(error: WriteError) -> StatusCode {
         WriteError::Io => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
-fn path_error(error: vw_agent_apps::workspace_paths::PathError) -> StatusCode {
-    use vw_agent_apps::workspace_paths::PathError;
+fn path_error(error: app_workspace_paths::PathError) -> StatusCode {
+    use app_workspace_paths::PathError;
     match error {
         PathError::UnauthorizedHost => StatusCode::FORBIDDEN,
         PathError::InvalidPath | PathError::UnsafeEntry => StatusCode::UNPROCESSABLE_ENTITY,

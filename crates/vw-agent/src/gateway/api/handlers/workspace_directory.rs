@@ -2,7 +2,7 @@
 use axum::{extract::Query, http::{HeaderMap, StatusCode}, routing::post, Extension, Json, Router};
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_agent_apps::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory as Directory};
+use app_workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory as Directory};
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

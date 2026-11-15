@@ -1,7 +1,7 @@
 //! Daily memory metadata on the authorized executor, never the desktop HOME.
 use std::{io::Read, path::Path, time::UNIX_EPOCH};
 
-use crate::workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
+use app_workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory};
 use vw_api_workspace_memory::{DailyMemoryFileInfo, DailyMemoryFilename};
 
 /// The caller must authorize content reading: previews contain memory content.

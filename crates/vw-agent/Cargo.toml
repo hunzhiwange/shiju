@@ -289,6 +289,7 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Secur
 rusqlite = "0.37.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+app-workspace-paths = { path = "../libs/app-workspace-paths" }
 system-configuration = "0.7"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

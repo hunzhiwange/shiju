@@ -73,6 +73,7 @@ vw-api-types = { path = "../vw-api-types" }
 httparse = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+app-workspace-paths = { path = "../libs/app-workspace-paths" }
 rquickjs = { version = "0.14", default-features = false, features = ["std"] }
 security-framework = "3.7"
 tokio = { version = "1", features = ["io-util", "process", "time"] }

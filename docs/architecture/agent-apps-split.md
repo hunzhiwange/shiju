@@ -1191,8 +1191,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/tokens.rs` | 193 | 55 |
 | `workspace_files.rs` | 52 | 37 |
 | `workspace_files_tests.rs` | 105 | 37 |
-| `workspace_paths.rs` | 267 | 37 |
-| `workspace_paths_tests.rs` | 117 | 37 |
+| `workspace_paths.rs` | 267 | 73（已迁入 app-workspace-paths，原路径仅重导出） |
+| `workspace_paths_tests.rs` | 117 | 73（已迁入 app-workspace-paths/src/tests.rs） |
 
 ## 资源、宏和路径约束
 
@@ -2123,3 +2123,11 @@ workspace_paths → providers
 - 仅为已有跨包事务和凭据文件调用公开 descriptor 操作、PreparedWrite 及其事务字段、FileRevision、batch writes/revisions/digest；resolve/stage_one 与锁表、路径检查仍私有。此接口供执行器持有已授权目录使用，原有路径校验、权限、暂存清理和发布顺序未改。commit/concurrency/recovery 使用的原始字段是现有协议，后续接收任务应将其收回内聚包内，不能将其用于客户端任意文件操作。
 - 直接依赖全部置于 macOS：api-app-identity、base64、sha2、libc；tempfile/serde_json（arbitrary_precision）仅测试。原包相同依赖仍有其它调用者，保留。workspace 与直接路径已注册，TOML 路径、导出、私有访问和文件移动作静态审阅，未触碰 Cargo.lock。
 - 静态证据：独立测试逐字移动，stage/write_guard 仅可见性变化，Guarded 逐字提取；新包无 vw-agent-apps 引用、无跨包 path/include，差异空白检查通过。统一验收须覆盖新增库、commit/recovery/concurrency 与其它直接调用者编译、迁移测试、原子提交与恢复授权绑定及三平台条件；本轮均未执行。
+
+### 任务 73 静态迁移结果
+
+`app-workspace-paths` 唯一拥有 `WorkspaceArea`、`PathError`、`WorkspaceDirectory` 及全部描述符操作；macOS cfg 保持，三个独立测试迁至 `src/tests.rs`。直接依赖 `app-config-paths`、`app-config-write::write_guard`、`vw-api-app-identity` 与 `libc`；目录锁继续复用任务 12 的单例，未复制锁表。原 `workspace_paths` 仅重导出同一类型。
+
+直接消费者：原包 daily_memory_files/list/search、hermes_memory、workspace_files，以及 vw-agent 的 workspace_directory、workspace_memory、hermes_memory handler；均接入所属库。仅为现有列表/搜索调用公开 `filenames`、`regular_file`。任务 37 接收记忆、查询与 dashboard，不再接收安全路径实现。
+
+静态核对：清单路径、macOS 条件、独立测试注册、单一实现与无门面回依赖；无静态资源路径。未运行 Cargo、单元及实机测试，统一验收待授权；主机授权、穿越/链接替换、并发写入、原子写与 Finder 描述符行为仍待统一验收。

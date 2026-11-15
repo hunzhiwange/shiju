@@ -168,6 +168,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AgentAppsAuth(event) => {
             crate::app::message::agent_apps_auth::update(app, event)
         }
+        SettingsMessage::AppProviderEffect(effect) => {
+            crate::app::message::app_providers::provider_update::effect(app, effect)
+        }
         SettingsMessage::AppProviderEdit(message) => {
             crate::app::message::app_providers::edit::update(app, message)
         }

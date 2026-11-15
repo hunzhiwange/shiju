@@ -36,14 +36,9 @@ mod kimi_tests;
 
 pub(crate) mod dsh;
 
-#[cfg(test)]
-mod dsh_tests;
-
 pub(crate) mod agy;
 
 pub(crate) mod desktop;
-#[cfg(test)]
-mod desktop_tests;
 
 pub(crate) mod endpoints;
 #[cfg(test)]
@@ -75,3 +70,5 @@ pub(crate) mod paths;
 mod paths_tests;
 
 pub(crate) mod leave;
+
+pub(crate) mod provider_update;

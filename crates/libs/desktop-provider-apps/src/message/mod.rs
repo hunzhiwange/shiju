@@ -28,3 +28,14 @@ mod claude_tests;
 
 #[cfg(test)]
 mod codex_tests;
+
+pub mod provider_update;
+
+#[cfg(test)]
+mod desktop_tests;
+
+#[cfg(test)]
+mod dsh_tests;
+
+#[cfg(test)]
+mod edit_tests;

@@ -1,4 +1,4 @@
-use crate::app::state::app_providers::edit::*;
+use crate::state::edit::*;
 use vw_api_app_provider_base::basic::ProviderBasic;
 fn form(mode: Mode) -> EditForm {
     EditForm::new(
@@ -16,7 +16,7 @@ fn form(mode: Mode) -> EditForm {
 #[test]
 fn cc04_ui_edit_redacted_secret_is_not_submitted() {
     assert!(
-        !format!("{:?}", super::EditMessage::Key("sensitive-fixture-key".into()))
+        !format!("{:?}", super::edit::EditMessage::Key("sensitive-fixture-key".into()))
             .contains("sensitive-fixture-key")
     );
     let mut form = form(Mode::Update);
@@ -57,7 +57,7 @@ fn cc04_ui_edit_copy_uses_new_identity_and_explicit_clear_is_preserved() {
 }
 #[tokio::test]
 async fn cc04_ui_edit_save_dispatches_keep_and_delete_errors_through_sdk() {
-    use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
+    use crate::{AgentAppsContext, Scope};
     use std::io::{Read, Write};
     use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -110,12 +110,12 @@ async fn cc04_ui_edit_save_dispatches_keep_and_delete_errors_through_sdk() {
         host: "fixture-host".into(),
         app: vw_api_app_identity::AppId::Claude,
     };
-    super::save(client.clone(), scope.clone(), form(Mode::Update), "fake-token".into())
+    super::edit::save(client.clone(), scope.clone(), form(Mode::Update), "fake-token".into())
         .await
         .unwrap();
     let mut delete = form(Mode::Delete);
     delete.saving = true;
-    let result = super::save(client, scope, delete.clone(), "fake-token".into()).await;
+    let result = super::edit::save(client, scope, delete.clone(), "fake-token".into()).await;
     assert!(result.is_err());
     assert!(!delete.finish(&result));
     assert_eq!(delete.id, "fixture");

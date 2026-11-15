@@ -221,3 +221,47 @@ impl std::fmt::Debug for EditMessage {
 }
 
 pub fn message(value: EditMessage) -> crate::Message { crate::Message::Edit(value) }
+
+use crate::state::edit::EditForm;
+
+use vw_api_app_provider_edit::delete::AppProviderDelete;
+pub async fn save(
+    client: GatewayClient,
+    scope: Scope,
+    form: EditForm,
+    token: String,
+) -> Result<(), String> {
+    if matches!(form.mode, crate::state::edit::Mode::Delete) {
+        let deleted = if scope.app == vw_api_app_identity::AppId::Agy {
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
+                .agy_form_delete(
+                    &form.id,
+                    &vw_api_app_provider_profiles::agy::AgyTarget {
+                        target_host_id: scope.host,
+                    },
+                    &token,
+                )
+                .await
+                .map_err(|_| "Agy 档案未删除：请先关闭运行中的终端并检查引用。".to_string())?
+        } else {
+            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_delete(
+                    scope.app,
+                    &form.id,
+                    &AppProviderDelete { target_host_id: scope.host },
+                    &token,
+                )
+                .await?
+        };
+        if !deleted.deleted {
+            return Err("供应商未删除".into());
+        }
+    } else {
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic_write(scope.app, &form.id, &form.request()?).await?;
+    }
+    Ok(())
+}
+
+use vw_gateway_client::GatewayClient;
+#[path = "edit_update.rs"]
+mod update_impl;
+pub use update_impl::update;

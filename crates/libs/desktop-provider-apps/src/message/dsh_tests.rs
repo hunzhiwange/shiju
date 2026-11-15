@@ -1,12 +1,6 @@
 use super::dsh;
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{
-        dsh::Draft,
-        edit::{EditForm, Mode},
-        list::{ListState, Scope},
-    },
-};
+use crate::{AgentAppsContext,Scope,state::{dsh::Draft,edit::{EditForm,Mode}}};
+use super::edit_test_state::ListState;
 use iced::widget::text_editor::Content;
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -104,7 +98,7 @@ async fn cc04_ui_dsh_validation_failure_preserves_draft() {
     let result = dsh::save(client, scope.clone(), form, "fake-host-token".into()).await;
     assert!(server.join().unwrap(), "Dsh 草稿必须通过 SDK 交给执行端校验");
     assert!(result.as_ref().unwrap_err().contains("执行端未接受"));
-    assert!(dsh::finish(&mut state, &scope, generation, &result));
+    assert!(dsh::finish(&mut state.borrowed(), &scope, generation, &result));
     let form = state.form.unwrap();
     assert!(!form.saving);
     assert_eq!(form.fields.name, "中文草稿");
@@ -121,12 +115,12 @@ fn cc04_ui_dsh_stale_response_is_ignored() {
     form.fields.name = "当前草稿".into();
     state.form = Some(form);
 
-    assert!(!dsh::finish(&mut state, &scope, old, &Ok(DshLiveResult::Applied)));
+    assert!(!dsh::finish(&mut state.borrowed(), &scope, old, &Ok(DshLiveResult::Applied)));
     let mut old_scope = scope.clone();
     old_scope.host = "old-host".into();
-    assert!(!dsh::finish(&mut state, &old_scope, current, &Err("过期错误".into())));
+    assert!(!dsh::finish(&mut state.borrowed(), &old_scope, current, &Err("过期错误".into())));
     assert_eq!(state.form.as_ref().unwrap().fields.name, "当前草稿");
     assert!(state.form.as_ref().unwrap().saving);
-    assert!(dsh::finish(&mut state, &scope, current, &Ok(DshLiveResult::Applied)));
+    assert!(dsh::finish(&mut state.borrowed(), &scope, current, &Ok(DshLiveResult::Applied)));
     assert!(state.form.is_none());
 }

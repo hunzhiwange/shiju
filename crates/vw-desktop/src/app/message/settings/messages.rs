@@ -319,6 +319,7 @@ pub enum SettingsMessage {
     #[cfg(not(target_arch = "wasm32"))]
     AgentAppsAuth(crate::app::message::agent_apps_auth::Event),
     AppProviders(crate::app::message::app_providers::list::ListMessage),
+    AppProviderEffect(desktop_provider_apps::message::provider_update::Effect),
     AppProviderEdit(crate::app::message::app_providers::edit::EditMessage),
     TabSelected(SettingsTab),
     SystemTabSelected(SystemTab),

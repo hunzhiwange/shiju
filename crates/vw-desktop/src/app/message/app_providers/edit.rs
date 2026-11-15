@@ -1,168 +1,20 @@
-use crate::app::state::app_providers::{edit::EditForm, list::Scope};
-use vw_gateway_client::GatewayClient;
-use vw_api_app_provider_edit::delete::AppProviderDelete;
-pub(crate) async fn save(
-    client: GatewayClient,
-    scope: Scope,
-    form: EditForm,
-    token: String,
-) -> Result<(), String> {
-    if matches!(form.mode, crate::app::state::app_providers::edit::Mode::Delete) {
-        let deleted = if scope.app == vw_api_app_identity::AppId::Agy {
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
-                .agy_form_delete(
-                    &form.id,
-                    &vw_api_app_provider_profiles::agy::AgyTarget {
-                        target_host_id: scope.host,
-                    },
-                    &token,
-                )
-                .await
-                .map_err(|_| "Agy 档案未删除：请先关闭运行中的终端并检查引用。".to_string())?
-        } else {
-            gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_delete(
-                    scope.app,
-                    &form.id,
-                    &AppProviderDelete { target_host_id: scope.host },
-                    &token,
-                )
-                .await?
-        };
-        if !deleted.deleted {
-            return Err("供应商未删除".into());
-        }
-    } else {
-        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_basic_write(scope.app, &form.id, &form.request()?).await?;
-    }
-    Ok(())
-}
-#[cfg(test)]
-#[path = "edit_tests.rs"]
-mod tests;
-
-use super::{
-    agy, claude, codex, dsh, gemini, grok, hermes, kimi,
-    list::{ListMessage, current},
-    mcode, omp, openclaw, opencode, pi,
-};
-use crate::app::state::app_providers::claude::Draft;
-use crate::app::state::app_providers::edit::Mode;
-use crate::app::{App, Message, message::SettingsMessage};
+pub use desktop_provider_apps::message::edit::{EditMessage,save};
+use super::{agy,claude,codex,dsh,gemini,grok,hermes,kimi,mcode,omp,openclaw,opencode,pi};
+use crate::app::{App,Message,message::SettingsMessage};
 use iced::Task;
 use vw_api_types::agent_apps::AppId;
-use vw_api_app_provider_base::basic::ProviderBasic;
-use vw_api_app_provider_edit::catalog::ProviderMembership;
-use vw_api_app_provider_base::claude::ClaudeLiveResult;
-use vw_api_app_provider_profiles::codex_catalog::CodexLiveResult;
-use vw_api_app_provider_terminal::dsh::DshLiveResult;
-use vw_api_app_provider_profiles::gemini::GeminiLiveResult;
-use vw_api_app_provider_extended::grok::GrokLiveResult;
-use vw_api_app_provider_extended::hermes::HermesLiveResult;
-use vw_api_app_provider_terminal::kimi::KimiLiveResult;
-use vw_api_app_provider_terminal::mcode::McodeLiveResult;
-use vw_api_app_provider_terminal::omp::OmpLiveResult;
-use vw_api_app_provider_extended::openclaw::OpenClawLiveResult;
-use vw_api_app_provider_extended::opencode::OpenCodeLiveResult;
-use vw_api_app_provider_terminal::pi::PiLiveResult;
-pub use desktop_provider_apps::message::edit::EditMessage;
-
-pub(crate) fn message(value: EditMessage) -> Message {
-    Message::Settings(SettingsMessage::AppProviderEdit(value))
+pub(crate) fn message(value: EditMessage)->Message { Message::Settings(SettingsMessage::AppProviderEdit(value)) }
+pub(crate) fn update(app:&mut App,event:EditMessage)->Task<Message> {
+ if matches!(&event, EditMessage::Claude(_) | EditMessage::Codex(_) | EditMessage::Gemini(_) | EditMessage::Grok(_) | EditMessage::Hermes(_) | EditMessage::Pi(_) | EditMessage::Kimi(_) | EditMessage::Mcode(_) | EditMessage::Agy(_) | EditMessage::Dsh(_) | EditMessage::Omp(_) | EditMessage::OpenClaw(_) | EditMessage::OpenCode(_)) {
+  return super::provider_update::effect(app,desktop_provider_apps::message::provider_update::Effect::Field(event));
+ }
+ let current=app.app_providers.scope.as_ref().and_then(|s|super::list::current(app,s.app).ok());
+ super::provider_update::edit(app,current,event)
 }
-pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
-    match event {
-        EditMessage::Create => {
-            if app.app_providers.loading || app.app_providers.form.is_some() {
-                return Task::none();
-            }
-            let mut form = EditForm::new(
-                Mode::Create,
-                String::new(),
-                ProviderBasic {
-                    name: String::new(),
-                    category: None,
-                    notes: None,
-                    website_url: None,
-                },
-                app.app_providers.new_draft.clone(),
-            );
-            if app.app_providers.scope.as_ref().is_some_and(|s| s.app == AppId::Agy) {
-                form.agy = Some(crate::app::state::app_providers::agy::Draft::new());
-            } else if claude_scope(app) {
-                form.claude = Some(Draft::new());
-            } else if app.app_providers.scope.as_ref().is_some_and(|s| s.app == AppId::Codex) {
-                form.codex = Some(crate::app::state::app_providers::codex::Draft::new());
-            } else if app
-                .app_providers
-                .scope
-                .as_ref()
-                .is_some_and(|scope| scope.app == AppId::Gemini)
-            {
-                form.gemini = Some(crate::app::state::app_providers::gemini::Draft::new());
-            } else if app
-                .app_providers
-                .scope
-                .as_ref()
-                .is_some_and(|scope| scope.app == AppId::GrokBuild)
-            {
-                form.grok = Some(crate::app::state::app_providers::grok::Draft::new());
-            } else if app
-                .app_providers
-                .scope
-                .as_ref()
-                .is_some_and(|scope| scope.app == AppId::OpenCode)
-            {
-                form.opencode = Some(crate::app::state::app_providers::opencode::Draft::new());
-            } else if app
-                .app_providers
-                .scope
-                .as_ref()
-                .is_some_and(|scope| scope.app == AppId::Hermes)
-            {
-                form.hermes = Some(crate::app::state::app_providers::hermes::Draft::new());
-            } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Pi) {
-                form.pi = Some(crate::app::state::app_providers::pi::Draft::new());
-            } else if app
-                .app_providers
-                .scope
-                .as_ref()
-                .is_some_and(|scope| scope.app == AppId::Mcode)
-            {
-                form.mcode = Some(crate::app::state::app_providers::mcode::Draft::new());
-            } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Dsh)
-            {
-                form.dsh = Some(crate::app::state::app_providers::dsh::Draft::new());
-            } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Kimi)
-            {
-                form.kimi = Some(crate::app::state::app_providers::kimi::Draft::new());
-            } else if app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Omp)
-            {
-                form.omp = Some(crate::app::state::app_providers::omp::Draft::new());
-            } else if app
-                .app_providers
-                .scope
-                .as_ref()
-                .is_some_and(|scope| scope.app == AppId::OpenClaw)
-            {
-                form.openclaw = Some(crate::app::state::app_providers::openclaw::Draft::new());
-            }
-            app.app_providers.form = Some(form);
-        }
-        EditMessage::Open { id, copy, delete } => {
-            let Some(scope) = app.app_providers.scope.clone() else { return Task::none() };
-            if app.app_providers.loading || app.app_providers.form.is_some() {
-                return Task::none();
-            }
-            let Ok((client, now)) = current(app, scope.app) else { return Task::none() };
-            if scope != now {
-                return Task::none();
-            }
-            app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
-            let generation = app.app_providers.generation;
-            app.app_providers.loading = true;
+pub(crate) fn load(client:vw_gateway_client::GatewayClient,scope:desktop_provider_apps::Scope,generation:u64,id:String,copy:bool,delete:bool,claude:bool,token:String)->Task<Message> {
             let source = id.clone();
-            if claude_scope(app) && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+            if claude && !copy && !delete {
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { claude::load(client, request_scope, &source, &token).await },
@@ -177,7 +29,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Codex && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { codex::load(client, request_scope, &source, &token).await },
@@ -192,7 +44,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Gemini && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { gemini::load(client, request_scope, &source, &token).await },
@@ -207,7 +59,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::GrokBuild && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { grok::load(client, request_scope, &source, &token).await },
@@ -222,7 +74,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Hermes && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { hermes::load(client, request_scope, &source, &token).await },
@@ -237,7 +89,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Pi && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { pi::load(client, request_scope, &source, &token).await },
@@ -252,7 +104,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Kimi && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { kimi::load(client, request_scope, &source, &token).await },
@@ -267,7 +119,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Mcode && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { mcode::load(client, request_scope, &source, &token).await },
@@ -282,7 +134,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Agy && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { agy::load(client, request_scope, &source, &token).await },
@@ -297,7 +149,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Dsh && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { dsh::load(client, request_scope, &source, &token).await },
@@ -312,7 +164,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::Omp && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { omp::load(client, request_scope, &source, &token).await },
@@ -327,7 +179,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::OpenClaw && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { openclaw::load(client, request_scope, &source, &token).await },
@@ -342,7 +194,7 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                 );
             }
             if scope.app == AppId::OpenCode && !copy && !delete {
-                let token = app.apps_catalog.token.clone();
+                let token = token.clone();
                 let request_scope = scope.clone();
                 return Task::perform(
                     async move { opencode::load(client, request_scope, &source, &token).await },
@@ -369,295 +221,8 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     })
                 },
             );
-        }
-        EditMessage::Loaded { scope, generation, id, copy, delete, result } => {
-            if !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(mut fields) => {
-                    let mode = if delete {
-                        Mode::Delete
-                    } else if copy {
-                        fields.name.push_str(" 副本");
-                        Mode::Copy { source_id: id.clone() }
-                    } else {
-                        Mode::Update
-                    };
-                    let target = if copy { String::new() } else { id };
-                    app.app_providers.form = Some(EditForm::new(mode, target, fields, None));
-                }
-                Err(e) => return app.show_error_toast(e),
-            }
-        }
-        EditMessage::ClaudeLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.claude = Some(Draft::from_view(view.config, view.model));
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::CodexLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.codex =
-                        view.config.map(crate::app::state::app_providers::codex::Draft::from_view);
-                    form.codex_config_unavailable = form.codex.is_none();
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        form.codex_can_bind = view.can_bind;
-                    }
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::GrokLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.grok =
-                        view.config.map(crate::app::state::app_providers::grok::Draft::from_view);
-                    form.grok_config_unavailable = form.grok.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::GeminiLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.gemini = Some(crate::app::state::app_providers::gemini::Draft::from_view(
-                        view.config,
-                        view.model,
-                    ));
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::HermesLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member =
-                        hermes::membership(&app.app_providers, &id) == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.hermes = view.config.map(|config| {
-                        crate::app::state::app_providers::hermes::Draft::from_view(config, member)
-                    });
-                    form.hermes_config_unavailable = form.hermes.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::PiLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member =
-                        pi::membership(&app.app_providers, &id) == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.pi = view.config.map(|config| {
-                        crate::app::state::app_providers::pi::Draft::from_view(config, member)
-                    });
-                    form.pi_config_unavailable = form.pi.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::KimiLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member =
-                        kimi::membership(&app.app_providers, &id) == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.kimi = view.config.map(|config| {
-                        crate::app::state::app_providers::kimi::Draft::from_view(config, member)
-                    });
-                    form.kimi_config_unavailable = form.kimi.is_none();
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        form.kimi_auth_region = view.auth_region;
-                    }
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::McodeLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member =
-                        mcode::membership(&app.app_providers, &id) == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.mcode = view.config.map(|config| {
-                        crate::app::state::app_providers::mcode::Draft::from_view(config, member)
-                    });
-                    form.mcode_config_unavailable = form.mcode.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::AgyLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let draft = crate::app::state::app_providers::agy::Draft::from_view(&view);
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.agy = Some(draft);
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::AgySaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !agy::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            if let Err(error) = result {
-                return app.show_error_toast(error);
-            }
-            return Task::batch([
-                app.show_success_toast("已保存档案，下次授权终端启动时生效。"),
-                super::list::update(app, ListMessage::Refresh),
-            ]);
-        }
-        EditMessage::DshLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member =
-                        dsh::membership(&app.app_providers, &id) == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.dsh = view.config.map(|config| {
-                        crate::app::state::app_providers::dsh::Draft::from_view(config, member)
-                    });
-                    form.dsh_config_unavailable = form.dsh.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::OmpLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member =
-                        omp::membership(&app.app_providers, &id) == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.omp = view.config.map(|config| {
-                        crate::app::state::app_providers::omp::Draft::from_view(config, member)
-                    });
-                    form.omp_config_unavailable = form.omp.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::OpenClawLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member = openclaw::membership(&app.app_providers, &id)
-                        == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.openclaw = view.config.map(|config| {
-                        crate::app::state::app_providers::openclaw::Draft::from_view(config, member)
-                    });
-                    form.openclaw_config_unavailable = form.openclaw.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::OpenCodeLoaded { scope, generation, id, result } => {
-            if !app.app_providers.loading || !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            app.app_providers.loading = false;
-            match result {
-                Ok(view) => {
-                    let member = opencode::membership(&app.app_providers, &id)
-                        == ProviderMembership::Present;
-                    let mut form = EditForm::new(Mode::Update, id, view.fields, None);
-                    form.opencode = view.config.map(|config| {
-                        crate::app::state::app_providers::opencode::Draft::from_view(config, member)
-                    });
-                    form.opencode_config_unavailable = form.opencode.is_none();
-                    app.app_providers.form = Some(form);
-                }
-                Err(error) => return app.show_error_toast(error),
-            }
-        }
-        EditMessage::Cancel => {
-            if app.app_providers.form.as_ref().is_some_and(|f| !f.saving) {
-                app.app_providers.form = None;
-            }
-        }
-        EditMessage::Save => {
-            let Some(scope) = app.app_providers.scope.clone() else { return Task::none() };
-            let Ok((client, now)) = current(app, scope.app) else { return Task::none() };
-            if scope != now {
-                return app.show_error_toast("执行主机或工作区已切换，请重新打开");
-            }
-            let Some(form) = app.app_providers.form.as_mut() else { return Task::none() };
-            if form.saving {
-                return Task::none();
-            }
+}
+pub(crate) fn dispatch_save(client:vw_gateway_client::GatewayClient,scope:desktop_provider_apps::Scope,generation:u64,form:desktop_provider_apps::state::edit::EditForm,token:String)->Task<Message> {
             let claude = form.claude_editable();
             let gemini = form.gemini_editable();
             let codex = form.codex.is_some();
@@ -671,33 +236,6 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             let dsh = form.dsh.is_some();
             let omp = form.omp.is_some();
             let openclaw = form.openclaw.is_some();
-            if claude
-                || gemini
-                || codex
-                || grok
-                || opencode
-                || openclaw
-                || hermes
-                || pi
-                || omp
-                || kimi
-                || mcode
-                || dsh
-                || agy
-            {
-                if !form.identified() {
-                    return app.show_error_toast("请填写标识与名称");
-                }
-            } else if !matches!(form.mode, Mode::Delete) {
-                if let Err(e) = form.request() {
-                    return app.show_error_toast(e);
-                }
-            }
-            form.saving = true;
-            let form = form.clone();
-            let token = app.apps_catalog.token.clone();
-            app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
-            let generation = app.app_providers.generation;
             if claude {
                 return Task::perform(
                     claude::save(client, scope.clone(), form, token),
@@ -833,322 +371,4 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
             return Task::perform(save(client, scope.clone(), form, token), move |result| {
                 message(EditMessage::Saved { scope: scope.clone(), generation, result })
             });
-        }
-        EditMessage::ClaudeSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !claude::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(ClaudeLiveResult::NotAttempted) => {
-                    app.show_success_toast("已保存到供应商目录。")
-                }
-                Ok(ClaudeLiveResult::Applied) => {
-                    app.show_success_toast("已保存并应用 Claude 配置。")
-                }
-                Ok(ClaudeLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Claude 配置失败。")
-                }
-                Ok(ClaudeLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::CodexSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !codex::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(CodexLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(CodexLiveResult::Applied) => app.show_success_toast("已保存并应用 Codex 配置。"),
-                Ok(CodexLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Codex 配置失败。")
-                }
-                Ok(CodexLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::GeminiSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !gemini::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(GeminiLiveResult::NotAttempted) => {
-                    app.show_success_toast("已保存到供应商目录。")
-                }
-                Ok(GeminiLiveResult::Applied) => {
-                    app.show_success_toast("已保存并应用 Gemini 配置。")
-                }
-                Ok(GeminiLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Gemini 配置失败。")
-                }
-                Ok(GeminiLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::GrokSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !grok::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(GrokLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(GrokLiveResult::Applied) => app.show_success_toast("已保存并应用 Grok 配置。"),
-                Ok(GrokLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Grok 配置失败。")
-                }
-                Ok(GrokLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::HermesSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !hermes::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(HermesLiveResult::NotAttempted) => {
-                    app.show_success_toast("已保存到供应商目录。")
-                }
-                Ok(HermesLiveResult::Applied) => {
-                    app.show_success_toast("已保存并应用 Hermes 配置。")
-                }
-                Ok(HermesLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Hermes 配置失败。")
-                }
-                Ok(HermesLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::PiSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !pi::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(PiLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(PiLiveResult::Applied) => app.show_success_toast("已保存并应用 Pi 配置。"),
-                Ok(PiLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Pi 配置失败。")
-                }
-                Ok(PiLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::KimiSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !kimi::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(KimiLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(KimiLiveResult::Applied) => app.show_success_toast("已保存并应用 Kimi 配置。"),
-                Ok(KimiLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Kimi 配置失败。")
-                }
-                Ok(KimiLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::McodeSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !mcode::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(McodeLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(McodeLiveResult::Applied) => app.show_success_toast("已保存并应用 Mcode 配置。"),
-                Ok(McodeLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Mcode 配置失败。")
-                }
-                Ok(McodeLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::DshSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !dsh::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(DshLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(DshLiveResult::Applied) => app.show_success_toast("已保存并应用 Dsh 配置。"),
-                Ok(DshLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 Dsh 配置失败。")
-                }
-                Ok(DshLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::OmpSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !omp::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(OmpLiveResult::NotAttempted) => app.show_success_toast("已保存到供应商目录。"),
-                Ok(OmpLiveResult::Applied) => app.show_success_toast("已保存并应用 OMP 配置。"),
-                Ok(OmpLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 OMP 配置失败。")
-                }
-                Ok(OmpLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::OpenClawSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !openclaw::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(OpenClawLiveResult::NotAttempted) => {
-                    app.show_success_toast("已保存到供应商目录。")
-                }
-                Ok(OpenClawLiveResult::Applied) => {
-                    app.show_success_toast("已保存并应用 OpenClaw 配置。")
-                }
-                Ok(OpenClawLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 OpenClaw 配置失败。")
-                }
-                Ok(OpenClawLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::OpenCodeSaved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation)
-                || !opencode::finish(&mut app.app_providers, &scope, generation, &result)
-            {
-                return Task::none();
-            }
-            let toast = match result {
-                Err(error) => return app.show_error_toast(error),
-                Ok(OpenCodeLiveResult::NotAttempted) => {
-                    app.show_success_toast("已保存到供应商目录。")
-                }
-                Ok(OpenCodeLiveResult::Applied) => {
-                    app.show_success_toast("已保存并应用 OpenCode 配置。")
-                }
-                Ok(OpenCodeLiveResult::Failed) => {
-                    app.show_warning_toast("目录已保存，但应用 OpenCode 配置失败。")
-                }
-                Ok(OpenCodeLiveResult::RecoveryRequired) => {
-                    app.show_warning_toast("目录已保存，执行端配置需要恢复。")
-                }
-            };
-            return Task::batch([toast, super::list::update(app, ListMessage::Refresh)]);
-        }
-        EditMessage::Saved { scope, generation, result } => {
-            if !matches_scope(app, &scope, generation) {
-                return Task::none();
-            }
-            let Some(form) = app.app_providers.form.as_mut() else { return Task::none() };
-            if !form.saving {
-                return Task::none();
-            }
-            if form.finish(&result) {
-                app.app_providers.form = None;
-                return super::list::update(app, ListMessage::Refresh);
-            }
-            if let Err(e) = result {
-                return app.show_error_toast(e);
-            }
-        }
-        field => {
-            let Some(form) = app.app_providers.form.as_mut().filter(|f| !f.saving) else {
-                return Task::none();
-            };
-            let optional = |v: String| (!v.is_empty()).then_some(v);
-            match field {
-                EditMessage::Id(v) if matches!(form.mode, Mode::Create | Mode::Copy { .. }) => {
-                    form.id = v
-                }
-                EditMessage::Claude(field) => claude::change(form, field),
-                EditMessage::Codex(field) => codex::change(form, field),
-                EditMessage::Gemini(field) => gemini::change(form, field),
-                EditMessage::Grok(field) => grok::change(form, field),
-                EditMessage::Hermes(field) => hermes::change(form, field),
-                EditMessage::Pi(field) => pi::change(form, field),
-                EditMessage::Kimi(field) => kimi::change(form, field),
-                EditMessage::Mcode(field) => mcode::change(form, field),
-                EditMessage::Agy(field) => agy::change(form, field),
-                EditMessage::Dsh(field) => dsh::change(form, field),
-                EditMessage::Omp(field) => omp::change(form, field),
-                EditMessage::OpenClaw(field) => openclaw::change(form, field),
-                EditMessage::OpenCode(field) => opencode::change(form, field),
-                EditMessage::Name(v) => form.fields.name = v,
-                EditMessage::Category(v) => form.fields.category = optional(v),
-                EditMessage::Notes(v) => form.fields.notes = optional(v),
-                EditMessage::Website(v) => form.fields.website_url = optional(v),
-                EditMessage::Key(v) => form.key = v,
-                EditMessage::Replace(v) => {
-                    form.replace_key = v;
-                    form.clear_key = false;
-                    form.key.clear();
-                }
-                EditMessage::Clear(v) => {
-                    form.clear_key = v;
-                    form.replace_key = false;
-                    form.key.clear();
-                }
-                _ => {}
-            }
-        }
-    }
-    Task::none()
-}
-fn matches_scope(app: &App, scope: &Scope, generation: u64) -> bool {
-    app.app_providers.scope.as_ref() == Some(scope)
-        && app.app_providers.generation == generation
-        && current(app, scope.app).ok().map(|(_, s)| s).as_ref() == Some(scope)
-}
-
-// The basic editor's isolated fixture (and composed drafts) supply their own complete profile.
-fn claude_scope(app: &App) -> bool {
-    app.app_providers.scope.as_ref().is_some_and(|scope| scope.app == AppId::Claude)
-        && app.app_providers.new_draft.is_none()
 }

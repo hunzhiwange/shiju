@@ -1,8 +1,5 @@
 use super::desktop;
-use crate::app::state::{
-    AgentAppsContext,
-    app_providers::{desktop::Form, list::Scope},
-};
+use crate::{AgentAppsContext,Scope,state::desktop::Form};
 use std::io::{Read, Write};
 use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_identity::AppId}};
 fn fixture(

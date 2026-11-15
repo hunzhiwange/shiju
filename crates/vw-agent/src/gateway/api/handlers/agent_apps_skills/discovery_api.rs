@@ -4,7 +4,7 @@ use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap,
 use tokio::sync::Mutex;
 use vw_agent_apps::skills::{discovery_cache::SkillDiscoveryCache, repos::SkillRepo};
 use {
-    vw_api_types::agent_apps_skills::discovery_api::*,
+    vw_api_app_skills::discovery_api::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

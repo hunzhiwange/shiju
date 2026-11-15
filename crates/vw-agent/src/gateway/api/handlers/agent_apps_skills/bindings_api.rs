@@ -2,7 +2,7 @@
 use axum::{Extension, Json, Router, extract::{Path, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{post, get}};
 use {
-    vw_api_types::agent_apps_skills::bindings_api::*,
+    vw_api_app_skills::bindings_api::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
@@ -32,7 +32,7 @@ async fn resync(Extension(tenant): Extension<TenantScope>, db: Option<Extension<
     execute(tenant, db, headers, request.scope, request.targets, None).await.map(Json)
 }
 async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, headers: HeaderMap,
-    scope: vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     targets: Vec<SkillBindingTarget>, binding: Option<(String, bool, SkillBindingMode)>,
 ) -> Result<SkillBindingsResponse, StatusCode> {
     tokio::task::spawn_blocking(move || {
@@ -97,7 +97,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
 }
 
 async fn snapshot(Extension(tenant): Extension<TenantScope>, db: Option<Extension<GlobalDatabase>>,
-    headers: HeaderMap, axum::extract::Query(scope): axum::extract::Query<vw_api_types::agent_apps_skills::repos_api::SkillReposQuery>,
+    headers: HeaderMap, axum::extract::Query(scope): axum::extract::Query<vw_api_app_skills::repos_api::SkillReposQuery>,
 ) -> Result<Json<SkillBindingSnapshot>, StatusCode> {
     binding_settings(tenant, db, headers, scope, None).await.map(Json)
 }
@@ -107,7 +107,7 @@ async fn preferences(Extension(tenant): Extension<TenantScope>, db: Option<Exten
     binding_settings(tenant, db, headers, request.scope, Some((request.expected_version, request.targets))).await.map(Json)
 }
 async fn binding_settings(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, headers: HeaderMap,
-    scope: vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     change: Option<(u64, Vec<SkillBindingTarget>)>,
 ) -> Result<SkillBindingSnapshot, StatusCode> {
     tokio::task::spawn_blocking(move || {

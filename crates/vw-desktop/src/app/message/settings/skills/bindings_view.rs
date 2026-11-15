@@ -1,7 +1,7 @@
 //! Host-scoped global distribution; independent of ACP session selection.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::{bindings_api::*, inventory_api::*, repos_api::SkillReposQuery};
+use vw_api_app_skills::{bindings_api::*, inventory_api::*, repos_api::SkillReposQuery};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct State {

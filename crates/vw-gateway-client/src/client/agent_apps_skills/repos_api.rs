@@ -1,6 +1,6 @@
 //! Repository SDK; normal client authentication and tenant context are preserved.
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::repos_api::*;
+use vw_api_app_skills::repos_api::*;
 
 impl GatewayClient {
     pub async fn skill_repos_list(&self, scope: &SkillReposQuery) -> Result<SkillReposResponse, String> {

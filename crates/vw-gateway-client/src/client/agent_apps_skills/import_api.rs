@@ -1,5 +1,5 @@
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::import_api::*;
+use vw_api_app_skills::import_api::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillImportError {

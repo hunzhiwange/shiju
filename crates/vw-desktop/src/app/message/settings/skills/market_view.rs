@@ -1,7 +1,7 @@
 //! Read-only discovery and market search share one request generation.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::{discovery_api::*, search_api::*};
+use vw_api_app_skills::{discovery_api::*, search_api::*};
 
 #[derive(Debug, Clone)]
 pub(crate) enum Results { Discovery(DiscoverSkillsResponse), Search(MarketSearchResponse) }

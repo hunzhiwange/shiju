@@ -131,7 +131,7 @@ pub(super) fn view(
         }
     }
     let matches =
-        |scope: &vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery| {
+        |scope: &vw_api_app_skills::repos_api::SkillReposQuery| {
             scope.target_host_id == app.apps_catalog.host
                 && Some(scope.project_id.as_ref()) == app.project_id.as_deref()
         };

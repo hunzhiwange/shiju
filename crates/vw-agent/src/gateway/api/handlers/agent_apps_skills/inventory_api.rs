@@ -1,8 +1,8 @@
 //! Reads persisted identities only after project/host authorization.
 use axum::{Extension, Json, Router, extract::{Path, Query}, http::{HeaderMap, StatusCode}, routing::get};
 use {
-    vw_api_types::agent_apps_skills::inventory_api::*,
-    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_app_skills::inventory_api::*,
+    vw_api_app_skills::repos_api::SkillReposQuery,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

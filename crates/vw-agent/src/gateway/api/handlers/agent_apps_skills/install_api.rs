@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use axum::{Extension, Json, Router, extract::DefaultBodyLimit,
     http::{HeaderMap, StatusCode}, routing::post};
 use {
-    vw_api_types::agent_apps_skills::install_api::*,
+    vw_api_app_skills::install_api::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

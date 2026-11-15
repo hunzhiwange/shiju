@@ -1,7 +1,7 @@
 //! Scoped update results; refresh errors never replace a completed operation.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::{inventory_api::*, repos_api::SkillReposQuery, updates_api::*, uninstall_api::*};
+use vw_api_app_skills::{inventory_api::*, repos_api::SkillReposQuery, updates_api::*, uninstall_api::*};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct State {

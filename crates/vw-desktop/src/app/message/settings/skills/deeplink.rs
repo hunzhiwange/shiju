@@ -1,5 +1,5 @@
 //! Untrusted source links are previews until explicitly confirmed in repository settings.
-use vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillRepoEntry;
+use vw_api_app_skills::repos_api::SkillRepoEntry;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Request {

@@ -1,5 +1,5 @@
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::{updates_api::*, repos_api::SkillReposQuery};
+use vw_api_app_skills::{updates_api::*, repos_api::SkillReposQuery};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillUpdateError { Transport, Decode, InvalidId, Http { status: u16 } }

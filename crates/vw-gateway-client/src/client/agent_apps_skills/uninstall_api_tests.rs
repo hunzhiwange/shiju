@@ -1,6 +1,6 @@
 use crate::client::{test_support, agent_apps_skills::SkillUninstallError};
 use serde_json::json;
-use vw_api_types::agent_apps_skills::{uninstall_api::*, repos_api::SkillReposQuery};
+use vw_api_app_skills::{uninstall_api::*, repos_api::SkillReposQuery};
 
 #[tokio::test]
 async fn cp12_uninstall_api_success() {

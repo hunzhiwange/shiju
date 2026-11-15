@@ -1,7 +1,7 @@
 //! Backup selection is retained after conflicts and isolated by execution context.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::{backups_api::*, bindings_api::SkillBindingTarget, repos_api::SkillReposQuery};
+use vw_api_app_skills::{backups_api::*, bindings_api::SkillBindingTarget, repos_api::SkillReposQuery};
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {
     pub open: bool, pub busy: bool,

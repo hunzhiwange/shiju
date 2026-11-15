@@ -741,7 +741,7 @@ enum Capability<'a> {
     Workspace(&'a vw_api_transport::ProjectId, bool),
     HermesDashboard(&'a vw_api_transport::ProjectId),
     HermesMemory(&'a vw_api_transport::ProjectId, bool),
-    ClaudeConfig(&'a vw_api_transport::ProjectId, vw_api_types::agent_apps_skills::claude_api::ClaudeConfigPermission),
+    ClaudeConfig(&'a vw_api_transport::ProjectId, vw_api_app_skills::claude_api::ClaudeConfigPermission),
     SkillInventory(&'a vw_api_transport::ProjectId),
     SkillInstall(&'a vw_api_transport::ProjectId),
     SkillRepos(&'a vw_api_transport::ProjectId, bool),
@@ -1114,7 +1114,7 @@ fn authorize_digest(
                                         .any(|p| &p.project_id == project && p.app_id == app))
                     }
                     Capability::ClaudeConfig(project, permission) => {
-                        use vw_api_types::agent_apps_skills::claude_api::ClaudeConfigPermission;
+                        use vw_api_app_skills::claude_api::ClaudeConfigPermission;
                         match permission {
                             ClaudeConfigPermission::Read => g.claude_config_read_projects.contains(project),
                             ClaudeConfigPermission::Marker => g.claude_config_marker_projects.contains(project),
@@ -1962,7 +1962,7 @@ pub(in super::super) fn authorize_skill_repos(
 pub(in super::super) fn authorize_claude_config(
     path: Option<&Path>, headers: &HeaderMap,
     scope: &vw_api_transport::ProjectScope, target: &str,
-    permission: vw_api_types::agent_apps_skills::claude_api::ClaudeConfigPermission,
+    permission: vw_api_app_skills::claude_api::ClaudeConfigPermission,
 ) -> Result<(PathBuf, PathBuf), StatusCode> {
     let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
         Capability::ClaudeConfig(scope.project_id(), permission))?;

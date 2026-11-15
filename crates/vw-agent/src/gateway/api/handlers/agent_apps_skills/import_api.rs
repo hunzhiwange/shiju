@@ -2,7 +2,7 @@
 use axum::{Extension, Json, Router, extract::{Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, post}};
 use {
-    vw_api_types::agent_apps_skills::import_api::*,
+    vw_api_app_skills::import_api::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
@@ -127,7 +127,7 @@ mod native {
                 content_hash: row.content_hash, apps: row.found_in.iter().map(|s| s.app_id).collect(),
                 managed: row.managed, conflict: row.conflict, external_link: row.external_link });
         }
-        Ok(UnmanagedSkillsResponse { scope: vw_api_types::agent_apps_skills::repos_api::SkillReposQuery { project_id: query.project_id, target_host_id: query.target_host_id }, version: state.version, skills })
+        Ok(UnmanagedSkillsResponse { scope: vw_api_app_skills::repos_api::SkillReposQuery { project_id: query.project_id, target_host_id: query.target_host_id }, version: state.version, skills })
     }
     pub(super) fn import(project: ProjectScope, db: Option<Extension<GlobalDatabase>>,
         request: ImportSkillRequest, home: PathBuf, root: PathBuf,

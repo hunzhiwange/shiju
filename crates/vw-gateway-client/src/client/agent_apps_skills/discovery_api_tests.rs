@@ -1,6 +1,6 @@
 use crate::client::test_support;
 use serde_json::json;
-use vw_api_types::agent_apps_skills::{discovery_api::*, repos_api::SkillReposQuery};
+use vw_api_app_skills::{discovery_api::*, repos_api::SkillReposQuery};
 
 #[tokio::test]
 async fn cp12_discovery_api_success() {

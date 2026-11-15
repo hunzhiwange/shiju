@@ -1,7 +1,7 @@
 //! One explicit host/source request per confirmation; credentials never enter events.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::{inventory_api::*, install_api::*, repos_api::SkillReposQuery};
+use vw_api_app_skills::{inventory_api::*, install_api::*, repos_api::SkillReposQuery};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct State {

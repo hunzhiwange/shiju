@@ -6,14 +6,14 @@ use axum::{Extension, Router};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use {
-    vw_api_types::agent_apps_skills::install_api::InstallSkillRequest,
-    vw_api_types::agent_apps_skills::install_api::SkillInstallSource,
-    vw_api_types::agent_apps_skills::install_api::SkillInstallStatus,
-    vw_api_types::agent_apps_skills::jobs_api::SkillJobPhase,
-    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
-    vw_api_types::agent_apps_skills::uninstall_api::UninstallSkillRequest,
-    vw_api_types::agent_apps_skills::updates_api::CheckSkillUpdatesRequest,
-    vw_api_types::agent_apps_skills::updates_api::UpdateSkillRequest,
+    vw_api_app_skills::install_api::InstallSkillRequest,
+    vw_api_app_skills::install_api::SkillInstallSource,
+    vw_api_app_skills::install_api::SkillInstallStatus,
+    vw_api_app_skills::jobs_api::SkillJobPhase,
+    vw_api_app_skills::repos_api::SkillReposQuery,
+    vw_api_app_skills::uninstall_api::UninstallSkillRequest,
+    vw_api_app_skills::updates_api::CheckSkillUpdatesRequest,
+    vw_api_app_skills::updates_api::UpdateSkillRequest,
     vw_api_transport::id::TenantScope,
 };
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
@@ -191,7 +191,7 @@ async fn remote_update(f: &Fixture, cancel: bool) {
     use vw_agent_apps::skills::repos::SkillRepo;
     use {
     vw_api_transport::id::ProjectScope,
-    vw_api_types::agent_apps_skills::updates_api::SkillUpdatePhase,
+    vw_api_app_skills::updates_api::SkillUpdatePhase,
 };
 
     fn archive(content: &str) -> Vec<u8> {
@@ -231,7 +231,7 @@ async fn remote_update(f: &Fixture, cancel: bool) {
     let server = f.serve_at(origin.clone()).await;
     let client = server.client();
     let discovered = client.agent_apps_skills_discover(
-        &vw_api_types::agent_apps_skills::discovery_api::DiscoverSkillsRequest {
+        &vw_api_app_skills::discovery_api::DiscoverSkillsRequest {
             scope: scope(), repo_id: Some("owner:repo".into()), force_refresh: true,
         }, TOKEN).await.unwrap();
     assert!(discovered.failures.is_empty());

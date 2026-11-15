@@ -1,6 +1,6 @@
 use crate::client::test_support;
 use serde_json::json;
-use vw_api_types::agent_apps_skills::claude_api::*;
+use vw_api_app_skills::claude_api::*;
 
 #[tokio::test]
 async fn cp12_claude_api_success() {

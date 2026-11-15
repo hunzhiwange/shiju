@@ -3,7 +3,7 @@ use crate::app::{App, Message};
 use crate::app::message::settings::skills::jobs_view::{Event, message, terminal};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, widget::{button, column, container, row, text}};
-use vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobPhase;
+use vw_api_app_skills::jobs_api::SkillJobPhase;
 
 pub(super) fn view<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.skills_settings.jobs;

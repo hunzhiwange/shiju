@@ -1,5 +1,5 @@
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::{storage_api::*, repos_api::SkillReposQuery};
+use vw_api_app_skills::{storage_api::*, repos_api::SkillReposQuery};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillStorageError { Transport, Decode, Http { status: u16 } }

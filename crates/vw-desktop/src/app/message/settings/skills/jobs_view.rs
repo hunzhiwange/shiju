@@ -2,8 +2,8 @@
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
 use {
-    vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::*,
-    vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_app_skills::jobs_api::*,
+    vw_api_app_skills::repos_api::SkillReposQuery,
     vw_api_transport::id::TaskId,
 };
 

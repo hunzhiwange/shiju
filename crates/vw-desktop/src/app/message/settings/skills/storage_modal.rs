@@ -1,7 +1,7 @@
 //! Storage drafts never replace the acknowledged execution-host root.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::{bindings_api::*, repos_api::SkillReposQuery, storage_api::*};
+use vw_api_app_skills::{bindings_api::*, repos_api::SkillReposQuery, storage_api::*};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {

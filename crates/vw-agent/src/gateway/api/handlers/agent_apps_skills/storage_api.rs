@@ -1,8 +1,8 @@
 //! Execution-host storage confirmation; callers never supply filesystem paths.
 use axum::{Extension, Json, Router, extract::{Query, DefaultBodyLimit}, http::{HeaderMap, StatusCode}, routing::{get, post}};
 use {
-    vw_api_types::agent_apps_skills::storage_api::*,
-    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_app_skills::storage_api::*,
+    vw_api_app_skills::repos_api::SkillReposQuery,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
@@ -60,9 +60,9 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
             match action {
                 Action::Read => {},
                 Action::Patch(request) => {
-                    let mode = match request.mode { vw_api_types::agent_apps_skills::bindings_api::SkillBindingMode::Auto => SyncMethod::Auto,
-                        vw_api_types::agent_apps_skills::bindings_api::SkillBindingMode::Copy => SyncMethod::Copy,
-                        vw_api_types::agent_apps_skills::bindings_api::SkillBindingMode::Symlink => SyncMethod::Symlink };
+                    let mode = match request.mode { vw_api_app_skills::bindings_api::SkillBindingMode::Auto => SyncMethod::Auto,
+                        vw_api_app_skills::bindings_api::SkillBindingMode::Copy => SyncMethod::Copy,
+                        vw_api_app_skills::bindings_api::SkillBindingMode::Symlink => SyncMethod::Symlink };
                     state = store.save_storage_mode(&project, &scope.target_host_id, request.expected_version, &state.ssot_root, mode)
                         .map_err(|_| StatusCode::CONFLICT)?;
                 },
@@ -88,7 +88,7 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, hea
                     state = store.storage_state(&project, &scope.target_host_id, &runtime, &env.home).map_err(|_| StatusCode::CONFLICT)?;
                 },
             }
-            use vw_api_types::agent_apps_skills::bindings_api::SkillBindingMode;
+            use vw_api_app_skills::bindings_api::SkillBindingMode;
             let storage = SkillStorageResponse { scope, version: state.version,
                 root: state.ssot_root.to_string_lossy().into_owned(), mode: match state.storage_mode {
                     SyncMethod::Auto => SkillBindingMode::Auto, SyncMethod::Copy => SkillBindingMode::Copy, SyncMethod::Symlink => SkillBindingMode::Symlink } };

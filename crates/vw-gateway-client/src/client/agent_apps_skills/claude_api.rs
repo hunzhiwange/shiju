@@ -1,5 +1,5 @@
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::claude_api::*;
+use vw_api_app_skills::claude_api::*;
 
 impl GatewayClient {
     pub async fn claude_config_status(&self, scope: &ClaudeConfigQuery, token: &str)

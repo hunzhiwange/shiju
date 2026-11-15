@@ -1,5 +1,5 @@
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::bindings_api::*;
+use vw_api_app_skills::bindings_api::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillBindingError {
@@ -47,7 +47,7 @@ impl GatewayClient {
 }
 
 impl GatewayClient {
-    pub async fn agent_apps_skill_binding_targets(&self, scope: &vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    pub async fn agent_apps_skill_binding_targets(&self, scope: &vw_api_app_skills::repos_api::SkillReposQuery,
         change: Option<&SkillBindingPreferences>, token: &str) -> Result<SkillBindingSnapshot, SkillBindingError> {
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| SkillBindingError::Transport)?;
         credential.set_sensitive(true);

@@ -2,8 +2,8 @@
 use axum::{Extension, Json, Router, extract::{Path, Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, post}};
 use {
-    vw_api_types::agent_apps_skills::backups_api::*,
-    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_app_skills::backups_api::*,
+    vw_api_app_skills::repos_api::SkillReposQuery,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
@@ -30,7 +30,7 @@ pub(super) fn router_with_policy(policy: Option<std::path::PathBuf>) -> Router {
 #[derive(serde::Serialize)]
 #[serde(untagged)]
 enum Response { List(SkillBackupsResponse), Delete(DeleteSkillBackupResponse), Restore(RestoreSkillBackupResponse) }
-enum Operation { List, Delete(String), Restore(String, u64, Vec<vw_api_types::agent_apps_skills::bindings_api::SkillBindingTarget>) }
+enum Operation { List, Delete(String), Restore(String, u64, Vec<vw_api_app_skills::bindings_api::SkillBindingTarget>) }
 async fn list(Extension(tenant): Extension<TenantScope>, db: Option<Extension<GlobalDatabase>>,
     Extension(policy): Extension<BackupPolicy>, headers: HeaderMap, Query(scope): Query<SkillReposQuery>,
 ) -> Result<Json<Response>, StatusCode> { execute(tenant, db, policy, headers, scope, Operation::List).await }

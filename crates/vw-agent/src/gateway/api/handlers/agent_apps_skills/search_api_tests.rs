@@ -2,7 +2,7 @@ use axum::{Extension, body::Body, http::{Request, StatusCode}};
 use tower::ServiceExt;
 use {
     vw_api_transport::id::TenantScope,
-    vw_api_types::agent_apps_skills::search_api::MarketSearchFailure,
+    vw_api_app_skills::search_api::MarketSearchFailure,
 };
 
 #[tokio::test]

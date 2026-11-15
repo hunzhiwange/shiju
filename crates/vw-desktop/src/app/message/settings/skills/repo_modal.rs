@@ -2,7 +2,7 @@
 use crate::app::{App, Message, message::SettingsMessage};
 use crate::app::session_gateway::{gateway_skill_repos_request, gateway_skill_repos_scope};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::*;
+use vw_api_app_skills::repos_api::*;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct State {

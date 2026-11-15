@@ -1,7 +1,7 @@
 use super::super::GatewayClient;
 use {
-    vw_api_types::agent_apps_skills::jobs_api::SkillJobResponse,
-    vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    vw_api_app_skills::jobs_api::SkillJobResponse,
+    vw_api_app_skills::repos_api::SkillReposQuery,
     vw_api_transport::id::TaskId,
 };
 

@@ -1166,22 +1166,22 @@ pub async fn gateway_plugin_discard_async(token: String) -> Result<(), String> {
 }
 
 /// Resolve the selected project without creating it; repository authorization remains server-side.
-pub async fn gateway_skill_repos_scope(directory: &str, host: String) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery, String> {
+pub async fn gateway_skill_repos_scope(directory: &str, host: String) -> Result<vw_api_app_skills::repos_api::SkillReposQuery, String> {
     let project = gateway_project::GatewayProjectClient::new(gateway_client()?.transport().clone()).project_resolve(&active_tenant_scope(),
         &vw_api_project::ResolveProjectRequest {
             directory: directory.to_owned(), create_if_missing: false,
         }).await?.project;
-    Ok(vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery {
+    Ok(vw_api_app_skills::repos_api::SkillReposQuery {
         project_id: project.id, target_host_id: host,
     })
 }
 
 pub async fn gateway_skill_repos_request(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     version: u64,
-    change: Option<(vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillRepoEntry, bool)>,
-) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposResponse, String> {
-    use vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::*;
+    change: Option<(vw_api_app_skills::repos_api::SkillRepoEntry, bool)>,
+) -> Result<vw_api_app_skills::repos_api::SkillReposResponse, String> {
+    use vw_api_app_skills::repos_api::*;
     let client = gateway_client()?;
     match change {
         None => client.skill_repos_list(&scope).await,
@@ -1195,11 +1195,11 @@ pub async fn gateway_skill_repos_request(
 
 /// Only fixed Claude actions cross this boundary; credentials never enter messages.
 pub(crate) async fn gateway_claude_config_request(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::ClaudeConfigQuery,
+    scope: vw_api_app_skills::claude_api::ClaudeConfigQuery,
     token: String,
-    change: Option<(bool, vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::ClaudeConfigAction)>,
-) -> Result<(vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::ClaudeConfigResponse, Option<String>), String> {
-    use vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::*;
+    change: Option<(bool, vw_api_app_skills::claude_api::ClaudeConfigAction)>,
+) -> Result<(vw_api_app_skills::claude_api::ClaudeConfigResponse, Option<String>), String> {
+    use vw_api_app_skills::claude_api::*;
     let client = gateway_client()?;
     let notice = if let Some((onboarding, action)) = change {
         let request = ClaudeConfigRequest { scope: scope.clone(), action };
@@ -1217,7 +1217,7 @@ pub(crate) async fn gateway_claude_config_request(
 pub(crate) async fn gateway_skills_market_request(
     project: String, host: String, query: String, token: String,
 ) -> Result<crate::app::message::settings::skills::market_view::Results, String> {
-    use vw_gateway_client::vw_api_types::agent_apps_skills::{repos_api::SkillReposQuery,
+    use vw_api_app_skills::{repos_api::SkillReposQuery,
         discovery_api::DiscoverSkillsRequest, search_api::MarketSearchQuery};
     use crate::app::message::settings::skills::market_view::Results;
     let client = gateway_client()?;
@@ -1235,11 +1235,11 @@ pub(crate) async fn gateway_skills_market_request(
 
 /// Installation is submitted once; observe the same durable task until terminal.
 pub(crate) async fn gateway_skills_install_view(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
-    request: Option<vw_gateway_client::vw_api_types::agent_apps_skills::install_api::InstallSkillRequest>,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
+    request: Option<vw_api_app_skills::install_api::InstallSkillRequest>,
     token: String,
-) -> Result<Option<vw_gateway_client::vw_api_types::agent_apps_skills::inventory_api::SkillInventoryResponse>, String> {
-    use vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobPhase;
+) -> Result<Option<vw_api_app_skills::inventory_api::SkillInventoryResponse>, String> {
+    use vw_api_app_skills::jobs_api::SkillJobPhase;
     let client = gateway_client()?;
     let Some(request) = request else {
         return client.agent_apps_skills_inventory(&scope, &token).await.map(Some).map_err(|e| e.to_string());
@@ -1262,10 +1262,10 @@ pub(crate) async fn gateway_skills_install_view(
 pub(crate) async fn gateway_skills_import_request(
     project: String, host: String,
     apps: Vec<vw_api_app_identity::AppId>,
-    selected: Vec<vw_gateway_client::vw_api_types::agent_apps_skills::import_api::UnmanagedSkillItem>,
+    selected: Vec<vw_api_app_skills::import_api::UnmanagedSkillItem>,
     token: String,
-) -> (Vec<(String, Result<(), String>)>, Result<vw_gateway_client::vw_api_types::agent_apps_skills::import_api::UnmanagedSkillsResponse, String>) {
-    use vw_gateway_client::vw_api_types::agent_apps_skills::{import_api::*, repos_api::SkillReposQuery};
+) -> (Vec<(String, Result<(), String>)>, Result<vw_api_app_skills::import_api::UnmanagedSkillsResponse, String>) {
+    use vw_api_app_skills::{import_api::*, repos_api::SkillReposQuery};
     let mut outcomes = Vec::new();
     let result = async {
         let client = gateway_client()?;
@@ -1306,25 +1306,25 @@ pub(crate) async fn gateway_skills_import_request(
 }
 
 pub(crate) async fn gateway_skills_job(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     id: vw_api_transport::TaskId,
     token: String,
     cancel: bool,
-) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobResponse, String> {
+) -> Result<vw_api_app_skills::jobs_api::SkillJobResponse, String> {
     let client = gateway_client()?;
     if cancel { client.agent_apps_skills_cancel_job(&scope, &id, &token).await }
     else { client.agent_apps_skills_job(&scope, &id, &token).await }.map_err(|e| e.to_string())
 }
 
 pub(crate) async fn gateway_skills_submit(
-    request: vw_gateway_client::vw_api_types::agent_apps_skills::install_api::InstallSkillRequest,
+    request: vw_api_app_skills::install_api::InstallSkillRequest,
     token: String,
-) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::install_api::InstallSkillResponse, String> {
+) -> Result<vw_api_app_skills::install_api::InstallSkillResponse, String> {
     gateway_client()?.agent_apps_skills_install(&request, &token).await.map_err(|e| e.to_string())
 }
 
 pub(crate) async fn gateway_skill_bindings_request(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     token: String,
     change: Option<crate::app::message::settings::skills::bindings_view::Change>,
 ) -> Result<crate::app::message::settings::skills::bindings_view::Readback, String> {
@@ -1356,7 +1356,7 @@ pub(crate) async fn gateway_skill_bindings_request(
             match client.agent_apps_skills_resync(&request, &token).await {
                 Ok(response) if response.scope == scope => {
                     // Resync can legitimately have no pairs when no skills are installed.
-                    if response.results.iter().any(|r| r.status != vw_gateway_client::vw_api_types::agent_apps_skills::bindings_api::SkillBindingStatus::Enabled) {
+                    if response.results.iter().any(|r| r.status != vw_api_app_skills::bindings_api::SkillBindingStatus::Enabled) {
                         error = Some("重新同步未全部成功，请检查逐项结果".into());
                     }
                     results = response.results;
@@ -1395,12 +1395,12 @@ pub(crate) async fn gateway_skill_bindings_request(
 
 /// Mutation and polling use the same authorized gateway instance and scope.
 pub(crate) async fn gateway_skills_mutation(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     operation: (crate::app::message::settings::skills::updates_view::Operation, u64, Option<String>),
     token: String,
 ) -> Result<crate::app::message::settings::skills::updates_view::Outcome, String> {
     use crate::app::message::settings::skills::updates_view::{Operation, Outcome};
-    use vw_gateway_client::vw_api_types::agent_apps_skills::{updates_api::*, uninstall_api::*};
+    use vw_api_app_skills::{updates_api::*, uninstall_api::*};
     let client = gateway_client()?;
     let (operation, expected_version, hash) = operation;
     match operation {
@@ -1430,7 +1430,7 @@ pub(crate) async fn gateway_skills_mutation(
 }
 
 pub(crate) async fn gateway_skill_storage_request(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     token: String,
     change: crate::app::message::settings::skills::storage_modal::Change,
 ) -> Result<crate::app::message::settings::skills::storage_modal::Readback, String> {
@@ -1465,12 +1465,12 @@ pub(crate) async fn gateway_skill_storage_request(
 
 /// Keep successful mutations separate from readback so a failed refresh cannot undo them.
 pub(crate) async fn gateway_skill_backups_request(
-    scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,
+    scope: vw_api_app_skills::repos_api::SkillReposQuery,
     token: String,
     change: crate::app::message::settings::skills::backup_modal::Change,
 ) -> Result<crate::app::message::settings::skills::backup_modal::Readback, String> {
     use crate::app::message::settings::skills::backup_modal::{Change, Readback};
-    use vw_gateway_client::vw_api_types::agent_apps_skills::backups_api::DeleteSkillBackupRequest;
+    use vw_api_app_skills::backups_api::DeleteSkillBackupRequest;
     let client = crate::app::config::gateway_client().map_err(|_| "无法连接备份服务".to_string())?;
     match change {
         Change::Read => {

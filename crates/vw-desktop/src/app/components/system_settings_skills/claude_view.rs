@@ -3,7 +3,7 @@ use crate::app::{App, Message};
 use crate::app::components::system_settings_common::*;
 use crate::app::message::settings::skills::claude_view::{Event, message};
 use iced::{Element, widget::{button, column, container, row, text}};
-use vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::*;
+use vw_api_app_skills::claude_api::*;
 
 pub(super) fn view<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.skills_settings.claude_config;

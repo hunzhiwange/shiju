@@ -1,7 +1,7 @@
 use super::search_api::MarketSearchError;
 use crate::client::test_support;
 use serde_json::json;
-use vw_api_types::agent_apps_skills::search_api::*;
+use vw_api_app_skills::search_api::*;
 
 fn query() -> MarketSearchQuery {
     MarketSearchQuery { project_id: "project-a".into(), target_host_id: "host-a".into(),

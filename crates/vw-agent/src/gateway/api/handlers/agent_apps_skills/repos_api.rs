@@ -2,7 +2,7 @@
 use axum::{Extension, Json, Router, extract::{Path, Query, DefaultBodyLimit},
     http::{HeaderMap, StatusCode}, routing::{get, delete}};
 use {
-    vw_api_types::agent_apps_skills::repos_api::*,
+    vw_api_app_skills::repos_api::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

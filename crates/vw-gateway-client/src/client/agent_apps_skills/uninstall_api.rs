@@ -1,5 +1,5 @@
 use super::super::GatewayClient;
-use vw_api_types::agent_apps_skills::uninstall_api::*;
+use vw_api_app_skills::uninstall_api::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillUninstallError { Transport, Decode, InvalidId, Http { status: u16 } }

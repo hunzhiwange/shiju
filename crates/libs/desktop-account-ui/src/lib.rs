@@ -5,3 +5,5 @@ pub mod native;
 pub mod state;
 pub mod update;
 pub mod view;
+
+pub mod account_details;

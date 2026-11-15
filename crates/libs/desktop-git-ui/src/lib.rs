@@ -5,3 +5,5 @@ pub mod git_panel;
 pub mod code_review;
 #[cfg(test)]
 mod code_review_tests;
+
+pub mod modal_overlays;

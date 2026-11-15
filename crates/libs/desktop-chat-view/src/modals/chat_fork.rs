@@ -1,0 +1,107 @@
+//! 渲染聊天消息分叉目标选择对话框。
+//!
+//! 本模块只负责把分叉目标选择转成明确的聊天消息，不直接执行会话或 worktree 操作。
+
+#[derive(Debug, Clone)]
+pub enum Event { CloseForkSessionDialog, ForkSessionAt { anchor: desktop_session::message::chat::fork::ForkSessionAnchor, target: desktop_session::message::chat::events::ForkSessionTarget } }
+
+use desktop_session::message::chat::events::ForkSessionTarget;
+
+use desktop_ui_controls::system_settings_common::{
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
+    settings_modal_header, settings_modal_overlay, settings_modal_overlay_with_escape,
+    settings_muted_text_style,
+};
+use desktop_i18n::I18n;
+use iced::widget::{Space, button, column, container, row, text};
+use iced::{Alignment, Element, Length};
+
+pub fn with_chat_fork_dialog<'a, Message: Clone + 'a>(
+    dialog: Option<&desktop_session::message::chat::fork::ForkSessionDialog>, project_is_git_repo: bool, locale: config_ui::DesktopLocale,
+    emit: impl Fn(Event) -> Message + Copy + 'a,
+    root_content: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let Some(dialog) = dialog
+    else {
+        return root_content;
+    };
+
+    let close_message = emit(Event::CloseForkSessionDialog);
+    let i18n = I18n::new(locale);
+    if dialog.in_progress {
+        let card = settings_modal_card(
+            text(i18n.__("正在分叉会话…")).size(16).align_x(Alignment::Center).width(Length::Fill),
+        )
+        .width(Length::Fixed(460.0));
+        return settings_modal_overlay(
+            Some(root_content),
+            close_message,
+            container(card).padding(12),
+        );
+    }
+
+    let local_message = emit(Event::ForkSessionAt {
+        anchor: dialog.anchor.clone(),
+        target: ForkSessionTarget::Local,
+    });
+    let worktree_message = emit(Event::ForkSessionAt {
+        anchor: dialog.anchor.clone(),
+        target: ForkSessionTarget::NewWorktree,
+    });
+
+    let mut content = column![
+        settings_modal_header(
+            text(i18n.__("分叉到新会话")).size(20),
+            settings_close_button(close_message.clone()),
+        ),
+        text(i18n.__("新会话保留所选轮次之前的历史，并将所选消息填入输入框。"))
+            .size(13)
+            .style(settings_muted_text_style),
+        button(
+            column![
+                text(i18n.__("分叉到新会话")).size(14),
+                text(i18n.__("在当前目录中打开新会话")).size(12),
+            ]
+            .spacing(4)
+        )
+        .width(Length::Fill)
+        .padding([12, 14])
+        .style(primary_action_btn_style)
+        .on_press(local_message),
+    ]
+    .spacing(14);
+
+    if project_is_git_repo {
+        content = content.push(
+            button(
+                column![
+                    text(i18n.__("分叉到新工作树")).size(14),
+                    text(i18n.__("在新的 Git 工作树中打开新会话"))
+                        .size(12)
+                        .style(settings_muted_text_style),
+                ]
+                .spacing(4),
+            )
+            .width(Length::Fill)
+            .padding([12, 14])
+            .style(rounded_action_btn_style)
+            .on_press(worktree_message),
+        );
+    }
+
+    let card = settings_modal_card(
+        content.push(
+            row![
+                Space::new().width(Length::Fill),
+                button(text(i18n.__("取消")).size(13))
+                    .style(rounded_action_btn_style)
+                    .padding([9, 18])
+                    .on_press(close_message.clone()),
+            ]
+            .align_y(Alignment::Center),
+        ),
+    )
+    .width(Length::Fixed(460.0));
+
+    settings_modal_overlay_with_escape(root_content, close_message, container(card).padding(12))
+}

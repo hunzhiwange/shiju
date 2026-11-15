@@ -1,4 +1,5 @@
 pub mod views {
+    pub mod modals { pub mod file_tree_delete; pub mod recent_project_remove; pub mod rename; }
     pub mod project {
         pub mod handles;
         pub mod layout;

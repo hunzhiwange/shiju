@@ -21,7 +21,7 @@ fn empty_and_multiple_values_have_readable_labels() {
 #[test]
 fn profile_submit_requires_a_valid_editing_draft() {
     let mut draft =
-        crate::app::account::AccountProfileDraft::new("示例用户", "fixture-user").unwrap();
+        desktop_account::AccountProfileDraft::new("示例用户", "fixture-user").unwrap();
     assert!(profile_editor_can_submit(&AccountProfileEditorState::Editing(draft.clone())));
     assert!(!profile_editor_can_submit(&AccountProfileEditorState::Saving(draft.clone())));
     draft.set_name(" ".into());

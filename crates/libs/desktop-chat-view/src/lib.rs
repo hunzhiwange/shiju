@@ -57,3 +57,10 @@ mod latest_user_question_button_tests;
 mod permission_view_tests;
 #[cfg(test)]
 mod question_view_tests;
+
+pub mod modals {
+    pub mod chat_fork;
+    pub mod chat_reset;
+    pub mod permission_modal;
+    pub mod question_modal;
+}

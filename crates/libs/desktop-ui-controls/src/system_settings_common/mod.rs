@@ -11,3 +11,9 @@ pub mod help;
 pub mod theme;
 #[cfg(test)] mod icons_tests;
 #[cfg(test)] mod panels_tests;
+
+#[cfg(test)]
+mod help_tests;
+
+#[cfg(test)]
+mod help_ui_refresh_03_tests;

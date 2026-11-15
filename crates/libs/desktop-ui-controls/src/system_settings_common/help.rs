@@ -1,3 +1,4 @@
+use crate::overlays::SideOverlay;
 use desktop_assets::assets::Icon;
 use super::icons::{icon_svg, icon_btn, icon_btn_tooltip_style};
 use super::theme::is_dark_theme;

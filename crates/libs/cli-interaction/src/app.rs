@@ -73,10 +73,10 @@ use cli_gateway_runtime::orchestration::{
     control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
 };
-use cli_gateway_runtime::plan_run::{
+use cli_gateway_session::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
-use cli_gateway_runtime::session_diff::load_session_diff_blocking;
+use cli_gateway_session::session_diff::load_session_diff_blocking;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 use cli_gateway_runtime::workflow_run::{

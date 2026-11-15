@@ -11,8 +11,6 @@ pub mod hooks;
 pub mod integrations;
 pub mod interaction;
 pub mod orchestration;
-pub mod plan_run;
-pub mod session_diff;
 mod session_store;
 pub mod stream_adapter;
 pub mod workflow_run;

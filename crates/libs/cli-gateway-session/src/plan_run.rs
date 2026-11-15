@@ -5,9 +5,9 @@ use std::path::Path;
 use vw_gateway_client::vw_api_types::task::TaskPlanRunRequest;
 use vw_gateway_client::{GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume};
 
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
+use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::UiRuntimeEvent;
-use super::stream_adapter::adapt_task_plan_run_event;
+use cli_gateway_transport::stream_adapter::adapt_task_plan_run_event;
 
 /// 构造真实 task-plan-run 请求；计划与持续目标共享 Gateway 的目标运行语义。
 pub fn plan_run_request(

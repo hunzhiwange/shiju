@@ -5,7 +5,7 @@ use vw_gateway_client::vw_api_types::session::GatewaySessionDiffQuery;
 use vw_shared::snapshot::{DiffStatus, FileDiff};
 use vw_tui::{V3FileChange, V3FileDiff, V3FileDiffEntry};
 
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
+use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
 
 pub fn load_session_diff_blocking(runtime: &GatewayUiRuntime) -> Result<V3FileDiff, String> {
     block_on_gateway(async {

@@ -174,7 +174,7 @@ async fn router_instance_dispose_accepts_post_only() {
 #[tokio::test]
 async fn path_get_reports_global_and_instance_paths() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let Json(info) = path_get(Query(query_for(temp.path())), HeaderMap::new())
+    let Json(info) = path_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("path_get should succeed");
 
@@ -193,7 +193,7 @@ async fn path_get_reports_global_and_instance_paths() {
 #[tokio::test]
 async fn path_get_uses_directory_header_when_query_missing() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let Json(info) = path_get(Query(InstanceQuery { directory: None }), headers_for(temp.path()))
+    let Json(info) = path_get::<Host>(Query(InstanceQuery { directory: None }), headers_for(temp.path()))
         .await
         .expect("path_get should succeed");
 
@@ -216,7 +216,7 @@ fn branch_for_worktree_returns_empty_when_directory_is_missing() {
 #[tokio::test]
 async fn vcs_get_returns_empty_branch_for_non_git_directory() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let Json(info) = vcs_get(Query(query_for(temp.path())), HeaderMap::new())
+    let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("vcs_get should succeed");
 
@@ -245,7 +245,7 @@ async fn vcs_get_reports_current_git_branch() {
     repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
         .expect("checkout worktree");
 
-    let Json(info) = vcs_get(Query(query_for(temp.path())), HeaderMap::new())
+    let Json(info) = vcs_get::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("vcs_get should succeed");
 
@@ -255,7 +255,7 @@ async fn vcs_get_reports_current_git_branch() {
 #[tokio::test]
 async fn instance_event_sse_builds_event_stream_response() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let response = instance_event_sse(Query(query_for(temp.path())), HeaderMap::new())
+    let response = instance_event_sse::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("sse should be created")
         .into_response();
@@ -270,7 +270,7 @@ async fn instance_event_sse_builds_event_stream_response() {
 #[tokio::test]
 async fn instance_event_sse_sends_connected_event() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let response = instance_event_sse(Query(query_for(temp.path())), HeaderMap::new())
+    let response = instance_event_sse::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("sse should be created")
         .into_response();
@@ -284,7 +284,7 @@ async fn instance_event_sse_sends_connected_event() {
 #[tokio::test(start_paused = true)]
 async fn instance_event_sse_emits_initial_and_periodic_heartbeat_events() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let response = instance_event_sse(Query(query_for(temp.path())), HeaderMap::new())
+    let response = instance_event_sse::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("sse should be created")
         .into_response();
@@ -306,7 +306,7 @@ async fn instance_event_sse_filters_events_by_instance_directory() {
 
     let temp = tempfile::tempdir().expect("tempdir");
     let other = tempfile::tempdir().expect("other tempdir");
-    let response = instance_event_sse(Query(query_for(temp.path())), HeaderMap::new())
+    let response = instance_event_sse::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("sse should be created")
         .into_response();
@@ -338,7 +338,7 @@ async fn instance_event_sse_forwards_events_without_directory_scope() {
     const TEST_EVENT: bus::Definition = bus::Definition { r#type: "instance.global.test.event" };
 
     let temp = tempfile::tempdir().expect("tempdir");
-    let response = instance_event_sse(Query(query_for(temp.path())), HeaderMap::new())
+    let response = instance_event_sse::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("sse should be created")
         .into_response();
@@ -356,7 +356,7 @@ async fn instance_event_sse_forwards_events_without_directory_scope() {
 #[tokio::test(start_paused = true)]
 async fn instance_event_sse_stops_when_receiver_is_dropped() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let sse = instance_event_sse(Query(query_for(temp.path())), HeaderMap::new())
+    let sse = instance_event_sse::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("sse should be created");
 
@@ -369,7 +369,7 @@ async fn instance_event_sse_stops_when_receiver_is_dropped() {
 async fn instance_dispose_returns_true_and_clears_cached_instance() {
     let temp = tempfile::tempdir().expect("tempdir");
 
-    let Json(disposed) = instance_dispose(Query(query_for(temp.path())), HeaderMap::new())
+    let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("dispose should succeed");
 
@@ -393,7 +393,7 @@ async fn instance_dispose_clears_directory_approval_manager() {
     .expect("instance context should be provided")
     .expect("approval manager should load");
 
-    let Json(disposed) = instance_dispose(Query(query_for(temp.path())), HeaderMap::new())
+    let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("dispose should succeed");
     assert!(disposed);
@@ -428,7 +428,7 @@ async fn instance_dispose_publishes_disposed_event_for_directory() {
         }
     });
 
-    let Json(disposed) = instance_dispose(Query(query_for(temp.path())), HeaderMap::new())
+    let Json(disposed) = instance_dispose::<Host>(Query(query_for(temp.path())), HeaderMap::new())
         .await
         .expect("dispose should succeed");
     assert!(disposed);

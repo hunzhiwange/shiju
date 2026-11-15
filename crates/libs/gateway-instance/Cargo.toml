@@ -1,0 +1,22 @@
+[package]
+name = "gateway-instance"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-bus = { path = "../agent-bus", version = "0.6.0" }
+agent-paths = { path = "../agent-paths", version = "0.6.0" }
+agent-project = { path = "../agent-project", version = "0.6.0" }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+git-discovery = { path = "../git-discovery", version = "0.6.0" }
+axum = "0.8"
+directories = "5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+tokio-stream = "0.1"

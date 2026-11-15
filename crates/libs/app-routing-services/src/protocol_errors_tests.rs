@@ -245,7 +245,7 @@ struct CapturedLogs(Arc<Mutex<String>>);
 
 impl Subscriber for CapturedLogs {
     fn enabled(&self, metadata: &Metadata<'_>) -> bool {
-        metadata.target().starts_with("vw_agent::app_routing")
+        metadata.target().starts_with("app_routing_services")
     }
 
     fn max_level_hint(&self) -> Option<LevelFilter> {

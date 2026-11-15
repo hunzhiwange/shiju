@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/config-runtime-paths",
+  "crates/libs/config-runtime-paths",
   "crates/libs/agent-async",
   "crates/libs/agent-bus",
   "crates/libs/agent-context",

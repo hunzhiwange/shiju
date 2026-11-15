@@ -15,3 +15,5 @@ pub mod hook_session;
 pub mod hook_stop;
 pub mod hook_subagent;
 pub mod hook_manifest;
+
+pub mod host;

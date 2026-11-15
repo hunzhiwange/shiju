@@ -1,6 +1,9 @@
 //! Plugin hook protocol implementation.
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
+use crate::host::HookHost;
+use tool_context::context::{ToolUseContext, scope_tool_use_context};
+use std::sync::Arc;
 
 pub fn validate(input: &Value) -> Result<()> {
     ensure!(
@@ -80,4 +83,36 @@ pub fn parse(code: Option<i32>, stdout: &[u8], stderr: &[u8], stop: bool) -> Res
     }
     // SubagentStart only injects context; universal continue:false is ignored by the baseline.
     Ok(value)
+}
+
+pub async fn emit_boundary<H: HookHost>(
+    context: Option<Arc<ToolUseContext<H>>>,
+    parent: &str,
+    child: &str,
+    agent: &str,
+    output: Option<&str>,
+    stop: Option<bool>,
+) -> Result<Vec<String>> {
+    let Some(context) = context else {
+        return Ok(Vec::new());
+    };
+    ensure!(context.session() == parent, "subagent parent session mismatch");
+    let mut isolated = context.as_ref().clone().with_turn_id(child);
+    isolated.async_hooks = context.async_hooks.clone();
+    let context = Arc::new(isolated);
+    let mut input = json!({"session_id":parent, "agent_id":child, "agent_type":agent,
+        "turn_id":context.turn_id(), "cwd":context.workspace_root(), "model":context.model(),
+        "transcript_path":null, "permission_mode":"default",
+        "hook_event_name":if stop.is_some() {"SubagentStop"} else {"SubagentStart"}});
+    if let Some(active) = stop {
+        input["agent_transcript_path"] = Value::Null;
+        input["stop_hook_active"] = json!(active);
+        input["last_assistant_message"] = json!(output);
+    }
+    validate(&input)?;
+    if let Some(runner) = context.hook_runner() {
+        return scope_tool_use_context(context.clone(), runner.subagent(&input))
+            .await;
+    }
+    Ok(Vec::new())
 }

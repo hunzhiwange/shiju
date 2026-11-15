@@ -1,6 +1,8 @@
 //! Plugin hook protocol implementation.
 use anyhow::{Result, ensure};
-use serde_json::Value;
+use serde_json::{Value, json};
+use crate::host::HookHost;
+use tool_context::context::{ToolUseContext, current_tool_use_context};
 
 pub fn validate(input: &Value) -> Result<()> {
     ensure!(
@@ -41,4 +43,46 @@ pub fn parse(code: Option<i32>, stdout: &[u8]) -> Result<Value> {
         );
     }
     Ok(value)
+}
+
+pub async fn emit<H: HookHost>(
+    session: &str,
+    turn: &str,
+    model: &str,
+    auto: bool,
+    post: bool,
+) -> Result<()> {
+    let Some(context) = current_tool_use_context::<H>() else {
+        return Ok(());
+    };
+    ensure!(context.session() == session, "compact hook session mismatch");
+    let input = json!({"session_id":session, "turn_id":context.turn_id().unwrap_or(turn),
+        "model":model, "cwd":context.workspace_root(), "transcript_path":null,
+        "hook_event_name":if post {"PostCompact"}else{"PreCompact"},
+        "trigger":if auto {"auto"}else{"manual"}});
+    validate(&input)?;
+    if let Some(runner) = context.hook_runner() {
+        runner.compact(&input).await?;
+    }
+    Ok(())
+}
+
+pub async fn context<H: HookHost>(
+    session: &str,
+    turn: &str,
+    model: &str,
+) -> Result<std::sync::Arc<ToolUseContext<H>>> {
+    if let Some(context) = current_tool_use_context::<H>() {
+        ensure!(context.session() == session, "compact hook session mismatch");
+        return Ok(context);
+    }
+    let root = H::directory();
+    ensure!(std::path::Path::new(&root).is_absolute(), "compaction requires project context");
+    let runner = H::execution_runner(std::path::Path::new(&root)).await?;
+    let mut context =
+        ToolUseContext::<H>::new(session, Some(root)).with_turn_id(turn).with_model(model);
+    if let Some(runner) = runner {
+        context = context.with_hook_runner(runner);
+    }
+    Ok(std::sync::Arc::new(context))
 }

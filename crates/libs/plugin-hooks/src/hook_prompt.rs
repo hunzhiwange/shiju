@@ -1,6 +1,9 @@
 //! Plugin hook protocol implementation.
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
+use crate::host::HookHost;
+use tool_context::context::{ToolUseContext, scope_tool_use_context};
+use std::sync::Arc;
 
 pub fn validate(input: &Value) -> Result<()> {
     ensure!(
@@ -57,4 +60,24 @@ pub fn parse(code: Option<i32>, stdout: &[u8], stderr: &[u8]) -> Result<Value> {
         anyhow::bail!("UserPromptSubmit blocked: {reason}");
     }
     Ok(output)
+}
+
+pub async fn submit<H: HookHost>(context: Arc<ToolUseContext<H>>, prompt: &str) -> Result<()> {
+    let input = json!({"hook_event_name":"UserPromptSubmit", "session_id":context.session(),
+        "turn_id":context.turn_id(), "cwd":context.workspace_root(), "model":context.model(),
+        "prompt":prompt, "transcript_path":null,
+        "permission_mode":if context.full_access_enabled() {"bypassPermissions"} else {"default"}});
+    validate(&input)?;
+    if let Some(runner) = context.hook_runner() {
+        let result = scope_tool_use_context(
+            context.clone(),
+            runner.user_prompt_submit(&input),
+        )
+        .await;
+        if result.is_err() {
+            context.take_hook_contexts();
+        }
+        result?;
+    }
+    Ok(())
 }

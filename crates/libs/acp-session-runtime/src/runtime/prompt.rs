@@ -22,7 +22,7 @@ use crate::session_persistence::{absolute_path, iso_now, resolve_session_record}
 use acp_session_connect::{
     ConnectAndLoadClient, ConnectAndLoadSessionOptions, connect_and_load_session,
 };
-use crate::session_runtime::lifecycle::apply_lifecycle_snapshot_to_record;
+use acp_lifecycle::apply_lifecycle_snapshot_to_record;
 use acp_prompt_runner::{
     ClientAvailableCallback, ClientClosedCallback, PromptRunnerActiveSessionController,
     parse_agent_command,

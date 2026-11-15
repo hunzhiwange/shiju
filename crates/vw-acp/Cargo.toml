@@ -13,6 +13,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+acp-session-runtime = { path = "../libs/acp-session-runtime", version = "0.6.0" }
 acp-prompt-runner = { path = "../libs/acp-prompt-runner", version = "0.6.0" }
 acp-owner-process = { path = "../libs/acp-owner-process", version = "0.6.0" }
 acp-session-connect = { path = "../libs/acp-session-connect", version = "0.6.0" }

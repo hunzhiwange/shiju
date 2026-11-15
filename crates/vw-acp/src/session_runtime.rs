@@ -9,7 +9,7 @@ pub use acp_session_connect::connect_load;
 pub mod lifecycle;
 pub use acp_prompt_runner::prompt_runner;
 pub use acp_owner_process::queue_owner_process;
-pub mod runtime;
+pub use acp_session_runtime::runtime;
 
 pub use crate::queue_owner_env::{
     QueueOwnerPayloadError, QueueOwnerRunFromEnvError, parse_queue_owner_payload,

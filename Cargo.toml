@@ -4,6 +4,7 @@ members = [
   "crates/libs/config-computer-control",
   "crates/libs/json-extract",
   "crates/libs/acp-prompt-runner",
+  "crates/libs/acp-session-runtime",
   "crates/libs/gateway-model-provider",
   "crates/libs/acp-owner-process",
   "crates/libs/todo-types",

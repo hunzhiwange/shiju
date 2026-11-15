@@ -23,7 +23,7 @@ use crate::session_event_log::{
 };
 use crate::session_events::{SessionEventAppendOptions, SessionEventWriter};
 use crate::session_persistence::iso_now;
-use crate::session_runtime::lifecycle::apply_conversation;
+use acp_lifecycle::apply_conversation;
 use crate::types::{
     AcpJsonRpcMessage, AcpMessageCallback, AcpSessionOptions, ClientOperation,
     ClientOperationCallback, OutputErrorOrigin, OutputErrorParams, OutputFormatter,

@@ -47,7 +47,7 @@ use acp_queue::queue_ipc_server;
 use acp_queue::queue_ipc_transport;
 use acp_lease::queue_lease_store;
 use acp_queue::queue_messages;
-mod queue_owner_env;
+use acp_session_runtime as queue_owner_env;
 use acp_queue::queue_owner_turn_controller;
 mod queue_paths {
     pub use acp_paths::queue_paths::*;
@@ -68,9 +68,6 @@ mod version;
 #[cfg(test)]
 #[path = "access_policy_tests.rs"]
 mod access_policy_tests;
-#[cfg(test)]
-#[path = "queue_owner_env_tests.rs"]
-mod queue_owner_env_tests;
 
 pub use acp_error_shapes::{
     extract_acp_error, format_unknown_error_message, is_acp_resource_not_found_error,

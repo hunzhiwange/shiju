@@ -10,7 +10,7 @@ use crate::mcp_servers::parse_optional_mcp_servers;
 use acp_owner_process::{
     QUEUE_OWNER_PAYLOAD_ENV, QueueOwnerRuntimeOptions,
 };
-use crate::session_runtime::runtime::{SessionRuntimeError, run_session_queue_owner};
+use crate::runtime::{SessionRuntimeError, run_session_queue_owner};
 use crate::types::{AuthPolicy, NonInteractivePermissionPolicy, PermissionMode};
 
 #[derive(Debug, Error)]

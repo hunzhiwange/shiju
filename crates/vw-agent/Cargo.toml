@@ -55,6 +55,7 @@ gateway-app-usage = { path = "../libs/gateway-app-usage", version = "0.6.0" }
 vw-api-openclaw-settings = { path = "../libs/api-openclaw-settings", version = "0.6.0" }
 vw-api-hermes-memory = { path = "../libs/api-hermes-memory", version = "0.6.0" }
 vw-api-workspace-memory = { path = "../libs/api-workspace-memory", version = "0.6.0" }
+gateway-workspace = { path = "../libs/gateway-workspace", version = "0.6.0" }
 vw-api-computer-control = { path = "../libs/api-computer-control", version = "0.6.0" }
 vw-api-voice = { path = "../libs/api-voice", version = "0.6.0" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage", version = "0.6.0" }

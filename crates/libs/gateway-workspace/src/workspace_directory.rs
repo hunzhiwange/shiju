@@ -1,0 +1,54 @@
+//! Fixed actions run on the authorized gateway executor, never the desktop client.
+use axum::{extract::Query, http::{HeaderMap, StatusCode}, routing::post, Extension, Json, Router};
+use serde::Deserialize;
+use std::path::PathBuf;
+use app_workspace_paths::{PathError, WorkspaceArea, WorkspaceDirectory as Directory};
+use {
+    vw_api_transport::id::ProjectId,
+    vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
+    vw_api_workspace_memory::WorkspaceDirectory,
+    vw_api_workspace_memory::WorkspaceOpenDirectoryRequest,
+};
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Scope { project_id: ProjectId, target_host_id: String }
+#[derive(Clone)]
+struct Policy(Option<PathBuf>);
+
+pub fn router(authorize: crate::AuthorizeWorkspace) -> Router {
+    Router::new()
+        .route("/agent-apps/openclaw/workspace/open-directory", post(open))
+        .layer(Extension(authorize))
+        .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
+}
+
+async fn open(
+    Extension(authorize): Extension<crate::AuthorizeWorkspace>, Extension(policy): Extension<Policy>, Extension(tenant): Extension<TenantScope>,
+    headers: HeaderMap, Query(scope): Query<Scope>,
+    Json(body): Json<WorkspaceOpenDirectoryRequest>,
+) -> Result<StatusCode, StatusCode> {
+    tokio::task::spawn_blocking(move || {
+        // Creation requires workspace write permission, including project scope.
+        // authorize_workspace rejects offline and remote bindings before any IO.
+        let (host, _) = authorize(policy.0.as_deref(), &headers,
+            &ProjectScope::new(tenant, scope.project_id).map_err(|_| StatusCode::BAD_REQUEST)?, &scope.target_host_id, true)?;
+        let area = match body.subdir {
+            WorkspaceDirectory::Workspace => WorkspaceArea::OpenClawWorkspace,
+            WorkspaceDirectory::Memory => WorkspaceArea::OpenClawMemory,
+        };
+        let directory = Directory::open(&scope.target_host_id, &host.id, &host.home,
+            &host.home.join(".openclaw/workspace"), area, true)
+            .map_err(path_error)?.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+        directory.open_in_finder().map_err(path_error)?;
+        Ok(StatusCode::NO_CONTENT)
+    }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+}
+fn path_error(error: PathError) -> StatusCode {
+    match error {
+        PathError::UnauthorizedHost => StatusCode::FORBIDDEN,
+        PathError::InvalidPath | PathError::UnsafeEntry => StatusCode::UNPROCESSABLE_ENTITY,
+        PathError::Io => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}

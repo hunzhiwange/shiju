@@ -1,4 +1,7 @@
-use super::*;
+use super::authorize_workspace;
+use axum::http::HeaderMap;
+use vw_api_transport::{ProjectScope, TenantScope};
+use vw_api_workspace_memory::WorkspaceFilename;
 
 #[test]
 fn workspace_api_denies_foreign_host_and_project_without_io() {
@@ -16,20 +19,21 @@ fn workspace_api_denies_foreign_host_and_project_without_io() {
     });
     std::fs::write(&policy_path, serde_json::to_vec(&policy).unwrap()).unwrap();
     std::fs::set_permissions(&policy_path, std::fs::Permissions::from_mode(0o600)).unwrap();
-    let p = State { policy: Some(policy_path), ..Default::default() };
+    let policy = Some(policy_path);
     let mut headers = HeaderMap::new();
     headers.insert("x-agent-apps-token", token.parse().unwrap());
-    let mut scope = Scope { project_id:"project".into(), target_host_id:"local".into() };
+    let mut project = "project";
+    let mut target = "local";
     let tenant = TenantScope::new("p", "c").unwrap();
-    let (host, _) = authorize(&p, tenant.clone(), &headers, &scope, true).unwrap();
-    assert!(authorize(&p, TenantScope::new("p", "other").unwrap(), &headers, &scope, false).is_err());
-    scope.target_host_id = "other".into();
-    assert!(authorize(&p, tenant.clone(), &headers, &scope, false).is_err());
-    scope.target_host_id = "local".into();
-    scope.project_id = "other".into();
-    assert!(authorize(&p, tenant, &headers, &scope, true).is_err());
-    assert!(!root(&host).exists());
+    let (host, _) = authorize_workspace(policy.as_deref(), &headers, &ProjectScope::new(tenant.clone(), project.into()).unwrap(), target, true).unwrap();
+    assert!(authorize_workspace(policy.as_deref(), &headers, &ProjectScope::new(TenantScope::new("p", "other").unwrap(), project.into()).unwrap(), target, false).is_err());
+    target = "other";
+    assert!(authorize_workspace(policy.as_deref(), &headers, &ProjectScope::new(tenant.clone(), project.into()).unwrap(), target, false).is_err());
+    target = "local";
+    project = "other";
+    assert!(authorize_workspace(policy.as_deref(), &headers, &ProjectScope::new(tenant, project.into()).unwrap(), target, true).is_err());
+    assert!(!host.home.join(".openclaw/workspace").exists());
     let filename = WorkspaceFilename::Agents;
-    vw_agent_apps::workspace_files::write_workspace_file("local", &host.id, &host.home, &root(&host), filename, "中文").unwrap();
-    assert_eq!(vw_agent_apps::workspace_files::read_workspace_file("local", &host.id, &host.home, &root(&host), filename).unwrap().as_deref(), Some("中文"));
+    vw_agent_apps::workspace_files::write_workspace_file("local", &host.id, &host.home, &host.home.join(".openclaw/workspace"), filename, "中文").unwrap();
+    assert_eq!(vw_agent_apps::workspace_files::read_workspace_file("local", &host.id, &host.home, &host.home.join(".openclaw/workspace"), filename).unwrap().as_deref(), Some("中文"));
 }

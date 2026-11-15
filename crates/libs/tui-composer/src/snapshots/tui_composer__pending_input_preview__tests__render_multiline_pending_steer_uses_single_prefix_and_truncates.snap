@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/bottom_pane/pending_input_preview.rs
+source: crates/libs/tui-composer/src/pending_input_preview_tests.rs
 assertion_line: 367
 expression: "format!(\"{buf:?}\")"
 ---

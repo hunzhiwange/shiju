@@ -23,11 +23,9 @@ use ratatui::widgets::WidgetRef;
 pub(crate) use tui_contracts::presentation::MentionBinding;
 
 pub(crate) use tui_widgets::bottom_pane_view;
-#[path = "chat_composer_history.rs"]
-pub(crate) mod chat_composer_history;
+pub(crate) use tui_composer::chat_composer_history;
 pub(crate) use tui_input::paste_burst;
-#[path = "pending_input_preview.rs"]
-mod pending_input_preview;
+use tui_composer::pending_input_preview;
 pub(crate) use tui_input::textarea;
 pub(crate) use bottom_pane_view::BottomPaneView;
 #[allow(unused_imports)]

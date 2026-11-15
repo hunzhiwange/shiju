@@ -10,22 +10,22 @@
 //! later CLI bridge, so this module stores drafts, deduplicates adjacent submissions, and performs
 //! reverse search without knowing about Gateway requests, permissions, or session identifiers.
 
-use crate::bottom_pane::MentionBinding;
-use crate::input_types::TextElement;
+use tui_contracts::presentation::MentionBinding;
+use tui_input::input_types::TextElement;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct HistoryEntry {
-    pub(crate) text: String,
-    pub(crate) text_elements: Vec<TextElement>,
-    pub(crate) local_image_paths: Vec<PathBuf>,
-    pub(crate) remote_image_urls: Vec<String>,
-    pub(crate) mention_bindings: Vec<MentionBinding>,
-    pub(crate) pending_pastes: Vec<(String, String)>,
+pub struct HistoryEntry {
+    pub text: String,
+    pub text_elements: Vec<TextElement>,
+    pub local_image_paths: Vec<PathBuf>,
+    pub remote_image_urls: Vec<String>,
+    pub mention_bindings: Vec<MentionBinding>,
+    pub pending_pastes: Vec<(String, String)>,
 }
 
 impl HistoryEntry {
-    pub(crate) fn new(text: impl Into<String>) -> Self {
+    pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             text_elements: Vec::new(),
@@ -36,7 +36,7 @@ impl HistoryEntry {
         }
     }
 
-    pub(crate) fn with_draft_state(
+    pub fn with_draft_state(
         text: impl Into<String>,
         text_elements: Vec<TextElement>,
         pending_pastes: Vec<(String, String)>,
@@ -53,13 +53,13 @@ impl HistoryEntry {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum HistorySearchDirection {
+pub enum HistorySearchDirection {
     Older,
     Newer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum HistorySearchResult {
+pub enum HistorySearchResult {
     Found(HistoryEntry),
     AtBoundary,
     NotFound,
@@ -68,7 +68,7 @@ pub(crate) enum HistorySearchResult {
 /// 编辑器在会话桥接前使用的内存式历史
 /// In-memory shell-style history used by the editor before a session bridge is attached.
 #[derive(Debug, Default)]
-pub(crate) struct ChatComposerHistory {
+pub struct ChatComposerHistory {
     entries: Vec<HistoryEntry>,
     cursor: Option<usize>,
     draft_before_navigation: Option<String>,
@@ -77,15 +77,15 @@ pub(crate) struct ChatComposerHistory {
 }
 
 impl ChatComposerHistory {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub(crate) fn entries(&self) -> &[HistoryEntry] {
+    pub fn entries(&self) -> &[HistoryEntry] {
         &self.entries
     }
 
-    pub(crate) fn record_local_submission(&mut self, entry: HistoryEntry) {
+    pub fn record_local_submission(&mut self, entry: HistoryEntry) {
         if entry.text.is_empty() || self.entries.last() == Some(&entry) {
             return;
         }
@@ -93,11 +93,11 @@ impl ChatComposerHistory {
         self.reset_navigation();
     }
 
-    pub(crate) fn should_handle_navigation(&self, text: &str, cursor: usize) -> bool {
+    pub fn should_handle_navigation(&self, text: &str, cursor: usize) -> bool {
         cursor == 0 || cursor == text.len() || self.cursor.is_some()
     }
 
-    pub(crate) fn navigate_up(&mut self, current_text: &str) -> Option<HistoryEntry> {
+    pub fn navigate_up(&mut self, current_text: &str) -> Option<HistoryEntry> {
         if self.entries.is_empty() {
             return None;
         }
@@ -112,7 +112,7 @@ impl ChatComposerHistory {
         self.cursor.and_then(|index| self.entries.get(index).cloned())
     }
 
-    pub(crate) fn navigate_down(&mut self) -> Option<HistoryEntry> {
+    pub fn navigate_down(&mut self) -> Option<HistoryEntry> {
         let cursor = self.cursor?;
         if cursor + 1 < self.entries.len() {
             self.cursor = Some(cursor + 1);
@@ -123,14 +123,14 @@ impl ChatComposerHistory {
         Some(HistoryEntry::new(draft))
     }
 
-    pub(crate) fn reset_navigation(&mut self) {
+    pub fn reset_navigation(&mut self) {
         self.cursor = None;
         self.draft_before_navigation = None;
         self.search_query = None;
         self.search_index = None;
     }
 
-    pub(crate) fn search(
+    pub fn search(
         &mut self,
         query: &str,
         direction: HistorySearchDirection,
@@ -184,37 +184,5 @@ impl ChatComposerHistory {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // 验证 `local_history_recalls_unicode_drafts_without_duplicate_submissions` 场景的触发条件与预期结果。
-    #[test]
-    fn local_history_recalls_unicode_drafts_without_duplicate_submissions() {
-        let mut history = ChatComposerHistory::new();
-        let unicode = HistoryEntry::new("你好 👩‍💻\n组合 e\u{301}");
-        history.record_local_submission(unicode.clone());
-        history.record_local_submission(unicode.clone());
-
-        assert_eq!(history.entries(), std::slice::from_ref(&unicode));
-        assert_eq!(history.navigate_up("当前草稿"), Some(unicode));
-        assert_eq!(history.navigate_down(), Some(HistoryEntry::new("当前草稿")));
-    }
-
-    // 验证 `reverse_search_walks_local_history_and_reports_boundaries` 场景的触发条件与预期结果。
-    #[test]
-    fn reverse_search_walks_local_history_and_reports_boundaries() {
-        let mut history = ChatComposerHistory::new();
-        history.record_local_submission(HistoryEntry::new("first"));
-        history.record_local_submission(HistoryEntry::new("second unicode 你好"));
-        history.record_local_submission(HistoryEntry::new("third"));
-
-        assert_eq!(
-            history.search("unicode", HistorySearchDirection::Older, true),
-            HistorySearchResult::Found(HistoryEntry::new("second unicode 你好"))
-        );
-        assert_eq!(
-            history.search("unicode", HistorySearchDirection::Older, false),
-            HistorySearchResult::AtBoundary
-        );
-    }
-}
+#[path = "chat_composer_history_tests.rs"]
+mod tests;

@@ -7,7 +7,8 @@ use super::{
     plan_run_tooltip_content, status_text, token_value, tool_workflow_view, usage_label,
     usage_value, workflow_node_detail_body, workflow_node_state, workflow_preview_message,
 };
-use crate::app::{App, Message};
+use super::super::view_fixture::TestApp as App;
+use crate::card_input::Message;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
@@ -45,10 +46,10 @@ fn workflow_preview_message_requires_nonempty_yaml_and_trims_focus_node() {
     .expect("workflow preview message");
 
     match message {
-        Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml {
+        Message::OpenInlineYaml {
             workflow_yaml,
             focus_node_id,
-        }) => {
+        } => {
             assert_eq!(workflow_yaml, "nodes: []");
             assert_eq!(focus_node_id.as_deref(), Some("node-a"));
         }
@@ -61,10 +62,10 @@ fn workflow_preview_message_requires_nonempty_yaml_and_trims_focus_node() {
     .expect("preview without focused node");
     assert!(matches!(
         blank_node,
-        Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml {
+        Message::OpenInlineYaml {
             focus_node_id: None,
             ..
-        })
+        }
     ));
 
     for value in [
@@ -82,35 +83,35 @@ fn workflow_preview_message_requires_nonempty_yaml_and_trims_focus_node() {
 fn status_copy_matches_each_workflow_state() {
     assert_eq!(
         status_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             WorkflowNodeState::Running
         ),
         "正在执行节点"
     );
     assert_eq!(
         status_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             WorkflowNodeState::Waiting
         ),
         "正在等待后代智能体"
     );
     assert_eq!(
         status_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             WorkflowNodeState::Completed
         ),
         "节点执行完成"
     );
     assert_eq!(
         status_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             WorkflowNodeState::Failed
         ),
         "节点执行失败"
     );
     assert_eq!(
         status_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             WorkflowNodeState::Cancelled
         ),
         "节点执行已取消"
@@ -125,7 +126,7 @@ fn chat_summary_text_stays_compact_and_detail_body_keeps_full_output() {
         "metadata": {"node_type": "llm", "index": 3, "elapsed_time": 0.5}
     });
     let summary = chat_summary_text(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &value,
         WorkflowNodeState::Completed,
     );
@@ -134,7 +135,7 @@ fn chat_summary_text_stays_compact_and_detail_body_keeps_full_output() {
     assert!(summary.chars().count() <= 96);
 
     let detail = workflow_node_detail_body(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &value,
     );
     assert!(detail.contains("这是一段很长的节点输出，不应该整段塞进聊天摘要行"));
@@ -207,7 +208,7 @@ fn output_and_usage_values_follow_documented_precedence() {
 #[test]
 fn usage_label_formats_aliases_and_computes_missing_total() {
     let label = usage_label(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &json!({"metadata": {"usage": {
             "input_tokens": 10,
             "output_tokens": 4,
@@ -219,7 +220,7 @@ fn usage_label_formats_aliases_and_computes_missing_total() {
 
     assert_eq!(
         usage_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 20}})
         )
         .as_deref(),
@@ -227,14 +228,14 @@ fn usage_label_formats_aliases_and_computes_missing_total() {
     );
     assert!(
         usage_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"usage": {"total_tokens": 0}})
         )
         .is_none()
     );
     assert!(
         usage_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"usage": {"prompt_tokens": "many"}})
         )
         .is_none()
@@ -245,7 +246,7 @@ fn usage_label_formats_aliases_and_computes_missing_total() {
 fn output_preview_uses_state_defaults_and_failure_errors() {
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({}),
             WorkflowNodeState::Running
         ),
@@ -253,7 +254,7 @@ fn output_preview_uses_state_defaults_and_failure_errors() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({}),
             WorkflowNodeState::Completed
         ),
@@ -261,7 +262,7 @@ fn output_preview_uses_state_defaults_and_failure_errors() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"error": "  broken  "}),
             WorkflowNodeState::Failed
         ),
@@ -269,7 +270,7 @@ fn output_preview_uses_state_defaults_and_failure_errors() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({}),
             WorkflowNodeState::Failed
         ),
@@ -277,7 +278,7 @@ fn output_preview_uses_state_defaults_and_failure_errors() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "   "}),
             WorkflowNodeState::Completed
         ),
@@ -285,7 +286,7 @@ fn output_preview_uses_state_defaults_and_failure_errors() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "正在执行工作流节点"}),
             WorkflowNodeState::Running
         ),
@@ -301,7 +302,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
                 .expect("output json");
         assert_eq!(
             output_preview_text(
-                crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &json!({"output": output}),
                 WorkflowNodeState::Completed
             ),
@@ -311,7 +312,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
 
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "{\"usage\":{\"total_tokens\":2}}"}),
             WorkflowNodeState::Completed
         ),
@@ -319,7 +320,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "{\"value\":1,\"usage\":{\"total_tokens\":2}}"}),
             WorkflowNodeState::Completed
         ),
@@ -327,7 +328,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": " plain output "}),
             WorkflowNodeState::Completed
         ),
@@ -335,7 +336,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
     );
     assert_eq!(
         output_preview_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "[1,2]"}),
             WorkflowNodeState::Completed
         ),
@@ -352,7 +353,7 @@ fn node_meta_label_joins_only_available_metadata() {
     }});
     assert_eq!(
         node_meta_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value,
             "llm"
         ),
@@ -360,7 +361,7 @@ fn node_meta_label_joins_only_available_metadata() {
     );
     assert_eq!(
         node_meta_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({}),
             ""
         ),
@@ -368,7 +369,7 @@ fn node_meta_label_joins_only_available_metadata() {
     );
     assert_eq!(
         node_meta_label(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &json!({"metadata": {"index": "3"}}),
             "code"
         ),
@@ -380,17 +381,17 @@ fn node_meta_label_joins_only_available_metadata() {
 fn tool_workflow_view_rejects_malformed_wrong_tool_and_invalid_json() {
     let app = test_app();
 
-    assert!(tool_workflow_view(&app, 0, 0, "tool workflow_node").is_none());
-    assert!(tool_workflow_view(&app, 0, 0, "workflow_node\n{}").is_none());
-    assert!(tool_workflow_view(&app, 0, 0, "tool bash\n{}").is_none());
-    assert!(tool_workflow_view(&app, 0, 0, "tool workflow_node\nnot json").is_none());
+    assert!(tool_workflow_view(&app.files().card, 0, 0, "tool workflow_node").is_none());
+    assert!(tool_workflow_view(&app.files().card, 0, 0, "workflow_node\n{}").is_none());
+    assert!(tool_workflow_view(&app.files().card, 0, 0, "tool bash\n{}").is_none());
+    assert!(tool_workflow_view(&app.files().card, 0, 0, "tool workflow_node\nnot json").is_none());
 }
 
 #[test]
 fn tool_workflow_view_builds_running_waiting_completed_failed_and_cancelled_cards() {
     let app = test_app();
     let running = tool_workflow_view(
-        &app,
+        &app.files().card,
         1,
         1,
         "tool workflow_node\n{\"status\":\"running\",\"metadata\":{\"node_type\":\"llm\"}}",
@@ -399,7 +400,7 @@ fn tool_workflow_view_builds_running_waiting_completed_failed_and_cancelled_card
     keep_element(running);
 
     let waiting = tool_workflow_view(
-        &app,
+        &app.files().card,
         1,
         2,
         "tool workflow_node\n{\"status\":\"waiting\",\"metadata\":{\"node_type\":\"agent\"}}",
@@ -408,7 +409,7 @@ fn tool_workflow_view_builds_running_waiting_completed_failed_and_cancelled_card
     keep_element(waiting);
 
     let completed = tool_workflow_view(
-        &app,
+        &app.files().card,
         1,
         3,
         "tool workflow_node\n{\"status\":\"completed\",\"output\":\"{\\\"answer\\\":\\\"done\\\"}\",\"metadata\":{\"title\":\"Answer\"}}",
@@ -417,7 +418,7 @@ fn tool_workflow_view_builds_running_waiting_completed_failed_and_cancelled_card
     keep_element(completed);
 
     let failed = tool_workflow_view(
-        &app,
+        &app.files().card,
         1,
         4,
         "tool workflow_node\n{\"status\":\"denied\",\"error\":\"blocked\"}",
@@ -426,7 +427,7 @@ fn tool_workflow_view_builds_running_waiting_completed_failed_and_cancelled_card
     keep_element(failed);
 
     let cancelled = tool_workflow_view(
-        &app,
+        &app.files().card,
         1,
         5,
         "tool workflow_node\n{\"status\":\"cancelled\",\"metadata\":{\"plan_run\":true}}",
@@ -442,7 +443,7 @@ fn tool_workflow_view_builds_hovered_preview_card() {
     let visible = r#"tool WORKFLOW_NODE
 {"status":"completed","output":"ok","metadata":{"workflow_yaml":"nodes: []","node_id":"node-a"}}"#;
 
-    let element = tool_workflow_view(&app, 2, 4, visible).expect("hovered preview card");
+    let element = tool_workflow_view(&app.files().card, 2, 4, visible).expect("hovered preview card");
     keep_element(element);
 }
 
@@ -472,7 +473,7 @@ async fn plan_run_planning_card_uses_compact_state_copy_and_hover_details() {
     });
 
     let started_display = plan_run_card_display(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &started,
     )
     .expect("planning display");
@@ -485,7 +486,7 @@ async fn plan_run_planning_card_uses_compact_state_copy_and_hover_details() {
     );
 
     let created_display = plan_run_card_display(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &created,
     )
     .expect("created display");
@@ -518,7 +519,7 @@ async fn plan_run_planning_card_uses_compact_state_copy_and_hover_details() {
     let app = test_app();
     for value in [started, created] {
         let visible = format!("tool workflow_node\n{value}");
-        let element = tool_workflow_view(&app, 2, 4, &visible).expect("plan-run planning card");
+        let element = tool_workflow_view(&app.files().card, 2, 4, &visible).expect("plan-run planning card");
         keep_element(element);
     }
 }
@@ -576,7 +577,7 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
     let app = test_app();
     for (value, detail_fragment) in cases {
         let display = plan_run_card_display(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value,
         )
         .expect("subtask display");
@@ -588,14 +589,14 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
         assert_eq!(display.tooltip_text.as_deref(), Some(expected_tooltip.as_str()));
 
         let detail = workflow_node_detail_body(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value,
         );
         assert!(detail.contains(task_path));
         assert!(detail.contains(detail_fragment));
 
         let visible = format!("tool workflow_node\n{value}");
-        let mut element = tool_workflow_view(&app, 2, 4, &visible).expect("plan-run subtask card");
+        let mut element = tool_workflow_view(&app.files().card, 2, 4, &visible).expect("plan-run subtask card");
         let viewport = Size::new(1_200.0, 180.0);
         let limits = layout::Limits::new(Size::ZERO, viewport);
         let mut tree = Tree::new(element.as_widget());
@@ -616,7 +617,7 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
     });
     assert_eq!(
         plan_run_card_display(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &without_path
         )
         .and_then(|display| display.tooltip_text),
@@ -650,7 +651,7 @@ async fn plan_run_planning_card_caps_width_in_wide_viewport() {
     let app = test_app();
     let visible = r#"tool workflow_node
 {"status":"completed","metadata":{"plan_run":true,"event_type":"plan_created","task_id":"task-1-uuid","task_path":"/plans/task-1","subtask_count":3}}"#;
-    let mut element = tool_workflow_view(&app, 2, 4, visible).expect("plan-run planning card");
+    let mut element = tool_workflow_view(&app.files().card, 2, 4, visible).expect("plan-run planning card");
     let viewport = Size::new(1_200.0, 160.0);
     let limits = layout::Limits::new(Size::ZERO, viewport);
     let mut tree = Tree::new(element.as_widget());
@@ -677,7 +678,7 @@ fn workflow_preview_remains_available_for_nodes_with_child_session_ids() {
 
     assert!(matches!(
         workflow_preview_message(&value),
-        Some(Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml { .. }))
+        Some(Message::OpenInlineYaml { .. })
     ));
 }
 
@@ -685,7 +686,7 @@ fn workflow_preview_remains_available_for_nodes_with_child_session_ids() {
 fn desktop_gettext_area_8_workflow_plan_retains_raw_path() {
     let value = serde_json::json!({"metadata": {"plan_run": true, "event_type": "plan_created", "subtask_count": 3, "task_path": "中文/%s/%n"}});
     let display = plan_run_card_display(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::English),
         &value,
     )
     .unwrap();
@@ -709,12 +710,12 @@ fn desktop_gettext_area_18_plan_events_render_from_stable_event_types() {
     ] {
         let value = serde_json::json!({"metadata": {"plan_run": true, "event_type": event}});
         let en = plan_run_card_display(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::English),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::English),
             &value,
         )
         .unwrap();
         let zh = plan_run_card_display(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &value,
         )
         .unwrap();

@@ -83,3 +83,11 @@ mod tool_detail_dialog_tests;
 mod todo_fixture;
 #[cfg(test)]
 mod detail_fixture;
+
+pub mod web_view;
+pub mod workflow_view;
+pub mod tool_renderer;
+#[cfg(test)]
+mod web_view_tests;
+#[cfg(test)]
+mod tool_renderer_tests;

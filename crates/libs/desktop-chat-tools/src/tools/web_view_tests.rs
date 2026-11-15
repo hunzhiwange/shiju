@@ -1,14 +1,14 @@
 //! 验证网页工具的状态标题、元数据优先级与空值回退行为。
 //! 权限状态优先于错误，驼峰渲染提示优先于蛇形提示和普通数据字段。
 
-use super::ToolPermissionState;
-use super::tool_text_key;
+use super::tool_permission::ToolPermissionState;
+use crate::tool_text_support::tool_text_key;
 use super::web_view::{
     tool_web_view, web_metadata_bool, web_metadata_field, web_metadata_number, web_metadata_text,
     web_string_field, web_tool_title,
 };
-use crate::app::App;
-use crate::app::components::chat_panel::utils::chat_context_target_key;
+use super::view_fixture::TestApp as App;
+use crate::card_style::chat_context_target_key;
 use iced::widget::text_editor;
 use serde_json::json;
 
@@ -18,7 +18,7 @@ use serde_json::json;
 fn web_tool_title_running_suffix() {
     assert_eq!(
         web_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "网页搜索",
             None,
             true,
@@ -31,7 +31,7 @@ fn web_tool_title_running_suffix() {
 #[test]
 fn web_tool_title_approval_required() {
     let title = web_tool_title(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "网页搜索",
         Some(ToolPermissionState::ApprovalRequired),
         false,
@@ -43,7 +43,7 @@ fn web_tool_title_approval_required() {
 #[test]
 fn web_tool_title_rejected() {
     let title = web_tool_title(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "网页搜索",
         Some(ToolPermissionState::Rejected),
         false,
@@ -56,7 +56,7 @@ fn web_tool_title_rejected() {
 fn web_tool_title_error_suffix() {
     assert_eq!(
         web_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "网页搜索",
             None,
             false,
@@ -70,7 +70,7 @@ fn web_tool_title_error_suffix() {
 fn web_tool_title_base_title() {
     assert_eq!(
         web_tool_title(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "网页搜索",
             None,
             false,
@@ -84,7 +84,7 @@ fn web_tool_title_base_title() {
 fn web_tool_title_permission_takes_precedence_over_error() {
     // permission_state is checked before is_error, so permission title should win
     let title = web_tool_title(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "网页搜索",
         Some(ToolPermissionState::ApprovalRequired),
         false,
@@ -361,7 +361,7 @@ fn web_metadata_text_web_fetch_has_url() {
     let value = json!({"data":{"url":"https://example.test"}});
     assert!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "web_fetch",
             &value
         )
@@ -376,7 +376,7 @@ fn web_metadata_text_web_fetch_all_fields() {
         "data":{"url":"https://example.test"}
     });
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "web_fetch",
         &value,
     );
@@ -393,7 +393,7 @@ fn web_metadata_text_web_search_has_query_and_results() {
         "data":{"query":"rust programming"}
     });
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "web_search",
         &value,
     );
@@ -407,7 +407,7 @@ fn web_metadata_text_unknown_tool_returns_empty() {
     let value = json!({"data":{"url":"https://example.test"}});
     assert_eq!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "bash",
             &value
         ),
@@ -420,7 +420,7 @@ fn web_metadata_text_empty_value_returns_empty() {
     let value = json!({});
     assert_eq!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "web_fetch",
             &value
         ),
@@ -428,7 +428,7 @@ fn web_metadata_text_empty_value_returns_empty() {
     );
     assert_eq!(
         web_metadata_text(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             "web_search",
             &value
         ),
@@ -440,7 +440,7 @@ fn web_metadata_text_empty_value_returns_empty() {
 fn web_metadata_text_fetch_webpage() {
     let value = json!({"data":{"url":"https://example.test"}});
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "fetch_webpage",
         &value,
     );
@@ -451,7 +451,7 @@ fn web_metadata_text_fetch_webpage() {
 fn web_metadata_text_http_request() {
     let value = json!({"data":{"url":"https://api.example.test/data"}});
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "http_request",
         &value,
     );
@@ -465,7 +465,7 @@ fn web_metadata_text_join_parts_with_separator() {
         "renderHint":{"metadata":{"provider":"custom"}}
     });
     let text = web_metadata_text(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         "web_fetch",
         &value,
     );
@@ -481,22 +481,22 @@ fn app() -> App {
 #[test]
 fn tool_web_view_rejects_non_web_tool() {
     let app = app();
-    assert!(tool_web_view(&app, 0, 0, "tool bash\n{\"output\":\"ok\"}").is_none());
+    assert!(tool_web_view(&app.files().card, 0, 0, "tool bash\n{\"output\":\"ok\"}").is_none());
 }
 
 #[test]
 fn tool_web_view_rejects_malformed_header() {
     let app = app();
     // No "tool " prefix
-    assert!(tool_web_view(&app, 0, 0, "web_fetch\n{\"output\":\"ok\"}").is_none());
+    assert!(tool_web_view(&app.files().card, 0, 0, "web_fetch\n{\"output\":\"ok\"}").is_none());
     // No newline
-    assert!(tool_web_view(&app, 0, 0, "tool web_fetch").is_none());
+    assert!(tool_web_view(&app.files().card, 0, 0, "tool web_fetch").is_none());
 }
 
 #[test]
 fn tool_web_view_rejects_invalid_json() {
     let app = app();
-    assert!(tool_web_view(&app, 0, 0, "tool web_fetch\nnot-json").is_none());
+    assert!(tool_web_view(&app.files().card, 0, 0, "tool web_fetch\nnot-json").is_none());
 }
 
 #[test]
@@ -504,7 +504,7 @@ fn tool_web_view_returns_some_for_valid_fetch() {
     let app = app();
     let visible = r#"tool web_fetch
 {"output":"web content here"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -512,7 +512,7 @@ fn tool_web_view_returns_some_for_webfetch_alias() {
     let app = app();
     let visible = r#"tool webfetch
 {"output":"web content"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -520,7 +520,7 @@ fn tool_web_view_returns_some_for_web_search() {
     let app = app();
     let visible = r#"tool web_search
 {"output":"search results here","summary":"search complete"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -528,7 +528,7 @@ fn tool_web_view_returns_some_for_running_status() {
     let app = app();
     let visible = r#"tool web_fetch
 {"status":"running"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -536,7 +536,7 @@ fn tool_web_view_returns_some_for_error_status() {
     let app = app();
     let visible = r#"tool web_fetch
 {"status":"error","output":"connection failed"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -544,7 +544,7 @@ fn tool_web_view_returns_some_for_denied_status() {
     let app = app();
     let visible = r#"tool web_fetch
 {"status":"denied","output":"permission denied"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -553,7 +553,7 @@ fn tool_web_view_returns_none_for_empty_body_not_running() {
     // No status, no output, no summary → empty body, not running → None
     let visible = r#"tool web_fetch
 {}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_none());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_none());
 }
 
 #[test]
@@ -561,7 +561,7 @@ fn tool_web_view_accepts_fetch_webpage() {
     let app = app();
     let visible = r#"tool fetch_webpage
 {"output":"page content"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -569,7 +569,7 @@ fn tool_web_view_accepts_http_request() {
     let app = app();
     let visible = r#"tool http_request
 {"output":"api response"}"#;
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -578,7 +578,7 @@ fn tool_web_view_renders_request_with_url_without_output() {
     let visible = r#"tool web_fetch
 {"data":{"url":"https://example.test"}}"#;
 
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -587,7 +587,7 @@ fn tool_web_view_renders_summary_only_completed_result() {
     let visible = r#"tool web_search
 {"summary":"3 relevant results"}"#;
 
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -596,7 +596,7 @@ fn tool_web_view_renders_error_field_when_output_is_absent() {
     let visible = r#"tool web_fetch
 {"status":"error","error":"request timed out"}"#;
 
-    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+    assert!(tool_web_view(&app.files().card, 0, 0, visible).is_some());
 }
 
 #[test]
@@ -614,5 +614,5 @@ fn tool_web_view_renders_hovered_context_menu_with_cached_body_editor() {
     let visible = r#"tool web_fetch
 {"output":"network body","data":{"url":"https://example.test"}}"#;
 
-    assert!(tool_web_view(&app, msg_idx, tool_idx, visible).is_some());
+    assert!(tool_web_view(&app.files().card, msg_idx, tool_idx, visible).is_some());
 }

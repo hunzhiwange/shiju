@@ -86,8 +86,6 @@ mod command_summary_view_tests;
 mod text_view_tests;
 #[cfg(test)]
 mod tool_renderer_tests;
-#[cfg(test)]
-mod web_view_tests;
 
 // 工具视图函数重导出
 pub use crate::app::components::chat_panel::tool_text_support::{
@@ -121,8 +119,6 @@ pub use todo_views::{tool_todos_view, tool_todowrite_compact_view};
 pub use tool_detail_dialog::tool_detail_dialog_view;
 pub use tool_meta::tool_header_label;
 pub(crate) use tool_renderer::render_shared_tool_view;
-#[cfg(test)]
-pub(crate) use tool_renderer::{SharedToolRenderKind, shared_tool_render_kind};
 pub use web_view::tool_web_view;
 pub use workflow_view::tool_workflow_view;
 pub(crate) use workflow_view::workflow_node_detail_body;

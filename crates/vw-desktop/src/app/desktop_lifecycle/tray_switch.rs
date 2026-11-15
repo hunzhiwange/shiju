@@ -54,7 +54,7 @@ pub(crate) fn start(app: &mut App, id: String) -> Task<Message> {
             let host = worker_scope.host;
             let result = match worker_scope.app {
                 AppId::Claude => {
-                    client
+                    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                         .claude_provider_switch(
                             &worker_id,
                             &ClaudeTarget { target_host_id: host },

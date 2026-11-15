@@ -76,7 +76,7 @@ async fn cc04_claude_login_sdk_api_applies_bound_account_and_archives_original()
     let f = Fixture::new_with_keychain(Some(k.clone())).await;
     register(&f, k.as_ref());
     let response =
-        f.client.claude_provider_create("bound", &bound(&f, "existing"), TOKEN).await.unwrap();
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("bound", &bound(&f, "existing"), TOKEN).await.unwrap();
     assert_eq!(response.live, ClaudeLiveResult::Applied);
     assert_eq!(f.state()["pointer"]["id"], "bound");
     assert_eq!(k.read(None).unwrap().unwrap(), secret("target"));
@@ -100,7 +100,7 @@ async fn cc04_claude_login_sdk_api_denial_missing_account_and_write_failure_pres
     register(&f, k.as_ref());
     let before = std::fs::read(f.file()).unwrap();
     assert!(
-        f.client.claude_provider_create("denied", &bound(&f, "existing"), "wrong").await.is_err()
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("denied", &bound(&f, "existing"), "wrong").await.is_err()
     );
     assert!(f.record("denied").is_none());
     let granted = std::fs::read(&f.policy).unwrap();
@@ -108,7 +108,7 @@ async fn cc04_claude_login_sdk_api_denial_missing_account_and_write_failure_pres
     policy["principals"][0]["grants"][0]["identities"] = json!([]);
     std::fs::write(&f.policy, policy.to_string()).unwrap();
     assert!(
-        f.client
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone())
             .claude_provider_create("no-identity", &bound(&f, "existing"), TOKEN)
             .await
             .is_err()
@@ -119,14 +119,14 @@ async fn cc04_claude_login_sdk_api_denial_missing_account_and_write_failure_pres
     std::fs::write(&f.policy, granted).unwrap();
 
     assert_eq!(
-        f.client.claude_provider_create("missing", &bound(&f, "absent"), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("missing", &bound(&f, "absent"), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Failed
     );
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert_eq!(k.read(None).unwrap().unwrap(), secret("original"));
     std::fs::write(f.file(), b"invalid json").unwrap();
     let response =
-        f.client.claude_provider_create("broken", &bound(&f, "existing"), TOKEN).await.unwrap();
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("broken", &bound(&f, "existing"), TOKEN).await.unwrap();
     assert!(response.catalog_saved);
     assert_eq!(response.live, ClaudeLiveResult::Failed);
     assert_eq!(std::fs::read(f.file()).unwrap(), b"invalid json");

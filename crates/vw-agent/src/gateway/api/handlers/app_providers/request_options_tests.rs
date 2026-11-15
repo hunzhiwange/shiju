@@ -108,7 +108,7 @@ async fn cc04_ui_endpoints_options_survive_native_save_and_never_return_secrets(
         let before: Value = serde_json::from_str(&f.row(app)).unwrap();
         if app == AppId::Claude {
             let body=serde_json::from_value(json!({"targetHostId":"host","fields":{"name":"再次原生保存","category":null,"notes":null,"websiteUrl":null},"config":{"kind":"third_party","baseUrl":"https://fixture.test","apiKeyHeader":false,"apiKey":{"action":"keep"}},"model":null,"apply":false})).unwrap();
-            let result = f.client.claude_form_update("fixture", &body, TOKEN).await.unwrap();
+            let result = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_update("fixture", &body, TOKEN).await.unwrap();
             assert_eq!(result.live, ClaudeLiveResult::NotAttempted);
         } else {
             let mut profile: CodexProfile =

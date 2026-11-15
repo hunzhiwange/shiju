@@ -138,13 +138,13 @@ async fn cc04_ui_paths_saved_directory_is_used_by_native_activation_and_import()
         ClaudeActivation::First,
     );
     assert_eq!(
-        new_client.claude_provider_create("override", &first, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(new_client.transport().clone()).claude_provider_create("override", &first, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     let live: Value =
         serde_json::from_slice(&std::fs::read(directory.join("settings.json")).unwrap()).unwrap();
     assert_eq!(live["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-override-key");
-    new_client
+    gateway_app_provider::GatewayAppProviderClient::new(new_client.transport().clone())
         .claude_provider_import(
             "imported",
             &ClaudeImport { target_host_id: "host".into(), name: "Imported".into() },
@@ -203,8 +203,7 @@ async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
     for (index, (id, config)) in variants.into_iter().enumerate() {
         let activation =
             if index == 0 { ClaudeActivation::First } else { ClaudeActivation::CatalogOnly };
-        let result = f
-            .client
+        let result = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone())
             .claude_provider_create(id, &f.request(config.clone(), activation), TOKEN)
             .await
             .unwrap();
@@ -212,7 +211,7 @@ async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
         if index > 0 {
             assert_eq!(result.live, ClaudeLiveResult::NotAttempted);
             assert_eq!(
-                f.client.claude_provider_switch(id, &f.target(), TOKEN).await.unwrap().live,
+                gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch(id, &f.target(), TOKEN).await.unwrap().live,
                 ClaudeLiveResult::Applied
             );
         } else {
@@ -252,7 +251,7 @@ async fn cc04_claude_current_edit_reapply_import_and_inactive_edit_share_adapter
     let f = Fixture::new().await;
     let official = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert_eq!(
-        f.client.claude_provider_create("saved", &official, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("saved", &official, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     let third = f.request(
@@ -264,18 +263,17 @@ async fn cc04_claude_current_edit_reapply_import_and_inactive_edit_share_adapter
         ClaudeActivation::IfCurrent,
     );
     assert_eq!(
-        f.client.claude_provider_update("saved", &third, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_update("saved", &third, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert_eq!(f.live()["env"]["ANTHROPIC_API_KEY"], "fake-new");
     let bytes = std::fs::read(f.file()).unwrap();
     assert_eq!(
-        f.client.claude_provider_save("inactive", &third, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_save("inactive", &third, TOKEN).await.unwrap().live,
         ClaudeLiveResult::NotAttempted
     );
     assert_eq!(std::fs::read(f.file()).unwrap(), bytes);
-    let imported = f
-        .client
+    let imported = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone())
         .claude_provider_import(
             "imported",
             &ClaudeImport { target_host_id: "host".into(), name: "Imported".into() },
@@ -289,7 +287,7 @@ async fn cc04_claude_current_edit_reapply_import_and_inactive_edit_share_adapter
     std::fs::write(f.file(), br#"{"outside":true,"env":{"AWS_SECRET_ACCESS_KEY":"stray"}}"#)
         .unwrap();
     assert_eq!(
-        f.client.claude_provider_reapply("saved", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_reapply("saved", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert_eq!(
@@ -303,20 +301,20 @@ async fn cc04_claude_denied_and_invalid_requests_leave_database_and_files_untouc
     let f = Fixture::new().await;
     let before = std::fs::read(f.file()).unwrap();
     let request = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
-    assert!(f.client.claude_provider_create("denied", &request, "wrong-token").await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("denied", &request, "wrong-token").await.is_err());
     assert!(f.record("denied").is_none());
     let mut invalid = request.clone();
     invalid.claude.name.clear();
-    assert!(f.client.claude_provider_create("invalid", &invalid, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("invalid", &invalid, TOKEN).await.is_err());
     assert!(f.record("invalid").is_none());
     let mut wrong_host = request.clone();
     wrong_host.target_host_id = "other-host".into();
-    assert!(f.client.claude_provider_create("wrong-host", &wrong_host, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("wrong-host", &wrong_host, TOKEN).await.is_err());
     assert!(f.record("wrong-host").is_none());
     let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();
     policy["principals"][0]["grants"][0]["provider_config_write"] = json!(false);
     std::fs::write(&f.policy, policy.to_string()).unwrap();
-    assert!(f.client.claude_provider_create("denied", &request, TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("denied", &request, TOKEN).await.is_err());
     assert!(f.record("denied").is_none());
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert!(!f.root.path().join("private/provider-live").exists());
@@ -347,12 +345,12 @@ async fn cc04_claude_sync_projects_existing_universal_owner_and_applies_current_
         ClaudeSync { target_host_id: "host".into(), activation: ClaudeActivation::CatalogOnly };
     let before = std::fs::read(f.file()).unwrap();
     assert_eq!(
-        f.client.claude_provider_sync("parent", &request, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_sync("parent", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::NotAttempted
     );
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert_eq!(
-        f.client
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone())
             .claude_provider_switch("universal-claude-parent", &f.target(), TOKEN)
             .await
             .unwrap()
@@ -367,7 +365,7 @@ async fn cc04_claude_sync_projects_existing_universal_owner_and_applies_current_
         ClaudeActivation::IfCurrent,
     );
     assert_eq!(
-        f.client
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone())
             .claude_provider_update("universal-claude-parent", &edit, TOKEN)
             .await
             .unwrap()
@@ -377,7 +375,7 @@ async fn cc04_claude_sync_projects_existing_universal_owner_and_applies_current_
     write.api_key = ProviderSecretWrite::Replace { value: "fake-updated-key".into() };
     store.universal_save(&tenant, "parent", &write).unwrap();
     request.activation = ClaudeActivation::IfCurrent;
-    let result = f.client.claude_provider_sync("parent", &request, TOKEN).await.unwrap();
+    let result = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_sync("parent", &request, TOKEN).await.unwrap();
     assert!(result.catalog_saved);
     assert_eq!(result.live, ClaudeLiveResult::Applied);
     assert_eq!(f.live()["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-updated-key");
@@ -391,7 +389,7 @@ async fn cc04_claude_live_failure_reports_saved_catalog_and_reapply_repairs_it()
     let f = Fixture::new().await;
     let request = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert_eq!(
-        f.client.claude_provider_create("saved", &request, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("saved", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     std::fs::write(f.file(), b"invalid configuration").unwrap();
@@ -403,14 +401,14 @@ async fn cc04_claude_live_failure_reports_saved_catalog_and_reapply_repairs_it()
         },
         ClaudeActivation::IfCurrent,
     );
-    let result = f.client.claude_provider_update("saved", &request, TOKEN).await.unwrap();
+    let result = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_update("saved", &request, TOKEN).await.unwrap();
     assert!(result.catalog_saved);
     assert_eq!(result.live, ClaudeLiveResult::Failed);
     assert_eq!(std::fs::read(f.file()).unwrap(), b"invalid configuration");
     assert_eq!(f.state()["pointer"]["id"], "saved");
     std::fs::write(f.file(), b"{}").unwrap();
     assert_eq!(
-        f.client.claude_provider_reapply("saved", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_reapply("saved", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert_eq!(f.live()["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-retry");
@@ -421,7 +419,7 @@ async fn cc04_claude_legacy_path_first_activation_and_symlink_rejection() {
     std::fs::rename(f.file(), f.root.path().join(".claude/claude.json")).unwrap();
     let request = f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::First);
     assert_eq!(
-        f.client.claude_provider_create("legacy", &request, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("legacy", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert!(!f.file().exists());
@@ -429,7 +427,7 @@ async fn cc04_claude_legacy_path_first_activation_and_symlink_rejection() {
     let original = f.root.path().join(".claude/claude.json");
     let before = std::fs::read(&original).unwrap();
     std::os::unix::fs::symlink(&original, f.file()).unwrap();
-    assert!(f.client.claude_provider_switch("legacy", &f.target(), TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("legacy", &f.target(), TOKEN).await.is_err());
     assert_eq!(std::fs::read(original).unwrap(), before);
 }
 #[tokio::test]
@@ -464,7 +462,7 @@ async fn cc04_claude_registered_route_requires_gateway_authentication() {
 async fn cc04_claude_first_activation_creates_missing_config_and_catalog_defaults_do_not() {
     let f = Fixture::new().await;
     std::fs::remove_dir_all(f.root.path().join(".claude")).unwrap();
-    assert!(f.client.claude_provider_switch("missing", &f.target(), TOKEN).await.is_err());
+    assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("missing", &f.target(), TOKEN).await.is_err());
     assert!(!f.root.path().join(".claude").exists());
     assert!(!f.root.path().join("private/provider-live").exists());
     let mut request = f.request(
@@ -475,14 +473,14 @@ async fn cc04_claude_first_activation_creates_missing_config_and_catalog_default
         ClaudeActivation::CatalogOnly,
     );
     assert_eq!(
-        f.client.claude_provider_create("saved", &request, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("saved", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::NotAttempted
     );
     assert!(!f.file().exists());
     assert!(!f.root.path().join("private/provider-live").exists());
     request.activation = ClaudeActivation::First;
     assert_eq!(
-        f.client.claude_provider_save("saved", &request, TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_save("saved", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert_eq!(f.live()["env"]["AWS_BEARER_TOKEN_BEDROCK"], "fake-bearer");
@@ -495,15 +493,15 @@ async fn cc04_claude_committed_exclusives_survive_catalog_edits_until_switch_cle
     // Existing saved rows are consumed by the same projection adapter, not a second storage owner.
     store.upsert(&tenant,"app_providers.records","\"claude\":legacy",&json!({"name":"Legacy","settingsConfig":{"env":{"ANTHROPIC_BASE_URL":"https://legacy.example","ANTHROPIC_AUTH_TOKEN":"fake-legacy","CLAUDE_CODE_DISABLE_ARTIFACT":"1"}}}).to_string()).unwrap();
     assert_eq!(
-        f.client.claude_provider_switch("legacy", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("legacy", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert_eq!(f.live()["env"]["CLAUDE_CODE_DISABLE_ARTIFACT"], "1");
     let request =
         f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::CatalogOnly);
-    f.client.claude_provider_save("legacy", &request, TOKEN).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_save("legacy", &request, TOKEN).await.unwrap();
     assert_eq!(
-        f.client.claude_provider_reapply("legacy", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_reapply("legacy", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert!(f.live()["env"].get("CLAUDE_CODE_DISABLE_ARTIFACT").is_none());
@@ -532,7 +530,7 @@ async fn cc04_ui_claude_sdk_round_trip_projects_key_fields_on_the_authorized_hos
         model: Some("fixture-model".into()),
         apply: true,
     };
-    let saved = f.client.claude_form_create("form", &request, TOKEN).await.unwrap();
+    let saved = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_create("form", &request, TOKEN).await.unwrap();
     assert!(saved.catalog_saved);
     assert_eq!(saved.live, ClaudeLiveResult::Applied);
     assert_eq!(f.live()["env"]["ANTHROPIC_BASE_URL"], "https://api.example.test");
@@ -540,7 +538,7 @@ async fn cc04_ui_claude_sdk_round_trip_projects_key_fields_on_the_authorized_hos
     assert_eq!(f.live()["env"]["ANTHROPIC_MODEL"], "fixture-model");
     assert_eq!(f.live()["env"]["USER_FLAG"], "yes");
 
-    let view = f.client.claude_form_read("form", &f.target(), TOKEN).await.unwrap();
+    let view = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_read("form", &f.target(), TOKEN).await.unwrap();
     assert_eq!(view.fields, request.fields);
     assert_eq!(view.model, request.model);
     assert!(!serde_json::to_string(&view).unwrap().contains("fake-claude-key"));
@@ -551,26 +549,26 @@ async fn cc04_ui_claude_sdk_round_trip_projects_key_fields_on_the_authorized_hos
         api_key_header: true,
         api_key: ProviderSecretWrite::Keep,
     };
-    let saved = f.client.claude_form_update("form", &request, TOKEN).await.unwrap();
+    let saved = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_update("form", &request, TOKEN).await.unwrap();
     assert_eq!(saved.live, ClaudeLiveResult::Applied);
     assert_eq!(f.live()["env"]["ANTHROPIC_API_KEY"], "fake-claude-key");
     assert!(f.live()["env"].get("ANTHROPIC_AUTH_TOKEN").is_none());
 
     request.config = ClaudeFormConfig::Official {};
     request.model = None;
-    let saved = f.client.claude_form_update("form", &request, TOKEN).await.unwrap();
+    let saved = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_update("form", &request, TOKEN).await.unwrap();
     assert_eq!(saved.live, ClaudeLiveResult::Applied);
     for field in ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"] {
         assert!(f.live()["env"].get(field).is_none());
     }
     assert_eq!(f.live()["hooks"]["x"], true);
     assert!(!f.record("form").unwrap().contains("fake-claude-key"));
-    let view = f.client.claude_form_read("form", &f.target(), TOKEN).await.unwrap();
+    let view = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_read("form", &f.target(), TOKEN).await.unwrap();
     assert!(matches!(view.config, ClaudeFormKind::Official {}));
     assert_eq!(view.fields.website_url, request.fields.website_url);
 
     let before = std::fs::read(f.file()).unwrap();
-    let saved = f.client.claude_form_create("another", &request, TOKEN).await.unwrap();
+    let saved = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_create("another", &request, TOKEN).await.unwrap();
     assert_eq!(saved.live, ClaudeLiveResult::NotAttempted);
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
 }
@@ -596,7 +594,7 @@ async fn cc04_ui_claude_sdk_validation_and_permission_failures_do_not_write() {
         model: None,
         apply: true,
     };
-    f.client.claude_form_create("form", &request, TOKEN).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_create("form", &request, TOKEN).await.unwrap();
     let file = std::fs::read(f.file()).unwrap();
     let record = f.record("form");
     let state = f.state();
@@ -607,11 +605,11 @@ async fn cc04_ui_claude_sdk_validation_and_permission_failures_do_not_write() {
         api_key: ProviderSecretWrite::Keep,
     };
     assert!(matches!(
-        f.client.claude_form_update("form", &request, TOKEN).await,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_update("form", &request, TOKEN).await,
         Err(AgentAppsReadError::Http { status: 422, .. })
     ));
     assert!(matches!(
-        f.client.claude_form_read("form", &f.target(), "wrong-token").await,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_read("form", &f.target(), "wrong-token").await,
         Err(AgentAppsReadError::Http { status: 401, .. })
     ));
     let foreign = GatewayClient::new(
@@ -619,13 +617,13 @@ async fn cc04_ui_claude_sdk_validation_and_permission_failures_do_not_write() {
     )
     .unwrap();
     assert!(matches!(
-        foreign.claude_form_update("form", &request, TOKEN).await,
+        gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).claude_form_update("form", &request, TOKEN).await,
         Err(AgentAppsReadError::Http { status: 403, .. })
     ));
     request.config = ClaudeFormConfig::Official {};
     request.fields.website_url = Some("file:///tmp/not-allowed".into());
     assert!(matches!(
-        f.client.claude_form_update("form", &request, TOKEN).await,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_form_update("form", &request, TOKEN).await,
         Err(AgentAppsReadError::Http { status: 422, .. })
     ));
     assert_eq!(std::fs::read(f.file()).unwrap(), file);

@@ -37,7 +37,7 @@ pub(crate) async fn load(
     id: &str,
     token: &str,
 ) -> Result<ClaudeFormView, String> {
-    client
+    gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
         .claude_form_read(id, &ClaudeTarget { target_host_id: scope.host }, token)
         .await
         .map_err(error)
@@ -51,9 +51,9 @@ pub(crate) async fn save(
 ) -> Result<ClaudeLiveResult, String> {
     let request = form.claude_request(scope.host).ok_or("当前供应商配置不可通过此表单保存")?;
     let result = if matches!(form.mode, Mode::Create) {
-        client.claude_form_create(&form.id, &request, &token).await
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).claude_form_create(&form.id, &request, &token).await
     } else {
-        client.claude_form_update(&form.id, &request, &token).await
+        gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).claude_form_update(&form.id, &request, &token).await
     }
     .map_err(error)?;
     if !result.catalog_saved {

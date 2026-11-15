@@ -205,3 +205,9 @@ mod basic;
 
 #[path = "app_providers/request_options.rs"]
 mod request_options;
+
+#[path = "app_providers/claude.rs"]
+mod claude;
+#[cfg(test)]
+#[path = "app_providers/claude_tests.rs"]
+mod claude_tests;

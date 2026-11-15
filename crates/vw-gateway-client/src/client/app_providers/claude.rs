@@ -9,7 +9,8 @@ impl GatewayClient {
         target: &ClaudeTarget,
         token: &str,
     ) -> Result<ClaudeFormView, Error> {
-        self.claude_request(id, "POST", "/form/read", target, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_form_read(id, target, token).await
     }
 
     pub async fn claude_form_create(
@@ -18,7 +19,8 @@ impl GatewayClient {
         body: &ClaudeFormWrite,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "POST", "/form", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_form_create(id, body, token).await
     }
 
     pub async fn claude_form_update(
@@ -27,7 +29,8 @@ impl GatewayClient {
         body: &ClaudeFormWrite,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "PATCH", "/form", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_form_update(id, body, token).await
     }
 
     pub async fn claude_provider_create(
@@ -36,7 +39,8 @@ impl GatewayClient {
         body: &ClaudeWrite,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "POST", "", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_create(id, body, token).await
     }
     pub async fn claude_provider_save(
         &self,
@@ -44,7 +48,8 @@ impl GatewayClient {
         body: &ClaudeWrite,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "PUT", "", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_save(id, body, token).await
     }
     pub async fn claude_provider_update(
         &self,
@@ -52,7 +57,8 @@ impl GatewayClient {
         body: &ClaudeWrite,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "PATCH", "", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_update(id, body, token).await
     }
     pub async fn claude_provider_switch(
         &self,
@@ -60,7 +66,8 @@ impl GatewayClient {
         body: &ClaudeTarget,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "POST", "/switch", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_switch(id, body, token).await
     }
     pub async fn claude_provider_reapply(
         &self,
@@ -68,7 +75,8 @@ impl GatewayClient {
         body: &ClaudeTarget,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "POST", "/reapply", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_reapply(id, body, token).await
     }
     pub async fn claude_provider_import(
         &self,
@@ -76,7 +84,8 @@ impl GatewayClient {
         body: &ClaudeImport,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "POST", "/import", body, token).await
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_import(id, body, token).await
     }
     pub async fn claude_provider_sync(
         &self,
@@ -84,52 +93,7 @@ impl GatewayClient {
         body: &ClaudeSync,
         token: &str,
     ) -> Result<ClaudeResult, Error> {
-        self.claude_request(id, "POST", "/sync/claude", body, token).await
-    }
-    async fn claude_request<B: serde::Serialize, T: serde::de::DeserializeOwned>(
-        &self,
-        id: &str,
-        method: &str,
-        action: &str,
-        body: &B,
-        token: &str,
-    ) -> Result<T, Error> {
-        if id.is_empty()
-            || id.len() > 128
-            || !id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))
-        {
-            return Err(Error::Transport("invalid provider identity".into()));
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = (method, action, body, token);
-            Err(Error::Transport("Claude requires native transport".into()))
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut credential = reqwest::header::HeaderValue::from_str(token)
-                .map_err(|_| Error::Transport("invalid application credential".into()))?;
-            credential.set_sensitive(true);
-            let prefix = if action == "/sync/claude" {
-                "/v1/universal-providers"
-            } else {
-                "/v1/app-providers/claude"
-            };
-            let method = reqwest::Method::from_bytes(method.as_bytes())
-                .map_err(|_| Error::Transport("invalid method".into()))?;
-            let request = self.transport.dynamic_host_client()
-                .request(method, format!("{}{prefix}/{id}{action}", self.transport.endpoint().base_url()))
-                .header("x-agent-apps-token", credential)
-                .json(body);
-            let response = crate::http::apply_request_context(request, self.transport.endpoint())
-                .send()
-                .await
-                .map_err(|_| Error::Transport("Claude request failed".into()))?;
-            let status = response.status();
-            if !status.is_success() {
-                return Err(Error::Http { status: status.as_u16(), body: serde_json::Value::Null });
-            }
-            response.json().await.map_err(|_| Error::Decode("invalid Claude response".into()))
-        }
+        gateway_app_provider::GatewayAppProviderClient::new(self.transport.clone())
+            .claude_provider_sync(id, body, token).await
     }
 }

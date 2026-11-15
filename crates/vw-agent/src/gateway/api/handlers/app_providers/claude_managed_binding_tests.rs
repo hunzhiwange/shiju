@@ -54,7 +54,7 @@ fn allow_native_checkout(f: &Fixture) {
 async fn save_card(f: &Fixture, id: &str) {
     let request =
         f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::CatalogOnly);
-    f.client.claude_provider_create(id, &request, TOKEN).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create(id, &request, TOKEN).await.unwrap();
 }
 
 fn immutable(path: &Path, enabled: bool) {
@@ -116,21 +116,21 @@ async fn provider_claude_managed_binding_retains_catalog_and_live_references_und
     );
 
     assert_eq!(
-        f.client.claude_provider_switch("bound", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("bound", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Failed
     );
     assert_eq!(keychain.read(None).unwrap(), None);
     allow_native_checkout(&f);
     let before = std::fs::read(f.file()).unwrap();
     immutable(&f.file(), true);
-    let failed = f.client.claude_provider_switch("bound", &f.target(), TOKEN).await;
+    let failed = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("bound", &f.target(), TOKEN).await;
     immutable(&f.file(), false);
     assert_eq!(failed.unwrap().live, ClaudeLiveResult::Failed);
     assert_eq!(keychain.read(None).unwrap(), None);
     assert_eq!(std::fs::read(f.file()).unwrap(), before);
     assert!(!f.root.path().join(".claude/.shiju-login.json").exists());
     assert_eq!(
-        f.client.claude_provider_switch("bound", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("bound", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     assert_eq!(keychain.read(None).unwrap(), Some(secret("same")));
@@ -141,7 +141,7 @@ async fn provider_claude_managed_binding_retains_catalog_and_live_references_und
     );
 
     assert_eq!(
-        f.client.claude_provider_switch("unbound", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("unbound", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
     store.bind_claude_account(owner, host(&f, &root), "bound", Some("same"), None).unwrap();
@@ -156,11 +156,11 @@ async fn provider_claude_managed_binding_retains_catalog_and_live_references_und
     let mut next =
         f.request(ClaudeConfig::Official { account: None }, ClaudeActivation::CatalogOnly);
     next.claude.model = Some("fixture-next-model".into());
-    f.client.claude_provider_create("next", &next, TOKEN).await.unwrap();
+    gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_create("next", &next, TOKEN).await.unwrap();
     store.bind_claude_account(owner, host(&f, &root), "next", None, Some("next")).unwrap();
     let state_path = root.join("provider-live/aG9zdA/claude.state.json");
     immutable(&state_path, true);
-    let failed = f.client.claude_provider_switch("next", &f.target(), TOKEN).await;
+    let failed = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("next", &f.target(), TOKEN).await;
     immutable(&state_path, false);
     assert_eq!(failed.unwrap().live, ClaudeLiveResult::RecoveryRequired);
     assert_eq!(keychain.read(None).unwrap(), Some(secret("next")));
@@ -204,7 +204,7 @@ async fn provider_claude_managed_binding_rejects_legacy_and_unknown_live_identit
     register_managed(&f, &root, scope, &keychain, "existing");
     store.bind_claude_account(scope, host(&f, &root), "candidate", None, Some("existing")).unwrap();
     assert_eq!(
-        f.client.claude_provider_switch("candidate", &f.target(), TOKEN).await.unwrap().live,
+        gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_switch("candidate", &f.target(), TOKEN).await.unwrap().live,
         ClaudeLiveResult::Failed
     );
     assert_eq!(keychain.read(None).unwrap(), Some(secret("original")));

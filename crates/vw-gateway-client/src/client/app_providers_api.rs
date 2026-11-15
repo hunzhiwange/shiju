@@ -68,9 +68,6 @@ mod snippets;
 
 #[path = "app_providers/claude.rs"]
 mod claude;
-#[cfg(test)]
-#[path = "app_providers/claude_tests.rs"]
-mod claude_tests;
 
 #[cfg(test)]
 #[path = "app_providers/claude_login_tests.rs"]

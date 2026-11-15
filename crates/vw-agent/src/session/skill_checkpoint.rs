@@ -5,17 +5,11 @@ use super::compaction_checkpoint::{
 };
 use crate::skills::InvokedSkillRecord;
 use crate::storage;
-use serde::{Deserialize, Serialize};
+// Checkpoint serialization has a single owner in session-engine.
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Checkpoint {
-    #[serde(default)]
-    mount_revision: Option<u64>,
-    source_hashes: Vec<String>,
-    records: Vec<InvokedSkillRecord>,
-}
+use session_engine::skill_checkpoint::Checkpoint;
 
 fn agent_key(agent: &str) -> String {
     hex::encode(Sha256::digest(agent.as_bytes()))
@@ -77,50 +71,11 @@ pub(crate) async fn restore(
     Ok(Vec::new())
 }
 
-/// Fork copies source records and anchors only. The destination must still match
-/// its retained history and revalidate sources against its current skill policy.
-pub(super) async fn copy_scoped(
-    source_scope: &str,
-    target_scope: &str,
-    source: &str,
-    target: &str,
-    hashes: Option<&[String]>,
-) -> Result<(), String> {
-    for key in storage::list(&["skill_checkpoint", source_scope, source])
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        if key.len() != 5 {
-            return Err("invalid skill checkpoint key".into());
-        }
-        let checkpoint: Checkpoint =
-            storage::read(&key.iter().map(String::as_str).collect::<Vec<_>>())
-                .await
-                .map_err(|e| e.to_string())?;
-        if hashes.is_some_and(|hashes| !matches_prefix(hashes, &checkpoint.source_hashes)) {
-            continue;
-        }
-        storage::write_atomic(
-            &["skill_checkpoint", target_scope, target, &key[3], &key[4]],
-            &checkpoint,
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    }
-    Ok(())
+pub(super) async fn copy_scoped(source_scope: &str, target_scope: &str, source: &str, target: &str, hashes: Option<&[String]>) -> Result<(), String> {
+    session_engine::skill_checkpoint::copy_scoped(source_scope, target_scope, source, target, hashes).await
 }
-
 pub(crate) async fn remove(session: &str, directory: &str) -> Result<(), String> {
-    validate_session(session)?;
-    let scope = scope_for_directory(directory);
-    for key in
-        storage::list(&["skill_checkpoint", &scope, session]).await.map_err(|e| e.to_string())?
-    {
-        storage::remove(&key.iter().map(String::as_str).collect::<Vec<_>>())
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    session_engine::skill_checkpoint::remove(&scope_for_directory(directory), session).await
 }
 
 #[cfg(test)]

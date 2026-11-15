@@ -44,7 +44,6 @@ tempfile = "3"
 time = "0.3"
 tracing = "0.1"
 tokio = { version = "1", features = ["process"], optional = true }
-vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 
 [features]
 shell-tokio = ["dep:tokio"]

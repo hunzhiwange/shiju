@@ -7,7 +7,6 @@ license = "MIT"
 [dependencies]
 config-aggregate = { path = "../config-aggregate", version = "0.6.0" }
 config-gateway = { path = "../config-gateway", version = "0.6.0" }
-vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
 serde_json = "1"
 tracing = "0.1"
 

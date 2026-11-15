@@ -24,7 +24,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 vw-agent = { path = "../../vw-agent", version = "0.6.0", default-features = false }
 acp-server = { path = "../acp-server", version = "0.6.0" }
-vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }
 vw-shared = { path = "../../vw-shared", version = "0.6.0" }
 
 [dev-dependencies]

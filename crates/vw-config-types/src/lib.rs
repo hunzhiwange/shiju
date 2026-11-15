@@ -1,7 +1,6 @@
-//! VibeWindow 配置类型共享库
+//! 配置类型的兼容发布门面。
 //!
-//! 本库存放所有配置相关的纯数据类型定义，
-//! 供 `vw-agent`、`vw-desktop` 及其他模块共同使用。
+//! 各公开模块再导出对应领域库的唯一类型定义，保持既有发布路径。
 
 pub mod acp_install;
 pub mod agent;
@@ -27,10 +26,4 @@ pub mod tools;
 pub mod ui;
 pub mod voice;
 
-#[cfg(test)]
-mod computer_control_tests;
-
 pub mod worktree;
-
-#[cfg(test)]
-mod worktree_tests;

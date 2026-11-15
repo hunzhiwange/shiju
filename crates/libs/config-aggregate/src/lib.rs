@@ -482,3 +482,8 @@ impl Config {
 #[cfg(test)]
 #[path = "config_tests.rs"]
 mod config_tests;
+
+#[cfg(test)]
+mod computer_control_tests;
+#[cfg(test)]
+mod worktree_tests;

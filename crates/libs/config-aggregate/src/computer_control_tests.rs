@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::Config;
 use config_computer_control::*;
 
 #[test]
